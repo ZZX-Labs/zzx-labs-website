@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | ZZX-Labs</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="/static/js/script.js" defer></script>
+</head>
+<body>
+    <!-- Include Header and Navbar -->
+    {% include 'partials/header.html' %}
+
+    <main>
+        <section class="container">
+            <h1>Contact Us</h1>
+            <p>
+                Reach out to us for inquiries, partnerships, or support. We are here to assist you with any questions or 
+                concerns you may have. 
+            </p>
+        </section>
+
+        <section class="container">
+            <h2>Our Contact Information</h2>
+            <div class="contact-info">
+                <p>Email: <a href="mailto:contact@zzx-labs.com">contact@zzx-labs.com</a></p>
+                <p>Phone: (123) 456-7890</p>
+                <p>Address: 123 Innovation Street, Tech City, Country</p>
+            </div>
+
+            <h2>PGP Public Key</h2>
+            <pre>
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1
+
+mQENB...
+...F...
+-----END PGP PUBLIC KEY BLOCK-----
+            </pre>
+
+            <h3>GPG Fingerprint:</h3>
+            <pre>
+ABC1 23D4 56E7 89F0 12GH 34IJ 56KL 78MN 90OP QRST
+            </pre>
+
+        </section>
+
+        <section class="container cta">
+            <h2>Send Us a Message</h2>
+            <p>Use the form below to send us any inquiries or feedback:</p>
+            <form action="/send-message" method="post">
+                <input type="text" name="name" placeholder="Your Name" required>
+                <input type="email" name="email" placeholder="Your Email" required>
+                <textarea name="message" placeholder="Your Message" required></textarea>
+                <button type="submit" class="btn">Send Message</button>
+            </form>
+        </section>
+    </main>
+
+    <!-- Include Footer -->
+    {% include 'partials/footer.html' %}
+</body>
+</html>
