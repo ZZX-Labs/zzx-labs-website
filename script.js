@@ -28,12 +28,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Navigation Toggle (for mobile views)
-    const menuButton = document.querySelector("#navbar-toggle");
-    const navLinks = document.querySelector("#navbar-links");
+    const menuButton = document.querySelector("#menu-toggle");
+    const nav = document.querySelector("nav ul");
     
     if (menuButton) {
         menuButton.addEventListener("click", function () {
-            navLinks.classList.toggle("open");
+            nav.classList.toggle("open");
         });
     }
 });
+
+// Handle Menu Toggle for mobile screens
+const styleSheet = document.createElement("style");
+styleSheet.type = "text/css";
+styleSheet.innerText = `
+    nav ul.open {
+        display: block;
+    }
+    nav ul {
+        display: none;
+    }
+`;
+document.head.appendChild(styleSheet);
