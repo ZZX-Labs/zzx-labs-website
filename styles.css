@@ -3,12 +3,12 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'IBM Plex Mono', monospace; /* Applying IBM Plex Mono font globally */
+    font-family: 'Arial', sans-serif;
 }
 
 body {
-    background-color: #1e1e1e; /* Dark background */
-    color: #e0e0e0; /* Light gray text for contrast */
+    background-color: #f4f1eb; /* Light earthy background */
+    color: #333;
     line-height: 1.6;
     font-size: 16px;
 }
@@ -24,18 +24,18 @@ h1, h2, h3, h4 {
 }
 
 h1 {
-    font-size: 3em;
-    color: #C0D674; /* Accent color */
+    font-size: 2.5em;
+    color: #7e4e2f; /* Earthy brown */
 }
 
 h2 {
-    font-size: 2.5em;
-    color: #e0e0e0;
+    font-size: 2em;
+    color: #6d4b3d; /* Muted brown */
 }
 
 h3, h4 {
-    font-size: 1.8em;
-    color: #C0D674;
+    font-size: 1.5em;
+    color: #5c4039; /* Dark brown */
 }
 
 /* Layout */
@@ -49,35 +49,36 @@ h3, h4 {
 .cta {
     text-align: center;
     padding: 2rem;
-    background-color: #2a2a2a; /* Darker section background */
+    background-color: #f3e4b0; /* Mustard yellow */
     border-radius: 8px;
     margin-top: 2rem;
 }
 
 .cta a {
-    color: #1e1e1e;
+    color: #6d4b3d;
     font-weight: bold;
     padding: 0.5rem 1rem;
-    background-color: #C0D674;
+    background-color: #cfa228; /* Earthy yellow-orange */
     border-radius: 4px;
     transition: background-color 0.3s ease;
 }
 
 .cta a:hover {
-    background-color: #A1B72F; /* Slightly darker accent on hover */
+    background-color: #b97d1b;
 }
 
 /* Header/Footer */
 header {
-    background-color: #0a0a0a; /* Darker header */
-    color: #C0D674; /* Light accent text */
+    background-color: #5c4039; /* Dark brown */
+    color: white;
     padding: 1.5rem 0;
     text-align: center;
+    background-size: cover;
 }
 
 footer {
-    background-color: #0a0a0a;
-    color: #C0D674;
+    background-color: #7e4e2f; /* Earthy brown */
+    color: white;
     text-align: center;
     padding: 1.2rem 0;
     margin-top: 4rem;
@@ -90,7 +91,6 @@ footer p {
 /* Navigation */
 nav {
     margin: 1.5rem 0;
-    background-color: #1a1a1a;
 }
 
 nav ul {
@@ -98,6 +98,7 @@ nav ul {
     justify-content: center;
     list-style: none;
     padding: 0;
+    flex-direction: row;
 }
 
 nav ul li {
@@ -105,7 +106,7 @@ nav ul li {
 }
 
 nav ul li a {
-    color: #C0D674;
+    color: white;
     font-weight: bold;
     font-size: 1.1rem;
     text-transform: uppercase;
@@ -114,12 +115,25 @@ nav ul li a {
 }
 
 nav ul li a:hover {
-    background-color: #2a3d55;
+    background-color: #e6a42b; /* Warm ochre */
     border-radius: 4px;
 }
 
-.navbar-toggle {
-    display: none;
+/* Banner Image */
+.banner {
+    width: 100%;
+    height: 30vh;
+    background-image: url('your-banner-image.jpg'); /* Replace with actual image path */
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    display: block;
+}
+
+.banner img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
 }
 
 /* Form Styling */
@@ -134,17 +148,15 @@ input[type="text"], input[type="email"], textarea {
     width: 80%;
     padding: 0.8rem;
     margin-bottom: 1.5rem;
-    border: 1px solid #444;
+    border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 1rem;
-    background-color: #2a2a2a;
-    color: #e0e0e0;
 }
 
 button {
     padding: 1rem 2rem;
-    background-color: #C0D674;
-    color: #1e1e1e;
+    background-color: #6d4b3d; /* Dark brown */
+    color: white;
     font-size: 1.1rem;
     border: none;
     border-radius: 4px;
@@ -153,7 +165,7 @@ button {
 }
 
 button:hover {
-    background-color: #A1B72F;
+    background-color: #cfa228; /* Mustard yellow */
 }
 
 /* Table */
@@ -166,16 +178,16 @@ table {
 th, td {
     padding: 1rem;
     text-align: left;
-    border: 1px solid #444;
+    border: 1px solid #ddd;
 }
 
 th {
-    background-color: #0a0a0a;
-    color: #C0D674;
+    background-color: #6d4b3d; /* Muted brown */
+    color: white;
 }
 
 td {
-    background-color: #1e1e1e;
+    background-color: #fff;
 }
 
 /* Media Queries for Responsiveness */
@@ -198,12 +210,8 @@ td {
         padding: 0.7rem 1.5rem;
     }
 
-    .navbar-toggle {
-        display: block;
-        background: #C0D674;
-        color: #1e1e1e;
-        padding: 0.5rem;
-        border: none;
+    .banner {
+        height: 40vh; /* Adjust the height for smaller screens */
     }
 }
 
@@ -218,6 +226,10 @@ td {
 
     h2 {
         font-size: 1.5em;
+    }
+
+    .banner {
+        height: 50vh; /* More height for smaller screens */
     }
 }
 
@@ -238,14 +250,14 @@ td {
 
 .bitcoin img {
     margin-top: 10px;
-    border: 1px solid #444;
+    border: 1px solid #ccc;
     padding: 10px;
     border-radius: 10px;
 }
 
 .qrcode img {
     margin-top: 10px;
-    border: 1px solid #444;
+    border: 1px solid #ccc;
     padding: 10px;
     border-radius: 10px;
 }
