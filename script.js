@@ -1,33 +1,62 @@
-// Handle Mobile Navigation Menu Toggle
+// Select relevant elements
 const menuButton = document.querySelector('.menu-button');
 const navLinks = document.querySelector('.nav-links');
+const body = document.body;
 
-// Toggle the nav menu on small screens
+// Toggle the nav menu for mobile devices
 menuButton.addEventListener('click', () => {
-    navLinks.classList.toggle('open');
+    const isOpen = navLinks.classList.toggle('open');
+    
+    // Update aria attributes for accessibility
+    menuButton.setAttribute('aria-expanded', isOpen);
+    navLinks.setAttribute('aria-hidden', !isOpen);
+
+    // Prevent scrolling when menu is open (optional for UX)
+    if (isOpen) {
+        body.classList.add('no-scroll');
+    } else {
+        body.classList.remove('no-scroll');
+    }
 });
 
-// Smooth Scrolling for Anchor Links
-const anchorLinks = document.querySelectorAll('a[href^="#"]');
-
-anchorLinks.forEach(link => {
+// Smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
         const targetId = link.getAttribute('href').substring(1);
         const targetElement = document.getElementById(targetId);
-        
+
         if (targetElement) {
             window.scrollTo({
-                top: targetElement.offsetTop - 60, // Adjust for fixed header
+                top: targetElement.offsetTop - 60, // Adjust for fixed headers
                 behavior: 'smooth'
             });
+
+            // Close mobile nav if open
+            if (navLinks.classList.contains('open')) {
+                navLinks.classList.remove('open');
+                menuButton.setAttribute('aria-expanded', false);
+                navLinks.setAttribute('aria-hidden', true);
+                body.classList.remove('no-scroll');
+            }
         }
     });
 });
 
-// Handle Button Hover Effects
-const buttons = document.querySelectorAll('button');
+// Handle active state for navigation links
+const navLinksList = document.querySelectorAll('.nav-links a');
 
+navLinksList.forEach(link => {
+    link.addEventListener('click', () => {
+        // Remove active class from all links
+        navLinksList.forEach(navLink => navLink.classList.remove('active'));
+        // Add active class to the clicked link
+        link.classList.add('active');
+    });
+});
+
+// Button hover and scale effects
+const buttons = document.querySelectorAll('button');
 buttons.forEach(button => {
     button.addEventListener('mouseover', () => {
         button.style.transform = 'scale(1.05)';
@@ -42,67 +71,17 @@ buttons.forEach(button => {
     });
 });
 
-// Handle Active State on Navigation Links
-const navLinksList = document.querySelectorAll('.nav-links a');
-
-navLinksList.forEach(link => {
-    link.addEventListener('mouseover', () => {
-        link.style.backgroundColor = '#e6a42b';
-        link.style.transform = 'scale(1.05)';
-    });
-
-    link.addEventListener('mouseout', () => {
-        link.style.backgroundColor = '';
-        link.style.transform = 'scale(1)';
-    });
-
-    link.addEventListener('mousedown', () => {
-        link.style.transform = 'scale(1)';
-    });
-});
-
-// Handle Form Submission (Example: AJAX or simple alert)
-const form = document.querySelector('form');
-
-if (form) {
-    form.addEventListener('submit', function (e) {
-        e.preventDefault(); // Prevent actual submission for now
-        const formData = new FormData(form);
-        
-        // Example of using FormData with fetch API for AJAX submission (uncomment to enable):
-        /*
-        fetch('/submit-form', {
-            method: 'POST',
-            body: formData,
-        }).then(response => {
-            if (response.ok) {
-                alert('Form submitted successfully!');
-            } else {
-                alert('Error submitting form!');
-            }
-        }).catch(error => {
-            alert('Error: ' + error);
-        });
-        */
-        
-        alert('Form submitted!');
-    });
-}
-
-// Handle Scroll Animations (optional: for when elements appear on scroll)
+// Scroll animations for elements in view
 const scrollElements = document.querySelectorAll('.scroll-animation');
 
-const isElementInViewport = (el) => {
+const isInViewport = (el) => {
     const rect = el.getBoundingClientRect();
-    return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.bottom >= 0
-    );
+    return rect.top <= (window.innerHeight || document.documentElement.clientHeight) && rect.bottom >= 0;
 };
 
-const scrollAnimation = () => {
+const handleScrollAnimation = () => {
     scrollElements.forEach(el => {
-        if (isElementInViewport(el)) {
+        if (isInViewport(el)) {
             el.classList.add('in-view');
         } else {
             el.classList.remove('in-view');
@@ -110,15 +89,5 @@ const scrollAnimation = () => {
     });
 };
 
-window.addEventListener('scroll', scrollAnimation);
-scrollAnimation(); // Run once on load to handle any pre-visible elements
-
-// Handle Button Clicks for Forms/Actions (Example: For handling CTA button clicks)
-const ctaButtons = document.querySelectorAll('.cta-button');
-
-ctaButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        // Example action for CTA button
-        alert('CTA Button clicked!');
-    });
-});
+window.addEventListener('scroll', handleScrollAnimation);
+handleScrollAnimation();
