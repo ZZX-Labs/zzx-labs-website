@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: 'IBM Plex Mono';
+    font-family: 'IBM Plex Mono', monospace;
     color: #d1d1d1; /* Light gray text for a sleek feel */
     background-color: #282828; /* Dark charcoal background */
     line-height: 1.6;
@@ -22,66 +22,86 @@ body {
 
 /* Header Styles */
 header {
-    background-color: #3b3b3b; /* Darker gray for the header */
-    padding: 2rem 0;
+    position: relative;
+    background-image: url('images/banner.jpg');
+    background-size: cover;
+    background-position: center;
+    height: 60vh; /* Responsive height */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
     text-align: center;
 }
 
 header h1 {
     font-size: 3rem;
-    color: #f1f1f1; /* Light off-white text */
+    color: #f1f1f1;
     font-weight: bold;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
     letter-spacing: 3px;
+    margin-bottom: 1rem;
 }
 
 header h1 span {
     color: #c79c6e; /* Gold accent for visual interest */
 }
 
+header p {
+    font-size: 1.2rem;
+    max-width: 80%;
+    margin: 0 auto;
+    line-height: 1.4;
+    color: #e0e0e0;
+}
+
 /* Navigation Styles */
 nav {
     background-color: #444444; /* Subtle dark gray for the nav background */
-    padding: 1rem 0;
-    position: relative;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-.menu-button {
+nav .menu-button {
     display: none;
-    font-size: 2.5rem;
+    font-size: 2rem;
     color: #c79c6e; /* Gold accent color */
     background: transparent;
     border: none;
     cursor: pointer;
-    position: absolute;
-    top: 12.5%;
-    left: 2rem;
-    transform: translateY(-50%);
 }
 
-.nav-links {
+nav .nav-links {
     display: flex;
-    justify-content: left;
     list-style: none;
+    gap: 1.5rem;
 }
 
 .nav-links li {
-    margin: 0 2rem;
+    position: relative;
 }
 
 .nav-links li a {
     color: #d1d1d1;
     font-weight: bold;
     text-transform: uppercase;
-    font-size: 1.2rem;
-    padding: 0.5rem;
+    font-size: 1.1rem;
+    padding: 0.5rem 1rem;
     transition: background-color 0.3s, transform 0.3s ease;
     letter-spacing: 1px;
+    border-radius: 4px;
 }
 
 .nav-links li a:hover {
-    background-color: #c79c6e; /* Subtle gold hover effect */
-    transform: scale(1.1); /* Slight zoom effect on hover */
-    border-radius: 4px;
+    background-color: #c79c6e;
+    transform: scale(1.1);
 }
 
 .nav-links li a:active {
@@ -90,6 +110,11 @@ nav {
 
 /* Mobile Navigation */
 @media (max-width: 768px) {
+    nav {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .menu-button {
         display: block;
     }
@@ -97,7 +122,10 @@ nav {
     .nav-links {
         display: none;
         flex-direction: column;
-        text-align: center;
+        width: 100%;
+        text-align: left;
+        background-color: #444444;
+        padding: 1rem 0;
     }
 
     .nav-links.open {
@@ -105,11 +133,12 @@ nav {
     }
 
     .nav-links li {
-        margin: 1rem 0;
+        margin: 0.5rem 0;
     }
 
     .nav-links li a {
-        font-size: 1.4rem;
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
     }
 }
 
@@ -126,164 +155,28 @@ footer p {
     letter-spacing: 1px;
 }
 
-/* Banner Image Styles */
-header {
-    background-image: url('images/banner.jpg');
-    background-position: left center;
-    background-size: cover;
-    width: 85%;
-    height: 50vh; /* Responsive height for the header image */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-}
-
-header h1 {
-    font-size: 3rem;
-    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); /* Subtle text shadow */
-}
-
-/* Content Section Styles */
-section {
-    padding: 3rem 0;
-}
-
-h2, h3, h4 {
-    font-weight: bold;
-    letter-spacing: 2px;
-    color: #c79c6e; /* Earthy gold for subheadings */
-}
-
-/* Links Styles */
-a {
-    color: #c79c6e;
-    text-decoration: none;
-    transition: color 0.3s ease, transform 0.3s ease;
-}
-
-a:hover {
-    color: #e6a42b; /* Lighter gold accent */
-    transform: scale(1.05);
-}
-
-a:active {
-    color: #c79c6e;
-    transform: scale(1);
-}
-
-/* Button Styles */
-button {
-    background-color: #c79c6e; /* Earthy gold */
-    color: #fff;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s ease;
-}
-
-button:hover {
-    background-color: #e6a42b;
-    transform: scale(1.05);
-}
-
-button:active {
-    transform: scale(1);
-}
-
-/* Form Styles */
-form {
-    background-color: #444444;
-    padding: 2rem;
-    border-radius: 8px;
-    max-width: 600px;
-    margin: 2rem auto;
-}
-
-form input, form textarea {
-    width: 100%;
-    padding: 1rem;
-    margin: 1rem 0;
-    border-radius: 4px;
-    border: 1px solid #d1d1d1;
-    background-color: #333333;
-    color: #fff;
-}
-
-form input[type="submit"] {
-    background-color: #c79c6e;
-    cursor: pointer;
-}
-
-form input[type="submit"]:hover {
-    background-color: #e6a42b;
-}
-
-/* Card Component Styles */
-.card {
-    background-color: #555555;
-    padding: 1.5rem;
-    margin: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.card h3 {
-    font-size: 1.5rem;
-    color: #c79c6e;
-}
-
-.card p {
-    color: #d1d1d1;
-}
-
-/* Table Styles */
-table {
-    width: 100%;
-    margin: 2rem 0;
-    border-collapse: collapse;
-}
-
-table th, table td {
-    padding: 1rem;
-    border: 1px solid #444444;
-    text-align: left;
-}
-
-table th {
-    background-color: #333333;
-    color: #fff;
-}
-
-table tr:nth-child(even) {
-    background-color: #555555;
-}
-
-table tr:hover {
-    background-color: #666666;
-}
-
-/* Media Queries */
+/* Responsive Banner Text */
 @media (max-width: 1024px) {
     header h1 {
         font-size: 2.5rem;
     }
 
-    .container {
-        width: 95%;
+    header p {
+        font-size: 1rem;
+        max-width: 90%;
     }
 }
 
 @media (max-width: 768px) {
+    header {
+        height: 50vh;
+    }
+
     header h1 {
         font-size: 2rem;
+    }
+
+    header p {
+        font-size: 0.9rem;
     }
 }
