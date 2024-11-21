@@ -193,21 +193,32 @@ p {
 /* ========== Features Section ========== */
 .features {
     display: flex;
+    flex-wrap: wrap;
     gap: 2rem;
     padding: 2rem 0;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    justify-content: center; /* Ensures content is centered */
+    align-items: center; /* Centers items vertically */
     text-align: center;
-    align-items: center;
 }
 
 .feature {
     background-color: #333;
     padding: 1rem;
     border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+
+    /* Default for wider screens: multiple tiles across */
     flex: 1 1 calc(33.333% - 2rem);
     max-width: calc(33.333% - 2rem);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Adjustments for smaller screens */
+@media (max-width: 768px) {
+    .feature {
+        /* Single-column layout for smaller devices */
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
 }
 
 .feature h3 {
