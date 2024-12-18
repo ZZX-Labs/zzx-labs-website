@@ -15,7 +15,7 @@ async function updateTicker() {
 
     // Calculate subunits
     const mbtc = btcPrice * 0.001; // 1 BTC = 1000 mBTC
-    const ubtc = btcPrice * 0.00001; // 1 BTC = 1,000,000 μBTC
+    const ubtc = btcPrice * 0.000001; // 1 BTC = 1,000,000 μBTC
     const sats = btcPrice * 0.00000001; // 1 BTC = 100,000,000 sats
 
     // Update values
