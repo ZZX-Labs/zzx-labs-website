@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Our Mission | ZZX-Labs</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="script.js" defer></script>
+    <link rel="stylesheet" href="static/styles.css">
+    <script src="static/script.js" defer></script>
 </head>
 <body>
 <header class="header">
@@ -52,8 +53,8 @@
                 <!-- <li><a href="downloads/charts.html">Charts</a></li> -->
                 <!-- <li><a href="downloads/software.html">Software</a></li> -->
                 <!-- <li><a href="downloads/tools.html">Tools</a></li> -->
-                <li><a href="blog/blog.html">Blog</a></li>
-                <!-- <li><a href="blog/rss.html">RSS</a></li> -->
+                <li><a href="blog.html">Blog</a></li>
+                <!-- <li><a href="blog/rss/rss.html">RSS</a></li> -->
                 <li><a href="shop/payments.html">Payments</a></li>
                 <!-- <li><a href="shop/shop.html">Shop</a></li> -->
                 <li><a href="careers.html">Careers</a></li>
@@ -68,6 +69,11 @@
 </header>
 
     <main>
+        <br>
+        <!-- Bitcoin Ticker Widget -->
+        <div id="ticker-container"></div>
+        <br>
+        
         <section class="container">
             <h1>Our Mission</h1>
             <p>
@@ -152,5 +158,18 @@
         </div>
         <br><br>
 </footer>
+<script>
+    // Dynamically load the ticker HTML into the container
+    fetch('bitcoin/ticker/ticker.html')
+      .then(response => response.text())
+      .then(html => {
+        document.getElementById('ticker-container').innerHTML = html;
+        // Dynamically load and execute the ticker.js script
+        const script = document.createElement('script');
+        script.src = 'bitcoin/ticker/ticker.js';
+        document.body.appendChild(script);
+      })
+      .catch(error => console.error('Error loading ticker widget:', error));
+  </script>
 </body>
 </html>
