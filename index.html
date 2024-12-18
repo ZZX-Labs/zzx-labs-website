@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>[:[ZZX-Labs]:] R & D</title>
     <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="bitcoin/ticker/ticker.css">
     <script src="static/script.js" defer></script>
 </head>
 <body>
@@ -83,7 +84,7 @@
 
 <main>
     <!-- Placeholder for Bitcoin Ticker Widget -->
-    <!-- <container></container> -->
+    <div id="ticker-container"></div>
 
     
     <section class="hero">
@@ -143,5 +144,18 @@
         </div>
         <br><br>
 </footer>
+<script>
+    // Dynamically load the ticker HTML into the container
+    fetch('bitcoin/ticker/ticker.html')
+      .then(response => response.text())
+      .then(html => {
+        document.getElementById('ticker-container').innerHTML = html;
+        // Dynamically load and execute the ticker.js script
+        const script = document.createElement('script');
+        script.src = 'bitcoin/ticker/ticker.js';
+        document.body.appendChild(script);
+      })
+      .catch(error => console.error('Error loading ticker widget:', error));
+  </script>
 </body>
 </html>
