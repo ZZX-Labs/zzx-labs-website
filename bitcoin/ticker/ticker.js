@@ -14,15 +14,15 @@ async function updateTicker() {
     const btcPrice = parseFloat(data.data.amount);
 
     // Calculate subunits
-    const mbtc = btcPrice / 1000; // 1 BTC = 1000 mBTC
-    const ubtc = btcPrice / 1000000; // 1 BTC = 1,000,000 μBTC
-    const sats = btcPrice / 100000000; // 1 BTC = 100,000,000 sats
+    const mbtc = btcPrice * 0.01; // 1 BTC = 1000 mBTC
+    const ubtc = btcPrice * 0.0001; // 1 BTC = 1,000,000 μBTC
+    const sats = btcPrice * 0.00000001; // 1 BTC = 100,000,000 sats
 
     // Update values
     btcValue.textContent = btcPrice.toFixed(2);
     mbtcValue.textContent = mbtc.toFixed(2);
-    ubtcValue.textContent = ubtc.toFixed(2);
-    satsValue.textContent = sats.toFixed(0);
+    ubtcValue.textContent = ubtc.toFixed(4);
+    satsValue.textContent = sats.toFixed(6);
   } catch (error) {
     console.error('Error fetching Bitcoin price:', error);
   }
