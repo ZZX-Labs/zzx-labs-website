@@ -14,9 +14,9 @@ async function updateTicker() {
     const btcPrice = parseFloat(data.data.amount);
 
     // Calculate subunits
-    const mbtc = btcPrice * 1000; // 1 BTC = 1000 mBTC
-    const ubtc = btcPrice * 1000000; // 1 BTC = 1,000,000 μBTC
-    const sats = btcPrice * 100000000; // 1 BTC = 100,000,000 sats
+    const mbtc = btcPrice / 1000; // 1 BTC = 1000 mBTC
+    const ubtc = btcPrice / 1000000; // 1 BTC = 1,000,000 μBTC
+    const sats = btcPrice / 100000000; // 1 BTC = 100,000,000 sats
 
     // Update values
     btcValue.textContent = btcPrice.toFixed(2);
