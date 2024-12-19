@@ -55,6 +55,27 @@ navLinksList.forEach(link => {
     });
 });
 
+// JavaScript for toggling menus
+document.addEventListener('DOMContentLoaded', () => {
+    const navbarToggle = document.getElementById('navbar-toggle');
+    const navbarLinks = document.getElementById('navbar-links');
+    const submenuToggles = document.querySelectorAll('.submenu-toggle');
+
+    // Toggle main menu
+    navbarToggle.addEventListener('click', () => {
+        navbarLinks.classList.toggle('open');
+    });
+
+    // Toggle submenus
+    submenuToggles.forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            const submenu = toggle.nextElementSibling;
+            submenu.classList.toggle('open');
+            toggle.classList.toggle('open'); // Rotate arrow
+        });
+    });
+});
+
 // Button hover and scale effects
 const buttons = document.querySelectorAll('button');
 buttons.forEach(button => {
