@@ -5,75 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>Bitcoin Ticker</title>
-  <style>
-    @font-face {
-      font-family: 'AdultSwimFont';
-      src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-    }
-
-    @font-face {
-      font-family: 'IBMPlexMono';
-      src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-    }
-
-    body {
-      margin: 0;
-      font-family: 'IBMPlexMono', mono; /* Default font for the body */
-      background-color: #000;  /* Overall page background is black */
-      color: #c0d674;  /* Text color */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-
-    #ticker-container {
-      background-color: #000;  /* Black background for the container */
-      color: #c0d674;  /* Text color */
-      padding: 20px;
-      border-radius: 10px;
-      border: 8px solid #e6a42b; /* Border with color and width */
-      margin-left: 20px;  /* Padding from the left side */
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
-
-    #btc {
-      font-family: 'AdultSwimFont', sans-serif;  /* AdultSwimFont for BTC and its value */
-      color: #c0d674;  /* Text color */
-      font-size: 2rem;
-      margin-bottom: 10px;
-    }
-
-    #subunits {
-      background: #333;  /* Greyish background for the subunit area */
-      padding: 10px;
-      border-radius: 8px;
-    }
-
-    .unit {
-      font-family: 'IBMPlexMono', mono;  /* IBMPlexMono for subunit values */
-      font-size: 1.2rem;
-      color: #e6a42b;  /* Text color */
-      margin: 5px 0;
-    }
-
-  </style>
+  <link rel="stylesheet" href="ticker.css">
 </head>
 <body>
-  <div id="ticker-container">
-    <div id="ticker">
-      <div id="btc">
+  <div id="ticker-container" style="margin-left: 20px; background-color: #000; border: 8px solid #e6a42b; border-radius: 10px; padding: 20px; display: inline-block;">
+    <div id="ticker" style="text-align: center; color: #c0d674; font-family: 'IBMPlexMono', sans-serif;">
+      <div id="btc" style="font-family: 'AdultSwimFont', sans-serif; color: #c0d674; font-size: 2rem; margin-bottom: 10px;">
         BTC: $<span id="btc-value">0.00</span>
       </div>
-      <div id="subunits">
-        <div class="unit">mBTC: $<span id="mbtc-value">0.00</span></div>
-        <div class="unit">μBTC: $<span id="ubtc-value">0.00</span></div>
-        <div class="unit">sats: $<span id="sats-value">0.00</span></div>
+      <div id="subunits" style="background-color: #333; padding: 10px; border-radius: 8px;">
+        <div class="unit" style="font-family: 'IBMPlexMono', sans-serif; color: #e6a42b; font-size: 1.2rem; margin: 5px 0;">
+          mBTC: $<span id="mbtc-value">0.00</span>
+        </div>
+        <div class="unit" style="font-family: 'IBMPlexMono', sans-serif; color: #e6a42b; font-size: 1.2rem; margin: 5px 0;">
+          μBTC: $<span id="ubtc-value">0.00</span>
+        </div>
+        <div class="unit" style="font-family: 'IBMPlexMono', sans-serif; color: #e6a42b; font-size: 1.2rem; margin: 5px 0;">
+          sats: $<span id="sats-value">0.00</span>
+        </div>
       </div>
     </div>
   </div>
-  
   <script src="ticker.js"></script>
 </body>
 </html>
