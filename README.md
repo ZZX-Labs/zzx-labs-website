@@ -1,3 +1,7 @@
+---
+<img src="static/images/ZZX Labs Typographic Logo.png">
+---
+
 # ZZX-Labs-Website
 
 Welcome to the **ZZX-Labs Website** repository! This project contains all the files needed for hosting the ZZX-Labs website, a private technology research & development services provider, and allows for seamless integration with mirrored local servers for development and production.
