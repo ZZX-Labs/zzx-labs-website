@@ -8,6 +8,6 @@ You may donate to the project at this address: <br>
 
 ---
 
-<img src="static/images/address-qr.png" style="width:240px;">
+<img src="static/images/addresses/address-qr.png" style="width:240px;">
 
 ---
