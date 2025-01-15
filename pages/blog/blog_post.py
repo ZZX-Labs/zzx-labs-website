@@ -1,6 +1,6 @@
 import os
 
-# List of blog post titles
+# List of blog post titles (in chronological order)
 post_titles = [
     "Cybersecurity Trends in 2024", 
     "Cybersecurity Trends in 2025",
@@ -50,8 +50,8 @@ post_titles = [
     "The Future of Web Security Innovation"
 ]
 
-# Function to read .txt content, image and generate an HTML page
-def generate_html(post_title, post_date, post_content, image_path):
+# Function to read .txt content, image, and generate an HTML page
+def generate_html(post_title, post_date, post_content, image_path, post_dir):
     # Check if the image file exists
     if not os.path.exists(image_path):
         image_tag = ""  # No image if file doesn't exist
@@ -91,7 +91,7 @@ def generate_html(post_title, post_date, post_content, image_path):
 
     # Create the HTML file name based on the post title
     file_name = post_title.lower().replace(" ", "_") + ".html"
-    file_path = os.path.join("blog_posts", post_title.lower().replace(" ", "_"), file_name)
+    file_path = os.path.join(post_dir, file_name)
 
     # Write the HTML content to a file
     with open(file_path, "w") as file:
@@ -100,22 +100,25 @@ def generate_html(post_title, post_date, post_content, image_path):
 # Set a default post date for all blog posts
 post_date = "January 15, 2025"  # You can adjust the date or use dynamic dates if necessary
 
-# Iterate through the post titles and create corresponding HTML files
-for title in post_titles:
+# Create blog post directories and generate HTML pages
+for i, title in enumerate(post_titles):
+    # Format numeric directory name (0000, 0001, 0002, ...)
+    post_dir = os.path.join("blog_posts", f"{i:04d}")
+    
+    # Ensure the directory exists
+    os.makedirs(post_dir, exist_ok=True)
+    
     try:
-        # Define the directory for each post
-        post_dir = os.path.join("blog_posts", title.lower().replace(" ", "_"))
-        
         # Read the content from the .txt file
         txt_file_path = os.path.join(post_dir, f"{title.lower().replace(' ', '_')}.txt")
         with open(txt_file_path, "r") as file:
             content = file.read()
 
-        # Check for the image file in the same directory
-        image_path = os.path.join(post_dir, "image.jpg")  # Adjust the image name and extension if needed
+        # Check for the image file in the same directory (adjust image file name if needed)
+        image_path = os.path.join(post_dir, "image.jpg")  # Assuming the image is named 'image.jpg'
 
         # Generate the HTML page for each post
-        generate_html(title, post_date, content, image_path)
+        generate_html(title, post_date, content, image_path, post_dir)
 
     except FileNotFoundError:
         print(f"Error: {title}.txt or image not found in {post_dir}!")
