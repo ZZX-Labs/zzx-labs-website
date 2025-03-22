@@ -1,5 +1,5 @@
 
-<img src="../static/images/ZZX Labs Typographic Logo.png">
+<img src="../../static/images/ZZX Labs Typographic Logo.png">
 ---
 
 # ZZX-Labs-Website
