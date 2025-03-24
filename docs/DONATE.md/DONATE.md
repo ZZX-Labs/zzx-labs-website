@@ -1,6 +1,6 @@
 # Donate to this Project
 
-<img src="static/images/bitcoin.png" style="width:120px;">
+<img src="../../static/images/bitcoin.png" style="width:120px;">
 
 *ZZX-Labs* is a bitcoin funded project. <br>
 You may donate to the project at this address: <br>
@@ -8,6 +8,6 @@ You may donate to the project at this address: <br>
 
 ---
 
-<img src="static/images/addresses/address-qr.png" style="width:240px;">
+<img src="../../static/images/addresses/address-qr.png" style="width:240px;">
 
 ---
