@@ -174,14 +174,22 @@ a:hover {
     height: auto;
 }
 
-/* Hamburger Menu Button */
+/* ========== MENU BUTTON (≡) ========== */
 .menu-button {
     background: none;
     border: none;
     font-size: 2rem;
     color: #d1d1d1;
     cursor: pointer;
-    display: none; /* Hidden by default, shown on mobile */
+    display: block; /* Always block by default */
+    z-index: 1100; /* Stay above nav */
+}
+
+/* Hide menu button on Desktop (>= 769px) */
+@media (min-width: 769px) {
+    .menu-button {
+        display: none;
+    }
 }
 
 /* Navbar List Container */
