@@ -1,1 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Investments | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
 
+<header class="header">
+    <div class="container">
+        <div class="logo-container">
+            <a href="../../">
+                <img src="../../static/images/ZZX Logo.png" alt="ZZX Logo" class="logo">
+            </a>
+        </div>
+        <br>
+        <nav class="navbar">
+            <ul class="nav-links">
+                <li><a href="../../">Home</a></li>
+                <li><a href="../../opportunities">Opportunities</a></li>
+                <li><a href="../../contact">Contact</a></li>
+            </ul>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+    <section class="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>[:[ZZX-Labs]:]</h1>
+            <h4>| Investment Opportunities |</h4><br>
+
+            <p>Invest in the future of private technology research and open-source innovation.<br>
+            ZZX-Labs is privately owned and operated, and selectively invites investment partners who share our mission, values, and vision for decentralized technological sovereignty.</p><br>
+
+            <h3>Focus Areas:</h3>
+            <ul style="text-align: left;">
+                <li>Bitcoin Infrastructure and Layer-2 Scaling</li>
+                <li>Artificial Intelligence & Machine Learning Applications</li>
+                <li>Cybersecurity and Cyberwarfare Defense Systems</li>
+                <li>Hardware & Firmware Development (Open Source)</li>
+                <li>OSINT Research Tools and Intelligence Systems</li>
+            </ul>
+            <br><br>
+
+            <a href="../../../contact" class="btn btn-primary">Inquire About Investment</a>
+        </div>
+    </section>
+    <br><br>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2025 <strong>ZZX-Labs R&D</strong>. All rights reserved. Licensed under the MIT Open Source License.</p>
+        <p>Created by <i>[0xdeadbeef]</i> | <strong>ZZX-Labs R & D</strong> & <strong>[0xdeadbeef] Consulting</strong>.</p>
+    </div>
+    <br><br>
+    <hr>
+    <br><br>
+</footer>
+
+<script>
+  // Dynamically load the ticker HTML into the container
+  fetch('../../bitcoin/ticker/ticker.html')
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('ticker-container').innerHTML = html;
+      const script = document.createElement('script');
+      script.src = '../../bitcoin/ticker/ticker.js';
+      document.body.appendChild(script);
+    })
+    .catch(error => console.error('Error loading ticker widget:', error));
+</script>
+
+</body>
+</html>
