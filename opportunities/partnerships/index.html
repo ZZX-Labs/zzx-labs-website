@@ -1,1 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Partnerships | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
 
+<header class="header">
+    <div class="container">
+        <div class="logo-container">
+            <a href="../../">
+                <img src="../../static/images/ZZX Logo.png" alt="ZZX Logo" class="logo">
+            </a>
+        </div>
+        <br>
+        <nav class="navbar">
+            <ul class="nav-links">
+                <li><a href="../../">Home</a></li>
+                <li><a href="../../opportunities">Opportunities</a></li>
+                <li><a href="../../contact">Contact</a></li>
+            </ul>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+    <section class="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>[:[ZZX-Labs]:]</h1>
+            <h4>| Partnership Opportunities |</h4><br>
+
+            <p>Partner with ZZX-Labs and work together to shape the future of decentralized, sovereign technology innovation.<br>
+            We seek partnerships with organizations, researchers, developers, and companies that share a commitment to open-source, privacy, and technological freedom.</p><br>
+
+            <h3>Partnership Interests:</h3>
+            <ul style="text-align: left;">
+                <li>Research Collaborations (AI, ML, Bitcoin, CySec)</li>
+                <li>Joint Development Projects (Software, Firmware, Hardware)</li>
+                <li>Open-Source Advocacy and Community Building</li>
+                <li>Security Research and Cyber Defense Initiatives</li>
+                <li>Educational and Public Awareness Programs</li>
+            </ul>
+            <br><br>
+
+            <a href="../../../contact" class="btn btn-primary">Propose a Partnership</a>
+        </div>
+    </section>
+    <br><br>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2025 <strong>ZZX-Labs R&D</strong>. All rights reserved. Licensed under the MIT Open Source License.</p>
+        <p>Created by <i>[0xdeadbeef]</i> | <strong>ZZX-Labs R & D</strong> & <strong>[0xdeadbeef] Consulting</strong>.</p>
+    </div>
+    <br><br>
+    <hr>
+    <br><br>
+</footer>
+
+<script>
+  // Dynamically load the ticker HTML into the container
+  fetch('../../bitcoin/ticker/ticker.html')
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('ticker-container').innerHTML = html;
+      const script = document.createElement('script');
+      script.src = '../../bitcoin/ticker/ticker.js';
+      document.body.appendChild(script);
+    })
+    .catch(error => console.error('Error loading ticker widget:', error));
+</script>
+
+</body>
+</html>
