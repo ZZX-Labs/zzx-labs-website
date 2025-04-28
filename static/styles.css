@@ -1,19 +1,29 @@
-/* ========== Global Reset ========== */
-* {
+/* ========== GLOBAL RESET ========== */
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Additional CSS for body and parent container */
-body, html {
-    margin: 0; /* Remove default margin */
-    padding: 0; /* Remove default padding */
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
+/* ========== HTML & BODY SETUP ========== */
+html, body {
+    width: 100%;
+    height: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    background-color: #282828;
+    color: #d1d1d1;
+    line-height: 1.6;
+    scroll-behavior: smooth;
 }
 
-/* Import the Adult Swim Font */
+/* Prevent horizontal scroll */
+body {
+    overflow-x: hidden;
+}
+
+/* ========== FONT IMPORTS ========== */
 @font-face {
     font-family: 'Adult Swim Font';
     src: url('static/fonts/Adult-Swim-Font.ttf') format('truetype');
@@ -21,182 +31,357 @@ body, html {
     font-style: normal;
 }
 
-/* Apply the font to h1 elements */
-h1 {
-    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace; /* Fallback to IBM Plex Mono */
+/* ========== HEADINGS ========== */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
     color: #c0d674;
-    font-size: 3rem; /* Adjust as needed */
-    line-height: 1.2; /* Adjust for spacing */
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
 }
 
-
-body {
-    font-family: 'IBM Plex Mono', monospace;
-    background-color: #282828;
-    color: #d1d1d1;
-    line-height: 1.6;
+/* Special Style for Main Page h1 */
+h1 {
+    font-size: 3rem;
 }
 
+/* Default Paragraphs */
 p {
     font-family: 'IBM Plex Mono', monospace;
     color: #c0d674;
-    
+    font-size: 1rem;
+    margin-bottom: 1rem;
 }
 
+/* ========== LINKS ========== */
 a {
-    color: #d1d1d1; /* Set a subtle color for links */
-    text-decoration: none; /* Remove the underline */
-    transition: color 0.3s ease, text-decoration 0.3s ease; /* Smooth transition */
+    color: #d1d1d1;
+    text-decoration: none;
+    transition: color 0.3s ease, text-decoration 0.3s ease;
 }
 
 a:hover {
-    color: #e6a42b; /* Highlight color on hover */
-    text-decoration: underline; /* Add underline on hover */
+    color: #e6a42b;
+    text-decoration: underline;
 }
 
-/* ========== Utility Classes ========== */
+
+/* ========== Containers & Utility Classes ========== */
+
+/* Main Container Wrapper */
 .container {
     width: 90%;
     max-width: 1200px;
     margin: 0 auto;
+    padding: 0 1rem;
 }
 
-.container h1 {
-    color: #e6a42b;
+/* Container for Centered Content */
+.container.centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
-.container h2 {
-    color: #e6a42b;
+/* Flex Row Container */
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
 }
 
-/* ========== Header ========== */
+/* Flex Column Container */
+.flex-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Grid Responsive Layout */
+.grid {
+    display: grid;
+    gap: 2rem;
+}
+
+/* Auto-Fit Grid (Adaptive Columns) */
+.grid-auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Full Width Utility */
+.full-width {
+    width: 100%;
+}
+
+/* No Scroll (Lock body scroll when needed) */
+.no-scroll {
+    overflow: hidden;
+}
+
+/* Spacing Utilities */
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mt-3 { margin-top: 3rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+.mb-3 { margin-bottom: 3rem; }
+.pt-1 { padding-top: 1rem; }
+.pt-2 { padding-top: 2rem; }
+.pb-1 { padding-bottom: 1rem; }
+.pb-2 { padding-bottom: 2rem; }
+
+/* Center Text */
+.text-center {
+    text-align: center;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .flex-row {
+        flex-direction: column;
+    }
+}
+
+
+/* ========== HEADER + NAVBAR ========== */
+
+/* Header Base */
 .header {
     background-color: #333;
-    padding: 1rem;
+    padding: 1rem 0.5rem;
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    position: relative;
+    width: 100%;
+    z-index: 1000;
+}
+
+/* Logo Container */
+.logo-container {
+    display: flex;
     align-items: center;
 }
 
 .logo-container img {
     max-height: 50px;
+    width: auto;
+    height: auto;
 }
 
-.navbar {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.nav-links {
-    list-style: none;
-    display: flex;
-    gap: 1rem;
-}
-
-.nav-links a {
-    color: #d1d1d1; /* Adjust if necessary for slight variation */
-    text-decoration: none;
-    font-size: 1rem;
-    padding: 0.5rem 1rem;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.nav-links a:hover {
-    background-color: #e6a42b; /* Same as before */
-    color: #000; /* Slightly different color can be chosen */
-    border-radius: 4px;
-}
-
+/* Hamburger Menu Button */
 .menu-button {
-    display: none;
     background: none;
     border: none;
     font-size: 2rem;
     color: #d1d1d1;
     cursor: pointer;
+    display: none; /* Hidden by default, shown on mobile */
 }
 
-@media (max-width: 768px) {
-    .menu-button {
-        display: block;
-    }
-
-    .nav-links {
-        display: none;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .nav-links.open {
-        display: flex;
-    }
-}
-
-/* Adjusted Submenu Styles */
-.nav-links ul {
+/* Navbar List Container */
+.nav-links {
     list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.submenu {
-    display: none; /* Hidden by default */
+    display: none; /* Initially hidden until toggled open */
     flex-direction: column;
-    padding-left: 1rem;
+    align-items: center;
+    background-color: #111;
+    width: 100%;
+    padding: 1rem 0;
+    gap: 1rem;
+    transition: all 0.3s ease-in-out;
 }
 
-.submenu li {
-    margin: 0.5rem 0;
+/* Navbar Open State */
+.nav-links.open {
+    display: flex;
 }
 
+/* Navbar List Items */
+.nav-links li {
+    width: 100%;
+    text-align: center;
+}
+
+/* Navbar Anchor Links */
+.nav-links a {
+    color: #d1d1d1;
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    display: inline-block;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Link Hover Effect */
+.nav-links a:hover {
+    background-color: #e6a42b;
+    color: #000;
+    border-radius: 4px;
+}
+
+/* Submenu (Dropdown) Setup */
+.submenu {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.submenu.open {
+    display: flex;
+}
+
+/* Submenu Links */
+.submenu a {
+    font-size: 0.9rem;
+    color: #b5b5b5;
+}
+
+.submenu a:hover {
+    color: #ffffff;
+}
+
+/* Submenu Toggle Arrow */
 .submenu-toggle {
     background: none;
     border: none;
-    color: #d1d1d1;
     font-size: 1rem;
+    color: #d1d1d1;
     margin-left: 0.5rem;
     cursor: pointer;
     transition: transform 0.3s ease;
 }
 
 .submenu-toggle.open {
-    transform: rotate(180deg); /* Rotate arrow for open submenu */
+    transform: rotate(180deg);
 }
 
-.nav-links .submenu a {
-    color: #b5b5b5;
-    font-size: 0.9rem;
-}
+/* ======== DESKTOP VERSION ======== */
+@media (min-width: 769px) {
+    .menu-button {
+        display: block; /* Still allow toggling nav even on desktop */
+    }
 
-.nav-links .submenu a:hover {
-    color: #fff;
-    text-decoration: underline;
-}
+    .nav-links {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 0;
+        background-color: #111;
+        gap: 1rem 2rem;
+    }
 
-/* Hamburger Menu Responsiveness */
-@media (max-width: 768px) {
+    .nav-links li {
+        flex: 1 1 140px; /* flex-basis: 140px */
+        max-width: 200px;
+        text-align: center;
+    }
+
     .submenu {
-        padding-left: 2rem;
+        padding-left: 0;
+        margin-top: 0.25rem;
     }
 }
 
-/* ========== Hero Section ========== */
+
+/* ========== SUBMENU (Dropdown Menus) ========== */
+
+/* Submenu Base (Hidden by Default) */
+.submenu {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+/* Open State */
+.submenu.open {
+    display: flex;
+}
+
+/* Submenu List Items */
+.submenu li {
+    width: 100%;
+}
+
+/* Submenu Links */
+.submenu a {
+    font-size: 0.9rem;
+    color: #b5b5b5;
+    padding: 0.4rem 0.8rem;
+    display: inline-block;
+    transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.submenu a:hover {
+    background-color: #e6a42b;
+    color: #000;
+    border-radius: 4px;
+}
+
+/* Submenu Header Wrapper (Anchor + ▼ Button) */
+.submenu-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+/* ▼ Submenu Toggle Button */
+.submenu-toggle {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: #d1d1d1;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+/* Rotate ▼ when open */
+.submenu-toggle.open {
+    transform: rotate(180deg); /* ▲ */
+}
+
+/* ====== Responsive Improvements ====== */
+@media (min-width: 769px) {
+    /* On desktop, adjust submenu alignment */
+    .submenu {
+        padding-left: 0;
+        margin-top: 0.25rem;
+    }
+}
+
+
+/* ========== HERO SECTION ========== */
+
+/* Hero Main Container */
 .hero {
     position: relative;
-    background: url('images/hero.jpg') center/cover no-repeat;
-    height: 80vh; /* Keeps the height fixed to 80% of the viewport height */
+    width: 100%;
+    height: 80vh; /* 80% of viewport height */
+    background: url('static/images/hero.jpg') center/cover no-repeat;
     display: flex;
-    justify-content: center; /* Horizontally center content */
-    align-items: center; /* Vertically center content */
-    color: #fff;
+    align-items: center;
+    justify-content: center;
     text-align: center;
+    color: #ffffff;
+    overflow: hidden;
 }
 
-.hero h4 {
-    color: #c0d674;
-}
-
+/* Dark Overlay over Background */
 .hero-overlay {
     position: absolute;
     top: 0;
@@ -204,48 +389,59 @@ a:hover {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1;
 }
 
+/* Content inside the Hero */
 .hero-content {
     position: relative;
-    z-index: 1; /* Ensures content is above the overlay */
-    text-align: center; /* Center-aligns text content */
-    max-width: 800px; /* Limits width for readability */
-    margin: 0 auto; /* Ensures horizontal centering */
+    z-index: 2;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
 }
 
-/* Heading and paragraph styles */
+/* Hero Main Heading (H1) */
 .hero-content h1 {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 5rem;
     color: #c0d674;
-    font-size: 8.5rem;
-},
+    line-height: 1.2;
+    margin-bottom: 1rem;
+}
+
+/* Hero Secondary Heading (H2) */
 .hero-content h2 {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 4.5rem;
-    color: #c0d674;
+    font-size: 2.5rem;
+    color: #e6a42b;
     margin-bottom: 1rem;
-},
+}
+
+/* Hero Subheading (H4) */
 .hero-content h4 {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 2.5rem;
+    font-size: 1.5rem;
     color: #c0d674;
     margin-bottom: 1rem;
 }
 
+/* Hero Paragraph */
 .hero-content p {
-    font-size: 1rem; /* Increased for better readability */
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    color: #d1d1d1;
     margin-bottom: 1.5rem;
 }
 
-/* Button styles */
+/* Hero Primary Button */
 .hero-content .btn {
     background-color: #e6a42b;
     color: #000;
     padding: 0.8rem 1.5rem;
     border-radius: 4px;
-    text-decoration: none;
     font-size: 1rem;
+    text-decoration: none;
     transition: background-color 0.3s ease;
 }
 
@@ -254,10 +450,23 @@ a:hover {
     color: #000;
 }
 
+/* ========== HERO RESPONSIVE BEHAVIOR ========== */
 @media (max-width: 768px) {
-    .hero-content h1,
+    .hero {
+        height: 70vh;
+        padding: 1rem;
+    }
+
+    .hero-content h1 {
+        font-size: 2.5rem;
+    }
+
     .hero-content h2 {
         font-size: 1.8rem;
+    }
+
+    .hero-content h4 {
+        font-size: 1.2rem;
     }
 
     .hero-content p {
@@ -270,93 +479,37 @@ a:hover {
     }
 }
 
-/* ========== Intro Section ========== */
-.intro {
-    text-align: center;
-    padding: 2rem 0;
-}
 
-.intro h2 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: #c79c6e;
-}
+/* ========== CTA (Call-to-Action) SECTION ========== */
 
-.intro p {
-    font-size: 1.1rem;
-}
-
-/* ========== Features Section ========== */
-.features {
+.cta {
+    width: 100%;
+    min-height: 50vh;
+    background-color: #444;
     display: flex;
-    flex-wrap: wrap;
-    gap: 2rem;
-    padding: 2rem 0;
-    justify-content: center; /* Ensures content is centered */
-    align-items: center; /* Centers items vertically */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
+    padding: 3rem 1rem;
+    box-sizing: border-box;
 }
 
-.feature {
-    background-color: #333;
-    padding: 1rem;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-
-    /* Default for wider screens: multiple tiles across */
-    flex: 1 1 calc(33.333% - 2rem);
-    max-width: calc(33.333% - 2rem);
-}
-
-/* Adjustments for smaller screens */
-@media (max-width: 768px) {
-    .feature {
-        /* Single-column layout for smaller devices */
-        flex: 1 1 100%;
-        max-width: 100%;
-    }
-}
-
-.feature h3 {
-    font-size: 1.5rem;
-    color: #e6a42b;
-    margin-bottom: 1rem;
-}
-
-.feature p {
-    font-size: 1rem;
-}
-
-/* Call-to-Action (CTA) Section */
-.container.cta, /* If you meant `.container` also has a `cta` class */
-.container .cta { /* If `.cta` is a child of `.container` */
-    display: flex; /* Enable flexbox */
-    flex-direction: column; /* Stack items vertically */
-    justify-content: center; /* Center vertically */
-    align-items: center; /* Center horizontally */
-    text-align: center; /* Center text */
-    background-color: #444; /* Background color for contrast */
-    padding: 2rem; /* Adequate spacing inside */
-    margin: 0 auto; /* Center horizontally */
-    width: 100%; /* Full width */
-    min-height: 100vh; /* Occupy full viewport height */
-    box-sizing: border-box; /* Include padding in dimensions */
-}
-
-/* Styling for heading */
 .cta h2 {
-    font-size: 2rem;
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 2.5rem;
     color: #e6a42b;
     margin-bottom: 1rem;
 }
 
-/* Styling for paragraph */
 .cta p {
+    font-family: 'IBM Plex Mono', monospace;
     font-size: 1.2rem;
-    margin-bottom: 1.5rem;
+    color: #c0d674;
+    margin-bottom: 2rem;
 }
 
-/* Styling for button */
+/* CTA Button */
 .cta .btn {
     background-color: #e6a42b;
     color: #000;
@@ -372,57 +525,144 @@ a:hover {
     color: #000;
 }
 
-/* ========== Footer ========== */
+/* ========== FEATURES SECTION ========== */
+
+.features {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    padding: 4rem 2rem;
+    background-color: #282828;
+    box-sizing: border-box;
+}
+
+.feature {
+    background-color: #333;
+    border-radius: 6px;
+    padding: 2rem 1rem;
+    flex: 1 1 calc(33.333% - 2rem);
+    max-width: calc(33.333% - 2rem);
+    text-align: center;
+    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* Feature Card Hover Effect */
+.feature:hover {
+    transform: translateY(-5px);
+    background-color: #1f1f1f;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+}
+
+/* Feature Titles */
+.feature h3 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 1.8rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+/* Feature Paragraphs */
+.feature p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    color: #d1d1d1;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+    .feature {
+        flex: 1 1 calc(45% - 2rem);
+        max-width: calc(45% - 2rem);
+    }
+}
+
+@media (max-width: 768px) {
+    .feature {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+
+    .cta h2 {
+        font-size: 2rem;
+    }
+
+    .cta p {
+        font-size: 1rem;
+    }
+}
+
+
+/* ========== FOOTER SECTION ========== */
+
 .footer {
     background-color: #333;
     color: #d1d1d1;
-    padding: 2rem 0;
+    padding: 3rem 1rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
+/* Footer Container */
 .footer .container {
     display: flex;
-    justify-content: space-between; /* Space columns evenly */
-    flex-wrap: wrap; /* Allow wrapping for smaller screens */
-    flex-direction: row; /* Stack columns horizontally */
-    text-align: left; /* Left-align content in columns */
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2rem;
 }
 
+/* Footer Column */
 .footer-column {
-    flex: 1 1 30%; /* Allow flexible resizing for columns */
-    max-width: 30%;
-    padding: 0 1rem; /* Add padding inside columns */
+    flex: 1 1 200px;
+    max-width: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
+/* Footer Column Headings */
 .footer-column h4 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
     color: #e6a42b;
+    margin-bottom: 1rem;
 }
 
-.footer-column ul {
+/* Footer Links List */
+.footer-links {
     list-style: none;
     padding: 0;
+    margin: 0;
+    width: 100%;
 }
 
-.footer-column ul li {
+/* Footer Link Items */
+.footer-links li {
     margin-bottom: 0.5rem;
 }
 
-.footer-column ul li a {
+/* Footer Anchor Links */
+.footer-links a {
+    font-family: 'IBM Plex Mono', monospace;
     color: #c0d674;
+    font-size: 0.95rem;
     text-decoration: none;
-    font-size: 0.9rem;
     transition: color 0.3s ease;
 }
 
-.footer-column ul li a:hover {
+/* Hover Effects on Footer Links */
+.footer-links a:hover {
     color: #e6a42b;
+    text-decoration: underline;
 }
 
+/* Footer Bottom Copyright */
 .footer-bottom {
+    width: 100%;
+    margin-top: 3rem;
     text-align: center;
-    margin-top: 2rem;
     font-size: 0.9rem;
     color: #c0d674;
 }
@@ -430,12 +670,340 @@ a:hover {
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .footer .container {
-        flex-direction: column; /* Stack columns vertically */
-        align-items: center; /* Center-align for smaller screens */
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
     }
 
     .footer-column {
         max-width: 100%;
-        padding: 1rem 0; /* Add spacing between stacked columns */
+        align-items: center;
     }
+
+    .footer-links {
+        align-items: center;
+    }
+}
+
+
+/* ========== BUTTONS ========== */
+
+/* General Button Styling */
+.btn {
+    display: inline-block;
+    background-color: #e6a42b;
+    color: #000;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+/* Hover Effect */
+.btn:hover {
+    background-color: #c0d674;
+    color: #000;
+    transform: scale(1.05);
+}
+
+/* Button Variants */
+.btn-secondary {
+    background-color: #c0d674;
+    color: #000;
+}
+
+.btn-secondary:hover {
+    background-color: #e6a42b;
+}
+
+/* ====== FORM STYLES ====== */
+
+form {
+    width: 100%;
+    max-width: 600px;
+    margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Input Fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #666;
+    border-radius: 4px;
+    background-color: #1f1f1f;
+    color: #d1d1d1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+/* Focus Effect */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+    border-color: #e6a42b;
+    background-color: #2b2b2b;
+    outline: none;
+}
+
+/* Submit Button */
+input[type="submit"],
+button[type="submit"] {
+    background-color: #e6a42b;
+    color: #000;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+input[type="submit"]:hover,
+button[type="submit"]:hover {
+    background-color: #c0d674;
+    transform: scale(1.05);
+}
+
+/* Textarea Specifics */
+textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+/* ====== TABLE STYLES ====== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-family: 'IBM Plex Mono', monospace;
+    background-color: #333;
+    color: #d1d1d1;
+}
+
+th, td {
+    padding: 0.75rem 1rem;
+    border: 1px solid #444;
+    text-align: left;
+}
+
+thead {
+    background-color: #444;
+}
+
+thead th {
+    color: #e6a42b;
+    font-weight: bold;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #2b2b2b;
+}
+
+tbody tr:hover {
+    background-color: #1f1f1f;
+}
+
+/* Responsive Table Overflow */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+
+/* ========== SCROLL ANIMATIONS ========== */
+
+/* Elements to Animate */
+.scroll-animation {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* When Element is in View */
+.scroll-animation.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Additional Animation Variants (Optional Future Enhancements) */
+
+/* Fade In Only */
+.scroll-fade-in {
+    opacity: 0;
+    transition: opacity 0.6s ease-out;
+}
+
+.scroll-fade-in.in-view {
+    opacity: 1;
+}
+
+/* Slide Up More Dramatic */
+.scroll-slide-up {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-slide-up.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Slide In From Left */
+.scroll-slide-left {
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-slide-left.in-view {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Slide In From Right */
+.scroll-slide-right {
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-slide-right.in-view {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+
+/* ========== CARDS ========== */
+
+/* General Card Container */
+.card {
+    background-color: #333;
+    border-radius: 6px;
+    padding: 2rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+/* Card Hover */
+.card:hover {
+    transform: translateY(-5px);
+    background-color: #1f1f1f;
+}
+
+/* Card Heading */
+.card h3 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+/* Card Paragraph */
+.card p {
+    font-family: 'IBM Plex Mono', monospace;
+    color: #d1d1d1;
+    font-size: 1rem;
+}
+
+/* Responsive Card Layout */
+@media (max-width: 768px) {
+    .card {
+        padding: 1.5rem;
+    }
+}
+
+/* ========== ALERTS ========== */
+
+/* Base Alert Style */
+.alert {
+    padding: 1rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+}
+
+/* Success Message */
+.alert-success {
+    background-color: #2e7d32;
+    color: #ffffff;
+}
+
+/* Warning Message */
+.alert-warning {
+    background-color: #ff9800;
+    color: #000000;
+}
+
+/* Error Message */
+.alert-error {
+    background-color: #c62828;
+    color: #ffffff;
+}
+
+/* ========== 404 PAGE STYLES ========== */
+
+.page-404 {
+    min-height: 70vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 2rem;
+}
+
+.page-404 h1 {
+    font-size: 6rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+.page-404 p {
+    font-size: 1.2rem;
+    color: #c0d674;
+    margin-bottom: 2rem;
+}
+
+.page-404 a {
+    font-size: 1rem;
+    color: #e6a42b;
+    text-decoration: underline;
+}
+
+/* ========== BACKGROUND UTILITIES ========== */
+
+.background-dark {
+    background-color: #282828;
+    color: #d1d1d1;
+}
+
+.background-light {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Centered Utility */
+.centered-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }
