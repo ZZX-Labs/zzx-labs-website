@@ -242,25 +242,49 @@
     </div>
 </div>
 
-    <div class="feature">
-        <h3>Font Stack</h3>
-        <p>Primary typeface is <strong>IBM Plex Mono</strong> for code-driven clarity. Titles use the custom <strong>Adult Swim</strong> font embedded from <code>static/fonts/</code>.</p>
-        <pre><code class="language-css">@font-face {
-    font-family: 'Adult Swim Font';
-    src: url('static/fonts/Adult-Swim-Font.ttf') format('truetype');
-}</code></pre>
+<div class="feature">
+    <h3>Font Stack</h3>
+    <p>
+        Primary typefaces include the mono-optimized <strong>IBM Plex Mono</strong> and our custom header typeface <strong>Adult Swim Font</strong>. These are defined in <code>static/fonts.json</code> and used site-wide.
+    </p>
+
+    <div class="font-preview-container">
+        <div class="font-preview" style="font-family: 'Adult Swim Font', monospace;">
+            <strong>Adult Swim Font:</strong> ZZX-Labs — Sovereign Technology Design
+        </div>
+        <div class="font-preview" style="font-family: 'IBM Plex Mono', monospace;">
+            <strong>IBM Plex Mono:</strong> ZZX-Labs — Zero-Trust System Architecture
+        </div>
     </div>
 
-    <div class="feature">
+    <pre><code class="language-json">{
+  "primary": "IBM Plex Mono",
+  "heading": "Adult Swim Font",
+  "fallback": "monospace"
+}</code></pre>
+
+    <pre><code class="language-css">@font-face {
+  font-family: 'Adult Swim Font';
+  src: url('static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  font-family: 'IBM Plex Mono', monospace;
+}</code></pre>
+</div>
+
+<div class="feature">
         <h3>Navigation Structure</h3>
         <p>The entire navbar and hamburger menu are handled via responsive CSS flex grid and minimal JavaScript toggling.</p>
         <pre><code class="language-html">&lt;button class="menu-button"&gt;☰&lt;/button&gt;
 &lt;ul class="nav-links"&gt;
     &lt;li&gt;&lt;a href="/"&gt;Home&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</code></pre>
-    </div>
+</div>
 
-    <div class="feature">
+<div class="feature">
         <h3>Logo System</h3>
         <p>The ZZX-Labs logo is rendered in two variants: a symbol version (Tibetan Endless Knot) and full logotype. SVG and PNG versions live in <code>static/images/</code>.</p>
         <img src="../static/logos/ZZX Logo.png" alt="ZZX Logo" style="width: 12.5%; border-radius: 4px;">
@@ -272,9 +296,9 @@
 	<img src="../static/logos/ZZX Labs Typographic Logo.png" alt="ZZX Typographic Logo" style="width: 12.5%; border-radius: 4px;">
 	<img src="../static/logos/ZZX Labs Typographic Logo 0.png" alt="ZZX Typographic Logo 0" style="width: 12.5%; border-radius: 4px;"><br><br>
 	<img src="../static/logos/bitcoin.png" alt="Bitcoin Logo" style="width: 12.5%; border-radius: 4px;"><br>
-    </div>
+</div>
 
-    <div class="feature">
+<div class="feature">
         <h3>Hero Section</h3>
         <p>Our landing hero uses a semi-transparent black overlay and 8.5rem title font. Fully responsive and animated via scroll events.</p>
         <pre><code class="language-css">.hero {
@@ -285,9 +309,9 @@
   font-size: 8.5rem;
   color: #c0d674;
 }</code></pre>
-    </div>
+</div>
 
-    <div class="feature">
+<div class="feature">
         <h3>Animation Classes</h3>
         <p>Scroll-triggered animations use CSS utility classes. These fire when elements enter the viewport.</p>
         <pre><code class="language-css">.scroll-animation {
@@ -299,9 +323,9 @@
     opacity: 1;
     transform: translateY(0);
 }</code></pre>
-    </div>
+</div>
 
-    <div class="feature">
+<div class="feature">
         <h3>Inspirational Color Grid (Shuffle Algorithm)</h3>
         <p>Our grid of philosophical influencers uses color classes that are randomly shuffled on load to avoid adjacent duplicates.</p>
         <pre><code class="language-js">// Pseudo-Random Fisher-Yates shuffle
@@ -311,15 +335,15 @@ function shuffle(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
 }</code></pre>
-    </div>
+</div>
 
-    <div class="feature">
+<div class="feature">
         <h3>Icon System</h3>
         <p>Icons are handpicked SVGs stored in <code>static/icons/</code>. Future support includes custom icon fonts and inline SVG filters.</p>
         <pre><code class="language-html">&lt;img src="../static/icons/lock.svg" alt="Lock Icon" class="icon"/&gt;</code></pre>
-    </div>
+</div>
 
-    <div class="feature">
+<div class="feature">
         <h3>Button Classes</h3>
         <p>All CTA and hero buttons use consistent visual behavior, hover transitions, and responsiveness.</p>
         <pre><code class="language-css">.btn {
@@ -330,7 +354,52 @@ function shuffle(array) {
   text-decoration: none;
   transition: background-color 0.3s ease;
 }</code></pre>
-    </div>
+</div>
+
+<div class="feature">
+    <h3>Radio Stations</h3>
+    <p>ZZX-Labs provides curated streaming `.m3u` radio playlists in <code>static/audio/radio/</code>. These feeds are used internally for lab ambiance and broadcast automation.</p>
+    <audio controls>
+        <source src="../static/audio/radio/sample_station.m3u" type="audio/x-mpegurl">
+        Your browser does not support live M3U radio playback.
+    </audio>
+</div>
+
+<div class="feature">
+    <h3>Soundtrack / Tracks</h3>
+    <p>ZZX-Labs original music compositions, ambience loops, and soundtrack elements are stored in <code>static/audio/tracks/</code>. These can be embedded across the frontend or streamed via player.</p>
+    <audio controls>
+        <source src="../static/audio/tracks/lab_theme.mp3" type="audio/mpeg">
+        Your browser does not support MP3 playback.
+    </audio>
+</div>
+
+<div class="feature">
+    <h3>Alert Sounds</h3>
+    <p>All alert sounds for ZIRA, terminals, admin panels, and analytic dashboards are stored in <code>static/audio/alerts/</code>. Default format is 320kbps MP3.</p>
+    <audio controls>
+        <source src="../static/audio/alerts/alert-1.mp3" type="audio/mpeg">
+        Your browser does not support MP3 playback.
+    </audio>
+</div>
+
+<div class="feature">
+    <h3>Static Video Assets</h3>
+    <p>All `.mp4` videos embedded or used in visual media across ZZX-Labs are stored in <code>static/video/videos/</code>. These are also used for OBS overlays and archival clips.</p>
+    <video controls>
+        <source src="../static/video/videos/sample_clip.mp4" type="video/mp4">
+        Your browser does not support MP4 playback.
+    </video>
+</div>
+
+<div class="feature">
+    <h3>Live Video Feeds</h3>
+    <p>Live stream feeds are served over a WebRTC or HTTP-based stream routed from local infrastructure. Used for admin observation, studio cams, or livestream integration.</p>
+    <video controls autoplay muted>
+        <source src="https://zzx-labs.io/stream/video/live.m3u8" type="application/x-mpegURL">
+        Your browser does not support live streaming.
+    </video>
+</div>
 </section><br><br>
 
 <section class="container cta">
