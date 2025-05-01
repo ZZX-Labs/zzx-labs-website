@@ -216,21 +216,36 @@
 
 <section class="features">
 
-    <div class="feature">
-        <h3>Color Palette</h3>
-        <p>Core brand colors for ZZX-Labs, defined in <code>static/colors.json</code>. All buttons, hover states, and themes derive from this core swatch group.</p>
-        <pre><code class="json">{
-  "primary": "#e6a42b",
-  "accent": "#c0d674",
-  "background": "#282828",
-  "text": "#d1d1d1"
-}</code></pre>
+<div class="feature">
+    <h3>Color Palette</h3>
+    <p>
+        Core brand colors for ZZX-Labs, defined in <code>static/colors.json</code>. All buttons, hover states, and themes derive from this core swatch group.
+    </p>
+
+    <div class="color-swatch-container">
+        <div class="color-swatch">
+            <span class="swatch" style="background-color: #e6a42b;"></span>
+            <code class="language-json">"primary": "#e6a42b"</code>
+        </div>
+        <div class="color-swatch">
+            <span class="swatch" style="background-color: #c0d674;"></span>
+            <code class="language-json">"accent": "#c0d674"</code>
+        </div>
+        <div class="color-swatch">
+            <span class="swatch" style="background-color: #282828; border: 1px solid #444;"></span>
+            <code class="language-json">"background": "#282828"</code>
+        </div>
+        <div class="color-swatch">
+            <span class="swatch" style="background-color: #d1d1d1;"></span>
+            <code class="language-json">"text": "#d1d1d1"</code>
+        </div>
     </div>
+</div>
 
     <div class="feature">
         <h3>Font Stack</h3>
         <p>Primary typeface is <strong>IBM Plex Mono</strong> for code-driven clarity. Titles use the custom <strong>Adult Swim</strong> font embedded from <code>static/fonts/</code>.</p>
-        <pre><code class="css">@font-face {
+        <pre><code class="language-css">@font-face {
     font-family: 'Adult Swim Font';
     src: url('static/fonts/Adult-Swim-Font.ttf') format('truetype');
 }</code></pre>
@@ -239,7 +254,7 @@
     <div class="feature">
         <h3>Navigation Structure</h3>
         <p>The entire navbar and hamburger menu are handled via responsive CSS flex grid and minimal JavaScript toggling.</p>
-        <pre><code class="html">&lt;button class="menu-button"&gt;☰&lt;/button&gt;
+        <pre><code class="language-html">&lt;button class="menu-button"&gt;☰&lt;/button&gt;
 &lt;ul class="nav-links"&gt;
     &lt;li&gt;&lt;a href="/"&gt;Home&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</code></pre>
@@ -248,13 +263,21 @@
     <div class="feature">
         <h3>Logo System</h3>
         <p>The ZZX-Labs logo is rendered in two variants: a symbol version (Tibetan Endless Knot) and full logotype. SVG and PNG versions live in <code>static/images/</code>.</p>
-        <img src="../static/images/ZZX Labs Logo 2.png" alt="ZZX Logo" style="width: 100%; border-radius: 4px;">
+        <img src="../static/logos/ZZX Labs Logo.png" alt="ZZX Logo" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Logo 1.png" alt="ZZX Logo 1" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Logo 2.png" alt="ZZX Logo 2" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Icon Logo.png" alt="ZZX Icon Logo" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Icon Logo - Color.png" alt="ZZX Icon Logo - Color" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Logo - Color.png" alt="ZZX Logo - Color" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Typographic Logo.png" alt="ZZX Typographic Logo" style="width: 100%; border-radius: 4px;">
+	<img src="../static/logos/ZZX Labs Typographic Logo 0.png" alt="ZZX Typographic Logo 0" style="width: 100%; border-radius: 4px;"><br><br>
+	<img src="../static/logos/bitcoin.png" alt="Bitcoin Logo" style="width: 100%; border-radius: 4px;">
     </div>
 
     <div class="feature">
         <h3>Hero Section</h3>
         <p>Our landing hero uses a semi-transparent black overlay and 8.5rem title font. Fully responsive and animated via scroll events.</p>
-        <pre><code class="css">.hero {
+        <pre><code class="language-css">.hero {
   background: url('../static/images/hero.jpg') center/cover no-repeat;
   position: relative;
 }
@@ -267,7 +290,7 @@
     <div class="feature">
         <h3>Animation Classes</h3>
         <p>Scroll-triggered animations use CSS utility classes. These fire when elements enter the viewport.</p>
-        <pre><code class="css">.scroll-animation {
+        <pre><code class="language-css">.scroll-animation {
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.6s ease-out, transform 0.6s ease-out;
@@ -281,7 +304,7 @@
     <div class="feature">
         <h3>Inspirational Color Grid (Shuffle Algorithm)</h3>
         <p>Our grid of philosophical influencers uses color classes that are randomly shuffled on load to avoid adjacent duplicates.</p>
-        <pre><code class="js">// Pseudo-Random Fisher-Yates shuffle
+        <pre><code class="language-js">// Pseudo-Random Fisher-Yates shuffle
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -293,13 +316,13 @@ function shuffle(array) {
     <div class="feature">
         <h3>Icon System</h3>
         <p>Icons are handpicked SVGs stored in <code>static/icons/</code>. Future support includes custom icon fonts and inline SVG filters.</p>
-        <pre><code class="html">&lt;img src="../static/icons/lock.svg" alt="Lock Icon" class="icon"/&gt;</code></pre>
+        <pre><code class="language-html">&lt;img src="../static/icons/lock.svg" alt="Lock Icon" class="icon"/&gt;</code></pre>
     </div>
 
     <div class="feature">
         <h3>Button Classes</h3>
         <p>All CTA and hero buttons use consistent visual behavior, hover transitions, and responsiveness.</p>
-        <pre><code class="css">.btn {
+        <pre><code class="language-css">.btn {
   background-color: #e6a42b;
   color: #000;
   padding: 0.8rem 1.5rem;
