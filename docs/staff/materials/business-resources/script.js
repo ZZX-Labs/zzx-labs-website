@@ -335,9 +335,10 @@ function renderSubsection(contentEl, srcId, s, html) {
     const details = document.createElement('details');
     details.className = 'subsection collapsible';
     details.id = id;
+    details.open = false; // <-- ensure collapsed on load
 
     const summary = document.createElement('summary');
-    summary.textContent = title; // clickable
+    summary.textContent = title;
     details.appendChild(summary);
 
     const body = document.createElement('div');
@@ -346,9 +347,13 @@ function renderSubsection(contentEl, srcId, s, html) {
     details.appendChild(body);
 
     contentEl.appendChild(details);
+
+    // Auto-open if you deep-link directly to this anchor
+    if (location.hash.replace('#', '') === id) details.open = true;
     return;
   }
 
+  // Non-collapsible sections
   const wrap = document.createElement('div');
   wrap.className = 'subsection';
   wrap.id = id;
