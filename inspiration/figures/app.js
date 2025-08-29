@@ -17,8 +17,8 @@ const countEl  = document.getElementById('figure-count');
 const state = {
   palette: [],
   figures: [],
-  urls: {},           // raw urls object
-  urlIndex: {},       // normalized lookup
+  urls: {},
+  urlIndex: {},
   cards: {},
   nodes: []
 };
@@ -39,23 +39,82 @@ function asDocUrl(pathOrName) {
 function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 function toWikiTitle(s) { return String(s || '').trim().replace(/\s+/g, '_'); }
 
-// Fisher–Yates with crypto randomness if available
+// Crypto-friendly Fisher–Yates
 function shuffle(arr) {
   const a = arr.slice();
-  if (crypto && crypto.getRandomValues) {
+  if (window.crypto?.getRandomValues) {
     for (let i = a.length - 1; i > 0; i--) {
-      const r32 = new Uint32Array(1);
-      crypto.getRandomValues(r32);
-      const j = r32[0] % (i + 1);
+      const r = new Uint32Array(1);
+      crypto.getRandomValues(r);
+      const j = r[0] % (i + 1);
       [a[i], a[j]] = [a[j], a[i]];
     }
   } else {
     for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.random() * (i + 1) | 0;
       [a[i], a[j]] = [a[j], a[i]];
     }
   }
   return a;
+}
+
+// ---------- color helpers (inline paint) ----------
+function hexToRgb(hex) {
+  const h = hex.replace('#','').trim();
+  if (h.length === 3) {
+    const r = parseInt(h[0]+h[0],16), g = parseInt(h[1]+h[1],16), b = parseInt(h[2]+h[2],16);
+    return { r, g, b };
+  }
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return { r, g, b };
+}
+function rgbToHex(r,g,b) {
+  const h = n => n.toString(16).padStart(2,'0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+function mixHex(aHex, bHex, t) {
+  const a = hexToRgb(aHex), b = hexToRgb(bHex);
+  const r = Math.round(a.r + (b.r - a.r)*t);
+  const g = Math.round(a.g + (b.g - a.g)*t);
+  const b3 = Math.round(a.b + (b.b - a.b)*t);
+  return rgbToHex(r,g,b3);
+}
+function tint(hex, amount=0.7) { return mixHex(hex, '#ffffff', amount); }
+function shade(hex, amount=0.25) { return mixHex(hex, '#000000', amount); }
+function luminance(hex) {
+  const {r,g,b} = hexToRgb(hex);
+  const lin = c => {
+    const s = c/255;
+    return s <= 0.03928 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+  };
+  const L = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  return L;
+}
+function onColor(hex) {
+  // Choose white/near-black for contrast
+  const L = luminance(hex);
+  return L > 0.5 ? '#111111' : '#ffffff';
+}
+function setCardPaint(card, color) {
+  const top = tint(color, 0.82);
+  const bot = tint(color, 0.62);
+  const border = shade(color, 0.35);
+  const text = onColor(color);
+
+  card.style.background = `linear-gradient(145deg, ${top} 0%, ${bot} 100%)`;
+  card.style.borderColor = border;
+  card.style.setProperty('--card-accent', color);
+  card.style.color = text;
+
+  // Make inner links readable
+  card.querySelectorAll('a').forEach(a => {
+    a.style.color = text;
+    a.style.textDecorationColor = text;
+  });
+
+  // Keep a data-color that’s compatible with any existing CSS targeting
+  const idx = state.palette.indexOf(color);
+  card.dataset.color = idx >= 0 ? `color${idx+1}` : color;
 }
 
 // ---------- wiki helpers ----------
@@ -91,7 +150,7 @@ function sanitizeWiki(html) {
       let n = h.nextSibling;
       const stop = new Set(['H2','H3','H4','H5','H6']);
       while (n && !(n.nodeType === 1 && stop.has(n.tagName))) {
-        const next = n.nextSibling; body.appendChild(n); n = next;
+        const nx = n.nextSibling; body.appendChild(n); n = nx;
       }
       details.appendChild(body);
       h.replaceWith(details);
@@ -134,49 +193,35 @@ async function loadWikiInto(el, wikiUrl) {
 
 // ---------- cards ----------
 function normalizeCard(id, raw = {}) {
-  // Case-insensitive key access
   const lc = {};
   Object.keys(raw).forEach(k => lc[k.toLowerCase()] = raw[k]);
 
-  // Name / alt
   const name = lc.name || lc.titlename || lc.display || lc.title || id.replace(/-/g,' ');
   const alt  = lc.alt || name;
 
-  // Image variants
   const image = lc.image || lc.imagefile || lc.img || lc.picture || lc.photourl || `${id}.jpg`;
   const legacyImageSrc = lc.legacyimagesrc || lc.legacy || null;
 
-  // Meta bullets: accept several shapes
   let meta = [];
   if (Array.isArray(lc.meta)) meta = lc.meta.slice();
   else if (Array.isArray(lc.h5)) meta = lc.h5.slice();
   else if (Array.isArray(lc.bullets)) meta = lc.bullets.slice();
   else if (Array.isArray(lc.lines)) meta = lc.lines.slice();
 
-  // Fold labeled lines if present
   const addIf = (label, key) => { if (lc[key]) meta.push(`${label}: ${lc[key]}`); };
   addIf('Background', 'background');
   addIf('Known For',  'knownfor');
   addIf('Field',      'field');
   addIf('Contributions', 'contributions');
 
-  // Local summary: prefer explicit HTML; otherwise accept text or bio
   const htmlKey = lc.abouthtml ?? lc.about_html ?? lc.summaryhtml ?? lc.summary_html;
   let aboutHtml = '';
-
   let textKey = lc.about ?? lc.summary ?? lc.description ?? lc.desc ?? lc.blurb;
-  if (!textKey && lc.bio) {
-    textKey = Array.isArray(lc.bio) ? lc.bio : String(lc.bio);
-  }
+  if (!textKey && lc.bio) textKey = Array.isArray(lc.bio) ? lc.bio : String(lc.bio);
 
-  if (htmlKey) {
-    aboutHtml = String(htmlKey);
-  } else if (textKey) {
-    if (Array.isArray(textKey)) aboutHtml = textKey.map(p => `<p>${String(p)}</p>`).join('');
-    else aboutHtml = `<p>${String(textKey)}</p>`;
-  }
+  if (htmlKey) aboutHtml = String(htmlKey);
+  else if (textKey) aboutHtml = Array.isArray(textKey) ? textKey.map(p => `<p>${String(p)}</p>`).join('') : `<p>${String(textKey)}</p>`;
 
-  // Optional per-card wiki override
   const wikiOverride = lc.wikipedia || lc.wiki || lc.url || lc.href || null;
 
   return { name, alt, image, legacyImageSrc, meta, aboutHtml, wikiOverride };
@@ -196,71 +241,45 @@ async function loadCard(id) {
 // ---------- URL lookup ----------
 function buildUrlIndex(urlsObj) {
   const idx = {};
-  Object.entries(urlsObj || {}).forEach(([k, v]) => {
-    idx[normId(k)] = v;
-  });
+  Object.entries(urlsObj || {}).forEach(([k, v]) => { idx[normId(k)] = v; });
   return idx;
 }
-
 function getWikiUrl(fig, cardData) {
-  // 1) Card-level override (wikipedia/wiki/url/href)
   if (cardData?.wikiOverride) return cardData.wikiOverride;
-
-  // 2) Exact id in urls.json
   const byId = state.urls[fig.id];
   if (byId) return byId;
-
-  // 3) Normalized id lookup
   const ni = normId(fig.id);
   if (state.urlIndex[ni]) return state.urlIndex[ni];
-
-  // 4) Try by normalized display name
   const nName = normId(fig.name || fig.display || fig.title || '');
   if (nName && state.urlIndex[nName]) return state.urlIndex[nName];
-
-  // 5) Fallback: guess Wikipedia URL from the best name we have
   const guessName = fig.name || fig.title || fig.id.replace(/-/g, ' ');
-  if (guessName) {
-    return `https://en.wikipedia.org/wiki/${encodeURIComponent(toWikiTitle(guessName))}`;
-  }
-
-  return null;
+  return guessName ? `https://en.wikipedia.org/wiki/${encodeURIComponent(toWikiTitle(guessName))}` : null;
 }
 
-// ---------- render ----------
+// ---------- rendering ----------
 function renderOne(fig) {
   const raw  = state.cards[fig.id] || {};
   const data = normalizeCard(fig.id, raw);
-
   const node = tpl.content.firstElementChild.cloneNode(true);
   node.dataset.id = fig.id;
 
-  // name
   node.querySelector('.fig-name').textContent = data.name;
 
-  // image with layered fallback: image -> legacyImageSrc -> placeholder
   const img = node.querySelector('.fig-img');
   const primarySrc = asDocUrl(data.image);
   const legacySrc  = asDocUrl(data.legacyImageSrc);
   img.alt = data.alt;
   img.loading = 'lazy';
-
   let triedLegacy = false;
   img.addEventListener('error', () => {
-    if (!triedLegacy && legacySrc) {
-      triedLegacy = true;
-      img.src = legacySrc;
-    } else {
-      img.onerror = null;
-      img.src = asDocUrl('placeholder.jpg');
-    }
+    if (!triedLegacy && legacySrc) { triedLegacy = true; img.src = legacySrc; }
+    else { img.onerror = null; img.src = asDocUrl('placeholder.jpg'); }
   });
   img.src = primarySrc || asDocUrl('placeholder.jpg');
 
-  // meta bullets
   const metaEl = node.querySelector('.fig-meta');
   metaEl.innerHTML = '';
-  if (data.meta && data.meta.length) {
+  if (data.meta?.length) {
     const ul = document.createElement('ul');
     ul.style.listStyle = 'none';
     ul.style.padding = '0';
@@ -274,11 +293,9 @@ function renderOne(fig) {
     metaEl.appendChild(ul);
   }
 
-  // local about
   const about = node.querySelector('.fig-about');
   about.innerHTML = data.aboutHtml || `<p class="muted">No local summary yet. See Wikipedia below.</p>`;
 
-  // wikipedia (lazy)
   const wikiBox = node.querySelector('.fig-wiki');
   const wurl = getWikiUrl(fig, data);
   if (wurl) {
@@ -295,35 +312,46 @@ function renderOne(fig) {
   state.nodes.push({ id: fig.id, el: node });
 }
 
-// Columns calc (fallback-safe)
-function computeGridCols(container) {
-  const cs = getComputedStyle(container);
-  const cols = cs.gridTemplateColumns?.split(' ').filter(Boolean).length || 0;
-  if (cols) return cols;
-  const first = container.querySelector('.feature-card') || container.firstElementChild;
-  if (!first) return 1;
-  const cw = container.clientWidth || 1;
-  const fw = first.getBoundingClientRect().width || 280;
-  return Math.max(1, Math.floor(cw / Math.max(1, fw)));
+// Infer columns from actual layout (robust to CSS changes & filtering)
+function inferGridColsVisible(cards) {
+  const visible = cards.filter(c => c.offsetParent !== null);
+  if (!visible.length) return 1;
+  const firstTop = visible[0].offsetTop;
+  let cols = 0;
+  for (const c of visible) {
+    if (c.offsetTop !== firstTop) break;
+    cols++;
+  }
+  return Math.max(cols, 1);
 }
 
-// Assign colors so no left/above neighbor shares the same color
+// Assign colors so no left/above neighbor shares the same color.
+// Uses balanced palette cycling for better distribution.
 function colorizeNoAdjacency() {
-  const cols = computeGridCols(gridEl);
-  const colors = state.palette.slice();
-  if (!colors.length) return;
+  const cards = state.nodes.map(n => n.el).filter(c => c.offsetParent !== null);
+  if (!cards.length || !state.palette.length) return;
 
-  const cards = state.nodes.map(n => n.el);
-  cards.forEach((card, i) => {
+  const cols = inferGridColsVisible(cards);
+  const pal = shuffle(state.palette); // shuffle palette order each run
+  let pIdx = Math.floor(Math.random() * pal.length);
+
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
     const row = Math.floor(i / cols), col = i % cols;
-    const left  = col > 0 ? cards[i - 1].dataset.color : null;
-    const above = row > 0 ? cards[i - cols]?.dataset.color : null;
-    const choices = colors.filter(c => c !== left && c !== above);
-    const pool = choices.length ? choices : colors;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    card.dataset.color = pick;
-    card.style.setProperty('--card-accent', pick);
-  });
+    const left  = col > 0 ? cards[i - 1]?.dataset.colorResolved : null;
+    const above = row > 0 ? cards[i - cols]?.dataset.colorResolved : null;
+
+    // Try up to N attempts to find a color not equal to left/above
+    let picked = null;
+    for (let tries = 0; tries < pal.length * 2; tries++) {
+      const c = pal[pIdx % pal.length]; pIdx++;
+      if (c !== left && c !== above) { picked = c; break; }
+    }
+    if (!picked) picked = pal[pIdx++ % pal.length];
+
+    setCardPaint(card, picked);
+    card.dataset.colorResolved = picked;
+  }
 }
 
 function applyFilter() {
@@ -338,48 +366,42 @@ function applyFilter() {
     el.style.display = hit ? '' : 'none';
     if (hit) shown++;
   });
+  colorizeNoAdjacency();
   if (countEl) countEl.textContent = `${shown} shown of ${state.nodes.length}`;
 }
 
 // ---------- boot ----------
 async function boot() {
-  if (!gridEl || !tpl) {
-    console.error('Missing #figure-grid or #tpl-figure-card in DOM.');
-    return;
-  }
-  if (location.protocol === 'file:') {
-    console.warn('Serving from file:// — fetch() cannot load local JSON reliably. Run a local HTTP server.');
-  }
+  if (!gridEl || !tpl) { console.error('Missing #figure-grid or #tpl-figure-card in DOM.'); return; }
+  if (location.protocol === 'file:') console.warn('Serving from file:// — run a local HTTP server to allow fetch().');
 
-  // Load data
   const [palette, figures, urls] = await Promise.all([ j(PALETTE), j(FIGURES), j(URLS_URL) ]);
   state.palette = Array.isArray(palette) ? palette : [];
   state.figures = Array.isArray(figures) ? figures : [];
   state.urls    = urls || {};
   state.urlIndex = buildUrlIndex(state.urls);
 
-  // Load all cards
   await Promise.all(state.figures.map(f => loadCard(f.id)));
 
-  // Shuffle figures BEFORE rendering, to randomize card order each load
   const shuffled = shuffle(state.figures);
   shuffled.forEach(renderOne);
 
-  // Colorize after layout, then on resize & first image loads (layout changes)
-  const recolor = () => { colorizeNoAdjacency(); applyFilter(); };
-  requestAnimationFrame(recolor);
+  // Initial colorization after layout
+  requestAnimationFrame(() => { colorizeNoAdjacency(); applyFilter(); });
 
   filterEl?.addEventListener('input', applyFilter);
 
-  let lastCols = computeGridCols(gridEl);
+  // Recolor on resize (layout/columns can change)
+  let recalc = null;
   addEventListener('resize', () => {
-    const cols = computeGridCols(gridEl);
-    if (cols !== lastCols) { lastCols = cols; colorizeNoAdjacency(); }
+    clearTimeout(recalc);
+    recalc = setTimeout(() => colorizeNoAdjacency(), 80);
   }, { passive: true });
 
-  // Recolor once images start affecting layout
-  const firstImg = gridEl.querySelector('img.fig-img');
-  if (firstImg) firstImg.addEventListener('load', () => colorizeNoAdjacency(), { once: true });
+  // Recolor once images load (affects positioning)
+  gridEl.querySelectorAll('img.fig-img').forEach(img => {
+    img.addEventListener('load', () => colorizeNoAdjacency(), { once: true });
+  });
 
   if (countEl && !countEl.textContent) countEl.textContent = `${state.nodes.length} shown of ${shuffled.length}`;
 }
