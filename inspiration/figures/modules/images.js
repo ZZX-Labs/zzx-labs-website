@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/images.js
 import { IMGS_DIR } from './paths.js';
 import { urlJoin } from './net.js';
 
