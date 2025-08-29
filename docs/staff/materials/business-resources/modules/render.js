@@ -33,6 +33,38 @@ export function sanitizeAndRewrite(html) {
   return doc.body.innerHTML;
 }
 
+// Heuristic: does this section *look* like references/citations?
+export function isReferenceLikeHTML(html) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html || '', 'text/html');
+
+    // Strong signals: official references containers
+    if (doc.querySelector('ol.references, .reflist, .mw-references-wrap')) return true;
+
+    // Superscript reference links used by MediaWiki
+    if (doc.querySelector('sup.reference, a[href^="#cite_note"], a[href^="#cite_ref"]')) return true;
+
+    // Heuristic: lots of superscripts that are numbers or caret
+    const sups = Array.from(doc.querySelectorAll('sup'));
+    let refy = 0;
+    for (const s of sups) {
+      const t = (s.textContent || '').trim();
+      // common shapes: [1], 1, ^, †
+      if (/^\[\d+\]$/.test(t) || /^\d{1,3}$/.test(t) || t === '^' || t === '†') refy++;
+      // links to cite anchors
+      const a = s.querySelector('a[href^="#cite_"]');
+      if (a) refy++;
+    }
+    // threshold: if there are many superscript-y markers, treat as refs
+    if (refy >= 4) return true;
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Problems panel (stateless; pass in the array)
 export function mountProblemsPanel(PROBLEMS) {
   const container = document.querySelector('.page-container') || document.body;
@@ -130,14 +162,17 @@ export function renderSubsection(contentEl, srcId, s, html) {
   const id = `${srcId}--sec-${s.index}`;
   const title = s.line;
 
-  if (isCollapsibleHeading(title)) {
+  // collapse if heading signals OR HTML looks like references OR cached rec flagged it
+  const shouldCollapse = isCollapsibleHeading(title) || s.refLike === true || isReferenceLikeHTML(html);
+
+  if (shouldCollapse) {
     const details = document.createElement('details');
     details.className = 'subsection collapsible';
     details.id = id;
     details.open = false; // collapsed by default
 
     const summary = document.createElement('summary');
-    summary.textContent = title;
+    summary.textContent = title || 'References';
     details.appendChild(summary);
 
     const body = document.createElement('div');
