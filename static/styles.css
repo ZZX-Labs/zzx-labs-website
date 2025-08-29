@@ -1123,3 +1123,30 @@ body.inspiration .features > :not(.feature-card-container) {
 body.inspiration .features > .container {
   display: block;
 }
+
+/* Center the "Philosophical Values" section on the figures page */
+body.inspiration #philosophical-values{
+  display: flex;
+  flex-direction: column;
+  align-items: center;      /* center its children horizontally */
+  padding-inline: 16px;     /* keep some edge breathing room */
+}
+
+/* Any direct child (text blocks, containers, etc.) gets centered width */
+body.inspiration #philosophical-values > *{
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;      /* center the block */
+  text-align: center;       /* optional, looks nicer for headings/paras */
+}
+
+/* If this section uses your helper rows/grids, center their items too */
+body.inspiration #philosophical-values .flex-row,
+body.inspiration #philosophical-values .grid{
+  justify-content: center;
+}
+
+/* Keep 8px gaps between cards in the figures grid (unchanged) */
+body.inspiration .feature-card-container{
+  gap: 8px;
+}
