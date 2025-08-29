@@ -68,6 +68,29 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   align-items: stretch;
 }
 
+:root{
+  /* …existing vars… */
+  --grid-pad: 8px; /* space between grid edges and cards */
+}
+
+@media (max-width: 600px){
+  :root{
+    /* …existing responsive vars… */
+    --grid-pad: 6px; /* slightly tighter on small screens */
+  }
+}
+
+/* Grid */
+.feature-card-container{
+  display: grid;
+  gap: calc(var(--grid-gap) + var(--rim) * 0.25);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  align-items: stretch;
+
+  /* NEW: edge padding so cards don’t touch the grid boundary */
+  padding: var(--grid-pad);
+}
+
 /* ========== Card ========== */
 .feature-card{
   position: relative;
