@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/color.js
 // Only color the rim (ring) + small swatch in the header.
 // Card background & text stay on your theme from CSS.
 
