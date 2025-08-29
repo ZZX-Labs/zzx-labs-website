@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/colorize.js
 import { state } from './state.js';
 import { inferGridColsVisible } from './grid.js';
 import { setCardPaint } from './color.js';
