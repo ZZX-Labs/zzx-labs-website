@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/grid.js
 export function inferGridColsVisible(cards) {
   const visible = cards.filter(c => c.offsetParent !== null);
   if (!visible.length) return 1;
