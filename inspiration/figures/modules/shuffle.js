@@ -21,7 +21,7 @@ export function shuffle(arr, opts = {}) {
   const a = arr.slice();
   const n = a.length;
 
-  // If a seed is provided, use a deterministic PRNG (session-stable if you reuse the seed)
+  // Deterministic path (if seed provided)
   if (typeof opts.seed === 'number' && Number.isFinite(opts.seed)) {
     const rnd = mulberry32(opts.seed);
     for (let i = n - 1; i > 0; i--) {
@@ -31,13 +31,12 @@ export function shuffle(arr, opts = {}) {
     return a;
   }
 
-  // Otherwise, prefer CSPRNG with rejection sampling to avoid modulo bias
+  // CSPRNG path with rejection sampling (uniform)
   if (window.crypto?.getRandomValues) {
-    // Draw one 32-bit int per iteration; rejection sampling ensures uniformity
     const u32 = new Uint32Array(1);
     for (let i = n - 1; i > 0; i--) {
-      const max = 0x100000000;               // 2^32
-      const limit = max - (max % (i + 1));   // highest usable value
+      const max = 0x100000000;
+      const limit = max - (max % (i + 1));
       let r;
       do {
         crypto.getRandomValues(u32);
@@ -49,7 +48,7 @@ export function shuffle(arr, opts = {}) {
     return a;
   }
 
-  // Fallback: Math.random
+  // Fallback
   for (let i = n - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;
     [a[i], a[j]] = [a[j], a[i]];
