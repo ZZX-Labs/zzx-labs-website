@@ -1,9 +1,9 @@
 /* =======================================================================
    ZZX-Labs · Inspiration / Figures · style.css (drop-in)
    - Dark card body that matches page background
-   - Colored OUTER-looking rim (via shadow), tunable thickness
+   - Colored OUTER rim only (tunable via --rim)
    - Comfortable inner spacing
-   - Subtle borders/shadows & sane grid
+   - Proper grid breathing room
    ======================================================================= */
 
 /* ========== Theme Vars ========== */
@@ -17,29 +17,37 @@
   /* Card surface */
   --card-bg: rgba(255,255,255,0.02);
   --card-br: rgba(255,255,255,0.08);
-  --card-shadow: 0 10px 28px rgba(0,0,0,0.28);
+  --card-shadow: 0 8px 28px rgba(0,0,0,0.30);
 
   /* Colored rim (set per-card from JS via --edge) */
   --edge: var(--accent);
 
   /* Rim tuning (thickness + hover) */
-  --rim: 8px;
+  --rim: 8px;               /* <= outer rim thickness */
   --rim-hover: 10px;
-  --rim-glow: 26px;
+  --rim-glow: 22px;
 
   /* Inner spacing (padding inside card sections) */
   --inset-x: 18px;  /* horizontal padding */
   --inset-y: 14px;  /* vertical padding */
 
-  /* Grid spacing base */
-  --grid-gap: 22px;
+  /* Grid spacing */
+  --grid-gap: 18px; /* space between cards */
+  --grid-pad: 8px;  /* padding around grid edges */
 }
 
-@media (max-width: 600px){
+@media (max-width: 640px){
   :root{
-    --rim: 6px; --rim-hover: 8px;
-    --inset-x: 14px; --inset-y: 12px;
-    --grid-gap: 16px;
+    --grid-gap: 14px;
+    --grid-pad: 6px;
+    --inset-x: 14px;
+    --inset-y: 12px;
+  }
+}
+@media (max-width: 480px){
+  :root{
+    --rim: 6px;
+    --rim-hover: 8px;
   }
 }
 
@@ -53,42 +61,19 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   background: rgba(192,214,116,0.06);
   border: 1px solid rgba(192,214,116,0.25);
   padding: .75rem 1rem;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: .95rem;
   margin: 1rem 0;
 }
 
 /* ========== Grid ========== */
 .features h2{ margin: .5rem 0 1rem; color: var(--fg); }
-
 .feature-card-container{
   display: grid;
-  gap: calc(var(--grid-gap) + var(--rim) * 0.25);
+  gap: var(--grid-gap);
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   align-items: stretch;
-}
-
-:root{
-  /* …existing vars… */
-  --grid-pad: 8px; /* space between grid edges and cards */
-}
-
-@media (max-width: 600px){
-  :root{
-    /* …existing responsive vars… */
-    --grid-pad: 6px; /* slightly tighter on small screens */
-  }
-}
-
-/* Grid */
-.feature-card-container{
-  display: grid;
-  gap: calc(var(--grid-gap) + var(--rim) * 0.25);
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  align-items: stretch;
-
-  /* NEW: edge padding so cards don’t touch the grid boundary */
-  padding: var(--grid-pad);
+  padding: var(--grid-pad); /* space between grid boundary and first/last card */
 }
 
 /* ========== Card ========== */
@@ -96,27 +81,29 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 300px;
+  min-height: 280px;
+
   background: var(--card-bg);
   color: var(--fg);
-
   border: 1px solid var(--card-br);
-  border-radius: 14px;
-  overflow: hidden; /* keeps inner content nicely clipped to radius */
+  border-radius: 16px;
+  overflow: hidden;
 
-  /* Outer-looking colored rim + soft drop shadow */
+  /* Outer rim only (colored) — body stays dark */
   box-shadow:
     var(--card-shadow),
     0 0 0 var(--rim) var(--edge, transparent);
-  transition: box-shadow .18s ease, transform .07s ease;
-  isolation: isolate; /* keep shadows self-contained */
+  transition: box-shadow .15s ease, transform .06s ease;
+
+  /* small margin so the rim doesn’t visually butt against neighbors */
+  margin: 2px;
 }
 
 .feature-card:hover{
   box-shadow:
     var(--card-shadow),
     0 0 0 var(--rim) var(--edge, transparent),
-    0 0 var(--rim-glow) var(--edge, transparent);
+    0 0 var(--rim-glow) -6px var(--edge, transparent);
 }
 
 .feature-card:focus-within{
@@ -151,7 +138,7 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   outline: 1px solid rgba(255,255,255,.25);
 }
 
-.feature-card h3{ margin: 0; color: var(--fg); font-size: 1.06rem; }
+.feature-card h3{ margin: 0; color: var(--fg); font-size: 1.05rem; }
 
 /* ========== Image Block ========== */
 .feature-card .figure-wrap{
@@ -160,12 +147,11 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   aspect-ratio: 16/10;
   overflow: hidden;
   border-bottom: 1px solid var(--card-br);
-  background: #101318; /* for unloaded/placeholder */
+  background: #101318; /* matches dark theme for unloaded/placeholder */
 }
 
 .feature-card .figure-wrap img{
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
+  width: 100%; height: 100%; object-fit: cover; display: block;
 }
 
 /* De-emphasize any explicit placeholder asset by name */
@@ -175,7 +161,7 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
 
 /* ========== Actions Row ========== */
 .feature-card .card-actions{
-  display: flex; gap: 8px;
+  display: flex; gap: .6rem;
   padding: calc(var(--inset-y) - 2px) var(--inset-x);
   border-bottom: 1px solid var(--card-br);
 }
@@ -183,36 +169,36 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
 .feature-card .card-actions button{
   background: transparent; color: var(--fg);
   border: 1px solid var(--card-br);
-  border-radius: 8px;
-  padding: .36rem .65rem;
+  border-radius: 6px;
+  padding: .36rem .7rem;
   cursor: pointer;
 }
+
 .feature-card .card-actions button:hover{
-  border-color: rgba(255,255,255,.35);
+  border-color: rgba(255,255,255,.3);
 }
 
 /* ========== Content ========== */
-.feature-card .card-content{
-  padding: var(--inset-y) var(--inset-x) calc(var(--inset-y) + 6px);
-}
+.feature-card .card-content{ padding: var(--inset-y) var(--inset-x) calc(var(--inset-y) + 6px); }
 
 .feature-card .fig-name{
   font-weight: 700;
-  margin: 0 0 .35rem;
+  margin: 0 0 .4rem;
 }
 
 .feature-card .fig-meta{
   color: var(--muted);
-  font-size: .94rem;
+  font-size: .92rem;
 }
 
 .feature-card .fig-meta ul{
-  margin: .25rem 0 .5rem; padding-left: 0; list-style: none;
+  margin: .25rem 0 .55rem; padding-left: 0; list-style: none;
 }
+
 .feature-card .fig-meta li{ margin: .15rem 0; }
 
 .feature-card .fig-about p{
-  margin: .55rem 0; line-height: 1.52;
+  margin: .55rem 0; line-height: 1.55;
 }
 
 .muted{ color: var(--muted); }
@@ -223,24 +209,32 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   border-radius: 8px;
   padding: 0.25rem 0.5rem;
   background: rgba(255,255,255,0.03);
-  margin: .7rem 0;
+  margin: .65rem 0;
 }
+
 .subsection.collapsible > summary{
   list-style: none; cursor: pointer; font-weight: 600; color: var(--fg);
   padding: 0.35rem 0.25rem;
 }
+
 .subsection.collapsible > summary::-webkit-details-marker{ display: none; }
 .subsection.collapsible > summary::after{ content: " ▸"; color: var(--muted); }
 .subsection.collapsible[open] > summary::after{ content: " ▾"; }
-.subsection.collapsible .collapsible-body{ padding: 0.45rem 0.25rem 0.8rem; }
-.subsection.collapsible:not([open]) .collapsible-body{ display: none !important; }
+
+.subsection.collapsible .collapsible-body{
+  padding: 0.45rem 0.25rem 0.8rem;
+}
+
+.subsection.collapsible:not([open]) .collapsible-body{
+  display: none !important;
+}
 
 /* ========== Light cleanup for wiki content inside card ========== */
 .card-content img{ max-width: 100%; height: auto; }
 .card-content table{ width: 100%; border-collapse: collapse; }
 .card-content th, .card-content td{
   border: 1px solid rgba(255,255,255,0.1);
-  padding: .38rem;
+  padding: .35rem;
 }
 .card-content .infobox,
 .card-content .navbox,
@@ -250,12 +244,12 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
 /* ========== Links ========== */
 a{ color: var(--accent); }
 .feature-card a{ text-decoration-color: rgba(255,255,255,.25); }
-.feature-card a:hover{ text-decoration-color: rgba(255,255,255,.55); }
+.feature-card a:hover{ text-decoration-color: rgba(255,255,255,.5); }
 
 /* ========== Utility ========== */
 ul, .submenu, .footer-links{ list-style: none; padding-left: 0; }
 
-/* Narrow screens */
-@media (max-width: 380px){
-  .feature-card-container{ gap: 14px; grid-template-columns: 1fr; }
+/* Narrow view tweak */
+@media (max-width: 360px){
+  .feature-card-container{ gap: 12px; grid-template-columns: 1fr; }
 }
