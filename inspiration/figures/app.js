@@ -14,45 +14,55 @@ const tpl      = document.getElementById('tpl-figure-card');
 const filterEl = document.getElementById('figure-filter');
 const countEl  = document.getElementById('figure-count');
 
-const state = { palette: [], figures: [], urls: {}, cards: {}, nodes: [] };
+const state = {
+  palette: [],
+  figures: [],
+  urls: {},           // raw urls object
+  urlIndex: {},       // normalized lookup
+  cards: {},
+  nodes: []
+};
 
-// ---------- fetch helpers ----------
+// ---------- utils ----------
 async function j(url) {
   const r = await fetch(url, { cache: 'no-cache' });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  try { return await r.json(); } catch (e) { throw new Error(`Invalid JSON for ${url}: ${e.message}`); }
+  if (!r.ok) throw new Error(`${url} → ${r.status}`);
+  return r.json();
 }
 function urlJoin(dir, name) { return new URL(name, dir); }
-
-// If string looks absolute (https://, /, ./, ../), use as-is; else join with IMGS_DIR
 function asDocUrl(pathOrName) {
   if (!pathOrName) return null;
   const s = String(pathOrName);
   if (/^(?:[a-z]+:|\/|\.{1,2}\/)/i.test(s)) return s;
   return String(urlJoin(IMGS_DIR, s));
 }
+function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function toWikiTitle(s) { return String(s || '').trim().replace(/\s+/g, '_'); }
 
-function objectifyUrls(raw) {
-  if (!raw) return {};
-  if (Array.isArray(raw)) {
-    const out = {};
-    raw.forEach(item => {
-      if (!item) return;
-      if (Array.isArray(item)) out[item[0]] = item[1];
-      else if (item.id && item.url) out[item.id] = item.url;
-    });
-    return out;
+// Fisher–Yates with crypto randomness if available
+function shuffle(arr) {
+  const a = arr.slice();
+  if (crypto && crypto.getRandomValues) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const r32 = new Uint32Array(1);
+      crypto.getRandomValues(r32);
+      const j = r32[0] % (i + 1);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+  } else {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
   }
-  return raw;
+  return a;
 }
 
 // ---------- wiki helpers ----------
 function slugFromWiki(url) {
   try {
     const u = new URL(url);
-    if (u.pathname.startsWith('/wiki/')) {
-      return decodeURIComponent(u.pathname.replace('/wiki/','')).split('#')[0];
-    }
+    if (u.pathname.startsWith('/wiki/')) return decodeURIComponent(u.pathname.replace('/wiki/','')).split('#')[0];
     const t = u.searchParams.get('title');
     return t ? decodeURIComponent(t).split('#')[0] : '';
   } catch {
@@ -124,48 +134,52 @@ async function loadWikiInto(el, wikiUrl) {
 
 // ---------- cards ----------
 function normalizeCard(id, raw = {}) {
-  const name  = raw.name || raw.titleName || id.replace(/-/g,' ');
-  const alt   = raw.alt || name;
+  // Case-insensitive key access
+  const lc = {};
+  Object.keys(raw).forEach(k => lc[k.toLowerCase()] = raw[k]);
 
-  // image + legacy fallback
-  const image = raw.image || raw.img || raw.photo || `${id}.jpg`;
-  const legacyImageSrc = raw.legacyImageSrc || raw.legacy || null;
+  // Name / alt
+  const name = lc.name || lc.titlename || lc.display || lc.title || id.replace(/-/g,' ');
+  const alt  = lc.alt || name;
 
-  // meta bullets from arrays OR single fields
+  // Image variants
+  const image = lc.image || lc.imagefile || lc.img || lc.picture || lc.photourl || `${id}.jpg`;
+  const legacyImageSrc = lc.legacyimagesrc || lc.legacy || null;
+
+  // Meta bullets: accept several shapes
   let meta = [];
-  if (Array.isArray(raw.meta)) meta = raw.meta.slice();
-  else if (Array.isArray(raw.h5)) meta = raw.h5.slice();
-  else if (Array.isArray(raw.bullets)) meta = raw.bullets.slice();
-  else if (Array.isArray(raw.lines)) meta = raw.lines.slice();
+  if (Array.isArray(lc.meta)) meta = lc.meta.slice();
+  else if (Array.isArray(lc.h5)) meta = lc.h5.slice();
+  else if (Array.isArray(lc.bullets)) meta = lc.bullets.slice();
+  else if (Array.isArray(lc.lines)) meta = lc.lines.slice();
 
-  // fold in labeled one-liners if present
-  const addIf = (label, val) => { if (val) meta.push(`${label}: ${val}`); };
-  addIf('Background',     raw.background);
-  addIf('Known For',      raw.knownFor);
-  addIf('Field',          raw.field);
-  addIf('Contributions',  raw.contributions);
+  // Fold labeled lines if present
+  const addIf = (label, key) => { if (lc[key]) meta.push(`${label}: ${lc[key]}`); };
+  addIf('Background', 'background');
+  addIf('Known For',  'knownfor');
+  addIf('Field',      'field');
+  addIf('Contributions', 'contributions');
 
-  // local summary: accept HTML or text; also accept `bio` (string or array)
-  const htmlKey = raw.aboutHtml ?? raw.aboutHTML ?? raw.about_html
-                ?? raw.summaryHtml ?? raw.summaryHTML ?? raw.summary_html;
+  // Local summary: prefer explicit HTML; otherwise accept text or bio
+  const htmlKey = lc.abouthtml ?? lc.about_html ?? lc.summaryhtml ?? lc.summary_html;
+  let aboutHtml = '';
 
-  let textKey = raw.about ?? raw.summary ?? raw.description ?? raw.desc ?? raw.blurb;
-  if (!textKey && raw.bio) {
-    textKey = Array.isArray(raw.bio) ? raw.bio : String(raw.bio);
+  let textKey = lc.about ?? lc.summary ?? lc.description ?? lc.desc ?? lc.blurb;
+  if (!textKey && lc.bio) {
+    textKey = Array.isArray(lc.bio) ? lc.bio : String(lc.bio);
   }
 
-  let aboutHtml = '';
   if (htmlKey) {
     aboutHtml = String(htmlKey);
   } else if (textKey) {
-    if (Array.isArray(textKey)) {
-      aboutHtml = textKey.map(p => `<p>${String(p)}</p>`).join('');
-    } else {
-      aboutHtml = `<p>${String(textKey)}</p>`;
-    }
+    if (Array.isArray(textKey)) aboutHtml = textKey.map(p => `<p>${String(p)}</p>`).join('');
+    else aboutHtml = `<p>${String(textKey)}</p>`;
   }
 
-  return { name, alt, image, legacyImageSrc, meta, aboutHtml };
+  // Optional per-card wiki override
+  const wikiOverride = lc.wikipedia || lc.wiki || lc.url || lc.href || null;
+
+  return { name, alt, image, legacyImageSrc, meta, aboutHtml, wikiOverride };
 }
 
 async function loadCard(id) {
@@ -179,12 +193,49 @@ async function loadCard(id) {
   }
 }
 
+// ---------- URL lookup ----------
+function buildUrlIndex(urlsObj) {
+  const idx = {};
+  Object.entries(urlsObj || {}).forEach(([k, v]) => {
+    idx[normId(k)] = v;
+  });
+  return idx;
+}
+
+function getWikiUrl(fig, cardData) {
+  // 1) Card-level override (wikipedia/wiki/url/href)
+  if (cardData?.wikiOverride) return cardData.wikiOverride;
+
+  // 2) Exact id in urls.json
+  const byId = state.urls[fig.id];
+  if (byId) return byId;
+
+  // 3) Normalized id lookup
+  const ni = normId(fig.id);
+  if (state.urlIndex[ni]) return state.urlIndex[ni];
+
+  // 4) Try by normalized display name
+  const nName = normId(fig.name || fig.display || fig.title || '');
+  if (nName && state.urlIndex[nName]) return state.urlIndex[nName];
+
+  // 5) Fallback: guess Wikipedia URL from the best name we have
+  const guessName = fig.name || fig.title || fig.id.replace(/-/g, ' ');
+  if (guessName) {
+    return `https://en.wikipedia.org/wiki/${encodeURIComponent(toWikiTitle(guessName))}`;
+  }
+
+  return null;
+}
+
 // ---------- render ----------
 function renderOne(fig) {
   const raw  = state.cards[fig.id] || {};
   const data = normalizeCard(fig.id, raw);
 
   const node = tpl.content.firstElementChild.cloneNode(true);
+  node.dataset.id = fig.id;
+
+  // name
   node.querySelector('.fig-name').textContent = data.name;
 
   // image with layered fallback: image -> legacyImageSrc -> placeholder
@@ -223,13 +274,13 @@ function renderOne(fig) {
     metaEl.appendChild(ul);
   }
 
-  // about (local)
+  // local about
   const about = node.querySelector('.fig-about');
   about.innerHTML = data.aboutHtml || `<p class="muted">No local summary yet. See Wikipedia below.</p>`;
 
   // wikipedia (lazy)
   const wikiBox = node.querySelector('.fig-wiki');
-  const wurl = state.urls[fig.id];
+  const wurl = getWikiUrl(fig, data);
   if (wurl) {
     const wikiDetails = wikiBox.closest('details');
     let loaded = false;
@@ -244,6 +295,7 @@ function renderOne(fig) {
   state.nodes.push({ id: fig.id, el: node });
 }
 
+// Columns calc (fallback-safe)
 function computeGridCols(container) {
   const cs = getComputedStyle(container);
   const cols = cs.gridTemplateColumns?.split(' ').filter(Boolean).length || 0;
@@ -255,10 +307,12 @@ function computeGridCols(container) {
   return Math.max(1, Math.floor(cw / Math.max(1, fw)));
 }
 
+// Assign colors so no left/above neighbor shares the same color
 function colorizeNoAdjacency() {
   const cols = computeGridCols(gridEl);
   const colors = state.palette.slice();
   if (!colors.length) return;
+
   const cards = state.nodes.map(n => n.el);
   cards.forEach((card, i) => {
     const row = Math.floor(i / cols), col = i % cols;
@@ -276,10 +330,11 @@ function applyFilter() {
   const q = (filterEl?.value || '').trim().toLowerCase();
   let shown = 0;
   state.nodes.forEach(({ el }) => {
-    const name = el.querySelector('.fig-name')?.textContent.toLowerCase() || '';
+    const id    = (el.dataset.id || '').toLowerCase();
+    const name  = el.querySelector('.fig-name')?.textContent.toLowerCase() || '';
     const about = el.querySelector('.fig-about')?.textContent.toLowerCase() || '';
     const meta  = Array.from(el.querySelectorAll('.fig-meta li')).map(li => li.textContent.toLowerCase()).join(' ');
-    const hit = !q || name.includes(q) || about.includes(q) || meta.includes(q);
+    const hit = !q || id.includes(q) || name.includes(q) || about.includes(q) || meta.includes(q);
     el.style.display = hit ? '' : 'none';
     if (hit) shown++;
   });
@@ -296,15 +351,23 @@ async function boot() {
     console.warn('Serving from file:// — fetch() cannot load local JSON reliably. Run a local HTTP server.');
   }
 
+  // Load data
   const [palette, figures, urls] = await Promise.all([ j(PALETTE), j(FIGURES), j(URLS_URL) ]);
   state.palette = Array.isArray(palette) ? palette : [];
   state.figures = Array.isArray(figures) ? figures : [];
-  state.urls    = objectifyUrls(urls);
+  state.urls    = urls || {};
+  state.urlIndex = buildUrlIndex(state.urls);
 
+  // Load all cards
   await Promise.all(state.figures.map(f => loadCard(f.id)));
-  state.figures.forEach(renderOne);
 
-  requestAnimationFrame(() => { colorizeNoAdjacency(); applyFilter(); });
+  // Shuffle figures BEFORE rendering, to randomize card order each load
+  const shuffled = shuffle(state.figures);
+  shuffled.forEach(renderOne);
+
+  // Colorize after layout, then on resize & first image loads (layout changes)
+  const recolor = () => { colorizeNoAdjacency(); applyFilter(); };
+  requestAnimationFrame(recolor);
 
   filterEl?.addEventListener('input', applyFilter);
 
@@ -314,7 +377,11 @@ async function boot() {
     if (cols !== lastCols) { lastCols = cols; colorizeNoAdjacency(); }
   }, { passive: true });
 
-  if (countEl && !countEl.textContent) countEl.textContent = `${state.nodes.length} shown of ${state.figures.length}`;
+  // Recolor once images start affecting layout
+  const firstImg = gridEl.querySelector('img.fig-img');
+  if (firstImg) firstImg.addEventListener('load', () => colorizeNoAdjacency(), { once: true });
+
+  if (countEl && !countEl.textContent) countEl.textContent = `${state.nodes.length} shown of ${shuffled.length}`;
 }
 
 boot().catch(err => {
