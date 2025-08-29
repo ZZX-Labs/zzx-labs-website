@@ -1,9 +1,9 @@
-/* Business Resources renderer
+/* Business Resources renderer (hardened)
  * - Reads ./urls.json (array of Wikipedia URLs).
- * - Resolve titles (redirects/typos), fetch sections + per-section HTML via MediaWiki API.
- * - Sanitizes incoming HTML, rewrites links, opens external in new tabs.
- * - Caches responses in localStorage (TTL default 6h).
- * - Provides a sticky TOC with filter.
+ * - Resolves redirects/typos; supports #fragment to render only that section.
+ * - Per-source try/catch so one bad URL never breaks the whole page/TOC.
+ * - Problems panel surfaces redirects/misspellings/missing/disambiguation.
+ * - Caches MediaWiki responses in localStorage (TTL 6h).
  */
 
 const TOC = document.getElementById('toc-content');
@@ -13,9 +13,37 @@ const TOC_FILTER = document.getElementById('toc-filter');
 const TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const MW_API = 'https://en.wikipedia.org/w/api.php';
 const ORIGIN = '&origin=*'; // CORS
-const HEADERS_TO_INCLUDE = null; // e.g., ['0','1','2'] to limit level(s)
+const HEADERS_TO_INCLUDE = null; // e.g., ['0','1','2'] to limit levels
 
-// --- Cache helpers ---
+// Problems panel
+let PROBLEMS = [];
+function mountProblemsPanel() {
+  const container = document.querySelector('.page-container') || document.body;
+  let panel = document.getElementById('problems-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'problems-panel';
+    panel.className = 'notice';
+    panel.style.display = 'none';
+
+    // Insert under breadcrumbs if present
+    const bc = container.querySelector('.breadcrumbs');
+    if (bc && bc.parentNode === container) {
+      container.insertBefore(panel, bc.nextSibling);
+    } else {
+      container.insertBefore(panel, container.firstChild);
+    }
+  }
+  if (PROBLEMS.length) {
+    panel.style.display = '';
+    const items = PROBLEMS.map(p => `<li>${p}</li>`).join('');
+    panel.innerHTML = `<strong>Problems detected:</strong><ul style="margin:.5rem 0 0 1rem">${items}</ul>`;
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+// Cache helpers
 const cacheGet = (key) => {
   try {
     const raw = localStorage.getItem(key);
@@ -29,12 +57,14 @@ const cacheSet = (key, value) => {
   try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value })); } catch {}
 };
 
-// --- Utils ---
+// Utils
 function slugify(str) {
   return (str || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64);
 }
-
-// Normalize URL → extract title and drop fragments/query noise
+function extractFragment(url) {
+  try { return new URL(url).hash.replace(/^#/, '') || null; } catch { return null; }
+}
+// Normalize URL → title (no fragment)
 function urlToTitle(url) {
   try {
     const u = new URL(url);
@@ -47,7 +77,7 @@ function urlToTitle(url) {
   return decodeURIComponent(String(url).split('/').pop() || '').split('#')[0].replace(/_/g,' ');
 }
 
-// --- API calls ---
+// MediaWiki calls
 async function fetchParse(params) {
   const url = `${MW_API}?${params}${ORIGIN}`;
   const key = `mw:${params}`;
@@ -74,27 +104,52 @@ async function searchSuggest(title) {
   return data?.[1]?.[0] || null;
 }
 
-// Resolve redirects & typos → canonical title (or fallback to original)
-async function resolveTitle(rawTitle) {
+// Resolve + inspect (redirects/typos/disambiguation)
+async function resolveAndInspect(rawTitle) {
   const p = new URLSearchParams({
     action: 'query',
     format: 'json',
     redirects: '1',
-    titles: rawTitle
+    titles: rawTitle,
+    prop: 'info|revisions|pageprops',
+    rvprop: 'timestamp',
+    inprop: 'url'
   }).toString();
 
-  const data = await fetchParse(p);
-  const pages = data?.query?.pages || {};
-  const first = Object.values(pages)[0];
+  let data = await fetchParse(p);
+  let pages = data?.query?.pages || {};
+  let first = Object.values(pages)[0];
 
-  if (first && !first.missing) {
-    const normalized = data?.query?.normalized?.[0]?.to || null;
-    const redirected = data?.query?.redirects?.[0]?.to || null;
-    return (normalized || redirected || first.title || rawTitle);
+  if (first?.missing) {
+    const suggestion = await searchSuggest(rawTitle);
+    if (suggestion && suggestion !== rawTitle) {
+      PROBLEMS.push(`“${rawTitle}” not found; auto-suggested → “${suggestion}”.`);
+      return resolveAndInspect(suggestion);
+    }
+    PROBLEMS.push(`“${rawTitle}” not found (no suggestion).`);
+    return { title: rawTitle, missing: true };
   }
 
-  const suggestion = await searchSuggest(rawTitle);
-  return suggestion || rawTitle;
+  const normalized = data?.query?.normalized?.[0]?.to || null;
+  const redirected = data?.query?.redirects?.[0]?.to || null;
+  const canonical = normalized || redirected || first?.title || rawTitle;
+
+  if (normalized && normalized !== rawTitle) {
+    PROBLEMS.push(`Normalized “${rawTitle}” → “${normalized}”.`);
+  }
+  if (redirected && redirected !== rawTitle) {
+    PROBLEMS.push(`Redirected “${rawTitle}” → “${redirected}”.`);
+  }
+
+  const isDisambig = !!first?.pageprops?.disambiguation;
+  if (isDisambig) {
+    PROBLEMS.push(`“${canonical}” is a disambiguation page (e.g., OKB). Rendering anyway.`);
+  }
+
+  const updated = first?.revisions?.[0]?.timestamp ? new Date(first.revisions[0].timestamp) : null;
+  const fullurl = first?.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(canonical)}`;
+
+  return { title: canonical, url: fullurl, updated, disambig: isDisambig, missing: false };
 }
 
 async function getSections(pageTitle) {
@@ -122,24 +177,7 @@ async function getSectionHTML(pageTitle, sectionIndex) {
   return { html: data.parse.text['*'], revid: data.parse.revid };
 }
 
-async function getPageMeta(pageTitle) {
-  const p = new URLSearchParams({
-    action: 'query',
-    format: 'json',
-    prop: 'revisions|info',
-    titles: pageTitle,
-    rvprop: 'timestamp',
-    inprop: 'url'
-  }).toString();
-  const data = await fetchParse(p);
-  const pages = data?.query?.pages || {};
-  const first = Object.values(pages)[0];
-  const ts = first?.revisions?.[0]?.timestamp;
-  const fullurl = first?.fullurl;
-  return { updated: ts ? new Date(ts) : null, url: fullurl || null };
-}
-
-// --- Sanitize HTML, rewrite links ---
+// Sanitize/Rewrite
 function sanitizeAndRewrite(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -167,7 +205,7 @@ function sanitizeAndRewrite(html) {
   return doc.body.innerHTML;
 }
 
-// --- TOC/UI builders ---
+// TOC/UI
 function addTOCSourceBlock(srcId, title, sections) {
   const wrap = document.createElement('div');
   wrap.className = 'toc-source';
@@ -182,8 +220,8 @@ function addTOCSourceBlock(srcId, title, sections) {
   wrap.appendChild(h);
 
   const list = document.createElement('ul');
-  sections.forEach(s => {
-    if (s.toclevel === 0) return;
+  (sections || []).forEach(s => {
+    if (s.toclevel === 0) return; // skip root
     const li = document.createElement('li');
     li.setAttribute('data-section', s.line.toLowerCase());
     const a = document.createElement('a');
@@ -196,7 +234,7 @@ function addTOCSourceBlock(srcId, title, sections) {
   TOC.appendChild(wrap);
 }
 
-function renderSourceHeader(container, srcId, titleOrUrl, updated) {
+function renderSourceHeader(container, srcId, title, pageUrl, updated) {
   const section = document.createElement('section');
   section.id = srcId;
 
@@ -205,12 +243,8 @@ function renderSourceHeader(container, srcId, titleOrUrl, updated) {
 
   const h2 = document.createElement('h2');
   const a = document.createElement('a');
-  a.href = typeof titleOrUrl === 'string' && titleOrUrl.startsWith('http')
-    ? titleOrUrl
-    : `https://en.wikipedia.org/wiki/${encodeURIComponent(titleOrUrl)}`;
-  a.textContent = (typeof titleOrUrl === 'string' && !titleOrUrl.startsWith('http')
-    ? titleOrUrl
-    : (new URL(a.href)).pathname.replace('/wiki/','').replace(/_/g,' '));
+  a.href = pageUrl || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+  a.textContent = title.replace(/_/g,' ');
   a.target = '_blank'; a.rel = 'noopener noreferrer';
   h2.appendChild(a);
 
@@ -225,7 +259,6 @@ function renderSourceHeader(container, srcId, titleOrUrl, updated) {
   head.appendChild(h2);
   head.appendChild(badge);
   head.appendChild(updatedSpan);
-
   section.appendChild(head);
 
   const meta = document.createElement('div');
@@ -257,7 +290,7 @@ function renderSubsection(contentEl, srcId, s, html) {
   contentEl.appendChild(wrap);
 }
 
-// --- TOC filter ---
+// TOC filter
 function setupTocFilter() {
   if (!TOC_FILTER) return;
   TOC_FILTER.addEventListener('input', () => {
@@ -276,47 +309,65 @@ function setupTocFilter() {
   });
 }
 
-// --- Main render ---
+// Main
 async function render() {
   try {
     const urlsRes = await fetch('./urls.json');
     if (!urlsRes.ok) throw new Error('Missing urls.json');
     const urls = await urlsRes.json();
     TOC.innerHTML = '';
+    PROBLEMS = [];
 
     for (const url of urls) {
-      const title = await resolveTitle(urlToTitle(url));
-      const srcId = `src-${slugify(title)}`;
+      try {
+        const rawTitle = urlToTitle(url);
+        const fragment = extractFragment(url);
+        const info = await resolveAndInspect(rawTitle);
 
-      const [sections, meta] = await Promise.all([
-        getSections(title),
-        getPageMeta(title)
-      ]);
-
-      addTOCSourceBlock(srcId, title, sections);
-
-      const contentEl = renderSourceHeader(
-        TARGET,
-        srcId,
-        meta.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
-        meta.updated
-      );
-
-      const sectionList = (HEADERS_TO_INCLUDE)
-        ? sections.filter(s => HEADERS_TO_INCLUDE.includes(s.index))
-        : sections;
-
-      for (const s of sectionList) {
-        try {
-          const { html } = await getSectionHTML(title, s.index);
-          const cleaned = sanitizeAndRewrite(html);
-          if (cleaned.trim()) renderSubsection(contentEl, srcId, s, cleaned);
-        } catch (err) {
+        if (info.missing) {
+          const srcId = `src-${slugify(rawTitle)}`;
+          const contentEl = renderSourceHeader(TARGET, srcId, rawTitle, null, null);
           const e = document.createElement('div');
           e.className = 'error';
-          e.textContent = `Section “${s.line}” failed to load: ${err.message}`;
+          e.textContent = `Page not found: “${rawTitle}”.`;
           contentEl.appendChild(e);
+          continue;
         }
+
+        const srcId = `src-${slugify(info.title)}`;
+        const sections = await getSections(info.title);
+
+        let sectionList = sections;
+        if (fragment) {
+          const fragLower = fragment.toLowerCase().replace(/_/g,' ');
+          const byAnchor = sections.find(s => (s.anchor || '').toLowerCase() === fragment.toLowerCase());
+          const byLine = sections.find(s => (s.line || '').toLowerCase() === fragLower);
+          const chosen = byAnchor || byLine;
+          sectionList = chosen ? [chosen] : sections;
+          if (!chosen) {
+            PROBLEMS.push(`Fragment “#${fragment}” not found on “${info.title}”; rendering all sections.`);
+          }
+        } else if (HEADERS_TO_INCLUDE) {
+          sectionList = sections.filter(s => HEADERS_TO_INCLUDE.includes(s.index));
+        }
+
+        addTOCSourceBlock(srcId, info.title, sectionList);
+        const contentEl = renderSourceHeader(TARGET, srcId, info.title, info.url, info.updated);
+
+        for (const s of sectionList) {
+          try {
+            const { html } = await getSectionHTML(info.title, s.index);
+            const cleaned = sanitizeAndRewrite(html);
+            if (cleaned.trim()) renderSubsection(contentEl, srcId, s, cleaned);
+          } catch (err) {
+            const e = document.createElement('div');
+            e.className = 'error';
+            e.textContent = `Section “${s.line}” failed to load: ${err.message}`;
+            contentEl.appendChild(e);
+          }
+        }
+      } catch (err) {
+        PROBLEMS.push(`Failed to process URL: ${url} → ${err.message}`);
       }
     }
 
@@ -325,6 +376,7 @@ async function render() {
     }
 
     setupTocFilter();
+    mountProblemsPanel();
   } catch (err) {
     TOC.innerHTML = `<p class="error">Failed to initialize: ${err.message}</p>`;
   }
