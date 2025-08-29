@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/shuffle.js
 export function shuffle(arr) {
   const a = arr.slice();
   if (window.crypto?.getRandomValues) {
