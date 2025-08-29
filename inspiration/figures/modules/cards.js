@@ -1,3 +1,5 @@
+// /inspiration/figures/modules/cards.js
+
 import { state } from './state.js';
 import { CARDS_DIR } from './paths.js';
 import { j, urlJoin } from './net.js';
