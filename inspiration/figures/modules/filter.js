@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/filter.js
 import { state } from './state.js';
 import { filterEl, countEl } from './dom.js';
 import { colorizeBalancedNoAdjacency } from './colorize.js';
