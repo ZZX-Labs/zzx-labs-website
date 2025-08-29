@@ -7,7 +7,8 @@ import { resolveAndInspect, getSections, getSectionHTML } from './mw.js';
 import {
   sanitizeAndRewrite, mountProblemsPanel, setupTocFilter,
   renderFromCache, filterSectionsByPolicy,
-  attachNavCollapsibleHandlers, openIfCollapsibleTarget
+  attachNavCollapsibleHandlers, openIfCollapsibleTarget,
+  isReferenceLikeHTML
 } from './render.js';
 
 const PROBLEMS = [];
@@ -27,14 +28,13 @@ async function processUrl(url) {
 
   if (info.missing) {
     PROBLEMS.push(`Page not found: “${rawTitle}”.`);
-    // still render a stub header for visibility
     const stub = {
       key: `${rawTitle}#${fragment || 'ALL'}`,
       title: rawTitle,
       url: null,
       updated: null,
       lastrevid: null,
-      sections: [{ index: '0', line: 'Not found', anchor: null, toclevel: 1, html: `<div class="error">Page missing</div>` }]
+      sections: [{ index: '0', line: 'Not found', anchor: null, toclevel: 1, html: `<div class="error">Page missing</div>`, refLike: false }]
     };
     renderFromCache(stub);
     return;
@@ -67,7 +67,15 @@ async function processUrl(url) {
     try {
       const { html } = await getSectionHTML(info.title, s.index);
       const cleaned = sanitizeAndRewrite(html);
-      outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel, html: cleaned });
+      const refLike = isReferenceLikeHTML(cleaned); // <-- flag ref/cite-like sections
+      outSections.push({
+        index: s.index,
+        line: s.line,
+        anchor: s.anchor,
+        toclevel: s.toclevel,
+        html: cleaned,
+        refLike
+      });
     } catch (err) {
       PROBLEMS.push(`Section “${s.line}” failed on “${info.title}”: ${err.message}`);
     }
@@ -87,11 +95,11 @@ async function processUrl(url) {
 }
 
 export async function boot() {
-  // Wiring first so UI works as content streams in
+  // Wire UI first so TOC clicks/hash work as content streams in
   attachNavCollapsibleHandlers();
 
   // Load URL list
-  const urlsRes = await fetch('./urls.json');
+  const urlsRes = await fetch('./urls.json', { cache: 'no-cache' });
   if (!urlsRes.ok) throw new Error('Missing urls.json');
   const urls = await urlsRes.json();
 
@@ -99,7 +107,7 @@ export async function boot() {
   const toc = document.getElementById('toc-content');
   if (toc) toc.innerHTML = '';
 
-  // Render all sources (isolate per-URL)
+  // Render all sources
   for (const url of urls) {
     try { await processUrl(url); }
     catch (err) { PROBLEMS.push(`Failed URL: ${url} → ${err.message}`); }
