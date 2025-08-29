@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/wiki.js
 import { MW_API, ORIGIN } from './paths.js';
 
 export function slugFromWiki(url) {
