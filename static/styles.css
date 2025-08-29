@@ -1,16 +1,1166 @@
-/* Keep order identical to the monolith’s logical flow */
-@import url('./base.css');
-@import url('./layout.css');
-@import url('./header-nav.css');
-@import url('./hero.css');
-@import url('./cta.css');
-@import url('./features.css');
-@import url('./footer.css');
-@import url('./buttons.css');
-@import url('./forms.css');
-@import url('./tables.css');
-@import url('./animations.css');
-@import url('./cards.css');
-@import url('./design-extras.css');  /* swatches, font previews, media, alerts */
-@import url('./pages.css');          /* 404, bg utilities, centered-content */
-@import url('./inspiration-figures.css'); /* figures page-specific fixes (last) */
+/* ========== GLOBAL RESET ========== */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ========== HTML & BODY SETUP ========== */
+html, body {
+    width: 100%;
+    height: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    background-color: #282828;
+    color: #d1d1d1;
+    line-height: 1.6;
+    scroll-behavior: smooth;
+}
+
+/* Prevent horizontal scroll */
+body {
+    overflow-x: hidden;
+}
+
+/* ========== FONT IMPORTS ========== */
+@font-face {
+    font-family: 'Adult Swim Font';
+    src: url('static/fonts/Adult-Swim-Font.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* ========== HEADINGS ========== */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    color: #c0d674;
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
+}
+
+/* Special Style for Main Page h1 */
+h1 {
+    font-size: 3rem;
+}
+
+/* Default Paragraphs */
+p {
+    font-family: 'IBM Plex Mono', monospace;
+    color: #c0d674;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* ========== LINKS ========== */
+a {
+    color: #d1d1d1;
+    text-decoration: none;
+    transition: color 0.3s ease, text-decoration 0.3s ease;
+}
+
+a:hover {
+    color: #e6a42b;
+    text-decoration: underline;
+}
+
+
+/* ========== Containers & Utility Classes ========== */
+
+/* Main Container Wrapper */
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Container for Centered Content */
+.container.centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Flex Row Container */
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+}
+
+/* Flex Column Container */
+.flex-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Grid Responsive Layout */
+.grid {
+    display: grid;
+    gap: 2rem;
+}
+
+/* Auto-Fit Grid (Adaptive Columns) */
+.grid-auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Full Width Utility */
+.full-width {
+    width: 100%;
+}
+
+/* No Scroll (Lock body scroll when needed) */
+.no-scroll {
+    overflow: hidden;
+}
+
+/* Spacing Utilities */
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mt-3 { margin-top: 3rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+.mb-3 { margin-bottom: 3rem; }
+.pt-1 { padding-top: 1rem; }
+.pt-2 { padding-top: 2rem; }
+.pb-1 { padding-bottom: 1rem; }
+.pb-2 { padding-bottom: 2rem; }
+
+/* Center Text */
+.text-center {
+    text-align: center;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .flex-row {
+        flex-direction: column;
+    }
+}
+
+
+/* ========== HEADER + NAVBAR ========== */
+
+/* Header Base */
+.header {
+    background-color: #333;
+    padding: 1rem 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    width: 100%;
+    z-index: 1000;
+}
+
+/* Logo Container */
+.logo-container {
+    display: flex;
+    align-items: center;
+}
+
+.logo-container img {
+    max-height: 50px;
+    width: auto;
+    height: auto;
+}
+
+/* ========== MENU BUTTON (≡) ========== */
+.menu-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #d1d1d1;
+    cursor: pointer;
+    display: block; /* Always block by default */
+    z-index: 1100; /* Stay above nav */
+}
+
+/* Hide menu button on Desktop (>= 769px) */
+@media (min-width: 769px) {
+    .menu-button {
+        display: none;
+    }
+}
+
+/* Navbar List Container */
+.nav-links {
+    list-style: none;
+    display: none; /* Initially hidden */
+    flex-direction: column;
+    align-items: center;
+    background-color: #111;
+    width: 100%;
+    padding: 1rem 0;
+    gap: 1rem;
+    transition: all 0.3s ease-in-out;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 1rem 0;
+}
+
+/* Navbar Open State */
+.nav-links.open {
+    display: flex;
+}
+
+/* Navbar List Items */
+.nav-links li {
+    width: 100%;
+    text-align: center;
+}
+
+/* Navbar Anchor Links */
+.nav-links a {
+    color: #d1d1d1;
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    display: inline-block;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Link Hover Effect */
+.nav-links a:hover {
+    background-color: #e6a42b;
+    color: #000;
+    border-radius: 4px;
+}
+
+/* Submenu (Dropdown) Setup */
+.submenu {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.submenu.open {
+    display: flex;
+}
+
+/* Submenu Links */
+.submenu a {
+    font-size: 0.9rem;
+    color: #b5b5b5;
+}
+
+.submenu a:hover {
+    color: #ffffff;
+}
+
+/* Submenu Toggle Arrow */
+.submenu-toggle {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: #d1d1d1;
+    margin-left: 0.5rem;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.submenu-toggle.open {
+    transform: rotate(180deg);
+}
+
+/* ======== DESKTOP VERSION ======== */
+@media (min-width: 769px) {
+.menu-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #d1d1d1;
+    cursor: pointer;
+    display: block; /* Always block on all devices */
+    z-index: 1100;
+}
+
+    .nav-links {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 0;
+        background-color: #111;
+        gap: 1rem 2rem;
+    }
+
+    .nav-links li {
+        flex: 1 1 140px; /* flex-basis: 140px */
+        max-width: 200px;
+        text-align: center;
+    }
+
+    .submenu {
+        padding-left: 0;
+        margin-top: 0.25rem;
+    }
+}
+
+
+/* ========== SUBMENU (Dropdown Menus) ========== */
+
+/* Submenu Base (Hidden by Default) */
+.submenu {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+/* Open State */
+.submenu.open {
+    display: flex;
+}
+
+/* Submenu List Items */
+.submenu li {
+    width: 100%;
+}
+
+/* Submenu Links */
+.submenu a {
+    font-size: 0.9rem;
+    color: #b5b5b5;
+    padding: 0.4rem 0.8rem;
+    display: inline-block;
+    transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.submenu a:hover {
+    background-color: #e6a42b;
+    color: #000;
+    border-radius: 4px;
+}
+
+/* Submenu Header Wrapper (Anchor + ▼ Button) */
+.submenu-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+/* ▼ Submenu Toggle Button */
+.submenu-toggle {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: #d1d1d1;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+/* Rotate ▼ when open */
+.submenu-toggle.open {
+    transform: rotate(180deg); /* ▲ */
+}
+
+/* ====== Responsive Improvements ====== */
+@media (min-width: 769px) {
+    /* On desktop, adjust submenu alignment */
+    .submenu {
+        padding-left: 0;
+        margin-top: 0.25rem;
+    }
+}
+
+
+/* ========== HERO SECTION ========== */
+
+/* Hero Main Container */
+.hero {
+    position: relative;
+    width: 100%;
+    height: 80vh; /* 80% of viewport height */
+    background: url('static/images/hero.jpg') center/cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #ffffff;
+    overflow: hidden;
+}
+
+/* Dark Overlay over Background */
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+/* Content inside the Hero */
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Hero Main Heading (H1) */
+.hero-content h1 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 5rem;
+    color: #c0d674;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+}
+
+/* Hero Secondary Heading (H2) */
+.hero-content h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 2.5rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+/* Hero Subheading (H4) */
+.hero-content h4 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    color: #c0d674;
+    margin-bottom: 1rem;
+}
+
+/* Hero Paragraph */
+.hero-content p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    color: #d1d1d1;
+    margin-bottom: 1.5rem;
+}
+
+/* Hero Primary Button */
+.hero-content .btn {
+    background-color: #e6a42b;
+    color: #000;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.hero-content .btn:hover {
+    background-color: #c0d674;
+    color: #000;
+}
+
+/* ========== HERO RESPONSIVE BEHAVIOR ========== */
+@media (max-width: 768px) {
+    .hero {
+        height: 70vh;
+        padding: 1rem;
+    }
+
+    .hero-content h1 {
+        font-size: 2.5rem;
+    }
+
+    .hero-content h2 {
+        font-size: 1.8rem;
+    }
+
+    .hero-content h4 {
+        font-size: 1.2rem;
+    }
+
+    .hero-content p {
+        font-size: 0.9rem;
+    }
+
+    .hero-content .btn {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+    }
+}
+
+
+/* ========== CTA (Call-to-Action) SECTION ========== */
+
+.cta {
+    width: 100%;
+    min-height: 50vh;
+    background-color: #444;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 3rem 1rem;
+    box-sizing: border-box;
+}
+
+.cta h2 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 2.5rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+.cta p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.2rem;
+    color: #c0d674;
+    margin-bottom: 2rem;
+}
+
+/* CTA Button */
+.cta .btn {
+    background-color: #e6a42b;
+    color: #000;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.cta .btn:hover {
+    background-color: #c0d674;
+    color: #000;
+}
+
+/* ========== FEATURES SECTION ========== */
+
+.features {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    padding: 4rem 2rem;
+    background-color: #282828;
+    box-sizing: border-box;
+}
+
+.feature {
+    background-color: #333;
+    border-radius: 6px;
+    padding: 2rem 1rem;
+    flex: 1 1 calc(33.333% - 2rem);
+    max-width: calc(33.333% - 2rem);
+    text-align: center;
+    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* Feature Card Hover Effect */
+.feature:hover {
+    transform: translateY(-5px);
+    background-color: #1f1f1f;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+}
+
+/* Feature Titles */
+.feature h3 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 1.8rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+/* Feature Paragraphs */
+.feature p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    color: #d1d1d1;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+    .feature {
+        flex: 1 1 calc(45% - 2rem);
+        max-width: calc(45% - 2rem);
+    }
+}
+
+@media (max-width: 768px) {
+    .feature {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+
+    .cta h2 {
+        font-size: 2rem;
+    }
+
+    .cta p {
+        font-size: 1rem;
+    }
+}
+
+
+/* ========== FOOTER SECTION ========== */
+
+.footer {
+    background-color: #333;
+    color: #d1d1d1;
+    padding: 3rem 1rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Footer Container */
+.footer .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+/* Footer Column */
+.footer-column {
+    flex: 1 1 200px;
+    max-width: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* Footer Column Headings */
+.footer-column h4 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+/* Footer Links List */
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+
+/* Footer Link Items */
+.footer-links li {
+    margin-bottom: 0.5rem;
+}
+
+/* Footer Anchor Links */
+.footer-links a {
+    font-family: 'IBM Plex Mono', monospace;
+    color: #c0d674;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+/* Hover Effects on Footer Links */
+.footer-links a:hover {
+    color: #e6a42b;
+    text-decoration: underline;
+}
+
+/* Footer Bottom Copyright */
+.footer-bottom {
+    width: 100%;
+    margin-top: 3rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #c0d674;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .footer .container {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .footer-column {
+        max-width: 100%;
+        align-items: center;
+    }
+
+    .footer-links {
+        align-items: center;
+    }
+}
+
+
+/* ========== BUTTONS ========== */
+
+/* General Button Styling */
+.btn {
+    display: inline-block;
+    background-color: #e6a42b;
+    color: #000;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+/* Hover Effect */
+.btn:hover {
+    background-color: #c0d674;
+    color: #000;
+    transform: scale(1.05);
+}
+
+/* Button Variants */
+.btn-secondary {
+    background-color: #c0d674;
+    color: #000;
+}
+
+.btn-secondary:hover {
+    background-color: #e6a42b;
+}
+
+/* ====== FORM STYLES ====== */
+
+form {
+    width: 100%;
+    max-width: 600px;
+    margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Input Fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #666;
+    border-radius: 4px;
+    background-color: #1f1f1f;
+    color: #d1d1d1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+/* Focus Effect */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+    border-color: #e6a42b;
+    background-color: #2b2b2b;
+    outline: none;
+}
+
+/* Submit Button */
+input[type="submit"],
+button[type="submit"] {
+    background-color: #e6a42b;
+    color: #000;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+input[type="submit"]:hover,
+button[type="submit"]:hover {
+    background-color: #c0d674;
+    transform: scale(1.05);
+}
+
+/* Textarea Specifics */
+textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+/* ====== TABLE STYLES ====== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-family: 'IBM Plex Mono', monospace;
+    background-color: #333;
+    color: #d1d1d1;
+}
+
+th, td {
+    padding: 0.75rem 1rem;
+    border: 1px solid #444;
+    text-align: left;
+}
+
+thead {
+    background-color: #444;
+}
+
+thead th {
+    color: #e6a42b;
+    font-weight: bold;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #2b2b2b;
+}
+
+tbody tr:hover {
+    background-color: #1f1f1f;
+}
+
+/* Responsive Table Overflow */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+
+/* ========== SCROLL ANIMATIONS ========== */
+
+/* Elements to Animate */
+.scroll-animation {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* When Element is in View */
+.scroll-animation.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Additional Animation Variants (Optional Future Enhancements) */
+
+/* Fade In Only */
+.scroll-fade-in {
+    opacity: 0;
+    transition: opacity 0.6s ease-out;
+}
+
+.scroll-fade-in.in-view {
+    opacity: 1;
+}
+
+/* Slide Up More Dramatic */
+.scroll-slide-up {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-slide-up.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Slide In From Left */
+.scroll-slide-left {
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-slide-left.in-view {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Slide In From Right */
+.scroll-slide-right {
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-slide-right.in-view {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+
+/* ========== CARDS ========== */
+
+/* General Card Container */
+.card {
+    background-color: #333;
+    border-radius: 6px;
+    padding: 2rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+/* Card Hover */
+.card:hover {
+    transform: translateY(-5px);
+    background-color: #1f1f1f;
+}
+
+/* Card Heading */
+.card h3 {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+/* Card Paragraph */
+.card p {
+    font-family: 'IBM Plex Mono', monospace;
+    color: #d1d1d1;
+    font-size: 1rem;
+}
+
+/* Responsive Card Layout */
+@media (max-width: 768px) {
+    .card {
+        padding: 1.5rem;
+    }
+}
+
+/* ====== COLOR SWATCHES ======= */
+
+/* Color Swatch Styles for 'design/index.html' page */
+.color-swatch-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.color-swatch {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    display: inline-block;
+    box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+/* ========== FONTS =========== */
+
+/* Font Tests for 'design/index.html' page */
+
+.font-preview-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.font-preview {
+    padding: 0.75rem 1rem;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    color: #e6a42b;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    border-left: 4px solid #c0d674;
+}
+
+/* ========== MEDIA =========== */
+
+/* Media Tests for 'design/index.html' page */
+
+.feature audio,
+.feature video {
+    width: 100%;
+    margin-top: 1rem;
+    border-radius: 6px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.4);
+}
+
+/* ========== ALERTS ========== */
+
+/* Base Alert Style */
+.alert {
+    padding: 1rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+}
+
+/* Success Message */
+.alert-success {
+    background-color: #2e7d32;
+    color: #ffffff;
+}
+
+/* Warning Message */
+.alert-warning {
+    background-color: #ff9800;
+    color: #000000;
+}
+
+/* Error Message */
+.alert-error {
+    background-color: #c62828;
+    color: #ffffff;
+}
+
+/* ========== 404 PAGE STYLES ========== */
+
+.page-404 {
+    min-height: 70vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 2rem;
+}
+
+.page-404 h1 {
+    font-size: 6rem;
+    color: #e6a42b;
+    margin-bottom: 1rem;
+}
+
+.page-404 p {
+    font-size: 1.2rem;
+    color: #c0d674;
+    margin-bottom: 2rem;
+}
+
+.page-404 a {
+    font-size: 1rem;
+    color: #e6a42b;
+    text-decoration: underline;
+}
+
+/* ========== BACKGROUND UTILITIES ========== */
+
+.background-dark {
+    background-color: #282828;
+    color: #d1d1d1;
+}
+
+.background-light {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Centered Utility */
+.centered-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+/* =========================
+   Figures page layout fixes
+   (scoped so other pages are untouched)
+   ========================= */
+body.inspiration .features {
+  /* Stack sections vertically: grid first, then the content below it */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px; /* space between the grid block and the section below */
+}
+
+/* Make the card grid fill the width and keep consistent spacing */
+body.inspiration .feature-card-container {
+  width: 100%;
+  align-self: stretch;
+  /* Ensure it actually behaves like a grid here and keep 8px spacing */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  padding: 4px; /* slight perimeter breathing room so rims don't kiss the container edge */
+}
+
+/* The cards themselves don’t need margin; gap handles spacing */
+body.inspiration .feature-card {
+  margin: 0;
+}
+
+/* Center the content that comes AFTER the grid, keep it full-width but centered */
+body.inspiration .features > :not(.feature-card-container) {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center; /* optional: looks more balanced for summary/cta blocks */
+}
+
+/* If that bottom block is a .container, make sure it behaves nicely here */
+body.inspiration .features > .container {
+  display: block;
+}
+
+/* ----- Fix "Philosophical Values" alignment on the figures page ----- */
+body.inspiration #philosophical-values{
+  /* If it's inside a grid, span the full width */
+  grid-column: 1 / -1;
+  justify-self: center;
+
+  /* Ensure it can center itself even outside grid */
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 16px;
+
+  /* Force centering for its flex layout */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px; /* space between its inner tiles */
+}
+
+/* Override global .feature sizing only for this section */
+body.inspiration #philosophical-values .feature{
+  /* Don’t stretch to 33% columns here */
+  flex: 0 1 320px;   /* preferred tile width */
+  max-width: 420px;  /* cap it so rows center nicely */
+  margin: 0;         /* gap handles spacing */
+  text-align: center;
+}
+
+/* If the section has any .container wrappers, center those too */
+body.inspiration #philosophical-values .container{
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+/* Keep the figures grid spacing at 8px without touching other pages */
+body.inspiration .feature-card-container{
+  gap: 8px;
+}
+
