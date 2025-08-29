@@ -10,16 +10,18 @@ import { setCardPaint } from './color.js';
  *  - balanced usage across the palette.
  */
 export function colorizeBalancedNoAdjacency() {
-  const cards = state.nodes.map(n => n.el).filter(c => c.offsetParent !== null);
-  if (!cards.length || !state.palette.length) return;
+  const nodes = state.nodes || [];
+  const cards = nodes.map(n => n.el).filter(c => c && c.offsetParent !== null);
+  const pal   = (state.palette || []).slice();
 
-  const cols = inferGridColsVisible(cards);
-  const pal  = state.palette.slice(); // 8–16 colors already
+  if (!cards.length || !pal.length) return;
+
+  const cols  = inferGridColsVisible(cards);
   const usage = Object.fromEntries(pal.map(c => [c, 0]));
 
-  // Seed usage with already-assigned visible colors so balance is respected
+  // Seed usage from current visible colors
   cards.forEach(c => {
-    const col = c.dataset.colorResolved;
+    const col = c.dataset.colorResolved || c.dataset.bgColor || null;
     if (col && usage[col] != null) usage[col]++;
   });
 
@@ -31,37 +33,40 @@ export function colorizeBalancedNoAdjacency() {
     const colIx = i % cols;
 
     // read *current* resolved colors for adjacency checks
-    const left  = colIx > 0     ? cards[i - 1]?.dataset.colorResolved : null;
-    const above = row  > 0      ? cards[i - cols]?.dataset.colorResolved : null;
+    const left  = colIx > 0     ? (cards[i - 1]?.dataset.colorResolved || cards[i - 1]?.dataset.bgColor) : null;
+    const above = row  > 0      ? (cards[i - cols]?.dataset.colorResolved || cards[i - cols]?.dataset.bgColor) : null;
 
-    const current = card.dataset.colorResolved || null;
+    const current = card.dataset.colorResolved || card.dataset.bgColor || null;
 
-    // If current color exists and doesn’t collide, keep it (no churn).
+    // If current color exists and doesn’t collide, keep it (no churn)
     if (current && current !== left && current !== above) {
       continue;
     }
 
-    // Build allowed list (avoid collisions)
+    // Allowed list (avoid collisions with immediate neighbors)
     let allowed = pal.filter(c => c !== left && c !== above);
-    if (!allowed.length) allowed = pal.slice(); // single-color or tight palette fallback
+    if (!allowed.length) allowed = pal.slice(); // tight palette fallback
 
-    // Pick least-used among allowed
+    // Least-used among allowed
     const minUse = Math.min(...allowed.map(c => usage[c] ?? 0));
     let candidates = allowed.filter(c => (usage[c] ?? 0) === minUse);
 
-    // Try to keep same family if possible (soft preference for current)
+    // Keep same if it’s among candidates (soft preference)
     if (current && candidates.includes(current)) {
       setCardPaint(card, current);
       usage[current] = (usage[current] ?? 0) + 1;
+      // ensure both data attrs are in sync for legacy readers
+      card.dataset.bgColor = current;
       continue;
     }
 
-    // Cap runaway usage a bit
+    // Avoid runaway usage vs. target
     const underCap = candidates.filter(c => (usage[c] ?? 0) < maxTarget);
     if (underCap.length) candidates = underCap;
 
     const pick = candidates[Math.floor(Math.random() * candidates.length)] || pal[0];
     setCardPaint(card, pick);
     usage[pick] = (usage[pick] ?? 0) + 1;
+    card.dataset.bgColor = pick; // legacy compat for any code reading bgColor
   }
 }
