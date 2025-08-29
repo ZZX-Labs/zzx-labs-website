@@ -1,7 +1,9 @@
-import { state } from './state.js';
+// Only color the rim (ring) + small swatch in the header.
+// Card background & text stay on your theme from CSS.
 
+/* ---------- helpers ---------- */
 export function hexToRgb(hex) {
-  const h = hex.replace('#','').trim();
+  const h = String(hex || '').replace('#','').trim();
   if (h.length === 3) {
     const r = parseInt(h[0]+h[0],16), g = parseInt(h[1]+h[1],16), b = parseInt(h[2]+h[2],16);
     return { r, g, b };
@@ -20,8 +22,6 @@ export function mixHex(aHex, bHex, t) {
   const b3 = Math.round(a.b + (b.b - a.b)*t);
   return rgbToHex(r,g,b3);
 }
-export function shade(hex, amount=0.22) { return mixHex(hex, '#000000', amount); }
-
 export function luminance(hex) {
   const {r,g,b} = hexToRgb(hex);
   const lin = c => {
@@ -40,27 +40,36 @@ export function chooseTextColor(bg) {
   const black = '#111111';
   const rW = contrastRatio(bg, white);
   const rB = contrastRatio(bg, black);
-  if (rW >= 4.5 || rB >= 4.5) return (rW >= rB) ? white : black;
   return (rW >= rB) ? white : black;
 }
 
+/* ---------- rim-only paint ---------- */
 export function setCardPaint(card, colorHex) {
-  const base   = colorHex;
-  const top    = shade(base, 0.22);
-  const bot    = base;
-  const border = shade(base, 0.4);
-  const text   = chooseTextColor(base);
+  const base = String(colorHex || '').startsWith('#') ? colorHex : `#${colorHex}`;
 
-  card.style.background = `linear-gradient(145deg, ${top} 0%, ${bot} 100%)`;
-  card.style.borderColor = border;
-  card.style.setProperty('--card-accent', base);
-  card.style.setProperty('--card-text', text);
-  card.style.color = text;
+  // expose the color to CSS; style.css uses --edge to draw the ring
+  card.style.setProperty('--edge', base);
 
+  // do NOT overwrite the themed background/text
+  card.style.removeProperty('background');
+  card.style.removeProperty('color');
+  card.style.removeProperty('borderColor');
+  card.style.removeProperty('--card-accent');
+  card.style.removeProperty('--card-text');
+
+  // swatch in header
+  const swatch = card.querySelector('.swatch');
+  if (swatch) {
+    swatch.style.background = base;
+    const outline = chooseTextColor(base) + '40'; // ~25% alpha
+    swatch.style.outlineColor = outline;
+  }
+
+  // leave links to theme
   card.querySelectorAll('a').forEach(a => {
-    a.style.color = text;
-    a.style.textDecorationColor = text;
+    a.style.color = '';
+    a.style.textDecorationColor = '';
   });
 
-  card.dataset.bgColor = base;
+  card.dataset.colorResolved = base;
 }
