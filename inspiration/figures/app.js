@@ -58,7 +58,23 @@ function shuffle(arr) {
   return a;
 }
 
-// ---------- color helpers (inline paint) ----------
+// Dedup + validate palette
+function normalizePalette(p) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(p) ? p : []).forEach(c => {
+    if (!c) return;
+    let s = String(c).trim();
+    if (!s.startsWith('#')) s = `#${s}`;
+    if (/^#[0-9a-fA-F]{6}$/.test(s) || /^#[0-9a-fA-F]{3}$/.test(s)) {
+      const key = s.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); out.push(key); }
+    }
+  });
+  return out;
+}
+
+// ---------- color helpers (no pastel wash) ----------
 function hexToRgb(hex) {
   const h = hex.replace('#','').trim();
   if (h.length === 3) {
@@ -69,7 +85,7 @@ function hexToRgb(hex) {
   return { r, g, b };
 }
 function rgbToHex(r,g,b) {
-  const h = n => n.toString(16).padStart(2,'0');
+  const h = n => Math.max(0, Math.min(255, n|0)).toString(16).padStart(2,'0');
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 function mixHex(aHex, bHex, t) {
@@ -79,7 +95,6 @@ function mixHex(aHex, bHex, t) {
   const b3 = Math.round(a.b + (b.b - a.b)*t);
   return rgbToHex(r,g,b3);
 }
-function tint(hex, amount=0.7) { return mixHex(hex, '#ffffff', amount); }
 function shade(hex, amount=0.25) { return mixHex(hex, '#000000', amount); }
 function luminance(hex) {
   const {r,g,b} = hexToRgb(hex);
@@ -91,30 +106,33 @@ function luminance(hex) {
   return L;
 }
 function onColor(hex) {
-  // Choose white/near-black for contrast
+  // Tighten threshold slightly for vibrant palettes
   const L = luminance(hex);
-  return L > 0.5 ? '#111111' : '#ffffff';
+  return L > 0.45 ? '#111111' : '#ffffff';
 }
 function setCardPaint(card, color) {
-  const top = tint(color, 0.82);
-  const bot = tint(color, 0.62);
-  const border = shade(color, 0.35);
+  // Keep the base hue strong: slight shade for top, base for bottom
+  const top = shade(color, 0.22);
+  const bot = color;
+  const border = shade(color, 0.4);
   const text = onColor(color);
 
   card.style.background = `linear-gradient(145deg, ${top} 0%, ${bot} 100%)`;
   card.style.borderColor = border;
   card.style.setProperty('--card-accent', color);
+  card.style.setProperty('--card-text', text);
   card.style.color = text;
 
-  // Make inner links readable
+  // Keep inner links readable
   card.querySelectorAll('a').forEach(a => {
     a.style.color = text;
     a.style.textDecorationColor = text;
   });
 
-  // Keep a data-color that’s compatible with any existing CSS targeting
+  // Store both human-friendly and actual hex
   const idx = state.palette.indexOf(color);
   card.dataset.color = idx >= 0 ? `color${idx+1}` : color;
+  card.dataset.colorResolved = color;
 }
 
 // ---------- wiki helpers ----------
@@ -238,6 +256,38 @@ async function loadCard(id) {
   }
 }
 
+// Robust image fallback candidates (handles your naming differences)
+function imageCandidates(id, name, primary, legacy) {
+  const titleCaseUnderscore = String(name || id)
+    .trim()
+    .split(/\s|-/)
+    .filter(Boolean)
+    .map(w => w[0] ? (w[0].toUpperCase()+w.slice(1)) : w)
+    .join('_');
+
+  const baseId = id.toLowerCase();
+  const list = [];
+
+  const pushFile = (fn) => { if (fn) list.push(asDocUrl(fn)); };
+
+  // explicit first
+  pushFile(primary);
+  pushFile(legacy);
+
+  // common variants
+  ['jpg','jpeg','png','webp'].forEach(ext => {
+    pushFile(`${baseId}.${ext}`);
+    pushFile(`${titleCaseUnderscore}.${ext}`);
+  });
+
+  // final placeholder
+  pushFile('placeholder.jpg');
+
+  // dedupe, keep order
+  const seen = new Set();
+  return list.filter(u => { const k = String(u); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
 // ---------- URL lookup ----------
 function buildUrlIndex(urlsObj) {
   const idx = {};
@@ -265,18 +315,21 @@ function renderOne(fig) {
 
   node.querySelector('.fig-name').textContent = data.name;
 
+  // Resilient image loading
   const img = node.querySelector('.fig-img');
-  const primarySrc = asDocUrl(data.image);
-  const legacySrc  = asDocUrl(data.legacyImageSrc);
   img.alt = data.alt;
   img.loading = 'lazy';
-  let triedLegacy = false;
-  img.addEventListener('error', () => {
-    if (!triedLegacy && legacySrc) { triedLegacy = true; img.src = legacySrc; }
-    else { img.onerror = null; img.src = asDocUrl('placeholder.jpg'); }
-  });
-  img.src = primarySrc || asDocUrl('placeholder.jpg');
 
+  const candidates = imageCandidates(fig.id, data.name, data.image, data.legacyImageSrc);
+  let idx = 0;
+  const tryNext = () => {
+    if (idx >= candidates.length) return;
+    img.src = candidates[idx++];
+  };
+  img.addEventListener('error', () => tryNext());
+  tryNext();
+
+  // Meta
   const metaEl = node.querySelector('.fig-meta');
   metaEl.innerHTML = '';
   if (data.meta?.length) {
@@ -293,9 +346,11 @@ function renderOne(fig) {
     metaEl.appendChild(ul);
   }
 
+  // About
   const about = node.querySelector('.fig-about');
   about.innerHTML = data.aboutHtml || `<p class="muted">No local summary yet. See Wikipedia below.</p>`;
 
+  // Wikipedia (lazy)
   const wikiBox = node.querySelector('.fig-wiki');
   const wurl = getWikiUrl(fig, data);
   if (wurl) {
@@ -312,7 +367,7 @@ function renderOne(fig) {
   state.nodes.push({ id: fig.id, el: node });
 }
 
-// Infer columns from actual layout (robust to CSS changes & filtering)
+// Infer columns from actual layout (robust to CSS/grid changes & filtering)
 function inferGridColsVisible(cards) {
   const visible = cards.filter(c => c.offsetParent !== null);
   if (!visible.length) return 1;
@@ -326,7 +381,7 @@ function inferGridColsVisible(cards) {
 }
 
 // Assign colors so no left/above neighbor shares the same color.
-// Uses balanced palette cycling for better distribution.
+// Uses palette shuffle + rolling pointer for good distribution.
 function colorizeNoAdjacency() {
   const cards = state.nodes.map(n => n.el).filter(c => c.offsetParent !== null);
   if (!cards.length || !state.palette.length) return;
@@ -350,7 +405,6 @@ function colorizeNoAdjacency() {
     if (!picked) picked = pal[pIdx++ % pal.length];
 
     setCardPaint(card, picked);
-    card.dataset.colorResolved = picked;
   }
 }
 
@@ -375,8 +429,8 @@ async function boot() {
   if (!gridEl || !tpl) { console.error('Missing #figure-grid or #tpl-figure-card in DOM.'); return; }
   if (location.protocol === 'file:') console.warn('Serving from file:// — run a local HTTP server to allow fetch().');
 
-  const [palette, figures, urls] = await Promise.all([ j(PALETTE), j(FIGURES), j(URLS_URL) ]);
-  state.palette = Array.isArray(palette) ? palette : [];
+  const [paletteRaw, figures, urls] = await Promise.all([ j(PALETTE), j(FIGURES), j(URLS_URL) ]);
+  state.palette = normalizePalette(paletteRaw);
   state.figures = Array.isArray(figures) ? figures : [];
   state.urls    = urls || {};
   state.urlIndex = buildUrlIndex(state.urls);
