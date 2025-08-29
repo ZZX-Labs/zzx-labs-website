@@ -9,6 +9,7 @@ import { loadCard } from './cards.js';
 import { shuffle } from './shuffle.js';
 import { renderOne } from './render.js';
 import { applyFilter } from './filter.js';
+import { inferGridColsVisible } from './grid.js';
 
 export async function boot() {
   if (!gridEl || !tpl) {
@@ -45,7 +46,7 @@ export async function boot() {
   // Assign colors ONCE (stable across interactions)
   requestAnimationFrame(() => {
     assignStableEdgeColors();
-    applyFilter();
+    applyFilter(); // filtering does NOT recolor
   });
 
   // Bind filter (does not recolor)
@@ -62,18 +63,9 @@ export async function boot() {
 /* ---------------- helpers: stable color assignment ---------------- */
 
 function getColumnCount() {
-  // Prefer computed grid-template-columns; fall back to width heuristic
-  const cs = getComputedStyle(gridEl);
-  const tpl = cs.gridTemplateColumns;
-  if (tpl && tpl !== 'none') {
-    // e.g., "300px 300px 300px" or "repeat(4, 1fr)" expanded by browser
-    const parts = tpl.trim().split(/\s+/);
-    return Math.max(1, parts.length);
-  }
-  const gap = parseFloat(cs.columnGap) || 8;
-  const min = 280; // matches your min card width
-  const width = gridEl.clientWidth || window.innerWidth;
-  return Math.max(1, Math.floor((width + gap) / (min + gap)));
+  // Use actual layout (first row count) for accuracy with auto-fill grids
+  const cards = (state.nodes || []).map(n => n.el);
+  return Math.max(1, inferGridColsVisible(cards));
 }
 
 function assignStableEdgeColors() {
@@ -95,7 +87,7 @@ function assignStableEdgeColors() {
 
   const colorMap = {};
   for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
+    const node = nodes[i].el || nodes[i]; // tolerate {id,el} or plain element
     const id = node?.dataset?.id || String(i);
 
     // Avoid immediate left and above collisions
@@ -103,16 +95,16 @@ function assignStableEdgeColors() {
 
     // left neighbor (same row)
     if (i % cols !== 0) {
-      const left = nodes[i - 1];
-      const leftId = left?.dataset?.id;
+      const leftNode = nodes[i - 1].el || nodes[i - 1];
+      const leftId = leftNode?.dataset?.id;
       if (leftId && colorMap[leftId]) forbidden.add(colorMap[leftId]);
     }
 
     // above neighbor (previous row, same column)
     const upIndex = i - cols;
     if (upIndex >= 0) {
-      const up = nodes[upIndex];
-      const upId = up?.dataset?.id;
+      const upNode = nodes[upIndex].el || nodes[upIndex];
+      const upId = upNode?.dataset?.id;
       if (upId && colorMap[upId]) forbidden.add(colorMap[upId]);
     }
 
@@ -135,13 +127,15 @@ function assignStableEdgeColors() {
 
 function applyColorMap(map) {
   const nodes = state.nodes || [];
-  for (const node of nodes) {
+  for (const n of nodes) {
+    const node = n.el || n;
     const id = node?.dataset?.id;
     const color = id ? map[id] : null;
     if (!color) continue;
 
     // Only color the rim via CSS var; card body stays on page bg
     node.style.setProperty('--edge', color);
+    node.dataset.bgColor = color; // handy for any other modules
 
     // tiny UI sync for swatch
     const sw = node.querySelector('.swatch');
