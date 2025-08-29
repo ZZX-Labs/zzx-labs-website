@@ -1081,3 +1081,45 @@ tbody tr:hover {
     align-items: center;
     flex-direction: column;
 }
+
+/* =========================
+   Figures page layout fixes
+   (scoped so other pages are untouched)
+   ========================= */
+body.inspiration .features {
+  /* Stack sections vertically: grid first, then the content below it */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px; /* space between the grid block and the section below */
+}
+
+/* Make the card grid fill the width and keep consistent spacing */
+body.inspiration .feature-card-container {
+  width: 100%;
+  align-self: stretch;
+  /* Ensure it actually behaves like a grid here and keep 8px spacing */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  padding: 4px; /* slight perimeter breathing room so rims don't kiss the container edge */
+}
+
+/* The cards themselves don’t need margin; gap handles spacing */
+body.inspiration .feature-card {
+  margin: 0;
+}
+
+/* Center the content that comes AFTER the grid, keep it full-width but centered */
+body.inspiration .features > :not(.feature-card-container) {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center; /* optional: looks more balanced for summary/cta blocks */
+}
+
+/* If that bottom block is a .container, make sure it behaves nicely here */
+body.inspiration .features > .container {
+  display: block;
+}
