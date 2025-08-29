@@ -21,7 +21,7 @@ export function normalizeHex(input, fallback = '#c0d674') {
   if (hex.length === 3) {   // expand #rgb → #rrggbb
     hex = hex.split('').map(c => c + c).join('');
   } else if (hex.length === 8) {
-    // Drop alpha (#rrggbbaa → #rrggbb); rim color doesn't need alpha here
+    // Drop alpha (#rrggbbaa → #rrggbb); rim color doesn't need alpha
     hex = hex.slice(0, 6);
   }
   return `#${hex.toLowerCase()}`;
@@ -97,7 +97,7 @@ export function setCardPaint(card, colorHex) {
   if (swatch) {
     swatch.style.background = desired;
     // subtle outline that adapts to light/dark colors
-    const outline = chooseTextColor(desired) + '40'; // ~25% alpha
+    const outline = chooseTextColor(desired) + '40'; // #RRGGBBAA (25% alpha)
     swatch.style.outlineColor = outline;
   }
 
@@ -107,6 +107,7 @@ export function setCardPaint(card, colorHex) {
     a.style.textDecorationColor = '';
   });
 
-  // Persist
+  // Persist (compat with any modules reading bgColor)
   card.dataset.colorResolved = desired;
+  card.dataset.bgColor = desired;
 }
