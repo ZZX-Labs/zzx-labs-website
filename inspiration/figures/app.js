@@ -1,10 +1,8 @@
 // inspiration/figures/app.js
-// Robust, tolerant, and noisy-in-the-console so you can spot missing pieces fast.
-
 const BASE      = new URL('./', import.meta.url);
 const PALETTE   = new URL('color-palette.json', BASE);
 const FIGURES   = new URL('figures.json', BASE);
-const URLS      = new URL('urls.json', BASE);
+const URLS_URL  = new URL('urls.json', BASE);
 const CARDS_DIR = new URL('cards/', BASE);
 const IMGS_DIR  = new URL('images/', BASE);
 
@@ -18,30 +16,23 @@ const countEl  = document.getElementById('figure-count');
 
 const state = { palette: [], figures: [], urls: {}, cards: {}, nodes: [] };
 
-// ---------- utils ----------
+// ---------- fetch helpers ----------
 async function j(url) {
   const r = await fetch(url, { cache: 'no-cache' });
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  try { return await r.json(); }
-  catch (e) { throw new Error(`Invalid JSON: ${e.message}`); }
+  try { return await r.json(); } catch (e) { throw new Error(`Invalid JSON for ${url}: ${e.message}`); }
 }
 function urlJoin(dir, name) { return new URL(name, dir); }
 
-function slugFromWiki(url) {
-  try {
-    const u = new URL(url);
-    if (u.pathname.startsWith('/wiki/')) {
-      return decodeURIComponent(u.pathname.replace('/wiki/','')).split('#')[0];
-    }
-    const t = u.searchParams.get('title');
-    return t ? decodeURIComponent(t).split('#')[0] : '';
-  } catch {
-    return decodeURIComponent(String(url).split('/').pop() || '').split('#')[0];
-  }
+// If string looks absolute (https://, /, ./, ../), use as-is; else join with IMGS_DIR
+function asDocUrl(pathOrName) {
+  if (!pathOrName) return null;
+  const s = String(pathOrName);
+  if (/^(?:[a-z]+:|\/|\.{1,2}\/)/i.test(s)) return s;
+  return String(urlJoin(IMGS_DIR, s));
 }
 
 function objectifyUrls(raw) {
-  // Accept {id:url} or [{id, url}] or [[id, url]]
   if (!raw) return {};
   if (Array.isArray(raw)) {
     const out = {};
@@ -55,17 +46,27 @@ function objectifyUrls(raw) {
   return raw;
 }
 
-// ---------- wiki ----------
+// ---------- wiki helpers ----------
+function slugFromWiki(url) {
+  try {
+    const u = new URL(url);
+    if (u.pathname.startsWith('/wiki/')) {
+      return decodeURIComponent(u.pathname.replace('/wiki/','')).split('#')[0];
+    }
+    const t = u.searchParams.get('title');
+    return t ? decodeURIComponent(t).split('#')[0] : '';
+  } catch {
+    return decodeURIComponent(String(url).split('/').pop() || '').split('#')[0];
+  }
+}
+
 function sanitizeWiki(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = String(html || '');
-
-  // Strip junk
   tmp.querySelectorAll('script,style,noscript').forEach(n => n.remove());
   tmp.querySelectorAll('.infobox,.navbox,.metadata,.mw-editsection,.hatnote,.mw-empty-elt').forEach(n => n.remove());
   tmp.querySelectorAll('table').forEach(t => { t.style.width = '100%'; t.style.maxWidth = '100%'; });
 
-  // Collapse known terminal sections (by heading)
   const headings = tmp.querySelectorAll('h2,h3,h4,h5,h6');
   headings.forEach(h => {
     const text = (h.textContent || '').trim().toLowerCase();
@@ -80,16 +81,13 @@ function sanitizeWiki(html) {
       let n = h.nextSibling;
       const stop = new Set(['H2','H3','H4','H5','H6']);
       while (n && !(n.nodeType === 1 && stop.has(n.tagName))) {
-        const next = n.nextSibling;
-        body.appendChild(n);
-        n = next;
+        const next = n.nextSibling; body.appendChild(n); n = next;
       }
       details.appendChild(body);
       h.replaceWith(details);
     }
   });
 
-  // If references appear without a heading, wrap common reflist blocks
   tmp.querySelectorAll('ol.references, div.reflist').forEach(ref => {
     const details = document.createElement('details');
     details.className = 'subsection collapsible';
@@ -103,7 +101,6 @@ function sanitizeWiki(html) {
     details.appendChild(body);
   });
 
-  // External links target + rel hygiene
   tmp.querySelectorAll('a[href]').forEach(a => {
     a.setAttribute('target','_blank');
     a.setAttribute('rel','noopener noreferrer nofollow ugc');
@@ -127,28 +124,48 @@ async function loadWikiInto(el, wikiUrl) {
 
 // ---------- cards ----------
 function normalizeCard(id, raw = {}) {
-  // name variants
-  const name = raw.name || raw.title || id.replace(/-/g,' ');
+  const name  = raw.name || raw.titleName || id.replace(/-/g,' ');
+  const alt   = raw.alt || name;
 
-  // image variants (allow subpaths)
+  // image + legacy fallback
   const image = raw.image || raw.img || raw.photo || `${id}.jpg`;
+  const legacyImageSrc = raw.legacyImageSrc || raw.legacy || null;
 
-  // meta bullets variants
+  // meta bullets from arrays OR single fields
   let meta = [];
-  if (Array.isArray(raw.meta)) meta = raw.meta;
-  else if (Array.isArray(raw.h5)) meta = raw.h5;
-  else if (Array.isArray(raw.bullets)) meta = raw.bullets;
-  else if (Array.isArray(raw.lines)) meta = raw.lines;
+  if (Array.isArray(raw.meta)) meta = raw.meta.slice();
+  else if (Array.isArray(raw.h5)) meta = raw.h5.slice();
+  else if (Array.isArray(raw.bullets)) meta = raw.bullets.slice();
+  else if (Array.isArray(raw.lines)) meta = raw.lines.slice();
 
-  // about variants
+  // fold in labeled one-liners if present
+  const addIf = (label, val) => { if (val) meta.push(`${label}: ${val}`); };
+  addIf('Background',     raw.background);
+  addIf('Known For',      raw.knownFor);
+  addIf('Field',          raw.field);
+  addIf('Contributions',  raw.contributions);
+
+  // local summary: accept HTML or text; also accept `bio` (string or array)
   const htmlKey = raw.aboutHtml ?? raw.aboutHTML ?? raw.about_html
                 ?? raw.summaryHtml ?? raw.summaryHTML ?? raw.summary_html;
-  const textKey = raw.about ?? raw.summary ?? raw.description ?? raw.desc ?? raw.blurb;
 
-  const aboutHtml = htmlKey ? String(htmlKey)
-                    : (textKey ? `<p>${String(textKey)}</p>` : '');
+  let textKey = raw.about ?? raw.summary ?? raw.description ?? raw.desc ?? raw.blurb;
+  if (!textKey && raw.bio) {
+    textKey = Array.isArray(raw.bio) ? raw.bio : String(raw.bio);
+  }
 
-  return { name, image, meta, aboutHtml };
+  let aboutHtml = '';
+  if (htmlKey) {
+    aboutHtml = String(htmlKey);
+  } else if (textKey) {
+    if (Array.isArray(textKey)) {
+      aboutHtml = textKey.map(p => `<p>${String(p)}</p>`).join('');
+    } else {
+      aboutHtml = `<p>${String(textKey)}</p>`;
+    }
+  }
+
+  return { name, alt, image, legacyImageSrc, meta, aboutHtml };
 }
 
 async function loadCard(id) {
@@ -157,30 +174,37 @@ async function loadCard(id) {
     const data = await j(url);
     state.cards[id] = data || {};
   } catch (e) {
-    console.warn(`[cards] ${id}.json → ${e.message} @ ${url}`);
+    console.warn(`[cards] ${id}.json → ${e.message}`);
     state.cards[id] = {};
   }
 }
 
 // ---------- render ----------
 function renderOne(fig) {
-  const cardData = state.cards[fig.id] || {};
-  const data = normalizeCard(fig.id, cardData);
-  const node = tpl.content.firstElementChild.cloneNode(true);
+  const raw  = state.cards[fig.id] || {};
+  const data = normalizeCard(fig.id, raw);
 
-  // name
+  const node = tpl.content.firstElementChild.cloneNode(true);
   node.querySelector('.fig-name').textContent = data.name;
 
-  // image w/ fallback
+  // image with layered fallback: image -> legacyImageSrc -> placeholder
   const img = node.querySelector('.fig-img');
-  img.src = urlJoin(IMGS_DIR, data.image);
-  img.alt = data.name;
+  const primarySrc = asDocUrl(data.image);
+  const legacySrc  = asDocUrl(data.legacyImageSrc);
+  img.alt = data.alt;
   img.loading = 'lazy';
-  img.referrerPolicy = 'no-referrer';
+
+  let triedLegacy = false;
   img.addEventListener('error', () => {
-    img.onerror = null;
-    img.src = urlJoin(IMGS_DIR, 'placeholder.jpg');
+    if (!triedLegacy && legacySrc) {
+      triedLegacy = true;
+      img.src = legacySrc;
+    } else {
+      img.onerror = null;
+      img.src = asDocUrl('placeholder.jpg');
+    }
   });
+  img.src = primarySrc || asDocUrl('placeholder.jpg');
 
   // meta bullets
   const metaEl = node.querySelector('.fig-meta');
@@ -199,19 +223,11 @@ function renderOne(fig) {
     metaEl.appendChild(ul);
   }
 
-  // about (local summary)
+  // about (local)
   const about = node.querySelector('.fig-about');
-  if (data.aboutHtml) {
-    about.innerHTML = data.aboutHtml;
-  } else {
-    const expected = urlJoin(CARDS_DIR, `${fig.id}.json`);
-    about.innerHTML = `<p class="muted">No local summary yet. Provide <code>${expected.pathname}</code> with <code>aboutHtml</code> or <code>about</code>.</p>`;
-    if (cardData && Object.keys(cardData).length) {
-      console.warn(`[cards] ${fig.id}.json loaded but has no "aboutHtml"/"about"/"summary"/"description".`);
-    }
-  }
+  about.innerHTML = data.aboutHtml || `<p class="muted">No local summary yet. See Wikipedia below.</p>`;
 
-  // wikipedia block (lazy on first open)
+  // wikipedia (lazy)
   const wikiBox = node.querySelector('.fig-wiki');
   const wurl = state.urls[fig.id];
   if (wurl) {
@@ -276,41 +292,28 @@ async function boot() {
     console.error('Missing #figure-grid or #tpl-figure-card in DOM.');
     return;
   }
-
-  // Guard: warn if running from file://
   if (location.protocol === 'file:') {
     console.warn('Serving from file:// — fetch() cannot load local JSON reliably. Run a local HTTP server.');
   }
 
-  // Load base data
-  let [palette, figures, urls] = await Promise.all([ j(PALETTE), j(FIGURES), j(URLS) ]);
+  const [palette, figures, urls] = await Promise.all([ j(PALETTE), j(FIGURES), j(URLS_URL) ]);
   state.palette = Array.isArray(palette) ? palette : [];
   state.figures = Array.isArray(figures) ? figures : [];
   state.urls    = objectifyUrls(urls);
 
-  // Load all cards (tolerant)
   await Promise.all(state.figures.map(f => loadCard(f.id)));
-
-  // Render
   state.figures.forEach(renderOne);
 
-  // Colorize + initial filter after layout
-  requestAnimationFrame(() => {
-    colorizeNoAdjacency();
-    applyFilter();
-  });
+  requestAnimationFrame(() => { colorizeNoAdjacency(); applyFilter(); });
 
-  // Wire filter
   filterEl?.addEventListener('input', applyFilter);
 
-  // Recolor on actual column count change
   let lastCols = computeGridCols(gridEl);
   addEventListener('resize', () => {
     const cols = computeGridCols(gridEl);
     if (cols !== lastCols) { lastCols = cols; colorizeNoAdjacency(); }
   }, { passive: true });
 
-  // Optional: show quick status in counter if empty
   if (countEl && !countEl.textContent) countEl.textContent = `${state.nodes.length} shown of ${state.figures.length}`;
 }
 
