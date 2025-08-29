@@ -1,39 +1,81 @@
-/* Scoped fixes for the Figures page (keeps other pages untouched) */
-body.inspiration .features{
-  display: flex; flex-direction: column; align-items: center;
-  gap: 24px; /* space between the grid and the section below */
+/* =========================
+   Figures page layout fixes
+   (scoped so other pages are untouched)
+   ========================= */
+body.inspiration .features {
+  /* Stack sections vertically: grid first, then the content below it */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px; /* space between the grid block and the section below */
 }
 
-/* Figures card grid — ensure 8px spacing and full width */
-body.inspiration .feature-card-container{
-  width: 100%; align-self: stretch;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+/* Make the card grid fill the width and keep consistent spacing */
+body.inspiration .feature-card-container {
+  width: 100%;
+  align-self: stretch;
+  /* Ensure it actually behaves like a grid here and keep 8px spacing */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
-  padding: 4px; /* breathing room at edges so rims don’t kiss container */
+  padding: 4px; /* slight perimeter breathing room so rims don't kiss the container edge */
 }
 
-/* Cards rely on gap; no extra margin here */
-body.inspiration .feature-card{ margin: 0; }
-
-/* Center any content below the grid */
-body.inspiration .features > :not(.feature-card-container){
-  width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; text-align: center;
+/* The cards themselves don’t need margin; gap handles spacing */
+body.inspiration .feature-card {
+  margin: 0;
 }
 
-/* If bottom block uses .container, ensure block display */
-body.inspiration .features > .container{ display: block; }
+/* Center the content that comes AFTER the grid, keep it full-width but centered */
+body.inspiration .features > :not(.feature-card-container) {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center; /* optional: looks more balanced for summary/cta blocks */
+}
 
-/* Philosophical Values section centering */
+/* If that bottom block is a .container, make sure it behaves nicely here */
+body.inspiration .features > .container {
+  display: block;
+}
+
+/* ----- Fix "Philosophical Values" alignment on the figures page ----- */
 body.inspiration #philosophical-values{
-  grid-column: 1 / -1; justify-self: center;
-  width: 100%; max-width: 1200px; margin-inline: auto; padding-inline: 16px;
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;
-}
-body.inspiration #philosophical-values .feature{
-  flex: 0 1 320px; max-width: 420px; margin: 0; text-align: center;
+  /* If it's inside a grid, span the full width */
+  grid-column: 1 / -1;
+  justify-self: center;
+
+  /* Ensure it can center itself even outside grid */
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 16px;
+
+  /* Force centering for its flex layout */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px; /* space between its inner tiles */
 }
 
-/* Keep grid spacing tight on smallest screens */
-@media (max-width: 360px){
-  body.inspiration .feature-card-container{ grid-template-columns: 1fr; gap: 8px; }
+/* Override global .feature sizing only for this section */
+body.inspiration #philosophical-values .feature{
+  /* Don’t stretch to 33% columns here */
+  flex: 0 1 320px;   /* preferred tile width */
+  max-width: 420px;  /* cap it so rows center nicely */
+  margin: 0;         /* gap handles spacing */
+  text-align: center;
+}
+
+/* If the section has any .container wrappers, center those too */
+body.inspiration #philosophical-values .container{
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+/* Keep the figures grid spacing at 8px without touching other pages */
+body.inspiration .feature-card-container{
+  gap: 8px;
 }
