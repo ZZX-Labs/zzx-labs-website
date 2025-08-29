@@ -2,6 +2,15 @@
   --accent: #c0d674;
   --muted: #8a8f98;
   --bg-alt: #0f1216;
+
+  /* offset for sticky header + sticky TOC; adjust if your header height changes */
+  --header-offset: 96px;
+}
+
+html {
+  /* smooth scroll + correct anchor offset so targets aren’t hidden under sticky header */
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--header-offset);
 }
 
 body.business-resources {
@@ -33,9 +42,7 @@ body.business-resources {
   font-size: 0.95rem;
   margin-bottom: 1rem;
 }
-.notice.attribution {
-  margin-top: 2rem;
-}
+.notice.attribution { margin-top: 2rem; }
 
 .layout {
   display: grid;
@@ -90,6 +97,9 @@ body.business-resources {
   margin-bottom: 2.5rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px dashed rgba(255,255,255,0.08);
+
+  /* when jumping to section id, keep it below sticky header */
+  scroll-margin-top: var(--header-offset);
 }
 .source-header {
   display: flex;
@@ -111,6 +121,7 @@ body.business-resources {
 }
 .subsection {
   margin: 1rem 0;
+  scroll-margin-top: var(--header-offset); /* anchors inside sections */
 }
 .subsection h3 {
   margin: 1rem 0 0.5rem 0;
@@ -147,14 +158,19 @@ body.business-resources {
   margin-left: 0.35rem;
 }
 
-/* Smooth anchor scroll */
-html { scroll-behavior: smooth; }
-
-/* Dark-theme cleanup for wiki HTML injected */
+/* Dark-theme cleanup for injected wiki HTML */
 .source-content img { max-width: 100%; height: auto; }
 .source-content table { width: 100%; border-collapse: collapse; }
-.source-content th, .source-content td { border: 1px solid rgba(255,255,255,0.1); padding: 0.4rem; }
-.source-content .infobox, .source-content .navbox, .source-content .metadata, .source-content .mw-editsection { display: none !important; }
+.source-content th, .source-content td {
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 0.4rem;
+}
+.source-content .infobox,
+.source-content .navbox,
+.source-content .metadata,
+.source-content .mw-editsection {
+  display: none !important;
+}
 
 /* Collapsible reference-style sections */
 .subsection.collapsible {
@@ -170,29 +186,25 @@ html { scroll-behavior: smooth; }
   font-weight: 600;
   color: #e8e8e8;
   padding: 0.4rem 0.25rem;
+  outline: none;
+}
+.subsection.collapsible > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .subsection.collapsible > summary::-webkit-details-marker { display: none; }
 .subsection.collapsible > summary::after {
   content: " ▸";
   color: var(--muted);
 }
-.subsection.collapsible[open] > summary::after {
-  content: " ▾";
-}
+.subsection.collapsible[open] > summary::after { content: " ▾"; }
 .subsection.collapsible .collapsible-body {
   padding: 0.5rem 0.25rem 0.75rem 0.25rem;
 }
-
-/* Force-collapsed by default + arrow glyphs (works even if <details> fallback breaks) */
+/* FORCE collapsed by default for injected <details> */
 .subsection.collapsible:not([open]) .collapsible-body { display: none !important; }
 
-.subsection.collapsible > summary {
-  list-style: none;
-  cursor: pointer;
-  font-weight: 600;
-  color: #e8e8e8;
-  padding: 0.4rem 0.25rem;
+/* Respect reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
-.subsection.collapsible > summary::-webkit-details-marker { display: none; }
-.subsection.collapsible > summary::after { content: " ▸"; color: var(--muted); }
-.subsection.collapsible[open] > summary::after { content: " ▾"; }
