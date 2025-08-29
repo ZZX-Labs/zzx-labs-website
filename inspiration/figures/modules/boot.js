@@ -1,3 +1,5 @@
+// /inspiration/figures/modules/boot.js
+
 import { PALETTE, FIGURES, URLS_URL } from './paths.js';
 import { gridEl, tpl, filterEl } from './dom.js';
 import { state } from './state.js';
