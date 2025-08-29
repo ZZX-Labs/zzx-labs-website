@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/render.js
 import { state } from './state.js';
 import { gridEl, tpl } from './dom.js';
 import { normalizeCard } from './cards.js';
