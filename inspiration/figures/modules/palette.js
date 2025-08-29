@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/palette.js
 export function normalizePalette(p) {
   const out = [];
   const seen = new Set();
