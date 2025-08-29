@@ -1,13 +1,12 @@
 /* =======================================================================
    ZZX-Labs · Inspiration / Figures · style.css
-   - Dark card body + colored OUTER rim only
-   - Real inner gutter so content never hugs the rim
-   - 8px grid spacing, centered section below the grid
+   - Colored OUTER rim that does NOT collapse the grid gap
+   - True inner gutter so text/buttons never hug the rim
+   - Exact 8px spacing between cards
    ======================================================================= */
 
 /* ========== Theme Vars ========== */
 :root{
-  /* Brand & base */
   --accent: #c0d674;
   --muted:  #8a8f98;
   --bg-alt: #0f1216;
@@ -18,22 +17,21 @@
   --card-br: rgba(255,255,255,0.08);
   --card-shadow: 0 8px 28px rgba(0,0,0,0.30);
 
-  /* Colored rim (set per-card from JS via --edge) */
+  /* Colored rim (JS sets --edge per-card) */
   --edge: var(--accent);
 
-  /* Rim tuning */
-  --rim: 8px;         /* rim thickness */
-  --rim-hover: 10px;  /* on focus/keyboard */
-  --rim-glow: 22px;
+  /* Rim as real border (so grid gap is preserved) */
+  --rim: 8px;        /* visible colored border thickness */
+  --rim-hover: 10px; /* focus/keyboard feel */
 
-  /* Inner spacing */
-  --edge-gap: 8px;    /* NEW: inner gutter between rim & content */
-  --inset-x: 16px;    /* section horizontal padding (header/content/actions) */
-  --inset-y: 14px;    /* section vertical padding */
+  /* Inner spacing (keeps content away from rim) */
+  --edge-gap: 8px;   /* inner gutter between rim & content */
+  --inset-x: 16px;   /* section horizontal padding */
+  --inset-y: 14px;   /* section vertical padding */
 
   /* Grid spacing */
-  --grid-gap: 8px;    /* EXACT 8px between cards */
-  --grid-pad: 8px;    /* slight breathing room around grid edges */
+  --grid-gap: 8px;   /* EXACT spacing between cards */
+  --grid-pad: 8px;   /* breathing room around grid */
 }
 
 @media (max-width: 640px){
@@ -60,20 +58,22 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
 
 /* ========== Grid ========== */
 .features h2{ margin: .5rem 0 1rem; color: var(--fg); }
+
+/* Ensure a true 8px gap between cards */
 .feature-card-container{
   display: grid;
-  gap: var(--grid-gap);                   /* 8px gaps */
+  gap: var(--grid-gap);
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   align-items: stretch;
   padding: var(--grid-pad);
 }
 
-/* Center the immediate section after the grid */
+/* Center the next block after the grid */
 .feature-card-container + *{
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;                /* center it, not right-aligned */
+  justify-content: center;
   text-align: center;
   gap: .5rem;
 }
@@ -85,44 +85,49 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   flex-direction: column;
   min-height: 280px;
 
-  background: var(--card-bg);
-  color: var(--fg);
-
-  border: 1px solid var(--card-br);
+  /* Draw the rim INSIDE the element via a real border using layered backgrounds.
+     Layer 1 (padding-box): the dark card body
+     Layer 2 (border-box):  the colored rim area
+  */
+  border: var(--rim) solid transparent;
   border-radius: 16px;
+  background:
+    linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+    linear-gradient(var(--edge, var(--accent)), var(--edge, var(--accent))) border-box;
+  background-clip: padding-box, border-box;
+
+  /* Subtle inner outline + drop shadow */
+  box-shadow: inset 0 0 0 1px var(--card-br), var(--card-shadow);
+  color: var(--fg);
   overflow: hidden;
 
-  /* Outer rim only (colored) */
-  box-shadow: var(--card-shadow), 0 0 0 var(--rim) var(--edge, transparent);
-  transition: box-shadow .15s ease, transform .06s ease;
-
-  /* NEW: inner gutter so content never hugs the rim */
+  /* Inner gutter so content never hugs the rim */
   padding: var(--edge-gap);
-  background-clip: padding-box; /* keep bg inside the inner gutter */
 }
 
 .feature-card:hover{
+  /* Light outer glow that won't destroy grid spacing */
   box-shadow:
-    var(--card-shadow),
-    0 0 0 var(--rim) var(--edge, transparent),
-    0 0 var(--rim-glow) -6px var(--edge, transparent);
+    inset 0 0 0 1px var(--card-br),
+    0 0 0 1px rgba(0,0,0,0.1),
+    0 10px 30px rgba(0,0,0,0.35);
 }
 
 .feature-card:focus-within{
   outline: none;
-  box-shadow: var(--card-shadow), 0 0 0 var(--rim-hover) var(--edge, transparent);
+  border-width: var(--rim-hover);
 }
 
 /* Optional watermark hatch (super subtle) */
 .feature-card .card-watermark{
-  position: absolute; inset: 0; pointer-events: none;
+  position: absolute; inset: var(--edge-gap); pointer-events: none;
   background: repeating-linear-gradient(
     45deg,
     rgba(255,255,255,.06), rgba(255,255,255,.06) 2px,
     transparent 2px, transparent 12px
   );
   opacity: .06;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 /* ========== Header ========== */
@@ -146,7 +151,7 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
 .feature-card .figure-wrap{
   position: relative;
   width: 100%;
-  aspect-ratio: 16/10;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 1px solid var(--card-br);
   border-radius: 10px;
@@ -158,7 +163,7 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   width: 100%; height: 100%; object-fit: cover; display: block;
 }
 
-/* De-emphasize any explicit placeholder asset by name */
+/* De-emphasize explicit placeholder */
 .feature-card .figure-wrap img[src*="placeholder"]{
   filter: grayscale(1) contrast(.9) opacity(.85);
 }
@@ -179,10 +184,7 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   padding: .36rem .7rem;
   cursor: pointer;
 }
-
-.feature-card .card-actions button:hover{
-  border-color: rgba(255,255,255,.3);
-}
+.feature-card .card-actions button:hover{ border-color: rgba(255,255,255,.3); }
 
 /* ========== Content ========== */
 .feature-card .card-content{
@@ -192,17 +194,11 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   margin-top: 10px;
 }
 
-.feature-card .fig-name{
-  font-weight: 700;
-  margin: 0 0 .4rem;
-}
-
+.feature-card .fig-name{ font-weight: 700; margin: 0 0 .4rem; }
 .feature-card .fig-meta{ color: var(--muted); font-size: .92rem; }
 .feature-card .fig-meta ul{ margin: .25rem 0 .55rem; padding-left: 0; list-style: none; }
 .feature-card .fig-meta li{ margin: .15rem 0; }
-
 .feature-card .fig-about p{ margin: .55rem 0; line-height: 1.55; }
-
 .muted{ color: var(--muted); }
 
 /* ========== Collapsibles ========== */
@@ -213,16 +209,13 @@ body.inspiration{ background: var(--bg-alt); color: var(--fg); }
   background: rgba(255,255,255,0.03);
   margin: .65rem 0;
 }
-
 .subsection.collapsible > summary{
   list-style: none; cursor: pointer; font-weight: 600; color: var(--fg);
   padding: 0.35rem 0.25rem;
 }
-
 .subsection.collapsible > summary::-webkit-details-marker{ display: none; }
 .subsection.collapsible > summary::after{ content: " ▸"; color: var(--muted); }
 .subsection.collapsible[open] > summary::after{ content: " ▾"; }
-
 .subsection.collapsible .collapsible-body{ padding: 0.45rem 0.25rem 0.8rem; }
 .subsection.collapsible:not([open]) .collapsible-body{ display: none !important; }
 
