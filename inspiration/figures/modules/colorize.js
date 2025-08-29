@@ -3,65 +3,65 @@ import { state } from './state.js';
 import { inferGridColsVisible } from './grid.js';
 import { setCardPaint } from './color.js';
 
-function getAssignedColor(el) {
-  return el?.dataset?.colorResolved || el?.dataset?.bgColor || '';
-}
-
+/**
+ * Color visible cards with:
+ *  - no immediate adjacency collisions (left/above),
+ *  - minimal churn: keep the existing color if it’s still valid,
+ *  - balanced usage across the palette.
+ */
 export function colorizeBalancedNoAdjacency() {
-  const cards = state.nodes.map(n => n.el).filter(c => c && c.offsetParent !== null);
-  const pal   = (state.palette || []).slice();
+  const cards = state.nodes.map(n => n.el).filter(c => c.offsetParent !== null);
+  if (!cards.length || !state.palette.length) return;
 
-  if (!cards.length || !pal.length) return;
+  const cols = inferGridColsVisible(cards);
+  const pal  = state.palette.slice(); // 8–16 colors already
+  const usage = Object.fromEntries(pal.map(c => [c, 0]));
 
-  const cols     = Math.max(1, inferGridColsVisible(cards));
+  // Seed usage with already-assigned visible colors so balance is respected
+  cards.forEach(c => {
+    const col = c.dataset.colorResolved;
+    if (col && usage[col] != null) usage[col]++;
+  });
+
   const maxTarget = Math.ceil(cards.length / pal.length);
 
-  // Track how often each palette color is used this pass
-  const usage = Object.fromEntries(pal.map(c => [c, 0]));
-  // Current pass assignments (parallel to cards)
-  const assigned = new Array(cards.length);
-
   for (let i = 0; i < cards.length; i++) {
-    const card = cards[i];
-    const row = Math.floor(i / cols), col = i % cols;
+    const card  = cards[i];
+    const row   = Math.floor(i / cols);
+    const colIx = i % cols;
 
-    const leftColor  = col > 0 ? assigned[i - 1] : '';
-    const aboveColor = row > 0 ? assigned[i - cols] : '';
+    // read *current* resolved colors for adjacency checks
+    const left  = colIx > 0     ? cards[i - 1]?.dataset.colorResolved : null;
+    const above = row  > 0      ? cards[i - cols]?.dataset.colorResolved : null;
 
-    const prev = getAssignedColor(card); // stable between calls
+    const current = card.dataset.colorResolved || null;
 
-    // Keep previous color if it doesn't collide with left/above
-    if (prev && prev !== leftColor && prev !== aboveColor) {
-      assigned[i] = prev;
-      if (prev in usage) usage[prev] += 1;
+    // If current color exists and doesn’t collide, keep it (no churn).
+    if (current && current !== left && current !== above) {
       continue;
     }
 
-    // Build allowed set avoiding immediate neighbors
-    let allowed = pal.filter(c => c !== leftColor && c !== aboveColor);
-    if (!allowed.length) allowed = pal.slice(); // edge-case: tiny palettes
+    // Build allowed list (avoid collisions)
+    let allowed = pal.filter(c => c !== left && c !== above);
+    if (!allowed.length) allowed = pal.slice(); // single-color or tight palette fallback
 
-    // Prefer the least-used colors, under a soft cap
+    // Pick least-used among allowed
     const minUse = Math.min(...allowed.map(c => usage[c] ?? 0));
     let candidates = allowed.filter(c => (usage[c] ?? 0) === minUse);
+
+    // Try to keep same family if possible (soft preference for current)
+    if (current && candidates.includes(current)) {
+      setCardPaint(card, current);
+      usage[current] = (usage[current] ?? 0) + 1;
+      continue;
+    }
+
+    // Cap runaway usage a bit
     const underCap = candidates.filter(c => (usage[c] ?? 0) < maxTarget);
     if (underCap.length) candidates = underCap;
 
-    // Deterministic pick (no RNG flicker)
-    const picked = candidates[0] || allowed[0] || pal[0];
-    assigned[i] = picked;
-    usage[picked] = (usage[picked] ?? 0) + 1;
-  }
-
-  // Apply only if changed (keeps things stable across reflows/loads)
-  for (let i = 0; i < cards.length; i++) {
-    const card = cards[i];
-    const now  = getAssignedColor(card);
-    const next = assigned[i];
-    if (now !== next) {
-      setCardPaint(card, next);
-      // Also mirror into bgColor for legacy readers
-      card.dataset.bgColor = next;
-    }
+    const pick = candidates[Math.floor(Math.random() * candidates.length)] || pal[0];
+    setCardPaint(card, pick);
+    usage[pick] = (usage[pick] ?? 0) + 1;
   }
 }
