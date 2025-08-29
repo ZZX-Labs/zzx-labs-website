@@ -155,3 +155,30 @@ html { scroll-behavior: smooth; }
 .source-content table { width: 100%; border-collapse: collapse; }
 .source-content th, .source-content td { border: 1px solid rgba(255,255,255,0.1); padding: 0.4rem; }
 .source-content .infobox, .source-content .navbox, .source-content .metadata, .source-content .mw-editsection { display: none !important; }
+
+/* Collapsible reference-style sections */
+.subsection.collapsible {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255,255,255,0.03);
+  margin: 1rem 0;
+}
+.subsection.collapsible > summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #e8e8e8;
+  padding: 0.4rem 0.25rem;
+}
+.subsection.collapsible > summary::-webkit-details-marker { display: none; }
+.subsection.collapsible > summary::after {
+  content: " ▸";
+  color: var(--muted);
+}
+.subsection.collapsible[open] > summary::after {
+  content: " ▾";
+}
+.subsection.collapsible .collapsible-body {
+  padding: 0.5rem 0.25rem 0.75rem 0.25rem;
+}
