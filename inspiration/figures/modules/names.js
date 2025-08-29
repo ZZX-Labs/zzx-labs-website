@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/names.js
 import { state } from './state.js';
 
 export function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
