@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/state.js
 export const state = {
   palette: [],
   figures: [],
