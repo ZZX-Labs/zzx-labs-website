@@ -1,19 +1,21 @@
-/* Business Resources renderer (hardened)
- * - Reads ./urls.json (array of Wikipedia URLs).
- * - Resolves redirects/typos; supports #fragment to render only that section.
- * - Per-source try/catch so one bad URL never breaks the whole page/TOC.
- * - Problems panel surfaces redirects/misspellings/missing/disambiguation.
- * - Caches MediaWiki responses in localStorage (TTL 6h).
+/* Business Resources renderer (v2: title-fix + collapsibles + smart cache)
+ * - Titles: decode percent escapes (e.g., R%26D → R&D).
+ * - Collapsible refs: References/Citations/Notes/Bibliography/External links/Further reading/See also.
+ * - Caching:
+ *    1) Static JSON cache (./cache/<slug>.json) if present and current (by lastrevid).
+ *    2) IndexedDB wiki_cache.pages keyed by <title>#<fragment|ALL>, guarded by lastrevid.
+ * - Only one light query per page (lastrevid + meta) before deciding to fetch sections.
  */
 
 const TOC = document.getElementById('toc-content');
 const TARGET = document.getElementById('sources');
 const TOC_FILTER = document.getElementById('toc-filter');
 
-const TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const TTL_MS = 6 * 60 * 60 * 1000; // localStorage (parse-call) TTL – still used for MW responses
 const MW_API = 'https://en.wikipedia.org/w/api.php';
 const ORIGIN = '&origin=*'; // CORS
-const HEADERS_TO_INCLUDE = null; // e.g., ['0','1','2'] to limit levels
+const HEADERS_TO_INCLUDE = null; // e.g., ['0','1','2'] to limit
+const STATIC_CACHE_DIR = './cache'; // optional; place precomputed JSON here
 
 // Problems panel
 let PROBLEMS = [];
@@ -25,8 +27,6 @@ function mountProblemsPanel() {
     panel.id = 'problems-panel';
     panel.className = 'notice';
     panel.style.display = 'none';
-
-    // Insert under breadcrumbs if present
     const bc = container.querySelector('.breadcrumbs');
     if (bc && bc.parentNode === container) {
       container.insertBefore(panel, bc.nextSibling);
@@ -43,7 +43,7 @@ function mountProblemsPanel() {
   }
 }
 
-// Cache helpers
+// LocalStorage cache (for raw MW API responses; we keep this from v1)
 const cacheGet = (key) => {
   try {
     const raw = localStorage.getItem(key);
@@ -57,14 +57,52 @@ const cacheSet = (key, value) => {
   try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value })); } catch {}
 };
 
+// IndexedDB cache (render-ready pages)
+let _dbPromise = null;
+function openDB() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open('wiki_cache', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('pages')) {
+        const store = db.createObjectStore('pages', { keyPath: 'key' }); // key = title#fragment|ALL
+        store.createIndex('byTitle', 'title', { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _dbPromise;
+}
+async function idbGet(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pages', 'readonly');
+    const store = tx.objectStore('pages');
+    const req = store.get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbPut(obj) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pages', 'readwrite');
+    const store = tx.objectStore('pages');
+    const req = store.put(obj);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 // Utils
 function slugify(str) {
-  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64);
+  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,128);
 }
 function extractFragment(url) {
   try { return new URL(url).hash.replace(/^#/, '') || null; } catch { return null; }
 }
-// Normalize URL → title (no fragment)
 function urlToTitle(url) {
   try {
     const u = new URL(url);
@@ -75,6 +113,20 @@ function urlToTitle(url) {
     if (t) return decodeURIComponent(t).split('#')[0];
   } catch {}
   return decodeURIComponent(String(url).split('/').pop() || '').split('#')[0].replace(/_/g,' ');
+}
+function displayTitleString(title) {
+  // Fix percent-escapes (e.g., R%26D → R&D) and underscores
+  try { title = decodeURIComponent(title); } catch {}
+  return title.replace(/_/g,' ');
+}
+function cacheKey(title, fragment) {
+  return `${title}#${fragment || 'ALL'}`;
+}
+function cacheSlug(title, fragment) {
+  return slugify(`${title}--${fragment || 'all'}`);
+}
+function isCollapsibleHeading(line) {
+  return /^(references?|citations?|notes|footnotes?|bibliography|external links|further reading|see also)$/i.test(line.trim());
 }
 
 // MediaWiki calls
@@ -90,6 +142,7 @@ async function fetchParse(params) {
   return json;
 }
 
+// Light search suggestion for typos
 async function searchSuggest(title) {
   const p = new URLSearchParams({
     action: 'opensearch',
@@ -104,7 +157,7 @@ async function searchSuggest(title) {
   return data?.[1]?.[0] || null;
 }
 
-// Resolve + inspect (redirects/typos/disambiguation)
+// Resolve + inspect: include lastrevid (crucial for caching)
 async function resolveAndInspect(rawTitle) {
   const p = new URLSearchParams({
     action: 'query',
@@ -112,7 +165,7 @@ async function resolveAndInspect(rawTitle) {
     redirects: '1',
     titles: rawTitle,
     prop: 'info|revisions|pageprops',
-    rvprop: 'timestamp',
+    rvprop: 'ids|timestamp',      // include revid
     inprop: 'url'
   }).toString();
 
@@ -143,13 +196,14 @@ async function resolveAndInspect(rawTitle) {
 
   const isDisambig = !!first?.pageprops?.disambiguation;
   if (isDisambig) {
-    PROBLEMS.push(`“${canonical}” is a disambiguation page (e.g., OKB). Rendering anyway.`);
+    PROBLEMS.push(`“${canonical}” is a disambiguation page. Rendering anyway.`);
   }
 
   const updated = first?.revisions?.[0]?.timestamp ? new Date(first.revisions[0].timestamp) : null;
+  const lastrevid = first?.revisions?.[0]?.revid || first?.lastrevid || null; // belt & suspenders
   const fullurl = first?.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(canonical)}`;
 
-  return { title: canonical, url: fullurl, updated, disambig: isDisambig, missing: false };
+  return { title: canonical, url: fullurl, updated, lastrevid, disambig: isDisambig, missing: false };
 }
 
 async function getSections(pageTitle) {
@@ -163,7 +217,6 @@ async function getSections(pageTitle) {
   if (data.error) throw new Error(data.error.info || 'MediaWiki error (sections)');
   return data.parse.sections || [];
 }
-
 async function getSectionHTML(pageTitle, sectionIndex) {
   const p = new URLSearchParams({
     action: 'parse',
@@ -215,7 +268,7 @@ function addTOCSourceBlock(srcId, title, sections) {
   h.className = 'source';
   const link = document.createElement('a');
   link.href = `#${srcId}`;
-  link.textContent = title.replace(/_/g,' ');
+  link.textContent = displayTitleString(title);
   h.appendChild(link);
   wrap.appendChild(h);
 
@@ -244,7 +297,7 @@ function renderSourceHeader(container, srcId, title, pageUrl, updated) {
   const h2 = document.createElement('h2');
   const a = document.createElement('a');
   a.href = pageUrl || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
-  a.textContent = title.replace(/_/g,' ');
+  a.textContent = displayTitleString(title); // ✅ decode percent escapes
   a.target = '_blank'; a.rel = 'noopener noreferrer';
   h2.appendChild(a);
 
@@ -275,12 +328,33 @@ function renderSourceHeader(container, srcId, title, pageUrl, updated) {
 }
 
 function renderSubsection(contentEl, srcId, s, html) {
+  const id = `${srcId}--sec-${s.index}`;
+  const title = s.line;
+
+  if (isCollapsibleHeading(title)) {
+    const details = document.createElement('details');
+    details.className = 'subsection collapsible';
+    details.id = id;
+
+    const summary = document.createElement('summary');
+    summary.textContent = title; // clickable
+    details.appendChild(summary);
+
+    const body = document.createElement('div');
+    body.className = 'collapsible-body';
+    body.innerHTML = html;
+    details.appendChild(body);
+
+    contentEl.appendChild(details);
+    return;
+  }
+
   const wrap = document.createElement('div');
   wrap.className = 'subsection';
-  wrap.id = `${srcId}--sec-${s.index}`;
+  wrap.id = id;
 
   const h3 = document.createElement('h3');
-  h3.textContent = s.line;
+  h3.textContent = title;
 
   const body = document.createElement('div');
   body.innerHTML = html;
@@ -309,6 +383,25 @@ function setupTocFilter() {
   });
 }
 
+// Try static cache file (./cache/<slug>.json)
+async function tryLoadStaticCache(slug) {
+  try {
+    const res = await fetch(`${STATIC_CACHE_DIR}/${slug}.json`, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// Render from a cached record (static or IndexedDB)
+function renderFromCache(rec) {
+  const srcId = `src-${slugify(rec.title)}`;
+  addTOCSourceBlock(srcId, rec.title, rec.sections);
+  const contentEl = renderSourceHeader(TARGET, srcId, rec.title, rec.url, rec.updated ? new Date(rec.updated) : null);
+  for (const s of rec.sections) {
+    renderSubsection(contentEl, srcId, s, s.html || '');
+  }
+}
+
 // Main
 async function render() {
   try {
@@ -323,7 +416,6 @@ async function render() {
         const rawTitle = urlToTitle(url);
         const fragment = extractFragment(url);
         const info = await resolveAndInspect(rawTitle);
-
         if (info.missing) {
           const srcId = `src-${slugify(rawTitle)}`;
           const contentEl = renderSourceHeader(TARGET, srcId, rawTitle, null, null);
@@ -334,38 +426,66 @@ async function render() {
           continue;
         }
 
-        const srcId = `src-${slugify(info.title)}`;
-        const sections = await getSections(info.title);
+        const key = cacheKey(info.title, fragment);
+        const slug = cacheSlug(info.title, fragment);
 
-        let sectionList = sections;
-        if (fragment) {
-          const fragLower = fragment.toLowerCase().replace(/_/g,' ');
-          const byAnchor = sections.find(s => (s.anchor || '').toLowerCase() === fragment.toLowerCase());
-          const byLine = sections.find(s => (s.line || '').toLowerCase() === fragLower);
-          const chosen = byAnchor || byLine;
-          sectionList = chosen ? [chosen] : sections;
-          if (!chosen) {
-            PROBLEMS.push(`Fragment “#${fragment}” not found on “${info.title}”; rendering all sections.`);
-          }
-        } else if (HEADERS_TO_INCLUDE) {
-          sectionList = sections.filter(s => HEADERS_TO_INCLUDE.includes(s.index));
+        // 1) Static JSON cache (if present and current)
+        const staticRec = await tryLoadStaticCache(slug);
+        if (staticRec && staticRec.lastrevid && info.lastrevid && String(staticRec.lastrevid) === String(info.lastrevid)) {
+          renderFromCache(staticRec);
+          // also feed into IndexedDB for offline reuse
+          await idbPut(staticRec);
+          continue;
         }
 
-        addTOCSourceBlock(srcId, info.title, sectionList);
-        const contentEl = renderSourceHeader(TARGET, srcId, info.title, info.url, info.updated);
+        // 2) IndexedDB cache (if present and current)
+        const idbRec = await idbGet(key);
+        if (idbRec && idbRec.lastrevid && info.lastrevid && String(idbRec.lastrevid) === String(info.lastrevid)) {
+          renderFromCache(idbRec);
+          continue;
+        }
 
+        // 3) Fresh fetch (sections + per-section HTML)
+        const allSections = await getSections(info.title);
+
+        // pick sections
+        let sectionList = allSections;
+        if (fragment) {
+          const fragLower = fragment.toLowerCase().replace(/_/g,' ');
+          const byAnchor = allSections.find(s => (s.anchor || '').toLowerCase() === fragment.toLowerCase());
+          const byLine = allSections.find(s => (s.line || '').toLowerCase() === fragLower);
+          const chosen = byAnchor || byLine;
+          if (chosen) sectionList = [chosen];
+          else PROBLEMS.push(`Fragment “#${fragment}” not found on “${info.title}”; rendering all sections.`);
+        } else if (HEADERS_TO_INCLUDE) {
+          sectionList = allSections.filter(s => HEADERS_TO_INCLUDE.includes(s.index));
+        }
+
+        // Fetch HTML for chosen sections
+        const outSections = [];
         for (const s of sectionList) {
           try {
             const { html } = await getSectionHTML(info.title, s.index);
             const cleaned = sanitizeAndRewrite(html);
-            if (cleaned.trim()) renderSubsection(contentEl, srcId, s, cleaned);
+            outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel, html: cleaned });
           } catch (err) {
-            const e = document.createElement('div');
-            e.className = 'error';
-            e.textContent = `Section “${s.line}” failed to load: ${err.message}`;
-            contentEl.appendChild(e);
+            PROBLEMS.push(`Section “${s.line}” failed to load on “${info.title}”: ${err.message}`);
           }
         }
+
+        const record = {
+          key,
+          title: info.title,
+          url: info.url,
+          updated: info.updated ? info.updated.toISOString() : null,
+          lastrevid: info.lastrevid || null,
+          sections: outSections
+        };
+
+        // Persist to IndexedDB (and still render)
+        await idbPut(record);
+        renderFromCache(record);
+
       } catch (err) {
         PROBLEMS.push(`Failed to process URL: ${url} → ${err.message}`);
       }
