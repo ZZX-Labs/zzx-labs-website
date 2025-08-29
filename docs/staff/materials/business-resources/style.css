@@ -182,3 +182,17 @@ html { scroll-behavior: smooth; }
 .subsection.collapsible .collapsible-body {
   padding: 0.5rem 0.25rem 0.75rem 0.25rem;
 }
+
+/* Force-collapsed by default + arrow glyphs (works even if <details> fallback breaks) */
+.subsection.collapsible:not([open]) .collapsible-body { display: none !important; }
+
+.subsection.collapsible > summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #e8e8e8;
+  padding: 0.4rem 0.25rem;
+}
+.subsection.collapsible > summary::-webkit-details-marker { display: none; }
+.subsection.collapsible > summary::after { content: " ▸"; color: var(--muted); }
+.subsection.collapsible[open] > summary::after { content: " ▾"; }
