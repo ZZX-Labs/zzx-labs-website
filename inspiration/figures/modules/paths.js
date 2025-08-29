@@ -1,3 +1,4 @@
+// /inspiration/figures/modules/paths.js
 export const BASE      = new URL('../', import.meta.url);
 export const PALETTE   = new URL('color-palette.json', BASE);
 export const FIGURES   = new URL('figures.json', BASE);
