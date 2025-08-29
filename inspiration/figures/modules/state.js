@@ -5,5 +5,10 @@ export const state = {
   urls: {},
   urlIndex: {},
   cards: {},
-  nodes: [] // { id, el }
+  nodes: [], // { id, el }
+
+  // stability & bookkeeping
+  orderSeed: null,                 // shuffle seed used this page load
+  colors: Object.create(null),     // id -> hex (kept across interactions)
+  booted: false
 };
