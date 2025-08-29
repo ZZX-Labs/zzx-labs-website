@@ -1,0 +1,39 @@
+/* Scoped fixes for the Figures page (keeps other pages untouched) */
+body.inspiration .features{
+  display: flex; flex-direction: column; align-items: center;
+  gap: 24px; /* space between the grid and the section below */
+}
+
+/* Figures card grid — ensure 8px spacing and full width */
+body.inspiration .feature-card-container{
+  width: 100%; align-self: stretch;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  padding: 4px; /* breathing room at edges so rims don’t kiss container */
+}
+
+/* Cards rely on gap; no extra margin here */
+body.inspiration .feature-card{ margin: 0; }
+
+/* Center any content below the grid */
+body.inspiration .features > :not(.feature-card-container){
+  width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; text-align: center;
+}
+
+/* If bottom block uses .container, ensure block display */
+body.inspiration .features > .container{ display: block; }
+
+/* Philosophical Values section centering */
+body.inspiration #philosophical-values{
+  grid-column: 1 / -1; justify-self: center;
+  width: 100%; max-width: 1200px; margin-inline: auto; padding-inline: 16px;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;
+}
+body.inspiration #philosophical-values .feature{
+  flex: 0 1 320px; max-width: 420px; margin: 0; text-align: center;
+}
+
+/* Keep grid spacing tight on smallest screens */
+@media (max-width: 360px){
+  body.inspiration .feature-card-container{ grid-template-columns: 1fr; gap: 8px; }
+}
