@@ -13,13 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function start() {
-  if (booted || booting) return;
+  if (booted || booting || window.__FIG_APP_BOOTED__) return;
   booting = true;
+  window.__FIG_APP_BOOTED__ = true;
 
   // Warn for file:// (fetch/module CORS issues)
   if (location.protocol === 'file:') {
     throw new Error(
-      'This page is being served via file://. Use a local web server (e.g., `python -m http.server`) so module imports and JSON fetches work.'
+      'This page is being served via file://. Use a local web server (e.g., `python -m http.server`) so ES modules and JSON fetches work.'
     );
   }
 
@@ -89,14 +90,22 @@ function showError(err) {
 
 function friendlyMessage(err) {
   const msg = err?.message || String(err);
-  if (msg.includes('Unexpected token') || msg.includes('JSON')) {
-    return 'Likely a syntax error in cards/_index.json (e.g., missing comma or trailing comma).';
+  const m = msg.toLowerCase();
+
+  if (m.includes('file://')) {
+    return 'Use a local HTTP server; ES modules and JSON fetches won’t work from file://.';
   }
-  if (msg.includes('Failed to fetch') || msg.includes('fetch')) {
-    return 'Could not fetch assets (check /cards/_index.json path, dev server running, and CORS).';
+  if (m.includes('unexpected token') || m.includes('json')) {
+    return 'Likely a syntax error in a JSON file (e.g., figures/figures.json, figures/urls.json, or figures/color-palette.json). Check for trailing/missing commas.';
   }
-  if (msg.toLowerCase().includes('module') && msg.toLowerCase().includes('mime')) {
-    return 'Module import issue — ensure the server serves JS with proper MIME and script has type="module".';
+  if (m.includes('failed to fetch') || m.includes('fetch')) {
+    return 'Could not fetch assets (check /inspiration/figures/* paths, that your dev server is running, and CORS).';
+  }
+  if (m.includes('module') && m.includes('mime')) {
+    return 'Module import issue — ensure the server serves JS with correct MIME and your script tag uses type="module".';
+  }
+  if (m.includes('timed out')) {
+    return msg;
   }
   return msg;
 }
@@ -125,10 +134,11 @@ function wireGlobalErrorHandlers() {
 
   window.addEventListener('error', (e) => {
     if (!booted) showError(e.error || new Error(e.message || 'Unknown error'));
-  });
+  }, { passive: true });
+
   window.addEventListener('unhandledrejection', (e) => {
     if (!booted) showError(e.reason || new Error('Unhandled promise rejection'));
-  });
+  }, { passive: true });
 }
 
 function escapeHtml(s) {
