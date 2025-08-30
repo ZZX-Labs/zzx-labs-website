@@ -61,7 +61,7 @@ function normalizePalette(p) {
     }
     return Array.from(new Set(sel));
   }
-  return out;
+  return out.length ? out : ['#c0d674'];
 }
 
 async function tryLoadStaticCache(slug) {
@@ -81,17 +81,34 @@ async function loadJSON(path) {
   return r.json();
 }
 
+function updateCount(countEl, shown, total) {
+  if (countEl) countEl.textContent = `${shown} shown of ${total}`;
+}
+
 /* ----------------------- boot ----------------------- */
 export async function boot() {
   const grid = document.getElementById('figure-grid');
-  if (!grid) return;
+  const filterEl = document.getElementById('figure-filter');
+  const countEl  = document.getElementById('figure-count');
 
-  // Load data files
-  const [figures, paletteRaw, urlMap] = await Promise.all([
-    loadJSON(FIGURES_JSON),
-    loadJSON(PALETTE_JSON),
-    loadJSON(URLS_JSON)  // { "<figure-id>": "https://en.wikipedia.org/wiki/..." }
-  ]);
+  if (!grid) return;
+  if (location.protocol === 'file:') {
+    grid.innerHTML = `<p class="error">This page is being served via <code>file://</code>. Please run a local web server so module imports and JSON fetches work.</p>`;
+    return;
+  }
+
+  // Load data files (figures required, palette/urls best-effort)
+  let figures = [];
+  try {
+    figures = await loadJSON(FIGURES_JSON);
+  } catch (e) {
+    grid.innerHTML = `<p class="error">Failed to load figures: ${e?.message || e}</p>`;
+    return;
+  }
+
+  let paletteRaw = null, urlMap = {};
+  try { paletteRaw = await loadJSON(PALETTE_JSON); } catch (e) { console.warn('[palette] load failed:', e); }
+  try { urlMap     = await loadJSON(URLS_JSON);     } catch (e) { console.warn('[urls] load failed:', e); urlMap = {}; }
 
   // Shuffle figures once per page load (stable within this session)
   const ORDER_SEED = (window.__FIG_ORDER_SEED__ ??= seedFromCrypto());
@@ -101,20 +118,50 @@ export async function boot() {
   grid.innerHTML = '';
   const cards = [];
   for (const fig of ordered) {
-    const img = `${IMAGES_DIR}/${fig.id}.jpg`;
-    const card = mkFigureCard({ id: fig.id, name: fig.name, imgUrl: img });
-    grid.appendChild(card);
-    cards.push(card);
+    try {
+      const img = `${IMAGES_DIR}/${fig.id}.jpg`;
+      const card = mkFigureCard({ id: fig.id, name: fig.name, imgUrl: img });
+      grid.appendChild(card);
+      cards.push(card);
+    } catch (e) {
+      console.error('mkFigureCard failed for', fig, e);
+    }
+  }
+
+  // If nothing rendered, bail early (don’t proceed to MW work)
+  if (!cards.length) {
+    grid.innerHTML = `<p class="error">No cards rendered. Check the figures JSON and mkFigureCard.</p>`;
+    return;
   }
 
   // Normalize palette and assign rim colors once (no churn on interactions)
-  const palette = normalizePalette(paletteRaw);
+  const palette = normalizePalette(paletteRaw || ['#c0d674']);
   assignBalancedColors(cards, palette, grid);
+
+  // Simple filter (name/id contains) + count
+  const applyFilter = () => {
+    const q = (filterEl?.value || '').trim().toLowerCase();
+    let shown = 0;
+    for (const card of cards) {
+      const nm = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+      const id = (card.id || '').toLowerCase();
+      const hit = !q || nm.includes(q) || id.includes(q);
+      card.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    }
+    updateCount(countEl, shown, cards.length);
+  };
+  updateCount(countEl, cards.length, cards.length);
+  filterEl?.addEventListener('input', () => {
+    // let layout settle then update count/colors if you later want
+    requestAnimationFrame(applyFilter);
+  });
+  applyFilter();
 
   // Hash → open collapsible hook
   attachHashOpenHandler();
 
-  // Fetch & render Wikipedia content per figure
+  // Fetch & render Wikipedia content per figure (sequential to be gentle)
   for (let i = 0; i < ordered.length; i++) {
     const fig = ordered[i];
     const card = cards[i];
