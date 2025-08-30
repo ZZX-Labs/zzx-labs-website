@@ -213,3 +213,41 @@ ul, .submenu, .footer-links{ list-style: none; padding-left: 0; }
 @media (max-width: 360px){
   .feature-card-container{ gap: var(--grid-gap); grid-template-columns: 1fr; }
 }
+
+/* Brand focus for the figures search box */
+#figure-filter{
+  outline: none; /* we’ll draw our own */
+  transition: border-color .2s ease, box-shadow .2s ease;
+  caret-color: #c0d674;
+}
+#figure-filter:focus,
+#figure-filter:focus-visible{
+  border-color: #c0d674 !important;           /* beat inline border */
+  outline: 2px solid #c0d674;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(192,214,116,0.25); /* soft glow */
+}
+
+/* ===== Figures page layout override (stack + center) ===== */
+body.inspiration .features{
+  display: flex;
+  flex-direction: column;          /* stack grid then the content below */
+  align-items: center;
+  gap: 24px;                       /* space between the grid and the section below */
+  padding-inline: var(--grid-pad);
+}
+
+/* Make the grid fill the width; keep exact 8px gaps you set */
+body.inspiration .features .feature-card-container{
+  width: 100%;
+  margin-inline: auto;
+  gap: var(--grid-gap);            /* 8px as defined */
+}
+
+/* Center any block(s) after the grid */
+body.inspiration .features > :not(.feature-card-container){
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;             /* center horizontally */
+  text-align: center;
+}
