@@ -6,92 +6,62 @@ import { displayTitleString, urlToTitle, cacheKey, extractFragment, assignBalanc
 import { resolveAndInspect, getSections, getSectionHTML } from './mw.js';
 import { mkFigureCard, renderFigureSectionsInto, attachHashOpenHandler } from './render.js';
 
-/* ---------------- helpers ---------------- */
+/* ---------------- misc helpers ---------------- */
 function seedFromCrypto() {
-  if (window.crypto?.getRandomValues) {
-    const u = new Uint32Array(1); crypto.getRandomValues(u);
-    return u[0] >>> 0;
-  }
+  if (window.crypto?.getRandomValues) { const u = new Uint32Array(1); crypto.getRandomValues(u); return u[0] >>> 0; }
   return ((Math.random() * 0xffffffff) | 0) >>> 0;
 }
-function mulberry32(seed) {
-  let t = seed >>> 0;
-  return function () {
-    t += 0x6D2B79F5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function shuffleSeeded(arr, seed) {
-  const a = arr.slice();
-  const rnd = mulberry32(seed);
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = (rnd() * (i + 1)) | 0;
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+function mulberry32(seed){ let t = seed>>>0; return ()=>{ t+=0x6D2B79F5; let r=Math.imul(t^(t>>>15),1|t); r^=r+Math.imul(r^(r>>>7),61|r); return ((r^(r>>>14))>>>0)/4294967296; }; }
+function shuffleSeeded(arr, seed){ const a=arr.slice(), rnd=mulberry32(seed); for(let i=a.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
 function normalizePalette(p) {
-  const out = [], seen = new Set();
-  (Array.isArray(p) ? p : []).forEach(c => {
-    if (!c) return;
-    let s = String(c).trim();
-    if (!s.startsWith('#')) s = `#${s}`;
-    const m = s.match(HEX_RE); if (!m) return;
-    let hex = m[1]; if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
-    const key = `#${hex.toLowerCase()}`;
-    if (!seen.has(key)) { seen.add(key); out.push(key); }
+  const HEX=/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i, out=[], seen=new Set();
+  (Array.isArray(p)?p:[]).forEach(c=>{
+    if(!c) return; let s=String(c).trim(); if(!s.startsWith('#')) s=`#${s}`; const m=s.match(HEX); if(!m) return;
+    let hex=m[1]; if(hex.length===3) hex=hex.split('').map(x=>x+x).join('');
+    const key=`#${hex.toLowerCase()}`; if(!seen.has(key)){ seen.add(key); out.push(key); }
   });
-  if (!seen.has('#c0d674')) out.splice(Math.floor(out.length / 2), 0, '#c0d674');
-  if (out.length > 16) {
-    const sel = [];
-    for (let i = 0; i < 16; i++) sel.push(out[Math.round(i * (out.length - 1) / 15)]);
-    return Array.from(new Set(sel));
-  }
-  return out.length ? out : ['#c0d674'];
-}
-async function tryLoadStaticCache(slug) {
-  try {
-    const res = await fetch(`${STATIC_CACHE_DIR}/${slug}.json`, { cache: 'no-cache' });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch { return null; }
-}
-function cacheSlug(title, fragment) {
-  return (displayTitleString(title) + (fragment ? `--${fragment}` : '--all'))
-    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,128);
-}
-async function loadJSON(path) {
-  const r = await fetch(path, { cache: 'no-cache' });
-  if (!r.ok) throw new Error(`${path} not found`);
-  return r.json();
-}
-function updateCount(countEl, shown, total) {
-  if (countEl) countEl.textContent = `${shown} shown of ${total}`;
+  if(!seen.has('#c0d674')) out.splice(Math.floor(out.length/2),0,'#c0d674');
+  if(out.length>16){ const sel=[]; for(let i=0;i<16;i++) sel.push(out[Math.round(i*(out.length-1)/15)]); return Array.from(new Set(sel)); }
+  return out.length?out:['#c0d674'];
 }
 
-/* --------- robust grid selection / creation (fixes “no cards”) --------- */
+async function tryLoadStaticCache(slug){ try{ const res=await fetch(`${STATIC_CACHE_DIR}/${slug}.json`,{cache:'no-cache'}); if(!res.ok) return null; return await res.json(); }catch{ return null; } }
+function cacheSlug(title, fragment){
+  return (displayTitleString(title)+(fragment?`--${fragment}`:'--all')).toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,128);
+}
+async function fetchJSON(path){ const r=await fetch(path,{cache:'no-cache'}); if(!r.ok) throw new Error(`${path} (${r.status})`); return r.json(); }
+async function loadFirst(paths, label){
+  for (const p of paths) {
+    try { return await fetchJSON(p); } catch (e) { console.warn(`[${label}] miss`, p, e?.message||e); }
+  }
+  throw new Error(`${label} not found in any candidate path`);
+}
+function updateCount(countEl, shown, total){ if(countEl) countEl.textContent = `${shown} shown of ${total}`; }
+
+/* --------- ensure/repair grid so cards actually render --------- */
 function ensureGridContainer() {
-  let grid =
-    document.getElementById('figure-grid') ||
-    document.querySelector('.feature-card-container') ||
-    document.querySelector('[data-fig-grid]');
+  let grid = document.getElementById('figure-grid')
+         || document.querySelector('.feature-card-container')
+         || document.querySelector('[data-fig-grid]');
 
   if (!grid) {
     grid = document.createElement('div');
     grid.id = 'figure-grid';
     grid.className = 'feature-card-container';
-    const host =
-      document.querySelector('section.features') ||
-      document.querySelector('#philosophical-values')?.parentElement ||
-      document.querySelector('main') || document.body;
+    const host = document.querySelector('section.features') || document.querySelector('main') || document.body;
     host.appendChild(grid);
   }
 
-  // Make sure CSS grid styles apply and it centers correctly
+  // Make sure the grid class is present for your CSS, and add a fallback grid inline.
   grid.classList.add('feature-card-container');
+  const cs = getComputedStyle(grid);
+  if (cs.display !== 'grid') {
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+    grid.style.gap = '8px';
+  }
   grid.style.marginInline = 'auto';
   grid.style.width = '100%';
 
@@ -106,33 +76,62 @@ export async function boot() {
     return;
   }
 
-  const grid = ensureGridContainer();
+  const grid     = ensureGridContainer();
   const filterEl = document.getElementById('figure-filter');
   const countEl  = document.getElementById('figure-count');
 
-  // Load data files
+  // Try multiple paths for each JSON so a misplaced folder doesn’t yield 0 cards.
+  const here = new URL('.', location.href).pathname.replace(/\/+$/,''); // e.g. /inspiration
+  const candidates = {
+    figures: [
+      FIGURES_JSON,
+      `${here}/figures/figures.json`,
+      `./figures/figures.json`,
+      `../figures/figures.json`,
+      `/inspiration/figures/figures.json`,
+      `/figures/figures.json`,
+    ],
+    palette: [
+      PALETTE_JSON,
+      `${here}/figures/color-palette.json`,
+      `./figures/color-palette.json`,
+      `../figures/color-palette.json`,
+      `/inspiration/figures/color-palette.json`,
+      `/figures/color-palette.json`,
+    ],
+    urls: [
+      URLS_JSON,
+      `${here}/figures/urls.json`,
+      `./figures/urls.json`,
+      `../figures/urls.json`,
+      `/inspiration/figures/urls.json`,
+      `/figures/urls.json`,
+    ],
+  };
+
   let figures = [];
-  try { figures = await loadJSON(FIGURES_JSON); }
+  try { figures = await loadFirst(candidates.figures, 'figures'); }
   catch (e) {
     grid.innerHTML = `<p class="error">Failed to load figures: ${e?.message || e}</p>`;
+    updateCount(countEl, 0, 0);
     return;
   }
-  let paletteRaw = null, urlMap = {};
-  try { paletteRaw = await loadJSON(PALETTE_JSON); } catch (e) { console.warn('[palette] load failed:', e); }
-  try { urlMap     = await loadJSON(URLS_JSON);     } catch (e) { console.warn('[urls] load failed:', e); urlMap = {}; }
 
-  // Shuffle once per session
+  let paletteRaw = null, urlMap = {};
+  try { paletteRaw = await loadFirst(candidates.palette, 'palette'); } catch (e) { console.warn('[palette] all candidates failed:', e?.message||e); paletteRaw = ['#c0d674']; }
+  try { urlMap     = await loadFirst(candidates.urls, 'urls');       } catch (e) { console.warn('[urls] all candidates failed:', e?.message||e); urlMap = {}; }
+
+  // Shuffle once per session for stability
   const ORDER_SEED = (window.__FIG_ORDER_SEED__ ??= seedFromCrypto());
   const ordered = shuffleSeeded(Array.isArray(figures) ? figures : [], ORDER_SEED);
 
-  // Build cards first (instant UI)
+  // Build cards immediately
   grid.innerHTML = '';
   const cards = [];
   for (const fig of ordered) {
     try {
       const img = `${IMAGES_DIR}/${fig.id}.jpg`;
       const card = mkFigureCard({ id: fig.id, name: fig.name || fig.id, imgUrl: img });
-      // robust image fallback (absolute path)
       const imgEl = card.querySelector('img');
       if (imgEl) imgEl.addEventListener('error', () => { imgEl.src = '/static/images/placeholder.jpg'; }, { once: true });
       grid.appendChild(card);
@@ -143,13 +142,13 @@ export async function boot() {
   }
 
   if (!cards.length) {
-    grid.innerHTML = `<p class="error">No cards rendered. Confirm <code>${FIGURES_JSON}</code> has entries and the grid container exists.</p>`;
+    grid.innerHTML = `<p class="error">No cards rendered. Check that your figures JSON has entries and the grid is on the page.</p>`;
     updateCount(countEl, 0, 0);
     return;
   }
 
-  // Color rims (no hue wash)
-  const palette = normalizePalette(paletteRaw || ['#c0d674']);
+  // Rim colors, no wash
+  const palette = normalizePalette(paletteRaw);
   assignBalancedColors(cards, palette, grid);
 
   // Filter + count
@@ -172,7 +171,7 @@ export async function boot() {
   // Hash → open collapsible hook
   attachHashOpenHandler();
 
-  // Fetch & render Wikipedia content per figure
+  // Wikipedia content
   for (let i = 0; i < ordered.length; i++) {
     const fig = ordered[i];
     const card = cards[i];
@@ -216,7 +215,8 @@ export async function boot() {
             const { html } = await getSectionHTML(info.title, s.index);
             outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel, html });
           } catch (err) {
-            outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel, html: `<div class="error">Section failed: ${err.message}</div>` });
+            outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel,
+              html: `<div class="error">Section failed: ${err.message}</div>` });
           }
         }
 
