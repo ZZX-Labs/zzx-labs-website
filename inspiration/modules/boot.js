@@ -2,16 +2,14 @@
 // Orchestrator: load figures, palette, urls; build cards; assign colors; fetch wiki + cache
 import { FIGURES_JSON, URLS_JSON, PALETTE_JSON, IMAGES_DIR, STATIC_CACHE_DIR } from './config.js';
 import { idbGet, idbPut } from './cache.js';
-import { displayTitleString, urlToTitle, cacheKey, extractFragment } from './utils.js';
-import { assignBalancedColors } from './utils.js';
+import { displayTitleString, urlToTitle, cacheKey, extractFragment, assignBalancedColors } from './utils.js';
 import { resolveAndInspect, getSections, getSectionHTML } from './mw.js';
 import { mkFigureCard, renderFigureSectionsInto, attachHashOpenHandler } from './render.js';
 
-/* ----------------------- helpers ----------------------- */
+/* ---------------- helpers ---------------- */
 function seedFromCrypto() {
   if (window.crypto?.getRandomValues) {
-    const u = new Uint32Array(1);
-    crypto.getRandomValues(u);
+    const u = new Uint32Array(1); crypto.getRandomValues(u);
     return u[0] >>> 0;
   }
   return ((Math.random() * 0xffffffff) | 0) >>> 0;
@@ -34,36 +32,26 @@ function shuffleSeeded(arr, seed) {
   }
   return a;
 }
-
 const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 function normalizePalette(p) {
-  const out = [];
-  const seen = new Set();
+  const out = [], seen = new Set();
   (Array.isArray(p) ? p : []).forEach(c => {
     if (!c) return;
     let s = String(c).trim();
     if (!s.startsWith('#')) s = `#${s}`;
-    const m = s.match(HEX_RE);
-    if (!m) return;
-    let hex = m[1];
-    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    const m = s.match(HEX_RE); if (!m) return;
+    let hex = m[1]; if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
     const key = `#${hex.toLowerCase()}`;
     if (!seen.has(key)) { seen.add(key); out.push(key); }
   });
-  // ensure brand green present
   if (!seen.has('#c0d674')) out.splice(Math.floor(out.length / 2), 0, '#c0d674');
-  // constrain to 8–16 colors (spread across list if too many)
   if (out.length > 16) {
     const sel = [];
-    for (let i = 0; i < 16; i++) {
-      const idx = Math.round(i * (out.length - 1) / 15);
-      sel.push(out[idx]);
-    }
+    for (let i = 0; i < 16; i++) sel.push(out[Math.round(i * (out.length - 1) / 15)]);
     return Array.from(new Set(sel));
   }
   return out.length ? out : ['#c0d674'];
 }
-
 async function tryLoadStaticCache(slug) {
   try {
     const res = await fetch(`${STATIC_CACHE_DIR}/${slug}.json`, { cache: 'no-cache' });
@@ -80,65 +68,91 @@ async function loadJSON(path) {
   if (!r.ok) throw new Error(`${path} not found`);
   return r.json();
 }
-
 function updateCount(countEl, shown, total) {
   if (countEl) countEl.textContent = `${shown} shown of ${total}`;
 }
 
-/* ----------------------- boot ----------------------- */
+/* --------- robust grid selection / creation (fixes “no cards”) --------- */
+function ensureGridContainer() {
+  let grid =
+    document.getElementById('figure-grid') ||
+    document.querySelector('.feature-card-container') ||
+    document.querySelector('[data-fig-grid]');
+
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.id = 'figure-grid';
+    grid.className = 'feature-card-container';
+    const host =
+      document.querySelector('section.features') ||
+      document.querySelector('#philosophical-values')?.parentElement ||
+      document.querySelector('main') || document.body;
+    host.appendChild(grid);
+  }
+
+  // Make sure CSS grid styles apply and it centers correctly
+  grid.classList.add('feature-card-container');
+  grid.style.marginInline = 'auto';
+  grid.style.width = '100%';
+
+  return grid;
+}
+
+/* ---------------- boot ---------------- */
 export async function boot() {
-  const grid = document.getElementById('figure-grid');
+  if (location.protocol === 'file:') {
+    const grid = ensureGridContainer();
+    grid.innerHTML = `<p class="error">This page is served via <code>file://</code>. Run a local web server so module imports & JSON fetches work.</p>`;
+    return;
+  }
+
+  const grid = ensureGridContainer();
   const filterEl = document.getElementById('figure-filter');
   const countEl  = document.getElementById('figure-count');
 
-  if (!grid) return;
-  if (location.protocol === 'file:') {
-    grid.innerHTML = `<p class="error">This page is being served via <code>file://</code>. Please run a local web server so module imports and JSON fetches work.</p>`;
-    return;
-  }
-
-  // Load data files (figures required, palette/urls best-effort)
+  // Load data files
   let figures = [];
-  try {
-    figures = await loadJSON(FIGURES_JSON);
-  } catch (e) {
+  try { figures = await loadJSON(FIGURES_JSON); }
+  catch (e) {
     grid.innerHTML = `<p class="error">Failed to load figures: ${e?.message || e}</p>`;
     return;
   }
-
   let paletteRaw = null, urlMap = {};
   try { paletteRaw = await loadJSON(PALETTE_JSON); } catch (e) { console.warn('[palette] load failed:', e); }
   try { urlMap     = await loadJSON(URLS_JSON);     } catch (e) { console.warn('[urls] load failed:', e); urlMap = {}; }
 
-  // Shuffle figures once per page load (stable within this session)
+  // Shuffle once per session
   const ORDER_SEED = (window.__FIG_ORDER_SEED__ ??= seedFromCrypto());
   const ordered = shuffleSeeded(Array.isArray(figures) ? figures : [], ORDER_SEED);
 
-  // Build cards first (instant grid)
+  // Build cards first (instant UI)
   grid.innerHTML = '';
   const cards = [];
   for (const fig of ordered) {
     try {
       const img = `${IMAGES_DIR}/${fig.id}.jpg`;
-      const card = mkFigureCard({ id: fig.id, name: fig.name, imgUrl: img });
+      const card = mkFigureCard({ id: fig.id, name: fig.name || fig.id, imgUrl: img });
+      // robust image fallback (absolute path)
+      const imgEl = card.querySelector('img');
+      if (imgEl) imgEl.addEventListener('error', () => { imgEl.src = '/static/images/placeholder.jpg'; }, { once: true });
       grid.appendChild(card);
       cards.push(card);
-    } catch (e) {
-      console.error('mkFigureCard failed for', fig, e);
+    } catch (err) {
+      console.error('mkFigureCard failed for', fig, err);
     }
   }
 
-  // If nothing rendered, bail early (don’t proceed to MW work)
   if (!cards.length) {
-    grid.innerHTML = `<p class="error">No cards rendered. Check the figures JSON and mkFigureCard.</p>`;
+    grid.innerHTML = `<p class="error">No cards rendered. Confirm <code>${FIGURES_JSON}</code> has entries and the grid container exists.</p>`;
+    updateCount(countEl, 0, 0);
     return;
   }
 
-  // Normalize palette and assign rim colors once (no churn on interactions)
+  // Color rims (no hue wash)
   const palette = normalizePalette(paletteRaw || ['#c0d674']);
   assignBalancedColors(cards, palette, grid);
 
-  // Simple filter (name/id contains) + count
+  // Filter + count
   const applyFilter = () => {
     const q = (filterEl?.value || '').trim().toLowerCase();
     let shown = 0;
@@ -152,16 +166,13 @@ export async function boot() {
     updateCount(countEl, shown, cards.length);
   };
   updateCount(countEl, cards.length, cards.length);
-  filterEl?.addEventListener('input', () => {
-    // let layout settle then update count/colors if you later want
-    requestAnimationFrame(applyFilter);
-  });
+  filterEl?.addEventListener('input', () => requestAnimationFrame(applyFilter));
   applyFilter();
 
   // Hash → open collapsible hook
   attachHashOpenHandler();
 
-  // Fetch & render Wikipedia content per figure (sequential to be gentle)
+  // Fetch & render Wikipedia content per figure
   for (let i = 0; i < ordered.length; i++) {
     const fig = ordered[i];
     const card = cards[i];
@@ -169,7 +180,7 @@ export async function boot() {
 
     if (!url) {
       const content = card.querySelector('.card-content');
-      if (content) content.innerHTML = `<p class="error">No Wikipedia URL configured for ${fig.name}.</p>`;
+      if (content) content.innerHTML = `<p class="error">No Wikipedia URL configured for ${fig.name || fig.id}.</p>`;
       continue;
     }
 
@@ -185,19 +196,17 @@ export async function boot() {
       const key  = cacheKey(info.title, fragment);
       const slug = cacheSlug(info.title, fragment);
 
-      // Static cache file (if precomputed), then IDB
+      // Static cache, then IDB
       let record = await tryLoadStaticCache(slug);
       if (!record) record = await idbGet(key);
 
       if (!record || String(record.lastrevid) !== String(info.lastrevid)) {
-        // Fresh fetch
         const allSections = await getSections(info.title);
-        // Choose sections: if fragment specified, restrict; else all
         let sectionList = allSections;
         if (fragment) {
           const fl = fragment.toLowerCase().replace(/_/g,' ');
           const byAnchor = allSections.find(s => (s.anchor || '').toLowerCase() === fragment.toLowerCase());
-          const byLine = allSections.find(s => (s.line || '').toLowerCase() === fl);
+          const byLine   = allSections.find(s => (s.line   || '').toLowerCase() === fl);
           sectionList = byAnchor ? [byAnchor] : (byLine ? [byLine] : allSections);
         }
 
@@ -207,10 +216,7 @@ export async function boot() {
             const { html } = await getSectionHTML(info.title, s.index);
             outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel, html });
           } catch (err) {
-            outSections.push({
-              index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel,
-              html: `<div class="error">Section failed: ${err.message}</div>`
-            });
+            outSections.push({ index: s.index, line: s.line, anchor: s.anchor, toclevel: s.toclevel, html: `<div class="error">Section failed: ${err.message}</div>` });
           }
         }
 
