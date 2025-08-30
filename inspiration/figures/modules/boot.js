@@ -20,26 +20,45 @@ export async function boot() {
     return;
   }
   if (location.protocol === 'file:') {
-    console.warn('Serving from file:// — run a local HTTP server to allow fetch().');
+    console.warn('Serving from file:// — run a local web server to allow fetch().');
   }
 
-  const [paletteRaw, figures, urls] = await Promise.all([
-    j(PALETTE),
-    j(FIGURES),
-    j(URLS_URL),
-  ]);
+  // --- Load FIGURES first; render must not be blocked by palette/urls ---
+  let figures = [];
+  try {
+    figures = await j(FIGURES);
+  } catch (e) {
+    console.error('[figures] Failed to load figures:', e);
+    gridEl.innerHTML = `<p class="error">Failed to load figures: ${e?.message || e}</p>`;
+    return;
+  }
+  state.figures = Array.isArray(figures) ? figures : [];
 
-  // Palette: normalize → include brand → constrain
-  let pal = normalizePalette(paletteRaw);
-  pal = ensureBaseColor(pal, '#c0d674'); // keep brand green
-  pal = constrainPalette(pal, 8, 16);
-  state.palette = pal;
-
-  state.figures  = Array.isArray(figures) ? figures : [];
-  state.urls     = urls || {};
+  // Palette + URLs load independently; fall back gracefully
+  let paletteRaw = null;
+  try { paletteRaw = await j(PALETTE); } catch (e) { console.warn('[figures] palette.json load failed, using fallback.', e); }
+  let urls = {};
+  try { urls = await j(URLS_URL); } catch (e) { console.warn('[figures] urls.json load failed, continuing.', e); }
+  state.urls = urls || {};
   state.urlIndex = buildUrlIndex(state.urls);
 
-  // Load all cards (with robust filename matching)
+  // Palette: normalize → include brand → constrain → fallback if missing
+  const fallbackPalette = [
+    '#c0d674', // brand
+    '#6b8e23', // olive drab
+    '#ff3b30',
+    '#ff6a00',
+    '#f4b400',
+    '#00a2ff',
+    '#6b4eff',
+    '#ff2ec8'
+  ];
+  let pal = normalizePalette(paletteRaw || fallbackPalette);
+  pal = ensureBaseColor(pal, '#c0d674');
+  pal = constrainPalette(pal, 8, 16);
+  state.palette = pal.length ? pal : fallbackPalette;
+
+  // Load all per-figure card JSONs (don’t block earlier than necessary)
   await Promise.all(state.figures.map(f => loadCard(f)));
 
   // One seed per page load so order is stable for this session only
@@ -52,12 +71,24 @@ export async function boot() {
   // Assign colors ONCE (stable across interactions)
   requestAnimationFrame(() => {
     assignStableEdgeColors();
-    applyFilter(); // filtering does NOT recolor
+    applyFilter();           // filtering does NOT recolor
     updateCount(shuffled.length);
   });
 
   // Bind filter (does not recolor)
   filterEl?.addEventListener('input', applyFilter);
+
+  // Re-evaluate adjacency after layout changes (only fix collisions; keep stable colors otherwise)
+  let t = 0;
+  addEventListener('resize', () => {
+    clearTimeout(t);
+    t = setTimeout(() => { assignStableEdgeColors(); updateCount(shuffled.length); }, 100);
+  }, { passive: true });
+
+  // If images load and cause reflow/row wrap, fix collisions once
+  document.querySelectorAll('img.fig-img').forEach(img => {
+    img.addEventListener('load', () => assignStableEdgeColors(), { once: true });
+  });
 }
 
 /* ---------------- helpers ---------------- */
@@ -80,7 +111,6 @@ function updateCount(total) {
 }
 
 function getColumnCount() {
-  // Use actual layout (first row count) for accuracy with auto-fill grids
   const cards = (state.nodes || []).map(n => n.el);
   return Math.max(1, inferGridColsVisible(cards));
 }
@@ -91,30 +121,22 @@ function assignStableEdgeColors() {
   if (!nodes.length) return;
 
   const cols = getColumnCount();
-
-  // Rotate palette randomly once to get a fresh “start” per page load
-  const start = state.orderSeed % palette.length;
+  const start = (state.orderSeed ?? 0) % palette.length;
   const pal = palette.slice(start).concat(palette.slice(0, start));
 
-  // Build colors only where missing / colliding; keep existing stable
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i].el || nodes[i];
     const id = node?.dataset?.id || String(i);
 
-    // Already has a color?
     const existing = state.colors[id] || null;
 
-    // Determine left & above colors using current map
+    // Who's left/above (based on current state.colors)?
     const forbidden = new Set();
-
-    // Left neighbor (same row)
     if (i % cols !== 0) {
       const leftNode = nodes[i - 1].el || nodes[i - 1];
       const leftId = leftNode?.dataset?.id;
       if (leftId && state.colors[leftId]) forbidden.add(state.colors[leftId]);
     }
-
-    // Above neighbor (previous row, same column)
     const upIndex = i - cols;
     if (upIndex >= 0) {
       const upNode = nodes[upIndex].el || nodes[upIndex];
@@ -122,13 +144,13 @@ function assignStableEdgeColors() {
       if (upId && state.colors[upId]) forbidden.add(state.colors[upId]);
     }
 
-    // Keep existing if it doesn't collide
+    // Keep existing if it doesn’t collide
     if (existing && !forbidden.has(existing)) {
       applyEdgeColor(node, existing);
       continue;
     }
 
-    // Pick first palette color that isn’t forbidden, with a mild index preference
+    // Pick first non-forbidden color, mildly preferring index
     const pref = i % pal.length;
     let chosen = pal[pref];
     if (forbidden.has(chosen)) {
@@ -148,7 +170,6 @@ function applyEdgeColor(node, color) {
   node.style.setProperty('--edge', color);
   node.dataset.colorResolved = color;
 
-  // tiny UI sync for swatch
   const sw = node.querySelector('.swatch');
   if (sw) sw.style.backgroundColor = color;
 }
