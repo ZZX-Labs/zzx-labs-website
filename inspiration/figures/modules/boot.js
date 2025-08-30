@@ -13,101 +13,89 @@ import { inferGridColsVisible } from './grid.js';
 
 export async function boot() {
   if (state.booted) return;
+  if (!gridEl || !tpl) { console.error('Missing #figure-grid or #tpl-figure-card'); return; }
   state.booted = true;
 
-  if (!gridEl || !tpl) {
-    console.error('Missing #figure-grid or #tpl-figure-card in DOM.');
-    return;
-  }
-  if (location.protocol === 'file:') {
-    console.warn('Serving from file:// — run a local web server to allow fetch().');
-  }
+  // Patch the template to match what renderOne expects (prevents null crashes)
+  ensureTemplateShape(tpl);
 
-  // --- Load FIGURES first; render must not be blocked by palette/urls ---
+  // Load figures first so we can render even if palette/urls hiccup
   let figures = [];
-  try {
-    figures = await j(FIGURES);
-  } catch (e) {
-    console.error('[figures] Failed to load figures:', e);
+  try { figures = await j(FIGURES); }
+  catch (e) {
+    console.error('[figures] load failed:', e);
     gridEl.innerHTML = `<p class="error">Failed to load figures: ${e?.message || e}</p>`;
     return;
   }
   state.figures = Array.isArray(figures) ? figures : [];
 
-  // Palette + URLs load independently; fall back gracefully
-  let paletteRaw = null;
-  try { paletteRaw = await j(PALETTE); } catch (e) { console.warn('[figures] palette.json load failed, using fallback.', e); }
-  let urls = {};
-  try { urls = await j(URLS_URL); } catch (e) { console.warn('[figures] urls.json load failed, continuing.', e); }
+  // Palette + URLs are best effort
+  let paletteRaw = null, urls = {};
+  try { paletteRaw = await j(PALETTE); } catch (e) { console.warn('[palette] load failed; fallback used.', e); }
+  try { urls      = await j(URLS_URL); } catch (e) { console.warn('[urls] load failed; continuing.', e); }
   state.urls = urls || {};
   state.urlIndex = buildUrlIndex(state.urls);
 
-  // Palette: normalize → include brand → constrain → fallback if missing
+  // Palette normalize → include brand → constrain (fallback if empty)
   const fallbackPalette = [
     '#c0d674', // brand
     '#6b8e23', // olive drab
-    '#ff3b30',
-    '#ff6a00',
-    '#f4b400',
-    '#00a2ff',
-    '#6b4eff',
-    '#ff2ec8'
+    '#ff3b30', '#ff6a00', '#f4b400',
+    '#00a2ff', '#6b4eff', '#ff2ec8'
   ];
   let pal = normalizePalette(paletteRaw || fallbackPalette);
   pal = ensureBaseColor(pal, '#c0d674');
   pal = constrainPalette(pal, 8, 16);
   state.palette = pal.length ? pal : fallbackPalette;
 
-  // Load all per-figure card JSONs (don’t block earlier than necessary)
+  // Load per-card JSONs
   await Promise.all(state.figures.map(f => loadCard(f)));
 
-  // One seed per page load so order is stable for this session only
+  // Stable shuffle for this session
   if (state.orderSeed == null) state.orderSeed = randomSeed32();
-
-  // Shuffle once per load; render once
   const shuffled = shuffle(state.figures, { seed: state.orderSeed });
-  shuffled.forEach(renderOne);
 
-  // Assign colors ONCE (stable across interactions)
+  // Render all cards (never let one error nuke the rest)
+  gridEl.innerHTML = '';
+  state.nodes.length = 0;
+  for (const fig of shuffled) {
+    try { renderOne(fig); }
+    catch (e) {
+      console.error('[renderOne] failed for', fig?.id, e);
+      gridEl.appendChild(minCardFallback(fig));
+    }
+  }
+
+  // Assign stable rim colors once
   requestAnimationFrame(() => {
     assignStableEdgeColors();
-    applyFilter();           // filtering does NOT recolor
+    applyFilter();             // filter does NOT recolor
     updateCount(shuffled.length);
   });
 
-  // Bind filter (does not recolor)
+  // Filter input
   filterEl?.addEventListener('input', applyFilter);
 
-  // Re-evaluate adjacency after layout changes (only fix collisions; keep stable colors otherwise)
+  // Fix collisions if layout changes (keep existing colors where valid)
   let t = 0;
   addEventListener('resize', () => {
     clearTimeout(t);
     t = setTimeout(() => { assignStableEdgeColors(); updateCount(shuffled.length); }, 100);
   }, { passive: true });
-
-  // If images load and cause reflow/row wrap, fix collisions once
-  document.querySelectorAll('img.fig-img').forEach(img => {
-    img.addEventListener('load', () => assignStableEdgeColors(), { once: true });
-  });
 }
 
 /* ---------------- helpers ---------------- */
 
 function randomSeed32() {
-  try {
-    const u = new Uint32Array(1);
-    crypto.getRandomValues(u);
-    return u[0] >>> 0;
-  } catch {
-    return ((Math.random() * 0x100000000) | 0) >>> 0;
-  }
+  try { const u = new Uint32Array(1); crypto.getRandomValues(u); return u[0] >>> 0; }
+  catch { return ((Math.random() * 0x100000000) | 0) >>> 0; }
 }
 
 function updateCount(total) {
-  const countEl = document.getElementById('figure-count');
-  if (!countEl) return;
+  const el = document.getElementById('figure-count');
+  if (!el) return;
   const shown = (state.nodes || []).filter(n => n.el?.style.display !== 'none').length;
-  countEl.textContent = `${shown} shown of ${total}`;
+  el.textContent = `${shown} shown of ${total}`;
 }
 
 function getColumnCount() {
@@ -117,7 +105,7 @@ function getColumnCount() {
 
 function assignStableEdgeColors() {
   const nodes = state.nodes || [];
-  const palette = state.palette && state.palette.length ? state.palette.slice() : ['#c0d674'];
+  const palette = state.palette?.length ? state.palette.slice() : ['#c0d674'];
   if (!nodes.length) return;
 
   const cols = getColumnCount();
@@ -130,27 +118,23 @@ function assignStableEdgeColors() {
 
     const existing = state.colors[id] || null;
 
-    // Who's left/above (based on current state.colors)?
+    // Left/Above based on current state.colors
     const forbidden = new Set();
     if (i % cols !== 0) {
-      const leftNode = nodes[i - 1].el || nodes[i - 1];
-      const leftId = leftNode?.dataset?.id;
-      if (leftId && state.colors[leftId]) forbidden.add(state.colors[leftId]);
+      const L = nodes[i - 1].el || nodes[i - 1];
+      const lid = L?.dataset?.id; if (lid && state.colors[lid]) forbidden.add(state.colors[lid]);
     }
-    const upIndex = i - cols;
-    if (upIndex >= 0) {
-      const upNode = nodes[upIndex].el || nodes[upIndex];
-      const upId = upNode?.dataset?.id;
-      if (upId && state.colors[upId]) forbidden.add(state.colors[upId]);
+    const up = i - cols;
+    if (up >= 0) {
+      const U = nodes[up].el || nodes[up];
+      const uid = U?.dataset?.id; if (uid && state.colors[uid]) forbidden.add(state.colors[uid]);
     }
 
-    // Keep existing if it doesn’t collide
     if (existing && !forbidden.has(existing)) {
       applyEdgeColor(node, existing);
       continue;
     }
 
-    // Pick first non-forbidden color, mildly preferring index
     const pref = i % pal.length;
     let chosen = pal[pref];
     if (forbidden.has(chosen)) {
@@ -169,7 +153,83 @@ function applyEdgeColor(node, color) {
   if (!node) return;
   node.style.setProperty('--edge', color);
   node.dataset.colorResolved = color;
-
   const sw = node.querySelector('.swatch');
   if (sw) sw.style.backgroundColor = color;
+}
+
+/* Ensure the <template id="tpl-figure-card"> has the bits renderOne() expects */
+function ensureTemplateShape(t) {
+  const c = t?.content; if (!c) return;
+
+  // .fig-name
+  let nameEl = c.querySelector('.fig-name');
+  if (!nameEl) {
+    const h3 = c.querySelector('h3') || c.querySelector('.card-header h3');
+    if (h3) h3.classList.add('fig-name');
+  }
+
+  // .fig-img
+  let imgEl = c.querySelector('.fig-img');
+  if (!imgEl) {
+    const img = c.querySelector('img') || c.querySelector('.figure-wrap img');
+    if (img) img.classList.add('fig-img');
+  }
+
+  // .fig-meta
+  if (!c.querySelector('.fig-meta')) {
+    const content = c.querySelector('.card-content') || c;
+    const div = document.createElement('div');
+    div.className = 'fig-meta';
+    content.prepend(div);
+  }
+
+  // .fig-about
+  if (!c.querySelector('.fig-about')) {
+    const content = c.querySelector('.card-content') || c;
+    const div = document.createElement('div');
+    div.className = 'fig-about';
+    content.appendChild(div);
+  }
+
+  // .fig-wiki (inside a details if possible)
+  if (!c.querySelector('.fig-wiki')) {
+    const content = c.querySelector('.card-content') || c;
+    const det = document.createElement('details');
+    det.className = 'subsection collapsible';
+    const sum = document.createElement('summary');
+    sum.textContent = 'Wikipedia';
+    const body = document.createElement('div');
+    body.className = 'collapsible-body fig-wiki';
+    det.append(sum, body);
+    content.appendChild(det);
+  }
+
+  // .swatch in header
+  if (!c.querySelector('.swatch')) {
+    const header = c.querySelector('.card-header') || c.querySelector('header');
+    if (header) {
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      header.insertBefore(sw, header.firstChild);
+    }
+  }
+}
+
+/* Minimal fallback if a single renderOne() blows up */
+function minCardFallback(fig) {
+  const a = document.createElement('article');
+  a.className = 'feature-card';
+  a.dataset.id = fig?.id || '';
+  a.innerHTML = `
+    <div class="card-header"><span class="swatch"></span><h3 class="fig-name">${fig?.name || fig?.id || 'Unknown'}</h3></div>
+    <div class="figure-wrap" style="aspect-ratio:16/10;background:#101318;border-bottom:1px solid rgba(255,255,255,.08)"></div>
+    <div class="card-content">
+      <div class="fig-meta"></div>
+      <div class="fig-about"><p class="muted">Card template was missing expected parts; rendered minimal fallback.</p></div>
+      <details class="subsection collapsible"><summary>Wikipedia</summary><div class="collapsible-body fig-wiki"><p class="muted">Not loaded here.</p></div></details>
+    </div>
+  `;
+  // register like renderOne does
+  state.nodes.push({ id: fig?.id || '', el: a });
+  return a;
 }
