@@ -11,63 +11,45 @@ import { renderOne } from './render.js';
 import { applyFilter } from './filter.js';
 import { inferGridColsVisible } from './grid.js';
 
-let gridEl = GRID, tpl = TPL, filterEl = FILTER;
-
 export async function boot() {
   if (state.booted) return;
 
-  // Ensure DOM is ready and create grid/template if missing.
-  try {
-    if (typeof ensureDomReady === 'function') {
-      await ensureDomReady({ create: true });
-      // rebind live refs after dom.js updated them
-      gridEl   = GRID || document.getElementById('figure-grid');
-      tpl      = TPL  || document.getElementById('tpl-figure-card');
-      filterEl = FILTER || document.getElementById('figure-filter');
-    } else {
-      // Fallback (older dom.js)
-      await waitDomReady();
-      gridEl = document.getElementById('figure-grid') || createGrid();
-      tpl    = document.getElementById('tpl-figure-card') || createTemplate();
-    }
-  } catch {
-    await waitDomReady();
-    gridEl = document.getElementById('figure-grid') || createGrid();
-    tpl    = document.getElementById('tpl-figure-card') || createTemplate();
-  }
+  // 1) Make sure DOM is ready and the required nodes exist.
+  await waitDomReady();
+  ensureGridAndTemplate();           // create if missing
+  await ensureDomReady?.();          // refresh dom.js live bindings to new nodes
+
+  // rebind locals after ensureDomReady()
+  let gridEl   = GRID || document.getElementById('figure-grid');
+  let tpl      = TPL  || document.getElementById('tpl-figure-card');
+  const filter = FILTER || document.getElementById('figure-filter');
 
   if (!gridEl || !tpl) {
-    console.error('Missing #figure-grid or #tpl-figure-card');
+    console.error('Missing #figure-grid or #tpl-figure-card after setup');
     return;
   }
   state.booted = true;
 
-  // Patch template to ensure renderOne() hooks are present
+  // Harden template to match what renderOne() expects
   ensureTemplateShape(tpl);
 
-  if (location.protocol === 'file:') {
-    console.warn('Serving from file:// — run a local HTTP server to allow fetch().');
-  }
-
-  // Load figures first (critical path)
+  // 2) Load data
   let figures = [];
-  try {
-    figures = await j(FIGURES);
-  } catch (e) {
-    console.error('[figures] load failed:', e);
+  try { figures = await j(FIGURES); }
+  catch (e) {
     gridEl.innerHTML = `<p class="error">Failed to load figures: ${e?.message || e}</p>`;
+    console.error('[figures] load failed:', e);
     return;
   }
   state.figures  = Array.isArray(figures) ? figures : [];
 
-  // Best-effort palette + URLs
   let paletteRaw = null, urls = {};
   try { paletteRaw = await j(PALETTE); } catch (e) { console.warn('[palette] load failed; using fallback.', e); }
   try { urls      = await j(URLS_URL); } catch (e) { console.warn('[urls] load failed; continuing.', e); }
   state.urls     = urls || {};
   state.urlIndex = buildUrlIndex(state.urls);
 
-  // Normalize palette (ensure brand; 8–16)
+  // 3) Palette (normalize → include brand → cap 8–16)
   const fallbackPalette = [
     '#c0d674', /* brand */ '#6b8e23', /* olive drab */
     '#ff3b30', '#ff6a00', '#f4b400',
@@ -78,14 +60,14 @@ export async function boot() {
   pal = constrainPalette(pal, 8, 16);
   state.palette = pal.length ? pal : fallbackPalette;
 
-  // Load per-card JSONs (robust name matching)
+  // 4) Load per-card JSONs
   await Promise.all(state.figures.map(f => loadCard(f)));
 
-  // Stable shuffle per page load
+  // 5) Stable shuffle for this session
   if (state.orderSeed == null) state.orderSeed = randomSeed32();
   const shuffled = shuffle(state.figures, { seed: state.orderSeed });
 
-  // Render
+  // 6) Render
   gridEl.innerHTML = '';
   state.nodes.length = 0;
   for (const fig of shuffled) {
@@ -96,30 +78,30 @@ export async function boot() {
     }
   }
 
-  // One pass colorization (stable; no churn on scroll/filter)
+  // 7) One-pass color assign (stable; no churn on filter/scroll)
   requestAnimationFrame(() => {
     assignStableEdgeColors();
     applyFilter();
     updateCount(shuffled.length);
   });
 
-  // Filter outline to brand on focus (requested)
-  if (filterEl) {
-    filterEl.addEventListener('focus', () => {
-      filterEl.style.outline = '2px solid #c0d674';
-      filterEl.style.outlineOffset = '2px';
-      filterEl.style.borderColor = '#c0d674';
-      filterEl.style.caretColor = '#c0d674';
+  // 8) Bind filter + brand outline
+  if (filter) {
+    filter.addEventListener('input', applyFilter);
+    filter.addEventListener('focus', () => {
+      filter.style.outline = '2px solid #c0d674';
+      filter.style.outlineOffset = '2px';
+      filter.style.borderColor = '#c0d674';
+      filter.style.caretColor = '#c0d674';
     });
-    filterEl.addEventListener('blur', () => {
-      filterEl.style.outline = '';
-      filterEl.style.outlineOffset = '';
-      filterEl.style.borderColor = '';
+    filter.addEventListener('blur', () => {
+      filter.style.outline = '';
+      filter.style.outlineOffset = '';
+      filter.style.borderColor = '';
     });
-    filterEl.addEventListener('input', applyFilter);
   }
 
-  // Re-check adjacency if columns change; keep existing colors where valid
+  // 9) Reflow-aware adjacency fix on resize
   let t = 0;
   addEventListener('resize', () => {
     clearTimeout(t);
@@ -127,54 +109,58 @@ export async function boot() {
   }, { passive: true });
 }
 
-/* ---------------- helpers ---------------- */
+/* ---------------- internals ---------------- */
 
 function waitDomReady() {
   if (document.readyState !== 'loading') return Promise.resolve();
   return new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
 }
 
-function createGrid() {
-  const g = document.createElement('div');
-  g.id = 'figure-grid';
-  g.className = 'feature-card-container';
-  const host =
-    document.querySelector('#inspiration-root') ||
-    document.querySelector('section.features') ||
-    document.querySelector('main') ||
-    document.body;
-  host.appendChild(g);
-  return g;
-}
+function ensureGridAndTemplate() {
+  // Grid
+  let grid = document.getElementById('figure-grid');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.id = 'figure-grid';
+    grid.className = 'feature-card-container';
+    const host =
+      document.querySelector('#inspiration-root') ||
+      document.querySelector('section.features') ||
+      document.querySelector('main') ||
+      document.body;
+    host.appendChild(grid);
+  }
 
-function createTemplate() {
-  const t = document.createElement('template');
-  t.id = 'tpl-figure-card';
-  t.innerHTML = `
-    <article class="feature-card" data-id="">
-      <div class="card-watermark" aria-hidden="true"></div>
-      <div class="card-header">
-        <span class="swatch"></span>
-        <h3 class="fig-name"></h3>
-      </div>
-      <div class="figure-wrap"><img class="fig-img" alt="" loading="lazy" /></div>
-      <div class="card-actions">
-        <button type="button" data-act="expand">Expand all</button>
-        <button type="button" data-act="collapse">Collapse all</button>
-        <span class="api-badge" style="margin-left:auto;color:#8a8f98;">Wikipedia</span>
-      </div>
-      <div class="card-content">
-        <div class="fig-meta"></div>
-        <div class="fig-about"></div>
-        <details class="subsection collapsible">
-          <summary>Wikipedia</summary>
-          <div class="collapsible-body fig-wiki"></div>
-        </details>
-      </div>
-    </article>
-  `.trim();
-  document.body.appendChild(t);
-  return t;
+  // Template
+  let tpl = document.getElementById('tpl-figure-card');
+  if (!tpl) {
+    tpl = document.createElement('template');
+    tpl.id = 'tpl-figure-card';
+    tpl.innerHTML = `
+      <article class="feature-card" data-id="">
+        <div class="card-watermark" aria-hidden="true"></div>
+        <div class="card-header">
+          <span class="swatch"></span>
+          <h3 class="fig-name"></h3>
+        </div>
+        <div class="figure-wrap"><img class="fig-img" alt="" loading="lazy" /></div>
+        <div class="card-actions">
+          <button type="button" data-act="expand">Expand all</button>
+          <button type="button" data-act="collapse">Collapse all</button>
+          <span class="api-badge" style="margin-left:auto;color:#8a8f98;">Wikipedia</span>
+        </div>
+        <div class="card-content">
+          <div class="fig-meta"></div>
+          <div class="fig-about"></div>
+          <details class="subsection collapsible">
+            <summary>Wikipedia</summary>
+            <div class="collapsible-body fig-wiki"></div>
+          </details>
+        </div>
+      </article>
+    `.trim();
+    document.body.appendChild(tpl);
+  }
 }
 
 function randomSeed32() {
@@ -246,22 +232,25 @@ function applyEdgeColor(node, color) {
   if (sw) sw.style.backgroundColor = color;
 }
 
-/* Ensure template matches renderOne() expectations */
+/* Ensure <template id="tpl-figure-card"> has the bits renderOne() expects */
 function ensureTemplateShape(t) {
   const c = t?.content; if (!c) return;
 
+  // .fig-name
   let nameEl = c.querySelector('.fig-name');
   if (!nameEl) {
     const h3 = c.querySelector('h3') || c.querySelector('.card-header h3');
     if (h3) h3.classList.add('fig-name');
   }
 
+  // .fig-img
   let imgEl = c.querySelector('.fig-img');
   if (!imgEl) {
     const img = c.querySelector('img') || c.querySelector('.figure-wrap img');
     if (img) img.classList.add('fig-img');
   }
 
+  // .fig-meta
   if (!c.querySelector('.fig-meta')) {
     const content = c.querySelector('.card-content') || c;
     const div = document.createElement('div');
@@ -269,6 +258,7 @@ function ensureTemplateShape(t) {
     content.prepend(div);
   }
 
+  // .fig-about
   if (!c.querySelector('.fig-about')) {
     const content = c.querySelector('.card-content') || c;
     const div = document.createElement('div');
@@ -276,6 +266,7 @@ function ensureTemplateShape(t) {
     content.appendChild(div);
   }
 
+  // .fig-wiki
   if (!c.querySelector('.fig-wiki')) {
     const content = c.querySelector('.card-content') || c;
     const det = document.createElement('details');
@@ -288,6 +279,7 @@ function ensureTemplateShape(t) {
     content.appendChild(det);
   }
 
+  // .swatch
   if (!c.querySelector('.swatch')) {
     const header = c.querySelector('.card-header') || c.querySelector('header');
     if (header) {
@@ -298,7 +290,7 @@ function ensureTemplateShape(t) {
   }
 }
 
-/* Minimal fallback if renderOne() throws */
+/* Minimal fallback if a single renderOne() blows up */
 function minCardFallback(fig) {
   const a = document.createElement('article');
   a.className = 'feature-card';
