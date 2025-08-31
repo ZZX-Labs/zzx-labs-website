@@ -1,3 +1,8 @@
+/* static/css/design-extras.css
+   Design showcase helpers, alerts, and misc utilities
+   Loaded in utilities layer
+*/
+
 /* ====== COLOR SWATCHES (design page) ====== */
 .color-swatch-container {
     display: flex;
@@ -5,14 +10,25 @@
     gap: 0.75rem;
     margin-top: 1rem;
 }
-.color-swatch { display: flex; align-items: center; gap: 1rem; }
-.swatch {
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
-    display: inline-block;
-    box-shadow: 0 0 4px rgba(0,0,0,0.3);
+.color-swatch { 
+    display: flex; 
+    align-items: center; 
+    gap: 1rem; 
 }
+.swatch {
+    inline-size: 30px;
+    block-size: 30px;
+    border-radius: 6px;
+    display: inline-block;
+    box-shadow: 0 0 0 1px var(--line) inset, 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* Optional: semantic swatch helpers */
+.swatch-amber { background: var(--brand-amber); }
+.swatch-green { background: var(--brand-green); }
+.swatch-info  { background: var(--info); }
+.swatch-warn  { background: var(--warning); }
+.swatch-danger{ background: var(--danger); }
 
 /* ====== FONTS (design page) ====== */
 .font-preview-container {
@@ -23,31 +39,124 @@
 }
 .font-preview {
     padding: 0.75rem 1rem;
-    background-color: #1a1a1a;
-    border-radius: 4px;
-    color: #e6a42b;
-    font-size: 1.1rem;
+    background-color: var(--surface);
+    border-radius: 8px;
+    color: var(--brand-amber);
+    font-size: 1.05rem;
     line-height: 1.5;
-    border-left: 4px solid #c0d674;
+    border-left: 4px solid var(--brand-green);
+    box-shadow: 0 1px 0 rgba(0,0,0,var(--op-12)) inset;
+    overflow-wrap: anywhere;
+}
+.font-preview strong {
+    color: var(--text);
 }
 
 /* ====== MEDIA (design page) ====== */
 .feature audio,
 .feature video {
-    width: 100%;
+    inline-size: 100%;
     margin-top: 1rem;
-    border-radius: 6px;
-    box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    border-radius: 8px;
+    background: var(--surface-3);
+    border: 1px solid var(--line-soft);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 
 /* ====== ALERTS ====== */
 .alert {
-    padding: 1rem;
-    margin: 1.5rem 0;
-    border-radius: 4px;
+    padding: 1rem 1.125rem;
+    margin: 1.25rem 0;
+    border-radius: 8px;
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 1rem;
+    font-size: 0.975rem;
+    line-height: 1.5;
+    border: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.75rem;
+    align-items: start;
 }
-.alert-success { background-color: #2e7d32; color: #ffffff; }
-.alert-warning { background-color: #ff9800; color: #000000; }
-.alert-error   { background-color: #c62828; color: #ffffff; }
+
+/* Icon slot (optional) */
+.alert i,
+.alert .icon {
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    margin-top: 0.2rem;
+}
+
+/* Variants use theme tokens to stay legible in dark/light */
+.alert-success {
+    background-color: color-mix(in oklab, var(--success) 16%, var(--bg));
+    border-color: color-mix(in oklab, var(--success) 40%, var(--line));
+    color: var(--text);
+}
+.alert-warning {
+    background-color: color-mix(in oklab, var(--warning) 18%, var(--bg));
+    border-color: color-mix(in oklab, var(--warning) 45%, var(--line));
+    color: #000; /* readable on warm backgrounds */
+}
+.alert-error {
+    background-color: color-mix(in oklab, var(--danger) 16%, var(--bg));
+    border-color: color-mix(in oklab, var(--danger) 45%, var(--line));
+    color: #fff;
+}
+
+/* Links inside alerts */
+.alert a {
+    color: currentColor;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Dismiss button (opt-in) */
+.alert .alert-close {
+    justify-self: end;
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--line-soft);
+    color: inherit;
+    font: 600 0.85rem 'IBM Plex Mono', monospace;
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.alert .alert-close:hover {
+    background: var(--surface-2);
+    border-color: var(--line);
+}
+.alert .alert-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ====== UTILITIES (small helpers for design pages) ====== */
+.u-pill {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--line-soft);
+    font: 600 0.75rem 'IBM Plex Mono', monospace;
+}
+
+.u-kbd {
+    font: 600 0.8rem 'IBM Plex Mono', monospace;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: 0 1px 0 rgba(0,0,0,var(--op-12)) inset;
+}
+
+/* ====== Responsiveness & Motion ====== */
+@media (max-width: 768px) {
+    .font-preview { font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .alert .alert-close { transition: none; }
+}
