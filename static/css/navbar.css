@@ -1,1 +1,147 @@
+/* ========== NAVBAR ========== */
 
+/* Menu Button (hamburger) */
+.menu-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #d1d1d1;
+    cursor: pointer;
+    display: block; /* mobile default */
+    z-index: 1100;  /* above nav */
+}
+
+/* Hide menu button on Desktop (>= 769px) */
+@media (min-width: 769px) {
+    .menu-button {
+        display: none; /* corrected: hide on desktop */
+    }
+}
+
+/* Navbar List Container (mobile default: hidden) */
+.nav-links {
+    list-style: none;
+    display: none; /* initially hidden until .open */
+    flex-direction: column;
+    align-items: center;
+    background-color: #111;
+    width: 100%;
+    padding: 1rem 0;
+    gap: 1rem;
+    transition: all 0.3s ease-in-out;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 1rem 0;
+}
+
+.nav-links.open {
+    display: flex;
+}
+
+/* Navbar Items */
+.nav-links li {
+    width: 100%;
+    text-align: center;
+}
+
+/* Navbar Links */
+.nav-links a {
+    color: #d1d1d1;
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    display: inline-block;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.nav-links a:hover {
+    background-color: #e6a42b;
+    color: #000;
+    border-radius: 4px;
+}
+
+/* ======== SUBMENU (Dropdowns) ======== */
+.submenu {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.submenu.open {
+    display: flex;
+}
+
+.submenu li {
+    width: 100%;
+}
+
+.submenu a {
+    font-size: 0.9rem;
+    color: #b5b5b5;
+    padding: 0.4rem 0.8rem;
+    display: inline-block;
+    transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.submenu a:hover {
+    background-color: #e6a42b;
+    color: #000;
+    border-radius: 4px;
+}
+
+/* Submenu Header Wrapper (Anchor + ▼ Button) */
+.submenu-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+/* ▼ Submenu Toggle Button */
+.submenu-toggle {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: #d1d1d1;
+    margin-left: 0.5rem;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.submenu-toggle.open {
+    transform: rotate(180deg); /* ▲ */
+}
+
+/* ======== DESKTOP LAYOUT ======== */
+@media (min-width: 769px) {
+    .nav-links {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 0;
+        background-color: #111;
+        gap: 1rem 2rem;
+        display: flex; /* ensure visible on desktop */
+        margin: 0;     /* align tighter in header row */
+    }
+
+    .nav-links li {
+        flex: 1 1 140px;
+        max-width: 200px;
+        text-align: center;
+        width: auto; /* override mobile full-width */
+    }
+
+    /* Submenu alignment on desktop */
+    .submenu {
+        padding-left: 0;
+        margin-top: 0.25rem;
+    }
+}
