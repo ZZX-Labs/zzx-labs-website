@@ -1,81 +1,105 @@
+/* static/css/inspiration-figures.css
+   Figures page layout (scoped)
+   Loaded in pages layer
+*/
+
 /* =========================
-   Figures page layout fixes
-   (scoped so other pages are untouched)
+   0) Layout: stack grid + below-content
    ========================= */
 body.inspiration .features {
-  /* Stack sections vertically: grid first, then the content below it */
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px; /* space between the grid block and the section below */
+  gap: 24px; /* spacing between grid block and following content */
+  background: var(--bg);
+  padding-inline: 12px; /* tiny gutter for edge safety on small screens */
 }
 
-/* Make the card grid fill the width and keep consistent spacing */
+/* =========================
+   1) Card grid container (8px rhythm)
+   ========================= */
 body.inspiration .feature-card-container {
-  width: 100%;
+  inline-size: 100%;
   align-self: stretch;
-  /* Ensure it actually behaves like a grid here and keep 8px spacing */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
-  padding: 4px; /* slight perimeter breathing room so rims don't kiss the container edge */
+  padding: 4px; /* perimeter breathing room */
+  margin-inline: auto;
+  max-inline-size: 1200px;
 }
 
-/* The cards themselves don’t need margin; gap handles spacing */
-body.inspiration .feature-card {
-  margin: 0;
-}
+/* No extra margins; grid gap handles spacing */
+body.inspiration .feature-card { margin: 0; }
 
-/* Center the content that comes AFTER the grid, keep it full-width but centered */
+/* =========================
+   2) Following content block(s)
+   ========================= */
 body.inspiration .features > :not(.feature-card-container) {
-  width: 100%;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center; /* optional: looks more balanced for summary/cta blocks */
+  inline-size: 100%;
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  text-align: center; /* balances summary/cta blocks beneath */
 }
+body.inspiration .features > .container { display: block; }
 
-/* If that bottom block is a .container, make sure it behaves nicely here */
-body.inspiration .features > .container {
-  display: block;
-}
-
-/* ----- Fix "Philosophical Values" alignment on the figures page ----- */
-body.inspiration #philosophical-values{
-  /* If it's inside a grid, span the full width */
-  grid-column: 1 / -1;
+/* =========================
+   3) Philosophical Values block
+   ========================= */
+body.inspiration #philosophical-values {
+  grid-column: 1 / -1;         /* if placed inside a grid, span full width */
   justify-self: center;
-
-  /* Ensure it can center itself even outside grid */
-  width: 100%;
-  max-width: 1200px;
+  inline-size: 100%;
+  max-inline-size: 1200px;
   margin-inline: auto;
   padding-inline: 16px;
 
-  /* Force centering for its flex layout */
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px; /* space between its inner tiles */
+  gap: 16px; /* tile spacing */
 }
 
-/* Override global .feature sizing only for this section */
-body.inspiration #philosophical-values .feature{
-  /* Don’t stretch to 33% columns here */
-  flex: 0 1 320px;   /* preferred tile width */
-  max-width: 420px;  /* cap it so rows center nicely */
-  margin: 0;         /* gap handles spacing */
+/* Override global .feature sizing only here (don’t force 33%) */
+body.inspiration #philosophical-values .feature {
+  flex: 0 1 320px;  /* preferred tile width */
+  max-inline-size: 420px; /* cap so rows center nicely */
+  margin: 0;        /* gaps control rhythm */
   text-align: center;
 }
 
-/* If the section has any .container wrappers, center those too */
-body.inspiration #philosophical-values .container{
-  width: 100%;
-  max-width: 1200px;
+/* Ensure inner .container behaves */
+body.inspiration #philosophical-values .container {
+  inline-size: 100%;
+  max-inline-size: 1200px;
   margin-inline: auto;
 }
 
-/* Keep the figures grid spacing at 8px without touching other pages */
-body.inspiration .feature-card-container{
-  gap: 8px;
+/* Redundant safety: keep figures grid at 8px gap */
+body.inspiration .feature-card-container { gap: 8px; }
+
+/* =========================
+   4) Responsive fine-tuning
+   ========================= */
+@media (max-width: 768px) {
+  body.inspiration .features { gap: 20px; }
+  body.inspiration #philosophical-values {
+    gap: 12px;
+    padding-inline: 12px;
+  }
+  body.inspiration #philosophical-values .feature {
+    flex-basis: 280px; /* align with grid min width */
+    max-inline-size: 100%;
+  }
+}
+
+/* =========================
+   5) Reduced motion
+   ========================= */
+@media (prefers-reduced-motion: reduce) {
+  body.inspiration .feature,
+  body.inspiration .feature-card {
+    transition: none !important;
+    transform: none !important;
+  }
 }
