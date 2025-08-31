@@ -1,62 +1,94 @@
-/* ========== FEATURES SECTION ========== */
+/* static/css/features.css
+   Features section (components layer)
+   Grid-based, variable-driven, a11y-friendly
+*/
+
+/* ========== SECTION WRAPPER ========== */
 .features {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 2rem;
-    padding: 4rem 2rem;
-    background-color: #282828;
+    inline-size: 100%;
+    background-color: var(--bg);
     box-sizing: border-box;
+    padding: 4rem 2rem;
 }
 
+/* Responsive grid: 3 -> 2 -> 1 columns */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+    margin-inline: auto;
+    max-width: 1200px;
+}
+
+@media (max-width: 992px) {
+    .features-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+    .features-grid { grid-template-columns: 1fr; }
+}
+
+/* ========== FEATURE CARD ========== */
 .feature {
-    background-color: #333;
-    border-radius: 6px;
-    padding: 2rem 1rem;
-    flex: 1 1 calc(33.333% - 2rem);
-    max-width: calc(33.333% - 2rem);
+    background-color: var(--card-bg, #333);
+    color: var(--card-fg, var(--text));
+    border-radius: 8px;
+    padding: 2rem 1.25rem;
     text-align: center;
-    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px var(--elev-1, rgba(0,0,0,0.3));
+    transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Feature Card Hover Effect */
-.feature:hover {
-    transform: translateY(-5px);
-    background-color: #1f1f1f;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+.feature:hover,
+.feature:focus-within {
+    transform: translateY(-6px);
+    background-color: var(--card-bg-hover, #1f1f1f);
+    box-shadow: 0 6px 16px var(--elev-2, rgba(0,0,0,0.4));
+    cursor: pointer;
 }
 
-/* Feature Titles */
+/* Title */
 .feature h3 {
     font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
     font-size: 1.8rem;
-    color: #e6a42b;
-    margin-bottom: 1rem;
+    color: var(--accent, #e6a42b);
+    margin-bottom: 0.8rem;
+    line-height: 1.25;
 }
 
-/* Feature Paragraphs */
+/* Copy */
 .feature p {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1rem;
-    color: #d1d1d1;
+    color: var(--text, #d1d1d1);
+    line-height: 1.6;
 }
 
-/* Responsive Adjustments */
-@media (max-width: 992px) {
-    .feature {
-        flex: 1 1 calc(45% - 2rem);
-        max-width: calc(45% - 2rem);
-    }
+/* Optional icon slot */
+.feature-icon {
+    inline-size: 64px;
+    block-size: 64px;
+    margin-inline: auto;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+    background: var(--surface-3, #111);
+    border: 1px solid var(--line-soft, #3e3e3e);
+    display: grid;
+    place-items: center;
+    color: var(--accent-2, #c0d674);
+    font-size: 1.75rem; /* for emoji/icon-fonts */
 }
 
-@media (max-width: 768px) {
-    .feature {
-        flex: 1 1 100%;
-        max-width: 100%;
-    }
+/* Link inside card */
+.feature a {
+    color: var(--brand-green, #c0d674);
+    text-decoration: none;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+.feature a:hover { color: var(--accent, #e6a42b); text-decoration: underline; }
 
-    .cta h2 { font-size: 2rem; }
-    .cta p  { font-size: 1rem; }
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .feature { transition: none; transform: none !important; }
 }
