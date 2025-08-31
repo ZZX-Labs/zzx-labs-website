@@ -1,1 +1,100 @@
+/* static/css/fonts.css
+   Global font declarations + utilities
+   Loaded in base layer
+*/
 
+/* ========== FONT-FACE DECLARATIONS ========== */
+
+/* Adult Swim Font (custom display) */
+@font-face {
+    font-family: 'Adult Swim Font';
+    src: url('../fonts/Adult-Swim-Font.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* IBM Plex Mono (main body + UI) */
+@font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('../fonts/IBMPlexMono-Regular.woff2') format('woff2'),
+         url('../fonts/IBMPlexMono-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('../fonts/IBMPlexMono-Bold.woff2') format('woff2'),
+         url('../fonts/IBMPlexMono-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('../fonts/IBMPlexMono-Italic.woff2') format('woff2'),
+         url('../fonts/IBMPlexMono-Italic.woff') format('woff');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* Optional extras: if you want sans/serif companions */
+@font-face {
+    font-family: 'IBM Plex Sans';
+    src: url('../fonts/IBMPlexSans-Regular.woff2') format('woff2'),
+         url('../fonts/IBMPlexSans-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBM Plex Serif';
+    src: url('../fonts/IBMPlexSerif-Regular.woff2') format('woff2'),
+         url('../fonts/IBMPlexSerif-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ========== GLOBAL FALLBACK STACKS ========== */
+:root {
+    --font-body:    'IBM Plex Mono', monospace;
+    --font-display: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    --font-sans:    'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+    --font-serif:   'IBM Plex Serif', Georgia, serif;
+    --font-mono:    'IBM Plex Mono', monospace;
+}
+
+/* ========== BODY DEFAULTS ========== */
+body {
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-style: normal;
+}
+
+/* Headings use display font */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: normal;
+}
+
+/* ========== UTILITY CLASSES (for previews & overrides) ========== */
+.font-display { font-family: var(--font-display) !important; }
+.font-body    { font-family: var(--font-body) !important; }
+.font-sans    { font-family: var(--font-sans) !important; }
+.font-serif   { font-family: var(--font-serif) !important; }
+.font-mono    { font-family: var(--font-mono) !important; }
+
+.font-light   { font-weight: 300 !important; }
+.font-regular { font-weight: 400 !important; }
+.font-medium  { font-weight: 500 !important; }
+.font-bold    { font-weight: 700 !important; }
+.font-italic  { font-style: italic !important; }
+
+/* Optional scaling for design pages */
+.font-sm  { font-size: 0.85rem !important; }
+.font-md  { font-size: 1rem !important; }
+.font-lg  { font-size: 1.25rem !important; }
+.font-xl  { font-size: 1.5rem !important; }
