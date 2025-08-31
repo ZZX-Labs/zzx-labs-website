@@ -1,1 +1,273 @@
+/* static/css/colors.css
+   Global color tokens for ZZX-Labs
+   - Semantic tokens for backgrounds, text, borders, states
+   - Brand palette: amber (#e6a42b), green (#c0d674)
+   - Theming via [data-theme] or system prefers-color-scheme
+   - High-contrast overrides via [data-contrast="high"]
+   - Utility classes for bg/text/border
+*/
 
+/* =========================
+   0) Base: Dark Theme (Default)
+   ========================= */
+:root {
+  color-scheme: dark;
+
+  /* --- Brand --- */
+  --brand-amber: #e6a42b;
+  --brand-green: #c0d674;
+  --brand-rose:  #e62ab4; /* optional accent used in some comps */
+  --brand-blue:  #4ba3ff; /* optional utility accent */
+
+  /* --- Grays --- */
+  --gray-0: #0f0f0f;
+  --gray-1: #151515;
+  --gray-2: #1a1a1a;
+  --gray-3: #1f1f1f;
+  --gray-4: #262626;
+  --gray-5: #2e2e2e;
+  --gray-6: #333333;
+  --gray-7: #3e3e3e;
+  --gray-8: #505050;
+  --gray-9: #707070;
+
+  /* --- Semantic Surfaces --- */
+  --bg:        #282828;    /* site background */
+  --surface:   var(--gray-3);
+  --surface-2: var(--gray-6);
+  --surface-3: #111111;    /* deep surface (cards/embeds) */
+  --elev-1:    rgba(0,0,0,0.2);
+  --elev-2:    rgba(0,0,0,0.35);
+
+  /* --- Text --- */
+  --text:       #d1d1d1;
+  --text-weak:  #b5b5b5;
+  --text-mute:  #9a9a9a;
+  --text-inv:   #000;      /* inverse text for bright surfaces */
+
+  /* --- Links --- */
+  --link:       #d1d1d1;
+  --link-hover: var(--brand-amber);
+
+  /* --- Borders & Lines --- */
+  --line:       var(--gray-7);
+  --line-soft:  var(--gray-5);
+
+  /* --- States --- */
+  --accent:     var(--brand-amber);
+  --accent-2:   var(--brand-green);
+  --info:       #4ba3ff;
+  --success:    #1db954;
+  --warning:    #ffb020;
+  --danger:     #e63946;
+
+  /* --- Component Tokens (defaults) --- */
+  --header-bg:        var(--gray-6);
+  --header-fg:        var(--text);
+  --nav-bg:           var(--gray-2);
+  --nav-fg:           var(--text);
+
+  --hero-bg:          var(--gray-4);
+  --cta-bg:           #444444;
+
+  --card-bg:          var(--gray-6);
+  --card-bg-hover:    var(--gray-3);
+  --card-fg:          var(--text);
+
+  --footer-bg:        var(--gray-6);
+  --footer-fg:        var(--text);
+  --footer-line:      var(--line);
+
+  --btn-bg:           var(--accent);
+  --btn-fg:           #000;
+  --btn-bg-hover:     var(--accent-2);
+
+  --table-header-bg:  var(--gray-2);
+  --table-row-alt:    var(--gray-1);
+
+  /* --- Opacity helpers --- */
+  --op-4: 0.04;
+  --op-8: 0.08;
+  --op-12: 0.12;
+  --op-16: 0.16;
+  --op-24: 0.24;
+
+  /* --- Gradients --- */
+  --grad-amber-green: linear-gradient(90deg, var(--brand-amber), var(--brand-green));
+  --grad-dark-sheen:  linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0));
+}
+
+/* =========================
+   1) Light Theme
+   ========================= */
+:root[data-theme="light"], .theme-light {
+  color-scheme: light;
+
+  --bg:        #f6f7f9;
+  --surface:   #ffffff;
+  --surface-2: #eceef2;
+  --surface-3: #ffffff;
+
+  --text:      #1b1b1b;
+  --text-weak: #2a2a2a;
+  --text-mute: #555;
+
+  --link:       #1b1b1b;
+  --link-hover: #5f3a00;
+
+  --line:       #d8dbe2;
+  --line-soft:  #e7e9ee;
+
+  --header-bg:  #ffffff;
+  --header-fg:  #1b1b1b;
+  --nav-bg:     #ffffff;
+  --nav-fg:     #1b1b1b;
+
+  --hero-bg:    #f0f2f6;
+  --cta-bg:     #fff3d6;
+
+  --card-bg:        #ffffff;
+  --card-bg-hover:  #f7f9fc;
+  --card-fg:        #1b1b1b;
+
+  --footer-bg:      #ffffff;
+  --footer-fg:      #1b1b1b;
+  --footer-line:    #e7e9ee;
+
+  --btn-fg:         #000;
+  --table-header-bg:#f2f4f8;
+  --table-row-alt:  #fafbfc;
+}
+
+/* Optional: auto-light if user prefers light and you’re not forcing dark */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+  }
+}
+
+/* =========================
+   2) High Contrast Mode
+   ========================= */
+:root[data-contrast="high"], .contrast-high {
+  --line:       #ffffff;
+  --line-soft:  #ffffff;
+  --text:       #ffffff;
+  --text-weak:  #ffffff;
+  --text-mute:  #e6e6e6;
+
+  --btn-bg:         #ffffff;
+  --btn-fg:         #000;
+  --btn-bg-hover:   #e6e6e6;
+
+  --card-bg:        #141414;
+  --card-bg-hover:  #0d0d0d;
+}
+
+/* =========================
+   3) Semantic Helper Classes
+   ========================= */
+
+/* Backgrounds */
+.bg, .bg-default   { background-color: var(--bg) !important; }
+.bg-surface        { background-color: var(--surface) !important; }
+.bg-surface-2      { background-color: var(--surface-2) !important; }
+.bg-surface-3      { background-color: var(--surface-3) !important; }
+.bg-amber          { background-color: var(--brand-amber) !important; }
+.bg-green          { background-color: var(--brand-green) !important; }
+.bg-info           { background-color: var(--info) !important; }
+.bg-success        { background-color: var(--success) !important; }
+.bg-warning        { background-color: var(--warning) !important; }
+.bg-danger         { background-color: var(--danger) !important; }
+
+/* Text */
+.text              { color: var(--text) !important; }
+.text-weak         { color: var(--text-weak) !important; }
+.text-mute         { color: var(--text-mute) !important; }
+.text-inv          { color: var(--text-inv) !important; }
+.text-amber        { color: var(--brand-amber) !important; }
+.text-green        { color: var(--brand-green) !important; }
+.text-info         { color: var(--info) !important; }
+.text-success      { color: var(--success) !important; }
+.text-warning      { color: var(--warning) !important; }
+.text-danger       { color: var(--danger) !important; }
+
+/* Borders */
+.border            { border: 1px solid var(--line) !important; }
+.border-soft       { border: 1px solid var(--line-soft) !important; }
+.border-amber      { border: 1px solid var(--brand-amber) !important; }
+.border-green      { border: 1px solid var(--brand-green) !important; }
+
+/* Links standardization (used by base.css) */
+.link,
+a.link {
+  color: var(--link);
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease, box-shadow 0.2s ease;
+}
+.link:hover,
+a.link:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+/* =========================
+   4) Component Mappings (optional)
+   Tie components to tokens so submodules can rely on vars.
+   ========================= */
+
+/* Header & Nav */
+.header {
+  background-color: var(--header-bg);
+  color: var(--header-fg);
+}
+.navbar, .nav-links {
+  background-color: var(--nav-bg);
+  color: var(--nav-fg);
+}
+
+/* Hero / CTA */
+.hero { background: var(--hero-bg); }
+.cta  { background: var(--cta-bg); }
+
+/* Cards */
+.card {
+  background-color: var(--card-bg);
+  color: var(--card-fg);
+}
+.card:hover { background-color: var(--card-bg-hover); }
+
+/* Footer */
+.footer {
+  background-color: var(--footer-bg);
+  color: var(--footer-fg);
+  border-top: 1px solid var(--footer-line);
+}
+
+/* Buttons (base mapping; detailed styles in buttons.css) */
+.btn {
+  background-color: var(--btn-bg);
+  color: var(--btn-fg);
+}
+.btn:hover {
+  background-color: var(--btn-bg-hover);
+}
+
+/* Tables */
+.table thead th {
+  background: var(--table-header-bg);
+}
+.table tr:nth-child(even) {
+  background: var(--table-row-alt);
+}
+
+/* =========================
+   5) Utilities: overlays & gradients
+   ========================= */
+.u-overlay-8   { background-color: rgba(0,0,0, var(--op-8)); }
+.u-overlay-12  { background-color: rgba(0,0,0, var(--op-12)); }
+.u-overlay-16  { background-color: rgba(0,0,0, var(--op-16)); }
+.u-overlay-24  { background-color: rgba(0,0,0, var(--op-24)); }
+
+.u-grad-amber-green { background-image: var(--grad-amber-green); }
+.u-grad-dark-sheen  { background-image: var(--grad-dark-sheen); }
