@@ -1,1 +1,105 @@
+/* static/css/icons.css
+   Icon system for ZZX-Labs
+   Works with SVG <svg>, <i>, or <span class="icon"> wrappers
+   Loaded in media layer
+*/
 
+/* ====== BASE ICON ====== */
+.icon {
+    inline-size: 1.25rem; /* ~20px */
+    block-size: 1.25rem;
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
+    fill: currentColor; /* SVGs inherit text color */
+    color: var(--text, #d1d1d1);
+    transition: color 0.25s ease, transform 0.2s ease;
+}
+
+/* Hover bump */
+.icon:hover { transform: translateY(-2px); }
+
+/* ====== SIZE VARIANTS ====== */
+.icon-sm { inline-size: 1rem; block-size: 1rem; }     /* ~16px */
+.icon-md { inline-size: 1.5rem; block-size: 1.5rem; } /* ~24px */
+.icon-lg { inline-size: 2rem; block-size: 2rem; }     /* ~32px */
+.icon-xl { inline-size: 3rem; block-size: 3rem; }     /* ~48px */
+
+/* ====== COLOR VARIANTS ====== */
+.icon-accent   { color: var(--accent, #e6a42b); }
+.icon-accent-2 { color: var(--accent-2, #c0d674); }
+.icon-info     { color: var(--info, #4ba3ff); }
+.icon-success  { color: var(--success, #1db954); }
+.icon-warning  { color: var(--warning, #ffb020); }
+.icon-danger   { color: var(--danger, #e63946); }
+.icon-muted    { color: var(--text-mute, #999); }
+
+/* Inverse for dark bg */
+.icon-inverse  { color: var(--text-inv, #000); }
+
+/* ====== ICON CONTAINERS ====== */
+.icon-circle {
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: var(--surface-2, #3e3e3e);
+    color: var(--accent, #e6a42b);
+}
+
+.icon-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background-color: var(--surface-2, #3e3e3e);
+    color: var(--text, #d1d1d1);
+    font-size: 0.85rem;
+}
+
+/* ====== BADGE STYLE ====== */
+.icon-badge {
+    position: relative;
+    display: inline-block;
+}
+.icon-badge::after {
+    content: attr(data-badge);
+    position: absolute;
+    top: -0.4rem;
+    right: -0.4rem;
+    min-inline-size: 1rem;
+    padding: 0 0.25rem;
+    height: 1rem;
+    border-radius: 999px;
+    background-color: var(--danger, #e63946);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1rem;
+}
+
+/* ====== ANIMATION HELPERS ====== */
+.icon-spin { animation: icon-spin 1.2s linear infinite; }
+.icon-pulse { animation: icon-pulse 1.2s ease-in-out infinite; }
+
+@keyframes icon-spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes icon-pulse {
+    0%,100% { transform: scale(1); }
+    50%     { transform: scale(1.15); }
+}
+
+/* ====== REDUCED MOTION ====== */
+@media (prefers-reduced-motion: reduce) {
+    .icon, .icon:hover,
+    .icon-spin, .icon-pulse {
+        transition: none;
+        animation: none !important;
+        transform: none !important;
+    }
+}
