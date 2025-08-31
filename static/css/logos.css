@@ -1,1 +1,201 @@
+/* static/css/logos.css
+   Global logo styling (media layer)
+   - Works for <img>, inline <svg>, and background-image blocks
+   - Token-driven; respects dark/light themes via colors.css
+*/
 
+/* ========== BASICS ========== */
+.logo,
+.brand-logo,
+.partner-logo {
+  display: inline-block;
+  line-height: 0;                 /* remove extra whitespace */
+  vertical-align: middle;
+  color: var(--text, #d1d1d1);    /* for SVG currentColor */
+}
+
+/* Image/SVG defaults */
+.logo img,
+.brand-logo img,
+.partner-logo img,
+.logo svg,
+.brand-logo svg,
+.partner-logo svg {
+  max-inline-size: 100%;
+  block-size: auto;
+  display: block;
+}
+
+/* Ensure SVGs inherit color unless explicitly styled */
+.logo svg,
+.brand-logo svg,
+.partner-logo svg {
+  fill: currentColor;
+}
+
+/* ========== SIZE PRESETS (max-height driven) ========== */
+.logo-xs { max-block-size: 20px; }
+.logo-sm { max-block-size: 28px; }
+.logo-md { max-block-size: 40px; }  /* good for nav/header */
+.logo-lg { max-block-size: 64px; }
+.logo-xl { max-block-size: 96px; }
+.logo-2xl{ max-block-size: 128px; }
+
+/* Apply to containers AND direct imgs for convenience */
+.logo-xs img, .logo-xs svg,
+.logo-sm img, .logo-sm svg,
+.logo-md img, .logo-md svg,
+.logo-lg img, .logo-lg svg,
+.logo-xl img, .logo-xl svg,
+.logo-2xl img, .logo-2xl svg {
+  max-block-size: 100%;
+}
+
+/* ========== LOCKUPS (mark + type) ========== */
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.logo-mark { inline-size: auto; max-block-size: 1.4em; }
+.logo-type { inline-size: auto; max-block-size: 1.2em; }
+
+/* ========== COLOR VARIANTS ========== */
+/* Keep brand amber/green tints available for SVGs or masked PNGs */
+.logo-amber   { color: var(--brand-amber, #e6a42b); }
+.logo-green   { color: var(--brand-green, #c0d674); }
+.logo-info    { color: var(--info, #4ba3ff); }
+.logo-danger  { color: var(--danger, #e63946); }
+.logo-muted   { color: var(--text-mute, #9a9a9a); }
+
+/* Invert for bright surfaces */
+.logo-invert  { color: var(--text-inv, #000); }
+
+/* Monochrome / desaturated for partner walls; hover reveals color */
+.logo-mono img,
+.logo-mono svg,
+.logo-desat img,
+.logo-desat svg {
+  filter: grayscale(100%) contrast(0.95) brightness(0.95);
+  opacity: 0.9;
+  transition: filter 0.25s ease, opacity 0.25s ease, transform 0.2s ease;
+}
+.logo-mono:hover img,
+.logo-mono:hover svg,
+.logo-desat:hover img,
+.logo-desat:hover svg {
+  filter: none;
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+/* ========== SAFE AREA & BACKPLATES ========== */
+.logo-safe {
+  padding: 6px 10px;              /* protect from edges */
+  border-radius: 8px;
+  background: var(--surface-2, #3e3e3e);
+  border: 1px solid var(--line-soft, #3a3a3a);
+}
+.logo-safe--subtle {
+  background: var(--surface, #262626);
+  border-color: transparent;
+}
+
+/* Backplate emphasis for tiny favicons/square marks */
+.logo-tile {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: 12px;
+  background: var(--surface-3, #111);
+  border: 1px solid var(--line-soft, #3e3e3e);
+  color: var(--accent-2, #c0d674);
+}
+
+/* ========== HEADER/FOOTER SPECIFICS ========== */
+/* Header: constrain nav logo height, respect your header.css .logo-container */
+.header .logo-container img,
+.header .brand-logo img {
+  max-block-size: 50px;
+  inline-size: auto;
+  height: auto;
+}
+
+/* Footer: slightly smaller default */
+.footer .brand-logo img { max-block-size: 40px; }
+
+/* ========== LOGO GRIDS & WALLS ========== */
+/* “Logo wall” of partners/clients */
+.logo-wall {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: center;
+}
+@media (max-width: 1200px) { .logo-wall { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 992px)  { .logo-wall { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 768px)  { .logo-wall { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px)  { .logo-wall { grid-template-columns: repeat(2, 1fr); } }
+
+/* Each tile */
+.logo-tile-item {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface, #262626);
+  border: 1px dashed var(--line-soft, #3a3a3a);
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.logo-tile-item:hover {
+  background: var(--surface-2, #3e3e3e);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+}
+
+/* Ensure partner images scale nicely within tiles */
+.logo-tile-item img,
+.logo-tile-item svg {
+  max-block-size: 42px;
+  max-inline-size: 80%;
+}
+
+/* “Logo cloud” (free-flow row wrap) */
+.logo-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem 2rem;
+}
+.logo-cloud .logo,
+.logo-cloud .partner-logo {
+  max-block-size: 42px;
+}
+
+/* ========== ALIGNMENT HELPERS ========== */
+.logo-center { display: grid; place-items: center; }
+.logo-left   { display: flex; justify-content: flex-start; align-items: center; }
+.logo-right  { display: flex; justify-content: flex-end; align-items: center; }
+
+/* ========== HOVER STATES (subtle) ========== */
+.logo-hover:hover { transform: translateY(-2px); transition: transform 0.2s ease; }
+
+/* ========== ACCESSIBILITY ========== */
+/* If a logo is purely decorative, authors should add role="img" aria-label or aria-hidden="true".
+   These classes won’t change ARIA, but keep contrast on backplates strong. */
+.logo-contrast,
+.logo-safe.logo-contrast { border-color: var(--accent, #e6a42b); }
+
+/* ========== REDUCED MOTION ========== */
+@media (prefers-reduced-motion: reduce) {
+  .logo-hover:hover,
+  .logo-tile-item:hover,
+  .logo-mono:hover img,
+  .logo-mono:hover svg,
+  .logo-desat:hover img,
+  .logo-desat:hover svg {
+    transition: none;
+    transform: none;
+  }
+}
