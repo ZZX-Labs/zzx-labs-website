@@ -1,3 +1,7 @@
+/* static/css/footer.css
+   Footer Section (components layer)
+*/
+
 /* ========== FOOTER SECTION ========== */
 .footer {
     background-color: #333;
@@ -5,23 +9,37 @@
     padding: 3rem 1rem;
     width: 100%;
     box-sizing: border-box;
+    border-top: 1px solid #3e3e3e; /* subtle separator */
 }
 
-/* Footer Container */
+/* Container: responsive max-width + grid on larger screens */
 .footer .container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    margin-inline: auto;
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 2rem;
+}
+
+/*  ≥ 768px: two cols;  ≥ 1024px: 3–4 cols depending on content */
+@media (min-width: 768px) {
+    .footer .container {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
+}
+@media (min-width: 1024px) {
+    .footer .container {
+        grid-template-columns: repeat(4, minmax(220px, 1fr));
+    }
 }
 
 /* Footer Column */
 .footer-column {
-    flex: 1 1 200px;
-    max-width: 300px;
     display: flex;
     flex-direction: column;
+    gap: 0.5rem;
     align-items: flex-start;
+    min-width: 0; /* prevent overflow */
 }
 
 /* Footer Column Headings */
@@ -29,7 +47,8 @@
     font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
     font-size: 1.5rem;
     color: #e6a42b;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
 }
 
 /* Footer Links List */
@@ -49,36 +68,54 @@
     color: #c0d674;
     font-size: 0.95rem;
     text-decoration: none;
-    transition: color 0.3s ease;
+    transition: color 0.2s ease, text-decoration 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+    border-radius: 3px; /* better focus ring shape */
+    padding: 0.1rem 0.2rem; /* room for focus ring without layout shift */
 }
 
-/* Hover Effects on Footer Links */
+/* Hover + Focus-visible states */
 .footer-links a:hover {
     color: #e6a42b;
     text-decoration: underline;
 }
+.footer-links a:focus-visible {
+    color: #000;
+    background-color: #e6a42b;
+    text-decoration: none;
+    box-shadow: 0 0 0 2px #e6a42b;
+}
 
-/* Footer Bottom Copyright */
+/* Footer Bottom */
 .footer-bottom {
     width: 100%;
     margin-top: 3rem;
     text-align: center;
     font-size: 0.9rem;
     color: #c0d674;
+    border-top: 1px solid #3e3e3e;
+    padding-top: 1rem;
 }
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
+    .footer {
+        padding: 2.5rem 1rem;
+    }
     .footer .container {
-        flex-direction: column;
-        align-items: center;
         text-align: center;
     }
-
     .footer-column {
-        max-width: 100%;
         align-items: center;
     }
+    .footer-links {
+        align-items: center;
+    }
+}
 
-    .footer-links { align-items: center; }
+/* Reduce motion preference: tone down transitions */
+@media (prefers-reduced-motion: reduce) {
+    .footer-links a {
+        transition: none;
+    }
 }
