@@ -1,43 +1,94 @@
+/* static/css/pages.css
+   Per-page styles & page-level utilities
+   Loaded in pages layer
+*/
+
 /* ========== 404 PAGE STYLES ========== */
 .page-404 {
     min-height: 70vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
+    display: grid;
+    place-items: center;
     text-align: center;
     padding: 2rem;
+    background: var(--bg, #282828);
+    color: var(--text, #d1d1d1);
 }
+
+.page-404 .content {
+    max-inline-size: 720px;
+    margin-inline: auto;
+    padding: 1rem;
+}
+
 .page-404 h1 {
-    font-size: 6rem;
-    color: #e6a42b;
+    font-family: var(--font-display, 'Adult Swim Font', 'IBM Plex Mono', monospace);
+    font-size: clamp(3rem, 8vw, 6rem);
+    color: var(--accent, #e6a42b);
+    line-height: 1;
     margin-bottom: 1rem;
 }
+
 .page-404 p {
-    font-size: 1.2rem;
-    color: #c0d674;
+    font-family: var(--font-body, 'IBM Plex Mono', monospace);
+    font-size: 1.1rem;
+    color: var(--accent-2, #c0d674);
     margin-bottom: 2rem;
 }
+
 .page-404 a {
     font-size: 1rem;
-    color: #e6a42b;
+    color: var(--accent, #e6a42b);
     text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.2s ease;
+}
+.page-404 a:hover { color: var(--accent-2, #c0d674); }
+
+/* Optional graphic/emoji block */
+.page-404 .mark {
+    font-size: clamp(3rem, 10vw, 8rem);
+    line-height: 1;
+    margin-bottom: 0.5rem;
 }
 
-/* ========== BACKGROUND UTILITIES ========== */
+/* ========== BACKGROUND UTILITIES (token-driven) ========== */
 .background-dark {
-    background-color: #282828;
-    color: #d1d1d1;
+    background-color: var(--bg, #282828);
+    color: var(--text, #d1d1d1);
 }
 .background-light {
-    background-color: #f5f5f5;
+    background-color: #f5f5f5;       /* explicit light surface */
     color: #333;
 }
+.bg-surface   { background-color: var(--surface, #262626); }
+.bg-surface-2 { background-color: var(--surface-2, #3e3e3e); }
 
-/* Centered Utility */
+/* ========== CENTERING UTILITY ========== */
 .centered-content {
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    text-align: center;
+    min-height: 50vh;
+    gap: 0.75rem;
+}
+
+/* ========== SECTION PADDING HELPERS (page-level) ========== */
+.section {
+    padding-block: clamp(2rem, 6vw, 4rem);
+}
+.section-narrow {
+    padding-block: clamp(1.25rem, 4vw, 2rem);
+}
+
+/* ========== RESPONSIVE TWEAKS ========== */
+@media (max-width: 768px) {
+    .page-404 { padding: 1.25rem; }
+    .page-404 p { font-size: 1rem; }
+}
+
+/* ========== REDUCED MOTION ========== */
+@media (prefers-reduced-motion: reduce) {
+    .page-404 a { transition: none; }
 }
