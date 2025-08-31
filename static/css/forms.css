@@ -1,62 +1,164 @@
-/* ====== FORM STYLES ====== */
+/* static/css/forms.css
+   Form elements styling
+   Loaded in components layer
+*/
+
+/* ====== FORM WRAPPER ====== */
 form {
     width: 100%;
-    max-width: 600px;
+    max-width: 640px;
     margin: 2rem auto;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    font-family: var(--font-body, 'IBM Plex Mono', monospace);
 }
 
-/* Input Fields */
+/* ====== INPUT FIELDS ====== */
 input[type="text"],
 input[type="email"],
 input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
 textarea,
 select {
     width: 100%;
     padding: 0.75rem 1rem;
-    border: 1px solid #666;
-    border-radius: 4px;
-    background-color: #1f1f1f;
-    color: #d1d1d1;
-    font-family: 'IBM Plex Mono', monospace;
+    border: 1px solid var(--line-soft, #666);
+    border-radius: 6px;
+    background-color: var(--surface-3, #1f1f1f);
+    color: var(--text, #d1d1d1);
+    font-family: inherit;
     font-size: 1rem;
-    transition: border-color 0.3s ease, background-color 0.3s ease;
+    line-height: 1.4;
+    transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-/* Focus Effect */
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
+/* Focus */
+input:focus,
 textarea:focus,
 select:focus {
-    border-color: #e6a42b;
-    background-color: #2b2b2b;
+    border-color: var(--accent, #e6a42b);
+    background-color: var(--surface, #2b2b2b);
     outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
 }
 
-/* Submit Button */
-input[type="submit"],
-button[type="submit"] {
-    background-color: #e6a42b;
-    color: #000;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.3s ease;
+/* Placeholder text */
+::placeholder {
+    color: var(--text-mute, #888);
+    opacity: 1;
 }
 
-input[type="submit"]:hover,
-button[type="submit"]:hover {
-    background-color: #c0d674;
-    transform: scale(1.05);
+/* Disabled */
+input:disabled,
+textarea:disabled,
+select:disabled {
+    background-color: var(--surface-2, #2a2a2a);
+    color: var(--text-mute, #999);
+    cursor: not-allowed;
 }
 
-/* Textarea Specifics */
+/* ====== FIELDSETS & LABELS ====== */
+fieldset {
+    border: 1px solid var(--line-soft, #444);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+legend {
+    font-family: var(--font-display, 'Adult Swim Font');
+    color: var(--accent, #e6a42b);
+    padding: 0 0.5rem;
+}
+label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--text, #d1d1d1);
+    display: inline-block;
+}
+
+/* ====== SELECT ====== */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23d1d1d1' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
+}
+
+/* ====== TEXTAREA ====== */
 textarea {
     min-height: 150px;
     resize: vertical;
+}
+
+/* ====== CHECKBOXES & RADIOS ====== */
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: var(--accent, #e6a42b); /* modern browsers */
+    cursor: pointer;
+    margin-right: 0.5rem;
+}
+
+/* Custom group wrapper */
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+/* ====== SUBMIT BUTTONS ====== */
+input[type="submit"],
+button[type="submit"] {
+    composes: btn from './buttons.css'; /* conceptually: reuse button styles */
+    background-color: var(--btn-bg, #e6a42b);
+    color: var(--btn-fg, #000);
+    border: 1px solid transparent;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.25s ease, transform 0.2s ease;
+}
+input[type="submit"]:hover,
+button[type="submit"]:hover {
+    background-color: var(--btn-bg-hover, #c0d674);
+    transform: translateY(-2px);
+}
+input[type="submit"]:active,
+button[type="submit"]:active {
+    transform: translateY(0);
+}
+
+/* ====== VALIDATION STATES ====== */
+input:valid,
+textarea:valid,
+select:valid {
+    border-color: var(--success, #1db954);
+}
+input:invalid,
+textarea:invalid,
+select:invalid {
+    border-color: var(--danger, #e63946);
+}
+
+/* Inline error/help text */
+.form-help {
+    font-size: 0.85rem;
+    color: var(--text-mute, #999);
+}
+.form-error {
+    font-size: 0.85rem;
+    color: var(--danger, #e63946);
+    margin-top: -0.5rem;
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 768px) {
+    form { padding: 0 1rem; }
 }
