@@ -1,42 +1,46 @@
 /* static/styles.css
    Master stylesheet for ZZX-Labs website
    Imports all submodules from static/css/
-   Order is deliberate: base → layout → components → media → pages → utilities
+   Deterministic order via CSS Cascade Layers:
+   base → layout → components → media → pages → utilities
 */
 
-/* Base */
-@import url('./css/colors.css');
-@import url('./css/fonts.css');
-@import url('./css/base.css');
+/* Declare layer stack (top = lowest precedence) */
+@layer base, layout, components, media, pages, utilities;
 
-/* Layout */
-@import url('./css/layout.css');
-@import url('./css/media.css');
+/* ── Base ─────────────────────────────────────────────── */
+@import url('./css/colors.css') layer(base);
+@import url('./css/fonts.css')  layer(base);
+@import url('./css/base.css')   layer(base);
 
-/* Navigation & Header */
-@import url('./css/header-nav.css');
+/* ── Layout ───────────────────────────────────────────── */
+@import url('./css/layout.css') layer(layout);
+@import url('./css/media.css')  layer(layout);
 
-/* Sections / Components */
-@import url('./css/hero.css');
-@import url('./css/cta.css');
-@import url('./css/features.css');
-@import url('./css/cards.css');
-@import url('./css/tables.css');
-@import url('./css/forms.css');
-@import url('./css/buttons.css');
-@import url('./css/footer.css');
+/* ── Navigation & Header (legacy wrapper keeps your split) ─ */
+@import url('./css/header-nav.css') layer(components);
 
-/* Media-specific modules */
-@import url('./css/icons.css');
-@import url('./css/logos.css');
-@import url('./css/images.css');
-@import url('./css/video.css');
-@import url('./css/audio.css');
+/* ── Sections / Components ────────────────────────────── */
+@import url('./css/hero.css')      layer(components);
+@import url('./css/cta.css')       layer(components);
+@import url('./css/features.css')  layer(components);
+@import url('./css/cards.css')     layer(components);
+@import url('./css/tables.css')    layer(components);
+@import url('./css/forms.css')     layer(components);
+@import url('./css/buttons.css')   layer(components);
+@import url('./css/footer.css')    layer(components);
 
-/* Page-level */
-@import url('./css/pages.css');
-@import url('./css/inspiration-figures.css'); /* keep last for specificity */
+/* ── Media-specific modules ───────────────────────────── */
+@import url('./css/icons.css')   layer(media);
+@import url('./css/logos.css')   layer(media);
+@import url('./css/images.css')  layer(media);
+@import url('./css/video.css')   layer(media);
+@import url('./css/audio.css')   layer(media);
 
-/* Utilities / Extras */
-@import url('./css/animations.css');
-@import url('./css/design-extras.css');
+/* ── Page-level (keep inspiration-figures last within pages) ─ */
+@import url('./css/pages.css')               layer(pages);
+@import url('./css/inspiration-figures.css') layer(pages);
+
+/* ── Utilities / Extras (strongest precedence) ───────── */
+@import url('./css/animations.css')    layer(utilities);
+@import url('./css/design-extras.css') layer(utilities);
