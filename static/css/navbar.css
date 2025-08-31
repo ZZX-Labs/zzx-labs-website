@@ -1,135 +1,168 @@
-/* ========== NAVBAR ========== */
+/* static/css/navbar.css
+   Primary navigation (components layer)
+   - Uses theme tokens from colors.css
+   - Works with .open class for toggling
+*/
 
-/* Menu Button (hamburger) */
+/* ========== MENU BUTTON (Hamburger) ========== */
 .menu-button {
+    appearance: none;
     background: none;
-    border: none;
+    border: 1px solid transparent;
     font-size: 2rem;
-    color: #d1d1d1;
+    color: var(--text, #d1d1d1);
     cursor: pointer;
-    display: block; /* mobile default */
-    z-index: 1100;  /* above nav */
+    display: block;          /* mobile default */
+    z-index: 1100;           /* above nav sheet */
+    padding: 0.35rem 0.5rem; /* bigger touch target */
+    border-radius: 8px;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+.menu-button:hover {
+    color: var(--accent, #e6a42b);
+    background: var(--surface-2, #3e3e3e);
+    border-color: var(--line-soft, #3a3a3a);
+}
+.menu-button:active { transform: translateY(1px); }
+.menu-button:focus-visible {
+    outline: 2px solid var(--accent, #e6a42b);
+    outline-offset: 2px;
 }
 
 /* Hide menu button on Desktop (>= 769px) */
 @media (min-width: 769px) {
-    .menu-button {
-        display: none; /* corrected: hide on desktop */
-    }
+    .menu-button { display: none; }
 }
 
-/* Navbar List Container (mobile default: hidden) */
+/* ========== NAV LIST (mobile drawer by default) ========== */
 .nav-links {
     list-style: none;
-    display: none; /* initially hidden until .open */
+    display: none; /* shown when .open */
     flex-direction: column;
     align-items: center;
-    background-color: #111;
+    background-color: var(--nav-bg, #111);
+    color: var(--nav-fg, var(--text, #d1d1d1));
     width: 100%;
     padding: 1rem 0;
     gap: 1rem;
-    transition: all 0.3s ease-in-out;
-    max-height: 90vh;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    max-height: 0;
+    opacity: 0;
     overflow-y: auto;
     margin: 1rem 0;
+    border: 1px solid var(--line-soft, #3a3a3a);
+    border-radius: 10px;
 }
-
 .nav-links.open {
     display: flex;
+    max-height: 90vh;
+    opacity: 1;
 }
 
-/* Navbar Items */
+/* Items */
 .nav-links li {
     width: 100%;
     text-align: center;
 }
 
-/* Navbar Links */
+/* Links */
 .nav-links a {
-    color: #d1d1d1;
+    color: var(--text, #d1d1d1);
     text-decoration: none;
     font-size: 1rem;
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1rem;
     display: inline-block;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
-
 .nav-links a:hover {
-    background-color: #e6a42b;
+    background-color: var(--accent, #e6a42b);
     color: #000;
-    border-radius: 4px;
+}
+.nav-links a:focus-visible {
+    outline: 2px solid var(--accent, #e6a42b);
+    outline-offset: 2px;
 }
 
-/* ======== SUBMENU (Dropdowns) ======== */
+/* ========== SUBMENU (Dropdowns) ========== */
 .submenu {
-    display: none;
+    display: none; /* shown when .open */
     flex-direction: column;
     gap: 0.5rem;
-    padding-left: 1.5rem;
+    padding-left: 1.25rem;
     margin-top: 0.5rem;
-    background-color: #1a1a1a;
-    border-radius: 4px;
-    transition: all 0.3s ease;
+    background-color: var(--surface-3, #1a1a1a);
+    border: 1px solid var(--line-soft, #3a3a3a);
+    border-radius: 8px;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    max-height: 0;
+    opacity: 0;
 }
-
 .submenu.open {
     display: flex;
+    max-height: 60vh;
+    opacity: 1;
 }
-
-.submenu li {
-    width: 100%;
-}
+.submenu li { width: 100%; }
 
 .submenu a {
-    font-size: 0.9rem;
-    color: #b5b5b5;
-    padding: 0.4rem 0.8rem;
+    font-size: 0.95rem;
+    color: var(--text-weak, #b5b5b5);
+    padding: 0.45rem 0.8rem;
     display: inline-block;
-    transition: color 0.3s ease, background-color 0.3s ease;
+    border-radius: 6px;
+    transition: color 0.2s ease, background-color 0.2s ease;
 }
-
 .submenu a:hover {
-    background-color: #e6a42b;
+    background-color: var(--accent, #e6a42b);
     color: #000;
-    border-radius: 4px;
 }
 
-/* Submenu Header Wrapper (Anchor + ▼ Button) */
+/* Header wrapper (anchor + caret) */
 .submenu-header {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     cursor: pointer;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+}
+.submenu-header:focus-visible {
+    outline: 2px solid var(--accent, #e6a42b);
+    outline-offset: 2px;
 }
 
-/* ▼ Submenu Toggle Button */
+/* Caret */
 .submenu-toggle {
+    appearance: none;
     background: none;
     border: none;
     font-size: 1rem;
-    color: #d1d1d1;
-    margin-left: 0.5rem;
+    color: var(--text, #d1d1d1);
+    margin-left: 0.25rem;
     cursor: pointer;
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease, color 0.2s ease;
 }
+.submenu-toggle:hover { color: var(--accent, #e6a42b); }
+.submenu-toggle.open { transform: rotate(180deg); } /* ▲ */
 
-.submenu-toggle.open {
-    transform: rotate(180deg); /* ▲ */
-}
-
-/* ======== DESKTOP LAYOUT ======== */
+/* ========== DESKTOP LAYOUT ======== */
 @media (min-width: 769px) {
     .nav-links {
+        display: flex;          /* always visible on desktop */
         flex-direction: row;
         flex-wrap: wrap;
         justify-content: center;
         align-items: center;
-        padding: 1rem 0;
-        background-color: #111;
+        padding: 0.75rem 0;
+        background-color: var(--nav-bg, #111);
         gap: 1rem 2rem;
-        display: flex; /* ensure visible on desktop */
-        margin: 0;     /* align tighter in header row */
+        margin: 0;
+        border: 0;              /* rely on header/container borders */
+        border-radius: 0;
+        max-height: none;
+        opacity: 1;
     }
 
     .nav-links li {
@@ -143,5 +176,17 @@
     .submenu {
         padding-left: 0;
         margin-top: 0.25rem;
+        border-radius: 8px;
+    }
+}
+
+/* ========== REDUCED MOTION ======== */
+@media (prefers-reduced-motion: reduce) {
+    .menu-button,
+    .nav-links a,
+    .submenu,
+    .submenu-toggle {
+        transition: none !important;
+        transform: none !important;
     }
 }
