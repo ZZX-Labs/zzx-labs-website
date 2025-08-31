@@ -1,3 +1,8 @@
+/* static/css/base.css
+   Global Reset + HTML/BODY defaults + core typography
+   Loaded early (base layer) via styles.css
+*/
+
 /* ========== GLOBAL RESET ========== */
 *,
 *::before,
@@ -16,22 +21,28 @@ html, body {
     color: #d1d1d1;
     line-height: 1.6;
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased; /* improve font rendering */
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Prevent horizontal scroll */
 body {
     overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* ========== FONT IMPORTS ========== */
 @font-face {
     font-family: 'Adult Swim Font';
-    src: url('static/fonts/Adult-Swim-Font.ttf') format('truetype');
+    src: url('../fonts/Adult-Swim-Font.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
+    font-display: swap; /* improve performance */
 }
 
-/* ========== HEADINGS ========== */
+/* ========== TYPOGRAPHY ========== */
+
+/* Headings */
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
     color: #c0d674;
@@ -39,12 +50,22 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.2;
 }
 
-/* Special Style for Main Page h1 */
 h1 {
     font-size: 3rem;
+    font-weight: 600;
 }
 
-/* Default Paragraphs */
+h2 {
+    font-size: 2.25rem;
+    font-weight: 600;
+}
+
+h3 {
+    font-size: 1.75rem;
+    font-weight: 500;
+}
+
+/* Paragraphs */
 p {
     font-family: 'IBM Plex Mono', monospace;
     color: #c0d674;
