@@ -1,1 +1,158 @@
+/* static/css/images.css
+   Global image styling (media layer)
+   - Responsive defaults
+   - Figure/caption patterns
+   - Aspect-ratio utilities
+   - Grids, frames, hover zoom, placeholders
+*/
 
+/* ========== GLOBAL IMAGE BASELINE ========== */
+img {
+  max-inline-size: 100%;
+  block-size: auto;
+  display: block;
+  vertical-align: middle;
+  image-rendering: auto; /* keep photos smooth */
+}
+
+/* Respect container rounding/clipping when needed */
+.img-cover,
+.object-cover { object-fit: cover; width: 100%; height: 100%; }
+.img-contain,
+.object-contain { object-fit: contain; width: 100%; height: 100%; }
+
+/* ========== FIGURE & CAPTION ========== */
+figure {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+figcaption {
+  font: 500 0.9rem var(--font-body, 'IBM Plex Mono', monospace);
+  color: var(--text-mute, #9a9a9a);
+  text-align: center;
+}
+
+/* ========== IMAGE WRAPPERS ========== */
+.img,
+.image {
+  background: var(--surface-3, #111);
+  border: 1px solid var(--line-soft, #3e3e3e);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Subtle shadow option */
+.image-shadow { box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+
+/* Frame variants */
+.image-frame { border: 1px solid var(--line, #505050); }
+.image-outline { outline: 2px solid var(--accent, #e6a42b); outline-offset: 2px; }
+
+/* ========== HOVER & INTERACTION ========== */
+.image-zoom {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  will-change: transform;
+}
+.image-zoom:hover { transform: scale(1.025); }
+
+.image-elevate { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.image-elevate:hover { transform: translateY(-4px); box-shadow: 0 10px 28px rgba(0,0,0,0.45); }
+
+/* Clickable/lightbox affordance */
+.image-clickable { cursor: zoom-in; }
+.image-clickable:active { cursor: zoom-out; }
+
+/* ========== ASPECT-RATIO HELPERS ========== */
+.ratio {
+  position: relative;
+  inline-size: 100%;
+  overflow: hidden;
+  background: var(--surface-3, #111);
+  border-radius: 8px;
+}
+.ratio > img, .ratio > video, .ratio > iframe, .ratio > .object {
+  position: absolute; inset: 0;
+  inline-size: 100%; block-size: 100%;
+  object-fit: cover;
+}
+
+/* Common ratios */
+.ratio-1x1   { aspect-ratio: 1 / 1; }
+.ratio-4x3   { aspect-ratio: 4 / 3; }
+.ratio-3x2   { aspect-ratio: 3 / 2; }
+.ratio-16x9  { aspect-ratio: 16 / 9; }
+.ratio-21x9  { aspect-ratio: 21 / 9; }
+.ratio-gold  { aspect-ratio: 1.618 / 1; }
+
+/* ========== RADIUS & BORDERS ========== */
+.rounded-sm { border-radius: 6px; overflow: hidden; }
+.rounded    { border-radius: 10px; overflow: hidden; }
+.rounded-lg { border-radius: 14px; overflow: hidden; }
+.rounded-xl { border-radius: 20px; overflow: hidden; }
+.rounded-full { border-radius: 999px; overflow: hidden; }
+
+.border      { border: 1px solid var(--line, #3e3e3e); }
+.border-soft { border: 1px solid var(--line-soft, #2e2e2e); }
+.border-amber{ border: 1px solid var(--brand-amber, #e6a42b); }
+.border-green{ border: 1px solid var(--brand-green, #c0d674); }
+
+/* ========== PLACEHOLDERS (lazy-loading) ========== */
+.img-ph,
+.image-placeholder {
+  background: linear-gradient(110deg, #0000 0%, rgba(255,255,255,0.06) 20%, #0000 40%), var(--surface-3, #111);
+  background-size: 200% 100%, cover;
+  animation: imgShimmer 1.2s linear infinite;
+  border-radius: 8px;
+  min-block-size: 160px;
+}
+@keyframes imgShimmer { to { background-position: -200% 0, center; } }
+
+/* Blur-up technique (when using JS to swap) */
+.blur-up { filter: blur(8px); transition: filter 0.4s ease; }
+.blur-up.is-loaded { filter: blur(0); }
+
+/* ========== GRIDS & GALLERIES ========== */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 1rem;
+}
+@media (max-width: 992px) { .image-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 640px) { .image-grid { grid-template-columns: 1fr; } }
+
+/* Masonry-like (rows of varying height) using dense packing */
+.image-grid.dense { grid-auto-flow: dense; }
+.image-span-2 { grid-column: span 2; }
+.image-row-2  { grid-row: span 2; }
+
+/* ========== ALIGNMENT UTILS ========== */
+.img-center { margin-inline: auto; }
+.img-left   { margin-inline-end: auto; }
+.img-right  { margin-inline-start: auto; }
+
+/* ========== CAPTION STYLES (alt/credit) ========== */
+.caption,
+.img-credit {
+  font: 500 0.85rem var(--font-body, 'IBM Plex Mono', monospace);
+  color: var(--text-mute, #9a9a9a);
+  text-align: center;
+  margin-top: 0.4rem;
+}
+.caption a { color: inherit; text-decoration: underline; }
+
+/* ========== RESPONSIVE TWEAKS ========== */
+@media (max-width: 768px) {
+  figcaption { font-size: 0.85rem; }
+}
+
+/* ========== REDUCED MOTION ========== */
+@media (prefers-reduced-motion: reduce) {
+  .image-zoom, .image-elevate { transition: none; transform: none !important; }
+  .img-ph, .image-placeholder { animation: none; }
+}
+
+/* ========== HIGH CONTRAST (opt-in) ========== */
+.image-contrast .image,
+.image-contrast .img { border-color: var(--accent, #e6a42b); }
