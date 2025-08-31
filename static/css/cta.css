@@ -1,4 +1,8 @@
-/* ========== CTA (Call-to-Action) SECTION ========== */
+/* static/css/cta.css
+   Call-to-Action (CTA) Section
+   Loaded in components layer
+*/
+
 .cta {
     width: 100%;
     min-height: 50vh;
@@ -12,18 +16,22 @@
     box-sizing: border-box;
 }
 
+/* Headline */
 .cta h2 {
     font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
     font-size: 2.5rem;
     color: #e6a42b;
     margin-bottom: 1rem;
+    line-height: 1.2;
 }
 
+/* Supporting Text */
 .cta p {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1.2rem;
     color: #c0d674;
     margin-bottom: 2rem;
+    max-width: 700px;   /* prevents super-wide text */
 }
 
 /* CTA Button */
@@ -34,16 +42,22 @@
     border-radius: 4px;
     text-decoration: none;
     font-size: 1rem;
-    transition: background-color 0.3s ease;
+    font-weight: 600;
+    display: inline-block;
+    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 .cta .btn:hover {
     background-color: #c0d674;
     color: #000;
+    transform: translateY(-2px); /* subtle lift */
 }
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
+    .cta {
+        padding: 2rem 1rem;
+    }
     .cta h2 { font-size: 2rem; }
     .cta p  { font-size: 1rem; }
 }
