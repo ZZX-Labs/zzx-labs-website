@@ -1,32 +1,109 @@
-/* ========== BUTTONS ========== */
+/* static/css/buttons.css
+   Shared button styles
+   Loaded in components layer
+*/
+
+/* ========== BASE BUTTON ========== */
 .btn {
     display: inline-block;
-    background-color: #e6a42b;
+    appearance: none;
+    background-color: #e6a42b;  /* primary amber */
     color: #000;
     padding: 0.75rem 1.5rem;
-    border-radius: 4px;
+    border-radius: 6px;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1rem;
-    font-weight: bold;
+    font-weight: 600;
     text-decoration: none;
     text-align: center;
     cursor: pointer;
-    border: none;
-    transition: background-color 0.3s ease, transform 0.3s ease;
+    border: 1px solid transparent;
+    transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
 }
 
-/* Hover Effect */
+/* Hover / Focus */
 .btn:hover {
     background-color: #c0d674;
     color: #000;
-    transform: scale(1.05);
+    transform: translateY(-2px);
+}
+.btn:focus-visible {
+    outline: 2px solid #c0d674;
+    outline-offset: 2px;
 }
 
-/* Button Variants */
+/* Disabled state */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Active click */
+.btn:active {
+    transform: translateY(0);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
+}
+
+/* ========== VARIANTS ========== */
+
+/* Secondary */
 .btn-secondary {
-    background-color: #c0d674;
+    background-color: #c0d674; /* green accent */
     color: #000;
 }
 .btn-secondary:hover {
     background-color: #e6a42b;
+    color: #000;
+}
+
+/* Outline */
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid #e6a42b;
+    color: #e6a42b;
+}
+.btn-outline:hover {
+    background-color: #e6a42b;
+    color: #000;
+}
+
+/* Ghost (text only) */
+.btn-ghost {
+    background-color: transparent;
+    border: none;
+    color: #c0d674;
+}
+.btn-ghost:hover {
+    color: #e6a42b;
+    text-decoration: underline;
+}
+
+/* Danger */
+.btn-danger {
+    background-color: #a72626;
+    color: #fff;
+}
+.btn-danger:hover {
+    background-color: #e63946;
+}
+
+/* ========== SIZE MODIFIERS ========== */
+.btn-sm {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+}
+.btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1.25rem;
+}
+
+/* ========== Reduced Motion ========== */
+@media (prefers-reduced-motion: reduce) {
+    .btn {
+        transition: none;
+        transform: none !important;
+    }
 }
