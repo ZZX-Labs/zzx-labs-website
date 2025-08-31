@@ -1,1 +1,426 @@
+/* static/css/audio.css
+   Audio players, live streams, playlists, and media content styling
+   Loaded in the “media” layer via styles.css
 
+   Color variables (optional):
+   --bg         : background base
+   --text       : base text color
+   --accent     : primary brand accent
+   --accent-2   : secondary accent
+   --muted      : muted text
+   --surface    : card surface
+   --surface-2  : subtle surface (borders, rails)
+*/
+
+:root {
+    --bg:        #282828;
+    --text:      #d1d1d1;
+    --accent:    #e6a42b; /* amber */
+    --accent-2:  #c0d674; /* green */
+    --muted:     #a7a7a7;
+    --surface:   #1f1f1f;
+    --surface-2: #3a3a3a;
+}
+
+/* ========== Native <audio> baseline ========== */
+audio {
+    width: 100%;
+    height: 40px; /* let UA decide inside */
+    outline: none;
+    background: var(--surface);
+    border: 1px solid var(--surface-2);
+    border-radius: 8px;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.25) inset;
+    margin: 0.5rem 0 1rem;
+}
+
+/* Improve focus ring on native controls */
+audio:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ========== Custom Player Shell ========== */
+.audio-player {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--surface-2);
+    border-radius: 12px;
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "thumb meta meta"
+        "thumb controls extra";
+    gap: 0.75rem 1rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+
+/* Thumbnail / Artwork (optional) */
+.audio-thumb {
+    grid-area: thumb;
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background: #121212;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--surface-2);
+}
+
+/* Metadata */
+.audio-meta {
+    grid-area: meta;
+    display: grid;
+    gap: 0.25rem;
+}
+.audio-title {
+    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    color: var(--accent-2);
+    line-height: 1.2;
+}
+.audio-subtitle,
+.audio-artist,
+.audio-album {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+/* Controls row */
+.audio-controls {
+    grid-area: controls;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas: "transport progress time volume";
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Transport: play/pause, prev, next */
+.audio-transport {
+    grid-area: transport;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.audio-btn {
+    appearance: none;
+    background: #0000;
+    border: 1px solid var(--surface-2);
+    color: var(--text);
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    font: 600 0.95rem 'IBM Plex Mono', monospace;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+.audio-btn:hover {
+    background: var(--surface-2);
+    color: var(--accent);
+}
+.audio-btn:active {
+    transform: translateY(1px);
+}
+.audio-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Prominent play/pause */
+.audio-btn.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+}
+.audio-btn.primary:hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2);
+}
+
+/* Progress rail */
+.audio-progress {
+    grid-area: progress;
+    display: grid;
+    gap: 0.25rem;
+    align-items: center;
+}
+.audio-rail {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: #0f0f0f;
+    border: 1px solid var(--surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.audio-rail .audio-buffered {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%; /* set via inline style if using JS; otherwise leave */
+    background: linear-gradient(90deg, #2a2a2a, #3a3a3a);
+}
+.audio-rail .audio-played {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%; /* set via inline style if using JS */
+    background: var(--accent);
+}
+
+/* Time labels */
+.audio-time {
+    grid-area: time;
+    display: inline-flex;
+    gap: 0.5rem;
+    font: 500 0.8rem 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    min-width: 100px;
+    justify-content: flex-end;
+}
+
+/* Volume */
+.audio-volume {
+    grid-area: volume;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.audio-volume .audio-volume-rail {
+    width: 90px;
+    height: 6px;
+    background: #0f0f0f;
+    border: 1px solid var(--surface-2);
+    border-radius: 999px;
+    position: relative;
+    overflow: hidden;
+}
+.audio-volume .audio-volume-level {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 50%; /* placeholder */
+    background: var(--accent-2);
+}
+
+/* Extra column (download, share, bitrate, etc.) */
+.audio-extra {
+    grid-area: extra;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.audio-extra a,
+.audio-extra button {
+    font: 500 0.85rem 'IBM Plex Mono', monospace;
+    color: var(--accent-2);
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0.2rem 0.4rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.audio-extra a:hover,
+.audio-extra button:hover {
+    color: #000;
+    background: var(--accent);
+}
+.audio-extra a:focus-visible,
+.audio-extra button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ========== Live Stream Badges & States ========== */
+.audio-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.5rem;
+    background: #9b2226; /* deep red */
+    color: #fff;
+    font: 700 0.75rem 'IBM Plex Mono', monospace;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.audio-live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ff4d4f;
+    box-shadow: 0 0 0 0 rgba(255,77,79,0.8);
+    animation: livePulse 1.4s ease-out infinite;
+}
+@keyframes livePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255,77,79,0.8); }
+    70%  { box-shadow: 0 0 0 8px rgba(255,77,79,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,77,79,0); }
+}
+
+/* Buffering / loading shimmer (optional utility) */
+.audio-buffering {
+    position: relative;
+    overflow: hidden;
+}
+.audio-buffering::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, #0000 0%, rgba(255,255,255,0.06) 20%, #0000 40%);
+    transform: translateX(-100%);
+    animation: shimmer 1.2s linear infinite;
+}
+@keyframes shimmer {
+    100% { transform: translateX(100%); }
+}
+
+/* ========== Playlist ========== */
+.audio-playlist {
+    margin-top: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--surface-2);
+    border-radius: 12px;
+    overflow: clip;
+}
+.audio-playlist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #151515;
+    border-bottom: 1px solid var(--surface-2);
+    font: 600 0.95rem 'IBM Plex Mono', monospace;
+    color: var(--accent);
+}
+.audio-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.audio-track {
+    display: grid;
+    grid-template-columns: 2ch 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    color: var(--text);
+    border-bottom: 1px dotted #2a2a2a;
+}
+.audio-track:last-child { border-bottom: none; }
+.audio-track:hover {
+    background: #202020;
+}
+.audio-track.is-active {
+    background: #111;
+    color: var(--accent-2);
+}
+.audio-track-index {
+    text-align: right;
+    color: var(--muted);
+    font: 600 0.9rem 'IBM Plex Mono', monospace;
+}
+.audio-track-title {
+    font: 500 0.95rem 'IBM Plex Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.audio-track-duration {
+    font: 500 0.85rem 'IBM Plex Mono', monospace;
+    color: var(--muted);
+}
+
+/* ========== Waveform / Visualizer placeholder ========== */
+.audio-visualizer {
+    width: 100%;
+    height: 64px;
+    background: #121212;
+    border: 1px solid var(--surface-2);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Minimal EQ bars (decorative) */
+.audio-eq {
+    --bars: 12;
+    display: grid;
+    grid-template-columns: repeat(var(--bars), 1fr);
+    align-items: end;
+    gap: 6px;
+    width: 100%;
+    height: 48px;
+    padding: 8px;
+}
+.audio-eq i {
+    display: block;
+    width: 100%;
+    height: 25%;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    border-radius: 4px 4px 0 0;
+    animation: eqBeat 1.2s ease-in-out infinite;
+}
+.audio-eq i:nth-child(odd)  { animation-duration: 1s; }
+.audio-eq i:nth-child(3n)   { animation-duration: 1.4s; }
+@keyframes eqBeat {
+    0%,100% { height: 20%; }
+    50%     { height: 85%; }
+}
+
+/* ========== Cards & Embeds ========== */
+.audio-card {
+    background: var(--surface);
+    border: 1px solid var(--surface-2);
+    border-radius: 12px;
+    padding: 1rem;
+}
+.audio-embed {
+    aspect-ratio: 16 / 9;
+    background: #111;
+    border: 1px solid var(--surface-2);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+    .audio-player {
+        grid-template-columns: 48px 1fr;
+        grid-template-areas:
+            "thumb meta"
+            "controls controls"
+            "extra extra";
+    }
+    .audio-time { justify-content: start; }
+    .audio-volume .audio-volume-rail { width: 72px; }
+}
+
+/* ========== Accessibility & Motion ========== */
+.audio-btn:disabled,
+.audio-btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .audio-btn,
+    .audio-live-dot,
+    .audio-buffering::after,
+    .audio-eq i {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* High-contrast quick tweak (opt-in on container) */
+.audio-contrast .audio-player,
+.audio-contrast .audio-card {
+    border-color: var(--accent);
+}
+.audio-contrast .audio-rail,
+.audio-contrast .audio-volume-rail {
+    border-color: var(--accent);
+}
