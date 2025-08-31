@@ -1,1 +1,248 @@
+/* static/css/media.css
+   Unified media styling: audio, video, streams, embeds
+   Loaded in layout layer (shared primitives) or media layer (if you prefer)
+   - Plays nicely with audio.css / video.css / images.css
+*/
 
+/* ========== ROOT MEDIA WRAPPERS ========== */
+.media {
+  background: var(--surface, #262626);
+  color: var(--text, #d1d1d1);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.media-card {
+  background: var(--surface, #262626);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 12px;
+  box-shadow: 0 6px 16px var(--elev-1, rgba(0,0,0,0.2));
+  overflow: clip;
+}
+
+.media-header,
+.media-footer {
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--line-soft, #3a3a3a);
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.media-footer { border-block-start: 1px solid var(--line-soft, #3a3a3a); border-block-end: 0; }
+
+/* ========== NATIVE ELEMENT BASELINES ========== */
+audio,
+video {
+  display: block;
+  inline-size: 100%;
+  background: var(--surface-3, #111);
+  outline: none;
+  border: 0;
+  border-radius: 8px;
+}
+
+audio:focus-visible,
+video:focus-visible {
+  outline: 2px solid var(--accent, #e6a42b);
+  outline-offset: 2px;
+}
+
+/* ========== RESPONSIVE EMBEDS (YouTube/Twitch/etc.) ========== */
+.embed,
+.media-embed {
+  position: relative;
+  inline-size: 100%;
+  overflow: hidden;
+  background: var(--surface-3, #111);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 12px;
+}
+.embed > iframe,
+.media-embed > iframe,
+.media-embed > video {
+  position: absolute; inset: 0;
+  inline-size: 100%; block-size: 100%;
+  border: 0;
+  display: block;
+  background: transparent;
+}
+
+/* Aspect presets */
+.embed-16x9  { aspect-ratio: 16 / 9; }
+.embed-4x3   { aspect-ratio: 4 / 3; }
+.embed-1x1   { aspect-ratio: 1 / 1; }
+.embed-21x9  { aspect-ratio: 21 / 9; }
+.embed-gold  { aspect-ratio: 1.618 / 1; }
+
+/* ========== STREAM STATES & BADGES ========== */
+.badge,
+.media-badge {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font: 700 0.75rem var(--font-body, 'IBM Plex Mono', monospace);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  background: var(--surface-2, #3e3e3e); color: var(--text, #d1d1d1);
+  border: 1px solid var(--line-soft, #3a3a3a);
+}
+.badge-live {
+  background: #9b2226; color: #fff; border-color: #9b2226;
+}
+.badge-live .dot {
+  inline-size: 8px; block-size: 8px; border-radius: 50%;
+  background: #ff4d4f; box-shadow: 0 0 0 0 rgba(255,77,79,0.8);
+  animation: livePulse 1.4s ease-out infinite;
+}
+@keyframes livePulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,77,79,0.8); }
+  70%{ box-shadow: 0 0 0 8px rgba(255,77,79,0); }
+  100%{ box-shadow: 0 0 0 0 rgba(255,77,79,0); }
+}
+
+/* Scheduled / offline variants */
+.badge-offline  { background: var(--surface-2); color: var(--text-mute, #9a9a9a); }
+.badge-upcoming { background: var(--brand-amber, #e6a42b); color: #000; }
+
+/* ========== TIMELINE / RAILS (shared look for audio/video) ========== */
+.media-rail {
+  position: relative;
+  inline-size: 100%;
+  block-size: 8px;
+  background: #0f0f0f;
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.media-rail .media-buffered {
+  position: absolute; inset-block: 0; inset-inline-start: 0;
+  inline-size: 0%;
+  background: linear-gradient(90deg, #2a2a2a, #3a3a3a);
+}
+.media-rail .media-played {
+  position: absolute; inset-block: 0; inset-inline-start: 0;
+  inline-size: 0%;
+  background: var(--accent, #e6a42b);
+}
+
+/* Volume rail (thin) */
+.media-volume {
+  inline-size: 100px; block-size: 6px;
+  background: #0f0f0f;
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 999px;
+  position: relative; overflow: hidden;
+}
+.media-volume .level {
+  position: absolute; inset-block: 0; inset-inline-start: 0;
+  inline-size: 50%;
+  background: var(--accent-2, #c0d674);
+}
+
+/* ========== MEDIA LAYOUT HELPERS ========== */
+.media-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .media-row--with-sidebar {
+    grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+    gap: 1.25rem;
+  }
+}
+
+/* Title/subtitle/metrics block */
+.media-meta {
+  display: grid; gap: 0.25rem;
+}
+.media-title {
+  font-family: var(--font-display, 'Adult Swim Font', 'IBM Plex Mono', monospace);
+  font-size: clamp(1.1rem, 2.6vw, 1.6rem);
+  color: var(--accent-2, #c0d674);
+  line-height: 1.25;
+}
+.media-subtitle,
+.media-metrics {
+  font: 500 0.9rem var(--font-body, 'IBM Plex Mono', monospace);
+  color: var(--text-mute, #9a9a9a);
+}
+
+/* ========== PLAYLISTS & QUEUES (generic) ========== */
+.media-playlist {
+  background: var(--surface, #262626);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 12px;
+  overflow: clip;
+}
+.media-playlist-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--surface-3, #111);
+  border-bottom: 1px solid var(--line-soft, #3a3a3a);
+  font: 600 0.95rem var(--font-body, 'IBM Plex Mono', monospace);
+  color: var(--accent, #e6a42b);
+}
+.media-list {
+  list-style: none; margin: 0; padding: 0.5rem 0;
+  max-block-size: 360px; overflow-y: auto;
+}
+.media-track {
+  display: grid;
+  grid-template-columns: 2ch 1fr auto;
+  align-items: center; gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  color: var(--text, #d1d1d1);
+  border-bottom: 1px dotted var(--line-soft, #3a3a3a);
+}
+.media-track:last-child { border-bottom: 0; }
+.media-track:hover { background: #202020; }
+.media-track.is-active { background: #111; color: var(--accent-2, #c0d674); }
+.media-track-index { text-align: right; color: var(--text-mute, #9a9a9a); font-weight: 600; }
+.media-track-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-track-duration { color: var(--text-mute, #9a9a9a); font-size: 0.85rem; }
+
+/* ========== CONTROLS (neutral buttons for media UIs) ========== */
+.media-btn {
+  appearance: none; background: transparent; color: var(--text, #d1d1d1);
+  border: 1px solid var(--line-soft, #3a3a3a); border-radius: 8px;
+  padding: 0.4rem 0.6rem; font: 600 0.95rem var(--font-body, 'IBM Plex Mono', monospace);
+  cursor: pointer; transition: background-color 0.2s ease, color 0.2s, border-color 0.2s, transform 0.1s ease;
+}
+.media-btn:hover { background: var(--surface-2, #3e3e3e); color: var(--accent, #e6a42b); }
+.media-btn:active { transform: translateY(1px); }
+.media-btn:focus-visible { outline: 2px solid var(--accent, #e6a42b); outline-offset: 2px; }
+.media-btn.primary { background: var(--accent, #e6a42b); color: #000; border-color: var(--accent, #e6a42b); }
+.media-btn.primary:hover { background: var(--accent-2, #c0d674); border-color: var(--accent-2, #c0d674); }
+
+/* ========== CAPTIONS / CREDIT ========== */
+.media-caption {
+  font: 500 0.9rem var(--font-body, 'IBM Plex Mono', monospace);
+  color: var(--text-mute, #9a9a9a);
+  text-align: center; margin-top: 0.6rem;
+}
+.media-caption a { color: inherit; text-decoration: underline; }
+
+/* ========== SKELETON / BUFFERING ========== */
+.media-buffering {
+  position: relative; overflow: hidden;
+}
+.media-buffering::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(110deg, #0000 0%, rgba(255,255,255,0.06) 20%, #0000 40%);
+  transform: translateX(-100%);
+  animation: shimmer 1.2s linear infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* ========== RESPONSIVE TWEAKS ========== */
+@media (max-width: 768px) {
+  .media-header, .media-footer { padding: 0.6rem 0.75rem; }
+  .media-playlist-header { padding: 0.6rem 0.75rem; }
+  .media-row--with-sidebar { grid-template-columns: 1fr; }
+}
+
+/* ========== REDUCED MOTION ========== */
+@media (prefers-reduced-motion: reduce) {
+  .badge-live .dot { animation: none !important; }
+  .media-buffering::after { animation: none; }
+}
