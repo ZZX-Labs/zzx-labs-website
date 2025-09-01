@@ -1,49 +1,51 @@
-/* docs/staff/materials/style.css */
-
-/* local spacing vars */
-:root { --card-gap: 8px; --item-gap: 3px; }
+/* docs/staff/materials/style.css
+   Scoped styles for Staff Materials index.
+   No :root overrides. No global element rules. Ticker untouched. */
 
 /* ===== Features grid (category cards) — SCOPED ===== */
-section.features {
+main section.features {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
-  gap: var(--card-gap) !important;          /* 8px between cards */
+  gap: 8px !important;                /* 8px between cards */
   margin-top: 1rem !important;
 }
 
-section.features .feature {
+main section.features .feature {
   border: 1px solid rgba(120,130,150,.25) !important;
   border-radius: 10px !important;
   padding: .8rem 1rem !important;
   background: rgba(255,255,255,.02) !important;
 }
 
-section.features .feature > h3 {
+main section.features .feature > h3 {
   margin: 0 0 .5rem 0 !important;
   font-size: 1.05rem !important;
   font-weight: 600 !important;
 }
 
 /* Remove bullets + tighten spacing IN FEATURES ONLY */
-section.features .feature ul,
-section.features .feature ol {
+main section.features .feature ul,
+main section.features .feature ol {
   list-style: none !important;
   margin: 0 !important;
   padding-left: 0 !important;
 }
-section.features .feature li {
+
+main section.features .feature li {
   list-style-type: none !important;
-  margin: var(--item-gap) 0 !important;     /* ~3px between items */
+  margin: 3px 0 !important;           /* ~3px between links */
   padding: 0 !important;
 }
-section.features .feature li > a {
+
+main section.features .feature li > a {
   display: inline-block !important;
   padding: 2px 0 !important;
   text-decoration: none !important;
   border-bottom: 1px dashed rgba(120,130,150,.3) !important;
   transition: color .2s, border-color .2s !important;
 }
-section.features .feature li > a:hover {
+
+main section.features .feature li > a:hover {
   border-bottom-color: currentColor !important;
   color: #e6a42b !important;
 }
@@ -55,7 +57,9 @@ section.features .feature li > a:hover {
   margin: 0 !important;
   padding: 0 !important;
 }
-.footer .footer-links li { margin: var(--item-gap) 0 !important; }
+
+.footer .footer-links li { margin: 3px 0 !important; }
+
 .footer .footer-links a {
   text-decoration: none !important;
   border-bottom: 1px dashed rgba(120,130,150,.3) !important;
@@ -65,5 +69,5 @@ section.features .feature li > a:hover {
 
 /* ===== Responsive ===== */
 @media (max-width: 600px) {
-  section.features { grid-template-columns: 1fr !important; }
+  main section.features { grid-template-columns: 1fr !important; }
 }
