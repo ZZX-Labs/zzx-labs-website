@@ -1,17 +1,16 @@
 /* docs/staff/materials/style.css */
 
-/* Force card gap + item gap */
+/* local spacing vars */
 :root { --card-gap: 8px; --item-gap: 3px; }
 
-/* Features grid */
+/* ===== Features grid (category cards) — SCOPED ===== */
 section.features {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
-  gap: var(--card-gap) !important;   /* 8px between category cards */
+  gap: var(--card-gap) !important;          /* 8px between cards */
   margin-top: 1rem !important;
 }
 
-/* Each card */
 section.features .feature {
   border: 1px solid rgba(120,130,150,.25) !important;
   border-radius: 10px !important;
@@ -19,49 +18,37 @@ section.features .feature {
   background: rgba(255,255,255,.02) !important;
 }
 
-/* Headings */
-section.features .feature h3 {
+section.features .feature > h3 {
   margin: 0 0 .5rem 0 !important;
   font-size: 1.05rem !important;
   font-weight: 600 !important;
 }
 
-/* Remove bullets + spacing inside cards */
+/* Remove bullets + tighten spacing IN FEATURES ONLY */
 section.features .feature ul,
 section.features .feature ol {
   list-style: none !important;
   margin: 0 !important;
   padding-left: 0 !important;
 }
-
 section.features .feature li {
   list-style-type: none !important;
-  margin: var(--item-gap) 0 !important; /* 3px between links */
+  margin: var(--item-gap) 0 !important;     /* ~3px between items */
   padding: 0 !important;
 }
-
-/* Links */
-section.features .feature li a {
+section.features .feature li > a {
   display: inline-block !important;
   padding: 2px 0 !important;
   text-decoration: none !important;
   border-bottom: 1px dashed rgba(120,130,150,.3) !important;
   transition: color .2s, border-color .2s !important;
 }
-section.features .feature li a:hover {
+section.features .feature li > a:hover {
   border-bottom-color: currentColor !important;
   color: #e6a42b !important;
 }
 
-/* Ticker polish (optional) */
-#ticker-container {
-  border: 1px solid rgba(120,130,150,.25) !important;
-  border-radius: 10px !important;
-  padding: .5rem .75rem !important;
-  background: rgba(255,255,255,.02) !important;
-}
-
-/* Footer lists: no bullets too */
+/* ===== Footer lists — bulletless, light spacing ===== */
 .footer .footer-links,
 .footer .footer-links li {
   list-style: none !important;
@@ -76,7 +63,7 @@ section.features .feature li a:hover {
   padding: 2px 0 !important;
 }
 
-/* Responsive */
+/* ===== Responsive ===== */
 @media (max-width: 600px) {
   section.features { grid-template-columns: 1fr !important; }
 }
