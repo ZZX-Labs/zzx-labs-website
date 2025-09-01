@@ -1,1 +1,99 @@
+/* docs/style.css
+   Page-local for /docs/index.html
+   - Bulletless lists (cards + footer + any TOC)
+   - 8px gaps between feature cards; ~3px between list items
+   - Works with your global static/css/features.css but doesn't require .features-grid
+   - No :root overrides, no global element resets, no ticker selectors
+*/
 
+/* ===== Make .features a grid on this page (no .features-grid wrapper needed) ===== */
+body main section.features {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 8px !important;                 /* 8px between cards */
+  margin-top: 1rem !important;         /* keep global section padding intact */
+}
+
+/* Keep global card visuals; only minor padding tweak if desired */
+body main section.features .feature {
+  /* If you prefer the global 2rem padding, remove the next line */
+  padding: 1.25rem !important;
+}
+
+/* ===== Bulletless, tight spacing inside cards ===== */
+/* Your markup uses <li> directly inside .feature (not wrapped by <ul>),
+   so handle both "li" and "ul/ol > li" cases. */
+body main section.features .feature ul,
+body main section.features .feature ol {
+  list-style: none !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+body main section.features .feature li,
+body main section.features .feature > li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;            /* ~3px between links */
+  padding: 0 !important;
+}
+body main section.features .feature li::marker,
+body main section.features .feature > li::marker {
+  content: "" !important;
+}
+
+/* Links inside card lists */
+body main section.features .feature li > a,
+body main section.features .feature > li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.features .feature li > a:hover,
+body main section.features .feature > li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: var(--accent, #e6a42b) !important;
+}
+
+/* ===== Generic bulletless list pattern for any doc TOCs on this page ===== */
+body main section.container h2 + ul {
+  list-style: none !important;
+  margin: .5rem 0 0 0 !important;
+  padding-left: 0 !important;
+}
+body main section.container h2 + ul > li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;
+  padding: 0 !important;
+}
+body main section.container h2 + ul > li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.container h2 + ul > li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: var(--accent, #e6a42b) !important;
+}
+
+/* ===== Footer lists only (bulletless, light spacing) ===== */
+body .footer .footer-links,
+body .footer .footer-links li {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body .footer .footer-links li { margin: 3px 0 !important; }
+body .footer .footer-links a {
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  display: inline-block !important;
+  padding: 2px 0 !important;
+}
+
+/* ===== Small screens ===== */
+@media (max-width: 600px) {
+  body main section.features { grid-template-columns: 1fr !important; }
+}
