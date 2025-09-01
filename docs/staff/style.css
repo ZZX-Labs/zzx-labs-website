@@ -1,44 +1,42 @@
 /* docs/staff/style.css
-   Scoped to Staff index:
-   - Bulletless lists in the features grid, Staff Index TOC, and footer
-   - 8px gaps between feature “cards”; ~3px between list items
-   - No :root overrides, no global element resets, no ticker selectors
+   Page-local for /docs/staff/index.html
+   - Works alongside static/css/features.css
+   - No :root vars, no global element resets, no ticker selectors
 */
 
-/* ===== Features grid (cards) ===== */
+/* ===== Make .features a grid ON THIS PAGE (no .features-grid wrapper) ===== */
 body main section.features {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
-  gap: 8px !important;                 /* 8px between cards */
-  margin-top: 1rem !important;
+  gap: 8px !important;                  /* 8px between cards */
+  /* Keep the global section padding from static/css/features.css unless you want less: */
+  /* padding: 1rem !important;  */
 }
 
+/* Keep the global card visuals; only add light constraints needed here */
 body main section.features .feature {
-  border: 1px solid rgba(120,130,150,.25) !important;
-  border-radius: 10px !important;
-  padding: .8rem 1rem !important;
-  background: rgba(255,255,255,.02) !important;
+  /* Do NOT change colors, shadows, or text-align from your global features.css */
+  /* Just ensure inner spacing is OK if your card copy is longer */
+  padding: 1.25rem !important;          /* a hair smaller than 2rem if desired; remove if not */
 }
 
-body main section.features .feature > h3 {
-  margin: 0 0 .5rem 0 !important;
-  font-size: 1.05rem !important;
-  font-weight: 600 !important;
-}
-
-/* Bulletless + tight spacing inside features only */
+/* ===== Bulletless lists inside the cards ===== */
 body main section.features .feature ul,
 body main section.features .feature ol {
   list-style: none !important;
   margin: 0 !important;
   padding-left: 0 !important;
 }
+
 body main section.features .feature li::marker { content: "" !important; }
+
 body main section.features .feature li {
   list-style-type: none !important;
-  margin: 3px 0 !important;            /* ~3px between links */
+  margin: 3px 0 !important;             /* ~3px between items */
   padding: 0 !important;
 }
+
+/* Keep your global link colors; add light affordance without fighting globals */
 body main section.features .feature li > a {
   display: inline-block !important;
   padding: 2px 0 !important;
@@ -48,12 +46,10 @@ body main section.features .feature li > a {
 }
 body main section.features .feature li > a:hover {
   border-bottom-color: currentColor !important;
-  color: #e6a42b !important;
+  color: var(--accent, #e6a42b) !important;
 }
 
-/* ===== Staff Index (TOC) list directly under its <h2> =====
-   Targets the <ul> that immediately follows the “Staff Index” <h2>,
-   leaving other container lists alone. */
+/* ===== Staff Index TOC (the UL directly after its H2) ===== */
 body main section.container h2 + ul {
   list-style: none !important;
   margin: .5rem 0 0 0 !important;
@@ -73,10 +69,10 @@ body main section.container h2 + ul > li > a {
 }
 body main section.container h2 + ul > li > a:hover {
   border-bottom-color: currentColor !important;
-  color: #e6a42b !important;
+  color: var(--accent, #e6a42b) !important;
 }
 
-/* ===== Footer lists (bulletless, light spacing) ===== */
+/* ===== Footer lists only (bulletless, light spacing) ===== */
 body .footer .footer-links,
 body .footer .footer-links li {
   list-style: none !important;
