@@ -21,9 +21,9 @@
       <button class="menu-button" id="navbar-toggle">☰</button>
       <ul class="nav-links" id="navbar-links">
         <li><a href="../../..">Home</a></li>
+        <li><a href="../../../docs">Docs</a></li>
         <li><a href="../../">Staff</a></li>
         <li><a href="../">Materials</a></li>
-        <li><a href="../../../docs">Docs</a></li>
       </ul>
     </nav>
   </div>
@@ -59,8 +59,8 @@
         <li><a href="./finance-resources/">Finance</a></li>
         <li><a href="./banking-resources/">Banking</a></li>
         <li><a href="./taxation-resources/">Taxation</a></li>
-        <li><a href="./law-legal-resources/">Law/Legal</a></li>
-        <li><a href="./geopolitics-resources/">Geopolitics</a></li>
+        <li><a href="./legal-resources/">Legal</a></li>
+        <li><a href="./geopolitic-resources/">Geopolitic</a></li>
       </ul>
     </div>
 
@@ -68,7 +68,7 @@
       <h3>Technology & R&amp;D</h3>
       <ul>
         <li><a href="./technology-resources/">Technology</a></li>
-        <li><a href="./research-development-resources/">Research &amp; Development</a></li>
+        <li><a href="./r-and-d-resources/">Research &amp; Development</a></li>
       </ul>
     </div>
 
@@ -91,6 +91,7 @@
     <div class="feature">
       <h3>Development</h3>
       <ul>
+        <li><a href="./development-resources/">Development</a></li>
         <li><a href="./web-development-resources/">Web Development</a></li>
         <li><a href="./software-development-resources/">Software Development</a></li>
         <li><a href="./firmware-development-resources/">Firmware Development</a></li>
@@ -236,20 +237,64 @@
 </main>
 
 <footer class="footer">
-  <div class="container">
-    <p>&copy; 2025 <strong>ZZX-Labs R&D</strong>. Staff materials index.</p>
-  </div>
+    <div class="container">
+        <p>&copy; 2025 <strong>ZZX-Labs R&D</strong>. All rights reserved. Licensed under the MIT Open Source Software License. Created by <i>[0xdeadbeef]</i> of <strong>ZZX-Labs R&D</strong>, <strong>[0xdeadbeef] Consulting</strong>, & <strong>BitTechIn</strong>.</p>
+    </div>
+    <br><br>
+    <hr>
+    <br><br>
+    <!-- Footer Links -->
+    <div class="container">
+        <div class="footer-columns">
+            <!-- Left Column -->
+            <div class="footer-column">
+                <h4>Documentation</h4>
+                <ul class="footer-links">
+                    <li><a href="../../../docs/README.md/">README.md</a></li>
+                    <li><a href="../../../docs/LICENSE.md/">LICENSE.md</a></li>
+                    <li><a href="../../../docs/DONATE.md/">DONATE.md</a></li>
+                    <li><a href="../../../docs/guide/">Guide</a></li>
+                    <li><a href="../../../docs/manual/">Manual</a></li>
+                    <li><a href="../../../docs/man-page/">man page</a></li>
+                </ul>
+            </div>
+            <br><br>
+            <!-- Center Column -->
+            <div class="footer-column">
+                <h4>Legal</h4>
+                <ul class="footer-links">
+                    <li><a href="../../../legal/terms-of-service">Terms of Service</a></li>
+                    <li><a href="../../../legal/legal-notice">Legal Notice</a></li>
+                    <li><a href="../../../legal/legal-disclaimer">Legal Disclaimer</a></li>
+                    <li><a href="../../../legal/legal-waiver">Legal Waiver</a></li>
+                    <li><a href="../../../legal/privacy-policy">Privacy Policy</a></li>
+                </ul>
+            </div>
+            <br><br>
+            <!-- Right Column -->
+            <div class="footer-column">
+                <h4>Opportunities</h4>
+                <ul class="footer-links">
+                    <li><a href="../../../opportunities/careers">Careers</a></li>
+                    <li><a href="../../../opportunities/partnerships">Partnerships</a></li>
+                    <li><a href="../../../opportunities/investments">Investments</a></li>
+                    <li><a href="../../../opportunities/volunteer">Volunteer</a></li>
+                </ul>
+            </div><br><br>
+        </div><br><br>
 </footer>
-
 <script>
-fetch('../../../bitcoin/ticker/ticker.html')
-  .then(r=>r.text())
-  .then(html=>{
-    document.getElementById('ticker-container').innerHTML=html;
-    const script=document.createElement('script');
-    script.src='../../../bitcoin/ticker/ticker.js';
-    document.body.appendChild(script);
-  });
+  // Dynamically load the ticker HTML into the container
+  fetch('../../../bitcoin/ticker/ticker.html')
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('ticker-container').innerHTML = html;
+      // Dynamically load and execute the ticker.js script
+      const script = document.createElement('script');
+      script.src = '../../../bitcoin/ticker/ticker.js';
+      document.body.appendChild(script);
+    })
+    .catch(error => console.error('Error loading ticker widget:', error));
 </script>
 </body>
 </html>
