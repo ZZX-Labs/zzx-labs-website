@@ -1,1 +1,97 @@
+/* docs/staff/style.css
+   Scoped to Staff index:
+   - Bulletless lists in the features grid, Staff Index TOC, and footer
+   - 8px gaps between feature “cards”; ~3px between list items
+   - No :root overrides, no global element resets, no ticker selectors
+*/
 
+/* ===== Features grid (cards) ===== */
+body main section.features {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 8px !important;                 /* 8px between cards */
+  margin-top: 1rem !important;
+}
+
+body main section.features .feature {
+  border: 1px solid rgba(120,130,150,.25) !important;
+  border-radius: 10px !important;
+  padding: .8rem 1rem !important;
+  background: rgba(255,255,255,.02) !important;
+}
+
+body main section.features .feature > h3 {
+  margin: 0 0 .5rem 0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+}
+
+/* Bulletless + tight spacing inside features only */
+body main section.features .feature ul,
+body main section.features .feature ol {
+  list-style: none !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+body main section.features .feature li::marker { content: "" !important; }
+body main section.features .feature li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;            /* ~3px between links */
+  padding: 0 !important;
+}
+body main section.features .feature li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.features .feature li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: #e6a42b !important;
+}
+
+/* ===== Staff Index (TOC) list directly under its <h2> =====
+   Targets the <ul> that immediately follows the “Staff Index” <h2>,
+   leaving other container lists alone. */
+body main section.container h2 + ul {
+  list-style: none !important;
+  margin: .5rem 0 0 0 !important;
+  padding-left: 0 !important;
+}
+body main section.container h2 + ul > li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;
+  padding: 0 !important;
+}
+body main section.container h2 + ul > li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.container h2 + ul > li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: #e6a42b !important;
+}
+
+/* ===== Footer lists (bulletless, light spacing) ===== */
+body .footer .footer-links,
+body .footer .footer-links li {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body .footer .footer-links li { margin: 3px 0 !important; }
+body .footer .footer-links a {
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  display: inline-block !important;
+  padding: 2px 0 !important;
+}
+
+/* ===== Small screens ===== */
+@media (max-width: 600px) {
+  body main section.features { grid-template-columns: 1fr !important; }
+}
