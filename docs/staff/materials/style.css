@@ -144,16 +144,6 @@ body {
   gap: .625rem .875rem;
   padding: 0;
   margin: .75rem 0 0;
-  list-style: none;
-}
-
-.thanks-grid a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.thanks-grid a:hover {
-  text-decoration: underline;
 }
 
 /* ==============================
@@ -166,7 +156,6 @@ body {
   margin-top: 1rem;
 }
 
-/* Responsive collapse */
 @media (max-width: 1024px) {
   .layout {
     grid-template-columns: 1fr;
@@ -178,7 +167,7 @@ body {
    ============================== */
 .toc {
   position: sticky;
-  top: 84px; /* adjust to clear your fixed header height */
+  top: 84px;
   background: var(--toc-bg);
   border: 1px solid var(--toc-border);
   border-radius: 14px;
@@ -228,8 +217,9 @@ body {
   color: var(--muted);
 }
 
-/* Optional nested lists (if your JS renders anchors) */
-.toc-content ul {
+/* TOC links */
+.toc-content ul,
+.toc-content ol {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -262,7 +252,6 @@ body {
   gap: 1rem;
 }
 
-/* Each source card (one per URL) */
 .source {
   background: var(--source-bg);
   border: 1px solid var(--source-border);
@@ -271,7 +260,6 @@ body {
   overflow: clip;
 }
 
-/* Header row for source card */
 .source__header {
   background: var(--source-hdr);
   border-bottom: 1px solid var(--source-border);
@@ -300,42 +288,45 @@ body {
 
 .source__link a:hover { text-decoration: underline; }
 
-/* Source content */
 .source__body {
   padding: 1rem 1rem 1.1rem;
 }
 
-/* Headings pulled from Wikipedia sections */
+/* Headings from content */
 .source__body h2,
 .source__body h3,
 .source__body h4 {
-  scroll-margin-top: 96px; /* for in-page anchor offsets under sticky header */
+  scroll-margin-top: 96px;
 }
 
 .source__body h2 { font-size: 1.25rem; margin: 1.1rem 0 .5rem; }
 .source__body h3 { font-size: 1.1rem;  margin: .9rem 0 .4rem; color: var(--accent-2); }
 .source__body h4 { font-size: 1rem;    margin: .75rem 0 .35rem; color: var(--muted); }
 
-/* Text blocks */
 .source__body p {
   margin: .55rem 0;
   line-height: 1.6;
 }
 
-/* Links inside fetched content */
+/* Remove list bullets inside fetched content */
+.source__body ul,
+.source__body ol {
+  margin: .5rem 0 .5rem 1.2rem;
+  list-style: none;
+  padding-left: 1.2rem;
+}
+
+.source__body li {
+  list-style-type: none;
+  margin: .25rem 0;
+}
+
 .source__body a {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-/* Lists from fetched content */
-.source__body ul,
-.source__body ol {
-  margin: .5rem 0 .5rem 1.2rem;
-}
-
-/* Inline code or pre blocks from wiki text (defensive) */
 .source__body code {
   background: color-mix(in srgb, var(--panel) 85%, black);
   border: 1px solid var(--border);
@@ -372,7 +363,6 @@ body {
 .mono   { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .muted  { color: var(--muted); }
 
-/* Optional callouts: info/warn/success styles if your render.js injects them */
 .callout {
   border-radius: 12px;
   padding: .75rem .85rem;
@@ -410,4 +400,4 @@ body {
     font-size: .85em;
     color: var(--muted);
   }
-}
+     }
