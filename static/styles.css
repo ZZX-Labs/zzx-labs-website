@@ -1,82 +1,46 @@
-/* docs/staff/materials/style.css */
+/* static/styles.css
+   Master stylesheet for ZZX-Labs website
+   Imports all submodules from static/css/
+   Deterministic order via CSS Cascade Layers:
+   base → layout → components → media → pages → utilities
+*/
 
-/* Force card gap + item gap */
-:root { --card-gap: 8px; --item-gap: 3px; }
+/* Declare layer stack (top = lowest precedence) */
+@layer base, layout, components, media, pages, utilities;
 
-/* Features grid */
-section.features {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
-  gap: var(--card-gap) !important;   /* 8px between category cards */
-  margin-top: 1rem !important;
-}
+/* ── Base ─────────────────────────────────────────────── */
+@import url('./css/colors.css') layer(base);
+@import url('./css/fonts.css')  layer(base);
+@import url('./css/base.css')   layer(base);
 
-/* Each card */
-section.features .feature {
-  border: 1px solid rgba(120,130,150,.25) !important;
-  border-radius: 10px !important;
-  padding: .8rem 1rem !important;
-  background: rgba(255,255,255,.02) !important;
-}
+/* ── Layout ───────────────────────────────────────────── */
+@import url('./css/layout.css') layer(layout);
+@import url('./css/media.css')  layer(layout);
 
-/* Headings */
-section.features .feature h3 {
-  margin: 0 0 .5rem 0 !important;
-  font-size: 1.05rem !important;
-  font-weight: 600 !important;
-}
+/* ── Navigation & Header (legacy wrapper keeps your split) ─ */
+@import url('./css/header-nav.css') layer(components);
 
-/* Remove bullets + spacing inside cards */
-section.features .feature ul,
-section.features .feature ol {
-  list-style: none !important;
-  margin: 0 !important;
-  padding-left: 0 !important;
-}
+/* ── Sections / Components ────────────────────────────── */
+@import url('./css/hero.css')      layer(components);
+@import url('./css/cta.css')       layer(components);
+@import url('./css/features.css')  layer(components);
+@import url('./css/cards.css')     layer(components);
+@import url('./css/tables.css')    layer(components);
+@import url('./css/forms.css')     layer(components);
+@import url('./css/buttons.css')   layer(components);
+@import url('./css/footer.css')    layer(components);
 
-section.features .feature li {
-  list-style-type: none !important;
-  margin: var(--item-gap) 0 !important; /* 3px between links */
-  padding: 0 !important;
-}
+/* ── Media-specific modules ───────────────────────────── */
+@import url('./css/icons.css')   layer(media);
+@import url('./css/logos.css')   layer(media);
+@import url('./css/images.css')  layer(media);
+@import url('./css/video.css')   layer(media);
+@import url('./css/audio.css')   layer(media);
 
-/* Links */
-section.features .feature li a {
-  display: inline-block !important;
-  padding: 2px 0 !important;
-  text-decoration: none !important;
-  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
-  transition: color .2s, border-color .2s !important;
-}
-section.features .feature li a:hover {
-  border-bottom-color: currentColor !important;
-  color: #e6a42b !important;
-}
+/* ── Page-level (keep inspiration-figures last within pages) ─ */
+@import url('./css/pages.css')               layer(pages);
+@import url('./css/inspiration-figures.css') layer(pages);
 
-/* Ticker polish (optional) */
-#ticker-container {
-  border: 1px solid rgba(120,130,150,.25) !important;
-  border-radius: 10px !important;
-  padding: .5rem .75rem !important;
-  background: rgba(255,255,255,.02) !important;
-}
-
-/* Footer lists: no bullets too */
-.footer .footer-links,
-.footer .footer-links li {
-  list-style: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-.footer .footer-links li { margin: var(--item-gap) 0 !important; }
-.footer .footer-links a {
-  text-decoration: none !important;
-  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
-  display: inline-block !important;
-  padding: 2px 0 !important;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-  section.features { grid-template-columns: 1fr !important; }
-}
+/* ── Utilities / Extras (strongest precedence) ───────── */
+@import url('./css/animations.css')    layer(utilities);
+@import url('./css/design-extras.css') layer(utilities);
