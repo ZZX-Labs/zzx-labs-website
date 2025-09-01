@@ -1,73 +1,75 @@
 /* docs/staff/materials/style.css
-   Scoped styles for Staff Materials index.
-   No :root overrides. No global element rules. Ticker untouched. */
+   Scope ONLY to the features grid and footer lists.
+   No :root, no global element rules, no ticker selectors. */
 
-/* ===== Features grid (category cards) — SCOPED ===== */
-main section.features {
+/* ===== Features grid (category cards) ===== */
+body main section.features {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
-  gap: 8px !important;                /* 8px between cards */
+  gap: 8px !important;              /* spacing between category cards */
   margin-top: 1rem !important;
 }
 
-main section.features .feature {
+body main section.features .feature {
   border: 1px solid rgba(120,130,150,.25) !important;
   border-radius: 10px !important;
   padding: .8rem 1rem !important;
   background: rgba(255,255,255,.02) !important;
 }
 
-main section.features .feature > h3 {
+/* headings inside the card */
+body main section.features .feature > h3 {
   margin: 0 0 .5rem 0 !important;
   font-size: 1.05rem !important;
   font-weight: 600 !important;
 }
 
-/* Remove bullets + tighten spacing IN FEATURES ONLY */
-main section.features .feature ul,
-main section.features .feature ol {
+/* ===== Kill bullets + tighten spacing (features only) ===== */
+body main section.features .feature ul,
+body main section.features .feature ol {
   list-style: none !important;
   margin: 0 !important;
   padding-left: 0 !important;
 }
 
-main section.features .feature li {
+/* extra guard against UA markers */
+body main section.features .feature li::marker { content: "" !important; }
+
+body main section.features .feature li {
   list-style-type: none !important;
-  margin: 3px 0 !important;           /* ~3px between links */
+  margin: 3px 0 !important;         /* spacing between links */
   padding: 0 !important;
 }
 
-main section.features .feature li > a {
+/* link styling inside the items */
+body main section.features .feature li > a {
   display: inline-block !important;
   padding: 2px 0 !important;
   text-decoration: none !important;
   border-bottom: 1px dashed rgba(120,130,150,.3) !important;
   transition: color .2s, border-color .2s !important;
 }
-
-main section.features .feature li > a:hover {
+body main section.features .feature li > a:hover {
   border-bottom-color: currentColor !important;
   color: #e6a42b !important;
 }
 
-/* ===== Footer lists — bulletless, light spacing ===== */
-.footer .footer-links,
-.footer .footer-links li {
+/* ===== Footer lists only (bulletless, light spacing) ===== */
+body .footer .footer-links,
+body .footer .footer-links li {
   list-style: none !important;
   margin: 0 !important;
   padding: 0 !important;
 }
-
-.footer .footer-links li { margin: 3px 0 !important; }
-
-.footer .footer-links a {
+body .footer .footer-links li { margin: 3px 0 !important; }
+body .footer .footer-links a {
   text-decoration: none !important;
   border-bottom: 1px dashed rgba(120,130,150,.3) !important;
   display: inline-block !important;
   padding: 2px 0 !important;
 }
 
-/* ===== Responsive ===== */
+/* ===== Small screens ===== */
 @media (max-width: 600px) {
-  main section.features { grid-template-columns: 1fr !important; }
+  body main section.features { grid-template-columns: 1fr !important; }
 }
