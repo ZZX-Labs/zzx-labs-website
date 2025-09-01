@@ -1,93 +1,99 @@
-/* =======================================================
-   Staff Materials Page Styles
-   Location: docs/staff/materials/style.css
-   ======================================================= */
+/* ===== Staff Materials Page (docs/staff/materials/style.css) ===== */
 
-/* --- Global Container Reset --- */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1.25rem;
+/* Ensure our rules win */
+:root { --sm-card-gap: 8px; --sm-item-gap: 3px; }
+
+/* Grid of feature "cards" */
+section.features {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: var(--sm-card-gap) !important; /* 8px between cards */
+  margin-top: 1rem !important;
 }
 
-/* --- Ticker --- */
+/* Each card */
+section.features .feature {
+  border: 1px solid rgba(120, 130, 150, 0.25) !important;
+  border-radius: 10px !important;
+  padding: 0.8rem 1rem !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Headings inside cards */
+section.features .feature h3 {
+  margin: 0 0 0.5rem 0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+}
+
+/* Remove bullets + reset spacing inside features */
+section.features .feature ul,
+section.features .feature ol {
+  list-style: none !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* 2–4px requested; using 3px vertical gap between items */
+section.features .feature li {
+  list-style-type: none !important;
+  margin: var(--sm-item-gap) 0 !important; /* 3px between items */
+  padding: 0 !important;
+}
+
+/* Make links tidy and clearly spaced */
+section.features .feature li a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120, 130, 150, 0.3) !important;
+  transition: color 0.2s, border-color 0.2s !important;
+}
+section.features .feature li a:hover {
+  border-bottom-color: currentColor !important;
+  color: #e6a42b !important;
+}
+
+/* Ticker polish */
 #ticker-container {
-  border: 1px solid rgba(120, 130, 150, 0.25);
-  border-radius: 10px;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(120, 130, 150, 0.25) !important;
+  border-radius: 10px !important;
+  padding: 0.5rem 0.75rem !important;
+  background: rgba(255, 255, 255, 0.02) !important;
 }
 
-/* --- Features Grid (Category Cards) --- */
-.features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px; /* spacing between cards */
-  margin-top: 1rem;
-}
-
-.feature {
-  border: 1px solid rgba(120, 130, 150, 0.25);
-  border-radius: 10px;
-  padding: 0.8rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* --- Category Headings --- */
-.feature h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-}
-
-/* --- Remove Bullets, Reset UL/LI --- */
-.feature ul,
-.footer .footer-links {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.feature li,
+/* Footer lists: remove bullets too */
+.footer .footer-links,
 .footer .footer-links li {
-  list-style-type: none;
-  margin: 3px 0;   /* 2–4px spacing between items */
-  padding: 0;
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
-
-/* --- Anchor Links --- */
-.feature a,
+.footer .footer-links li { margin: var(--sm-item-gap) 0 !important; }
 .footer .footer-links a {
-  text-decoration: none;
-  border-bottom: 1px dashed rgba(120, 130, 150, 0.3);
-  display: inline-block;
-  padding: 2px 0;
-  transition: color 0.2s, border-color 0.2s;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120, 130, 150, 0.3) !important;
+  display: inline-block !important;
+  padding: 2px 0 !important;
 }
-
-.feature a:hover,
 .footer .footer-links a:hover {
-  border-bottom-color: currentColor;
-  color: #e6a42b; /* gold accent hover */
+  border-bottom-color: currentColor !important;
 }
 
-/* --- Footer Columns --- */
+/* Footer columns layout */
 .footer-columns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: var(--sm-card-gap) !important; /* 8px between columns */
 }
+.footer-column { flex: 1 1 200px !important; }
 
-.footer-column {
-  flex: 1 1 200px;
-}
-
-/* --- Responsive Tweak --- */
+/* Small screens */
 @media (max-width: 600px) {
-  .features {
-    grid-template-columns: 1fr;
+  section.features {
+    grid-template-columns: 1fr !important;
   }
   .footer-columns {
-    flex-direction: column;
+    flex-direction: column !important;
   }
 }
