@@ -1,80 +1,93 @@
-/* docs/staff/materials/style.css
-   Page-local styles for Staff Materials index only.
-   - Remove bullets/numbers for all lists in <main> (and footer links)
-   - 8px gap between category cards
-   - 3px gap between individual links
-*/
+/* =======================================================
+   Staff Materials Page Styles
+   Location: docs/staff/materials/style.css
+   ======================================================= */
 
-/* ---- Base layout helpers ---- */
+/* --- Global Container Reset --- */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1.25rem;
 }
 
-/* ---- Ticker container (optional polish) ---- */
+/* --- Ticker --- */
 #ticker-container {
-  border: 1px solid rgba(120,130,150,.25);
+  border: 1px solid rgba(120, 130, 150, 0.25);
   border-radius: 10px;
-  padding: .5rem .75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-/* ---- Features grid (category "cards") ---- */
+/* --- Features Grid (Category Cards) --- */
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px; /* 8px between category cards */
+  gap: 8px; /* spacing between cards */
   margin-top: 1rem;
 }
 
-/* Optional subtle card styling; remove if you truly want raw blocks */
 .feature {
-  border: 1px solid rgba(120,130,150,.25);
-  border-radius: 12px;
-  padding: .8rem .9rem;
-  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(120, 130, 150, 0.25);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-/* ---- Remove bullets/numbers globally within main content ---- */
-main ul,
-main ol {
-  list-style: none;
-  margin: 0;
-  padding-left: 0; /* no indent since we’re de-bulleting */
+/* --- Category Headings --- */
+.feature h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
-main li {
-  list-style-type: none;
-  margin: 3px 0; /* 2–4px requested; using 3px */
-}
-
-/* Footer lists: bulletless too */
-.footer .footer-links,
-.footer .footer-links li {
+/* --- Remove Bullets, Reset UL/LI --- */
+.feature ul,
+.footer .footer-links {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/* Keep links tidy and readable */
-.feature a {
+.feature li,
+.footer .footer-links li {
+  list-style-type: none;
+  margin: 3px 0;   /* 2–4px spacing between items */
+  padding: 0;
+}
+
+/* --- Anchor Links --- */
+.feature a,
+.footer .footer-links a {
   text-decoration: none;
-  border-bottom: 1px dashed rgba(120,130,150,.35);
+  border-bottom: 1px dashed rgba(120, 130, 150, 0.3);
+  display: inline-block;
+  padding: 2px 0;
+  transition: color 0.2s, border-color 0.2s;
 }
 
-.feature a:hover {
+.feature a:hover,
+.footer .footer-links a:hover {
   border-bottom-color: currentColor;
+  color: #e6a42b; /* gold accent hover */
 }
 
-/* Headings spacing */
-.features h3 {
-  margin: 0 0 .5rem;
-  font-size: 1.05rem;
+/* --- Footer Columns --- */
+.footer-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-/* Responsive tweak */
+.footer-column {
+  flex: 1 1 200px;
+}
+
+/* --- Responsive Tweak --- */
 @media (max-width: 600px) {
   .features {
     grid-template-columns: 1fr;
+  }
+  .footer-columns {
+    flex-direction: column;
   }
 }
