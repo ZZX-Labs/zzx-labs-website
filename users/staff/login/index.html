@@ -1,1 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Staff Login — ZZX-Labs R&D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="../../../static/styles.css" rel="stylesheet" />
+  <style>
+    main { max-width: 600px; margin: 0 auto; padding: 24px; }
+    .crumbs { font-size: 0.9rem; opacity: 0.8; margin: 8px 0 16px; }
+    form { background:#111; border:1px solid #2a2a2a; border-radius:10px; padding:16px; }
+    label { display:block; margin:12px 0 6px; }
+    input[type="text"], input[type="password"] { width:100%; padding:10px; border-radius:6px; border:1px solid #333; background:#0b0b0b; color:#eee; }
+    button { margin-top:16px; padding:10px 14px; border:1px solid #2a2a2a; background:#121212; color:#c0d674; border-radius:6px; cursor:pointer; }
+    button:hover { background:#1a1a1a; }
+    .note { font-size:0.9rem; opacity:0.8; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <header id="header"></header>
 
+  <main>
+    <div class="crumbs"><a href="../../index.html">/users/staff</a> / <strong>login</strong></div>
+    <h1>Staff Login</h1>
+
+    <form id="login-form" autocomplete="off">
+      <label for="username">Username (or Email)</label>
+      <input id="username" name="username" type="text" required />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required />
+
+      <button type="submit">Sign In</button>
+      <div class="note">2FA and GPG smart-card checks will be enforced server-side.</div>
+    </form>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <script>
+    fetch("../../../partials/header.html").then(r=>r.text()).then(t=>document.getElementById("header").innerHTML=t);
+    fetch("../../../partials/footer.html").then(r=>r.text()).then(t=>document.getElementById("footer").innerHTML=t);
+
+    // Placeholder: tie to your Flask endpoint
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      // TODO: POST to /api/auth/login, then redirect on success
+      alert("Login placeholder — wire to backend.");
+    });
+  </script>
+</body>
+</html>
