@@ -1,1 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Comms Suite — ZZX-Labs R&D Staff</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="../../../static/styles.css" rel="stylesheet" />
+  <style>
+    main { max-width: 1300px; margin: 0 auto; padding: 24px; display:grid; grid-template-columns: 260px 1fr; gap:24px; }
+    .crumbs { grid-column: 1 / -1; font-size: 0.9rem; opacity: 0.8; margin: 8px 0 0; }
+    aside { background:#0d0d0d; border:1px solid #262626; border-radius:10px; padding:16px; }
+    aside nav a { display:block; padding:8px 10px; color:#ddd; text-decoration:none; border-radius:6px; }
+    aside nav a:hover { background:#1a1a1a; }
+    section { background:#111; border:1px solid #2a2a2a; border-radius:10px; padding:16px; }
+    .cards { display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { border:1px solid #2a2a2a; border-radius:10px; padding:16px; background:#0b0b0b; }
+  </style>
+</head>
+<body>
+  <header id="header"></header>
 
+  <main>
+    <div class="crumbs">
+      <a href="../../index.html">/users/staff</a> / <strong>comms</strong>
+    </div>
+
+    <aside>
+      <nav aria-label="Comms Navigation">
+        <a href="./audio-conference/">Audio Conference</a>
+        <a href="./video-conference/">Video Conference</a>
+        <a href="./voip-system/">VOIP System</a>
+        <a href="./direct-message/">Direct Message</a>
+        <a href="./group-message/">Group Message</a>
+        <a href="./email-system/">Email System</a>
+        <a href="./media-system/">Media System</a>
+        <a href="./gpg-keys/">GPG Keys</a>
+      </nav>
+    </aside>
+
+    <section>
+      <h1>Communications Suite</h1>
+      <p>End-to-end encrypted communications for staff. Choose a module below.</p>
+
+      <div class="cards">
+        <div class="card"><h3>Audio Conference</h3><p>Low-latency, secure rooms.</p><a href="./audio-conference/">Open</a></div>
+        <div class="card"><h3>Video Conference</h3><p>Webcam/screen share with E2EE.</p><a href="./video-conference/">Open</a></div>
+        <div class="card"><h3>VOIP System</h3><p>Call routing & SIP endpoints.</p><a href="./voip-system/">Open</a></div>
+        <div class="card"><h3>Direct Message</h3><p>One-to-one secure chats.</p><a href="./direct-message/">Open</a></div>
+        <div class="card"><h3>Group Message</h3><p>Team channels & projects.</p><a href="./group-message/">Open</a></div>
+        <div class="card"><h3>Email System</h3><p>GPG-native mailboxes.</p><a href="./email-system/">Open</a></div>
+        <div class="card"><h3>Media System</h3><p>File/media share with ACLs.</p><a href="./media-system/">Open</a></div>
+        <div class="card"><h3>GPG Keys</h3><p>Key creation, import, rotate.</p><a href="./gpg-keys/">Open</a></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <script>
+    fetch("../../../partials/header.html").then(r=>r.text()).then(t=>document.getElementById("header").innerHTML=t);
+    fetch("../../../partials/footer.html").then(r=>r.text()).then(t=>document.getElementById("footer").innerHTML=t);
+  </script>
+</body>
+</html>
