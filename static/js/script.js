@@ -10,7 +10,7 @@
     if (!s) return '/static/js';
     const url = new URL(s.src, location.href);
     url.pathname = url.pathname.replace(/\/[^/]*$/, ''); // strip filename
-    return url.pathname;
+    return url.pathname; // e.g. '/static/js'
   }
 
   function load(src) {
@@ -118,13 +118,16 @@
     booted = true;
   };
 
-  // Auto-load partials loader (no extra <script> needed in HTML)
+  // Auto-load modules so pages only include /static/script.js
   (async function loadModules() {
     try {
       const base = resolveThisBase(); // '/static/js'
-      await load(`${base}/modules/partials-loader.js`); // '/static/js/modules/partials-loader.js'
+      // Partials loader (injects header/nav/footer and calls back into initNav/autoInit)
+      await load(`${base}/modules/partials-loader.js`);
+      // Ticker loader (depth-agnostic BTC ticker; duplicate-safe)
+      await load(`${base}/modules/ticker-loader.js`);
     } catch (err) {
-      console.warn('partials-loader.js failed to load:', err && err.message ? err.message : err);
+      console.warn('Module failed to load:', err && err.message ? err.message : err);
     }
   })();
 
