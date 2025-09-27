@@ -1,1 +1,42 @@
-
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Direct Message — ZZX-Labs R&D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="../../../../static/styles.css" rel="stylesheet" />
+  <style>/* same styles as template above */</style>
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <div class="crumbs"><a href="../index.html">/users/staff/comms</a> / <strong>direct-message</strong></div>
+    <aside>
+      <nav aria-label="Comms Navigation">
+        <a href="../audio-conference/">Audio Conference</a>
+        <a href="../video-conference/">Video Conference</a>
+        <a href="../voip-system/">VOIP System</a>
+        <a href="../direct-message/" class="active">Direct Message</a>
+        <a href="../group-message/">Group Message</a>
+        <a href="../email-system/">Email System</a>
+        <a href="../media-system/">Media System</a>
+        <a href="../gpg-keys/">GPG Keys</a>
+      </nav>
+    </aside>
+    <section>
+      <h1>Direct Message</h1>
+      <p class="note">E2EE one-to-one chat with optional timed messages and attachments.</p>
+      <div class="panel">
+        <!-- Hook to chat service (GPG/Double Ratchet) -->
+        <input placeholder="Search staff…" />
+        <button>Open Chat</button>
+      </div>
+    </section>
+  </main>
+  <footer id="footer"></footer>
+  <script>
+    fetch("../../../../partials/header.html").then(r=>r.text()).then(t=>document.getElementById("header").innerHTML=t);
+    fetch("../../../../partials/footer.html").then(r=>r.text()).then(t=>document.getElementById("footer").innerHTML=t);
+  </script>
+</body>
+</html>
