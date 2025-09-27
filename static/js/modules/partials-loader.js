@@ -66,7 +66,7 @@
     return headerHTML + '\n' + navHTML;
   }
 
-  // Minimal nav interactivity after injection
+  // Minimal nav interactivity after injection (fallback only)
   function initNavUX(scope=document) {
     const toggle = scope.querySelector('#navbar-toggle');
     const links = scope.querySelector('#navbar-links');
@@ -138,7 +138,11 @@
     footerHost.replaceChildren(...footerWrap.childNodes);
 
     // Initialize nav behavior after injection
-    initNavUX(headerHost);
+    if (window.ZZXSite && typeof window.ZZXSite.initNav === 'function') {
+      window.ZZXSite.initNav(headerHost);
+    } else {
+      initNavUX(headerHost);
+    }
 
     // Optional ticker
     await maybeLoadTicker(prefix);
