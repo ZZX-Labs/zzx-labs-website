@@ -1,0 +1,43 @@
+/* __partials/bitcoin-ticker-widget.css
+   Bitcoin Ticker Widget positioning & styling
+*/
+
+/* Wrapper */
+#ticker-container {
+  display: flex;
+  justify-content: flex-start;   /* left-align by default */
+  align-items: center;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  order: 2; /* appear below logo in flex/grid contexts */
+}
+
+/* Inner ticker element(s) */
+#ticker-container > * {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.95rem;
+  color: #c0d674;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+/* Medium screens: keep it left but add breathing room */
+@media (min-width: 600px) {
+  #ticker-container {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* Wide screens: center it horizontally */
+@media (min-width: 1024px) {
+  #ticker-container {
+    justify-content: center;
+    order: unset; /* allow natural flow if header grid is used */
+  }
+}
