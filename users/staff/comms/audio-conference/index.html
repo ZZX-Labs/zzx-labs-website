@@ -1,42 +1,96 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Audio Conference — ZZX-Labs R&D</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="../../../../static/styles.css" rel="stylesheet" />
-  <style>/* same styles as template above */</style>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Audio Conference | ZZX-Labs R&D</title>
+  <link rel="stylesheet" href="../../../../static/styles.css">
+  <script src="../../../../static/script.js" defer></script>
 </head>
 <body>
-  <header id="header"></header>
-  <main>
-    <div class="crumbs"><a href="../index.html">/users/staff/comms</a> / <strong>audio-conference</strong></div>
-    <aside>
-      <nav aria-label="Comms Navigation">
-        <a href="../audio-conference/" class="active">Audio Conference</a>
-        <a href="../video-conference/">Video Conference</a>
-        <a href="../voip-system/">VOIP System</a>
-        <a href="../direct-message/">Direct Message</a>
-        <a href="../group-message/">Group Message</a>
-        <a href="../email-system/">Email System</a>
-        <a href="../media-system/">Media System</a>
-        <a href="../gpg-keys/">GPG Keys</a>
-      </nav>
-    </aside>
-    <section>
-      <h1>Audio Conference</h1>
-      <p class="note">Create/join E2EE rooms; low-latency PCM/Opus, push-to-talk, recording (permissioned).</p>
-      <div class="panel">
-        <!-- Hook to WebRTC audio-only room creation -->
-        <button>Create Room</button>
-        <button>Join Room</button>
+<header class="header">
+  <div class="container">
+    <img src="../../../../static/logos/ZZX Labs Logo 2.png" alt="ZZX-Labs Logo" class="logo">
+    <div class="logo-container">
+      <a href="../../../../">
+        <img src="../../../../static/logos/ZZX Logo.png" alt="ZZX Logo" class="logo">
+      </a>
+    </div><br>
+    <!-- navbar: same as above, but with ../../../../ prefixes on every href -->
+    <!-- (SNIP: paste NAV here with ../../../../ everywhere) -->
+  </div>
+</header>
+
+<main>
+  <br><div id="ticker-container"></div><br>
+
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>[:[ZZX-Labs]:]</h1>
+      <h4>| Audio Conference |</h4><br>
+      <p>Low-latency E2EE audio rooms with push-to-talk and role-based access.</p><br><br>
+      <div class="button-group">
+        <a href="../" class="btn btn-secondary">Back to Comms</a>
+        <a href="#" class="btn btn-primary">Create Room</a>
+        <a href="#" class="btn btn-primary">Join Room</a>
       </div>
-    </section>
-  </main>
-  <footer id="footer"></footer>
-  <script>
-    fetch("../../../../partials/header.html").then(r=>r.text()).then(t=>document.getElementById("header").innerHTML=t);
-    fetch("../../../../partials/footer.html").then(r=>r.text()).then(t=>document.getElementById("footer").innerHTML=t);
-  </script>
+    </div>
+  </section><br><br>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p>&copy; 2025 <strong>ZZX-Labs R&D</strong>…</p>
+  </div>
+  <br><br><hr><br><br>
+  <div class="container">
+    <div class="footer-columns">
+      <div class="footer-column">
+        <h4>Documentation</h4>
+        <ul class="footer-links">
+          <li><a href="../../../../docs/README.md/">README.md</a></li>
+          <li><a href="../../../../docs/LICENSE.md/">LICENSE.md</a></li>
+          <li><a href="../../../../docs/DONATE.md/">DONATE.md</a></li>
+          <li><a href="../../../../docs/guide/">Guide</a></li>
+          <li><a href="../../../../docs/manual/">Manual</a></li>
+          <li><a href="../../../../docs/man-page/">man page</a></li>
+        </ul>
+      </div>
+      <br><br>
+      <div class="footer-column">
+        <h4>Legal</h4>
+        <ul class="footer-links">
+          <li><a href="../../../../legal/terms-of-service">Terms of Service</a></li>
+          <li><a href="../../../../legal/legal-notice">Legal Notice</a></li>
+          <li><a href="../../../../legal/legal-disclaimer">Legal Disclaimer</a></li>
+          <li><a href="../../../../legal/legal-waiver">Legal Waiver</a></li>
+          <li><a href="../../../../legal/privacy-policy">Privacy Policy</a></li>
+        </ul>
+      </div>
+      <br><br>
+      <div class="footer-column">
+        <h4>Opportunities</h4>
+        <ul class="footer-links">
+          <li><a href="../../../../opportunities/careers">Careers</a></li>
+          <li><a href="../../../../opportunities/partnerships">Partnerships</a></li>
+          <li><a href="../../../../opportunities/investments">Investments</a></li>
+          <li><a href="../../../../opportunities/volunteer">Volunteer</a></li>
+        </ul>
+      </div><br><br>
+    </div><br><br>
+</footer>
+
+<script>
+  fetch('../../../../bitcoin/ticker/ticker.html')
+    .then(r => r.text())
+    .then(html => {
+      document.getElementById('ticker-container').innerHTML = html;
+      const s = document.createElement('script');
+      s.src = '../../../../bitcoin/ticker/ticker.js';
+      document.body.appendChild(s);
+    })
+    .catch(err => console.error('Error loading ticker widget:', err));
+</script>
 </body>
 </html>
