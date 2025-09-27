@@ -9,7 +9,9 @@
     <script src="../static/script.js" defer></script>
 </head>
 <body>
-<div id="zzx-header"></div>
+<header>
+    <div id="zzx-header"></div>
+</header>
 <main>
     <br>
     <!-- Bitcoin Ticker Widget -->
@@ -53,20 +55,8 @@
             </div>
         </section><br><br>
     </main>
-<div id="zzx-footer"></div>
-
-<script>
-    // Dynamically load the ticker HTML into the container
-    fetch('../bitcoin/ticker/ticker.html')
-      .then(response => response.text())
-      .then(html => {
-        document.getElementById('ticker-container').innerHTML = html;
-        // Dynamically load and execute the ticker.js script
-        const script = document.createElement('script');
-        script.src = '../bitcoin/ticker/ticker.js';
-        document.body.appendChild(script);
-      })
-      .catch(error => console.error('Error loading ticker widget:', error));
-</script>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
 </body>
 </html>
