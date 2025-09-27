@@ -4,30 +4,43 @@
   const PATHS = [
     '.', '..', '../..', '../../..',
     '../../../..', '../../../../..', '../../../../../..', '../../../../../../..',
-    '/' // final attempt: site root
+    '/' // final attempt: site root (only works if hosted at domain root)
   ];
 
-  // Simple fetch probe to discover a working prefix for __partials/
-  async function findPrefix() {
-    const cached = sessionStorage.getItem('zzx.partials.prefix');
-    if (cached) return cached;
+  // Try a URL to see if it's OK (GET, no-store) — returns true/false
+  async function probe(url) {
+    try {
+      // Some static hosts block HEAD; use GET with no-store
+      const r = await fetch(url, { method: 'GET', cache: 'no-store' });
+      return r.ok;
+    } catch (_) {
+      return false;
+    }
+  }
 
+  // Validate a cached prefix; if invalid, clear & recompute
+  async function validateOrRecomputePrefix(cached) {
+    if (cached) {
+      const ok = await probe(join(cached, PARTIALS_DIR, 'header/header.html'));
+      if (ok) return cached;
+      // bust the cache on mismatch
+      sessionStorage.removeItem('zzx.partials.prefix');
+    }
+    // recompute:
     for (const p of PATHS) {
       const url = join(p, PARTIALS_DIR, 'header/header.html');
-      try {
-        // HEAD is light, but some static hosts may block it; fall back to GET if needed
-        let r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-        if (!r.ok) {
-          r = await fetch(url, { method: 'GET', cache: 'no-store' });
-        }
-        if (r.ok) {
-          sessionStorage.setItem('zzx.partials.prefix', p);
-          return p;
-        }
-      } catch (_) {}
+      if (await probe(url)) {
+        sessionStorage.setItem('zzx.partials.prefix', p);
+        return p;
+      }
     }
-    // Fallback to current directory
+    // fallback to current dir
     return '.';
+  }
+
+  async function findPrefix() {
+    const cached = sessionStorage.getItem('zzx.partials.prefix');
+    return await validateOrRecomputePrefix(cached);
   }
 
   function join(...segs) {
@@ -41,15 +54,14 @@
       .join('/');
   }
 
+  // Convert absolute '/x/y' → '<prefix>/x/y' safely (no double slashes)
   function absToPrefix(url, prefix) {
-    // If prefix is '/', keep absolute site-root URLs untouched to avoid protocol-relative ('//...')
-    if (prefix === '/') return url;
-    return url.replace(/^(\/+)/, `${prefix}/`);
+    if (prefix === '/' || !url.startsWith('/')) return url;
+    return prefix.replace(/\/+$/,'') + url; // concat keeps exactly one slash from url
   }
 
   // Rewrites <a href="/..."> and <img src="/..."> etc. to prefix-based
   function rewriteAbsoluteURLs(root, prefix) {
-    // Skip rewriting entirely if prefix === '/'
     if (prefix !== '/') {
       root.querySelectorAll('[href^="/"]').forEach(a => a.setAttribute('href', absToPrefix(a.getAttribute('href'), prefix)));
       root.querySelectorAll('[src^="/"]').forEach(el => el.setAttribute('src', absToPrefix(el.getAttribute('src'), prefix)));
@@ -82,7 +94,6 @@
     const body   = document.body;
 
     if (toggle && links) {
-      // mark so the sitewide init can detect & avoid double-binding
       toggle.__bound_click = true;
       toggle.addEventListener('click', () => {
         const isOpen = links.classList.toggle('open');
@@ -93,7 +104,7 @@
     }
     scope.querySelectorAll('.submenu-toggle').forEach(btn => {
       btn.__bound_click = true;
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const ul = btn.nextElementSibling;
         if (ul && ul.classList.contains('submenu')) {
           ul.classList.toggle('open');
@@ -173,7 +184,6 @@
     const hasSitewide = await waitForSitewideInit();
     if (hasSitewide) {
       window.ZZXSite.initNav(headerHost);
-      // let your sitewide autoInit (if any) run as well
       if (typeof window.ZZXSite.autoInit === 'function') window.ZZXSite.autoInit();
     } else {
       initNavUX(headerHost);
