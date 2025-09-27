@@ -31,20 +31,29 @@
   }
 
   function join(...segs) {
+    // Preserve absolute root if first seg is exactly '/'
     return segs
       .filter(Boolean)
-      .map((s, i) => (i === 0 ? s.replace(/\/+$/,'') : s.replace(/^\/+/,'')))
+      .map((s, i) => {
+        if (i === 0) return s === '/' ? '/' : s.replace(/\/+$/,'');
+        return s.replace(/^\/+/, '');
+      })
       .join('/');
   }
 
   function absToPrefix(url, prefix) {
+    // If prefix is '/', keep absolute site-root URLs untouched to avoid protocol-relative ('//...')
+    if (prefix === '/') return url;
     return url.replace(/^(\/+)/, `${prefix}/`);
   }
 
   // Rewrites <a href="/..."> and <img src="/..."> etc. to prefix-based
   function rewriteAbsoluteURLs(root, prefix) {
-    root.querySelectorAll('[href^="/"]').forEach(a => a.setAttribute('href', absToPrefix(a.getAttribute('href'), prefix)));
-    root.querySelectorAll('[src^="/"]').forEach(el => el.setAttribute('src', absToPrefix(el.getAttribute('src'), prefix)));
+    // Skip rewriting entirely if prefix === '/'
+    if (prefix !== '/') {
+      root.querySelectorAll('[href^="/"]').forEach(a => a.setAttribute('href', absToPrefix(a.getAttribute('href'), prefix)));
+      root.querySelectorAll('[src^="/"]').forEach(el => el.setAttribute('src', absToPrefix(el.getAttribute('src'), prefix)));
+    }
   }
 
   async function loadHTML(url) {
@@ -66,19 +75,30 @@
     return headerHTML + '\n' + navHTML;
   }
 
-  // Minimal nav interactivity after injection (fallback only)
+  // Minimal nav interactivity after injection (fallback only), mirrors sitewide behavior
   function initNavUX(scope=document) {
     const toggle = scope.querySelector('#navbar-toggle');
-    const links = scope.querySelector('#navbar-links');
+    const links  = scope.querySelector('#navbar-links');
+    const body   = document.body;
+
     if (toggle && links) {
+      // mark so the sitewide init can detect & avoid double-binding
+      toggle.__bound_click = true;
       toggle.addEventListener('click', () => {
-        links.classList.toggle('open');
+        const isOpen = links.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        links.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        body.classList.toggle('no-scroll', isOpen);
       });
     }
     scope.querySelectorAll('.submenu-toggle').forEach(btn => {
+      btn.__bound_click = true;
       btn.addEventListener('click', (e) => {
-        const ul = e.target.nextElementSibling;
-        if (ul && ul.classList.contains('submenu')) ul.classList.toggle('open');
+        const ul = btn.nextElementSibling;
+        if (ul && ul.classList.contains('submenu')) {
+          ul.classList.toggle('open');
+          btn.classList.toggle('open');
+        }
       });
     });
   }
@@ -96,6 +116,18 @@
     } catch (e) {
       console.warn('Ticker load failed:', e);
     }
+  }
+
+  // Wait briefly for sitewide initializer to appear (avoids double-binding race)
+  function waitForSitewideInit(timeoutMs = 1200, intervalMs = 60) {
+    return new Promise(resolve => {
+      const t0 = performance.now();
+      (function poll() {
+        if (window.ZZXSite && typeof window.ZZXSite.initNav === 'function') return resolve(true);
+        if (performance.now() - t0 >= timeoutMs) return resolve(false);
+        setTimeout(poll, intervalMs);
+      })();
+    });
   }
 
   async function boot() {
@@ -137,9 +169,12 @@
     rewriteAbsoluteURLs(footerWrap, prefix);
     footerHost.replaceChildren(...footerWrap.childNodes);
 
-    // Initialize nav behavior after injection
-    if (window.ZZXSite && typeof window.ZZXSite.initNav === 'function') {
+    // Prefer sitewide initializer; if not present soon, attach fallback
+    const hasSitewide = await waitForSitewideInit();
+    if (hasSitewide) {
       window.ZZXSite.initNav(headerHost);
+      // let your sitewide autoInit (if any) run as well
+      if (typeof window.ZZXSite.autoInit === 'function') window.ZZXSite.autoInit();
     } else {
       initNavUX(headerHost);
     }
