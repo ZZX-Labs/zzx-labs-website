@@ -1,192 +1,240 @@
 /* static/css/navbar.css
    Primary navigation (components layer)
-   - Uses theme tokens from colors.css
-   - Works with .open class for toggling
+   - Compatible with your existing HTML + JS
+   - Mobile: hamburger opens a glassy slide-down drawer
+   - Desktop: centered row, elegant dropdowns (hover OR caret .open)
 */
 
-/* ========== MENU BUTTON (Hamburger) ========== */
+/* ---------- NAVBAR WRAPPER ---------- */
+.navbar {
+  width: 100%;
+}
+
+/* Constrain inner content (pairs nicely with header container if present) */
+.navbar,
+.header .container .navbar {
+  display: grid;
+  grid-template-columns: 1fr auto; /* links stack under on mobile via .nav-links grid-span */
+  align-items: center;
+  gap: .5rem;
+}
+
+/* ---------- HAMBURGER ---------- */
 .menu-button {
-    appearance: none;
-    background: none;
-    border: 1px solid transparent;
-    font-size: 2rem;
-    color: var(--text, #d1d1d1);
-    cursor: pointer;
-    display: block;          /* mobile default */
-    z-index: 1100;           /* above nav sheet */
-    padding: 0.35rem 0.5rem; /* bigger touch target */
-    border-radius: 8px;
-    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  appearance: none;
+  background: color-mix(in srgb, #161616 92%, transparent);
+  border: 1px solid #2a2a2a;
+  font-size: 1.55rem;
+  color: var(--text, #e8e8e8);
+  cursor: pointer;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  padding: .38rem .7rem;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  transition: background-color .2s ease, border-color .2s ease, transform .1s ease, color .2s ease;
 }
-.menu-button:hover {
-    color: var(--accent, #e6a42b);
-    background: var(--surface-2, #3e3e3e);
-    border-color: var(--line-soft, #3a3a3a);
-}
-.menu-button:active { transform: translateY(1px); }
-.menu-button:focus-visible {
-    outline: 2px solid var(--accent, #e6a42b);
-    outline-offset: 2px;
-}
+.menu-button:hover   { background:#1d1d1d; border-color:#3a3a3a; color:#e6a42b; }
+.menu-button:active  { transform: translateY(1px) scale(.98); }
+.menu-button:focus-visible { outline: 2px solid #e6a42b; outline-offset: 2px; }
 
-/* Hide menu button on Desktop (>= 769px) */
+/* Hide hamburger on desktop */
 @media (min-width: 769px) {
-    .menu-button { display: none; }
+  .menu-button { display: none; }
 }
 
-/* ========== NAV LIST (mobile drawer by default) ========== */
+/* ---------- NAV LIST (MOBILE DRAWER) ---------- */
 .nav-links {
-    list-style: none;
-    display: none; /* shown when .open */
-    flex-direction: column;
-    align-items: center;
-    background-color: var(--nav-bg, #111);
-    color: var(--nav-fg, var(--text, #d1d1d1));
-    width: 100%;
-    padding: 1rem 0;
-    gap: 1rem;
-    transition: max-height 0.25s ease, opacity 0.2s ease;
-    max-height: 0;
-    opacity: 0;
-    overflow-y: auto;
-    margin: 1rem 0;
-    border: 1px solid var(--line-soft, #3a3a3a);
-    border-radius: 10px;
+  grid-column: 1 / -1;  /* full width under hamburger on mobile */
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .35rem;
+  margin: .6rem 0 0;
+  padding: .6rem;
+  background: color-mix(in srgb, #0c0c0c 90%, transparent);
+  border: 1px solid #232323;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-height .28s ease, opacity .2s ease;
 }
 .nav-links.open {
-    display: flex;
-    max-height: 90vh;
-    opacity: 1;
+  max-height: 80vh;
+  opacity: 1;
+  pointer-events: auto;
 }
 
-/* Items */
 .nav-links li {
-    width: 100%;
-    text-align: center;
+  position: relative;
 }
 
-/* Links */
-.nav-links a {
-    color: var(--text, #d1d1d1);
-    text-decoration: none;
-    font-size: 1rem;
-    padding: 0.6rem 1rem;
-    display: inline-block;
-    border-radius: 6px;
-    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+/* Top-level links */
+.nav-links > li > a {
+  display: block;
+  color: var(--text, #e8e8e8);
+  text-decoration: none;
+  padding: .6rem .8rem;
+  border-radius: 8px;
+  font: 500 .98rem/1.2 "IBM Plex Mono", ui-monospace, monospace;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
 }
-.nav-links a:hover {
-    background-color: var(--accent, #e6a42b);
-    color: #000;
-}
-.nav-links a:focus-visible {
-    outline: 2px solid var(--accent, #e6a42b);
-    outline-offset: 2px;
+.nav-links > li > a:hover { background:#1a1a1a; color:#e6a42b; }
+.nav-links > li > a:focus-visible { outline:2px solid #e6a42b; outline-offset:2px; }
+
+/* Optional active state (your JS adds .active) */
+.nav-links > li > a.active {
+  color:#e6a42b;
+  background:#171717;
+  box-shadow: inset 0 0 0 1px #313131;
 }
 
-/* ========== SUBMENU (Dropdowns) ========== */
+/* ---------- SUBMENUS (MOBILE) ---------- */
+.submenu-toggle {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text, #d1d1d1);
+  font-size: .95rem;
+  margin-left: .35rem;
+  cursor: pointer;
+  transition: transform .2s ease, color .2s ease;
+}
+.submenu-toggle:hover { color:#e6a42b; }
+.submenu-toggle.open  { transform: rotate(180deg); } /* ▲ */
+
 .submenu {
-    display: none; /* shown when .open */
-    flex-direction: column;
-    gap: 0.5rem;
-    padding-left: 1.25rem;
-    margin-top: 0.5rem;
-    background-color: var(--surface-3, #1a1a1a);
-    border: 1px solid var(--line-soft, #3a3a3a);
-    border-radius: 8px;
-    transition: max-height 0.25s ease, opacity 0.2s ease;
-    max-height: 0;
-    opacity: 0;
+  display: flex;           /* JS toggles .open for height/opacity; keep flex for children layout */
+  flex-direction: column;
+  gap: .3rem;
+  margin: .35rem 0 0;
+  padding: .5rem .5rem .6rem;
+  background: #121212;
+  border: 1px solid #242424;
+  border-radius: 10px;
+  max-height: 0;
+  opacity: 0;
+  overflow: clip;
+  transition: max-height .26s ease, opacity .18s ease;
 }
 .submenu.open {
-    display: flex;
-    max-height: 60vh;
-    opacity: 1;
+  max-height: 60vh;
+  opacity: 1;
 }
 .submenu li { width: 100%; }
-
 .submenu a {
-    font-size: 0.95rem;
-    color: var(--text-weak, #b5b5b5);
-    padding: 0.45rem 0.8rem;
-    display: inline-block;
-    border-radius: 6px;
-    transition: color 0.2s ease, background-color 0.2s ease;
+  display: block;
+  padding: .45rem .6rem;
+  color: #bfbfbf;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: .94rem;
+  transition: color .18s ease, background-color .18s ease;
 }
-.submenu a:hover {
-    background-color: var(--accent, #e6a42b);
-    color: #000;
-}
+.submenu a:hover { color:#000; background:#e6a42b; }
 
-/* Header wrapper (anchor + caret) */
-.submenu-header {
-    display: inline-flex;
+/* ---------- DESKTOP LAYOUT ---------- */
+@media (min-width: 769px) {
+  /* Desktop row: centered, no drawer chrome */
+  .nav-links {
+    grid-column: auto;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    border-radius: 6px;
-    padding: 0.3rem 0.5rem;
+    gap: .25rem;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    opacity: 1 !important;
+    max-height: none !important;
+    pointer-events: auto;
+  }
+
+  .nav-links > li {
+    padding: .2rem .1rem;
+  }
+
+  .nav-links > li > a {
+    padding: .5rem .7rem;
+    border-radius: 8px;
+    position: relative;
+  }
+
+  /* Hover underline flourish */
+  .nav-links > li > a::after {
+    content: '';
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    bottom: 6px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #e6a42b, transparent);
+    opacity: 0;
+    transform: scaleX(.5);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .nav-links > li > a:hover::after,
+  .nav-links > li > a.active::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  /* Desktop dropdowns: absolute card */
+  .nav-links > li { position: relative; }
+  .submenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 240px;
+    width: max-content;
+    background: color-mix(in srgb, #0f0f0f 92%, transparent);
+    border: 1px solid #232323;
+    border-radius: 12px;
+    padding: .5rem;
+    box-shadow: 0 18px 36px rgba(0,0,0,.35);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    max-height: none;   /* height animation not needed on desktop */
+    margin: 0;          /* override mobile margin */
+  }
+
+  /* Show on hover, or when JS toggles .open via caret */
+  .nav-links > li:hover > .submenu,
+  .nav-links > li > .submenu.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* Tighten submenu items on desktop */
+  .submenu a {
+    white-space: nowrap;
+    font-size: .95rem;
+    border-radius: 8px;
+  }
 }
-.submenu-header:focus-visible {
-    outline: 2px solid var(--accent, #e6a42b);
-    outline-offset: 2px;
-}
 
-/* Caret */
-.submenu-toggle {
-    appearance: none;
-    background: none;
-    border: none;
-    font-size: 1rem;
-    color: var(--text, #d1d1d1);
-    margin-left: 0.25rem;
-    cursor: pointer;
-    transition: transform 0.2s ease, color 0.2s ease;
-}
-.submenu-toggle:hover { color: var(--accent, #e6a42b); }
-.submenu-toggle.open { transform: rotate(180deg); } /* ▲ */
+/* ---------- ACCESSIBILITY / MOTION ---------- */
+body.no-scroll { overflow: hidden; }
 
-/* ========== DESKTOP LAYOUT ======== */
-@media (min-width: 769px) {
-    .nav-links {
-        display: flex;          /* always visible on desktop */
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        padding: 0.75rem 0;
-        background-color: var(--nav-bg, #111);
-        gap: 1rem 2rem;
-        margin: 0;
-        border: 0;              /* rely on header/container borders */
-        border-radius: 0;
-        max-height: none;
-        opacity: 1;
-    }
-
-    .nav-links li {
-        flex: 1 1 140px;
-        max-width: 200px;
-        text-align: center;
-        width: auto; /* override mobile full-width */
-    }
-
-    /* Submenu alignment on desktop */
-    .submenu {
-        padding-left: 0;
-        margin-top: 0.25rem;
-        border-radius: 8px;
-    }
-}
-
-/* ========== REDUCED MOTION ======== */
 @media (prefers-reduced-motion: reduce) {
-    .menu-button,
-    .nav-links a,
-    .submenu,
-    .submenu-toggle {
-        transition: none !important;
-        transform: none !important;
-    }
+  .menu-button,
+  .nav-links a,
+  .submenu,
+  .submenu-toggle {
+    transition: none !important;
+    transform: none !important;
+  }
 }
