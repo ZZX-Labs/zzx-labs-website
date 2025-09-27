@@ -1,20 +1,16 @@
 /* static/css/navbar.css
    Primary navigation (components layer)
-   - Compatible with your existing HTML + JS
-   - Mobile: hamburger opens a glassy slide-down drawer
-   - Desktop: centered row, elegant dropdowns (hover OR caret .open)
+   - Compact, scrollable mobile drawer
+   - Keeps your existing HTML & JS (.open toggling)
 */
 
 /* ---------- NAVBAR WRAPPER ---------- */
-.navbar {
-  width: 100%;
-}
+.navbar { width: 100%; }
 
-/* Constrain inner content (pairs nicely with header container if present) */
 .navbar,
 .header .container .navbar {
   display: grid;
-  grid-template-columns: 1fr auto; /* links stack under on mobile via .nav-links grid-span */
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: .5rem;
 }
@@ -24,14 +20,14 @@
   appearance: none;
   background: color-mix(in srgb, #161616 92%, transparent);
   border: 1px solid #2a2a2a;
-  font-size: 1.55rem;
+  font-size: 1.35rem; /* ↓ compact */
   color: var(--text, #e8e8e8);
   cursor: pointer;
   justify-self: end;
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  padding: .38rem .7rem;
+  padding: .3rem .55rem; /* ↓ compact */
   border-radius: 10px;
   box-shadow: 0 6px 18px rgba(0,0,0,.25);
   transition: background-color .2s ease, border-color .2s ease, transform .1s ease, color .2s ease;
@@ -40,56 +36,57 @@
 .menu-button:active  { transform: translateY(1px) scale(.98); }
 .menu-button:focus-visible { outline: 2px solid #e6a42b; outline-offset: 2px; }
 
-/* Hide hamburger on desktop */
-@media (min-width: 769px) {
-  .menu-button { display: none; }
-}
+@media (min-width: 769px) { .menu-button { display: none; } }
 
 /* ---------- NAV LIST (MOBILE DRAWER) ---------- */
 .nav-links {
-  grid-column: 1 / -1;  /* full width under hamburger on mobile */
+  grid-column: 1 / -1;
   list-style: none;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: .35rem;
-  margin: .6rem 0 0;
-  padding: .6rem;
-  background: color-mix(in srgb, #0c0c0c 90%, transparent);
+  gap: .2rem;                 /* ↓ tighter */
+  margin: .5rem 0 0;          /* ↓ tighter */
+  padding: .5rem;             /* ↓ tighter */
+  background: color-mix(in srgb, #0c0c0c 92%, transparent);
   border: 1px solid #232323;
   border-radius: 12px;
   box-shadow: 0 18px 36px rgba(0,0,0,.35);
   backdrop-filter: blur(6px);
-  overflow: hidden;
+
+  /* scrollable drawer */
   max-height: 0;
   opacity: 0;
   pointer-events: none;
-  transition: max-height .28s ease, opacity .2s ease;
+  overflow: hidden;           /* collapsed */
+  transition: max-height .26s ease, opacity .18s ease;
 }
+
 .nav-links.open {
-  max-height: 80vh;
+  /* Use viewport height for predictable scrolling space */
+  max-height: min(78vh, 620px);
   opacity: 1;
   pointer-events: auto;
+  overflow-y: auto;           /* scrollable */
+  -webkit-overflow-scrolling: touch; /* iOS momentum */
+  overscroll-behavior: contain;      /* keep scroll trapped */
 }
 
-.nav-links li {
-  position: relative;
-}
+/* Each item tighter */
+.nav-links li { position: relative; }
 
-/* Top-level links */
+/* Top-level links — compact */
 .nav-links > li > a {
   display: block;
   color: var(--text, #e8e8e8);
   text-decoration: none;
-  padding: .6rem .8rem;
+  padding: .5rem .6rem;       /* ↓ tighter */
   border-radius: 8px;
-  font: 500 .98rem/1.2 "IBM Plex Mono", ui-monospace, monospace;
-  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+  font: 500 .95rem/1.2 "IBM Plex Mono", ui-monospace, monospace; /* ↓ 0.95rem */
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease;
 }
 .nav-links > li > a:hover { background:#1a1a1a; color:#e6a42b; }
 .nav-links > li > a:focus-visible { outline:2px solid #e6a42b; outline-offset:2px; }
-
-/* Optional active state (your JS adds .active) */
 .nav-links > li > a.active {
   color:#e6a42b;
   background:#171717;
@@ -102,8 +99,8 @@
   background: none;
   border: none;
   color: var(--text, #d1d1d1);
-  font-size: .95rem;
-  margin-left: .35rem;
+  font-size: .9rem;           /* ↓ */
+  margin-left: .3rem;         /* ↓ */
   cursor: pointer;
   transition: transform .2s ease, color .2s ease;
 }
@@ -111,38 +108,41 @@
 .submenu-toggle.open  { transform: rotate(180deg); } /* ▲ */
 
 .submenu {
-  display: flex;           /* JS toggles .open for height/opacity; keep flex for children layout */
+  display: flex;
   flex-direction: column;
-  gap: .3rem;
-  margin: .35rem 0 0;
-  padding: .5rem .5rem .6rem;
+  gap: .2rem;                 /* ↓ tighter */
+  margin: .3rem 0 0;          /* ↓ tighter */
+  padding: .4rem .4rem .5rem; /* ↓ tighter */
   background: #121212;
   border: 1px solid #242424;
   border-radius: 10px;
+
+  /* accordion animation */
   max-height: 0;
   opacity: 0;
-  overflow: clip;
-  transition: max-height .26s ease, opacity .18s ease;
+  overflow: hidden;           /* hide when closed */
+  transition: max-height .24s ease, opacity .16s ease;
 }
 .submenu.open {
-  max-height: 60vh;
+  max-height: 60vh;           /* nested scroll if needed */
   opacity: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
-.submenu li { width: 100%; }
+
 .submenu a {
   display: block;
-  padding: .45rem .6rem;
+  padding: .4rem .5rem;       /* ↓ tighter */
   color: #bfbfbf;
   text-decoration: none;
   border-radius: 6px;
-  font-size: .94rem;
-  transition: color .18s ease, background-color .18s ease;
+  font-size: .9rem;           /* ↓ */
+  transition: color .16s ease, background-color .16s ease;
 }
 .submenu a:hover { color:#000; background:#e6a42b; }
 
 /* ---------- DESKTOP LAYOUT ---------- */
 @media (min-width: 769px) {
-  /* Desktop row: centered, no drawer chrome */
   .nav-links {
     grid-column: auto;
     flex-direction: row;
@@ -158,16 +158,16 @@
     opacity: 1 !important;
     max-height: none !important;
     pointer-events: auto;
+    overflow: visible; /* no drawer scroll on desktop */
   }
 
-  .nav-links > li {
-    padding: .2rem .1rem;
-  }
+  .nav-links > li { padding: .15rem .08rem; }
 
   .nav-links > li > a {
-    padding: .5rem .7rem;
+    padding: .48rem .65rem;   /* compact but clickable */
     border-radius: 8px;
     position: relative;
+    font-size: .95rem;
   }
 
   /* Hover underline flourish */
@@ -189,7 +189,7 @@
     transform: scaleX(1);
   }
 
-  /* Desktop dropdowns: absolute card */
+  /* Desktop dropdowns */
   .nav-links > li { position: relative; }
   .submenu {
     position: absolute;
@@ -206,11 +206,10 @@
     opacity: 0;
     transform: translateY(-6px);
     pointer-events: none;
-    max-height: none;   /* height animation not needed on desktop */
-    margin: 0;          /* override mobile margin */
+    margin: 0;
+    max-height: none;
+    overflow: visible;
   }
-
-  /* Show on hover, or when JS toggles .open via caret */
   .nav-links > li:hover > .submenu,
   .nav-links > li > .submenu.open {
     opacity: 1;
@@ -218,10 +217,9 @@
     pointer-events: auto;
   }
 
-  /* Tighten submenu items on desktop */
   .submenu a {
     white-space: nowrap;
-    font-size: .95rem;
+    font-size: .95rem; /* readable on desktop */
     border-radius: 8px;
   }
 }
