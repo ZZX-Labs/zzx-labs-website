@@ -3,6 +3,41 @@
   const Z = (window.ZZXSite = window.ZZXSite || {});
   let booted = false;
 
+  // ------- tiny utility to load a script, trying multiple candidate paths -------
+  function loadFirst(candidates) {
+    return new Promise((resolve, reject) => {
+      let i = 0;
+      const tried = [];
+      function tryNext() {
+        if (i >= candidates.length) {
+          return reject(new Error('Could not load module from: ' + tried.join(', ')));
+        }
+        const src = candidates[i++];
+
+        const s = document.createElement('script');
+        s.src = src;
+        s.defer = true;
+        s.onload = () => resolve(src);
+        s.onerror = () => { tried.push(src); tryNext(); };
+        document.head.appendChild(s);
+      }
+      tryNext();
+    });
+  }
+
+  function candidatesFor(pathFromRoot) {
+    // Prefer absolute from site root, but also try relative paths for file:// or subpath testing
+    // Order matters — the first that works wins.
+    return [
+      pathFromRoot,                                // '/static/js/modules/partials-loader.js'
+      './' + pathFromRoot.replace(/^\//, ''),      // './static/js/modules/partials-loader.js'
+      '../' + pathFromRoot.replace(/^\//, ''),     // '../static/js/modules/partials-loader.js'
+      '../../' + pathFromRoot.replace(/^\//, ''),  // '../../static/js/modules/partials-loader.js'
+      '../../../' + pathFromRoot.replace(/^\//, ''), // '../../../...'
+      '../../../../' + pathFromRoot.replace(/^\//, '')
+    ];
+  }
+
   // Helper: attach once per element
   function onOnce(el, type, handler, opts) {
     const key = `__bound_${type}`;
@@ -29,7 +64,7 @@
 
     // Submenus
     (scope.querySelectorAll('.submenu-toggle') || []).forEach(btn => {
-      onOnce(btn, 'click', (e) => {
+      onOnce(btn, 'click', () => {
         const ul = btn.nextElementSibling;
         if (ul && ul.classList.contains('submenu')) {
           ul.classList.toggle('open');
@@ -110,4 +145,22 @@
     // Mark booted (purely informational)
     booted = true;
   };
+
+  // ----- Auto-load modules so pages only include /static/script.js -----
+  (function loadModules() {
+    // Always pull in the partials loader automatically
+    const partialsLoaderCandidates = candidatesFor('/static/js/modules/partials-loader.js');
+    loadFirst(partialsLoaderCandidates).catch(err => {
+      console.warn('partials-loader.js failed to load:', err && err.message ? err.message : err);
+    });
+  })();
+
+  // If the wrapper already called autoInit, this is harmless; otherwise run at DOM ready.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof Z.autoInit === 'function') Z.autoInit();
+    });
+  } else {
+    if (typeof Z.autoInit === 'function') Z.autoInit();
+  }
 })();
