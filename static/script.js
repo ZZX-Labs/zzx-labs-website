@@ -1,21 +1,32 @@
 // /static/script.js
 (function () {
+  function resolveBaseFromCurrentScript() {
+    // Works even with relative includes like ../static/script.js
+    const s = document.currentScript;
+    if (!s) return '/static'; // best-effort fallback
+    const url = new URL(s.src, location.href);
+    url.pathname = url.pathname.replace(/\/[^/]*$/, ''); // strip filename
+    return url.pathname; // e.g., '/static'
+  }
+
   function load(src) {
     return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.defer = true;
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
+      const el = document.createElement('script');
+      el.src = src;
+      el.defer = true;
+      el.onload = resolve;
+      el.onerror = reject;
+      document.head.appendChild(el);
     });
   }
 
   async function boot() {
-    // Load the sitewide main
-    await load('./js/script.js');
+    const base = resolveBaseFromCurrentScript();   // '/static'
+    const sitewide = `${base}/js/script.js`;       // '/static/js/script.js'
 
-    // Run auto init (safe if called multiple times)
+    await load(sitewide);
+
+    // Run auto init (idempotent)
     if (window.ZZXSite && typeof window.ZZXSite.autoInit === 'function') {
       window.ZZXSite.autoInit();
     }
