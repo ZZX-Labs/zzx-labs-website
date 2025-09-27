@@ -9,27 +9,30 @@
     padding: 3rem 1rem;
     width: 100%;
     box-sizing: border-box;
-    border-top: 1px solid #3e3e3e; /* subtle separator */
+    border-top: 1px solid #3e3e3e;
 }
 
-/* Container: responsive max-width + grid on larger screens */
+/* Single unified container */
 .footer .container {
     margin-inline: auto;
     max-width: 1200px;
     display: grid;
     grid-template-columns: 1fr;
     gap: 2rem;
+    text-align: center; /* default centered */
 }
 
-/*  ≥ 768px: two cols;  ≥ 1024px: 3–4 cols depending on content */
+/* ≥768px: two cols; ≥1024px: 3 cols (legal/docs/opportunities).
+   If you want 4, add another .footer-column in HTML. */
 @media (min-width: 768px) {
     .footer .container {
         grid-template-columns: repeat(2, minmax(220px, 1fr));
+        text-align: left;
     }
 }
 @media (min-width: 1024px) {
     .footer .container {
-        grid-template-columns: repeat(4, minmax(220px, 1fr));
+        grid-template-columns: repeat(3, minmax(220px, 1fr));
     }
 }
 
@@ -38,43 +41,34 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    align-items: flex-start;
-    min-width: 0; /* prevent overflow */
+    min-width: 0;
 }
 
-/* Footer Column Headings */
+/* Headings */
 .footer-column h4 {
     font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     color: #e6a42b;
     margin-bottom: 0.75rem;
     line-height: 1.2;
 }
 
-/* Footer Links List */
+/* Links */
 .footer-links {
     list-style: none;
     padding: 0;
     margin: 0;
-    width: 100%;
 }
-
-/* Footer Link Items */
 .footer-links li { margin-bottom: 0.5rem; }
-
-/* Footer Anchor Links */
 .footer-links a {
     font-family: 'IBM Plex Mono', monospace;
     color: #c0d674;
     font-size: 0.95rem;
     text-decoration: none;
     transition: color 0.2s ease, text-decoration 0.2s ease, box-shadow 0.2s ease;
-    outline: none;
-    border-radius: 3px; /* better focus ring shape */
-    padding: 0.1rem 0.2rem; /* room for focus ring without layout shift */
+    border-radius: 3px;
+    padding: 0.1rem 0.2rem;
 }
-
-/* Hover + Focus-visible states */
 .footer-links a:hover {
     color: #e6a42b;
     text-decoration: underline;
@@ -82,14 +76,13 @@
 .footer-links a:focus-visible {
     color: #000;
     background-color: #e6a42b;
-    text-decoration: none;
     box-shadow: 0 0 0 2px #e6a42b;
 }
 
-/* Footer Bottom */
+/* Footer Bottom (copyright strip) */
 .footer-bottom {
-    width: 100%;
-    margin-top: 3rem;
+    max-width: 1200px;
+    margin: 2rem auto 0 auto;
     text-align: center;
     font-size: 0.9rem;
     color: #c0d674;
@@ -108,12 +101,9 @@
     .footer-column {
         align-items: center;
     }
-    .footer-links {
-        align-items: center;
-    }
 }
 
-/* Reduce motion preference: tone down transitions */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .footer-links a {
         transition: none;
