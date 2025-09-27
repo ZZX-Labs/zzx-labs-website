@@ -1,42 +1,49 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Group Message — ZZX-Labs R&D</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="../../../../static/styles.css" rel="stylesheet" />
-  <style>/* same styles as template above */</style>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Group Message | ZZX-Labs R&D</title>
+  <link rel="stylesheet" href="../../../../static/styles.css">
+  <script src="../../../../static/script.js" defer></script>
 </head>
 <body>
-  <header id="header"></header>
-  <main>
-    <div class="crumbs"><a href="../index.html">/users/staff/comms</a> / <strong>group-message</strong></div>
-    <aside>
-      <nav aria-label="Comms Navigation">
-        <a href="../audio-conference/">Audio Conference</a>
-        <a href="../video-conference/">Video Conference</a>
-        <a href="../voip-system/">VOIP System</a>
-        <a href="../direct-message/">Direct Message</a>
-        <a href="../group-message/" class="active">Group Message</a>
-        <a href="../email-system/">Email System</a>
-        <a href="../media-system/">Media System</a>
-        <a href="../gpg-keys/">GPG Keys</a>
-      </nav>
-    </aside>
-    <section>
-      <h1>Group Message</h1>
-      <p class="note">Channels with role-based ACLs, topic threads, and file drops.</p>
-      <div class="panel">
-        <!-- Hook to channel service -->
-        <button>Create Channel</button>
-        <button>Browse Channels</button>
+<header class="header">
+  <div class="container">
+    <img src="../../../../static/logos/ZZX Labs Logo 2.png" alt="ZZX-Labs Logo" class="logo">
+    <div class="logo-container">
+      <a href="../../../../"><img src="../../../../static/logos/ZZX Logo.png" alt="ZZX Logo" class="logo"></a>
+    </div><br>
+    <!-- NAV -->
+  </div>
+</header>
+
+<main>
+  <br><div id="ticker-container"></div><br>
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>[:[ZZX-Labs]:]</h1>
+      <h4>| Group Message |</h4><br>
+      <p>Channels, threads, ACLs, and file drops for teams and projects.</p><br><br>
+      <div class="button-group">
+        <a href="../" class="btn btn-secondary">Back to Comms</a>
+        <a href="#" class="btn btn-primary">Create Channel</a>
+        <a href="#" class="btn btn-primary">Browse Channels</a>
       </div>
-    </section>
-  </main>
-  <footer id="footer"></footer>
-  <script>
-    fetch("../../../../partials/header.html").then(r=>r.text()).then(t=>document.getElementById("header").innerHTML=t);
-    fetch("../../../../partials/footer.html").then(r=>r.text()).then(t=>document.getElementById("footer").innerHTML=t);
-  </script>
+    </div>
+  </section><br><br>
+</main>
+
+<footer class="footer">
+  <!-- same footer -->
+</footer>
+
+<script>
+  fetch('../../../../bitcoin/ticker/ticker.html').then(r=>r.text()).then(html=>{
+    document.getElementById('ticker-container').innerHTML=html;
+    const s=document.createElement('script'); s.src='../../../../bitcoin/ticker/ticker.js'; document.body.appendChild(s);
+  }).catch(err=>console.error('Error loading ticker widget:', err));
+</script>
 </body>
 </html>
