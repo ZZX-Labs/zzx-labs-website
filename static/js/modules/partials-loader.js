@@ -10,7 +10,6 @@
   // Try a URL to see if it's OK (GET, no-store) — returns true/false
   async function probe(url) {
     try {
-      // Some static hosts block HEAD; use GET with no-store
       const r = await fetch(url, { method: 'GET', cache: 'no-store' });
       return r.ok;
     } catch (_) {
@@ -23,7 +22,6 @@
     if (cached) {
       const ok = await probe(join(cached, PARTIALS_DIR, 'header/header.html'));
       if (ok) return cached;
-      // bust the cache on mismatch
       sessionStorage.removeItem('zzx.partials.prefix');
     }
     // recompute:
@@ -34,7 +32,6 @@
         return p;
       }
     }
-    // fallback to current dir
     return '.';
   }
 
@@ -114,16 +111,26 @@
     });
   }
 
-  // Optional ticker
+  // Optional ticker (now duplicate-safe + cache-busted)
   async function maybeLoadTicker(prefix) {
+    // ✅ tweak: if another module already loaded the ticker, bail
+    if (window.__ZZX_TICKER_LOADED || document.querySelector('script[data-zzx-ticker]')) return;
+
     const tc = document.getElementById('ticker-container');
     if (!tc) return;
     try {
       const html = await loadHTML(join(prefix, 'bitcoin/ticker/ticker.html'));
       tc.innerHTML = html;
+
+      // ✅ tweak: cache-bust to keep updates flowing and mark as loaded
       const s = document.createElement('script');
-      s.src = join(prefix, 'bitcoin/ticker/ticker.js');
+      s.src = join(prefix, 'bitcoin/ticker/ticker.js') + `?v=${Date.now()}`;
+      s.defer = true;
+      s.setAttribute('data-zzx-ticker', '1');
       document.body.appendChild(s);
+
+      window.__ZZX_TICKER_LOADED = true;
+      tc.dataset.tickerLoaded = '1';
     } catch (e) {
       console.warn('Ticker load failed:', e);
     }
