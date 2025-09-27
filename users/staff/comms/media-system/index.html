@@ -1,1 +1,42 @@
-
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Media System — ZZX-Labs R&D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="../../../../static/styles.css" rel="stylesheet" />
+  <style>/* same styles as template above */</style>
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <div class="crumbs"><a href="../index.html">/users/staff/comms</a> / <strong>media-system</strong></div>
+    <aside>
+      <nav aria-label="Comms Navigation">
+        <a href="../audio-conference/">Audio Conference</a>
+        <a href="../video-conference/">Video Conference</a>
+        <a href="../voip-system/">VOIP System</a>
+        <a href="../direct-message/">Direct Message</a>
+        <a href="../group-message/">Group Message</a>
+        <a href="../email-system/">Email System</a>
+        <a href="../media-system/" class="active">Media System</a>
+        <a href="../gpg-keys/">GPG Keys</a>
+      </nav>
+    </aside>
+    <section>
+      <h1>Media System</h1>
+      <p class="note">Encrypted file and media sharing with per-room ACL and expiring links.</p>
+      <div class="panel">
+        <!-- Hook to object storage / SFTP gateway -->
+        <button>Upload</button>
+        <button>Browse</button>
+      </div>
+    </section>
+  </main>
+  <footer id="footer"></footer>
+  <script>
+    fetch("../../../../partials/header.html").then(r=>r.text()).then(t=>document.getElementById("header").innerHTML=t);
+    fetch("../../../../partials/footer.html").then(r=>r.text()).then(t=>document.getElementById("footer").innerHTML=t);
+  </script>
+</body>
+</html>
