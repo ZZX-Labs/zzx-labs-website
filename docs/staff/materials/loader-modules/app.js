@@ -1,4 +1,5 @@
-// Orchestrator: load urls.json, resolve/calc cache, fetch/render
+// /docs/staff/materials/loader-modules/app.js
+// Orchestrator: load urls.json (and recursively child urls.json via manifest.json), then resolve/cache/render
 
 import { STATIC_CACHE_DIR, IDB_MAX_ENTRIES } from './config.js';
 import { urlToTitle, extractFragment, cacheKey, cacheSlug } from './utils.js';
@@ -12,6 +13,54 @@ import {
 } from './render.js';
 
 const PROBLEMS = [];
+
+/** Utility: ensure a path ends with '/' */
+function ensureSlash(p) { return p.endsWith('/') ? p : (p + '/'); }
+
+/** Compute the current dir URL for relative fetches (safe for deep subdirs) */
+function currentDirURL() {
+  return new URL('./', window.location.href).toString();
+}
+
+/** Fetch JSON if exists; return null if 404 or invalid */
+async function fetchJSONMaybe(url) {
+  try {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+/** Recursively gather URLs from this directory and its children via manifest.json */
+async function collectUrlsRecursive(dirUrl, seenDirs = new Set()) {
+  const out = [];
+
+  const dirKey = new URL(dirUrl).toString();
+  if (seenDirs.has(dirKey)) return out;
+  seenDirs.add(dirKey);
+
+  // 1) urls.json in this directory (if present)
+  const urlsJsonUrl = new URL('urls.json', dirUrl).toString();
+  const urls = await fetchJSONMaybe(urlsJsonUrl);
+  if (Array.isArray(urls)) {
+    // Defensive: filter to strings and trim
+    for (const u of urls) if (typeof u === 'string' && u.trim()) out.push(u.trim());
+  }
+
+  // 2) manifest.json with child subdirectories (if present)
+  const manifestUrl = new URL('manifest.json', dirUrl).toString();
+  const manifest = await fetchJSONMaybe(manifestUrl);
+  const children = Array.isArray(manifest?.children) ? manifest.children : [];
+
+  for (const child of children) {
+    if (typeof child !== 'string' || !child.trim()) continue;
+    const childDir = new URL(ensureSlash(child.trim()), dirUrl).toString();
+    const childUrls = await collectUrlsRecursive(childDir, seenDirs);
+    out.push(...childUrls);
+  }
+
+  return out;
+}
 
 async function tryLoadStaticCache(slug) {
   try {
@@ -98,17 +147,22 @@ export async function boot() {
   // Wire UI first so TOC clicks/hash work as content streams in
   attachNavCollapsibleHandlers();
 
-  // Load URL list
-  const urlsRes = await fetch('./urls.json', { cache: 'no-cache' });
-  if (!urlsRes.ok) throw new Error('Missing urls.json');
-  const urls = await urlsRes.json();
+  // Gather URLs: this dir + recursive children (via manifest.json)
+  const here = currentDirURL();
+  const allUrls = await collectUrlsRecursive(here);
+
+  if (!allUrls.length) {
+    const toc = document.getElementById('toc-content');
+    if (toc) toc.innerHTML = `<p class="error">No sources found. Add a urls.json or a manifest.json with "children".</p>`;
+    return;
+  }
 
   // Reset TOC content
   const toc = document.getElementById('toc-content');
   if (toc) toc.innerHTML = '';
 
   // Render all sources
-  for (const url of urls) {
+  for (const url of allUrls) {
     try { await processUrl(url); }
     catch (err) { PROBLEMS.push(`Failed URL: ${url} → ${err.message}`); }
   }
