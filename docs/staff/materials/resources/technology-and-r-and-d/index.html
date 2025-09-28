@@ -1,1 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Staff Materials - Resources - Technology & R&D Knowledgebases | ZZX-Labs R&D</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- Global site -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+  <!-- Page-local (optional) -->
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="manifest" href="./manifest.json" />
+  <!-- Loader (single entry) -->
+  <link rel="modulepreload" href="/docs/staff/materials/loader-modules/loader.js" />
+  <script type="module">
+    import { boot } from '/docs/staff/materials/loader-modules/loader.js';
+    boot().catch(err => {
+      const toc = document.getElementById('toc-content');
+      if (toc) toc.innerHTML = `<p class="error">Failed to initialize: ${err.message}</p>`;
+      console.error(err);
+    });
+  </script>
+</head>
+<body class="technology-and-r-and-d">
+<header>
+  <div id="zzx-header"></div>
+</header>
+<main class="page-container">
+  <br><div id="ticker-container"></div><br>
 
+  <div class="breadcrumbs">
+    <a href="/docs">Docs</a> /
+    <a href="/docs/staff">Staff</a> /
+    <a href="/docs/staff/materials">Materials</a> /
+    <a href="/docs/staff/materials/resources">Resources</a> /
+    <strong>Technology &amp; R&amp;D</strong>
+  </div>
+
+  <h1 class="page-title">Technology &amp; R&amp;D</h1>
+  <div class="notice">
+    This category aggregates its own <code>urls.json</code> and all child subpages listed in
+    <code>manifest.json</code>. Content renders live from Wikipedia via the MediaWiki API.
+  </div>
+
+  <div class="layout">
+    <aside aria-label="Table of contents">
+      <nav class="toc" id="toc">
+        <h3>On this page</h3>
+        <div class="toc-controls">
+          <input id="toc-filter" type="search" placeholder="Filter sections…" autocomplete="off" />
+        </div>
+        <div id="toc-content" class="toc-content"><p class="loading">Loading sources…</p></div>
+      </nav>
+    </aside>
+
+    <div class="sources-container" id="sources"></div>
+  </div>
+
+  <div class="notice attribution">
+    Portions of this page are fetched live from Wikipedia via the MediaWiki API.
+    Text is available under the
+    <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA</a>
+    and the
+    <a href="https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use" target="_blank" rel="noopener noreferrer">Wikipedia Terms of Use</a>.
+  </div>
+
+  <!-- Credits -->
+  <div id="zzx-credits"></div>
+</main>
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+<script type="module" src="/__partials/credits/loader.js"></script>
+</body>
+</html>
