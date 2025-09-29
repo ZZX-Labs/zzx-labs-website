@@ -231,3 +231,32 @@ body.business-resources {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* --------------------------
+   TOC Filter Accent Override
+   -------------------------- */
+:root {
+  --accent-rgb: 192, 214, 116; /* #c0d674 */
+}
+
+#toc-filter {
+  caret-color: var(--accent);
+}
+
+#toc-filter:focus,
+#toc-filter:focus-visible {
+  outline: none; /* suppress UA green */
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.35),              /* subtle inner contrast ring */
+    0 0 0 4px rgba(var(--accent-rgb), 0.35); /* brand-colored halo */
+}
+
+#toc-filter:hover {
+  border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+#toc-filter::placeholder {
+  color: var(--muted);
+  opacity: 0.9;
+}
