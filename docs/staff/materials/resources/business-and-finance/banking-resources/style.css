@@ -1,39 +1,56 @@
+/* ──────────────────────────────────────────────────────────────
+   ZZX-Labs Knowledgebase Page Styles (drop-in)
+   Use this file for any docs/.../*/*-resources/style.css
+   No external CSS needed beyond your global /static/styles.css.
+   ────────────────────────────────────────────────────────────── */
+
 :root {
   --accent: #c0d674;
+  --accent-rgb: 192, 214, 116; /* #c0d674 */
   --muted: #8a8f98;
   --bg-alt: #0f1216;
-
-  /* offset for sticky header + sticky TOC; adjust if your header height changes */
-  --header-offset: 96px;
+  --header-offset: 96px; /* sticky header offset for anchor jumps */
 }
 
 html {
-  /* smooth scroll + correct anchor offset so targets aren’t hidden under sticky header */
   scroll-behavior: smooth;
   scroll-padding-top: var(--header-offset);
 }
 
-body.business-resources {
+/* Apply dark background to any leaf knowledgebase page */
+body[class$='-resources'] {
   background: var(--bg-alt);
 }
 
+/* Optional: keep this if you want a page-scoped hook too */
+body.banking-resources {
+  background: var(--bg-alt);
+}
+
+/* Page constrainer */
 .page-container {
   max-width: 1280px;
   margin: 0 auto;
   padding: 1rem;
 }
 
+/* Breadcrumbs */
 .breadcrumbs {
   font-size: 0.9rem;
   color: var(--muted);
   margin: 0.5rem 0 1rem 0;
 }
-.breadcrumbs a { color: var(--accent); text-decoration: none; }
+.breadcrumbs a {
+  color: var(--accent);
+  text-decoration: none;
+}
 
+/* Title */
 .page-title {
   margin: 0.5rem 0 1rem 0;
 }
 
+/* Notices */
 .notice {
   background: rgba(192,214,116,0.06);
   border: 1px solid rgba(192,214,116,0.25);
@@ -44,15 +61,9 @@ body.business-resources {
 }
 .notice.attribution { margin-top: 2rem; }
 
-/* Acknowledgements */
+/* Thanks / Acknowledgements */
 .thanks h3 { margin-top: 0; color: var(--accent); }
-.thanks .fineprint {
-  color: var(--muted);
-  font-size: 0.85rem;
-  margin-top: 0.75rem;
-}
-
-/* Responsive multi-column list */
+.thanks .fineprint { color: var(--muted); font-size: 0.85rem; margin-top: 0.75rem; }
 .thanks-grid {
   list-style: none;
   margin: 0.5rem 0 0 0;
@@ -67,6 +78,7 @@ body.business-resources {
 .thanks-grid li a { color: #ddd; text-decoration: none; }
 .thanks-grid li a:hover { text-decoration: underline; }
 
+/* Page layout: sticky TOC + content */
 .layout {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -76,7 +88,7 @@ body.business-resources {
   .layout { grid-template-columns: 1fr; }
 }
 
-/* Sticky TOC */
+/* TOC (left) */
 .toc {
   position: sticky;
   top: 1rem;
@@ -102,6 +114,7 @@ body.business-resources {
 }
 .toc li { margin: 0.25rem 0; }
 
+/* TOC filter with brand-accurate focus ring */
 .toc-controls {
   display: flex;
   margin-bottom: 0.5rem;
@@ -113,16 +126,25 @@ body.business-resources {
   border: 1px solid rgba(255,255,255,0.15);
   background: rgba(255,255,255,0.04);
   color: #eaeaea;
+  caret-color: var(--accent);
+}
+#toc-filter::placeholder { color: var(--muted); opacity: 0.9; }
+#toc-filter:hover { border-color: rgba(var(--accent-rgb), 0.35); }
+#toc-filter:focus,
+#toc-filter:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.35),
+    0 0 0 4px rgba(var(--accent-rgb), 0.35);
 }
 
-/* Content blocks */
+/* Source content blocks */
 .sources-container section {
   margin-bottom: 2.5rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px dashed rgba(255,255,255,0.08);
-
-  /* when jumping to section id, keep it below sticky header */
-  scroll-margin-top: var(--header-offset);
+  scroll-margin-top: var(--header-offset); /* anchor jumps clear sticky header */
 }
 .source-header {
   display: flex;
@@ -144,7 +166,7 @@ body.business-resources {
 }
 .subsection {
   margin: 1rem 0;
-  scroll-margin-top: var(--header-offset); /* anchors inside sections */
+  scroll-margin-top: var(--header-offset);
 }
 .subsection h3 {
   margin: 1rem 0 0.5rem 0;
@@ -157,6 +179,7 @@ body.business-resources {
   margin: 0.5rem 0;
 }
 
+/* Badges */
 .api-badge {
   font-size: 0.75rem;
   color: var(--muted);
@@ -164,13 +187,11 @@ body.business-resources {
   border-radius: 999px;
   padding: 0.2rem 0.5rem;
 }
-
 .updated-time {
   font-size: 0.8rem;
   color: var(--muted);
   margin-left: auto;
 }
-
 .pill {
   display: inline-block;
   font-size: 0.7rem;
@@ -181,7 +202,7 @@ body.business-resources {
   margin-left: 0.35rem;
 }
 
-/* Dark-theme cleanup for injected wiki HTML */
+/* Clean up injected Wiki HTML in dark UI */
 .source-content img { max-width: 100%; height: auto; }
 .source-content table { width: 100%; border-collapse: collapse; }
 .source-content th, .source-content td {
@@ -191,11 +212,9 @@ body.business-resources {
 .source-content .infobox,
 .source-content .navbox,
 .source-content .metadata,
-.source-content .mw-editsection {
-  display: none !important;
-}
+.source-content .mw-editsection { display: none !important; }
 
-/* Collapsible reference-style sections */
+/* Collapsible "References/External links/..." style sections */
 .subsection.collapsible {
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
@@ -224,39 +243,10 @@ body.business-resources {
 .subsection.collapsible .collapsible-body {
   padding: 0.5rem 0.25rem 0.75rem 0.25rem;
 }
-/* FORCE collapsed by default for injected <details> */
+/* Keep collapsed body hidden even if MW injects details markup */
 .subsection.collapsible:not([open]) .collapsible-body { display: none !important; }
 
 /* Respect reduced-motion users */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-}
-
-/* --------------------------
-   TOC Filter Accent Override
-   -------------------------- */
-:root {
-  --accent-rgb: 192, 214, 116; /* #c0d674 */
-}
-
-#toc-filter {
-  caret-color: var(--accent);
-}
-
-#toc-filter:focus,
-#toc-filter:focus-visible {
-  outline: none; /* suppress UA green */
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 2px rgba(0,0,0,0.35),              /* subtle inner contrast ring */
-    0 0 0 4px rgba(var(--accent-rgb), 0.35); /* brand-colored halo */
-}
-
-#toc-filter:hover {
-  border-color: rgba(var(--accent-rgb), 0.35);
-}
-
-#toc-filter::placeholder {
-  color: var(--muted);
-  opacity: 0.9;
 }
