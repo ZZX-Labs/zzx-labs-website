@@ -1,5 +1,5 @@
 // Wrapper: loads the real app.
-import { boot } from './modules/app.js';
+import { boot } from './loader-modules/loader.js';
 
 window.addEventListener('DOMContentLoaded', () => {
   boot().catch(err => {
