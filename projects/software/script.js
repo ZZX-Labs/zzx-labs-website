@@ -1,55 +1,41 @@
-// /projects/software/script.js
-(function () {
-  const LIST_ID = 'projects-list';
-  const listEl = document.getElementById(LIST_ID);
-
-  function el(tag, attrs = {}, children = []) {
-    const node = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs)) {
-      if (k === 'class') node.className = v;
-      else if (k === 'html') node.innerHTML = v;
-      else node.setAttribute(k, v);
+// Load local manifest.json and render stacked "feature" cards.
+(async function () {
+  async function fetchManifest(url) {
+    try {
+      const r = await fetch(url, { cache: 'no-cache' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      console.warn('Failed to load manifest:', url, e);
+      return null;
     }
-    (Array.isArray(children) ? children : [children])
-      .filter(Boolean)
-      .forEach(c => node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
-    return node;
   }
 
-  async function loadManifest() {
-    const res = await fetch('./manifest.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  }
-
-  function renderProjects(items) {
+  function render(listEl, projects) {
     if (!listEl) return;
     listEl.innerHTML = '';
 
-    if (!Array.isArray(items) || items.length === 0) {
-      listEl.appendChild(el('p', { class: 'loading' }, 'No projects found.'));
+    const items = Array.isArray(projects) ? projects : [];
+
+    if (!items.length) {
+      listEl.innerHTML = '<p class="muted">No projects listed yet.</p>';
       return;
     }
 
-    items.forEach(p => {
-      const card = el('div', { class: 'feature' }, [
-        el('h3', {}, p.title || p.slug || 'Untitled'),
-        el('p', {}, p.blurb || ''),
-        el('ul', { class: 'links' }, [
-          el('li', {}, el('a', { href: p.href || '#'}, 'Open Project'))
-        ])
-      ]);
-      listEl.appendChild(card);
-    });
+    for (const p of items) {
+      const href = p.href || `/projects/software/${p.slug}/`;
+      const el = document.createElement('div');
+      el.className = 'feature';
+      el.innerHTML = `
+        <h3>${p.title || p.slug}</h3>
+        <p>${p.blurb || ''}</p>
+        <a class="btn" href="${href}">${p.linkText || `Open ${p.title || p.slug}`}</a>
+      `;
+      listEl.appendChild(el);
+    }
   }
 
-  (async () => {
-    try {
-      const manifest = await loadManifest();
-      renderProjects(manifest.projects || []);
-    } catch (err) {
-      if (listEl) listEl.innerHTML = `<p class="loading">Failed to load projects: ${err.message}</p>`;
-      console.error(err);
-    }
-  })();
+  const mount = document.getElementById('projects-list');
+  const manifest = await fetchManifest('./manifest.json'); // same folder
+  render(mount, manifest?.projects || []);
 })();
