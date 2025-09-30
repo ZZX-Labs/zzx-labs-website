@@ -1,11 +1,16 @@
 :root {
-  --accent: #c0d674;     /* green buttons, headings */
-  --accent-alt: #e62ab4; /* ochre back buttons */
+  --accent: #c0d674;      /* green: primary action buttons */
+  --accent-alt: #e62ab4;  /* ochre: back/secondary buttons (as defined by you) */
   --muted: #8a8f98;
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-.features { max-width: 1200px; margin: 0 auto; padding: 0 1rem 1.5rem 1rem; }
+
+.features {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem 1.5rem 1rem;
+}
 
 .feature {
   border: 1px solid rgba(255,255,255,0.12);
@@ -14,18 +19,21 @@
   padding: 1rem 1.1rem;
   margin: 0.6rem 0;
 }
-.feature h3 { margin: 0 0 .35rem 0; color: var(--accent); font-weight: 600; }
-.feature p { margin: 0 0 .5rem 0; color: #cfd3da; }
 
-/* plain text links only */
+.feature h3 { margin: 0 0 .35rem 0; color: var(--accent); font-weight: 600; }
+.feature p  { margin: 0 0 .5rem 0;  color: #cfd3da; }
+
+/* plain links inside cards */
 .feature a:not(.btn) { color: #eaeaea; text-decoration: none; }
 .feature a:not(.btn):hover { text-decoration: underline; }
 
-/* buttons — always black text */
+/* -------------------------------------------------------
+   Buttons (force exact colors + black text on the Web page)
+   ------------------------------------------------------- */
 .btn {
   display: inline-block;
-  background: var(--accent) !important;   /* green */
-  color: #101218 !important;              /* black text */
+  background: var(--accent) !important;     /* green */
+  color: #101218 !important;                /* black text */
   border: 1px solid rgba(255,255,255,0.12);
   padding: 0.42rem 0.78rem;
   border-radius: 8px;
@@ -35,13 +43,18 @@
 }
 .btn:hover { filter: brightness(1.04); }
 
+/* alt/back button (ochre) — hard override in Web scope */
+.projects-web .btn.alt,
 .btn.alt {
-  background: var(--accent-alt) !important; /* ochre back button */
+  background: var(--accent-alt) !important; /* ochre */
   color: #101218 !important;                /* black text */
 }
 
+/* ensure category back-links use the alt style on Web page */
+.projects-web .backlinks .btn { background: var(--accent-alt) !important; color: #101218 !important; }
+
 .feature .btn { margin-top: 0.35rem; }
 
-.backlinks { padding-bottom: 2rem; }
 .loading { color: var(--muted); font-style: italic; }
+.backlinks { padding-bottom: 2rem; }
 .muted { color: var(--muted); }
