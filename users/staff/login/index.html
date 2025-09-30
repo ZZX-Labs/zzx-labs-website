@@ -4,34 +4,138 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>Staff Login | ZZX-Labs R&D</title>
-  <link rel="stylesheet" href="../../../static/styles.css">
-  <script src="../../../static/script.js" defer></script>
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <!-- Page-local -->
+  <link rel="stylesheet" href="./style.css">
+  <!-- Optional: CSRF token (uncomment and populate if your backend requires it) -->
+  <!-- <meta name="csrf-token" content="..."> -->
 </head>
-<body>
+<body class="staff-login">
 <header>
-    <div id="zzx-header"></div>
+  <div id="zzx-header"></div>
 </header>
+
 <main>
-  <br>
-  <div id="ticker-container"></div>
-  <br>
+  <div class="container">
+    <div id="ticker-container" class="ticker-wrap"></div>
 
-  <section class="hero">
-    <div class="hero-overlay"></div>
-    <div class="hero-content">
-      <h1>[:[ZZX-Labs]:]</h1>
-      <h4>| Staff Login |</h4><br>
-      <p>Authenticate to access staff resources and the secure communications suite.</p><br><br>
+    <section class="login-card" aria-labelledby="login-title">
+      <h1 id="login-title">Staff Login</h1>
+      <p class="lede">Authenticate to access staff resources and secure communications.</p>
 
-      <div class="button-group">
-        <a href="../" class="btn btn-secondary">Back to Staff Portal</a>
-        <a href="../comms" class="btn btn-primary">Go to Comms</a>
+      <form id="staff-login-form" novalidate>
+        <!-- Username or Staff ID -->
+        <div class="field">
+          <label for="username">Username / Staff ID</label>
+          <input id="username" name="username" type="text" inputmode="text" autocomplete="username" required
+                 placeholder="e.g. jdoe or ZZX-1234" minlength="3" maxlength="64">
+          <small class="hint">Use your Staff ID (e.g., ZZX-1234) or your Staff Username.</small>
+        </div>
+
+        <!-- Email -->
+        <div class="field">
+          <label for="email">Work Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required
+                 placeholder="name@zzx-labs.org">
+          <small class="hint">Your work-issued address. We’ll never share it.</small>
+        </div>
+
+        <!-- GPG Fingerprint -->
+        <div class="field">
+          <label for="gpg">GPG Fingerprint</label>
+          <input id="gpg" name="gpg" type="text" inputmode="latin" autocapitalize="off" spellcheck="false"
+                 placeholder="40-hex uppercase (spaces allowed)" required
+                 pattern="^([A-Fa-f0-9]{4}(\s|)){10}$|^[A-Fa-f0-9]{40}$">
+          <small class="hint">
+            40-hex fingerprint. Spaces are OK (e.g., <code>ABCD EFGH ...</code>). Use uppercase if possible.
+          </small>
+        </div>
+
+        <!-- Password -->
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-row">
+            <input id="password" name="password" type="password" autocomplete="current-password" required
+                   minlength="10" placeholder="•••••••••••••••">
+            <button class="ghost" id="toggle-password" type="button" aria-label="Show password">👁</button>
+          </div>
+          <small class="hint">Minimum 10 characters. Use a password manager where possible.</small>
+        </div>
+
+        <!-- YubiKey / 2FA block -->
+        <fieldset class="field twofa" aria-labelledby="twofa-legend">
+          <legend id="twofa-legend">Two-Factor Authentication</legend>
+
+          <div class="twofa-methods">
+            <!-- Yubico OTP -->
+            <div class="twofa-col">
+              <label for="yubico-otp">YubiKey OTP (optional)</label>
+              <input id="yubico-otp" name="yubico_otp" type="text" inputmode="text"
+                     placeholder="Touch your YubiKey to fill OTP" autocomplete="one-time-code">
+              <small class="hint">Insert + tap your YubiKey to autofill here (Yubico OTP mode).</small>
+            </div>
+
+            <!-- WebAuthn -->
+            <div class="twofa-col">
+              <label for="webauthn-btn">Security Key / Passkey (WebAuthn)</label>
+              <button type="button" id="webauthn-btn" class="btn btn-secondary">Use Security Key</button>
+              <input type="hidden" id="webauthn-assertion" name="webauthn_assertion" value="">
+              <small class="hint">Use platform authenticator or external key via WebAuthn.</small>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <label class="remember">
+            <input type="checkbox" id="remember" name="remember" value="1"> Remember me on this device
+          </label>
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </div>
+
+        <div class="links">
+          <a href="/users/staff/forgot" class="muted">Forgot password?</a>
+          <span aria-hidden="true">·</span>
+          <a href="/users/staff/help" class="muted">Need help?</a>
+        </div>
+
+        <!-- Nonce / anti-replay (optional) -->
+        <!-- <input type="hidden" name="nonce" value="..."> -->
+
+        <output id="form-status" class="status" role="status" aria-live="polite"></output>
+      </form>
+
+      <div class="button-group back-links">
+        <a href="/users/staff/" class="btn btn-secondary">Back to Staff Portal</a>
+        <a href="/users/staff/comms" class="btn btn-outline">Go to Comms</a>
       </div>
-    </div>
-  </section><br><br>
+    </section>
+
+    <section class="security-notes">
+      <div class="notice">
+        <strong>Security tips:</strong>
+        <ul>
+          <li>Verify you’re on the correct domain before entering credentials.</li>
+          <li>Never share your password or 2FA codes via chat or email.</li>
+          <li>Report suspicious prompts to Security immediately.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- <div id="zzx-credits"></div> -->
 </main>
+
 <footer>
-    <div id="zzx-footer"></div>
+  <div id="zzx-footer"></div>
 </footer>
+
+<!-- Credits partial -->
+<script type="module" src="/__partials/credits/loader.js"></script>
+
+<!-- Page-local scripts -->
+<script type="module" src="./script.js"></script>
+<script type="module" src="./login.js"></script>
 </body>
 </html>
