@@ -1,31 +1,41 @@
-<script>
+// Load local manifest.json and render stacked "feature" cards.
 (async function () {
-  const mount = document.getElementById('projects-list');
-  if (!mount) return;
+  async function fetchManifest(url) {
+    try {
+      const r = await fetch(url, { cache: 'no-cache' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      console.warn('Failed to load manifest:', url, e);
+      return null;
+    }
+  }
 
-  try {
-    const res = await fetch('./manifest.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error('Missing or invalid manifest.json');
-    const { projects = [] } = await res.json();
+  function render(listEl, projects) {
+    if (!listEl) return;
+    listEl.innerHTML = '';
 
-    if (!projects.length) {
-      mount.innerHTML = '<p class="error">No hardware projects found.</p>';
+    const items = Array.isArray(projects) ? projects : [];
+
+    if (!items.length) {
+      listEl.innerHTML = '<p class="muted">No projects listed yet.</p>';
       return;
     }
 
-    const html = projects.map(p => `
-      <div class="feature">
-        <h3>${p.title}</h3>
-        <p>${p.blurb}</p>
-        <div class="links">
-          <a class="btn" href="${p.href}">Open ${p.title}</a>
-        </div>
-      </div>
-    `).join('');
-
-    mount.innerHTML = html;
-  } catch (err) {
-    mount.innerHTML = `<p class="error">Failed to load projects: ${err.message}</p>`;
+    for (const p of items) {
+      const href = p.href || `/projects/hardware/${p.slug}/`;
+      const el = document.createElement('div');
+      el.className = 'feature';
+      el.innerHTML = `
+        <h3>${p.title || p.slug}</h3>
+        <p>${p.blurb || ''}</p>
+        <a class="btn" href="${href}">${p.linkText || `Open ${p.title || p.slug}`}</a>
+      `;
+      listEl.appendChild(el);
+    }
   }
+
+  const mount = document.getElementById('projects-list');
+  const manifest = await fetchManifest('./manifest.json'); // same folder
+  render(mount, manifest?.projects || []);
 })();
-</script>
