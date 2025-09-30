@@ -1,1 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Droid Resources | ZZX-Labs R&D</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="modulepreload" href="/docs/staff/materials/loader-modules/loader.js" />
+  <script type="module" src="./script.js"></script>
+</head>
+<body class="leaf-page">
+<header><div id="zzx-header"></div></header>
+<main class="page-container">
+  <br><div id="ticker-container"></div><br>
+
+  <div class="breadcrumbs">
+    <a href="/docs">Docs</a> /
+    <a href="/docs/staff">Staff</a> /
+    <a href="/docs/staff/materials">Materials</a> /
+    <a href="/docs/staff/materials/resources">Resources</a> /
+    <a href="/docs/staff/materials/resources/engineering/">Engineering</a> /
+    <strong id="leaf-name">Droids</strong>
+  </div>
+
+  <h1 class="page-title" id="leaf-title">Droids</h1>
+  <div class="notice">
+    Renders live sections from this leaf’s <code>urls.json</code>. Update that file to add/remove sources.
+  </div>
+
+  <div class="layout">
+    <aside aria-label="Table of contents">
+      <nav class="toc" id="toc">
+        <h3>On this page</h3>
+        <div class="toc-controls">
+          <input id="toc-filter" type="search" placeholder="Filter sections…" autocomplete="off" />
+        </div>
+        <div id="toc-content" class="toc-content"><p class="loading">Loading sources…</p></div>
+      </nav>
+    </aside>
+    <div class="sources-container" id="sources"></div>
+  </div>
+
+  <div class="notice attribution">
+    Portions fetched live from Wikipedia via the MediaWiki API (CC BY-SA / Wikipedia ToU).
+  </div>
+
+  <div id="zzx-credits"></div>
+</main>
+<footer><div id="zzx-footer"></div></footer>
+
+<!-- Pretty title from path -->
+<script type="module">
+  const segs = location.pathname.replace(/\/+$/,'').split('/');
+  const leaf = segs[segs.length - 1]; // e.g., "drones-resources"
+  const human = s => s
+    .replace(/-/g,' ')
+    .replace(/\b\w/g, m => m.toUpperCase())
+    .replace(/\bAnd\b/g,'&');
+
+  const leafLabel = human(leaf); // customize below if you want shorter names in H1
+  document.title = `${leafLabel} | ZZX-Labs R&D`;
+  const lt = document.getElementById('leaf-title');
+  const ln = document.getElementById('leaf-name');
+  if (lt) lt.textContent = leafLabel;
+  if (ln) ln.textContent = leafLabel;
+</script>
+
+<script type="module" src="/__partials/credits/loader.js"></script>
+</body>
+</html>
 
