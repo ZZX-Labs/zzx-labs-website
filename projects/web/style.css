@@ -1,4 +1,8 @@
-/* /projects/web/style.css */
+:root {
+  --accent: #c0d674;     /* primary (buttons, headings) */
+  --accent-alt: #eab657; /* back button / alt CTAs */
+  --muted: #8a8f98;
+}
 
 .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
 
@@ -13,12 +17,12 @@
   border-radius: 10px;
   background: rgba(255,255,255,0.03);
   padding: 1rem 1.1rem;
-  margin: 0.6rem 0;
+  margin: 0.6rem 0; /* spacing between cards */
 }
 
 .feature h3 {
   margin: 0 0 0.35rem 0;
-  color: #c0d674;
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -27,16 +31,32 @@
   color: #cfd3da;
 }
 
-.feature ul {
-  margin: 0.35rem 0 0 0;  /* stacked method, no bullets */
-  padding-left: 0;
-  list-style: none;
-}
-
+/* stacked links: no bullets */
+.feature ul { margin: 0.35rem 0 0 0; padding-left: 0; list-style: none; }
 .feature ul li { margin: 0.15rem 0; }
+
+/* legacy text links */
 .feature a { color: #eaeaea; text-decoration: none; }
 .feature a:hover { text-decoration: underline; }
 
-.loading { color: #8a8f98; font-style: italic; }
+/* buttons */
+.btn {
+  display: inline-block;
+  color: #101218;
+  background: var(--accent);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 0.42rem 0.78rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.btn:hover { filter: brightness(1.04); }
 
+/* back / alt button */
+.btn.alt { background: var(--accent-alt); color: #101218; }
+
+/* support button inside feature cards */
+.feature .btn { margin-top: 0.35rem; }
+
+.loading { color: var(--muted); font-style: italic; }
 .backlinks { padding-bottom: 2rem; }
