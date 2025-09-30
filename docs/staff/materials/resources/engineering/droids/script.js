@@ -1,1 +1,1 @@
-
+// Shim page JS (placeholder)
