@@ -1,41 +1,35 @@
-// Load local manifest.json and render stacked "feature" cards.
+// Load local /projects/software/manifest.json and render feature cards
 (async function () {
-  async function fetchManifest(url) {
-    try {
-      const r = await fetch(url, { cache: 'no-cache' });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return await r.json();
-    } catch (e) {
-      console.warn('Failed to load manifest:', url, e);
-      return null;
-    }
-  }
-
-  function render(listEl, projects) {
-    if (!listEl) return;
-    listEl.innerHTML = '';
-
-    const items = Array.isArray(projects) ? projects : [];
-
-    if (!items.length) {
-      listEl.innerHTML = '<p class="muted">No projects listed yet.</p>';
-      return;
-    }
-
-    for (const p of items) {
-      const href = p.href || `/projects/software/${p.slug}/`;
-      const el = document.createElement('div');
-      el.className = 'feature';
-      el.innerHTML = `
-        <h3>${p.title || p.slug}</h3>
-        <p>${p.blurb || ''}</p>
-        <a class="btn" href="${href}">${p.linkText || `Open ${p.title || p.slug}`}</a>
-      `;
-      listEl.appendChild(el);
-    }
-  }
-
+  const isDomain = (s) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s || '').trim());
   const mount = document.getElementById('projects-list');
-  const manifest = await fetchManifest('./manifest.json'); // same folder
-  render(mount, manifest?.projects || []);
+  if (!mount) return;
+
+  function card(p) {
+    const href = p.href || `/projects/software/${p.slug}/`;
+    const titleRaw = p.title || p.slug || 'Untitled';
+    const title = isDomain(titleRaw) ? titleRaw.toLowerCase() : titleRaw;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'feature';
+    wrap.innerHTML = `
+      <h3>${title}</h3>
+      ${p.blurb ? `<p>${p.blurb}</p>` : ''}
+      <a class="btn" href="${href}">${p.linkText || `Open ${title}`}</a>
+    `;
+    const a = wrap.querySelector('a.btn');
+    if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    return wrap;
+  }
+
+  try {
+    const res = await fetch('/projects/software/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const items = Array.isArray(json?.projects) ? json.projects : [];
+    mount.innerHTML = items.length ? '' : '<p class="loading">No projects listed yet.</p>';
+    for (const p of items) mount.appendChild(card(p));
+  } catch (e) {
+    console.error(e);
+    mount.innerHTML = `<p class="loading">Failed to load project list: ${e.message}</p>`;
+  }
 })();
