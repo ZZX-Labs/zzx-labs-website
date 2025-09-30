@@ -1,52 +1,35 @@
-// /projects/web/script.js
-
+// Load local /projects/web/manifest.json and render feature cards
 (async function () {
-  const container = document.getElementById('projects-list');
-  if (!container) return;
+  const isDomain = (s) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s || '').trim());
+  const mount = document.getElementById('projects-list');
+  if (!mount) return;
 
-  const render = (items) => {
-    container.innerHTML = '';
-    for (const p of items) {
-      const card = document.createElement('div');
-      card.className = 'feature';
+  function card(p) {
+    const href = p.href || `/projects/web/${p.slug}/`;
+    const titleRaw = p.title || p.slug || 'Untitled';
+    const title = isDomain(titleRaw) ? titleRaw.toLowerCase() : titleRaw;
 
-      const h3 = document.createElement('h3');
-      h3.textContent = p.title || p.slug;
-      card.appendChild(h3);
-
-      if (p.blurb) {
-        const desc = document.createElement('p');
-        desc.textContent = p.blurb;
-        card.appendChild(desc);
-      }
-
-      const ul = document.createElement('ul');
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = p.href || '#';
-      a.textContent = `Open ${p.title || p.slug}`;
-      li.appendChild(a);
-      ul.appendChild(li);
-
-      card.appendChild(ul);
-      container.appendChild(card);
-    }
-  };
+    const wrap = document.createElement('div');
+    wrap.className = 'feature';
+    wrap.innerHTML = `
+      <h3>${title}</h3>
+      ${p.blurb ? `<p>${p.blurb}</p>` : ''}
+      <a class="btn" href="${href}">${p.linkText || `Open ${title}`}</a>
+    `;
+    const a = wrap.querySelector('a.btn');
+    if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    return wrap;
+  }
 
   try {
-    const res = await fetch('./manifest.json', { cache: 'no-cache' });
+    const res = await fetch('/projects/web/manifest.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-
     const items = Array.isArray(json?.projects) ? json.projects : [];
-    if (!items.length) {
-      container.innerHTML = '<p class="loading">No projects listed yet.</p>';
-      return;
-    }
-
-    render(items);
+    mount.innerHTML = items.length ? '' : '<p class="loading">No projects listed yet.</p>';
+    for (const p of items) mount.appendChild(card(p));
   } catch (e) {
     console.error(e);
-    container.innerHTML = `<p class="loading">Failed to load project list: ${e.message}</p>`;
+    mount.innerHTML = `<p class="loading">Failed to load project list: ${e.message}</p>`;
   }
 })();
