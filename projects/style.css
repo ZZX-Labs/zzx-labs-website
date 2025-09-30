@@ -1,27 +1,69 @@
-/* Project index local styles */
+/* /projects/style.css — Project index local styles */
+:root {
+  --accent: #c0d674;   /* primary */
+  --accent-alt: #e62ab4; /* alt (back/secondary) */
+  --muted: #8a8f98;
+}
+
+/* Stacked feature cards */
 .feature {
-  margin: 1.25rem 0;
-  padding: 1rem;
-  border-left: 3px solid #c0d674;
+  margin: 1.1rem 0;                 /* nice vertical rhythm */
+  padding: 1rem 1.15rem;
+  border-left: 3px solid var(--accent);
   background: rgba(255,255,255,0.02);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .feature h3 {
-  margin: 0 0 .35rem 0;
-  color: #c0d674;
+  margin: 0 0 0.35rem 0;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .feature p {
-  margin: 0 0 .5rem 0;
+  margin: 0 0 0.55rem 0;
   color: #cfd3da;
+  line-height: 1.45;
 }
 
+/* If you drop text links inside, keep them legible */
 .feature a {
   color: #eaeaea;
   text-decoration: underline;
 }
+.feature a:hover { color: #fff; }
 
-.feature a:hover {
-  color: #fff;
+/* Optional: link lists inside cards, no bullets */
+.feature ul { margin: 0.35rem 0 0 0; padding-left: 0; list-style: none; }
+.feature ul li { margin: 0.2rem 0; }
+.feature ul li a { text-decoration: none; }
+.feature ul li a:hover { text-decoration: underline; }
+
+/* Buttons (preferred over raw text links for actions) */
+.btn {
+  display: inline-block;
+  color: #0e1116;
+  background: var(--accent);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 0.42rem 0.78rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 700;
+  line-height: 1;
 }
+.btn:hover { filter: brightness(1.05); }
+
+.btn.alt {
+  background: var(--accent-alt);   /* #e62ab4 */
+  color: #0e1116;
+}
+
+/* Spacing when buttons live inside cards */
+.feature .btn { margin-top: 0.35rem; }
+
+/* Utilities */
+.loading { color: var(--muted); font-style: italic; }
+.muted { color: var(--muted); }
+
+/* Optional container consistency */
+.container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
