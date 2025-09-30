@@ -1,6 +1,4 @@
-// /projects/script.js
 // Load project manifests from category subdirs and render stacked "feature" blocks.
-
 (() => {
   const CATEGORIES = [
     { key: 'web',      mountId: 'proj-web' },
@@ -9,13 +7,7 @@
   ];
 
   const isDomain = (s) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s || '').trim());
-
-  const el = (tag, cls, text) => {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
-  };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
   async function fetchJSON(url) {
     try {
@@ -46,32 +38,23 @@
     const features = el('section', 'features');
     list.forEach(p => {
       const href = p.href || `/projects/${catKey}/${p.slug}/`;
-
       const card = el('div', 'feature');
 
-      // Title: lowercase if it looks like a domain (zzx-labs.io)
       const rawTitle = p.title || p.slug || 'Untitled';
       const titleText = isDomain(rawTitle) ? rawTitle.toLowerCase() : rawTitle;
       const h3 = el('h3', null, titleText);
 
-      const blurb = el('p', null, p.blurb || '');
+      const blurb = (p.blurb ? el('p', null, p.blurb) : null);
 
       const linkWrap = el('div', 'links');
       const a = el('a', 'btn', p.linkText || `Open ${titleText}`);
       a.href = href;
-
-      // External absolute links open in new tab
-      if (/^https?:\/\//i.test(href)) {
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-      }
+      if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
 
       linkWrap.appendChild(a);
-
       card.appendChild(h3);
-      if (blurb.textContent) card.appendChild(blurb);
+      if (blurb) card.appendChild(blurb);
       card.appendChild(linkWrap);
-
       features.appendChild(card);
     });
 
@@ -79,7 +62,7 @@
   }
 
   async function boot() {
-    // show loading placeholders
+    // temporary loading placeholders
     CATEGORIES.forEach(({ mountId }) => {
       const m = document.getElementById(mountId);
       if (m && !m.innerHTML.trim()) m.innerHTML = '<p class="loading">Loading projects…</p>';
