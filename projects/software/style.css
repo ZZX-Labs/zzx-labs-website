@@ -1,46 +1,43 @@
-:root{
-  --accent:#c0d674;
-  --accent-alt:#e62ab4; /* back button */
-  --muted:#8a8f98;
+:root {
+  --accent: #c0d674;   /* green for project buttons */
+  --accent-alt: #e6a42b; /* ochre for back buttons */
+  --muted: #8a8f98;
 }
 
-.container{max-width:1200px;margin:0 auto;padding:1rem;}
-.features{max-width:1200px;margin:0 auto;padding:0 1rem 1.5rem 1rem;}
-
-.feature{
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:10px;
-  background:rgba(255,255,255,0.03);
-  padding:1rem 1.1rem;
-  margin:.6rem 0;
+/* Feature cards */
+.feature {
+  margin: 1.1rem 0;
+  padding: 1rem 1.15rem;
+  border-left: 3px solid var(--accent);
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
 }
-.feature h3{margin:0 0 .35rem 0;color:var(--accent);font-weight:600;}
-.feature p{margin:0 0 .5rem 0;color:#cfd3da;}
+.feature h3 { margin: 0 0 .35rem; color: var(--accent); font-weight: 600; }
+.feature p  { margin: 0 0 .55rem; color: #cfd3da; line-height: 1.45; }
 
-.feature ul{margin:.35rem 0 0 0;padding-left:0;list-style:none;}
-.feature ul.compact li{display:inline-block;margin:.15rem .6rem 0 0;}
-.feature li a{color:#ddd;text-decoration:none;}
-.feature li a:hover{text-decoration:underline;}
+/* Links inside cards */
+.feature a:not(.btn) { color: #eaeaea; text-decoration: underline; }
+.feature a:not(.btn):hover { color: #fff; }
 
 /* Buttons */
-.btn{
-  display:inline-block;
-  color:#0e1116;                /* black text */
-  background:var(--accent);     /* green */
-  border:1px solid rgba(255,255,255,0.12);
-  padding:.42rem .78rem;
-  border-radius:8px;
-  text-decoration:none;
-  font-weight:600;
-  line-height:1;
+.btn {
+  display: inline-block;
+  background: var(--accent);      /* green */
+  color: #101218;                 /* black text */
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: .42rem .78rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 700;
+  line-height: 1;
 }
-.btn:hover{filter:brightness(1.04);}
-.btn.alt{
-  background:var(--accent-alt); /* pink back button */
-  color:#0e1116;                /* black text */
-}
+.btn:hover { filter: brightness(1.05); }
 
-.feature .btn{margin-top:.35rem;}
-.backlinks{padding-bottom:2rem;}
-.loading{color:var(--muted);font-style:italic;}
-.muted{color:var(--muted);}
+/* Only back/alt buttons use ochre */
+.btn.alt { background: var(--accent-alt); color: #101218; }
+
+.feature .btn { margin-top: .35rem; }
+
+.loading { color: var(--muted); font-style: italic; }
+.muted { color: var(--muted); }
+.backlinks { padding-bottom: 2rem; }
