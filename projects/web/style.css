@@ -42,3 +42,25 @@
 .feature .btn{margin-top:.35rem;}
 .loading{color:var(--muted);font-style:italic;}
 .backlinks{padding-bottom:2rem;}
+
+/* --- hard overrides for Web page buttons --- */
+.features .btn,
+.backlinks .btn {
+  background: var(--accent) !important;    /* green */
+  color: #101218 !important;               /* black text */
+  border-color: rgba(255,255,255,0.12) !important;
+}
+
+/* alt/back button: pink with black text */
+.backlinks .btn.alt {
+  background: var(--accent-alt) !important;  /* #e62ab4 */
+  color: #101218 !important;
+}
+
+/* ensure plain text link styling never touches buttons */
+.feature a:not(.btn) { color: #eaeaea; text-decoration: none; }
+.feature a:not(.btn):hover { text-decoration: underline; }
+
+/* belt & suspenders: if any component CSS styles anchors inside .feature,
+   this keeps buttons using button colors (not link colors) */
+.feature .btn { color: #101218 !important; }
