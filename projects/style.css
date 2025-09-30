@@ -1,11 +1,10 @@
 :root{
-  --accent:#c0d674;     /* primary button + headings */
+  --accent:#c0d674;     /* primary (buttons, headings) */
   --accent-alt:#e62ab4; /* back button / secondary */
   --muted:#8a8f98;
 }
 
 .container{max-width:1200px;margin:0 auto;padding:1rem;}
-
 .features{max-width:1200px;margin:0 auto;padding:0 1rem 1.5rem 1rem;}
 
 .feature{
@@ -19,16 +18,15 @@
 .feature h3{margin:0 0 .35rem 0;color:var(--accent);font-weight:600;}
 .feature p{margin:0 0 .55rem 0;color:#cfd3da;line-height:1.45;}
 
-.feature ul{margin:.35rem 0 0 0;padding-left:0;list-style:none;}
-.feature ul li{margin:.2rem 0;}
-.feature ul li a{text-decoration:none;color:#eaeaea;}
-.feature ul li a:hover{text-decoration:underline;color:#fff;}
+/* Only style plain text links, NOT buttons */
+.feature a:not(.btn){color:#eaeaea;text-decoration:underline;}
+.feature a:not(.btn):hover{color:#fff;text-decoration:underline;}
 
 /* Buttons */
 .btn{
   display:inline-block;
-  color:#0e1116;                /* <-- black text */
-  background:var(--accent);     /* green */
+  background:var(--accent);
+  color:#0e1116 !important;                  /* force black text */
   border:1px solid rgba(255,255,255,0.14);
   padding:.42rem .78rem;
   border-radius:8px;
@@ -38,8 +36,8 @@
 }
 .btn:hover{filter:brightness(1.05);}
 .btn.alt{
-  background:var(--accent-alt); /* pink for back buttons */
-  color:#0e1116;                /* black text */
+  background:var(--accent-alt) !important;   /* pink back button */
+  color:#0e1116 !important;                  /* black text */
 }
 
 /* Utilities */
