@@ -1,19 +1,49 @@
-/* /projects/software/style.css */
-.features { padding: 0 1rem; }
+:root {
+  --accent: #c0d674;       /* primary */
+  --accent-alt: #eab657;   /* secondary */
+  --muted: #8a8f98;
+}
+
+/* container spacing harmonizes with /static/styles.css */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+.features {
+  margin: 0 auto 2rem auto;
+  max-width: 1200px;
+  padding: 0 1rem;
+}
+
 .feature {
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
   background: rgba(255,255,255,0.03);
-  padding: 0.9rem 1rem;
-  margin: 0 0 0.75rem 0;
+  padding: 1rem 1.1rem;
+  margin: 1rem 0;                 /* spacing between cards */
 }
-.feature h3 { margin: 0 0 0.35rem 0; color: #c0d674; font-weight: 600; }
-.feature p { margin: 0 0 0.5rem 0; color: #cfd3da; }
 
-.feature ul { list-style: none; padding: 0; margin: 0; }
-.feature li { margin: 0.15rem 0; }
-.feature a { color: #eaeaea; text-decoration: none; }
-.feature a:hover { text-decoration: underline; }
+.feature h3 { margin: 0 0 0.35rem 0; color: #eaeaea; }
+.feature p { margin: 0.25rem 0 0.5rem 0; color: #cfd3da; }
 
-.loading { color: #8a8f98; font-style: italic; }
-.backlinks { margin-top: 1rem; }
+/* remove bullets; compact link lists */
+.feature ul { list-style: none; padding-left: 0; margin: 0.25rem 0 0 0; }
+.feature ul.compact li { display: inline-block; margin: 0.15rem 0.6rem 0 0; }
+.feature li a { color: #ddd; text-decoration: none; }
+.feature li a:hover { text-decoration: underline; }
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  color: #101218;
+  background: var(--accent);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.btn:hover { filter: brightness(1.04); }
+.btn.alt { background: var(--accent-alt); color: #101218; }
+
+.backlinks { margin: 2rem auto; }
+.loading { color: var(--muted); font-style: italic; }
+.muted { color: var(--muted); }
