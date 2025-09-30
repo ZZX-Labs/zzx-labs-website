@@ -1,49 +1,103 @@
-// Load project manifests from category subdirs and render stacked "feature" blocks
+// /projects/script.js
+// Load project manifests from category subdirs and render stacked "feature" blocks.
 
-(async function () {
-  const categories = [
-    { key: 'web',      mount: 'proj-web' },
-    { key: 'software', mount: 'proj-software' },
-    { key: 'hardware', mount: 'proj-hardware' }
+(() => {
+  const CATEGORIES = [
+    { key: 'web',      mountId: 'proj-web' },
+    { key: 'software', mountId: 'proj-software' },
+    { key: 'hardware', mountId: 'proj-hardware' }
   ];
 
-  async function fetchManifest(url) {
+  const isDomain = (s) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s || '').trim());
+
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  async function fetchJSON(url) {
     try {
       const r = await fetch(url, { cache: 'no-cache' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.json();
     } catch (e) {
       console.warn('Failed to load manifest:', url, e);
-      return null;
+      return { __error: true, message: e.message };
     }
   }
 
-  function renderFeatures(mountEl, list = [], catKey) {
-    if (!mountEl) return;
-    mountEl.innerHTML = '';
+  function renderCategory(mount, data, catKey) {
+    if (!mount) return;
+    mount.innerHTML = '';
 
-    if (!list.length) {
-      mountEl.innerHTML = '<p class="muted">No projects listed yet.</p>';
+    if (!data || data.__error) {
+      mount.appendChild(el('p', 'error', 'No projects available (manifest missing).'));
       return;
     }
 
-    for (const p of list) {
-      const href = p.href || `/projects/${catKey}/${p.slug}/`;
-      const block = document.createElement('div');
-      block.className = 'feature';
-      block.innerHTML = `
-        <h3>${p.title || p.slug}</h3>
-        <p>${p.blurb || ''}</p>
-        <a href="${href}">${p.linkText || `Open ${p.title || p.slug}`}</a>
-      `;
-      mountEl.appendChild(block);
+    const list = Array.isArray(data.projects) ? data.projects : [];
+    if (!list.length) {
+      mount.appendChild(el('p', 'muted', 'No projects listed yet.'));
+      return;
     }
+
+    const features = el('section', 'features');
+    list.forEach(p => {
+      const href = p.href || `/projects/${catKey}/${p.slug}/`;
+
+      const card = el('div', 'feature');
+
+      // Title: lowercase if it looks like a domain (zzx-labs.io)
+      const rawTitle = p.title || p.slug || 'Untitled';
+      const titleText = isDomain(rawTitle) ? rawTitle.toLowerCase() : rawTitle;
+      const h3 = el('h3', null, titleText);
+
+      const blurb = el('p', null, p.blurb || '');
+
+      const linkWrap = el('div', 'links');
+      const a = el('a', 'btn', p.linkText || `Open ${titleText}`);
+      a.href = href;
+
+      // External absolute links open in new tab
+      if (/^https?:\/\//i.test(href)) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      }
+
+      linkWrap.appendChild(a);
+
+      card.appendChild(h3);
+      if (blurb.textContent) card.appendChild(blurb);
+      card.appendChild(linkWrap);
+
+      features.appendChild(card);
+    });
+
+    mount.appendChild(features);
   }
 
-  for (const c of categories) {
-    const mount = document.getElementById(c.mount);
-    const manifest = await fetchManifest(`/projects/${c.key}/manifest.json`);
-    const projects = manifest?.projects || [];
-    renderFeatures(mount, projects, c.key);
+  async function boot() {
+    // show loading placeholders
+    CATEGORIES.forEach(({ mountId }) => {
+      const m = document.getElementById(mountId);
+      if (m && !m.innerHTML.trim()) m.innerHTML = '<p class="loading">Loading projects…</p>';
+    });
+
+    // fetch in parallel
+    const results = await Promise.all(
+      CATEGORIES.map(c => fetchJSON(`/projects/${c.key}/manifest.json`).then(data => ({ c, data })))
+    );
+
+    results.forEach(({ c, data }) => {
+      renderCategory(document.getElementById(c.mountId), data, c.key);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
   }
 })();
