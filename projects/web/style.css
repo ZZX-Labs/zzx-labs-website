@@ -1,6 +1,6 @@
 :root{
   --accent:#c0d674;
-  --accent-alt:#e62ab4; /* use on the back button */
+  --accent-alt:#e62ab4; /* back button */
   --muted:#8a8f98;
 }
 
@@ -17,19 +17,15 @@
 .feature h3{margin:0 0 .35rem 0;color:var(--accent);font-weight:600;}
 .feature p{margin:0 0 .5rem 0;color:#cfd3da;}
 
-/* (No bullet lists by default) */
-.feature ul{margin:.35rem 0 0 0;padding-left:0;list-style:none;}
-.feature ul li{margin:.15rem 0;}
+/* Only style plain text links, NOT buttons */
+.feature a:not(.btn){color:#eaeaea;text-decoration:none;}
+.feature a:not(.btn):hover{text-decoration:underline;}
 
-/* Legacy text links if any sneak in */
-.feature a{text-decoration:none;color:#eaeaea;}
-.feature a:hover{text-decoration:underline;}
-
-/* Buttons */
+/* Buttons (match software & hardware) */
 .btn{
   display:inline-block;
-  color:#0e1116;                /* black text */
-  background:var(--accent);     /* green */
+  background:var(--accent);
+  color:#0e1116 !important;                /* black text */
   border:1px solid rgba(255,255,255,0.12);
   padding:.42rem .78rem;
   border-radius:8px;
@@ -39,8 +35,8 @@
 }
 .btn:hover{filter:brightness(1.04);}
 .btn.alt{
-  background:var(--accent-alt); /* pink back button */
-  color:#0e1116;                /* black text */
+  background:var(--accent-alt) !important; /* pink back button */
+  color:#0e1116 !important;                /* black text */
 }
 
 .feature .btn{margin-top:.35rem;}
