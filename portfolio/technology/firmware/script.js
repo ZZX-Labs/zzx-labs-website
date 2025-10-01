@@ -1,65 +1,77 @@
-// Load local ./manifest.json and render: one Featured + stacked list
-(function () {
-  const isDomain = s => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s||'').trim());
-  const byRand = () => Math.random() - 0.5;
+// Loads ./manifest.json, shuffles items, and renders cards.
+// Tries to fetch each item's /card.html for richer content if present.
+(() => {
+  const LIST = document.getElementById('portfolio-list');
+  const SHUFFLE = document.getElementById('shuffle');
+  const SAMPLE_SIZE = 12;
 
-  const q = sel => document.querySelector(sel);
-
-  async function loadManifest() {
-    const res = await fetch('./manifest.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+  const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c; if (txt!=null) n.textContent = txt; return n; };
+  const shuffleInPlace = (arr) => { for (let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; };
+  async function fetchJSON(url){ const r=await fetch(url,{cache:'no-cache'}); if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+  async function fetchCardHTML(href){
+    try { const url = href.replace(/\/?$/, '/') + 'card.html'; const r = await fetch(url,{cache:'no-cache'}); if(!r.ok) return null; return await r.text(); }
+    catch { return null; }
   }
 
-  function card(item) {
+  function cardSkeleton(item){
     const href = item.href || `./${item.slug}/`;
-    const titleRaw = item.title || item.slug || 'Untitled';
-    const title = isDomain(titleRaw) ? titleRaw.toLowerCase() : titleRaw;
+    const title = item.title || item.slug || 'Untitled';
 
-    const wrap = document.createElement('div');
-    wrap.className = 'feature';
-    wrap.innerHTML = `
-      <h3>${title}</h3>
-      ${item.blurb ? `<p>${item.blurb}</p>` : ''}
-      <a class="btn" href="${href}">${item.linkText || `Open ${title}`}</a>
-    `;
-    const a = wrap.querySelector('a.btn');
-    if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
-    return wrap;
-  }
+    const root = el('div','feature');
+    const thumb = el('div','thumb');
+    root.appendChild(thumb);
 
-  function renderFeatured(items) {
-    const mount = q('#featured');
-    if (!mount) return;
-    mount.innerHTML = '';
-    if (!items.length) { mount.innerHTML = '<p class="muted">No featured item.</p>'; return; }
-    const pick = items.slice().sort(byRand)[0];
-    const block = card(pick);
-    mount.appendChild(block);
-  }
-
-  function renderList(items) {
-    const mount = q('#portfolio-list');
-    if (!mount) return;
-    mount.innerHTML = '';
-
-    if (!items.length) {
-      mount.innerHTML = '<p class="muted">No firmware entries yet.</p>';
-      return;
+    if (item.thumb) {
+      const img = new Image(); img.alt=''; img.src=item.thumb; thumb.appendChild(img);
+    } else {
+      thumb.appendChild(el('span','muted','—'));
     }
-    items.forEach(p => mount.appendChild(card(p)));
+
+    const body = el('div','body');
+    body.appendChild(el('h3', null, title));
+    if (item.blurb) body.appendChild(el('p', null, item.blurb));
+
+    const open = el('a','btn', item.linkText || `Open ${title}`);
+    open.href = href;
+    if (/^https?:\/\//i.test(href)) { open.target = '_blank'; open.rel = 'noopener noreferrer'; }
+    body.appendChild(open);
+
+    if (item.note) body.appendChild(el('div','meta', item.note));
+    root.appendChild(body);
+    return root;
   }
 
-  async function boot() {
-    const data = await loadManifest().catch(e => ({ __err: e }));
-    const items = Array.isArray(data?.projects) ? data.projects : [];
-    if (!items.length) {
-      const f = q('#featured'); if (f) f.innerHTML = '<p class="muted">No featured item.</p>';
-      const l = q('#portfolio-list'); if (l) l.innerHTML = '<p class="muted">No firmware entries yet.</p>';
-      return;
+  async function render(items){
+    LIST.innerHTML = '';
+    if (!items.length){ LIST.appendChild(el('p','loading','No firmware portfolio items yet.')); return; }
+
+    const sample = shuffleInPlace(items.slice()).slice(0, SAMPLE_SIZE);
+    for (const it of sample){
+      const card = cardSkeleton(it);
+      LIST.appendChild(card);
+
+      const href = it.href || `./${it.slug}/`;
+      const html = await fetchCardHTML(href);
+      if (html){
+        const body = card.querySelector('.body');
+        const container = document.createElement('div');
+        container.innerHTML = html;
+        container.querySelectorAll('script').forEach(s => s.remove());
+        body.insertBefore(container, body.querySelector('.btn'));
+      }
     }
-    renderFeatured(items);
-    renderList(items);
+  }
+
+  async function boot(){
+    try {
+      const data = await fetchJSON('./manifest.json');
+      const items = Array.isArray(data?.projects) ? data.projects : [];
+      await render(items);
+      SHUFFLE?.addEventListener('click', () => render(items));
+    } catch (e) {
+      console.error(e);
+      LIST.innerHTML = `<p class="loading">Failed to load: ${e.message}</p>`;
+    }
   }
 
   if (document.readyState === 'loading') {
