@@ -120,3 +120,54 @@ body.home main .hero .hero-content .areas li::before { content: none !important;
 
 /* Final safety: never allow page-wide x overflow on homepage */
 body.home { overflow-x: hidden; }
+
+/* --- HOMEPAGE ANTI-CLIP FIXES ----------------------------------------- */
+/* Give the hero a bit more vertical padding so first/last lines aren't flush */
+.home .hero { padding: 2.75rem 1rem; }
+
+/* Ensure the content block itself has breathing room (top & bottom) */
+.home .hero-content { padding: .25rem 0 1rem; }
+
+/* Single-column, centered list */
+.home .areas {
+  display: block !important;      /* defeat any grid/columns from elsewhere */
+  list-style: none;
+  margin: 1rem auto;              /* top/bottom margin to avoid flush edges */
+  padding: 0 1rem;                /* side padding prevents edge touch on mobile */
+  max-width: 780px;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+  overflow-x: hidden;             /* safety */
+}
+
+/* 👉 Key part: explicit, generous line-height */
+.home .areas,
+.home .areas li,
+.home .areas p {
+  line-height: 1.52 !important;   /* prevents ascender/descender clipping */
+}
+
+/* List items: no bullets, safe wrapping, tiny vertical cushion */
+.home .areas li {
+  list-style: none;
+  margin: .22rem 0;
+  padding: .06rem 0;              /* small internal padding keeps glyphs clear */
+
+  overflow-wrap: anywhere;        /* modern */
+  word-break: break-word;         /* fallback */
+  hyphens: auto;
+
+  color: #d6d9df;
+}
+
+/* Absolutely no custom bullets */
+.home .areas li::before { content: none !important; }
+
+/* Extra comfort on ultra-wide displays */
+@media (min-width: 1600px) {
+  .home .areas { max-width: 900px; }
+}
+
+/* Prevent any accidental horizontal scroll on the page */
+body.home { overflow-x: hidden; }
