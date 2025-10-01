@@ -62,3 +62,30 @@ button:hover{border-color:var(--accent);color:var(--accent)}
   .kb-main{grid-template-columns:1fr}
   .kb-panel{position:static;height:auto}
 }
+
+.viewer { width:min(1100px,96vw); border:none; border-radius:14px; padding:0;
+  background:var(--panel); color:var(--text); max-height:90vh; }
+.viewer::backdrop{ background:rgba(0,0,0,.6) }
+.viewer-head{ display:flex; justify-content:space-between; align-items:center;
+  gap:.75rem; padding:.6rem .8rem; border-bottom:1px solid var(--line) }
+.viewer-actions{ display:flex; gap:.5rem; align-items:center }
+
+.viewer-content{
+  padding:1rem; max-height:75vh; overflow:auto; background:#0b0c10;
+  /* local typographic reset for sanitized content */
+}
+.viewer-content h1,.viewer-content h2,.viewer-content h3{ margin:.6rem 0; line-height:1.25 }
+.viewer-content p, .viewer-content li{ color:var(--text); }
+.viewer-content a{ color:var(--accent); text-decoration:underline; }
+.viewer-content img{ max-width:100%; height:auto; border:1px solid var(--line); border-radius:8px; }
+.viewer-content table{ width:100%; border-collapse:collapse; margin:.6rem 0; }
+.viewer-content th, .viewer-content td{ border:1px solid var(--line); padding:.4rem .5rem; }
+.viewer-content ul, .viewer-content ol{ padding-left:1.25rem }
+
+/* button-style anchor */
+a.btn{
+  display:inline-flex; align-items:center; gap:.35rem; padding:.5rem .7rem;
+  border:1px solid var(--line); border-radius:10px; background:var(--panel);
+  color:var(--text); text-decoration:none; box-shadow:0 10px 30px rgba(0,0,0,.35)
+}
+a.btn:hover{ border-color:var(--accent); color:var(--accent) }
