@@ -3,20 +3,36 @@
 
 /* Brand tokens */
 :root {
-  --accent: #c0d674;   /* primary action (green) */
-  --accent-alt: #e6a42b; /* back/secondary (ochre) */
+  --accent: #c0d674;     /* primary action (green) */
+  --accent-alt: #e6a42b; /* secondary (ochre) */
   --muted: #8a8f98;
 }
 
 /* Page safety */
 html, body.home { max-width: 100vw; overflow-x: hidden; }
 
-/* HERO */
+/* =========================
+   HERO (override global hero.css safely)
+   ========================= */
 .home .hero {
   position: relative;
   text-align: center;
-  padding-block: clamp(28px, 7vh, 64px); /* top/bottom breathing room */
+
+  /* Kill global fixed height & clipping */
+  block-size: auto !important;     /* overrides global 80vh */
+  min-block-size: 0 !important;
+  overflow: visible !important;     /* allow content to breathe */
+
+  /* Real padding that protects top & bottom lines on any device */
+  padding-top: max(env(safe-area-inset-top, 0px), clamp(24px, 7vh, 64px));
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), clamp(28px, 8vh, 72px));
+  padding-left: 1rem;
+  padding-right: 1rem;
+
+  /* Keep background behavior sane without parallax */
+  background-attachment: scroll !important;
 }
+
 .home .hero-overlay {
   position: absolute; inset: 0;
   background: linear-gradient(180deg,
@@ -24,51 +40,68 @@ html, body.home { max-width: 100vw; overflow-x: hidden; }
     rgba(0,0,0,.35) 40%,
     rgba(0,0,0,.55) 100%);
   pointer-events: none;
+  z-index: 0;
 }
+
 .home .hero-content {
   position: relative;
+  z-index: 1;                  /* above overlay */
   max-width: 1000px;
   margin-inline: auto;
-  padding-inline: 16px;           /* prevent edge touch on phones */
-  z-index: 1;
+
+  /* Prevent visual “cut” at first/last line */
+  padding-block: .25rem 1rem;
+
+  /* Extra safety against side bleed on phones */
+  padding-inline: 16px;
+  box-sizing: border-box;
 }
 
-/* Typography comfort to avoid ascender/descender clipping */
+/* Comfortable line-height so ascenders/descenders never clip */
 .home .hero-content * { line-height: 1.5; }
 
-/* AREAS — single column, centered, no bullets, robust wrapping */
+/* =========================
+   AREAS — single column, centered, no bullets, robust wrapping
+   ========================= */
 .home .areas {
-  /* nuke any grids/columns from global layers */
+  /* Defeat any grid/columns from global layers */
   display: block !important;
   list-style: none !important;
 
-  margin: 18px auto;              /* vertical rhythm */
-  padding: 0 16px;                /* safe side gutters */
+  margin: 18px auto;       /* vertical rhythm */
+  padding: 0 16px;         /* safe gutters */
   width: min(780px, 100%);
   text-align: center;
+
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: hidden;      /* belt & suspenders for tiny viewports */
 }
+
 .home .areas li {
   list-style: none !important;
+  display: block;
   margin: 6px 0;
   padding: 2px 0;
   color: #d6d9df;
 
+  /* Never spill horizontally */
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: break-word;  /* fallback */
   hyphens: auto;
 }
-/* absolutely no markers */
+
+/* Absolutely no markers from any global list styling */
 .home .areas li::marker,
 .home .areas li::before { content: none !important; }
 
-/* wide displays */
+/* Wide displays (4K/TV) — tasteful widen */
 @media (min-width: 1600px) {
   .home .areas { width: min(900px, 100%); }
 }
 
-/* Buttons (lock colors) */
+/* =========================
+   Buttons (locked colors to brand)
+   ========================= */
 .home .btn {
   display: inline-block;
   background: var(--accent);
@@ -78,11 +111,26 @@ html, body.home { max-width: 100vw; overflow-x: hidden; }
   border-radius: 8px;
   text-decoration: none;
   font-weight: 800;
-  line-height: 1;
+  line-height: 1;                 /* compact, with padding to prevent clip */
 }
 .home .btn:hover { filter: brightness(1.05); }
 .home .btn.alt { background: var(--accent-alt); color: #0e1116; }
 
-.home .cta-row { display: inline-flex; gap: .6rem; flex-wrap: wrap; margin-top: .4rem; }
+.home .cta-row {
+  display: inline-flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-top: .4rem;
+}
 
-.home .notice { color: var(--muted); font-style: italic; margin: .25rem auto .6rem; }
+/* Notice */
+.home .notice {
+  color: var(--muted);
+  font-style: italic;
+  margin: .25rem auto .6rem;
+}
+
+/* Small fallback for very short/tiny screens so bottom never runs off */
+@media (max-height: 540px) {
+  .home .hero { padding-bottom: max(env(safe-area-inset-bottom, 0px), 48px) !important; }
+}
