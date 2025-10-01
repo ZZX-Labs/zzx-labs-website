@@ -1,5 +1,7 @@
 // /inspiration/figures/app.js
-import { boot } from './modules/boot.js';
+// Figures entrypoint (ESM). One-time boot with timeout, robust error UI.
+
+import { boot } from '../modules/boot.js'; // ← FIXED PATH (figures/ → ../modules/)
 
 const BOOT_TIMEOUT_MS = 12000;
 
@@ -7,12 +9,20 @@ let booting = false;
 let booted = false;
 let showedError = false;
 
-document.addEventListener('DOMContentLoaded', () => {
+// Defer until DOM is ready (modules are deferred by default, but this is safe)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init, { once: true });
+} else {
+  init();
+}
+
+function init() {
   wireGlobalErrorHandlers();
   start().catch(showError);
-});
+}
 
 async function start() {
+  // one-and-done (guards multiple script tags / hot reload)
   if (booted || booting || window.__FIG_APP_BOOTED__) return;
   booting = true;
   window.__FIG_APP_BOOTED__ = true;
@@ -24,7 +34,7 @@ async function start() {
     );
   }
 
-  // Run boot with a timeout
+  // Boot with timeout
   await Promise.race([
     Promise.resolve().then(() => boot()),
     new Promise((_, rej) =>
@@ -77,14 +87,11 @@ function showError(err) {
   if (retry) retry.onclick = async () => {
     showedError = false;
     box.remove();
-    try {
-      await start();
-    } catch (e) {
-      showError(e);
-    }
+    try { await start(); } catch (e) { showError(e); }
   };
   if (reload) reload.onclick = () => location.reload();
 
+  // Surface to console too
   console.error(err);
 }
 
@@ -111,24 +118,35 @@ function friendlyMessage(err) {
 }
 
 function ensureGrid() {
+  // Prefer the declared grid; otherwise create a compatible fallback
   let el =
     document.getElementById('figure-grid') ||
     document.querySelector('[data-fig-grid]');
   if (!el) {
     el = document.createElement('div');
     el.id = 'figure-grid';
-    // Put the fallback near the top of the figures page
     const host =
-      document.querySelector('.feature-card-container') ||
+      document.querySelector('#inspiration-figures') ||
+      document.querySelector('.features') ||
       document.querySelector('main') ||
       document.body;
     host.prepend(el);
+  }
+
+  // Make sure it looks like your grid even if page CSS didn’t load
+  el.classList.add('feature-card-container');
+  const cs = getComputedStyle(el);
+  if ((cs.display || '').toLowerCase() === 'block' || cs.display === 'inline' || cs.display === 'contents') {
+    el.style.display = 'grid';
+    el.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+    el.style.gap = '8px';
+    el.style.marginInline = 'auto';
+    el.style.width = '100%';
   }
   return el;
 }
 
 function wireGlobalErrorHandlers() {
-  // Don’t double-install
   if (window.__FIG_ERRORS_WIRED__) return;
   window.__FIG_ERRORS_WIRED__ = true;
 
