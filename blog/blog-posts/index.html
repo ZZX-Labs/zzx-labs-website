@@ -1,35 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Blog Posts - ZZX-Labs R&D</title>
-    <link rel="stylesheet" href="../../static/styles.css">
-    <script src="../../static/script.js" defer></script>
-</head>
-  <body>
-<header>
-    <div id="zzx-header"></div>
-</header>
-    <main>
-    <br>
-    <!-- Bitcoin Ticker Widget -->
-    <div id="ticker-container"></div>
-    <br>
-      
-      <section class="page-banner">
-        <h1>ZZX-Labs Blog Posts</h1>
-        <p>Long-form essays, engineering logs, announcements, and deep thoughts.</p>
-      </section>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Blog Posts · Archives | ZZX-Labs R&D</title>
 
-      <section class="content-grid">
-        <p>Browse our blog articles below. Each post is organized chronologically and tagged by subject domain.</p>
-        <!-- Dynamically injected post previews here in future -->
-      </section>
-  </main>
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="blog-archives">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <section class="container">
+    <h1>ZZX-Labs Blog Posts</h1>
+    <p class="lede">Long-form essays, engineering logs, announcements, and deep thoughts. Posts are published twice daily from <code>.tank</code> into <code>.posted</code>.</p>
+
+    <div class="controls">
+      <input id="search" type="search" placeholder="Search titles/descriptions…" aria-label="Search posts" />
+      <select id="tag-filter" aria-label="Filter by tag">
+        <option value="">All tags</option>
+      </select>
+      <button class="btn" id="shuffle">Shuffle</button>
+      <a class="btn alt" href="/blog/">← Blog Home</a>
+      <a class="btn alt" href="/">← Home</a>
+    </div>
+  </section>
+
+  <!-- Grouped by Month Year -->
+  <section class="container">
+    <h2>All Posts</h2>
+  </section>
+  <section id="archives" class="archives">
+    <p class="loading">Loading posts…</p>
+  </section>
+</main>
+
 <footer>
-	<div id="zzx-footer"></div>
+  <div id="zzx-footer"></div>
 </footer>
-  </body>
+</body>
 </html>
