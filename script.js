@@ -1,49 +1,65 @@
-// Local homepage bootstrapper.
-// 1) Loads global /static/script.js (which injects header/nav/footer and ticker)
-// 2) Ensures credits loader is included
-// 3) Runs any home-specific tweaks safely
+// /script.js (homepage bootstrapper)
+//
+// 1) Load /static/script.js (partials + nav + ticker)
+// 2) Load credits module (idempotent)
+// 3) Apply home-specific tweak (add scroll-animation to .hero)
+//
+// Notes:
+// - Idempotent (won't double-load if scripts already present)
+// - Retries autoInit briefly to avoid race conditions
 
 (function () {
+  const ABS = (u) => new URL(u, location.href).href;
+
+  function alreadyLoaded(srcAbs) {
+    return Array.from(document.scripts).some(s => s.src === srcAbs);
+  }
+
   function load(src, { module = false, attrs = {} } = {}) {
+    const href = ABS(src);
+    if (alreadyLoaded(href)) return Promise.resolve();
+
     return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.defer = true;
-      if (module) s.type = 'module';
-      Object.entries(attrs).forEach(([k, v]) => s.setAttribute(k, v));
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
+      const el = document.createElement('script');
+      el.src = href;
+      el.defer = true;
+      if (module) el.type = 'module';
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      el.onload = resolve;
+      el.onerror = () => reject(new Error('Failed to load ' + href));
+      document.head.appendChild(el);
     });
   }
 
-  async function boot() {
-    // 1) Global site behavior: nav/partials + ticker
-    await load('/static/script.js');
-
-    // Re-run init just in case (idempotent)
-    if (window.ZZXSite && typeof window.ZZXSite.autoInit === 'function') {
-      window.ZZXSite.autoInit();
-    }
-
-    // 2) Credits partial (explicit for homepage)
-    //    (Module keeps its own idempotency; it becomes a no-op if already on page)
-    await load('/__partials/credits/loader.js', { module: true });
-
-    // 3) Home-specific niceties (optional)
-    try {
-      const hero = document.querySelector('.hero');
-      if (hero) {
-        hero.classList.add('scroll-animation'); // will be picked up by global scroll FX
+  // Try calling ZZXSite.autoInit a few times in case modules load slightly later
+  async function tryAutoInit(retries = 3, delayMs = 120) {
+    for (let i = 0; i < retries; i++) {
+      if (window.ZZXSite && typeof window.ZZXSite.autoInit === 'function') {
+        try { window.ZZXSite.autoInit(); } catch {}
+        return;
       }
-    } catch (e) {
-      console.warn('Home enhancements skipped:', e.message);
+      await new Promise(r => setTimeout(r, delayMs));
     }
   }
 
+  async function boot() {
+    // 1) Sitewide (nav/partials + ticker)
+    await load('/static/script.js');
+
+    // Ensure init (idempotent)
+    await tryAutoInit();
+
+    // 2) Credits (module; safe no-op if already loaded)
+    await load('/__partials/credits/loader.js', { module: true });
+
+    // 3) Home-only nicety
+    const hero = document.querySelector('.hero');
+    if (hero) hero.classList.add('scroll-animation'); // picked up by global scroll FX
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
+    document.addEventListener('DOMContentLoaded', () => { boot().catch(console.warn); }, { once: true });
   } else {
-    boot();
+    boot().catch(console.warn);
   }
 })();
