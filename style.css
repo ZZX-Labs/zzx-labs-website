@@ -1,1 +1,109 @@
+/* Local homepage stylesheet:
+   - Imports global CSS stack
+   - Applies homepage-specific tweaks in a scoped way (.home …)
+*/
+@import url('/static/styles.css');
 
+/* Brand tokens (kept consistent) */
+:root {
+  --accent: #c0d674;  /* primary action (green) */
+  --accent-alt: #e6a42b; /* back/secondary (ochre) */
+  --muted: #8a8f98;
+}
+
+/* Scope all overrides to the homepage */
+.home .hero {
+  position: relative;
+  min-height: 56vh;
+  padding: 2.25rem 1rem;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.home .hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0,0,0,0.45) 0%,
+    rgba(0,0,0,0.35) 40%,
+    rgba(0,0,0,0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.home .hero-content {
+  position: relative;
+  max-width: 1000px;
+  margin: 0 auto;
+  z-index: 1;
+}
+
+.home .hero-content h1 {
+  margin: 0 0 .25rem 0;
+}
+
+.home .hero-content h4 {
+  margin: 0 0 0.75rem 0;
+  color: #cfd3da;
+  font-weight: 600;
+}
+
+.home .areas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px,1fr));
+  gap: 0.35rem 0.8rem;
+  list-style: none;
+  margin: 0.75rem auto 1.1rem auto;
+  padding: 0;
+  max-width: 1000px;
+  text-align: left;
+}
+.home .areas li {
+  color: #d6d9df;
+  padding-left: .9rem;
+  position: relative;
+}
+.home .areas li::before {
+  content: "•";
+  color: var(--accent);
+  position: absolute;
+  left: 0;
+}
+
+/* Buttons (match sitewide rules, but locked here for safety) */
+.home .btn {
+  display: inline-block;
+  color: #0e1116;                 /* black text */
+  background: var(--accent);      /* green */
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: .48rem .9rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+}
+.home .btn:hover { filter: brightness(1.05); }
+
+.home .btn.alt {
+  background: var(--accent-alt);  /* ochre */
+  color: #0e1116;                 /* black text */
+}
+
+.home .cta-row {
+  display: inline-flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-top: .35rem;
+}
+
+/* Optional: subtle container padding harmony */
+.home .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+
+/* Notice text inside hero */
+.home .notice {
+  color: var(--muted);
+  margin: .25rem auto .6rem auto;
+  font-style: italic;
+}
