@@ -1,5 +1,5 @@
 // /inspiration/figures/app.js
-import { boot } from '../modules/boot.js'; // ← fixed path
+import { boot } from './modules/boot.js';
 
 const BOOT_TIMEOUT_MS = 12000;
 
@@ -13,11 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function start() {
-  // single-run across ALL entries
-  if (booted || booting || window.__INSP_BOOTED__ || window.__FIG_APP_BOOTED__) return;
+  if (booted || booting || window.__FIG_APP_BOOTED__) return;
   booting = true;
   window.__FIG_APP_BOOTED__ = true;
-  window.__INSP_BOOTED__ = true;
 
   // Warn for file:// (fetch/module CORS issues)
   if (location.protocol === 'file:') {
@@ -43,8 +41,6 @@ function showError(err) {
   if (showedError) return; // only render once
   showedError = true;
   booting = false; // allow retry
-  // Let other entries have a chance after a failure
-  window.__INSP_BOOTED__ = false;
 
   const gridEl = ensureGrid();
   const msg = friendlyMessage(err);
