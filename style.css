@@ -1,6 +1,6 @@
-/* Local homepage stylesheet:
-   - Imports global CSS stack
-   - Applies homepage-specific tweaks in a scoped way (.home …)
+/* Local homepage stylesheet
+   - Imports global stack
+   - Applies scoped overrides under .home
 */
 @import url('/static/styles.css');
 
@@ -11,15 +11,19 @@
   --muted: #8a8f98;
 }
 
-/* Scope all overrides to the homepage */
+/* Page-wide safety */
+body.home { overflow-x: hidden; }
+
+/* --- HERO -------------------------------------------------------------- */
 .home .hero {
   position: relative;
   min-height: 56vh;
-  padding: 2.25rem 1rem;
+  /* extra vertical padding stops first/last line from feeling “cut off” */
+  padding: 2.75rem 1rem;
   display: grid;
   place-items: center;
   text-align: center;
-  overflow-x: hidden; /* guard against stray overflow */
+  overflow-x: hidden;
 }
 
 .home .hero-overlay {
@@ -38,51 +42,57 @@
   position: relative;
   max-width: 1000px;
   margin: 0 auto;
+  padding: .25rem 0 1rem; /* breathing room inside */
   z-index: 1;
-  overflow-x: hidden; /* extra guard */
+  overflow-x: hidden;
 }
 
 .home .hero-content h1 { margin: 0 0 .25rem; }
 .home .hero-content h4 { margin: 0 0 .75rem; color: #cfd3da; font-weight: 600; }
 
-/* Single-column, centered, no bullets — no overflow on any viewport */
-body.home main .hero .hero-content .areas {
-  /* eliminate any previously-declared grid */
+/* --- AREAS: Single column, centered, no bullets, never overflows ------- */
+.home .areas {
+  /* kill any grid/column styles from global CSS */
   display: block !important;
 
   list-style: none;
-  margin: 0.9rem auto 1.1rem;
-  padding: 0 1rem;          /* side padding keeps text away from edges */
-  max-width: 780px;         /* composes nicely for desktop/TV without cramping */
+  margin: 1rem auto;      /* top/bottom rhythm */
+  padding: 0 1rem;        /* side padding prevents edge-touch on phones */
+  max-width: 780px;       /* comfortable for desktop/TV */
   width: 100%;
   text-align: center;
-
-  /* containment so nothing can cause horizontal scroll */
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-body.home main .hero .hero-content .areas li {
+/* Critical: generous line-height to prevent glyph clipping on any font */
+.home .areas,
+.home .areas li,
+.home .areas p {
+  line-height: 1.52 !important;
+}
+
+.home .areas li {
   list-style: none;
-  margin: 0.25rem 0;
-  padding: 0.15rem 0.25rem;
+  margin: .22rem 0;
+  padding: .06rem 0;
   color: #d6d9df;
 
-  /* Prevent right-side spill on small screens */
-  overflow-wrap: anywhere;  /* modern */
-  word-break: break-word;   /* fallback */
+  /* robust wrapping for long words/terms */
+  overflow-wrap: anywhere;
+  word-break: break-word;
   hyphens: auto;
 }
 
-/* Make absolutely sure no custom bullets sneak in */
-body.home main .hero .hero-content .areas li::before { content: none !important; }
+/* nuke any custom bullets injected elsewhere */
+.home .areas li::before { content: none !important; }
 
-/* Wider comfort on very large displays */
+/* Extra comfort on ultra-wide displays */
 @media (min-width: 1600px) {
-  body.home main .hero .hero-content .areas { max-width: 900px; }
+  .home .areas { max-width: 900px; }
 }
 
-/* Buttons (match sitewide rules, locked here) */
+/* --- CTA BUTTONS ------------------------------------------------------- */
 .home .btn {
   display: inline-block;
   color: #0e1116;                 /* black text */
@@ -92,7 +102,7 @@ body.home main .hero .hero-content .areas li::before { content: none !important;
   border-radius: 8px;
   text-decoration: none;
   font-weight: 800;
-  line-height: 1;
+  line-height: 1;                 /* compact, but safe due to padding */
 }
 .home .btn:hover { filter: brightness(1.05); }
 
@@ -108,66 +118,12 @@ body.home main .hero .hero-content .areas li::before { content: none !important;
   margin-top: .35rem;
 }
 
-/* Optional: subtle container padding harmony */
+/* Optional: container harmony if you use .container on the homepage */
 .home .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
 
-/* Notice text inside hero */
+/* Notice text */
 .home .notice {
   color: var(--muted);
   margin: .25rem auto .6rem;
   font-style: italic;
 }
-
-/* Final safety: never allow page-wide x overflow on homepage */
-body.home { overflow-x: hidden; }
-
-/* --- HOMEPAGE ANTI-CLIP FIXES ----------------------------------------- */
-/* Give the hero a bit more vertical padding so first/last lines aren't flush */
-.home .hero { padding: 2.75rem 1rem; }
-
-/* Ensure the content block itself has breathing room (top & bottom) */
-.home .hero-content { padding: .25rem 0 1rem; }
-
-/* Single-column, centered list */
-.home .areas {
-  display: block !important;      /* defeat any grid/columns from elsewhere */
-  list-style: none;
-  margin: 1rem auto;              /* top/bottom margin to avoid flush edges */
-  padding: 0 1rem;                /* side padding prevents edge touch on mobile */
-  max-width: 780px;
-  width: 100%;
-  text-align: center;
-  box-sizing: border-box;
-  overflow-x: hidden;             /* safety */
-}
-
-/* 👉 Key part: explicit, generous line-height */
-.home .areas,
-.home .areas li,
-.home .areas p {
-  line-height: 1.52 !important;   /* prevents ascender/descender clipping */
-}
-
-/* List items: no bullets, safe wrapping, tiny vertical cushion */
-.home .areas li {
-  list-style: none;
-  margin: .22rem 0;
-  padding: .06rem 0;              /* small internal padding keeps glyphs clear */
-
-  overflow-wrap: anywhere;        /* modern */
-  word-break: break-word;         /* fallback */
-  hyphens: auto;
-
-  color: #d6d9df;
-}
-
-/* Absolutely no custom bullets */
-.home .areas li::before { content: none !important; }
-
-/* Extra comfort on ultra-wide displays */
-@media (min-width: 1600px) {
-  .home .areas { max-width: 900px; }
-}
-
-/* Prevent any accidental horizontal scroll on the page */
-body.home { overflow-x: hidden; }
