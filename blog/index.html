@@ -1,100 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Blog | ZZX-Labs R&D</title>
-    <link rel="stylesheet" href="../static/styles.css">
-    <script src="../static/script.js" defer></script>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Blog | ZZX-Labs R&D</title>
+
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
 </head>
-<body>
+<body class="blog-home">
 <header>
-	<div id="zzx-header"></div>
+  <div id="zzx-header"></div>
 </header>
+
 <main>
-    <br>
-    <!-- Bitcoin Ticker Widget -->
-    <div id="ticker-container"></div>
-    <br>
+  <br /><div id="ticker-container"></div><br />
 
-<section class="container">
-    <h1>Our Blog</h1>
-    <p>
-        Stay up-to-date with the latest news, insights, and developments from ZZX-Labs through our blog. We cover 
-        topics ranging from technology breakthroughs to company updates and beyond.
+  <section class="container">
+    <h1>ZZX-Labs Blog</h1>
+    <p class="lede">
+      Essays, engineering logs, announcements. Featured posts are curated below. New posts publish twice daily from
+      <code>.tank</code> and move into <code>.posted</code> archives automatically.
     </p>
-</section>
+    <div class="controls">
+      <input id="search" type="search" placeholder="Search titles/descriptions…" aria-label="Search posts" />
+      <select id="tag-filter" aria-label="Filter by tag">
+        <option value="">All tags</option>
+      </select>
+      <button class="btn" id="shuffle">Shuffle</button>
+      <a class="btn alt" href="/blog/blog-posts/">← Blog Archives</a>
+      <a class="btn alt" href="/">← Home</a>
+    </div>
+  </section>
 
-<section class="container blog-posts" id="blog-posts-container">
-    <!-- Blog posts will be inserted here dynamically by JavaScript -->
-</section><br><br>
+  <section class="container">
+    <h2>Featured</h2>
+  </section>
+  <section class="features" id="featured-list">
+    <p class="loading">Loading featured…</p>
+  </section>
 
-<script>
-    // Array of blog post titles and URLs
-    const blogPosts = [
-        { title: "The Future of 0-Day Exploit Vulnerability Testing Innovation", url: "../blog/blog-posts/.tank/future-of-0day-exploit-vulnerability-testing-innovation/index.html", description: "Insights into how vulnerability testing is evolving in response to 0-day exploits and how it shapes the future of cybersecurity." },
-        { title: "The Future of Cybersecurity Innovation", url: "../blog/blog-posts/.tank/future-of-cybersecurity-innovation/index.html", description: "Exploring the next wave of innovations in cybersecurity, from advanced threat detection to response systems." },
-        { title: "The Future of Generative AI Innovation", url: "../blog/blog-posts/.tank/future-of-generative-ai-innovation/index.html", description: "Discover how generative AI will transform industries like art, media, and business operations." },
-        { title: "Tech Startups to Watch in 2025", url: "../blog/blog-posts/.tank/future-of-tech-startups-in-2025/index.html", description: "A glimpse into the most promising tech startups that are set to revolutionize their industries in 2025." },
-        { title: "The Future of 0-Day Exploit Discovery Innovation", url: "../blog/blog-posts/.tank/future-of-0day-exploit-discovery-innovation/index.html", description: "How the discovery of 0-day exploits is becoming a critical area of focus for security researchers and organizations alike." },
-        { title: "The Future of Bitcoin Algorithmic Trading Innovation", url: "../blog/blog-posts/.tank/future-of-bitcoin-algorithmic-trading-innovation/index.html", description: "Exploring how algorithmic trading strategies are evolving in the Bitcoin market and what that means for the future of digital currencies." },
-        { title: "The Future of Cyberwarfare Innovation", url: "../blog/blog-posts/.tank/future-of-cyberwarfare-innovation/index.html", description: "How the world is preparing for the future of cyberwarfare, with new tactics, tools, and international implications." },
-        { title: "The Future of Quantum Cryptography Innovation", url: "../blog/blog-posts/.tank/future-of-quantum-cryptography-innovation/index.html", description: "How quantum computing is set to revolutionize cryptography and how the cybersecurity industry is preparing for the quantum future." },
-        { title: "The Future of Malware Analysis Innovation", url: "../blog/blog-posts/.tank/future-of-malware-analysis-innovation/index.html", description: "An in-depth look at how malware analysis is evolving to combat the increasing sophistication of cyber threats." },
-        { title: "The Future of GPT Innovation", url: "../blog/blog-posts/.tank/future-of-gpt-innovation/index.html", description: "Discover the revolutionary impact of GPT advancements on natural language processing and AI technology." },
-        { title: "The Future of Ransomware Analysis Innovation", url: "../blog/blog-posts/.tank/future-of-ransomware-analysis-innovation/index.html", description: "An exploration of how ransomware analysis is evolving to tackle increasingly sophisticated threats." },
-        { title: "The Future of Ransomware Deployment Innovation", url: "../blog/blog-posts/.tank/future-of-ransomware-deployment-innovation/index.html", description: "Understanding how ransomware deployment strategies are changing and how they affect cybersecurity operations." },
-        { title: "The Future of Ransomware Development Innovation", url: "../blog/blog-posts/.tank/future-of-ransomware-development-innovation/index.html", description: "The shifting landscape of ransomware development, with a focus on its increasing sophistication." },
-        { title: "The Future of Robotic Innovation", url: "../blog/blog-posts/.tank/future-of-robotic-innovation/index.html", description: "Discover how advancements in robotics are shaping the future of industries ranging from manufacturing to healthcare." },
-        { title: "The Future of ML Innovation", url: "../blog/blog-posts/.tank/future-of-ml-innovation/index.html", description: "Explore how machine learning continues to evolve, from improving data-driven decision-making to enhancing predictive models." },
-        { title: "The Future of Firmware Development Innovation", url: "../blog/blog-posts/.tank/future-of-firmware-development-innovation/index.html", description: "The next steps in firmware development, focusing on increasing security, efficiency, and functionality in hardware devices." },
-        { title: "The Future of Hardware Development Innovation", url: "../blog/blog-posts/.tank/future-of-hardware-development-innovation/index.html", description: "Insights into how hardware development is advancing with new materials, fabrication techniques, and efficiency improvements." },
-        { title: "The Future of Data Security (DataSec) Innovation", url: "../blog/blog-posts/.tank/future-of-data-security-innovation/index.html", description: "How data security is evolving in an era of increasing cyber threats, and the role of new technologies in safeguarding data." },
-        { title: "The Future of Information Security (InfoSec) Innovation", url: "../blog/blog-posts/.tank/future-of-information-security-innovation/index.html", description: "The future of information security and how organizations are strengthening their defenses against emerging threats." },
-        { title: "The Future of Generative AI Innovation", url: "../blog/blog-posts/.tank/future-of-generative-ai-innovation/index.html", description: "Explore how generative AI is changing the way content is created, from art to business applications." },
-        { title: "The Future of Bitcoin Analytics & Forensics for Investigation Innovation", url: "../blog/blog-posts/.tank/future-of-bitcoin-analytics-for-investigation-innovation/index.html", description: "How advancements in Bitcoin analytics and forensics are enhancing investigations in digital financial crimes." },
-        { title: "The Future of Bitcoin & Lightning Network (LN) Innovation", url: "../blog/blog-posts/.tank/future-of-bitcoin-and-ln-innovation/index.html", description: "Exploring how the Bitcoin network and Lightning Network are evolving to support faster, more efficient transactions." },
-        { title: "Tech Startups to Watch in 2025", url: "../blog/blog-posts/.tank/future-of-tech-startups-in-2025/index.html", description: "A glimpse into the most promising tech startups that are set to revolutionize their industries in 2025." },
-    ];
+  <section class="container">
+    <h2>Recent</h2>
+  </section>
+  <section class="features" id="recent-list">
+    <p class="loading">Loading recent posts…</p>
+  </section>
+</main>
 
-    // Randomize the blog posts
-    blogPosts.sort(() => Math.random() - 0.5);
-
-    // Set the initial date to today, then decrement by 12 hours for each subsequent post
-    let currentDate = new Date();
-
-    // Loop through the blog posts and generate the HTML dynamically
-    const container = document.getElementById("blog-posts-container");
-
-    blogPosts.forEach((post, index) => {
-        const postElement = document.createElement("div");
-        postElement.classList.add("blog-post");
-
-        // Create date string
-        const dateStr = currentDate.toLocaleString();
-
-        // Decrement date by 12 hours for the next post
-        currentDate.setHours(currentDate.getHours() - 12);
-
-        postElement.innerHTML = `
-            <h2><a href="${post.url}">${post.title}</a></h2>
-            <p>${post.description}</p>
-            <p class="date">Posted on ${dateStr}</p>
-        `;
-
-        container.appendChild(postElement);
-    });
-</script>
-
-<section class="container cta">
-    <h2>Stay Connected</h2>
-    <p>Sign up for our newsletter to get the latest blog posts directly in your inbox.</p>
-    <a href="../contact" class="btn">Subscribe</a>
-</section><br><br>
-    </main>
 <footer>
-	<div id="zzx-footer"></div>
+  <div id="zzx-footer"></div>
 </footer>
 </body>
 </html>
