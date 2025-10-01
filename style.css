@@ -107,3 +107,46 @@
   margin: .25rem auto .6rem auto;
   font-style: italic;
 }
+
+/* Single-column, centered, no-bullets list — zero overflow on any viewport */
+.home .areas {
+  list-style: none;
+  margin: 0.9rem auto 1.1rem auto;
+  padding: 0;
+
+  /* Always one column, centered */
+  display: block;
+  max-width: 780px;        /* comfy width for desktop/TV without looking cramped */
+  width: 100%;
+
+  text-align: center;
+}
+
+.home .areas li {
+  margin: 0.25rem 0;
+  padding: 0.15rem 0.25rem;
+
+  /* No bullets and no leading offset */
+  list-style: none;
+
+  /* Prevent overflow for long words/URLs/domains */
+  overflow-wrap: anywhere;    /* modern */
+  word-break: break-word;     /* fallback */
+  hyphens: auto;
+
+  color: #d6d9df;
+}
+
+/* Remove any custom bullets added earlier */
+.home .areas li::before { content: none !important; }
+
+/* (Optional) extra comfort on very-wide screens */
+@media (min-width: 1600px) {
+  .home .areas { max-width: 900px; }
+}
+
+/* (Optional) make sure the hero can't create horizontal scroll by accident */
+.home .hero,
+.home .hero-content {
+  overflow-x: hidden;
+}
