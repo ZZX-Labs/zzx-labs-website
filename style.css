@@ -4,9 +4,9 @@
 */
 @import url('/static/styles.css');
 
-/* Brand tokens (kept consistent) */
+/* Brand tokens */
 :root {
-  --accent: #c0d674;  /* primary action (green) */
+  --accent: #c0d674;   /* primary action (green) */
   --accent-alt: #e6a42b; /* back/secondary (ochre) */
   --muted: #8a8f98;
 }
@@ -19,6 +19,7 @@
   display: grid;
   place-items: center;
   text-align: center;
+  overflow-x: hidden; /* guard against stray overflow */
 }
 
 .home .hero-overlay {
@@ -38,41 +39,50 @@
   max-width: 1000px;
   margin: 0 auto;
   z-index: 1;
+  overflow-x: hidden; /* extra guard */
 }
 
-.home .hero-content h1 {
-  margin: 0 0 .25rem 0;
-}
+.home .hero-content h1 { margin: 0 0 .25rem; }
+.home .hero-content h4 { margin: 0 0 .75rem; color: #cfd3da; font-weight: 600; }
 
-.home .hero-content h4 {
-  margin: 0 0 0.75rem 0;
-  color: #cfd3da;
-  font-weight: 600;
-}
+/* Single-column, centered, no bullets — no overflow on any viewport */
+body.home main .hero .hero-content .areas {
+  /* eliminate any previously-declared grid */
+  display: block !important;
 
-.home .areas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px,1fr));
-  gap: 0.35rem 0.8rem;
   list-style: none;
-  margin: 0.75rem auto 1.1rem auto;
-  padding: 0;
-  max-width: 1000px;
-  text-align: left;
-}
-.home .areas li {
-  color: #d6d9df;
-  padding-left: .9rem;
-  position: relative;
-}
-.home .areas li::before {
-  content: "•";
-  color: var(--accent);
-  position: absolute;
-  left: 0;
+  margin: 0.9rem auto 1.1rem;
+  padding: 0 1rem;          /* side padding keeps text away from edges */
+  max-width: 780px;         /* composes nicely for desktop/TV without cramping */
+  width: 100%;
+  text-align: center;
+
+  /* containment so nothing can cause horizontal scroll */
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
-/* Buttons (match sitewide rules, but locked here for safety) */
+body.home main .hero .hero-content .areas li {
+  list-style: none;
+  margin: 0.25rem 0;
+  padding: 0.15rem 0.25rem;
+  color: #d6d9df;
+
+  /* Prevent right-side spill on small screens */
+  overflow-wrap: anywhere;  /* modern */
+  word-break: break-word;   /* fallback */
+  hyphens: auto;
+}
+
+/* Make absolutely sure no custom bullets sneak in */
+body.home main .hero .hero-content .areas li::before { content: none !important; }
+
+/* Wider comfort on very large displays */
+@media (min-width: 1600px) {
+  body.home main .hero .hero-content .areas { max-width: 900px; }
+}
+
+/* Buttons (match sitewide rules, locked here) */
 .home .btn {
   display: inline-block;
   color: #0e1116;                 /* black text */
@@ -88,7 +98,7 @@
 
 .home .btn.alt {
   background: var(--accent-alt);  /* ochre */
-  color: #0e1116;                 /* black text */
+  color: #0e1116;
 }
 
 .home .cta-row {
@@ -104,49 +114,9 @@
 /* Notice text inside hero */
 .home .notice {
   color: var(--muted);
-  margin: .25rem auto .6rem auto;
+  margin: .25rem auto .6rem;
   font-style: italic;
 }
 
-/* Single-column, centered, no-bullets list — zero overflow on any viewport */
-.home .areas {
-  list-style: none;
-  margin: 0.9rem auto 1.1rem auto;
-  padding: 0;
-
-  /* Always one column, centered */
-  display: block;
-  max-width: 780px;        /* comfy width for desktop/TV without looking cramped */
-  width: 100%;
-
-  text-align: center;
-}
-
-.home .areas li {
-  margin: 0.25rem 0;
-  padding: 0.15rem 0.25rem;
-
-  /* No bullets and no leading offset */
-  list-style: none;
-
-  /* Prevent overflow for long words/URLs/domains */
-  overflow-wrap: anywhere;    /* modern */
-  word-break: break-word;     /* fallback */
-  hyphens: auto;
-
-  color: #d6d9df;
-}
-
-/* Remove any custom bullets added earlier */
-.home .areas li::before { content: none !important; }
-
-/* (Optional) extra comfort on very-wide screens */
-@media (min-width: 1600px) {
-  .home .areas { max-width: 900px; }
-}
-
-/* (Optional) make sure the hero can't create horizontal scroll by accident */
-.home .hero,
-.home .hero-content {
-  overflow-x: hidden;
-}
+/* Final safety: never allow page-wide x overflow on homepage */
+body.home { overflow-x: hidden; }
