@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Anguilla — World Factbook (ZZX)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- Local (per-country) CSS -->
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- Leaflet + leaflet-image for UHD snapshot -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha384-k7XcH3e7b5FZ1gLe9kQWc2e1jJxWgVx9sOnA4YtY6mG5k0k3ue6mH0l4V9mKf+2M" crossorigin="anonymous">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha384-XmV5u5YxN2EopJueV3zPZQ4xGXw5iV8r0hTq9XU3v1abR2JZ8b5qzXo2v9Q1x4oD" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
+</head>
+<body>
+  <header class="kb-header">
+    <div class="brand">
+      <div class="dot"></div>
+      <h1 id="title">Loading…</h1>
+    </div>
+    <div class="actions">
+      <a class="btn" href="../../">← All Countries</a>
+      <a id="sourceLink" class="btn" href="#" target="_blank" rel="noopener">Open Source</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p id="subtitle" class="subtitle">—</p>
+
+    <!-- UHD Satellite Map image (exported snapshot) -->
+    <section class="map-card">
+      <div class="map-head">
+        <h2>Satellite Map</h2>
+        <div class="map-actions">
+          <button id="regen">Regenerate Map</button>
+          <small id="mapMeta" class="muted">—</small>
+        </div>
+      </div>
+      <figure class="sat-figure">
+        <img id="satImage" alt="UHD satellite map with boundaries" />
+      </figure>
+
+      <!-- Offscreen map used to render the snapshot -->
+      <div id="map" aria-hidden="true"></div>
+    </section>
+
+    <section class="sections">
+      <article>
+        <h2>Overview</h2>
+        <div id="summary" class="rich">—</div>
+      </article>
+      <article>
+        <h2>Economy</h2>
+        <div id="economy" class="rich muted">No data yet.</div>
+      </article>
+      <article>
+        <h2>Geography</h2>
+        <div id="geography" class="rich muted">No data yet.</div>
+      </article>
+      <article>
+        <h2>Security</h2>
+        <div id="security" class="rich muted">No data yet.</div>
+      </article>
+      <article>
+        <h2>Communications & Transport</h2>
+        <div id="infrastructure" class="rich muted">No data yet.</div>
+      </article>
+      <aside class="side">
+        <h3>At a Glance</h3>
+        <div class="kv">
+          <div><small>Region</small><span id="kvRegion">—</span></div>
+          <div><small>Capital</small><span id="kvCapital">—</span></div>
+          <div><small>Population</small><span id="kvPop">—</span></div>
+          <div><small>Currency</small><span id="kvCur">—</span></div>
+          <div><small>Time Zone</small><span id="kvTZ">—</span></div>
+          <div><small>Version</small><span id="kvVer">—</span></div>
+          <div><small>Last Seen</small><span id="kvSeen">—</span></div>
+        </div>
+
+        <h3>Leadership</h3>
+        <div id="leaders" class="kv"></div>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="kb-footer">
+    <small>Rendered from ZZX-Labs manifests. Source: CIA World Factbook.</small>
+  </footer>
+
+  <script>
+    // Page config
+    window.PAGE_CONFIG = {
+      BRAND_COLOR: "#c0d674",
+      // where manifest lives (same folder)
+      MANIFEST_URL: "./manifest.json",
+      // satellite tiles (ESRI World Imagery). Respect provider terms.
+      SAT_TILES: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      SAT_ATTR: "Tiles &copy; Esri — Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+      // line thickness for boundary outline
+      OUTLINE_WEIGHT: 3,  // 2–4 px as requested
+      // Retina export scale (2 = UHD-ish, bump to 3 for extra crisp)
+      EXPORT_SCALE: 2
+    };
+  </script>
+  <script src="./script.js" defer></script>
+</body>
+</html>
