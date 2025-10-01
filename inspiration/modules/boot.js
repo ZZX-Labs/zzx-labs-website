@@ -171,16 +171,22 @@ export async function boot() {
   // Hash → open collapsible hook
   attachHashOpenHandler();
 
-  // Wikipedia content
-  for (let i = 0; i < ordered.length; i++) {
-    const fig = ordered[i];
+  // 🔹 Load Wikipedia content in the background with limited concurrency
+  queueWikiLoads(ordered, cards, urlMap, 3).catch((e) => {
+    console.warn('Background wiki loads encountered errors:', e);
+  });
+}
+
+/* ---- background wiki loading with small concurrency ---- */
+async function queueWikiLoads(ordered, cards, urlMap, concurrency = 3) {
+  const tasks = ordered.map((fig, i) => async () => {
     const card = cards[i];
     const url = urlMap?.[fig.id];
 
     if (!url) {
       const content = card.querySelector('.card-content');
       if (content) content.innerHTML = `<p class="error">No Wikipedia URL configured for ${fig.name || fig.id}.</p>`;
-      continue;
+      return;
     }
 
     try {
@@ -189,7 +195,7 @@ export async function boot() {
       const info = await resolveAndInspect(rawTitle);
       if (info.missing) {
         card.querySelector('.card-content').innerHTML = `<p class="error">Page not found: “${rawTitle}”.</p>`;
-        continue;
+        return;
       }
 
       const key  = cacheKey(info.title, fragment);
@@ -239,5 +245,16 @@ export async function boot() {
       if (content) content.innerHTML = `<p class="error">Load error: ${err.message}</p>`;
       console.error('Figure load error', fig.id, err);
     }
+  });
+
+  // simple worker pool
+  const running = new Set();
+  for (const task of tasks) {
+    const p = task().finally(() => running.delete(p));
+    running.add(p);
+    if (running.size >= concurrency) {
+      await Promise.race(running);
+    }
   }
+  await Promise.allSettled(Array.from(running));
 }
