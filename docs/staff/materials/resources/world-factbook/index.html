@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>World Factbook — Core Knowledge Base | ZZX-Labs R&D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="kb-header">
+    <div class="kb-brand">
+      <div class="dot"></div>
+      <h1>World Factbook <span class="sub">Core KB</span></h1>
+    </div>
+    <div class="kb-actions">
+      <input id="search" type="search" placeholder="Search country, region, capital…" aria-label="Search" />
+      <button id="forceRefresh" title="Reload local manifests">↻ Refresh</button>
+    </div>
+  </header>
+
+  <main class="kb-main">
+    <aside class="kb-panel">
+      <section class="kb-status">
+        <div>Last load: <span id="lastCheck">—</span></div>
+        <div>Next check: <span id="nextCheck">—</span> (6h cadence)</div>
+        <label class="toggle">
+          <input type="checkbox" id="autoUpdate" checked />
+          <span>Auto-check every 6 hours</span>
+        </label>
+      </section>
+
+      <section class="kb-legend">
+        <h2>Legend</h2>
+        <p><span class="badge"><span class="dot"></span> Updated</span> last seen date comes from locale manifest</p>
+      </section>
+    </aside>
+
+    <section class="kb-content">
+      <div id="grid" class="card-grid" role="list" aria-live="polite"></div>
+
+      <dialog id="viewer" class="viewer" aria-label="Factsheet viewer">
+        <div class="viewer-head">
+          <h3 id="viewerTitle">Factsheet</h3>
+          <button id="viewerClose" aria-label="Close">✕</button>
+        </div>
+        <iframe id="viewerFrame"
+                sandbox="allow-same-origin allow-scripts allow-forms"
+                referrerpolicy="no-referrer"></iframe>
+      </dialog>
+    </section>
+  </main>
+
+  <footer class="kb-footer">
+    <small>Data is displayed from CIA World Factbook factsheets and locally maintained manifests for archival metadata.</small>
+  </footer>
+
+  <script>
+    // App configuration (tweak paths if you relocate files)
+    window.FACTBOOK_CONFIG = {
+      URLS_JSON: "./urls.json",
+      LOCALE_DIR: "./locale",           // where <slug>.json files live
+      UPDATE_INTERVAL_MS: 6 * 60 * 60 * 1000, // 6 hours
+      BRAND_COLOR: "#c0d674"
+    };
+  </script>
+  <script src="./app.js"></script>
+  <script src="./script.js" defer></script>
+</body>
+</html>
