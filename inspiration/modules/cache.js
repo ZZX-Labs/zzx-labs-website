@@ -30,40 +30,53 @@ export function lsSet(key, value) {
 const HAS_IDB = typeof indexedDB !== 'undefined';
 let _dbPromise = null;
 
-// Minimal in-memory fallback if IDB is unavailable
+// Minimal in-memory fallback if IDB is unavailable or fails
 const _mem = new Map();
 
 function openDB() {
-  if (!HAS_IDB) {
-    // Fake a promise so callers can await safely
-    return Promise.resolve(null);
-  }
+  if (!HAS_IDB) return Promise.resolve(null);
   if (_dbPromise) return _dbPromise;
 
-  _dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open('wiki_cache', 1);
+  _dbPromise = new Promise((resolve) => {
+    let resolved = false;
+    let req;
+
+    try {
+      // IMPORTANT: omit version to open whatever is stored (avoids VersionError)
+      req = indexedDB.open('wiki_cache');
+    } catch {
+      resolve(null);
+      return;
+    }
+
     req.onupgradeneeded = () => {
+      // Only fires when DB is new or truly upgrading
       const db = req.result;
       if (!db.objectStoreNames.contains('pages')) {
-        const store = db.createObjectStore('pages', { keyPath: 'key' }); // key: title#fragment|ALL
+        const store = db.createObjectStore('pages', { keyPath: 'key' });
         store.createIndex('byTitle', 'title', { unique: false });
       }
     };
+
     req.onsuccess = () => {
+      resolved = true;
       const db = req.result;
       db.onversionchange = () => db.close();
       resolve(db);
     };
-    req.onerror = () => reject(req.error);
+
+    req.onerror = () => {
+      // If we get a VersionError or any other error, just fall back to memory
+      if (!resolved) resolve(null);
+    };
   });
 
   return _dbPromise;
 }
 
 export async function idbGet(key) {
-  if (!HAS_IDB) return _mem.get(key) || null;
   const db = await openDB();
-  if (!db) return null;
+  if (!db) return _mem.get(key) || null;
   return new Promise((resolve, reject) => {
     const tx = db.transaction('pages', 'readonly');
     const store = tx.objectStore('pages');
@@ -75,9 +88,8 @@ export async function idbGet(key) {
 
 export async function idbPut(obj) {
   if (!obj || !obj.key) throw new Error('idbPut: object must include a `key` field');
-  if (!HAS_IDB) { _mem.set(obj.key, obj); return true; }
   const db = await openDB();
-  if (!db) return false;
+  if (!db) { _mem.set(obj.key, obj); return true; }
   return new Promise((resolve, reject) => {
     const tx = db.transaction('pages', 'readwrite');
     tx.objectStore('pages').put(obj);
@@ -86,11 +98,9 @@ export async function idbPut(obj) {
   });
 }
 
-/* Optional helpers (safe no-ops if unused) */
 export async function idbDel(key) {
-  if (!HAS_IDB) { _mem.delete(key); return true; }
   const db = await openDB();
-  if (!db) return false;
+  if (!db) { _mem.delete(key); return true; }
   return new Promise((resolve, reject) => {
     const tx = db.transaction('pages', 'readwrite');
     tx.objectStore('pages').delete(key);
@@ -100,9 +110,8 @@ export async function idbDel(key) {
 }
 
 export async function idbClear() {
-  if (!HAS_IDB) { _mem.clear(); return true; }
   const db = await openDB();
-  if (!db) return false;
+  if (!db) { _mem.clear(); return true; }
   return new Promise((resolve, reject) => {
     const tx = db.transaction('pages', 'readwrite');
     tx.objectStore('pages').clear();
