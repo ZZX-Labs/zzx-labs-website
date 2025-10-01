@@ -127,3 +127,60 @@ body.home { overflow-x: hidden; }
   margin: .25rem auto .6rem;
   font-style: italic;
 }
+
+/* --- HOMEPAGE .areas HARD OVERRIDES (no clipping, no overflow) -------- */
+body.home { overflow-x: hidden; }
+
+.home .hero {
+  padding-block: 3rem;             /* extra top/bottom air so nothing feels cut */
+  overflow-x: hidden;
+}
+
+.home .hero-content { padding-block: .25rem 1rem; }
+
+.home .areas {
+  /* defeat any grid/columns from global modules */
+  display: flow-root !important;    /* new block formatting context = no margin collapse */
+  list-style: none;
+  margin: 1rem auto;                /* vertical rhythm */
+  padding: 0 1rem;                  /* safe gutters on phones */
+  max-width: 780px;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  /* robust wrapping for long terms */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* ensure comfortable line height across all glyphs */
+.home .areas,
+.home .areas li,
+.home .areas li p {
+  line-height: 1.55 !important;
+}
+
+/* list items: no bullets, consistent spacing */
+.home .areas li {
+  list-style: none;
+  margin: .22rem 0;
+  padding: .06rem 0;
+  color: #d6d9df;
+}
+
+/* make nested <p> behave like inline text so it can't collapse margins */
+.home .areas li p {
+  display: inline;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* absolutely no custom bullets from anywhere */
+.home .areas li::before { content: none !important; }
+
+/* wider comfort on ultra-wide displays / TVs */
+@media (min-width: 1600px) {
+  .home .areas { max-width: 900px; }
+}
