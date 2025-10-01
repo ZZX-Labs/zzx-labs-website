@@ -6,26 +6,24 @@
 
 /* Brand tokens */
 :root {
-  --accent: #c0d674;   /* primary action (green) */
-  --accent-alt: #e6a42b; /* back/secondary (ochre) */
+  --accent: #c0d674;   /* primary (green) */
+  --accent-alt: #e6a42b; /* secondary (ochre) */
   --muted: #8a8f98;
 }
 
 /* Page-wide safety */
 body.home { overflow-x: hidden; }
 
-/* --- HERO -------------------------------------------------------------- */
+/* ── HERO ───────────────────────────────────────────────────────────── */
 .home .hero {
   position: relative;
   min-height: 56vh;
-  /* extra vertical padding stops first/last line from feeling “cut off” */
-  padding: 2.75rem 1rem;
+  padding: 3rem 1rem;            /* extra air so first/last lines aren’t clipped */
   display: grid;
   place-items: center;
   text-align: center;
   overflow-x: hidden;
 }
-
 .home .hero-overlay {
   position: absolute;
   inset: 0;
@@ -37,80 +35,74 @@ body.home { overflow-x: hidden; }
   );
   pointer-events: none;
 }
-
 .home .hero-content {
   position: relative;
   max-width: 1000px;
   margin: 0 auto;
-  padding: .25rem 0 1rem; /* breathing room inside */
+  padding: .25rem 0 1rem;        /* breathing room inside */
   z-index: 1;
   overflow-x: hidden;
 }
-
 .home .hero-content h1 { margin: 0 0 .25rem; }
 .home .hero-content h4 { margin: 0 0 .75rem; color: #cfd3da; font-weight: 600; }
 
-/* --- AREAS: Single column, centered, no bullets, never overflows ------- */
+/* ── AREAS: single column, centered, no bullets, no overflow ───────── */
 .home .areas {
-  /* kill any grid/column styles from global CSS */
-  display: block !important;
-
+  display: flow-root !important; /* own BFC → no margin-collapse */
   list-style: none;
-  margin: 1rem auto;      /* top/bottom rhythm */
-  padding: 0 1rem;        /* side padding prevents edge-touch on phones */
-  max-width: 780px;       /* comfortable for desktop/TV */
+  margin: 1rem auto;
+  padding: 0 1rem;               /* phone-safe gutters */
+  max-width: 780px;              /* comfy on desktop/TV */
   width: 100%;
   text-align: center;
   box-sizing: border-box;
   overflow-x: hidden;
-}
 
-/* Critical: generous line-height to prevent glyph clipping on any font */
-.home .areas,
-.home .areas li,
-.home .areas p {
-  line-height: 1.52 !important;
-}
+  /* robust wrapping for long terms */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
 
+  /* generous line-height to prevent glyph clipping */
+  line-height: 1.55 !important;
+}
 .home .areas li {
   list-style: none;
   margin: .22rem 0;
   padding: .06rem 0;
   color: #d6d9df;
-
-  /* robust wrapping for long words/terms */
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  hyphens: auto;
+  line-height: 1.55 !important;
+}
+.home .areas li::before { content: none !important; }
+.home .areas li p {
+  display: inline;               /* behave like text; no margin collapse */
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.55 !important;
 }
 
-/* nuke any custom bullets injected elsewhere */
-.home .areas li::before { content: none !important; }
-
-/* Extra comfort on ultra-wide displays */
+/* wider comfort on ultra-wide displays / TVs */
 @media (min-width: 1600px) {
   .home .areas { max-width: 900px; }
 }
 
-/* --- CTA BUTTONS ------------------------------------------------------- */
+/* ── CTA BUTTONS ───────────────────────────────────────────────────── */
 .home .btn {
   display: inline-block;
-  color: #0e1116;                 /* black text */
-  background: var(--accent);      /* green */
+  color: #0e1116;                      /* black text */
+  background: var(--accent);           /* green */
   border: 1px solid rgba(255,255,255,0.12);
   padding: .48rem .9rem;
   border-radius: 8px;
   text-decoration: none;
   font-weight: 800;
-  line-height: 1;                 /* compact, but safe due to padding */
+  line-height: 1;
 }
 .home .btn:hover { filter: brightness(1.05); }
-
 .home .btn.alt {
-  background: var(--accent-alt);  /* ochre */
+  background: var(--accent-alt);       /* ochre */
   color: #0e1116;
 }
-
 .home .cta-row {
   display: inline-flex;
   gap: .6rem;
@@ -118,69 +110,12 @@ body.home { overflow-x: hidden; }
   margin-top: .35rem;
 }
 
-/* Optional: container harmony if you use .container on the homepage */
+/* Optional: container harmony */
 .home .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
 
-/* Notice text */
+/* Notice */
 .home .notice {
   color: var(--muted);
   margin: .25rem auto .6rem;
   font-style: italic;
-}
-
-/* --- HOMEPAGE .areas HARD OVERRIDES (no clipping, no overflow) -------- */
-body.home { overflow-x: hidden; }
-
-.home .hero {
-  padding-block: 3rem;             /* extra top/bottom air so nothing feels cut */
-  overflow-x: hidden;
-}
-
-.home .hero-content { padding-block: .25rem 1rem; }
-
-.home .areas {
-  /* defeat any grid/columns from global modules */
-  display: flow-root !important;    /* new block formatting context = no margin collapse */
-  list-style: none;
-  margin: 1rem auto;                /* vertical rhythm */
-  padding: 0 1rem;                  /* safe gutters on phones */
-  max-width: 780px;
-  width: 100%;
-  text-align: center;
-  box-sizing: border-box;
-  overflow-x: hidden;
-  /* robust wrapping for long terms */
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  hyphens: auto;
-}
-
-/* ensure comfortable line height across all glyphs */
-.home .areas,
-.home .areas li,
-.home .areas li p {
-  line-height: 1.55 !important;
-}
-
-/* list items: no bullets, consistent spacing */
-.home .areas li {
-  list-style: none;
-  margin: .22rem 0;
-  padding: .06rem 0;
-  color: #d6d9df;
-}
-
-/* make nested <p> behave like inline text so it can't collapse margins */
-.home .areas li p {
-  display: inline;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* absolutely no custom bullets from anywhere */
-.home .areas li::before { content: none !important; }
-
-/* wider comfort on ultra-wide displays / TVs */
-@media (min-width: 1600px) {
-  .home .areas { max-width: 900px; }
 }
