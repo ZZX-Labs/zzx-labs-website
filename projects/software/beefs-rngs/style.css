@@ -1,1 +1,75 @@
+:root {
+  --accent: #c0d674;
+  --accent-alt: #e6a42b;
+  --muted: #8a8f98;
+}
 
+/* Hero */
+.hero {
+  position: relative;
+  inline-size: 100%;
+  background: var(--bg, #1b1e22);
+  padding-block: clamp(2rem, 6vw, 4rem);
+}
+.hero-overlay { display: none; }
+.hero-content { text-align: center; }
+.hero h1 { color: var(--accent); margin: 0.25rem 0 0.5rem; }
+.hero .blurb { color: #d6d9df; max-width: 72ch; margin-inline: auto; }
+.project-logo {
+  max-height: 84px;
+  margin-bottom: .6rem;
+  display: none; /* shown if manifest.logo exists */
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #0e1116;
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: .5rem .9rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn.alt { background: var(--accent-alt); color: #0e1116; }
+.cta-row { display: inline-flex; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
+
+.notice { color: var(--muted); font-style: italic; margin-top: .5rem; }
+
+/* Meta */
+.meta h3 { color: var(--accent); margin-bottom: .35rem; }
+.meta p  { color: #eaeaea; }
+.meta-list, .tags, .versions {
+  list-style: none; padding: 0; margin: .25rem 0 0;
+}
+.meta-list li { color: #cfd3da; margin: .25rem 0; line-height: 1.35; }
+
+.tags li, .versions li {
+  display: inline-flex; align-items: center;
+  gap: .4rem; margin: .25rem .4rem .25rem 0;
+  padding: .2rem .6rem; border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e8e8e8; font-size: .9rem;
+}
+
+/* Gallery */
+.gallery h3 { color: var(--accent); margin-bottom: .35rem; }
+.image-grid { margin-top: .5rem; }
+.image-grid .image {
+  background: var(--surface-3, #111);
+  border: 1px solid var(--line-soft, #3e3e3e);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.image-grid img { display: block; inline-size: 100%; block-size: auto; }
+.image-grid .image.image-zoom:hover { transform: scale(1.02); }
+
+/* Backlinks */
+.backlinks { padding-bottom: 2rem; }
+
+/* Small */
+.muted { color: var(--muted); }
