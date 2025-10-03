@@ -1,1 +1,40 @@
-
+{
+  "slug": "speciedexnet",
+  "title": "SpeciedexNet",
+  "blurb": "Network relay & telemetry layer for Speciedex — live peer stats, mempool/events firehose, and exportable metrics for dashboards and alerts.",
+  "description": "SpeciedexNet connects to SpeciedexCore nodes to relay blocks, mempool entries, taxonomy/asset updates, and lineage events. It normalizes telemetry, exposes HTTP/WS APIs and a Prometheus metrics exporter, and can persist signed snapshots for audits and replay.",
+  "href": "/projects/software/speciedexnet/",
+  "github_url": "https://github.com/zzx-labs/speciedexnet",
+  "docs_url": "https://zzx-labs.io/docs/speciedexnet",
+  "api_url": "https://zzx-labs.io/api/speciedexnet",
+  "metrics_url": "https://zzx-labs.io/metrics/speciedexnet",
+  "huggingface_url": "",
+  "demo_url": "https://net.zzx-labs.io/",
+  "logo": "/projects/software/speciedexnet/images/logo.png",
+  "images": [
+    "/projects/software/speciedexnet/images/relay-dashboard.jpg",
+    "/projects/software/speciedexnet/images/peers-view.jpg",
+    "/projects/software/speciedexnet/images/metrics-grafana.jpg"
+  ],
+  "install": "docker run -p 7070:7070 -p 7071:7071 -e SDX_CORE_RPC=http://core:8332 zzx/speciedex-net:latest",
+  "tags": ["relay", "network", "mempool", "websocket", "prometheus", "grafana", "monitoring"],
+  "state": "pre-release",
+  "license": "AGPL-3.0-or-later",
+  "versions": [
+    {
+      "version": "0.3.2",
+      "date": "2025-09-10",
+      "notes": "Prometheus exporter refinements, lineage event channels, topic filters."
+    },
+    {
+      "version": "0.3.0",
+      "date": "2025-08-22",
+      "notes": "Peer health and lag metrics, mempool summary, WS streams."
+    },
+    {
+      "version": "0.2.0",
+      "date": "2025-07-02",
+      "notes": "Initial relay, HTTP API, and basic metrics endpoints."
+    }
+  ]
+}
