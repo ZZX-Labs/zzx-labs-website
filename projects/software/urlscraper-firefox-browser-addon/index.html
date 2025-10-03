@@ -1,1 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>URLScraper (Firefox Add-on) · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project urlscraper">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="URLScraper logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">URLScraper (Firefox)</h1>
+        <p id="project-blurb" class="muted">
+          One-click extract, dedupe, filter, and export of all links on a page — local-only, privacy-friendly.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        A minimalist WebExtension for Firefox that scrapes URLs from the current tab (anchors, iframes,
+        media sources, background CSS URLs, and selectable text), normalizes and de-duplicates them,
+        then lets you export to clipboard, CSV, NDJSON, or a saved text file. Includes pattern
+        filters, domain allow/deny lists, and a simple rules engine for quickly capturing the links you want.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Fast URL Harvest</h3>
+        <p>Grab links from DOM anchors, visible text, media tags, and CSS — all client side.</p>
+      </article>
+      <article class="feature">
+        <h3>Filter &amp; Dedupe</h3>
+        <p>Regex filters, domain allowlists/denylists, same-host only, and automatic de-duplication.</p>
+      </article>
+      <article class="feature">
+        <h3>Easy Export</h3>
+        <p>Copy to clipboard or export as CSV/NDJSON/plain-text. Zero external calls by default.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screenshots</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Install / Use -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Temporary Install (Dev)</h3>
+      <pre class="code"><code>1) Open: about:debugging#addons
+2) Click "Load Temporary Add-on..."
+3) Select the add-on's manifest.json
+4) Pin the toolbar button → click to scrape</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Packaging</h3>
+      <pre class="code"><code>web-ext build
+web-ext sign   # (requires AMO credentials)</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Permissions</h3>
+      <pre class="code"><code>- activeTab
+- scripting
+- storage
+- host_permissions (optional, when using site rules)</code></pre>
+    </article>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
