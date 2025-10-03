@@ -1,1 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>fullnode-scraper · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-fullnode-scraper">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="fullnode-scraper logo" />
+      <h1 id="project-title">fullnode-scraper</h1>
+      <p class="blurb" id="project-blurb">
+        Bitcoin full node peer discovery, scraping, and analytics. Resolve peers via DNS seeds, P2P addr/addrv2 gossip, and targeted crawls—then enrich with ASN/Geo, versions, service flags, and uptime signals.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">
+        Research-focused. Respects rate limits and configurable ethics guardrails. Tor/I2P optional. Store as SQLite/Parquet for reproducible studies.
+      </p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>fullnode-scraper</strong> crawls the Bitcoin network graph to maintain a current snapshot of reachable peers.
+          It seeds from DNS, passive gossip (addr/addrv2), and optional targeted probes, recording observed endpoints and traits
+          such as <em>user agent</em>, <em>protocol version</em>, <em>service bits</em> (e.g., NODE_NETWORK, NODE_WITNESS),
+          <em>last seen</em>, handshake latency, and open transport(s). Datasets are normalized for longitudinal analysis.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Gallery & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add files referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container section features">
+    <h3>Highlights</h3>
+    <ul class="bullet">
+      <li><strong>Multi-seed discovery:</strong> DNS seeds → P2P <code>addr/addrv2</code> gossip → optional focused scans (configurable).</li>
+      <li><strong>Enrichment:</strong> ASN, GeoIP (country/region), reverse DNS, service flags, UA, proto version, uptime hints.</li>
+      <li><strong>Respectful crawling:</strong> concurrency caps, jittered backoff, allow/deny lists, Tor routing, and pause windows.</li>
+      <li><strong>Structured output:</strong> SQLite for quick queries; Parquet/CSV for data science; daily snapshots with hashes.</li>
+      <li><strong>Time-series ready:</strong> rollups for version adoption, relay capability trends, IPv4/IPv6 mix, region distribution.</li>
+      <li><strong>APIs & CLI:</strong> local REST viewer, export commands, and notebook-friendly schema.</li>
+      <li><strong>Reproducible:</strong> config-locked runs, signed manifests, and provenance metadata per snapshot.</li>
+    </ul>
+  </section>
+
+  <section class="container section ethics">
+    <h3>Ethics & Safety</h3>
+    <p class="muted">
+      This tool is for measurement and research. Default settings avoid aggressive probing and support Tor/I2P routing.
+      Always comply with local law and community norms; do not DoS or harass peers. Use conservative concurrency and respect
+      opt-out lists. Disable targeted scans if you merely need DNS+gossip coverage.
+    </p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
