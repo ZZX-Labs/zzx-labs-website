@@ -1,1 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Lexiphor — PyQt5 Code Indenter & Formatter · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-lexiphor">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="Lexiphor logo" />
+      <h1 id="project-title">Lexiphor — PyQt5 Code Indenter & Formatter</h1>
+      <p class="blurb" id="project-blurb">
+        A desktop formatter that makes mixed-language repos readable again: consistent indentation, whitespace policy, and language-aware rules.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">This page includes a lightweight browser demo; the full feature set ships in the PyQt5 app.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>Lexiphor</strong> is a PyQt5 GUI formatter focused on pragmatic consistency for large codebases. It supports
+          C, C++, Java, JavaScript, TypeScript, Python, HTML, CSS, JSON, Go, Perl, Lua, R, Ruby, Rust, and more.
+          Core features: indentation unification, trailing-whitespace cleanup, newline policy, basic AST-signals, and project-level presets.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Minimal in-browser formatter demo -->
+  <section class="container section demo">
+    <h3>Try the Minimal Formatter (in your browser)</h3>
+    <div class="demo-card">
+      <div class="demo-top">
+        <label>Language
+          <select id="lang">
+            <option>auto</option>
+            <option>C</option>
+            <option>C++</option>
+            <option>Java</option>
+            <option>JavaScript</option>
+            <option>TypeScript</option>
+            <option>Go</option>
+            <option>Rust</option>
+            <option>Lua</option>
+            <option>Python</option>
+            <option>Ruby</option>
+            <option>Perl</option>
+            <option>R</option>
+            <option>HTML</option>
+            <option>CSS</option>
+            <option>JSON</option>
+          </select>
+        </label>
+
+        <label>Indent Style
+          <select id="style">
+            <option value="spaces">Spaces</option>
+            <option value="tabs">Tabs</option>
+          </select>
+        </label>
+
+        <label>Size
+          <input id="size" type="number" min="1" max="8" value="2" />
+        </label>
+
+        <label class="ck">
+          <input id="trim" type="checkbox" checked />
+          <span>Trim trailing whitespace</span>
+        </label>
+        <label class="ck">
+          <input id="finaleol" type="checkbox" checked />
+          <span>Ensure final newline</span>
+        </label>
+
+        <div class="spacer"></div>
+        <button id="btn-format" class="btn">Format</button>
+        <button id="btn-copy" class="btn alt">Copy</button>
+      </div>
+
+      <div class="demo-grid">
+        <div class="cell">
+          <div class="cell-head">Input</div>
+          <textarea id="src" spellcheck="false" placeholder="Paste or type code here…"></textarea>
+        </div>
+        <div class="cell">
+          <div class="cell-head">Output</div>
+          <textarea id="out" spellcheck="false" readonly></textarea>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>About this demo</summary>
+        <p class="muted">
+          This is a tiny, dependency-free formatter: indentation normalization, brace-aware block shifts for C-like languages,
+          simple whitespace policy for Python/HTML/CSS/JSON, and newline hygiene. The full Lexiphor desktop app includes
+          richer language strategies, project presets, and batch ops.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
