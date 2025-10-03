@@ -1,1 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>I-Ching — Bitcoin Time-Value Loss Calculator · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-iching">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="IChing logo" />
+      <h1 id="project-title">I-Ching — Bitcoin Time-Value Loss Calculator</h1>
+      <p class="blurb" id="project-blurb">
+        Measure the opportunity cost of spending or selling BTC earlier vs. holding to a later price.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">Runs fully local in your browser — no price fetch required (you can paste prices you used).</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>I-Ching</strong> helps quantify “what did that early spend cost me?” in both BTC and fiat terms.
+          Enter the BTC amount you used (or the fiat you spent), the earlier price, and the later reference price.
+          You’ll get the time-value delta, effective APR, and a simple report you can export to CSV.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Calculator -->
+  <section class="container section calc">
+    <h3>Calculator</h3>
+
+    <form id="iching-form" class="calc-form" onsubmit="return false;">
+      <fieldset>
+        <legend>Scenario</legend>
+        <div class="row">
+          <label class="mode">
+            <input type="radio" name="mode" value="btc" checked />
+            I spent/sold <strong>BTC amount</strong> at the earlier time
+          </label>
+          <label class="mode">
+            <input type="radio" name="mode" value="fiat" />
+            I spent/sold <strong>Fiat amount</strong> at the earlier time (converted from BTC)
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="grid grid-3">
+        <div class="field">
+          <label>Earlier date/time</label>
+          <input type="datetime-local" id="tStart" />
+        </div>
+        <div class="field">
+          <label>Later date/time</label>
+          <input type="datetime-local" id="tEnd" />
+        </div>
+        <div class="field">
+          <label>Days between</label>
+          <input type="text" id="daysBetween" readonly />
+        </div>
+      </div>
+
+      <div class="grid grid-3 when-btc">
+        <div class="field">
+          <label>BTC amount (spent/sold at start)</label>
+          <input type="number" id="btcAmt" step="0.00000001" min="0" placeholder="e.g. 0.05000000" />
+        </div>
+        <div class="field">
+          <label>BTC/USD at start</label>
+          <input type="number" id="pStart" step="0.01" min="0" placeholder="e.g. 42000" />
+        </div>
+        <div class="field">
+          <label>BTC/USD at end</label>
+          <input type="number" id="pEnd" step="0.01" min="0" placeholder="e.g. 69000" />
+        </div>
+      </div>
+
+      <div class="grid grid-3 when-fiat" style="display:none">
+        <div class="field">
+          <label>Fiat amount (spent at start, USD)</label>
+          <input type="number" id="fiatAmt" step="0.01" min="0" placeholder="e.g. 1000" />
+        </div>
+        <div class="field">
+          <label>BTC/USD at start</label>
+          <input type="number" id="pStartFiat" step="0.01" min="0" placeholder="e.g. 42000" />
+        </div>
+        <div class="field">
+          <label>BTC/USD at end</label>
+          <input type="number" id="pEndFiat" step="0.01" min="0" placeholder="e.g. 69000" />
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="field">
+          <label>Tx/FX Fees (%)</label>
+          <input type="number" id="feesPct" step="0.01" min="0" placeholder="0.25" />
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <input type="text" id="note" placeholder="e.g. Paid contractor invoice" />
+        </div>
+        <div class="field align-end">
+          <button class="btn" id="btn-calc">Calculate</button>
+        </div>
+      </div>
+    </form>
+
+    <div id="results" class="results" hidden>
+      <h4>Results</h4>
+      <div class="grid grid-3">
+        <div class="result-kv">
+          <div class="k">Opportunity cost (USD)</div>
+          <div class="v" id="out-usd">—</div>
+        </div>
+        <div class="result-kv">
+          <div class="k">BTC foregone (BTC)</div>
+          <div class="v" id="out-btc">—</div>
+        </div>
+        <div class="result-kv">
+          <div class="k">Effective APR</div>
+          <div class="v" id="out-apr">—</div>
+        </div>
+      </div>
+
+      <details class="sub">
+        <summary>Breakdown</summary>
+        <div class="breakdown" id="out-breakdown"></div>
+      </details>
+
+      <div class="export-row">
+        <button class="btn alt" id="btn-export">Export CSV</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
