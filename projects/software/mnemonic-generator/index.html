@@ -1,1 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Mnemonic Generator — BIP39 & Custom · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-mnemonic-generator">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="Mnemonic Generator logo" />
+      <h1 id="project-title">Mnemonic Generator — BIP39 & Custom</h1>
+      <p class="blurb" id="project-blurb">
+        Offline-first generator & validator for BIP39 seed phrases and custom-length mnemonics. Uses Web Crypto locally.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">Runs 100% in your browser — no uploads.</p>
+    </div>
+  </section>
+
+  <!-- Controls -->
+  <section class="container section">
+    <div class="grid grid-2">
+      <div class="panel">
+        <h3>Mnemonic Generator</h3>
+        <div class="row">
+          <label>Mode
+            <select id="mode">
+              <option value="bip39">BIP39 (checksummed, 12–24 words)</option>
+              <option value="custom">Custom (1–32 words, no checksum)</option>
+            </select>
+          </label>
+          <label>Word Count / Strength
+            <select id="bits">
+              <option value="128">128 bits (12 words)</option>
+              <option value="160">160 bits (15 words)</option>
+              <option value="192">192 bits (18 words)</option>
+              <option value="224">224 bits (21 words)</option>
+              <option value="256">256 bits (24 words)</option>
+            </select>
+            <input id="custom-count" type="number" value="12" min="1" max="32" style="display:none" />
+          </label>
+        </div>
+        <div class="row">
+          <label>Wordlist (lang)
+            <select id="lang">
+              <option value="english">English (BIP39)</option>
+            </select>
+          </label>
+          <label>Passphrase (optional for seed)
+            <input id="passphrase" type="password" placeholder="Optional BIP39 passphrase" />
+          </label>
+        </div>
+        <div class="row buttons">
+          <button id="btn-generate" class="btn">Generate</button>
+          <button id="btn-validate" class="btn alt">Validate Words</button>
+          <button id="btn-seed" class="btn">Derive Seed</button>
+        </div>
+
+        <div class="out">
+          <label>Entropy (hex)
+            <input id="entropyHex" class="mono" readonly />
+          </label>
+          <label>Mnemonic
+            <textarea id="mnemonic" rows="3" class="mono" placeholder="words will appear here..."></textarea>
+          </label>
+          <div class="mini-buttons">
+            <button data-copy="#mnemonic" class="btn mini">Copy words</button>
+            <button data-copy="#entropyHex" class="btn mini">Copy entropy</button>
+          </div>
+          <label>Seed (hex, 64 bytes)
+            <textarea id="seedHex" rows="2" class="mono" readonly></textarea>
+          </label>
+          <div id="status" class="status muted"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Diceware Generator</h3>
+        <div class="row">
+          <label>Words
+            <input id="dw-count" type="number" value="6" min="1" max="32" />
+          </label>
+          <label>Separator
+            <input id="dw-sep" type="text" value=" " />
+          </label>
+        </div>
+        <div class="row buttons">
+          <button id="btn-dw-generate" class="btn">Generate Diceware</button>
+        </div>
+        <div class="out">
+          <label>Diceware Result
+            <textarea id="diceware" rows="2" class="mono" placeholder="diceware output..."></textarea>
+          </label>
+          <div class="mini-buttons">
+            <button data-copy="#diceware" class="btn mini">Copy</button>
+          </div>
+          <div id="dw-status" class="status muted"></div>
+        </div>
+
+        <div class="info-box">
+          <p class="muted">For full BIP39 English list, add <code>/wordlists/english.txt</code> (2048 words).</p>
+          <p class="muted">For Diceware, add <code>/wordlists/diceware.txt</code> (digits + word per line).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Project meta (from manifest) -->
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          Generate & validate BIP39 mnemonics with local entropy; derive seeds with PBKDF2-HMAC-SHA512. Custom mode supports 1–32 words without checksum.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
