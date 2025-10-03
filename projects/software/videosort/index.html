@@ -1,1 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>VideoSort · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project videosort">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="VideoSort logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">VideoSort</h1>
+        <p id="project-blurb" class="muted">
+          Fast, deterministic video library sorting & tagging — by codec, resolution, audio, content, hashes, and rules.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        VideoSort ingests scattered video files and places them into a clean, predictable folder
+        structure. It extracts rich metadata (codec, bitrate, resolution, duration, audio layout,
+        subtitles), computes cryptographic hashes, applies configurable naming templates, and
+        writes tags/sidecars. Optional ML hooks can classify content, generate thumbnails and
+        contact sheets, and detect duplicates or near-duplicates.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Deterministic Rules</h3>
+        <p>Template-based renames and folders (e.g., <code>/{year}/{codec}/{width}x{height}/</code>).</p>
+      </article>
+      <article class="feature">
+        <h3>Deep Metadata</h3>
+        <p>FFprobe-backed extraction: codecs, streams, HDR flags, language tracks, chapters, more.</p>
+      </article>
+      <article class="feature">
+        <h3>De-dupe & Hash</h3>
+        <p>Multi-hash (SHA-256, BLAKE3) + perceptual frame hashing to spot near-duplicates.</p>
+      </article>
+      <article class="feature">
+        <h3>ML Optional</h3>
+        <p>Plug in local models for labeling, NSFW flags, OCR, and smart search indices.</p>
+      </article>
+      <article class="feature">
+        <h3>Safe Moves</h3>
+        <p>Dry-run previews, conflict resolution, atomic moves/copies, and rollback logs.</p>
+      </article>
+      <article class="feature">
+        <h3>Exports</h3>
+        <p>Write sidecars (JSON/CSV/NDJSON), media catalogs, and browsable HTML reports.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screenshots</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Docs/cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>CLI (example)</h3>
+      <pre class="code"><code>videosort ingest \
+  --src "/mnt/media/incoming" \
+  --dst "/mnt/media/library" \
+  --template "/{year}/{codec}/{width}x{height}/{basename}" \
+  --hash sha256,blake3 --dry-run</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Config</h3>
+      <pre class="code"><code># videosort.config.toml
+[ingest]
+  template = "/{year}/{codec}/{width}x{height}/{basename}"
+  write_sidecars = true
+  sidecar_format = "ndjson"
+  hashes = ["sha256","blake3"]
+  move_mode = "atomic"</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Integrations</h3>
+      <pre class="code"><code>- ffmpeg/ffprobe
+- ImageMagick (contact sheets)
+- Optional: OpenCL/CUDA for speed
+- Optional: local ML models</code></pre>
+    </article>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
