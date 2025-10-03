@@ -1,1 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>VLC-Alarmclock · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project vlc-alarmclock">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="VLC-Alarmclock logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">VLC-Alarmclock</h1>
+        <p id="project-blurb" class="muted">
+          Schedule alarms that play media through VLC: local files, playlists, or radio streams — with fade-in, weekday rules, and sleep timers.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- action buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        VLC-Alarmclock is a small scheduler that launches VLC with your chosen media at set times.
+        Wake up to a playlist, a streaming URL, or a calming soundscape. Define recurring alarms
+        (weekdays, weekends, custom cron-like rules), ramp the volume smoothly, and auto-stop with
+        a sleep timer. Works offline with local files; supports network streams when online.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Fade-in & Volume Curves</h3>
+        <p>Start gentle. Configure ramp duration, target level, and curve shape.</p>
+      </article>
+      <article class="feature">
+        <h3>Weekday Rules</h3>
+        <p>Different schedules for workdays/weekends; quick “skip next” toggles.</p>
+      </article>
+      <article class="feature">
+        <h3>Streams or Local</h3>
+        <p>Play folders, M3U/PLS playlists, or radio streams (e.g., ISAN stations).</p>
+      </article>
+      <article class="feature">
+        <h3>Sleep Timers</h3>
+        <p>Auto-stop after N minutes; optional gradual fade-out.</p>
+      </article>
+      <article class="feature">
+        <h3>JSON & CLI</h3>
+        <p>Keep reusable alarm presets as JSON or use a one-shot CLI command.</p>
+      </article>
+      <article class="feature">
+        <h3>Cross-Platform</h3>
+        <p>Designed to run on Windows, macOS, and Linux with VLC installed.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Quick-start cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>CLI (one-shot)</h3>
+      <pre class="code"><code>vlc-alarmclock \
+  --time "07:30" \
+  --media "/music/wake-up.m3u" \
+  --fade-in 45 \
+  --volume 70 \
+  --days "mon,tue,wed,thu,fri"</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>JSON alarm preset</h3>
+      <pre class="code"><code>{
+  "label": "Weekday Wake",
+  "time": "07:30",
+  "days": ["mon","tue","wed","thu","fri"],
+  "media": "/music/wake-up.m3u",
+  "volume": { "start": 15, "target": 70, "fadeInSec": 45, "curve": "ease-in" },
+  "sleepTimerSec": 3600
+}</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Stream example</h3>
+      <pre class="code"><code>{
+  "label": "Morning Radio",
+  "time": "08:15",
+  "days": ["sat","sun"],
+  "media": "https://example-radio/stream.aac",
+  "volume": { "start": 20, "target": 60, "fadeInSec": 30 }
+}</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
