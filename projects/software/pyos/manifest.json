@@ -1,1 +1,61 @@
-
+{
+  "project": {
+    "slug": "pyos",
+    "title": "PyOS",
+    "blurb": "A Python-first operating system (32/64-bit) with layered compatibility, sandboxed runtime, and declarative packaging.",
+    "description": "PyOS is an experimental OS concept focused on Python as the primary coordination layer. It explores a microkernel-style core with userland services in Python, secure sandboxes, and compatibility strategies (shims, containers, emulation) to run diverse application families. The long-term research goal is broad, practical portability while maintaining security, reproducibility, and auditability.",
+    "href": "https://github.com/zzx-labs/pyos",
+    "github": "https://github.com/zzx-labs/pyos",
+    "huggingface": "",
+    "homepage": "",
+    "state": "research",
+    "tags": ["os", "python", "runtime", "sandbox", "containers", "compatibility", "research"],
+    "versions": [
+      {
+        "version": "0.1.0-research",
+        "state": "research",
+        "date": "2025-01-01",
+        "notes": "Initial public research drop: bootstrap scripts, package manifests, sandbox profiles, compatibility demos."
+      }
+    ],
+    "compatibility": [
+      {
+        "family": "Linux/POSIX",
+        "strategy": "Native + Containers",
+        "status": "alpha",
+        "notes": "POSIX host integration, OCI containers, Python userland services."
+      },
+      {
+        "family": "Windows",
+        "strategy": "Wine/WSL/VM Profiles",
+        "status": "prototype",
+        "notes": "Layered approach; app-by-app manifests choose Wine, WSL, or VM."
+      },
+      {
+        "family": "macOS",
+        "strategy": "Native + Containers/VM",
+        "status": "prototype",
+        "notes": "Signed bundles TBD; container/VM fallback for non-native targets."
+      },
+      {
+        "family": "Android",
+        "strategy": "Termux/Proot/Container",
+        "status": "exploratory",
+        "notes": "Mobile sandbox; CLI-first with optional web UI."
+      },
+      {
+        "family": "iOS/iPadOS",
+        "strategy": "App Sandbox + Remote/VM",
+        "status": "exploratory",
+        "notes": "Heavily constrained; remote execution or VM streaming strategies."
+      }
+    ],
+    "images": [
+      "./images/pyos-logo.png",
+      "./images/pyos-desktop.png",
+      "./images/pyos-packages.png",
+      "./images/pyos-sandbox.png"
+    ],
+    "logo": "./images/pyos-logo.png"
+  }
+}
