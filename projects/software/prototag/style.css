@@ -1,1 +1,184 @@
+/* ProtoTag · /projects/software/prototag/style.css
+   - Works atop /static/styles.css
+   - Compact, readable, token-driven
+*/
 
+:root {
+  --accent: #c0d674;     /* buttons, headings */
+  --accent-2: #e6a42b;   /* secondary buttons */
+  --text: #e8e8e8;
+  --muted: #9aa0a8;
+  --bg: var(--bg, #0f1216);
+  --surface: rgba(255,255,255,0.03);
+  --line: rgba(255,255,255,0.14);
+  --line-soft: rgba(255,255,255,0.10);
+}
+
+/* ---------- Page shell ---------- */
+body.project-page.prototag {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  padding: clamp(1.25rem, 4vw, 2rem) 1rem 0.5rem;
+}
+.hero .hero-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+.hero h1 {
+  font-family: var(--font-display, 'Adult Swim Font', 'IBM Plex Mono', monospace);
+  color: var(--accent);
+  font-size: clamp(1.9rem, 5vw, 3rem);
+  margin: 0 0 .4rem;
+  line-height: 1.15;
+}
+.hero .subtitle {
+  color: #d5d8de;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 auto .85rem;
+}
+.hero .subtitle a { color: var(--accent-2); text-decoration: underline; }
+
+.actions {
+  display: inline-flex; flex-wrap: wrap; gap: .5rem;
+  justify-content: center; margin: .6rem 0 .4rem;
+}
+
+.notice {
+  color: var(--muted);
+  font-style: italic;
+  margin: .35rem auto 0;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #0c0f13;
+  border: 1px solid var(--line);
+  padding: .48rem .85rem;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  transition: transform .12s ease, filter .2s ease, background-color .2s ease;
+}
+.btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.btn.alt {
+  background: var(--accent-2);
+  color: #0c0f13;
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line-soft);
+}
+
+/* ---------- Features ---------- */
+.features.container {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 1rem;
+  padding: 1rem;
+  max-width: 1100px;
+}
+@media (max-width: 992px) { .features.container { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 640px) { .features.container { grid-template-columns: 1fr; } }
+
+.feature {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.feature:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.35);
+  border-color: var(--line);
+}
+.feature h3 {
+  color: var(--accent);
+  margin: 0 0 .35rem;
+  font-size: 1.15rem;
+}
+.feature p {
+  color: #cfd3da;
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* ---------- Gallery ---------- */
+.gallery {
+  max-width: 1100px;
+  margin-top: .25rem;
+}
+.gallery .image { margin-top: .75rem; }
+.gallery figcaption {
+  color: var(--muted);
+  margin: .35rem 0 .6rem;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 0.9rem;
+  margin-top: .75rem;
+}
+@media (max-width: 720px) { .image-grid { grid-template-columns: 1fr; } }
+
+.image, .ratio {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ---------- Steps ---------- */
+#get-started {
+  max-width: 900px;
+}
+#get-started h2,
+.downloads h2 {
+  font-family: var(--font-display, 'Adult Swim Font', 'IBM Plex Mono', monospace);
+  color: var(--accent-2);
+  margin: .75rem 0 .5rem;
+}
+.steps {
+  margin: .25rem 0 1rem;
+  padding-left: 1.1rem;
+  line-height: 1.65;
+}
+.steps li { margin: 0 0 .4rem; }
+.steps kbd {
+  font: 700 .85rem var(--font-mono, 'IBM Plex Mono', monospace);
+  padding: .1rem .35rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+}
+
+/* ---------- Downloads ---------- */
+.downloads .links {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: .5rem;
+}
+.downloads .links a { color: #eaeaea; text-decoration: underline; }
+.downloads .links a:hover { color: #fff; }
+
+/* ---------- Backlinks ---------- */
+.backlinks { padding: 1rem 1rem 2rem; }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .feature { transition: none !important; transform: none !important; }
+  }
