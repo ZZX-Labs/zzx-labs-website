@@ -1,1 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>mu3u · M3U/M3U8 Playlist Builder | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project-mu3u">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <section class="container">
+    <h2>mu3u — M3U/M3U8 Playlist Builder, Editor, & Viewer</h2>
+    <p class="lede">
+      A lightweight, client-side library and UI for parsing, editing, validating, and exporting
+      <strong>.m3u</strong> / <strong>.m3u8</strong> playlists. Supports <code>#EXTM3U</code>,
+      <code>#EXTINF</code>, custom attributes (e.g., <code>tvg-id</code>, <code>group-title</code>, <code>logo</code>),
+      reordering, deduplication, and quick audio preview — all offline.
+    </p>
+  </section>
+
+  <!-- Editor / Viewer -->
+  <section class="features" id="mu3u-app" aria-label="mu3u Playlist Editor">
+    <div class="container mu3u-toolbar">
+      <div class="row">
+        <input id="mu3u-file" type="file" accept=".m3u,.m3u8,text/plain" hidden />
+        <button class="btn" id="btn-new">New</button>
+        <button class="btn" id="btn-import">Import .m3u/.m3u8</button>
+        <button class="btn" id="btn-paste">Paste</button>
+        <button class="btn" id="btn-export">Export .m3u</button>
+        <button class="btn" id="btn-export-m3u8">Export .m3u8</button>
+        <span class="rule"></span>
+        <button class="btn alt" id="btn-validate">Validate</button>
+        <button class="btn alt" id="btn-dedup">Dedup</button>
+        <button class="btn alt" id="btn-sort">Sort A→Z</button>
+        <button class="btn alt" id="btn-clear">Clear</button>
+      </div>
+      <div class="row row-compact muted">
+        <span id="mu3u-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="container mu3u-grid">
+      <!-- Left: playlist list/editor -->
+      <div class="mu3u-panel">
+        <div class="panel-header">
+          <h3>Playlist Items</h3>
+          <button class="btn small" id="btn-add">+ Add Entry</button>
+        </div>
+
+        <div class="table-responsive">
+          <table id="mu3u-table" aria-label="Playlist entries">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col" style="min-width: 16ch;">Title</th>
+                <th scope="col" style="min-width: 18ch;">URL / Path</th>
+                <th scope="col">Duration</th>
+                <th scope="col" style="min-width: 16ch;">Attributes</th>
+                <th scope="col" aria-label="Row actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mu3u-tbody">
+              <!-- rows injected -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right: viewer/preview -->
+      <aside class="mu3u-panel mu3u-panel--side">
+        <div class="panel-header">
+          <h3>Preview</h3>
+        </div>
+
+        <div class="preview-wrap">
+          <audio id="mu3u-audio" controls preload="none"></audio>
+          <div class="preview-meta">
+            <div class="row">
+              <strong>Now Previewing:</strong>
+              <span id="preview-title" class="muted">—</span>
+            </div>
+            <div class="row small muted" id="preview-url">—</div>
+          </div>
+        </div>
+
+        <details class="subsection collapsible">
+          <summary>Generated M3U</summary>
+          <textarea id="mu3u-output" readonly spellcheck="false"></textarea>
+        </details>
+
+        <details class="subsection collapsible">
+          <summary>Validation Report</summary>
+          <div id="mu3u-report" class="report muted">No issues.</div>
+        </details>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Template for rows -->
+  <template id="tpl-row">
+    <tr>
+      <td class="idx">1</td>
+      <td>
+        <input type="text" class="inp title" placeholder="Title…" />
+      </td>
+      <td>
+        <input type="text" class="inp url" placeholder="https://… or /path/file.mp3" />
+      </td>
+      <td>
+        <input type="number" class="inp dur" placeholder="seconds" min="-1" step="1" />
+      </td>
+      <td>
+        <input type="text" class="inp attrs" placeholder='key="val" group-title="Music" tvg-id="…"' />
+      </td>
+      <td class="actions">
+        <button type="button" class="btn tiny row-up" title="Move up">↑</button>
+        <button type="button" class="btn tiny row-down" title="Move down">↓</button>
+        <button type="button" class="btn tiny row-play" title="Preview">▶</button>
+        <button type="button" class="btn tiny row-del" title="Delete">✕</button>
+      </td>
+    </tr>
+  </template>
+
+  <!-- Help -->
+  <section class="container help">
+    <h3>About mu3u</h3>
+    <ul class="muted">
+      <li>Supports classic <code>.m3u</code> (UTF-8) and HLS-style <code>.m3u8</code> exports.</li>
+      <li>Understands <code>#EXTM3U</code> header and <code>#EXTINF:duration, title</code> lines.</li>
+      <li>Free-form attribute string per item (e.g., <code>tvg-id</code>, <code>logo</code>, <code>group-title</code>).</li>
+      <li>Drag to reorder (↑/↓), deduplicate by URL, and validate basic fields.</li>
+      <li>All processing happens locally in your browser (no network calls).</li>
+    </ul>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Software Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
