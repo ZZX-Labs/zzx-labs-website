@@ -1,1 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>SpeciedexExplorer · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project speciedexexplorer">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="SpeciedexExplorer logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">SpeciedexExplorer</h1>
+        <p id="project-blurb" class="muted">
+          Block explorer for the SpeciedexCore chain: browse species assets, lineage graphs,
+          transactions, addresses, and verifiable proof artifacts.
+        </p>
+
+        <div class="cta-row" id="cta-row">
+          <!-- Buttons populated from manifest.json -->
+        </div>
+
+        <div class="badges" id="project-badges">
+          <!-- state/version badges -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        SpeciedexExplorer is a web UI + API stack for querying the SpeciedexCore blockchain state.
+        Inspect taxonomy-linked assets, follow provenance trails, search transactions/addresses,
+        and render lineage graphs with confidence metrics — all backed by verifiable hashes.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Rich Search</h3>
+        <p>Look up species IDs, asset IDs, txids, addresses, and tagged bundles with fast filters.</p>
+      </article>
+      <article class="feature">
+        <h3>Lineage Graphs</h3>
+        <p>Visualize evolution links and evidence weights across time windows and datasets.</p>
+      </article>
+      <article class="feature">
+        <h3>Audit-Friendly</h3>
+        <p>Every view references content hashes and exportable manifests for third-party checks.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Previews</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Install / Run -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Docker (recommended)</h3>
+      <pre class="code"><code id="install-snippet">docker run -p 8080:8080 -e SDX_CORE_RPC=http://core:8332 zzx/speciedex-explorer:latest</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Compose</h3>
+      <pre class="code"><code>services:
+  core:
+    image: zzx/speciedex-core:latest
+    ports: ["8332:8332"]
+  explorer:
+    image: zzx/speciedex-explorer:latest
+    ports: ["8080:8080"]
+    environment:
+      SDX_CORE_RPC: http://core:8332
+</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>API</h3>
+      <pre class="code"><code>GET /api/v1/asset/:id
+GET /api/v1/tx/:txid
+GET /api/v1/address/:addr
+GET /api/v1/lineage?species=Homo+sapiens</code></pre>
+    </article>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
