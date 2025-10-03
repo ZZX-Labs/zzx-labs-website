@@ -1,1 +1,111 @@
+:root {
+  --accent: #c0d674;
+  --accent-alt: #e6a42b;
+  --muted: #8a8f98;
+}
 
+/* Hero */
+.hero {
+  position: relative;
+  inline-size: 100%;
+  background: var(--bg, #101318);
+  padding-block: clamp(2rem, 6vw, 4rem);
+}
+.hero-content { text-align: center; }
+.hero h1 { color: var(--accent); margin: .25rem 0 .5rem; }
+.hero .blurb { color: #d6d9df; max-width: 72ch; margin-inline: auto; }
+.project-logo { max-height: 84px; margin-bottom: .6rem; display: none; }
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #0e1116;
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: .5rem .9rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn.alt { background: var(--accent-alt); color: #0e1116; }
+.cta-row { display: inline-flex; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
+.notice { color: var(--muted); font-style: italic; margin-top: .5rem; }
+
+/* Sections */
+.section h3 { color: var(--accent); margin-bottom: .35rem; }
+.meta p { color: #eaeaea; }
+.meta-list, .tags, .versions { list-style: none; padding: 0; margin: .25rem 0 0; }
+.meta-list li { color: #cfd3da; margin: .25rem 0; line-height: 1.35; }
+.tags li, .versions li {
+  display: inline-flex; align-items: center; gap: .4rem;
+  margin: .25rem .4rem .25rem 0; padding: .2rem .6rem; border-radius: 999px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); color: #e8e8e8; font-size: .9rem;
+}
+
+/* Verifier */
+.verifier .verify-card {
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px; padding: .8rem .9rem;
+  background: rgba(255,255,255,0.03);
+}
+.verify-card .row { display: flex; flex-wrap: wrap; gap: .8rem 1rem; align-items: center; }
+.verify-card label { color: #eaeaea; display: grid; gap: .25rem; font-weight: 600; }
+.verify-card input[type="file"],
+.verify-card input[type="password"] {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #eaeaea; border-radius: 8px; padding: .45rem .55rem;
+}
+.verify-card .spacer { flex: 1 1 auto; }
+
+.result { margin-top: .6rem; display: grid; gap: .4rem; }
+.pair { display: grid; grid-template-columns: 140px 1fr auto; gap: .5rem; align-items: center; }
+.pair .k { color: #cfd3da; font-weight: 700; }
+.pair .v { color: #e8e8e8; overflow-wrap: anywhere; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+.mini {
+  appearance: none; cursor: pointer;
+  background: rgba(255,255,255,0.05); color: #e8e8e8;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: .25rem .45rem; border-radius: 6px; font-weight: 700; font-size: .85rem;
+}
+.mini:hover { background: var(--accent); color: #0e1116; border-color: var(--accent); }
+
+.payload { margin-top: .6rem; }
+.payload summary { cursor: pointer; }
+.payload-pre {
+  margin: .4rem 0 0;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #e8e8e8;
+  padding: .6rem .7rem;
+  overflow: auto;
+}
+
+/* Presets */
+.presets { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: .8rem; }
+.preset {
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; padding: .6rem;
+  background: rgba(255,255,255,0.03);
+}
+.preset h4 { margin: 0 0 .35rem; color: var(--accent); }
+.preset p { margin: 0 0 .5rem; color: #d6d9df; }
+.preset .btn { padding: .35rem .6rem; font-weight: 700; }
+
+.arch { list-style: none; padding: 0; margin: .25rem 0 0; color: #cfd3da; }
+.arch li { margin: .25rem 0; }
+
+/* Gallery */
+.image-grid { margin-top: .5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.image-grid .image { border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); background: #0b0d0e; }
+.image-grid img { display: block; width: 100%; height: auto; }
+
+/* Backlinks */
+.backlinks { padding-bottom: 2rem; }
+
+.small { font-size: .9rem; }
+.muted { color: var(--muted); }
