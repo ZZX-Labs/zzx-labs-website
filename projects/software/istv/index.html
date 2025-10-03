@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>ISVN — Internet Streaming Video Network · Projects · Software | ZZX-Labs R&D</title>
+  <title>ISTV — Internet Streaming TeleVision (Audio + Video) · Projects · Software | ZZX-Labs R&D</title>
 
   <!-- Global -->
   <link rel="stylesheet" href="/static/styles.css" />
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="./style.css" />
   <script src="./script.js" defer></script>
 </head>
-<body class="project project-isvn">
+<body class="project project-istv">
 <header>
   <div id="zzx-header"></div>
 </header>
@@ -21,16 +21,16 @@
 <main>
   <section class="hero">
     <div class="hero-content container centered">
-      <img class="project-logo" id="project-logo" alt="ISVN logo" />
-      <h1 id="project-title">ISVN — Internet Streaming Video Network</h1>
+      <img class="project-logo" id="project-logo" alt="ISTV logo" />
+      <h1 id="project-title">ISTV — Internet Streaming TeleVision (Audio + Video)</h1>
       <p class="blurb" id="project-blurb">
-        Give anyone a 24/7/365 “TV network”: decentralized ingest, signed manifests, swarm distribution with HTTP fallbacks.
+        A unified, decentralized network for 24/7 audio & video channels: signed manifests, swarm delivery, and smooth HTTP fallbacks.
       </p>
       <div class="cta-row">
         <a id="btn-open" class="btn">Open Project</a>
         <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
       </div>
-      <p class="notice">This page includes a local demo video player (progressive MP4 / native HLS if supported). No external libs.</p>
+      <p class="notice">This page ships with a dependency-free demo player for both audio and video sources.</p>
     </div>
   </section>
 
@@ -39,9 +39,8 @@
       <div>
         <h3>Overview</h3>
         <p id="project-description">
-          <strong>ISVN</strong> is a decentralized, programmable video network. Publishers push live/looped schedules or VOD
-          using signed manifests; viewers fetch via swarms (WebRTC/QUIC) with HTTP origin/CDN fallback. The demo below
-          uses the browser’s native <code>&lt;video&gt;</code> capabilities.
+          <strong>ISTV</strong> blends ISAN (audio) and ISVN (video): publish live or scheduled channels using signed manifests.
+          Viewers fetch via peer swarms (WebRTC/QUIC) with HTTP/CDN fallback. This demo uses native HTML audio/video only.
         </p>
 
         <h3>Key details</h3>
@@ -58,14 +57,14 @@
     </div>
   </section>
 
-  <!-- Demo Player -->
+  <!-- Unified Demo Player -->
   <section class="container section player">
     <h3>Demo Player</h3>
 
     <div class="controls">
       <div class="row">
         <label>Source URL
-          <input type="url" id="url" placeholder="https://example.com/video.mp4 or .m3u8" />
+          <input type="url" id="url" placeholder="https://example.com/stream.mp3, .m3u8, .mp4, …" />
         </label>
         <label>Channel Name
           <input type="text" id="channel" placeholder="Channel label (optional)" />
@@ -83,14 +82,23 @@
       </div>
     </div>
 
+    <div class="av-tabs">
+      <button class="tab active" data-kind="auto" id="tab-auto">Auto</button>
+      <button class="tab" data-kind="audio" id="tab-audio">Audio</button>
+      <button class="tab" data-kind="video" id="tab-video">Video</button>
+    </div>
+
     <div class="player-shell">
-      <div class="video-stage">
-        <video id="video" controls preload="none" playsinline></video>
+      <div class="media-stage">
+        <!-- We toggle which element is visible based on source/type -->
+        <audio id="audio" controls preload="none" style="display:none"></audio>
+        <video id="video" controls preload="none" playsinline style="display:none"></video>
       </div>
       <div class="metrics">
         <div><strong>Status:</strong> <span id="status">Idle</span></div>
         <div><strong>Type:</strong> <span id="type">—</span></div>
-        <div><strong>Resolution (observed):</strong> <span id="res">—</span></div>
+        <div><strong>Resolution (video):</strong> <span id="res">—</span></div>
+        <div><strong>Bitrate (hint):</strong> <span id="bitrate">—</span></div>
         <div><strong>Swarm peers (mock):</strong> <span id="peers">0</span></div>
         <div><strong>Channel:</strong> <span id="label">—</span></div>
       </div>
@@ -101,19 +109,19 @@
     </div>
 
     <p class="muted small">
-      Notes: Native HLS playback works in Safari and some mobile browsers. Chrome/Firefox typically require a JS HLS player or MSE pipeline;
-      we intentionally avoid dependencies here. ISVN’s P2P layer (nodes, signaling, chunking) is separate from this page.
+      Notes: HLS (.m3u8) plays natively in Safari (desktop & iOS) and some mobile browsers; others typically require a JS HLS player.
+      We intentionally avoid runtime deps here, sticking to native HTML audio/video.
     </p>
   </section>
 
   <section class="container section architecture">
     <h3>Architecture (Planned)</h3>
     <ul class="arch">
-      <li><strong>Publisher nodes:</strong> ingest (RTMP/WebRTC/file) → transcode → chunk → sign → announce via DHT.</li>
-      <li><strong>Manifests:</strong> channel.json defines program schedule, renditions, DRM policy (if any), HTTP fallbacks.</li>
-      <li><strong>Transport:</strong> WebRTC/QUIC swarms; HTTP(S) + CDN for fallback.</li>
-      <li><strong>Monetization (opt-in):</strong> LNURL/WebLN tips, pay-per-segment, gated channels.</li>
-      <li><strong>Resilience:</strong> cacheable segments, rotating peer IDs, minimal telemetry for privacy.</li>
+      <li><strong>Publisher nodes:</strong> ingest (file/RTMP/WebRTC) → transcode (audio + video) → chunk → sign → announce.</li>
+      <li><strong>Manifests:</strong> channel.json describes audio & video renditions, schedules, fallbacks, and policy.</li>
+      <li><strong>Transport:</strong> Swarm (WebRTC/QUIC) with HTTP(S)/CDN fallback.</li>
+      <li><strong>Signals:</strong> minimal telemetry, rotating peer IDs, privacy-first defaults.</li>
+      <li><strong>Monetization:</strong> LNURL/WebLN tips, gated channels, PPV segments (opt-in).</li>
     </ul>
   </section>
 
