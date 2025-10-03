@@ -1,11 +1,11 @@
 {
   "slug": "audiosieve",
-  "title": "audiosieve",
-  "blurb": "Fast, reproducible audio dataset triage — quality gates, silence/clip/hum detection, duration/format checks, language hints, and unsafe-content filters.",
-  "description": "audiosieve ingests large audio folders/archives and runs deterministic quality gates: silence %, clipping %, hum/buzz bands, DC offset, noise floor, sample rate/bit depth compliance, duration bands, and container/codec checks. Optional plugins provide language/profanity hints and VAD segmentation for ASR pre-clean. Outputs compact JSON/NDJSON with accept/reject + reasons and suggested remediations.",
+  "title": "AudioSieve",
+  "blurb": "PyQt5-based audio workstation for private libraries: scan & hash, ffprobe metadata, tag read/write, artwork normalization, deterministic sort/rename, playlists, VLC playback, visualizer stubs, optional local server/streaming, and DSP controls (EQ, channel strip, filters) — all non-destructive.",
+  "description": "AudioSieve ingests local audio folders, computes content hashes, and probes containers with ffprobe to build a SQLite catalog keyed by hash (path is mutable). Using Mutagen, it reads/writes tags across MP3/FLAC/OGG/OPUS/M4A/WAV/AIFF, normalizes artwork via Pillow, and organizes files into a canonical library with deterministic templates and collision policies. The PyQt5 GUI provides library browsing, tag editing, import & sort workflows, playlist creation (m3u/m3u8), and VLC-backed playback with seek, device selection, and basic visualization stubs. DSP modules expose parameter models for channel strip, EQ, and filters (offline render hooks now; live chain later). A lightweight Flask server offers local status and transport control, with optional LAN streaming planned. Defaults are privacy-preserving and non-destructive; configuration is externalized; logs and operations are deterministic and auditable.",
   "state": "pre-release",
   "href": "/projects/software/audiosieve/",
-  "github": "",
+  "github": "https://github.com/ZZX-Labs/AudioSieve",
   "huggingface": "",
   "logo": "/projects/software/audiosieve/images/logo-audiosieve.png",
   "images": [
@@ -14,12 +14,16 @@
     "/projects/software/audiosieve/images/report-01.jpg"
   ],
   "tags": [
-    "audio",
-    "dataset-curation",
-    "quality-gates",
-    "VAD",
-    "language-hints",
-    "CLI"
+    "audio-library",
+    "tagging",
+    "artwork",
+    "organizer",
+    "PyQt5",
+    "FFmpeg",
+    "VLC",
+    "DSP",
+    "playlists",
+    "non-destructive"
   ],
   "versions": [
     "0.4.0-alpha"
