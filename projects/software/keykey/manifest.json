@@ -1,1 +1,51 @@
-
+{
+  "slug": "keykey",
+  "title": "keykey — USB Hash Fingerprint Gate",
+  "blurb": "A tiny file on a USB key whose SHA-256 fingerprint acts as a presence check to unlock systems, drives, and secure modes.",
+  "description": "keykey turns a simple file on a USB flash drive into a cryptographic presence token. At boot or mount, the system reads the file (e.g., device.keykey), computes its hash, and compares it to a trusted allowlist. Optionally, the file can be structured JSON with policy hints (paths to unlock, expiry, comments). Verification remains by hash. Combine with passphrases, TOTP, or HSMs for multi-factor. Rotatable, auditable, low-friction.",
+  "state": "alpha",
+  "href": "/projects/software/keykey/",
+  "github": "",
+  "docs": "",
+  "logo": "/projects/software/keykey/images/keykey-logo.png",
+  "images": [
+    "/projects/software/keykey/images/keykey-usb.png",
+    "/projects/software/keykey/images/keykey-allowlist.png"
+  ],
+  "tags": [
+    "security",
+    "usb",
+    "hash",
+    "presence",
+    "cold storage",
+    "ops",
+    "forensics"
+  ],
+  "versions": [
+    "0.1.0-alpha"
+  ],
+  "example_allowlist": [
+    {
+      "name": "Ops USB #1",
+      "filename": "device.keykey",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "note": "Example placeholder; replace with actual fingerprint."
+    },
+    {
+      "name": "Recovery USB",
+      "filename": "recovery.kk",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "note": "Used for emergency access procedures."
+    }
+  ],
+  "key_format": {
+    "recommended_extensions": [".keykey", ".kk", ".json"],
+    "example_json_payload": {
+      "issuer": "ZZX-Labs",
+      "aud": "workstation-array-A",
+      "allow": ["/mnt/arrayA/secure", "/var/lib/zzx/ops"],
+      "expires": "2027-12-31T23:59:59Z",
+      "comment": "Operator USB for secure mounts"
+    }
+  }
+}
