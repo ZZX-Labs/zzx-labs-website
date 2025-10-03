@@ -1,1 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>PyOS · A Python-First Operating System | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project-pyos">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Hero -->
+  <section class="hero container-wide">
+    <div class="hero-inner">
+      <img class="logo" id="project-logo" alt="PyOS" />
+      <div class="hero-copy">
+        <h1 id="project-title">PyOS</h1>
+        <p id="project-blurb" class="lead">
+          A Python-first operating system (32/64-bit) aiming for broad app portability through
+          layered compatibility, sandboxed runtime, and declarative packaging.
+        </p>
+        <div class="cta-row">
+          <a id="project-primary-link" class="btn">Open Project</a>
+          <a id="project-github" class="btn alt" target="_blank" rel="noopener">GitHub</a>
+          <a id="project-hf" class="btn alt hf" target="_blank" rel="noopener">Hugging Face</a>
+        </div>
+        <p id="project-status" class="muted small"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="container">
+    <h2>What is PyOS?</h2>
+    <p id="project-description">
+      PyOS is an experimental “Python-native” OS concept exploring how far a modern system can go
+      with Python as the primary coordination layer. The vision is a modular environment with a
+      microkernel-style core, userland services in Python, and compatibility layers that enable
+      running diverse software stacks via shims, containers, and emulation where appropriate.
+    </p>
+    <div class="notice">
+      Note: The ambitious goal of running software built for Windows, Linux, macOS, Android, or iOS
+      “natively and interchangeably” is a long-term research direction. In practice, PyOS uses
+      compatibility layers, containers, or emulation depending on the target app and platform.
+    </div>
+  </section>
+
+  <!-- Key Capabilities -->
+  <section class="features" id="key-features">
+    <div class="container">
+      <h2>Key Capabilities</h2>
+      <div class="grid grid-auto-fit">
+        <article class="feature">
+          <h3>Python-First Runtime</h3>
+          <p>System services, package management, and most userland tools are orchestrated in Python for rapid development and readability.</p>
+        </article>
+        <article class="feature">
+          <h3>32/64-bit Targets</h3>
+          <p>Build profiles for 32-bit and 64-bit devices with per-arch wheels and optional native extensions.</p>
+        </article>
+        <article class="feature">
+          <h3>Compatibility Layers</h3>
+          <p>Run diverse software via shims (POSIX/Wine/proot), containers (OCI), or VMs. Declarative manifests select the best strategy.</p>
+        </article>
+        <article class="feature">
+          <h3>Sandbox & Permissions</h3>
+          <p>Profiles for filesystem/network/capability isolation; reproducible environments and signed manifests.</p>
+        </article>
+        <article class="feature">
+          <h3>Declarative Apps</h3>
+          <p>Apps describe dependencies and launch surfaces in a JSON/YAML manifest; PyOS resolves, builds, and runs them.</p>
+        </article>
+        <article class="feature">
+          <h3>UI Options</h3>
+          <p>CLI-first with optional GUI shells (Qt/PySide) and web UIs for remote management.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compatibility Matrix (aspirational / layered) -->
+  <section class="container">
+    <h2>Compatibility Model</h2>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr><th>Family</th><th>Strategy</th><th>Status</th><th>Notes</th></tr>
+        </thead>
+        <tbody id="compat-body">
+          <!-- populated by script.js from manifest.json -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Getting Started -->
+  <section class="container">
+    <h2>Getting Started</h2>
+    <div class="grid grid-2">
+      <div>
+        <h3>Install (Dev)</h3>
+        <pre class="code" id="install-snippet">curl -fsSL https://get.pyos.sh | bash</pre>
+        <button class="btn sm" data-copy="#install-snippet">Copy</button>
+      </div>
+      <div>
+        <h3>Run a Sample App</h3>
+        <pre class="code" id="run-snippet">pyos app run hello-world</pre>
+        <button class="btn sm" data-copy="#run-snippet">Copy</button>
+      </div>
+    </div>
+    <p class="muted small">Install scripts and commands are placeholders in early research builds.</p>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens & Media</h2>
+    <div id="gallery" class="image-grid">
+      <!-- populated by script.js -->
+    </div>
+  </section>
+
+  <!-- Meta -->
+  <section class="container meta">
+    <h2>Meta</h2>
+    <ul id="tag-list" class="tags"></ul>
+    <div id="version-list" class="versions"></div>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
