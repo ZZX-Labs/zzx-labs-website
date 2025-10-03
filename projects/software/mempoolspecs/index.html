@@ -1,1 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>mempoolspecs — Mempool Goggles Port · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-mempoolspecs">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="mempoolspecs logo" />
+      <h1 id="project-title">mempoolspecs — Mempool Goggles Port</h1>
+      <p class="blurb" id="project-blurb">
+        A portable, mempool.space-compatible “goggles” UI to visualize fee bands, queue depth, and confirmation horizons.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">Uses public endpoints if configured; you can point it at your own full node or a mempool API mirror.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>mempoolspecs</strong> is a UI component set and lightweight client for mempool observers inspired by
+          “goggles” visualizations. It focuses on fee bands (sat/vB), queue depth per band, projected confirmation windows,
+          and a compact status rail for node/API health. It can run read-only against mempool.space-style APIs or your own.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lightweight Goggles Demo -->
+  <section class="container section demo">
+    <h3>Mempool Goggles (Minimal Demo)</h3>
+    <div class="demo-card">
+      <div class="demo-top">
+        <label>API Base
+          <input id="apiBase" type="url" placeholder="https://mempool.space/api" />
+        </label>
+
+        <div class="ck">
+          <input id="autopull" type="checkbox" />
+          <span>Auto-refresh (10s)</span>
+        </div>
+
+        <div class="spacer"></div>
+        <button id="btn-ping" class="btn">Ping</button>
+        <button id="btn-load" class="btn alt">Load Snapshot</button>
+      </div>
+
+      <div class="status-rail" id="status-rail">
+        <span class="pill">Status: <strong id="status">idle</strong></span>
+        <span class="pill">Tip: <strong id="tip-h"></strong></span>
+        <span class="pill">Mempool txs: <strong id="mempool-size"></strong></span>
+      </div>
+
+      <div class="goggles">
+        <div class="goggles-legend">
+          <span>sat/vB</span><span>Queued vMB</span><span>ETA</span>
+        </div>
+        <div id="bands" class="goggles-bands">
+          <!-- rows inserted here -->
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>About this demo</summary>
+        <p class="muted">
+          The demo queries <code>/api/v1/fees/recommended</code>, <code>/api/blocks/tip/height</code>, and
+          <code>/api/mempool</code> when your API base is set (CORS must allow it). Otherwise, “Load Snapshot”
+          renders local sample data. The full app supports additional feeds and historical playback.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
