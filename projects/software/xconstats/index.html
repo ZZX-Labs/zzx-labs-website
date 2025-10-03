@@ -1,1 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>XConStats · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project xconstats">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="XConStats logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">XConStats</h1>
+        <p id="project-blurb" class="muted">
+          Wireless Xbox controller status & readout GUI for PC. Live buttons/axes, dead-zone tuning, rumble tests, and multi-pad view — all in your browser.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- actions from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Demo -->
+  <section class="container">
+    <h2>Live Controller Readout</h2>
+    <p class="muted" id="demo-note">
+      Connect an Xbox controller via Bluetooth or dongle. Press a button to wake it. Then click <strong>Start</strong> to begin polling with the Gamepad API.
+    </p>
+
+    <div class="controls">
+      <button id="start" class="btn">Start</button>
+      <button id="stop" class="btn ghost">Stop</button>
+      <label title="Ignore small analog noise near center">
+        Dead zone:
+        <input id="deadzone" type="number" step="0.01" min="0" max="0.5" value="0.08" />
+      </label>
+      <label>
+        Poll rate:
+        <select id="rate">
+          <option value="raf">VSYNC (RAF)</option>
+          <option value="120">120 Hz</option>
+          <option value="60" selected>60 Hz</option>
+          <option value="30">30 Hz</option>
+        </select>
+      </label>
+      <button id="rumble" class="btn alt">Rumble Test</button>
+    </div>
+
+    <div id="pads" class="pad-grid" aria-live="polite">
+      <!-- Controller cards rendered here -->
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Real-time Readout</h3>
+        <p>Buttons, triggers, sticks, and D-pad updates at your chosen rate using the Gamepad API.</p>
+      </article>
+      <article class="feature">
+        <h3>Dead-Zone Tuning</h3>
+        <p>Clamp micro-jitter around center for cleaner visualizations and logging.</p>
+      </article>
+      <article class="feature">
+        <h3>Multi-Pad</h3>
+        <p>Monitor multiple connected controllers simultaneously — great for QA or tournaments.</p>
+      </article>
+      <article class="feature">
+        <h3>Rumble Check</h3>
+        <p>Optional vibration test when haptics are supported by your browser & device.</p>
+      </article>
+      <article class="feature">
+        <h3>OBS Friendly</h3>
+        <p>Compact UI blocks & dark theme that drop into streaming overlays and recordings.</p>
+      </article>
+      <article class="feature">
+        <h3>Privacy-Respecting</h3>
+        <p>No network calls required for the demo. Data stays in your browser unless you export.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Quick-Start / Embed -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Enable Gamepad</h3>
+      <ol>
+        <li>Pair your Xbox controller to the OS.</li>
+        <li>Tap any button to wake it.</li>
+        <li>Click <strong>Start</strong> above.</li>
+      </ol>
+    </article>
+
+    <article class="doc feature">
+      <h3>Embed View</h3>
+      <pre class="code"><code>&lt;iframe src="https://zzx-labs.io/projects/software/xconstats/"
+  width="900" height="420" frameborder="0"&gt;&lt;/iframe&gt;</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Notes</h3>
+      <p class="muted">Battery level is not exposed in the standard Gamepad API across browsers. Haptics availability varies.</p>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
