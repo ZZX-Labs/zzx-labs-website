@@ -1,1 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Hasher — Drive & Array Forensic Hashing DB · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-hasher">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="Hasher logo" />
+      <h1 id="project-title">Hasher — Drive & Array Forensic Hashing DB</h1>
+      <p class="blurb" id="project-blurb">
+        End-to-end hashing for disks, arrays, and file trees with a tamper-evident catalog and fast lookups.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">Forensics-grade: resumable scans, merklized chunks, and signed manifests.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>Hasher</strong> is a forensic-oriented hashing system for whole disks, RAID/NAS arrays,
+          and large file trees. It computes multi-algorithm digests (BLAKE3/SHA-256/SHA-512/xxHash),
+          supports fixed or adaptive chunking, builds Merkle trees for any object, and writes an
+          append-only, tamper-evident record to a local database. Results are queryable by path, inode,
+          size, time window, algorithm, or content hash.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section features">
+    <h3>Highlights</h3>
+    <ul class="bullet">
+      <li><strong>Whole-device & tree hashing:</strong> block devices, LVM/RAID, network mounts, and folders.</li>
+      <li><strong>Resumable & parallel:</strong> checkpointing, multi-threaded IO, back-pressure aware.</li>
+      <li><strong>Chunking & Merkle:</strong> fixed/adaptive chunks, per-file or per-device Merkle roots.</li>
+      <li><strong>Multi-algo:</strong> BLAKE3, SHA-256, SHA-512, xxHash; add your own via plugins.</li>
+      <li><strong>DB-backed catalog:</strong> SQLite (local) or Postgres (shared) with signed manifests.</li>
+      <li><strong>Dedup & similarity:</strong> rolling hashes + optional fuzzy features for near-dupe hints.</li>
+      <li><strong>CLI & service modes:</strong> one-shot commands or long-running agent with API.</li>
+      <li><strong>Export:</strong> JSONL/CSV/Parquet manifests; SRI strings; SBOM-adjacent inventories.</li>
+    </ul>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container section mini-demo">
+    <h3>Quick Demo</h3>
+    <pre class="codeblock"><code id="demo-code">hasher scan /mnt/array \
+  --algos blake3,sha256 \
+  --chunk 4MiB --resume \
+  --db sqlite:///hasher.db \
+  --out manifest.jsonl</code></pre>
+    <p class="muted">Run locally; adjust mount points and database URL for your environment.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
