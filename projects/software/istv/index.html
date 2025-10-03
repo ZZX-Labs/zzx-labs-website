@@ -1,1 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ISVN — Internet Streaming Video Network · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-isvn">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="ISVN logo" />
+      <h1 id="project-title">ISVN — Internet Streaming Video Network</h1>
+      <p class="blurb" id="project-blurb">
+        Give anyone a 24/7/365 “TV network”: decentralized ingest, signed manifests, swarm distribution with HTTP fallbacks.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">This page includes a local demo video player (progressive MP4 / native HLS if supported). No external libs.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>ISVN</strong> is a decentralized, programmable video network. Publishers push live/looped schedules or VOD
+          using signed manifests; viewers fetch via swarms (WebRTC/QUIC) with HTTP origin/CDN fallback. The demo below
+          uses the browser’s native <code>&lt;video&gt;</code> capabilities.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo Player -->
+  <section class="container section player">
+    <h3>Demo Player</h3>
+
+    <div class="controls">
+      <div class="row">
+        <label>Source URL
+          <input type="url" id="url" placeholder="https://example.com/video.mp4 or .m3u8" />
+        </label>
+        <label>Channel Name
+          <input type="text" id="channel" placeholder="Channel label (optional)" />
+        </label>
+        <div class="spacer"></div>
+        <button class="btn" id="btn-load">Load</button>
+      </div>
+
+      <div class="row inline">
+        <label class="inline"><input type="checkbox" id="autoplay" /> Autoplay</label>
+        <label class="inline"><input type="checkbox" id="loop" /> Loop</label>
+        <label>Volume
+          <input type="range" id="vol" min="0" max="1" step="0.01" value="1" />
+        </label>
+      </div>
+    </div>
+
+    <div class="player-shell">
+      <div class="video-stage">
+        <video id="video" controls preload="none" playsinline></video>
+      </div>
+      <div class="metrics">
+        <div><strong>Status:</strong> <span id="status">Idle</span></div>
+        <div><strong>Type:</strong> <span id="type">—</span></div>
+        <div><strong>Resolution (observed):</strong> <span id="res">—</span></div>
+        <div><strong>Swarm peers (mock):</strong> <span id="peers">0</span></div>
+        <div><strong>Channel:</strong> <span id="label">—</span></div>
+      </div>
+    </div>
+
+    <div class="presets" id="presets">
+      <!-- Manifest presets populate here -->
+    </div>
+
+    <p class="muted small">
+      Notes: Native HLS playback works in Safari and some mobile browsers. Chrome/Firefox typically require a JS HLS player or MSE pipeline;
+      we intentionally avoid dependencies here. ISVN’s P2P layer (nodes, signaling, chunking) is separate from this page.
+    </p>
+  </section>
+
+  <section class="container section architecture">
+    <h3>Architecture (Planned)</h3>
+    <ul class="arch">
+      <li><strong>Publisher nodes:</strong> ingest (RTMP/WebRTC/file) → transcode → chunk → sign → announce via DHT.</li>
+      <li><strong>Manifests:</strong> channel.json defines program schedule, renditions, DRM policy (if any), HTTP fallbacks.</li>
+      <li><strong>Transport:</strong> WebRTC/QUIC swarms; HTTP(S) + CDN for fallback.</li>
+      <li><strong>Monetization (opt-in):</strong> LNURL/WebLN tips, pay-per-segment, gated channels.</li>
+      <li><strong>Resilience:</strong> cacheable segments, rotating peer IDs, minimal telemetry for privacy.</li>
+    </ul>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
