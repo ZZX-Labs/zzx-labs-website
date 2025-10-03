@@ -1,1 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Vishnu · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project vishnu">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="Vishnu logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">Vishnu</h1>
+        <p id="project-blurb" class="muted">
+          Orchestrator for multi-pipeline workflows: schedule, fan-out/fan-in, retry trees, and resource-aware routing.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        Vishnu coordinates DAG-style workloads across runners (e.g., Vikram) and services (e.g., VidGhee, VideoSort,
+        GardenHarvester). Define jobs declaratively, wire dependencies, set SLAs and concurrency, and let Vishnu handle
+        backpressure, retries, and idempotency. Emits compact JSON/NDJSON events consumable by Vishal for live visuals.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Declarative DAGs</h3>
+        <p>YAML/JSON pipelines with parameterized tasks, fan-out/fan-in, conditions, and artifacts.</p>
+      </article>
+      <article class="feature">
+        <h3>Smart Scheduling</h3>
+        <p>Rate limits, quotas, resource tags, and queue priorities per tenant or pipeline.</p>
+      </article>
+      <article class="feature">
+        <h3>Resilience</h3>
+        <p>Retries with jitter, circuit breakers, idempotency keys, and dead-letter queues.</p>
+      </article>
+      <article class="feature">
+        <h3>Pluggable Runners</h3>
+        <p>Adapters for Vikram workers or custom executors (container, process, remote HTTP).</p>
+      </article>
+      <article class="feature">
+        <h3>Observability</h3>
+        <p>NDJSON event stream + metrics to feed Vishal dashboards and external monitoring.</p>
+      </article>
+      <article class="feature">
+        <h3>Audit & Policy</h3>
+        <p>Signed pipeline manifests, change logs, policy gates, and approvals where needed.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Docs/cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Run (server)</h3>
+      <pre class="code"><code>vishnu serve \
+  --bind 0.0.0.0:7788 \
+  --pipelines ./pipelines/ \
+  --events ./out/events.ndjson</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Minimal pipeline</h3>
+      <pre class="code"><code># pipelines/transcode.yaml
+pipeline: transcode
+on:
+  schedule: "*/5 * * * *"
+steps:
+  - id: probe
+    uses: vikram:probe
+    with: { input: "/ingest/*.mp4" }
+  - id: encode
+    needs: [probe]
+    uses: vikram:encode
+    with: { preset: "h264-720p" }
+  - id: publish
+    needs: [encode]
+    uses: http:post
+    with: { url: "https://cdn.local/api/publish" }</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Webhook trigger</h3>
+      <pre class="code"><code>POST /trigger/transcode
+{ "input": "/ingest/special/foo.mov", "preset": "prores" }</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery (optional) -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
