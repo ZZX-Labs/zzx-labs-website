@@ -1,1 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Shairi Badalna · Video Sorter & Tagger | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project-shairi-badalna">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Hero -->
+  <section class="hero container-wide">
+    <div class="hero-inner">
+      <img class="logo" id="project-logo" alt="Shairi Badalna" />
+      <div class="hero-copy">
+        <h1 id="project-title">Shairi Badalna</h1>
+        <p id="project-blurb" class="lead">
+          A precise video file sorting program & tagging system. Ingest, fingerprint, enrich metadata,
+          simulate moves, then execute safely.
+        </p>
+        <div class="cta-row">
+          <a id="project-primary-link" class="btn">Open Project</a>
+          <a id="project-github" class="btn alt" target="_blank" rel="noopener">GitHub</a>
+          <a id="project-hf" class="btn alt hf" target="_blank" rel="noopener">Hugging Face</a>
+        </div>
+        <p id="project-status" class="muted small"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="container">
+    <h2>What is Shairi Badalna?</h2>
+    <p id="project-description">
+      Shairi Badalna organizes large video libraries by content & structure. It fingerprints files (hash),
+      extracts technical metadata, lets you add tags/collections, previews target paths with dry-run safety,
+      and can export plans (CSV/JSON) for CLI automation. Use it standalone or embed as a library.
+    </p>
+  </section>
+
+  <!-- Workspace -->
+  <section class="container workspace" id="ws">
+    <h2>Workspace</h2>
+    <div class="ws-grid">
+      <!-- Pane A: ingest & rules -->
+      <div class="panel">
+        <h3>Ingest</h3>
+        <div class="ingest">
+          <label class="btn sm">
+            <input type="file" id="pick-files" multiple accept="video/*" hidden />
+            Select Videos…
+          </label>
+          <label class="btn sm">
+            <input type="file" id="pick-folder" webkitdirectory directory hidden />
+            Select Folder…
+          </label>
+          <div class="dropzone" id="dropzone" aria-label="Drop files here">Drop files here</div>
+          <p class="muted small">No files are uploaded — analysis happens locally in your browser.</p>
+        </div>
+
+        <hr class="rule" />
+
+        <h3>Rules</h3>
+        <div class="rules">
+          <label>Target Root
+            <input type="text" id="rule-root" placeholder="/library/videos" />
+          </label>
+
+          <label>Pattern
+            <input type="text" id="rule-pattern"
+              placeholder="{collection}/{year}/{title} [{resolution}]/{basename}" />
+          </label>
+
+          <details class="mt-1">
+            <summary>Tokens</summary>
+            <ul class="muted small">
+              <li><code>{title}</code>, <code>{collection}</code>, <code>{tags}</code></li>
+              <li><code>{year}</code>, <code>{date}</code>, <code>{duration}</code></li>
+              <li><code>{codec}</code>, <code>{resolution}</code>, <code>{fps}</code></li>
+              <li><code>{basename}</code>, <code>{ext}</code>, <code>{hash}</code></li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="actions mt-1">
+          <button class="btn" id="btn-simulate">Simulate</button>
+          <button class="btn alt" id="btn-export">Export Plan (CSV)</button>
+        </div>
+      </div>
+
+      <!-- Pane B: file table + editor -->
+      <div class="panel">
+        <div class="toolbar">
+          <div class="pill" id="count-pill">0 files</div>
+          <button class="btn sm" id="btn-clear">Clear</button>
+        </div>
+
+        <div class="table-responsive">
+          <table id="file-table" class="table-sm">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Resolution</th>
+                <th>FPS</th>
+                <th>Duration</th>
+                <th>Codec</th>
+                <th>Tags</th>
+                <th>Collection</th>
+                <th>Target (sim)</th>
+              </tr>
+            </thead>
+            <tbody id="file-tbody">
+              <tr><td colspan="8" class="muted">No files yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="editor">
+          <h3>Tag Editor</h3>
+          <div class="grid grid-2">
+            <label>Title
+              <input type="text" id="ed-title" />
+            </label>
+            <label>Collection
+              <input type="text" id="ed-collection" />
+            </label>
+          </div>
+          <label class="mt-1">Tags (comma-separated)
+            <input type="text" id="ed-tags" placeholder="action, 4k, hdr" />
+          </label>
+          <div class="grid grid-3 mt-1">
+            <label>Year
+              <input type="number" id="ed-year" min="1900" max="2100" />
+            </label>
+            <label>Date
+              <input type="date" id="ed-date" />
+            </label>
+            <label>Hash
+              <input type="text" id="ed-hash" readonly />
+            </label>
+          </div>
+          <div class="actions mt-1">
+            <button class="btn" id="btn-apply">Apply to Selected</button>
+            <button class="btn alt" id="btn-rehash">Recompute Hash</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pane C: preview -->
+      <div class="panel">
+        <h3>Preview</h3>
+        <video id="preview" controls playsinline></video>
+        <div class="meta small mt-1" id="preview-meta"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Meta -->
+  <section class="container meta">
+    <h2>Meta</h2>
+    <ul id="tag-list" class="tags"></ul>
+    <div id="version-list" class="versions"></div>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
