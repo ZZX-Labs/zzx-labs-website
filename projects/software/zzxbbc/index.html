@@ -1,1 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ZZX-BBC (BB Communicator) · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project zzxbbc">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="ZZX-BBC logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">ZZX-BBC (BB Communicator)</h1>
+        <p id="project-blurb" class="muted">
+          In-house LoRa mesh communicator with end-to-end encryption. A BlackBerry-style device and stack (software, firmware,
+          hardware, web) for text, email relay, voice, video, and file transfer across Wi-Fi, Mesh/LoRa, GSM/5G gateways.
+        </p>
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Capabilities -->
+  <section class="container">
+    <h2>Capabilities</h2>
+    <div class="grid grid-3 feature-cards">
+      <article class="feature">
+        <h3>Text & Email Relay</h3>
+        <p>E2EE chats across mesh; optional SMTP/SUBMIT relay when a gateway is present.</p>
+      </article>
+      <article class="feature">
+        <h3>Voice & Video</h3>
+        <p>Adaptive codecs with store-and-forward fallback; real-time over Wi-Fi/Cell, burst over LoRa.</p>
+      </article>
+      <article class="feature">
+        <h3>File Transfer</h3>
+        <p>Chunked, signed, and resumable transfers; opportunistic multi-hop routing.</p>
+      </article>
+      <article class="feature">
+        <h3>Mesh Routing</h3>
+        <p>Flood-guarded gossip + distance vector; region-legal LoRa parameters per band.</p>
+      </article>
+      <article class="feature">
+        <h3>Keys & Identity</h3>
+        <p>Device seed → X25519+Ed25519 subkeys; QR provisioning, revocation, and trust graph.</p>
+      </article>
+      <article class="feature">
+        <h3>OTA & Telemetry</h3>
+        <p>Signed firmware updates with canary; local web console; redaction-first diagnostics.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Builders -->
+  <section class="container" id="builders">
+    <h2>Configuration Builders</h2>
+
+    <!-- Provisioning -->
+    <article class="panel">
+      <h3 id="prov">Device Provisioning</h3>
+      <form class="bb-form" id="prov-form" autocomplete="off">
+        <div class="row">
+          <label>
+            Device Name
+            <input id="prov-name" type="text" placeholder="bb-001" />
+          </label>
+          <label>
+            Owner Email (optional)
+            <input id="prov-email" type="email" placeholder="alice@example.com" />
+          </label>
+          <label>
+            Generate Seed
+            <div class="seg">
+              <label><input type="checkbox" id="prov-seed" checked /> Create new seed on first boot</label>
+            </div>
+          </label>
+          <label class="full">
+            Peer Bootstrap (comma-sep)
+            <input id="prov-peers" type="text" placeholder="lora://AA:BB:CC, ws://gw.local:8080" />
+          </label>
+        </div>
+        <div class="row actions">
+          <button type="button" class="btn" id="prov-build">Build JSON</button>
+          <button type="button" class="btn ghost" id="prov-copy">Copy</button>
+        </div>
+        <div class="output">
+          <label>Provisioning File</label>
+          <textarea id="prov-out" rows="8" spellcheck="false"></textarea>
+        </div>
+      </form>
+    </article>
+
+    <!-- Mesh Radio -->
+    <article class="panel">
+      <h3 id="radio">Mesh / LoRa Radio</h3>
+      <form class="bb-form" id="radio-form" autocomplete="off">
+        <div class="row">
+          <label>
+            Region
+            <select id="radio-region">
+              <option value="US915" selected>US915 (902–928 MHz)</option>
+              <option value="EU868">EU868 (863–870 MHz)</option>
+              <option value="IN865">IN865 (865–867 MHz)</option>
+              <option value="AU915">AU915 (915–928 MHz)</option>
+              <option value="AS920">AS920/JP920 (920–928 MHz)</option>
+            </select>
+          </label>
+          <label>
+            Spreading Factor
+            <select id="radio-sf">
+              <option>7</option><option selected>8</option><option>9</option><option>10</option><option>11</option><option>12</option>
+            </select>
+          </label>
+          <label>
+            Bandwidth (kHz)
+            <select id="radio-bw">
+              <option>125</option><option selected>250</option><option>500</option>
+            </select>
+          </label>
+          <label>
+            Coding Rate
+            <select id="radio-cr">
+              <option value="4/5" selected>4/5</option>
+              <option value="4/6">4/6</option>
+              <option value="4/7">4/7</option>
+              <option value="4/8">4/8</option>
+            </select>
+          </label>
+          <label>
+            TX Power (dBm)
+            <input id="radio-tx" type="number" inputmode="numeric" value="14" min="2" max="22" />
+          </label>
+          <label class="full">
+            Channels (comma-sep, region legal)
+            <input id="radio-ch" type="text" placeholder="0,1,2,3" />
+          </label>
+        </div>
+        <p class="muted small">
+          ⚠️ Always comply with local regulations (duty cycle, EIRP, hopping, sub-bands).
+        </p>
+        <div class="row actions">
+          <button type="button" class="btn" id="radio-build">Build JSON</button>
+          <button type="button" class="btn ghost" id="radio-copy">Copy</button>
+          <button type="button" class="btn alt" id="radio-cli">zzxbbc-cli</button>
+        </div>
+        <div class="output">
+          <label>Radio Config</label>
+          <textarea id="radio-out" rows="8" spellcheck="false"></textarea>
+        </div>
+      </form>
+    </article>
+
+    <!-- Gateway -->
+    <article class="panel">
+      <h3 id="gateway">Gateway / Backhaul</h3>
+      <form class="bb-form" id="gw-form" autocomplete="off">
+        <div class="row">
+          <label>
+            Mode
+            <select id="gw-mode">
+              <option selected>Wi-Fi</option>
+              <option>Ethernet</option>
+              <option>Cellular (GSM/5G)</option>
+            </select>
+          </label>
+          <label>
+            Endpoint (ws/http/mqtt)
+            <input id="gw-url" type="url" placeholder="wss://mesh.zzx.local:7443" />
+          </label>
+          <label class="full">
+            Token (optional)
+            <input id="gw-token" type="text" placeholder="bearer/psk" />
+          </label>
+        </div>
+        <div class="row actions">
+          <button type="button" class="btn" id="gw-build">Build JSON</button>
+          <button type="button" class="btn ghost" id="gw-copy">Copy</button>
+        </div>
+        <div class="output">
+          <label>Gateway Config</label>
+          <textarea id="gw-out" rows="6" spellcheck="false"></textarea>
+        </div>
+      </form>
+    </article>
+
+    <!-- OTA -->
+    <article class="panel">
+      <h3 id="ota">OTA Channel</h3>
+      <form class="bb-form" id="ota-form" autocomplete="off">
+        <div class="row">
+          <label>
+            Channel
+            <select id="ota-channel">
+              <option value="stable" selected>Stable</option>
+              <option value="beta">Beta</option>
+              <option value="dev">Dev</option>
+            </select>
+          </label>
+          <label class="full">
+            Signing Key Fingerprint
+            <input id="ota-fpr" type="text" placeholder="ABCD 1234 EFGH 5678 ..." />
+          </label>
+        </div>
+        <div class="row actions">
+          <button type="button" class="btn" id="ota-build">Build JSON</button>
+          <button type="button" class="btn ghost" id="ota-copy">Copy</button>
+        </div>
+        <div class="output">
+          <label>OTA Config</label>
+          <textarea id="ota-out" rows="6" spellcheck="false"></textarea>
+        </div>
+      </form>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens & Hardware</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
