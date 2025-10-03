@@ -1,1 +1,57 @@
-
+{
+  "slug": "mnemonic-generator",
+  "title": "Mnemonic Generator",
+  "blurb": "Offline mnemonic & diceware phrase generator — supports 1–8, 12, 16, 24, 32 words; PBKDF2-HMAC-SHA512 seed derivation; BIP39-ready.",
+  "description": "A client-side, offline mnemonic generator for secure phrase creation and seed derivation. Supports short 1–8 word custom phrases and canonical 12/16/24/32 word sizes. Derives seeds via PBKDF2-HMAC-SHA512. Designed to work with local BIP39 wordlists (not included by default) and a Diceware mode. No network required once loaded; uses WebCrypto for entropy.",
+  "href": "/projects/software/mnemonic-generator/",
+  "homepage": "https://zzx-labs.io/projects/software/mnemonic-generator/",
+  "repo": "https://github.com/zzx-labs/mnemonic-generator",
+  "links": {
+    "github": "https://github.com/zzx-labs/mnemonic-generator",
+    "huggingface": "",
+    "docs": "https://zzx-labs.io/projects/software/mnemonic-generator/",
+    "issues": "https://github.com/zzx-labs/mnemonic-generator/issues"
+  },
+  "license": "MIT",
+  "state": "pre-release",
+  "version": "0.1.0",
+  "versions": [
+    { "version": "0.1.0", "date": "2025-01-01", "notes": "Initial public preview with custom 1–8/12/16/24/32 word support, PBKDF2 seed derivation, placeholder BIP39 integration hooks." }
+  ],
+  "tags": [
+    "security",
+    "crypto",
+    "wallet",
+    "mnemonic",
+    "diceware",
+    "bip39",
+    "offline",
+    "webcrypto"
+  ],
+  "word_counts_supported": [1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 24, 32],
+  "images": {
+    "hero": "/projects/software/mnemonic-generator/images/hero.jpg",
+    "logo": "/projects/software/mnemonic-generator/images/logo.svg",
+    "icon": "/projects/software/mnemonic-generator/images/icon.png",
+    "gallery": [
+      "/projects/software/mnemonic-generator/images/screenshot-01.png",
+      "/projects/software/mnemonic-generator/images/screenshot-02.png"
+    ]
+  },
+  "build": {
+    "languages": ["HTML", "CSS", "JavaScript"],
+    "browsers": "Modern evergreen",
+    "node": "optional",
+    "bundler": "none"
+  },
+  "runtime": {
+    "requires": ["WebCrypto"],
+    "offline": true,
+    "pwa": false
+  },
+  "entrypoints": {
+    "index": "./index.html",
+    "script": "./script.js",
+    "styles": "./style.css"
+  }
+}
