@@ -1,1 +1,120 @@
+/* /projects/software/mu3u/style.css
+   mu3u — M3U/M3U8 Playlist Builder UI
+   Uses global tokens from /static/styles.css
+*/
 
+:root {
+  --accent: #c0d674;
+  --accent-alt: #e6a42b;
+  --muted: #8a8f98;
+}
+
+.project-mu3u .lede { color: #cfd3da; max-width: 72ch; }
+
+/* Toolbar */
+.mu3u-toolbar .row {
+  display: flex; flex-wrap: wrap; gap: .5rem .6rem; align-items: center;
+}
+.mu3u-toolbar .row-compact { margin-top: .35rem; }
+#mu3u-status { font-family: var(--font-mono, 'IBM Plex Mono', monospace); }
+
+/* Buttons */
+.btn {
+  display: inline-block; background: var(--accent); color: #101218;
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: .42rem .78rem; border-radius: 8px; text-decoration: none;
+  font-weight: 700; line-height: 1; cursor: pointer;
+  transition: filter .15s ease, transform .05s ease;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+.btn.alt { background: var(--accent-alt); color: #101218; }
+.btn.small { padding: .32rem .6rem; font-weight: 600; }
+.btn.tiny  { padding: .22rem .45rem; font-weight: 700; border-radius: 6px; }
+
+/* Layout grid */
+.mu3u-grid {
+  display: grid; gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 880px) {
+  .mu3u-grid { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); }
+}
+.mu3u-panel {
+  background: var(--surface, #262626);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 12px; padding: 0.75rem; box-shadow: 0 6px 16px rgba(0,0,0,.2);
+}
+.mu3u-panel--side { position: sticky; top: 12px; height: fit-content; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .5rem; }
+.panel-header h3 { margin: 0; color: var(--accent); }
+
+/* Table */
+.table-responsive {
+  inline-size: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-radius: 8px; border: 1px solid var(--line-soft, #3a3a3a);
+  background: rgba(255,255,255,0.02);
+}
+#mu3u-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+#mu3u-table th, #mu3u-table td {
+  padding: .55rem .6rem; border-bottom: 1px dotted var(--line-soft, #3a3a3a); vertical-align: middle;
+}
+#mu3u-table thead th {
+  color: var(--accent); background: var(--surface-3, #333); text-transform: uppercase; font-size: .85rem; letter-spacing: .035em;
+}
+#mu3u-table tbody tr:hover { background: #1f1f1f; }
+#mu3u-table td.actions { white-space: nowrap; display: flex; gap: .35rem; align-items: center; }
+#mu3u-table td.idx { width: 3ch; text-align: right; color: var(--muted); font-weight: 700; }
+
+/* Inputs in table */
+.inp {
+  width: 100%; color: var(--text, #e8e8e8);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 8px; padding: .45rem .55rem; font: 500 .95rem var(--font-body, 'IBM Plex Mono', monospace);
+}
+.inp:focus { outline: 2px solid var(--accent); outline-offset: 2px; background: rgba(255,255,255,0.06); }
+.inp::placeholder { color: var(--muted); }
+
+/* Preview */
+.preview-wrap {
+  display: grid; gap: .6rem; background: var(--surface, #262626);
+  border: 1px solid var(--line-soft, #3a3a3a);
+  border-radius: 10px; padding: .6rem;
+}
+#mu3u-audio { width: 100%; border-radius: 8px; background: #111; }
+.preview-meta .row { display: flex; gap: .5rem; align-items: baseline; }
+
+/* Collapsibles & report */
+.subsection.collapsible {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; padding: 0.25rem 0.5rem;
+  background: rgba(255,255,255,0.03); margin-top: .75rem;
+}
+.subsection.collapsible > summary {
+  list-style: none; cursor: pointer; font-weight: 700; color: #e8e8e8; padding: .35rem .25rem;
+}
+.subsection.collapsible > summary::-webkit-details-marker { display: none; }
+.subsection.collapsible .collapsible-body { padding: 0 .25rem .6rem; }
+
+#mu3u-output {
+  width: 100%; min-height: 200px; resize: vertical;
+  background: rgba(0,0,0,.35); color: #e8e8e8;
+  border: 1px solid var(--line-soft, #3a3a3a); border-radius: 8px;
+  padding: .65rem .75rem; font: 500 .9rem var(--font-mono, 'IBM Plex Mono', monospace);
+}
+#mu3u-report { line-height: 1.45; }
+
+/* Helpers */
+.muted { color: var(--muted); }
+.small { font-size: .9rem; }
+.rule { inline-size: 1px; align-self: stretch; background: var(--line, #3a3a3a); margin: 0 .25rem; }
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  #mu3u-table thead { display: none; }
+  #mu3u-table, #mu3u-table tbody, #mu3u-table tr, #mu3u-table td { display: block; width: 100%; }
+  #mu3u-table tr { border-bottom: 1px solid var(--line-soft, #3a3a3a); padding: .5rem 0; }
+  #mu3u-table td.actions { justify-content: flex-end; }
+  #mu3u-table td.idx { text-align: left; }
+}
