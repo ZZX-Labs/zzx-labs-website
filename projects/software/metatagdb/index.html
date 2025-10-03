@@ -1,1 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>MetaTagDB — Media Tagging & Hash DB · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-metatagdb">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="MetaTagDB logo" />
+      <h1 id="project-title">MetaTagDB — Media Tagging & Hash DB</h1>
+      <p class="blurb" id="project-blurb">
+        Distributed metadata + content-hash registry for media: verify integrity, tag evidence, and replicate catalogs.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">All hashing below runs locally in your browser (no uploads).</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>MetaTagDB</strong> is a media tagging system and hash-indexed database. It produces
+          content-addressable records (SHA-256, size, MIME, timestamps, and user tags) that can be merged,
+          signed, and replicated across peers. Use it for authenticated leak catalogs, forensics triage,
+          deduplication, and cross-set reconciliation.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Local Hashing + Tagging Demo -->
+  <section class="container section demo">
+    <h3>Local Hashing & Tagging Demo</h3>
+
+    <div class="demo-card">
+      <div class="demo-top">
+        <div class="drop" id="drop">
+          <strong>Drop files here</strong> or <label class="link">
+            choose<input id="fileInput" type="file" multiple hidden>
+          </label>
+          <div class="hint muted">We’ll compute SHA-256 in-browser and never upload files.</div>
+        </div>
+
+        <div class="tagline">
+          <label>Add global tags (comma-separated)
+            <input id="globalTags" type="text" placeholder="e.g. case-42,images,leak-2025" />
+          </label>
+        </div>
+
+        <div class="buttons">
+          <button id="btn-clear" class="btn alt">Clear</button>
+          <button id="btn-export" class="btn">Export JSON</button>
+        </div>
+      </div>
+
+      <div id="results" class="results">
+        <div class="row head">
+          <div>File</div><div class="mono">SHA-256</div><div>Size</div><div>MIME</div><div>Tags</div>
+        </div>
+        <!-- rows inserted here -->
+      </div>
+    </div>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
