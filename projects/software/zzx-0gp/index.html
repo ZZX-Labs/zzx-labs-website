@@ -1,1 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ZZX-0GP (GPG) Encryption · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project zzx-0gp">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="ZZX-0GP logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">ZZX-0GP (GPG) Encryption</h1>
+        <p id="project-blurb" class="muted">
+          A practical, scriptable interface around GnuPG for <strong>key management</strong>,
+          <strong>encryption/decryption</strong>, and <strong>sign/verify</strong> with reproducible CLI commands
+          or an optional local API runner.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- actions from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Actions -->
+  <section class="container">
+    <h2>Tasks</h2>
+    <div class="grid grid-3 task-cards">
+      <article class="feature">
+        <h3>Encrypt</h3>
+        <p>Encrypt files or text for one or more recipients, optionally ASCII-armored.</p>
+        <a href="#encrypt" class="btn">Go</a>
+      </article>
+      <article class="feature">
+        <h3>Decrypt</h3>
+        <p>Decrypt local files or pasted armored text using your secret key(s).</p>
+        <a href="#decrypt" class="btn">Go</a>
+      </article>
+      <article class="feature">
+        <h3>Sign / Verify</h3>
+        <p>Create attached or detached signatures, verify provenance, and inspect trust.</p>
+        <a href="#sign" class="btn">Go</a>
+      </article>
+      <article class="feature">
+        <h3>Keys</h3>
+        <p>Generate, import, export, revoke, list, and publish via keyserver or WKD.</p>
+        <a href="#keys" class="btn">Go</a>
+      </article>
+      <article class="feature">
+        <h3>SSH</h3>
+        <p>Convert OpenPGP subkeys to SSH, export authorized keys, and QR the pubkeys.</p>
+        <a href="#ssh" class="btn">Go</a>
+      </article>
+      <article class="feature">
+        <h3>Scripting</h3>
+        <p>Build reproducible <code>gpg</code> command lines, copy, or run via a local API.</p>
+        <a href="#builder" class="btn">Go</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- Encrypt -->
+  <section class="container" id="encrypt">
+    <h2>Encrypt</h2>
+    <form class="gp-form" id="enc-form" autocomplete="off">
+      <div class="row">
+        <label class="full">
+          Recipients (emails or key IDs, comma-separated)
+          <input id="enc-recips" type="text" placeholder="alice@example.com, 0xDEADBEEF..." />
+        </label>
+
+        <label>
+          Armor
+          <div class="seg">
+            <label><input type="checkbox" id="enc-armor" checked /> ASCII Armor (<code>--armor</code>)</label>
+          </div>
+        </label>
+
+        <label>
+          Cipher
+          <select id="enc-cipher">
+            <option value="">Default</option>
+            <option value="AES256">AES256</option>
+            <option value="AES192">AES192</option>
+            <option value="AES">AES128</option>
+            <option value="CAMELLIA256">Camellia256</option>
+          </select>
+        </label>
+
+        <label>
+          Compress
+          <select id="enc-compress">
+            <option value="">Default</option>
+            <option value="0">None (0)</option>
+            <option value="1">Low (1)</option>
+            <option value="3" selected>Normal (3)</option>
+            <option value="9">Max (9)</option>
+          </select>
+        </label>
+
+        <label class="full">
+          Input
+          <div class="seg">
+            <label><input type="radio" name="enc-input" value="file" checked /> File</label>
+            <label><input type="radio" name="enc-input" value="text" /> Text</label>
+          </div>
+        </label>
+
+        <label class="full" data-input="file">
+          File Path (local)
+          <input id="enc-file" type="text" placeholder="/path/to/secret.pdf" />
+        </label>
+
+        <label class="full" data-input="text" hidden>
+          Paste Text
+          <textarea id="enc-text" rows="6" placeholder="Paste text to encrypt…"></textarea>
+        </label>
+
+        <label class="full">
+          Output (optional)
+          <input id="enc-out" type="text" placeholder="/path/to/output.asc (.gpg if not armored)" />
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button type="button" id="enc-build" class="btn">Generate Command</button>
+        <button type="button" id="enc-copy" class="btn ghost">Copy</button>
+        <button type="button" id="enc-run" class="btn alt">Try Local Run</button>
+      </div>
+
+      <div class="output">
+        <label>Command</label>
+        <textarea id="enc-cmd" rows="5" spellcheck="false"></textarea>
+      </div>
+    </form>
+  </section>
+
+  <!-- Decrypt -->
+  <section class="container" id="decrypt">
+    <h2>Decrypt</h2>
+    <form class="gp-form" id="dec-form" autocomplete="off">
+      <div class="row">
+        <label class="full">
+          Input (file or .asc)
+          <input id="dec-in" type="text" placeholder="/path/to/input.gpg or /path/to/input.asc" />
+        </label>
+
+        <label>
+          Output (optional)
+          <input id="dec-out" type="text" placeholder="/path/to/output" />
+        </label>
+
+        <label>
+          Quiet
+          <div class="seg">
+            <label><input type="checkbox" id="dec-quiet" /> Quiet (<code>-q</code>)</label>
+          </div>
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button type="button" id="dec-build" class="btn">Generate Command</button>
+        <button type="button" id="dec-copy" class="btn ghost">Copy</button>
+        <button type="button" id="dec-run" class="btn alt">Try Local Run</button>
+      </div>
+
+      <div class="output">
+        <label>Command</label>
+        <textarea id="dec-cmd" rows="4" spellcheck="false"></textarea>
+      </div>
+    </form>
+  </section>
+
+  <!-- Sign / Verify -->
+  <section class="container" id="sign">
+    <h2>Sign & Verify</h2>
+    <form class="gp-form" id="sig-form" autocomplete="off">
+      <div class="row">
+        <label>
+          Mode
+          <div class="seg">
+            <label><input type="radio" name="sig-mode" value="attached" checked /> Attached (<code>--sign</code>)</label>
+            <label><input type="radio" name="sig-mode" value="detach" /> Detached (<code>--detach-sign</code>)</label>
+            <label><input type="radio" name="sig-mode" value="verify" /> Verify (<code>--verify</code>)</label>
+          </div>
+        </label>
+
+        <label>
+          Armor
+          <div class="seg">
+            <label><input type="checkbox" id="sig-armor" checked /> ASCII Armor</label>
+          </div>
+        </label>
+
+        <label class="full">
+          Input File
+          <input id="sig-in" type="text" placeholder="/path/to/file" />
+        </label>
+
+        <label>
+          Signature File (detached verify)
+          <input id="sig-det" type="text" placeholder="/path/to/file.sig or file.asc" />
+        </label>
+
+        <label>
+          Local User (signer key)
+          <input id="sig-uid" type="text" placeholder="email@domain / 0xKEYID" />
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button type="button" id="sig-build" class="btn">Generate Command</button>
+        <button type="button" id="sig-copy" class="btn ghost">Copy</button>
+        <button type="button" id="sig-run" class="btn alt">Try Local Run</button>
+      </div>
+
+      <div class="output">
+        <label>Command</label>
+        <textarea id="sig-cmd" rows="4" spellcheck="false"></textarea>
+      </div>
+    </form>
+  </section>
+
+  <!-- Keys -->
+  <section class="container" id="keys">
+    <h2>Key Management</h2>
+    <form class="gp-form" id="key-form" autocomplete="off">
+      <div class="row">
+        <label class="full">
+          Operation
+          <select id="key-op">
+            <option value="list">List Keys</option>
+            <option value="gen">Generate Key</option>
+            <option value="import">Import</option>
+            <option value="export">Export Public</option>
+            <option value="export-sec">Export Secret</option>
+            <option value="revoke">Generate Revocation</option>
+            <option value="publish">Publish to Keyserver</option>
+          </select>
+        </label>
+
+        <label>
+          User ID / Email
+          <input id="key-uid" type="text" placeholder="alice@example.com" />
+        </label>
+
+        <label>
+          Key ID / Fingerprint
+          <input id="key-id" type="text" placeholder="0xDEADBEEF..." />
+        </label>
+
+        <label>
+          Armor
+          <div class="seg">
+            <label><input type="checkbox" id="key-armor" checked /> ASCII Armor</label>
+          </div>
+        </label>
+
+        <label class="full" data-kop="gen">
+          Key Type
+          <select id="key-type">
+            <option value="ed25519" selected>ed25519 (sign) + cv25519 (encrypt)</option>
+            <option value="rsa4096">RSA-4096</option>
+            <option value="rsa3072">RSA-3072</option>
+          </select>
+        </label>
+
+        <label class="full" data-kop="gen">
+          Expiration (e.g., 2y, 6m, 0 = never)
+          <input id="key-exp" type="text" value="2y" />
+        </label>
+
+        <label class="full">
+          File Path (for import/export/revoke)
+          <input id="key-path" type="text" placeholder="/path/to/file.asc or .gpg" />
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button type="button" id="key-build" class="btn">Generate Command</button>
+        <button type="button" id="key-copy" class="btn ghost">Copy</button>
+        <button type="button" id="key-run" class="btn alt">Try Local Run</button>
+      </div>
+
+      <div class="output">
+        <label>Command</label>
+        <textarea id="key-cmd" rows="6" spellcheck="false"></textarea>
+      </div>
+    </form>
+  </section>
+
+  <!-- SSH -->
+  <section class="container" id="ssh">
+    <h2>SSH Helpers</h2>
+    <form class="gp-form" id="ssh-form" autocomplete="off">
+      <div class="row">
+        <label class="full">
+          Action
+          <select id="ssh-op">
+            <option value="list">List GPG-auth keys</option>
+            <option value="export-ssh">Export SSH public key</option>
+            <option value="authkeys">Append to ~/.ssh/authorized_keys</option>
+          </select>
+        </label>
+
+        <label>
+          Key ID / Email
+          <input id="ssh-id" type="text" placeholder="alice@example.com or 0xKEY" />
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button type="button" id="ssh-build" class="btn">Generate Command</button>
+        <button type="button" id="ssh-copy" class="btn ghost">Copy</button>
+        <button type="button" id="ssh-run" class="btn alt">Try Local Run</button>
+      </div>
+
+      <div class="output">
+        <label>Command</label>
+        <textarea id="ssh-cmd" rows="4" spellcheck="false"></textarea>
+      </div>
+    </form>
+  </section>
+
+  <!-- Builder -->
+  <section class="container" id="builder">
+    <h2>Recent Commands</h2>
+    <div id="history" class="history"></div>
+    <p class="muted small">
+      Local API not found? The generated commands still work in your terminal with <code>gpg</code> installed.
+      Remember to protect your private keys and use strong passphrases.
+    </p>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
