@@ -1,1 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>keykey — USB Hash Fingerprint Gate · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-keykey">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="keykey logo" />
+      <h1 id="project-title">keykey — USB Hash Fingerprint Gate</h1>
+      <p class="blurb" id="project-blurb">
+        A tiny file on a USB drive becomes a cryptographic “presence” signal. Systems check its fingerprint to unlock data arrays, wallets, or secure modes.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">Local-only; nothing leaves your browser. Works offline once loaded.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>keykey</strong> is a simple, auditable mechanism: place a small file (e.g., <code>device.keykey</code>) on a USB stick.
+          At boot or mount time, your system computes its hash and compares it to an allowlist (and optional policy). If matched, protected services or drives are enabled.
+          The file may be opaque or structured JSON with policy hints; verification is always by hash.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Verifier Tool -->
+  <section class="container section verifier">
+    <h3>KeyKey Verifier</h3>
+    <div class="verify-card">
+      <div class="row">
+        <label>Key file
+          <input type="file" id="file" accept=".keykey,.kk,.json,*/*" />
+        </label>
+        <label>Passphrase (optional, for JSON payloads)
+          <input type="password" id="pass" placeholder="Not required for hashing" />
+        </label>
+        <div class="spacer"></div>
+        <button class="btn" id="btn-hash">Compute Fingerprint</button>
+      </div>
+
+      <div class="result">
+        <div class="pair">
+          <span class="k">SHA-256</span>
+          <span class="v code" id="sha256">—</span>
+          <button class="mini" data-copy="#sha256">Copy</button>
+        </div>
+        <div class="pair">
+          <span class="k">Bytes</span>
+          <span class="v" id="filesize">—</span>
+        </div>
+        <div class="pair">
+          <span class="k">MIME</span>
+          <span class="v" id="mimetype">—</span>
+        </div>
+        <div class="pair">
+          <span class="k">Filename</span>
+          <span class="v" id="filename">—</span>
+        </div>
+      </div>
+
+      <details class="payload">
+        <summary>Parsed Payload (if JSON)</summary>
+        <pre id="payload-pre" class="payload-pre">—</pre>
+      </details>
+    </div>
+
+    <div class="presets" id="presets"></div>
+
+    <p class="muted small">
+      Tip: Place a file named like <code>device.keykey</code> or <code>.kk</code> on your USB.
+      Your boot script can mount the USB, hash this file, and compare against your allowlist.
+      Optional policy fields (in JSON) can guide which services to unlock.
+    </p>
+  </section>
+
+  <section class="container section impl">
+    <h3>Implementation Notes</h3>
+    <ul class="arch">
+      <li><strong>Presence via hash:</strong> hash of <code>*.keykey</code> is your proof of presence; contents can be random bytes or structured JSON.</li>
+      <li><strong>Multi-factor:</strong> combine USB presence (hash match) with passphrase/PIN or TOTP (outside this demo).</li>
+      <li><strong>Policy hints:</strong> if JSON, include e.g. <code>allow</code> (paths), <code>expires</code>, <code>issuer</code>, <code>aud</code>, and <code>comment</code>.</li>
+      <li><strong>Auditability:</strong> keep an append-only log of accepted fingerprints and timestamps.</li>
+      <li><strong>Rotation:</strong> support multiple current/next fingerprints to rotate keys safely.</li>
+    </ul>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
