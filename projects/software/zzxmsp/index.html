@@ -1,1 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ZZX-MSP · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project zzxmsp">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="ZZX-MSP logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">ZZX-MSP</h1>
+        <p id="project-blurb" class="muted">
+          Managed Service Platform · Multi-tenant ops console for monitoring, backups, patching, access, billing,
+          incidents, and runbooks — with zero-trust per-client isolation.
+        </p>
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Capabilities -->
+  <section class="container">
+    <h2>What ZZX-MSP Covers</h2>
+    <div class="grid grid-3 feature-cards">
+      <article class="feature">
+        <h3>Multi-Tenant Isolation</h3>
+        <p>Separate org spaces, RBAC, per-tenant secrets, scoped logs, policy as code, and audit trails.</p>
+      </article>
+      <article class="feature">
+        <h3>Monitoring & Alerts</h3>
+        <p>Fleet health, SLOs/SLA targets, alert routing and on-call schedules; ready Grafana boards.</p>
+      </article>
+      <article class="feature">
+        <h3>Backups & Patching</h3>
+        <p>Scheduled snapshots, integrity checks, restore drills; OS/package patch sets with windows.</p>
+      </article>
+      <article class="feature">
+        <h3>Access & Zero-Trust</h3>
+        <p>Just-in-time credentials, short-lived tunnels, hardware-key MFA, per-action approval gates.</p>
+      </article>
+      <article class="feature">
+        <h3>Runbooks & Automations</h3>
+        <p>Composable steps (Ansible/Terraform/CLI). Dry-run first, change sets reviewed then applied.</p>
+      </article>
+      <article class="feature">
+        <h3>Billing + Tickets</h3>
+        <p>Usage metering, invoices, and integrations for tickets & incidents (Jira, GitHub, Linear).</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Tenant + Runbook Composer (local-only helpers) -->
+  <section class="container">
+    <h2>Runbook Composer</h2>
+
+    <article class="panel">
+      <form class="msp-form" id="msp-form" autocomplete="off">
+        <div class="row">
+          <label>
+            Tenant
+            <input id="tenant-name" type="text" placeholder="acme-corp" />
+          </label>
+          <label>
+            Environment
+            <select id="tenant-env">
+              <option value="prod" selected>prod</option>
+              <option value="staging">staging</option>
+              <option value="dev">dev</option>
+            </select>
+          </label>
+          <label>
+            Contact (on-call email)
+            <input id="tenant-contact" type="email" placeholder="oncall@acme.example" />
+          </label>
+          <label>
+            Maintenance Window (UTC)
+            <input id="tenant-window" type="text" placeholder="Sat 01:00-03:00" />
+          </label>
+        </div>
+
+        <div class="row groups">
+          <fieldset class="stack-group">
+            <legend>Monitoring</legend>
+            <label><input type="checkbox" data-step="ping" checked /> L4 ping / reachability</label>
+            <label><input type="checkbox" data-step="http" /> HTTP health checks</label>
+            <label><input type="checkbox" data-step="metrics" checked /> Metrics collectors</label>
+            <label><input type="checkbox" data-step="logs" /> Log shipping (Loki)</label>
+          </fieldset>
+
+          <fieldset class="stack-group">
+            <legend>Backups</legend>
+            <label><input type="checkbox" data-step="pg_backup" checked /> Postgres nightly backups</label>
+            <label><input type="checkbox" data-step="files_backup" /> Files snapshot (MinIO/S3)</label>
+            <label><input type="checkbox" data-step="verify" /> Backup integrity verify</label>
+            <label><input type="checkbox" data-step="restore_test" /> Quarterly restore drill</label>
+          </fieldset>
+
+          <fieldset class="stack-group">
+            <legend>Patching</legend>
+            <label><input type="checkbox" data-step="os_updates" /> OS security updates</label>
+            <label><input type="checkbox" data-step="pkg_updates" /> Package updates</label>
+            <label><input type="checkbox" data-step="svc_restart" /> Safe service restarts</label>
+          </fieldset>
+
+          <fieldset class="stack-group">
+            <legend>Access</legend>
+            <label><input type="checkbox" data-step="jit_creds" checked /> Just-in-time credentials</label>
+            <label><input type="checkbox" data-step="session_record" /> Session recording</label>
+            <label><input type="checkbox" data-step="approvals" /> Approval gate for prod</label>
+          </fieldset>
+        </div>
+      </form>
+    </article>
+
+    <article class="panel">
+      <h3>Artifacts</h3>
+      <div class="row actions">
+        <button type="button" class="btn" id="btn-playbook">Generate Runbook YAML</button>
+        <button type="button" class="btn ghost" id="btn-policy">Generate Policy (JSON)</button>
+        <button type="button" class="btn ghost" id="btn-status">Generate Status Page (Markdown)</button>
+      </div>
+
+      <div class="output">
+        <label>Result</label>
+        <textarea id="out-artifacts" rows="20" spellcheck="false"></textarea>
+      </div>
+
+      <div class="row actions">
+        <button type="button" class="btn" id="btn-copy">Copy</button>
+        <button type="button" class="btn alt" id="btn-clear">Clear</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Gallery</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
