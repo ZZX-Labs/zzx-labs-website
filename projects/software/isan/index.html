@@ -1,1 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ISAN — Internet Streaming Audio Network · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-isan">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="ISAN logo" />
+      <h1 id="project-title">ISAN — Internet Streaming Audio Network</h1>
+      <p class="blurb" id="project-blurb">
+        Decentralized P2P audio/radio streaming system & platform. Local-first ingest, verifiable manifests, and swarm distribution.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">This page includes a local demo player (HTTP streams). P2P mesh and node services are outlined below.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>ISAN</strong> is a decentralized streaming fabric for radio/audio. Stations publish signed manifests and chunks;
+          listeners fetch via swarms (WebRTC/QUIC) or fall back to HTTP origin. The browser demo below plays standard streams
+          (MP3/AAC/Opus & native HLS where supported) and shows mock swarm metrics for illustration.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo Player -->
+  <section class="container section player">
+    <h3>Demo Player</h3>
+
+    <div class="controls">
+      <div class="row">
+        <label>Stream URL
+          <input type="url" id="url" placeholder="https://example.com/stream.mp3 or .aac or .m3u8" />
+        </label>
+        <label>Station Name
+          <input type="text" id="station" placeholder="Station label (optional)" />
+        </label>
+        <div class="spacer"></div>
+        <button class="btn" id="btn-load">Load</button>
+      </div>
+
+      <div class="row inline">
+        <label class="inline"><input type="checkbox" id="autoplay" /> Autoplay</label>
+        <label class="inline"><input type="checkbox" id="loop" /> Loop</label>
+        <label>Volume
+          <input type="range" id="vol" min="0" max="1" step="0.01" value="1" />
+        </label>
+      </div>
+    </div>
+
+    <div class="player-shell">
+      <audio id="audio" controls preload="none"></audio>
+      <div class="metrics">
+        <div><strong>Status:</strong> <span id="status">Idle</span></div>
+        <div><strong>Codec:</strong> <span id="codec">—</span></div>
+        <div><strong>Bitrate (est):</strong> <span id="bitrate">—</span></div>
+        <div><strong>Swarm peers (mock):</strong> <span id="peers">0</span></div>
+        <div><strong>Station:</strong> <span id="label">—</span></div>
+      </div>
+    </div>
+
+    <div class="presets" id="presets">
+      <!-- Manifest presets populate here -->
+    </div>
+
+    <p class="muted small">
+      Notes: Native HLS playback works in Safari and some mobile browsers. Chrome/Firefox usually require a JS HLS player;
+      we intentionally avoid external libraries here. For live P2P, ISAN nodes provide chunking, manifests, signatures, and signaling.
+    </p>
+  </section>
+
+  <section class="container section architecture">
+    <h3>Architecture (Planned)</h3>
+    <ul class="arch">
+      <li><strong>Publisher nodes:</strong> ingest audio → chunk → sign → announce via DHT.</li>
+      <li><strong>Swarm transport:</strong> WebRTC/QUIC data channels; HTTP fallback via origin and edge caches.</li>
+      <li><strong>Verifiable manifests:</strong> station.json (identity, pubkeys, codecs, encodings, fallback URLs).</li>
+      <li><strong>Payments (optional):</strong> LNURL/WebLN tipping and per-chunk sats streams (opt-in).</li>
+      <li><strong>Privacy:</strong> no tracking beacons; peer IDs are rotating and minimized.</li>
+    </ul>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
