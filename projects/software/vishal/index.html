@@ -1,1 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Vishal · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project vishal">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="Vishal logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">Vishal</h1>
+        <p id="project-blurb" class="muted">
+          TUI + Web dashboard for pipelines & workers. Observe jobs, nodes, artifacts, and throughput in real-time.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        Vishal is a visual shell for operational awareness. It connects to runners like Vikram and shows queues,
+        active/failed jobs, node health, and artifact timelines. Use the terminal UI (TUI) on a server, or the
+        optional web UI for a live wallboard. Zero heavy dependencies; simple JSON event streams in/out.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Unified View</h3>
+        <p>Jobs, queues, workers, and artifacts on one screen with fast filters and fuzzy search.</p>
+      </article>
+      <article class="feature">
+        <h3>TUI + Web UI</h3>
+        <p>ncurses-style terminal dashboard + optional browser panel for big displays.</p>
+      </article>
+      <article class="feature">
+        <h3>Live Metrics</h3>
+        <p>Throughput, latency, retries, and success/failure rates with compact sparklines.</p>
+      </article>
+      <article class="feature">
+        <h3>Pluggable Sources</h3>
+        <p>JSON event adapters for Vikram, VidGhee, VideoSort, GardenHarvester, and custom emitters.</p>
+      </article>
+      <article class="feature">
+        <h3>Action Hooks</h3>
+        <p>Rerun, cancel, drain, quiesce worker — with role-checked safety prompts.</p>
+      </article>
+      <article class="feature">
+        <h3>Low Ops</h3>
+        <p>Single binary/server, optional SQLite state, exports to NDJSON/CSV.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Docs/cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Run (TUI)</h3>
+      <pre class="code"><code>vishal tui \
+  --source http://localhost:7788/events.ndjson \
+  --since 2h --refresh 500ms</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Run (Web)</h3>
+      <pre class="code"><code>vishal web \
+  --bind 0.0.0.0:8090 \
+  --source http://runner.local:7788/events.ndjson \
+  --readonly</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Emit Adapter (Node)</h3>
+      <pre class="code"><code>// minimal example of emitting events Vishal can read
+POST /events
+{
+  "ts": 1735939200123,
+  "type": "job.update",
+  "job_id": "probe:abc123",
+  "status": "running",
+  "node": "worker-a",
+  "meta": { "input": "/data/in/foo.mp4" }
+}</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery (optional) -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
