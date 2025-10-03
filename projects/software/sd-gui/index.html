@@ -1,1 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>SD-GUI · Stable Diffusion GUI & Model Host | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project-sd-gui">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Hero -->
+  <section class="hero container-wide">
+    <div class="hero-inner">
+      <img class="logo" id="project-logo" alt="SD-GUI" />
+      <div class="hero-copy">
+        <h1 id="project-title">SD-GUI</h1>
+        <p id="project-blurb" class="lead">
+          Stable Diffusion model hosting & web UI for promptable image generation. Hot-swap models,
+          manage queues, and expose clean HTTP endpoints for apps.
+        </p>
+        <div class="cta-row">
+          <a id="project-primary-link" class="btn">Open Project</a>
+          <a id="project-github" class="btn alt" target="_blank" rel="noopener">GitHub</a>
+          <a id="project-hf" class="btn alt hf" target="_blank" rel="noopener">Hugging Face</a>
+        </div>
+        <p id="project-status" class="muted small"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="container">
+    <h2>What is SD-GUI?</h2>
+    <p id="project-description">
+      SD-GUI is a lightweight, production-oriented front end and controller for Stable Diffusion-class
+      models. It manages model assets, performs health checks, exposes REST endpoints, and provides a
+      clean, low-latency queue for batched inference. Use it locally as a desktop app, or run as a headless
+      server with the same API.
+    </p>
+  </section>
+
+  <!-- Quick Start -->
+  <section class="container demo">
+    <h2>Quick Start / Test Endpoint</h2>
+
+    <div class="demo-grid">
+      <div class="panel">
+        <label for="endpoint">Inference Endpoint</label>
+        <input id="endpoint" type="url" placeholder="http://localhost:7860/api/generate" />
+
+        <div class="grid grid-2 mt-1">
+          <div>
+            <label for="model">Model</label>
+            <select id="model">
+              <option value="">(leave unchanged)</option>
+              <option value="runwayml/stable-diffusion-v1-5">SD v1.5</option>
+              <option value="stabilityai/sd-turbo">SD Turbo</option>
+              <option value="stabilityai/sdxl-turbo">SDXL Turbo</option>
+            </select>
+          </div>
+          <div>
+            <label for="scheduler">Scheduler</label>
+            <select id="scheduler">
+              <option value="euler_a">Euler A</option>
+              <option value="ddim">DDIM</option>
+              <option value="dpmpp_2m">DPM++ 2M</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-2 mt-1">
+          <div>
+            <label for="steps">Steps</label>
+            <input id="steps" type="number" min="1" max="100" value="20" />
+          </div>
+          <div>
+            <label for="cfg">Guidance (CFG)</label>
+            <input id="cfg" type="number" min="1" max="20" step="0.5" value="7.5" />
+          </div>
+        </div>
+
+        <div class="grid grid-2 mt-1">
+          <div>
+            <label for="seed">Seed</label>
+            <input id="seed" type="number" min="0" value="0" />
+          </div>
+          <div>
+            <label for="size">Size</label>
+            <select id="size">
+              <option value="512x512">512 × 512</option>
+              <option value="768x768">768 × 768</option>
+              <option value="1024x1024">1024 × 1024</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="prompt" class="mt-1">Prompt</label>
+        <textarea id="prompt" rows="3" placeholder="A cozy cabin in the woods, volumetric lighting, ultra-detailed"></textarea>
+
+        <label for="negative" class="mt-1">Negative Prompt</label>
+        <textarea id="negative" rows="2" placeholder="blurry, low quality, artifacts"></textarea>
+
+        <div class="actions">
+          <button class="btn" id="btn-generate">Generate</button>
+          <button class="btn alt" id="btn-health">Health Check</button>
+        </div>
+
+        <details class="options mt-1">
+          <summary>API Example (curl)</summary>
+          <pre class="code" id="curl-snippet">curl -X POST "$ENDPOINT" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"A cozy cabin...","width":512,"height":512,"steps":20,"cfg":7.5}'</pre>
+          <button class="btn sm" data-copy="#curl-snippet">Copy</button>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="panel-row">
+          <span class="pill" id="server-state">Server: unknown</span>
+          <span class="pill" id="queue-state">Queue: –</span>
+          <span class="pill" id="model-state">Model: –</span>
+        </div>
+
+        <div class="image-stream" id="gallery" aria-live="polite">
+          <div class="placeholder">Results will appear here…</div>
+        </div>
+
+        <div class="logs" id="logs"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Model Assets -->
+  <section class="container">
+    <h2>Model Assets</h2>
+    <p class="muted">Drag & drop model cards to rearrange preference order. Click a card to set active model.</p>
+    <div id="model-cards" class="model-grid"></div>
+  </section>
+
+  <!-- Meta -->
+  <section class="container meta">
+    <h2>Meta</h2>
+    <ul id="tag-list" class="tags"></ul>
+    <div id="version-list" class="versions"></div>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
