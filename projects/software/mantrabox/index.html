@@ -1,1 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>MantraBox · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project mantrabox">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="MantraBox logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">MantraBox</h1>
+        <p id="project-blurb" class="muted">
+          A TTS mantra voice synthesizer & looper with beat-sync, cycles, and spatial/binaural layers.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- action buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        MantraBox generates and loops spoken/toned mantras using on-device or server TTS. Cue phrases, set tempo,
+        define cycles (e.g., 108), pan/space the voice, and add options like solfeggio layers, drones, or subtle
+        binaural beats. Export stems, share loop “presets,” and stream sessions to ISAN/ISTV.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Multi-Voice TTS</h3>
+        <p>Pick voices (female/male/neutral), timbre, formant shift, whisper/chant styles.</p>
+      </article>
+      <article class="feature">
+        <h3>Cycles & Counts</h3>
+        <p>108/54/27 cycles, fixed timers, or infinite; automatic gap/silence shaping.</p>
+      </article>
+      <article class="feature">
+        <h3>Beat-Sync</h3>
+        <p>Lock to BPM, tap tempo, or free-run; swing, accent groups, and downbeat markers.</p>
+      </article>
+      <article class="feature">
+        <h3>Spatial & Binaural</h3>
+        <p>Stereo drift, L/R call-response, binaural offsets, drone/sine/OM companions.</p>
+      </article>
+      <article class="feature">
+        <h3>Presets & Stems</h3>
+        <p>Save/share presets as JSON, export WAV/FLAC stems for DAWs and live sets.</p>
+      </article>
+      <article class="feature">
+        <h3>Local-First</h3>
+        <p>Runs offline with local TTS backends; optional server mode for remote control.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Quick-start cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>CLI (local)</h3>
+      <pre class="code"><code>mantrabox \
+  --text "Om Mani Padme Hum" \
+  --voice "neutral-soft" \
+  --cycles 108 \
+  --bpm 72 \
+  --binaural 7.0 \
+  --export ./out/session</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>JSON preset</h3>
+      <pre class="code"><code>{
+  "text": "Gate Gate Paragate Parasamgate Bodhi Svaha",
+  "voice": "alto-warm",
+  "bpm": 64,
+  "cycles": 54,
+  "layers": { "drone":"C#2", "solfeggio":"396Hz" },
+  "space": { "width": 0.35, "drift": 0.1 }
+}</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Server mode</h3>
+      <pre class="code"><code>mantrabox serve --bind 127.0.0.1:7770
+# POST /render { preset: {...} }</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
