@@ -1,1 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ZZX-Core · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project zzxcore">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="ZZX-Core logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">ZZX-Core</h1>
+        <p id="project-blurb" class="muted">
+          Software Server Stack · Portable container + GUI system that hosts all web backends. One-click reverse proxy,
+          TLS, databases, queues, observability, and app runtimes — locally or on servers.
+        </p>
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Capabilities -->
+  <section class="container">
+    <h2>What ZZX-Core Provides</h2>
+    <div class="grid grid-3 feature-cards">
+      <article class="feature">
+        <h3>Runtimes</h3>
+        <p>Node/Express, Python/Uvicorn, Go, PHP-FPM, Static sites; plug-in templates and health checks.</p>
+      </article>
+      <article class="feature">
+        <h3>Reverse Proxy + TLS</h3>
+        <p>Traefik / Caddy / Nginx frontends; automatic HTTPS via Let’s Encrypt, DNS/HTTP challenges.</p>
+      </article>
+      <article class="feature">
+        <h3>Data Layer</h3>
+        <p>Postgres, Redis, MinIO (S3), RabbitMQ/Kafka options; backups and persistent volumes.</p>
+      </article>
+      <article class="feature">
+        <h3>Observability</h3>
+        <p>Prometheus, Grafana, Loki, Tempo, cAdvisor; pre-wired dashboards and alerts.</p>
+      </article>
+      <article class="feature">
+        <h3>Portable by Design</h3>
+        <p>Docker Compose bundle generation, .env, systemd unit; dev → staging → prod.</p>
+      </article>
+      <article class="feature">
+        <h3>GUI Controls</h3>
+        <p>Start/stop services, tail logs, inspect metrics, edit config, and roll back safely.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Stack Builder -->
+  <section class="container">
+    <h2>Stack Builder</h2>
+
+    <article class="panel">
+      <h3>Basics</h3>
+      <form class="core-form" id="basic-form" autocomplete="off">
+        <div class="row">
+          <label>
+            Project Name
+            <input id="proj-name" type="text" placeholder="zzx-demo" />
+          </label>
+          <label>
+            Primary Domain
+            <input id="proj-domain" type="text" placeholder="demo.zzx.local" />
+          </label>
+          <label>
+            Email for TLS (Let’s Encrypt)
+            <input id="proj-email" type="email" placeholder="admin@example.com" />
+          </label>
+          <label>
+            Reverse Proxy
+            <select id="proxy-kind">
+              <option value="traefik" selected>Traefik</option>
+              <option value="caddy">Caddy</option>
+              <option value="nginx">Nginx</option>
+            </select>
+          </label>
+          <label>
+            Storage Root (host path)
+            <input id="proj-root" type="text" placeholder="/srv/zzxcore/demo" />
+          </label>
+          <label>
+            Timezone
+            <input id="proj-tz" type="text" placeholder="UTC" />
+          </label>
+        </div>
+      </form>
+    </article>
+
+    <article class="panel">
+      <h3>Services</h3>
+      <form class="core-form" id="svc-form" autocomplete="off">
+        <div class="row">
+          <fieldset class="stack-group">
+            <legend>App Runtimes</legend>
+            <label><input type="checkbox" data-svc="node" checked /> Node (app:3000)</label>
+            <label><input type="checkbox" data-svc="python" /> Python/Uvicorn (app:8000)</label>
+            <label><input type="checkbox" data-svc="go" /> Go HTTP (app:8080)</label>
+            <label><input type="checkbox" data-svc="php" /> PHP-FPM (app:9000) + Nginx site</label>
+            <label><input type="checkbox" data-svc="static" /> Static site (app:8081)</label>
+          </fieldset>
+
+          <fieldset class="stack-group">
+            <legend>Data & Queues</legend>
+            <label><input type="checkbox" data-svc="postgres" checked /> Postgres</label>
+            <label><input type="checkbox" data-svc="redis" /> Redis</label>
+            <label><input type="checkbox" data-svc="minio" /> MinIO (S3)</label>
+            <label><input type="checkbox" data-svc="rabbitmq" /> RabbitMQ</label>
+          </fieldset>
+
+          <fieldset class="stack-group">
+            <legend>Observability</legend>
+            <label><input type="checkbox" data-svc="prometheus" checked /> Prometheus</label>
+            <label><input type="checkbox" data-svc="grafana" checked /> Grafana</label>
+            <label><input type="checkbox" data-svc="loki" /> Loki</label>
+            <label><input type="checkbox" data-svc="tempo" /> Tempo</label>
+            <label><input type="checkbox" data-svc="cadvisor" /> cAdvisor</label>
+          </fieldset>
+        </div>
+      </form>
+    </article>
+
+    <article class="panel">
+      <h3>Artifacts</h3>
+      <div class="row actions">
+        <button type="button" class="btn" id="btn-compose">Generate docker-compose.yml</button>
+        <button type="button" class="btn ghost" id="btn-env">Generate .env</button>
+        <button type="button" class="btn ghost" id="btn-systemd">Generate systemd unit</button>
+        <button type="button" class="btn ghost" id="btn-nginx">Generate Nginx server block</button>
+      </div>
+
+      <div class="output">
+        <label>Result</label>
+        <textarea id="out-artifacts" rows="20" spellcheck="false"></textarea>
+      </div>
+
+      <div class="row actions">
+        <button type="button" class="btn" id="btn-copy">Copy</button>
+        <button type="button" class="btn alt" id="btn-clear">Clear</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Gallery</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
