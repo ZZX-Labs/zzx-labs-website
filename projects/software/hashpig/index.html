@@ -1,1 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>HashPig — Parallel Hasher & Integrity Guardian · Projects · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project project-hashpig">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content container centered">
+      <img class="project-logo" id="project-logo" alt="HashPig logo" />
+      <h1 id="project-title">HashPig — Parallel Hasher & Integrity Guardian</h1>
+      <p class="blurb" id="project-blurb">
+        Lightning-fast multi-algorithm hashing for folders, drops, and pipelines — with verifiable manifests.
+      </p>
+      <div class="cta-row">
+        <a id="btn-open" class="btn">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+      </div>
+      <p class="notice">Drag-and-drop, CLI, or API. Generates SRI, JSONL/CSV manifests, and reproducible checks.</p>
+    </div>
+  </section>
+
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          <strong>HashPig</strong> is a speedy, user-friendly hasher for desktops and servers. Point it at a folder
+          (or drop files), and it computes BLAKE3/SHA-256/SHA-512/xxHash in parallel, with optional Merkle roots and
+          signed manifests. Great for release packaging, artifact verification, CI pipelines, and quick integrity spot-checks.
+        </p>
+
+        <h3>Key details</h3>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Releases</h3>
+        <ul class="versions" id="version-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section features">
+    <h3>Highlights</h3>
+    <ul class="bullet">
+      <li><strong>Drag-and-drop UI:</strong> hash files/folders instantly; copy results or export manifests.</li>
+      <li><strong>Parallel engine:</strong> multi-threaded BLAKE3/SHA variants with adaptive chunking.</li>
+      <li><strong>Manifests:</strong> JSONL/CSV/SRI outputs, optional signature & timestamp.</li>
+      <li><strong>Verify mode:</strong> re-scan and diff against prior manifests; clear pass/fail reports.</li>
+      <li><strong>CLI & library:</strong> integrate with build/release pipelines and CI runners.</li>
+      <li><strong>Cross-platform:</strong> Linux, macOS, Windows; portable binary option.</li>
+    </ul>
+  </section>
+
+  <section class="container section gallery">
+    <h3>Screens & Samples</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">No images yet — add screenshots referenced in <code>manifest.json</code>.</p>
+  </section>
+
+  <section class="container section mini-demo">
+    <h3>Quick Demo</h3>
+    <pre class="codeblock"><code id="demo-code">hashpig hash ./release \
+  --algos blake3,sha256 \
+  --out manifest.jsonl --sri sri.txt --sign local-key.pem
+
+hashpig verify ./release --manifest manifest.jsonl</code></pre>
+    <p class="muted">Manifests are reproducible and suitable for publish & verify workflows.</p>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
