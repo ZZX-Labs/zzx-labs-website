@@ -1,1 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Speciedex · Species Taxonomy Engine | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project-speciedex">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Hero -->
+  <section class="hero container-wide">
+    <div class="hero-inner">
+      <img class="logo" id="project-logo" alt="Speciedex" />
+      <div class="hero-copy">
+        <h1 id="project-title">Speciedex</h1>
+        <p id="project-blurb" class="lead">
+          Species taxonomy engine (bio & myth) with AI-augmented classification and composable data schemas.
+        </p>
+        <div class="cta-row">
+          <a id="project-primary-link" class="btn">Open Project</a>
+          <a id="project-github" class="btn alt" target="_blank" rel="noopener">GitHub</a>
+          <a id="project-hf" class="btn alt hf" target="_blank" rel="noopener">Hugging Face</a>
+        </div>
+        <p id="project-status" class="muted small"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="container">
+    <h2>What is Speciedex?</h2>
+    <p id="project-description">
+      Speciedex models biological and mythological taxa, traits, and relations. It stores canonical ranks,
+      supports custom hierarchies, and lets you classify new entries using local heuristics or pluggable ML.
+      It exports clean JSON/CSV for downstream explorers (e.g., SpeciedexExplorer) and inference kernels
+      (SpeciedexCore).
+    </p>
+  </section>
+
+  <!-- Workspace -->
+  <section class="container workspace" id="ws">
+    <h2>Workspace</h2>
+    <div class="ws-grid">
+      <!-- Pane A: ingest & schema -->
+      <div class="panel">
+        <h3>Ingest</h3>
+        <div class="ingest">
+          <label class="btn sm">
+            <input type="file" id="pick-csv" accept=".csv,text/csv" hidden />
+            Import CSV…
+          </label>
+          <label class="btn sm">
+            <input type="file" id="pick-json" accept=".json,application/json" hidden />
+            Import JSON…
+          </label>
+          <div class="dropzone" id="dropzone" aria-label="Drop CSV/JSON here">Drop CSV/JSON here</div>
+          <p class="muted small">Data parses locally. Nothing is uploaded.</p>
+        </div>
+
+        <hr class="rule" />
+
+        <h3>Schema</h3>
+        <div class="schema">
+          <label>Rank Order
+            <input type="text" id="rank-order"
+                   value="kingdom,phylum,class,order,family,genus,species"
+                   placeholder="comma-separated ranks" />
+          </label>
+          <label>ID Slug Pattern
+            <input type="text" id="slug-pattern"
+                   value="{genus}_{species}"
+                   placeholder="{genus}_{species} or custom tokens" />
+          </label>
+          <details class="mt-1">
+            <summary>Tokens</summary>
+            <ul class="muted small">
+              <li>Any declared rank (e.g., <code>{family}</code>, <code>{genus}</code>, <code>{species}</code>)</li>
+              <li><code>{name}</code>, <code>{common}</code>, <code>{myth}</code>, <code>{region}</code>, <code>{traits}</code></li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="actions mt-1">
+          <button class="btn" id="btn-validate">Validate</button>
+          <button class="btn alt" id="btn-export-json">Export JSON</button>
+          <button class="btn alt" id="btn-export-csv">Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Pane B: table & editor -->
+      <div class="panel">
+        <div class="toolbar">
+          <div class="pill" id="count-pill">0 entries</div>
+          <input type="search" id="filter-box" placeholder="Filter (name, common, traits…)" />
+          <button class="btn sm" id="btn-clear">Clear</button>
+        </div>
+
+        <div class="table-responsive">
+          <table id="taxa-table" class="table-sm">
+            <thead>
+              <tr>
+                <th>Slug</th>
+                <th>Name</th>
+                <th>Common</th>
+                <th>Rank</th>
+                <th>Region</th>
+                <th>Traits</th>
+              </tr>
+            </thead>
+            <tbody id="taxa-tbody">
+              <tr><td colspan="6" class="muted">No data yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="editor">
+          <h3>Entry Editor</h3>
+          <div class="grid grid-2">
+            <label>Name (binomial or mythic)
+              <input type="text" id="ed-name" />
+            </label>
+            <label>Common Name
+              <input type="text" id="ed-common" />
+            </label>
+          </div>
+          <div class="grid grid-3 mt-1">
+            <label>Rank
+              <input type="text" id="ed-rank" placeholder="species / genus / …" />
+            </label>
+            <label>Region
+              <input type="text" id="ed-region" placeholder="global, mediterranean, underworld…" />
+            </label>
+            <label>Myth Group
+              <input type="text" id="ed-myth" placeholder="greek, norse, yokai…" />
+            </label>
+          </div>
+          <label class="mt-1">Traits (comma-separated)
+            <input type="text" id="ed-traits" placeholder="nocturnal, venomous, winged, aquatic…" />
+          </label>
+          <div class="grid grid-2 mt-1">
+            <label>Genus
+              <input type="text" id="ed-genus" />
+            </label>
+            <label>Species
+              <input type="text" id="ed-species" />
+            </label>
+          </div>
+          <div class="actions mt-1">
+            <button class="btn" id="btn-apply">Apply to Selected</button>
+            <button class="btn alt" id="btn-reslug">Recompute Slug</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pane C: tree & classifier -->
+      <div class="panel">
+        <h3>Taxonomy Tree</h3>
+        <div class="tree" id="tree"></div>
+
+        <hr class="rule" />
+
+        <h3>Local Classifier (Heuristic Demo)</h3>
+        <p class="muted small">This demo uses simple rules client-side. Swap with SpeciedexCore or a Hugging Face model server.</p>
+        <textarea id="classify-text" rows="4" placeholder="Paste a description to classify…"></textarea>
+        <div class="actions mt-1">
+          <button class="btn" id="btn-classify">Classify</button>
+        </div>
+        <pre class="result" id="classify-result"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Meta -->
+  <section class="container meta">
+    <h2>Meta</h2>
+    <ul id="tag-list" class="tags"></ul>
+    <div id="version-list" class="versions"></div>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
