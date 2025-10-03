@@ -24,7 +24,7 @@
       <img class="project-logo" id="project-logo" alt="Mnemonic Generator logo" />
       <h1 id="project-title">Mnemonic Generator — BIP39 & Custom</h1>
       <p class="blurb" id="project-blurb">
-        Offline-first generator & validator for BIP39 seed phrases and custom-length mnemonics. Uses Web Crypto locally.
+        Offline-first generator & validator for BIP39 seed phrases or custom mnemonics. Supports 1–8 word short forms, and 12, 16, 24, or 32 word long forms.
       </p>
       <div class="cta-row">
         <a id="btn-open" class="btn">Open Project</a>
@@ -38,15 +38,15 @@
   <section class="container section">
     <div class="grid grid-2">
       <div class="panel">
-        <h3>Mnemonic Generator</h3>
+        <h3>BIP39 / Custom Generator</h3>
         <div class="row">
           <label>Mode
             <select id="mode">
-              <option value="bip39">BIP39 (checksummed, 12–24 words)</option>
-              <option value="custom">Custom (1–32 words, no checksum)</option>
+              <option value="bip39">BIP39 (checksummed)</option>
+              <option value="custom">Custom (fixed word counts)</option>
             </select>
           </label>
-          <label>Word Count / Strength
+          <label>BIP39 Strength
             <select id="bits">
               <option value="128">128 bits (12 words)</option>
               <option value="160">160 bits (15 words)</option>
@@ -54,16 +54,26 @@
               <option value="224">224 bits (21 words)</option>
               <option value="256">256 bits (24 words)</option>
             </select>
-            <input id="custom-count" type="number" value="12" min="1" max="32" style="display:none" />
+          </label>
+          <label>Custom Word Count
+            <select id="custom-count">
+              <option value="1">1 word</option>
+              <option value="2">2 words</option>
+              <option value="3">3 words</option>
+              <option value="4">4 words</option>
+              <option value="5">5 words</option>
+              <option value="6">6 words</option>
+              <option value="7">7 words</option>
+              <option value="8">8 words</option>
+              <option value="12">12 words</option>
+              <option value="16">16 words</option>
+              <option value="24">24 words</option>
+              <option value="32">32 words</option>
+            </select>
           </label>
         </div>
         <div class="row">
-          <label>Wordlist (lang)
-            <select id="lang">
-              <option value="english">English (BIP39)</option>
-            </select>
-          </label>
-          <label>Passphrase (optional for seed)
+          <label>Passphrase (for BIP39 seed, optional)
             <input id="passphrase" type="password" placeholder="Optional BIP39 passphrase" />
           </label>
         </div>
@@ -84,7 +94,7 @@
             <button data-copy="#mnemonic" class="btn mini">Copy words</button>
             <button data-copy="#entropyHex" class="btn mini">Copy entropy</button>
           </div>
-          <label>Seed (hex, 64 bytes)
+          <label>Seed (hex, 64 bytes, BIP39 only)
             <textarea id="seedHex" rows="2" class="mono" readonly></textarea>
           </label>
           <div id="status" class="status muted"></div>
@@ -113,32 +123,24 @@
           </div>
           <div id="dw-status" class="status muted"></div>
         </div>
-
-        <div class="info-box">
-          <p class="muted">For full BIP39 English list, add <code>/wordlists/english.txt</code> (2048 words).</p>
-          <p class="muted">For Diceware, add <code>/wordlists/diceware.txt</code> (digits + word per line).</p>
-        </div>
       </div>
     </div>
   </section>
 
-  <!-- Project meta (from manifest) -->
+  <!-- Project meta -->
   <section class="container section meta">
     <div class="grid grid-2">
       <div>
         <h3>Overview</h3>
         <p id="project-description">
-          Generate & validate BIP39 mnemonics with local entropy; derive seeds with PBKDF2-HMAC-SHA512. Custom mode supports 1–32 words without checksum.
+          Generate & validate BIP39 mnemonics with local entropy; derive seeds with PBKDF2-HMAC-SHA512. Or use Custom mode for fixed sets (1–8, 12, 16, 24, 32 words). Optional Diceware support.
         </p>
-
         <h3>Key details</h3>
         <ul class="meta-list" id="meta-list"></ul>
       </div>
-
       <div>
         <h3>Tags</h3>
         <ul class="tags" id="tag-list"></ul>
-
         <h3>Releases</h3>
         <ul class="versions" id="version-list"></ul>
       </div>
