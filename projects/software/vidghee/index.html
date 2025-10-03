@@ -1,1 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>VidGhee · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project vidghee">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="VidGhee logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">VidGhee</h1>
+        <p id="project-blurb" class="muted">
+          “Clarify” your videos: batch transcode, denoise, deinterlace, stabilize, trim, and optimize with reproducible recipes.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        VidGhee is a practical, deterministic video processing toolkit for turning messy captures
+        into clean, storage-efficient masters. It wraps ffmpeg, vapoursynth/avisynth-style filters,
+        and optional GPU acceleration into named <em>recipes</em> you can run locally or on a node
+        farm. Recipes are declarative (YAML/TOML/JSON), versioned, and portable across machines.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Recipe Engine</h3>
+        <p>Reproducible pipelines: trim → denoise → scale → stabilize → encode → tag.</p>
+      </article>
+      <article class="feature">
+        <h3>Smart Presets</h3>
+        <p>H.264/H.265/AV1, grain-preserve, animation, HDR-aware, mezzanine (ProRes/DNxHR).</p>
+      </article>
+      <article class="feature">
+        <h3>GPU Accel</h3>
+        <p>NVIDIA NVENC, Intel QSV, Apple VTB; CPU x264/x265 fallback with tuned CRF/bitrate.</p>
+      </article>
+      <article class="feature">
+        <h3>Audio Care</h3>
+        <p>Loudness norm (EBU R128), channel mapping, dialogue enhance, format-aware tagging.</p>
+      </article>
+      <article class="feature">
+        <h3>Integrity</h3>
+        <p>Frame/hash manifests, deterministic settings, job logs, and artifact checks.</p>
+      </article>
+      <article class="feature">
+        <h3>Batch + Watch</h3>
+        <p>Point at a folder, get clean output; optional watch mode and web UI runner.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screenshots</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Docs/cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>CLI (example)</h3>
+      <pre class="code"><code>vidghee run \
+  --src "/captures/*.mp4" \
+  --dst "/masters" \
+  --recipe "clarify-h265" \
+  --gpu nvenc --crf 20 --audio eac3_5_1</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Recipe (YAML)</h3>
+      <pre class="code"><code># recipes/clarify-h265.yaml
+steps:
+  - trim: { start: "00:00:02.000", end: "end-00:00:02.000" }
+  - yadif: { mode: "send_frame" }         # deinterlace if needed
+  - denoise: { preset: "knlmeans-medium" }
+  - stabilize: { mode: "deshake-lite" }
+  - scale: { width: 1920, height: 1080, algo: "lanczos" }
+encode:
+  video: { codec: "hevc", preset: "slow", crf: 20, tune: "grain" }
+  audio: { codec: "eac3", bitrate: "384k", channels: "5.1" }
+  container: mp4
+artifacts:
+  sidecar: ["json","md"]
+  hashes: ["sha256","blake3"]</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Integrations</h3>
+      <pre class="code"><code>- ffmpeg/ffprobe
+- (optional) NVENC/QSV/VTB
+- (optional) VapourSynth filters
+- (optional) CUDA/CL denoisers</code></pre>
+    </article>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
