@@ -1,1 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>VLC-Ticker · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project vlc-ticker">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="VLC-Ticker logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">VLC-Ticker</h1>
+        <p id="project-blurb" class="muted">
+          A PyQt5 companion ticker that shows live track info (ID3 / stream metadata) from VLC — always-on-top, skinnable, and ultra-light.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- action buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        VLC-Ticker reads VLC’s current media metadata (ID3 tags or its stream equivalents) and
+        renders it as a small floating ticker window. Show artist/title, album, station name, or
+        custom templates. Position it anywhere, lock it “always on top”, and tweak font, colors,
+        opacity, scroll speed, and marquee behavior. Ideal for streamers, kiosks, and studio
+        monitors.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Live Metadata</h3>
+        <p>Parses VLC’s now-playing via RC / HTTP API. Falls back to filename heuristics.</p>
+      </article>
+      <article class="feature">
+        <h3>Marquee & Static Modes</h3>
+        <p>Auto-scroll long titles, or hard-wrap and resize to fit.</p>
+      </article>
+      <article class="feature">
+        <h3>Skinnable</h3>
+        <p>Theme JSON for colors, fonts, corner radius, borders, shadow, and opacity.</p>
+      </article>
+      <article class="feature">
+        <h3>Dock & Snap</h3>
+        <p>Snap to screen edges, multi-monitor aware, remember last position.</p>
+      </article>
+      <article class="feature">
+        <h3>Hotkeys & Tray</h3>
+        <p>Toggle show/hide, pause scroll, and open settings from the system tray.</p>
+      </article>
+      <article class="feature">
+        <h3>UTF-8 & Sanitization</h3>
+        <p>Encoding fixes, emoji-safe, trims repeated station banners & junk prefixes.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Quick-start cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>VLC HTTP interface</h3>
+      <pre class="code"><code>VLC ▶ Preferences ▶ Show settings: All
+Interface ▶ Main interfaces ▶ Web (enable)
+Lua ▶ Lua HTTP ▶ Password: ********
+Restart VLC and keep it running.</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Run VLC-Ticker</h3>
+      <pre class="code"><code>vlc-ticker \
+  --vlc-host 127.0.0.1 --vlc-port 8080 --vlc-pass "********" \
+  --template "{artist} — {title}" --marquee --speed 40 --font-size 18</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Theme JSON</h3>
+      <pre class="code"><code>{
+  "fontFamily": "IBM Plex Sans",
+  "fontSize": 18,
+  "fg": "#e8e8e8",
+  "bg": "#0f1216",
+  "accent": "#c0d674",
+  "opacity": 0.9,
+  "radius": 10,
+  "border": "1px solid rgba(255,255,255,0.18)"
+}</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
