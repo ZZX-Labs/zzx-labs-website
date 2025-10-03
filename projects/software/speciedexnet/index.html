@@ -1,1 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>SpeciedexNet · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project speciedexnet">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="SpeciedexNet logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">SpeciedexNet</h1>
+        <p id="project-blurb" class="muted">
+          Network relay & telemetry layer for Speciedex — live peer stats, mempool/events firehose,
+          and exportable metrics for dashboards and alerts.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        SpeciedexNet is a daemon + gateway that connects to SpeciedexCore peers, relays blocks/
+        mempool/lineage events, aggregates node health, and streams normalized metrics via HTTP,
+        WebSocket, and Prometheus endpoints. Build real-time dashboards, trigger alerts, and feed
+        downstream services with a consistent, cacheable surface.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Relay & Firehose</h3>
+        <p>Low-latency fan-out of blocks, mempool entries, taxonomy/asset updates, and lineage events.</p>
+      </article>
+      <article class="feature">
+        <h3>Metrics & Health</h3>
+        <p>Peer/session telemetry, lag, orphan rates, RPC stats, exporter for Prometheus/Grafana.</p>
+      </article>
+      <article class="feature">
+        <h3>Filters & Sinks</h3>
+        <p>Topic filters, WebSocket streams, durable sinks (S3/FS), signed snapshots for audits.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Previews</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Install / Run -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Docker (recommended)</h3>
+      <pre class="code"><code id="install-snippet">docker run -p 7070:7070 -p 7071:7071 -e SDX_CORE_RPC=http://core:8332 zzx/speciedex-net:latest</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>Compose</h3>
+      <pre class="code"><code>services:
+  core:
+    image: zzx/speciedex-core:latest
+    ports: ["8332:8332"]
+  net:
+    image: zzx/speciedex-net:latest
+    ports: ["7070:7070","7071:7071"]
+    environment:
+      SDX_CORE_RPC: http://core:8332
+</code></pre>
+    </article>
+    <article class="doc feature">
+      <h3>API</h3>
+      <pre class="code"><code>GET  /api/v1/peers
+GET  /api/v1/mempool/summary
+GET  /api/v1/health
+WS   /ws/stream?topics=blocks,mempool,lineage
+GET  /metrics               # Prometheus
+</code></pre>
+    </article>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
