@@ -1,1 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Vikram · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project vikram">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="Vikram logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">Vikram</h1>
+        <p id="project-blurb" class="muted">
+          Lightweight job runner & queue for reproducible pipelines. Files in, results out. Local or SSH workers.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary -->
+  <section class="container">
+    <div class="feature">
+      <h3>What it is</h3>
+      <p id="project-desc">
+        Vikram is a file-first task runner and work queue for batch jobs and data-processing pipelines.
+        Describe steps in YAML/TOML/JSON, point at an input folder, and Vikram handles discovery,
+        retries, concurrency, and artifact tracking. Use it stand-alone or as the “glue” behind
+        tools like VidGhee, VideoSort, and GardenHarvester.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature bullets -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Declarative Pipelines</h3>
+        <p>Steps with inputs, outputs, env, timeouts, and “only if changed” guards.</p>
+      </article>
+      <article class="feature">
+        <h3>Local + SSH Workers</h3>
+        <p>Run jobs on this machine or fan out over SSH to a small farm of nodes.</p>
+      </article>
+      <article class="feature">
+        <h3>Deterministic Artifacts</h3>
+        <p>Sidecar manifests (JSON/MD), checksums, and resumable checkpoints.</p>
+      </article>
+      <article class="feature">
+        <h3>Safe Concurrency</h3>
+        <p>Named locks, rate limits, backoff/retry, and idempotent task design.</p>
+      </article>
+      <article class="feature">
+        <h3>Observability</h3>
+        <p>Structured logs, run history, job IDs, and an optional web dashboard.</p>
+      </article>
+      <article class="feature">
+        <h3>Simple Ops</h3>
+        <p>Drop a recipe file, run one command. No heavy queue broker required.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Docs/cards -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>CLI (example)</h3>
+      <pre class="code"><code>vikram run \
+  --src "/data/inbox/*.mp4" \
+  --dst "/data/out" \
+  --recipe "./recipes/cleanroom.yaml" \
+  --concurrency 4 --retry 3</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Recipe (YAML)</h3>
+      <pre class="code"><code># recipes/cleanroom.yaml
+discover:
+  glob: "*.mp4"
+  recurse: true
+  hash: "sha256"
+steps:
+  - name: probe
+    run: "ffprobe -hide_banner -v error -print_format json -show_format -show_streams {{src}} > {{dst}}/{{base}}.probe.json"
+  - name: normalize-audio
+    if_missing: "{{dst}}/{{base}}.norm.mp4"
+    run: "ffmpeg -y -i {{src}} -c:v copy -c:a aac -b:a 192k {{dst}}/{{base}}.norm.mp4"
+  - name: tag
+    run: "python tools/tag.py {{dst}}/{{base}}.norm.mp4 --write '{{dst}}/{{base}}.tags.json'"
+artifacts:
+  sidecar: ["json","md"]
+  hashes: ["sha256","blake3"]</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>SSH Worker</h3>
+      <pre class="code"><code># workers.toml
+[[worker]]
+name = "node-a"
+host = "10.0.0.11"
+user = "zzx"
+parallel = 2
+root = "/mnt/worker-a"
+
+[[worker]]
+name = "node-b"
+host = "10.0.0.12"
+user = "zzx"
+parallel = 2
+root = "/mnt/worker-b"</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery (optional) -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
