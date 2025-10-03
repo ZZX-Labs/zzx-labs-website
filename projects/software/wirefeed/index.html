@@ -1,1 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>WireFeed · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project wirefeed">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="WireFeed logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">WireFeed</h1>
+        <p id="project-blurb" class="muted">
+          A RSS/Atom/JSON news ticker & API reader. Marquee, stack, or grid your headlines. CORS-safe fallbacks, filters, and theming.
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- action buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Demo (client-side) -->
+  <section class="container">
+    <h2>Live Ticker Demo</h2>
+    <p class="muted" id="demo-note">
+      Uses the feeds listed in <code>manifest.json</code>. Some sources may require a proxy due to CORS.
+    </p>
+
+    <!-- Controls -->
+    <div class="controls">
+      <label>
+        Mode:
+        <select id="mode">
+          <option value="marquee">Marquee</option>
+          <option value="stack">Stack</option>
+          <option value="grid">Grid</option>
+        </select>
+      </label>
+      <label>
+        Max items:
+        <input id="limit" type="number" min="1" max="100" value="20" />
+      </label>
+      <label class="grow">
+        Filter:
+        <input id="query" type="search" placeholder="Filter by keyword…" />
+      </label>
+      <button id="refresh" class="btn">Refresh</button>
+    </div>
+
+    <!-- Ticker views -->
+    <div id="ticker" class="ticker marquee" aria-live="polite">
+      <div class="marquee-track" id="marquee-track"></div>
+    </div>
+    <div id="stack" class="stack" hidden></div>
+    <div id="grid" class="grid-view" hidden></div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Multi-Source</h3>
+        <p>Mix RSS, Atom, and JSON APIs. Merge, sort, and dedupe headlines.</p>
+      </article>
+      <article class="feature">
+        <h3>Marquee/Stack/Grid</h3>
+        <p>Pick the visualization for your wallboard, stream overlay, or newsroom.</p>
+      </article>
+      <article class="feature">
+        <h3>CORS-friendly</h3>
+        <p>Optional proxy endpoint included for feeds that block browser requests.</p>
+      </article>
+      <article class="feature">
+        <h3>Filters & Rules</h3>
+        <p>Keyword filters, domain rules, and source weighting.</p>
+      </article>
+      <article class="feature">
+        <h3>Themeable</h3>
+        <p>Colors, fonts, borders, radius, and light/dark modes via CSS variables.</p>
+      </article>
+      <article class="feature">
+        <h3>Embeddable</h3>
+        <p>Drop the widget into dashboards, OBS scenes, or signage pages.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Quick-start -->
+  <section class="container docs-cards">
+    <article class="doc feature">
+      <h3>Add Feeds</h3>
+      <pre class="code"><code>{
+  "feeds": [
+    "https://example.com/rss.xml",
+    "https://another.com/atom.xml",
+    { "type": "json", "url": "https://api.example.com/news" }
+  ]
+}</code></pre>
+    </article>
+
+    <article class="doc feature">
+      <h3>Use a Proxy (optional)</h3>
+      <pre class="code"><code>{
+  "proxy_url": "https://your-proxy.example.com/fetch?url="
+}</code></pre>
+      <p class="muted">Server should set permissive CORS headers and stream upstream content.</p>
+    </article>
+
+    <article class="doc feature">
+      <h3>Embed</h3>
+      <pre class="code"><code>&lt;iframe src="https://zzx-labs.io/projects/software/wirefeed/" 
+        width="1000" height="120" frameborder="0"&gt;&lt;/iframe&gt;</code></pre>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
