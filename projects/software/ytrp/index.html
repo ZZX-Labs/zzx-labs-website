@@ -1,1 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>YTRP / YTRPV · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project ytrp">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="YTRP logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">YTRP / YTRPV</h1>
+        <p id="project-blurb" class="muted">
+          Minimal front-end for yt-dlp. <strong>YTRP</strong> = Audio-first rips (tags, covers, replaygain). <strong>YTRPV</strong> = Video-first rips (mux, subs, chapters).
+        </p>
+
+        <div class="cta-row" id="cta-row"><!-- actions from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Form -->
+  <section class="container">
+    <h2>Build & Run a Rip</h2>
+    <p class="muted">Paste a URL (YouTube, SoundCloud, etc. — anything supported by <code>yt-dlp</code>). Select audio/video mode and options, then generate a command or run via a local API.</p>
+
+    <form id="ytrp-form" class="ytrp-form" autocomplete="off">
+      <div class="row">
+        <label class="full">
+          Source URL
+          <input id="src" type="url" placeholder="https://www.youtube.com/watch?v=..." required />
+        </label>
+
+        <label>
+          Mode
+          <div class="seg">
+            <label><input type="radio" name="mode" value="audio" checked /> YTRP (Audio)</label>
+            <label><input type="radio" name="mode" value="video" /> YTRPV (Video)</label>
+          </div>
+        </label>
+
+        <label>
+          Quality
+          <select id="quality">
+            <option value="best">Best</option>
+            <option value="good" selected>Good</option>
+            <option value="ok">OK</option>
+          </select>
+        </label>
+
+        <label>
+          Format
+          <select id="format">
+            <option value="mp3">mp3</option>
+            <option value="m4a" selected>m4a</option>
+            <option value="opus">opus</option>
+            <option value="flac">flac</option>
+            <option value="mp4">mp4</option>
+            <option value="mkv">mkv</option>
+            <option value="webm">webm</option>
+          </select>
+        </label>
+
+        <label>
+          Subtitles
+          <div class="seg">
+            <label><input type="checkbox" id="subs" /> Download subs</label>
+            <label><input type="checkbox" id="embedSubs" /> Embed subs</label>
+          </div>
+        </label>
+
+        <label>
+          Metadata
+          <div class="seg">
+            <label><input type="checkbox" id="embedMeta" checked /> Embed metadata</label>
+            <label><input type="checkbox" id="thumbnail" checked /> Embed thumbnail</label>
+          </div>
+        </label>
+
+        <label>
+          Time Range (optional)
+          <div class="grid2">
+            <input id="start" type="text" placeholder="start e.g. 00:01:23" />
+            <input id="end" type="text" placeholder="end e.g. 00:03:45" />
+          </div>
+        </label>
+
+        <label class="full">
+          Output Template
+          <input id="template" type="text" value="%(uploader)s/%(playlist_title)s/%(title)s [%(id)s].%(ext)s" />
+        </label>
+
+        <label class="full">
+          Extra Flags
+          <input id="extra" type="text" placeholder="e.g. --add-metadata --concurrent-fragments 8" />
+        </label>
+
+        <label>
+          Playlist
+          <div class="seg">
+            <label><input type="checkbox" id="playAll" /> Rip entire playlist</label>
+            <label><input type="number" id="plFrom" min="1" placeholder="from #" /></label>
+            <label><input type="number" id="plTo" min="1" placeholder="to #" /></label>
+          </div>
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button id="build" class="btn" type="button">Generate Command</button>
+        <button id="copy" class="btn ghost" type="button">Copy</button>
+        <button id="run" class="btn alt" type="button">Try Local Run</button>
+      </div>
+
+      <div class="output">
+        <label>Command</label>
+        <textarea id="cmd" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <div id="run-note" class="muted">
+        Local API not found? The command still works in your terminal if <code>yt-dlp</code>, <code>ffmpeg</code>, and encoders are installed.
+      </div>
+    </form>
+  </section>
+
+  <!-- Queue & History -->
+  <section class="container">
+    <h2>Queue & History</h2>
+    <div id="queue" class="queue"></div>
+    <div id="history" class="history"></div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container grid grid-3">
+      <article class="feature">
+        <h3>Audio-first (YTRP)</h3>
+        <p>Auto-extract audio, select target codec, embed metadata/cover, and normalize loudness.</p>
+      </article>
+      <article class="feature">
+        <h3>Video-first (YTRPV)</h3>
+        <p>Mux best video+audio, embed soft-subs, chapters, and preserve originals where possible.</p>
+      </article>
+      <article class="feature">
+        <h3>Playlists & Ranges</h3>
+        <p>Rip entire playlists or just segments. Start/end timestamps for precise cuts.</p>
+      </article>
+      <article class="feature">
+        <h3>Friendly Templates</h3>
+        <p>Curated output templates so your library stays clean and deduped by IDs.</p>
+      </article>
+      <article class="feature">
+        <h3>Local or API</h3>
+        <p>Copy the CLI command or point to a local server that wraps yt-dlp for browser runs.</p>
+      </article>
+      <article class="feature">
+        <h3>Respect Rights</h3>
+        <p>Use responsibly. Only download content you have the right to copy. Follow site terms.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Screens</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
