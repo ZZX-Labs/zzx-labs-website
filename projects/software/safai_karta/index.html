@@ -1,1 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Safai Karta · Filename Cleaner & Syntax Sanitizer | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project-safai-karta">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Hero -->
+  <section class="hero container-wide">
+    <div class="hero-inner">
+      <img class="logo" id="project-logo" alt="Safai Karta" />
+      <div class="hero-copy">
+        <h1 id="project-title">Safai Karta</h1>
+        <p id="project-blurb" class="lead">
+          Filename cleaner & syntax sanitizer with safe, portable rules. Normalize, de-duplicate,
+          and enforce cross-platform compatibility.
+        </p>
+        <div class="cta-row">
+          <a id="project-primary-link" class="btn">Open Project</a>
+          <a id="project-github" class="btn alt" target="_blank" rel="noopener">GitHub</a>
+          <a id="project-hf" class="btn alt hf" target="_blank" rel="noopener">Hugging Face</a>
+        </div>
+        <p id="project-status" class="muted small"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="container">
+    <h2>What is Safai Karta?</h2>
+    <p id="project-description">
+      Safai Karta is a tiny, dependable tool for batch-renaming files and sanitizing path segments.
+      It focuses on portability: the same names should work across Linux, macOS, and Windows, and
+      travel safely through archives, clouds, and URLs. Use the UI below or the CLI library to
+      normalize whitespace, strip disallowed characters, collapse duplicates, enforce length limits,
+      and optionally transliterate.
+    </p>
+  </section>
+
+  <!-- Live Demo -->
+  <section class="container demo">
+    <h2>Try It</h2>
+    <div class="demo-grid">
+      <div class="panel">
+        <label for="input-name">Original name</label>
+        <textarea id="input-name" placeholder="Paste one or more file names (one per line)…" rows="6"></textarea>
+
+        <details class="options" open>
+          <summary>Options</summary>
+          <div class="opts-grid">
+            <label class="form-check">
+              <input type="checkbox" id="opt-trim" checked /> Trim edges
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-collapse-ws" checked /> Collapse whitespace
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-replace-spaces" checked /> Replace spaces with <code>_</code>
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-diacritics" checked /> Strip diacritics (NFKD)
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-urlsafe" checked /> URL-safe (RFC3986-ish)
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-windows" checked /> Windows-safe (no <code>\\ / : * ? " &lt; &gt; |</code>)
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-leading-dot" /> Avoid leading dot (no hidden files)
+            </label>
+            <label class="form-check">
+              <input type="checkbox" id="opt-lowercase" /> Lowercase
+            </label>
+            <label class="form-check">
+              Max length
+              <input type="number" id="opt-maxlen" min="8" max="255" value="128" />
+            </label>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button class="btn" id="btn-clean">Clean</button>
+          <button class="btn alt" id="btn-copy">Copy Output</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <label for="output-name">Cleaned</label>
+        <textarea id="output-name" rows="6" readonly class="mono"></textarea>
+
+        <div class="legend">
+          <span class="pill">safe</span>
+          <span class="pill pill-warn">truncated</span>
+          <span class="pill pill-bad">empty → "untitled"</span>
+        </div>
+
+        <p class="muted small">
+          Tip: Put extensions on the last segment. We keep a final extension by default when truncating.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLI Usage -->
+  <section class="container">
+    <h2>CLI / Library</h2>
+    <div class="grid grid-2">
+      <div>
+        <h3>Install</h3>
+        <pre class="code" id="install-snippet">pip install safai-karta</pre>
+        <button class="btn sm" data-copy="#install-snippet">Copy</button>
+      </div>
+      <div>
+        <h3>CLI</h3>
+        <pre class="code" id="cli-snippet">safai-karta --replace-spaces _ --windows-safe --lowercase *.mp3</pre>
+        <button class="btn sm" data-copy="#cli-snippet">Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gallery (optional screenshots) -->
+  <section class="container">
+    <h2>Screens & Media</h2>
+    <div id="gallery" class="image-grid"></div>
+  </section>
+
+  <!-- Meta -->
+  <section class="container meta">
+    <h2>Meta</h2>
+    <ul id="tag-list" class="tags"></ul>
+    <div id="version-list" class="versions"></div>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← Back to Software Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
