@@ -1,6 +1,6 @@
 :root {
-  --accent: #c0d674;     /* ZZX green highlight */
-  --accent-alt: #9a2e2e; /* AudioLab crimson accent */
+  --accent: #c0d674;   /* project primary */
+  --accent-alt: #e6a42b;
   --muted: #8a8f98;
 }
 
@@ -8,7 +8,7 @@
 .hero {
   position: relative;
   inline-size: 100%;
-  background: #101114;
+  background: var(--bg, #1d1f24);
   padding-block: clamp(2rem, 6vw, 4rem);
 }
 .hero-overlay { display: none; }
@@ -16,9 +16,9 @@
 .hero h1 { color: var(--accent); margin: 0.25rem 0 0.5rem; }
 .hero .blurb { color: #d6d9df; max-width: 70ch; margin-inline: auto; }
 .project-logo {
-  max-height: 90px;
-  margin-bottom: .7rem;
-  display: block;
+  max-height: 80px;
+  margin-bottom: .6rem;
+  display: none; /* shown if manifest.logo exists */
 }
 
 /* Buttons */
@@ -34,7 +34,7 @@
   line-height: 1;
 }
 .btn:hover { filter: brightness(1.05); }
-.btn.alt { background: var(--accent-alt); color: #fff; }
+.btn.alt { background: var(--accent-alt); color: #0e1116; }
 .cta-row { display: inline-flex; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
 
 .notice { color: var(--muted); font-style: italic; margin-top: .5rem; }
@@ -58,17 +58,18 @@
 
 /* Gallery */
 .gallery h3 { color: var(--accent); margin-bottom: .35rem; }
-.image-grid { margin-top: .5rem; }
+.image-grid { margin-top: .5rem; display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
 .image-grid .image {
-  background: #16181c;
-  border: 1px solid #333;
+  background: var(--surface-3, #111);
+  border: 1px solid var(--line-soft, #3e3e3e);
   border-radius: 8px;
   overflow: hidden;
 }
-.image-grid img { display: block; inline-size: 100%; block-size: auto; }
-.image-grid .image.image-zoom:hover { transform: scale(1.02); transition: transform 0.3s ease; }
+.image-grid img { display: block; inline-size: 100%; block-size: auto; transition: transform .25s ease; }
+.image-grid .image:hover img { transform: scale(1.02); }
 
 /* Backlinks */
 .backlinks { padding-bottom: 2rem; }
 
+/* Small tweaks */
 .muted { color: var(--muted); }
