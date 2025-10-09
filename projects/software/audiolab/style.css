@@ -1,1 +1,74 @@
+:root {
+  --accent: #c0d674;     /* ZZX green highlight */
+  --accent-alt: #9a2e2e; /* AudioLab crimson accent */
+  --muted: #8a8f98;
+}
 
+/* Hero */
+.hero {
+  position: relative;
+  inline-size: 100%;
+  background: #101114;
+  padding-block: clamp(2rem, 6vw, 4rem);
+}
+.hero-overlay { display: none; }
+.hero-content { text-align: center; }
+.hero h1 { color: var(--accent); margin: 0.25rem 0 0.5rem; }
+.hero .blurb { color: #d6d9df; max-width: 70ch; margin-inline: auto; }
+.project-logo {
+  max-height: 90px;
+  margin-bottom: .7rem;
+  display: block;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #0e1116;
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: .5rem .9rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn.alt { background: var(--accent-alt); color: #fff; }
+.cta-row { display: inline-flex; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
+
+.notice { color: var(--muted); font-style: italic; margin-top: .5rem; }
+
+/* Meta section */
+.meta h3 { color: var(--accent); margin-bottom: .35rem; }
+.meta p  { color: #eaeaea; }
+.meta-list, .tags, .versions {
+  list-style: none; padding: 0; margin: .25rem 0 0;
+}
+.meta-list li { color: #cfd3da; margin: .25rem 0; line-height: 1.35; }
+
+.tags li, .versions li {
+  display: inline-flex; align-items: center;
+  gap: .4rem; margin: .25rem .4rem .25rem 0;
+  padding: .2rem .6rem; border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e8e8e8; font-size: .9rem;
+}
+
+/* Gallery */
+.gallery h3 { color: var(--accent); margin-bottom: .35rem; }
+.image-grid { margin-top: .5rem; }
+.image-grid .image {
+  background: #16181c;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.image-grid img { display: block; inline-size: 100%; block-size: auto; }
+.image-grid .image.image-zoom:hover { transform: scale(1.02); transition: transform 0.3s ease; }
+
+/* Backlinks */
+.backlinks { padding-bottom: 2rem; }
+
+.muted { color: var(--muted); }
