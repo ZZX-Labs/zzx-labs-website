@@ -26,40 +26,25 @@
     if (m.blurb) blurbEl.textContent = m.blurb;
     if (m.description) descEl.textContent = m.description;
 
-    // Meta / links
+    // Meta
     const meta = [];
-    if (m.slug)  meta.push(li(`Slug:`, m.slug));
-    if (m.state) meta.push(li(`State:`, m.state));
-    if (m.href)  meta.push(liLink(`URL:`, m.href, m.href));
-    if (m.github) meta.push(liLink(`GitHub:`, m.github, m.github, true));
-    if (m.huggingface) meta.push(liLink(`Hugging Face:`, m.huggingface, m.huggingface, true));
+    if (m.slug) meta.push(`<li><strong>Slug:</strong> ${escapeHTML(m.slug)}</li>`);
+    if (m.state) meta.push(`<li><strong>State:</strong> ${escapeHTML(m.state)}</li>`);
+    if (m.href)  meta.push(`<li><strong>URL:</strong> <a href="${escapeAttr(m.href)}">${escapeHTML(m.href)}</a></li>`);
+    if (m.github) meta.push(`<li><strong>GitHub:</strong> <a href="${escapeAttr(m.github)}" target="_blank" rel="noopener noreferrer">${escapeHTML(m.github)}</a></li>`);
+    if (m.huggingface) meta.push(`<li><strong>Hugging Face:</strong> <a href="${escapeAttr(m.huggingface)}" target="_blank" rel="noopener noreferrer">${escapeHTML(m.huggingface)}</a></li>`);
     metaList.innerHTML = meta.join('') || '<li class="muted">No meta yet.</li>';
 
     // Buttons
     if (m.href) {
       btnOpen.href = m.href;
       if (/^https?:/i.test(m.href)) { btnOpen.target = '_blank'; btnOpen.rel = 'noopener noreferrer'; }
-    } else {
-      btnOpen.style.display = 'none';
-    }
-    if (m.github) {
-      btnGitHub.style.display = '';
-      btnGitHub.href = m.github;
-      btnGitHub.target = '_blank';
-      btnGitHub.rel = 'noopener noreferrer';
-    }
-    if (m.huggingface) {
-      btnHF.style.display = '';
-      btnHF.href = m.huggingface;
-      btnHF.target = '_blank';
-      btnHF.rel = 'noopener noreferrer';
-    }
+    } else btnOpen.style.display = 'none';
+    if (m.github) { btnGitHub.style.display = ''; btnGitHub.href = m.github; btnGitHub.target = '_blank'; btnGitHub.rel = 'noopener noreferrer'; }
+    if (m.huggingface) { btnHF.style.display = ''; btnHF.href = m.huggingface; btnHF.target = '_blank'; btnHF.rel = 'noopener noreferrer'; }
 
     // Logo
-    if (m.logo) {
-      logoEl.src = m.logo;
-      logoEl.style.display = 'block';
-    }
+    if (m.logo) { logoEl.src = m.logo; logoEl.style.display = 'block'; }
 
     // Tags
     tagList.innerHTML = '';
@@ -95,14 +80,6 @@
     descEl.textContent = `Failed to load AudioLab manifest: ${e.message}`;
   }
 
-  /* ---------- helpers ---------- */
-  function li(label, value) {
-    return `<li><strong>${escapeHTML(label)}</strong> ${escapeHTML(value)}</li>`;
-  }
-  function liLink(label, href, text, external = false) {
-    const attrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
-    return `<li><strong>${escapeHTML(label)}</strong> <a href="${escapeAttr(href)}"${attrs}>${escapeHTML(text)}</a></li>`;
-  }
   function escapeHTML(s) {
     return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   }
