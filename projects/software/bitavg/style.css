@@ -1,1 +1,155 @@
+:root {
+  --accent: #f7931a;   /* Bitcoin Orange */
+  --accent-alt: #c0d674;  /* ZZX-Labs Green */
+  --muted: #8a8f98;
+  --bg: #0e0f10;
+  --text: #eaeaea;
+}
 
+/* Hero Section */
+.hero {
+  position: relative;
+  inline-size: 100%;
+  background: var(--bg);
+  padding-block: clamp(2rem, 6vw, 4rem);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.hero-overlay { display: none; }
+.hero-content { text-align: center; }
+.hero h1 {
+  color: var(--accent);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin: 0.25rem 0 0.5rem;
+}
+.hero .blurb {
+  color: var(--text);
+  max-width: 70ch;
+  margin-inline: auto;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+.project-logo {
+  max-height: 88px;
+  margin-bottom: 0.6rem;
+  display: block;
+  margin-inline: auto;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #111;
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 0.55rem 0.95rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+.btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.btn.alt {
+  background: var(--accent-alt);
+  color: #0e1116;
+}
+.cta-row {
+  display: inline-flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.notice {
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+/* Meta Section */
+.meta h3 {
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+.meta p {
+  color: var(--text);
+}
+.meta-list,
+.tags,
+.versions {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+}
+.meta-list li {
+  color: #d5d8dd;
+  margin: 0.25rem 0;
+  line-height: 1.4;
+}
+.tags li,
+.versions li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0.4rem 0.25rem 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fafafa;
+  font-size: 0.9rem;
+}
+
+/* Gallery Section */
+.gallery h3 {
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+.image-grid {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+.image-grid .image {
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.image-grid .image:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05);
+}
+.image-grid img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+/* Backlinks */
+.backlinks {
+  padding-bottom: 2rem;
+  text-align: center;
+}
+.backlinks .btn.alt {
+  background: var(--accent-alt);
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* Muted Utility */
+.muted { color: var(--muted); }
+
+/* Section Borders */
+.section {
+  padding-block: 2.5rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.section:first-of-type {
+  border-top: none;
+}
