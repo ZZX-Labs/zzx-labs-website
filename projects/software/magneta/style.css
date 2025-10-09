@@ -7,7 +7,7 @@
 /* Hero */
 .hero {
   position: relative;
-  width: 100%;
+  inline-size: 100%;
   background: var(--bg, #1d1f24);
   padding-block: clamp(2rem, 6vw, 4rem);
 }
@@ -18,8 +18,7 @@
 .project-logo {
   max-height: 80px;
   margin-bottom: .6rem;
-  display: block;
-  filter: drop-shadow(0 0 8px rgba(192,214,116,0.25));
+  display: none; /* shown if manifest.logo exists */
 }
 
 /* Buttons */
@@ -44,44 +43,33 @@
 .meta h3 { color: var(--accent); margin-bottom: .35rem; }
 .meta p  { color: #eaeaea; }
 .meta-list, .tags, .versions {
-  list-style: none;
-  padding: 0;
-  margin: .25rem 0 0;
+  list-style: none; padding: 0; margin: .25rem 0 0;
 }
 .meta-list li { color: #cfd3da; margin: .25rem 0; line-height: 1.35; }
 
 .tags li, .versions li {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  margin: .25rem .4rem .25rem 0;
-  padding: .2rem .6rem;
-  border-radius: 999px;
+  display: inline-flex; align-items: center;
+  gap: .4rem; margin: .25rem .4rem .25rem 0;
+  padding: .2rem .6rem; border-radius: 999px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.12);
-  color: #e8e8e8;
-  font-size: .9rem;
+  color: #e8e8e8; font-size: .9rem;
 }
-
-/* Features */
-.features h3 { color: var(--accent); margin-bottom: .35rem; }
-.features ul { list-style: disc; margin-left: 1.5rem; color: #e0e3e8; }
-.features li { margin: .35rem 0; line-height: 1.5; }
 
 /* Gallery */
 .gallery h3 { color: var(--accent); margin-bottom: .35rem; }
-.image-grid { margin-top: .5rem; display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.image-grid { margin-top: .5rem; display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
 .image-grid .image {
   background: var(--surface-3, #111);
   border: 1px solid var(--line-soft, #3e3e3e);
   border-radius: 8px;
   overflow: hidden;
 }
-.image-grid img { display: block; width: 100%; height: auto; transition: transform .3s ease; }
+.image-grid img { display: block; inline-size: 100%; block-size: auto; transition: transform .25s ease; }
 .image-grid .image:hover img { transform: scale(1.02); }
 
 /* Backlinks */
 .backlinks { padding-bottom: 2rem; }
 
-/* Muted text */
+/* Small tweaks */
 .muted { color: var(--muted); }
