@@ -1,36 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>BitFig · Bitcoin Config Builder · Projects | ZZX-Labs</title>
-  <link rel="stylesheet" href="/static/styles.css"/>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>BitFig · Projects · Software | ZZX-Labs R&D</title>
+
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
   <script src="/static/script.js" defer></script>
-  <link rel="stylesheet" href="./style.css"/>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
   <script src="./script.js" defer></script>
 </head>
-<body class="bitfig">
-<header><div id="zzx-header"></div></header>
+<body class="project project-bitfig">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
 <main>
-  <section class="hero container">
-    <div class="hero-row">
-      <img class="logo" id="page-logo" alt="BitFig logo" src="./logo.png"/>
-      <div class="hero-copy">
-        <h1 id="page-title">BitFig</h1>
-        <p id="page-blurb" class="muted">Bitcoin Core & Knots configuration designer for reproducible node setups.</p>
-        <div class="cta-row">
-          <a class="btn alt" href="/downloads/">Download CLI / GUI</a>
-          <a class="btn ghost" href="/docs/software/bitfig/">Documentation</a>
-        </div>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content container centered">
+      <!-- Project Logo -->
+      <img class="project-logo" id="project-logo" src="./logo.png" alt="BitFig logo" />
+
+      <h1 id="project-title">BitFig</h1>
+      <p class="blurb" id="project-blurb">
+        Bitcoin Core / Knots configuration designer — generate, validate, and deploy bitcoin.conf templates
+        interactively (web, CLI, or GUI).
+      </p>
+
+      <div class="cta-row">
+        <a id="btn-open" class="btn" href="/projects/software/bitfig/">Open Project</a>
+        <a id="btn-github" class="btn alt" style="display:none">View on GitHub</a>
+        <a id="btn-hf" class="btn alt" style="display:none">Hugging Face</a>
+      </div>
+
+      <p class="notice">Details below are populated from <code>manifest.json</code> to stay in sync with the repo.</p>
+    </div>
+  </section>
+
+  <!-- Meta -->
+  <section class="container section meta">
+    <div class="grid grid-2">
+      <div>
+        <h3>Overview</h3>
+        <p id="project-description">
+          BitFig allows you to interactively build and validate <code>bitcoin.conf</code> files for Bitcoin Core and
+          Bitcoin Knots nodes. It supports reproducible presets, safe defaults, and exportable bundles for sovereign setups.
+        </p>
+        <ul class="meta-list" id="meta-list"></ul>
+      </div>
+      <div>
+        <h3>Tags</h3>
+        <ul class="tags" id="tag-list"></ul>
+
+        <h3>Versions</h3>
+        <ul class="versions" id="version-list"></ul>
       </div>
     </div>
   </section>
 
-  <section class="container panel">
-    <h2>Build bitcoin.conf</h2>
+  <!-- Live Configurator (keeps previous functionality) -->
+  <section class="container section panel">
+    <h3>Build <code>bitcoin.conf</code></h3>
     <form id="cfg-form" class="grid grid-2">
-      <label>RPC User<br/><input type="text" name="rpcuser" placeholder="bitcoinrpc"/></label>
-      <label>RPC Password<br/><input type="password" name="rpcpassword" placeholder="securepassword"/></label>
+      <label>RPC User<br/><input type="text" name="rpcuser" placeholder="bitcoinrpc" /></label>
+      <label>RPC Password<br/><input type="password" name="rpcpassword" placeholder="securepassword" /></label>
+
       <label>Network<br/>
         <select name="network">
           <option value="mainnet">mainnet</option>
@@ -39,18 +78,46 @@
           <option value="signet">signet</option>
         </select>
       </label>
-      <label>Server<br/><select name="server"><option value="1">Enabled</option><option value="0">Disabled</option></select></label>
-      <label>Max Connections<br/><input type="number" name="maxconnections" value="64"/></label>
-      <label>Prune (MB)<br/><input type="number" name="prune" placeholder="0 for full node"/></label>
+
+      <label>Server<br/>
+        <select name="server">
+          <option value="1">Enabled</option>
+          <option value="0">Disabled</option>
+        </select>
+      </label>
+
+      <label>Max Connections<br/><input type="number" name="maxconnections" value="64" /></label>
+      <label>Prune (MB)<br/><input type="number" name="prune" placeholder="0 for full node" /></label>
+
+      <!-- Add more expert fields as needed; the script will include any non-empty k=v lines -->
     </form>
-    <button id="gen-btn" class="btn">Generate Config</button>
-    <textarea id="output" readonly rows="12" class="cfg-output"></textarea>
+
+    <div class="cta-row" style="margin-top:.6rem;">
+      <button id="gen-btn" type="button" class="btn">Generate Config</button>
+      <a class="btn ghost" href="/docs/software/bitfig/">Read Docs</a>
+      <a class="btn ghost" href="/downloads/projects/bitfig/">Downloads</a>
+    </div>
+
+    <textarea id="output" readonly rows="12" class="cfg-output" style="margin-top:.6rem;"></textarea>
   </section>
 
+  <!-- Gallery -->
+  <section class="container section gallery">
+    <h3>Gallery</h3>
+    <div class="image-grid" id="image-grid"></div>
+    <p class="muted" id="image-note" style="display:none">
+      No images yet — add paths in <code>manifest.json</code>.
+    </p>
+  </section>
+
+  <!-- Backlink -->
   <section class="container backlinks">
-    <a class="btn alt" href="/projects/software/">← All Software</a>
+    <a class="btn alt" href="/projects/software/">← Back to Software</a>
   </section>
 </main>
-<footer><div id="zzx-footer"></div></footer>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
 </body>
 </html>
