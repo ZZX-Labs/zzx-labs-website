@@ -1,1 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ZZX-SBS · Software | ZZX-Labs R&D</title>
 
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./script.js" defer></script>
+</head>
+<body class="project zzxsbs">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <br /><div id="ticker-container"></div><br />
+
+  <!-- Project Hero -->
+  <section class="project-hero container">
+    <div class="hero-row">
+      <img class="project-logo" id="project-logo" alt="ZZX-SBS logo" />
+      <div class="hero-copy">
+        <h1 id="project-title">ZZX-SBS</h1>
+        <p id="project-blurb" class="muted">
+          Site Builder System — generate unified project/portfolio/docs/downloads/papers pages from one manifest (GUI & CLI). This page includes a browser-only mini builder that mirrors the desktop tool’s output.
+        </p>
+        <div class="cta-row" id="cta-row"><!-- buttons from manifest --></div>
+        <div class="badges" id="project-badges"><!-- state/version --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Capabilities -->
+  <section class="container">
+    <h2>What ZZX-SBS Does</h2>
+    <div class="grid grid-3 feature-cards">
+      <article class="feature">
+        <h3>One Manifest → Many Bundles</h3>
+        <p>Create consistent, themed bundles for <code>projects/&lt;kind&gt;/&lt;slug&gt;/</code>, portfolio, docs, downloads, and papers.</p>
+      </article>
+      <article class="feature">
+        <h3>Themes & Libraries</h3>
+        <p>Switch site-wide colors, fonts, and layout templates. Reuse designs across new sites and projects.</p>
+      </article>
+      <article class="feature">
+        <h3>GUI & CLI</h3>
+        <p>Use a PyQt5 GUI or a scriptable CLI. This page provides a sandboxed in-browser generator for quick starts.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- In-Browser Mini Builder -->
+  <section class="container">
+    <h2>Mini Builder (Browser-Only)</h2>
+    <article class="panel">
+      <form class="core-form" id="sbs-form" autocomplete="off">
+        <div class="row">
+          <label>Title <input id="f-title" type="text" placeholder="Project Title (e.g., GridHub)"></label>
+          <label>Slug <input id="f-slug" type="text" placeholder="auto-from-title"></label>
+          <label>Kind
+            <select id="f-kind">
+              <option value="software" selected>software</option>
+              <option value="hardware">hardware</option>
+              <option value="web">web</option>
+              <option value="firmware">firmware</option>
+              <option value="research">research</option>
+              <option value="design">design</option>
+              <option value="ops">ops</option>
+            </select>
+          </label>
+          <label>State
+            <select id="f-state">
+              <option>research</option>
+              <option>pre-release</option>
+              <option>alpha</option>
+              <option>beta</option>
+              <option>released</option>
+              <option>sunset</option>
+              <option>unmaintained</option>
+            </select>
+          </label>
+          <label>License <input id="f-license" type="text" placeholder="MIT, Apache-2.0, ..."></label>
+        </div>
+
+        <div class="row">
+          <label>Blurb <input id="f-blurb" type="text" placeholder="Short one-liner"></label>
+          <label>Tags (comma-separated) <input id="f-tags" type="text" placeholder="python, gui, generator"></label>
+        </div>
+
+        <div class="row">
+          <label>Href (optional) <input id="f-href" type="text" placeholder="/projects/<kind>/<slug>/"></label>
+          <label>Logo path (optional) <input id="f-logo" type="text" placeholder="./logo.png"></label>
+        </div>
+
+        <label>Description
+          <textarea id="f-desc" rows="5" placeholder="Longer paragraph describing the project..."></textarea>
+        </label>
+
+        <div class="row">
+          <label>Links — Website <input id="f-website" type="url" placeholder="https://..."></label>
+          <label>GitHub <input id="f-github" type="url" placeholder="https://github.com/..."></label>
+          <label>Docs <input id="f-docs" type="url" placeholder="https://..."></label>
+          <label>Hugging Face <input id="f-hf" type="url" placeholder="https://huggingface.co/..."></label>
+        </div>
+        <div class="row">
+          <label>README <input id="f-readme" type="url" placeholder="https://.../README.md"></label>
+          <label>LICENSE <input id="f-licurl" type="url" placeholder="https://.../LICENSE"></label>
+          <label>Demo <input id="f-demo" type="url" placeholder="https://..."></label>
+          <label>Download <input id="f-dl" type="url" placeholder="https://..."></label>
+        </div>
+
+        <div class="row">
+          <label>Images (one per line)
+            <textarea id="f-images" rows="4" placeholder="/projects/foo/images/hero.png"></textarea>
+          </label>
+          <label>Media (type|src[|poster]) — one per line
+            <textarea id="f-media" rows="4" placeholder="image|/path.png&#10;video|/clip.mp4|/poster.jpg&#10;embed|https://player..."></textarea>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>Resources (label|url) — one per line
+            <textarea id="f-resources" rows="3" placeholder="Docs|/docs/foo&#10;Whitepaper|/papers/foo"></textarea>
+          </label>
+          <label>Extra Downloads (label|url) — one per line
+            <textarea id="f-downloads" rows="3" placeholder="Windows|/download/foo.zip&#10;Linux|/download/foo.AppImage"></textarea>
+          </label>
+        </div>
+
+        <label>Versions — one per line (<code>1.0.0|YYYY-MM-DD|notes</code> or just <code>1.0.0</code>)
+          <textarea id="f-versions" rows="3" placeholder="0.1.0|2025-01-01|Initial cut"></textarea>
+        </label>
+      </form>
+    </article>
+
+    <article class="panel">
+      <h3>Artifacts</h3>
+      <div class="row actions">
+        <button type="button" class="btn" id="btn-generate">Generate Files</button>
+        <button type="button" class="btn ghost" id="btn-download-all">Download All</button>
+        <span class="muted" id="gen-hint"></span>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <label>manifest.json</label>
+          <textarea id="out-manifest" rows="18" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <label>index.html</label>
+          <textarea id="out-index" rows="18" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <label>style.css</label>
+          <textarea id="out-style" rows="18" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <label>script.js</label>
+          <textarea id="out-script" rows="18" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <div class="row actions">
+        <button type="button" class="btn" data-dl="manifest">Download manifest.json</button>
+        <button type="button" class="btn" data-dl="index">Download index.html</button>
+        <button type="button" class="btn" data-dl="style">Download style.css</button>
+        <button type="button" class="btn" data-dl="script">Download script.js</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- Gallery -->
+  <section class="container">
+    <h2>Gallery</h2>
+    <div id="gallery" class="image-grid"></div>
+    <p class="muted" id="gallery-hint"></p>
+  </section>
+
+  <!-- Backlinks -->
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software Projects</a>
+    <a class="btn alt" href="/projects/">← Projects</a>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
