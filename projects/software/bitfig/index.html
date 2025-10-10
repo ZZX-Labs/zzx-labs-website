@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>BitFig · Bitcoin Config Builder · Projects | ZZX-Labs</title>
+  <link rel="stylesheet" href="/static/styles.css"/>
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css"/>
+  <script src="./script.js" defer></script>
+</head>
+<body class="bitfig">
+<header><div id="zzx-header"></div></header>
+<main>
+  <section class="hero container">
+    <div class="hero-row">
+      <img class="logo" id="page-logo" alt="BitFig logo" src="./logo.png"/>
+      <div class="hero-copy">
+        <h1 id="page-title">BitFig</h1>
+        <p id="page-blurb" class="muted">Bitcoin Core & Knots configuration designer for reproducible node setups.</p>
+        <div class="cta-row">
+          <a class="btn alt" href="/downloads/">Download CLI / GUI</a>
+          <a class="btn ghost" href="/docs/software/bitfig/">Documentation</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container panel">
+    <h2>Build bitcoin.conf</h2>
+    <form id="cfg-form" class="grid grid-2">
+      <label>RPC User<br/><input type="text" name="rpcuser" placeholder="bitcoinrpc"/></label>
+      <label>RPC Password<br/><input type="password" name="rpcpassword" placeholder="securepassword"/></label>
+      <label>Network<br/>
+        <select name="network">
+          <option value="mainnet">mainnet</option>
+          <option value="testnet">testnet</option>
+          <option value="regtest">regtest</option>
+          <option value="signet">signet</option>
+        </select>
+      </label>
+      <label>Server<br/><select name="server"><option value="1">Enabled</option><option value="0">Disabled</option></select></label>
+      <label>Max Connections<br/><input type="number" name="maxconnections" value="64"/></label>
+      <label>Prune (MB)<br/><input type="number" name="prune" placeholder="0 for full node"/></label>
+    </form>
+    <button id="gen-btn" class="btn">Generate Config</button>
+    <textarea id="output" readonly rows="12" class="cfg-output"></textarea>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/software/">← All Software</a>
+  </section>
+</main>
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>
