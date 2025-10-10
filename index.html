@@ -5,14 +5,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
   <title>[:[ZZX-Labs R&D]:]</title>
-  <base href="/">
-  <link rel="stylesheet" href="/static/style.css" />
+
+  <!-- Resolve all relative paths from site root -->
+  <base href="/" />
+
+  <!-- Optional: cache-bust + CSP nonce propagation for loaders -->
+  <meta name="asset-version" content="2025-10-10-1" />
+  <!-- <meta name="csp-nonce" content="..."> -->
+
+  <!-- Global CSS (sitewide) -->
+  <link rel="stylesheet" href="/static/styles.css?v=2025-10-10-1" />
+
+  <!-- Local CSS (homepage-specific overrides; loaded AFTER global) -->
+  <link rel="stylesheet" href="/style.css?v=2025-10-10-1" />
+
+  <!-- Global JS (sitewide behaviours/partials) -->
   <script src="/static/script.js?v=2025-10-10-1" defer></script>
 
-  <!-- Local, which imports global + overrides -->
-  <!-- _ -->
-  <!-- _ -->
-  
+  <!-- Local JS (homepage bootstrapper; loads ticker/partials as needed) -->
+  <script src="/script.js?v=2025-10-10-1" defer></script>
 </head>
 <body class="home">
 <header>
@@ -21,7 +32,10 @@
 
 <main>
   <br />
-  <div id="ticker-container"></div>
+  <!-- Ticker mount(s). Keep both IDs to satisfy any existing loaders. -->
+  <div id="ticker-container">
+    <div id="btc-ticker"></div>
+  </div>
   <br />
 
   <section class="hero">
