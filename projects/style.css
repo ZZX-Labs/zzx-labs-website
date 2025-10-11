@@ -1,5 +1,4 @@
-/* Projects root — stacked rows layout */
-
+/* Projects root — stacked rows layout + search */
 :root {
   --accent: #c0d674;
   --accent-alt: #e6a42b;
@@ -11,6 +10,24 @@
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
+
+/* Searchbar */
+#proj-search-wrap { margin: .3rem 0 1.2rem; }
+.searchbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .6rem;
+  align-items: center;
+}
+.searchbar input[type="search"] {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.18);
+  color: #e8e8e8;
+  border-radius: 8px;
+  padding: .48rem .65rem;
+}
+#search-count { justify-self: end; }
 
 /* List layout */
 .project-list {
@@ -36,14 +53,17 @@
   background: rgba(255,255,255,.04);
 }
 
+/* Small logos */
 .project-logo img {
   width: 64px;
   height: 64px;
   object-fit: contain;
   border-radius: 8px;
   background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.10);
 }
+
+/* Text + links */
 .project-meta h3 {
   margin: 0 0 .25rem;
   font-size: 1.1rem;
@@ -80,3 +100,5 @@
   color: #eaeaea;
   border: 1px solid rgba(255,255,255,.2);
 }
+
+.backlinks { padding-bottom: 2rem; }
