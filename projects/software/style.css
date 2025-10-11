@@ -1,29 +1,94 @@
+/* Projects · Software — logo-first cards */
+
 :root {
-  --accent: #c0d674;   /* green for project buttons */
-  --accent-alt: #e6a42b; /* ochre for back buttons */
-  --muted: #8a8f98;
+  --accent: #c0d674;     /* green */
+  --accent-alt: #e6a42b; /* ochre */
+  --muted: #9aa1aa;
+  --surface-1: rgba(255,255,255,0.02);
+  --surface-2: rgba(255,255,255,0.04);
+  --line: rgba(255,255,255,0.12);
+  --line-soft: rgba(255,255,255,0.08);
+  --text: #e8e8e8;
 }
 
-/* Feature cards */
-.feature {
-  margin: 1.1rem 0;
-  padding: 1rem 1.15rem;
-  border-left: 3px solid var(--accent);
-  background: rgba(255,255,255,0.02);
-  border-radius: 8px;
+body.projects-software .container { max-width: 1100px; margin: 0 auto; padding: 0 1rem; }
+.muted { color: var(--muted); }
+
+.features { padding: 0 1rem 2rem; }
+.features .loading { color: var(--muted); text-align: center; }
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.1rem;
+  max-width: 1100px;
+  margin: 0 auto 2rem;
 }
-.feature h3 { margin: 0 0 .35rem; color: var(--accent); font-weight: 600; }
-.feature p  { margin: 0 0 .55rem; color: #cfd3da; line-height: 1.45; }
 
-/* Links inside cards */
-.feature a:not(.btn) { color: #eaeaea; text-decoration: underline; }
-.feature a:not(.btn):hover { color: #fff; }
+@media (max-width: 1024px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .cards-grid { grid-template-columns: 1fr; } }
 
-/* Buttons */
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-1);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.card-media {
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 16px;
+}
+
+.card-logo {
+  inline-size: 96px;
+  block-size: 96px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.card-logo.fallback {
+  filter: grayscale(1) opacity(.75);
+}
+
+.card-body {
+  padding: 14px 14px 16px;
+}
+
+.card-title {
+  margin: 0 0 .35rem;
+  font-size: 1.05rem;
+}
+
+.card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+.card-title a:hover { text-decoration: underline; }
+
+.card-blurb {
+  color: #cfd3da;
+  margin: 0 0 .8rem;
+  line-height: 1.45;
+  min-height: 2.9em; /* keeps rows even-ish */
+}
+
+.card-cta {
+  display: flex;
+  gap: .5rem;
+}
+
 .btn {
   display: inline-block;
-  background: var(--accent);      /* green */
-  color: #101218;                 /* black text */
+  background: var(--accent);
+  color: #101218;
   border: 1px solid rgba(255,255,255,0.14);
   padding: .42rem .78rem;
   border-radius: 8px;
@@ -33,11 +98,10 @@
 }
 .btn:hover { filter: brightness(1.05); }
 
-/* Only back/alt buttons use ochre */
-.btn.alt { background: var(--accent-alt); color: #101218; }
+.btn.ghost {
+  background: rgba(255,255,255,0.02);
+  color: #eaeaea;
+  border: 1px solid rgba(255,255,255,0.2);
+}
 
-.feature .btn { margin-top: .35rem; }
-
-.loading { color: var(--muted); font-style: italic; }
-.muted { color: var(--muted); }
-.backlinks { padding-bottom: 2rem; }
+.backlinks { padding: 0 1rem 2rem; }
