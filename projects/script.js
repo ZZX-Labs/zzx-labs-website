@@ -1,85 +1,99 @@
-// Load project manifests from category subdirs and render stacked "feature" blocks.
+// Top-level Projects — render category sections with small logo cards (120x120)
 (() => {
   const CATEGORIES = [
-    { key: 'web',      mountId: 'proj-web' },
-    { key: 'software', mountId: 'proj-software' },
-    { key: 'hardware', mountId: 'proj-hardware' }
+    { key: "web",      mountId: "proj-web",      base: "/projects/web/" },
+    { key: "software", mountId: "proj-software", base: "/projects/software/" },
+    { key: "hardware", mountId: "proj-hardware", base: "/projects/hardware/" }
   ];
 
-  const isDomain = (s) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s || '').trim());
-  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const el = (tag, cls, html) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  };
+  const esc = (s) => String(s || "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+  const attr = (s) => String(s || "").replace(/"/g, "&quot;");
+  const normalizeLogo = (s) => String(s || "").replace("/_/logo.png", "/logo.png");
 
   async function fetchJSON(url) {
     try {
-      const r = await fetch(url, { cache: 'no-cache' });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const r = await fetch(url, { cache: "no-cache" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
       return await r.json();
     } catch (e) {
-      console.warn('Failed to load manifest:', url, e);
-      return { __error: true, message: e.message };
+      console.warn("Failed to load:", url, e);
+      return { __error: true };
     }
   }
 
-  function renderCategory(mount, data, catKey) {
+  function renderCategory(mount, items, base) {
     if (!mount) return;
-    mount.innerHTML = '';
+    mount.innerHTML = "";
 
-    if (!data || data.__error) {
-      mount.appendChild(el('p', 'error', 'No projects available (manifest missing).'));
+    if (!Array.isArray(items) || !items.length) {
+      mount.appendChild(el("p", "muted", "No projects listed yet."));
       return;
     }
 
-    const list = Array.isArray(data.projects) ? data.projects : [];
-    if (!list.length) {
-      mount.appendChild(el('p', 'muted', 'No projects listed yet.'));
-      return;
-    }
+    const grid = el("div", "cards-grid");
+    mount.appendChild(grid);
 
-    const features = el('section', 'features');
-    list.forEach(p => {
-      const href = p.href || `/projects/${catKey}/${p.slug}/`;
-      const card = el('div', 'feature');
+    items.forEach(p => {
+      const slug   = p.slug || "";
+      const href   = p.href || `${base}${slug}/`;
+      const logo   = normalizeLogo(p.logo || `${base}${slug}/logo.png`);
+      const title  = p.title || slug || "Untitled";
+      const blurb  = p.blurb || "";
+      const github = p.github || "";
 
-      const rawTitle = p.title || p.slug || 'Untitled';
-      const titleText = isDomain(rawTitle) ? rawTitle.toLowerCase() : rawTitle;
-      const h3 = el('h3', null, titleText);
+      const card = el("article", "card project-card", `
+        <a class="card-media" href="${attr(href)}" aria-label="${attr(title)}">
+          <img class="card-logo" src="${attr(logo)}" alt="${attr(title)} logo"
+               width="120" height="120" loading="lazy" decoding="async" />
+        </a>
+        <div class="card-body">
+          <h3 class="card-title"><a href="${attr(href)}">${esc(title)}</a></h3>
+          <p class="card-blurb">${esc(blurb)}</p>
+          <div class="card-cta">
+            <a class="btn" href="${attr(href)}">Open</a>
+            ${github ? `<a class="btn ghost" href="${attr(github)}" target="_blank" rel="noopener noreferrer">GitHub</a>` : ""}
+          </div>
+        </div>
+      `);
 
-      const blurb = (p.blurb ? el('p', null, p.blurb) : null);
+      const img = card.querySelector(".card-logo");
+      img.addEventListener("error", () => {
+        img.src = "/static/placeholder-logo.svg";
+        img.classList.add("fallback");
+      });
 
-      const linkWrap = el('div', 'links');
-      const a = el('a', 'btn', p.linkText || `Open ${titleText}`);
-      a.href = href;
-      if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
-
-      linkWrap.appendChild(a);
-      card.appendChild(h3);
-      if (blurb) card.appendChild(blurb);
-      card.appendChild(linkWrap);
-      features.appendChild(card);
+      grid.appendChild(card);
     });
-
-    mount.appendChild(features);
   }
 
   async function boot() {
-    // temporary loading placeholders
+    // placeholders
     CATEGORIES.forEach(({ mountId }) => {
       const m = document.getElementById(mountId);
       if (m && !m.innerHTML.trim()) m.innerHTML = '<p class="loading">Loading projects…</p>';
     });
 
-    // fetch in parallel
     const results = await Promise.all(
-      CATEGORIES.map(c => fetchJSON(`/projects/${c.key}/manifest.json`).then(data => ({ c, data })))
+      CATEGORIES.map(c =>
+        fetchJSON(`${c.base}manifest.json`).then(data => ({
+          mount: document.getElementById(c.mountId),
+          base: c.base,
+          items: Array.isArray(data?.projects) ? data.projects : []
+        }))
+      )
     );
 
-    results.forEach(({ c, data }) => {
-      renderCategory(document.getElementById(c.mountId), data, c.key);
-    });
+    results.forEach(({ mount, base, items }) => renderCategory(mount, items, base));
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
     boot();
   }
