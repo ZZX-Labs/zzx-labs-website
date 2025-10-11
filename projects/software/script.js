@@ -1,35 +1,80 @@
-// Load local /projects/software/manifest.json and render feature cards
-(async function () {
-  const isDomain = (s) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(s || '').trim());
-  const mount = document.getElementById('projects-list');
-  if (!mount) return;
+// Projects · Software — listing boot
+// Loads ./manifest.json and renders logo-first cards.
 
-  function card(p) {
-    const href = p.href || `/projects/software/${p.slug}/`;
-    const titleRaw = p.title || p.slug || 'Untitled';
-    const title = isDomain(titleRaw) ? titleRaw.toLowerCase() : titleRaw;
+(function () {
+  const listEl = document.getElementById("projects-list");
 
-    const wrap = document.createElement('div');
-    wrap.className = 'feature';
-    wrap.innerHTML = `
-      <h3>${title}</h3>
-      ${p.blurb ? `<p>${p.blurb}</p>` : ''}
-      <a class="btn" href="${href}">${p.linkText || `Open ${title}`}</a>
-    `;
-    const a = wrap.querySelector('a.btn');
-    if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
-    return wrap;
+  boot();
+
+  async function boot() {
+    try {
+      const res = await fetch("./manifest.json", { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const items = Array.isArray(data?.projects) ? data.projects : [];
+
+      listEl.innerHTML = "";
+      if (!items.length) {
+        listEl.innerHTML = `<p class="muted">No projects yet.</p>`;
+        return;
+      }
+
+      // Grid container
+      const grid = document.createElement("div");
+      grid.className = "cards-grid";
+      listEl.appendChild(grid);
+
+      items.forEach(renderCard.bind(null, grid));
+    } catch (e) {
+      console.error(e);
+      listEl.innerHTML = `<p class="error">Failed to load projects.</p>`;
+    }
   }
 
-  try {
-    const res = await fetch('/projects/software/manifest.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const items = Array.isArray(json?.projects) ? json.projects : [];
-    mount.innerHTML = items.length ? '' : '<p class="loading">No projects listed yet.</p>';
-    for (const p of items) mount.appendChild(card(p));
-  } catch (e) {
-    console.error(e);
-    mount.innerHTML = `<p class="loading">Failed to load project list: ${e.message}</p>`;
+  function renderCard(grid, p) {
+    const slug = p.slug || "";
+    const href = p.href || `/projects/software/${slug}/`;
+    const logo = cleanLogo(p.logo || `/projects/software/${slug}/logo.png`);
+    const github = p.github || "";
+    const title = p.title || slug || "Untitled";
+    const blurb = p.blurb || "";
+
+    const card = document.createElement("article");
+    card.className = "card project-card";
+
+    card.innerHTML = `
+      <a class="card-media" href="${escapeAttr(href)}" aria-label="${escapeAttr(title)}">
+        <img class="card-logo" src="${escapeAttr(logo)}" alt="${escapeAttr(title)} logo" loading="lazy" decoding="async" />
+      </a>
+      <div class="card-body">
+        <h3 class="card-title"><a href="${escapeAttr(href)}">${escapeHtml(title)}</a></h3>
+        <p class="card-blurb">${escapeHtml(blurb)}</p>
+        <div class="card-cta">
+          <a class="btn" href="${escapeAttr(href)}">Open</a>
+          ${github ? `<a class="btn ghost" href="${escapeAttr(github)}" target="_blank" rel="noopener noreferrer">GitHub</a>` : ""}
+        </div>
+      </div>
+    `;
+
+    // Fallback image on error
+    const img = card.querySelector(".card-logo");
+    img.addEventListener("error", () => {
+      img.src = "/static/placeholder-logo.svg";
+      img.classList.add("fallback");
+    });
+
+    grid.appendChild(card);
+  }
+
+  // --- tiny utils ---
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+  function escapeAttr(s) {
+    return String(s || "").replace(/"/g, "&quot;");
+  }
+  function cleanLogo(s) {
+    // normalize accidental underscores or missing slashes if any drifted in
+    return String(s || "").replace("/_/logo.png", "/logo.png");
   }
 })();
