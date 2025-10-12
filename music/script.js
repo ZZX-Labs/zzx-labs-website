@@ -1,13 +1,10 @@
-// /music/script.js — ZZX player (no external accounts), live metadata via public CORS relays.
-// Layout: [Toggle][Prev][Play/Pause][Stop][Next][Shuffle][Loop All][Loop 1][Mute]
-// Below: time+seek; Below: LED meter + Volume. Stereo LEDs: 6 green, 1 yellow, 1 red.
-
+// /music/script.js — stable player: no auto-shuffle on errors, working toggle, play only on success.
 (function () {
   const root = document.querySelector('[data-mp]');
   if (!root) return console.error('[music] no [data-mp] element');
 
   /* ---------- env + defaults ---------- */
-  const isGH   = location.hostname.endsWith('github.io');
+  const isGH = location.hostname.endsWith('github.io');
   const repoPrefix = (() => {
     if (!isGH) return '/';
     const parts = location.pathname.split('/').filter(Boolean);
@@ -20,9 +17,9 @@
     autoplay      : attr('data-autoplay') === '1',
     autoplayMuted : attr('data-autoplay-muted') === '1',
     shuffle       : attr('data-shuffle') === '1',
-    volume        : clamp01(parseFloat(attr('data-volume') || '0.25')), // default 25%
-    startSource   : attr('data-start-source') || 'stations',            // 'stations' | 'playlists' | 'auto'
-    metaPollSec   : 8                                                    // fast, but gentle
+    volume        : clamp01(parseFloat(attr('data-volume') || '0.25')), // 25%
+    startSource   : attr('data-start-source') || 'stations',
+    metaPollSec   : 8
   };
 
   function attr(n){ return root.getAttribute(n); }
@@ -32,28 +29,7 @@
   const $=(s,c=root)=>c.querySelector(s), $$=(s,c=root)=>Array.from(c.querySelectorAll(s));
   const fmtTime=(sec)=>(!isFinite(sec)||sec<0)?'—':`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
 
-  // Public, no-login CORS relays (tries in order; uses first that works per URL)
-  const CORS_RELAYS = [
-    (u) => u, // direct (if CORS is already enabled)
-    (u) => `https://cors.isomorphic-git.org/${u}`,
-    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    (u) => `https://r.jina.ai/http://${u.replace(/^https?:\/\//,'')}`  // read-only fetch; fine for JSON/text
-  ];
-
-  async function fetchThroughRelays(url, type='text'){
-    for (const wrap of CORS_RELAYS){
-      const target = wrap(url);
-      try {
-        const res = await fetch(target, { cache:'no-store' });
-        if (!res.ok) continue;
-        return type === 'json' ? await res.json() : await res.text();
-      } catch { /* try next */ }
-    }
-    throw new Error('All relays failed for ' + url);
-  }
-
-  /* ---------- parse M3U(.8) ---------- */
+  /* ---------- parse M3U ---------- */
   function parseM3U(text){
     const lines = String(text||'').split(/\r?\n/);
     const out = []; let pendingTitle = null;
@@ -110,7 +86,6 @@
         <div class="mp-left">
           <label class="small">Radio Stations (.m3u)</label>
           <select class="mp-pl mp-pl-stations"></select>
-
           <label class="small" style="margin-top:.6rem;display:block;">Playlists (.m3u)</label>
           <select class="mp-pl mp-pl-music"></select>
         </div>
@@ -122,7 +97,6 @@
     `;
   }
   function renderLeds(side){
-    // 6 green, 1 yellow, 1 red per side (stereo = x2)
     const leds = [];
     for (let i=0;i<6;i++) leds.push(`<span class="led g" data-led-${side}${i}></span>`);
     leds.push(`<span class="led y" data-led-${side}6></span>`);
@@ -139,13 +113,14 @@
   let audioCtx, srcNode, splitter, analyserL, analyserR, meterTimer;
 
   let manifest = { stations: [], playlists: [] };
-  let queue = [];               // playlist tracks OR one LIVE item
+  let queue = [];   // playlist tracks OR one LIVE item
   let cursor = -1;
   let loopMode = 'none';
-  let usingStations = true;     // controlled by slide switch
+  let usingStations = true; // slide switch
   let metaTimer = null;
   let lastStreamUrl = '';
   let lastNowTitle = '';
+  let userInteracted = false; // gate for browsers that block autoplay
 
   /* ---------- Refs & wiring ---------- */
   let titleEl, subEl, timeCur, timeDur, seek, vol, list;
@@ -156,7 +131,6 @@
     timeCur = $('[data-cur]');   timeDur = $('[data-dur]');
     seek    = $('.mp-seek');     vol    = $('.mp-volume');
     list    = $('.mp-list');
-
     btn = {
       prev:    $('[data-act="prev"]'),
       play:    $('[data-act="play"]'),
@@ -167,10 +141,7 @@
       loop1:   $('[data-act="loop1"]'),
       mute:    $('[data-act="mute"]')
     };
-    sel = {
-      stations: $('.mp-pl-stations'),
-      playlists: $('.mp-pl-music')
-    };
+    sel = { stations: $('.mp-pl-stations'), playlists: $('.mp-pl-music') };
     switchKnob = $('[data-src-toggle]');
   }
 
@@ -180,35 +151,27 @@
   function paintTimes(){
     if (timeCur) timeCur.textContent = fmtTime(audio.currentTime);
     if (timeDur) timeDur.textContent = isFinite(audio.duration) ? fmtTime(audio.duration) : '—';
-    if (seek && isFinite(audio.duration) && audio.duration>0) {
-      seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
-    }
+    if (seek && isFinite(audio.duration) && audio.duration>0) seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
   }
-
   function sanitizeNowPlaying(s){
-    // Strip common promo blips from some stations (SomaFM etc.)
-    const bad = /(donate|support somafm|keep.*commercial[- ]?free)/i;
     if (!s) return s;
-    return s.replace(bad, '').replace(/\s{2,}/g,' ').trim() || 'LIVE';
+    return s.replace(/donate|somafm|commercial[- ]?free/ig, '').replace(/\s{2,}/g,' ').trim() || 'LIVE';
   }
-
   function highlightList(){
     if (!list) return;
     $$('.active', list).forEach(li => li.classList.remove('active'));
-    if (cursor >= 0) list.children[cursor + (usingStations ? 1 : 0)]?.classList.add('active'); // offset: radio has 2 top rows
+    if (cursor >= 0) list.children[cursor + (usingStations ? 1 : 0)]?.classList.add('active');
   }
 
-  // Radio view: two rows [station, now-playing]
+  // Radio view: [station, now-playing]
   function renderRadioList(stationTitle, nowTitle){
     if (!list) return;
     list.innerHTML = '';
-
     const liStation = document.createElement('li');
     const Ls = document.createElement('div'); Ls.className='t';   Ls.textContent = stationTitle || 'Live Station';
     const Rs = document.createElement('div'); Rs.className='len mono'; Rs.textContent = 'LIVE';
     liStation.appendChild(Ls); liStation.appendChild(Rs);
     list.appendChild(liStation);
-
     const liNow = document.createElement('li');
     liNow.setAttribute('data-now', '1');
     const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = nowTitle || '—';
@@ -246,16 +209,11 @@
 
   /* ---------- Loaders ---------- */
   async function getText(url){
-    try {
-      return await fetchThroughRelays(url, 'text');
-    } catch { return ''; }
+    try { const r=await fetch(url,{cache:'no-store'}); return r.ok? r.text():''; } catch { return ''; }
   }
   async function getJSON(url){
-    try {
-      return await fetchThroughRelays(url, 'json');
-    } catch { return null; }
+    try { const r=await fetch(url,{cache:'no-store'}); return r.ok? r.json():null; } catch { return null; }
   }
-
   async function loadM3U(path, isStation){
     const base = cfg.manifestUrl.replace(/\/manifest\.json$/i,'/');
     const url  = isAbs(path) ? path : join(base, path);
@@ -265,26 +223,25 @@
     if (isStation) {
       const urls = entries.map(e => isAbs(e.url) ? e.url : join(cfg.audioBase, e.url));
       lastStreamUrl = urls[0] || '';
-      return [{
-        title: sel.stations?.selectedOptions?.[0]?.textContent || 'Live Station',
-        isStream: true,
-        urls
-      }];
-    } else {
-      return entries.map(e => ({
-        title: e.title || e.url,
-        url: isAbs(e.url) ? e.url : join(cfg.audioBase, e.url),
-        isStream: false
-      }));
+      return [{ title: sel.stations?.selectedOptions?.[0]?.textContent || 'Live Station', isStream:true, urls }];
     }
+    return entries.map(e => ({ title: e.title || e.url, url: isAbs(e.url) ? e.url : join(cfg.audioBase, e.url), isStream:false }));
   }
 
   /* ---------- Playback ---------- */
   async function tryPlayStream(urls){
+    // Try each endpoint ONCE; do not auto-advance station on failure
+    let lastErr;
     for (const u of urls){
-      try { audio.src = u; await audio.play(); return u; } catch {}
+      try {
+        audio.src = u;
+        await audio.play();
+        return u;
+      } catch (e) {
+        lastErr = e;
+      }
     }
-    throw new Error('All stream endpoints failed');
+    throw lastErr || new Error('No playable stream endpoints');
   }
 
   async function playAt(i){
@@ -293,27 +250,33 @@
     const tr = queue[cursor];
     setNow(tr.title, usingStations ? 'Radio' : 'Playlist');
     setPlayIcon(false);
+
+    stopMetaPolling();
     try{
-      if (tr.isStream && Array.isArray(tr.urls) && tr.urls.length) {
+      if (tr.isStream) {
         const ok = await tryPlayStream(tr.urls);
         lastStreamUrl = ok || tr.urls[0] || lastStreamUrl;
-        startMetaPolling(tr.title);
+        setPlayIcon(true);
         renderRadioList(tr.title, lastNowTitle || '—');
+        highlightList();
+        startMetaPolling(tr.title);
         ensureMeter();
       } else {
         audio.src = tr.url;
         await audio.play();
-        stopMetaPolling();
+        setPlayIcon(true);
+        highlightList();
         ensureMeter();
       }
-      setPlayIcon(true);
-      highlightList();
     }catch(e){
-      usingStations ? nextStation() : nextTrack();
+      setPlayIcon(false);
+      setNow(tr.title, 'Failed to play — click ▶ to try again or choose another');
+      // DO NOT auto-next station/track here; leave control to user.
     }
   }
 
   function playPause(){
+    userInteracted = true;
     if (!audio.src) return playAt(0);
     if (audio.paused) { audio.play().then(()=>setPlayIcon(true)).catch(()=>{}); }
     else { audio.pause(); setPlayIcon(false); }
@@ -334,7 +297,6 @@
       else playAt(n);
     }
   }
-
   function nextStation(){
     const el = sel.stations; if (!el || !el.options.length) return;
     el.selectedIndex = (el.selectedIndex + 1) % el.options.length;
@@ -354,7 +316,6 @@
     pollOnce(stationTitle);
     metaTimer = setInterval(()=>pollOnce(stationTitle), Math.max(5, cfg.metaPollSec)*1000);
   }
-
   async function pollOnce(stationTitle){
     try {
       const meta = await fetchStreamMeta(lastStreamUrl);
@@ -366,16 +327,13 @@
       }
     } catch {}
   }
-
   async function fetchStreamMeta(streamUrl){
-    // Try common endpoints relative to the stream host
     try {
       const u = new URL(streamUrl, location.href);
       const base = `${u.protocol}//${u.host}`;
-
       const candidates = [
         `${base}/status-json.xsl`,            // Icecast JSON
-        `${base}/status.xsl?json=1`,         // Alternative Icecast JSON
+        `${base}/status.xsl?json=1`,         // Alt Icecast JSON
         `${base}/stats?sid=1&json=1`,        // Shoutcast v2 JSON
         guessRadioCoStatus(u),               // Radio.co JSON
         `${base}/7.html`                     // Shoutcast v1 plaintext
@@ -400,16 +358,12 @@
 
         // Shoutcast v2 JSON
         if (isJson && (data?.servertitle || data?.songtitle)) {
-          const title = data.servertitle || '';
-          const now   = data.songtitle || '';
-          return { title, now };
+          return { title: data.servertitle || '', now: data.songtitle || '' };
         }
 
         // Radio.co JSON
         if (isJson && (data?.current_track || data?.name)) {
-          const title = data.name || '';
-          const now   = data.current_track?.title_with_artists || data.current_track?.title || '';
-          return { title, now };
+          return { title: data.name || '', now: data.current_track?.title_with_artists || data.current_track?.title || '' };
         }
 
         // Shoutcast v1 /7.html
@@ -425,7 +379,6 @@
     } catch {}
     return null;
   }
-
   function guessRadioCoStatus(u){
     const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
     return m ? `https://public.radio.co/stations/${m[1]}/status` : null;
@@ -443,7 +396,6 @@
       srcNode.connect(splitter);
       splitter.connect(analyserL, 0);
       splitter.connect(analyserR, 1);
-      // Also send to destination so audio plays
       srcNode.connect(audioCtx.destination);
       startMeterLoop();
     } catch {}
@@ -454,41 +406,31 @@
     const ledsR = Array.from(document.querySelectorAll('[data-led-R0],[data-led-R1],[data-led-R2],[data-led-R3],[data-led-R4],[data-led-R5],[data-led-R6],[data-led-R7]'));
     const bufL = new Uint8Array(analyserL.frequencyBinCount);
     const bufR = new Uint8Array(analyserR.frequencyBinCount);
-
     function rms(arr){ let s=0; for (let i=0;i<arr.length;i++) s+=arr[i]*arr[i]; return Math.sqrt(s/arr.length)/255; }
-
     function tick(){
       analyserL.getByteTimeDomainData(bufL);
       analyserR.getByteTimeDomainData(bufR);
       const vL = Math.min(1, Math.max(0, (rms(bufL)-0.02)*1.4));
       const vR = Math.min(1, Math.max(0, (rms(bufR)-0.02)*1.4));
-      paintLeds(ledsL, vL);
-      paintLeds(ledsR, vR);
+      paintLeds(ledsL, vL); paintLeds(ledsR, vR);
       meterTimer = requestAnimationFrame(tick);
     }
     tick();
   }
   function stopMeterLoop(){ if (meterTimer) cancelAnimationFrame(meterTimer); meterTimer=null; }
-  function paintLeds(leds, v){
-    const total = 8; // 0..7 (6 green, 1 yellow, 1 red)
-    const lit = Math.round(v * total);
-    leds.forEach((el, i)=> el.classList.toggle('on', i < lit));
-  }
+  function paintLeds(leds, v){ const total=8, lit=Math.round(v*total); leds.forEach((el,i)=> el.classList.toggle('on', i<lit)); }
 
   /* ---------- Events & selections ---------- */
   function wireControls(){
-    // Slide switch: pressed=true means RADIO; false means PLAYLISTS
+    // Note user interaction so first play() isn’t blocked
+    window.addEventListener('click', ()=>{ userInteracted = true; }, { once:true });
+
     switchKnob?.addEventListener('click', async ()=>{
       const pressed = switchKnob.getAttribute('aria-pressed') === 'true';
       setSwitch(!pressed); // toggle
-      if (usingStations) {
-        if (sel.stations?.options.length) await onPickStations(false);
-      } else {
-        if (sel.playlists?.options.length) await onPickMusic(false);
-      }
+      // Do NOT auto-switch station/playlist here; only when selects change or buttons pressed.
     });
 
-    // Buttons
     btn.play?.addEventListener('click', playPause);
     btn.stop?.addEventListener('click', stop);
     btn.prev?.addEventListener('click', prev);
@@ -498,23 +440,16 @@
     btn.loop1?.addEventListener('click',()=> { loopMode = (loopMode==='one')?'none':'one'; btn.loop1.classList.toggle('active', loopMode==='one'); btn.loop.classList.remove('active'); });
     btn.mute?.addEventListener('click', ()=> { audio.muted = !audio.muted; setMuteIcon(); });
 
-    // Seek & volume
     seek?.addEventListener('input', ()=>{
       if (!isFinite(audio.duration) || audio.duration<=0) return;
       audio.currentTime = (seek.value/1000)*audio.duration;
     });
-    if (vol){
-      vol.value = String(cfg.volume);
-      audio.volume = cfg.volume;
-      vol.addEventListener('input', ()=> { audio.volume = clamp01(parseFloat(vol.value)); });
-    }
+    if (vol){ vol.value = String(cfg.volume); audio.volume = cfg.volume; vol.addEventListener('input', ()=> { audio.volume = clamp01(parseFloat(vol.value)); }); }
 
-    // Audio events
     audio.addEventListener('timeupdate', paintTimes);
     audio.addEventListener('durationchange', paintTimes);
-    audio.addEventListener('ended', ()=> usingStations ? nextStation() : nextTrack());
+    audio.addEventListener('ended', ()=> usingStations ? /* stay on station */ setPlayIcon(false) : nextTrack());
 
-    // Keys
     root.addEventListener('keydown', (e)=>{
       if (e.code==='Space'){ e.preventDefault(); playPause(); }
       if (e.code==='ArrowLeft') prev();
@@ -529,23 +464,22 @@
     }
     setMuteIcon();
 
-    // Select changes
     sel.stations?.addEventListener('change', ()=> onPickStations(false));
     sel.playlists?.addEventListener('change', ()=> onPickMusic(false));
   }
 
   async function onPickStations(autoPlay){
-    setSwitch(false); // pressed=true => Radio
+    setSwitch(false);
     const file = sel.stations?.value; if (!file) return;
     queue = await loadM3U(file, true);
     cursor = 0;
     const stTitle = queue[0]?.title || 'Live Station';
     renderRadioList(stTitle, lastNowTitle || '—');
     setNow(stTitle, 'Radio');
-    if (cfg.autoplay || autoPlay) playAt(0);
+    if ((cfg.autoplay || autoPlay) && (userInteracted || cfg.autoplayMuted)) playAt(0);
   }
   async function onPickMusic(autoPlay){
-    setSwitch(true); // pressed=false => Playlists
+    setSwitch(true);
     const file = sel.playlists?.value; if (!file) return;
     let tracks = await loadM3U(file, false);
     if (cfg.shuffle && tracks.length>1) {
@@ -554,7 +488,7 @@
     queue = tracks; cursor = 0;
     renderPlaylistList(queue);
     setNow(queue[0]?.title || '—', 'Playlist');
-    if (cfg.autoplay || autoPlay) playAt(0);
+    if ((cfg.autoplay || autoPlay) && (userInteracted || cfg.autoplayMuted)) playAt(0);
   }
 
   function fillSelect(selEl, arr){
@@ -568,68 +502,28 @@
     });
   }
 
-  async function resolveManifest(){
-    // Try provided; else default; else tiny fallback
-    try {
-      const hinted = attr('data-manifest-url');
-      if (hinted) { const t = await fetchThroughRelays(hinted, 'text'); if (t) return hinted; }
-    } catch {}
-    try {
-      const t = await fetchThroughRelays(cfg.manifestUrl, 'text'); if (t) return cfg.manifestUrl;
-    } catch {}
-    const FALLBACK = {
-      stations: [],
-      playlists:[]
-    };
-    const blob = new Blob([JSON.stringify(FALLBACK, null, 2)], { type:'application/json' });
-    return URL.createObjectURL(blob);
-  }
-
-  /* ---------- Boot ---------- */
   async function boot(){
-    buildShell();
-    wireRefs();
-    wireControls();
-
-    // Initial switch visuals
+    buildShell(); wireRefs(); wireControls();
     setSwitch(cfg.startSource === 'playlists');
 
-    // Load manifest
-    const url = await resolveManifest();
-    const mfText = await fetchThroughRelays(url,'text');
-    let mf;
-    try { mf = JSON.parse(mfText); } catch { mf = null; }
+    const mf = await getJSON(cfg.manifestUrl);
     manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
     manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
-
     fillSelect(sel.stations,  manifest.stations);
     fillSelect(sel.playlists, manifest.playlists);
 
-    // Initial selection/order
-    let mode = cfg.startSource;
-    if (mode === 'auto'){
-      const both = manifest.stations.length && manifest.playlists.length;
-      mode = both ? (Math.random()<0.5?'stations':'playlists')
-           : (manifest.stations.length?'stations':'playlists');
-    }
-
-    if (mode==='stations' && manifest.stations.length){
-      sel.stations.selectedIndex = 0;
-      await onPickStations(false);
+    // initial
+    if (cfg.startSource==='stations' && manifest.stations.length){
+      sel.stations.selectedIndex = 0; await onPickStations(false);
     } else if (manifest.playlists.length){
-      sel.playlists.selectedIndex = 0;
-      await onPickMusic(false);
+      sel.playlists.selectedIndex = 0; await onPickMusic(false);
     } else {
       setNow('No playlists found','—');
     }
 
-    // Final autoplay attempt
-    if (cfg.autoplay && !cfg.autoplayMuted && audio.paused) {
-      try { await audio.play(); }
-      catch {
-        audio.muted = true; setMuteIcon();
-        try { await audio.play(); } catch {}
-      }
+    // polite autoplay attempt
+    if (cfg.autoplay && cfg.autoplayMuted && !audio.src && manifest.stations.length) {
+      await onPickStations(true);
     }
   }
 
