@@ -12,7 +12,8 @@ import { corsWrap, fetchJSONViaProxy, fetchTextViaProxy } from './cors.js';
  * ------------------------------------------------------------------------- */
 
 const SOMA_URL   = 'https://somafm.com/channels.json';
-const SOMA_TTLMS = 12_000; // refresh fast; their lastPlaying moves quickly
+// Keep TTL slightly under the UI poll (usually 5s) so each tick gets fresh data.
+const SOMA_TTLMS = 5000;
 let _soma = { t: 0, rows: null };
 
 function toInt(v){
