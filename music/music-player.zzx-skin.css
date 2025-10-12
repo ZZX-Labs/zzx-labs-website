@@ -1,0 +1,205 @@
+/* -------------------------------------------------------------
+   ZZX-Labs Skin for Music Player Widget
+   -------------------------------------------------------------
+   Author: 0xdeadbeef of ZZX-Labs R&D
+   Version: 1.0
+   Purpose: Overlay CAB player aesthetics with ZZX-Labs branding.
+---------------------------------------------------------------- */
+
+:root {
+  /* Core ZZX brand palette */
+  --zzx-accent:      #c0d674;  /* cyber sage green */
+  --zzx-accent-2:    #e6a42b;  /* ochre highlight */
+  --zzx-fg:          #e8e8e8;
+  --zzx-fg-dim:      #9aa1aa;
+  --zzx-bg-1:        #0b0f15;
+  --zzx-bg-2:        #0c121a;
+  --zzx-border:      rgba(255,255,255,.10);
+  --zzx-border-soft: rgba(255,255,255,.06);
+  --zzx-shadow:      0 8px 28px rgba(0,0,0,.45);
+
+  /* Map into player variables */
+  --mp-bg:        var(--zzx-bg-1);
+  --mp-bg-2:      var(--zzx-bg-2);
+  --mp-fg:        var(--zzx-fg);
+  --mp-dim:       var(--zzx-fg-dim);
+  --mp-border:    var(--zzx-border);
+  --mp-accent:    var(--zzx-accent);
+}
+
+/* Root shell */
+[data-mp] {
+  background: linear-gradient(180deg, rgba(11,15,21,.97), rgba(12,18,26,.97));
+  color: var(--mp-fg);
+  border: 1px solid var(--zzx-border);
+  border-radius: 12px;
+  box-shadow: var(--zzx-shadow), inset 0 1px 0 rgba(255,255,255,.03);
+  padding: .9rem 1rem;
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  backdrop-filter: blur(6px);
+}
+
+/* --- Header row --- */
+.mp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+  border-bottom: 1px solid var(--zzx-border-soft);
+  padding-bottom: .6rem;
+  margin-bottom: .6rem;
+}
+.mp-now {
+  min-width: 220px;
+}
+.mp-title {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: .3px;
+  color: var(--zzx-fg);
+}
+.mp-sub.small {
+  color: var(--zzx-fg-dim);
+  font-size: .9rem;
+  margin-top: .1rem;
+}
+
+/* --- Buttons --- */
+.mp-controls {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.mp-btn {
+  background: linear-gradient(180deg, #0e141d, #0a0f16);
+  color: var(--mp-fg);
+  border: 1px solid var(--zzx-border);
+  border-radius: 8px;
+  padding: .35rem .6rem;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+  transition: all .15s ease;
+}
+.mp-btn:hover {
+  border-color: rgba(255,255,255,.18);
+  filter: brightness(1.1);
+}
+.mp-btn.active {
+  border-color: rgba(192,214,116,.45);
+  box-shadow:
+    0 0 0 1px rgba(192,214,116,.25),
+    inset 0 0 0 1px rgba(192,214,116,.15);
+}
+
+/* --- Middle (seek/time/vol) --- */
+.mp-middle {
+  display: grid;
+  grid-template-columns: 100px 1fr 130px;
+  align-items: center;
+  gap: .6rem;
+  margin: .8rem 0;
+}
+.mp-time {
+  color: var(--mp-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95rem;
+}
+.mp-seek {
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: 5px;
+  background: #121a27;
+  cursor: pointer;
+}
+.mp-seek::-webkit-slider-thumb,
+.mp-seek::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--zzx-accent);
+  border: 1px solid #353d26;
+  appearance: none;
+}
+.mp-vol input[type="range"] {
+  width: 100%;
+  accent-color: var(--zzx-accent);
+}
+
+/* --- Bottom (playlists + track list) --- */
+.mp-bottom {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 320px 1fr;
+}
+@media (max-width: 880px) {
+  .mp-bottom { grid-template-columns: 1fr; }
+}
+
+.mp-left label {
+  display: block;
+  margin-bottom: .3rem;
+  color: var(--mp-dim);
+}
+.mp-pl {
+  width: 100%;
+  background: var(--mp-bg-2);
+  color: var(--mp-fg);
+  border: 1px solid var(--zzx-border);
+  border-radius: 8px;
+  padding: .45rem .6rem;
+  font-size: .95rem;
+}
+
+/* Track list */
+.mp-right .mp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--zzx-border);
+  border-radius: 10px;
+  background: var(--mp-bg-2);
+  max-height: 300px;
+  overflow-y: auto;
+}
+.mp-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .52rem .65rem;
+  border-bottom: 1px solid var(--zzx-border-soft);
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.mp-list li:last-child { border-bottom: 0; }
+.mp-list li:hover { background: rgba(255,255,255,.03); }
+.mp-list li.active {
+  background: linear-gradient(180deg, #0f1722, #0c131c);
+  box-shadow: inset 0 0 0 1px rgba(192,214,116,.12);
+}
+.mp-list .t {
+  color: var(--mp-fg);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mp-list .len {
+  color: var(--mp-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .9rem;
+}
+
+/* Optional global headings for /music/ page */
+.page-music h2 {
+  color: var(--zzx-accent);
+  margin-bottom: .4rem;
+}
+.page-music h3 {
+  color: var(--zzx-accent-2);
+  margin-top: 1.2rem;
+  margin-bottom: .5rem;
+}
+.page-music p {
+  color: var(--zzx-fg-dim);
+}
