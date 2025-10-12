@@ -10,7 +10,10 @@ export function buildUI(root, cfg) {
     <div class="mp-top">
       <div class="mp-now">
         <div class="mp-title mono">—</div>
-        <div class="mp-sub small">—</div>
+        <div class="mp-sub small">
+          <span class="mp-subtext">—</span>
+          <span class="mp-listeners small mono" style="margin-left:.5rem; opacity:.85;"></span>
+        </div>
       </div>
 
       <div class="mp-controls" role="toolbar" aria-label="Playback">
@@ -52,7 +55,8 @@ export function buildUI(root, cfg) {
 
   // Refs
   const titleEl = $('.mp-title', root);
-  const subEl   = $('.mp-sub', root);
+  const subEl   = $('.mp-subtext', root);       // subtitle text node
+  const lisEl   = $('.mp-listeners', root);     // listeners badge
   const switchKnob = $('.mp-switch-knob', root);
 
   const btns = {
@@ -74,11 +78,11 @@ export function buildUI(root, cfg) {
   const selStations = $('.mp-pl-stations', root);
   const selMusic    = $('.mp-pl-music', root);
 
-  return { titleEl, subEl, switchKnob, btns, timeCur, timeDur, seek, vol, list, selStations, selMusic };
+  return { titleEl, subEl, lisEl, switchKnob, btns, timeCur, timeDur, seek, vol, list, selStations, selMusic };
 }
 
 /** Small view helpers bound to DOM */
-export function uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek }) {
+export function uiHelpers({ titleEl, subEl, lisEl, list, timeCur, timeDur, seek }) {
   // local root to query buttons if needed
   const root = titleEl?.closest('[data-mp]') || document;
   const btnPlay = $('.mp-btn[data-act="play"]', root);
@@ -97,6 +101,20 @@ export function uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek }) {
     if (subEl) subEl.textContent = sub || '—';
   }
 
+  /** Show/hide listeners count, e.g. "• 1,234 listening" */
+  function setListeners(n) {
+    if (!lisEl) return;
+    if (n == null || n === '' || Number(n) <= 0) {
+      lisEl.textContent = '';
+      lisEl.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    const num = Number.isFinite(+n) ? Number(n) : n;
+    const pretty = (typeof num === 'number' && num.toLocaleString) ? num.toLocaleString() : num;
+    lisEl.textContent = `• ${pretty} listening`;
+    lisEl.removeAttribute('aria-hidden');
+  }
+
   const setPlayIcon = (isPlaying) => {
     if (!btnPlay) return;
     btnPlay.textContent = isPlaying ? '⏸' : '▶';
@@ -107,8 +125,6 @@ export function uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek }) {
     // Prefer explicit audio param; fallback: keep existing glyph if unknown
     if (audio && typeof audio.muted === 'boolean') {
       btnMute.textContent = audio.muted ? '🔇' : '🔊';
-    } else {
-      // no-op if audio not provided
     }
   };
 
@@ -149,7 +165,7 @@ export function uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek }) {
       li.appendChild(left); li.appendChild(right);
       li.dataset.index = String(i);
 
-      // Let parent (mount.js) decide how to handle it; dispatch an event.
+      // Let parent (mount.js/player.js) decide how to handle it; dispatch an event.
       li.addEventListener('click', () => {
         const ev = new CustomEvent('mp:select-index', { bubbles: true, detail: { index: i }});
         li.dispatchEvent(ev);
@@ -170,5 +186,5 @@ export function uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek }) {
     if (cursor >= 0 && list.children[cursor]) list.children[cursor].classList.add('active');
   }
 
-  return { setNow, setPlayIcon, setMuteIcon, paintTimes, setSourceUI, renderQueue, highlightList };
+  return { setNow, setListeners, setPlayIcon, setMuteIcon, paintTimes, setSourceUI, renderQueue, highlightList };
 }
