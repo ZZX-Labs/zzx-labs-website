@@ -1,8 +1,8 @@
-/* ZZX-Labs skin tweaks for tighter spacing, proper order, and HORIZONTAL LEDs */
+/* ZZX-Labs skin tweaks for tighter spacing, correct order, and HORIZONTAL 2-bar VU */
 
 :root {
   --zzx-accent: #c0d674;          /* green */
-  --zzx-accent-yellow: #e6ab42;   /* yellow */
+  --zzx-accent-yellow: #e6a42b;   /* yellow (as requested) */
   --zzx-fg: #e8e8e8;
   --zzx-fg-dim: #9aa1aa;
   --zzx-bg-1: #0b0f15;
@@ -82,46 +82,34 @@
   width:14px; height:14px; border-radius:50%; background: var(--zzx-accent); border:1px solid #353d26; appearance:none;
 }
 
-/* --- Meter + Volume (HORIZONTAL, L row on top, R row below) --- */
+/* --- 2× HORIZONTAL LED BARS (full width), then full-width volume --- */
 .mp-meter{
   display:grid;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto auto; /* L row, R row, volume */
   gap:.5rem;
-  margin:.5rem 0 .9rem;
+  margin:.6rem 0 .9rem;
 }
-
-/* Scale labels: 0 dB (left) -> +6 dB (right) */
-.vu-scale{
-  display:flex; justify-content:space-between; align-items:center;
-  color: var(--mp-dim);
-  font-size:.85rem;
-  padding: 0 .2rem;
-}
-.vu-scale .left, .vu-scale .right { opacity:.9; }
-
-/* Two stacked rows: L (top), R (bottom) */
-.vu-rows{ display:grid; grid-template-rows:auto auto; gap:.35rem; }
 
 .vu-row{
   display:flex; align-items:center; gap:.6rem;
-  min-height: 16px;
+  min-height: 14px;
 }
 .vu-ch{
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight:700;
   color: var(--mp-dim);
-  width: 1.2rem;
+  width: 1.2rem; /* “L”/“R” gutter */
   text-align:right;
 }
 .vu-bar{
   display:flex; gap:4px; align-items:center;
-  flex:1;
+  flex:1;            /* take the full remaining width */
 }
 
-/* Horizontal LED segments (8 total: 6 green, 1 yellow, 1 red) */
+/* exactly 8 segments across the full width */
 .hled{
-  width: calc((100% - (7 * 4px)) / 8); /* 8 segments, 7 gaps */
-  min-width: 14px;
+  flex: 1 1 calc(12.5% - 3.5px); /* 8 equal segments with gaps */
+  min-width: 16px;
   height: 12px;
   border-radius: 2px;
   opacity: .22;
@@ -132,16 +120,16 @@
 
 /* GREEN */
 .hled.g.on{
-  background: #c0d674;                     /* exact ZZX green */
+  background: #c0d674;
   box-shadow: 0 0 4px #c0d674;
   opacity: 1;
 }
 
-/* YELLOW */
+/* YELLOW (requested #e6a42b) */
 .hled.y{ background:#4f4722; }
 .hled.y.on{
-  background: #e6ab42;                     /* exact requested yellow */
-  box-shadow: 0 0 4px #e6ab42;
+  background: #e6a42b;
+  box-shadow: 0 0 4px #e6a42b;
   opacity: 1;
 }
 
@@ -153,7 +141,7 @@
   opacity:1;
 }
 
-/* Volume full width under meters */
+/* Volume — full width under the bars */
 .mp-vol input[type="range"]{
   width:100%;
   accent-color: var(--zzx-accent);
