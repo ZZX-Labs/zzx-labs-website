@@ -1,8 +1,14 @@
-// player.js — main state machine
-import { repoPrefix, $, clamp01, isAbs, join, fmtTime, corsWrap } from './utils.js';
+// player.js — main state machine (DROP-IN)
+// Improvements:
+// - Reset lastNowTitle when switching/starting a station so first poll paints
+// - Call poll immediately via startMetaPolling; keep interval
+// - Defensive guards + consistent render on station change
+// - No changes to other modules/APIs required
+
+import { repoPrefix, $, clamp01, isAbs, join, fmtTime } from './utils.js';
 import { parseM3U } from './m3u.js';
 import { buildShell, refs as getRefs, setNow, setPlayIcon, paintTimes, fillSelect,
-         renderRadioList, updateRadioNow, renderPlaylist, highlightList, setMuteIcon } from './ui.js';
+         renderRadioList, updateRadioNow, renderPlaylist, highlightList } from './ui.js';
 import { ensureMeter } from './meter.js';
 import { fetchStreamMeta, fetchTrackMeta } from './metadata.js';
 import { wireControls } from './controls.js';
@@ -38,7 +44,7 @@ export async function boot(root){
   let usingStations = (cfg.startSource !== 'playlists');
   let metaTimer = null;
   let lastStreamUrl = '';
-  let lastNowTitle = '';
+  let lastNowTitle = '';        // <- we reset this when changing stations
   const historyByStation = new Map();
 
   function stationKey(title, url){
@@ -97,13 +103,17 @@ export async function boot(root){
 
     try{
       if (tr.isStream){
+        // Reset so first poll WILL paint even if "same" text arrives
+        lastNowTitle = '';
         const ok = await tryPlayStream(tr.urls);
         lastStreamUrl = ok || tr.urls[0] || lastStreamUrl;
+
         setPlayIcon(R, true);
-        renderRadioList(R, tr.title, lastNowTitle || '—');
+        renderRadioList(R, tr.title, '—');              // start as em dash until poll lands
         highlightList(R, cursor, usingStations);
-        startMetaPolling(tr.title);
-        ensureMeter(audio); // fire once; safe to call again
+        startMetaPolling(tr.title);                     // will call pollOnce immediately
+        ensureMeter(audio); // safe to call again
+
       } else {
         audio.src = tr.url;
         await audio.play();
@@ -111,7 +121,7 @@ export async function boot(root){
         highlightList(R, cursor, usingStations);
         ensureMeter(audio);
 
-        // NEW: playlist item metadata
+        // Playlist item metadata (ID3/OGG + oEmbed)
         try{
           const meta = await fetchTrackMeta(tr, cfg.corsProxy);
           const label = pretty(meta);
@@ -168,6 +178,7 @@ export async function boot(root){
   function startMetaPolling(stationTitle){
     stopMetaPolling();
     if (!lastStreamUrl) return;
+    // First immediate poll (so we don't wait a full interval)
     pollOnce(stationTitle);
     metaTimer = setInterval(()=>pollOnce(stationTitle), Math.max(5, cfg.metaPollSec)*1000);
   }
@@ -175,12 +186,12 @@ export async function boot(root){
     try{
       const meta = await fetchStreamMeta(lastStreamUrl, cfg.corsProxy);
       if (meta && (meta.now || meta.title)){
-        const label = meta.now || meta.title;
+        const label = (meta.now || meta.title || '').trim();
         if (label && label !== lastNowTitle){
           lastNowTitle = label;
           setNow(R, stationTitle || meta.title || 'Live Station', 'Radio');
           updateRadioNow(R, label);
-          appendStationHistory(stationTitle, label);
+          appendStationHistory(stationTitle || 'Live Station', label);
         }
       }
     }catch{}
@@ -190,10 +201,12 @@ export async function boot(root){
   async function onPickStations(autoPlay){
     setSwitch(false);
     const file = R.sel.stations?.value; if (!file) return;
+    // Reset so first metadata paint isn't suppressed by previous render
+    lastNowTitle = '';
     queue = await loadM3U(file, true);
     cursor = 0;
     const stTitle = queue[0]?.title || 'Live Station';
-    renderRadioList(R, stTitle, lastNowTitle || '—');
+    renderRadioList(R, stTitle, '—');     // show em dash until first poll
     setNow(R, stTitle, 'Radio');
     if (autoPlay || cfg.autoplay || cfg.autoplayMuted) playAt(0);
   }
