@@ -1,4 +1,4 @@
-// /music/script.js — direct stream playback + CORS-only metadata + working toggle + per-station history + stacked meters
+// /music/script.js — direct stream playback + CORS-only metadata + working toggle + per-station history + HORIZONTAL meters
 (function () {
   const root = document.querySelector('[data-mp]');
   if (!root) return console.error('[music] no [data-mp] element');
@@ -84,10 +84,18 @@
         <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
       </div>
 
+      <!-- HORIZONTAL stacked meters (L top, R bottom) + full-width volume -->
       <div class="mp-meter">
-        <div class="mp-leds mp-leds-vert" aria-hidden="true">
-          <div class="led-row" data-side="L">${renderBar('L')}</div>
-          <div class="led-row" data-side="R">${renderBar('R')}</div>
+        <div class="vu-scale"><span class="left">0 dB</span><span class="right">+6 dB</span></div>
+        <div class="vu-rows">
+          <div class="vu-row">
+            <div class="vu-ch">L</div>
+            <div class="vu-bar">${renderBar('L')}</div>
+          </div>
+          <div class="vu-row">
+            <div class="vu-ch">R</div>
+            <div class="vu-bar">${renderBar('R')}</div>
+          </div>
         </div>
         <div class="mp-vol">
           <input type="range" class="mp-volume" min="0" max="1" step="0.01" value="${cfg.volume}" aria-label="Volume">
@@ -110,12 +118,13 @@
     `;
   }
   function renderBar(side){
-    // 6 green, 1 yellow, 1 red (horizontal bar); we stack two rows (L,R)
-    const leds = [];
-    for (let i=0;i<6;i++) leds.push(`<span class="led g" data-led-${side}${i}></span>`);
-    leds.push(`<span class="led y" data-led-${side}6></span>`);
-    leds.push(`<span class="led r" data-led-${side}7></span>`);
-    return leds.join('');
+    // 6 green, 1 yellow, 1 red — horizontal; data-led-* kept for the JS to light segments
+    const seg = (cls, i) => `<span class="hled ${cls}" data-led-${side}${i}></span>`;
+    return [
+      seg('g',0), seg('g',1), seg('g',2), seg('g',3), seg('g',4), seg('g',5),
+      seg('y',6),
+      seg('r',7)
+    ].join('');
   }
 
   /* ---------- State ---------- */
@@ -421,6 +430,7 @@
   }
   function startMeterLoop(){
     stopMeterLoop();
+    // selects by data-led-* so CSS class names can differ; we render .hled in the DOM
     const ledsL = Array.from(document.querySelectorAll('[data-led-L0],[data-led-L1],[data-led-L2],[data-led-L3],[data-led-L4],[data-led-L5],[data-led-L6],[data-led-L7]'));
     const ledsR = Array.from(document.querySelectorAll('[data-led-R0],[data-led-R1],[data-led-R2],[data-led-R3],[data-led-R4],[data-led-R5],[data-led-R6],[data-led-R7]'));
     const bufL = new Uint8Array(analyserL.frequencyBinCount);
