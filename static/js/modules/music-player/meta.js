@@ -1,5 +1,5 @@
-// Universal now-playing metadata helpers (Icecast/Shoutcast/Radio.co) + SomaFM
-// For SomaFM we *only* use channels.json (no ICY probing).
+// static/js/modules/music-player/meta.js
+// Universal now-playing metadata helpers (Icecast/Shoutcast/Radio.co) + SomaFM via channels.json ONLY
 
 import { normalizeNow } from './utils.js';
 import { corsWrap, fetchJSONViaProxy, fetchTextViaProxy } from './cors.js';
@@ -8,9 +8,9 @@ import { corsWrap, fetchJSONViaProxy, fetchTextViaProxy } from './cors.js';
  * SomaFM live metadata (channels.json)
  * ------------------------------------------------------------------------- */
 
-const SOMA_URL   = 'https://somafm.com/channels.json';
-const SOMA_TTLMS = 4_500; // re-fetch under 5s poll cadence
-let _soma = { t: 0, rows: null };
+const SOMA_URL     = 'https://somafm.com/channels.json';
+const SOMA_TTL_MS  = 5000; // ~5s cache
+let _somaCache = { t: 0, rows: null };
 
 function toInt(v){
   const n = parseInt(String(v ?? '').trim(), 10);
@@ -19,7 +19,7 @@ function toInt(v){
 
 function liteRow(ch){
   return {
-    id:          String(ch.id || ''),
+    id:          String(ch.id || '').toLowerCase(),
     title:       String(ch.title || ''),
     listeners:   toInt(ch.listeners),
     lastPlaying: String(ch.lastPlaying || '')
@@ -28,81 +28,38 @@ function liteRow(ch){
 
 async function fetchSomaChannels(proxy){
   const now = Date.now();
-  if (_soma.rows && (now - _soma.t) < SOMA_TTLMS) return _soma.rows;
+  if (_somaCache.rows && (now - _somaCache.t) < SOMA_TTL_MS) return _somaCache.rows;
+
   const j = await fetchJSONViaProxy(SOMA_URL, proxy);
   const rows = Array.isArray(j?.channels) ? j.channels.map(liteRow) : null;
-  if (rows) { _soma = { t: now, rows }; return rows; }
-  return _soma.rows || null; // stale-if-error
-}
 
-/** Canonicalize common SomaFM aliases to channels.json ids */
-const SOMA_ALIASES = {
-  // yours
-  dubstepbeyond: 'dubstep',
-  heavyweightreggae: 'reggae',
-  metaldetector: 'metal',
-  secretagent: 'secretagent',
-  suburbsofgoa: 'suburbsofgoa',
-  tikitime: 'tikitime',
-  // a few extra common ones
-  groovesaladclassic: 'gsclassic',
-  illinoisstreetlounge: 'illstreet',
-  illstreetlounge: 'illstreet',
-  seveninchsoul: '7soul',
-};
-
-function canonicalizeSomaId(s){
-  if (!s) return '';
-  const raw = String(s).trim();
-  const simple = raw.replace(/[^a-z0-9]/gi,'').toLowerCase();
-  return SOMA_ALIASES[simple] || simple;
+  if (rows && rows.length){
+    _somaCache = { t: now, rows };
+    return rows;
+  }
+  // stale-if-error
+  return _somaCache.rows || null;
 }
 
 /** "/groovesalad-128-mp3" -> "groovesalad" */
 function somaIdFromPath(pathname=''){
   const first = String(pathname || '').replace(/^\/+/, '').split(/[/?#]/)[0] || '';
-  const id = first.replace(/[-_].*$/,''); // kill "-128-mp3" etc.
-  return canonicalizeSomaId(id);
+  let id = first.replace(/\.(mp3|aacp?|ogg|pls|m3u8)$/i, '');
+  id = id.replace(/-(320|256|192|160|130|128|112|96|80|64|56|48|40|32)(-(mp3|aacp?|ogg))?$/i, '');
+  if (id.includes('-')) id = id.split('-')[0];
+  return id.toLowerCase();
 }
 
-/** Best-effort find by id/aliases or fuzzy by title */
-function findSomaRow(rows, idHint, nameHint){
-  if (!rows?.length) return null;
-  const id = canonicalizeSomaId(idHint);
-
-  // 1) exact id
-  let row = id ? rows.find(r => r.id.toLowerCase() === id) : null;
-  if (row) return row;
-
-  // 2) alias hit (id already canonicalized above) — skip
-
-  // 3) try to derive from "SomaFM - Heavyweight Reggae" → "heavyweightreggae" → alias
-  if (!row && nameHint){
-    const name = String(nameHint).replace(/^SomaFM\s*-\s*/i,'').trim();
-    const aliasTry = canonicalizeSomaId(name);
-    row = rows.find(r => r.id.toLowerCase() === aliasTry);
-    if (row) return row;
-
-    // fuzzy title match
-    const norm = s => String(s||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
-    const nTarget = norm(name);
-    row = rows.find(r => norm(r.title) === nTarget) || rows.find(r => norm(r.title).includes(nTarget));
-    if (row) return row;
-  }
-
-  return null;
-}
-
-/** Public (optional): fetch a subset of Soma rows by ids */
-export async function fetchSomaByIds(ids, proxy){
-  if (!Array.isArray(ids) || !ids.length) return [];
-  const rows = await fetchSomaChannels(proxy); if (!rows) return [];
-  const want = new Set(ids.map(s => canonicalizeSomaId(s)));
-  return rows.filter(r => want.has(canonicalizeSomaId(r.id)));
+function inferSomaIdFromUrl(streamUrl){
+  try{
+    const u = new URL(streamUrl, location.href);
+    if (!/\.somafm\.com$/i.test(u.hostname)) return '';
+    return somaIdFromPath(u.pathname);
+  } catch { return ''; }
 }
 
 /* ----------------------------------------------------------------------------
- * Universal (probe by stream host) — used for non-Soma
+ * Universal (probe by stream host) — used for non-Soma stations
  * ------------------------------------------------------------------------- */
 
 function guessRadioCoStatus(u){
@@ -114,7 +71,7 @@ export async function fetchStreamMetaUniversal(streamUrl, proxy){
   try{
     const u = new URL(streamUrl, location.href);
 
-    // Never probe SomaFM; avoid ICY "Donate…" titles entirely.
+    // IMPORTANT: never probe SomaFM via ICY endpoints (they include Donate promos).
     if (/\.somafm\.com$/i.test(u.hostname)) return null;
 
     const base = `${u.protocol}//${u.host}`;
@@ -170,7 +127,7 @@ export async function fetchStreamMetaUniversal(streamUrl, proxy){
 }
 
 /* ----------------------------------------------------------------------------
- * Specific adapters (manifest-declared)
+ * Specific adapters (manifest-declared) — used only as a fallback
  * ------------------------------------------------------------------------- */
 
 export async function metaRadioCo(meta, proxy){
@@ -183,37 +140,6 @@ export async function metaRadioCo(meta, proxy){
   return { title: meta?.name || '', now: normalizeNow([a,t].filter(Boolean).join(' - ')) };
 }
 
-/**
- * SomaFM adapter backed by channels.json
- * station hint fields supported: { channelId } | { channel } | { id } | { name }
- * If no hint, tries to infer from streamUrl hostname/path.
- */
-export async function metaSomaFM(meta, proxy, streamUrl){
-  const rows = await fetchSomaChannels(proxy);
-  if (!rows) return null;
-
-  let id =
-    (meta?.channelId || meta?.channel || meta?.id || '').toString();
-
-  if (!id && streamUrl){
-    try {
-      const u = new URL(streamUrl, location.href);
-      if (/\.somafm\.com$/i.test(u.hostname)) id = somaIdFromPath(u.pathname);
-    } catch {}
-  }
-
-  const row = findSomaRow(rows, id, meta?.name);
-  if (!row) return null;
-
-  const now = normalizeNow(row.lastPlaying || '');
-  return {
-    title: row.title || `SomaFM • ${row.id}`,
-    now: now || (row.lastPlaying || '').trim(),
-    listeners: row.listeners,
-    id: row.id
-  };
-}
-
 export async function metaShoutcast(meta, proxy){
   if (!meta?.status) return null;
   const txt = await fetchTextViaProxy(meta.status, proxy);
@@ -223,37 +149,63 @@ export async function metaShoutcast(meta, proxy){
   return { title: 'Shoutcast', now: normalizeNow(cur) };
 }
 
+/**
+ * SomaFM adapter backed by channels.json ONLY.
+ * station hint fields supported: { channelId } | { channel } | { id }
+ * If no hint, tries to infer from streamUrl hostname/path.
+ */
+export async function metaSomaFM(meta, proxy, streamUrl){
+  const rows = await fetchSomaChannels(proxy);
+  if (!rows) return null;
+
+  let id =
+    (meta?.channelId || meta?.channel || meta?.id || '').toString().toLowerCase();
+
+  if (!id && streamUrl) id = inferSomaIdFromUrl(streamUrl);
+  if (!id) return null;
+
+  const row = rows.find(r => r.id === id);
+  if (!row) return null;
+
+  return {
+    title: row.title || `SomaFM • ${id}`,
+    now: normalizeNow(row.lastPlaying || ''),
+    listeners: row.listeners
+  };
+}
+
 /* ----------------------------------------------------------------------------
  * Orchestrator
  * ------------------------------------------------------------------------- */
 /**
- * Try SomaFM first (if detected), then stream-host probing, then declared kind.
+ * Try SomaFM (by URL or declared kind) using channels.json,
+ * then stream-host probing (non-Soma only),
+ * then manifest-declared fallbacks.
+ *
  * @param {string} streamUrl - actual playing URL
  * @param {{kind?:'somafm'|'radioco'|'shoutcast', channelId?:string, channel?:string, id?:string, status?:string, station_id?:string, name?:string}} stationMeta
  * @param {string} proxy - "allorigins-raw" | "allorigins-json" | custom prefix | ''
  */
 export async function fetchNowPlaying(streamUrl, stationMeta, proxy){
-  // 1) If this is SomaFM by URL or explicit kind, use channels.json only
+  // 1) Prefer SomaFM via channels.json (either host matches or kind declared)
   try {
     const u = streamUrl ? new URL(streamUrl, location.href) : null;
-    const isSomaByHost = !!u && /\.somafm\.com$/i.test(u.hostname);
-    if (isSomaByHost || stationMeta?.kind === 'somafm') {
+    const isSoma = !!u && /\.somafm\.com$/i.test(u.hostname);
+    if (isSoma || stationMeta?.kind === 'somafm') {
       const soma = await metaSomaFM(stationMeta, proxy, streamUrl);
       if (soma && (soma.now || soma.title)) return soma;
-      // If we thought it was Soma but failed to map, do NOT fall back to ICY.
-      return null;
     }
   } catch {}
 
-  // 2) Generic host probing (non-Soma only)
+  // 2) Generic host probing for non-Soma
   if (streamUrl){
     const uni = await fetchStreamMetaUniversal(streamUrl, proxy);
     if (uni && (uni.now || uni.title)) return uni;
   }
 
-  // 3) Manifest-declared fallbacks
+  // 3) Manifest-declared last-ditch fallbacks
   if (stationMeta?.kind === 'radioco')   return await metaRadioCo(stationMeta, proxy);
   if (stationMeta?.kind === 'shoutcast') return await metaShoutcast(stationMeta, proxy);
 
   return null;
-               }
+}
