@@ -1,33 +1,25 @@
-// Music Player (modular wrapper) — uses meta.js for robust live metadata
-import { isAbs, join } from './utils.js';
-import { fetchLiveNow } from './meta.js';
+// static/js/modules/music-player/index.js
+// Minimal player wrapper: stations/playlists, live metadata via AllOrigins
+import { $, $$, clamp01, isAbs, join, fmtTime, parseM3U } from './utils.js';
+import { fetchNowPlaying } from './meta.js';
 
-const fmtTime = (sec) => (!isFinite(sec)||sec<0) ? '—'
-  : `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
+/* --------- Mount --------- */
+export function mount(root, opts={}){
+  if (!root) return;
 
-const $  = (sel, ctx=document) => ctx.querySelector(sel);
-const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+  const cfg = {
+    manifestUrl   : root.dataset.manifestUrl  || opts.manifestUrl  || '/static/audio/music/playlists/manifest.json',
+    audioBase     : root.dataset.audioBase    || opts.audioBase    || '/static/audio/music/',
+    autoplay      : (root.dataset.autoplay ?? (opts.autoplay ? '1':'0')) === '1',
+    autoplayMuted : (root.dataset.autoplayMuted ?? (opts.autoplayMuted ? '1':'0')) === '1',
+    shuffle       : (root.dataset.shuffle ?? (opts.shuffle ? '1':'0')) === '1',
+    volume        : clamp01(parseFloat(root.dataset.volume ?? (opts.volume ?? 0.25))),
+    startSource   : root.dataset.startSource  || opts.startSource || 'stations',
+    corsProxy     : root.dataset.corsProxy    || opts.corsProxy || 'allorigins-raw',
+    metaPollSec   : Math.max(5, Number(root.dataset.metaPollSec || opts.metaPollSec || 8))
+  };
 
-function parseM3U(text){
-  const lines = String(text||'').split(/\r?\n/);
-  const out = []; let pending = null;
-  for (const raw of lines){
-    const line = raw.trim();
-    if (!line || line.startsWith('#EXTM3U')) continue;
-    if (line.startsWith('#EXTINF:')){
-      const i = line.indexOf(',');
-      pending = (i>=0? line.slice(i+1).trim() : null);
-      continue;
-    }
-    if (!line.startsWith('#')) out.push({ url: line, title: pending||line }), pending=null;
-  }
-  return out;
-}
-
-async function fetchJSON(u){ try{ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw 0; return await r.json(); }catch{return null;} }
-async function fetchText(u){ try{ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw 0; return await r.text(); }catch{return ''; } }
-
-function buildUI(root){
+  // UI shell
   root.innerHTML = `
     <div class="mp-top">
       <div class="mp-now">
@@ -47,14 +39,14 @@ function buildUI(root){
         <button class="mp-btn" data-act="shuffle" title="Shuffle">🔀</button>
         <button class="mp-btn" data-act="loop"    title="Loop all">🔁</button>
         <button class="mp-btn" data-act="loop1"   title="Loop one">🔂</button>
-        <button class="mp-btn" data-act="mute"    title="Mute/Unmute">🔊</button>
+        <button class="mp-btn" data-act="mute"    title="Mute/Unmute">🔇</button>
       </div>
     </div>
 
     <div class="mp-middle">
       <div class="mp-time mono"><span data-cur>00:00</span> / <span data-dur>—</span></div>
       <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
-      <div class="mp-vol"><input type="range" class="mp-volume" min="0" max="1" step="0.01" value="0.5" aria-label="Volume"></div>
+      <div class="mp-vol"><input type="range" class="mp-volume" min="0" max="1" step="0.01" value="${cfg.volume}" aria-label="Volume"></div>
     </div>
 
     <div class="mp-bottom">
@@ -71,91 +63,76 @@ function buildUI(root){
       </div>
     </div>
   `;
-  return {
-    titleEl: $('.mp-title', root),
-    subEl:   $('.mp-sub', root),
-    switchKnob: $('.mp-switch-knob', root),
-    btn: {
-      prev:    $('[data-act="prev"]', root),
-      play:    $('[data-act="play"]', root),
-      stop:    $('[data-act="stop"]', root),
-      next:    $('[data-act="next"]', root),
-      shuffle: $('[data-act="shuffle"]', root),
-      loop:    $('[data-act="loop"]', root),
-      loop1:   $('[data-act="loop1"]', root),
-      mute:    $('[data-act="mute"]', root),
-    },
-    timeCur: $('[data-cur]', root),
-    timeDur: $('[data-dur]', root),
-    seek:    $('.mp-seek', root),
-    vol:     $('.mp-volume', root),
-    list:    $('.mp-list', root),
-    selStations: $('.mp-pl-stations', root),
-    selMusic:    $('.mp-pl-music', root),
+
+  // Refs
+  const titleEl = $('.mp-title', root);
+  const subEl   = $('.mp-sub', root);
+  const switchKnob = $('.mp-switch-knob', root);
+
+  const btns = {
+    prev:    $('[data-act="prev"]', root),
+    play:    $('[data-act="play"]', root),
+    stop:    $('[data-act="stop"]', root),
+    next:    $('[data-act="next"]', root),
+    shuffle: $('[data-act="shuffle"]', root),
+    loop:    $('[data-act="loop"]', root),
+    loop1:   $('[data-act="loop1"]', root),
+    mute:    $('[data-act="mute"]', root),
   };
-}
+  const timeCur = $('[data-cur]', root);
+  const timeDur = $('[data-dur]', root);
+  const seek    = $('.mp-seek', root);
+  const vol     = $('.mp-volume', root);
+  const list    = $('.mp-list', root);
+  const selStations = $('.mp-pl-stations', root);
+  const selMusic    = $('.mp-pl-music', root);
 
-export async function mountPlayer(root, opts={}){
-  if (!root) return;
-
-  const cfg = {
-    manifestUrl   : root.dataset.manifestUrl  || opts.manifestUrl,
-    audioBase     : root.dataset.audioBase    || opts.audioBase || '/',
-    autoplay      : (root.dataset.autoplay ?? (opts.autoplay ? '1':'0')) === '1',
-    autoplayMuted : (root.dataset.autoplayMuted ?? (opts.autoplayMuted ? '1':'0')) === '1',
-    shuffle       : (root.dataset.shuffle ?? (opts.shuffle ? '1':'0')) === '1',
-    volume        : parseFloat(root.dataset.volume ?? (opts.volume ?? 0.5)),
-    startSource   : root.dataset.startSource  || opts.startSource || 'stations',
-    corsProxy     : root.dataset.corsProxy    || opts.corsProxy || '',
-    metaPollSec   : Math.max(5, Number(root.dataset.metaPollSec || opts.metaPollSec || 8)),
-  };
-
-  const R = buildUI(root);
+  // State
   const audio = new Audio();
   audio.preload = 'metadata';
   audio.crossOrigin = 'anonymous';
+  audio.volume = cfg.volume;
 
-  let manifest = { stations: [], playlists: [] };
   let queue = [];
   let cursor = -1;
   let loopMode = 'none';
   let activeSource = (cfg.startSource === 'playlists') ? 'playlists' : 'stations';
+  let manifest = { stations: [], playlists: [] };
   let metaTimer = 0;
   let lastStreamUrl = '';
   let lastNow = '';
 
-  const setNow = (t, s='—') => {
+  /* ---------- helpers ---------- */
+  const setNow = (t, s='') => {
     const txt = t || '—';
-    if (R.titleEl) {
-      R.titleEl.textContent = txt;
+    if (titleEl) {
+      titleEl.textContent = txt;
       requestAnimationFrame(() => {
-        const over = R.titleEl.scrollWidth > R.titleEl.clientWidth + 2;
-        R.titleEl.classList.toggle('ticker', over);
+        const over = titleEl.scrollWidth > titleEl.clientWidth + 2;
+        titleEl.classList.toggle('ticker', over);
       });
     }
-    if (R.subEl) R.subEl.textContent = s || '—';
+    if (subEl) subEl.textContent = s || '—';
   };
-  const setPlayIcon = (on) => { if (R.btn.play) R.btn.play.textContent = on ? '⏸' : '▶'; };
-  const setMuteIcon = () => { if (R.btn.mute) R.btn.mute.textContent = audio.muted ? '🔇' : '🔊'; };
+  const setPlayIcon = (on) => { if (btns.play) btns.play.textContent = on ? '⏸' : '▶'; };
+  const setMuteIcon = () => { if (btns.mute) btns.mute.textContent = audio.muted ? '🔇' : '🔊'; };
   const paintTimes = () => {
-    if (R.timeCur) R.timeCur.textContent = fmtTime(audio.currentTime);
-    if (R.timeDur) R.timeDur.textContent = isFinite(audio.duration) ? fmtTime(audio.duration) : '—';
-    if (R.seek && isFinite(audio.duration) && audio.duration>0){
-      R.seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
+    if (timeCur) timeCur.textContent = fmtTime(audio.currentTime);
+    if (timeDur) timeDur.textContent = isFinite(audio.duration) ? fmtTime(audio.duration) : '—';
+    if (seek && isFinite(audio.duration) && audio.duration>0){
+      seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
     }
   };
-
   function setSourceUI(){
     const stationsActive = (activeSource === 'stations');
-    R.switchKnob.setAttribute('aria-pressed', stationsActive ? 'true' : 'false');
-    R.selStations.disabled = !stationsActive;
-    R.selStations.classList.toggle('is-disabled', !stationsActive);
-    R.selMusic.disabled = stationsActive;
-    R.selMusic.classList.toggle('is-disabled', stationsActive);
+    switchKnob.setAttribute('aria-pressed', stationsActive ? 'true' : 'false');
+    selStations.disabled = !stationsActive;
+    selStations.classList.toggle('is-disabled', !stationsActive);
+    selMusic.disabled = stationsActive;
+    selMusic.classList.toggle('is-disabled', stationsActive);
   }
-
   function renderQueue(){
-    if (!R.list) return; R.list.innerHTML = '';
+    if (!list) return; list.innerHTML = '';
     queue.forEach((t, i) => {
       const li = document.createElement('li');
       const left = document.createElement('div');
@@ -165,56 +142,51 @@ export async function mountPlayer(root, opts={}){
       right.textContent = t.isStream ? 'LIVE' : (t.length ? fmtTime(t.length) : '');
       li.appendChild(left); li.appendChild(right);
       li.addEventListener('click', ()=> playAt(i));
-      R.list.appendChild(li);
+      list.appendChild(li);
     });
     highlightList();
   }
-  function highlightList(){
-    if (!R.list) return;
-    $$('.active', R.list).forEach(li => li.classList.remove('active'));
-    if (cursor >= 0) R.list.children[cursor]?.classList.add('active');
-  }
-  function clearMetaTimer(){ if (metaTimer) { clearInterval(metaTimer); metaTimer = 0; } }
+  const highlightList = () => {
+    if (!list) return;
+    $$('.active', list).forEach(li => li.classList.remove('active'));
+    if (cursor >= 0) list.children[cursor]?.classList.add('active');
+  };
+  const clearMetaTimer = () => { if (metaTimer) { clearInterval(metaTimer); metaTimer = 0; } };
 
-  function startMetaTicker(track){
+  async function startMetaTicker(track){
     clearMetaTimer();
     if (!track?.isStream) return;
 
-    const poll = async () => {
-      const info = await fetchLiveNow({
-        lastStreamUrl,
-        stationMeta: track.meta && track.kind ? { ...track.meta, kind: track.kind } : null,
-        proxy: cfg.corsProxy
-      });
+    const poll = async ()=>{
+      const info = await fetchNowPlaying(lastStreamUrl, track.meta, cfg.corsProxy);
       if (info && (info.now || info.title)) {
         const label = info.now || info.title || '';
         if (label && label !== lastNow) {
           lastNow = label;
           setNow(label, 'Radio');
           try {
-            const row = R.list?.children[cursor];
+            const row = list?.children[cursor];
             const tDiv = row?.querySelector('.t');
             if (tDiv && !track._titleOverridden) tDiv.textContent = label;
           } catch {}
         }
       }
     };
-
-    poll();
+    await poll();
     metaTimer = setInterval(poll, cfg.metaPollSec * 1000);
   }
 
   async function tryPlayStream(urls){
     let lastErr;
     for (const u of urls){
-      try { audio.src = u; await audio.play(); return u; } catch(e){ lastErr = e; }
+      try { audio.src = u; await audio.play(); return u; } catch(e){ lastErr=e; }
     }
-    throw lastErr || new Error('No playable stream endpoints');
+    throw (lastErr || new Error('No playable stream endpoints'));
   }
 
   async function loadM3U(path, isStation, stationMeta){
     const url = isAbs(path) ? path : join(cfg.manifestUrl.replace(/\/manifest\.json$/i,''), path);
-    const txt = await fetchText(url);
+    const txt = await fetch(url, {cache:'no-store'}).then(r=>r.ok?r.text():'');
     const entries = parseM3U(txt);
     if (!entries.length) return [];
     if (isStation){
@@ -225,15 +197,37 @@ export async function mountPlayer(root, opts={}){
         kind: stationMeta?.kind || stationMeta?.meta?.kind,
         meta: stationMeta?.meta || stationMeta
       }];
-    } else {
-      return entries.map(e => ({
-        title: e.title || e.url,
-        url: isAbs(e.url) ? e.url : join(cfg.audioBase, e.url),
-        isStream: false
-      }));
     }
+    return entries.map(e => ({
+      title: e.title || e.url,
+      url: isAbs(e.url) ? e.url : join(cfg.audioBase, e.url),
+      isStream: false
+    }));
   }
 
+  /* ---------- selections ---------- */
+  async function onPickStations(){
+    if (!manifest.stations.length) return;
+    const idx = Math.max(0, selStations.selectedIndex);
+    const def = manifest.stations[idx];
+    const meta = def.meta || {};
+    queue = await loadM3U(def.file, true, { meta, kind: meta.kind, title: def.name });
+    cursor = -1; renderQueue(); setNow('—','Radio');
+    if (cfg.autoplay) playAt(0);
+  }
+  async function onPickMusic(){
+    if (!manifest.playlists.length) return;
+    const idx = Math.max(0, selMusic.selectedIndex);
+    const def = manifest.playlists[idx];
+    let tracks = await loadM3U(def.file, false);
+    if (cfg.shuffle && tracks.length > 1){
+      for(let i=tracks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tracks[i],tracks[j]]=[tracks[j],tracks[i]]; }
+    }
+    queue = tracks; cursor = -1; renderQueue(); setNow('—','Playlist');
+    if (cfg.autoplay) playAt(0);
+  }
+
+  /* ---------- playback ---------- */
   async function playAt(i){
     if (!queue.length) return;
     cursor = (i + queue.length) % queue.length;
@@ -255,57 +249,65 @@ export async function mountPlayer(root, opts={}){
       setPlayIcon(true);
       highlightList();
       startMetaTicker(tr);
-    } catch(e){ next(); }
+    } catch (e) {
+      // Auto-next on failure
+      next();
+    }
   }
 
   function playPause(){ if (!audio.src) return playAt(0); if (audio.paused) audio.play().then(()=>setPlayIcon(true)).catch(()=>{}); else { audio.pause(); setPlayIcon(false);} }
-  function stop(){ audio.pause(); try{audio.currentTime=0;}catch{} setPlayIcon(false); clearMetaTimer(); lastNow=''; }
+  function stop(){ audio.pause(); try{ audio.currentTime=0; }catch{} setPlayIcon(false); clearMetaTimer(); lastNow=''; }
   function prev(){
     if (activeSource === 'stations'){
       if (!manifest.stations.length) return;
-      const i = (R.selStations.selectedIndex - 1 + manifest.stations.length) % manifest.stations.length;
-      R.selStations.selectedIndex = i; onPickStations();
+      const i = (selStations.selectedIndex - 1 + manifest.stations.length) % manifest.stations.length;
+      selStations.selectedIndex = i; onPickStations();
     } else {
       if (!manifest.playlists.length) return;
-      const i = (R.selMusic.selectedIndex - 1 + manifest.playlists.length) % manifest.playlists.length;
-      R.selMusic.selectedIndex = i; onPickMusic();
+      const i = (selMusic.selectedIndex - 1 + manifest.playlists.length) % manifest.playlists.length;
+      selMusic.selectedIndex = i; onPickMusic();
     }
   }
   function next(){
     if (activeSource === 'stations'){
       if (!manifest.stations.length) return;
-      const i = (R.selStations.selectedIndex + 1) % manifest.stations.length;
-      R.selStations.selectedIndex = i; onPickStations();
+      const i = (selStations.selectedIndex + 1) % manifest.stations.length;
+      selStations.selectedIndex = i; onPickStations();
     } else {
       if (!manifest.playlists.length) return;
-      const i = (R.selMusic.selectedIndex + 1) % manifest.playlists.length;
-      R.selMusic.selectedIndex = i; onPickMusic();
+      const i = (selMusic.selectedIndex + 1) % manifest.playlists.length;
+      selMusic.selectedIndex = i; onPickMusic();
     }
   }
+  function toggleShuffle(){ cfg.shuffle = !cfg.shuffle; btns.shuffle?.classList.toggle('active', cfg.shuffle); }
+  function toggleLoopAll(){ loopMode = (loopMode==='all')?'none':'all'; btns.loop?.classList.toggle('active', loopMode==='all'); btns.loop1?.classList.remove('active'); }
+  function toggleLoopOne(){ loopMode = (loopMode==='one')?'none':'one'; btns.loop1?.classList.toggle('active', loopMode==='one'); btns.loop?.classList.remove('active'); }
+  function toggleMute(){ audio.muted = !audio.muted; setMuteIcon(); }
 
-  R.btn.play?.addEventListener('click', playPause);
-  R.btn.stop?.addEventListener('click', stop);
-  R.btn.prev?.addEventListener('click', prev);
-  R.btn.next?.addEventListener('click', next);
-  R.btn.shuffle?.addEventListener('click', ()=>{ cfg.shuffle = !cfg.shuffle; R.btn.shuffle.classList.toggle('active', cfg.shuffle); });
-  R.btn.loop?.addEventListener('click', ()=>{ loopMode = (loopMode==='all')?'none':'all'; R.btn.loop.classList.toggle('active', loopMode==='all'); R.btn.loop1?.classList.remove('active'); });
-  R.btn.loop1?.addEventListener('click', ()=>{ loopMode = (loopMode==='one')?'none':'one'; R.btn.loop1.classList.toggle('active', loopMode==='one'); R.btn.loop?.classList.remove('active'); });
-  R.btn.mute?.addEventListener('click', ()=>{ audio.muted = !audio.muted; setMuteIcon(); });
+  /* ---------- wire ---------- */
+  btns.play?.addEventListener('click', playPause);
+  btns.stop?.addEventListener('click', stop);
+  btns.prev?.addEventListener('click', prev);
+  btns.next?.addEventListener('click', next);
+  btns.shuffle?.addEventListener('click', toggleShuffle);
+  btns.loop?.addEventListener('click', toggleLoopAll);
+  btns.loop1?.addEventListener('click', toggleLoopOne);
+  btns.mute?.addEventListener('click', toggleMute);
 
-  R.switchKnob.addEventListener('click', ()=>{
-    const pressed = R.switchKnob.getAttribute('aria-pressed') === 'true';
+  switchKnob.addEventListener('click', ()=>{
+    const pressed = switchKnob.getAttribute('aria-pressed') === 'true';
     activeSource = pressed ? 'playlists' : 'stations';
     setSourceUI();
-    clearMetaTimer(); lastNow = '';
+    clearMetaTimer();
+    lastNow = '';
     if (activeSource === 'stations') onPickStations(); else onPickMusic();
   });
 
-  R.seek?.addEventListener('input', ()=>{
+  seek?.addEventListener('input', ()=>{
     if (!isFinite(audio.duration) || audio.duration<=0) return;
-    audio.currentTime = (R.seek.value/1000) * audio.duration;
+    audio.currentTime = (seek.value/1000) * audio.duration;
   });
-  if (Number.isFinite(cfg.volume)) audio.volume = Math.min(1, Math.max(0, cfg.volume));
-  R.vol?.addEventListener('input', ()=>{ audio.volume = Math.min(1, Math.max(0, parseFloat(R.vol.value||'0.5'))); });
+  vol?.addEventListener('input', ()=>{ audio.volume = clamp01(parseFloat(vol.value||String(cfg.volume))); });
 
   audio.addEventListener('timeupdate', paintTimes);
   audio.addEventListener('durationchange', paintTimes);
@@ -326,7 +328,7 @@ export async function mountPlayer(root, opts={}){
     if (e.code === 'Space'){ e.preventDefault(); playPause(); }
     if (e.code === 'ArrowLeft') prev();
     if (e.code === 'ArrowRight') next();
-    if (e.key && e.key.toLowerCase() === 'm') { audio.muted = !audio.muted; setMuteIcon(); }
+    if (e.key && e.key.toLowerCase() === 'm') toggleMute();
   });
 
   if (cfg.autoplayMuted) {
@@ -336,54 +338,46 @@ export async function mountPlayer(root, opts={}){
   }
   setMuteIcon();
 
-  function fillSelect(sel, arr, label='Item'){
-    if (!sel) return; sel.innerHTML='';
-    arr.forEach((it,i)=>{ const o=document.createElement('option'); o.value=it.file; o.textContent=it.name||`${label} ${i+1}`; sel.appendChild(o); });
-  }
+  /* ---------- init ---------- */
+  (async function init(){
+    setNow('—','—');
 
-  async function onPickStations(){
-    if (!manifest.stations.length) return;
-    const idx = Math.max(0, R.selStations.selectedIndex);
-    const def = manifest.stations[idx];
-    const meta = def.meta || {};
-    const tracks = await loadM3U(def.file, true, { meta, kind: meta.kind, title: def.name });
-    queue = tracks; cursor = -1; renderQueue(); setNow('—','Radio'); if (cfg.autoplay) playAt(0);
-  }
-  async function onPickMusic(){
-    if (!manifest.playlists.length) return;
-    const idx = Math.max(0, R.selMusic.selectedIndex);
-    const def = manifest.playlists[idx];
-    let tracks = await loadM3U(def.file, false);
-    if (cfg.shuffle && tracks.length > 1){
-      for(let i=tracks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tracks[i],tracks[j]]=[tracks[j],tracks[i]]; }
+    const mf = await fetch(cfg.manifestUrl, {cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+    manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
+    manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
+
+    function fillSelect(sel, arr, label='Item'){
+      if (!sel) return; sel.innerHTML='';
+      arr.forEach((it,i)=>{ const o=document.createElement('option'); o.value=it.file; o.textContent=it.name||`${label} ${i+1}`; sel.appendChild(o); });
     }
-    queue = tracks; cursor = -1; renderQueue(); setNow('—','Playlist'); if (cfg.autoplay) playAt(0);
-  }
+    fillSelect(selStations, manifest.stations, 'Station');
+    fillSelect(selMusic,    manifest.playlists, 'Playlist');
 
-  // Init
-  setNow('—','—');
-  const mf = await fetchJSON(cfg.manifestUrl);
-  manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
-  manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
-  fillSelect(R.selStations, manifest.stations, 'Station');
-  fillSelect(R.selMusic,    manifest.playlists, 'Playlist');
+    btns.shuffle?.classList.toggle('active', cfg.shuffle);
 
-  if (manifest.stations.length && R.selStations.selectedIndex < 0) R.selStations.selectedIndex = 0;
-  if (manifest.playlists.length && R.selMusic.selectedIndex < 0)   R.selMusic.selectedIndex = 0;
+    if (manifest.stations.length && selStations.selectedIndex < 0) selStations.selectedIndex = 0;
+    if (manifest.playlists.length && selMusic.selectedIndex < 0) selMusic.selectedIndex = 0;
+    switchKnob.setAttribute('aria-pressed', activeSource === 'stations' ? 'true' : 'false');
+    setSourceUI();
 
-  R.switchKnob.setAttribute('aria-pressed', activeSource === 'stations' ? 'true' : 'false');
-  setSourceUI();
-
-  if (activeSource === 'stations' && manifest.stations.length){
-    await onPickStations();
-  } else if (manifest.playlists.length) {
-    await onPickMusic();
-  }
-
-  if (cfg.autoplay && !cfg.autoplayMuted && audio.paused) {
-    try { await audio.play(); } catch {
-      audio.muted = true; setMuteIcon();
-      try { await audio.play(); } catch {}
+    if (activeSource === 'stations' && manifest.stations.length){
+      await onPickStations();
+    } else if (manifest.playlists.length) {
+      await onPickMusic();
     }
-  }
+
+    if (cfg.autoplay && !cfg.autoplayMuted && audio.paused) {
+      try { await audio.play(); } catch {
+        audio.muted = true; setMuteIcon();
+        try { await audio.play(); } catch {}
+      }
+    }
+  })();
+
+  selStations.addEventListener('change', ()=>{ if(activeSource==='stations') { clearMetaTimer(); lastNow=''; onPickStations(); } });
+  selMusic.addEventListener('change',    ()=>{ if(activeSource==='playlists'){ clearMetaTimer(); lastNow=''; onPickMusic(); } });
 }
+
+/* ---------- auto-mount single player ---------- */
+const autoRoot = document.querySelector('[data-mp]');
+if (autoRoot) mount(autoRoot);
