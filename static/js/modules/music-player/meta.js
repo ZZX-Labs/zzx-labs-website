@@ -150,4 +150,4 @@ export async function fetchNowPlaying(streamUrl, stationMeta, proxy){
   if (stationMeta?.kind === 'shoutcast') return await metaShoutcast(stationMeta, proxy);
 
   return null;
-                                                                    }
+}
