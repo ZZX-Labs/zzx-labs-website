@@ -1,4 +1,4 @@
-// utils.js — DROP-IN upgrade (more robust paths + smarter normalizeNow)
+// /music/modules/utils.js — DROP-IN upgrade (robust paths + smarter normalizeNow)
 
 export const isGH = location.hostname.endsWith('github.io');
 
