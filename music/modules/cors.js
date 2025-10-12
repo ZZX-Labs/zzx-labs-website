@@ -21,7 +21,7 @@ function wrapAllOrigins(url, mode) {
  *  - Any other string                -> treated as prefix (old behavior)
  *  - falsy                           -> no proxy
  */
-export function corsWrap(proxy, url, prefer = 'raw') {
+export function corsWrap(proxy, url) {
   if (!url) return '';
   if (!proxy) return url;
 
@@ -42,17 +42,30 @@ export async function fetchTextViaProxy(url, proxy) {
   const p = String(proxy || '').toLowerCase();
   if (p.startsWith('allorigins')) {
     // raw -> text
-    const rawUrl = corsWrap('allorigins-raw', url);
     try {
-      const r = await fetch(rawUrl, { cache: 'no-store' });
+      const r = await fetch(corsWrap('allorigins-raw', url), {
+        cache: 'no-store',
+        headers: {
+          'pragma': 'no-cache',
+          'cache-control': 'no-cache'
+        }
+      });
       if (r.ok) return await r.text();
     } catch {}
-    // fallback: JSON endpoint -> .contents
-    const jsonUrl = corsWrap('allorigins-json', url);
+
+    // fallback: JSON endpoint -> .contents (and respect status.http_code if present)
     try {
-      const r = await fetch(jsonUrl, { cache: 'no-store' });
+      const r = await fetch(corsWrap('allorigins-json', url), {
+        cache: 'no-store',
+        headers: {
+          'pragma': 'no-cache',
+          'cache-control': 'no-cache'
+        }
+      });
       if (!r.ok) return '';
       const j = await r.json();
+      const code = j?.status?.http_code;
+      if (code && code >= 400) return '';
       return String(j?.contents || '');
     } catch {}
     return '';
@@ -60,7 +73,13 @@ export async function fetchTextViaProxy(url, proxy) {
 
   // Non-AllOrigins path/prefix
   try {
-    const r = await fetch(corsWrap(proxy, url, 'raw'), { cache: 'no-store' });
+    const r = await fetch(corsWrap(proxy, url), {
+      cache: 'no-store',
+      headers: {
+        'pragma': 'no-cache',
+        'cache-control': 'no-cache'
+      }
+    });
     return r.ok ? await r.text() : '';
   } catch { return ''; }
 }
@@ -68,16 +87,31 @@ export async function fetchTextViaProxy(url, proxy) {
 export async function fetchJSONViaProxy(url, proxy) {
   const p = String(proxy || '').toLowerCase();
   if (p.startsWith('allorigins')) {
-    // Try RAW first and parse as JSON (works if target sends application/json)
+    // Try RAW first and parse as JSON (works if target sends application/json, CORS is handled by AO)
     try {
-      const r = await fetch(corsWrap('allorigins-raw', url), { cache: 'no-store' });
+      const r = await fetch(corsWrap('allorigins-raw', url), {
+        cache: 'no-store',
+        headers: {
+          'pragma': 'no-cache',
+          'cache-control': 'no-cache'
+        }
+      });
       if (r.ok) return await r.json();
     } catch {}
-    // Fallback: AllOrigins JSON wrapper -> parse contents
+
+    // Fallback: AllOrigins JSON wrapper -> parse contents and respect status.http_code
     try {
-      const r = await fetch(corsWrap('allorigins-json', url), { cache: 'no-store' });
+      const r = await fetch(corsWrap('allorigins-json', url), {
+        cache: 'no-store',
+        headers: {
+          'pragma': 'no-cache',
+          'cache-control': 'no-cache'
+        }
+      });
       if (!r.ok) return null;
       const j = await r.json();
+      const code = j?.status?.http_code;
+      if (code && code >= 400) return null;
       const txt = j?.contents || '';
       if (!txt) return null;
       try { return JSON.parse(txt); } catch { return null; }
@@ -87,7 +121,13 @@ export async function fetchJSONViaProxy(url, proxy) {
 
   // Non-AllOrigins path/prefix
   try {
-    const r = await fetch(corsWrap(proxy, url, 'raw'), { cache: 'no-store' });
+    const r = await fetch(corsWrap(proxy, url), {
+      cache: 'no-store',
+      headers: {
+        'pragma': 'no-cache',
+        'cache-control': 'no-cache'
+      }
+    });
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
