@@ -132,3 +132,25 @@ p {
   .btn,
   .mp-shell { transition: none !important; }
 }
+
+/* -----------------------------------------------------------
+   Light player overrides so controls never wrap (incl. mute)
+   ----------------------------------------------------------- */
+
+/* Keep the transport controls on a single row; allow horizontal scroll on very narrow screens. */
+[data-mp] .mp-top { align-items: center; }
+[data-mp] .mp-now { flex: 1 1 auto; min-width: 0; }
+[data-mp] .mp-controls {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-wrap: nowrap;           /* <- prevent wrap so mute stays on the row */
+  overflow-x: auto;            /* <- fallback for tiny screens */
+  scrollbar-width: thin;       /* optional: smaller scrollbar on Firefox */
+}
+
+/* Keep the lists from visually spilling below the fold on short viewports */
+@media (max-width: 480px) {
+  [data-mp] .mp-right .mp-list { max-height: 48vh; }
+}
