@@ -1,4 +1,4 @@
-// Music Player Widget (ZZX) — stations/playlists toggle + live metadata + source-level next/prev
+// Music Player Widget (ZZX) — slide switch (left of Prev), source-level next/prev, live metadata ticker
 (function(){
   const MusicPlayer = {};
   const isGH = location.hostname.endsWith('github.io');
@@ -49,12 +49,13 @@
   async function fetchJSON(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.statusText); return r.json(); }
   async function fetchText(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.statusText); return r.text(); }
 
+  // Live metadata adapters
   async function metaRadioCo(meta, corsProxy){
     const url = proxied(meta.status || `https://public.radio.co/stations/${meta.station_id}/status`, corsProxy);
     const j = await fetchJSON(url);
     const t = j?.current_track?.title || j?.now_playing?.title || j?.title || '';
     const a = j?.current_track?.artist || j?.now_playing?.artist || j?.artist || '';
-    return { title: t || a || 'Live', sub: a || meta.name || 'Radio' };
+    return { title: [a,t].filter(Boolean).join(' — ') || 'Live', sub: meta.name || 'Radio' };
   }
   async function metaSomaFM(meta, corsProxy){
     const url = proxied(meta.status, corsProxy);
@@ -62,11 +63,11 @@
     const first = Array.isArray(j) ? j[0] : null;
     const t = first?.title || '';
     const a = first?.artist || '';
-    return { title: t || 'Live', sub: a || `SomaFM • ${meta.channel || ''}`.trim() };
+    return { title: [a,t].filter(Boolean).join(' — ') || 'Live', sub: `SomaFM • ${meta.channel || ''}`.trim() };
   }
   async function metaShoutcast(meta, corsProxy){
     const url = proxied(meta.status, corsProxy);
-    const txt = await fetchText(url);
+    const txt = await fetchText(url); // CSV
     const parts = txt.split(',').map(s=>s.trim());
     const cur = parts[parts.length-1] || 'Live';
     return { title: cur, sub: 'Shoutcast' };
@@ -80,6 +81,7 @@
     return null;
   }
 
+  // Mount
   MusicPlayer.mount = function(root, opts={}){
     if (!root) return;
 
@@ -90,22 +92,24 @@
       autoplayMuted : (root.dataset.autoplayMuted ?? (opts.autoplayMuted ? '1':'0')) === '1',
       shuffle       : (root.dataset.shuffle ?? (opts.shuffle ? '1':'0')) === '1',
       volume        : parseFloat(root.dataset.volume ?? (opts.volume ?? 0.5)),
-      startSource   : root.dataset.startSource  || opts.startSource || 'stations',
+      startSource   : root.dataset.startSource  || opts.startSource || 'stations', // 'stations' | 'playlists'
       corsProxy     : root.dataset.corsProxy    || opts.corsProxy || ''
     };
 
-    // Inject UI (includes new Stations/Playlists toggle)
+    // UI
     root.innerHTML = `
       <div class="mp-top">
         <div class="mp-now">
           <div class="mp-title mono">—</div>
           <div class="mp-sub small">—</div>
         </div>
-        <div class="mp-source-toggle" role="tablist" aria-label="Source">
-          <button class="mp-toggle-btn" data-src="stations" aria-selected="true">Radio Stations</button>
-          <button class="mp-toggle-btn" data-src="playlists" aria-selected="false">Playlists</button>
-        </div>
+
         <div class="mp-controls" role="toolbar" aria-label="Playback">
+          <!-- Slide switch goes first (left-most) -->
+          <div class="mp-switch" aria-label="Source">
+            <button class="mp-switch-knob" type="button" aria-pressed="true" title="Left = Radio Stations, Right = Playlists"></button>
+          </div>
+
           <button class="mp-btn" data-act="prev"    title="Previous (⟵)">⏮</button>
           <button class="mp-btn" data-act="play"    title="Play/Pause (Space)">▶</button>
           <button class="mp-btn" data-act="stop"    title="Stop">⏹</button>
@@ -138,9 +142,11 @@
       </div>
     `;
 
-    // Elements
+    // Refs
     const titleEl = $('.mp-title', root);
     const subEl   = $('.mp-sub', root);
+    const switchKnob = $('.mp-switch-knob', root);
+
     const btns = {
       prev:    $('[data-act="prev"]', root),
       play:    $('[data-act="play"]', root),
@@ -158,13 +164,12 @@
     const list    = $('.mp-list', root);
     const selStations = $('.mp-pl-stations', root);
     const selMusic    = $('.mp-pl-music', root);
-    const srcToggleBtns = $$('.mp-toggle-btn', root);
 
+    // Audio + state
     const audio = new Audio();
     audio.preload = 'metadata';
     audio.crossOrigin = 'anonymous';
 
-    // State
     let queue = [];
     let cursor = -1;
     let loopMode = 'none';
@@ -172,7 +177,19 @@
     let manifest = { stations: [], playlists: [] };
     let metaTimer = 0;
 
-    const setNow = (t, s='') => { if (titleEl) titleEl.textContent = t || '—'; if (subEl) subEl.textContent = s || '—'; };
+    // Helpers
+    const setNow = (t, s='') => {
+      const txt = t || '—';
+      if (titleEl) {
+        titleEl.textContent = txt;
+        // enable marquee if overflow
+        requestAnimationFrame(() => {
+          const over = titleEl.scrollWidth > titleEl.clientWidth + 2;
+          titleEl.classList.toggle('ticker', over);
+        });
+      }
+      if (subEl) subEl.textContent = s || '—';
+    };
     const setPlayIcon = (on) => { if (btns.play) btns.play.textContent = on ? '⏸' : '▶'; };
     const setMuteIcon = () => { if (btns.mute) btns.mute.textContent = audio.muted ? '🔇' : '🔊'; };
     const paintTimes = () => {
@@ -184,23 +201,16 @@
     };
 
     function setSourceUI(){
-      // Toggle buttons state
-      srcToggleBtns.forEach(b=>{
-        const on = (b.dataset.src === activeSource);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-        b.classList.toggle('active', on);
-      });
-      // Grey out the inactive select
-      if (activeSource === 'stations'){
-        selStations.disabled = false;
-        selMusic.disabled = true;
-        selStations.classList.remove('is-disabled');
-        selMusic.classList.add('is-disabled');
+      // knob aria-pressed=true means LEFT (Stations) active
+      const stationsActive = (activeSource === 'stations');
+      switchKnob.setAttribute('aria-pressed', stationsActive ? 'true' : 'false');
+
+      if (stationsActive){
+        selStations.disabled = false; selStations.classList.remove('is-disabled');
+        selMusic.disabled = true;     selMusic.classList.add('is-disabled');
       } else {
-        selStations.disabled = true;
-        selMusic.disabled = false;
-        selStations.classList.add('is-disabled');
-        selMusic.classList.remove('is-disabled');
+        selStations.disabled = true;  selStations.classList.add('is-disabled');
+        selMusic.disabled = false;    selMusic.classList.remove('is-disabled');
       }
     }
 
@@ -256,10 +266,10 @@
       } catch(e){ next(); }
     }
 
+    // Controls
     function playPause(){ if (!audio.src) return playAt(0); if (audio.paused) audio.play().then(()=>setPlayIcon(true)).catch(()=>{}); else { audio.pause(); setPlayIcon(false);} }
     function stop(){ audio.pause(); try{audio.currentTime=0;}catch{} setPlayIcon(false); }
     function prev(){
-      // Source-level: move selected station/playlist, then (re)load
       if (activeSource === 'stations'){
         if (!manifest.stations.length) return;
         const i = (selStations.selectedIndex - 1 + manifest.stations.length) % manifest.stations.length;
@@ -286,6 +296,7 @@
     function toggleLoopOne(){ loopMode = (loopMode==='one')?'none':'one'; btns.loop1?.classList.toggle('active', loopMode==='one'); btns.loop?.classList.remove('active'); }
     function toggleMute(){ audio.muted = !audio.muted; setMuteIcon(); }
 
+    // Wire events
     btns.play?.addEventListener('click', playPause);
     btns.stop?.addEventListener('click', stop);
     btns.prev?.addEventListener('click', prev);
@@ -295,17 +306,12 @@
     btns.loop1?.addEventListener('click', toggleLoopOne);
     btns.mute?.addEventListener('click', toggleMute);
 
-    // Toggle buttons behavior
-    srcToggleBtns.forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const target = b.dataset.src;
-        if (target && target !== activeSource){
-          activeSource = target;
-          setSourceUI();
-          if (activeSource === 'stations') onPickStations();
-          else onPickMusic();
-        }
-      });
+    // Slide switch behavior (left=stations, right=playlists)
+    switchKnob.addEventListener('click', ()=>{
+      const pressed = switchKnob.getAttribute('aria-pressed') === 'true';
+      activeSource = pressed ? 'playlists' : 'stations';
+      setSourceUI();
+      if (activeSource === 'stations') onPickStations(); else onPickMusic();
     });
 
     seek?.addEventListener('input', ()=>{
@@ -318,7 +324,6 @@
     audio.addEventListener('timeupdate', paintTimes);
     audio.addEventListener('durationchange', paintTimes);
     audio.addEventListener('ended', ()=>{
-      // For playlists, advance track; for stations, keep same station (streams continue). Loop obeyed.
       if (activeSource === 'playlists' && queue.length > 0){
         if (loopMode === 'one') return playAt(cursor);
         const n = cursor + 1;
@@ -335,7 +340,7 @@
       if (e.code === 'Space'){ e.preventDefault(); playPause(); }
       if (e.code === 'ArrowLeft') prev();
       if (e.code === 'ArrowRight') next();
-      if (e.key.toLowerCase() === 'm') toggleMute();
+      if (e.key && e.key.toLowerCase() === 'm') toggleMute();
     });
 
     if (cfg.autoplayMuted) {
@@ -345,6 +350,7 @@
     }
     setMuteIcon();
 
+    // Data loading
     async function getJSON(u){ try{ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw 0; return await r.json(); }catch{return null;} }
     function fillSelect(sel, arr){ if (!sel) return; sel.innerHTML=''; arr.forEach((it,i)=>{ const o=document.createElement('option'); o.value=it.file; o.textContent=it.name||`Playlist ${i+1}`; sel.appendChild(o); }); }
 
@@ -372,7 +378,7 @@
 
     async function onPickStations(){
       if (!manifest.stations.length) return;
-      const idx = selStations.selectedIndex;
+      const idx = Math.max(0, selStations.selectedIndex);
       const def = manifest.stations[idx];
       const meta = def.meta || {};
       const tracks = await loadM3U(def.file, true, { meta, kind: meta.kind, title: def.name });
@@ -380,10 +386,12 @@
     }
     async function onPickMusic(){
       if (!manifest.playlists.length) return;
-      const idx = selMusic.selectedIndex;
+      const idx = Math.max(0, selMusic.selectedIndex);
       const def = manifest.playlists[idx];
       let tracks = await loadM3U(def.file, false);
-      if (cfg.shuffle){ for(let i=tracks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tracks[i],tracks[j]]=[tracks[j],tracks[i]]; } }
+      if (cfg.shuffle && tracks.length > 1){
+        for(let i=tracks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tracks[i],tracks[j]]=[tracks[j],tracks[i]]; }
+      }
       queue = tracks; cursor = -1; renderQueue(); setNow('—','Playlist'); if (cfg.autoplay) playAt(0);
     }
 
@@ -397,10 +405,10 @@
 
       btns.shuffle?.classList.toggle('active', cfg.shuffle);
 
-      // Initial select defaults
+      // Default selects & switch
       if (manifest.stations.length && selStations.selectedIndex < 0) selStations.selectedIndex = 0;
       if (manifest.playlists.length && selMusic.selectedIndex < 0) selMusic.selectedIndex = 0;
-
+      switchKnob.setAttribute('aria-pressed', activeSource === 'stations' ? 'true' : 'false');
       setSourceUI();
 
       if (activeSource === 'stations' && manifest.stations.length){
@@ -421,6 +429,7 @@
     selMusic.addEventListener('change',    ()=>{ if(activeSource==='playlists') onPickMusic(); });
   };
 
+  // Auto-mount
   document.addEventListener('mp:init', (ev) => {
     const root = ev.target.closest('[data-mp]') || document.querySelector('[data-mp]');
     if (root) MusicPlayer.mount(root, ev.detail || {});
