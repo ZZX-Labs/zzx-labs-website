@@ -7,8 +7,8 @@ import { corsWrap, fetchJSONViaProxy, fetchTextViaProxy } from './cors.js';
  * SomaFM live metadata (channels.json)
  * ------------------------------------------------------------------------- */
 
-const SOMA_URL     = 'https://somafm.com/channels.json';
-const SOMA_REFRESH = 5000; // poll caller every ~5s; keep TTL about the same
+export const SOMA_URL     = 'https://somafm.com/channels.json';
+const SOMA_REFRESH       = 5000; // ~5s cache; player ticker can poll every 5s
 
 let _somaCache = { t: 0, rows: null };
 
@@ -41,6 +41,15 @@ async function fetchSomaChannels(proxy){
   return _somaCache.rows || null;
 }
 
+/** Get a subset of SomaFM channel rows by id(s) */
+export async function fetchSomaByIds(ids, proxy){
+  if (!Array.isArray(ids) || !ids.length) return [];
+  const rows = await fetchSomaChannels(proxy);
+  if (!rows) return [];
+  const want = new Set(ids.map(s => String(s || '').toLowerCase()));
+  return rows.filter(r => want.has(r.id.toLowerCase()));
+}
+
 /** Derive Soma channel id from a typical stream URL path like "/groovesalad-256-mp3" */
 function somaIdFromUrl(urlString){
   try {
@@ -68,7 +77,7 @@ function guessRadioCoStatus(u){
   return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
 }
 
-async function fetchStreamMetaUniversal(streamUrl, proxy){
+export async function fetchStreamMetaUniversal(streamUrl, proxy){
   try{
     const u = new URL(streamUrl, location.href);
 
@@ -128,7 +137,7 @@ async function fetchStreamMetaUniversal(streamUrl, proxy){
 }
 
 /* ----------------------------------------------------------------------------
- * Public API (used by player.js)
+ * Public API (used by the player ticker)
  * ------------------------------------------------------------------------- */
 
 /**
@@ -169,13 +178,12 @@ export async function fetchStreamMeta(streamUrl, proxy){
  * Tries to infer artist/title from either provided title or filename.
  */
 export async function fetchTrackMeta(tr, _proxy){
-  // If the M3U entry already contains a good title, attempt an artist/title split
   const src = String(tr?.title || '') || fileName(tr?.url || '');
   const [artist, title] = splitArtistTitle(src);
   const label = normalizeNow([artist, title].filter(Boolean).join(' - '));
   if (!label) return null;
-  const [a, t] = label.includes(' - ') ? label.split(/ - (.+)/) : ['', label];
-  return { artist: a || '', title: t || label };
+  const m = label.match(/^(.+?)\s-\s(.+)$/);
+  return m ? { artist: m[1], title: m[2] } : { artist: '', title: label };
 }
 
 /* --------------------------------- helpers -------------------------------- */
@@ -192,4 +200,4 @@ function splitArtistTitle(s){
   const m = String(s || '').split(/ - (.+)/);
   if (m.length >= 3) return [m[0].trim(), m[1].trim()];
   return ['', s.trim()];
-      }
+}
