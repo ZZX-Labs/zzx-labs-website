@@ -13,9 +13,16 @@ export const fmtTime = (sec) => (!isFinite(sec)||sec<0)
   ? '—'
   : `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
 
+/** Optional pretty number (e.g., listeners). Safe to call with anything. */
+export const prettyNum = (n) => {
+  const v = Number(n);
+  return Number.isFinite(v) && v.toLocaleString ? v.toLocaleString() : (n ?? '');
+};
+
 export function normalizeNow(s){
   if (!s) return '';
-  let txt = String(s).replace(/\s+/g,' ').replace(/^["'“”‘’]+|["'“”‘’]+$/g,'').trim();
+  let txt = String(s).replace(/\s+/g,' ').replace(/^\uFEFF/, '') // strip BOM if present
+                     .replace(/^["'“”‘’]+|["'“”‘’]+$/g,'').trim();
   // Remove common stream suffix noise (codec/bitrate/live markers)
   txt = txt.replace(/\s*(\||•|—|-)\s*(radio|fm|am|live|station|stream|online|hq|ultra hd|4k)$/i,'').trim();
   txt = txt.replace(/\s*\b(32|64|96|128|160|192|256|320)\s?(kbps|kbit|kb|aac|mp3|opus|ogg)\b\s*$/i,'').trim();
@@ -31,15 +38,28 @@ export function normalizeNow(s){
 }
 
 export async function fetchText(url){
-  try { const r=await fetch(url,{cache:'no-store'}); return r.ok ? r.text() : ''; } catch { return ''; }
+  try {
+    const r = await fetch(url,{cache:'no-store'});
+    if (!r.ok) return '';
+    const t = await r.text();
+    return String(t ?? '');
+  } catch {
+    return '';
+  }
 }
 export async function fetchJSON(url){
-  try { const r=await fetch(url,{cache:'no-store'}); return r.ok ? r.json() : null; } catch { return null; }
+  try {
+    const r = await fetch(url,{cache:'no-store'});
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
 }
 
 /* M3U */
 export function parseM3U(text){
-  const lines = String(text||'').split(/\r?\n/);
+  const lines = String(text||'').replace(/^\uFEFF/, '').split(/\r?\n/);
   const out = []; let pending = null;
   for(const raw of lines){
     const line = raw.trim();
