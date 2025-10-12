@@ -11,37 +11,37 @@
   <script src="/static/script.js" defer></script>
 
   <!-- Page-local CSS -->
-  <link rel="stylesheet" href="/music/style.css?v=3" />
-  <link rel="stylesheet" href="/music/music-player.zzx-skin.css?v=3" />
+  <link rel="stylesheet" href="/music/style.css?v=4" />
+  <link rel="stylesheet" href="/music/music-player.zzx-skin.css?v=4" />
 
-  <!-- Player module -->
-  <!-- <script type="module" src="/static/js/modules/music-player.js?v=3"></script> -->
-  <!-- Page bootstrap (forces mount) -->
+  <!-- Player module (auto-mount) -->
   <script type="module" src="/music/script.js?v=4"></script>
 </head>
 <body class="page-music">
 <header><div id="zzx-header"></div></header>
 
-<main>
-  <section class="container">
+<main class="music-layout">
+  <section class="container page-intro">
     <h2>ZZX-Labs Streaming Audio</h2>
     <p class="muted">Curated playlists & live stations. Toggle between “Radio Stations” and “Playlists”.</p>
+  </section>
 
+  <section class="container player-wrap">
     <div class="mp-shell">
-     <div class="mp-root" data-mp
-     data-manifest-url="/static/audio/music/playlists/manifest.json"
-     data-audio-base="/static/audio/music/"
-     data-autoplay="1"
-     data-autoplay-muted="1"
-     data-shuffle="0"
-     data-volume="0.25"
-     data-start-source="stations"
-     data-cors-proxy="https://corsproxy.io/?">
-     </div>
+      <div class="mp-root" data-mp
+           data-manifest-url="/static/audio/music/playlists/manifest.json"
+           data-audio-base="/static/audio/music/"
+           data-autoplay="1"
+           data-autoplay-muted="1"
+           data-shuffle="0"
+           data-volume="0.25"
+           data-start-source="stations"
+           data-cors-proxy="https://corsproxy.io/?">
+      </div>
     </div>
   </section>
 
-  <section class="container backlinks" style="text-align:center">
+  <section class="container backlinks">
     <a class="btn alt" href="/">← Back Home</a>
   </section>
 </main>
