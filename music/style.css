@@ -135,6 +135,7 @@ p {
 
 /* -----------------------------------------------------------
    Light player overrides so controls never wrap (incl. mute)
+   + protect left column + readable long "now playing"
    ----------------------------------------------------------- */
 
 /* Keep the transport controls on a single row; allow horizontal scroll on very narrow screens. */
@@ -145,12 +146,70 @@ p {
   display: flex;
   align-items: center;
   gap: .45rem;
-  flex-wrap: nowrap;           /* <- prevent wrap so mute stays on the row */
-  overflow-x: auto;            /* <- fallback for tiny screens */
-  scrollbar-width: thin;       /* optional: smaller scrollbar on Firefox */
+  flex-wrap: nowrap;           /* prevent wrap so mute stays on the row */
+  overflow-x: auto;            /* fallback for tiny screens */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
+[data-mp] .mp-controls .mp-btn { white-space: nowrap; }
+[data-mp] .mp-controls .mp-switch { flex: 0 0 auto; }
 
-/* Keep the lists from visually spilling below the fold on short viewports */
-@media (max-width: 480px) {
+/* Bottom grid: keep left column stable and prevent right from pushing it */
+[data-mp] .mp-bottom {
+  display: grid;
+  gap: 1.05rem;
+  grid-template-columns: 340px 1fr;
+  align-items: start;
+}
+@media (max-width: 900px){
+  [data-mp] .mp-bottom { grid-template-columns: 1fr; }
+}
+[data-mp] .mp-left { min-width: 260px; }
+[data-mp] .mp-left .mp-pl { max-width: 100%; }
+
+/* Right side never overflows the grid */
+[data-mp] .mp-right { min-width: 0; overflow: hidden; }
+[data-mp] .mp-right .mp-list {
+  list-style: none; margin: 0; padding: 0;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  max-height: 330px; overflow: auto; max-width: 100%;
+}
+@media (max-width: 480px){
   [data-mp] .mp-right .mp-list { max-height: 48vh; }
 }
+
+/* Track rows */
+[data-mp] .mp-list li{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:.58rem .7rem; border-bottom:1px solid var(--line-sof); cursor:pointer;
+}
+[data-mp] .mp-list li:last-child{ border-bottom:0; }
+[data-mp] .mp-list li:hover{ background:rgba(255,255,255,.03); }
+[data-mp] .mp-list li.active{
+  background:linear-gradient(180deg,#0f1722,#0c131c);
+  box-shadow: inset 0 0 0 1px rgba(192,214,116,.12);
+}
+
+/* Text column flexes & ellipsizes by default; readable on hover/active via horizontal scroll */
+[data-mp] .mp-list .t{
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+[data-mp] .mp-list .len{
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size: .9rem;
+  margin-left: .6rem;
+}
+
+/* Let long titles be readable without breaking layout */
+[data-mp] .mp-list li.active .t,
+[data-mp] .mp-list li:hover .t { overflow: auto; }
+
+/* optional nicer low-profile scrollbar for the horizontal scroll */
+[data-mp] .mp-list li .t::-webkit-scrollbar{ height:6px; }
+[data-mp] .mp-list li .t::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.18); border-radius:6px; }
