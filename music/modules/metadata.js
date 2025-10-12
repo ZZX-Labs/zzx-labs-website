@@ -1,18 +1,21 @@
-// /music/modules/metadata.js
+// /music/modules/metadata.js — stations + track metadata (SomaFM aware)
 import { corsWrap, normalizeNow } from './utils.js';
-import { fetchTextViaProxy, fetchJSONViaProxy } from './cors.js';
 
 /* ===================== PUBLIC API ===================== */
 export async function fetchStreamMeta(streamUrl, proxy){
-  // 0) Special-case SomaFM (most reliable): detect mount -> use channel JSON
-  const sfm = await maybeFetchSomaFMFromMount(streamUrl, proxy);
-  if (sfm && (sfm.now || sfm.title)) return sfm;
+  // 1) SomaFM: pull from channels.json and skip ICY/7.html (to avoid Donate banner)
+  if (isSomaUrl(streamUrl)) {
+    const som = await fetchSomaFromStreamUrl(streamUrl, proxy);
+    if (som && (som.now || som.title)) return som;
+    // If Soma detection triggered but channels.json didn’t yield, return null instead
+    // of falling back to 7.html (prevents "Donate…" text).
+    return null;
+  }
 
-  // 1) Try station status endpoints (Icecast/Shoutcast/Radio.co)
+  // 2) Other station status endpoints; if none, fall back to ICY in-band tags
   const fromStatus = await fetchFromStationStatus(streamUrl, proxy);
   if (fromStatus && (fromStatus.now || fromStatus.title)) return fromStatus;
 
-  // 2) Fallback: ICY in-band
   const fromIcy = await fetchICYOnce(streamUrl, proxy);
   if (fromIcy && (fromIcy.now || fromIcy.title)) return fromIcy;
 
@@ -24,84 +27,91 @@ export async function fetchTrackMeta(track, proxy){
   if (!url) return null;
   const lower = url.toLowerCase();
 
+  // MP3 ID3
   if (/\.(mp3)(\?|#|$)/.test(lower)){
     const id3 = await fetchID3v2(url);
     if (id3 && (id3.title || id3.artist)) return id3;
   }
+  // Vorbis/Opus/FLAC
   if (/\.(ogg|opus|oga|flac)(\?|#|$)/.test(lower)){
     const vorb = await fetchVorbis(url);
     if (vorb && (vorb.title || vorb.artist)) return vorb;
   }
+  // YouTube/SoundCloud (oEmbed)
   if (isYouTube(url) || isSoundCloud(url)){
     const oem = await fetchOEmbed(url, proxy);
     if (oem && (oem.title || oem.artist)) return oem;
   }
+  // Optional vendor fallback (only if you've included jsmediatags)
   const jmt = await readViaJsMediaTags(url, proxy);
   if (jmt && (jmt.title || jmt.artist)) return jmt;
 
+  // Final fallback: filename or EXTINF
   return { title: track.title || titleFromFilename(url), artist: '', album: '' };
 }
 
-/* ===================== DONATION/JUNK FILTER ===================== */
+/* ===================== SOMAFM (channels.json) ===================== */
 
-const JUNK_PATTERNS = [
-  /donate to somafm/i,
-  /keep commercial[- ]?free radio on the air/i,
-  /visit somafm\.com/i,
-  /support somafm/i,
-  /station id/i,
-  /now playing:?$/i
-];
-function isJunkNow(s){
-  if (!s) return false;
-  const t = String(s).trim();
-  if (!t) return false;
-  return JUNK_PATTERNS.some(rx => rx.test(t));
+function isSomaUrl(u){
+  try {
+    const x = new URL(u, location.href);
+    // ice servers like ice2.somafm.com / ice6.somafm.com, etc.
+    return /(^|\.)somafm\.com$/i.test(x.hostname);
+  } catch { return false; }
 }
 
-/* ===================== SOMAFM FAST-PATH ===================== */
-
-function isSomaHost(host){ return /(^|\.)somafm\.com$/i.test(host) || /(^|\.)(ice|icecast)\d*\.somafm\.com$/i.test(host); }
-function guessSomaChannelFromMount(pathname){
-  // e.g. "/dubstepbeyond-128-mp3", "/secretagent-256-mp3"
-  const base = (pathname || '').split('/').pop() || '';
-  const m = base.match(/^([a-z0-9]+?)(?:-[0-9]+-(?:aac|mp3|ogg|opus))?$/i);
-  return m ? m[1].toLowerCase() : '';
+// Extract station id from ice path, e.g. "/secretagent-128-mp3" -> "secretagent"
+function somaIdFromPath(pathname){
+  // First path segment (strip leading "/"), before first "-" or "." or end
+  const seg = String(pathname || '').replace(/^\/+/, '').split('/')[0] || '';
+  const id  = seg.split(/[-.]/)[0] || '';
+  return id.toLowerCase();
 }
 
-async function maybeFetchSomaFMFromMount(streamUrl, proxy){
+const SOMA_CACHE = { ts: 0, data: null };
+const SOMA_TTL_MS = 25 * 1000; // short cache; these update frequently
+
+async function fetchSomaChannels(proxy){
+  const now = Date.now();
+  if (SOMA_CACHE.data && (now - SOMA_CACHE.ts) < SOMA_TTL_MS) return SOMA_CACHE.data;
+  try {
+    const url = corsWrap(proxy, 'https://somafm.com/channels.json');
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const arr = Array.isArray(j?.channels) ? j.channels : [];
+    SOMA_CACHE.data = arr; SOMA_CACHE.ts = now;
+    return arr;
+  } catch { return null; }
+}
+
+async function fetchSomaFromStreamUrl(streamUrl, proxy){
   try {
     const u = new URL(streamUrl, location.href);
-    if (!isSomaHost(u.hostname)) return null;
-    const channel = guessSomaChannelFromMount(u.pathname);
-    if (!channel) return null;
+    const id = somaIdFromPath(u.pathname); // e.g. "secretagent", "gsclassic", "u80s", "dubstep"
+    if (!id) return null;
 
-    // Official songs JSON (latest-first array)
-    const api = `https://somafm.com/songs/${encodeURIComponent(channel)}.json`;
-    const j = await fetchJSONViaProxy(api, proxy);
-    const arr = Array.isArray(j) ? j : null;
-    if (!arr || !arr.length) return null;
+    const channels = await fetchSomaChannels(proxy);
+    if (!channels || !channels.length) return null;
 
-    // pick the first NON-junk item: { artist, title } OR { title: "Artist - Title" }
-    for (const it of arr){
-      const a = (it.artist || '').trim();
-      const t = (it.title  || '').trim();
-      const joined = [a, t].filter(Boolean).join(' - ') || (it.song || it.text || '');
-      const norm = normalizeNow(joined);
-      if (!isJunkNow(norm) && norm) {
-        return { title: `SomaFM • ${channel}`, now: norm };
-      }
-    }
-  } catch {}
-  return null;
+    // match by id
+    const ch = channels.find(c => (c?.id || '').toLowerCase() === id);
+    if (!ch) return null;
+
+    const title = ch.title || '';
+    const now = normalizeNow(ch.lastPlaying || '');
+    // If lastPlaying missing, we still return the channel title; UI will show "—" until next tick
+    return (title || now) ? { title, now } : null;
+  } catch { return null; }
 }
 
-/* ===================== RADIO STATUS HELPERS ===================== */
+/* ===================== RADIO STATUS HELPERS (non-Soma) ===================== */
 
 async function fetchFromStationStatus(streamUrl, proxy){
   try {
     const u = new URL(streamUrl, location.href);
     const base = `${u.protocol}//${u.host}`;
+
     const candidates = [
       corsWrap(proxy, `${base}/status-json.xsl`),    // Icecast JSON
       corsWrap(proxy, `${base}/status.xsl?json=1`),  // Alt Icecast JSON
@@ -112,48 +122,32 @@ async function fetchFromStationStatus(streamUrl, proxy){
 
     for (const url of candidates){
       const isJson = /(\.xsl$|json=1|public\.radio\.co)/.test(url);
-      const data = isJson ? await getJSON(url, proxy) : await getText(url, proxy);
+      const data = isJson ? await getJSON(url) : await getText(url);
       if (!data) continue;
 
-      // Icecast JSON
+      // Icecast JSON — pick the mount that actually matches the stream
       if (isJson && typeof data === 'object' && data.icestats) {
         const src = data.icestats.source;
         const arr = Array.isArray(src) ? src : (src ? [src] : []);
         const hit = pickBestIcecastSource(arr, u);
         if (hit) {
-          // Compose now-playing
-          const nowRaw = (hit.artist && hit.title) ? `${hit.artist} - ${hit.title}` : (hit.title || '');
-          const now = normalizeNow(nowRaw);
-          const title = hit.server_name || hit.server_description || '';
-          if (now && !isJunkNow(now)) return { title, now };
-
-          // SomaFM often puts the banner as the most recent; try their JSON as a rescue
-          const sfm = await maybeFetchSomaFMFromMount(streamUrl, proxy);
-          if (sfm && (sfm.now || sfm.title)) return sfm;
-
-          // if only title present and not junk, return at least that
-          if (title && !isJunkNow(title)) return { title, now: '' };
-          continue;
+          const title = hit.server_name || hit.title || '';
+          const now = (hit.artist && hit.title)
+            ? `${hit.artist} - ${hit.title}`
+            : (hit.title || '');
+          if (title || now) return { title, now: normalizeNow(now) };
         }
       }
 
       // Shoutcast v2 JSON
       if (isJson && (data?.servertitle || data?.songtitle)) {
-        const now = normalizeNow(data.songtitle || '');
-        const title = data.servertitle || '';
-        if (now && !isJunkNow(now)) return { title, now };
-        if (title && !isJunkNow(title)) return { title, now: '' };
-        continue;
+        return { title: data.servertitle || '', now: normalizeNow(data.songtitle || '') };
       }
 
       // Radio.co JSON
       if (isJson && (data?.current_track || data?.name)) {
-        const nowRaw = data.current_track?.title_with_artists || data.current_track?.title || '';
-        const now = normalizeNow(nowRaw);
-        const title = data.name || '';
-        if (now && !isJunkNow(now)) return { title, now };
-        if (title && !isJunkNow(title)) return { title, now: '' };
-        continue;
+        const now = data.current_track?.title_with_artists || data.current_track?.title || '';
+        return { title: data.name || '', now: normalizeNow(now) };
       }
 
       // Shoutcast v1 /7.html
@@ -161,9 +155,8 @@ async function fetchFromStationStatus(streamUrl, proxy){
         const m = data.match(/<body[^>]*>([^<]*)<\/body>/i) || data.match(/(.*,){6}(.+)/);
         if (m) {
           const parts = String(m[1] || m[2] || '').split(',');
-          const song = (parts.pop() || '').trim();
-          const now = normalizeNow(song);
-          if (now && !isJunkNow(now)) return { title: '', now };
+          const song = parts.pop()?.trim();
+          if (song) return { title: '', now: normalizeNow(song) };
         }
       }
     }
@@ -174,6 +167,7 @@ async function fetchFromStationStatus(streamUrl, proxy){
 // Prefer the source that matches host/port/path of the actual stream mount
 function pickBestIcecastSource(sources, streamURL){
   if (!Array.isArray(sources) || !sources.length) return null;
+  const sameHostPort = (a,b) => (a.host === b.host) && (a.port === b.port);
   const pathTail = (p) => (p || '').toLowerCase().replace(/\/+$/,'');
   const want = {
     host: streamURL.hostname,
@@ -183,14 +177,19 @@ function pickBestIcecastSource(sources, streamURL){
 
   let best = null;
   for (const s of sources){
-    const listen = s.listenurl || s.server_url || '';
+    const listen = s.listenurl || '';
     let lHost='', lPort='', lPath='';
     try {
       const u = new URL(listen, streamURL);
-      lHost = u.hostname; lPort = u.port || (u.protocol==='https:'?'443':'80'); lPath = pathTail(u.pathname);
+      lHost = u.hostname;
+      lPort = u.port || (u.protocol==='https:'?'443':'80');
+      lPath = pathTail(u.pathname);
     } catch {}
-    if (listen && lPath && lPath === want.path && lHost === want.host && lPort === want.port) return s;
-    if (!best && (s.title || s.server_name || s.listenurl)) best = s;
+
+    if (listen && lPath && lPath === want.path && lHost && lPort && lHost === want.host && lPort === want.port) {
+      return s; // exact mount match
+    }
+    if (!best) best = s;
   }
   return best || sources[0];
 }
@@ -202,7 +201,7 @@ async function fetchICYOnce(streamUrl, proxy){
     const url = corsWrap(proxy, streamUrl);
     const r = await fetch(url, {
       method: 'GET',
-      headers: { 'Icy-MetaData': '1' },
+      headers: { 'Icy-MetaData': '1' }, // ask server to send metadata
       cache: 'no-store',
       signal: ctrl.signal
     });
@@ -212,31 +211,32 @@ async function fetchICYOnce(streamUrl, proxy){
     if (!metaint || !r.body) return null;
 
     const reader = r.body.getReader();
+    let audioSkip = metaint;
 
-    // 1) skip metaint bytes
-    let toSkip = metaint;
-    while (toSkip > 0) {
+    // 1) Skip 'metaint' bytes of audio data…
+    while (audioSkip > 0) {
       const { done, value } = await reader.read();
       if (done) return null;
-      toSkip -= Math.min(toSkip, value.length);
+      const take = Math.min(audioSkip, value.length);
+      audioSkip -= take;
     }
 
-    // 2) metadata length in 16-byte blocks
+    // 2) Next 1 byte gives metadata length (in 16-byte blocks)
     const metaLenByte = await readExact(reader, 1);
     if (!metaLenByte) return null;
     const metaLen = metaLenByte[0] * 16;
     if (!metaLen) { ctrl.abort(); return null; }
 
-    // 3) read and parse StreamTitle
+    // 3) Read metadata block and parse StreamTitle='...';
     const metaBuf = await readExact(reader, metaLen);
     ctrl.abort();
 
     const text = new TextDecoder('latin1').decode(metaBuf);
     const m = text.match(/StreamTitle='([^']*)'/i);
     const raw = (m?.[1] || '').trim();
-    const norm = normalizeNow(raw);
-    if (!norm || isJunkNow(norm)) return null;   // ignore banner/junk
-    return { title: '', now: norm };
+    if (!raw) return null;
+
+    return { title: '', now: normalizeNow(raw) };
   } catch {
     return null;
   }
@@ -267,10 +267,8 @@ function guessRadioCoStatus(u){
   const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
   return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
 }
-
-// Use AllOrigins-aware fetchers (to honor your proxy choice)
-async function getJSON(url, proxy){ return await fetchJSONViaProxy(url, proxy); }
-async function getText(url, proxy){ return await fetchTextViaProxy(url, proxy); }
+async function getJSON(url){ try{ const r=await fetch(url,{cache:'no-store'}); return r.ok? r.json():null; }catch{ return null; } }
+async function getText(url){ try{ const r=await fetch(url,{cache:'no-store'}); return r.ok? r.text():''; }catch{ return ''; } }
 
 /* ===================== Playlist/file metadata ===================== */
 function isYouTube(u){
@@ -282,7 +280,7 @@ function isSoundCloud(u){
 function titleFromFilename(u){
   try{
     const p = new URL(u, location.href).pathname.split('/').pop() || '';
-    return decodeURIComponent(p.replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ').trim());
+    return decodeURIComponent(p.replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g, ' ').trim());
   }catch{ return ''; }
 }
 function synchsafeToInt(a,b,c,d){ return (a<<21)|(b<<14)|(c<<7)|d; }
@@ -391,4 +389,4 @@ async function readViaJsMediaTags(url, proxy){
       resolve(null);
     }
   });
-}
+  }
