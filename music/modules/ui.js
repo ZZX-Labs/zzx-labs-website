@@ -60,7 +60,7 @@ export function buildShell(root, initialVolume){
       </div>
     </div>
   `;
-  return refs(root);
+  return getRefs(root);
 }
 
 function hbar(side){
@@ -71,7 +71,8 @@ function hbar(side){
   return spans.join('');
 }
 
-function refs(root){
+/* Exported: used by player.js */
+export function getRefs(root){
   return {
     root,
     titleEl: $('[data-title]', root),
@@ -104,6 +105,7 @@ export function setNow(refs, t, s='—'){
   if (refs.subEl)   refs.subEl.textContent   = s || '—';
 }
 
+/* Keep existing name… */
 export function renderPlaylistList(refs, tracks, onPick){
   if (!refs.list) return;
   refs.list.innerHTML = '';
@@ -116,6 +118,11 @@ export function renderPlaylistList(refs, tracks, onPick){
     li.addEventListener('click', ()=> onPick(i));
     refs.list.appendChild(li);
   });
+}
+
+/* …and also export the alias the player expects */
+export function renderPlaylist(refs, tracks, onPick){
+  return renderPlaylistList(refs, tracks, onPick);
 }
 
 export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
