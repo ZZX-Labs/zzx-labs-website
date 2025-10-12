@@ -1,63 +1,239 @@
-/* ZZX skin — VLC-calm layout, exact accent, toggle styling, greys out inactive select */
-:root{
-  --zzx-accent:#c0d674; --zzx-accent-2:#e6a42b;
-  --zzx-fg:#e8e8e8; --zzx-fg-dim:#9aa1aa;
-  --zzx-bg-1:#0b0f15; --zzx-bg-2:#0c121a;
-  --zzx-border:rgba(255,255,255,.10); --zzx-border-soft:rgba(255,255,255,.06);
+/* -------------------------------------------------------------
+   ZZX-Labs Skin for Music Player Widget (music-player.zzx-skin.css)
+   -------------------------------------------------------------
+   Author: ZZX-Labs R&D
+   Version: 1.1
+   Purpose: Overlay CAB player aesthetics with ZZX-Labs branding.
+---------------------------------------------------------------- */
 
-  --mp-bg:var(--zzx-bg-1);
-  --mp-bg-2:var(--zzx-bg-2);
-  --mp-fg:var(--zzx-fg);
-  --mp-dim:var(--zzx-fg-dim);
-  --mp-border:var(--zzx-border);
-  --mp-accent:var(--zzx-accent);
+:root {
+  /* Core ZZX brand palette */
+  --zzx-accent:      #c0d674;  /* cyber sage green */
+  --zzx-accent-2:    #e6a42b;  /* ochre highlight */
+  --zzx-fg:          #e8e8e8;
+  --zzx-fg-dim:      #9aa1aa;
+  --zzx-bg-1:        #0b0f15;
+  --zzx-bg-2:        #0c121a;
+  --zzx-border:      rgba(255,255,255,.10);
+  --zzx-border-soft: rgba(255,255,255,.06);
+  --zzx-shadow:      0 8px 28px rgba(0,0,0,.45);
+
+  /* Map into player variables */
+  --mp-bg:        var(--zzx-bg-1);
+  --mp-bg-2:      var(--zzx-bg-2);
+  --mp-fg:        var(--zzx-fg);
+  --mp-dim:       var(--zzx-fg-dim);
+  --mp-border:    var(--zzx-border);
+  --mp-accent:    var(--zzx-accent);
 }
 
-[data-mp]{ background:linear-gradient(180deg, rgba(11,15,21,.97), rgba(12,18,26,.97));
-  color:var(--mp-fg); border:1px solid var(--zzx-border); border-radius:12px; padding:1rem 1.1rem; }
-
-.mp-top{ display:grid; grid-template-columns: 1fr auto auto; gap:.9rem; align-items:center;
-  border-bottom:1px solid var(--zzx-border-soft); padding-bottom:.7rem; margin-bottom:.9rem; }
-@media (max-width: 840px){ .mp-top{ grid-template-columns:1fr; } }
-
-.mp-now .mp-title{ font-weight:700; font-size:1.05rem; letter-spacing:.2px; }
-.mp-now .mp-sub.small{ color:var(--zzx-fg-dim); }
-
-.mp-source-toggle{ display:flex; gap:.4rem; justify-content:flex-end; }
-.mp-toggle-btn{
-  background:#0f1722; color:var(--mp-fg); border:1px solid var(--zzx-border);
-  border-radius:999px; padding:.3rem .7rem; cursor:pointer; font-weight:600;
+/* Root shell */
+[data-mp] {
+  background: linear-gradient(180deg, rgba(11,15,21,.97), rgba(12,18,26,.97));
+  color: var(--mp-fg);
+  border: 1px solid var(--zzx-border);
+  border-radius: 12px;
+  box-shadow: var(--zzx-shadow), inset 0 1px 0 rgba(255,255,255,.03);
+  padding: 1rem 1.1rem;
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  backdrop-filter: blur(6px);
 }
-.mp-toggle-btn[aria-selected="true"]{
-  background:#141e2c; outline:2px solid #c0d674; outline-offset:1px; border-color:rgba(192,214,116,.35);
+
+/* --- Header row --- */
+.mp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .9rem;
+  border-bottom: 1px solid var(--zzx-border-soft);
+  padding-bottom: .7rem;
+  margin-bottom: .7rem;
 }
-.mp-toggle-btn:hover{ filter:brightness(1.1); }
+.mp-now { min-width: 240px; }
+.mp-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: .2px;
+  color: var(--zzx-fg);
+}
+.mp-sub.small {
+  color: var(--zzx-fg-dim);
+  font-size: .9rem;
+  margin-top: .12rem;
+}
 
-.mp-controls{ display:flex; gap:.45rem; flex-wrap:wrap; justify-content:flex-end; }
-.mp-btn{ background:linear-gradient(180deg, #0e141d, #0a0f16); color:var(--mp-fg);
-  border:1px solid var(--zzx-border); border-radius:8px; padding:.42rem .62rem; cursor:pointer; }
-.mp-btn:hover{ border-color:rgba(255,255,255,.18); filter:brightness(1.08); }
-.mp-btn.active{ outline:2px solid #c0d674; outline-offset:1px; border-color:rgba(192,214,116,.35); }
+/* --- Buttons --- */
+.mp-controls { display:flex; gap:.5rem; flex-wrap:wrap; }
+.mp-btn {
+  background: linear-gradient(180deg, #0e141d, #0a0f16);
+  color: var(--mp-fg);
+  border: 1px solid var(--zzx-border);
+  border-radius: 9px;
+  padding: .42rem .62rem;
+  min-width: 40px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+  transition: all .15s ease;
+}
+.mp-btn:hover {
+  border-color: rgba(255,255,255,.18);
+  filter: brightness(1.08);
+}
+.mp-btn:focus-visible {
+  outline: 2px solid var(--mp-accent);
+  outline-offset: 2px;
+}
+.mp-btn.active {
+  border-color: rgba(192,214,116,.45);
+  box-shadow:
+    0 0 0 1px rgba(192,214,116,.25),
+    inset 0 0 0 1px rgba(192,214,116,.15);
+}
 
-.mp-middle{ display:grid; grid-template-columns: 120px 1fr 160px; gap:.7rem; align-items:center; margin:.9rem 0 1.1rem; }
-.mp-time{ font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.mp-seek{ appearance:none; width:100%; height:5px; border-radius:5px; background:#121a27; cursor:pointer; }
-.mp-seek::-webkit-slider-thumb, .mp-seek::-moz-range-thumb{ width:14px; height:14px; border-radius:50%; background:#c0d674; border:1px solid #353d26; }
-.mp-vol input[type="range"]{ width:100%; accent-color:#c0d674; }
+/* --- Slide switch (Radio ⇄ Playlists) --- */
+.mp-switch { display:flex; align-items:center; gap:.45rem; margin:0 .2rem; }
+.mp-switch-label { font-size:.9rem; color: var(--mp-dim); user-select:none; }
+.mp-switch-knob {
+  inline-size: 48px; block-size: 24px; border-radius: 999px;
+  background: #121a27;
+  border: 1px solid var(--mp-border);
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.mp-switch-knob::after {
+  content:"";
+  position:absolute; inset:3px auto 3px 3px;
+  inline-size: 18px; block-size: 18px; border-radius:50%;
+  background:#2a3444; border:1px solid rgba(255,255,255,.06);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+/* aria-pressed="true" => RADIO (left); "false" => PLAYLISTS (right) */
+.mp-switch-knob[aria-pressed="false"]::after {
+  transform: translateX(22px);
+  background: var(--mp-accent);
+  border-color: #3a4a2a;
+}
 
-.mp-bottom{ display:grid; gap:1.1rem; grid-template-columns: 360px 1fr; }
-@media (max-width: 920px){ .mp-bottom{ grid-template-columns:1fr; } }
+/* --- Middle (seek/time/vol) --- */
+.mp-middle {
+  display:grid;
+  grid-template-columns: 120px 1fr 160px;
+  align-items:center;
+  gap:.7rem;
+  margin: 1rem 0 .9rem;
+}
+.mp-time {
+  color: var(--mp-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .96rem;
+  letter-spacing: .2px;
+}
+.mp-seek {
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 6px;
+  background: #121a27;
+  border: 1px solid var(--zzx-border-soft);
+  cursor: pointer;
+}
+.mp-seek::-webkit-slider-thumb,
+.mp-seek::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--zzx-accent);
+  border: 1px solid #353d26;
+  appearance: none;
+}
+.mp-vol input[type="range"] {
+  width:100%;
+  accent-color: var(--zzx-accent);
+}
 
-.mp-left label{ display:block; margin-bottom:.35rem; color:var(--mp-dim); }
-.mp-pl{ width:100%; background:var(--mp-bg-2); color:var(--mp-fg); border:1px solid var(--zzx-border);
-  border-radius:8px; padding:.5rem .65rem; }
-.mp-pl.is-disabled{ opacity:.45; filter:grayscale(.3); pointer-events:none; }
+/* --- Bottom (selectors + track list) --- */
+.mp-bottom {
+  display:grid; gap: 1.1rem; grid-template-columns: 340px 1fr;
+}
+@media (max-width: 880px) {
+  .mp-bottom { grid-template-columns: 1fr; }
+}
 
-.mp-right .mp-list{ list-style:none; margin:0; padding:0; border:1px solid var(--zzx-border); border-radius:10px;
-  background:var(--mp-bg-2); max-height:320px; overflow:auto; }
-.mp-list li{ display:flex; justify-content:space-between; align-items:center; padding:.56rem .7rem; border-bottom:1px solid var(--zzx-border-soft); cursor:pointer; }
-.mp-list li:last-child{ border-bottom:0; }
-.mp-list li:hover{ background:rgba(255,255,255,.03); }
-.mp-list li.active{ background:linear-gradient(180deg, #0f1722, #0c131c); box-shadow: inset 0 0 0 1px rgba(192,214,116,.12); }
-.mp-list .t{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.mp-list .len{ color:var(--mp-dim); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.9rem; }
+.mp-left label {
+  display:block;
+  margin-bottom:.35rem;
+  color: var(--mp-dim);
+}
+.mp-pl {
+  width: 100%;
+  background: var(--mp-bg-2);
+  color: var(--mp-fg);
+  border: 1px solid var(--zzx-border);
+  border-radius: 9px;
+  padding: .5rem .65rem;
+  font-size: .95rem;
+  transition: border-color .15s ease, filter .15s ease;
+}
+.mp-pl:focus-visible {
+  outline: 2px solid var(--mp-accent);
+  outline-offset: 2px;
+}
+.mp-pl.is-disabled {
+  opacity: .45;
+  filter: saturate(.7);
+  pointer-events: none;
+}
+
+/* Track list */
+.mp-right .mp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--zzx-border);
+  border-radius: 10px;
+  background: var(--mp-bg-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.mp-list li {
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap:.6rem;
+  padding: .56rem .7rem;
+  border-bottom: 1px solid var(--zzx-border-soft);
+  cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.mp-list li:last-child { border-bottom: 0; }
+.mp-list li:hover { background: rgba(255,255,255,.035); }
+.mp-list li.active {
+  background: linear-gradient(180deg, #0f1722, #0c131c);
+  box-shadow: inset 0 0 0 1px rgba(192,214,116,.14);
+}
+.mp-list .t {
+  color: var(--mp-fg);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mp-list .len {
+  color: var(--mp-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .9rem;
+  flex: 0 0 auto;
+}
+
+/* Optional page-level headings for /music/ */
+.page-music h2 {
+  color: var(--zzx-accent);
+  margin-bottom: .45rem;
+}
+.page-music h3 {
+  color: var(--zzx-accent-2);
+  margin-top: 1.2rem;
+  margin-bottom: .5rem;
+}
+.page-music p {
+  color: var(--zzx-fg-dim);
+}
