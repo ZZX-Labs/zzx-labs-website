@@ -10,23 +10,22 @@
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="/static/script.js" defer></script>
 
-  <!-- Page-local -->
-  <link rel="stylesheet" href="/music/style.css" />
-  <link rel="stylesheet" href="/music/music-player.zzx-skin.css" />
+  <!-- Page-local CSS -->
+  <link rel="stylesheet" href="/music/style.css?v=3" />
+  <link rel="stylesheet" href="/music/music-player.zzx-skin.css?v=3" />
 
   <!-- Player module -->
-  <script src="/static/js/modules/music-player.js" defer></script>
-  <!-- Page boot (mounts widget, sets defaults, repo-aware paths, etc.) -->
-  <script src="/music/script.js" defer></script>
+  <script type="module" src="/static/js/modules/music-player.js?v=3"></script>
+  <!-- Page bootstrap (forces mount) -->
+  <script src="/music/script.js?v=3" defer></script>
 </head>
-
 <body class="page-music">
 <header><div id="zzx-header"></div></header>
 
 <main>
   <section class="container">
     <h2>ZZX-Labs Ambient &amp; Streaming Audio</h2>
-    <p class="muted">Curated playlists and partner radio streams with live “now playing” updates.</p>
+    <p class="muted">Curated playlists & live stations. Toggle between “Radio Stations” and “Playlists”.</p>
 
     <div class="mp-shell">
       <div class="mp-root" data-mp
@@ -35,16 +34,15 @@
            data-autoplay="1"
            data-autoplay-muted="1"
            data-shuffle="0"
-           data-volume="0.35"
+           data-volume="0.4"
            data-start-source="stations"
            data-cors-proxy="">
-           <!-- If CORS blocks meta on Shoutcast/Radio.co, set data-cors-proxy to your worker URL -->
       </div>
     </div>
   </section>
 
-  <section class="container backlinks">
-    <a class="btn alt" href="/projects/">← Back to Projects</a>
+  <section class="container backlinks" style="text-align:center">
+    <a class="btn alt" href="/">← Back Home</a>
   </section>
 </main>
 
