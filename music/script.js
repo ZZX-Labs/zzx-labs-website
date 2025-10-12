@@ -1,13 +1,115 @@
-// /music/script.js — wrapper: wiring + state
-import { repoPrefix, $, $$, clamp01, isAbs, join, fmtTime } from './modules/utils.js';
+// /music/script.js — wrapper: wiring + state (with AllOrigins meta + no-wrap controls)
+import { repoPrefix, $, $$, clamp01, isAbs, join, fmtTime, corsWrap } from './modules/utils.js';
 import { loadM3U } from './modules/m3u.js';
-import { fetchStreamMeta, fetchTrackMeta } from './modules/metadata.js';
-import { ensureMeter } from './modules/meter.js';              // <— updated import
+import { fetchTrackMeta } from './modules/metadata.js';       // keep for playlist tracks
+import { ensureMeter } from './modules/meter.js';
 import { buildShell, setNow, renderPlaylistList, renderRadioList, updateRadioNow, highlightList } from './modules/ui.js';
 
 const root = document.querySelector('[data-mp]');
 if (!root) { console.error('[music] no [data-mp] element'); }
 
+// ----- AllOrigins helpers (front-end only, no backend) -----
+const AO_BASE = 'https://api.allorigins.win';
+function aoWrap(url, mode='raw') {
+  const enc = encodeURIComponent(url);
+  return `${AO_BASE}/${mode==='json'?'get':'raw'}?url=${enc}&disableCache=true`;
+}
+function wrapProxy(proxy, url, prefer='raw') {
+  if (!url) return '';
+  if (!proxy) return url;
+  const p = String(proxy).toLowerCase();
+  if (p.startsWith('allorigins')) return aoWrap(url, p.includes('json') ? 'json' : 'raw');
+  // legacy prefix/param proxies still supported via utils.corsWrap
+  return corsWrap(proxy, url);
+}
+async function fetchTextViaProxy(url, proxy) {
+  const p = String(proxy||'').toLowerCase();
+  if (p.startsWith('allorigins')) {
+    // Try RAW first
+    try { const r = await fetch(aoWrap(url,'raw'), { cache:'no-store' }); if (r.ok) return await r.text(); } catch {}
+    // Fallback JSON wrapper
+    try { const r = await fetch(aoWrap(url,'json'), { cache:'no-store' }); if (!r.ok) return ''; const j = await r.json(); return String(j?.contents || ''); } catch {}
+    return '';
+  }
+  try { const r = await fetch(wrapProxy(proxy, url, 'raw'), { cache:'no-store' }); return r.ok ? await r.text() : ''; } catch { return ''; }
+}
+async function fetchJSONViaProxy(url, proxy) {
+  const p = String(proxy||'').toLowerCase();
+  if (p.startsWith('allorigins')) {
+    // Try RAW parse
+    try { const r = await fetch(aoWrap(url,'raw'), { cache:'no-store' }); if (r.ok) return await r.json(); } catch {}
+    // Fallback JSON wrapper -> .contents
+    try {
+      const r = await fetch(aoWrap(url,'json'), { cache:'no-store' }); if (!r.ok) return null;
+      const j = await r.json(); const txt = j?.contents || ''; if (!txt) return null;
+      try { return JSON.parse(txt); } catch { return null; }
+    } catch {}
+    return null;
+  }
+  try { const r = await fetch(wrapProxy(proxy, url, 'raw'), { cache:'no-store' }); return r.ok ? await r.json() : null; } catch { return null; }
+}
+
+// ----- Universal stream metadata (Icecast / Shoutcast / Radio.co) -----
+function guessRadioCoStatus(u){
+  const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
+  return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
+}
+async function fetchStreamMetaUniversal(streamUrl, proxy){
+  try{
+    const u = new URL(streamUrl, location.href);
+    const base = `${u.protocol}//${u.host}`;
+    const candidates = [
+      `${base}/status-json.xsl`,     // Icecast JSON
+      `${base}/status.xsl?json=1`,   // alt Icecast JSON
+      `${base}/stats?sid=1&json=1`,  // Shoutcast v2 JSON
+      guessRadioCoStatus(u),         // Radio.co JSON
+      `${base}/7.html`               // Shoutcast v1 plaintext
+    ].filter(Boolean);
+
+    for (const raw of candidates){
+      const url = wrapProxy(proxy, raw);
+      const looksJson = /(\.xsl$|json=1|public\.radio\.co)/.test(raw);
+      if (looksJson){
+        const data = await fetchJSONViaProxy(raw, proxy);
+        if (!data) continue;
+
+        // Icecast
+        if (typeof data === 'object' && data.icestats) {
+          const src = data.icestats.source;
+          const arr = Array.isArray(src) ? src : (src ? [src] : []);
+          const hit = arr?.[0];
+          if (hit) {
+            const title = hit.server_name || hit.title || '';
+            const now   = (hit.artist && hit.title) ? `${hit.artist} - ${hit.title}` : (hit.title || '');
+            if (title || now) return { title, now };
+          }
+        }
+        // Shoutcast v2
+        if (data?.servertitle || data?.songtitle) {
+          return { title: data.servertitle || '', now: data.songtitle || '' };
+        }
+        // Radio.co
+        if (data?.current_track || data?.name) {
+          const now = data.current_track?.title_with_artists || data.current_track?.title || '';
+          return { title: data.name || '', now };
+        }
+      } else {
+        // Shoutcast v1
+        const txt = await fetchTextViaProxy(raw, proxy);
+        if (!txt) continue;
+        const m = txt.match(/<body[^>]*>([^<]*)<\/body>/i) || txt.match(/(.*,){6}(.+)/);
+        if (m) {
+          const parts = String(m[1] || m[2] || '').split(',');
+          const song = parts.pop()?.trim();
+          if (song) return { title: '', now: song };
+        }
+      }
+    }
+  }catch{}
+  return null;
+}
+
+// ----- Config -----
 const cfg = (() => {
   const pref = repoPrefix();
   const attr = n => root.getAttribute(n);
@@ -19,7 +121,8 @@ const cfg = (() => {
     shuffle       : attr('data-shuffle') === '1',
     volume        : clamp01(parseFloat(attr('data-volume') || '0.25')),
     startSource   : attr('data-start-source') || 'stations', // 'stations' | 'playlists' | 'auto'
-    corsProxy     : (attr('data-cors-proxy') || '').trim(),
+    // Use AllOrigins by default if none provided:
+    corsProxy     : (attr('data-cors-proxy') || 'allorigins-raw').trim(),
     metaPollSec   : 8
   };
 })();
@@ -213,7 +316,7 @@ async function tryPlayStream(urls){
     try { audio.src = u; await audio.play(); return u; }
     catch(e){ lastErr = e; }
   }
-  throw lastErr || new Error('No playable stream endpoints');
+  throw lastErr || new Error('No playable endpoints');
 }
 
 async function playAt(refs, i){
@@ -290,7 +393,9 @@ function startMetaPolling(refs, stationTitle){
 }
 async function pollOnce(refs, stationTitle){
   try {
-    const meta = await fetchStreamMeta(lastStreamUrl, cfg.corsProxy);
+    // Universal probe (Icecast/Shoutcast/Radio.co) via AllOrigins (or provided proxy)
+    let meta = await fetchStreamMetaUniversal(lastStreamUrl, cfg.corsProxy);
+
     if (meta && (meta.now || meta.title)) {
       const display = meta.now || meta.title || '';
       if (display && display !== lastNowTitle) {
@@ -301,4 +406,4 @@ async function pollOnce(refs, stationTitle){
       }
     }
   } catch {}
-                                                                   }
+}
