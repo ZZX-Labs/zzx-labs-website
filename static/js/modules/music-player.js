@@ -1,4 +1,4 @@
-// Music Player Widget (ZZX) — slide switch, source-level next/prev, universal live metadata ticker
+// Music Player Widget (ZZX) — slide switch (left of Prev), source-level next/prev, live metadata ticker
 (function(){
   const MusicPlayer = {};
   const isGH = location.hostname.endsWith('github.io');
@@ -7,40 +7,13 @@
     return (isGH && parts.length) ? '/' + parts[0] + '/' : '/';
   })();
 
-  /* ------------------------ tiny utils ------------------------ */
   const $  = (sel, ctx=document) => ctx.querySelector(sel);
   const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
-  const isAbs = u => /^([a-z][a-z0-9+\-.]*:)?\/\//i.test(u) || u.startsWith('/');
+  const isAbs = u => /^([a-z]+:)?\/\//i.test(u) || u.startsWith('/');
   const join  = (base, rel) => (!rel ? base : (isAbs(rel) ? rel : (base.replace(/\/+$/,'') + '/' + rel.replace(/^\.\/?/,''))));
+
   const fmtTime = (sec) => (!isFinite(sec)||sec<0) ? '—' : `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
 
-  function normalizeNow(s){
-    if (!s) return '';
-    let txt = String(s).replace(/\s+/g,' ').replace(/^["'“”‘’]+|["'“”‘’]+$/g,'').trim();
-    txt = txt.replace(/\s*(\||•|—|-)\s*(radio|fm|am|live|station|stream|online|hq|ultra hd|4k)$/i,'').trim();
-    txt = txt.replace(/\s*\b(32|64|96|128|160|192|256|320)\s?(kbps|kbit|kb|aac|mp3|opus|ogg)\b\s*$/i,'').trim();
-    const parts = txt.split(' - ');
-    if (parts.length >= 2) {
-      const artist = parts.shift().trim();
-      const title  = parts.join(' - ').trim();
-      return `${artist} - ${title}`;
-    }
-    return txt;
-  }
-
-  // CORS helper for metadata-only requests (works with .../? or .../ styles)
-  function corsWrap(proxy, url){
-    if (!url) return '';
-    if (!proxy) return url;
-    return proxy.includes('?')
-      ? (proxy + encodeURIComponent(url))
-      : (proxy.replace(/\/+$/,'') + '/' + url.replace(/^\/+/, ''));
-  }
-
-  async function fetchJSON(url){ try{ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) return null; return await r.json(); }catch{ return null; } }
-  async function fetchText(url){ try{ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) return ''; return await r.text(); }catch{ return ''; } }
-
-  /* ------------------------ M3U ------------------------ */
   function parseM3U(text){
     const lines = String(text||'').split(/\r?\n/);
     const out = []; let pending = null;
@@ -57,110 +30,58 @@
     return out;
   }
 
-  /* ------------------------ Audio helpers ------------------------ */
   async function tryPlayStream(audio, urls){
-    let lastErr;
     for (const u of urls){
-      try { audio.src = u; await audio.play(); return u; } catch(e){ lastErr=e; }
+      try { audio.src = u; await audio.play(); return u; } catch(e){}
     }
-    throw (lastErr || new Error('No playable stream endpoints'));
+    throw new Error('No playable stream endpoints');
   }
 
-  /* ------------------------ Universal live metadata ------------------------ */
-  function guessRadioCoStatus(u){
-    const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
-    return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
-  }
-
-  // Probe Icecast/Shoutcast/Radio.co using the stream's host. CORS-proxied for metadata only.
-  async function fetchStreamMetaUniversal(streamUrl, proxy){
+  function proxied(url, corsProxy){
+    if (!corsProxy) return url;
     try {
-      const u = new URL(streamUrl, location.href);
-      const base = `${u.protocol}//${u.host}`;
-      const candidates = [
-        corsWrap(proxy, `${base}/status-json.xsl`),     // Icecast JSON
-        corsWrap(proxy, `${base}/status.xsl?json=1`),   // Alt Icecast JSON
-        corsWrap(proxy, `${base}/stats?sid=1&json=1`),  // Shoutcast v2 JSON
-        corsWrap(proxy, guessRadioCoStatus(u)),         // Radio.co JSON
-        corsWrap(proxy, `${base}/7.html`)               // Shoutcast v1 plaintext
-      ].filter(Boolean);
-
-      for (const url of candidates){
-        const isJson = /(\.xsl$|json=1|public\.radio\.co)/.test(url);
-        const data = isJson ? await fetchJSON(url) : await fetchText(url);
-        if (!data) continue;
-
-        // Icecast JSON
-        if (isJson && typeof data === 'object' && data.icestats) {
-          const src = data.icestats.source;
-          const arr = Array.isArray(src) ? src : (src ? [src] : []);
-          const hit = arr?.[0];
-          if (hit) {
-            const title = hit.server_name || hit.title || '';
-            const now   = hit.artist && hit.title ? `${hit.artist} - ${hit.title}` : (hit.title || '');
-            const norm  = normalizeNow(now);
-            if (title || norm) return { title, now: norm };
-          }
-        }
-        // Shoutcast v2 JSON
-        if (isJson && (data?.servertitle || data?.songtitle)) {
-          return { title: data.servertitle || '', now: normalizeNow(data.songtitle || '') };
-        }
-        // Radio.co JSON
-        if (isJson && (data?.current_track || data?.name)) {
-          const now = data.current_track?.title_with_artists || data.current_track?.title || '';
-          return { title: data.name || '', now: normalizeNow(now) };
-        }
-        // Shoutcast v1 /7.html
-        if (typeof data === 'string' && (url.endsWith('/7.html') || url.includes('/7.html?'))) {
-          const m = data.match(/<body[^>]*>([^<]*)<\/body>/i) || data.match(/(.*,){6}(.+)/);
-          if (m) {
-            const parts = String(m[1] || m[2] || '').split(',');
-            const song = parts.pop()?.trim();
-            if (song) return { title: '', now: normalizeNow(song) };
-          }
-        }
-      }
-    } catch {}
-    return null;
+      const u = new URL(url, location.origin);
+      if (u.origin === location.origin) return url;
+      return corsProxy.replace(/\/+$/,'') + '/' + url;
+    } catch { return url; }
   }
 
-  // Provider adapters (now using corsWrap so corsproxy.io works)
-  async function metaRadioCo(meta, proxy){
-    const url = corsWrap(proxy, meta.status || `https://public.radio.co/stations/${meta.station_id}/status`);
+  async function fetchJSON(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.statusText); return r.json(); }
+  async function fetchText(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.statusText); return r.text(); }
+
+  // Live metadata adapters
+  async function metaRadioCo(meta, corsProxy){
+    const url = proxied(meta.status || `https://public.radio.co/stations/${meta.station_id}/status`, corsProxy);
     const j = await fetchJSON(url);
-    if (!j) return null;
     const t = j?.current_track?.title || j?.now_playing?.title || j?.title || '';
     const a = j?.current_track?.artist || j?.now_playing?.artist || j?.artist || '';
-    return { now: normalizeNow([a,t].filter(Boolean).join(' - ')) || '', title: meta.name || '' };
+    return { title: [a,t].filter(Boolean).join(' — ') || 'Live', sub: meta.name || 'Radio' };
   }
-  async function metaSomaFM(meta, proxy){
-    const url = corsWrap(proxy, meta.status);
+  async function metaSomaFM(meta, corsProxy){
+    const url = proxied(meta.status, corsProxy);
     const j = await fetchJSON(url);
     const first = Array.isArray(j) ? j[0] : null;
-    if (!first) return null;
     const t = first?.title || '';
     const a = first?.artist || '';
-    return { now: normalizeNow([a,t].filter(Boolean).join(' - ')), title: (meta.channel ? `SomaFM • ${meta.channel}` : 'SomaFM') };
+    return { title: [a,t].filter(Boolean).join(' — ') || 'Live', sub: `SomaFM • ${meta.channel || ''}`.trim() };
   }
-  async function metaShoutcast(meta, proxy){
-    const url = corsWrap(proxy, meta.status);
-    const txt = await fetchText(url);
-    if (!txt) return null;
+  async function metaShoutcast(meta, corsProxy){
+    const url = proxied(meta.status, corsProxy);
+    const txt = await fetchText(url); // CSV
     const parts = txt.split(',').map(s=>s.trim());
-    const cur = parts[parts.length-1] || '';
-    return { now: normalizeNow(cur), title: 'Shoutcast' };
+    const cur = parts[parts.length-1] || 'Live';
+    return { title: cur, sub: 'Shoutcast' };
   }
-  async function pollMeta(kind, meta, proxy){
+  async function pollMeta(kind, meta, corsProxy){
     try{
-      if (kind === 'radioco')   return await metaRadioCo(meta, proxy);
-      if (kind === 'somafm')    return await metaSomaFM(meta, proxy);
-      if (kind === 'shoutcast') return await metaShoutcast(meta, proxy);
-    }catch{}
+      if (kind === 'radioco')   return await metaRadioCo(meta, corsProxy);
+      if (kind === 'somafm')    return await metaSomaFM(meta, corsProxy);
+      if (kind === 'shoutcast') return await metaShoutcast(meta, corsProxy);
+    }catch(e){}
     return null;
   }
 
-  /* ------------------------ Widget ------------------------ */
+  // Mount
   MusicPlayer.mount = function(root, opts={}){
     if (!root) return;
 
@@ -171,9 +92,8 @@
       autoplayMuted : (root.dataset.autoplayMuted ?? (opts.autoplayMuted ? '1':'0')) === '1',
       shuffle       : (root.dataset.shuffle ?? (opts.shuffle ? '1':'0')) === '1',
       volume        : parseFloat(root.dataset.volume ?? (opts.volume ?? 0.5)),
-      startSource   : root.dataset.startSource  || opts.startSource || 'stations',
-      corsProxy     : root.dataset.corsProxy    || opts.corsProxy || '',
-      metaPollSec   : Math.max(5, Number(root.dataset.metaPollSec || opts.metaPollSec || 8))
+      startSource   : root.dataset.startSource  || opts.startSource || 'stations', // 'stations' | 'playlists'
+      corsProxy     : root.dataset.corsProxy    || opts.corsProxy || ''
     };
 
     // UI
@@ -185,6 +105,7 @@
         </div>
 
         <div class="mp-controls" role="toolbar" aria-label="Playback">
+          <!-- Slide switch goes first (left-most) -->
           <div class="mp-switch" aria-label="Source">
             <button class="mp-switch-knob" type="button" aria-pressed="true" title="Left = Radio Stations, Right = Playlists"></button>
           </div>
@@ -254,16 +175,14 @@
     let loopMode = 'none';
     let activeSource = (cfg.startSource === 'playlists') ? 'playlists' : 'stations';
     let manifest = { stations: [], playlists: [] };
-
     let metaTimer = 0;
-    let lastStreamUrl = '';
-    let lastNow = '';
 
     // Helpers
     const setNow = (t, s='') => {
       const txt = t || '—';
       if (titleEl) {
         titleEl.textContent = txt;
+        // enable marquee if overflow
         requestAnimationFrame(() => {
           const over = titleEl.scrollWidth > titleEl.clientWidth + 2;
           titleEl.classList.toggle('ticker', over);
@@ -282,13 +201,17 @@
     };
 
     function setSourceUI(){
+      // knob aria-pressed=true means LEFT (Stations) active
       const stationsActive = (activeSource === 'stations');
       switchKnob.setAttribute('aria-pressed', stationsActive ? 'true' : 'false');
 
-      selStations.disabled = !stationsActive;
-      selStations.classList.toggle('is-disabled', !stationsActive);
-      selMusic.disabled = stationsActive;
-      selMusic.classList.toggle('is-disabled', stationsActive);
+      if (stationsActive){
+        selStations.disabled = false; selStations.classList.remove('is-disabled');
+        selMusic.disabled = true;     selMusic.classList.add('is-disabled');
+      } else {
+        selStations.disabled = true;  selStations.classList.add('is-disabled');
+        selMusic.disabled = false;    selMusic.classList.remove('is-disabled');
+      }
     }
 
     function renderQueue(){
@@ -312,66 +235,40 @@
       if (cursor >= 0) list.children[cursor]?.classList.add('active');
     };
 
-    function clearMetaTimer(){ if (metaTimer) { clearInterval(metaTimer); metaTimer = 0; } }
-
-    function startMetaTicker(track){
-      clearMetaTimer();
-      if (!track?.isStream) return;
-
-      const poll = async () => {
-        let info = null;
-
-        // 1) If manifest provided a known adapter, prefer it
-        if (track.kind && track.meta) info = await pollMeta(track.kind, track.meta, cfg.corsProxy);
-
-        // 2) Fallback to universal detectors from the actual stream host
-        if (!info && lastStreamUrl) info = await fetchStreamMetaUniversal(lastStreamUrl, cfg.corsProxy);
-
-        if (info && (info.now || info.title)) {
-          const label = normalizeNow(info.now || info.title || '');
-          if (label && label !== lastNow) {
-            lastNow = label;
-            setNow(label, 'Radio');
-            try {
-              const row = list?.children[cursor];
-              const tDiv = row?.querySelector('.t');
-              if (tDiv && !track._titleOverridden) tDiv.textContent = label;
-            } catch {}
-          }
-        }
-      };
-
-      poll();
-      metaTimer = setInterval(poll, cfg.metaPollSec * 1000);
-    }
-
     async function playAt(i){
       if (!queue.length) return;
       cursor = (i + queue.length) % queue.length;
       const tr = queue[cursor];
       setNow(tr.title, activeSource === 'stations' ? 'Radio' : 'Playlist');
       setPlayIcon(false);
-      clearMetaTimer();
-      lastNow = '';
+
+      clearInterval(metaTimer); metaTimer=0;
 
       try {
         if (tr.isStream && Array.isArray(tr.urls) && tr.urls.length){
-          const ok = await tryPlayStream(audio, tr.urls);
-          lastStreamUrl = ok || tr.urls[0] || lastStreamUrl;
+          await tryPlayStream(audio, tr.urls);
         } else {
           audio.src = tr.url;
-          lastStreamUrl = '';
           await audio.play();
         }
         setPlayIcon(true);
         highlightList();
-        startMetaTicker(tr);
+
+        if (tr.isStream && tr.kind && tr.meta) {
+          const pollMs = Math.max(3, parseInt(tr.meta.poll||10)) * 1000;
+          const refresh = async () => {
+            const data = await pollMeta(tr.kind, tr.meta, cfg.corsProxy);
+            if (data) setNow(data.title || tr.title || 'LIVE', data.sub || (activeSource==='stations'?'Radio':'Playlist'));
+          };
+          refresh();
+          metaTimer = setInterval(refresh, pollMs);
+        }
       } catch(e){ next(); }
     }
 
     // Controls
     function playPause(){ if (!audio.src) return playAt(0); if (audio.paused) audio.play().then(()=>setPlayIcon(true)).catch(()=>{}); else { audio.pause(); setPlayIcon(false);} }
-    function stop(){ audio.pause(); try{audio.currentTime=0;}catch{} setPlayIcon(false); clearMetaTimer(); lastNow=''; }
+    function stop(){ audio.pause(); try{audio.currentTime=0;}catch{} setPlayIcon(false); }
     function prev(){
       if (activeSource === 'stations'){
         if (!manifest.stations.length) return;
@@ -409,12 +306,11 @@
     btns.loop1?.addEventListener('click', toggleLoopOne);
     btns.mute?.addEventListener('click', toggleMute);
 
+    // Slide switch behavior (left=stations, right=playlists)
     switchKnob.addEventListener('click', ()=>{
       const pressed = switchKnob.getAttribute('aria-pressed') === 'true';
       activeSource = pressed ? 'playlists' : 'stations';
       setSourceUI();
-      clearMetaTimer();
-      lastNow = '';
       if (activeSource === 'stations') onPickStations(); else onPickMusic();
     });
 
@@ -422,7 +318,7 @@
       if (!isFinite(audio.duration) || audio.duration<=0) return;
       audio.currentTime = (seek.value/1000) * audio.duration;
     });
-    if (Number.isFinite(cfg.volume)) audio.volume = Math.min(1, Math.max(0, cfg.volume));
+    if (isFinite(cfg.volume)) audio.volume = Math.min(1, Math.max(0, cfg.volume));
     vol?.addEventListener('input', ()=>{ audio.volume = Math.min(1, Math.max(0, parseFloat(vol.value||'0.5'))); });
 
     audio.addEventListener('timeupdate', paintTimes);
@@ -440,6 +336,13 @@
       }
     });
 
+    root.addEventListener('keydown', (e)=>{
+      if (e.code === 'Space'){ e.preventDefault(); playPause(); }
+      if (e.code === 'ArrowLeft') prev();
+      if (e.code === 'ArrowRight') next();
+      if (e.key && e.key.toLowerCase() === 'm') toggleMute();
+    });
+
     if (cfg.autoplayMuted) {
       audio.muted = true; setMuteIcon();
       const unmute=()=>{audio.muted=false; setMuteIcon(); window.removeEventListener('click', unmute, {once:true});};
@@ -449,10 +352,7 @@
 
     // Data loading
     async function getJSON(u){ try{ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw 0; return await r.json(); }catch{return null;} }
-    function fillSelect(sel, arr, label='Item'){
-      if (!sel) return; sel.innerHTML='';
-      arr.forEach((it,i)=>{ const o=document.createElement('option'); o.value=it.file; o.textContent=it.name||`${label} ${i+1}`; sel.appendChild(o); });
-    }
+    function fillSelect(sel, arr){ if (!sel) return; sel.innerHTML=''; arr.forEach((it,i)=>{ const o=document.createElement('option'); o.value=it.file; o.textContent=it.name||`Playlist ${i+1}`; sel.appendChild(o); }); }
 
     async function loadM3U(path, isStation, stationMeta){
       const url = isAbs(path) ? path : join(cfg.manifestUrl.replace(/\/manifest\.json$/i,''), path);
@@ -500,11 +400,12 @@
       const mf = await getJSON(cfg.manifestUrl);
       manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
       manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
-      fillSelect(selStations, manifest.stations, 'Station');
-      fillSelect(selMusic,    manifest.playlists, 'Playlist');
+      fillSelect(selStations, manifest.stations);
+      fillSelect(selMusic,    manifest.playlists);
 
       btns.shuffle?.classList.toggle('active', cfg.shuffle);
 
+      // Default selects & switch
       if (manifest.stations.length && selStations.selectedIndex < 0) selStations.selectedIndex = 0;
       if (manifest.playlists.length && selMusic.selectedIndex < 0) selMusic.selectedIndex = 0;
       switchKnob.setAttribute('aria-pressed', activeSource === 'stations' ? 'true' : 'false');
@@ -524,8 +425,8 @@
       }
     })();
 
-    selStations.addEventListener('change', ()=>{ if(activeSource==='stations') { clearMetaTimer(); lastNow=''; onPickStations(); } });
-    selMusic.addEventListener('change',    ()=>{ if(activeSource==='playlists'){ clearMetaTimer(); lastNow=''; onPickMusic(); } });
+    selStations.addEventListener('change', ()=>{ if(activeSource==='stations') onPickStations(); });
+    selMusic.addEventListener('change',    ()=>{ if(activeSource==='playlists') onPickMusic(); });
   };
 
   // Auto-mount
