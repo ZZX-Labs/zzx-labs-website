@@ -1,7 +1,7 @@
-// /music/script.js — ZZX one-file audio player (stations & playlists) with live now-playing
+// /music/script.js — ZZX player with slide switch + live now-playing + ordered lists
 (function () {
   const root = document.querySelector('[data-mp]');
-  if (!root) { console.error('[music] no [data-mp] element'); return; }
+  if (!root) return console.error('[music] no [data-mp] element');
 
   /* ---------- env + defaults ---------- */
   const isGH   = location.hostname.endsWith('github.io');
@@ -21,51 +21,36 @@
     volume        : clamp01(parseFloat(attr('data-volume') || '0.35')),
     startSource   : attr('data-start-source') || 'stations', // 'stations' | 'playlists' | 'auto'
     corsProxy     : (attr('data-cors-proxy') || '').trim(),  // e.g. https://your-proxy.example/fetch?url=
-    metaPollSec   : 20
+    metaPollSec   : 15
   };
 
   function attr(n){ return root.getAttribute(n); }
   function clamp01(v){ return Math.min(1, Math.max(0, isFinite(v) ? v : 0.5)); }
   function isAbs(u){ return /^([a-z]+:)?\/\//i.test(u) || u.startsWith('/'); }
   function join(base, rel){ if (isAbs(rel)) return rel; return (base.replace(/\/+$/,'') + '/' + rel.replace(/^\/+/,'').replace(/^\.\//,'')); }
-  const $  = (s, c=root)=>c.querySelector(s);
-  const $$ = (s, c=root)=>Array.from(c.querySelectorAll(s));
-  const fmtTime = (sec)=> (!isFinite(sec)||sec<0) ? '—' : `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
+  const $=(s,c=root)=>c.querySelector(s), $$=(s,c=root)=>Array.from(c.querySelectorAll(s));
+  const fmtTime=(sec)=>(!isFinite(sec)||sec<0)?'—':`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
   async function headOK(url){ if (isFile) return false; try{ const r=await fetch(url,{method:'HEAD',cache:'no-store'}); return r.ok; }catch{ return false; } }
   async function getJSON(url){ try{ const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw 0; return await r.json(); }catch{ return null; } }
   async function getText(url){ try{ const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw 0; return await r.text(); }catch{ return ''; } }
-
-  // CORS helper (prefix a proxy if provided)
-  function corsWrap(u){
-    if (!cfg.corsProxy) return u;
-    // If proxy expects ?url= style:
-    if (cfg.corsProxy.includes('?')) return cfg.corsProxy + encodeURIComponent(u);
-    // If proxy expects path passthrough like /proxy/https://… :
-    return cfg.corsProxy.replace(/\/+$/,'') + '/' + u;
-  }
+  function corsWrap(u){ if(!cfg.corsProxy) return u; return cfg.corsProxy.includes('?') ? cfg.corsProxy+encodeURIComponent(u) : cfg.corsProxy.replace(/\/+$/,'')+'/'+u; }
 
   /* ---------- parse M3U(.8) ---------- */
   function parseM3U(text){
     const lines = String(text||'').split(/\r?\n/);
-    const out = [];
-    let pendingTitle = null;
+    const out = []; let pendingTitle = null;
     for (const raw of lines){
       const line = raw.trim();
       if (!line || line.startsWith('#EXTM3U')) continue;
       if (line.startsWith('#EXTINF:')){
-        const i = line.indexOf(',');
-        pendingTitle = (i>=0) ? line.slice(i+1).trim() : null;
-        continue;
+        const i = line.indexOf(','); pendingTitle = (i>=0) ? line.slice(i+1).trim() : null; continue;
       }
-      if (!line.startsWith('#')) {
-        out.push({ url: line, title: pendingTitle || line });
-        pendingTitle = null;
-      }
+      if (!line.startsWith('#')) { out.push({ url: line, title: pendingTitle || line }); pendingTitle=null; }
     }
     return out;
   }
 
-  /* ---------- UI shell with category toggle ---------- */
+  /* ---------- UI shell (adds slide switch right after Prev) ---------- */
   function buildShell(){
     root.innerHTML = `
       <div class="mp-top">
@@ -74,20 +59,23 @@
           <div class="mp-sub small"  data-sub>—</div>
         </div>
 
-        <div class="mp-source-toggle" aria-label="Source">
-          <button class="mp-toggle-btn" data-src="stations" aria-selected="true">Radio Stations</button>
-          <button class="mp-toggle-btn" data-src="playlists" aria-selected="false">Playlists</button>
-        </div>
-
         <div class="mp-controls" role="toolbar" aria-label="Controls">
-          <button class="mp-btn" data-act="prev"    title="Previous (⟵)">⏮</button>
-          <button class="mp-btn" data-act="play"    title="Play/Pause (Space)">▶</button>
-          <button class="mp-btn" data-act="stop"    title="Stop">⏹</button>
-          <button class="mp-btn" data-act="next"    title="Next (⟶)">⏭</button>
+          <button class="mp-btn" data-act="prev" title="Previous (⟵)">⏮</button>
+
+          <!-- Slide Switch (Radio ⇄ Playlists) -->
+          <div class="mp-switch" role="group" aria-label="Source toggle" title="Toggle Radio/Playlists">
+            <span class="mp-switch-label">Radio</span>
+            <button class="mp-switch-knob" data-src-toggle aria-pressed="true" aria-label="Radio / Playlists"></button>
+            <span class="mp-switch-label">Playlists</span>
+          </div>
+
+          <button class="mp-btn" data-act="play" title="Play/Pause (Space)">▶</button>
+          <button class="mp-btn" data-act="stop" title="Stop">⏹</button>
+          <button class="mp-btn" data-act="next" title="Next (⟶)">⏭</button>
           <button class="mp-btn" data-act="shuffle" title="Shuffle">🔀</button>
-          <button class="mp-btn" data-act="loop"    title="Loop all">🔁</button>
-          <button class="mp-btn" data-act="loop1"   title="Loop one">🔂</button>
-          <button class="mp-btn" data-act="mute"    title="Mute/Unmute">🔇</button>
+          <button class="mp-btn" data-act="loop" title="Loop all">🔁</button>
+          <button class="mp-btn" data-act="loop1" title="Loop one">🔂</button>
+          <button class="mp-btn" data-act="mute" title="Mute/Unmute">🔇</button>
         </div>
       </div>
 
@@ -119,16 +107,17 @@
   audio.crossOrigin = 'anonymous';
 
   let manifest = { stations: [], playlists: [] };
-  let queue = [];       // current playable queue (tracks or a single LIVE item)
-  let cursor = -1;      // index into queue
+  let queue = [];               // playlist tracks OR one LIVE item
+  let cursor = -1;
   let loopMode = 'none';
-  let usingStations = true; // toggled by buttons
-  let metaTimer = null; // metadata polling interval
-  let lastStreamUrl = ''; // for metadata probes
+  let usingStations = true;     // controlled by slide switch
+  let metaTimer = null;
+  let lastStreamUrl = '';
+  let lastNowTitle = '';
 
   /* ---------- Refs & wiring ---------- */
   let titleEl, subEl, timeCur, timeDur, seek, vol, list;
-  let btn = {}, sel = {}, toggleBtn = {};
+  let btn = {}, sel = {}, switchKnob;
 
   function wireRefs(){
     titleEl = $('[data-title]'); subEl = $('[data-sub]');
@@ -150,10 +139,7 @@
       stations: $('.mp-pl-stations'),
       playlists: $('.mp-pl-music')
     };
-    toggleBtn = {
-      stations: $('[data-src="stations"]'),
-      playlists: $('[data-src="playlists"]')
-    };
+    switchKnob = $('[data-src-toggle]');
   }
 
   function setNow(t, s){ if (titleEl) titleEl.textContent = t || '—'; if (subEl) subEl.textContent = s || '—'; }
@@ -169,37 +155,57 @@
   function highlightList(){
     if (!list) return;
     $$('.active', list).forEach(li => li.classList.remove('active'));
-    if (cursor >= 0) list.children[cursor]?.classList.add('active');
+    if (cursor >= 0) list.children[cursor+radioListOffset()]?.classList.add('active'); // offset when radio shows 2 rows
   }
-  function renderQueue(){
+
+  // For radio view, we render two rows: [0]=station, [1]=now-playing.
+  function radioListOffset(){ return usingStations ? 1 : 0; }
+
+  function renderRadioList(stationTitle, nowTitle){
     if (!list) return;
     list.innerHTML = '';
-    queue.forEach((t,i)=>{
+
+    const liStation = document.createElement('li');
+    const Ls = document.createElement('div'); Ls.className='t';   Ls.textContent = stationTitle || 'Live Station';
+    const Rs = document.createElement('div'); Rs.className='len mono'; Rs.textContent = 'LIVE';
+    liStation.appendChild(Ls); liStation.appendChild(Rs);
+    list.appendChild(liStation);
+
+    const liNow = document.createElement('li');
+    liNow.setAttribute('data-now', '1');
+    const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = nowTitle || '—';
+    const Rn = document.createElement('div'); Rn.className='len mono'; Rn.textContent = '';
+    liNow.appendChild(Ln); liNow.appendChild(Rn);
+    list.appendChild(liNow);
+  }
+
+  function updateRadioNow(nowTitle){
+    const liNow = list?.querySelector('li[data-now="1"] .t');
+    if (liNow) liNow.textContent = nowTitle || '—';
+  }
+
+  function renderPlaylistList(tracks){
+    if (!list) return;
+    list.innerHTML = '';
+    tracks.forEach((t,i)=>{
       const li = document.createElement('li');
-      const l = document.createElement('div'); l.className='t'; l.textContent = t.title || `Track ${i+1}`;
-      const r = document.createElement('div'); r.className='len mono'; r.textContent = t.isStream ? 'LIVE' : '';
-      li.appendChild(l); li.appendChild(r);
+      const left = document.createElement('div'); left.className='t';
+      left.textContent = `${String(i+1).padStart(2,'0')} — ${t.title || `Track ${i+1}`}`;
+      const right = document.createElement('div'); right.className='len mono'; right.textContent = '';
+      li.appendChild(left); li.appendChild(right);
       li.addEventListener('click', ()=> playAt(i));
       list.appendChild(li);
     });
     highlightList();
   }
 
-  /* ---------- Category toggle ---------- */
-  function applyToggle(){
-    usingStations = (toggleBtn.stations.getAttribute('aria-selected') === 'true');
-    if (usingStations) {
-      sel.stations.classList.remove('is-disabled');
-      sel.playlists.classList.add('is-disabled');
-    } else {
-      sel.playlists.classList.remove('is-disabled');
-      sel.stations.classList.add('is-disabled');
-    }
-  }
-  function setToggle(target){
-    toggleBtn.stations.setAttribute('aria-selected', target==='stations' ? 'true' : 'false');
-    toggleBtn.playlists.setAttribute('aria-selected', target==='playlists' ? 'true' : 'false');
-    applyToggle();
+  /* ---------- Slide switch ---------- */
+  function setSwitch(toPlaylists){
+    usingStations = !toPlaylists;
+    switchKnob.setAttribute('aria-pressed', toPlaylists ? 'false' : 'true');
+    // Grey out the unused select
+    sel.stations?.classList.toggle('is-disabled', !usingStations);
+    sel.playlists?.classList.toggle('is-disabled', usingStations);
   }
 
   /* ---------- Loaders ---------- */
@@ -211,7 +217,6 @@
     if (!entries.length) return [];
     if (isStation) {
       const urls = entries.map(e => isAbs(e.url) ? e.url : join(cfg.audioBase, e.url));
-      // Keep for metadata polling
       lastStreamUrl = urls[0] || '';
       return [{
         title: sel.stations?.selectedOptions?.[0]?.textContent || 'Live Station',
@@ -245,17 +250,18 @@
       if (tr.isStream && Array.isArray(tr.urls) && tr.urls.length) {
         const ok = await tryPlayStream(tr.urls);
         lastStreamUrl = ok || tr.urls[0] || lastStreamUrl;
-        startMetaPolling(); // live updates
+        startMetaPolling(tr.title);
+        renderRadioList(tr.title, lastNowTitle || '—'); // ensure radio list visible
       } else {
         audio.src = tr.url;
         await audio.play();
-        stopMetaPolling(); // file mode: no live metadata
+        stopMetaPolling();
       }
       setPlayIcon(true);
       highlightList();
     }catch(e){
       console.warn('[music] failed to play, skipping', e);
-      next();
+      usingStations ? nextStation() : nextTrack();
     }
   }
 
@@ -266,13 +272,16 @@
   }
   function stop(){ audio.pause(); try{ audio.currentTime=0; }catch{} setPlayIcon(false); }
   function prev(){
-    if (usingStations) return prevStation();
-    // playlists: cycle within current playlist tracks
+    usingStations ? prevStation() : prevTrack();
+  }
+  function next(){
+    usingStations ? nextStation() : nextTrack();
+  }
+  function prevTrack(){
     if (loopMode==='one') return playAt(cursor);
     playAt(cursor - 1);
   }
-  function next(){
-    if (usingStations) return nextStation();
+  function nextTrack(){
     if (loopMode==='one') return playAt(cursor);
     if (cfg.shuffle) {
       let j = Math.floor(Math.random()*queue.length);
@@ -289,7 +298,7 @@
     }
   }
 
-  // Category-wide next/prev
+  // Category-wide next/prev among station entries (select list items)
   function nextStation(){
     const el = sel.stations; if (!el || !el.options.length) return;
     el.selectedIndex = (el.selectedIndex + 1) % el.options.length;
@@ -300,55 +309,41 @@
     el.selectedIndex = (el.selectedIndex - 1 + el.options.length) % el.options.length;
     onPickStations(true);
   }
-  function nextPlaylist(){
-    const el = sel.playlists; if (!el || !el.options.length) return;
-    el.selectedIndex = (el.selectedIndex + 1) % el.options.length;
-    onPickMusic(true);
-  }
-  function prevPlaylist(){
-    const el = sel.playlists; if (!el || !el.options.length) return;
-    el.selectedIndex = (el.selectedIndex - 1 + el.options.length) % el.options.length;
-    onPickMusic(true);
-  }
 
-  /* ---------- Live metadata polling (best-effort) ---------- */
+  /* ---------- Live metadata polling ---------- */
   function stopMetaPolling(){ if (metaTimer) { clearInterval(metaTimer); metaTimer=null; } }
-  function startMetaPolling(){
+  function startMetaPolling(stationTitle){
     stopMetaPolling();
     if (!lastStreamUrl) return;
-    // poll immediately then every N sec
-    pollOnce();
-    metaTimer = setInterval(pollOnce, Math.max(6, cfg.metaPollSec)*1000);
+    pollOnce(stationTitle);
+    metaTimer = setInterval(()=>pollOnce(stationTitle), Math.max(6, cfg.metaPollSec)*1000);
   }
 
-  async function pollOnce(){
-    if (!lastStreamUrl) return;
+  async function pollOnce(stationTitle){
     try {
       const meta = await fetchStreamMeta(lastStreamUrl);
-      if (meta && meta.title) {
-        // Show "Stream Title — Now Playing"
-        setNow(meta.title, meta.now || 'Radio');
+      if (meta && (meta.now || meta.title)) {
+        const display = meta.now || meta.title;
+        lastNowTitle = display;
+        setNow(stationTitle || meta.title || 'Live Station', 'Radio');
+        updateRadioNow(display);
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch {}
   }
 
-  // Heuristics for Icecast/Shoutcast/Radio.co
   async function fetchStreamMeta(streamUrl){
     try {
       const u = new URL(streamUrl, location.href);
-      const base = u.origin; // e.g. https://ice4.somafm.com
-      const path = u.pathname; // e.g. /suburbsofgoa-128-aac
-      // candidates (proxied if needed)
+      const base = u.origin;
+      const path = u.pathname;
+
       const candidates = [
-        // Icecast JSON:
         corsWrap(base + '/status-json.xsl'),
         corsWrap(base + '/status.xsl?json=1'),
-        // Shoutcast v2 JSON (some servers):
         corsWrap(base + '/stats?sid=1&json=1'),
-        // Radio.co (public):
-        guessRadioCoStatus(u)
+        guessRadioCoStatus(u),
+        // shoutcast v1 legacy (often no CORS; proxy recommended)
+        corsWrap(base + '/7.html')
       ].filter(Boolean);
 
       for (const c of candidates){
@@ -359,12 +354,13 @@
         if (c.includes('status-json.xsl') || c.includes('status.xsl?json=1')) {
           try {
             const j = JSON.parse(txt);
-            // Find mount that matches our path (best effort)
             const src = j.icestats?.source;
             const arr = Array.isArray(src) ? src : (src ? [src] : []);
             let hit = arr.find(s => (s.listenurl && s.listenurl.includes(path))) || arr[0];
-            if (hit && (hit.title || hit.artist || hit.server_name)) {
-              return { title: hit.title || hit.server_name, now: (hit.artist ? `${hit.artist}` : 'Radio') };
+            if (hit) {
+              const title = hit.server_name || hit.title || '';
+              const now   = hit.artist && hit.title ? `${hit.artist} — ${hit.title}` : (hit.title || '');
+              return { title, now };
             }
           } catch {}
         }
@@ -373,8 +369,9 @@
         if (c.includes('/stats') && c.includes('json=1')){
           try {
             const j = JSON.parse(txt);
-            const title = j?.songtitle || j?.servertitle || '';
-            if (title) return { title, now: 'Radio' };
+            const title = j?.servertitle || '';
+            const now   = j?.songtitle || '';
+            if (title || now) return { title, now };
           } catch {}
         }
 
@@ -382,18 +379,19 @@
         if (c.includes('public.radio.co/stations/')){
           try {
             const j = JSON.parse(txt);
-            const title = j?.current_track?.title || j?.current_track?.title_with_artists || j?.name;
-            if (title) return { title, now: 'Radio' };
+            const title = j?.name || '';
+            const now   = j?.current_track?.title_with_artists || j?.current_track?.title || '';
+            if (title || now) return { title, now };
           } catch {}
         }
 
-        // Shoutcast v1 HTML (7.html)
+        // Shoutcast v1 /7.html
         if (c.endsWith('/7.html') || c.includes('/7.html?')){
-          const m = txt.match(/<body[^>]*>([^<]*)<\/body>/i) || txt.match(/(.*,){6}(.+)/); // very loose
+          const m = txt.match(/<body[^>]*>([^<]*)<\/body>/i) || txt.match(/(.*,){6}(.+)/);
           if (m) {
             const parts = String(m[1] || m[2] || '').split(',');
             const song = parts.pop()?.trim();
-            if (song) return { title: song, now: 'Radio' };
+            if (song) return { title: '', now: song };
           }
         }
       }
@@ -402,21 +400,28 @@
   }
 
   function guessRadioCoStatus(u){
-    // Try to extract station id from host path like streamer.radio.co/s0635c8b0d/listen
     const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
-    if (m && m[1]) {
-      return corsWrap(`https://public.radio.co/stations/${m[1]}/status`);
-    }
-    return null;
+    return m ? corsWrap(`https://public.radio.co/stations/${m[1]}/status`) : null;
   }
 
   /* ---------- Events & selections ---------- */
   function wireControls(){
+    // Slide switch: pressed=true means RADIO; false means PLAYLISTS
+    switchKnob?.addEventListener('click', async ()=>{
+      const pressed = switchKnob.getAttribute('aria-pressed') === 'true';
+      setSwitch(!pressed); // toggle
+      if (usingStations) {
+        if (sel.stations?.options.length) await onPickStations(false);
+      } else {
+        if (sel.playlists?.options.length) await onPickMusic(false);
+      }
+    });
+
     // Buttons
     btn.play?.addEventListener('click', playPause);
     btn.stop?.addEventListener('click', stop);
-    btn.prev?.addEventListener('click', ()=> usingStations ? prevStation() : prev());
-    btn.next?.addEventListener('click', ()=> usingStations ? nextStation() : next());
+    btn.prev?.addEventListener('click', prev);
+    btn.next?.addEventListener('click', next);
     btn.shuffle?.addEventListener('click', ()=> { cfg.shuffle=!cfg.shuffle; btn.shuffle.classList.toggle('active', cfg.shuffle); });
     btn.loop?.addEventListener('click', ()=> { loopMode = (loopMode==='all')?'none':'all'; btn.loop.classList.toggle('active', loopMode==='all'); btn.loop1.classList.remove('active'); });
     btn.loop1?.addEventListener('click',()=> { loopMode = (loopMode==='one')?'none':'one'; btn.loop1.classList.toggle('active', loopMode==='one'); btn.loop.classList.remove('active'); });
@@ -436,17 +441,17 @@
     // Audio events
     audio.addEventListener('timeupdate', paintTimes);
     audio.addEventListener('durationchange', paintTimes);
-    audio.addEventListener('ended', ()=> usingStations ? nextStation() : next());
+    audio.addEventListener('ended', ()=> usingStations ? nextStation() : nextTrack());
 
     // Keys
     root.addEventListener('keydown', (e)=>{
       if (e.code==='Space'){ e.preventDefault(); playPause(); }
-      if (e.code==='ArrowLeft') usingStations ? prevStation() : prev();
-      if (e.code==='ArrowRight') usingStations ? nextStation() : next();
+      if (e.code==='ArrowLeft') prev();
+      if (e.code==='ArrowRight') next();
       if (e.key?.toLowerCase?.()==='m') { audio.muted = !audio.muted; setMuteIcon(); }
     });
 
-    // Autoplay policy
+    // CORS autoplay policy
     if (cfg.autoplayMuted) {
       audio.muted = true; setMuteIcon();
       const unmute = ()=>{ audio.muted=false; setMuteIcon(); window.removeEventListener('click', unmute, {once:true}); };
@@ -454,41 +459,32 @@
     }
     setMuteIcon();
 
-    // Category toggle
-    toggleBtn.stations?.addEventListener('click', async ()=>{
-      setToggle('stations');
-      if (sel.stations?.options.length) { await onPickStations(false); }
-    });
-    toggleBtn.playlists?.addEventListener('click', async ()=>{
-      setToggle('playlists');
-      if (sel.playlists?.options.length) { await onPickMusic(false); }
-    });
-
     // Select changes
     sel.stations?.addEventListener('change', ()=> onPickStations(false));
     sel.playlists?.addEventListener('change', ()=> onPickMusic(false));
   }
 
-  async function onPickStations(autoNext){
-    setToggle('stations');
+  async function onPickStations(autoPlay){
+    setSwitch(false); // pressed=true => Radio
     const file = sel.stations?.value; if (!file) return;
     queue = await loadM3U(file, true);
-    cursor = -1;
-    renderQueue();
-    setNow('—','Radio');
-    if (cfg.autoplay || autoNext) playAt(0);
+    cursor = 0;
+    const stTitle = queue[0]?.title || 'Live Station';
+    renderRadioList(stTitle, lastNowTitle || '—');
+    setNow(stTitle, 'Radio');
+    if (cfg.autoplay || autoPlay) playAt(0);
   }
-  async function onPickMusic(autoNext){
-    setToggle('playlists');
+  async function onPickMusic(autoPlay){
+    setSwitch(true); // pressed=false => Playlists
     const file = sel.playlists?.value; if (!file) return;
     let tracks = await loadM3U(file, false);
     if (cfg.shuffle && tracks.length>1) {
       for (let i=tracks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tracks[i],tracks[j]]=[tracks[j],tracks[i]]; }
     }
-    queue = tracks; cursor = -1;
-    renderQueue();
-    setNow('—','Playlist');
-    if (cfg.autoplay || autoNext) playAt(0);
+    queue = tracks; cursor = 0;
+    renderPlaylistList(queue);
+    setNow(queue[0]?.title || '—', 'Playlist');
+    if (cfg.autoplay || autoPlay) playAt(0);
   }
 
   function fillSelect(selEl, arr){
@@ -506,7 +502,6 @@
     const hinted = attr('data-manifest-url');
     if (hinted && (isFile || await headOK(hinted))) return hinted;
     if (await headOK(cfg.manifestUrl)) return cfg.manifestUrl;
-    // fallback inline blob
     const FALLBACK = {
       stations: [{ name:"Example Station", file:"radio-stations/example.m3u" }],
       playlists:[{ name:"Lobby (Ambient)", file:"ambient.m3u" }]
@@ -521,8 +516,8 @@
     wireRefs();
     wireControls();
 
-    // Set initial toggle visual
-    setToggle(cfg.startSource==='playlists' ? 'playlists' : 'stations');
+    // Initial switch visuals
+    setSwitch(cfg.startSource === 'playlists');
 
     // Load manifest
     const url = await resolveManifest();
@@ -533,7 +528,7 @@
     fillSelect(sel.stations,  manifest.stations);
     fillSelect(sel.playlists, manifest.playlists);
 
-    // Choose initial source
+    // Initial selection/order
     let mode = cfg.startSource;
     if (mode === 'auto'){
       const both = manifest.stations.length && manifest.playlists.length;
@@ -542,16 +537,16 @@
     }
 
     if (mode==='stations' && manifest.stations.length){
-      sel.stations.selectedIndex = Math.floor(Math.random()*manifest.stations.length);
+      sel.stations.selectedIndex = 0;
       await onPickStations(false);
     } else if (manifest.playlists.length){
-      sel.playlists.selectedIndex = Math.floor(Math.random()*manifest.playlists.length);
+      sel.playlists.selectedIndex = 0;
       await onPickMusic(false);
     } else {
       setNow('No playlists found','—');
     }
 
-    // Last-chance autoplay
+    // Final autoplay attempt
     if (cfg.autoplay && !cfg.autoplayMuted && audio.paused) {
       try { await audio.play(); }
       catch {
