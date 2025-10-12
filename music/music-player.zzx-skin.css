@@ -1,4 +1,4 @@
-/* ZZX-Labs skin — comfortable spacing + responsive, 2-bar VU */
+/* ZZX-Labs skin — comfortable spacing + responsive, 2-bar VU (drop-in) */
 
 :root{
   --zzx-accent:#c0d674;
@@ -24,25 +24,28 @@
   color:var(--mp-fg);
   border:1px solid var(--zzx-border);
   border-radius:14px;
-  /* more breathing room inside the card */
-  padding:1.1rem 1.2rem 1.15rem;
-  /* avoid any visual spill from inner elements on mobile */
-  overflow:hidden;
+  padding:1.1rem 1.2rem 1.15rem; /* comfy */
+  overflow:hidden;               /* no visual spill on mobile */
 }
 
-/* Header (title + controls row delimiter) */
+/* Header (title + controls delimiter) */
 .mp-top{
   display:flex; align-items:center; justify-content:space-between; gap:.85rem; flex-wrap:wrap;
   border-bottom:1px solid var(--zzx-border-soft);
-  /* extra padding under the title row so it isn’t cramped */
   padding-bottom:.7rem; margin-bottom:.75rem;
 }
 .mp-now{ min-width:240px; }
 .mp-title{ font-weight:700; font-size:1.02rem; letter-spacing:.2px; }
 .mp-sub.small{ color:var(--mp-dim); font-size:.92rem; margin-top:.12rem; }
 
-/* Controls */
-.mp-controls{ display:flex; gap:.45rem; flex-wrap:wrap; align-items:center; }
+/* Controls — keep on one line incl. mute; allow horizontal scroll if too tight */
+.mp-controls{
+  display:flex; align-items:center; gap:.45rem;
+  flex-wrap:nowrap;            /* <- no wrapping */
+  overflow-x:auto;             /* <- fallback for very narrow screens */
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
 .mp-btn{
   background:linear-gradient(180deg,#0e141d,#0a0f16);
   color:var(--mp-fg);
@@ -50,6 +53,7 @@
   border-radius:9px;
   padding:.38rem .6rem; cursor:pointer;
   transition:border-color .15s ease, filter .15s ease;
+  white-space:nowrap;
 }
 .mp-btn:hover{ border-color:rgba(255,255,255,.18); filter:brightness(1.08); }
 .mp-btn.active{
@@ -61,6 +65,7 @@
 .mp-switch{
   width:56px; height:26px; border-radius:999px;
   background:#121b27; border:1px solid var(--zzx-border); position:relative; margin-right:.3rem;
+  flex:0 0 auto;
 }
 .mp-switch-knob{
   position:absolute; top:1px; left:1px; width:24px; height:24px; border-radius:50%;
