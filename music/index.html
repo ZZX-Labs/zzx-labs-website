@@ -10,29 +10,25 @@
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="/static/script.js" defer></script>
 
-  <!-- Page-local CSS -->
-  <link rel="stylesheet" href="./style.css" />
-  <link rel="stylesheet" href="./music-player.zzx-skin.css" />
+  <!-- Page-local -->
+  <link rel="stylesheet" href="/music/style.css" />
+  <link rel="stylesheet" href="/music/music-player.zzx-skin.css" />
 
-  <!-- Player core (IIFE) -->
+  <!-- Player module -->
   <script src="/static/js/modules/music-player.js" defer></script>
-
-  <!-- Page boot (dispatches mp:init and sets data-attrs) -->
-  <script src="./script.js" defer></script>
+  <!-- Page boot (mounts widget, sets defaults, repo-aware paths, etc.) -->
+  <script src="/music/script.js" defer></script>
 </head>
 
 <body class="page-music">
-<header>
-  <div id="zzx-header"></div>
-</header>
+<header><div id="zzx-header"></div></header>
 
 <main>
   <section class="container">
     <h2>ZZX-Labs Ambient &amp; Streaming Audio</h2>
-    <p>A curated selection of ZZX-Labs ambient soundtracks, thematic playlists, and partner radio streams.</p>
+    <p class="muted">Curated playlists and partner radio streams with live “now playing” updates.</p>
 
     <div class="mp-shell">
-      <!-- Music Player Component -->
       <div class="mp-root" data-mp
            data-manifest-url="/static/audio/music/playlists/manifest.json"
            data-audio-base="/static/audio/music/"
@@ -40,24 +36,18 @@
            data-autoplay-muted="1"
            data-shuffle="0"
            data-volume="0.35"
-           data-start-source="auto">
+           data-start-source="stations"
+           data-cors-proxy="">
+           <!-- If CORS blocks meta on Shoutcast/Radio.co, set data-cors-proxy to your worker URL -->
       </div>
     </div>
   </section>
 
-  <section class="container cta">
-    <h3>Submit or Curate a Playlist</h3>
-    <p>Want your ambient or experimental work featured? Contribute an .m3u playlist or radio URL via encrypted contact.</p>
-    <a class="btn" href="/contact">Contact ZZX-Labs</a>
+  <section class="container backlinks">
+    <a class="btn alt" href="/projects/">← Back to Projects</a>
   </section>
 </main>
 
-<footer>
-  <div id="zzx-footer"></div>
-</footer>
-
-<noscript>
-  <div class="container"><p class="muted">This music player requires JavaScript.</p></div>
-</noscript>
+<footer><div id="zzx-footer"></div></footer>
 </body>
 </html>
