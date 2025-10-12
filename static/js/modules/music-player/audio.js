@@ -6,6 +6,7 @@ export function createAudio(initialVolume = 0.25) {
   const audio = new Audio();
   audio.preload = 'metadata';
   audio.crossOrigin = 'anonymous';
+  audio.playsInline = true; // better mobile/iOS behavior
   audio.volume = clamp01(initialVolume);
   return audio;
 }
@@ -14,6 +15,8 @@ export function createAudio(initialVolume = 0.25) {
 export async function playUrl(audio, url) {
   if (!audio) throw new Error('audio not provided');
   audio.src = url;
+  // Ensure the new src is committed before play (helps some browsers)
+  try { audio.load?.(); } catch {}
   await audio.play();
   return url;
 }
@@ -23,7 +26,8 @@ export async function tryPlayStream(audio, urls) {
   if (!Array.isArray(urls) || !urls.length) throw new Error('No stream URLs');
   let lastErr;
   for (const u of urls) {
-    try { return await playUrl(audio, u); } catch (e) { lastErr = e; }
+    try { return await playUrl(audio, u); }
+    catch (e) { lastErr = e; }
   }
   throw (lastErr || new Error('No playable stream endpoints'));
 }
@@ -60,7 +64,7 @@ export async function togglePlay(audio, setPlayIcon = () => {}) {
   }
 }
 
-/** Hard stop + reset playhead */
+/** Hard stop + reset playhead (keeps current src so user can resume) */
 export function stop(audio, setPlayIcon = () => {}) {
   audio.pause();
   try { audio.currentTime = 0; } catch {}
