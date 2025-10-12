@@ -72,9 +72,9 @@ export function buildShell(root, initialVolume){
 function hbar(side){
   // 6 green, 1 yellow, 1 red (full width)
   const spans=[];
-  for(let i=0;i<6;i++) spans.push(`<span class="hled g" data-led-${side}${i}></span>`);
-  spans.push(`<span class="hled y" data-led-${side}6></span>`);
-  spans.push(`<span class="hled r" data-led-${side}7></span>`);
+  for(let i=0;i<6;i++) spans.push(`<span class="hled g" data-hled-${side}${i}></span>`);
+  spans.push(`<span class="hled y" data-hled-${side}6></span>`);
+  spans.push(`<span class="hled r" data-hled-${side}7></span>`);
   return spans.join('');
 }
 
