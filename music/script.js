@@ -175,8 +175,6 @@
   }
   function normalizeNow(s){
     if (!s) return '';
-    // Try to coerce “Artist - Title (Version)” when possible.
-    // If multiple dashes, keep first split as artist/title.
     const txt = s.replace(/\s+/g,' ').trim();
     const m = txt.split(' - ');
     if (m.length >= 2) {
@@ -227,12 +225,11 @@
 
   function appendStationHistory(stationTitle, item){
     const key = stationKey(stationTitle, lastStreamUrl);
-    const list = historyByStation.get(key) || [];
-    if (!list.length || list[list.length - 1] !== item) {
-      list.push(item);
-      // up to 250 entries per station to avoid runaway
-      if (list.length > 250) list.shift();
-      historyByStation.set(key, list);
+    const arr = historyByStation.get(key) || [];
+    if (!arr.length || arr[arr.length - 1] !== item) {
+      arr.push(item);
+      if (arr.length > 250) arr.shift(); // cap
+      historyByStation.set(key, arr);
     }
   }
   function updateRadioNow(stationTitle, nowTitle){
@@ -343,9 +340,11 @@
       const meta = await fetchStreamMeta(lastStreamUrl);
       if (meta && (meta.now || meta.title)) {
         const display = normalizeNow(meta.now || meta.title);
-        lastNowTitle = display;
-        setNow(stationTitle || meta.title || 'Live Station', 'Radio');
-        updateRadioNow(stationTitle, display);
+        if (display && display !== lastNowTitle) {
+          lastNowTitle = display;
+          setNow(stationTitle || meta.title || 'Live Station', 'Radio');
+          updateRadioNow(stationTitle, display);
+        }
       }
     } catch {}
   }
