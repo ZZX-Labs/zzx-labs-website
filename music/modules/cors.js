@@ -5,6 +5,7 @@
 //   const j   = await fetchJSONViaProxy(url, proxy);
 
 const AO_BASE = 'https://api.allorigins.win';
+const DEFAULT_TIMEOUT_MS = 9000;
 
 function wrapAllOrigins(url, mode) {
   const enc = encodeURIComponent(url);
@@ -35,6 +36,32 @@ export function corsWrap(proxy, url, prefer = 'raw') {
     : (proxy.replace(/\/+$/,'') + '/' + url.replace(/^\/+/, ''));
 }
 
+/* ------------------- internals ------------------- */
+
+async function fetchWithTimeout(input, init = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), Math.max(1000, timeoutMs));
+  try {
+    const r = await fetch(input, {
+      cache: 'no-store',
+      headers: {
+        'cache-control': 'no-cache, no-store, must-revalidate',
+        'pragma': 'no-cache',
+        'expires': '0',
+        ...(init.headers || {})
+      },
+      ...init,
+      signal: ctrl.signal
+    });
+    return r;
+  } catch (e) {
+    return { ok: false, status: 0, text: async ()=>'',
+             json: async ()=>null };
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 /* ------------------- Fetchers (use these) ------------------- */
 
 export async function fetchTextViaProxy(url, proxy) {
@@ -43,13 +70,14 @@ export async function fetchTextViaProxy(url, proxy) {
     // raw -> text
     const rawUrl = corsWrap('allorigins-raw', url);
     try {
-      const r = await fetch(rawUrl, { cache: 'no-store' });
-      if (r.ok) return await r.text();
+      const r = await fetchWithTimeout(rawUrl);
+      if (r.ok) return String(await r.text() ?? '');
     } catch {}
+
     // fallback: JSON endpoint -> .contents
     const jsonUrl = corsWrap('allorigins-json', url);
     try {
-      const r = await fetch(jsonUrl, { cache: 'no-store' });
+      const r = await fetchWithTimeout(jsonUrl);
       if (!r.ok) return '';
       const j = await r.json();
       return String(j?.contents || '');
@@ -59,8 +87,8 @@ export async function fetchTextViaProxy(url, proxy) {
 
   // Non-AllOrigins path/prefix
   try {
-    const r = await fetch(corsWrap(proxy, url, 'raw'), { cache: 'no-store' });
-    return r.ok ? await r.text() : '';
+    const r = await fetchWithTimeout(corsWrap(proxy, url, 'raw'));
+    return r.ok ? String(await r.text() ?? '') : '';
   } catch { return ''; }
 }
 
@@ -69,12 +97,13 @@ export async function fetchJSONViaProxy(url, proxy) {
   if (p.startsWith('allorigins')) {
     // Try RAW first and parse as JSON (works if target sends application/json)
     try {
-      const r = await fetch(corsWrap('allorigins-raw', url), { cache: 'no-store' });
+      const r = await fetchWithTimeout(corsWrap('allorigins-raw', url));
       if (r.ok) return await r.json();
     } catch {}
+
     // Fallback: AllOrigins JSON wrapper -> parse contents
     try {
-      const r = await fetch(corsWrap('allorigins-json', url), { cache: 'no-store' });
+      const r = await fetchWithTimeout(corsWrap('allorigins-json', url));
       if (!r.ok) return null;
       const j = await r.json();
       const txt = j?.contents || '';
@@ -86,7 +115,7 @@ export async function fetchJSONViaProxy(url, proxy) {
 
   // Non-AllOrigins path/prefix
   try {
-    const r = await fetch(corsWrap(proxy, url, 'raw'), { cache: 'no-store' });
+    const r = await fetchWithTimeout(corsWrap(proxy, url, 'raw'));
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
