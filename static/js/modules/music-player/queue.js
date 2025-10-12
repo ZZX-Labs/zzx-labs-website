@@ -1,7 +1,7 @@
 // static/js/modules/music-player/queue.js
-// Render and manage the visible queue (track list)
+// Render and manage the visible queue (track list) with live metadata support
 
-import { fmtTime } from './utils.js';
+import { fmtTime, prettyNum } from './utils.js';
 
 /**
  * Render the queue into the <ul class="mp-list"> element.
@@ -18,6 +18,9 @@ export function renderQueue(listEl, queue, cursor, onPickIndex) {
 
   queue.forEach((t, i) => {
     const li = document.createElement('li');
+    li.className = 'mp-row';
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', i === cursor ? 'true' : 'false');
 
     const left  = document.createElement('div');
     const right = document.createElement('div');
@@ -40,23 +43,22 @@ export function renderQueue(listEl, queue, cursor, onPickIndex) {
 }
 
 /**
- * Update which list item is highlighted as active.
- *
- * @param {HTMLElement} listEl
- * @param {number} cursor
+ * Highlight the active track row.
  */
 export function highlightList(listEl, cursor) {
   if (!listEl) return;
   Array.from(listEl.children).forEach((li, idx) => {
-    if (idx === cursor) li.classList.add('active');
-    else li.classList.remove('active');
+    const active = (idx === cursor);
+    li.classList.toggle('active', active);
+    li.setAttribute('aria-selected', active);
   });
+  // Ensure visible if scrolled out
+  const act = listEl.children[cursor];
+  if (act) act.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 /**
  * Update the visible title of the current (active) row.
- * Useful when live metadata arrives and we want to reflect it in the list.
- *
  * @param {HTMLElement} listEl
  * @param {number} cursor
  * @param {string} label - e.g., "Artist - Title"
@@ -66,21 +68,29 @@ export function updateActiveRowTitle(listEl, cursor, label) {
   const row = listEl.children[cursor];
   if (!row) return;
   const tDiv = row.querySelector('.t');
-  if (tDiv) tDiv.textContent = label;
+  if (!tDiv) return;
+
+  const newText = String(label || '');
+  if (tDiv.textContent !== newText) {
+    tDiv.classList.add('fade');
+    tDiv.textContent = newText;
+    setTimeout(() => tDiv.classList.remove('fade'), 250);
+  }
 }
 
 /**
- * Update the right-side badge of the active row (e.g., show listeners).
- * For example, you can display "LIVE • 1,234" for SomaFM.
- *
- * @param {HTMLElement} listEl
- * @param {number} cursor
- * @param {string|number|null} badgeText - e.g., 'LIVE • 1,234' or just '1,234'
+ * Update right-side badge of active row (LIVE + listeners).
+ * e.g., "LIVE • 1,234" for SomaFM.
  */
 export function updateActiveRowBadge(listEl, cursor, badgeText) {
   if (!listEl || cursor < 0) return;
   const row = listEl.children[cursor];
   if (!row) return;
   const badge = row.querySelector('.len');
-  if (badge) badge.textContent = String(badgeText ?? '');
+  if (!badge) return;
+
+  const text = (typeof badgeText === 'number')
+    ? `LIVE • ${prettyNum(badgeText)}`
+    : String(badgeText ?? '');
+  badge.textContent = text;
 }
