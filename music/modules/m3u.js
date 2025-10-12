@@ -4,7 +4,13 @@ import { fetchTextViaProxy } from './cors.js';
 
 /* -------------------------------- low-level fetch -------------------------------- */
 function sameOrigin(u){
-  try { return new URL(u, location.href).origin === location.origin; } catch { return true; }
+  try {
+    const loc = (typeof location !== 'undefined') ? location : null;
+    if (!loc) return true; // assume ok in non-DOM envs
+    return new URL(u, loc.href).origin === loc.origin;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -191,4 +197,22 @@ function dedupe(arr){
     seen.add(x); out.push(x);
   }
   return out;
+}
+
+/* ----------------------------- optional shim (compat) ---------------------------- */
+/**
+ * Old signature shim:
+ * loadM3U(path, isStation, stationMeta, cfg, opts)
+ * maps to the new object API. You can delete this once all callsites are updated.
+ */
+export async function loadM3UCompat(path, isStation, stationMeta, cfg /*, opts */){
+  const base = String(cfg?.manifestUrl || '').replace(/\/manifest\.json$/i, '');
+  return loadM3U({
+    path,
+    base,
+    audioBase: cfg?.audioBase || '/',
+    isStation,
+    selectedTitle: stationMeta?.title || (isStation ? 'Live Station' : undefined),
+    proxy: cfg?.corsProxy || ''
+  });
 }
