@@ -1,4 +1,4 @@
-// /music/modules/meter.js — hotter, smoother 8-segment VU (L/R)
+// /music/modules/meter.js — hotter, smoother 8-segment VU (L/R) + resume + vis handling
 import { $$ } from './utils.js';
 
 // Tweakables
@@ -67,8 +67,8 @@ export function ensureMeter(audio, root){
   };
 
   const paint = (leds, value) => {
-    // 0..1 -> 0..8 segments
-    let lit = Math.round(value * 8);
+    // 0..1 -> 0..8 segments (ceil for slightly hotter feel)
+    let lit = Math.ceil(value * 8 - 0.0001);
     if (lit < 0) lit = 0; if (lit > 8) lit = 8;
     for (let i=0;i<8;i++){
       const on = i < lit;
@@ -77,28 +77,51 @@ export function ensureMeter(audio, root){
     }
   };
 
-  function tick(){
+  function frame(){
     if (useFloat){ aL.getFloatTimeDomainData(bL); aR.getFloatTimeDomainData(bR); }
     else         { aL.getByteTimeDomainData(bL);  aR.getByteTimeDomainData(bR); }
 
     const vL = shape(rms(bL, useFloat));
     const vR = shape(rms(bR, useFloat));
 
-    // Simple envelope follower (attack/release)
+    // Envelope follower (attack/release)
     envL = (vL > envL) ? envL + (vL - envL)*ATTACK : envL + (vL - envL)*RELEASE;
     envR = (vR > envR) ? envR + (vR - envR)*ATTACK : envR + (vR - envR)*RELEASE;
 
     paint(ledsL, envL);
     paint(ledsR, envR);
-
-    raf = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(frame);
   }
 
-  raf = requestAnimationFrame(tick);
+  // Handle suspended contexts (resume on gesture or when audio plays)
+  const resumeCtx = async () => {
+    try { if (ctx?.state === 'suspended') await ctx.resume(); } catch {}
+  };
+  const onPlay = () => resumeCtx();
+  const onClickOnce = () => { resumeCtx(); root.removeEventListener('click', onClickOnce, { once:true }); };
+
+  audio.addEventListener('play', onPlay);
+  root.addEventListener('click', onClickOnce, { once:true });
+
+  // Pause meter when tab is hidden
+  const onVis = () => {
+    if (document.hidden) {
+      if (raf) cancelAnimationFrame(raf), raf = 0;
+    } else if (!raf) {
+      raf = requestAnimationFrame(frame);
+    }
+  };
+  document.addEventListener('visibilitychange', onVis);
+
+  // Start RAF
+  raf = requestAnimationFrame(frame);
 
   const stop = () => {
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
+    document.removeEventListener('visibilitychange', onVis);
+    audio.removeEventListener('play', onPlay);
+    try{ root.removeEventListener('click', onClickOnce, { once:true }); }catch{}
     try{ src?.disconnect(); }catch{}
     try{ split?.disconnect(); }catch{}
     try{ aL?.disconnect?.(); aR?.disconnect?.(); }catch{}
