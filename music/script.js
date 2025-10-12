@@ -1,9 +1,8 @@
-// /music/script.js — direct stream playback + CORS-only metadata + working toggle + per-station history + HORIZONTAL meters
-(function () {
+// /music/script.js — direct stream + CORS-only metadata + working toggle + per-station history + 2×8 horizontal VU
+(function(){
   const root = document.querySelector('[data-mp]');
   if (!root) return console.error('[music] no [data-mp] element');
 
-  /* ---------- env + cfg ---------- */
   const isGH = location.hostname.endsWith('github.io');
   const repoPrefix = (() => {
     if (!isGH) return '/';
@@ -18,19 +17,19 @@
     autoplayMuted : attr('data-autoplay-muted') === '1',
     shuffle       : attr('data-shuffle') === '1',
     volume        : clamp01(parseFloat(attr('data-volume') || '0.25')),
-    startSource   : attr('data-start-source') || 'stations',   // 'stations' | 'playlists' | 'auto'
-    corsProxy     : (attr('data-cors-proxy') || '').trim(),    // e.g. https://corsproxy.io/?
+    startSource   : attr('data-start-source') || 'stations',
+    corsProxy     : (attr('data-cors-proxy') || '').trim(),  // e.g. https://corsproxy.io/?
     metaPollSec   : 8
   };
 
   function attr(n){ return root.getAttribute(n); }
   function clamp01(v){ return Math.min(1, Math.max(0, isFinite(v) ? v : 0.25)); }
   function isAbs(u){ return /^([a-z]+:)?\/\//i.test(u) || u.startsWith('/'); }
-  function join(base, rel){ if (isAbs(rel)) return rel; return (base.replace(/\/+$/,'') + '/' + rel.replace(/^\/+/,'').replace(/^\.\//,'')); }
+  function join(base, rel){ if (isAbs(rel)) return rel; return (base.replace(/\/+$/,'') + '/' + rel.replace(/^\/+/, '').replace(/^\.\//,'')); }
   const $=(s,c=root)=>c.querySelector(s), $$=(s,c=root)=>Array.from(c.querySelectorAll(s));
   const fmtTime=(sec)=>(!isFinite(sec)||sec<0)?'—':`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
 
-  // Metadata fetches go via proxy, audio does NOT.
+  // CORS for metadata only
   function corsWrap(u){
     if (!u) return '';
     if (!cfg.corsProxy) return u;
@@ -38,7 +37,6 @@
                                        : (cfg.corsProxy.replace(/\/+$/,'') + '/' + u);
   }
 
-  /* ---------- M3U ---------- */
   function parseM3U(text){
     const lines = String(text||'').split(/\r?\n/);
     const out = []; let pendingTitle = null;
@@ -53,7 +51,6 @@
     return out;
   }
 
-  /* ---------- UI shell ---------- */
   function buildShell(){
     root.innerHTML = `
       <div class="mp-top">
@@ -61,13 +58,10 @@
           <div class="mp-title mono" data-title>—</div>
           <div class="mp-sub small"  data-sub>—</div>
         </div>
-
         <div class="mp-controls" role="toolbar" aria-label="Controls">
-          <!-- Slide toggle, left-most -->
           <div class="mp-switch" role="group" title="Toggle Radio / Playlists">
             <button class="mp-switch-knob" data-src-toggle aria-pressed="true" aria-label="Radio / Playlists"></button>
           </div>
-
           <button class="mp-btn" data-act="prev" title="Previous (⟵)">⏮</button>
           <button class="mp-btn" data-act="play" title="Play/Pause (Space)">▶</button>
           <button class="mp-btn" data-act="stop" title="Stop">⏹</button>
@@ -84,18 +78,14 @@
         <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
       </div>
 
-      <!-- HORIZONTAL stacked meters (L top, R bottom) + full-width volume -->
       <div class="mp-meter">
-        <div class="vu-scale"><span class="left">0 dB</span><span class="right">+6 dB</span></div>
-        <div class="vu-rows">
-          <div class="vu-row">
-            <div class="vu-ch">L</div>
-            <div class="vu-bar">${renderBar('L')}</div>
-          </div>
-          <div class="vu-row">
-            <div class="vu-ch">R</div>
-            <div class="vu-bar">${renderBar('R')}</div>
-          </div>
+        <div class="vu-row" data-side="L">
+          <div class="vu-ch">L</div>
+          <div class="vu-bar">${renderBar('L')}</div>
+        </div>
+        <div class="vu-row" data-side="R">
+          <div class="vu-ch">R</div>
+          <div class="vu-bar">${renderBar('R')}</div>
         </div>
         <div class="mp-vol">
           <input type="range" class="mp-volume" min="0" max="1" step="0.01" value="${cfg.volume}" aria-label="Volume">
@@ -106,7 +96,6 @@
         <div class="mp-left">
           <label class="small">Radio Stations (.m3u)</label>
           <select class="mp-pl mp-pl-stations"></select>
-
           <label class="small" style="margin-top:.6rem;display:block;">Playlists (.m3u)</label>
           <select class="mp-pl mp-pl-music"></select>
         </div>
@@ -118,40 +107,35 @@
     `;
   }
   function renderBar(side){
-    // 6 green, 1 yellow, 1 red — horizontal; data-led-* kept for the JS to light segments
-    const seg = (cls, i) => `<span class="hled ${cls}" data-led-${side}${i}></span>`;
-    return [
-      seg('g',0), seg('g',1), seg('g',2), seg('g',3), seg('g',4), seg('g',5),
-      seg('y',6),
-      seg('r',7)
-    ].join('');
+    // exactly 8 segments: 6 green, 1 yellow, 1 red
+    const parts = [];
+    for (let i=0;i<6;i++) parts.push(`<span class="hled g" data-h${side}${i}></span>`);
+    parts.push(`<span class="hled y" data-h${side}6></span>`);
+    parts.push(`<span class="hled r" data-h${side}7></span>`);
+    return parts.join('');
   }
 
-  /* ---------- State ---------- */
   const audio = new Audio();
   audio.preload = 'metadata';
   audio.crossOrigin = 'anonymous';
 
-  // Audio meter graph
   let audioCtx, srcNode, splitter, analyserL, analyserR, meterTimer;
 
   let manifest = { stations: [], playlists: [] };
-  let queue = [];        // tracks for playlists or single LIVE item for station
+  let queue = []; // for playlists: tracks; for stations: single LIVE item
   let cursor = -1;
   let loopMode = 'none';
   let usingStations = true;
   let metaTimer = null;
   let lastStreamUrl = '';
   let lastNowTitle = '';
-
-  // Per-station history: Map<stationKey, string[]>
   const historyByStation = new Map();
+
   function stationKey(title, url){
     if (title && title.trim()) return title.trim();
     try { const u=new URL(url, location.href); return `${u.host}${u.pathname}`; } catch { return url||'unknown'; }
   }
 
-  /* ---------- Refs & wiring ---------- */
   let titleEl, subEl, timeCur, timeDur, seek, vol, list;
   let btn = {}, sel = {}, switchKnob;
 
@@ -200,7 +184,6 @@
     if (cursor >= 0) list.children[cursor + (usingStations ? 1 : 0)]?.classList.add('active');
   }
 
-  // Radio view shows: [station row], [now-playing row], then history (most recent first)
   function renderRadioList(stationTitle, nowTitle){
     if (!list) return;
     list.innerHTML = '';
@@ -218,7 +201,6 @@
     liNow.appendChild(Ln); liNow.appendChild(Rn);
     list.appendChild(liNow);
 
-    // History under current station
     const key = stationKey(stationTitle, lastStreamUrl);
     const hist = historyByStation.get(key) || [];
     for (let i = hist.length - 1; i >= 0; i--){
@@ -237,21 +219,20 @@
     const arr = historyByStation.get(key) || [];
     if (!arr.length || arr[arr.length - 1] !== item) {
       arr.push(item);
-      if (arr.length > 250) arr.shift(); // cap
+      if (arr.length > 250) arr.shift();
       historyByStation.set(key, arr);
     }
   }
   function updateRadioNow(stationTitle, nowTitle){
     const el = list?.querySelector('li[data-now="1"] .t');
     if (el) el.textContent = nowTitle || '—';
-    appendStationHistory(stationTitle, nowTitle);
+    if (nowTitle) appendStationHistory(stationTitle, nowTitle);
   }
 
-  /* ---------- Loaders ---------- */
   async function getText(url){ try { const r=await fetch(url,{cache:'no-store'}); return r.ok? r.text():''; } catch { return ''; } }
   async function getJSON(url){ try { const r=await fetch(url,{cache:'no-store'}); return r.ok? r.json():null; } catch { return null; } }
 
-  async function loadM3U(path, isStation){
+  async function loadM3U(path, isStation, stationDef){
     const base = cfg.manifestUrl.replace(/\/manifest\.json$/i,'/');
     const url  = isAbs(path) ? path : join(base, path);
     const txt  = await getText(url);
@@ -260,17 +241,18 @@
     if (isStation) {
       const urls = entries.map(e => isAbs(e.url) ? e.url : join(cfg.audioBase, e.url));
       lastStreamUrl = urls[0] || '';
-      return [{ title: sel.stations?.selectedOptions?.[0]?.textContent || 'Live Station', isStream:true, urls }];
+      // carry optional explicit metaUrl from manifest (best for stubborn stations)
+      const metaUrl = stationDef?.metaUrl || stationDef?.status || null;
+      return [{ title: stationDef?.name || 'Live Station', isStream:true, urls, metaUrl }];
     }
     return entries.map(e => ({ title: e.title || e.url, url: isAbs(e.url) ? e.url : join(cfg.audioBase, e.url), isStream:false }));
   }
 
-  /* ---------- Playback ---------- */
   async function tryPlayStream(urls){
     let lastErr;
     for (const u of urls){
       try {
-        audio.src = u;                  // direct stream (no proxy)
+        audio.src = u;
         await audio.play();
         return u;
       } catch (e) { lastErr = e; }
@@ -284,8 +266,8 @@
     const tr = queue[cursor];
     setNow(tr.title, usingStations ? 'Radio' : 'Playlist');
     setPlayIcon(false);
-
     stopMetaPolling();
+
     try{
       if (tr.isStream) {
         const ok = await tryPlayStream(tr.urls);
@@ -293,7 +275,7 @@
         setPlayIcon(true);
         renderRadioList(tr.title, lastNowTitle || '—');
         highlightList();
-        startMetaPolling(tr.title);
+        startMetaPolling(tr.title, tr.metaUrl || null);
         ensureMeter();
       } else {
         audio.src = tr.url;
@@ -336,17 +318,18 @@
     onPickStations(true);
   }
 
-  /* ---------- Live metadata (CORS only) ---------- */
   function stopMetaPolling(){ if (metaTimer) { clearInterval(metaTimer); metaTimer=null; } }
-  function startMetaPolling(stationTitle){
+  function startMetaPolling(stationTitle, explicitMetaUrl){
     stopMetaPolling();
-    if (!lastStreamUrl) return;
-    pollOnce(stationTitle);
-    metaTimer = setInterval(()=>pollOnce(stationTitle), Math.max(5, cfg.metaPollSec)*1000);
+    const metaBase = explicitMetaUrl || lastStreamUrl;
+    if (!metaBase) return;
+    pollOnce(stationTitle, metaBase);
+    metaTimer = setInterval(()=>pollOnce(stationTitle, metaBase), Math.max(5, cfg.metaPollSec)*1000);
   }
-  async function pollOnce(stationTitle){
+
+  async function pollOnce(stationTitle, metaBaseOrUrl){
     try {
-      const meta = await fetchStreamMeta(lastStreamUrl);
+      const meta = await fetchStreamMeta(metaBaseOrUrl);
       if (meta && (meta.now || meta.title)) {
         const display = normalizeNow(meta.now || meta.title);
         if (display && display !== lastNowTitle) {
@@ -357,15 +340,29 @@
       }
     } catch {}
   }
-  async function fetchStreamMeta(streamUrl){
+
+  async function fetchStreamMeta(baseOrUrl){
     try {
-      const u = new URL(streamUrl, location.href);
+      // If caller provided a full explicit URL, use it directly
+      let explicit = null;
+      try { const tmp = new URL(baseOrUrl, location.href); if (/^https?:/i.test(tmp.protocol)) explicit = tmp.href; } catch {}
+      if (explicit && /public\.radio\.co\/stations\//.test(explicit)) {
+        const data = await getJSON(corsWrap(explicit));
+        if (data) {
+          const now = data.current_track?.title_with_artists || data.current_track?.title || '';
+          return { title: data.name || '', now };
+        }
+      }
+
+      const u = new URL(baseOrUrl, location.href);
       const base = `${u.protocol}//${u.host}`;
+
       const candidates = [
+        explicit && !/public\.radio\.co/.test(explicit) ? corsWrap(explicit) : null,
         corsWrap(`${base}/status-json.xsl`),     // Icecast JSON
         corsWrap(`${base}/status.xsl?json=1`),   // Alt Icecast JSON
         corsWrap(`${base}/stats?sid=1&json=1`),  // Shoutcast v2 JSON
-        corsWrap(guessRadioCoStatus(u)),         // Radio.co JSON
+        corsWrap(guessRadioCoStatus(u)),         // Radio.co JSON (if detectable)
         corsWrap(`${base}/7.html`)               // Shoutcast v1 plaintext
       ].filter(Boolean);
 
@@ -407,12 +404,12 @@
     } catch {}
     return null;
   }
+
   function guessRadioCoStatus(u){
     const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
     return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
   }
 
-  /* ---------- Meter ---------- */
   function ensureMeter(){
     if (audioCtx) return;
     try {
@@ -430,9 +427,8 @@
   }
   function startMeterLoop(){
     stopMeterLoop();
-    // selects by data-led-* so CSS class names can differ; we render .hled in the DOM
-    const ledsL = Array.from(document.querySelectorAll('[data-led-L0],[data-led-L1],[data-led-L2],[data-led-L3],[data-led-L4],[data-led-L5],[data-led-L6],[data-led-L7]'));
-    const ledsR = Array.from(document.querySelectorAll('[data-led-R0],[data-led-R1],[data-led-R2],[data-led-R3],[data-led-R4],[data-led-R5],[data-led-R6],[data-led-R7]'));
+    const ledsL = Array.from(document.querySelectorAll('[data-hL0],[data-hL1],[data-hL2],[data-hL3],[data-hL4],[data-hL5],[data-hL6],[data-hL7]'));
+    const ledsR = Array.from(document.querySelectorAll('[data-hR0],[data-hR1],[data-hR2],[data-hR3],[data-hR4],[data-hR5],[data-hR6],[data-hR7]'));
     const bufL = new Uint8Array(analyserL.frequencyBinCount);
     const bufR = new Uint8Array(analyserR.frequencyBinCount);
     function rms(arr){ let s=0; for (let i=0;i<arr.length;i++) s+=arr[i]*arr[i]; return Math.sqrt(s/arr.length)/255; }
@@ -441,17 +437,20 @@
       analyserR.getByteTimeDomainData(bufR);
       const vL = Math.min(1, Math.max(0, (rms(bufL)-0.02)*1.4));
       const vR = Math.min(1, Math.max(0, (rms(bufR)-0.02)*1.4));
-      paintLeds(ledsL, vL); paintLeds(ledsR, vR);
+      paintH(ledsL, vL); paintH(ledsR, vR);
       meterTimer = requestAnimationFrame(tick);
     }
     tick();
   }
   function stopMeterLoop(){ if (meterTimer) cancelAnimationFrame(meterTimer); meterTimer=null; }
-  function paintLeds(leds, v){ const total=8, lit=Math.round(v*total); leds.forEach((el,i)=> el.classList.toggle('on', i<lit)); }
+  function paintH(leds, v){
+    // v in [0..1], 8 segments total
+    const total = 8;
+    const lit = Math.max(0, Math.min(total, Math.round(v * total)));
+    leds.forEach((el,i)=> el.classList.toggle('on', i < lit));
+  }
 
-  /* ---------- Controls ---------- */
   function setSwitch(toPlaylists){
-    // toPlaylists === true -> switch to playlists; false -> stations
     usingStations = !toPlaylists;
     switchKnob.setAttribute('aria-pressed', usingStations ? 'true' : 'false');
     sel.stations?.classList.toggle('is-disabled', !usingStations);
@@ -459,7 +458,6 @@
   }
 
   function wireControls(){
-    // Toggle: read current state from aria-pressed and invert
     switchKnob?.addEventListener('click', async ()=>{
       const currentlyRadio = (switchKnob.getAttribute('aria-pressed') === 'true');
       setSwitch(currentlyRadio /* -> playlists */);
@@ -506,14 +504,18 @@
 
   async function onPickStations(autoPlay){
     setSwitch(false);
-    const file = sel.stations?.value; if (!file) return;
-    queue = await loadM3U(file, true);
+    const idx = sel.stations?.selectedIndex ?? -1;
+    const def = (manifest.stations || [])[idx];
+    const file = def?.file || sel.stations?.value;
+    if (!file) return;
+    queue = await loadM3U(file, true, def);
     cursor = 0;
-    const stTitle = queue[0]?.title || 'Live Station';
+    const stTitle = queue[0]?.title || def?.name || 'Live Station';
     renderRadioList(stTitle, lastNowTitle || '—');
     setNow(stTitle, 'Radio');
     if (autoPlay || cfg.autoplay || cfg.autoplayMuted) playAt(0);
   }
+
   async function onPickMusic(autoPlay){
     setSwitch(true);
     const file = sel.playlists?.value; if (!file) return;
@@ -544,8 +546,6 @@
 
   async function boot(){
     buildShell(); wireRefs(); wireControls();
-
-    // Start on preferred source
     setSwitch(cfg.startSource === 'playlists');
 
     const mf = await getJSON(cfg.manifestUrl);
@@ -554,7 +554,6 @@
     fillSelect(sel.stations,  manifest.stations);
     fillSelect(sel.playlists, manifest.playlists);
 
-    // Initial selection
     let mode = cfg.startSource;
     if (mode === 'auto'){
       const both = manifest.stations.length && manifest.playlists.length;
@@ -569,7 +568,6 @@
       setNow('No playlists found','—');
     }
 
-    // polite autoplay if muted
     if (cfg.autoplay && cfg.autoplayMuted && !audio.src) {
       if (mode==='stations' && manifest.stations.length) await onPickStations(true);
       else if (manifest.playlists.length) await onPickMusic(true);
