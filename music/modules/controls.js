@@ -4,19 +4,29 @@ import { setMuteIcon } from './ui.js';
 export function wireControls(refs, audio, cfg, handlers){
   const { playPause, stop, prev, next, onPickStations, onPickMusic, setSwitch } = handlers;
 
-  // Toggle Radio/Playlists
-  refs.switchKnob?.addEventListener('click', async ()=>{
+  let navBusy = false;
+  const withGuard = (fn) => async (...args) => {
+    if (navBusy) return;
+    navBusy = true;
+    try { await fn(...args); } finally { navBusy = false; }
+  };
+
+  // Toggle Radio/Playlists (slide switch)
+  // aria-pressed="true" means RADIO is active; clicking should flip to the other side.
+  refs.switchKnob?.addEventListener('click', withGuard(async ()=>{
     const isRadio = (refs.switchKnob.getAttribute('aria-pressed') === 'true');
-    setSwitch(!isRadio); // switch to playlists if currently radio
+    // If currently Radio -> switch to Playlists (toPlaylists = true)
+    // If currently Playlists -> switch to Stations (toPlaylists = false)
+    setSwitch(isRadio); 
     if (isRadio) await onPickMusic(true);
     else         await onPickStations(true);
-  });
+  }));
 
   // Transport
-  refs.btn.play?.addEventListener('click', playPause);
+  refs.btn.play?.addEventListener('click', withGuard(playPause));
   refs.btn.stop?.addEventListener('click', stop);
-  refs.btn.prev?.addEventListener('click', prev);
-  refs.btn.next?.addEventListener('click', next);
+  refs.btn.prev?.addEventListener('click', withGuard(prev));
+  refs.btn.next?.addEventListener('click', withGuard(next));
 
   // Toggles
   refs.btn.shuffle?.addEventListener('click', ()=>{
@@ -80,6 +90,6 @@ export function wireControls(refs, audio, cfg, handlers){
   });
 
   // Dropdown changes
-  refs.sel?.stations?.addEventListener('change', ()=> onPickStations(false));
-  refs.sel?.playlists?.addEventListener('change', ()=> onPickMusic(false));
+  refs.sel?.stations?.addEventListener('change', withGuard(()=> onPickStations(false)));
+  refs.sel?.playlists?.addEventListener('change', withGuard(()=> onPickMusic(false)));
 }
