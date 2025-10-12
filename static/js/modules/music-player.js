@@ -1,4 +1,4 @@
-// Music Player Widget (ZZX) — slide switch (left of Prev), source-level next/prev, universal live metadata ticker
+// Music Player Widget (ZZX) — slide switch, source-level next/prev, universal live metadata ticker
 (function(){
   const MusicPlayer = {};
   const isGH = location.hostname.endsWith('github.io');
@@ -17,7 +17,6 @@
   function normalizeNow(s){
     if (!s) return '';
     let txt = String(s).replace(/\s+/g,' ').replace(/^["'“”‘’]+|["'“”‘’]+$/g,'').trim();
-    // trim common junk
     txt = txt.replace(/\s*(\||•|—|-)\s*(radio|fm|am|live|station|stream|online|hq|ultra hd|4k)$/i,'').trim();
     txt = txt.replace(/\s*\b(32|64|96|128|160|192|256|320)\s?(kbps|kbit|kb|aac|mp3|opus|ogg)\b\s*$/i,'').trim();
     const parts = txt.split(' - ');
@@ -29,12 +28,13 @@
     return txt;
   }
 
-  // Wrap metadata fetches only (audio itself is direct)
+  // CORS helper for metadata-only requests (works with .../? or .../ styles)
   function corsWrap(proxy, url){
     if (!url) return '';
     if (!proxy) return url;
-    return proxy.includes('?') ? (proxy + encodeURIComponent(url))
-                               : (proxy.replace(/\/+$/,'') + '/' + url.replace(/^\/+/, ''));
+    return proxy.includes('?')
+      ? (proxy + encodeURIComponent(url))
+      : (proxy.replace(/\/+$/,'') + '/' + url.replace(/^\/+/, ''));
   }
 
   async function fetchJSON(url){ try{ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) return null; return await r.json(); }catch{ return null; } }
@@ -125,25 +125,17 @@
     return null;
   }
 
-  // Optional adapters if your manifest explicitly declares kind/meta (kept for compatibility)
-  function proxied(url, corsProxy){
-    if (!corsProxy) return url;
-    try {
-      const u = new URL(url, location.origin);
-      if (u.origin === location.origin) return url;
-      return corsProxy.replace(/\/+$/,'') + '/' + url.replace(/^\/+/, '');
-    } catch { return url; }
-  }
-  async function metaRadioCo(meta, corsProxy){
-    const url = proxied(meta.status || `https://public.radio.co/stations/${meta.station_id}/status`, corsProxy);
+  // Provider adapters (now using corsWrap so corsproxy.io works)
+  async function metaRadioCo(meta, proxy){
+    const url = corsWrap(proxy, meta.status || `https://public.radio.co/stations/${meta.station_id}/status`);
     const j = await fetchJSON(url);
     if (!j) return null;
     const t = j?.current_track?.title || j?.now_playing?.title || j?.title || '';
     const a = j?.current_track?.artist || j?.now_playing?.artist || j?.artist || '';
     return { now: normalizeNow([a,t].filter(Boolean).join(' - ')) || '', title: meta.name || '' };
   }
-  async function metaSomaFM(meta, corsProxy){
-    const url = proxied(meta.status, corsProxy);
+  async function metaSomaFM(meta, proxy){
+    const url = corsWrap(proxy, meta.status);
     const j = await fetchJSON(url);
     const first = Array.isArray(j) ? j[0] : null;
     if (!first) return null;
@@ -151,8 +143,8 @@
     const a = first?.artist || '';
     return { now: normalizeNow([a,t].filter(Boolean).join(' - ')), title: (meta.channel ? `SomaFM • ${meta.channel}` : 'SomaFM') };
   }
-  async function metaShoutcast(meta, corsProxy){
-    const url = proxied(meta.status, corsProxy);
+  async function metaShoutcast(meta, proxy){
+    const url = corsWrap(proxy, meta.status);
     const txt = await fetchText(url);
     if (!txt) return null;
     const parts = txt.split(',').map(s=>s.trim());
@@ -179,9 +171,9 @@
       autoplayMuted : (root.dataset.autoplayMuted ?? (opts.autoplayMuted ? '1':'0')) === '1',
       shuffle       : (root.dataset.shuffle ?? (opts.shuffle ? '1':'0')) === '1',
       volume        : parseFloat(root.dataset.volume ?? (opts.volume ?? 0.5)),
-      startSource   : root.dataset.startSource  || opts.startSource || 'stations', // 'stations' | 'playlists'
+      startSource   : root.dataset.startSource  || opts.startSource || 'stations',
       corsProxy     : root.dataset.corsProxy    || opts.corsProxy || '',
-      metaPollSec   : Math.max(5, Number(root.dataset.metaPollSec || opts.metaPollSec || 8)) // seconds
+      metaPollSec   : Math.max(5, Number(root.dataset.metaPollSec || opts.metaPollSec || 8))
     };
 
     // UI
@@ -193,7 +185,6 @@
         </div>
 
         <div class="mp-controls" role="toolbar" aria-label="Playback">
-          <!-- Slide switch goes first (left-most) -->
           <div class="mp-switch" aria-label="Source">
             <button class="mp-switch-knob" type="button" aria-pressed="true" title="Left = Radio Stations, Right = Playlists"></button>
           </div>
@@ -330,18 +321,17 @@
       const poll = async () => {
         let info = null;
 
-        // 1) Try universal detectors from the actual stream URL (best effort)
-        if (lastStreamUrl) info = await fetchStreamMetaUniversal(lastStreamUrl, cfg.corsProxy);
+        // 1) If manifest provided a known adapter, prefer it
+        if (track.kind && track.meta) info = await pollMeta(track.kind, track.meta, cfg.corsProxy);
 
-        // 2) If the station object provided `kind/meta`, try that as a fallback
-        if (!info && track.kind && track.meta) info = await pollMeta(track.kind, track.meta, cfg.corsProxy);
+        // 2) Fallback to universal detectors from the actual stream host
+        if (!info && lastStreamUrl) info = await fetchStreamMetaUniversal(lastStreamUrl, cfg.corsProxy);
 
         if (info && (info.now || info.title)) {
           const label = normalizeNow(info.now || info.title || '');
           if (label && label !== lastNow) {
             lastNow = label;
             setNow(label, 'Radio');
-            // Also update the current list row text if present
             try {
               const row = list?.children[cursor];
               const tDiv = row?.querySelector('.t');
@@ -448,13 +438,6 @@
           playAt(n);
         }
       }
-    });
-
-    root.addEventListener('keydown', (e)=>{
-      if (e.code === 'Space'){ e.preventDefault(); playPause(); }
-      if (e.code === 'ArrowLeft') prev();
-      if (e.code === 'ArrowRight') next();
-      if (e.key && e.key.toLowerCase() === 'm') toggleMute();
     });
 
     if (cfg.autoplayMuted) {
