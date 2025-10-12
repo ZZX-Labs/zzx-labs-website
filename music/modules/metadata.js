@@ -1,124 +1,107 @@
-// /music/modules/metadata.js — front-end public metadata fetchers (AllOrigins-ready)
-import { normalizeNow } from './utils.js';
-import { corsWrap, fetchTextViaProxy, fetchJSONViaProxy } from './cors.js';
+// /music/modules/metadata.js
+import { corsWrap, normalizeNow } from './utils.js';
+import { fetchTextViaProxy, fetchJSONViaProxy } from './cors.js';
 
-/* ======================= PUBLIC API ======================= */
+/* ===================== PUBLIC API ===================== */
 export async function fetchStreamMeta(streamUrl, proxy){
-  if (!streamUrl) return null;
+  // 0) Special-case SomaFM (most reliable): detect mount -> use channel JSON
+  const sfm = await maybeFetchSomaFMFromMount(streamUrl, proxy);
+  if (sfm && (sfm.now || sfm.title)) return sfm;
 
-  // 0) SomaFM: try their official JSON first (and filter promos)
-  const soma = await somaFmFromStream(streamUrl, proxy);
-  if (soma) return soma;
-
-  // 1) Vendor status endpoints (Icecast / Shoutcast / Radio.co)
+  // 1) Try station status endpoints (Icecast/Shoutcast/Radio.co)
   const fromStatus = await fetchFromStationStatus(streamUrl, proxy);
-  if (isRealNow(fromStatus)) return fromStatus;
+  if (fromStatus && (fromStatus.now || fromStatus.title)) return fromStatus;
 
-  // 2) ICY in-band metadata (last resort)
+  // 2) Fallback: ICY in-band
   const fromIcy = await fetchICYOnce(streamUrl, proxy);
-  if (isRealNow(fromIcy)) return fromIcy;
+  if (fromIcy && (fromIcy.now || fromIcy.title)) return fromIcy;
 
   return null;
 }
 
 export async function fetchTrackMeta(track, proxy){
-  if (!track?.url) return null;
-  const base = track.url.replace(/\.[a-z0-9]+$/i, '');
+  const url = track?.url || '';
+  if (!url) return null;
+  const lower = url.toLowerCase();
 
-  // 1. Explicit sidecar json
-  try {
-    const meta = await fetchJSONViaProxy(base + '.json', proxy);
-    if (meta?.title || meta?.artist) return meta;
-  } catch {}
-
-  // 2. Heuristic endpoints
-  for (const p of [track.url + '?meta=1', base + '/meta.json']){
-    try {
-      const meta = await fetchJSONViaProxy(p, proxy);
-      if (meta?.title || meta?.artist) return meta;
-    } catch {}
+  if (/\.(mp3)(\?|#|$)/.test(lower)){
+    const id3 = await fetchID3v2(url);
+    if (id3 && (id3.title || id3.artist)) return id3;
   }
+  if (/\.(ogg|opus|oga|flac)(\?|#|$)/.test(lower)){
+    const vorb = await fetchVorbis(url);
+    if (vorb && (vorb.title || vorb.artist)) return vorb;
+  }
+  if (isYouTube(url) || isSoundCloud(url)){
+    const oem = await fetchOEmbed(url, proxy);
+    if (oem && (oem.title || oem.artist)) return oem;
+  }
+  const jmt = await readViaJsMediaTags(url, proxy);
+  if (jmt && (jmt.title || jmt.artist)) return jmt;
 
-  // 3. Filename fallback
+  return { title: track.title || titleFromFilename(url), artist: '', album: '' };
+}
+
+/* ===================== DONATION/JUNK FILTER ===================== */
+
+const JUNK_PATTERNS = [
+  /donate to somafm/i,
+  /keep commercial[- ]?free radio on the air/i,
+  /visit somafm\.com/i,
+  /support somafm/i,
+  /station id/i,
+  /now playing:?$/i
+];
+function isJunkNow(s){
+  if (!s) return false;
+  const t = String(s).trim();
+  if (!t) return false;
+  return JUNK_PATTERNS.some(rx => rx.test(t));
+}
+
+/* ===================== SOMAFM FAST-PATH ===================== */
+
+function isSomaHost(host){ return /(^|\.)somafm\.com$/i.test(host) || /(^|\.)(ice|icecast)\d*\.somafm\.com$/i.test(host); }
+function guessSomaChannelFromMount(pathname){
+  // e.g. "/dubstepbeyond-128-mp3", "/secretagent-256-mp3"
+  const base = (pathname || '').split('/').pop() || '';
+  const m = base.match(/^([a-z0-9]+?)(?:-[0-9]+-(?:aac|mp3|ogg|opus))?$/i);
+  return m ? m[1].toLowerCase() : '';
+}
+
+async function maybeFetchSomaFMFromMount(streamUrl, proxy){
   try {
-    const name = decodeURIComponent(track.url.split('/').pop() || '');
-    const clean = name.replace(/\.[a-z0-9]+$/i, '').replace(/[_+]/g, ' ');
-    const parts = clean.split(' - ');
-    if (parts.length >= 2) return { artist: parts[0], title: parts.slice(1).join(' - ') };
-    return { title: clean };
+    const u = new URL(streamUrl, location.href);
+    if (!isSomaHost(u.hostname)) return null;
+    const channel = guessSomaChannelFromMount(u.pathname);
+    if (!channel) return null;
+
+    // Official songs JSON (latest-first array)
+    const api = `https://somafm.com/songs/${encodeURIComponent(channel)}.json`;
+    const j = await fetchJSONViaProxy(api, proxy);
+    const arr = Array.isArray(j) ? j : null;
+    if (!arr || !arr.length) return null;
+
+    // pick the first NON-junk item: { artist, title } OR { title: "Artist - Title" }
+    for (const it of arr){
+      const a = (it.artist || '').trim();
+      const t = (it.title  || '').trim();
+      const joined = [a, t].filter(Boolean).join(' - ') || (it.song || it.text || '');
+      const norm = normalizeNow(joined);
+      if (!isJunkNow(norm) && norm) {
+        return { title: `SomaFM • ${channel}`, now: norm };
+      }
+    }
   } catch {}
-
   return null;
-}
-
-/* ==================== SOMAFM SPECIAL CASE ==================== */
-
-async function somaFmFromStream(streamUrl, proxy){
-  const u = safeURL(streamUrl);
-  if (!u) return null;
-
-  // Heuristic channel from mount: ".../secretagent-128-mp3" -> "secretagent"
-  const last = (u.pathname.split('/').pop() || '').toLowerCase();
-  const noExt = last.replace(/\.(mp3|aac|ogg|opus|m3u8|pls|aacp)$/i, '');
-  let channel = noExt
-    .replace(/(-|_)?(32|64|96|128|160|192|256|320)(k|kbps|aac|mp3|ogg|aacp)?$/i, '')
-    .replace(/(-|_)?(mp3|aac|ogg|aacp)$/i, '')
-    .replace(/[-_]+$/,'')
-    .trim();
-  if (channel.includes('-')) channel = channel.split('-')[0];
-  if (!channel) return null;
-
-  const api = `https://somafm.com/songs/${encodeURIComponent(channel)}.json`;
-  const arr = await fetchJSONViaProxy(api, proxy);
-  if (!Array.isArray(arr) || !arr.length) return null;
-
-  // Pick first *real* row (not promos/bumps)
-  const row = arr.find(r => isSomaRealRow(r)) || null;
-  if (!row) return null;
-
-  const now = normalizeNow(joinArtistTitle(row.artist, row.title));
-  if (!now) return null;
-
-  return { title: `SomaFM • ${channel}`, now };
-}
-
-function isSomaRealRow(r){
-  const artist = (r?.artist || '').trim();
-  const title  = (r?.title  || '').trim();
-  const s = `${artist} ${title}`.toLowerCase();
-
-  if (!artist || !title) return false;
-
-  // Filter obvious promo/bump lines seen on SomaFM feeds
-  if (s.includes('donate to somafm')) return false;
-  if (s.includes('keep commercial-free') || s.includes('commercial free')) return false;
-  if (s.includes('support somafm')) return false;
-  if (s.includes('thanks for listening')) return false;
-  if (s.includes('somafm.com')) return false;
-  if (/station id|station id:|liner|promo/.test(s)) return false;
-
-  // Sometimes artist is "SomaFM" or "Soma FM" on bumps
-  if (/^soma\s?fm$/i.test(artist)) return false;
-
-  return true;
-}
-
-function joinArtistTitle(artist, title){
-  const a = (artist || '').trim();
-  const t = (title  || '').trim();
-  if (a && t) return `${a} - ${t}`;
-  return a || t || '';
 }
 
 /* ===================== RADIO STATUS HELPERS ===================== */
 
 async function fetchFromStationStatus(streamUrl, proxy){
   try {
-    const u = safeURL(streamUrl);
-    if (!u) return null;
+    const u = new URL(streamUrl, location.href);
     const base = `${u.protocol}//${u.host}`;
-    const isSoma = /(^|\.)somafm\.com$/i.test(u.hostname);
-
     const candidates = [
       corsWrap(proxy, `${base}/status-json.xsl`),    // Icecast JSON
       corsWrap(proxy, `${base}/status.xsl?json=1`),  // Alt Icecast JSON
@@ -128,49 +111,59 @@ async function fetchFromStationStatus(streamUrl, proxy){
     ].filter(Boolean);
 
     for (const url of candidates){
-      const isJson = /(\.xsl$|json=1|public\.radio\.co)/.test(String(url));
-      const data = isJson ? await getJSON(url) : await getText(url);
+      const isJson = /(\.xsl$|json=1|public\.radio\.co)/.test(url);
+      const data = isJson ? await getJSON(url, proxy) : await getText(url, proxy);
       if (!data) continue;
 
       // Icecast JSON
       if (isJson && typeof data === 'object' && data.icestats) {
         const src = data.icestats.source;
         const arr = Array.isArray(src) ? src : (src ? [src] : []);
-        const hit = arr?.[0];
+        const hit = pickBestIcecastSource(arr, u);
         if (hit) {
-          const title = hit.server_name || hit.title || '';
-          let now   = hit.artist && hit.title ? `${hit.artist} - ${hit.title}`
-                     : (hit.title || '');
-          now = normalizeNow(now);
-          if (isSoma && isSomaPromo(now)) continue; // skip promo rows
-          if (title || now) return { title, now };
+          // Compose now-playing
+          const nowRaw = (hit.artist && hit.title) ? `${hit.artist} - ${hit.title}` : (hit.title || '');
+          const now = normalizeNow(nowRaw);
+          const title = hit.server_name || hit.server_description || '';
+          if (now && !isJunkNow(now)) return { title, now };
+
+          // SomaFM often puts the banner as the most recent; try their JSON as a rescue
+          const sfm = await maybeFetchSomaFMFromMount(streamUrl, proxy);
+          if (sfm && (sfm.now || sfm.title)) return sfm;
+
+          // if only title present and not junk, return at least that
+          if (title && !isJunkNow(title)) return { title, now: '' };
+          continue;
         }
       }
 
       // Shoutcast v2 JSON
       if (isJson && (data?.servertitle || data?.songtitle)) {
         const now = normalizeNow(data.songtitle || '');
-        if (isSoma && isSomaPromo(now)) continue;
-        return { title: data.servertitle || '', now };
+        const title = data.servertitle || '';
+        if (now && !isJunkNow(now)) return { title, now };
+        if (title && !isJunkNow(title)) return { title, now: '' };
+        continue;
       }
 
       // Radio.co JSON
       if (isJson && (data?.current_track || data?.name)) {
-        const now = normalizeNow(data.current_track?.title_with_artists || data.current_track?.title || '');
-        if (isSoma && isSomaPromo(now)) continue;
-        return { title: data.name || '', now };
+        const nowRaw = data.current_track?.title_with_artists || data.current_track?.title || '';
+        const now = normalizeNow(nowRaw);
+        const title = data.name || '';
+        if (now && !isJunkNow(now)) return { title, now };
+        if (title && !isJunkNow(title)) return { title, now: '' };
+        continue;
       }
 
       // Shoutcast v1 /7.html
-      if (typeof data === 'string' && (String(url).endsWith('/7.html') || String(url).includes('/7.html?'))) {
+      if (typeof data === 'string' && (url.endsWith('/7.html') || url.includes('/7.html?'))) {
         const m = data.match(/<body[^>]*>([^<]*)<\/body>/i) || data.match(/(.*,){6}(.+)/);
         if (m) {
           const parts = String(m[1] || m[2] || '').split(',');
-          const song = normalizeNow(parts.pop()?.trim() || '');
-          if (song) {
-            if (isSoma && isSomaPromo(song)) continue;
-            return { title: '', now: song };
-          }
+          const song = (parts.pop() || '').trim();
+          const now = normalizeNow(song);
+          if (now && !isJunkNow(now)) return { title: '', now };
         }
       }
     }
@@ -178,12 +171,33 @@ async function fetchFromStationStatus(streamUrl, proxy){
   return null;
 }
 
+// Prefer the source that matches host/port/path of the actual stream mount
+function pickBestIcecastSource(sources, streamURL){
+  if (!Array.isArray(sources) || !sources.length) return null;
+  const pathTail = (p) => (p || '').toLowerCase().replace(/\/+$/,'');
+  const want = {
+    host: streamURL.hostname,
+    port: streamURL.port || (streamURL.protocol === 'https:' ? '443' : '80'),
+    path: pathTail(streamURL.pathname)
+  };
+
+  let best = null;
+  for (const s of sources){
+    const listen = s.listenurl || s.server_url || '';
+    let lHost='', lPort='', lPath='';
+    try {
+      const u = new URL(listen, streamURL);
+      lHost = u.hostname; lPort = u.port || (u.protocol==='https:'?'443':'80'); lPath = pathTail(u.pathname);
+    } catch {}
+    if (listen && lPath && lPath === want.path && lHost === want.host && lPort === want.port) return s;
+    if (!best && (s.title || s.server_name || s.listenurl)) best = s;
+  }
+  return best || sources[0];
+}
+
 /* ===================== ICY (in-band) FALLBACK ===================== */
 async function fetchICYOnce(streamUrl, proxy){
   try {
-    const u = safeURL(streamUrl);
-    const isSoma = !!u && /(^|\.)somafm\.com$/i.test(u.hostname);
-
     const ctrl = new AbortController();
     const url = corsWrap(proxy, streamUrl);
     const r = await fetch(url, {
@@ -199,67 +213,182 @@ async function fetchICYOnce(streamUrl, proxy){
 
     const reader = r.body.getReader();
 
-    // skip audio
-    let remain = metaint;
-    while (remain > 0) {
+    // 1) skip metaint bytes
+    let toSkip = metaint;
+    while (toSkip > 0) {
       const { done, value } = await reader.read();
       if (done) return null;
-      remain -= Math.min(remain, value.length);
+      toSkip -= Math.min(toSkip, value.length);
     }
 
-    // read metadata size
+    // 2) metadata length in 16-byte blocks
     const metaLenByte = await readExact(reader, 1);
     if (!metaLenByte) return null;
     const metaLen = metaLenByte[0] * 16;
     if (!metaLen) { ctrl.abort(); return null; }
 
-    // read metadata block
+    // 3) read and parse StreamTitle
     const metaBuf = await readExact(reader, metaLen);
     ctrl.abort();
 
     const text = new TextDecoder('latin1').decode(metaBuf);
     const m = text.match(/StreamTitle='([^']*)'/i);
     const raw = (m?.[1] || '').trim();
-    if (!raw) return null;
-
     const norm = normalizeNow(raw);
-    if (isSoma && isSomaPromo(norm)) return null;
-
+    if (!norm || isJunkNow(norm)) return null;   // ignore banner/junk
     return { title: '', now: norm };
   } catch {
     return null;
   }
 }
 
-/* ===================== helpers ===================== */
-function isRealNow(obj){
-  if (!obj) return false;
-  const s = (obj.now || obj.title || '').trim();
-  if (!s) return false;
-  if (isSomaPromo(s)) return false;
-  return true;
+async function readExact(reader, n){
+  const chunks = [];
+  let need = n;
+  while (need > 0) {
+    const { done, value } = await reader.read();
+    if (done) return null;
+    chunks.push(value);
+    need -= value.length;
+  }
+  const out = new Uint8Array(n);
+  let off = 0;
+  for (const c of chunks){
+    const take = Math.min(c.length, n - off);
+    out.set(c.subarray(0, take), off);
+    off += take;
+    if (off >= n) break;
+  }
+  return out;
 }
 
-function isSomaPromo(s){
-  const t = (s || '').toLowerCase();
-  if (!t) return false;
-  return (
-    t.includes('donate to somafm') ||
-    t.includes('keep commercial-free') ||
-    t.includes('commercial free') ||
-    t.includes('support somafm') ||
-    t.includes('somafm.com') ||
-    t.includes('thanks for listening') ||
-    /station id|liner|promo/.test(t)
-  );
-}
-
-function safeURL(u){
-  try { return new URL(u, location.href); } catch { return null; }
-}
+/* ===================== Generic helpers ===================== */
 function guessRadioCoStatus(u){
   const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
   return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
 }
-async function getJSON(url){ try{ const r=await fetch(url,{cache:'no-store'}); return r.ok? r.json():null; }catch{ return null; } }
-async function getText(url){ try{ const r=await fetch(url,{cache:'no-store'}); return r.ok? r.text():''; }catch{ return ''; } }
+
+// Use AllOrigins-aware fetchers (to honor your proxy choice)
+async function getJSON(url, proxy){ return await fetchJSONViaProxy(url, proxy); }
+async function getText(url, proxy){ return await fetchTextViaProxy(url, proxy); }
+
+/* ===================== Playlist/file metadata ===================== */
+function isYouTube(u){
+  try{ const x=new URL(u, location.href); return /(^|\.)youtube\.com$/.test(x.hostname)||/(^|\.)youtu\.be$/.test(x.hostname);}catch{return false;}
+}
+function isSoundCloud(u){
+  try{ const x=new URL(u, location.href); return /(^|\.)soundcloud\.com$/.test(x.hostname);}catch{return false;}
+}
+function titleFromFilename(u){
+  try{
+    const p = new URL(u, location.href).pathname.split('/').pop() || '';
+    return decodeURIComponent(p.replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ').trim());
+  }catch{ return ''; }
+}
+function synchsafeToInt(a,b,c,d){ return (a<<21)|(b<<14)|(c<<7)|d; }
+function decodeID3Text(buf, offset, length){
+  const enc = new DataView(buf, offset, 1).getUint8(0);
+  const bytes = new Uint8Array(buf, offset+1, length-1);
+  if (enc === 0x00) return new TextDecoder('latin1').decode(bytes).replace(/\0+$/,'').trim();
+  if (enc === 0x01 || enc === 0x02){
+    try{ return new TextDecoder('utf-16').decode(bytes).replace(/\0+$/,'').trim(); }catch{ return ''; }
+  }
+  if (enc === 0x03) return new TextDecoder('utf-8').decode(bytes).replace(/\0+$/,'').trim();
+  return '';
+}
+async function fetchID3v2(url){
+  try{
+    const r = await fetch(url, { headers: { Range:'bytes=0-65535' }, cache:'no-store' });
+    if (!r.ok) return null;
+    const ab = await r.arrayBuffer(); const dv = new DataView(ab);
+    if (dv.getUint8(0)!==0x49 || dv.getUint8(1)!==0x44 || dv.getUint8(2)!==0x33) return null; // "ID3"
+    const ver = dv.getUint8(3);
+    const flags = dv.getUint8(5);
+    const size = synchsafeToInt(dv.getUint8(6),dv.getUint8(7),dv.getUint8(8),dv.getUint8(9));
+    let pos = 10;
+
+    if (flags & 0x40){
+      if (ver===4){ const ext = synchsafeToInt(dv.getUint8(pos),dv.getUint8(pos+1),dv.getUint8(pos+2),dv.getUint8(pos+3)); pos += ext; }
+      else { const ext = dv.getUint32(pos); pos += ext + 4; }
+    }
+
+    const end = Math.min(pos + size, ab.byteLength);
+    let title='', artist='', album='';
+    while (pos + 10 <= end){
+      let id=''; for (let i=0;i<4;i++) id += String.fromCharCode(dv.getUint8(pos+i));
+      const fsz = (ver===4)
+        ? synchsafeToInt(dv.getUint8(pos+4),dv.getUint8(pos+5),dv.getUint8(pos+6),dv.getUint8(pos+7))
+        : dv.getUint32(pos+4);
+      pos += 10;
+      if (!fsz || pos+fsz>end) break;
+      if (id==='TIT2' || id==='TPE1' || id==='TALB'){
+        const t = decodeID3Text(ab, pos, fsz);
+        if (id==='TIT2') title  = title  || t;
+        if (id==='TPE1') artist = artist || t;
+        if (id==='TALB') album  = album  || t;
+      }
+      pos += fsz;
+      if (title && artist && album) break;
+    }
+    if (title || artist || album) return { title, artist, album };
+  }catch{}
+  return null;
+}
+async function fetchVorbis(url){
+  try{
+    const r = await fetch(url, { headers: { Range:'bytes=0-65535' }, cache:'no-store' });
+    if (!r.ok) return null;
+    const ab = await r.arrayBuffer();
+    const s = new TextDecoder('utf-8').decode(new Uint8Array(ab));
+    const title  = s.match(/TITLE=([^\n\r]+)/i)?.[1]?.trim() || '';
+    const artist = s.match(/ARTIST=([^\n\r]+)/i)?.[1]?.trim() || '';
+    const album  = s.match(/ALBUM=([^\n\r]+)/i)?.[1]?.trim() || '';
+    if (title || artist || album) return { title, artist, album };
+  }catch{}
+  return null;
+}
+async function fetchOEmbed(url, proxy){
+  try{
+    let api = '';
+    if (isYouTube(url)){
+      api = `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`;
+    } else if (isSoundCloud(url)){
+      api = `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(url)}`;
+    }
+    if (!api) return null;
+    const r = await fetch(corsWrap(proxy, api), { cache:'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return { title: j.title||'', artist: j.author_name||'', album:'' };
+  }catch{}
+  return null;
+}
+function haveJsMediaTags(){
+  return typeof window !== 'undefined' && !!window.jsmediatags && !!window.jsmediatags.read;
+}
+async function readViaJsMediaTags(url, proxy){
+  if (!haveJsMediaTags()) return null;
+
+  const src = proxy
+    ? (proxy.includes('?') ? proxy + encodeURIComponent(url)
+                           : proxy.replace(/\/+$/,'') + '/' + url)
+    : url;
+
+  return new Promise((resolve) => {
+    try {
+      window.jsmediatags.read(src, {
+        onSuccess: tag => {
+          const tags = tag?.tags || {};
+          const title  = (tags.title || '').trim();
+          const artist = (tags.artist || '').trim();
+          const album  = (tags.album || '').trim();
+          if (title || artist || album) resolve({ title, artist, album });
+          else resolve(null);
+        },
+        onError: () => resolve(null)
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
