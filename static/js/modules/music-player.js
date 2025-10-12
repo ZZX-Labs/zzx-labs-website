@@ -1,424 +1,398 @@
-// /static/js/modules/music-player.js
-// ZZX-Labs Music Player (ES Module)
-// - Mounts on a provided root element with the CAB markup
-// - Reads manifest.json (stations + playlists)
-// - Supports M3U / M3U8 parsing, streams & file tracks
-// - Shuffle, loop (all/one), mute, seek, keyboard shortcuts
+// Music Player Widget (ZZX) — streams + live metadata (Radio.co, SomaFM, Shoutcast)
+// Usage: <div class="mp-root" data-mp ...> (see index.html below)
+// Exposes window.MusicPlayer.mount(root, options)
 
-/* Public API:
-   import { MusicPlayer, mountMusicPlayer } from '/static/js/modules/music-player.js';
-   mountMusicPlayer('.mp-root', { autoplay: true, autoplayMuted: true });
-*/
+(function(){
+  const MusicPlayer = {};
+  const isGH = location.hostname.endsWith('github.io');
+  const repoPrefix = (() => {
+    const parts = location.pathname.split('/').filter(Boolean);
+    return (isGH && parts.length) ? '/' + parts[0] + '/' : '/';
+  })();
 
-const isGH = location.hostname.endsWith('github.io');
-function repoPrefix() {
-  const parts = location.pathname.split('/').filter(Boolean);
-  return (isGH && parts.length) ? '/' + parts[0] + '/' : '/';
-}
-function isAbs(u) { return /^([a-z]+:)?\/\//i.test(u) || (u || '').startsWith('/'); }
-function join(base, rel) {
-  if (!rel) return base;
-  if (isAbs(rel)) return rel;
-  if (!base.endsWith('/')) base += '/';
-  return base + rel.replace(/^\.\//, '');
-}
-function $(sel, ctx = document) { return ctx.querySelector(sel); }
-function $$(sel, ctx = document) { return Array.from(ctx.querySelectorAll(sel)); }
-function fmtTime(sec) {
-  if (!isFinite(sec) || sec < 0) return '—';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
+  const $  = (sel, ctx=document) => ctx.querySelector(sel);
+  const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+  const isAbs = u => /^([a-z]+:)?\/\//i.test(u) || u.startsWith('/');
+  const join  = (base, rel) => (!rel ? base : (isAbs(rel) ? rel : (base.replace(/\/+$/,'') + '/' + rel.replace(/^\.\/?/,''))));
 
-// Parse .m3u/.m3u8 into [{url,title}]
-function parseM3U(text) {
-  const lines = String(text || '').split(/\r?\n/);
-  const out = [];
-  let pendingTitle = null;
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#EXTM3U')) continue;
-    if (line.startsWith('#EXTINF:')) {
-      const idx = line.indexOf(',');
-      pendingTitle = (idx >= 0) ? line.slice(idx + 1).trim() : null;
-      continue;
+  const fmtTime = (sec) => (!isFinite(sec)||sec<0) ? '—' : `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
+
+  // Parse .m3u/.m3u8 -> [{url, title}]
+  function parseM3U(text){
+    const lines = String(text||'').split(/\r?\n/);
+    const out = []; let pending = null;
+    for(const raw of lines){
+      const line = raw.trim();
+      if (!line || line.startsWith('#EXTM3U')) continue;
+      if (line.startsWith('#EXTINF:')){
+        const i = line.indexOf(',');
+        pending = (i>=0? line.slice(i+1).trim() : null);
+        continue;
+      }
+      if (!line.startsWith('#')) out.push({ url: line, title: pending||line }), pending=null;
     }
-    if (!line.startsWith('#')) {
-      out.push({ url: line, title: pendingTitle || line });
-      pendingTitle = null;
+    return out;
+  }
+
+  // Try multiple stream candidates
+  async function tryPlayStream(audio, urls){
+    for (const u of urls){
+      try { audio.src = u; await audio.play(); return u; } catch(e){}
+    }
+    throw new Error('No playable stream endpoints');
+  }
+
+  // CORS helper: prepend proxy if configured and URL is cross-origin
+  function proxied(url, corsProxy){
+    if (!corsProxy) return url;
+    try {
+      const u = new URL(url, location.origin);
+      if (u.origin === location.origin) return url;
+      return corsProxy.replace(/\/+$/,'') + '/' + url;
+    } catch {
+      // if relative or invalid, let browser handle
+      return url;
     }
   }
-  return out;
-}
 
-async function fetchJSON(u) {
-  try {
-    const r = await fetch(u, { cache: 'no-store' });
-    if (!r.ok) throw 0;
-    return await r.json();
-  } catch {
+  // ---- Metadata polling by kind ----
+  async function fetchJSON(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.statusText); return r.json(); }
+  async function fetchText(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.statusText); return r.text(); }
+
+  // Radio.co JSON: https://public.radio.co/stations/<id>/status
+  async function metaRadioCo(meta, corsProxy){
+    const url = proxied(meta.status || `https://public.radio.co/stations/${meta.station_id}/status`, corsProxy);
+    const j = await fetchJSON(url);
+    // structure commonly: { current_track: { title, artist }, ... } or now_playing: {}
+    const t = j?.current_track?.title || j?.now_playing?.title || j?.title || '';
+    const a = j?.current_track?.artist || j?.now_playing?.artist || j?.artist || '';
+    return { title: t || a || 'Live', sub: a || meta.name || 'Radio' };
+  }
+
+  // SomaFM JSON: https://somafm.com/songs/<channel>.json
+  async function metaSomaFM(meta, corsProxy){
+    const url = proxied(meta.status, corsProxy);
+    const j = await fetchJSON(url);
+    // latest at [0]; fields usually {title, artist, album}
+    const first = Array.isArray(j) ? j[0] : null;
+    const t = first?.title || '';
+    const a = first?.artist || '';
+    return { title: t || 'Live', sub: a || `SomaFM • ${meta.channel}` };
+  }
+
+  // Shoutcast 7.html (CSV-ish): .../7.html -> "OK2,xx,yy,zz,aa,bb,Current Song"
+  // CORS frequently blocked; allow proxy via data-cors-proxy if needed.
+  async function metaShoutcast(meta, corsProxy){
+    const url = proxied(meta.status, corsProxy);
+    const txt = await fetchText(url);
+    // crude parse: split by comma, last item is current song
+    const parts = txt.split(',').map(s=>s.trim());
+    const cur = parts[parts.length-1] || 'Live';
+    return { title: cur, sub: 'Shoutcast' };
+  }
+
+  async function pollMeta(kind, meta, corsProxy){
+    try{
+      if (kind === 'radioco')   return await metaRadioCo(meta, corsProxy);
+      if (kind === 'somafm')    return await metaSomaFM(meta, corsProxy);
+      if (kind === 'shoutcast') return await metaShoutcast(meta, corsProxy);
+    }catch(e){}
     return null;
   }
-}
-async function fetchText(u) {
-  try {
-    const r = await fetch(u, { cache: 'no-store' });
-    if (!r.ok) throw 0;
-    return await r.text();
-  } catch {
-    return '';
-  }
-}
-async function tryPlayStream(audio, urls) {
-  for (const u of urls) {
-    try {
-      audio.src = u;
-      await audio.play();
-      return u;
-    } catch {
-      // keep trying
-    }
-  }
-  throw new Error('No playable stream endpoint');
-}
 
-export class MusicPlayer {
-  constructor(root, options = {}) {
-    if (!root) throw new Error('MusicPlayer: missing root element');
+  // -------- Core mount --------
+  MusicPlayer.mount = function(root, opts={}){
+    if (!root) return;
 
-    // Config — data-* overrides props
-    this.cfg = {
-      manifestUrl: root.dataset.manifestUrl || options.manifestUrl || (repoPrefix() + 'static/audio/music/playlists/manifest.json'),
-      audioBase: root.dataset.audioBase || options.audioBase || (repoPrefix() + 'static/audio/music/'),
-      autoplay: (root.dataset.autoplay ?? (options.autoplay ? '1' : '0')) === '1',
-      autoplayMuted: (root.dataset.autoplayMuted ?? (options.autoplayMuted ? '1' : '0')) === '1',
-      shuffle: (root.dataset.shuffle ?? (options.shuffle ? '1' : '0')) === '1',
-      volume: parseFloat(root.dataset.volume ?? (options.volume ?? 0.5)),
-      startSource: root.dataset.startSource || options.startSource || 'auto', // 'stations' | 'playlists' | 'auto'
+    // Config
+    const cfg = {
+      manifestUrl   : root.dataset.manifestUrl  || opts.manifestUrl  || (repoPrefix + 'static/audio/music/playlists/manifest.json'),
+      audioBase     : root.dataset.audioBase    || opts.audioBase    || (repoPrefix + 'static/audio/music/'),
+      autoplay      : (root.dataset.autoplay ?? (opts.autoplay ? '1':'0')) === '1',
+      autoplayMuted : (root.dataset.autoplayMuted ?? (opts.autoplayMuted ? '1':'0')) === '1',
+      shuffle       : (root.dataset.shuffle ?? (opts.shuffle ? '1':'0')) === '1',
+      volume        : parseFloat(root.dataset.volume ?? (opts.volume ?? 0.5)),
+      startSource   : root.dataset.startSource  || opts.startSource || 'auto',
+      corsProxy     : root.dataset.corsProxy    || opts.corsProxy || '' // e.g. https://your-worker.example.com/fetch
     };
 
-    // DOM
-    this.root = root;
-    this.titleEl = $('.mp-title', root);
-    this.subEl = $('.mp-sub', root);
-    this.timeCur = $('[data-cur]', root);
-    this.timeDur = $('[data-dur]', root);
-    this.seek = $('.mp-seek', root);
-    this.vol = $('.mp-volume', root);
-    this.list = $('.mp-list', root);
-    this.selStations = $('#mp-pl-stations', root);
-    this.selMusic = $('#mp-pl-music', root);
+    // Build internal UI skeleton (so we don’t depend on external template timing)
+    root.innerHTML = `
+      <div class="mp-top">
+        <div class="mp-now">
+          <div class="mp-title mono">—</div>
+          <div class="mp-sub small">—</div>
+        </div>
+        <div class="mp-controls" role="toolbar" aria-label="Playback controls">
+          <button class="mp-btn" data-act="prev"    title="Previous (⟵)">⏮</button>
+          <button class="mp-btn" data-act="play"    title="Play/Pause (Space)">▶</button>
+          <button class="mp-btn" data-act="stop"    title="Stop">⏹</button>
+          <button class="mp-btn" data-act="next"    title="Next (⟶)">⏭</button>
+          <button class="mp-btn" data-act="shuffle" title="Shuffle">🔀</button>
+          <button class="mp-btn" data-act="loop"    title="Loop all">🔁</button>
+          <button class="mp-btn" data-act="loop1"   title="Loop one">🔂</button>
+          <button class="mp-btn" data-act="mute"    title="Mute/Unmute">🔇</button>
+        </div>
+      </div>
 
-    this.btns = {
-      prev: $('[data-act="prev"]', root),
-      play: $('[data-act="play"]', root),
-      stop: $('[data-act="stop"]', root),
-      next: $('[data-act="next"]', root),
+      <div class="mp-middle">
+        <div class="mp-time mono"><span data-cur>00:00</span> / <span data-dur>—</span></div>
+        <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
+        <div class="mp-vol"><input type="range" class="mp-volume" min="0" max="1" step="0.01" value="0.5" aria-label="Volume"></div>
+      </div>
+
+      <div class="mp-bottom">
+        <div class="mp-left">
+          <label class="small" for="mp-pl-stations">Radio Stations (.m3u)</label>
+          <select id="mp-pl-stations" class="mp-pl mp-pl-stations"></select>
+
+          <label class="small" for="mp-pl-music" style="margin-top:.6rem;display:block;">Playlists (.m3u)</label>
+          <select id="mp-pl-music" class="mp-pl mp-pl-music"></select>
+        </div>
+        <div class="mp-right">
+          <label class="small">Tracks</label>
+          <ul class="mp-list" role="listbox" aria-label="Tracks"></ul>
+        </div>
+      </div>
+    `;
+
+    // Elements after injection
+    const titleEl = $('.mp-title', root);
+    const subEl   = $('.mp-sub', root);
+    const btns = {
+      prev:    $('[data-act="prev"]', root),
+      play:    $('[data-act="play"]', root),
+      stop:    $('[data-act="stop"]', root),
+      next:    $('[data-act="next"]', root),
       shuffle: $('[data-act="shuffle"]', root),
-      loop: $('[data-act="loop"]', root),
-      loop1: $('[data-act="loop1"]', root),
-      mute: $('[data-act="mute"]', root),
+      loop:    $('[data-act="loop"]', root),
+      loop1:   $('[data-act="loop1"]', root),
+      mute:    $('[data-act="mute"]', root),
+    };
+    const timeCur = $('[data-cur]', root);
+    const timeDur = $('[data-dur]', root);
+    const seek    = $('.mp-seek', root);
+    const vol     = $('.mp-volume', root);
+    const list    = $('.mp-list', root);
+    const selStations = $('#mp-pl-stations', root);
+    const selMusic    = $('#mp-pl-music', root);
+
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.crossOrigin = 'anonymous';
+
+    // State
+    let queue = [];     // [{url,title,isStream, length?, meta?, kind?}]
+    let cursor = -1;
+    let loopMode = 'none'; // 'none'|'all'|'one'
+    let usingStations = false;
+    let manifest = { stations: [], playlists: [] };
+    let metaTimer = 0;
+
+    // UI helpers
+    const setNow = (t, s='') => { if (titleEl) titleEl.textContent = t || '—'; if (subEl) subEl.textContent = s || '—'; };
+    const setPlayIcon = (on) => { if (btns.play) btns.play.textContent = on ? '⏸' : '▶'; };
+    const setMuteIcon = () => { if (btns.mute) btns.mute.textContent = audio.muted ? '🔇' : '🔊'; };
+    const paintTimes = () => {
+      if (timeCur) timeCur.textContent = fmtTime(audio.currentTime);
+      if (timeDur) timeDur.textContent = isFinite(audio.duration) ? fmtTime(audio.duration) : '—';
+      if (seek && isFinite(audio.duration) && audio.duration>0){
+        seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
+      }
+    };
+    function renderQueue(){
+      if (!list) return; list.innerHTML = '';
+      queue.forEach((t, i) => {
+        const li = document.createElement('li');
+        const left = document.createElement('div');
+        const right = document.createElement('div');
+        left.className = 't'; right.className = 'len mono';
+        left.textContent = t.title || `Track ${i+1}`;
+        right.textContent = t.isStream ? 'LIVE' : (t.length ? fmtTime(t.length) : '');
+        li.appendChild(left); li.appendChild(right);
+        li.addEventListener('click', ()=> playAt(i));
+        list.appendChild(li);
+      });
+      highlightList();
+    }
+    const highlightList = () => {
+      if (!list) return;
+      $$('.active', list).forEach(li => li.classList.remove('active'));
+      if (cursor >= 0) list.children[cursor]?.classList.add('active');
     };
 
-    // Audio + state
-    this.audio = new Audio();
-    this.audio.preload = 'metadata';
-    this.audio.crossOrigin = 'anonymous';
+    // Controls
+    async function playAt(i){
+      if (!queue.length) return;
+      cursor = (i + queue.length) % queue.length;
+      const tr = queue[cursor];
+      setNow(tr.title, usingStations ? 'Radio' : 'Playlist');
+      setPlayIcon(false);
 
-    this.queue = [];   // [{url,title,isStream,urls?,length?}]
-    this.cursor = -1;
-    this.loopMode = 'none'; // 'none' | 'all' | 'one'
-    this.usingStations = false;
-    this.manifest = { stations: [], playlists: [] };
+      clearInterval(metaTimer);
+      metaTimer = 0;
 
-    this._wire();
-  }
+      try {
+        if (tr.isStream && Array.isArray(tr.urls) && tr.urls.length){
+          await tryPlayStream(audio, tr.urls);
+        } else {
+          audio.src = tr.url;
+          await audio.play();
+        }
+        setPlayIcon(true);
+        highlightList();
 
-  /* ---------- Wiring ---------- */
-  _wire() {
-    // Buttons
-    this.btns.play?.addEventListener('click', () => this.playPause());
-    this.btns.stop?.addEventListener('click', () => this.stop());
-    this.btns.prev?.addEventListener('click', () => this.prev());
-    this.btns.next?.addEventListener('click', () => this.next());
-    this.btns.shuffle?.addEventListener('click', () => this.toggleShuffle());
-    this.btns.loop?.addEventListener('click', () => this.toggleLoopAll());
-    this.btns.loop1?.addEventListener('click', () => this.toggleLoopOne());
-    this.btns.mute?.addEventListener('click', () => this.toggleMute());
-
-    // Seek + volume
-    this.seek?.addEventListener('input', () => {
-      if (!isFinite(this.audio.duration) || this.audio.duration <= 0) return;
-      this.audio.currentTime = (this.seek.value / 1000) * this.audio.duration;
-    });
-    if (this.vol) {
-      const v = isFinite(this.cfg.volume) ? this.cfg.volume : 0.5;
-      this.vol.value = v;
-      this.audio.volume = Math.min(1, Math.max(0, v));
-      this.vol.addEventListener('input', () => {
-        this.audio.volume = Math.min(1, Math.max(0, parseFloat(this.vol.value)));
-      });
-    }
-
-    // Audio events
-    this.audio.addEventListener('timeupdate', () => this._paintTimes());
-    this.audio.addEventListener('durationchange', () => this._paintTimes());
-    this.audio.addEventListener('ended', () => this.next());
-
-    // Keyboard shortcuts (scoped to widget)
-    this.root.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') { e.preventDefault(); this.playPause(); }
-      if (e.code === 'ArrowLeft') this.prev();
-      if (e.code === 'ArrowRight') this.next();
-      if (e.key && e.key.toLowerCase() === 'm') this.toggleMute();
-    });
-
-    // Autoplay policy: muted-first if requested
-    if (this.cfg.autoplayMuted) {
-      this.audio.muted = true;
-      this._setMuteIcon();
-      const unmute = () => {
-        this.audio.muted = false;
-        this._setMuteIcon();
-        window.removeEventListener('click', unmute, { once: true });
-      };
-      window.addEventListener('click', unmute, { once: true });
-    }
-
-    // Selects
-    this.selStations?.addEventListener('change', () => this._onPickStations());
-    this.selMusic?.addEventListener('change', () => this._onPickMusic());
-  }
-
-  /* ---------- Boot ---------- */
-  async init() {
-    this._setNow('—', '—');
-    this.btns.shuffle?.classList.toggle('active', this.cfg.shuffle);
-
-    const mf = await fetchJSON(this.cfg.manifestUrl);
-    this.manifest.stations = Array.isArray(mf?.stations) ? mf.stations : [];
-    this.manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
-
-    this._fillSelect(this.selStations, this.manifest.stations);
-    this._fillSelect(this.selMusic, this.manifest.playlists);
-
-    await this._chooseInitial();
-
-    if (this.cfg.autoplay && !this.cfg.autoplayMuted && this.audio.paused) {
-      try { await this.audio.play(); }
-      catch {
-        this.audio.muted = true; this._setMuteIcon();
-        try { await this.audio.play(); } catch {}
+        // Start metadata polling if station has meta
+        if (tr.isStream && tr.kind && tr.meta) {
+          const pollMs = Math.max(3, parseInt(tr.meta.poll||10)) * 1000;
+          const refresh = async () => {
+            const data = await pollMeta(tr.kind, tr.meta, cfg.corsProxy);
+            if (data) setNow(data.title || tr.title || 'LIVE', data.sub || subEl.textContent);
+          };
+          refresh();
+          metaTimer = setInterval(refresh, pollMs);
+        }
+      } catch(e){
+        next(); // try next if failed
       }
     }
-  }
 
-  /* ---------- UI helpers ---------- */
-  _setNow(title, sub = '') {
-    if (this.titleEl) this.titleEl.textContent = title || '—';
-    if (this.subEl) this.subEl.textContent = sub || '—';
-  }
-  _setPlayIcon(isPlaying) {
-    if (!this.btns.play) return;
-    this.btns.play.textContent = isPlaying ? '⏸' : '▶';
-  }
-  _setMuteIcon() {
-    if (!this.btns.mute) return;
-    this.btns.mute.textContent = this.audio.muted ? '🔇' : '🔊';
-  }
-  _paintTimes() {
-    if (this.timeCur) this.timeCur.textContent = fmtTime(this.audio.currentTime);
-    if (this.timeDur) this.timeDur.textContent = isFinite(this.audio.duration) ? fmtTime(this.audio.duration) : '—';
-    if (this.seek && isFinite(this.audio.duration) && this.audio.duration > 0) {
-      this.seek.value = Math.round((this.audio.currentTime / this.audio.duration) * 1000);
-    }
-  }
-  _highlightList() {
-    if (!this.list) return;
-    $$('.active', this.list).forEach(li => li.classList.remove('active'));
-    if (this.cursor >= 0 && this.list.children[this.cursor]) {
-      this.list.children[this.cursor].classList.add('active');
-    }
-  }
-  _renderQueue() {
-    if (!this.list) return;
-    this.list.innerHTML = '';
-    this.queue.forEach((t, i) => {
-      const li = document.createElement('li');
-      const left = document.createElement('div');
-      const right = document.createElement('div');
-      left.className = 't';
-      right.className = 'len mono';
-      left.textContent = t.title || `Track ${i + 1}`;
-      right.textContent = t.isStream ? 'LIVE' : (t.length ? fmtTime(t.length) : '');
-      li.appendChild(left);
-      li.appendChild(right);
-      li.addEventListener('click', () => this.playAt(i));
-      this.list.appendChild(li);
-    });
-    this._highlightList();
-  }
-  _fillSelect(sel, arr) {
-    if (!sel) return;
-    sel.innerHTML = '';
-    arr.forEach((it, i) => {
-      const o = document.createElement('option');
-      o.value = it.file || it.href || it.path || '';
-      o.textContent = it.name || `Playlist ${i + 1}`;
-      sel.appendChild(o);
-    });
-  }
-
-  /* ---------- Loading logic ---------- */
-  async _chooseInitial() {
-    let mode = this.cfg.startSource;
-    if (mode === 'auto') {
-      const both = this.manifest.stations.length && this.manifest.playlists.length;
-      mode = both ? (Math.random() < 0.5 ? 'stations' : 'playlists')
-                  : (this.manifest.stations.length ? 'stations' : 'playlists');
-    }
-    this.usingStations = (mode === 'stations');
-
-    if (this.usingStations && this.manifest.stations.length) {
-      this.selStations.value = this.manifest.stations[Math.floor(Math.random() * this.manifest.stations.length)].file;
-      await this._onPickStations();
-    } else if (this.manifest.playlists.length) {
-      this.selMusic.value = this.manifest.playlists[Math.floor(Math.random() * this.manifest.playlists.length)].file;
-      await this._onPickMusic();
-    }
-  }
-
-  async _loadM3U(path, isStation) {
-    const url = isAbs(path) ? path : join(this.cfg.manifestUrl.replace(/\/manifest\.json$/i, ''), path);
-    const txt = await fetchText(url);
-    const entries = parseM3U(txt);
-    if (!entries.length) return [];
-
-    if (isStation) {
-      return [{
-        title: (this.selStations?.selectedOptions?.[0]?.textContent || 'Live Station'),
-        isStream: true,
-        urls: entries.map(e => isAbs(e.url) ? e.url : join(this.cfg.audioBase, e.url))
-      }];
-    } else {
-      return entries.map(e => ({
-        title: e.title || e.url,
-        url: isAbs(e.url) ? e.url : join(this.cfg.audioBase, e.url),
-        isStream: false
-      }));
-    }
-  }
-
-  async _onPickStations() {
-    this.usingStations = true;
-    const file = this.selStations?.value;
-    if (!file) return;
-    const tracks = await this._loadM3U(file, true);
-    this.queue = tracks; this.cursor = -1;
-    this._renderQueue();
-    this._setNow('—', 'Radio');
-    if (this.cfg.autoplay) this.playAt(0);
-  }
-
-  async _onPickMusic() {
-    this.usingStations = false;
-    const file = this.selMusic?.value;
-    if (!file) return;
-    let tracks = await this._loadM3U(file, false);
-    if (this.cfg.shuffle) {
-      // Fisher–Yates
-      for (let i = tracks.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
-      }
-    }
-    this.queue = tracks; this.cursor = -1;
-    this._renderQueue();
-    this._setNow('—', 'Playlist');
-    if (this.cfg.autoplay) this.playAt(0);
-  }
-
-  /* ---------- Controls ---------- */
-  async playAt(i) {
-    if (!this.queue.length) return;
-    this.cursor = (i + this.queue.length) % this.queue.length;
-    const tr = this.queue[this.cursor];
-    this._setNow(tr.title, this.usingStations ? 'Radio' : 'Playlist');
-    this._setPlayIcon(false);
-
-    try {
-      if (tr.isStream && Array.isArray(tr.urls) && tr.urls.length) {
-        await tryPlayStream(this.audio, tr.urls);
+    function playPause(){ if (!audio.src) return playAt(0); if (audio.paused) audio.play().then(()=>setPlayIcon(true)).catch(()=>{}); else { audio.pause(); setPlayIcon(false);} }
+    function stop(){ audio.pause(); try{audio.currentTime=0;}catch{} setPlayIcon(false); }
+    function prev(){ if (loopMode === 'one') return playAt(cursor); playAt(cursor-1); }
+    function next(){
+      if (loopMode === 'one') return playAt(cursor);
+      if (cfg.shuffle){
+        let j = Math.floor(Math.random()*queue.length);
+        if (queue.length>1 && j === cursor) j = (j+1)%queue.length;
+        playAt(j);
       } else {
-        this.audio.src = tr.url;
-        await this.audio.play();
+        const n = cursor+1;
+        if (n >= queue.length){ if (loopMode === 'all') playAt(0); else setPlayIcon(false); }
+        else playAt(n);
       }
-      this._setPlayIcon(true);
-      this._highlightList();
-    } catch {
-      this.next(); // if one fails, try next
     }
-  }
+    function toggleShuffle(){ cfg.shuffle = !cfg.shuffle; btns.shuffle?.classList.toggle('active', cfg.shuffle); }
+    function toggleLoopAll(){ loopMode = (loopMode==='all')?'none':'all'; btns.loop?.classList.toggle('active', loopMode==='all'); btns.loop1?.classList.remove('active'); }
+    function toggleLoopOne(){ loopMode = (loopMode==='one')?'none':'one'; btns.loop1?.classList.toggle('active', loopMode==='one'); btns.loop?.classList.remove('active'); }
+    function toggleMute(){ audio.muted = !audio.muted; setMuteIcon(); }
 
-  playPause() {
-    if (!this.audio.src) return this.playAt(0);
-    if (this.audio.paused) {
-      this.audio.play().then(() => this._setPlayIcon(true)).catch(() => {});
-    } else {
-      this.audio.pause(); this._setPlayIcon(false);
-    }
-  }
-  stop() {
-    this.audio.pause();
-    try { this.audio.currentTime = 0; } catch {}
-    this._setPlayIcon(false);
-  }
-  prev() {
-    if (this.loopMode === 'one') return this.playAt(this.cursor);
-    this.playAt(this.cursor - 1);
-  }
-  next() {
-    if (this.loopMode === 'one') return this.playAt(this.cursor);
-    if (this.cfg.shuffle) {
-      let j = Math.floor(Math.random() * this.queue.length);
-      if (this.queue.length > 1 && j === this.cursor) j = (j + 1) % this.queue.length;
-      this.playAt(j);
-    } else {
-      const n = this.cursor + 1;
-      if (n >= this.queue.length) {
-        if (this.loopMode === 'all') return this.playAt(0);
-        this._setPlayIcon(false);
+    btns.play?.addEventListener('click', playPause);
+    btns.stop?.addEventListener('click', stop);
+    btns.prev?.addEventListener('click', prev);
+    btns.next?.addEventListener('click', next);
+    btns.shuffle?.addEventListener('click', toggleShuffle);
+    btns.loop?.addEventListener('click', toggleLoopAll);
+    btns.loop1?.addEventListener('click', toggleLoopOne);
+    btns.mute?.addEventListener('click', toggleMute);
+
+    seek?.addEventListener('input', ()=>{
+      if (!isFinite(audio.duration) || audio.duration<=0) return;
+      audio.currentTime = (seek.value/1000) * audio.duration;
+    });
+    if (isFinite(cfg.volume)) audio.volume = Math.min(1, Math.max(0, cfg.volume));
+    vol?.addEventListener('input', ()=>{ audio.volume = Math.min(1, Math.max(0, parseFloat(vol.value||'0.5'))); });
+
+    audio.addEventListener('timeupdate', paintTimes);
+    audio.addEventListener('durationchange', paintTimes);
+    audio.addEventListener('ended', next);
+
+    root.addEventListener('keydown', (e)=>{
+      if (e.code === 'Space'){ e.preventDefault(); playPause(); }
+      if (e.code === 'ArrowLeft') prev();
+      if (e.code === 'ArrowRight') next();
+      if (e.key.toLowerCase() === 'm') toggleMute();
+    });
+
+    if (cfg.autoplayMuted) { audio.muted = true; setMuteIcon(); const unmute=()=>{audio.muted=false; setMuteIcon(); window.removeEventListener('click', unmute, {once:true});}; window.addEventListener('click', unmute, {once:true}); }
+    setMuteIcon();
+
+    // Manifest + selects
+    async function getJSON(u){ try{ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw 0; return await r.json(); }catch{return null;} }
+    function fillSelect(sel, arr){ if (!sel) return; sel.innerHTML=''; arr.forEach((it,i)=>{ const o=document.createElement('option'); o.value=it.file; o.textContent=it.name||`Playlist ${i+1}`; sel.appendChild(o); }); }
+
+    async function loadM3U(path, isStation, stationMeta){
+      const url = isAbs(path) ? path : join(cfg.manifestUrl.replace(/\/manifest\.json$/i,''), path);
+      const txt = await fetch(url, {cache:'no-store'}).then(r=>r.ok?r.text():'');
+      const entries = parseM3U(txt);
+      if (!entries.length) return [];
+      if (isStation){
+        // station: one logical "track" with candidate URLs (some m3u list mirrors)
+        return [{
+          title: stationMeta?.title || 'Live Station',
+          isStream: true,
+          urls: entries.map(e => isAbs(e.url) ? e.url : join(cfg.audioBase, e.url)),
+          kind: stationMeta?.kind || stationMeta?.meta?.kind,
+          meta: stationMeta?.meta || stationMeta
+        }];
       } else {
-        this.playAt(n);
+        return entries.map(e => ({
+          title: e.title || e.url,
+          url: isAbs(e.url) ? e.url : join(cfg.audioBase, e.url),
+          isStream: false
+        }));
       }
     }
-  }
-  toggleShuffle() {
-    this.cfg.shuffle = !this.cfg.shuffle;
-    this.btns.shuffle?.classList.toggle('active', this.cfg.shuffle);
-  }
-  toggleLoopAll() {
-    this.loopMode = (this.loopMode === 'all') ? 'none' : 'all';
-    this.btns.loop?.classList.toggle('active', this.loopMode === 'all');
-    this.btns.loop1?.classList.remove('active');
-  }
-  toggleLoopOne() {
-    this.loopMode = (this.loopMode === 'one') ? 'none' : 'one';
-    this.btns.loop1?.classList.toggle('active', this.loopMode === 'one');
-    this.btns.loop?.classList.remove('active');
-  }
-  toggleMute() {
-    this.audio.muted = !this.audio.muted;
-    this._setMuteIcon();
-  }
-}
 
-/* Convenience helper: mount on a selector (first match). */
-export async function mountMusicPlayer(selector = '.mp-root', options = {}) {
-  const root = $(selector);
-  if (!root) throw new Error(`mountMusicPlayer: selector not found: ${selector}`);
-  const mp = new MusicPlayer(root, options);
-  await mp.init();
-  return mp;
-}
+    async function onPickStations(){
+      usingStations = true;
+      const idx = selStations?.selectedIndex ?? -1;
+      if (idx < 0) return;
+      const file = manifest.stations[idx].file;
+      const meta = manifest.stations[idx].meta || {};
+      const tracks = await loadM3U(file, true, { meta, kind: meta.kind, title: manifest.stations[idx].name });
+      queue = tracks; cursor = -1; renderQueue(); setNow('—','Radio'); if (cfg.autoplay) playAt(0);
+    }
+    async function onPickMusic(){
+      usingStations = false;
+      const file = selMusic?.value; if (!file) return;
+      let tracks = await loadM3U(file, false);
+      if (cfg.shuffle){ for(let i=tracks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tracks[i],tracks[j]]=[tracks[j],tracks[i]]; } }
+      queue = tracks; cursor = -1; renderQueue(); setNow('—','Playlist'); if (cfg.autoplay) playAt(0);
+    }
+
+    selStations?.addEventListener('change', onPickStations);
+    selMusic?.addEventListener('change', onPickMusic);
+
+    (async function init(){
+      setNow('—','—');
+      const mf = await getJSON(cfg.manifestUrl);
+      manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
+      manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
+      fillSelect(selStations, manifest.stations);
+      fillSelect(selMusic,    manifest.playlists);
+
+      btns.shuffle?.classList.toggle('active', cfg.shuffle);
+
+      // choose initial
+      let mode = cfg.startSource;
+      if (mode === 'auto'){
+        mode = (manifest.stations.length && manifest.playlists.length)
+                ? (Math.random() < 0.5 ? 'stations' : 'playlists')
+                : (manifest.stations.length ? 'stations' : 'playlists');
+      }
+      if (mode === 'stations' && manifest.stations.length){
+        selStations.selectedIndex = Math.floor(Math.random()*manifest.stations.length);
+        await onPickStations();
+      } else if (manifest.playlists.length) {
+        selMusic.selectedIndex = Math.floor(Math.random()*manifest.playlists.length);
+        await onPickMusic();
+      }
+
+      if (cfg.autoplay && !cfg.autoplayMuted && audio.paused) {
+        try { await audio.play(); } catch {
+          audio.muted = true; setMuteIcon();
+          try { await audio.play(); } catch {}
+        }
+      }
+    })();
+  };
+
+  // Auto-mount via custom event
+  document.addEventListener('mp:init', (ev) => {
+    const root = ev.target.closest('[data-mp]') || $('[data-mp]');
+    if (root) MusicPlayer.mount(root, ev.detail || {});
+  });
+
+  window.MusicPlayer = MusicPlayer;
+})();
