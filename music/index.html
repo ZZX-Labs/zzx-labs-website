@@ -1,93 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Music | ZZX-Labs R&D</title>
+  <title>Music · Streaming | ZZX-Labs R&D</title>
 
   <!-- Global -->
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="/static/script.js" defer></script>
 
-  <!-- Page-local -->
-  <link rel="stylesheet" href="/music/style.css" />
-  <link rel="stylesheet" href="/music/music-player.css" />
-  <script src="/music/music-player.js" defer></script>
-  <script src="/music/script.js" defer></script>
+  <!-- Local -->
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="/static/js/modules/music-player.css" />
+  <script src="/static/js/modules/music-player.js" defer></script>
 </head>
+
 <body class="page-music">
 <header>
   <div id="zzx-header"></div>
 </header>
 
 <main>
-  <br /><div id="ticker-container"></div><br />
+  <br />
+  <div id="ticker-container"></div>
+  <br />
 
   <section class="container">
-    <h2>Music</h2>
-    <p class="muted">Streaming playlists and radio stations (M3U) — local-friendly and GitHub Pages–aware.</p>
-  </section>
+    <h2>Music Stream Player</h2>
+    <p>
+      Experimental streaming &amp; playlist engine.  
+      Select from curated radio stations or local playlists to accompany your ZZX-Labs environment.
+    </p>
 
-  <section class="container">
     <div class="mp-shell">
+      <!-- Player widget -->
       <div class="mp-root" data-mp
            data-manifest-url="/static/audio/music/playlists/manifest.json"
            data-audio-base="/static/audio/music/"
            data-autoplay="1"
            data-autoplay-muted="1"
-           data-shuffle="1"
-           data-volume="0.35"
-           data-start-source="auto">
-
-        <div class="mp-top">
-          <div class="mp-now">
-            <div class="mp-title mono">—</div>
-            <div class="mp-sub small">—</div>
-          </div>
-          <div class="mp-controls" role="toolbar" aria-label="Playback controls">
-            <button class="mp-btn" data-act="prev"    title="Previous (⟵)">⏮</button>
-            <button class="mp-btn" data-act="play"    title="Play/Pause (Space)">▶</button>
-            <button class="mp-btn" data-act="stop"    title="Stop">⏹</button>
-            <button class="mp-btn" data-act="next"    title="Next (⟶)">⏭</button>
-            <button class="mp-btn" data-act="shuffle" title="Shuffle">🔀</button>
-            <button class="mp-btn" data-act="loop"    title="Loop all">🔁</button>
-            <button class="mp-btn" data-act="loop1"   title="Loop one">🔂</button>
-            <button class="mp-btn" data-act="mute"    title="Mute/Unmute">🔇</button>
-          </div>
-        </div>
-
-        <div class="mp-middle">
-          <div class="mp-time mono"><span data-cur>00:00</span> / <span data-dur>—</span></div>
-          <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
-          <div class="mp-vol"><input type="range" class="mp-volume" min="0" max="1" step="0.01" value="0.35" aria-label="Volume"></div>
-        </div>
-
-        <div class="mp-bottom">
-          <div class="mp-left">
-            <label class="small" for="mp-pl-stations">Radio Stations (.m3u)</label>
-            <select id="mp-pl-stations" class="mp-pl mp-pl-stations"></select>
-
-            <label class="small" for="mp-pl-music" style="margin-top:.6rem;display:block;">Playlists (.m3u)</label>
-            <select id="mp-pl-music" class="mp-pl mp-pl-music"></select>
-          </div>
-
-          <div class="mp-right">
-            <label class="small">Tracks</label>
-            <ul class="mp-list" role="listbox" aria-label="Tracks"></ul>
-          </div>
-        </div>
-
+           data-shuffle="0"
+           data-volume="0.4">
+        <!-- Injected UI -->
       </div>
     </div>
   </section>
 
   <section class="container backlinks">
-    <a class="btn alt" href="/">← Home</a>
+    <a class="btn alt" href="/projects/">← Back to Projects</a>
   </section>
 </main>
 
 <footer>
   <div id="zzx-footer"></div>
 </footer>
+
+<script>
+  // Initialize player once page fully loads
+  window.addEventListener('DOMContentLoaded', () => {
+    const root = document.querySelector('[data-mp]');
+    if (root && window.MusicPlayer) {
+      window.MusicPlayer.mount(root, {
+        manifestUrl: '/static/audio/music/playlists/manifest.json',
+        audioBase: '/static/audio/music/',
+        autoplay: true,
+        autoplayMuted: true,
+        shuffle: false,
+        volume: 0.4
+      });
+    }
+  });
+</script>
 </body>
 </html>
