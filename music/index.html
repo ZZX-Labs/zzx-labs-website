@@ -6,53 +6,58 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Music · ZZX-Labs R&D</title>
 
-  <!-- Global site assets -->
+  <!-- Global -->
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="/static/script.js" defer></script>
 
-  <!-- Page-local styles -->
+  <!-- Page-local CSS -->
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./music-player.zzx-skin.css" />
 
-  <!-- Player module -->
-  <script type="module" src="/static/js/modules/music-player.js" defer></script>
+  <!-- Player core (IIFE) -->
+  <script src="/static/js/modules/music-player.js" defer></script>
+
+  <!-- Page boot (dispatches mp:init and sets data-attrs) -->
+  <script src="./script.js" defer></script>
 </head>
 
 <body class="page-music">
-  <header>
-    <div id="zzx-header"></div>
-  </header>
+<header>
+  <div id="zzx-header"></div>
+</header>
 
-  <main>
-    <section class="container">
-      <h2>ZZX-Labs Ambient &amp; Streaming Audio</h2>
-      <p>
-        A curated selection of ZZX-Labs ambient soundtracks, thematic playlists, and partner radio streams.
-      </p>
+<main>
+  <section class="container">
+    <h2>ZZX-Labs Ambient &amp; Streaming Audio</h2>
+    <p>A curated selection of ZZX-Labs ambient soundtracks, thematic playlists, and partner radio streams.</p>
 
-      <div class="mp-shell">
-        <!-- Music Player Component -->
-        <div class="mp-root" data-mp
-             data-manifest-url="/static/audio/music/playlists/manifest.json"
-             data-audio-base="/static/audio/music/"
-             data-autoplay="1"
-             data-autoplay-muted="1"
-             data-shuffle="0"
-             data-volume="0.35"
-             data-start-source="auto">
-        </div>
+    <div class="mp-shell">
+      <!-- Music Player Component -->
+      <div class="mp-root" data-mp
+           data-manifest-url="/static/audio/music/playlists/manifest.json"
+           data-audio-base="/static/audio/music/"
+           data-autoplay="1"
+           data-autoplay-muted="1"
+           data-shuffle="0"
+           data-volume="0.35"
+           data-start-source="auto">
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section class="container cta">
-      <h3>Submit or Curate a Playlist</h3>
-      <p>Want your ambient or experimental work featured? Contribute an .m3u playlist or radio URL via encrypted contact.</p>
-      <a class="btn" href="/contact">Contact ZZX-Labs</a>
-    </section>
-  </main>
+  <section class="container cta">
+    <h3>Submit or Curate a Playlist</h3>
+    <p>Want your ambient or experimental work featured? Contribute an .m3u playlist or radio URL via encrypted contact.</p>
+    <a class="btn" href="/contact">Contact ZZX-Labs</a>
+  </section>
+</main>
 
-  <footer>
-    <div id="zzx-footer"></div>
-  </footer>
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+
+<noscript>
+  <div class="container"><p class="muted">This music player requires JavaScript.</p></div>
+</noscript>
 </body>
 </html>
