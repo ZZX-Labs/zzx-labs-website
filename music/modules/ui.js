@@ -1,4 +1,4 @@
-// ui.js — build shell + list rendering + helpers
+// /music/modules/ui.js — build shell + list rendering + helpers
 import { $, $$ } from './utils.js';
 
 export function buildShell(root, initialVolume){
@@ -10,7 +10,6 @@ export function buildShell(root, initialVolume){
       </div>
 
       <div class="mp-controls" role="toolbar" aria-label="Controls">
-        <!-- Slide toggle, left-most -->
         <div class="mp-switch" role="group" title="Toggle Radio / Playlists">
           <button class="mp-switch-knob" data-src-toggle aria-pressed="true" aria-label="Radio / Playlists"></button>
         </div>
@@ -32,19 +31,14 @@ export function buildShell(root, initialVolume){
     </div>
 
     <div class="mp-meter" id="vu">
-      <div class="vu-scale"><span class="left">0 dB</span><span class="right">+6 dB</span></div>
       <div class="vu-rows">
         <div class="vu-row">
           <div class="vu-ch">L</div>
-          <div class="vu-bar">
-            ${hbar('L')}
-          </div>
+          <div class="vu-bar">${hbar('L')}</div>
         </div>
         <div class="vu-row">
           <div class="vu-ch">R</div>
-          <div class="vu-bar">
-            ${hbar('R')}
-          </div>
+          <div class="vu-bar">${hbar('R')}</div>
         </div>
       </div>
       <div class="mp-vol">
@@ -70,7 +64,6 @@ export function buildShell(root, initialVolume){
 }
 
 function hbar(side){
-  // 6 green, 1 yellow, 1 red (full width)
   const spans=[];
   for(let i=0;i<6;i++) spans.push(`<span class="hled g" data-hled-${side}${i}></span>`);
   spans.push(`<span class="hled y" data-hled-${side}6></span>`);
@@ -80,6 +73,7 @@ function hbar(side){
 
 function refs(root){
   return {
+    root,
     titleEl: $('[data-title]', root),
     subEl:   $('[data-sub]', root),
     timeCur: $('[data-cur]', root),
@@ -161,4 +155,32 @@ export function highlightList(refs, cursor, usingStations){
   if (!refs.list) return;
   $$('.active', refs.list).forEach(li => li.classList.remove('active'));
   if (cursor >= 0) refs.list.children[cursor + (usingStations ? 1 : 0)]?.classList.add('active');
+}
+
+export function setMuteIcon(refs, audio){
+  if (refs.btn?.mute) refs.btn.mute.textContent = audio?.muted ? '🔇' : '🔊';
+}
+
+export function setPlayIcon(refs, on){
+  if (refs.btn?.play) refs.btn.play.textContent = on ? '⏸' : '▶';
+}
+
+export function paintTimes(refs, audio, fmtTime){
+  const t = (el, txt)=>{ if (el) el.textContent = txt; };
+  t(refs.timeCur, fmtTime(audio.currentTime));
+  t(refs.timeDur, isFinite(audio.duration) ? fmtTime(audio.duration) : '—');
+  if (refs.seek && isFinite(audio.duration) && audio.duration>0) {
+    refs.seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
+  }
+}
+
+export function fillSelect(selEl, arr){
+  if (!selEl) return;
+  selEl.innerHTML = '';
+  arr.forEach((it,i)=>{
+    const o=document.createElement('option');
+    o.value = it.file;
+    o.textContent = it.name || `Item ${i+1}`;
+    selEl.appendChild(o);
+  });
 }
