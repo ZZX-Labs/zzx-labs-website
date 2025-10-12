@@ -2,7 +2,7 @@
 import { repoPrefix, $, $$, clamp01, isAbs, join, fmtTime } from './modules/utils.js';
 import { loadM3U } from './modules/m3u.js';
 import { fetchStreamMeta, fetchTrackMeta } from './modules/metadata.js';
-import { ensureMeter } from './modules/audio-meter.js';
+import { ensureMeter } from './modules/meter.js';              // <— updated import
 import { buildShell, setNow, renderPlaylistList, renderRadioList, updateRadioNow, highlightList } from './modules/ui.js';
 
 const root = document.querySelector('[data-mp]');
@@ -142,7 +142,6 @@ function wireControls(refs){
   }
   setMuteIcon(refs);
 
-  // selects
   refs.sel.stations?.addEventListener('change', ()=> onPickStations(refs,false));
   refs.sel.playlists?.addEventListener('change', ()=> onPickMusic(refs,false));
 }
@@ -302,4 +301,4 @@ async function pollOnce(refs, stationTitle){
       }
     }
   } catch {}
-  }
+                                                                   }
