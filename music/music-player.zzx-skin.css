@@ -41,8 +41,8 @@
 /* Controls — keep on one line incl. mute; allow horizontal scroll if too tight */
 .mp-controls{
   display:flex; align-items:center; gap:.45rem;
-  flex-wrap:nowrap;            /* <- no wrapping */
-  overflow-x:auto;             /* <- fallback for very narrow screens */
+  flex-wrap:nowrap;            /* no wrapping */
+  overflow-x:auto;             /* fallback for very narrow screens */
   -webkit-overflow-scrolling:touch;
   scrollbar-width:thin;
 }
@@ -118,24 +118,32 @@
 .mp-vol input[type="range"]{ width:100%; accent-color:var(--zzx-accent); }
 
 /* Bottom layout (lists) */
-.mp-bottom{ display:grid; gap:1.05rem; grid-template-columns:340px 1fr; }
+.mp-bottom{
+  display:grid; gap:1.05rem; grid-template-columns:340px 1fr;
+  align-items:start;                 /* don't let right column push left */
+}
 @media (max-width: 900px){ .mp-bottom{ grid-template-columns:1fr; } }
 
+.mp-left{ min-width:260px; }
 .mp-left label{ display:block; margin-bottom:.35rem; color:var(--mp-dim); }
 .mp-pl{
-  width:100%; background:var(--mp-bg-2); color:var(--mp-fg);
+  width:100%; max-width:100%;
+  background:var(--mp-bg-2); color:var(--mp-fg);
   border:1px solid var(--zzx-border); border-radius:9px; padding:.5rem .65rem; font-size:.96rem;
 }
 .mp-pl.is-disabled{ opacity:.45; pointer-events:none; }
 
+/* Right side never overflows the grid */
+.mp-right{ min-width:0; overflow:hidden; }
 .mp-right .mp-list{
   list-style:none; margin:0; padding:0; border:1px solid var(--zzx-border);
   border-radius:10px; background:var(--mp-bg-2);
-  max-height:330px; overflow:auto;
+  max-height:330px; overflow:auto; max-width:100%;
 }
 @media (max-width: 480px){
   .mp-right .mp-list{ max-height: 48vh; } /* prevent spill below the fold */
 }
+
 .mp-list li{
   display:flex; justify-content:space-between; align-items:center;
   padding:.58rem .7rem; border-bottom:1px solid var(--zzx-border-soft); cursor:pointer;
@@ -143,12 +151,32 @@
 .mp-list li:last-child{ border-bottom:0; }
 .mp-list li:hover{ background:rgba(255,255,255,.03); }
 .mp-list li.active{ background:linear-gradient(180deg,#0f1722,#0c131c); box-shadow:inset 0 0 0 1px rgba(192,214,116,.12); }
-.mp-list .t{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+
+/* Text column is flexible and can shrink; show ellipsis by default */
+.mp-list .t{
+  flex:1 1 auto;
+  min-width:0;                     /* allow shrink inside flex */
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+/* Length column stays tight */
 .mp-list .len{
+  flex:0 0 auto;
   color:var(--mp-dim);
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size:.9rem;
+  margin-left:.6rem;
 }
+
+/* When active or hovered, allow horizontal scroll to read long titles */
+.mp-list li.active .t,
+.mp-list li:hover .t{
+  overflow:auto;
+}
+/* optional nicer scrollbar for the horizontal scroll */
+.mp-list li .t::-webkit-scrollbar{ height:6px; }
+.mp-list li .t::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.18); border-radius:6px; }
 
 /* Small screens: tighten typography & spacing a touch */
 @media (max-width: 560px){
