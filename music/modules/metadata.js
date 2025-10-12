@@ -1,12 +1,77 @@
-// /music/modules/metadata.js
+// /music/modules/metadata.js — front-end only, AllOrigins-capable metadata
 import { corsWrap, normalizeNow } from './utils.js';
+
+/* ===================== AllOrigins-aware proxy helpers ===================== */
+const AO_BASE = 'https://api.allorigins.win';
+
+function aoWrap(url, mode = 'raw') {
+  const enc = encodeURIComponent(url);
+  // disableCache so "now playing" endpoints aren't sticky
+  return `${AO_BASE}/${mode === 'json' ? 'get' : 'raw'}?url=${enc}&disableCache=true`;
+}
+
+/**
+ * Wrap a URL using:
+ *  - "allorigins" | "allorigins-raw"  -> AllOrigins RAW
+ *  - "allorigins-json"                -> AllOrigins JSON wrapper ({ contents, status })
+ *  - any other non-empty string       -> prefix-style fallback (utils.corsWrap)
+ *  - falsy                            -> AllOrigins RAW (safe front-end default)
+ */
+function wrapProxy(proxy, url, prefer = 'raw') {
+  if (!url) return '';
+  if (!proxy) return aoWrap(url, prefer);
+  const p = String(proxy).toLowerCase();
+  if (p.startsWith('allorigins')) return aoWrap(url, p.includes('json') ? 'json' : 'raw');
+  return corsWrap(proxy, url); // legacy/prefix proxies: "https://proxy/?"
+}
+
+async function fetchTextViaProxy(url, proxy) {
+  try {
+    const p = String(proxy || '').toLowerCase();
+    if (p.startsWith('allorigins')) {
+      // Try RAW first
+      const r1 = await fetch(aoWrap(url, 'raw'), { cache: 'no-store' });
+      if (r1.ok) return await r1.text();
+      // Fallback: JSON wrapper -> .contents
+      const r2 = await fetch(aoWrap(url, 'json'), { cache: 'no-store' });
+      if (!r2.ok) return '';
+      const j = await r2.json();
+      return String(j?.contents || '');
+    }
+    const r = await fetch(wrapProxy(proxy, url, 'raw'), { cache: 'no-store' });
+    return r.ok ? await r.text() : '';
+  } catch { return ''; }
+}
+
+async function fetchJSONViaProxy(url, proxy) {
+  try {
+    const p = String(proxy || '').toLowerCase();
+    if (p.startsWith('allorigins')) {
+      // RAW first (works if target replies with application/json)
+      try {
+        const r1 = await fetch(aoWrap(url, 'raw'), { cache: 'no-store' });
+        if (r1.ok) return await r1.json();
+      } catch {}
+      // Fallback: JSON wrapper -> parse contents
+      const r2 = await fetch(aoWrap(url, 'json'), { cache: 'no-store' });
+      if (!r2.ok) return null;
+      const j = await r2.json();
+      const txt = j?.contents || '';
+      if (!txt) return null;
+      try { return JSON.parse(txt); } catch { return null; }
+    }
+    const r = await fetch(wrapProxy(proxy, url, 'raw'), { cache: 'no-store' });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
 
 /* ===================== PUBLIC API ===================== */
 export async function fetchStreamMeta(streamUrl, proxy){
-  // Try station status endpoints first; if none, fall back to ICY in-band tags
+  // 1) Try station status endpoints (Icecast/Shoutcast/Radio.co)
   const fromStatus = await fetchFromStationStatus(streamUrl, proxy);
   if (fromStatus && (fromStatus.now || fromStatus.title)) return fromStatus;
 
+  // 2) Fallback: one-shot ICY metadata read
   const fromIcy = await fetchICYOnce(streamUrl, proxy);
   if (fromIcy && (fromIcy.now || fromIcy.title)) return fromIcy;
 
@@ -18,12 +83,12 @@ export async function fetchTrackMeta(track, proxy){
   if (!url) return null;
   const lower = url.toLowerCase();
 
-  // MP3 ID3
+  // MP3 ID3v2
   if (/\.(mp3)(\?|#|$)/.test(lower)){
     const id3 = await fetchID3v2(url);
     if (id3 && (id3.title || id3.artist)) return id3;
   }
-  // Vorbis/Opus/FLAC
+  // Vorbis/Opus/FLAC comments
   if (/\.(ogg|opus|oga|flac)(\?|#|$)/.test(lower)){
     const vorb = await fetchVorbis(url);
     if (vorb && (vorb.title || vorb.artist)) return vorb;
@@ -33,63 +98,64 @@ export async function fetchTrackMeta(track, proxy){
     const oem = await fetchOEmbed(url, proxy);
     if (oem && (oem.title || oem.artist)) return oem;
   }
-  // Optional vendor fallback (only if you've included jsmediatags)
+  // Optional: jsmediatags (if included on page)
   const jmt = await readViaJsMediaTags(url, proxy);
   if (jmt && (jmt.title || jmt.artist)) return jmt;
 
-  // Final fallback: filename or EXTINF
+  // Fallback: filename or EXTINF
   return { title: track.title || titleFromFilename(url), artist: '', album: '' };
 }
 
 /* ===================== RADIO STATUS HELPERS ===================== */
-
 async function fetchFromStationStatus(streamUrl, proxy){
   try {
     const u = new URL(streamUrl, location.href);
     const base = `${u.protocol}//${u.host}`;
 
     const candidates = [
-      corsWrap(proxy, `${base}/status-json.xsl`),    // Icecast JSON
-      corsWrap(proxy, `${base}/status.xsl?json=1`),  // Alt Icecast JSON
-      corsWrap(proxy, `${base}/stats?sid=1&json=1`), // Shoutcast v2 JSON
-      corsWrap(proxy, guessRadioCoStatus(u)),        // Radio.co JSON
-      corsWrap(proxy, `${base}/7.html`)              // Shoutcast v1 plaintext
+      `${base}/status-json.xsl`,     // Icecast JSON
+      `${base}/status.xsl?json=1`,   // Alt Icecast JSON
+      `${base}/stats?sid=1&json=1`,  // Shoutcast v2 JSON
+      guessRadioCoStatus(u),         // Radio.co JSON
+      `${base}/7.html`               // Shoutcast v1 plaintext
     ].filter(Boolean);
 
-    for (const url of candidates){
-      const isJson = /(\.xsl$|json=1|public\.radio\.co)/.test(url);
-      const data = isJson ? await getJSON(url) : await getText(url);
-      if (!data) continue;
+    for (const raw of candidates){
+      const isJson = /(\.xsl$|json=1|public\.radio\.co)/.test(raw);
 
-      // Icecast JSON — pick the mount that actually matches the stream
-      if (isJson && typeof data === 'object' && data.icestats) {
-        const src = data.icestats.source;
-        const arr = Array.isArray(src) ? src : (src ? [src] : []);
-        const hit = pickBestIcecastSource(arr, u);
-        if (hit) {
-          const title = hit.server_name || hit.title || '';
-          // Common Icecast fields: artist/title OR "artist - title" in 'title'
-          const now = (hit.artist && hit.title)
-            ? `${hit.artist} - ${hit.title}`
-            : (hit.title || '');
-          if (title || now) return { title, now: normalizeNow(now) };
+      if (isJson) {
+        const data = await fetchJSONViaProxy(raw, proxy);
+        if (!data) continue;
+
+        // Icecast JSON
+        if (data.icestats) {
+          const src = data.icestats.source;
+          const arr = Array.isArray(src) ? src : (src ? [src] : []);
+          const hit = pickBestIcecastSource(arr, u);
+          if (hit) {
+            const title = hit.server_name || hit.title || '';
+            const now = (hit.artist && hit.title)
+              ? `${hit.artist} - ${hit.title}`
+              : (hit.title || '');
+            if (title || now) return { title, now: normalizeNow(now) };
+          }
         }
-      }
 
-      // Shoutcast v2 JSON
-      if (isJson && (data?.servertitle || data?.songtitle)) {
-        return { title: data.servertitle || '', now: normalizeNow(data.songtitle || '') };
-      }
+        // Shoutcast v2 JSON
+        if (data?.servertitle || data?.songtitle) {
+          return { title: data.servertitle || '', now: normalizeNow(data?.songtitle || '') };
+        }
 
-      // Radio.co JSON
-      if (isJson && (data?.current_track || data?.name)) {
-        const now = data.current_track?.title_with_artists || data.current_track?.title || '';
-        return { title: data.name || '', now: normalizeNow(now) };
-      }
-
-      // Shoutcast v1 /7.html
-      if (typeof data === 'string' && (url.endsWith('/7.html') || url.includes('/7.html?'))) {
-        const m = data.match(/<body[^>]*>([^<]*)<\/body>/i) || data.match(/(.*,){6}(.+)/);
+        // Radio.co JSON
+        if (data?.current_track || data?.name) {
+          const now = data.current_track?.title_with_artists || data.current_track?.title || '';
+          return { title: data.name || '', now: normalizeNow(now) };
+        }
+      } else {
+        // Shoutcast v1 /7.html
+        const txt = await fetchTextViaProxy(raw, proxy);
+        if (!txt) continue;
+        const m = txt.match(/<body[^>]*>([^<]*)<\/body>/i) || txt.match(/(.*,){6}(.+)/);
         if (m) {
           const parts = String(m[1] || m[2] || '').split(',');
           const song = parts.pop()?.trim();
@@ -101,47 +167,44 @@ async function fetchFromStationStatus(streamUrl, proxy){
   return null;
 }
 
-// Prefer the source that matches host/port/path of the actual stream mount
+// Prefer the source that matches the actual mount
 function pickBestIcecastSource(sources, streamURL){
   if (!Array.isArray(sources) || !sources.length) return null;
-
-  // Normalize comparison helpers
-  const sameHostPort = (a,b) => (a.host === b.host) && (a.port === b.port);
   const pathTail = (p) => (p || '').toLowerCase().replace(/\/+$/,'');
   const want = {
     host: streamURL.hostname,
     port: streamURL.port || (streamURL.protocol === 'https:' ? '443' : '80'),
     path: pathTail(streamURL.pathname)
   };
-
-  // Try to match listenurl or 'listenurl'/'server_url' + 'server_name'
   let best = null;
-
   for (const s of sources){
-    const listen = pathTail(s.listenurl || '');
-    const lHost  = (()=>{ try{ return new URL(listen, streamURL).hostname; }catch{ return ''; }})();
-    const lPort  = (()=>{ try{ const u=new URL(listen, streamURL); return u.port || (u.protocol==='https:'?'443':'80'); }catch{ return ''; }})();
-    const lPath  = (()=>{ try{ return pathTail(new URL(listen, streamURL).pathname); }catch{ return ''; }})();
-
-    if (listen && lPath && lPath === want.path && lHost && lPort && lHost === want.host && lPort === want.port) {
-      return s; // exact mount match
-    }
-    // otherwise remember first non-empty source as fallback
+    const listen = s.listenurl || '';
+    let lHost='', lPort='', lPath='';
+    try {
+      const u = new URL(listen, streamURL);
+      lHost = u.hostname;
+      lPort = u.port || (u.protocol === 'https:' ? '443' : '80');
+      lPath = pathTail(u.pathname);
+    } catch {}
+    if (listen && lPath === want.path && lHost === want.host && lPort === want.port) return s;
     if (!best) best = s;
   }
   return best || sources[0];
 }
 
+function guessRadioCoStatus(u){
+  const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
+  return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
+}
+
 /* ===================== ICY (in-band) FALLBACK ===================== */
 async function fetchICYOnce(streamUrl, proxy){
-  // We DO NOT touch the <audio>. We open a separate proxied request and stop
-  // as soon as we read one ICY metadata block.
   try {
     const ctrl = new AbortController();
-    const url = corsWrap(proxy, streamUrl);
+    const url = wrapProxy(proxy, streamUrl, 'raw');
     const r = await fetch(url, {
       method: 'GET',
-      headers: { 'Icy-MetaData': '1' }, // ask server to send metadata
+      headers: { 'Icy-MetaData': '1' },
       cache: 'no-store',
       signal: ctrl.signal
     });
@@ -151,29 +214,22 @@ async function fetchICYOnce(streamUrl, proxy){
     if (!metaint || !r.body) return null;
 
     const reader = r.body.getReader();
-    let bytesRead = 0;
-    let audioSkip = metaint;
 
-    // 1) Skip 'metaint' bytes of audio data…
-    while (audioSkip > 0) {
+    // 1) Skip metaint bytes of audio
+    let remain = metaint;
+    while (remain > 0) {
       const { done, value } = await reader.read();
       if (done) return null;
-      const take = Math.min(audioSkip, value.length);
-      audioSkip -= take;
-      // if the chunk had more than we needed to skip, keep the remainder for next step:
-      if (value.length > take) {
-        // put back remainder by faking a small buffer next
-        // (simplify: keep reading; spec rarely splits exactly here)
-      }
+      remain -= value.length;
     }
 
-    // 2) Next 1 byte gives metadata length (in 16-byte blocks)
+    // 2) Next byte is metadata length in 16-byte blocks
     const metaLenByte = await readExact(reader, 1);
     if (!metaLenByte) return null;
     const metaLen = metaLenByte[0] * 16;
     if (!metaLen) { ctrl.abort(); return null; }
 
-    // 3) Read metadata block and parse StreamTitle='...';
+    // 3) Read metadata
     const metaBuf = await readExact(reader, metaLen);
     ctrl.abort();
 
@@ -183,14 +239,11 @@ async function fetchICYOnce(streamUrl, proxy){
     if (!raw) return null;
 
     return { title: '', now: normalizeNow(raw) };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function readExact(reader, n){
-  const chunks = [];
-  let need = n;
+  const chunks = []; let need = n;
   while (need > 0) {
     const { done, value } = await reader.read();
     if (done) return null;
@@ -208,14 +261,6 @@ async function readExact(reader, n){
   return out;
 }
 
-/* ===================== Generic helpers ===================== */
-function guessRadioCoStatus(u){
-  const m = u.pathname.match(/\/(s[0-9a-f]{10})/i) || u.host.match(/(s[0-9a-f]{10})/i);
-  return m ? `https://public.radio.co/stations/${m[1]}/status` : '';
-}
-async function getJSON(url){ try{ const r=await fetch(url,{cache:'no-store'}); return r.ok? r.json():null; }catch{ return null; } }
-async function getText(url){ try{ const r=await fetch(url,{cache:'no-store'}); return r.ok? r.text():''; }catch{ return ''; } }
-
 /* ===================== Playlist/file metadata ===================== */
 function isYouTube(u){
   try{ const x=new URL(u, location.href); return /(^|\.)youtube\.com$/.test(x.hostname)||/(^|\.)youtu\.be$/.test(x.hostname);}catch{return false;}
@@ -229,15 +274,17 @@ function titleFromFilename(u){
     return decodeURIComponent(p.replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ').trim());
   }catch{ return ''; }
 }
+
+/* ===================== Local tag readers (ID3, Vorbis, oEmbed) ===================== */
 function synchsafeToInt(a,b,c,d){ return (a<<21)|(b<<14)|(c<<7)|d; }
 function decodeID3Text(buf, offset, length){
   const enc = new DataView(buf, offset, 1).getUint8(0);
   const bytes = new Uint8Array(buf, offset+1, length-1);
-  if (enc === 0x00) return new TextDecoder('latin1').decode(bytes).replace(/\0+$/,'').trim();
-  if (enc === 0x01 || enc === 0x02){
-    try{ return new TextDecoder('utf-16').decode(bytes).replace(/\0+$/,'').trim(); }catch{ return ''; }
-  }
-  if (enc === 0x03) return new TextDecoder('utf-8').decode(bytes).replace(/\0+$/,'').trim();
+  try{
+    if (enc === 0x00) return new TextDecoder('latin1').decode(bytes).replace(/\0+$/,'').trim();
+    if (enc === 0x01 || enc === 0x02) return new TextDecoder('utf-16').decode(bytes).replace(/\0+$/,'').trim();
+    if (enc === 0x03) return new TextDecoder('utf-8').decode(bytes).replace(/\0+$/,'').trim();
+  }catch{}
   return '';
 }
 async function fetchID3v2(url){
@@ -300,9 +347,8 @@ async function fetchOEmbed(url, proxy){
       api = `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(url)}`;
     }
     if (!api) return null;
-    const r = await fetch(corsWrap(proxy, api), { cache:'no-store' });
-    if (!r.ok) return null;
-    const j = await r.json();
+    const j = await fetchJSONViaProxy(api, proxy);
+    if (!j) return null;
     return { title: j.title||'', artist: j.author_name||'', album:'' };
   }catch{}
   return null;
@@ -313,9 +359,10 @@ function haveJsMediaTags(){
 async function readViaJsMediaTags(url, proxy){
   if (!haveJsMediaTags()) return null;
 
+  // If a prefix proxy is provided, pass the URL through it so jsmediatags can fetch cross-origin
   const src = proxy
-    ? (proxy.includes('?') ? proxy + encodeURIComponent(url)
-                           : proxy.replace(/\/+$/,'') + '/' + url)
+    ? (proxy.includes('?') ? (proxy + encodeURIComponent(url))
+                           : (proxy.replace(/\/+$/,'') + '/' + url.replace(/^\/+/, '')))
     : url;
 
   return new Promise((resolve) => {
@@ -335,4 +382,4 @@ async function readViaJsMediaTags(url, proxy){
       resolve(null);
     }
   });
-        }
+  }
