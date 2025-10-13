@@ -71,7 +71,6 @@ function hbar(side){
   return spans.join('');
 }
 
-/* Exported: used by player.js */
 export function getRefs(root){
   return {
     root,
@@ -105,64 +104,36 @@ export function setNow(refs, t, s='—'){
   if (refs.subEl)   refs.subEl.textContent   = s || '—';
 }
 
-/* Keep existing name… */
-export function renderPlaylistList(refs, tracks, onPick){
-  if (!refs.list) return;
-  refs.list.innerHTML = '';
-  tracks.forEach((t,i)=>{
-    const li = document.createElement('li');
-    const left = document.createElement('div'); left.className='t';
-    left.textContent = `${String(i+1).padStart(2,'0')} — ${t.title || `Track ${i+1}`}`;
-    const right = document.createElement('div'); right.className='len mono'; right.textContent = '';
-    li.appendChild(left); li.appendChild(right);
-    li.addEventListener('click', ()=> onPick(i));
-    refs.list.appendChild(li);
-  });
-}
-
-/* …and also export the alias the player expects */
-export function renderPlaylist(refs, tracks, onPick){
-  return renderPlaylistList(refs, tracks, onPick);
-}
-
-/* --- helpers for the radio list --- */
+/* --- list rendering --- */
 function liveText(n){
   const num = Number.isFinite(n) ? n : Number.parseInt(String(n ?? ''), 10);
   return Number.isFinite(num) ? `${num.toLocaleString?.() ?? num} • LIVE` : 'LIVE';
 }
 
-/**
- * stationTitle   -> the station name
- * nowTitle       -> lastPlaying text (from channels.json)
- * history[]      -> prior now-playing strings
- * listeners      -> number (optional) for “123 • LIVE”
- */
 export function renderRadioList(refs, stationTitle, nowTitle, history=[], listeners){
   if (!refs.list) return;
   refs.list.innerHTML = '';
 
-  // Row 0: station + listeners • LIVE
+  // Row 0 — station title + listeners
   const liStation = document.createElement('li');
-  const Ls = document.createElement('div'); Ls.className='t';   Ls.textContent = stationTitle || 'Live Station';
+  const Ls = document.createElement('div'); Ls.className='t'; Ls.textContent = stationTitle || 'Live Station';
   const Rs = document.createElement('div'); Rs.className='len mono'; Rs.textContent = liveText(listeners);
   liStation.appendChild(Ls); liStation.appendChild(Rs);
   refs.list.appendChild(liStation);
 
-  // Row 1: lastPlaying
+  // Row 1 — now playing
   const liNow = document.createElement('li');
   liNow.setAttribute('data-now', '1');
-  const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = nowTitle || '—';
+  const Ln = document.createElement('div'); Ln.className='t'; Ln.textContent = nowTitle || '—';
   const Rn = document.createElement('div'); Rn.className='len mono'; Rn.textContent = '';
   liNow.appendChild(Ln); liNow.appendChild(Rn);
   refs.list.appendChild(liNow);
 
-  // History (newest last)
+  // History rows
   for (let i = history.length - 1; i >= 0; i--){
     const hli = document.createElement('li');
-    const hl  = document.createElement('div'); hl.className='t';
-    const hr  = document.createElement('div'); hr.className='len mono';
-    hl.textContent = history[i];
-    hr.textContent = '';
+    const hl  = document.createElement('div'); hl.className='t'; hl.textContent = history[i];
+    const hr  = document.createElement('div'); hr.className='len mono'; hr.textContent = '';
     hli.appendChild(hl); hli.appendChild(hr);
     refs.list.appendChild(hli);
   }
@@ -196,9 +167,8 @@ export function paintTimes(refs, audio, fmtTime){
   const t = (el, txt)=>{ if (el) el.textContent = txt; };
   t(refs.timeCur, fmtTime(audio.currentTime));
   t(refs.timeDur, isFinite(audio.duration) ? fmtTime(audio.duration) : '—');
-  if (refs.seek && isFinite(audio.duration) && audio.duration>0) {
+  if (refs.seek && isFinite(audio.duration) && audio.duration>0)
     refs.seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
-  }
 }
 
 export function fillSelect(selEl, arr){
