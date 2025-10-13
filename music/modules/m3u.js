@@ -1,41 +1,17 @@
-// /music/modules/m3u.js — parse & loader helpers (robust M3U + PLS + nested; proxy-aware)
+// /music/modules/m3u.js — parse & loader helpers (robust M3U + PLS + nested)
 import { isAbs, join } from './utils.js';
-import { fetchTextViaProxy } from './cors.js';
 
 /* -------------------------------- low-level fetch -------------------------------- */
-function sameOrigin(u){
-  try {
-    const loc = (typeof location !== 'undefined') ? location : null;
-    if (!loc) return true; // assume ok in non-DOM envs
-    return new URL(u, loc.href).origin === loc.origin;
-  } catch {
-    return true;
-  }
-}
-
-/**
- * Text fetch that gracefully uses the public proxy for cross-origin playlists (if provided).
- * proxy examples: 'allorigins-raw' | 'allorigins-json' | 'https://api.allorigins.win/raw?url=' | '' (disabled)
- */
-export async function fetchText(url, proxy){
+async function fetchText(url){
   try{
     if (!url) return '';
-    if (proxy && !sameOrigin(url)) {
-      const txt = await fetchTextViaProxy(url, proxy);
-      return typeof txt === 'string' ? txt : '';
-    }
-    const r = await fetch(url, { cache: 'no-store' });
+    const r = await fetch(url, { cache:'no-store' });
     return r.ok ? await r.text() : '';
   }catch{ return ''; }
 }
 
 /* --------------------------------- M3U parser ----------------------------------- */
-/**
- * Basic M3U/EXTM3U parser.
- * Returns: [{ url, title }]
- * - Keeps the right-hand display text after #EXTINF:
- * - Ignores non-url lines, #EXTVLCOPT, etc.
- */
+/** Returns: [{ url, title }] */
 export function parseM3U(text){
   const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/);
   const out = [];
@@ -46,8 +22,6 @@ export function parseM3U(text){
     if (!line || line.toUpperCase() === '#EXTM3U') continue;
 
     if (line.startsWith('#EXTINF:')) {
-      // #EXTINF:-1, Artist - Title
-      // Some lists include attributes like #EXTINF:-1 tvg-name="Foo",Display Title
       const comma = line.indexOf(',');
       pendingTitle = comma >= 0 ? line.slice(comma + 1).trim() : null;
       continue;
@@ -62,10 +36,7 @@ export function parseM3U(text){
 }
 
 /* ---------------------------------- PLS parser ---------------------------------- */
-/**
- * Simple PLS parser; returns array: [{ url, title }]
- * Supports File1=..., Title1=...
- */
+/** Returns: [{ url, title }] */
 export function parsePLS(text){
   const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/);
   const files = {};
@@ -86,39 +57,30 @@ export function parsePLS(text){
 
 /* ---------------------------------- Loader -------------------------------------- */
 /**
- * loadM3U({ path, base, audioBase, isStation, selectedTitle, proxy })
- * - Resolves relative paths against provided bases
- * - For stations: flattens nested .pls or .m3u files (common with radio directories)
+ * loadM3U({ path, base, audioBase, isStation, selectedTitle })
+ * - Resolves relative against provided bases
+ * - For stations: flattens nested .pls/.m3u (common in radio dir lists)
  * - For playlists: returns track items
- * - proxy (optional): use a public CORS passthrough for cross-origin playlist fetches
  */
-export async function loadM3U({ path, base, audioBase, isStation, selectedTitle, proxy }){
+export async function loadM3U({ path, base, audioBase, isStation, selectedTitle }){
   const url  = isAbs(path) ? path : join(base, path);
-  const txt  = await fetchText(url, proxy);
+  const txt  = await fetchText(url);
   if (!txt) return [];
 
-  // If caller directly pointed to a .pls, resolve it now.
   if (/\.(pls)(\?|#|$)/i.test(url)) {
-    return await expandFromPLS({
-      text: txt, isStation, audioBase, base, selectedTitle, proxy
-    });
+    return await expandFromPLS({ text: txt, isStation, audioBase, base, selectedTitle });
   }
 
-  // If caller directly pointed to an .m3u, parse and (for stations) flatten any nested links
   if (/\.(m3u8?|m3u)(\?|#|$)/i.test(url)) {
-    return await expandFromM3U({
-      entries: parseM3U(txt), isStation, audioBase, base, selectedTitle, proxy
-    });
+    return await expandFromM3U({ entries: parseM3U(txt), isStation, audioBase, base, selectedTitle });
   }
 
   // Fallback: treat as M3U text if extension is missing/misleading
-  return await expandFromM3U({
-    entries: parseM3U(txt), isStation, audioBase, base, selectedTitle, proxy
-  });
+  return await expandFromM3U({ entries: parseM3U(txt), isStation, audioBase, base, selectedTitle });
 }
 
 /* ------------------------------- expand helpers --------------------------------- */
-async function expandFromPLS({ text, isStation, audioBase, base, selectedTitle, proxy }){
+async function expandFromPLS({ text, isStation, audioBase, base, selectedTitle }){
   const items = parsePLS(text);
   if (!items.length) return [];
   if (isStation) {
@@ -133,9 +95,8 @@ async function expandFromPLS({ text, isStation, audioBase, base, selectedTitle, 
   }));
 }
 
-async function expandFromM3U({ entries, isStation, audioBase, base, selectedTitle, proxy, _depth=0 }){
+async function expandFromM3U({ entries, isStation, audioBase, base, selectedTitle, _depth=0 }){
   if (!entries?.length) return [];
-  // Safety: avoid infinite recursion if a list loops back to itself
   const MAX_DEPTH = 2;
   if (_depth > MAX_DEPTH) return [];
 
@@ -146,18 +107,17 @@ async function expandFromM3U({ entries, isStation, audioBase, base, selectedTitl
     for (const e of entries) {
       const abs = toAbs(e.url, audioBase, base);
 
-      // If entry points to another playlist, flatten it
       if (/\.(pls)(\?|#|$)/i.test(abs)) {
-        const plsText = await fetchText(abs, proxy);
+        const plsText = await fetchText(abs);
         const pl = parsePLS(plsText);
         for (const p of pl) urls.push(toAbs(p.url, audioBase, base));
         if (!selectedTitle && pl[0]?.title) stationTitle = pl[0].title;
 
       } else if (/\.(m3u8?|m3u)(\?|#|$)/i.test(abs)) {
-        const innerTxt = await fetchText(abs, proxy);
+        const innerTxt = await fetchText(abs);
         const inner = parseM3U(innerTxt);
         const got = await expandFromM3U({
-          entries: inner, isStation:true, audioBase, base, selectedTitle: stationTitle, proxy, _depth: _depth+1
+          entries: inner, isStation:true, audioBase, base, selectedTitle: stationTitle, _depth: _depth+1
         });
         if (got?.[0]?.urls) {
           urls.push(...got[0].urls);
@@ -185,34 +145,11 @@ async function expandFromM3U({ entries, isStation, audioBase, base, selectedTitl
 /* ---------------------------------- helpers ------------------------------------- */
 function toAbs(u, audioBase, base){
   if (isAbs(u)) return u;
-  // If it *looks* like media in your repo, prefer audioBase; otherwise fall back to base
   const looksMedia = /\.(mp3|m4a|flac|ogg|opus|oga|wav|aif|aiff|aac|m3u8|mpd)(\?|#|$)/i.test(u);
   return join(looksMedia ? audioBase : base, u);
 }
-
 function dedupe(arr){
   const seen = new Set(); const out = [];
-  for (const x of arr){
-    if (!x || seen.has(x)) continue;
-    seen.add(x); out.push(x);
-  }
+  for (const x of arr){ if (!x || seen.has(x)) continue; seen.add(x); out.push(x); }
   return out;
-}
-
-/* ----------------------------- optional shim (compat) ---------------------------- */
-/**
- * Old signature shim:
- * loadM3U(path, isStation, stationMeta, cfg)
- * maps to the new object API. Keep for older callsites; remove once migrated.
- */
-export async function loadM3UCompat(path, isStation, stationMeta, cfg /*, opts */){
-  const base = String(cfg?.manifestUrl || '').replace(/\/manifest\.json$/i, '');
-  return loadM3U({
-    path,
-    base,
-    audioBase: cfg?.audioBase || '/',
-    isStation,
-    selectedTitle: stationMeta?.title || (isStation ? 'Live Station' : undefined),
-    proxy: cfg?.corsProxy || ''
-  });
 }
