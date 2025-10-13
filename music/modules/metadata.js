@@ -49,19 +49,19 @@ function slugTitle(s=''){
 
 /**
  * fetchStreamMeta(url, proxy, stationMeta?)
- * - SomaFM only
+ * - SomaFM only — reads channels.json
  * - Returns { id, title, listeners, now } or null
  */
 export async function fetchStreamMeta(url, proxy, stationMeta = {}){
   const rows = await getSomaRows(proxy);
 
-  // by id first (hint or derived from URL)
+  // prefer id hint or id derived from stream URL
   const hintId = String(
     stationMeta.id || stationMeta.channel || stationMeta.channelId || idFromUrl(url) || ''
   ).toLowerCase();
   let row = hintId ? rows.find(r => r.id === hintId) : null;
 
-  // by title fallback
+  // fallback match by title
   if (!row && stationMeta.name){
     const want = slugTitle(stationMeta.name);
     row = rows.find(r => slugTitle(r.title) === want) || null;
