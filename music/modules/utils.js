@@ -1,6 +1,6 @@
 // /music/modules/utils.js — DROP-IN upgrade (robust paths + smarter normalizeNow)
 
-export const isGH = location.hostname.endsWith('github.io');
+export const isGH = (typeof location !== 'undefined') && location.hostname.endsWith('github.io');
 
 /**
  * Resolve repo prefix when hosted on GitHub Pages project sites.
@@ -9,7 +9,7 @@ export const isGH = location.hostname.endsWith('github.io');
  *  - GH Pages /user/repo/...           -> "/repo/"
  */
 export function repoPrefix() {
-  if (!isGH) return '/';
+  if (!isGH || typeof location === 'undefined') return '/';
   const parts = location.pathname.split('/').filter(Boolean);
   // '/user.github.io/repo/…' => first segment is the repo
   return parts.length ? `/${parts[0]}/` : '/';
@@ -21,7 +21,7 @@ export const $$ = (s, c=document) => Array.from(c.querySelectorAll(s));
 export const clamp01 = v => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0.25));
 
 /** Absolute URL or root-absolute path? */
-export const isAbs = u => /^([a-z][a-z0-9+\-.]*:)?\/\//i.test(u) || u.startsWith('/');
+export const isAbs = u => /^([a-z][a-z0-9+\-.]*:)?\/\//i.test(u) || String(u).startsWith('/');
 
 /**
  * Join a base path (can be path-like, not necessarily full URL) and a relative path.
@@ -34,41 +34,35 @@ export function join(base, rel){
   if (isAbs(rel)) return rel;
 
   // Normalize "./" on rel first
-  rel = rel.replace(/^\.\//, '');
+  rel = String(rel).replace(/^\.\//, '');
 
   // If base already has protocol, use URL() directly
   try {
     const hasProto = /^[a-z][a-z0-9+\-.]*:\/\//i.test(base);
-    const absBase = hasProto ? base : (location.origin + (String(base||'').startsWith('/') ? '' : '/') + String(base||''));
+    const absBase = hasProto
+      ? base
+      : (typeof location !== 'undefined'
+         ? (location.origin + (String(base||'').startsWith('/') ? '' : '/') + String(base||''))
+         : ('/' + String(base||'')));
+
     const u = new URL(absBase);
     // Rebuild pathname with a single slash between
-    const path = (u.pathname.replace(/\/+$/,'') + '/' + rel.replace(/^\/+/, ''))
+    const path = (u.pathname.replace(/\/+$/,'') + '/' + String(rel).replace(/^\/+/, ''))
       .replace(/\/\.(?=\/)/g, '/')     // "/./" -> "/"
       .replace(/\/{2,}/g, '/');        // collapse multiple slashes
     u.pathname = path;
-    // We only want the path + search + hash (no origin)
+    // Only return path + search + hash (no origin)
     return u.pathname + u.search + u.hash;
   } catch {
     // Fallback (path-only join)
-    return (String(base||'').replace(/\/+$/,'') + '/' + rel.replace(/^\/+/, '')).replace(/\/{2,}/g, '/');
+    return (String(base||'').replace(/\/+$/,'') + '/' + String(rel).replace(/^\/+/, '')).replace(/\/{2,}/g, '/');
   }
 }
 
 /** mm:ss (or em-dash when unknown) */
-export const fmtTime = sec => (!isFinite(sec)||sec<0) ? '—' :
-  `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
-
-/**
- * Optional CORS proxy wrapper.
- * - If proxy includes '?', append encoded URL (e.g., "https://corsproxy.io/?")
- * - Else treat as a path prefix (strip trailing '/')
- */
-export function corsWrap(proxy, u){
-  if (!u) return '';
-  if (!proxy) return u;
-  return proxy.includes('?') ? (proxy + encodeURIComponent(u))
-                             : (proxy.replace(/\/+$/,'') + '/' + u.replace(/^\/+/, ''));
-}
+export const fmtTime = sec => (!isFinite(sec)||sec<0)
+  ? '—'
+  : `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
 
 /**
  * Normalize "now playing" strings to "Artist - Title".
@@ -91,15 +85,13 @@ export function normalizeNow(s){
   // Strip obvious bitrate / codec decorations at the end
   txt = txt.replace(/\s*\b(32|64|96|128|160|192|256|320)\s?(kbps|kbit|kb|aac|mp3|opus|ogg)\b\s*$/i, '').trim();
 
-  // If multiple dash-separated parts, prefer "Artist - Title (rest)" keeping the rest in title
+  // Prefer "Artist - Title (rest)" keeping the rest in title
   const parts = txt.split(' - ');
   if (parts.length >= 2) {
     const artist = parts.shift().trim();
     const title  = parts.join(' - ').trim();
-    const cleaned = `${artist} - ${title}`;
-    return cleaned;
+    return `${artist} - ${title}`;
   }
 
-  // If no clean dash split, just return tidied text
   return txt;
 }
