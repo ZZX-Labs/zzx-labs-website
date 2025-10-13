@@ -1,16 +1,13 @@
 // static/js/modules/music-player/mount.js
 // Orchestrator: builds UI, loads manifest, hooks controls, and wires playback.
 
-// Existing helpers
 import { $, clamp01 } from './utils.js';
 import { fetchNowPlaying } from './meta.js';
 
-// New submodules
-import { buildUI, uiHelpers }     from './ui.js';
-import { loadM3U }                from './m3u.js';
-import { loadManifest, fillSelects } from './manifest.js';
-import { createTicker }           from './ticker.js';
-import { createPlayback }         from './playback.js';
+import { buildUI, uiHelpers }         from './ui.js';
+import { loadM3U }                    from './m3u.js';
+import { loadManifest, fillSelects }  from './manifest.js';
+import { createPlayback }             from './playback.js';
 
 export function mount(root, opts = {}) {
   if (!root) return;
@@ -32,7 +29,10 @@ export function mount(root, opts = {}) {
   const refs = buildUI(root, cfg);
   const { titleEl, subEl, switchKnob, btns, timeCur, timeDur, seek, vol, list, selStations, selMusic } = refs;
 
-  const { setNow, setPlayIcon, setMuteIcon, paintTimes, setSourceUI, renderQueue, highlightList } =
+  const {
+    setNow, setPlayIcon, setMuteIcon, paintTimes, setSourceUI,
+    renderQueue, updateRadioNow, updateRadioListeners, highlightList
+  } =
     uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek });
 
   // ------- State -------
@@ -50,27 +50,41 @@ export function mount(root, opts = {}) {
   let lastStreamUrl = '';
   let lastNow = '';
 
-  const ticker = createTicker({
-    getStreamUrl: () => lastStreamUrl,
-    getTrackMeta: () => queue[cursor]?.meta,
-    pollSec: cfg.metaPollSec,
-    corsProxy: cfg.corsProxy,
-    fetchNowPlaying,
-    setNow: (label) => {
-      if (label && label !== lastNow) {
-        lastNow = label;
-        setNow(label, 'Radio');
-        try {
-          const row = list?.children[cursor];
-          const tDiv = row?.querySelector('.t');
-          if (tDiv && !queue[cursor]?._titleOverridden) tDiv.textContent = label;
-        } catch {}
-      }
-    },
-    onTimerId: (id) => { metaTimer = id; },
-  });
-
   function clearMetaTimer(){ if (metaTimer) { clearInterval(metaTimer); metaTimer = 0; } }
+
+  // -------- Meta polling (NO ticker, NO ICY) --------
+  function getCurrentStationTitle(){
+    return queue[cursor]?.title || selStations?.selectedOptions?.[0]?.textContent || '';
+  }
+
+  async function pollOnce(){
+    try{
+      const url = lastStreamUrl;
+      if (!url) return;
+      const stationName = getCurrentStationTitle();
+      const meta = await fetchNowPlaying(url, { name: stationName }, cfg.corsProxy);
+      if (!meta) return;
+
+      // listeners → row 1 right
+      if (meta.listeners != null) updateRadioListeners(meta.listeners);
+
+      // lastPlaying → row 2 text
+      const label = (meta.now || meta.title || '').trim();
+      if (label && label !== lastNow){
+        lastNow = label;
+        // set big now UI subtitle = "Radio", keep title as station name
+        setNow(stationName || meta.title || 'Live Station', 'Radio');
+        updateRadioNow(label);
+      }
+    } catch {}
+  }
+
+  function startMetaPolling(){
+    clearMetaTimer();
+    if (!lastStreamUrl) return;
+    pollOnce(); // immediate
+    metaTimer = setInterval(pollOnce, cfg.metaPollSec * 1000);
+  }
 
   // ------- Core helpers -------
   async function tryPlayStream(urls){
@@ -86,13 +100,15 @@ export function mount(root, opts = {}) {
     const idx = Math.max(0, selStations.selectedIndex);
     const def = manifest.stations[idx];
     const meta = def.meta || {};
+    clearMetaTimer(); lastNow = '';
+
     queue = await loadM3U(def.file, true, {
       title: def.name,
       kind: meta.kind,
       meta
     }, cfg);
     cursor = -1;
-    renderQueue(queue, cursor);
+    renderQueue(queue, 0);        // draw header rows (station + now row)
     setNow('—','Radio');
     if (cfg.autoplay) playAt(0);
   }
@@ -101,9 +117,10 @@ export function mount(root, opts = {}) {
     if (!manifest.playlists.length) return;
     const idx = Math.max(0, selMusic.selectedIndex);
     const def = manifest.playlists[idx];
+    clearMetaTimer(); lastNow = '';
     queue = await loadM3U(def.file, false, null, cfg, { shuffle: cfg.shuffle });
     cursor = -1;
-    renderQueue(queue, cursor);
+    renderQueue(queue, 0);
     setNow('—','Playlist');
     if (cfg.autoplay) playAt(0);
   }
@@ -129,10 +146,11 @@ export function mount(root, opts = {}) {
       setPlayIcon(true);
       highlightList(cursor);
 
-      // Kick off metadata polling for live streams
-      if (tr.isStream) ticker.start();
+      // start polling only for streams
+      if (tr.isStream) startMetaPolling();
     } catch (e) {
-      next();
+      // if a stream endpoint fails, try next track/station
+      try { next(); } catch {}
     }
   }
 
@@ -151,7 +169,7 @@ export function mount(root, opts = {}) {
     pickers: { onPickStations, onPickMusic },
     dom: { selStations, selMusic },
     onPlayAt: playAt,
-    onStopMeta: () => { clearMetaTimer(); lastNow=''; ticker.stop(); },
+    onStopMeta: () => { clearMetaTimer(); lastNow=''; },
   });
 
   // ------- Wire events -------
@@ -167,10 +185,7 @@ export function mount(root, opts = {}) {
   switchKnob.addEventListener('click', ()=>{
     const pressed = switchKnob.getAttribute('aria-pressed') === 'true';
     const nextSource = pressed ? 'playlists' : 'stations';
-    // Switch source
-    ticker.stop();
-    clearMetaTimer();
-    lastNow = '';
+    clearMetaTimer(); lastNow = '';
     activeSource = nextSource;
     setSourceUI(activeSource, selStations, selMusic);
     if (activeSource === 'stations') onPickStations(); else onPickMusic();
@@ -243,10 +258,10 @@ export function mount(root, opts = {}) {
   })();
 
   selStations.addEventListener('change', ()=>{
-    if(activeSource==='stations') { ticker.stop(); clearMetaTimer(); lastNow=''; onPickStations(); }
+    if(activeSource==='stations') { clearMetaTimer(); lastNow=''; onPickStations(); }
   });
   selMusic.addEventListener('change', ()=>{
-    if(activeSource==='playlists'){ ticker.stop(); clearMetaTimer(); lastNow=''; onPickMusic(); }
+    if(activeSource==='playlists'){ clearMetaTimer(); lastNow=''; onPickMusic(); }
   });
 }
 
