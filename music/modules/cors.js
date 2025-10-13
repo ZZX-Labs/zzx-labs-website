@@ -1,26 +1,23 @@
-// /music/modules/cors.js — tiny CORS helpers using AllOrigins
+// /music/modules/cors.js — tiny CORS helpers (no custom headers; CORS-safe)
 // Usage:
 //   import { fetchTextViaProxy, fetchJSONViaProxy, corsWrap } from './cors.js';
 //   const txt = await fetchTextViaProxy(url, proxy); // proxy: "allorigins-raw" | "allorigins-json" | custom prefix
-//   const j   = await fetchJSONViaProxy(url, proxy);
 
 const AO_BASE = 'https://api.allorigins.win';
 const DEFAULT_TIMEOUT_MS = 9000;
 
 function wrapAllOrigins(url, mode) {
   const enc = encodeURIComponent(url);
-  // disable AllOrigins cache for "live" endpoints
   if (mode === 'json') return `${AO_BASE}/get?url=${enc}&disableCache=true`;
-  // mode === 'raw'
-  return `${AO_BASE}/raw?url=${enc}&disableCache=true`;
+  return `${AO_BASE}/raw?url=${enc}&disableCache=true`; // mode === 'raw'
 }
 
 /**
- * Generic wrapper that understands:
- *  - "allorigins", "allorigins-raw"  -> raw passthrough
- *  - "allorigins-json"               -> JSON wrapper { contents, status }
- *  - Any other string                -> treated as prefix (old behavior)
- *  - falsy                           -> no proxy
+ * Optional proxy wrapper:
+ *  - "allorigins", "allorigins-raw" -> raw passthrough
+ *  - "allorigins-json"              -> JSON wrapper { contents, status }
+ *  - Any other non-empty string     -> treated as prefix (old behavior)
+ *  - falsy                          -> no proxy
  */
 export function corsWrap(proxy, url, prefer = 'raw') {
   if (!url) return '';
@@ -44,17 +41,11 @@ async function fetchWithTimeout(input, init = {}, timeoutMs = DEFAULT_TIMEOUT_MS
   try {
     const r = await fetch(input, {
       cache: 'no-store',
-      headers: {
-        'cache-control': 'no-cache, no-store, must-revalidate',
-        'pragma': 'no-cache',
-        'expires': '0',
-        ...(init.headers || {})
-      },
       ...init,
       signal: ctrl.signal
     });
     return r;
-  } catch {
+  } catch (e) {
     return { ok: false, status: 0, text: async ()=>'',
              json: async ()=>null };
   } finally {
@@ -66,17 +57,18 @@ async function fetchWithTimeout(input, init = {}, timeoutMs = DEFAULT_TIMEOUT_MS
 
 export async function fetchTextViaProxy(url, proxy) {
   const p = String(proxy || '').toLowerCase();
+
   if (p.startsWith('allorigins')) {
-    // raw -> text
-    const rawUrl = corsWrap('allorigins-raw', url);
+    // Try RAW first
     try {
+      const rawUrl = wrapAllOrigins(url, 'raw');
       const r = await fetchWithTimeout(rawUrl);
       if (r.ok) return String(await r.text() ?? '');
     } catch {}
 
-    // fallback: JSON endpoint -> .contents
-    const jsonUrl = corsWrap('allorigins-json', url);
+    // Fallback: JSON endpoint -> .contents
     try {
+      const jsonUrl = wrapAllOrigins(url, 'json');
       const r = await fetchWithTimeout(jsonUrl);
       if (!r.ok) return '';
       const j = await r.json();
@@ -94,16 +86,19 @@ export async function fetchTextViaProxy(url, proxy) {
 
 export async function fetchJSONViaProxy(url, proxy) {
   const p = String(proxy || '').toLowerCase();
+
   if (p.startsWith('allorigins')) {
-    // Try RAW first and parse as JSON (works if target sends application/json)
+    // Try RAW first and parse as JSON (works if target sends JSON)
     try {
-      const r = await fetchWithTimeout(corsWrap('allorigins-raw', url));
+      const rawUrl = wrapAllOrigins(url, 'raw');
+      const r = await fetchWithTimeout(rawUrl);
       if (r.ok) return await r.json();
     } catch {}
 
     // Fallback: AllOrigins JSON wrapper -> parse contents
     try {
-      const r = await fetchWithTimeout(corsWrap('allorigins-json', url));
+      const jsonUrl = wrapAllOrigins(url, 'json');
+      const r = await fetchWithTimeout(jsonUrl);
       if (!r.ok) return null;
       const j = await r.json();
       const txt = j?.contents || '';
