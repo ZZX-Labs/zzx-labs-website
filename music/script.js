@@ -5,8 +5,14 @@ import { fetchTrackMeta } from './modules/metadata.js';       // keep for playli
 import { ensureMeter } from './modules/meter.js';
 import { buildShell, setNow, renderPlaylistList, renderRadioList, updateRadioNow, highlightList } from './modules/ui.js';
 
+console.log('[music] module loaded');
+
 const root = document.querySelector('[data-mp]');
-if (!root) { console.error('[music] no [data-mp] element'); }
+if (!root) {
+  console.error('[music] no [data-mp] element');
+  // Show a visible hint so it’s not “nothing”
+  document.body.insertAdjacentHTML('afterbegin', '<div style="padding:1rem;background:#311;color:#fdd">[music] No [data-mp] element found.</div>');
+}
 
 // ----- AllOrigins helpers (front-end only, no backend) -----
 const AO_BASE = 'https://api.allorigins.win';
@@ -112,7 +118,7 @@ async function fetchStreamMetaUniversal(streamUrl, proxy){
 // ----- Config -----
 const cfg = (() => {
   const pref = repoPrefix();
-  const attr = n => root.getAttribute(n);
+  const attr = n => root?.getAttribute(n);
   return {
     manifestUrl   : attr('data-manifest-url') || (pref + 'static/audio/music/playlists/manifest.json'),
     audioBase     : attr('data-audio-base')   || (pref + 'static/audio/music/'),
@@ -158,41 +164,54 @@ function appendStationHistory(title, item){
 
 /* ---------- Boot ---------- */
 (async function boot(){
-  const refs = buildShell(root, cfg.volume);
-  wireControls(refs);
-  setSwitch(refs, cfg.startSource === 'playlists');
+  try {
+    if (!root) return;
+    console.log('[music] boot');
 
-  // Manifest
-  const mf = await (async () => {
-    try{ const r=await fetch(cfg.manifestUrl,{cache:'no-store'}); return r.ok? await r.json():{}; }catch{ return {}; }
-  })();
-  manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
-  manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
+    const refs = buildShell(root, cfg.volume);
+    console.log('[music] UI built');
+    wireControls(refs);
+    setSwitch(refs, cfg.startSource === 'playlists');
 
-  fillSelect(refs.sel.stations,  manifest.stations);
-  fillSelect(refs.sel.playlists, manifest.playlists);
+    // Manifest
+    console.log('[music] fetch manifest', cfg.manifestUrl);
+    const mf = await (async () => {
+      try{ const r=await fetch(cfg.manifestUrl,{cache:'no-store'}); return r.ok? await r.json():{}; }catch{ return {}; }
+    })();
+    manifest.stations  = Array.isArray(mf?.stations)  ? mf.stations  : [];
+    manifest.playlists = Array.isArray(mf?.playlists) ? mf.playlists : [];
 
-  // Start mode
-  let mode = cfg.startSource;
-  if (mode === 'auto') {
-    const both = manifest.stations.length && manifest.playlists.length;
-    mode = both ? (Math.random()<0.5?'stations':'playlists')
-         : (manifest.stations.length?'stations':'playlists');
-  }
+    fillSelect(refs.sel.stations,  manifest.stations);
+    fillSelect(refs.sel.playlists, manifest.playlists);
 
-  if (mode==='stations' && manifest.stations.length){
-    refs.sel.stations.selectedIndex = 0;
-    await onPickStations(refs, false);
-  } else if (manifest.playlists.length){
-    refs.sel.playlists.selectedIndex = 0;
-    await onPickMusic(refs, false);
-  } else {
-    setNow(refs, 'No playlists found', '—');
-  }
+    // Start mode
+    let mode = cfg.startSource;
+    if (mode === 'auto') {
+      const both = manifest.stations.length && manifest.playlists.length;
+      mode = both ? (Math.random()<0.5?'stations':'playlists')
+           : (manifest.stations.length?'stations':'playlists');
+    }
 
-  if (cfg.autoplay && cfg.autoplayMuted && !audio.src) {
-    if (mode==='stations' && manifest.stations.length) await onPickStations(refs, true);
-    else if (manifest.playlists.length) await onPickMusic(refs, true);
+    if (mode==='stations' && manifest.stations.length){
+      refs.sel.stations.selectedIndex = 0;
+      await onPickStations(refs, false);
+    } else if (manifest.playlists.length){
+      refs.sel.playlists.selectedIndex = 0;
+      await onPickMusic(refs, false);
+    } else {
+      setNow(refs, 'No playlists found', '—');
+    }
+
+    if (cfg.autoplay && cfg.autoplayMuted && !audio.src) {
+      if (mode==='stations' && manifest.stations.length) await onPickStations(refs, true);
+      else if (manifest.playlists.length) await onPickMusic(refs, true);
+    }
+    console.log('[music] boot done');
+  } catch (err) {
+    console.error('[music] boot failed', err);
+    try {
+      root.innerHTML = `<div style="padding:1rem;background:#311;color:#fdd"><strong>[music] failed:</strong> ${String(err && err.message || err)}</div>`;
+    } catch {}
   }
 })();
 
@@ -406,4 +425,4 @@ async function pollOnce(refs, stationTitle){
       }
     }
   } catch {}
-}
+      }
