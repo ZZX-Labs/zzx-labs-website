@@ -14,6 +14,7 @@ import {
   fillSelect,
   renderRadioList,
   updateRadioNow,
+  updateRadioListeners,    // NEW
   renderPlaylist,
   highlightList
 } from './ui.js';
@@ -209,6 +210,12 @@ export async function boot(root){
       const meta = await fetchStreamMeta(lastStreamUrl, cfg.corsProxy);
       if (meta && (meta.now || meta.title)){
         const label = (meta.now || meta.title || '').trim();
+
+        // Always update listeners if provided
+        if (meta.listeners != null) {
+          updateRadioListeners(R, meta.listeners);
+        }
+
         if (label && label !== lastNowTitle){
           lastNowTitle = label;
           setNow(R, stationTitle || meta.title || 'Live Station', 'Radio');
@@ -227,7 +234,7 @@ export async function boot(root){
     queue = await loadM3U(file, true);
     cursor = 0;
     const stTitle = queue[0]?.title || 'Live Station';
-    renderRadioList(R, stTitle, '—');
+    renderRadioList(R, stTitle, '—');    // listeners will fill on first poll
     setNow(R, stTitle, 'Radio');
     if (autoPlay || cfg.autoplay || cfg.autoplayMuted) playAt(0);
   }
