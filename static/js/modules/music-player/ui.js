@@ -1,4 +1,4 @@
-// static/js/modules/music-player/ui.js — build shell + list rendering + helpers
+// static/js/modules/music-player/ui.js — shell + list rendering + helpers
 import { $, $$ } from './utils.js';
 
 export function buildShell(root, initialVolume){
@@ -105,7 +105,7 @@ export function setNow(refs, t, s='—'){
   if (refs.subEl)   refs.subEl.textContent   = s || '—';
 }
 
-/* Playlist list */
+/* Playlist rendering */
 export function renderPlaylistList(refs, tracks, onPick){
   if (!refs.list) return;
   refs.list.innerHTML = '';
@@ -119,26 +119,29 @@ export function renderPlaylistList(refs, tracks, onPick){
     refs.list.appendChild(li);
   });
 }
-export const renderPlaylist = renderPlaylistList;
+export function renderPlaylist(refs, tracks, onPick){
+  return renderPlaylistList(refs, tracks, onPick);
+}
 
-/* Radio list (row 1 = station + listeners • LIVE, row 2 = lastPlaying) */
+/* Radio list (row 1 = station + listeners • LIVE, row 2 = now) */
 export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
   if (!refs.list) return;
   refs.list.innerHTML = '';
 
   const liStation = document.createElement('li');
-  const Ls = document.createElement('div'); Ls.className='t';   Ls.textContent = stationTitle || 'Live Station';
+  const Ls = document.createElement('div'); Ls.className='t'; Ls.textContent = stationTitle || 'Live Station';
   const Rs = document.createElement('div'); Rs.className='len mono'; Rs.setAttribute('data-live', '1'); Rs.textContent = 'LIVE';
   liStation.appendChild(Ls); liStation.appendChild(Rs);
   refs.list.appendChild(liStation);
 
   const liNow = document.createElement('li');
   liNow.setAttribute('data-now', '1');
-  const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = nowTitle || '—';
+  const Ln = document.createElement('div'); Ln.className='t'; Ln.textContent = nowTitle || '—';
   const Rn = document.createElement('div'); Rn.className='len mono'; Rn.textContent = '';
   liNow.appendChild(Ln); liNow.appendChild(Rn);
   refs.list.appendChild(liNow);
 
+  // history (if provided)
   for (let i = history.length - 1; i >= 0; i--){
     const hli = document.createElement('li');
     const hl  = document.createElement('div'); hl.className='t';
@@ -155,11 +158,11 @@ export function updateRadioNow(refs, nowText){
   if (el) el.textContent = nowText || '—';
 }
 
-export function updateRadioListeners(refs, listeners){
-  const badge = refs.list?.querySelector('li:first-child [data-live="1"]');
-  if (!badge) return;
-  const n = Number.isFinite(listeners) ? listeners : (parseInt(listeners,10) || 0);
-  badge.textContent = n > 0 ? `${n} • LIVE` : 'LIVE';
+export function updateRadioListeners(refs, count){
+  const live = refs.list?.querySelector('[data-live="1"]');
+  if (!live) return;
+  const n = (Number.isFinite(+count) ? String(count) : '').trim();
+  live.textContent = n ? `${n} • LIVE` : 'LIVE';
 }
 
 export function highlightList(refs, cursor, usingStations){
