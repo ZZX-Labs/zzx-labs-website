@@ -1,41 +1,49 @@
-// static/js/modules/music-player/ui.js
-// UI scaffold + small view helpers for the Music Player
+// static/js/modules/music-player/ui.js — build shell + list rendering + helpers
+import { $, $$ } from './utils.js';
 
-import { $, $$, fmtTime } from './utils.js';
-
-/** Build the entire player UI into `root` and return element refs */
-export function buildUI(root, cfg) {
-  // Shell
+export function buildShell(root, initialVolume){
   root.innerHTML = `
     <div class="mp-top">
       <div class="mp-now">
-        <div class="mp-title mono">—</div>
-        <div class="mp-sub small">
-          <span class="mp-subtext">—</span>
-          <span class="mp-listeners small mono" style="margin-left:.5rem; opacity:.85;"></span>
-        </div>
+        <div class="mp-title mono" data-title>—</div>
+        <div class="mp-sub small"  data-sub>—</div>
       </div>
 
-      <div class="mp-controls" role="toolbar" aria-label="Playback">
-        <div class="mp-switch" aria-label="Source">
-          <button class="mp-switch-knob" type="button" aria-pressed="true" title="Left = Radio Stations, Right = Playlists"></button>
+      <div class="mp-controls" role="toolbar" aria-label="Controls">
+        <div class="mp-switch" role="group" title="Toggle Radio / Playlists">
+          <button class="mp-switch-knob" data-src-toggle aria-pressed="true" aria-label="Radio / Playlists"></button>
         </div>
 
-        <button class="mp-btn" data-act="prev"    title="Previous (⟵)">⏮</button>
-        <button class="mp-btn" data-act="play"    title="Play/Pause (Space)">▶</button>
-        <button class="mp-btn" data-act="stop"    title="Stop">⏹</button>
-        <button class="mp-btn" data-act="next"    title="Next (⟶)">⏭</button>
+        <button class="mp-btn" data-act="prev" title="Previous (⟵)">⏮</button>
+        <button class="mp-btn" data-act="play" title="Play/Pause (Space)">▶</button>
+        <button class="mp-btn" data-act="stop" title="Stop">⏹</button>
+        <button class="mp-btn" data-act="next" title="Next (⟶)">⏭</button>
         <button class="mp-btn" data-act="shuffle" title="Shuffle">🔀</button>
-        <button class="mp-btn" data-act="loop"    title="Loop all">🔁</button>
-        <button class="mp-btn" data-act="loop1"   title="Loop one">🔂</button>
-        <button class="mp-btn" data-act="mute"    title="Mute/Unmute">🔇</button>
+        <button class="mp-btn" data-act="loop" title="Loop all">🔁</button>
+        <button class="mp-btn" data-act="loop1" title="Loop one">🔂</button>
+        <button class="mp-btn" data-act="mute" title="Mute/Unmute">🔇</button>
       </div>
     </div>
 
     <div class="mp-middle">
       <div class="mp-time mono"><span data-cur>00:00</span> / <span data-dur>—</span></div>
       <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
-      <div class="mp-vol"><input type="range" class="mp-volume" min="0" max="1" step="0.01" value="${cfg.volume}" aria-label="Volume"></div>
+    </div>
+
+    <div class="mp-meter" id="vu">
+      <div class="vu-rows">
+        <div class="vu-row">
+          <div class="vu-ch">L</div>
+          <div class="vu-bar">${hbar('L')}</div>
+        </div>
+        <div class="vu-row">
+          <div class="vu-ch">R</div>
+          <div class="vu-bar">${hbar('R')}</div>
+        </div>
+      </div>
+      <div class="mp-vol">
+        <input type="range" class="mp-volume" min="0" max="1" step="0.01" value="${initialVolume}" aria-label="Volume">
+      </div>
     </div>
 
     <div class="mp-bottom">
@@ -52,139 +60,138 @@ export function buildUI(root, cfg) {
       </div>
     </div>
   `;
-
-  // Refs
-  const titleEl = $('.mp-title', root);
-  const subEl   = $('.mp-subtext', root);       // subtitle text node
-  const lisEl   = $('.mp-listeners', root);     // listeners badge
-  const switchKnob = $('.mp-switch-knob', root);
-
-  const btns = {
-    prev:    $('[data-act="prev"]', root),
-    play:    $('[data-act="play"]', root),
-    stop:    $('[data-act="stop"]', root),
-    next:    $('[data-act="next"]', root),
-    shuffle: $('[data-act="shuffle"]', root),
-    loop:    $('[data-act="loop"]', root),
-    loop1:   $('[data-act="loop1"]', root),
-    mute:    $('[data-act="mute"]', root),
-  };
-
-  const timeCur = $('[data-cur]', root);
-  const timeDur = $('[data-dur]', root);
-  const seek    = $('.mp-seek', root);
-  const vol     = $('.mp-volume', root);
-  const list    = $('.mp-list', root);
-  const selStations = $('.mp-pl-stations', root);
-  const selMusic    = $('.mp-pl-music', root);
-
-  return { titleEl, subEl, lisEl, switchKnob, btns, timeCur, timeDur, seek, vol, list, selStations, selMusic };
+  return getRefs(root);
 }
 
-/** Small view helpers bound to DOM */
-export function uiHelpers({ titleEl, subEl, lisEl, list, timeCur, timeDur, seek }) {
-  // local root to query buttons if needed
-  const root = titleEl?.closest('[data-mp]') || document;
-  const btnPlay = $('.mp-btn[data-act="play"]', root);
-  const btnMute = $('.mp-btn[data-act="mute"]', root);
-  const knob    = $('.mp-switch-knob', root);
+function hbar(side){
+  const spans=[];
+  for(let i=0;i<6;i++) spans.push(`<span class="hled g" data-hled-${side}${i}></span>`);
+  spans.push(`<span class="hled y" data-hled-${side}6></span>`);
+  spans.push(`<span class="hled r" data-hled-${side}7></span>`);
+  return spans.join('');
+}
 
-  function setNow(title, sub='') {
-    const txt = title || '—';
-    if (titleEl) {
-      titleEl.textContent = txt;
-      requestAnimationFrame(() => {
-        const over = titleEl.scrollWidth > titleEl.clientWidth + 2;
-        titleEl.classList.toggle('ticker', over);
-      });
-    }
-    if (subEl) subEl.textContent = sub || '—';
-  }
-
-  /** Show/hide listeners count, e.g. "• 1,234 listening" */
-  function setListeners(n) {
-    if (!lisEl) return;
-    if (n == null || n === '' || Number(n) <= 0) {
-      lisEl.textContent = '';
-      lisEl.setAttribute('aria-hidden', 'true');
-      return;
-    }
-    const num = Number.isFinite(+n) ? Number(n) : n;
-    const pretty = (typeof num === 'number' && num.toLocaleString) ? num.toLocaleString() : num;
-    lisEl.textContent = `• ${pretty} listening`;
-    lisEl.removeAttribute('aria-hidden');
-  }
-
-  const setPlayIcon = (isPlaying) => {
-    if (!btnPlay) return;
-    btnPlay.textContent = isPlaying ? '⏸' : '▶';
+/* Exported: used by player.js */
+export function getRefs(root){
+  return {
+    root,
+    titleEl: $('[data-title]', root),
+    subEl:   $('[data-sub]', root),
+    timeCur: $('[data-cur]', root),
+    timeDur: $('[data-dur]', root),
+    seek:    $('.mp-seek', root),
+    vol:     $('.mp-volume', root),
+    list:    $('.mp-list', root),
+    btn: {
+      prev:    $('[data-act="prev"]', root),
+      play:    $('[data-act="play"]', root),
+      stop:    $('[data-act="stop"]', root),
+      next:    $('[data-act="next"]', root),
+      shuffle: $('[data-act="shuffle"]', root),
+      loop:    $('[data-act="loop"]', root),
+      loop1:   $('[data-act="loop1"]', root),
+      mute:    $('[data-act="mute"]', root),
+    },
+    sel: {
+      stations: $('.mp-pl-stations', root),
+      playlists:$('.mp-pl-music', root),
+    },
+    switchKnob: $('[data-src-toggle]', root),
   };
+}
 
-  const setMuteIcon = (audio) => {
-    if (!btnMute) return;
-    // Prefer explicit audio param; fallback: keep existing glyph if unknown
-    if (audio && typeof audio.muted === 'boolean') {
-      btnMute.textContent = audio.muted ? '🔇' : '🔊';
-    }
-  };
+export function setNow(refs, t, s='—'){
+  if (refs.titleEl) refs.titleEl.textContent = t || '—';
+  if (refs.subEl)   refs.subEl.textContent   = s || '—';
+}
 
-  const paintTimes = (audio) => {
-    if (!audio) return;
-    if (timeCur) timeCur.textContent = fmtTime(audio.currentTime);
-    if (timeDur) timeDur.textContent = isFinite(audio.duration) ? fmtTime(audio.duration) : '—';
-    if (seek && isFinite(audio.duration) && audio.duration>0){
-      seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
-    }
-  };
+/* Playlist list */
+export function renderPlaylistList(refs, tracks, onPick){
+  if (!refs.list) return;
+  refs.list.innerHTML = '';
+  tracks.forEach((t,i)=>{
+    const li = document.createElement('li');
+    const left = document.createElement('div'); left.className='t';
+    left.textContent = `${String(i+1).padStart(2,'0')} — ${t.title || `Track ${i+1}`}`;
+    const right = document.createElement('div'); right.className='len mono'; right.textContent = '';
+    li.appendChild(left); li.appendChild(right);
+    li.addEventListener('click', ()=> onPick(i));
+    refs.list.appendChild(li);
+  });
+}
+export const renderPlaylist = renderPlaylistList;
 
-  function setSourceUI(activeSource, selStations, selMusic) {
-    const stationsActive = (activeSource === 'stations');
-    if (knob) knob.setAttribute('aria-pressed', stationsActive ? 'true' : 'false');
+/* Radio list (row 1 = station + listeners • LIVE, row 2 = lastPlaying) */
+export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
+  if (!refs.list) return;
+  refs.list.innerHTML = '';
 
-    if (selStations) {
-      selStations.disabled = !stationsActive;
-      selStations.classList.toggle('is-disabled', !stationsActive);
-    }
-    if (selMusic) {
-      selMusic.disabled = stationsActive;
-      selMusic.classList.toggle('is-disabled', stationsActive);
-    }
+  const liStation = document.createElement('li');
+  const Ls = document.createElement('div'); Ls.className='t';   Ls.textContent = stationTitle || 'Live Station';
+  const Rs = document.createElement('div'); Rs.className='len mono'; Rs.setAttribute('data-live', '1'); Rs.textContent = 'LIVE';
+  liStation.appendChild(Ls); liStation.appendChild(Rs);
+  refs.list.appendChild(liStation);
+
+  const liNow = document.createElement('li');
+  liNow.setAttribute('data-now', '1');
+  const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = nowTitle || '—';
+  const Rn = document.createElement('div'); Rn.className='len mono'; Rn.textContent = '';
+  liNow.appendChild(Ln); liNow.appendChild(Rn);
+  refs.list.appendChild(liNow);
+
+  for (let i = history.length - 1; i >= 0; i--){
+    const hli = document.createElement('li');
+    const hl  = document.createElement('div'); hl.className='t';
+    const hr  = document.createElement('div'); hr.className='len mono';
+    hl.textContent = history[i];
+    hr.textContent = '';
+    hli.appendChild(hl); hli.appendChild(hr);
+    refs.list.appendChild(hli);
   }
+}
 
-  function renderQueue(queue, cursor = -1) {
-    if (!list) return;
-    list.innerHTML = '';
-    queue.forEach((t, i) => {
-      const li = document.createElement('li');
-      const left = document.createElement('div');
-      const right = document.createElement('div');
-      left.className = 't';
-      right.className = 'len mono';
-      left.textContent = t.title || `Track ${i+1}`;
-      right.textContent = t.isStream ? 'LIVE' : (t.length ? fmtTime(t.length) : '');
-      li.appendChild(left); li.appendChild(right);
-      li.dataset.index = String(i);
+export function updateRadioNow(refs, nowText){
+  const el = refs.list?.querySelector('li[data-now="1"] .t');
+  if (el) el.textContent = nowText || '—';
+}
 
-      // Let parent (mount.js/player.js) decide how to handle it; dispatch an event.
-      li.addEventListener('click', () => {
-        const ev = new CustomEvent('mp:select-index', { bubbles: true, detail: { index: i }});
-        li.dispatchEvent(ev);
-        // Optional global hook for legacy direct-calls
-        if (typeof window !== 'undefined' && typeof window.__mpSelectItem === 'function') {
-          try { window.__mpSelectItem(i); } catch {}
-        }
-      });
+export function updateRadioListeners(refs, listeners){
+  const badge = refs.list?.querySelector('li:first-child [data-live="1"]');
+  if (!badge) return;
+  const n = Number.isFinite(listeners) ? listeners : (parseInt(listeners,10) || 0);
+  badge.textContent = n > 0 ? `${n} • LIVE` : 'LIVE';
+}
 
-      list.appendChild(li);
-    });
-    highlightList(cursor);
+export function highlightList(refs, cursor, usingStations){
+  if (!refs.list) return;
+  $$('.active', refs.list).forEach(li => li.classList.remove('active'));
+  if (cursor >= 0) refs.list.children[cursor + (usingStations ? 1 : 0)]?.classList.add('active');
+}
+
+export function setMuteIcon(refs, audio){
+  if (refs.btn?.mute) refs.btn.mute.textContent = audio?.muted ? '🔇' : '🔊';
+}
+
+export function setPlayIcon(refs, on){
+  if (refs.btn?.play) refs.btn.play.textContent = on ? '⏸' : '▶';
+}
+
+export function paintTimes(refs, audio, fmtTime){
+  const t = (el, txt)=>{ if (el) el.textContent = txt; };
+  t(refs.timeCur, fmtTime(audio.currentTime));
+  t(refs.timeDur, isFinite(audio.duration) ? fmtTime(audio.duration) : '—');
+  if (refs.seek && isFinite(audio.duration) && audio.duration>0) {
+    refs.seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
   }
+}
 
-  function highlightList(cursor) {
-    if (!list) return;
-    $$('.active', list).forEach(li => li.classList.remove('active'));
-    if (cursor >= 0 && list.children[cursor]) list.children[cursor].classList.add('active');
-  }
-
-  return { setNow, setListeners, setPlayIcon, setMuteIcon, paintTimes, setSourceUI, renderQueue, highlightList };
+export function fillSelect(selEl, arr){
+  if (!selEl) return;
+  selEl.innerHTML = '';
+  arr.forEach((it,i)=>{
+    const o=document.createElement('option');
+    o.value = it.file;
+    o.textContent = it.name || `Item ${i+1}`;
+    selEl.appendChild(o);
+  });
 }
