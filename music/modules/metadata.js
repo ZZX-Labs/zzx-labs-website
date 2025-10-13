@@ -39,17 +39,28 @@ async function getSomaChannels(proxy){
   return somaCache.rows || [];
 }
 
-/** Derive SomaFM channel id from stream URL like "/groovesalad-256-mp3" */
+/** Derive SomaFM channel id from URLs like:
+ *   /groovesalad-256-mp3
+ *   /groovesalad256.pls
+ *   /groovesalad64
+ *   /secretagent.pls
+ */
 function somaIdFromUrl(u){
   try{
     const p = new URL(u, location.href).pathname.replace(/^\/+/, '');
     let id = (p.split('/')[0] || '');
+
     // strip extension if any
     id = id.replace(/\.(mp3|aacp?|ogg|pls|m3u8)$/i, '');
-    // strip common bitrate/codec suffixes
-    id = id.replace(/-(320|256|192|160|130|128|112|96|80|64|56|48|40|32)(-(mp3|aacp?|ogg))?$/i, '');
-    // very rare: extra dashes
+
+    // strip common bitrate/codec suffixes (covers -256-mp3, -130-aac, trailing numbers, etc.)
+    id = id
+      .replace(/-(320|256|192|160|150|144|130|128|112|104|96|80|72|64|56|48|40|32)(-(mp3|aacp?|ogg))?$/i, '')
+      .replace(/(320|256|192|160|150|144|130|128|112|104|96|80|72|64|56|48|40|32)$/i, '');
+
+    // very rare: extra dashes (e.g., "groovesalad-extra-256-mp3") → keep first token
     if (id.includes('-')) id = id.split('-')[0];
+
     return id.toLowerCase();
   } catch { return ''; }
 }
