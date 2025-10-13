@@ -8,8 +8,8 @@ const DEFAULT_TIMEOUT_MS = 9000;
 
 function wrapAllOrigins(url, mode) {
   const enc = encodeURIComponent(url);
-  if (mode === 'json') return `${AO_BASE}/get?url=${enc}&disableCache=true`;
-  return `${AO_BASE}/raw?url=${enc}&disableCache=true`; // mode === 'raw'
+  if (mode === 'json') return `${AO_BASE}/get?url=${enc}`;
+  return `${AO_BASE}/raw?url=${enc}`; // mode === 'raw'
 }
 
 /**
