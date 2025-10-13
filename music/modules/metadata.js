@@ -1,12 +1,11 @@
 // /music/modules/metadata.js
-// SomaFM-only now-playing via channels.json. NO ICY/SHOUTCAST probes.
-// Returns: { id, title, listeners, now } or null.
+// SomaFM-only now-playing. NO ICY/SHOUTCAST. Returns { id, title, listeners, now }.
 
 import { normalizeNow } from './utils.js';
 import { fetchJSONViaProxy } from './cors.js';
 
 const SOMA_URL = 'https://somafm.com/channels.json';
-const SOMA_TTL = 5000; // ms cache
+const SOMA_TTL = 5000; // ms
 let somaCache = { t: 0, rows: null };
 
 const toInt = (v)=> {
@@ -49,21 +48,20 @@ function slugTitle(s=''){
 }
 
 /**
- * fetchStreamMeta(streamUrl, proxy, stationMeta?)
- * - Uses SomaFM channels.json only
- * - Tries to match by explicit id (stationMeta.id) then by stream URL-derived id, then by title
+ * fetchStreamMeta(url, proxy, stationMeta?)
+ * - SomaFM only
  * - Returns { id, title, listeners, now } or null
  */
-export async function fetchStreamMeta(streamUrl, proxy, stationMeta = {}){
+export async function fetchStreamMeta(url, proxy, stationMeta = {}){
   const rows = await getSomaRows(proxy);
 
-  // Try explicit id / channel hints first
+  // by id from URL or explicit meta
   const hintId = String(
-    stationMeta.id || stationMeta.channel || stationMeta.channelId || idFromUrl(streamUrl) || ''
+    stationMeta.id || stationMeta.channel || stationMeta.channelId || idFromUrl(url) || ''
   ).toLowerCase();
   let row = hintId ? rows.find(r => r.id === hintId) : null;
 
-  // Fallback: title match
+  // by title fallback (if select text is the channel name)
   if (!row && stationMeta.name){
     const want = slugTitle(stationMeta.name);
     row = rows.find(r => slugTitle(r.title) === want) || null;
@@ -79,7 +77,7 @@ export async function fetchStreamMeta(streamUrl, proxy, stationMeta = {}){
   };
 }
 
-/** Optional: playlist file tracks (string heuristic) */
+/** Optional: file tracks (simple filename heuristic) */
 export async function fetchTrackMeta(tr){
   const src = tr?.title || tr?.url || '';
   const m = String(src).split(/ - (.+)/);
