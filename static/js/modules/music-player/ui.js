@@ -1,7 +1,7 @@
-// static/js/modules/music-player/ui.js — shell + list rendering + helpers
+// static/js/modules/music-player/ui.js — build shell + list rendering + helpers
 import { $, $$ } from './utils.js';
 
-export function buildShell(root, initialVolume){
+export function buildUI(root, cfg){
   root.innerHTML = `
     <div class="mp-top">
       <div class="mp-now">
@@ -11,7 +11,7 @@ export function buildShell(root, initialVolume){
 
       <div class="mp-controls" role="toolbar" aria-label="Controls">
         <div class="mp-switch" role="group" title="Toggle Radio / Playlists">
-          <button class="mp-switch-knob" data-src-toggle aria-pressed="true" aria-label="Radio / Playlists"></button>
+          <button class="mp-switch-knob" data-src-toggle aria-pressed="${cfg.startSource==='playlists'?'false':'true'}" aria-label="Radio / Playlists"></button>
         </div>
 
         <button class="mp-btn" data-act="prev" title="Previous (⟵)">⏮</button>
@@ -30,22 +30,6 @@ export function buildShell(root, initialVolume){
       <input type="range" class="mp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">
     </div>
 
-    <div class="mp-meter" id="vu">
-      <div class="vu-rows">
-        <div class="vu-row">
-          <div class="vu-ch">L</div>
-          <div class="vu-bar">${hbar('L')}</div>
-        </div>
-        <div class="vu-row">
-          <div class="vu-ch">R</div>
-          <div class="vu-bar">${hbar('R')}</div>
-        </div>
-      </div>
-      <div class="mp-vol">
-        <input type="range" class="mp-volume" min="0" max="1" step="0.01" value="${initialVolume}" aria-label="Volume">
-      </div>
-    </div>
-
     <div class="mp-bottom">
       <div class="mp-left">
         <label class="small">Radio Stations (.m3u)</label>
@@ -60,19 +44,7 @@ export function buildShell(root, initialVolume){
       </div>
     </div>
   `;
-  return getRefs(root);
-}
 
-function hbar(side){
-  const spans=[];
-  for(let i=0;i<6;i++) spans.push(`<span class="hled g" data-hled-${side}${i}></span>`);
-  spans.push(`<span class="hled y" data-hled-${side}6></span>`);
-  spans.push(`<span class="hled r" data-hled-${side}7></span>`);
-  return spans.join('');
-}
-
-/* Exported: used by player.js */
-export function getRefs(root){
   return {
     root,
     titleEl: $('[data-title]', root),
@@ -82,7 +54,7 @@ export function getRefs(root){
     seek:    $('.mp-seek', root),
     vol:     $('.mp-volume', root),
     list:    $('.mp-list', root),
-    btn: {
+    btns: {
       prev:    $('[data-act="prev"]', root),
       play:    $('[data-act="play"]', root),
       stop:    $('[data-act="stop"]', root),
@@ -92,109 +64,107 @@ export function getRefs(root){
       loop1:   $('[data-act="loop1"]', root),
       mute:    $('[data-act="mute"]', root),
     },
-    sel: {
-      stations: $('.mp-pl-stations', root),
-      playlists:$('.mp-pl-music', root),
-    },
-    switchKnob: $('[data-src-toggle]', root),
+    selStations: $('.mp-pl-stations', root),
+    selMusic:    $('.mp-pl-music', root),
+    switchKnob:  $('[data-src-toggle]', root),
   };
 }
 
-export function setNow(refs, t, s='—'){
-  if (refs.titleEl) refs.titleEl.textContent = t || '—';
-  if (refs.subEl)   refs.subEl.textContent   = s || '—';
+export function uiHelpers({ titleEl, subEl, list, timeCur, timeDur, seek }){
+  const setNow = (t, sub='—')=>{
+    if (titleEl) titleEl.textContent = t || '—';
+    if (subEl)   subEl.textContent   = sub || '—';
+  };
+
+  const setPlayIcon = (on)=>{
+    const btn = $('[data-act="play"]', list?.closest('[data-mp]') || document);
+    if (btn) btn.textContent = on ? '⏸' : '▶';
+  };
+
+  const setMuteIcon = (audio)=>{
+    const btn = $('[data-act="mute"]', list?.closest('[data-mp]') || document);
+    if (btn) btn.textContent = audio?.muted ? '🔇' : '🔊';
+  };
+
+  const paintTimes = (audio)=>{
+    if (timeCur) timeCur.textContent = fmt(audio.currentTime);
+    if (timeDur) timeDur.textContent = isFinite(audio.duration) ? fmt(audio.duration) : '—';
+    if (seek && isFinite(audio.duration) && audio.duration>0){
+      seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
+    }
+  };
+
+  const setSourceUI = (active, selStations, selMusic)=>{
+    const isStations = active === 'stations';
+    selStations?.classList.toggle('is-disabled', !isStations);
+    selMusic?.classList.toggle('is-disabled', isStations);
+    const knob = $('[data-src-toggle]', list?.closest('[data-mp]') || document);
+    knob?.setAttribute('aria-pressed', isStations ? 'true' : 'false');
+  };
+
+  /** Render queue. For streams:
+   *  Row 1: Station title + right side "⟨listeners⟩ • LIVE"
+   *  Row 2: Now Playing track text (updates live)
+   */
+  const renderQueue = (queue, cursor)=>{
+    if (!list) return;
+    list.innerHTML = '';
+    if (!Array.isArray(queue) || !queue.length) return;
+
+    const tr = queue[Math.max(0, cursor)];
+    if (tr?.isStream){
+      // Station row
+      const liStation = document.createElement('li');
+      const Ls = document.createElement('div'); Ls.className='t';
+      Ls.textContent = tr.title || 'Live Station';
+      const Rs = document.createElement('div'); Rs.className='len mono';
+      Rs.setAttribute('data-live','1');
+      Rs.textContent = 'LIVE';
+      liStation.appendChild(Ls); liStation.appendChild(Rs);
+      list.appendChild(liStation);
+
+      // Now-playing row
+      const liNow = document.createElement('li');
+      liNow.setAttribute('data-now','1');
+      const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = '—';
+      const Rn = document.createElement('div'); Rn.className='len mono'; Rn.textContent = '';
+      liNow.appendChild(Ln); liNow.appendChild(Rn);
+      list.appendChild(liNow);
+    } else {
+      queue.forEach((t,i)=>{
+        const li = document.createElement('li');
+        const left = document.createElement('div'); left.className='t';
+        left.textContent = `${String(i+1).padStart(2,'0')} — ${t.title || `Track ${i+1}`}`;
+        const right = document.createElement('div'); right.className='len mono'; right.textContent = '';
+        li.appendChild(left); li.appendChild(right);
+        list.appendChild(li);
+      });
+    }
+  };
+
+  const updateRadioNow = (txt)=>{
+    const el = list?.querySelector('li[data-now="1"] .t');
+    if (el) el.textContent = txt || '—';
+  };
+
+  const updateRadioListeners = (count)=>{
+    const live = list?.querySelector('[data-live="1"]');
+    if (!live) return;
+    const n = (Number.isFinite(+count) ? String(count) : '').trim();
+    live.textContent = n ? `${n} • LIVE` : 'LIVE';
+  };
+
+  const highlightList = (cursor)=>{
+    if (!list) return;
+    $$('.active', list).forEach(li => li.classList.remove('active'));
+    if (cursor >= 0) list.children[cursor]?.classList.add('active');
+  };
+
+  return { setNow, setPlayIcon, setMuteIcon, paintTimes, setSourceUI, renderQueue, updateRadioNow, updateRadioListeners, highlightList };
 }
 
-/* Playlist rendering */
-export function renderPlaylistList(refs, tracks, onPick){
-  if (!refs.list) return;
-  refs.list.innerHTML = '';
-  tracks.forEach((t,i)=>{
-    const li = document.createElement('li');
-    const left = document.createElement('div'); left.className='t';
-    left.textContent = `${String(i+1).padStart(2,'0')} — ${t.title || `Track ${i+1}`}`;
-    const right = document.createElement('div'); right.className='len mono'; right.textContent = '';
-    li.appendChild(left); li.appendChild(right);
-    li.addEventListener('click', ()=> onPick(i));
-    refs.list.appendChild(li);
-  });
-}
-export function renderPlaylist(refs, tracks, onPick){
-  return renderPlaylistList(refs, tracks, onPick);
-}
-
-/* Radio list (row 1 = station + listeners • LIVE, row 2 = now) */
-export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
-  if (!refs.list) return;
-  refs.list.innerHTML = '';
-
-  const liStation = document.createElement('li');
-  const Ls = document.createElement('div'); Ls.className='t'; Ls.textContent = stationTitle || 'Live Station';
-  const Rs = document.createElement('div'); Rs.className='len mono'; Rs.setAttribute('data-live', '1'); Rs.textContent = 'LIVE';
-  liStation.appendChild(Ls); liStation.appendChild(Rs);
-  refs.list.appendChild(liStation);
-
-  const liNow = document.createElement('li');
-  liNow.setAttribute('data-now', '1');
-  const Ln = document.createElement('div'); Ln.className='t'; Ln.textContent = nowTitle || '—';
-  const Rn = document.createElement('div'); Rn.className='len mono'; Rn.textContent = '';
-  liNow.appendChild(Ln); liNow.appendChild(Rn);
-  refs.list.appendChild(liNow);
-
-  // history (if provided)
-  for (let i = history.length - 1; i >= 0; i--){
-    const hli = document.createElement('li');
-    const hl  = document.createElement('div'); hl.className='t';
-    const hr  = document.createElement('div'); hr.className='len mono';
-    hl.textContent = history[i];
-    hr.textContent = '';
-    hli.appendChild(hl); hli.appendChild(hr);
-    refs.list.appendChild(hli);
-  }
-}
-
-export function updateRadioNow(refs, nowText){
-  const el = refs.list?.querySelector('li[data-now="1"] .t');
-  if (el) el.textContent = nowText || '—';
-}
-
-export function updateRadioListeners(refs, count){
-  const live = refs.list?.querySelector('[data-live="1"]');
-  if (!live) return;
-  const n = (Number.isFinite(+count) ? String(count) : '').trim();
-  live.textContent = n ? `${n} • LIVE` : 'LIVE';
-}
-
-export function highlightList(refs, cursor, usingStations){
-  if (!refs.list) return;
-  $$('.active', refs.list).forEach(li => li.classList.remove('active'));
-  if (cursor >= 0) refs.list.children[cursor + (usingStations ? 1 : 0)]?.classList.add('active');
-}
-
-export function setMuteIcon(refs, audio){
-  if (refs.btn?.mute) refs.btn.mute.textContent = audio?.muted ? '🔇' : '🔊';
-}
-
-export function setPlayIcon(refs, on){
-  if (refs.btn?.play) refs.btn.play.textContent = on ? '⏸' : '▶';
-}
-
-export function paintTimes(refs, audio, fmtTime){
-  const t = (el, txt)=>{ if (el) el.textContent = txt; };
-  t(refs.timeCur, fmtTime(audio.currentTime));
-  t(refs.timeDur, isFinite(audio.duration) ? fmtTime(audio.duration) : '—');
-  if (refs.seek && isFinite(audio.duration) && audio.duration>0) {
-    refs.seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
-  }
-}
-
-export function fillSelect(selEl, arr){
-  if (!selEl) return;
-  selEl.innerHTML = '';
-  arr.forEach((it,i)=>{
-    const o=document.createElement('option');
-    o.value = it.file;
-    o.textContent = it.name || `Item ${i+1}`;
-    selEl.appendChild(o);
-  });
+function fmt(sec){
+  if (!isFinite(sec)||sec<0) return '—';
+  const m = Math.floor(sec/60), s = Math.floor(sec%60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
