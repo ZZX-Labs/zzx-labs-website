@@ -17,7 +17,7 @@ export function wireControls(refs, audio, cfg, handlers){
     const isRadio = (refs.switchKnob.getAttribute('aria-pressed') === 'true');
     // If currently Radio -> switch to Playlists (toPlaylists = true)
     // If currently Playlists -> switch to Stations (toPlaylists = false)
-    setSwitch(isRadio); 
+    setSwitch(isRadio);
     if (isRadio) await onPickMusic(true);
     else         await onPickStations(true);
   }));
