@@ -125,16 +125,30 @@ export function renderPlaylist(refs, tracks, onPick){
   return renderPlaylistList(refs, tracks, onPick);
 }
 
-export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
+/* --- helpers for the radio list --- */
+function liveText(n){
+  const num = Number.isFinite(n) ? n : Number.parseInt(String(n ?? ''), 10);
+  return Number.isFinite(num) ? `${num.toLocaleString?.() ?? num} • LIVE` : 'LIVE';
+}
+
+/**
+ * stationTitle   -> the station name
+ * nowTitle       -> lastPlaying text (from channels.json)
+ * history[]      -> prior now-playing strings
+ * listeners      -> number (optional) for “123 • LIVE”
+ */
+export function renderRadioList(refs, stationTitle, nowTitle, history=[], listeners){
   if (!refs.list) return;
   refs.list.innerHTML = '';
 
+  // Row 0: station + listeners • LIVE
   const liStation = document.createElement('li');
   const Ls = document.createElement('div'); Ls.className='t';   Ls.textContent = stationTitle || 'Live Station';
-  const Rs = document.createElement('div'); Rs.className='len mono'; Rs.textContent = 'LIVE';
+  const Rs = document.createElement('div'); Rs.className='len mono'; Rs.textContent = liveText(listeners);
   liStation.appendChild(Ls); liStation.appendChild(Rs);
   refs.list.appendChild(liStation);
 
+  // Row 1: lastPlaying
   const liNow = document.createElement('li');
   liNow.setAttribute('data-now', '1');
   const Ln = document.createElement('div'); Ln.className='t';   Ln.textContent = nowTitle || '—';
@@ -142,6 +156,7 @@ export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
   liNow.appendChild(Ln); liNow.appendChild(Rn);
   refs.list.appendChild(liNow);
 
+  // History (newest last)
   for (let i = history.length - 1; i >= 0; i--){
     const hli = document.createElement('li');
     const hl  = document.createElement('div'); hl.className='t';
@@ -156,6 +171,11 @@ export function renderRadioList(refs, stationTitle, nowTitle, history=[]){
 export function updateRadioNow(refs, nowText){
   const el = refs.list?.querySelector('li[data-now="1"] .t');
   if (el) el.textContent = nowText || '—';
+}
+
+export function updateRadioListeners(refs, listeners){
+  const el = refs.list?.querySelector('li:first-child .len');
+  if (el) el.textContent = liveText(listeners);
 }
 
 export function highlightList(refs, cursor, usingStations){
