@@ -180,4 +180,4 @@ export function fillSelect(selEl, arr){
     o.textContent = it.name || `Item ${i+1}`;
     selEl.appendChild(o);
   });
-}
+  }
