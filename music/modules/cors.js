@@ -4,7 +4,7 @@
 //   const txt = await fetchTextViaProxy(url, proxy); // proxy: "allorigins-raw" | "allorigins-json" | custom prefix
 
 const AO_BASE = 'https://api.allorigins.win';
-const DEFAULT_TIMEOUT_MS = 9000;
+const DEFAULT_TIMEOUT_MS = 15000;
 
 function wrapAllOrigins(url, mode) {
   const enc = encodeURIComponent(url);
