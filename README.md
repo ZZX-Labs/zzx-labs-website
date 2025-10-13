@@ -1,4 +1,4 @@
-<img src="static/logos/logo.png">
+<img src="static/logos/logo.png" width="240" height="240">
 
 <img src="static/logos/ZZX Labs Typographic Logo.png">
 ---
@@ -183,5 +183,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Thanks to [Flask](https://flask.palletsprojects.com/) for providing the framework for building the API.
 - Thanks to [Cloudflare](https://www.cloudflare.com) for security and DNS management.
 - Thanks to [nginx](https://www.nginx.com) for serving the website locally and in production.
+
 
 
