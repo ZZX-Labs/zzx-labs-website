@@ -1,11 +1,12 @@
 // /music/modules/metadata.js
-// SomaFM-only now-playing. NO ICY/SHOUTCAST. Returns { id, title, listeners, now }.
+// SomaFM-only now-playing via channels.json. NO ICY/SHOUTCAST probes.
+// Returns: { id, title, listeners, now } or null.
 
 import { normalizeNow } from './utils.js';
 import { fetchJSONViaProxy } from './cors.js';
 
 const SOMA_URL = 'https://somafm.com/channels.json';
-const SOMA_TTL = 5000; // ms
+const SOMA_TTL = 5000; // ms cache
 let somaCache = { t: 0, rows: null };
 
 const toInt = (v)=> {
@@ -48,20 +49,21 @@ function slugTitle(s=''){
 }
 
 /**
- * fetchStreamMeta(url, proxy, stationMeta?)
- * - SomaFM only — reads channels.json
+ * fetchStreamMeta(streamUrl, proxy, stationMeta?)
+ * - Uses SomaFM channels.json only
+ * - Tries to match by explicit id (stationMeta.id) then by stream URL-derived id, then by title
  * - Returns { id, title, listeners, now } or null
  */
-export async function fetchStreamMeta(url, proxy, stationMeta = {}){
+export async function fetchStreamMeta(streamUrl, proxy, stationMeta = {}){
   const rows = await getSomaRows(proxy);
 
-  // prefer id hint or id derived from stream URL
+  // Try explicit id / channel hints first
   const hintId = String(
-    stationMeta.id || stationMeta.channel || stationMeta.channelId || idFromUrl(url) || ''
+    stationMeta.id || stationMeta.channel || stationMeta.channelId || idFromUrl(streamUrl) || ''
   ).toLowerCase();
   let row = hintId ? rows.find(r => r.id === hintId) : null;
 
-  // fallback match by title
+  // Fallback: title match
   if (!row && stationMeta.name){
     const want = slugTitle(stationMeta.name);
     row = rows.find(r => slugTitle(r.title) === want) || null;
@@ -77,7 +79,7 @@ export async function fetchStreamMeta(url, proxy, stationMeta = {}){
   };
 }
 
-/** Optional: file tracks (unchanged) */
+/** Optional: playlist file tracks (string heuristic) */
 export async function fetchTrackMeta(tr){
   const src = tr?.title || tr?.url || '';
   const m = String(src).split(/ - (.+)/);
