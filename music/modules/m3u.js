@@ -202,8 +202,8 @@ function dedupe(arr){
 /* ----------------------------- optional shim (compat) ---------------------------- */
 /**
  * Old signature shim:
- * loadM3U(path, isStation, stationMeta, cfg, opts)
- * maps to the new object API. You can delete this once all callsites are updated.
+ * loadM3U(path, isStation, stationMeta, cfg)
+ * maps to the new object API. Keep for older callsites; remove once migrated.
  */
 export async function loadM3UCompat(path, isStation, stationMeta, cfg /*, opts */){
   const base = String(cfg?.manifestUrl || '').replace(/\/manifest\.json$/i, '');
