@@ -55,7 +55,7 @@ function slugTitle(s=''){
 export async function fetchStreamMeta(url, proxy, stationMeta = {}){
   const rows = await getSomaRows(proxy);
 
-  // by id first
+  // by id first (hint or derived from URL)
   const hintId = String(
     stationMeta.id || stationMeta.channel || stationMeta.channelId || idFromUrl(url) || ''
   ).toLowerCase();
