@@ -130,76 +130,144 @@
     {
       "slug": "beefs-diceware-wordlists",
       "title": "beef's Diceware Wordlists",
-      "blurb": "Modified Diceware methodology for secure offline passphrases. Cryptographically signed 7,776-word lists for deterministic, entropy-based systems.",
+      "blurb": "Cryptographically-signed, locale-aware Diceware wordlists (7,776 words) and tooling for deterministic, printable offline passphrases and entropy audits.",
       "href": "/projects/software/beefs-diceware-wordlists/",
       "github": "https://github.com/ZZX-Labs/beefs-diceware-wordlists",
-      "logo": "/projects/software/beefs-diceware-wordlists/logo.png"
+      "logo": "/projects/software/beefs-diceware-wordlists/logo.png",
+      "version": "1.0.0",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["security", "passphrase", "diceware", "wordlist", "entropy", "offline", "printing"],
+      "dependencies": ["python3", "pyyaml", "click", "cryptography"],
+      "frameworks": ["Python"]
     },
     {
       "slug": "beefs-rngs",
       "title": "beef's RNGs",
-      "blurb": "Custom RNG suite in Bash, C/C++, and Python with test vectors, bias checks, and entropy audits.",
+      "blurb": "Suite of RNG implementations and test-vectors (Bash, C/C++, Python) with entropy collectors, bias tests, and reproducible audit logs for offline cryptographic seeding.",
       "href": "/projects/software/beefs-rngs/",
       "github": "https://github.com/ZZX-Labs/beefs-rngs",
-      "logo": "/projects/software/beefs-rngs/logo.png"
+      "logo": "/projects/software/beefs-rngs/logo.png",
+      "version": "0.2.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["rng", "entropy", "security", "testing", "forensics", "seed", "audit"],
+      "dependencies": ["python3", "openssl", "gcc", "make", "rng-tools"],
+      "frameworks": ["C", "C++", "Python", "Bash"]
     },
     {
       "slug": "berossus",
       "title": "Berossus",
-      "blurb": "Corpus-building and retrieval pipelines for domain-specific LLM tooling; indexing, embeddings, and evals.",
+      "blurb": "Corpus-building and retrieval pipelines for domain-specific LLM tooling providing ingestion, dedupe, chunking, vector embeddings, and evaluation suites for controlled model fine-tuning.",
       "href": "/projects/software/berossus/",
       "github": "https://github.com/ZZX-Labs/berossus",
-      "logo": "/projects/software/berossus/logo.png"
+      "logo": "/projects/software/berossus/logo.png",
+      "version": "0.3.0-beta",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["nlp", "dataset", "embeddings", "retrieval", "llm", "ingest", "eval"],
+      "dependencies": ["python3", "transformers", "sentence-transformers", "faiss-cpu", "numpy", "pandas", "tqdm"],
+      "frameworks": ["PyTorch", "Transformers", "SentenceTransformers", "FAISS"]
     },
     {
       "slug": "berossusvoiceai",
       "title": "BerossusVoiceAI",
-      "blurb": "Voice TTS/STT stack for Berossus: diarization, alignment, and multi-voice synthesis with prompt control.",
+      "blurb": "Modular TTS/STT stack for Berossus: diarization, alignment, multi-voice synthesis, and orchestration tooling for dataset creation and controlled voice generation.",
       "href": "/projects/software/berossusvoiceai/",
       "github": "https://github.com/ZZX-Labs/berossusvoiceai",
-      "logo": "/projects/software/berossusvoiceai/logo.png"
+      "logo": "/projects/software/berossusvoiceai/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["tts", "stt", "diarization", "synthesis", "dataset", "voice", "alignment"],
+      "dependencies": ["python3", "torch", "torchaudio", "webrtcvad", "whisper", "numpy", "scipy", "soundfile"],
+      "frameworks": ["PyTorch", "Torchaudio", "Whisper", "Coqui/MozillaTTS-compatible"]
     },
     {
       "slug": "bhopal-calc",
       "title": "BHOPAL Calc",
-      "blurb": "Cannabinoid content calculator GUI (Python) for estimating potency, ratios, and dosing.",
+      "blurb": "Cannabinoid content and dosing calculator GUI (Python) for estimating potency, terpene ratios, extraction yields, and safe dosing guidelines for lab & cultivation use.",
       "href": "/projects/software/bhopal-calc/",
       "github": "https://github.com/ZZX-Labs/bhopal-calc",
-      "logo": "/projects/software/bhopal-calc/logo.png"
+      "logo": "/projects/software/bhopal-calc/logo.png",
+      "version": "0.1.0",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cannabis", "calculator", "chemistry", "potency", "terpenes", "gui", "lab"],
+      "dependencies": ["python3", "pyqt5", "numpy", "pandas", "matplotlib"],
+      "frameworks": ["Qt", "PyQt5"]
     },
     {
       "slug": "bitage",
       "title": "BitAge",
       "blurb": "System for empirical measurement and visualization of Bitcoin block time intervals — providing dual-backend analytics (Esplora API & Bitcoin Core RPC), rolling statistical windows, and PyQt5 GUI/CLI interfaces for blockchain temporal analysis.",
       "href": "/projects/software/bitage/",
-      "github": "https://github.com/ZZX-Labs/BitAge",
-      "logo": "/projects/software/bitage/logo.png"
+      "github": "https://github.com/ZZX-Labs/bitage",
+      "logo": "/projects/software/bitage/logo.png",
+      "version": "0.2.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "blockchain", "analytics", "block-time", "statistics", "rpc", "esplora", "data", "visualization", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "pandas", "matplotlib", "sqlalchemy", "numpy", "bitcoinrpc"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib", "Flask"]
+    },
+    {
+      "slug": "bitarmor",
+      "title": "BitArmor",
+      "blurb": "BitArmor is a hardened Bitcoin vault management and custody framework. It implements multi-layered timelocks, multisig authorization, HSM integration, and policy-based encryption for high-security storage. Supports cold wallets, escrow workflows, recovery manifests, and verifiable audit logs across CLI and PyQt5 GUI modes.",
+      "href": "/projects/software/bitarmor/",
+      "github": "https://github.com/ZZX-Labs/bitarmor",
+      "logo": "/projects/software/bitarmor/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "security", "vault", "multisig", "timelock", "custody", "hsm", "encryption", "escrow", "wallet", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "bitcoinlib", "bitcoind-rpc", "gnupg", "cryptography", "openssl", "sqlite3", "requests"],
+      "frameworks": ["Qt", "PyQt5", "Flask", "Gunicorn"]
     },
     {
       "slug": "bitavg",
-      "title": "bitavg",
-      "blurb": "Bitcoin price moving-average toolkit with CSV/JSON outputs, rolling windows, and on-chain-aware signals.",
+      "title": "BitAvg",
+      "blurb": "BitAvg is a global Bitcoin weighted-average price calculator that aggregates real-time spot data across major exchanges. It computes global market ratios by exchange volume and updates every ¼-second to maintain a live, volume-weighted, volatility-adjusted index.",
       "href": "/projects/software/bitavg/",
       "github": "https://github.com/ZZX-Labs/bitavg",
-      "logo": "/projects/software/bitavg/logo.png"
+      "logo": "/projects/software/bitavg/logo.png",
+      "version": "0.2.0-beta",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "price", "index", "exchange", "weighted", "average", "global", "market", "ticker", "stats", "api", "cli", "pyqt5", "zzx"],
+      "dependencies": ["python3", "requests", "pandas", "numpy", "pyqt5", "matplotlib", "sqlite3"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bitburn",
       "title": "BitBurn",
-      "blurb": "Bitcoin effective-value estimator given a range of lost / inaccessible coin",
+      "blurb": "BitBurn estimates the total volume of Bitcoin permanently lost through wallet disappearance, forgotten keys, and unspent outputs. It models loss ratios using UTXO age, transaction entropy, and chain inactivity metrics to visualize historical and projected Bitcoin supply reduction.",
       "href": "/projects/software/bitburn/",
-      "github": "https://github.com/ZZX-Labs/BitBurn",
-      "logo": "/projects/software/bitburn/logo.png"
+      "github": "https://github.com/ZZX-Labs/bitburn",
+      "logo": "/projects/software/bitburn/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "lost-coins", "utxo", "supply", "analytics", "forensics", "blockchain", "visualization", "pyqt5", "cli", "zzx"],
+      "dependencies": ["python3", "pyqt5", "pandas", "matplotlib", "requests", "numpy", "sqlalchemy"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bitfig",
       "title": "BitFig",
-      "blurb": "Bitcoin Core / Knots configuration designer — generate, validate, and deploy bitcoin.conf templates interactively (web, CLI, or GUI).",
+      "blurb": "Bitcoin Core / Knots configuration designer — generate, validate, and deploy bitcoin.conf templates interactively (web, CLI, or GUI). Enables real-time parameter editing, syntax validation, and deployment to local or remote nodes with secure authentication and rollback support.",
       "href": "/projects/software/bitfig/",
       "github": "https://github.com/ZZX-Labs/bitfig",
-      "logo": "/projects/software/bitfig/logo.png"
+      "logo": "/projects/software/bitfig/logo.png",
+      "version": "0.2.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "bitcoin-core", "bitcoin-knots", "configuration", "designer", "rpc", "deployment", "validation", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "flask", "requests", "jinja2", "paramiko", "sqlalchemy", "pandas"],
+      "frameworks": ["Qt", "PyQt5", "Flask"]
     },
-    { 
+    {
       "slug": "bitonion",
       "title": "BitOnion",
       "blurb": "Local Tor gateway & router for Bitcoin Core: automatic Tor/I2P/OpenVPN/proxychains routing, monitoring integrations (nmap, Wireshark), and cross-platform CLI + PyQt5 GUI for secure full-node operation.",
@@ -208,13 +276,15 @@
       "logo": "/projects/software/bitonion/logo.png",
       "version": "0.1.0-alpha",
       "license": "MIT",
-      "platforms": [ "Linux", "Windows", "macOS", "Android", "iOS", "Kali" ],
-      "tags": [ "bitcoin", "bitcoin-core", "bitcoin-knots", "bitcoind", "bitcoin-cli", "ln", "lnd", "tor", "i2p", "vpn", "proxychains", "privacy", "pyqt5", "cli", "gui", "networking", "monitoring", "nmap", "wireshark" ]
+      "platforms": ["Linux", "Windows", "macOS", "Android", "iOS", "Kali"],
+      "tags": ["bitcoin", "bitcoin-core", "bitcoin-knots", "bitcoind", "bitcoin-cli", "ln", "lnd", "tor", "i2p", "vpn", "proxychains", "privacy", "pyqt5", "cli", "gui", "networking", "monitoring", "nmap", "wireshark"],
+      "dependencies": ["python3", "pyqt5", "flask", "requests", "subprocess", "paramiko", "sqlite3", "nmap"],
+      "frameworks": ["Qt", "PyQt5", "Flask"]
     },
     {
       "slug": "bitpet",
       "title": "BitPet",
-      "blurb": "Bitcoin-integrated virtual pet ecosystem blending gamification, cryptography, and collectible economics. Each BitPet is a blockchain-linked entity with evolving stats, behaviors, and attributes influenced by Lightning Network microtransactions, encrypted wallets, and training interactions.",
+      "blurb": "Bitcoin-integrated virtual pet ecosystem blending gamification, cryptography, and collectible economics. Each BitPet is a bitcoin blockchain-linked entity with evolving stats, behaviors, and attributes influenced by Lightning Network microtransactions, encrypted wallets, and training interactions.",
       "href": "/projects/software/bitpet/",
       "github": "https://github.com/ZZX-Labs/bitpet",
       "logo": "/projects/software/bitpet/logo.png",
@@ -228,18 +298,30 @@
     {
       "slug": "bitrng",
       "title": "BitRNG",
-      "blurb": "Bitcoin data–based entropy seed source feeding multiple RNGs for cryptographic sampling and lotteries.",
+      "blurb": "BitRNG is a cryptographically secure random number generator and entropy testing suite. It collects live entropy from Bitcoin block headers, transaction hashes, and network latency metrics, converting them into verifiable random seeds suitable for key generation, cryptography, and gaming applications.",
       "href": "/projects/software/bitrng/",
       "github": "https://github.com/ZZX-Labs/bitrng",
-      "logo": "/projects/software/bitrng/logo.png"
+      "logo": "/projects/software/bitrng/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "entropy", "rng", "security", "cryptography", "random", "keygen", "analysis", "cli", "pyqt5", "zzx"],
+      "dependencies": ["python3", "requests", "numpy", "pyqt5", "matplotlib", "hashlib"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bittrackit",
       "title": "BitTrackIt",
-      "blurb": "Operational tracker for BTC/LN tasks, wallets, and batch jobs with signed audit events.",
+      "blurb": "BitTrackIt monitors, logs, and visualizes Bitcoin transactions, addresses, and wallet balances in real time. It integrates multiple exchange and mempool APIs for on-chain monitoring, fee estimation, and portfolio tracking, with alerts and forensic tracing capabilities.",
       "href": "/projects/software/bittrackit/",
       "github": "https://github.com/ZZX-Labs/bittrackit",
-      "logo": "/projects/software/bittrackit/logo.png"
+      "logo": "/projects/software/bittrackit/logo.png",
+      "version": "0.2.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["bitcoin", "tracking", "blockchain", "mempool", "analytics", "wallet", "address", "forensics", "monitoring", "api", "cli", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "sqlite3", "matplotlib", "pandas"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bit-clock",
@@ -247,7 +329,13 @@
       "blurb": "Bitcoin time & block-height clock—halving countdowns, epoch stats, subsidy and emission visualizer.",
       "href": "/projects/software/bit-clock/",
       "github": "https://github.com/ZZX-Labs/bit-clock",
-      "logo": "/projects/software/bit-clock/logo.png"
+      "logo": "/projects/software/bit-clock/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "time", "block-height", "halving", "epochs", "subsidy", "emission", "visualization", "gui", "cli", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "pandas", "matplotlib", "numpy"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bit-monitor",
@@ -255,7 +343,13 @@
       "blurb": "Lightweight Bitcoin/LN monitor with node health, mempool, fee bands, and uptime alerts.",
       "href": "/projects/software/bit-monitor/",
       "github": "https://github.com/ZZX-Labs/bit-monitor",
-      "logo": "/projects/software/bit-monitor/logo.png"
+      "logo": "/projects/software/bit-monitor/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "lightning", "ln", "monitoring", "node-health", "mempool", "fees", "alerts", "network", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "psutil", "matplotlib", "numpy"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bit-tracker",
@@ -263,7 +357,13 @@
       "blurb": "Address, UTXO, and transaction tracker with labeling, notes, and exportable audit trails.",
       "href": "/projects/software/bit-tracker/",
       "github": "https://github.com/ZZX-Labs/bit-tracker",
-      "logo": "/projects/software/bit-tracker/logo.png"
+      "logo": "/projects/software/bit-tracker/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "address-tracking", "utxo", "transactions", "labels", "notes", "auditing", "forensics", "wallet-analysis", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "sqlalchemy", "sqlite3", "requests", "pandas"],
+      "frameworks": ["Qt", "PyQt5", "SQLAlchemy"]
     },
     {
       "slug": "bitcoin-mined",
@@ -271,7 +371,13 @@
       "blurb": "Minimalist, real-time Bitcoin circulation tracker & emission estimator (Python + PyQt5) using on-chain data.",
       "href": "/projects/software/bitcoin-mined/",
       "github": "https://github.com/ZZX-Labs/bitcoin-mined",
-      "logo": "/projects/software/bitcoin-mined/logo.png"
+      "logo": "/projects/software/bitcoin-mined/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "supply", "circulation", "emission", "on-chain", "analytics", "visualization", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "numpy", "matplotlib"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bit-tick",
@@ -279,7 +385,13 @@
       "blurb": "Bitcoin price ticker.",
       "href": "/projects/software/bit-tick/",
       "github": "https://github.com/ZZX-Labs/bit-tick",
-      "logo": "/projects/software/bit-tick/logo.png"
+      "logo": "/projects/software/bit-tick/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["bitcoin", "price", "ticker", "realtime", "markets", "widget", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests"],
+      "frameworks": ["Qt", "PyQt5"]
     },
     {
       "slug": "bitcoin-tully",
@@ -287,7 +399,13 @@
       "blurb": "BitcoinCore/Knots wallet-finding & forensic backup tools (Bash & Python) for Windows 10 (cmder).",
       "href": "/projects/software/bitcoin-tully/",
       "github": "https://github.com/ZZX-Labs/bitcoin-tully",
-      "logo": "/projects/software/bitcoin-tully/logo.png"
+      "logo": "/projects/software/bitcoin-tully/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Windows"],
+      "tags": ["bitcoin", "bitcoin-core", "bitcoin-knots", "wallet", "recovery", "backup", "forensics", "windows", "cmder", "bash", "python", "zzx"],
+      "dependencies": ["bash", "python3", "grep", "findutils"],
+      "frameworks": ["Bash", "Python"]
     },
     {
       "slug": "bitcontract",
@@ -295,71 +413,125 @@
       "blurb": "Bitcoin smart-contract templates (timelocks, multisig, DLCs) with code generators and tests.",
       "href": "/projects/software/bitcontract/",
       "github": "https://github.com/ZZX-Labs/bitcontract",
-      "logo": "/projects/software/bitcontract/logo.png"
+      "logo": "/projects/software/bitcontract/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "smart-contracts", "scripts", "timelock", "multisig", "dlc", "htlc", "psbt", "testing", "cli", "zzx"],
+      "dependencies": ["python3", "pytest", "bitcoinlib", "jinja2"],
+      "frameworks": ["pytest"]
     },
     {
       "slug": "bitescrow",
       "title": "BitEscrow",
-      "blurb": "Multisig escrow flows with arbitration, milestone releases, and dispute evidence packs.",
+      "blurb": "Multisig escrow protocol implementing milestone-based Bitcoin releases with arbitration and encrypted dispute evidence packs. Serves as the foundational layer for BitContracts, enabling secure transactional mediation between counterparties using 2-of-3 or N-of-M signing architectures.",
       "href": "/projects/software/bitescrow/",
       "github": "https://github.com/ZZX-Labs/bitescrow",
-      "logo": "/projects/software/bitescrow/logo.png"
+      "logo": "/projects/software/bitescrow/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["bitcoin", "escrow", "multisig", "contract", "arbitration", "dispute", "btc", "ln", "security", "cli", "pyqt5", "zzx"],
+      "dependencies": ["python3", "bitcoinlib", "pyqt5", "sqlalchemy", "requests", "cryptography"],
+      "frameworks": ["Qt", "PyQt5", "SQLAlchemy"]
     },
     {
       "slug": "bitlegal",
       "title": "BitLegal",
-      "blurb": "Legal contracts platform linking plain-language terms to enforceable on-chain actions (BTC/LN).",
+      "blurb": "Legal contract automation framework connecting plain-language agreements to enforceable Bitcoin and Lightning actions. Provides signature binding, notarized contract hashes, and arbitration integration via BitEscrow for verifiable compliance and on-chain enforceability.",
       "href": "/projects/software/bitlegal/",
       "github": "https://github.com/ZZX-Labs/bitlegal",
-      "logo": "/projects/software/bitlegal/logo.png"
+      "logo": "/projects/software/bitlegal/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "ln", "legal", "contracts", "automation", "arbitration", "compliance", "smart-contracts", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "sqlalchemy", "jinja2", "pdfkit", "requests"],
+      "frameworks": ["Qt", "PyQt5", "SQLAlchemy"]
     },
     {
       "slug": "bitcontractor",
       "title": "BitContractor",
-      "blurb": "Contract authoring studio: compose legal + on-chain clauses with signing and versioning.",
+      "blurb": "Contract authoring and publishing suite for drafting hybrid legal and on-chain Bitcoin agreements. Integrates BitLegal and BitEscrow with signing, version control, notarization, and multi-user collaboration. Features template management, diff-based redlining, and export to PDF or JSON for blockchain notarization.",
       "href": "/projects/software/bitcontractor/",
       "github": "https://github.com/ZZX-Labs/bitcontractor",
-      "logo": "/projects/software/bitcontractor/logo.png"
+      "logo": "/projects/software/bitcontractor/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "contracts", "authoring", "legal", "escrow", "signing", "versioning", "blockchain", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "gitpython", "sqlalchemy", "jinja2", "requests", "cryptography"],
+      "frameworks": ["Qt", "PyQt5", "SQLAlchemy"]
     },
     {
       "slug": "bitbetting",
       "title": "BitBetting",
-      "blurb": "Provably-fair Bitcoin betting primitives with on-chain proofs and LN settlement.",
+      "blurb": "Provably-fair Bitcoin betting protocol built atop the BitContracts framework. Uses verifiable random seeds, on-chain proofs, and Lightning Network settlement channels for instant payout and transparency. Includes modular APIs for prediction markets and decentralized game logic.",
       "href": "/projects/software/bitbetting/",
       "github": "https://github.com/ZZX-Labs/bitbetting",
-      "logo": "/projects/software/bitbetting/logo.png"
+      "logo": "/projects/software/bitbetting/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "betting", "provably-fair", "contracts", "ln", "randomness", "api", "game", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "numpy", "sqlalchemy", "requests", "cryptography", "flask"],
+      "frameworks": ["Qt", "PyQt5", "Flask"]
     },
     {
       "slug": "bitcasino",
       "title": "BitCasino",
-      "blurb": "BTC-native casino engine with provable fairness, bankroll risk controls, and plugin games.",
+      "blurb": "BTC-native casino engine built on BitContracts with provably-fair game logic, modular plugin architecture, bankroll management, and player-side verification. Supports LN buy-ins, multisig reserves, and auditable randomness verification across integrated titles.",
       "href": "/projects/software/bitcasino/",
       "github": "https://github.com/ZZX-Labs/bitcasino",
-      "logo": "/projects/software/bitcasino/logo.png"
+      "logo": "/projects/software/bitcasino/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["bitcoin", "casino", "provably-fair", "gaming", "contracts", "ln", "bankroll", "randomness", "api", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "sqlalchemy", "numpy", "requests", "ffmpeg"],
+      "frameworks": ["Qt", "PyQt5"]
     },
     {
       "slug": "bitgaming",
       "title": "BitGaming",
-      "blurb": "BTC-first game mechanics, provable odds, and payout rails for indie titles.",
+      "blurb": "Gaming layer for Bitcoin-based mechanics integrating provable odds, verifiable randomness, and LN payment rails. Designed for indie developers to embed BTC-native logic, leaderboards, and instant micropayments into existing games.",
       "href": "/projects/software/bitgaming/",
       "github": "https://github.com/ZZX-Labs/bitgaming",
-      "logo": "/projects/software/bitgaming/logo.png"
+      "logo": "/projects/software/bitgaming/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["bitcoin", "gaming", "ln", "micropayments", "contracts", "odds", "leaderboards", "indie", "sdk", "api", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "numpy", "flask"],
+      "frameworks": ["Qt", "PyQt5", "Flask"]
     },
     {
       "slug": "bitjack",
       "title": "BitJack",
-      "blurb": "Bitcoin blackjack with LN buy-in, provably-fair dealing, and low-latency rounds.",
+      "blurb": "Bitcoin blackjack engine under the BitCasino stack — LN buy-ins, provably-fair deck shuffling, and low-latency gameplay. Built with modular game logic and transparent randomness proofs for verifiable fairness and instant LN settlements.",
       "href": "/projects/software/bitjack/",
       "github": "https://github.com/ZZX-Labs/bitjack",
-      "logo": "/projects/software/bitjack/logo.png"
+      "logo": "/projects/software/bitjack/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["bitcoin", "blackjack", "casino", "ln", "provably-fair", "randomness", "contracts", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "numpy", "requests", "flask"],
+      "frameworks": ["Qt", "PyQt5", "Flask"]
     },
     {
       "slug": "bitbroker",
       "title": "BitBroker",
-      "blurb": "Programmable Bitcoin order-router & market microstructure research toolkit.",
+      "blurb": "Programmable Bitcoin order-router and market microstructure toolkit. Enables automated accumulation, hedging, and rebalancing strategies across multiple exchanges and APIs. Used internally and externally by traders, institutions, and AI systems for long-term BTC accumulation and research-grade execution modeling.",
       "href": "/projects/software/bitbroker/",
       "github": "https://github.com/ZZX-Labs/bitbroker",
-      "logo": "/projects/software/bitbroker/logo.png"
+      "logo": "/projects/software/bitbroker/logo.png",
+      "version": "0.2.0-beta",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "exchange", "router", "trading", "market", "api", "strategy", "automation", "hedging", "cli", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "requests", "pandas", "sqlalchemy", "matplotlib", "ccxt"],
+      "frameworks": ["Qt", "PyQt5", "Matplotlib"]
     },
     {
       "slug": "bitpav",
@@ -378,10 +550,17 @@
     {
       "slug": "blackbat",
       "title": "BlackBat",
-      "blurb": "Bitcoin trading algorithms (BATS/ATSP) focused on long-term BTC accumulation with risk controls.",
+      "blurb": "BlackBat is a suite of Bitcoin trading algorithms (BATS/ATSP) focused on long-term BTC accumulation with position sizing, drawdown limits, and multi-exchange risk controls.",
       "href": "/projects/software/blackbat/",
       "github": "https://github.com/ZZX-Labs/blackbat",
-      "logo": "/projects/software/blackbat/logo.png"
+      "logo": "/projects/software/blackbat/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "trading", "algorithms", "strategy", "accumulation", "risk", "backtesting", "execution", "cli", "analytics", "zzx"],
+      "dependencies": ["python3", "pandas", "numpy", "matplotlib", "requests", "sqlalchemy"],
+      "frameworks": ["Matplotlib"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "blackbook",
@@ -401,256 +580,440 @@
     {
       "slug": "blekrat",
       "title": "BlekRAT",
-      "blurb": "Private remote-administration toolkit for lab orchestration and testbeds (internal).",
+      "blurb": "BlekRAT is a private, secure administrator’s remote-access toolkit for lab orchestration and testbeds, providing encrypted multi-host control channels, task automation, and audit logging for internal environments.",
       "href": "/projects/software/blekrat/",
       "github": "https://github.com/ZZX-Labs/blekrat",
-      "logo": "/projects/software/blekrat/logo.png"
+      "logo": "/projects/software/blekrat/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "Proprietary / Internal",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["remote-admin", "rat", "orchestration", "lab", "internal", "automation", "ssh", "encryption", "ops", "cli", "zzx"],
+      "dependencies": ["python3", "paramiko", "psutil", "sqlalchemy", "cryptography", "requests"],
+      "frameworks": ["SQLAlchemy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "calsched",
       "title": "CalSched",
-      "blurb": "Calendar & scheduler with alert desktop GUI (Python + Tkinter), runnable from CLI.",
+      "blurb": "CalSched is a calendar and scheduler with alert-capable PyQt5 desktop GUI and CLI modes, supporting recurring events, reminders, and persistent local storage.",
       "href": "/projects/software/calsched/",
       "github": "https://github.com/ZZX-Labs/calsched",
-      "logo": "/projects/software/calsched/logo.png"
+      "logo": "/projects/software/calsched/logo.png",
+      "version": "0.2.0",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["calendar", "scheduler", "alerts", "reminders", "time-management", "gui", "cli", "pyqt5"],
+      "dependencies": ["python3", "pyqt5", "sqlite3", "apscheduler"],
+      "frameworks": ["Qt", "PyQt5"]
     },
     {
       "slug": "cannadex",
       "title": "Cannadex",
-      "blurb": "Cannabis strain library viewer & marketplace data index. ‘Core’ variant supports CLI/GUI/headless modes.",
+      "blurb": "Cannadex is a cannabis strain library viewer and marketplace data index with a Core variant that supports CLI, PyQt5 GUI, and headless modes for analytics and archival workflows.",
       "href": "/projects/software/cannadex/",
       "github": "https://github.com/ZZX-Labs/cannadex",
-      "logo": "/projects/software/cannadex/logo.png"
+      "logo": "/projects/software/cannadex/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cannabis", "strains", "marketplace", "index", "library", "data", "analytics", "cli", "gui", "pyqt5"],
+      "dependencies": ["python3", "pyqt5", "requests", "sqlalchemy", "sqlite3", "pandas"],
+      "frameworks": ["Qt", "PyQt5", "SQLAlchemy"]
     },
     {
       "slug": "cannapedia",
       "title": "Cannapedia",
-      "blurb": "Wiki-like site for genetics, terpenes, cultivation notes, and verified lab results.",
+      "blurb": "Cannapedia is a wiki-like web platform for cannabis genetics, terpenes, cultivation notes, and verified lab results, designed for structured, community-extendable research and reference.",
       "href": "/projects/software/cannapedia/",
       "github": "https://github.com/ZZX-Labs/cannapedia",
-      "logo": "/projects/software/cannapedia/logo.png"
+      "logo": "/projects/software/cannapedia/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cannabis", "wiki", "genetics", "terpenes", "cultivation", "lab-results", "database", "web", "api"],
+      "dependencies": ["python3", "flask", "sqlalchemy", "psycopg2-binary", "jinja2", "requests"],
+      "frameworks": ["Flask", "SQLAlchemy"]
     },
     {
       "slug": "cdrc",
       "title": "CDRC",
-      "blurb": "Court DocRec Collector—bulk downloader/indexer for court documents with metadata normalization.",
+      "blurb": "CDRC (Court DocRec Collector) is a bulk downloader and indexer for court documents that normalizes metadata, de-duplicates records, and builds searchable local corpora for legal research.",
       "href": "/projects/software/cdrc/",
       "github": "https://github.com/ZZX-Labs/cdrc",
-      "logo": "/projects/software/cdrc/logo.png"
+      "logo": "/projects/software/cdrc/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["court", "legal", "scraper", "documents", "metadata", "indexing", "archive", "cli"],
+      "dependencies": ["python3", "requests", "beautifulsoup4", "sqlalchemy", "sqlite3", "pdfminer.six"],
+      "frameworks": ["SQLAlchemy"]
     },
     {
       "slug": "cees-chirp",
       "title": "CEES-Chirp",
-      "blurb": "Cricket Encrypted Encoding Specifications — a biologically inspired, phase-shift-based, dual-channel secure data transmission protocol using 4096 unique cricket species chirp samples as high-entropy acoustic symbols for covert communication, cryptographic encoding, and air-gapped data transfer.",
+      "blurb": "CEES-Chirp (Cricket Encrypted Encoding Specifications) is a biologically inspired, phase-shift-based, dual-channel secure data transmission protocol using 4096 unique cricket species chirp samples as high-entropy acoustic symbols for covert communication, cryptographic encoding, and air-gapped data transfer.",
       "href": "/projects/software/cees-chirp/",
       "github": "https://github.com/ZZX-Labs/cees-chirp",
-      "logo": "/projects/software/cees-chirp/logo.png"
+      "logo": "/projects/software/cees-chirp/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android", "iOS"],
+      "tags": ["encryption", "acoustic", "covert-channel", "airgapped", "protocol", "phase-shift", "chirp", "audio", "rng", "cli", "pyqt5", "zzx"],
+      "dependencies": ["python3", "numpy", "scipy", "pyqt5", "sounddevice", "ffmpeg", "cryptography", "matplotlib"],
+      "frameworks": ["Qt", "PyQt5", "NumPy", "SciPy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "chappievc",
       "title": "ChappieVC (Voice Changer)",
-      "blurb": "Chappie Voice Changer — AI-enhanced real-time vocal processing engine inspired by cinematic androids like Chappie, K-2SO, and C-3PO. Utilizes neural pitch-shifting, spectral morphing, glitch artifacts, and vocoder-based timbre modeling for dynamic human-to-synthetic voice transformations. Features PyQt5 GUI and CLI control with preset banks for robot, mech, and droid vocal archetypes.",
+      "blurb": "ChappieVC is an AI-enhanced real-time vocal processing engine inspired by cinematic androids like Chappie, K-2SO, and C-3PO, using neural pitch-shifting, spectral morphing, glitch artifacts, and vocoder-based timbre modeling with PyQt5 GUI and CLI control for robot, mech, and droid voice presets.",
       "href": "/projects/software/chappievc/",
       "github": "https://github.com/ZZX-Labs/chappievc",
       "logo": "/projects/software/chappievc/logo.png",
       "version": "0.1.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
-      "tags": ["voice", "voice-changer", "ai", "vocoder", "synthesis", "pitch", "robot", "android", "mech", "fx", "cli", "gui", "pyqt5", "audio", "realtime", "ffmpeg", "zzx"],
+      "tags": ["voice", "voice-changer", "ai", "vocoder", "synthesis", "pitch", "robot", "android", "mech", "fx", "realtime", "audio", "cli", "gui", "pyqt5", "zzx"],
       "dependencies": ["python3", "pyqt5", "torch", "torchaudio", "numpy", "scipy", "pyaudio", "ffmpeg", "sounddevice", "mido"],
-      "frameworks": ["PyTorch", "Torchaudio", "Qt", "PyQt5", "FFmpeg"]
+      "frameworks": ["PyTorch", "Torchaudio", "Qt", "PyQt5", "FFmpeg"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "character-generator",
       "title": "Character Generator",
-      "blurb": "Promptable character builder for games/fiction with exportable JSON bios and art hooks.",
+      "blurb": "Character Generator is a promptable character builder for games and fiction that outputs structured JSON bios, traits, and hooks suitable for integration with art pipelines, dialogue systems, and worldbuilding tools.",
       "href": "/projects/software/character-generator/",
       "github": "https://github.com/ZZX-Labs/character-generator",
-      "logo": "/projects/software/character-generator/logo.png"
+      "logo": "/projects/software/character-generator/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["character", "rpg", "game-dev", "narrative", "json", "generator", "worldbuilding", "cli", "tooling"],
+      "dependencies": ["python3", "pyyaml", "jinja2"],
+      "frameworks": []
     },
     {
       "slug": "character-rng",
       "title": "Character RNG",
-      "blurb": "Advanced character generation & portrait system with Stable Diffusion integration.",
+      "blurb": "Character RNG is an advanced character generation and portrait system that combines structured generators with Stable Diffusion integration to produce consistent text bios and visual portraits from shared seeds and style-locks.",
       "href": "/projects/software/character-rng/",
       "github": "https://github.com/ZZX-Labs/character-rng",
-      "logo": "/projects/software/character-rng/logo.png"
+      "logo": "/projects/software/character-rng/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["character", "rpg", "stable-diffusion", "portrait", "generator", "ai-art", "json", "gui", "cli", "pyqt5"],
+      "dependencies": ["python3", "pyqt5", "torch", "diffusers", "transformers", "numpy", "pillow", "opencv-python"],
+      "frameworks": ["PyTorch", "Diffusers", "Transformers", "Qt", "PyQt5"]
     },
     {
       "slug": "courtlistener-ac",
       "title": "CourtListener-AC",
-      "blurb": "CourtListener Audio Collector—fetch, catalog, and tag oral-argument audio with transcripts.",
+      "blurb": "CourtListener-AC (Audio Collector) fetches, catalogs, and tags CourtListener oral-argument audio along with transcripts, building searchable, timestamp-aligned local corpora for legal and linguistic research.",
       "href": "/projects/software/courtlistener-ac/",
       "github": "https://github.com/ZZX-Labs/courtlistener-ac",
-      "logo": "/projects/software/courtlistener-ac/logo.png"
+      "logo": "/projects/software/courtlistener-ac/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["courtlistener", "legal", "audio", "transcripts", "scraper", "archive", "nlp", "cli"],
+      "dependencies": ["python3", "requests", "beautifulsoup4", "pydub", "ffmpeg", "sqlalchemy", "sqlite3"],
+      "frameworks": ["SQLAlchemy"]
     },
     {
       "slug": "cryptainer",
       "title": "Cryptainer",
-      "blurb": "Secure Bitcoin wallet/container storage with GPG identity, timelocks, policy manifests, and auditable IO.",
+      "blurb": "Cryptainer is a secure Bitcoin wallet/container storage system that ties GPG identities to encrypted vaults with timelocks, policy manifests, and auditable I/O flows for cold storage and operational custody.",
       "href": "/projects/software/cryptainer/",
       "github": "https://github.com/ZZX-Labs/cryptainer",
-      "logo": "/projects/software/cryptainer/logo.png"
+      "logo": "/projects/software/cryptainer/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["bitcoin", "wallet", "cold-storage", "gpg", "encryption", "timelock", "policy", "audit", "cli", "pyqt5"],
+      "dependencies": ["python3", "pyqt5", "python-gnupg", "sqlalchemy", "sqlite3", "cryptography"],
+      "frameworks": ["Qt", "PyQt5", "SQLAlchemy"]
     },
     {
       "slug": "cyberchefkit",
       "title": "CyberChefKit",
-      "blurb": "Unified, offline CyberChef suite (Python/C/C++/Go/R/Perl/Ruby/Lua/JS) for airgapped & embedded workflows; optional local server.",
+      "blurb": "CyberChefKit is a unified, offline CyberChef suite implemented across Python, C/C++, Go, R, Perl, Ruby, Lua, and JS for airgapped and embedded workflows with an optional local web server.",
       "href": "/projects/software/cyberchefkit/",
       "github": "https://github.com/ZZX-Labs/cyberchefkit",
-      "logo": "/projects/software/cyberchefkit/logo.png"
+      "logo": "/projects/software/cyberchefkit/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "CLA Apache",
+      "platforms": ["Linux", "Windows", "macOS", "Kali"],
+      "tags": ["cyberchef", "forensics", "transforms", "encoding", "decoding", "crypto", "airgapped", "cli", "server", "toolkit"],
+      "dependencies": ["python3", "flask", "sqlalchemy"],
+      "frameworks": ["Flask", "SQLAlchemy"]
     },
     {
       "slug": "cyberchefc",
       "title": "CyberChefC",
-      "blurb": "CyberChef core reimplemented in C for embedded/airgapped toolchains.",
+      "blurb": "CyberChefC is a C reimplementation of the CyberChef core primitives for embedded and airgapped toolchains, providing compact, auditable transform binaries used as a low-level backend by CyberChefKit.",
       "href": "/projects/software/cyberchefc/",
       "github": "https://github.com/ZZX-Labs/cyberchefc",
-      "logo": "/projects/software/cyberchefc/logo.png"
+      "logo": "/projects/software/cyberchefc/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "c", "embedded", "airgapped", "forensics", "encoding", "decoding", "crypto", "cli", "library", "zzx"],
+      "dependencies": ["gcc", "clang", "cmake"],
+      "frameworks": ["CMake"]
     },
     {
       "slug": "cyberchefcpp",
       "title": "CyberChefCPP",
-      "blurb": "C++ port of CyberChef primitives with CLI and library interfaces.",
+      "blurb": "CyberChefCPP is a C++ port of CyberChef primitives that exposes both a CLI and linkable library interface, enabling high-performance transform pipelines and tight integration with C++ forensics and security tools.",
       "href": "/projects/software/cyberchefcpp/",
       "github": "https://github.com/ZZX-Labs/cyberchefcpp",
-      "logo": "/projects/software/cyberchefcpp/logo.png"
+      "logo": "/projects/software/cyberchefcpp/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "c++", "forensics", "encoding", "decoding", "crypto", "cli", "library", "zzx"],
+      "dependencies": ["g++", "cmake"],
+      "frameworks": ["CMake"]
     },
     {
       "slug": "cyberchefpy",
       "title": "CyberChefPY",
-      "blurb": "Python module + CLI for CyberChef-like transforms suitable for scripting and notebooks.",
+      "blurb": "CyberChefPY is a Python module and CLI exposing CyberChef-like transforms for scripting, notebooks, and automation, serving as the Python binding layer for CyberChefKit workflows.",
       "href": "/projects/software/cyberchefpy/",
       "github": "https://github.com/ZZX-Labs/cyberchefpy",
-      "logo": "/projects/software/cyberchefpy/logo.png"
+      "logo": "/projects/software/cyberchefpy/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "python", "module", "cli", "forensics", "encoding", "decoding", "crypto", "notebooks", "zzx"],
+      "dependencies": ["python3", "click", "rich"],
+      "frameworks": []
     },
     {
       "slug": "cyberchefgo",
       "title": "CyberChefGO",
-      "blurb": "Go implementation of selected CyberChef ops for servers and single-binary tooling.",
+      "blurb": "CyberChefGO is a Go implementation of selected CyberChef operations designed for servers and single-binary tooling, offering self-contained transform executables and libraries for backend services.",
       "href": "/projects/software/cyberchefgo/",
       "github": "https://github.com/ZZX-Labs/cyberchefgo",
-      "logo": "/projects/software/cyberchefgo/logo.png"
+      "logo": "/projects/software/cyberchefgo/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "go", "server", "microservice", "single-binary", "forensics", "encoding", "decoding", "cli", "zzx"],
+      "dependencies": ["go"],
+      "frameworks": []
     },
     {
       "slug": "cyberchefrust",
       "title": "CyberChefRUST",
-      "blurb": "Rust crate implementing high-performance CyberChef primitives with WASM targets.",
+      "blurb": "CyberChefRUST is a Rust crate implementing high-performance CyberChef primitives with optional WASM targets, powering safe, concurrent transform pipelines for desktop and web runtimes.",
       "href": "/projects/software/cyberchefrust/",
       "github": "https://github.com/ZZX-Labs/cyberchefrust",
-      "logo": "/projects/software/cyberchefrust/logo.png"
-    },
-    {
-      "slug": "cyberchefjs",
-      "title": "CyberChefJS",
-      "blurb": "Web/Node port with modular builds, worker-based pipelines, and offline bundles.",
-      "href": "/projects/software/cyberchefjs/",
-      "github": "https://github.com/ZZX-Labs/cyberchefjs",
-      "logo": "/projects/software/cyberchefjs/logo.png"
+      "logo": "/projects/software/cyberchefrust/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "WebAssembly"],
+      "tags": ["cyberchef", "rust", "crate", "wasm", "forensics", "encoding", "decoding", "crypto", "library", "zzx"],
+      "dependencies": ["rust", "cargo"],
+      "frameworks": []
     },
     {
       "slug": "cyberchefjava",
       "title": "CyberChefJAVA",
-      "blurb": "Java/JVM library for CyberChef operations, suitable for Android and server apps.",
+      "blurb": "CyberChefJAVA is a Java/JVM library for CyberChef operations suitable for Android and server applications, exposing transform APIs for JVM-based pipelines and services.",
       "href": "/projects/software/cyberchefjava/",
       "github": "https://github.com/ZZX-Labs/cyberchefjava",
-      "logo": "/projects/software/cyberchefjava/logo.png"
+      "logo": "/projects/software/cyberchefjava/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["cyberchef", "java", "jvm", "android", "server", "forensics", "encoding", "decoding", "library", "zzx"],
+      "dependencies": ["java", "maven"],
+      "frameworks": []
     },
     {
       "slug": "cyberchefr",
       "title": "CyberChefR",
-      "blurb": "R bindings for CyberChef-like transforms focused on data-cleaning pipelines.",
+      "blurb": "CyberChefR provides R bindings for CyberChef-like transforms, optimized for data-cleaning, feature engineering, and forensic preprocessing within R workflows.",
       "href": "/projects/software/cyberchefr/",
       "github": "https://github.com/ZZX-Labs/cyberchefr",
-      "logo": "/projects/software/cyberchefr/logo.png"
+      "logo": "/projects/software/cyberchefr/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "r", "bindings", "data-cleaning", "forensics", "encoding", "decoding", "package", "zzx"],
+      "dependencies": ["r-base"],
+      "frameworks": []
     },
     {
       "slug": "cyberchefperl",
       "title": "CyberChefPERL",
-      "blurb": "Perl implementation for legacy pipelines and rapid text-processing tasks.",
+      "blurb": "CyberChefPERL is a Perl implementation of key CyberChef operations aimed at legacy pipelines and rapid text-processing tasks in classic Unix scripting environments.",
       "href": "/projects/software/cyberchefperl/",
       "github": "https://github.com/ZZX-Labs/cyberchefperl",
-      "logo": "/projects/software/cyberchefperl/logo.png"
+      "logo": "/projects/software/cyberchefperl/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "perl", "legacy", "unix", "text-processing", "forensics", "encoding", "decoding", "cli", "zzx"],
+      "dependencies": ["perl"],
+      "frameworks": []
     },
     {
       "slug": "cyberchefruby",
       "title": "CyberChefRUBY",
-      "blurb": "Ruby gem with selected CyberChef ops for scripting and Rails utilities.",
+      "blurb": "CyberChefRUBY is a Ruby gem exposing selected CyberChef operations for scripting, Rails utilities, and Ruby-based security tooling.",
       "href": "/projects/software/cyberchefruby/",
       "github": "https://github.com/ZZX-Labs/cyberchefruby",
-      "logo": "/projects/software/cyberchefruby/logo.png"
+      "logo": "/projects/software/cyberchefruby/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "ruby", "gem", "rails", "forensics", "encoding", "decoding", "cli", "zzx"],
+      "dependencies": ["ruby", "bundler"],
+      "frameworks": []
     },
     {
       "slug": "cybercheflua",
       "title": "CyberChefLUA",
-      "blurb": "Lua port for embedded interpreters and Nginx/OpenResty scripting.",
+      "blurb": "CyberChefLUA is a Lua port of CyberChef primitives tailored for embedded interpreters and Nginx/OpenResty scripting, adding transform capabilities directly into Lua-based infrastructures.",
       "href": "/projects/software/cybercheflua/",
       "github": "https://github.com/ZZX-Labs/cybercheflua",
-      "logo": "/projects/software/cybercheflua/logo.png"
+      "logo": "/projects/software/cybercheflua/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "lua", "nginx", "openresty", "embedded", "scripting", "forensics", "encoding", "decoding", "zzx"],
+      "dependencies": ["lua", "luarocks"],
+      "frameworks": []
     },
+    {
+      "slug": "cyberchefjs",
+      "title": "CyberChefJS",
+      "blurb": "CyberChefJS is a Web/Node port of CyberChef with modular builds, worker-based pipelines, and offline bundles, forming the browser and Node.js frontend/backend layer for CyberChefKit.",
+      "href": "/projects/software/cyberchefjs/",
+      "github": "https://github.com/ZZX-Labs/cyberchefjs",
+      "logo": "/projects/software/cyberchefjs/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Web", "Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "javascript", "node", "web", "workers", "offline", "bundles", "forensics", "encoding", "decoding", "zzx"],
+      "dependencies": ["node", "npm", "webpack"],
+      "frameworks": []
+    },    
     {
       "slug": "cyberchefhtml",
       "title": "CyberChefHTML",
-      "blurb": "Static HTML bundles for totally offline CyberChef-style workflows.",
+      "blurb": "CyberChefHTML provides static HTML bundles of CyberChef-style interfaces for completely offline, file-based transform workflows without any external dependencies.",
       "href": "/projects/software/cyberchefhtml/",
       "github": "https://github.com/ZZX-Labs/cyberchefhtml",
-      "logo": "/projects/software/cyberchefhtml/logo.png"
+      "logo": "/projects/software/cyberchefhtml/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Web", "Linux", "Windows", "macOS"],
+      "tags": ["cyberchef", "html", "static", "offline", "bundles", "forensics", "encoding", "decoding", "zzx"],
+      "dependencies": [],
+      "frameworks": []
     },
     {
       "slug": "cyberchefcss",
       "title": "CyberChefCSS",
-      "blurb": "CSS-only themes/skins and layout kits for CyberChefKit frontends.",
+      "blurb": "CyberChefCSS is a collection of CSS-only themes, skins, and layout kits that reskin CyberChefKit frontends for dark-mode labs, high-contrast forensics, and branded deployments.",
       "href": "/projects/software/cyberchefcss/",
       "github": "https://github.com/ZZX-Labs/cyberchefcss",
-      "logo": "/projects/software/cyberchefcss/logo.png"
+      "logo": "/projects/software/cyberchefcss/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Web"],
+      "tags": ["cyberchef", "css", "themes", "skins", "ui", "frontend", "style", "zzx"],
+      "dependencies": [],
+      "frameworks": []
     },
     {
       "slug": "cyberchefbash",
       "title": "CyberChefBASH",
-      "blurb": "Bash wrappers around compiled ops for headless pipelines and airgapped hosts.",
+      "blurb": "CyberChefBASH provides Bash wrappers around compiled CyberChef operations for headless pipelines and airgapped Unix hosts, making transform chains scriptable in pure shell.",
       "href": "/projects/software/cyberchefbash/",
       "github": "https://github.com/ZZX-Labs/cyberchefbash",
-      "logo": "/projects/software/cyberchefbash/logo.png"
+      "logo": "/projects/software/cyberchefbash/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "macOS", "Kali"],
+      "tags": ["cyberchef", "bash", "shell", "airgapped", "headless", "pipeline", "forensics", "encoding", "decoding", "zzx"],
+      "dependencies": ["bash", "coreutils"],
+      "frameworks": []
     },
     {
       "slug": "dabtimer",
       "title": "Dab Timer",
-      "blurb": "Precision quartz-cycle timer designed for concentrate vaporization; includes cooldown profiles, LED cues, and thermal calibration presets for repeatable dab temperatures.",
+      "blurb": "Precision quartz-cycle timer for concentrate vaporization with configurable cooldown profiles, LED cue patterns, and thermal calibration presets for repeatable dab temperatures.",
       "href": "/projects/software/dabtimer/",
       "github": "https://github.com/ZZX-Labs/dabtimer",
-      "logo": "/projects/software/dabtimer/logo.png"
+      "logo": "/projects/software/dabtimer/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["timer", "concentrates", "vaporization", "quartz", "led", "thermal", "profiles", "python", "gui"],
+      "dependencies": ["python3", "pyqt5"],
+      "frameworks": ["Qt", "PyQt5"]
     },
     {
       "slug": "ddtl",
       "title": "Delta Dharma Theory Lab",
-      "blurb": "Computational inquiry into contemplative timing, breath, and attention—protocols and instruments.",
+      "blurb": "Delta Dharma Theory Lab is a computational research environment for contemplative timing, breath, and attention, bundling experimental protocols, analytics, and simulation instruments.",
       "href": "/projects/software/ddtl/",
       "github": "https://github.com/ZZX-Labs/ddtl",
-      "logo": "/projects/software/ddtl/logo.png"
+      "logo": "/projects/software/ddtl/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["meditation", "contemplative-science", "breath", "timing", "attention", "analytics", "research", "python"],
+      "dependencies": ["python3", "numpy", "scipy", "matplotlib", "pandas", "jupyter"],
+      "frameworks": ["NumPy", "SciPy", "Matplotlib", "Jupyter"],
+      "note": "INTERNAL – Not for public distribution."
     },    
     {
       "slug": "dhama",
       "title": "Dhama",
-      "blurb": "Meditation and mindfulness application blending soundscapes, mantras, and visual synchrony. Inspired by Tibetan contemplative practice and minimalist UX design.",
+      "blurb": "Dhama is a meditation and mindfulness application that blends soundscapes, mantras, and synchronized visuals in a minimalist PyQt5 UX for focused contemplative sessions.",
       "href": "/projects/software/dhama/",
       "github": "https://github.com/ZZX-Labs/dhama",
-      "logo": "/projects/software/dhama/logo.png"
+      "logo": "/projects/software/dhama/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Android"],
+      "tags": ["meditation", "mindfulness", "soundscapes", "mantra", "visuals", "relaxation", "pyqt5", "audio", "gui"],
+      "dependencies": ["python3", "pyqt5", "pyaudio", "ffmpeg", "numpy"],
+      "frameworks": ["Qt", "PyQt5"]
     },
     {
       "slug": "discord-downgrader",
       "title": "Discord Downgrader",
-      "blurb": "Python + FFmpeg utility to shrink audio under 10 MB (iterative quality steps) for Discord uploads.",
+      "blurb": "Discord Downgrader is a Python + FFmpeg utility that iteratively shrinks audio files under 10 MB for Discord uploads while preserving as much perceptual quality as possible.",
       "href": "/projects/software/discord-downgrader/",
       "github": "https://github.com/ZZX-Labs/discord-downgrader",
-      "logo": "/projects/software/discord-downgrader/logo.png"
+      "logo": "/projects/software/discord-downgrader/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["discord", "audio", "compression", "ffmpeg", "bitrate", "cli", "utility"],
+      "dependencies": ["python3", "ffmpeg"],
+      "frameworks": []
     },
     {
       "slug": "expanded-diceware-volumes",
       "title": "Expanded Diceware Volumes",
-      "blurb": "Volume sets and methodologies for stronger Diceware passphrases with themed/locale-aware lists.",
+      "blurb": "Expanded Diceware Volumes provide themed and locale-aware wordlists plus methodologies for building stronger, high-entropy Diceware passphrases and mnemonic systems.",
       "href": "/projects/software/expanded-diceware-volumes/",
       "github": "https://github.com/ZZX-Labs/expanded-diceware-volumes",
-      "logo": "/projects/software/expanded-diceware-volumes/logo.png"
+      "logo": "/projects/software/expanded-diceware-volumes/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Any"],
+      "tags": ["diceware", "wordlists", "passphrases", "entropy", "security", "offline", "crypto"],
+      "dependencies": [],
+      "frameworks": []
     },
     {
       "slug": "far",
@@ -792,6 +1155,34 @@
       "tags": ["geospatial", "addressing", "osm", "mapping", "shortcodes", "api", "python", "cli", "zzx"],
       "dependencies": ["python3", "geopy", "requests", "pandas", "matplotlib"],
       "frameworks": ["Matplotlib"]
+    },
+    {
+      "slug": "gks",
+      "title": "GKSs (Glyph Key Sprites)",
+      "blurb": "GKSs are animated digital sentinels bound to Bitcoin and cryptainer keys. Each sprite represents an encrypted container’s guardian entity—generated through random dice-based entropy and procedural pixel art. Traits, rarity, and behavior correspond to wallet tiers, enabling visual cryptography and gamified key management.",
+      "href": "/projects/software/gks/",
+      "github": "https://github.com/ZZX-Labs/gks",
+      "logo": "/projects/software/gks/logo.png",
+      "version": "0.1.0-alpha",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["encryption", "visualization", "wallet", "sprite", "rng", "game", "cryptainer", "bitcoin", "art", "pyqt5", "gui", "zzx"],
+      "dependencies": ["python3", "pillow", "numpy", "pygame", "pyqt5", "sqlite3", "cryptography"],
+      "frameworks": ["Qt", "PyQt5", "Pillow", "SQLite"]
+    },
+    {
+      "slug": "gsk",
+      "title": "GSKs (Glyph Sprite Keys)",
+      "blurb": "GSK defines a custom cryptographic key format derived from SHA3-256 and RIPEMD160 with a lowercase Base32 encoding, excluding ambiguous glyphs. Each key includes an extended checksum and prefix structure for unique, human-readable, and error-resistant identifiers used across ZZX-Labs encryption systems.",
+      "href": "/projects/software/gsk/",
+      "github": "https://github.com/ZZX-Labs/gsk",
+      "logo": "/projects/software/gsk/logo.png",
+      "version": "0.1.0-spec",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS"],
+      "tags": ["encryption", "cryptography", "key-format", "address", "sha3", "base32", "checksum", "spec", "zzx"],
+      "dependencies": ["python3", "pycryptodome", "bip-utils", "base58", "hashlib"],
+      "frameworks": ["Python"]
     },
     {
       "slug": "gp",
@@ -1172,7 +1563,8 @@
       "platforms": ["Linux", "Windows", "macOS", "Web"],
       "tags": ["meme", "automation", "campaign", "template", "ab-test", "telemetry", "python", "pyqt5", "zzx"],
       "dependencies": ["python3", "pyqt5", "pillow", "requests", "sqlalchemy", "flask"],
-      "frameworks": ["Qt", "PyQt5", "Flask", "SQLAlchemy"]
+      "frameworks": ["Qt", "PyQt5", "Flask", "SQLAlchemy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "memeantix-cwg",
@@ -1186,7 +1578,8 @@
       "platforms": ["Any"],
       "tags": ["meme", "campaign", "art", "templates", "automation", "assets", "zzx"],
       "dependencies": [],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "memeantix-peg",
@@ -1200,7 +1593,8 @@
       "platforms": ["Any"],
       "tags": ["meme", "campaign", "narrative", "visual", "design", "assets", "zzx"],
       "dependencies": [],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "memeantix-fso",
@@ -1214,7 +1608,8 @@
       "platforms": ["Any"],
       "tags": ["meme", "campaign", "automation", "template", "assets", "zzx"],
       "dependencies": [],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "memeantix-sdo",
@@ -1228,7 +1623,8 @@
       "platforms": ["Any"],
       "tags": ["meme", "campaign", "scheduling", "release", "automation", "zzx"],
       "dependencies": [],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "mempoolspecs",
@@ -1326,7 +1722,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["video", "ripper", "downloader", "automation", "archival", "task", "cli", "python", "zzx"],
       "dependencies": ["python3", "yt-dlp", "ffmpeg", "requests", "sqlalchemy"],
-      "frameworks": ["SQLAlchemy"]
+      "frameworks": ["SQLAlchemy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "parallel-explorer",
@@ -1354,7 +1751,8 @@
       "platforms": ["Linux", "Windows", "macOS", "Android", "iOS"],
       "tags": ["encryption", "encoding", "cipher", "phase", "waveform", "quantum", "cryptography", "base128", "base256", "unicode", "salt", "pebble", "cli", "gui", "pyqt5", "zzx"],
       "dependencies": ["python3", "numpy", "scipy", "pyqt5", "cryptography", "ffmpeg", "matplotlib"],
-      "frameworks": ["Qt", "PyQt5", "NumPy", "SciPy"]
+      "frameworks": ["Qt", "PyQt5", "NumPy", "SciPy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "portraitgen",
@@ -1454,7 +1852,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["tts", "voice", "training", "speech", "synthesis", "offline", "ai", "pyqt5", "osc", "zzx"],
       "dependencies": ["python3", "pyqt5", "coqui-tts", "piper-tts", "pyttsx3", "ffmpeg"],
-      "frameworks": ["Qt", "PyQt5", "CoquiTTS"]
+      "frameworks": ["Qt", "PyQt5", "CoquiTTS"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "rgbrng",
@@ -1524,7 +1923,8 @@
       "platforms": ["Linux", "Windows"],
       "tags": ["crypto", "keysearch", "cuda", "bruteforce", "benchmarking", "gpu", "research", "zzx"],
       "dependencies": ["python3", "pycuda", "numpy", "torch"],
-      "frameworks": ["CUDA", "PyTorch"]
+      "frameworks": ["CUDA", "PyTorch"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "soiva",
@@ -1622,7 +2022,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["steganography", "microdot", "halftone", "encryption", "printing", "image", "security", "zzx"],
       "dependencies": ["python3", "pillow", "numpy", "opencv-python"],
-      "frameworks": ["OpenCV"]
+      "frameworks": ["OpenCV"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "stephenizer",
@@ -1636,7 +2037,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["voice", "tts", "fx", "prosody", "synthesis", "audio", "ai", "cli", "python", "zzx"],
       "dependencies": ["python3", "pyttsx3", "numpy", "pyaudio", "scipy"],
-      "frameworks": ["SciPy"]
+      "frameworks": ["SciPy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "stoa",
@@ -1720,7 +2122,8 @@
       "platforms": ["Linux", "Windows", "macOS", "Kali"],
       "tags": ["source-protection", "obfuscation", "compliance", "jurisdiction-aware", "security", "devtools", "zzx"],
       "dependencies": ["python3", "bash", "git", "openssl"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "redpanda",
@@ -1734,7 +2137,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["t4np", "china", "source-protection", "obfuscation", "compliance", "security", "zzx"],
       "dependencies": ["python3", "bash"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "amurtiger",
@@ -1748,7 +2152,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["t4np", "russia", "source-protection", "obfuscation", "compliance", "security", "zzx"],
       "dependencies": ["python3", "bash"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "manchuriantiger",
@@ -1762,7 +2167,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["t4np", "dprk", "source-protection", "obfuscation", "compliance", "security", "zzx"],
       "dependencies": ["python3", "bash"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "persianleopard",
@@ -1776,7 +2182,8 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["t4np", "iran", "source-protection", "obfuscation", "compliance", "security", "zzx"],
       "dependencies": ["python3", "bash"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "tzzxs",
@@ -1790,7 +2197,8 @@
       "platforms": ["Android", "Termux"],
       "tags": ["termux", "android", "tooling", "wrappers", "deployment", "cli", "zzx"],
       "dependencies": ["bash", "python3", "git", "curl"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "urlscraper-firefox-browser-addon",
@@ -1916,7 +2324,8 @@
       "platforms": ["Windows", "Linux", "macOS"],
       "tags": ["voice", "vocoder", "tts", "stt", "fx", "audio", "real-time", "zzx"],
       "dependencies": ["python3", "pyqt5", "pyaudio", "ffmpeg", "numpy", "scipy"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "wendelizer",
@@ -1930,7 +2339,8 @@
       "platforms": ["Windows", "Linux", "macOS"],
       "tags": ["voice", "fx", "synthesis", "formant", "tts", "audio", "zzx"],
       "dependencies": ["python3", "pyqt5", "pyaudio", "numpy", "scipy"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "wikispecies-core",
@@ -1972,7 +2382,8 @@
       "platforms": ["Windows", "Linux", "macOS"],
       "tags": ["audio", "soundscape", "noise", "midi", "pyqt5", "gui", "zzx"],
       "dependencies": ["python3", "pyqt5", "numpy", "pyaudio", "scipy"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "xconstats",
@@ -2014,109 +2425,117 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["ai", "assistant", "recon", "osint", "intel", "analysis", "zzx"],
       "dependencies": ["python3", "flask", "torch", "transformers"],
-      "frameworks": ["Flask", "PyTorch"]
+      "frameworks": ["Flask", "PyTorch"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-0gp",
-      "title": "ZZX 0GP",
-      "blurb": "ZZX 0GP is a cryptographic framework inspired by GPG/PGP, using Base32 and Base58 encodings with customizable profiles and batch operations for identity management, message signing, and encryption tasks.",
-      "href": "/projects/software/zzx-0gp/",
-      "github": "https://github.com/ZZX-Labs/zzx-0gp",
-      "logo": "/projects/software/zzx-0gp/logo.png",
+      "slug": "zzx0gp",
+      "title": "ZZX0GP",
+      "blurb": "0GP is a cryptographic framework inspired by GPG/PGP, using Base32 and Base58 encodings with customizable profiles and batch operations for identity management, message signing, and encryption tasks.",
+      "href": "/projects/software/zzx0gp/",
+      "github": "https://github.com/ZZX-Labs/zzx0gp",
+      "logo": "/projects/software/zzx0gp/logo.png",
       "version": "0.3.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["encryption", "pgp", "gpg", "base32", "base58", "cryptography", "cli", "zzx"],
       "dependencies": ["python3", "gnupg", "cryptography"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-bbc",
-      "title": "ZZX BBC",
-      "blurb": "ZZX BBC is a LoRA mesh communicator designed in a BlackBerry-style form factor—offering encrypted text, email, audio/video, and file transfers over Wi-Fi, GSM, 5G, and LoRA mesh networks.",
-      "href": "/projects/software/zzx-bbc/",
-      "github": "https://github.com/ZZX-Labs/zzx-bbc",
-      "logo": "/projects/software/zzx-bbc/logo.png",
+      "slug": "zzxbbc",
+      "title": "ZZXBBC",
+      "blurb": "BBC is a LoRA mesh communicator designed in a BlackBerry-style form factor—offering encrypted text, email, audio/video, and file transfers over Wi-Fi, GSM, 5G, and LoRA mesh networks.",
+      "href": "/projects/software/zzxbbc/",
+      "github": "https://github.com/ZZX-Labs/zzxbbc",
+      "logo": "/projects/software/zzxbbc/logo.png",
       "version": "0.2.0-alpha",
       "license": "MIT",
       "platforms": ["Embedded", "Linux", "Windows"],
       "tags": ["lora", "mesh", "communications", "e2ee", "hardware", "wireless", "zzx"],
       "dependencies": ["python3", "flask", "pyserial", "cryptography"],
-      "frameworks": ["Flask"]
+      "frameworks": ["Flask"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-core",
+      "slug": "zzxcore",
       "title": "ZZX-Core",
       "blurb": "ZZX-Core is the unified backend controller and orchestration system for all ZZX services—providing a GUI host for modular APIs, stack control, and mirrored backend operations.",
-      "href": "/projects/software/zzx-core/",
-      "github": "https://github.com/ZZX-Labs/zzx-core",
-      "logo": "/projects/software/zzx-core/logo.png",
+      "href": "/projects/software/zzxcore/",
+      "github": "https://github.com/ZZX-Labs/zzxcore",
+      "logo": "/projects/software/zzxcore/logo.png",
       "version": "0.4.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["backend", "controller", "gui", "orchestration", "api", "services", "zzx"],
       "dependencies": ["python3", "flask", "pyqt5", "docker", "sqlalchemy"],
-      "frameworks": ["Flask", "Qt", "PyQt5"]
+      "frameworks": ["Flask", "Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-des",
-      "title": "ZZX-DES",
-      "blurb": "ZZX Directory Explorer System (DES) — a hierarchical file and data browser featuring tagging, previews, metadata search, and secure bulk operations for archival data management.",
-      "href": "/projects/software/zzx-des/",
-      "github": "https://github.com/ZZX-Labs/zzx-des",
-      "logo": "/projects/software/zzx-des/logo.png",
+      "slug": "zzxdes",
+      "title": "ZZXDES",
+      "blurb": "Directory Explorer System (DES) — a hierarchical file and data browser featuring tagging, previews, metadata search, and secure bulk operations for archival data management.",
+      "href": "/projects/software/zzxdes/",
+      "github": "https://github.com/ZZX-Labs/zzxdes",
+      "logo": "/projects/software/zzxdes/logo.png",
       "version": "0.3.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["explorer", "directories", "metadata", "bulk", "gui", "zzx"],
       "dependencies": ["python3", "pyqt5", "pillow"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-nbe-cex",
-      "title": "ZZX NBE CEX",
+      "slug": "zzxcex",
+      "title": "ZZXCEX",
       "blurb": "CentralizedExchange research clone environment for Bitcoin-only transactional data analysis, used for internal ZZX financial simulations and model testing.",
-      "href": "/projects/software/zzx-nbe-cex/",
-      "github": "https://github.com/ZZX-Labs/zzx-nbe-cex",
-      "logo": "/projects/software/zzx-nbe-cex/logo.png",
+      "href": "/projects/software/zzxcex/",
+      "github": "https://github.com/ZZX-Labs/zzxcex",
+      "logo": "/projects/software/zzxcex/logo.png",
       "version": "0.1.0-alpha",
       "license": "Proprietary",
       "platforms": ["Linux", "Windows"],
       "tags": ["bitcoin", "exchange", "simulation", "cex", "analysis", "zzx"],
       "dependencies": ["python3", "flask", "sqlalchemy"],
-      "frameworks": ["Flask", "SQLAlchemy"]
+      "frameworks": ["Flask", "SQLAlchemy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-nbe-dex",
-      "title": "ZZX NBE DEX",
+      "slug": "zzxdex",
+      "title": "ZZXDEX",
       "blurb": "DecentralizedExchange research clone environment for Bitcoin-only peer-to-peer transactional data studies, running internal Lightning-based liquidity models.",
-      "href": "/projects/software/zzx-nbe-dex/",
-      "github": "https://github.com/ZZX-Labs/zzx-nbe-dex",
-      "logo": "/projects/software/zzx-nbe-dex/logo.png",
+      "href": "/projects/software/zzxdex/",
+      "github": "https://github.com/ZZX-Labs/zzxdex",
+      "logo": "/projects/software/zzxdex/logo.png",
       "version": "0.1.0-alpha",
       "license": "Proprietary",
       "platforms": ["Linux", "Windows"],
       "tags": ["bitcoin", "dex", "exchange", "ln", "simulation", "zzx"],
       "dependencies": ["python3", "flask", "sqlalchemy"],
-      "frameworks": ["Flask", "SQLAlchemy"]
+      "frameworks": ["Flask", "SQLAlchemy"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-ffk",
-      "title": "ZZX-FFK",
-      "blurb": "ZZX Forensic Field Kit (FFK) — a modular cross-platform forensic analysis suite for disk, memory, and network inspection. Includes both CLI and PyQt5 GUI interfaces with exportable audit trails.",
-      "href": "/projects/software/zzx-ffk/",
-      "github": "https://github.com/ZZX-Labs/zzx-ffk",
-      "logo": "/projects/software/zzx-ffk/logo.png",
+      "slug": "zzxffk",
+      "title": "ZZXFFK",
+      "blurb": "Forensic Field Kit (FFK) — a modular cross-platform forensic analysis suite for disk, memory, and network inspection. Includes both CLI and PyQt5 GUI interfaces with exportable audit trails.",
+      "href": "/projects/software/zzxffk/",
+      "github": "https://github.com/ZZX-Labs/zzxffk",
+      "logo": "/projects/software/zzxffk/logo.png",
       "version": "0.4.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["forensics", "cli", "gui", "security", "disk", "memory", "analysis", "zzx"],
       "dependencies": ["python3", "pyqt5", "psutil", "scapy", "sqlite3"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxkld",
-      "title": "ZZXKLD (Key Logger Defense)",
+      "title": "ZZXKLD",
       "blurb": "Key Logger Defense suite providing real-time input monitoring, keystroke encryption, and anomaly detection across user systems. Designed to detect unauthorized input capture and mitigate data exfiltration attempts through randomized input masking, integrity validation, and active threat countermeasures. Includes CLI, GUI, and system daemon modes for Windows, Linux, and macOS.",
       "href": "/projects/software/zzxkld/",
       "github": "https://github.com/ZZX-Labs/zzxkld",
@@ -2126,12 +2545,13 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["security", "anti-keylogger", "keylogger-detection", "encryption", "input-monitoring", "cybersecurity", "cli", "gui", "python", "pyqt5", "zzx"],
       "dependencies": ["python3", "pyqt5", "pynput", "cryptography", "sqlite3", "psutil", "watchdog"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxmsp",
       "title": "ZZXMSP",
-      "blurb": "ZZX Mnemonic Seed Phrase Standard — an open, high-entropy, alphabetically indexed mnemonic system designed as a BIP39 alternative for wallets, cold storage, and identity anchoring.",
+      "blurb": "Mnemonic Seed Phrase Standard — an open, high-entropy, alphabetically indexed mnemonic system designed as a BIP39 alternative for wallets, cold storage, and identity anchoring.",
       "href": "/projects/software/zzxmsp/",
       "github": "https://github.com/ZZX-Labs/zzxmsp",
       "logo": "/projects/software/zzxmsp/logo.png",
@@ -2140,25 +2560,41 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["bitcoin", "mnemonic", "entropy", "seed", "wallet", "security", "zzx"],
       "dependencies": ["python3", "bip-utils"],
-      "frameworks": []
+      "frameworks": [],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-sbs",
-      "title": "ZZX-SBS",
-      "blurb": "ZZX Site Builder System — unified page generator for projects, portfolios, and docs from a single manifest. Includes CLI and GUI modes with live preview and publication automation.",
-      "href": "/projects/software/zzx-sbs/",
-      "github": "https://github.com/ZZX-Labs/zzx-sbs",
-      "logo": "/projects/software/zzx-sbs/logo.png",
+      "slug": "zzxosc",
+      "title": "ZZXOSC",
+      "blurb": "ZZXOSC is a real-time oscilloscope and spectral analysis suite integrating USB audio, SDR, and VST plugin pipelines. Supports multi-channel monitoring, FFT visualization, forensic waveform capture, and signal export in standard formats. Designed for laboratory diagnostics, music visualization, and cyber forensics.",
+      "href": "/projects/software/zzxosc/",
+      "github": "https://github.com/ZZX-Labs/zzxosc",
+      "logo": "/projects/software/zzxosc/logo.png",
+      "version": "0.2.0-beta",
+      "license": "MIT",
+      "platforms": ["Linux", "Windows", "macOS", "Raspberry Pi"],
+      "tags": ["oscilloscope", "spectrum", "audio", "visualization", "sdr", "vst", "analysis", "signal", "forensics", "gui", "pyqt5", "zzx"],
+      "dependencies": ["python3", "pyqt5", "pyqtgraph", "numpy", "scipy", "sounddevice", "SoapySDR", "pyrtlsdr", "ffmpeg"],
+      "frameworks": ["Qt", "PyQt5", "PyQtGraph", "SoapySDR"]
+    },
+    {
+      "slug": "zzxsbs",
+      "title": "ZZXSBS",
+      "blurb": "Site Builder System — unified page generator for projects, portfolios, and docs from a single manifest. Includes CLI and GUI modes with live preview and publication automation.",
+      "href": "/projects/software/zzxsbs/",
+      "github": "https://github.com/ZZX-Labs/zzxsbs",
+      "logo": "/projects/software/zzxsbs/logo.png",
       "version": "0.3.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["site", "builder", "automation", "manifest", "cli", "gui", "zzx"],
       "dependencies": ["python3", "jinja2", "pyqt5"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxsss",
-      "title": "ZZXSSS (Server Stack System)",
+      "title": "ZZXSSS",
       "blurb": "Modular Server Stack System that automates setup, deployment, and synchronization of ZZX-Labs’ full backend environments. Handles Nginx, Flask, Gunicorn, Docker, and database orchestration for mirrored .io and .onion servers, integrating reverse proxies, SSL, VPN routing, and private API stacks into a unified control layer.",
       "href": "/projects/software/zzxsss/",
       "github": "https://github.com/ZZX-Labs/zzxsss",
@@ -2168,25 +2604,27 @@
       "platforms": ["Linux", "Windows", "macOS", "Kali"],
       "tags": ["server", "stack", "nginx", "flask", "gunicorn", "docker", "api", "vpn", "proxy", "deployment", "infrastructure", "devops", "zzx"],
       "dependencies": ["python3", "flask", "gunicorn", "docker", "nginx", "ufw", "openvpn"],
-      "frameworks": ["Flask", "Gunicorn", "Docker", "Nginx"]
+      "frameworks": ["Flask", "Gunicorn", "Docker", "Nginx"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
-      "slug": "zzx-sst",
-      "title": "ZZX-SST",
-      "blurb": "ZZX Site Scaffolding Tool — modular generator for uniform project pages, docs, and portfolios. CLI and PyQt5 GUI modes with automatic README/LICENSE imports and per-project hooks.",
-      "href": "/projects/software/zzx-sst/",
-      "github": "https://github.com/ZZX-Labs/zzx-sst",
-      "logo": "/projects/software/zzx-sst/logo.png",
+      "slug": "zzxsst",
+      "title": "ZZXSST",
+      "blurb": "Site Scaffolding Tool — modular generator for uniform project pages, docs, and portfolios. CLI and PyQt5 GUI modes with automatic README/LICENSE imports and per-project hooks.",
+      "href": "/projects/software/zzxsst/",
+      "github": "https://github.com/ZZX-Labs/zzxsst",
+      "logo": "/projects/software/zzxsst/logo.png",
       "version": "0.5.0-alpha",
       "license": "MIT",
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["site", "scaffolding", "automation", "generator", "cli", "gui", "zzx"],
       "dependencies": ["python3", "jinja2", "pyqt5"],
-      "frameworks": ["Qt", "PyQt5"]
+      "frameworks": ["Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxstt",
-      "title": "ZZXSTT (Speech-to-Text System)",
+      "title": "ZZXSTT",
       "blurb": "Centralized Speech-to-Text system for ZZX-Labs’ adaptive AI framework. Integrates Whisper, DeepSpeech, and Vosk engines for multi-language transcription, diarization, and segmentation. Features live microphone capture, media file transcription, batch processing, timestamped JSON export, and cross-integration with ZZXTTS for full duplex voice systems.",
       "href": "/projects/software/zzxstt/",
       "github": "https://github.com/ZZX-Labs/zzxstt",
@@ -2196,11 +2634,12 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["stt", "speech-to-text", "transcription", "whisper", "deepspeech", "vosk", "audio", "voice", "json", "python", "pyqt5", "gui", "cli", "zzx"],
       "dependencies": ["python3", "pyqt5", "whisper", "deepspeech", "vosk", "pyaudio", "ffmpeg", "numpy"],
-      "frameworks": ["Qt", "PyQt5", "Whisper", "DeepSpeech", "Vosk", "FFmpeg"]
+      "frameworks": ["Qt", "PyQt5", "Whisper", "DeepSpeech", "Vosk", "FFmpeg"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxtts",
-      "title": "ZZXTTS (Text-to-Speech System)",
+      "title": "ZZXTTS",
       "blurb": "Modular Text-to-Speech system for ZZX-Labs’ adaptive AI stack. Provides voice synthesis routing across multiple engines (Coqui, MozillaTTS, Piper, and eSpeak-NG) with selectable timbres, languages, and character presets. Supports local rendering, OSC/IPC control, batch synthesis, and real-time output streaming for desktop, mobile, and embedded deployments.",
       "href": "/projects/software/zzxtts/",
       "github": "https://github.com/ZZX-Labs/zzxtts",
@@ -2210,11 +2649,12 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["tts", "text-to-speech", "voice", "audio", "synthesis", "coqui", "mozilla", "piper", "espeak-ng", "osc", "ipc", "zzx", "python", "pyqt5"],
       "dependencies": ["python3", "pyqt5", "torch", "coqui-tts", "mozilla-tts", "piper-tts", "espeak-ng"],
-      "frameworks": ["PyTorch", "Qt", "PyQt5"]
+      "frameworks": ["PyTorch", "Qt", "PyQt5"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxvcs",
-      "title": "ZZXVCS (Voice Changer System)",
+      "title": "ZZXVCS",
       "blurb": "Voice Changer System — advanced real-time voice modulation suite integrating pitch, formant, reverb, delay, chorus, distortion, and bit-crush effects. Supports live microphone input and routed outputs via Virtual Audio Cable, OBS, or Discord. Features PyQt5 GUI and CLI modes for performance tuning, voice profile saving, and dynamic FX chains with MIDI/LFO automation.",
       "href": "/projects/software/zzxvcs/",
       "github": "https://github.com/ZZX-Labs/zzxvcs",
@@ -2224,12 +2664,13 @@
       "platforms": ["Linux", "Windows", "macOS"],
       "tags": ["audio", "voice", "voice-changer", "realtime", "fx", "pitch", "formant", "discord", "obs", "vst", "virtual-cable", "midi", "lfo", "cli", "gui", "pyqt5", "zzx"],
       "dependencies": ["python3", "pyqt5", "pyaudio", "numpy", "scipy", "ffmpeg", "sounddevice", "mido", "rtmidi"],
-      "frameworks": ["Qt", "PyQt5", "FFmpeg"]
+      "frameworks": ["Qt", "PyQt5", "FFmpeg"],
+      "note": "INTERNAL – Not for public distribution."
     },
     {
       "slug": "zzxvss",
-      "title": "ZZXVSS (Verification Security System)",
-      "blurb": "Age-gated verification and credential vault for 18+ and 21+ adult content ecosystems. Uses secure facial imaging scans, photo ID capture, and facial-recognition matching to verify users while storing all documents in heavily encrypted form. User verification records can only be decrypted via per-user, court-authority key signing, providing a privacy-preserving, compliance-ready verification backbone for third-party platforms.",
+      "title": "ZZXVSS",
+      "blurb": "Verification Security System — Age-gated verification and credential vault for 18+ and 21+ adult content ecosystems. Uses secure facial imaging scans, photo ID capture, and facial-recognition matching to verify users while storing all documents in heavily encrypted form. User verification records can only be decrypted via per-user, court-authority key signing, providing a privacy-preserving, compliance-ready verification backbone for third-party platforms.",
       "href": "/projects/software/zzxvss/",
       "github": "https://github.com/ZZX-Labs/zzxvss",
       "logo": "/projects/software/zzxvss/logo.png",
