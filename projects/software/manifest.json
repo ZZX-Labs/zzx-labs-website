@@ -737,46 +737,58 @@
     {
   "slug": "cyberchefapk",
   "title": "CyberChefAPK",
-  "blurb": "Android packaging of CyberChef for field and lab use with three deployment modes: Offline (asset-bundled WebView app), Online (WebView pointing at a remote URL), and Local Server (WebView locked to a LAN/localhost origin). Designed for forensics, encoding/decoding, crypto transforms, and airgapped workflows with strict navigation egress controls.",
+  "blurb": "CyberChefAPK is an Android-native packaging of GCHQ’s CyberChef, providing a secure mobile interface for data transformation, encoding, decoding, cryptography, and forensic analysis. It preserves the original CyberChef codebase while wrapping it in a hardened Android WebView environment suitable for field use, research, and controlled laboratory workflows.",
   "href": "/projects/software/cyberchefapk/",
   "github": "https://github.com/ZZX-Labs/CyberChefAPK",
   "logo": "/projects/software/cyberchefapk/logo.png",
   "version": "0.1.0-alpha",
   "license": "MIT",
   "platforms": ["Android"],
-  "tags": ["cyberchef", "android", "apk", "offline", "online", "local-server", "webview", "airgapped", "forensics", "encoding", "decoding", "crypto", "transforms", "incident-response", "zzx"],
+  "tags": ["cyberchef", "android", "apk", "forensics", "encoding", "decoding", "crypto", "transforms", "analysis", "mobile", "zzx"],
   "dependencies": ["android-sdk", "gradle", "kotlin", "androidx-webkit"],
-  "frameworks": ["Android", "Kotlin", "AndroidX", "WebView"],
-  "distribution": {
-    "modes": ["offline", "online", "local-server"],
-    "offline": {
-      "description": "Fully self-contained CyberChef bundle shipped inside app assets and served via WebViewAssetLoader over a virtual HTTPS origin. No INTERNET permission required.",
-      "default_start_url": "https://appassets.androidplatform.net/assets/www/index.html",
-      "network_policy": "deny-all-except-appassets",
-      "notes": [
-        "Best for airgapped phones/tablets.",
-        "Block external navigation + external resource loads.",
-        "Ship your CyberChef dist in app/src/main/assets/www/."
-      ]
+  "frameworks": ["Android", "Kotlin", "WebView"]
     },
-    "online": {
-      "description": "WebView points to a remote CyberChef deployment for always-current builds. INTERNET permission required.",
-      "default_start_url": "https://<your-cyberchef-domain>/",
-      "network_policy": "allow-remote-origin-whitelist",
-      "notes": [
-        "Use allowlist-only navigation.",
-        "Prefer HTTPS with pinned hostnames if possible."
-      ]
+    {
+  "slug": "cyberchefapk-offline",
+  "title": "CyberChefAPK-Offline",
+  "blurb": "CyberChefAPK-Offline is a fully airgapped Android build of CyberChef that bundles all required HTML, JavaScript, and assets directly inside the application. It operates without requesting network permissions and enforces strict origin controls, making it suitable for classified environments, field forensics, and offline research where network access is prohibited.",
+  "href": "/projects/software/cyberchefapk-offline/",
+  "github": "https://github.com/ZZX-Labs/CyberChefAPK-Offline",
+  "logo": "/projects/software/cyberchefapk-offline/logo.png",
+  "version": "0.1.0-alpha",
+  "license": "MIT",
+  "platforms": ["Android"],
+  "tags": ["cyberchef", "android", "offline", "airgapped", "forensics", "encoding", "decoding", "crypto", "mobile", "security", "zzx"],
+  "dependencies": ["android-sdk", "gradle", "kotlin", "androidx-webkit"],
+  "frameworks": ["Android", "Kotlin", "WebView"]
     },
-    "local_server": {
-      "description": "WebView is locked to a locally hosted CyberChef site served from LAN or localhost (e.g., nginx on workstation, Raspberry Pi, or Android local server). INTERNET permission optional depending on host, but access should be origin-whitelisted.",
-      "default_start_url": "http://127.0.0.1:8080/",
-      "network_policy": "allow-local-origin-whitelist",
-      "notes": [
-        "Ideal for portable lab stacks: phone + nearby server.",
-        "Restrict to 127.0.0.1 / 10.x / 192.168.x / specific hostnames."
-      ]
-    }
+    {
+  "slug": "cyberchefapk-online",
+  "title": "CyberChefAPK-Online",
+  "blurb": "CyberChefAPK-Online is an Android wrapper that connects securely to a remote CyberChef deployment. It enables always-up-to-date CyberChef usage while enforcing navigation restrictions and controlled origin loading. Designed for analysts who require live updates while maintaining a constrained mobile execution environment.",
+  "href": "/projects/software/cyberchefapk-online/",
+  "github": "https://github.com/ZZX-Labs/CyberChefAPK-Online",
+  "logo": "/projects/software/cyberchefapk-online/logo.png",
+  "version": "0.1.0-alpha",
+  "license": "MIT",
+  "platforms": ["Android"],
+  "tags": ["cyberchef", "android", "online", "webview", "forensics", "encoding", "decoding", "crypto", "analysis", "mobile", "zzx"],
+  "dependencies": ["android-sdk", "gradle", "kotlin", "androidx-webkit"],
+  "frameworks": ["Android", "Kotlin", "WebView"]
+    },
+    {
+  "slug": "cyberchefapk-server",
+  "title": "CyberChefAPK-Server",
+  "blurb": "CyberChefAPK-Server is an Android client designed to interface with a locally hosted CyberChef instance running on a workstation, lab server, or embedded device. It enables controlled LAN or localhost access to CyberChef through a hardened mobile interface, supporting portable forensic labs and hybrid offline–online workflows.",
+  "href": "/projects/software/cyberchefapk-server/",
+  "github": "https://github.com/ZZX-Labs/CyberChefAPK-Server",
+  "logo": "/projects/software/cyberchefapk-server/logo.png",
+  "version": "0.1.0-alpha",
+  "license": "MIT",
+  "platforms": ["Android"],
+  "tags": ["cyberchef", "android", "server", "local-server", "lan", "forensics", "encoding", "decoding", "crypto", "mobile", "zzx"],
+  "dependencies": ["android-sdk", "gradle", "kotlin", "androidx-webkit"],
+  "frameworks": ["Android", "Kotlin", "WebView"]
     },
     {
       "slug": "cyberchefkit",
@@ -1743,36 +1755,17 @@
     {
   "slug": "nginxapk",
   "title": "nginxAPK",
-  "blurb": "Android-native wrapper and deployment target for Nginx-based local web stacks. Enables offline-first and LAN-served sites, static bundles, and lightweight reverse-proxy configurations for field ops, demos, and portable lab environments. Intended for hosting local dashboards, docs, and tools on-device or on a nearby server with strict origin controls.",
+  "blurb": "nginxAPK packages nginx into a hardened Android application that can run a local web server on-device for offline sites, lab dashboards, and portable field tooling. It supports serving static content, reverse proxying to localhost services, and running constrained, profile-based configs with explicit port binding and storage-mapped document roots for repeatable deployments.",
   "href": "/projects/software/nginxapk/",
-  "github": "https://github.com/ZZX-Labs/nginxAPK",
+  "github": "https://github.com/ZZX-Labs/nginxapk",
   "logo": "/projects/software/nginxapk/logo.png",
   "version": "0.1.0-alpha",
   "license": "MIT",
   "platforms": ["Android"],
-  "tags": ["nginx", "android", "apk", "local-server", "offline", "lan", "reverse-proxy", "static-site", "web-stack", "field-kit", "forensics", "airgapped", "zzx"],
-  "dependencies": ["android-sdk", "gradle", "kotlin"],
-  "frameworks": ["Android", "Kotlin"],
-  "deployment": {
-    "modes": ["on-device", "nearby-server"],
-    "on_device": {
-      "description": "Bundles a site/app payload and exposes it locally (implementation-dependent: embedded server, service wrapper, or packaged binary). Best for fully offline demos and portable documentation stacks.",
-      "default_bind": "127.0.0.1",
-      "default_port": 8080,
-      "notes": [
-        "If you embed an HTTP server, lock it to loopback by default.",
-        "Expose to LAN only via an explicit toggle + warning."
-      ]
+  "tags": ["nginx", "android", "apk", "webserver", "reverse-proxy", "offline", "local-server", "static-site", "proxy", "networking", "devops", "zzx"],
+  "dependencies": ["android-sdk", "gradle", "kotlin", "ndk", "cmake", "openssl", "pcre2", "zlib"],
+  "frameworks": ["Android", "Kotlin", "NDK", "CMake"]
     },
-    "nearby_server": {
-      "description": "Targets a LAN server running nginx (workstation / Raspberry Pi / lab box). Android app acts as the client, launcher, and origin-locked browser for the stack.",
-      "default_url": "http://192.168.1.10/",
-      "notes": [
-        "Use strict host allowlists.",
-        "Prefer HTTPS in LAN when practical (self-signed + pinned CA)."
-      ]
-    }
-  },
     {
       "slug": "naturava",
       "title": "NaturaVA",
