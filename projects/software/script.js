@@ -94,7 +94,7 @@
     card.className = "card project-card";
 
     // Zero-padded manifest index (001, 002, …)
-    const count = String(Number(p.__idx || 0)).padStart(3, "0");
+    const count = String(Number(p.__idx || 0)).padStart(4, "0");
 
     card.innerHTML = `
       <div class="card-count" aria-hidden="true">${count}</div>
