@@ -1,6 +1,7 @@
-// Projects · Web — logo-first cards (stable layout, 120x120 logos) + search
+// Projects · Web — logo-first cards (stable layout, 120x120 logos) + search + 4-digit count
 (function () {
   const listEl = document.getElementById("projects-list");
+  if (!listEl) return;
 
   const state = {
     all: [],
@@ -12,8 +13,11 @@
   async function boot() {
     try {
       listEl.innerHTML = `<p class="loading">Loading projects…</p>`;
+
+      // Prefer local manifest in this directory (portable across mirrors)
       const res = await fetch("./manifest.json", { cache: "no-cache" });
       if (!res.ok) throw new Error("HTTP " + res.status);
+
       const data = await res.json();
       const items = Array.isArray(data?.projects) ? data.projects : [];
 
@@ -93,13 +97,17 @@
     const card = document.createElement("article");
     card.className = "card project-card";
 
-    // Zero-padded manifest index (0001, 0002, …)
+    // 4-digit zero-padded manifest index (0001, 0002, …)
     const count = String(Number(p.__idx || 0)).padStart(4, "0");
+
+    // If href is external, card still works and opens new tab via target/rel
+    const isExternal = /^https?:\/\//i.test(p.href);
 
     card.innerHTML = `
       <div class="card-count" aria-hidden="true">${count}</div>
 
-      <a class="card-media" href="${escAttr(p.href)}" aria-label="${escAttr(p.title)}">
+      <a class="card-media" href="${escAttr(p.href)}" aria-label="${escAttr(p.title)}"
+         ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ""}>
         <img class="card-logo"
              src="${escAttr(p.logo)}"
              alt="${escAttr(p.title)} logo"
@@ -111,11 +119,13 @@
 
       <div class="card-body">
         <h3 class="card-title">
-          <a href="${escAttr(p.href)}">${escHtml(p.title)}</a>
+          <a href="${escAttr(p.href)}"
+             ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ""}>${escHtml(p.title)}</a>
         </h3>
         <p class="card-blurb">${escHtml(p.blurb)}</p>
         <div class="card-cta">
-          <a class="btn" href="${escAttr(p.href)}">Open</a>
+          <a class="btn" href="${escAttr(p.href)}"
+             ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ""}>Open</a>
           ${
             p.github
               ? `<a class="btn ghost" href="${escAttr(
@@ -143,11 +153,13 @@
     const href   = p.href || (slug ? `/projects/web/${slug}/` : "#");
     const title  = p.title || slug || "Untitled";
     const blurb  = p.blurb || "";
+
     const logo   = normalizeLogo(
       p.logo || (slug
         ? `/projects/web/${slug}/logo.png`
         : "/static/placeholder-logo.svg")
     );
+
     const github = p.github_url || p.github || "";
     const tags   = Array.isArray(p.tags) ? p.tags : [];
 
@@ -156,17 +168,7 @@
     // Stable manifest index (1..N)
     const __idx = i + 1;
 
-    return {
-      slug,
-      href,
-      title,
-      blurb,
-      logo,
-      github,
-      tags,
-      __search: search,
-      __idx,
-    };
+    return { slug, href, title, blurb, logo, github, tags, __search: search, __idx };
   }
 
   function escHtml(s) {
