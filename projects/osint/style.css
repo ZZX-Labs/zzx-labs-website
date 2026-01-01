@@ -1,0 +1,107 @@
+/* Projects · Software — calm, no-jump, small logos (120x120) */
+:root{
+  --accent:#c0d674; --accent-alt:#e6a42b; --muted:#9aa1aa;
+  --surface-1:rgba(255,255,255,.02); --surface-2:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.12); --line-soft:rgba(255,255,255,.08);
+  --text:#e8e8e8;
+}
+
+body.projects-software .container{max-width:1100px;margin:0 auto;padding:0 1rem;}
+.muted{color:var(--muted);}
+
+.features{padding:0 1rem 2rem;}
+.features .loading{color:var(--muted);text-align:center;}
+
+.cards-grid{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1.1rem; max-width:1100px; margin:0 auto 2rem;
+}
+@media (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:640px){.cards-grid{grid-template-columns:1fr;}}
+
+.card{
+  border:1px solid var(--line); border-radius:12px; background:var(--surface-1);
+  overflow:hidden; display:grid; grid-template-rows:auto 1fr;
+  transform:translateZ(0); /* smoother on hover */
+}
+.card:hover{border-color:var(--line-soft);}
+
+.card-media{
+  display:grid; place-items:center; background:var(--surface-2);
+  border-bottom:1px solid var(--line-soft);
+  /* Reserve exact space so no layout jump when image loads */
+  height:156px; /* 120px logo + padding; keeps all rows same height */
+  padding:16px;
+}
+
+.card-logo{
+  inline-size:120px; block-size:120px; object-fit:contain;
+  border-radius:12px; background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.12);
+}
+.card-logo.fallback{filter:grayscale(1) opacity(.75);}
+
+.card-body{padding:14px 14px 16px;}
+.card-title{margin:0 0 .35rem; font-size:1.05rem;}
+.card-title a{color:var(--text); text-decoration:none;}
+.card-title a:hover{text-decoration:underline;}
+
+.card-blurb{color:#cfd3da; margin:0 0 .8rem; line-height:1.45; min-height:2.9em;}
+.card-cta{display:flex; gap:.5rem;}
+
+.btn{
+  display:inline-block; background:var(--accent); color:#101218;
+  border:1px solid rgba(255,255,255,.14); padding:.42rem .78rem;
+  border-radius:8px; text-decoration:none; font-weight:700; line-height:1;
+}
+.btn:hover{filter:brightness(1.05);}
+.btn.ghost{background:rgba(255,255,255,.02); color:#eaeaea; border:1px solid rgba(255,255,255,.2);}
+.backlinks{padding:0 1rem 2rem;}
+
+/* ------------------------------------------------------------------
+   Manifest index badge (top-right, stable, no layout jump)
+   ------------------------------------------------------------------ */
+
+/* anchor for absolute badge positioning */
+.card.project-card{
+  position: relative;
+}
+
+/* numeric count badge */
+.card.project-card .card-count{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .03em;
+
+  color: #0f120c;
+  background: var(--accent);
+  border: 1px solid rgba(0,0,0,.25);
+
+  box-shadow:
+    0 2px 6px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.35);
+
+  user-select: none;
+  pointer-events: none;
+}
+
+/* optional: slightly subdued on hover to keep "calm" feel */
+.card:hover .card-count{
+  filter: brightness(0.95);
+}
