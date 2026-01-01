@@ -17,7 +17,8 @@
       const data = await res.json();
       const items = Array.isArray(data?.projects) ? data.projects : [];
 
-      state.all = items.map(normalizeItem);
+      // ---- assign manifest order index (1..N) ----
+      state.all = items.map((raw, i) => normalizeItem(raw, i));
       listEl.innerHTML = "";
       renderUI();
     } catch (e) {
@@ -92,7 +93,13 @@
   function buildCard(p) {
     const card = document.createElement("article");
     card.className = "card project-card";
+
+    // ensure the badge can anchor to the card
+    card.style.position = "relative";
+
     card.innerHTML = `
+      <div class="card-count" aria-hidden="true">${Number(p.__idx || 0)}</div>
+
       <a class="card-media" href="${escAttr(p.href)}" aria-label="${escAttr(p.title)}">
         <img class="card-logo" src="${escAttr(p.logo)}" alt="${escAttr(p.title)} logo"
              width="120" height="120" loading="lazy" decoding="async" />
@@ -107,6 +114,33 @@
       </div>
     `;
 
+    // badge styling (inline so it works across adult/, ai/, apps/, etc. without needing CSS changes)
+    const badge = card.querySelector(".card-count");
+    Object.assign(badge.style, {
+      position: "absolute",
+      top: "10px",
+      right: "10px",
+      zIndex: "3",
+      minWidth: "30px",
+      height: "30px",
+      padding: "0 8px",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: "999px",
+      fontSize: "12px",
+      fontWeight: "700",
+      letterSpacing: ".02em",
+      color: "#fff",
+      background: "rgba(0,0,0,.55)",
+      border: "1px solid rgba(255,255,255,.18)",
+      backdropFilter: "blur(6px)",
+      WebkitBackdropFilter: "blur(6px)",
+      boxShadow: "0 6px 18px rgba(0,0,0,.25)",
+      userSelect: "none",
+      pointerEvents: "none",
+    });
+
     const img = card.querySelector(".card-logo");
     img.addEventListener("error", () => {
       img.src = "/static/placeholder-logo.svg";
@@ -118,7 +152,7 @@
 
   // ---------- helpers ----------
 
-  function normalizeItem(p) {
+  function normalizeItem(p, i) {
     const slug   = p.slug || "";
     const href   = p.href || (slug ? `/projects/software/${slug}/` : "#");
     const title  = p.title || slug || "Untitled";
@@ -129,7 +163,10 @@
 
     const search = [title, slug, blurb, tags.join(" ")].join(" ").toLowerCase();
 
-    return { slug, href, title, blurb, logo, github, tags, __search: search };
+    // manifest index (1..N), stable regardless of filtering
+    const __idx = Number(i) + 1;
+
+    return { slug, href, title, blurb, logo, github, tags, __search: search, __idx };
   }
 
   function escHtml(s){return String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
