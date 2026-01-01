@@ -57,3 +57,51 @@ body.projects-software .container{max-width:1100px;margin:0 auto;padding:0 1rem;
 .btn:hover{filter:brightness(1.05);}
 .btn.ghost{background:rgba(255,255,255,.02); color:#eaeaea; border:1px solid rgba(255,255,255,.2);}
 .backlinks{padding:0 1rem 2rem;}
+
+/* ------------------------------------------------------------------
+   Manifest index badge (top-right, stable, no layout jump)
+   ------------------------------------------------------------------ */
+
+/* anchor for absolute badge positioning */
+.card.project-card{
+  position: relative;
+}
+
+/* numeric count badge */
+.card.project-card .card-count{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .03em;
+
+  color: #0f120c;
+  background: var(--accent);
+  border: 1px solid rgba(0,0,0,.25);
+
+  box-shadow:
+    0 2px 6px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.35);
+
+  user-select: none;
+  pointer-events: none;
+}
+
+/* optional: slightly subdued on hover to keep "calm" feel */
+.card:hover .card-count{
+  filter: brightness(0.95);
+}
