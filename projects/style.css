@@ -8,10 +8,12 @@
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  /* The “rail” width used by BOTH search + lists (match your category pages) */
+  /* Rail width used by BOTH search + lists */
   --rail-max: 1100px;
 }
 
+/* Keep global container wide for headings/sections,
+   BUT we will rail-constrain the search + lists explicitly. */
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
@@ -27,8 +29,9 @@ body.projects-landing .cat-count {
 }
 
 /* ------------------------------------------------------------
-   RAIL: a single alignment rule used by searchbar + lists.
-   This is the actual fix for “off-kilter”.
+   RAIL: single alignment rule used by searchbar + lists.
+   IMPORTANT: apply to the WRAPPER (#proj-search-wrap) as well,
+   not only to .searchbar, so its left edge matches the lists.
    ------------------------------------------------------------ */
 body.projects-landing .rail {
   width: 100% !important;
@@ -38,22 +41,35 @@ body.projects-landing .rail {
 }
 
 /* ------------------------------------------------------------
-   Searchbar — align to rail (not container)
+   Searchbar — force wrapper AND inner bar onto the rail
    ------------------------------------------------------------ */
-body.projects-landing #proj-search-wrap { margin: .3rem 0 1.2rem; }
+body.projects-landing #proj-search-wrap {
+  margin: .3rem 0 1.2rem;
 
-/* Make the searchbar itself the rail */
+  /* this is the missing piece: the wrapper itself becomes the rail */
+  width: 100% !important;
+  max-width: var(--rail-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+
+  /* keep padding consistent with your container */
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+
+/* Make the searchbar itself also rail-true (belt + suspenders) */
 body.projects-landing #proj-search-wrap .searchbar {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: .6rem;
   align-items: center;
 
-  /* hard lock to the same rail as lists */
   width: 100% !important;
   max-width: var(--rail-max) !important;
   margin-left: auto !important;
   margin-right: auto !important;
+  box-sizing: border-box;
 }
 
 body.projects-landing #proj-search-wrap .searchbar input[type="search"] {
@@ -80,15 +96,24 @@ body.projects-landing #proj-search-wrap #search-count {
 
 /* Mobile: stack cleanly */
 @media (max-width: 640px) {
+  body.projects-landing #proj-search-wrap {
+    max-width: 100% !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
   body.projects-landing #proj-search-wrap .searchbar {
     grid-template-columns: 1fr;
+    max-width: 100% !important;
   }
+
   body.projects-landing #proj-search-wrap #search-count {
     justify-self: start;
     text-align: left;
     margin-top: .25rem;
     font-size: .88rem;
   }
+
   :root { --rail-max: 100%; }
 }
 
@@ -105,6 +130,7 @@ body.projects-landing .project-list {
   gap: .75rem;
 }
 
+/* Row card */
 body.projects-landing .project-row {
   position: relative; /* for badge positioning */
 
@@ -117,6 +143,9 @@ body.projects-landing .project-row {
   border-radius: 12px;
   background: var(--surface);
   padding: .75rem 1rem;
+
+  /* reserve space for the bottom-right badge so it never overlaps content */
+  padding-bottom: 2.2rem;
 
   transition: border-color .15s ease, background .15s ease;
 }
@@ -180,17 +209,17 @@ body.projects-landing .btn.ghost {
 }
 
 /* ------------------------------------------------------------
-   Per-project #### badge — move to BOTTOM-RIGHT + smaller
+   Per-project #### badge — BOTTOM-RIGHT + smaller
    Injected as <div class="proj-count">0001</div>
    ------------------------------------------------------------ */
 body.projects-landing .proj-count {
   position: absolute;
   right: 10px;
-  bottom: 10px;       /* moved from top to bottom */
+  bottom: 10px;
   z-index: 4;
 
-  min-width: 24px;    /* smaller */
-  height: 22px;       /* smaller */
+  min-width: 22px;
+  height: 20px;
   padding: 0 6px;
 
   display: inline-flex;
@@ -200,18 +229,18 @@ body.projects-landing .proj-count {
   border-radius: 999px;
 
   font-family: var(--mono);
-  font-size: 11px;    /* smaller */
+  font-size: 10.5px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: .03em;
 
   color: #0f120c;
-  background: rgba(192,214,116,.92);   /* slightly calmer */
+  background: rgba(192,214,116,.90);
   border: 1px solid rgba(0,0,0,.22);
 
   box-shadow:
     0 1px 4px rgba(0,0,0,.28),
-    inset 0 1px 0 rgba(255,255,255,.28);
+    inset 0 1px 0 rgba(255,255,255,.26);
 
   user-select: none;
   pointer-events: none;
