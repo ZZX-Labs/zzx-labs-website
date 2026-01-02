@@ -1,278 +1,266 @@
-/* /projects/style.css — root projects index (rows) */
-:root {
-  --accent: #c0d674;
-  --accent-alt: #e6a42b;
-  --muted: #8a8f98;
-  --line: rgba(255,255,255,.12);
-  --surface: rgba(255,255,255,.02);
+/* /projects/style.css — root projects index (rows)
+   NOTE: This file participates in the global cascade-layer system.
+*/
+@layer pages {
 
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  :root {
+    --accent: #c0d674;
+    --accent-alt: #e6a42b;
+    --muted: #8a8f98;
+    --line: rgba(255,255,255,.12);
+    --surface: rgba(255,255,255,.02);
 
-  /* Rail width used by BOTH search + lists */
-  --rail-max: 1100px;
-}
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-/* Keep global container wide for headings/sections */
-.container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
-.muted { color: var(--muted); }
-.loading { color: var(--muted); font-style: italic; }
+    /* Rail width used by BOTH search + lists */
+    --rail-max: 1100px;
+  }
 
-/* Category (####) count appended to each <h2> by JS */
-body.projects-landing .cat-count {
-  font-family: var(--mono);
-  color: rgba(255,255,255,.62);
-  font-size: .95rem;
-  margin-left: .55rem;
-  letter-spacing: .06em;
-  white-space: nowrap;
-}
+  /* Keep global container wide for headings/sections,
+     BUT rail-constrain the search + lists explicitly. */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+  .muted { color: var(--muted); }
+  .loading { color: var(--muted); font-style: italic; }
 
-/* ------------------------------------------------------------
-   RAIL: single alignment rule used by searchbar + lists.
-   ------------------------------------------------------------ */
-body.projects-landing .rail {
-  width: 100% !important;
-  max-width: var(--rail-max) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  box-sizing: border-box !important;
-}
+  /* Category (####) count appended to each <h2> by JS */
+  body.projects-landing .cat-count {
+    font-family: var(--mono);
+    color: rgba(255,255,255,.62);
+    font-size: .95rem;
+    margin-left: .55rem;
+    letter-spacing: .06em;
+    white-space: nowrap;
+  }
 
-/* ------------------------------------------------------------
-   Searchbar — rail-aligned + BRAND-LOCKED (kills kelly green)
-   IMPORTANT: DO NOT add extra padding here; the page container
-   already provides 1rem side padding globally.
-   ------------------------------------------------------------ */
-body.projects-landing #proj-search-wrap {
-  margin: .3rem 0 1.2rem;
+  /* ------------------------------------------------------------
+     RAIL: single alignment rule used by searchbar + lists.
+     ------------------------------------------------------------ */
+  body.projects-landing .rail {
+    width: 100%;
+    max-width: var(--rail-max);
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+  }
 
-  width: 100% !important;
-  max-width: var(--rail-max) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-
-  /* no extra padding -> prevents “off-kilter” left edge */
-  padding: 0 !important;
-  box-sizing: border-box !important;
-}
-
-/* Searchbar grid aligned to the same rail */
-body.projects-landing #proj-search-wrap .searchbar {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: .6rem;
-  align-items: center;
-
-  width: 100% !important;
-  max-width: var(--rail-max) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-
-  padding: 0 !important;
-  box-sizing: border-box !important;
-}
-
-/* Input baseline — neutral, no neon */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"] {
-  width: 100% !important;
-
-  background: rgba(255,255,255,.04) !important;
-  color: #e8e8e8 !important;
-
-  border: 1px solid rgba(255,255,255,.18) !important;
-  border-radius: 10px !important;
-
-  padding: .52rem .72rem !important;
-
-  /* Kill global focus/outlines that cause neon */
-  outline: none !important;
-  box-shadow: none !important;
-
-  /* Lock UI accents to brand */
-  caret-color: var(--accent) !important;
-  accent-color: var(--accent) !important;
-
-  /* Android/Chrome autofill tint control */
-  -webkit-text-fill-color: #e8e8e8 !important;
-
-  appearance: none !important;
-}
-
-/* Focus — ONLY your brand (#c0d674) */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus,
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible {
-  border-color: rgba(192,214,116,.72) !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(192,214,116,.18) !important;
-}
-
-/* Selection highlight — brand tinted */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]::selection {
-  background: rgba(192,214,116,.28) !important;
-  color: #0f120c !important;
-}
-
-body.projects-landing #proj-search-wrap #search-count {
-  justify-self: end;
-  text-align: right;
-  white-space: nowrap;
-  font-size: .92rem;
-}
-
-/* Mobile: stack cleanly */
-@media (max-width: 640px) {
+  /* ------------------------------------------------------------
+     Searchbar — rail-aligned + BRAND-LOCKED
+     This beats global forms.css/design-extras.css by:
+     - being in a layer (pages)
+     - using higher specificity (body.projects-landing ...)
+     ------------------------------------------------------------ */
   body.projects-landing #proj-search-wrap {
-    max-width: 100% !important;
+    margin: .3rem 0 1.2rem;
+
+    width: 100%;
+    max-width: var(--rail-max);
+    margin-left: auto;
+    margin-right: auto;
+
+    padding: 0; /* IMPORTANT: avoid double-padding misalignment */
+    box-sizing: border-box;
   }
 
   body.projects-landing #proj-search-wrap .searchbar {
-    grid-template-columns: 1fr;
-    max-width: 100% !important;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .6rem;
+    align-items: center;
+
+    width: 100%;
+    max-width: var(--rail-max);
+    margin-left: auto;
+    margin-right: auto;
+
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* Baseline input (neutral, no neon) */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"] {
+    width: 100%;
+
+    background: rgba(255,255,255,.04);
+    color: #e8e8e8;
+
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 10px;
+
+    padding: .52rem .72rem;
+
+    /* Kill global focus rings / accent-color bleed */
+    outline: none;
+    box-shadow: none;
+
+    caret-color: var(--accent);
+    accent-color: var(--accent);
+
+    /* Mobile autofill / UA styling control */
+    -webkit-text-fill-color: #e8e8e8;
+    appearance: none;
+  }
+
+  /* Focus: always #c0d674, never kelly green */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus,
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible {
+    border-color: rgba(192,214,116,.72);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(192,214,116,.18);
+  }
+
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]::selection {
+    background: rgba(192,214,116,.28);
+    color: #0f120c;
   }
 
   body.projects-landing #proj-search-wrap #search-count {
-    justify-self: start;
-    text-align: left;
-    margin-top: .25rem;
-    font-size: .88rem;
+    justify-self: end;
+    text-align: right;
+    white-space: nowrap;
+    font-size: .92rem;
   }
 
-  :root { --rail-max: 100%; }
+  /* Mobile: stack cleanly */
+  @media (max-width: 640px) {
+    body.projects-landing #proj-search-wrap { max-width: 100%; }
+
+    body.projects-landing #proj-search-wrap .searchbar {
+      grid-template-columns: 1fr;
+      max-width: 100%;
+    }
+
+    body.projects-landing #proj-search-wrap #search-count {
+      justify-self: start;
+      text-align: left;
+      margin-top: .25rem;
+      font-size: .88rem;
+    }
+
+    :root { --rail-max: 100%; }
+  }
+
+  /* ------------------------------------------------------------
+     Project lists — align to same rail
+     ------------------------------------------------------------ */
+  body.projects-landing .project-list {
+    width: 100%;
+    max-width: var(--rail-max);
+    margin: .75rem auto 1.75rem;
+
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+
+    box-sizing: border-box;
+  }
+
+  /* Row card */
+  body.projects-landing .project-row {
+    position: relative;
+
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 1rem;
+    align-items: start;
+
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: .75rem 1rem;
+
+    /* reserve space for bottom-right badge */
+    padding-bottom: 2.2rem;
+
+    transition: border-color .15s ease, background .15s ease;
+  }
+
+  body.projects-landing .project-row:hover {
+    border-color: rgba(255,255,255,.18);
+    background: rgba(255,255,255,.04);
+  }
+
+  /* Small logos */
+  body.projects-landing .project-logo img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.10);
+  }
+
+  /* Text + links */
+  body.projects-landing .project-meta h3 { margin: 0 0 .25rem; font-size: 1.1rem; }
+  body.projects-landing .project-meta h3 a { color: #e8e8e8; text-decoration: none; }
+  body.projects-landing .project-meta h3 a:hover { text-decoration: underline; }
+
+  body.projects-landing .project-meta p { margin: 0 0 .5rem; line-height: 1.45; }
+
+  body.projects-landing .project-meta .links {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  /* Buttons */
+  body.projects-landing .btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #101218;
+    border: 1px solid rgba(255,255,255,.12);
+    padding: .38rem .7rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1;
+  }
+  body.projects-landing .btn:hover { filter: brightness(1.05); }
+
+  body.projects-landing .btn.ghost {
+    background: rgba(255,255,255,.02);
+    color: #eaeaea;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+
+  /* ------------------------------------------------------------
+     Per-project #### badge — bottom-right + smaller
+     ------------------------------------------------------------ */
+  body.projects-landing .proj-count {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 4;
+
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .03em;
+
+    color: #0f120c;
+    background: rgba(192,214,116,.90);
+    border: 1px solid rgba(0,0,0,.22);
+
+    box-shadow:
+      0 1px 4px rgba(0,0,0,.28),
+      inset 0 1px 0 rgba(255,255,255,.26);
+
+    user-select: none;
+    pointer-events: none;
+  }
+
+  body.projects-landing .project-row:hover .proj-count { filter: brightness(.97); }
+
+  .backlinks { padding-bottom: 2rem; }
+
 }
-
-/* ------------------------------------------------------------
-   Project lists — align to same rail
-   ------------------------------------------------------------ */
-body.projects-landing .project-list {
-  width: 100%;
-  max-width: var(--rail-max);
-  margin: .75rem auto 1.75rem;
-
-  display: flex;
-  flex-direction: column;
-  gap: .75rem;
-
-  box-sizing: border-box;
-}
-
-/* Row card */
-body.projects-landing .project-row {
-  position: relative; /* for badge positioning */
-
-  display: grid;
-  grid-template-columns: 80px 1fr;
-  gap: 1rem;
-  align-items: start;
-
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  padding: .75rem 1rem;
-
-  /* reserve space for the bottom-right badge so it never overlaps content */
-  padding-bottom: 2.2rem;
-
-  transition: border-color .15s ease, background .15s ease;
-}
-
-body.projects-landing .project-row:hover {
-  border-color: rgba(255,255,255,.18);
-  background: rgba(255,255,255,.04);
-}
-
-/* Small logos */
-body.projects-landing .project-logo img {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  border-radius: 10px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.10);
-}
-
-/* Text + links */
-body.projects-landing .project-meta h3 {
-  margin: 0 0 .25rem;
-  font-size: 1.1rem;
-}
-
-body.projects-landing .project-meta h3 a {
-  color: #e8e8e8;
-  text-decoration: none;
-}
-body.projects-landing .project-meta h3 a:hover { text-decoration: underline; }
-
-body.projects-landing .project-meta p {
-  margin: 0 0 .5rem;
-  line-height: 1.45;
-}
-
-body.projects-landing .project-meta .links {
-  display: flex;
-  gap: .5rem;
-  flex-wrap: wrap;
-}
-
-/* Buttons */
-body.projects-landing .btn {
-  display: inline-block;
-  background: var(--accent);
-  color: #101218;
-  border: 1px solid rgba(255,255,255,.12);
-  padding: .38rem .7rem;
-  border-radius: 8px;
-  font-weight: 600;
-  text-decoration: none;
-  line-height: 1;
-}
-body.projects-landing .btn:hover { filter: brightness(1.05); }
-
-body.projects-landing .btn.ghost {
-  background: rgba(255,255,255,.02);
-  color: #eaeaea;
-  border: 1px solid rgba(255,255,255,.2);
-}
-
-/* ------------------------------------------------------------
-   Per-project #### badge — BOTTOM-RIGHT + smaller
-   Injected as <div class="proj-count">0001</div>
-   ------------------------------------------------------------ */
-body.projects-landing .proj-count {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 4;
-
-  min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 999px;
-
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: .03em;
-
-  color: #0f120c;
-  background: rgba(192,214,116,.90);
-  border: 1px solid rgba(0,0,0,.22);
-
-  box-shadow:
-    0 1px 4px rgba(0,0,0,.28),
-    inset 0 1px 0 rgba(255,255,255,.26);
-
-  user-select: none;
-  pointer-events: none;
-}
-
-body.projects-landing .project-row:hover .proj-count {
-  filter: brightness(.97);
-}
-
-.backlinks { padding-bottom: 2rem; }
