@@ -1,4 +1,4 @@
-/* Projects root — stacked rows layout + search + #### padded category counts */
+/* Projects root — rows layout + centered search aligned to card/list column + #### category counts */
 :root {
   --accent: #c0d674;
   --accent-alt: #e6a42b;
@@ -6,23 +6,23 @@
   --line: rgba(255,255,255,.12);
   --surface: rgba(255,255,255,.02);
 
-  /* monospace for #### counters */
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
   /*
-    CRITICAL: single aligned content column for search + lists.
-    Set this to match where your cards visually sit (yellow oval).
-    If you want it wider/narrower, change ONLY this value.
+    Match category pages (/projects/software/) behavior:
+    - container can be wide (1200px)
+    - BUT the "cards/list column" is a centered, narrower rail
+    Set this to the same width you use elsewhere (1100px).
   */
-  --content-max: 920px;
+  --cards-max: 1100px;
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
 
-/* #### category count badge appended to each <h2> via JS */
-.cat-count {
+/* #### padded category counts appended to each <h2> by JS */
+.cat-count{
   font-family: var(--mono);
   color: rgba(255,255,255,.62);
   font-size: .95rem;
@@ -31,22 +31,34 @@
   white-space: nowrap;
 }
 
-/* Searchbar (ALIGN WITH CARD COLUMN, not just "center") */
+/* ------------------------------------------------------------
+   Searchbar (root projects page)
+   MUST align to the same centered column as project rows.
+   ------------------------------------------------------------ */
 #proj-search-wrap { margin: .3rem 0 1.2rem; }
 
-/* This wrapper is the alignment anchor */
-.searchbar {
+/*
+  The injected HTML is:
+    <section class="container" id="proj-search-wrap">
+      <div class="searchbar">...</div>
+    </section>
+
+  .container is 1200px wide.
+  We constrain .searchbar to --cards-max and center it,
+  so its left edge matches the project rows column.
+*/
+.searchbar{
+  width: 100%;
+  max-width: var(--cards-max);
+  margin: 0 auto;
+
   display: grid;
   grid-template-columns: 1fr auto;
   gap: .6rem;
   align-items: center;
-
-  /* The key: match the cards column width */
-  max-width: var(--content-max);
-  margin: 0 auto;
 }
 
-.searchbar input[type="search"] {
+.searchbar input[type="search"]{
   width: 100%;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.18);
@@ -56,47 +68,64 @@
   outline: none;
 }
 
-.searchbar input[type="search"]:focus {
+.searchbar input[type="search"]:focus{
   border-color: rgba(192,214,116,.55);
   box-shadow: 0 0 0 3px rgba(192,214,116,.15);
 }
 
-#search-count {
+#search-count{
   justify-self: end;
   text-align: right;
   white-space: nowrap;
 }
 
-/* List layout (ALSO match the same column width) */
-.project-list {
+/* Mobile: stack cleanly */
+@media (max-width: 640px){
+  .searchbar{ grid-template-columns: 1fr; }
+  #search-count{
+    justify-self: start;
+    text-align: left;
+    margin-top: .25rem;
+    font-size: .88rem;
+  }
+}
+
+/* ------------------------------------------------------------
+   Root list layout (rows)
+   The actual visible content column is --cards-max (1100px),
+   not the full 1200px container.
+   ------------------------------------------------------------ */
+.project-list{
+  width: 100%;
+  max-width: var(--cards-max);
+  margin: .75rem auto 1.75rem;
+
   display: flex;
   flex-direction: column;
   gap: .75rem;
-
-  /* The key: match searchbar column */
-  max-width: var(--content-max);
-  margin: .75rem auto 1.75rem;
 }
 
-.project-row {
+.project-row{
   display: grid;
   grid-template-columns: 80px 1fr;
   gap: 1rem;
   align-items: start;
+
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
   padding: .75rem 1rem;
+
   transition: border-color .15s ease, background .15s ease;
 }
 
-.project-row:hover {
+.project-row:hover{
   border-color: rgba(255,255,255,.18);
   background: rgba(255,255,255,.04);
 }
 
 /* Small logos */
-.project-logo img {
+.project-logo img{
   width: 64px;
   height: 64px;
   object-fit: contain;
@@ -106,31 +135,31 @@
 }
 
 /* Text + links */
-.project-meta h3 {
+.project-meta h3{
   margin: 0 0 .25rem;
   font-size: 1.1rem;
 }
 
-.project-meta h3 a {
+.project-meta h3 a{
   color: #e8e8e8;
   text-decoration: none;
 }
 
-.project-meta h3 a:hover { text-decoration: underline; }
+.project-meta h3 a:hover{ text-decoration: underline; }
 
-.project-meta p {
+.project-meta p{
   margin: 0 0 .5rem;
   line-height: 1.45;
 }
 
-.project-meta .links {
+.project-meta .links{
   display: flex;
   gap: .5rem;
   flex-wrap: wrap;
 }
 
 /* Buttons */
-.btn {
+.btn{
   display: inline-block;
   background: var(--accent);
   color: #101218;
@@ -142,28 +171,12 @@
   line-height: 1;
 }
 
-.btn:hover { filter: brightness(1.05); }
+.btn:hover{ filter: brightness(1.05); }
 
-.btn.ghost {
+.btn.ghost{
   background: rgba(255,255,255,.02);
   color: #eaeaea;
   border: 1px solid rgba(255,255,255,.2);
-}
-
-/* Mobile: stack input + count cleanly */
-@media (max-width: 640px) {
-  .searchbar {
-    grid-template-columns: 1fr;
-  }
-  #search-count {
-    justify-self: start;
-    text-align: left;
-    margin-top: .25rem;
-    font-size: .88rem;
-  }
-
-  /* On very small screens, let the column breathe */
-  :root { --content-max: 100%; }
 }
 
 .backlinks { padding-bottom: 2rem; }
