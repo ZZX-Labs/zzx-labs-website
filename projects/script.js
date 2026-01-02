@@ -1,4 +1,4 @@
-// /projects/script.js — Projects root (rows layout + global search + #### category counts)
+// /projects/script.js — Projects root (rows layout + global search + #### category counts + per-project #### badges)
 (() => {
   const CATEGORIES = [
     { key: "adult",               title: "Adult",               mountId: "proj-adult",               base: "/projects/adult/" },
@@ -25,6 +25,7 @@
     if (text != null) n.textContent = text;
     return n;
   };
+
   const isHttp = (s) => /^https?:\/\//i.test(String(s || ""));
 
   function debounce(fn, ms = 120) {
@@ -62,11 +63,11 @@
       logo = baseHref + "logo.png";
     }
     // Last fallback
-    if (!logo && slug) logo = `${base}${slug}/logo.png`;
+    if (!logo && slug) logo = `${base}${slug}/logo.png";
     return logo;
   }
 
-  function makeRow(p, base) {
+  function makeRow(p, base, idx) {
     const slug   = p.slug || "";
     const href   = p.href || `${base}${slug}/`;
     const logo   = safeLogoFor(p, base);
@@ -74,19 +75,25 @@
     const blurb  = p.blurb || "";
     const github = p.github_url || p.github || "";
     const tags   = Array.isArray(p.tags) ? p.tags.join(" ") : "";
+    const count  = pad4(idx);
 
     const row = document.createElement("div");
     row.className = "project-row";
+
+    // filtering dataset
     row.dataset.title = (title || "").toLowerCase();
     row.dataset.slug  = (slug || "").toLowerCase();
     row.dataset.blurb = (blurb || "").toLowerCase();
     row.dataset.tags  = (tags || "").toLowerCase();
 
     row.innerHTML = `
+      <div class="proj-count" aria-hidden="true">${count}</div>
+
       <a class="project-logo" href="${href}">
         <img src="${logo}" alt="${title} logo" width="64" height="64"
              loading="lazy" decoding="async"/>
       </a>
+
       <div class="project-meta">
         <h3><a href="${href}">${title}</a></h3>
         <p class="muted">${blurb}</p>
@@ -111,7 +118,7 @@
     }
 
     const frag = document.createDocumentFragment();
-    items.forEach(p => frag.appendChild(makeRow(p, base)));
+    items.forEach((p, i) => frag.appendChild(makeRow(p, base, i + 1))); // per-category numbering
     wrap.appendChild(frag);
     mount.appendChild(wrap);
   }
@@ -120,12 +127,10 @@
     const mount = document.getElementById(mountId);
     if (!mount) return;
 
-    // Find the closest container section and its h2
     const section = mount.closest("section.container");
     const h2 = section ? section.querySelector("h2") : null;
     if (!h2) return;
 
-    // Remove existing count if present
     const existing = h2.querySelector(".cat-count");
     if (existing) existing.remove();
 
