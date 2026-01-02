@@ -6,18 +6,22 @@
   --line: rgba(255,255,255,.12);
   --surface: rgba(255,255,255,.02);
 
-  /* New: monospace for #### counters */
+  /* monospace for #### counters */
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  /* New: search sizing */
-  --search-max: 720px;
+  /*
+    CRITICAL: single aligned content column for search + lists.
+    Set this to match where your cards visually sit (yellow oval).
+    If you want it wider/narrower, change ONLY this value.
+  */
+  --content-max: 920px;
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
 
-/* New: #### category count badge appended to each <h2> via JS */
+/* #### category count badge appended to each <h2> via JS */
 .cat-count {
   font-family: var(--mono);
   color: rgba(255,255,255,.62);
@@ -27,17 +31,18 @@
   white-space: nowrap;
 }
 
-/* Searchbar (centered, not left-kilter) */
+/* Searchbar (ALIGN WITH CARD COLUMN, not just "center") */
 #proj-search-wrap { margin: .3rem 0 1.2rem; }
 
+/* This wrapper is the alignment anchor */
 .searchbar {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: .6rem;
   align-items: center;
 
-  /* center the whole search unit */
-  max-width: var(--search-max);
+  /* The key: match the cards column width */
+  max-width: var(--content-max);
   margin: 0 auto;
 }
 
@@ -62,25 +67,15 @@
   white-space: nowrap;
 }
 
-/* Mobile: stack input + count cleanly */
-@media (max-width: 640px) {
-  .searchbar {
-    grid-template-columns: 1fr;
-  }
-  #search-count {
-    justify-self: start;
-    text-align: left;
-    margin-top: .25rem;
-    font-size: .88rem;
-  }
-}
-
-/* List layout */
+/* List layout (ALSO match the same column width) */
 .project-list {
   display: flex;
   flex-direction: column;
   gap: .75rem;
-  margin: .75rem 0 1.75rem;
+
+  /* The key: match searchbar column */
+  max-width: var(--content-max);
+  margin: .75rem auto 1.75rem;
 }
 
 .project-row {
@@ -153,6 +148,22 @@
   background: rgba(255,255,255,.02);
   color: #eaeaea;
   border: 1px solid rgba(255,255,255,.2);
+}
+
+/* Mobile: stack input + count cleanly */
+@media (max-width: 640px) {
+  .searchbar {
+    grid-template-columns: 1fr;
+  }
+  #search-count {
+    justify-self: start;
+    text-align: left;
+    margin-top: .25rem;
+    font-size: .88rem;
+  }
+
+  /* On very small screens, let the column breathe */
+  :root { --content-max: 100%; }
 }
 
 .backlinks { padding-bottom: 2rem; }
