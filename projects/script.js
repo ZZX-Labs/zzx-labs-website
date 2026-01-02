@@ -158,7 +158,7 @@
     box.className = "container";
     box.id = "proj-search-wrap";
     box.innerHTML = `
-      <div class="searchbar">
+      <div class="searchbar rail">
         <input id="proj-search" type="search" placeholder="Search projects by title, slug, tags, or blurb…" autocomplete="off" />
         <span id="search-count" class="muted"></span>
       </div>
