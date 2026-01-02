@@ -1,5 +1,5 @@
 /* /projects/style.css — root projects index (rows)
-   NOTE: This file participates in the global cascade-layer system.
+   Participates in cascade layers: base → layout → components → media → pages → utilities
 */
 @layer pages {
 
@@ -12,24 +12,23 @@
 
     --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-    /* Rail width used by BOTH search + lists */
+    /* Rail width used by BOTH search + lists (match category pages) */
     --rail-max: 1100px;
   }
 
-  /* Force correct accent token for this page so forms.css stays on-brand */
+  /* CRITICAL: make forms.css focus ring use the correct accent on this page */
   body.projects-landing{
     --accent: #c0d674;
     --accent-alt: #e6a42b;
   }
 
-  /* Keep global container wide for headings/sections,
-     BUT rail-constrain the search + lists explicitly. */
+  /* Keep headings/sections wide, but we will rail-constrain the search + lists */
   .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
   .muted { color: var(--muted); }
   .loading { color: var(--muted); font-style: italic; }
 
   /* Category (####) count appended to each <h2> by JS */
-  body.projects-landing .cat-count {
+  body.projects-landing .cat-count{
     font-family: var(--mono);
     color: rgba(255,255,255,.62);
     font-size: .95rem;
@@ -39,33 +38,21 @@
   }
 
   /* ------------------------------------------------------------
-     RAIL: single alignment rule used by searchbar + lists.
+     SEARCHBAR — align to SAME rail as project lists (1100px)
+     IMPORTANT: #proj-search-wrap is a <section class="container"> inserted by JS.
+     So we must override the container’s 1200px rail for THIS section only.
      ------------------------------------------------------------ */
-  body.projects-landing .rail {
-    width: 100%;
+
+  /* Make the search section itself the rail */
+  body.projects-landing section#proj-search-wrap.container{
     max-width: var(--rail-max);
     margin-left: auto;
     margin-right: auto;
-    box-sizing: border-box;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
-  /* ------------------------------------------------------------
-     Searchbar — rail-aligned + BRAND-LOCKED (#c0d674)
-     Hardened against global focus/accent rules.
-     ------------------------------------------------------------ */
-  body.projects-landing #proj-search-wrap{
-    margin: .3rem 0 1.2rem;
-
-    width: 100%;
-    max-width: var(--rail-max);
-    margin-left: auto;
-    margin-right: auto;
-
-    /* IMPORTANT: avoid double-padding misalignment */
-    padding: 0;
-    box-sizing: border-box;
-  }
-
+  /* Grid wrapper */
   body.projects-landing #proj-search-wrap .searchbar{
     display: grid;
     grid-template-columns: 1fr auto;
@@ -73,22 +60,18 @@
     align-items: center;
 
     width: 100%;
-    max-width: var(--rail-max);
     margin-left: auto;
     margin-right: auto;
-
-    padding: 0;
     box-sizing: border-box;
   }
 
-  /* Baseline input (neutral, no neon) */
+  /* Input baseline: match your project aesthetic (not forms.css defaults) */
   body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
     width: 100%;
 
     background: rgba(255,255,255,.04);
     color: #e8e8e8;
 
-    /* override forms.css look to match project pages */
     border: 1px solid rgba(255,255,255,.18);
     border-radius: 10px;
 
@@ -97,30 +80,23 @@
     outline: none;
     box-shadow: none;
 
-    /* Lock “green” sources */
-    caret-color: #c0d674;
-    accent-color: #c0d674;
+    caret-color: var(--accent);
+    accent-color: var(--accent);
 
     -webkit-text-fill-color: #e8e8e8;
     appearance: none;
   }
 
-  /* Focus: hard lock to #c0d674 */
+  /* Focus ring: always #c0d674 */
   body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus,
   body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
-    border-color: #c0d674;
+    border-color: var(--accent);
     outline: none;
     box-shadow: 0 0 0 3px rgba(192,214,116,.18);
-    filter: none;
     background: rgba(255,255,255,.04);
+    filter: none;
   }
 
-  /* If a global rule uses outline-color separately */
-  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
-    outline-color: #c0d674;
-  }
-
-  /* Selection highlight — brand tinted */
   body.projects-landing #proj-search-wrap .searchbar input[type="search"]::selection{
     background: rgba(192,214,116,.28);
     color: #0f120c;
@@ -133,29 +109,22 @@
     font-size: .92rem;
   }
 
-  /* Mobile: stack cleanly */
   @media (max-width: 640px){
-    body.projects-landing #proj-search-wrap{ max-width: 100%; }
-
     body.projects-landing #proj-search-wrap .searchbar{
       grid-template-columns: 1fr;
-      max-width: 100%;
     }
-
     body.projects-landing #proj-search-wrap #search-count{
       justify-self: start;
       text-align: left;
       margin-top: .25rem;
       font-size: .88rem;
     }
-
-    :root{ --rail-max: 100%; }
   }
 
   /* ------------------------------------------------------------
-     Project lists — align to same rail
+     PROJECT LISTS — same rail (1100px) inside each section.container
      ------------------------------------------------------------ */
-  body.projects-landing .project-list {
+  body.projects-landing .project-list{
     width: 100%;
     max-width: var(--rail-max);
     margin: .75rem auto 1.75rem;
@@ -167,8 +136,7 @@
     box-sizing: border-box;
   }
 
-  /* Row card */
-  body.projects-landing .project-row {
+  body.projects-landing .project-row{
     position: relative;
 
     display: grid;
@@ -179,44 +147,51 @@
     border: 1px solid var(--line);
     border-radius: 12px;
     background: var(--surface);
-    padding: .75rem 1rem;
 
-    /* reserve space for bottom-right badge */
-    padding-bottom: 2.2rem;
+    padding: .75rem 1rem;
+    padding-bottom: 2.2rem; /* reserve for badge */
 
     transition: border-color .15s ease, background .15s ease;
   }
 
-  body.projects-landing .project-row:hover {
+  body.projects-landing .project-row:hover{
     border-color: rgba(255,255,255,.18);
     background: rgba(255,255,255,.04);
   }
 
-  /* Small logos */
-  body.projects-landing .project-logo img {
+  body.projects-landing .project-logo img{
     width: 64px;
     height: 64px;
     object-fit: contain;
+
     border-radius: 10px;
     background: rgba(255,255,255,.04);
     border: 1px solid rgba(255,255,255,.10);
   }
 
-  /* Text + links */
-  body.projects-landing .project-meta h3 { margin: 0 0 .25rem; font-size: 1.1rem; }
-  body.projects-landing .project-meta h3 a { color: #e8e8e8; text-decoration: none; }
-  body.projects-landing .project-meta h3 a:hover { text-decoration: underline; }
+  body.projects-landing .project-meta h3{
+    margin: 0 0 .25rem;
+    font-size: 1.1rem;
+  }
 
-  body.projects-landing .project-meta p { margin: 0 0 .5rem; line-height: 1.45; }
+  body.projects-landing .project-meta h3 a{
+    color: #e8e8e8;
+    text-decoration: none;
+  }
+  body.projects-landing .project-meta h3 a:hover{ text-decoration: underline; }
 
-  body.projects-landing .project-meta .links {
+  body.projects-landing .project-meta p{
+    margin: 0 0 .5rem;
+    line-height: 1.45;
+  }
+
+  body.projects-landing .project-meta .links{
     display: flex;
     gap: .5rem;
     flex-wrap: wrap;
   }
 
-  /* Buttons */
-  body.projects-landing .btn {
+  body.projects-landing .btn{
     display: inline-block;
     background: var(--accent);
     color: #101218;
@@ -227,18 +202,16 @@
     text-decoration: none;
     line-height: 1;
   }
-  body.projects-landing .btn:hover { filter: brightness(1.05); }
+  body.projects-landing .btn:hover{ filter: brightness(1.05); }
 
-  body.projects-landing .btn.ghost {
+  body.projects-landing .btn.ghost{
     background: rgba(255,255,255,.02);
     color: #eaeaea;
     border: 1px solid rgba(255,255,255,.2);
   }
 
-  /* ------------------------------------------------------------
-     Per-project #### badge — bottom-right + smaller
-     ------------------------------------------------------------ */
-  body.projects-landing .proj-count {
+  /* Per-project #### badge — bottom-right + smaller */
+  body.projects-landing .proj-count{
     position: absolute;
     right: 10px;
     bottom: 10px;
@@ -272,8 +245,25 @@
     pointer-events: none;
   }
 
-  body.projects-landing .project-row:hover .proj-count { filter: brightness(.97); }
+  body.projects-landing .project-row:hover .proj-count{ filter: brightness(.97); }
 
-  .backlinks { padding-bottom: 2rem; }
+  .backlinks{ padding-bottom: 2rem; }
+}
 
+/* ------------------------------------------------------------------
+   SAFETY OVERRIDES — if something in utilities layer still injects
+   a different focus style, these win without changing layout.
+   (Minimal !important use; only focus visuals.)
+   ------------------------------------------------------------------ */
+@layer utilities {
+  body.projects-landing #proj-search-wrap input[type="search"]:focus,
+  body.projects-landing #proj-search-wrap input[type="search"]:focus-visible{
+    border-color: #c0d674 !important;
+    box-shadow: 0 0 0 3px rgba(192,214,116,.18) !important;
+    outline: none !important;
+  }
+  body.projects-landing #proj-search-wrap input[type="search"]{
+    caret-color: #c0d674 !important;
+    accent-color: #c0d674 !important;
+  }
 }
