@@ -1,24 +1,46 @@
-/* Projects root — stacked rows layout + search */
+/* Projects root — stacked rows layout + search + #### padded category counts */
 :root {
   --accent: #c0d674;
   --accent-alt: #e6a42b;
   --muted: #8a8f98;
   --line: rgba(255,255,255,.12);
   --surface: rgba(255,255,255,.02);
+
+  /* New: monospace for #### counters */
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* New: search sizing */
+  --search-max: 720px;
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
 
-/* Searchbar */
+/* New: #### category count badge appended to each <h2> via JS */
+.cat-count {
+  font-family: var(--mono);
+  color: rgba(255,255,255,.62);
+  font-size: .95rem;
+  margin-left: .55rem;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+/* Searchbar (centered, not left-kilter) */
 #proj-search-wrap { margin: .3rem 0 1.2rem; }
+
 .searchbar {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: .6rem;
   align-items: center;
+
+  /* center the whole search unit */
+  max-width: var(--search-max);
+  margin: 0 auto;
 }
+
 .searchbar input[type="search"] {
   width: 100%;
   background: rgba(255,255,255,.04);
@@ -26,8 +48,32 @@
   color: #e8e8e8;
   border-radius: 8px;
   padding: .48rem .65rem;
+  outline: none;
 }
-#search-count { justify-self: end; }
+
+.searchbar input[type="search"]:focus {
+  border-color: rgba(192,214,116,.55);
+  box-shadow: 0 0 0 3px rgba(192,214,116,.15);
+}
+
+#search-count {
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Mobile: stack input + count cleanly */
+@media (max-width: 640px) {
+  .searchbar {
+    grid-template-columns: 1fr;
+  }
+  #search-count {
+    justify-self: start;
+    text-align: left;
+    margin-top: .25rem;
+    font-size: .88rem;
+  }
+}
 
 /* List layout */
 .project-list {
@@ -48,6 +94,7 @@
   padding: .75rem 1rem;
   transition: border-color .15s ease, background .15s ease;
 }
+
 .project-row:hover {
   border-color: rgba(255,255,255,.18);
   background: rgba(255,255,255,.04);
@@ -68,18 +115,23 @@
   margin: 0 0 .25rem;
   font-size: 1.1rem;
 }
+
 .project-meta h3 a {
   color: #e8e8e8;
   text-decoration: none;
 }
+
 .project-meta h3 a:hover { text-decoration: underline; }
+
 .project-meta p {
   margin: 0 0 .5rem;
   line-height: 1.45;
 }
+
 .project-meta .links {
   display: flex;
   gap: .5rem;
+  flex-wrap: wrap;
 }
 
 /* Buttons */
@@ -94,7 +146,9 @@
   text-decoration: none;
   line-height: 1;
 }
+
 .btn:hover { filter: brightness(1.05); }
+
 .btn.ghost {
   background: rgba(255,255,255,.02);
   color: #eaeaea;
