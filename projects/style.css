@@ -1,4 +1,6 @@
-/* Projects root — rows layout + centered search aligned to card/list column + #### category counts */
+/* /projects/style.css — root projects index (rows) */
+/* Forces the searchbar + rows onto the SAME centered rail and adds per-row #### badges. */
+
 :root {
   --accent: #c0d674;
   --accent-alt: #e6a42b;
@@ -8,21 +10,16 @@
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  /*
-    Match category pages (/projects/software/) behavior:
-    - container can be wide (1200px)
-    - BUT the "cards/list column" is a centered, narrower rail
-    Set this to the same width you use elsewhere (1100px).
-  */
-  --cards-max: 1100px;
+  /* This is the “yellow oval” rail width. Match your software page. */
+  --rail-max: 1100px;
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
 
-/* #### padded category counts appended to each <h2> by JS */
-.cat-count{
+/* Category count appended to each <h2> by JS */
+body.projects-landing .cat-count{
   font-family: var(--mono);
   color: rgba(255,255,255,.62);
   font-size: .95rem;
@@ -32,25 +29,19 @@
 }
 
 /* ------------------------------------------------------------
-   Searchbar (root projects page)
-   MUST align to the same centered column as project rows.
+   SEARCHBAR — MUST align to the same centered rail as the rows.
+   Use high specificity because /static/styles.css is overriding you.
    ------------------------------------------------------------ */
-#proj-search-wrap { margin: .3rem 0 1.2rem; }
+body.projects-landing #proj-search-wrap{
+  margin: .3rem 0 1.2rem;
+}
 
-/*
-  The injected HTML is:
-    <section class="container" id="proj-search-wrap">
-      <div class="searchbar">...</div>
-    </section>
-
-  .container is 1200px wide.
-  We constrain .searchbar to --cards-max and center it,
-  so its left edge matches the project rows column.
-*/
-.searchbar{
-  width: 100%;
-  max-width: var(--cards-max);
-  margin: 0 auto;
+/* Force the actual searchbar block to be centered on the rail */
+body.projects-landing #proj-search-wrap .searchbar{
+  width: 100% !important;
+  max-width: var(--rail-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 
   display: grid;
   grid-template-columns: 1fr auto;
@@ -58,7 +49,8 @@
   align-items: center;
 }
 
-.searchbar input[type="search"]{
+/* Input */
+body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
   width: 100%;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.18);
@@ -68,36 +60,38 @@
   outline: none;
 }
 
-.searchbar input[type="search"]:focus{
+body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus{
   border-color: rgba(192,214,116,.55);
   box-shadow: 0 0 0 3px rgba(192,214,116,.15);
 }
 
-#search-count{
+/* Count label on the right */
+body.projects-landing #proj-search-wrap #search-count{
   justify-self: end;
   text-align: right;
   white-space: nowrap;
 }
 
-/* Mobile: stack cleanly */
+/* Mobile: stack */
 @media (max-width: 640px){
-  .searchbar{ grid-template-columns: 1fr; }
-  #search-count{
+  body.projects-landing #proj-search-wrap .searchbar{
+    grid-template-columns: 1fr;
+  }
+  body.projects-landing #proj-search-wrap #search-count{
     justify-self: start;
     text-align: left;
     margin-top: .25rem;
     font-size: .88rem;
   }
+  :root { --rail-max: 100%; }
 }
 
 /* ------------------------------------------------------------
-   Root list layout (rows)
-   The actual visible content column is --cards-max (1100px),
-   not the full 1200px container.
+   ROW LIST — also constrained to the same rail
    ------------------------------------------------------------ */
-.project-list{
+body.projects-landing .project-list{
   width: 100%;
-  max-width: var(--cards-max);
+  max-width: var(--rail-max);
   margin: .75rem auto 1.75rem;
 
   display: flex;
@@ -105,7 +99,9 @@
   gap: .75rem;
 }
 
-.project-row{
+body.projects-landing .project-row{
+  position: relative; /* needed for badge positioning */
+
   display: grid;
   grid-template-columns: 80px 1fr;
   gap: 1rem;
@@ -119,13 +115,13 @@
   transition: border-color .15s ease, background .15s ease;
 }
 
-.project-row:hover{
+body.projects-landing .project-row:hover{
   border-color: rgba(255,255,255,.18);
   background: rgba(255,255,255,.04);
 }
 
 /* Small logos */
-.project-logo img{
+body.projects-landing .project-logo img{
   width: 64px;
   height: 64px;
   object-fit: contain;
@@ -135,31 +131,30 @@
 }
 
 /* Text + links */
-.project-meta h3{
+body.projects-landing .project-meta h3{
   margin: 0 0 .25rem;
   font-size: 1.1rem;
 }
 
-.project-meta h3 a{
+body.projects-landing .project-meta h3 a{
   color: #e8e8e8;
   text-decoration: none;
 }
+body.projects-landing .project-meta h3 a:hover{ text-decoration: underline; }
 
-.project-meta h3 a:hover{ text-decoration: underline; }
-
-.project-meta p{
+body.projects-landing .project-meta p{
   margin: 0 0 .5rem;
   line-height: 1.45;
 }
 
-.project-meta .links{
+body.projects-landing .project-meta .links{
   display: flex;
   gap: .5rem;
   flex-wrap: wrap;
 }
 
 /* Buttons */
-.btn{
+body.projects-landing .btn{
   display: inline-block;
   background: var(--accent);
   color: #101218;
@@ -171,12 +166,55 @@
   line-height: 1;
 }
 
-.btn:hover{ filter: brightness(1.05); }
+body.projects-landing .btn:hover{ filter: brightness(1.05); }
 
-.btn.ghost{
+body.projects-landing .btn.ghost{
   background: rgba(255,255,255,.02);
   color: #eaeaea;
   border: 1px solid rgba(255,255,255,.2);
+}
+
+/* ------------------------------------------------------------
+   PER-PROJECT #### BADGE (top-right of each row card)
+   Injected by JS as: <div class="proj-count">0007</div>
+   ------------------------------------------------------------ */
+body.projects-landing .proj-count{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .03em;
+
+  color: #0f120c;
+  background: var(--accent);
+  border: 1px solid rgba(0,0,0,.25);
+
+  box-shadow:
+    0 2px 6px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.35);
+
+  user-select: none;
+  pointer-events: none;
+
+  font-family: var(--mono);
+}
+
+body.projects-landing .project-row:hover .proj-count{
+  filter: brightness(.95);
 }
 
 .backlinks { padding-bottom: 2rem; }
