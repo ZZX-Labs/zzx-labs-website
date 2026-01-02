@@ -1,12 +1,22 @@
-// /projects/script.js — Projects root (rows layout + global search)
+// /projects/script.js — Projects root (rows layout + global search + #### category counts)
 (() => {
   const CATEGORIES = [
-    { key: "web",      mountId: "proj-web",      base: "/projects/web/" },
-    { key: "software", mountId: "proj-software", base: "/projects/software/" },
-    { key: "hardware", mountId: "proj-hardware", base: "/projects/hardware/" }
+    { key: "adult",               title: "Adult",               mountId: "proj-adult",               base: "/projects/adult/" },
+    { key: "ai",                  title: "AI",                  mountId: "proj-ai",                  base: "/projects/ai/" },
+    { key: "apps",                title: "Apps",                mountId: "proj-apps",                base: "/projects/apps/" },
+    { key: "bitcoin",             title: "Bitcoin",             mountId: "proj-bitcoin",             base: "/projects/bitcoin/" },
+    { key: "cyber-investigation", title: "Cyber Investigation", mountId: "proj-cyber-investigation", base: "/projects/cyber-investigation/" },
+    { key: "cyber-security",      title: "Cyber Security",      mountId: "proj-cyber-security",      base: "/projects/cyber-security/" },
+    { key: "cyber-warfare",       title: "Cyber Warfare",       mountId: "proj-cyber-warfare",       base: "/projects/cyber-warfare/" },
+    { key: "firmware",            title: "Firmware",            mountId: "proj-firmware",            base: "/projects/firmware/" },
+    { key: "hardware",            title: "Hardware",            mountId: "proj-hardware",            base: "/projects/hardware/" },
+    { key: "ml",                  title: "ML",                  mountId: "proj-ml",                  base: "/projects/ml/" },
+    { key: "osint",               title: "OSINT",               mountId: "proj-osint",               base: "/projects/osint/" },
+    { key: "software",            title: "Software",            mountId: "proj-software",            base: "/projects/software/" },
+    { key: "web",                 title: "Web",                 mountId: "proj-web",                 base: "/projects/web/" }
   ];
 
-  const state = { totals: 0 };
+  const state = { totals: 0, perCat: {} };
 
   // ---------- utils ----------
   const el = (tag, cls, text) => {
@@ -20,6 +30,11 @@
   function debounce(fn, ms = 120) {
     let t = null;
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
+  function pad4(n) {
+    const x = Math.max(0, Number(n || 0));
+    return String(x).padStart(4, "0");
   }
 
   async function fetchJSON(url) {
@@ -62,7 +77,6 @@
 
     const row = document.createElement("div");
     row.className = "project-row";
-    // filtering dataset
     row.dataset.title = (title || "").toLowerCase();
     row.dataset.slug  = (slug || "").toLowerCase();
     row.dataset.blurb = (blurb || "").toLowerCase();
@@ -102,12 +116,30 @@
     mount.appendChild(wrap);
   }
 
+  function setCategoryCount(mountId, count) {
+    const mount = document.getElementById(mountId);
+    if (!mount) return;
+
+    // Find the closest container section and its h2
+    const section = mount.closest("section.container");
+    const h2 = section ? section.querySelector("h2") : null;
+    if (!h2) return;
+
+    // Remove existing count if present
+    const existing = h2.querySelector(".cat-count");
+    if (existing) existing.remove();
+
+    const span = document.createElement("span");
+    span.className = "cat-count";
+    span.textContent = `(${pad4(count)})`;
+    h2.appendChild(span);
+  }
+
   // ---------- search ----------
   function ensureSearchUI() {
     let box = document.getElementById("proj-search-wrap");
     if (box) return;
 
-    // Insert after the intro <section class="container"> (the first one you have)
     const firstContainer = document.querySelector("main .container");
     if (!firstContainer) return;
 
@@ -132,9 +164,8 @@
     let shown = 0;
     const total = state.totals;
 
-    // go through each category’s rows
-    ["proj-web", "proj-software", "proj-hardware"].forEach(id => {
-      const mount = document.getElementById(id);
+    CATEGORIES.forEach(c => {
+      const mount = document.getElementById(c.mountId);
       if (!mount) return;
       const rows = mount.querySelectorAll(".project-row");
       rows.forEach(row => {
@@ -162,30 +193,29 @@
   // ---------- boot ----------
   async function boot() {
     // placeholders
-    ["proj-web", "proj-software", "proj-hardware"].forEach(id => {
-      const m = document.getElementById(id);
+    CATEGORIES.forEach(c => {
+      const m = document.getElementById(c.mountId);
       if (m && !m.innerHTML.trim()) m.innerHTML = `<p class="loading">Loading…</p>`;
     });
 
-    // load all three
     const results = await Promise.all(
       CATEGORIES.map(c =>
         fetchJSON(`${c.base}manifest.json`).then(data => ({
-          base: c.base,
+          cat: c,
           mount: document.getElementById(c.mountId),
           list: Array.isArray(data?.projects) ? data.projects : []
         }))
       )
     );
 
-    // render + count
     state.totals = 0;
-    results.forEach(({ mount, base, list }) => {
+    results.forEach(({ cat, mount, list }) => {
       state.totals += list.length;
-      renderCategory(mount, list, base);
+      state.perCat[cat.key] = list.length;
+      setCategoryCount(cat.mountId, list.length);
+      renderCategory(mount, list, cat.base);
     });
 
-    // search
     ensureSearchUI();
     const input = document.getElementById("proj-search");
     if (input) input.addEventListener("input", debouncedFilter);
