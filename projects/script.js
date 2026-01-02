@@ -1,5 +1,7 @@
 // /projects/script.js — Projects root (rows layout + global search + #### category counts + per-project #### badges)
 (() => {
+  "use strict";
+
   const CATEGORIES = [
     { key: "adult",               title: "Adult",               mountId: "proj-adult",               base: "/projects/adult/" },
     { key: "ai",                  title: "AI",                  mountId: "proj-ai",                  base: "/projects/ai/" },
@@ -40,51 +42,54 @@
 
   async function fetchJSON(url) {
     try {
-      const r = await fetch(url, { cache: "no-cache" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.json();
     } catch (e) {
-      console.warn("Manifest load failed:", url, e);
+      console.warn("[projects] Manifest load failed:", url, e);
       return { projects: [] };
     }
   }
 
   function safeLogoFor(p, base) {
-    let logo = p.logo || "";
-    const slug = p.slug || "";
+    let logo = (p && p.logo) ? String(p.logo) : "";
+    const slug = (p && p.slug) ? String(p.slug) : "";
 
     // Replace placeholder /_/logo.* -> /<slug>/logo.*
     if (logo && /\/_\/logo\.(png|jpe?g|webp|svg)$/i.test(logo) && slug) {
       logo = logo.replace("/_/", `/${slug}/`);
     }
+
     // Derive from href if missing
-    if (!logo && p.href) {
-      const baseHref = p.href.endsWith("/") ? p.href : (p.href + "/");
+    if (!logo && p && p.href) {
+      const href = String(p.href);
+      const baseHref = href.endsWith("/") ? href : (href + "/");
       logo = baseHref + "logo.png";
     }
+
     // Last fallback
-    if (!logo && slug) logo = `${base}${slug}/logo.png";
+    if (!logo && slug) logo = `${base}${slug}/logo.png`;
+
     return logo;
   }
 
   function makeRow(p, base, idx) {
-    const slug   = p.slug || "";
-    const href   = p.href || `${base}${slug}/`;
+    const slug   = p.slug ? String(p.slug) : "";
+    const href   = p.href ? String(p.href) : (slug ? `${base}${slug}/` : base);
     const logo   = safeLogoFor(p, base);
-    const title  = p.title || slug || "Untitled";
-    const blurb  = p.blurb || "";
-    const github = p.github_url || p.github || "";
+    const title  = p.title ? String(p.title) : (slug || "Untitled");
+    const blurb  = p.blurb ? String(p.blurb) : "";
+    const github = (p.github_url || p.github) ? String(p.github_url || p.github) : "";
     const tags   = Array.isArray(p.tags) ? p.tags.join(" ") : "";
     const count  = pad4(idx);
 
     const row = document.createElement("div");
     row.className = "project-row";
 
-    // filtering dataset
-    row.dataset.title = (title || "").toLowerCase();
-    row.dataset.slug  = (slug || "").toLowerCase();
-    row.dataset.blurb = (blurb || "").toLowerCase();
-    row.dataset.tags  = (tags || "").toLowerCase();
+    row.dataset.title = title.toLowerCase();
+    row.dataset.slug  = slug.toLowerCase();
+    row.dataset.blurb = blurb.toLowerCase();
+    row.dataset.tags  = String(tags).toLowerCase();
 
     row.innerHTML = `
       <div class="proj-count" aria-hidden="true">${count}</div>
@@ -145,6 +150,7 @@
     let box = document.getElementById("proj-search-wrap");
     if (box) return;
 
+    // Insert after the first container section inside main
     const firstContainer = document.querySelector("main .container");
     if (!firstContainer) return;
 
@@ -153,15 +159,17 @@
     box.id = "proj-search-wrap";
     box.innerHTML = `
       <div class="searchbar">
-        <input id="proj-search" type="search" placeholder="Search projects by title, slug, tags, or blurb…" />
+        <input id="proj-search" type="search" placeholder="Search projects by title, slug, tags, or blurb…" autocomplete="off" />
         <span id="search-count" class="muted"></span>
       </div>
     `;
+
     firstContainer.parentNode.insertBefore(box, firstContainer.nextSibling);
   }
 
   function currentQuery() {
-    return (document.getElementById("proj-search")?.value || "").trim().toLowerCase();
+    const v = document.getElementById("proj-search")?.value || "";
+    return String(v).trim().toLowerCase();
   }
 
   function applyFilter() {
@@ -172,6 +180,7 @@
     CATEGORIES.forEach(c => {
       const mount = document.getElementById(c.mountId);
       if (!mount) return;
+
       const rows = mount.querySelectorAll(".project-row");
       rows.forEach(row => {
         if (!q) {
@@ -197,12 +206,16 @@
 
   // ---------- boot ----------
   async function boot() {
+    // Build search UI FIRST so you never “lose” it even if a manifest fails.
+    ensureSearchUI();
+
     // placeholders
     CATEGORIES.forEach(c => {
       const m = document.getElementById(c.mountId);
       if (m && !m.innerHTML.trim()) m.innerHTML = `<p class="loading">Loading…</p>`;
     });
 
+    // fetch all manifests
     const results = await Promise.all(
       CATEGORIES.map(c =>
         fetchJSON(`${c.base}manifest.json`).then(data => ({
@@ -214,20 +227,26 @@
     );
 
     state.totals = 0;
+
     results.forEach(({ cat, mount, list }) => {
       state.totals += list.length;
       state.perCat[cat.key] = list.length;
+
       setCategoryCount(cat.mountId, list.length);
       renderCategory(mount, list, cat.base);
     });
 
-    ensureSearchUI();
     const input = document.getElementById("proj-search");
     if (input) input.addEventListener("input", debouncedFilter);
+
     applyFilter();
+    console.info("[projects] loaded totals:", state.totals, state.perCat);
   }
 
-  document.readyState === "loading"
-    ? document.addEventListener("DOMContentLoaded", boot, { once: true })
-    : boot();
+  // Run
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
 })();
