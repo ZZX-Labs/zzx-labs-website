@@ -20,7 +20,6 @@
 
   const state = { totals: 0, perCat: {} };
 
-  // ---------- utils ----------
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -55,21 +54,15 @@
     let logo = (p && p.logo) ? String(p.logo) : "";
     const slug = (p && p.slug) ? String(p.slug) : "";
 
-    // Replace placeholder /_/logo.* -> /<slug>/logo.*
     if (logo && /\/_\/logo\.(png|jpe?g|webp|svg)$/i.test(logo) && slug) {
       logo = logo.replace("/_/", `/${slug}/`);
     }
-
-    // Derive from href if missing
     if (!logo && p && p.href) {
       const href = String(p.href);
       const baseHref = href.endsWith("/") ? href : (href + "/");
       logo = baseHref + "logo.png";
     }
-
-    // Last fallback
     if (!logo && slug) logo = `${base}${slug}/logo.png`;
-
     return logo;
   }
 
@@ -145,24 +138,33 @@
     h2.appendChild(span);
   }
 
-  // ---------- search ----------
+  // ---------- search (software-style injection) ----------
   function ensureSearchUI() {
     let box = document.getElementById("proj-search-wrap");
     if (box) return;
 
-    // Insert after the first container section inside main
     const firstContainer = document.querySelector("main .container");
     if (!firstContainer) return;
 
-    box = document.createElement("section");
+    box = document.createElement("div");
     box.className = "container";
     box.id = "proj-search-wrap";
-    box.innerHTML = `
-      <div class="searchbar rail">
-        <input id="proj-search" type="search" placeholder="Search projects by title, slug, tags, or blurb…" autocomplete="off" />
-        <span id="search-count" class="muted"></span>
-      </div>
-    `;
+
+    const input = document.createElement("input");
+    input.type = "search";
+    input.id = "proj-search";
+    input.placeholder = "Search projects by title, slug, tags, or blurb…";
+    input.autocomplete = "off";
+
+    const meta = document.createElement("div");
+    meta.className = "search-meta";
+    const count = document.createElement("span");
+    count.id = "search-count";
+    count.className = "muted";
+    meta.appendChild(count);
+
+    box.appendChild(input);
+    box.appendChild(meta);
 
     firstContainer.parentNode.insertBefore(box, firstContainer.nextSibling);
   }
@@ -204,18 +206,14 @@
 
   const debouncedFilter = debounce(applyFilter, 120);
 
-  // ---------- boot ----------
   async function boot() {
-    // Build search UI FIRST so you never “lose” it even if a manifest fails.
     ensureSearchUI();
 
-    // placeholders
     CATEGORIES.forEach(c => {
       const m = document.getElementById(c.mountId);
       if (m && !m.innerHTML.trim()) m.innerHTML = `<p class="loading">Loading…</p>`;
     });
 
-    // fetch all manifests
     const results = await Promise.all(
       CATEGORIES.map(c =>
         fetchJSON(`${c.base}manifest.json`).then(data => ({
@@ -231,7 +229,6 @@
     results.forEach(({ cat, mount, list }) => {
       state.totals += list.length;
       state.perCat[cat.key] = list.length;
-
       setCategoryCount(cat.mountId, list.length);
       renderCategory(mount, list, cat.base);
     });
@@ -240,10 +237,8 @@
     if (input) input.addEventListener("input", debouncedFilter);
 
     applyFilter();
-    console.info("[projects] loaded totals:", state.totals, state.perCat);
   }
 
-  // Run
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
