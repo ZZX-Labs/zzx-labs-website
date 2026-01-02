@@ -16,6 +16,12 @@
     --rail-max: 1100px;
   }
 
+  /* Force correct accent token for this page so forms.css stays on-brand */
+  body.projects-landing{
+    --accent: #c0d674;
+    --accent-alt: #e6a42b;
+  }
+
   /* Keep global container wide for headings/sections,
      BUT rail-constrain the search + lists explicitly. */
   .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
@@ -42,113 +48,109 @@
     margin-right: auto;
     box-sizing: border-box;
   }
-/* ------------------------------------------------------------
-   Searchbar — rail-aligned + BRAND-LOCKED (#c0d674)
-   This version is hardened against utilities-layer form styles.
-   ------------------------------------------------------------ */
-body.projects-landing #proj-search-wrap{
-  margin: .3rem 0 1.2rem;
 
-  width: 100% !important;
-  max-width: var(--rail-max) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  /* ------------------------------------------------------------
+     Searchbar — rail-aligned + BRAND-LOCKED (#c0d674)
+     Hardened against global focus/accent rules.
+     ------------------------------------------------------------ */
+  body.projects-landing #proj-search-wrap{
+    margin: .3rem 0 1.2rem;
 
-  padding: 0 !important;
-  box-sizing: border-box !important;
-}
+    width: 100%;
+    max-width: var(--rail-max);
+    margin-left: auto;
+    margin-right: auto;
 
-body.projects-landing #proj-search-wrap .searchbar{
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: .6rem;
-  align-items: center;
-
-  width: 100% !important;
-  max-width: var(--rail-max) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-
-  padding: 0 !important;
-  box-sizing: border-box !important;
-}
-
-/* Baseline input (neutral, no neon) */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
-  width: 100% !important;
-
-  background: rgba(255,255,255,.04) !important;
-  color: #e8e8e8 !important;
-
-  border: 1px solid rgba(255,255,255,.18) !important;
-  border-radius: 10px !important;
-
-  padding: .52rem .72rem !important;
-
-  outline: none !important;
-  box-shadow: none !important;
-
-  /* Lock “green” sources */
-  caret-color: #c0d674 !important;
-  accent-color: #c0d674 !important;
-
-  /* If some module uses currentColor-based rings */
-  color-scheme: dark !important;
-
-  -webkit-text-fill-color: #e8e8e8 !important;
-  appearance: none !important;
-}
-
-/* Focus: hard lock to #c0d674 */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus,
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
-  border-color: #c0d674 !important;
-
-  outline: none !important;
-
-  /* Some global styles set outline/box-shadow; we overwrite it */
-  box-shadow: 0 0 0 3px rgba(192,214,116,.18) !important;
-
-  /* Some CSS uses filter on focus; ensure none */
-  filter: none !important;
-}
-
-/* If a global rule uses outline-color separately */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
-  outline-color: #c0d674 !important;
-}
-
-/* Selection highlight — brand tinted */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]::selection{
-  background: rgba(192,214,116,.28) !important;
-  color: #0f120c !important;
-}
-
-body.projects-landing #proj-search-wrap #search-count{
-  justify-self: end;
-  text-align: right;
-  white-space: nowrap;
-  font-size: .92rem;
-}
-
-/* Mobile: stack cleanly */
-@media (max-width: 640px){
-  body.projects-landing #proj-search-wrap{ max-width: 100% !important; }
+    /* IMPORTANT: avoid double-padding misalignment */
+    padding: 0;
+    box-sizing: border-box;
+  }
 
   body.projects-landing #proj-search-wrap .searchbar{
-    grid-template-columns: 1fr;
-    max-width: 100% !important;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .6rem;
+    align-items: center;
+
+    width: 100%;
+    max-width: var(--rail-max);
+    margin-left: auto;
+    margin-right: auto;
+
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* Baseline input (neutral, no neon) */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
+    width: 100%;
+
+    background: rgba(255,255,255,.04);
+    color: #e8e8e8;
+
+    /* override forms.css look to match project pages */
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 10px;
+
+    padding: .52rem .72rem;
+
+    outline: none;
+    box-shadow: none;
+
+    /* Lock “green” sources */
+    caret-color: #c0d674;
+    accent-color: #c0d674;
+
+    -webkit-text-fill-color: #e8e8e8;
+    appearance: none;
+  }
+
+  /* Focus: hard lock to #c0d674 */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus,
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
+    border-color: #c0d674;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(192,214,116,.18);
+    filter: none;
+    background: rgba(255,255,255,.04);
+  }
+
+  /* If a global rule uses outline-color separately */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
+    outline-color: #c0d674;
+  }
+
+  /* Selection highlight — brand tinted */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]::selection{
+    background: rgba(192,214,116,.28);
+    color: #0f120c;
   }
 
   body.projects-landing #proj-search-wrap #search-count{
-    justify-self: start;
-    text-align: left;
-    margin-top: .25rem;
-    font-size: .88rem;
+    justify-self: end;
+    text-align: right;
+    white-space: nowrap;
+    font-size: .92rem;
   }
 
-  :root{ --rail-max: 100%; }
-}
+  /* Mobile: stack cleanly */
+  @media (max-width: 640px){
+    body.projects-landing #proj-search-wrap{ max-width: 100%; }
+
+    body.projects-landing #proj-search-wrap .searchbar{
+      grid-template-columns: 1fr;
+      max-width: 100%;
+    }
+
+    body.projects-landing #proj-search-wrap #search-count{
+      justify-self: start;
+      text-align: left;
+      margin-top: .25rem;
+      font-size: .88rem;
+    }
+
+    :root{ --rail-max: 100%; }
+  }
 
   /* ------------------------------------------------------------
      Project lists — align to same rail
