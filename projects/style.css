@@ -1,6 +1,4 @@
-/* /projects/style.css — root projects index (rows) */
-/* Forces the searchbar + rows onto the SAME centered rail and adds per-row #### badges. */
-
+/* /projects/style.css — root projects index (rows layout + centered rail + #### badges) */
 :root {
   --accent: #c0d674;
   --accent-alt: #e6a42b;
@@ -10,7 +8,7 @@
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  /* This is the “yellow oval” rail width. Match your software page. */
+  /* Match the “good” category pages rail (software uses 1100px). */
   --rail-max: 1100px;
 }
 
@@ -18,8 +16,8 @@
 .muted { color: var(--muted); }
 .loading { color: var(--muted); font-style: italic; }
 
-/* Category count appended to each <h2> by JS */
-body.projects-landing .cat-count{
+/* Category (####) count appended to each <h2> by JS */
+body.projects-landing .cat-count {
   font-family: var(--mono);
   color: rgba(255,255,255,.62);
   font-size: .95rem;
@@ -29,15 +27,12 @@ body.projects-landing .cat-count{
 }
 
 /* ------------------------------------------------------------
-   SEARCHBAR — MUST align to the same centered rail as the rows.
-   Use high specificity because /static/styles.css is overriding you.
+   Searchbar — force centered on the same rail as the rows.
+   Use high specificity + !important to beat /static/styles.css.
    ------------------------------------------------------------ */
-body.projects-landing #proj-search-wrap{
-  margin: .3rem 0 1.2rem;
-}
+body.projects-landing #proj-search-wrap { margin: .3rem 0 1.2rem; }
 
-/* Force the actual searchbar block to be centered on the rail */
-body.projects-landing #proj-search-wrap .searchbar{
+body.projects-landing #proj-search-wrap .searchbar {
   width: 100% !important;
   max-width: var(--rail-max) !important;
   margin-left: auto !important;
@@ -49,8 +44,7 @@ body.projects-landing #proj-search-wrap .searchbar{
   align-items: center;
 }
 
-/* Input */
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
+body.projects-landing #proj-search-wrap .searchbar input[type="search"] {
   width: 100%;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.18);
@@ -60,24 +54,21 @@ body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
   outline: none;
 }
 
-body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus{
+body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus {
   border-color: rgba(192,214,116,.55);
   box-shadow: 0 0 0 3px rgba(192,214,116,.15);
 }
 
-/* Count label on the right */
-body.projects-landing #proj-search-wrap #search-count{
+body.projects-landing #proj-search-wrap #search-count {
   justify-self: end;
   text-align: right;
   white-space: nowrap;
 }
 
 /* Mobile: stack */
-@media (max-width: 640px){
-  body.projects-landing #proj-search-wrap .searchbar{
-    grid-template-columns: 1fr;
-  }
-  body.projects-landing #proj-search-wrap #search-count{
+@media (max-width: 640px) {
+  body.projects-landing #proj-search-wrap .searchbar { grid-template-columns: 1fr; }
+  body.projects-landing #proj-search-wrap #search-count {
     justify-self: start;
     text-align: left;
     margin-top: .25rem;
@@ -87,9 +78,9 @@ body.projects-landing #proj-search-wrap #search-count{
 }
 
 /* ------------------------------------------------------------
-   ROW LIST — also constrained to the same rail
+   Root list layout (rows) — also constrained to the same rail.
    ------------------------------------------------------------ */
-body.projects-landing .project-list{
+body.projects-landing .project-list {
   width: 100%;
   max-width: var(--rail-max);
   margin: .75rem auto 1.75rem;
@@ -99,8 +90,8 @@ body.projects-landing .project-list{
   gap: .75rem;
 }
 
-body.projects-landing .project-row{
-  position: relative; /* needed for badge positioning */
+body.projects-landing .project-row {
+  position: relative; /* for top-right badge */
 
   display: grid;
   grid-template-columns: 80px 1fr;
@@ -111,17 +102,16 @@ body.projects-landing .project-row{
   border-radius: 10px;
   background: var(--surface);
   padding: .75rem 1rem;
-
   transition: border-color .15s ease, background .15s ease;
 }
 
-body.projects-landing .project-row:hover{
+body.projects-landing .project-row:hover {
   border-color: rgba(255,255,255,.18);
   background: rgba(255,255,255,.04);
 }
 
 /* Small logos */
-body.projects-landing .project-logo img{
+body.projects-landing .project-logo img {
   width: 64px;
   height: 64px;
   object-fit: contain;
@@ -131,30 +121,31 @@ body.projects-landing .project-logo img{
 }
 
 /* Text + links */
-body.projects-landing .project-meta h3{
+body.projects-landing .project-meta h3 {
   margin: 0 0 .25rem;
   font-size: 1.1rem;
 }
 
-body.projects-landing .project-meta h3 a{
+body.projects-landing .project-meta h3 a {
   color: #e8e8e8;
   text-decoration: none;
 }
-body.projects-landing .project-meta h3 a:hover{ text-decoration: underline; }
 
-body.projects-landing .project-meta p{
+body.projects-landing .project-meta h3 a:hover { text-decoration: underline; }
+
+body.projects-landing .project-meta p {
   margin: 0 0 .5rem;
   line-height: 1.45;
 }
 
-body.projects-landing .project-meta .links{
+body.projects-landing .project-meta .links {
   display: flex;
   gap: .5rem;
   flex-wrap: wrap;
 }
 
 /* Buttons */
-body.projects-landing .btn{
+body.projects-landing .btn {
   display: inline-block;
   background: var(--accent);
   color: #101218;
@@ -166,19 +157,19 @@ body.projects-landing .btn{
   line-height: 1;
 }
 
-body.projects-landing .btn:hover{ filter: brightness(1.05); }
+body.projects-landing .btn:hover { filter: brightness(1.05); }
 
-body.projects-landing .btn.ghost{
+body.projects-landing .btn.ghost {
   background: rgba(255,255,255,.02);
   color: #eaeaea;
   border: 1px solid rgba(255,255,255,.2);
 }
 
 /* ------------------------------------------------------------
-   PER-PROJECT #### BADGE (top-right of each row card)
-   Injected by JS as: <div class="proj-count">0007</div>
+   Per-project #### badge (top-right of each row).
+   Injected by JS as <div class="proj-count">0001</div>
    ------------------------------------------------------------ */
-body.projects-landing .proj-count{
+body.projects-landing .proj-count {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -194,6 +185,7 @@ body.projects-landing .proj-count{
 
   border-radius: 999px;
 
+  font-family: var(--mono);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -209,11 +201,9 @@ body.projects-landing .proj-count{
 
   user-select: none;
   pointer-events: none;
-
-  font-family: var(--mono);
 }
 
-body.projects-landing .project-row:hover .proj-count{
+body.projects-landing .project-row:hover .proj-count {
   filter: brightness(.95);
 }
 
