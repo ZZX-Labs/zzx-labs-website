@@ -16,13 +16,13 @@
     --rail-max: 1100px;
   }
 
-  /* CRITICAL: make forms.css focus ring use the correct accent on this page */
+  /* CRITICAL: ensure forms.css uses the correct accent on this page */
   body.projects-landing{
     --accent: #c0d674;
     --accent-alt: #e6a42b;
   }
 
-  /* Keep headings/sections wide, but we will rail-constrain the search + lists */
+  /* Keep headings/sections wide, but rail-constrain the search + lists */
   .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
   .muted { color: var(--muted); }
   .loading { color: var(--muted); font-style: italic; }
@@ -40,7 +40,7 @@
   /* ------------------------------------------------------------
      SEARCHBAR — align to SAME rail as project lists (1100px)
      IMPORTANT: #proj-search-wrap is a <section class="container"> inserted by JS.
-     So we must override the container’s 1200px rail for THIS section only.
+     So we override the container’s 1200px rail for THIS section only.
      ------------------------------------------------------------ */
 
   /* Make the search section itself the rail */
@@ -65,14 +65,16 @@
     box-sizing: border-box;
   }
 
-  /* Input baseline: match your project aesthetic (not forms.css defaults) */
+  /* Input baseline (UNFOCUSED): neutral grey (not too dark, not green) */
   body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
     width: 100%;
 
-    background: rgba(255,255,255,.04);
+    /* Unfocused: readable neutral */
+    background: rgba(255,255,255,.07);
     color: #e8e8e8;
 
-    border: 1px solid rgba(255,255,255,.18);
+    /* Unfocused: slightly brighter border for clarity */
+    border: 1px solid rgba(255,255,255,.28);
     border-radius: 10px;
 
     padding: .52rem .72rem;
@@ -85,6 +87,14 @@
 
     -webkit-text-fill-color: #e8e8e8;
     appearance: none;
+
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  }
+
+  /* Optional: hover stays neutral (no green) */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:hover{
+    background: rgba(255,255,255,.085);
+    border-color: rgba(255,255,255,.36);
   }
 
   /* Focus ring: always #c0d674 */
@@ -92,8 +102,12 @@
   body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
     border-color: var(--accent);
     outline: none;
+
+    /* your brand ring */
     box-shadow: 0 0 0 3px rgba(192,214,116,.18);
-    background: rgba(255,255,255,.04);
+
+    /* Focus keeps the neutral base (not darker) */
+    background: rgba(255,255,255,.07);
     filter: none;
   }
 
@@ -261,9 +275,18 @@
     border-color: #c0d674 !important;
     box-shadow: 0 0 0 3px rgba(192,214,116,.18) !important;
     outline: none !important;
+    background: rgba(255,255,255,.07) !important;
   }
   body.projects-landing #proj-search-wrap input[type="search"]{
     caret-color: #c0d674 !important;
     accent-color: #c0d674 !important;
+
+    /* ensure unfocused stays neutral and readable even if overridden elsewhere */
+    background: rgba(255,255,255,.07) !important;
+    border-color: rgba(255,255,255,.28) !important;
+  }
+  body.projects-landing #proj-search-wrap input[type="search"]:hover{
+    background: rgba(255,255,255,.085) !important;
+    border-color: rgba(255,255,255,.36) !important;
   }
 }
