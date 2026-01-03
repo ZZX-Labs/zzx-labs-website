@@ -1,22 +1,35 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Bitcoin Ticker</title>
-  <link rel="stylesheet" href="/bitcoin/ticker/ticker.css">
+
+  <link rel="stylesheet" href="/bitcoin/ticker/ticker.css" />
   <style>
-    body{ margin:0; min-height:100vh; display:grid; place-items:center; background:#000; }
+    /* Page-only centering (kept OUT of ticker.css so embed isn't affected) */
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      background:#000;
+    }
   </style>
 </head>
 <body>
-  <div id="ticker-mount"></div>
+  <div id="btc-ticker">
+    <!-- embed fragment is injected here for the standalone page too -->
+  </div>
+
   <script>
-    fetch('/bitcoin/ticker/ticker.html')
+    fetch("/bitcoin/ticker/ticker.embed.html", { cache: "no-store" })
       .then(r => r.text())
-      .then(html => { document.getElementById('ticker-mount').innerHTML = html; });
+      .then(html => { document.getElementById("btc-ticker").innerHTML = html; })
+      .catch(err => console.error("Ticker fragment load failed:", err));
   </script>
+
   <script src="/bitcoin/ticker/ticker.js" defer></script>
 </body>
 </html>
