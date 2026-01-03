@@ -1,21 +1,67 @@
-<!-- __partials/bitcoin-ticker-widget.html
-     EMBEDDABLE FRAGMENT ONLY
-     - NO <link>, NO <script>, NO #ticker-container
-     - Injected into: <div id="btc-ticker"></div>
--->
+<!-- __partials/bitcoin-ticker-widget.html (EMBED FRAGMENT ONLY) -->
 
-<div class="ticker-shell">
-  <div id="ticker">
-    <div id="btc">
-      [BTC]: $<span id="btc-value">0.00</span> (USD)
+<div class="btc-rail">
+  <!-- Primary BTC price widget (your existing look) -->
+  <div class="ticker-shell">
+    <div id="ticker">
+      <div id="btc">
+        [BTC]: $<span id="btc-value">0.00</span> (USD)
+      </div>
+
+      <div id="subunits">
+        <div class="unit">[mBTC]: $<span id="mbtc-value">0.00</span> (USD)</div>
+        <div class="unit">[μBTC]: $<span id="ubtc-value">0.00</span> (USD)</div>
+        <div class="unit">[sat]: $<span id="sats-value">0.00</span> (USD)</div>
+      </div>
+
+      <div class="credit"><u>Made by:</u> <i>[0xdeadbeef]</i></div>
     </div>
+  </div>
 
-    <div id="subunits">
-      <div class="unit">[mBTC]: $<span id="mbtc-value">0.00</span> (USD)</div>
-      <div class="unit">[μBTC]: $<span id="ubtc-value">0.00</span> (USD)</div>
-      <div class="unit">[sat]: $<span id="sats-value">0.00</span> (USD)</div>
+  <!-- Additional widgets (cards) -->
+  <div class="btc-card" id="btc-24hprice">
+    <div class="btc-card__title">24h Price</div>
+    <div class="btc-card__value">$<span data-val>—</span></div>
+    <div class="btc-card__sub"><span data-sub>—</span></div>
+  </div>
+
+  <div class="btc-card" id="btc-24hvolume">
+    <div class="btc-card__title">24h Volume</div>
+    <div class="btc-card__value"><span data-val>—</span></div>
+    <div class="btc-card__sub"><span data-sub>USD</span></div>
+  </div>
+
+  <div class="btc-card" id="btc-hashrate">
+    <div class="btc-card__title">Hashrate</div>
+    <div class="btc-card__value"><span data-val>—</span></div>
+    <div class="btc-card__sub"><span data-sub>EH/s</span></div>
+  </div>
+
+  <div class="btc-card" id="btc-nodecount">
+    <div class="btc-card__title">Node Count</div>
+    <div class="btc-card__value"><span data-val>—</span></div>
+    <div class="btc-card__sub"><span data-sub>reachable</span></div>
+  </div>
+
+  <div class="btc-card" id="btc-lnstats">
+    <div class="btc-card__title">Lightning</div>
+    <div class="btc-card__value"><span data-val>—</span></div>
+    <div class="btc-card__sub"><span data-sub>capacity</span></div>
+  </div>
+
+  <div class="btc-card btc-news" id="btc-newsfeed">
+    <div class="btc-card__title">Bitcoin Intel</div>
+    <div class="btc-news__list" aria-live="polite">
+      <div class="btc-news__item"><span class="btc-news__src">boot</span> <a href="#" tabindex="-1">loading…</a></div>
     </div>
+  </div>
 
-    <div class="credit"><u>Made by:</u> <i>[0xdeadbeef]</i></div>
+  <div class="btc-card btc-quote" id="btc-satoshiquote">
+    <div class="btc-card__title">Satoshi (Nakamoto Institute)</div>
+    <div class="btc-quote__text" data-quote>“—”</div>
+    <div class="btc-quote__meta">
+      <span class="btc-quote__src" data-src>—</span>
+      <a class="btc-quote__link" data-link href="#" target="_blank" rel="noopener noreferrer">source</a>
+    </div>
   </div>
 </div>
