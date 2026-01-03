@@ -3,63 +3,58 @@
   src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
   font-display: swap;
 }
-
 @font-face {
   font-family: 'IBMPlexMono';
   src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
   font-display: swap;
 }
 
-/* Widget only */
-#ticker {
-  background: #111;
-  color: #c0d674;
-  border: 1px solid #2a2a2a;
+/* EMBED SAFE: no html/body rules here */
+
+/* Outer “amber border shell” you previously had inline */
+.ticker-shell{
+  background-color: #000;
+  border: 4px solid #e6a42b;
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  padding: .6rem .9rem;
-  margin: 0;
-  text-align: center;
-  max-width: 100%;
+  padding: 4px;
+  display: inline-block; /* shrink-to-fit so container centering works */
 }
 
-#btc {
-  font-family: 'AdultSwimFont', 'IBM Plex Mono', monospace;
+/* Inner content block (your old #ticker inline styles) */
+#ticker{
+  text-align: left; /* matches your old look */
   color: #c0d674;
-  font-size: 1.6rem;
-  line-height: 1.1;
-  margin: 0 0 .4rem 0;
+  font-family: 'IBMPlexMono', ui-monospace, monospace;
+}
+
+/* BTC line */
+#btc{
+  font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
+  color: #c0d674;
+  font-size: 2rem;
+  margin-bottom: 10px;
   white-space: nowrap;
 }
 
-#subunits {
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  padding: .45rem .6rem;
+/* Subunits box */
+#subunits{
+  background-color: #333;
+  padding: 10px;
   border-radius: 8px;
-  width: 100%;
 }
 
-.unit {
+.unit{
   font-family: 'IBMPlexMono', ui-monospace, monospace;
-  font-size: 1rem;
-  line-height: 1.25;
   color: #c0d674;
-  margin: .2rem 0;
+  font-size: 1.2rem;
+  margin: 5px 0;
   white-space: nowrap;
 }
 
 .credit{
-  font-family: 'AdultSwimFont', 'IBM Plex Mono', monospace;
+  font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
   color: #c0d674;
-  font-size: .8rem;
-  margin: .2rem 0 0;
-  width: 100%;
+  font-size: 0.8rem;
+  margin: 2px 0;
   text-align: right;
 }
