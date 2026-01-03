@@ -1,3 +1,4 @@
+// __partials/bitcoin-ticker-widget.js
 <script>
   // Load ticker HTML into the btc-ticker mount (NOT the container)
   fetch('/bitcoin/ticker/ticker.html')
