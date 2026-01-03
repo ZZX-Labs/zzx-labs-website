@@ -1,4 +1,7 @@
 // ZZX Partials Loader — works from any depth, no server rewrites needed.
+// DROP-IN REPLACEMENT: partials-loader.js
+// NOTE: ticker injection REMOVED. Ticker is handled ONLY by ticker-loader.js now.
+
 (function () {
   const PARTIALS_DIR = '__partials';
   const PATHS = [
@@ -15,6 +18,17 @@
     } catch (_) {
       return false;
     }
+  }
+
+  // Preserve absolute root if first seg is exactly '/'
+  function join(...segs) {
+    return segs
+      .filter(Boolean)
+      .map((s, i) => {
+        if (i === 0) return s === '/' ? '/' : String(s).replace(/\/+$/, '');
+        return String(s).replace(/^\/+/, '');
+      })
+      .join('/');
   }
 
   // Validate a cached prefix; if invalid, clear & recompute
@@ -40,29 +54,25 @@
     return await validateOrRecomputePrefix(cached);
   }
 
-  function join(...segs) {
-    // Preserve absolute root if first seg is exactly '/'
-    return segs
-      .filter(Boolean)
-      .map((s, i) => {
-        if (i === 0) return s === '/' ? '/' : s.replace(/\/+$/,'');
-        return s.replace(/^\/+/, '');
-      })
-      .join('/');
-  }
-
   // Convert absolute '/x/y' → '<prefix>/x/y' safely (no double slashes)
   function absToPrefix(url, prefix) {
-    if (prefix === '/' || !url.startsWith('/')) return url;
-    return prefix.replace(/\/+$/,'') + url; // concat keeps exactly one slash from url
+    if (prefix === '/' || !url || !url.startsWith('/')) return url;
+    return prefix.replace(/\/+$/, '') + url;
   }
 
   // Rewrites <a href="/..."> and <img src="/..."> etc. to prefix-based
   function rewriteAbsoluteURLs(root, prefix) {
-    if (prefix !== '/') {
-      root.querySelectorAll('[href^="/"]').forEach(a => a.setAttribute('href', absToPrefix(a.getAttribute('href'), prefix)));
-      root.querySelectorAll('[src^="/"]').forEach(el => el.setAttribute('src', absToPrefix(el.getAttribute('src'), prefix)));
-    }
+    if (!root || prefix === '/') return;
+
+    // Rewrite href/src that are site-absolute
+    root.querySelectorAll('[href^="/"]').forEach(a => {
+      const v = a.getAttribute('href');
+      if (v) a.setAttribute('href', absToPrefix(v, prefix));
+    });
+    root.querySelectorAll('[src^="/"]').forEach(el => {
+      const v = el.getAttribute('src');
+      if (v) el.setAttribute('src', absToPrefix(v, prefix));
+    });
   }
 
   async function loadHTML(url) {
@@ -85,21 +95,25 @@
   }
 
   // Minimal nav interactivity after injection (fallback only), mirrors sitewide behavior
-  function initNavUX(scope=document) {
+  function initNavUX(scope = document) {
     const toggle = scope.querySelector('#navbar-toggle');
     const links  = scope.querySelector('#navbar-links');
     const body   = document.body;
 
     if (toggle && links) {
-      toggle.__bound_click = true;
-      toggle.addEventListener('click', () => {
-        const isOpen = links.classList.toggle('open');
-        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        links.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-        body.classList.toggle('no-scroll', isOpen);
-      });
+      if (!toggle.__bound_click) {
+        toggle.__bound_click = true;
+        toggle.addEventListener('click', () => {
+          const isOpen = links.classList.toggle('open');
+          toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          links.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+          body.classList.toggle('no-scroll', isOpen);
+        });
+      }
     }
+
     scope.querySelectorAll('.submenu-toggle').forEach(btn => {
+      if (btn.__bound_click) return;
       btn.__bound_click = true;
       btn.addEventListener('click', () => {
         const ul = btn.nextElementSibling;
@@ -109,31 +123,6 @@
         }
       });
     });
-  }
-
-  // Optional ticker (now duplicate-safe + cache-busted)
-  async function maybeLoadTicker(prefix) {
-    // ✅ tweak: if another module already loaded the ticker, bail
-    if (window.__ZZX_TICKER_LOADED || document.querySelector('script[data-zzx-ticker]')) return;
-
-    const tc = document.getElementById('ticker-container');
-    if (!tc) return;
-    try {
-      const html = await loadHTML(join(prefix, 'bitcoin/ticker/ticker.html'));
-      tc.innerHTML = html;
-
-      // ✅ tweak: cache-bust to keep updates flowing and mark as loaded
-      const s = document.createElement('script');
-      s.src = join(prefix, 'bitcoin/ticker/ticker.js') + `?v=${Date.now()}`;
-      s.defer = true;
-      s.setAttribute('data-zzx-ticker', '1');
-      document.body.appendChild(s);
-
-      window.__ZZX_TICKER_LOADED = true;
-      tc.dataset.tickerLoaded = '1';
-    } catch (e) {
-      console.warn('Ticker load failed:', e);
-    }
   }
 
   // Wait briefly for sitewide initializer to appear (avoids double-binding race)
@@ -190,14 +179,14 @@
     // Prefer sitewide initializer; if not present soon, attach fallback
     const hasSitewide = await waitForSitewideInit();
     if (hasSitewide) {
-      window.ZZXSite.initNav(headerHost);
-      if (typeof window.ZZXSite.autoInit === 'function') window.ZZXSite.autoInit();
+      try { window.ZZXSite.initNav(headerHost); } catch (_) {}
+      try { if (typeof window.ZZXSite.autoInit === 'function') window.ZZXSite.autoInit(); } catch (_) {}
     } else {
       initNavUX(headerHost);
     }
 
-    // Optional ticker
-    await maybeLoadTicker(prefix);
+    // IMPORTANT:
+    // No ticker loading here. Ticker is handled by /static/js/modules/ticker-loader.js only.
   }
 
   if (document.readyState === 'loading') {
