@@ -1,55 +1,42 @@
 /* __partials/bitcoin-ticker-widget.css
-   Bitcoin Ticker Widget
-   - Centered rail
-   - Future multi-widget horizontal row
-   - Layout-safe inside grid or flex parents
+   Bitcoin Ticker Widget positioning & styling
+   - Centered rail aligned with navbar
+   - Future-proof for multiple widgets
+   - No scrollbars
 */
 
-/* ---------- TICKER RAIL (FULL WIDTH) ---------- */
+/* Wrapper */
 #ticker-container {
-  /* always span full available width */
   width: 100%;
-  max-width: 100%;
-
-  /* neutralize parent layout quirks */
-  margin-left: auto;
-  margin-right: auto;
+  margin-inline: auto;
 
   display: flex;
-  justify-content: center;     /* ✅ center by default */
+  justify-content: center;  /* ✅ centered always */
   align-items: center;
-  gap: .5rem;                  /* future widgets */
 
-  padding: .25rem .5rem;
+  gap: .5rem;               /* future widgets */
+  flex-wrap: wrap;          /* future widgets can wrap cleanly */
+
   margin-top: .5rem;
   margin-bottom: .5rem;
 
-  /* never cause horizontal scroll */
-  overflow-x: clip;
+  order: 2;                 /* below logo in flex contexts */
 }
 
-/* Fallback for older engines */
-@supports not (overflow-x: clip) {
-  #ticker-container { overflow-x: hidden; }
-}
-
-/* ---------- INNER WIDGET(S) ---------- */
+/* Inner ticker element(s) */
 #ticker-container > * {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: .95rem;
-  color: #c0d674;
-
+  color: var(--brand-green, #c0d674);
   background: #111;
   border: 1px solid #2a2a2a;
   border-radius: 6px;
-
   padding: .4rem .7rem;
   white-space: nowrap;
-
   box-shadow: 0 4px 12px rgba(0,0,0,.25);
 }
 
-/* ---------- RESPONSIVE TUNING ---------- */
+/* Medium screens */
 @media (min-width: 600px) {
   #ticker-container {
     margin-top: .75rem;
@@ -57,11 +44,11 @@
   }
 }
 
-/* Large screens: lock to same rail width as navbar */
+/* Wide screens: align to header rail + cancel container padding skew */
 @media (min-width: 1024px) {
   #ticker-container {
-    max-width: 1100px;   /* MATCH navbar rail */
-    padding-left: 0;
-    padding-right: 0;
+    max-width: min(var(--header-rail, 1100px), 100%);
+    padding-inline: 0;   /* prevents the container's 1rem padding from visually offsetting centering */
+    order: unset;
   }
 }
