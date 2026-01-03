@@ -1,83 +1,205 @@
 /* __partials/bitcoin-ticker-widget.css
-   Centers mount + restores original ticker styling.
-   Safe for embedding. No html/body styling.
+   Multi-widget rail inside #btc-ticker
+   - Same font + color scheme
+   - Fragment-safe (no html/body styling)
 */
 
-@font-face {
-  font-family: 'AdultSwimFont';
-  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-  font-display: swap;
+@font-face{
+  font-family:'AdultSwimFont';
+  src:url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-display:swap;
 }
-
-@font-face {
-  font-family: 'IBMPlexMono';
-  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-  font-display: swap;
+@font-face{
+  font-family:'IBMPlexMono';
+  src:url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+  font-display:swap;
 }
 
 /* Center the mount rail */
 #ticker-container{
-  width: 100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
-  margin: .5rem auto;
-  display: grid;
-  place-items: center;
-  padding-inline: .5rem;
-  grid-column: 1 / -1;
-  justify-self: center;
-  order: 2;
+  width:100%;
+  max-width:min(var(--header-rail,1100px),100%);
+  margin:.5rem auto;
+  display:grid;
+  place-items:center;
+  padding-inline:.5rem;
+  grid-column:1 / -1;
+  justify-self:center;
+  order:2;
 }
-@media (min-width: 1024px){
-  #ticker-container{ padding-inline: 0; order: unset; }
+@media (min-width:1024px){
+  #ticker-container{ padding-inline:0; order:unset; }
+}
+#btc-ticker{ display:block; margin-inline:auto; max-width:100%; }
+
+/* ---- NEW: multi-widget rail ---- */
+.btc-rail{
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.6rem;
+  justify-content:center; /* keeps it centered even on wide screens */
+  align-items:stretch;
 }
 
-#btc-ticker{
-  display: block;
-  margin-inline: auto;
-  max-width: 100%;
-}
-
-/* Your original “graphical” styling restored */
+/* Your original “graphical” shell restored */
 .ticker-shell{
-  background: #000;
-  border: 4px solid #e6a42b;
-  border-radius: 10px;
-  padding: 4px;
-  display: inline-block;
+  background:#000;
+  border:4px solid #e6a42b;
+  border-radius:10px;
+  padding:4px;
+  display:inline-block;
 }
-
 #ticker{
-  text-align: left;
-  color: #c0d674;
-  font-family: 'IBMPlexMono', ui-monospace, monospace;
+  text-align:left;
+  color:#c0d674;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
 }
-
 #btc{
-  font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
-  color: #c0d674;
-  font-size: 2rem;
-  margin: 0 0 10px 0;
-  white-space: nowrap;
+  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  color:#c0d674;
+  font-size:2rem;
+  margin:0 0 10px 0;
+  white-space:nowrap;
 }
-
 #subunits{
-  background: #333;
-  padding: 10px;
-  border-radius: 8px;
+  background:#333;
+  padding:10px;
+  border-radius:8px;
 }
-
 .unit{
-  font-family: 'IBMPlexMono', ui-monospace, monospace;
-  font-size: 1.2rem;
-  color: #c0d674;
-  margin: 5px 0;
-  white-space: nowrap;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-size:1.2rem;
+  color:#c0d674;
+  margin:5px 0;
+  white-space:nowrap;
+}
+.credit{
+  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  color:#c0d674;
+  font-size:.8rem;
+  margin:2px 0;
+  text-align:right;
 }
 
-.credit{
-  font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
+/* ---- Cards match the same visual language ---- */
+.btc-card{
+  background:#000;
+  border:2px solid #2a2a2a;
+  border-radius:10px;
+  padding:.55rem .65rem;
+  min-width: 220px;
+  flex: 1 1 220px;
+  max-width: 320px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  color:#c0d674;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
+}
+
+.btc-card__title{
+  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  font-size:1rem;
+  color:#e6a42b;
+  letter-spacing:.2px;
+  margin-bottom:.25rem;
+}
+
+.btc-card__value{
+  font-size:1.35rem;
+  line-height:1.15;
+  white-space:nowrap;
+}
+
+.btc-card__sub{
+  margin-top:.2rem;
+  font-size:.9rem;
+  color:#c0d674;
+  opacity:.9;
+  white-space:nowrap;
+}
+
+.btc-news{
+  max-width: 520px;
+  flex: 2 1 420px;
+}
+
+.btc-news__list{
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  margin-top:.25rem;
+}
+
+.btc-news__item{
+  display:flex;
+  gap:.45rem;
+  align-items:baseline;
+  overflow:hidden;
+}
+
+.btc-news__src{
+  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-size:.75rem;
+  color:#c0d674;
+  opacity:.85;
+  border:1px solid #2a2a2a;
+  border-radius:999px;
+  padding:.05rem .4rem;
+  white-space:nowrap;
+}
+
+.btc-news__item a{
+  color:#d1d1d1;
+  text-decoration:none;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.btc-news__item a:hover{
+  color:#e6a42b;
+  text-decoration:underline;
+}
+
+/* ---- Quote card ---- */
+.btc-quote{
+  flex: 2 1 420px;
+  max-width: 520px;
+}
+
+.btc-quote__text{
+  margin-top: .15rem;
+  font-size: .98rem;
+  line-height: 1.35;
   color: #c0d674;
-  font-size: .8rem;
-  margin: 2px 0;
-  text-align: right;
+  opacity: .95;
+}
+
+.btc-quote__meta{
+  margin-top: .45rem;
+  display:flex;
+  gap:.55rem;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.btc-quote__src{
+  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-size:.75rem;
+  color:#c0d674;
+  opacity:.85;
+  border:1px solid #2a2a2a;
+  border-radius:999px;
+  padding:.05rem .45rem;
+  white-space:nowrap;
+}
+
+.btc-quote__link{
+  color:#d1d1d1;
+  text-decoration:none;
+  font-size:.85rem;
+  white-space:nowrap;
+}
+.btc-quote__link:hover{
+  color:#e6a42b;
+  text-decoration:underline;
 }
