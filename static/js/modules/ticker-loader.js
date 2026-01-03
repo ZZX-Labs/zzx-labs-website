@@ -3,7 +3,7 @@
   const PATHS = [
     '.', '..', '../..', '../../..',
     '../../../..', '../../../../..', '../../../../../..', '../../../../../../..',
-    '/' // final attempt: site root (works only when hosted at domain root)
+    '/' // site root
   ];
 
   function join(...segs) {
@@ -24,7 +24,7 @@
   }
 
   async function findTickerPrefix() {
-    // Prefer the already-computed prefix from partials-loader
+    // Prefer prefix computed by other loaders if you have one
     if (window.ZZX && typeof window.ZZX.PREFIX === 'string') {
       const tryUrl = join(window.ZZX.PREFIX, 'bitcoin/ticker/ticker.html');
       if (await probe(tryUrl)) return window.ZZX.PREFIX;
@@ -43,28 +43,40 @@
     return await r.text();
   }
 
+  function ensureScript(src) {
+    if (document.querySelector('script[data-zzx-ticker-core="1"]')) return;
+
+    const s = document.createElement('script');
+    s.src = src;          // stable URL (NO Date.now bust)
+    s.defer = true;
+    s.setAttribute('data-zzx-ticker-core', '1');
+    document.body.appendChild(s);
+  }
+
   async function boot() {
     const container = document.getElementById('ticker-container');
-    if (!container) return;
+    const mount = document.getElementById('btc-ticker');
 
-    // Prevent duplicate loads (cross-page nav / partials re-injection)
-    if (container.dataset.tickerLoaded === '1' || window.__ZZX_TICKER_LOADED) return;
+    // if the page has neither, do nothing
+    if (!container && !mount) return;
+
+    // pick mount target: prefer #btc-ticker (your design)
+    const target = mount || container;
+
+    // Prevent duplicates across re-injected header/partials
+    if (target.dataset.tickerLoaded === '1' || window.__ZZX_TICKER_LOADED) return;
 
     const prefix = await findTickerPrefix();
+
     try {
+      // Inject fragment HTML
       const html = await loadHTML(join(prefix, 'bitcoin/ticker/ticker.html'));
-      container.innerHTML = html;
+      target.innerHTML = html;
 
-      // Append ticker.js with cache-bust to ensure live updates keep working
-      if (!document.querySelector('script[data-zzx-ticker]')) {
-        const s = document.createElement('script');
-        s.src = join(prefix, 'bitcoin/ticker/ticker.js') + `?v=${Date.now()}`;
-        s.defer = true;
-        s.setAttribute('data-zzx-ticker', '1');
-        document.body.appendChild(s);
-      }
+      // Load ticker.js once, after HTML exists
+      ensureScript(join(prefix, 'bitcoin/ticker/ticker.js'));
 
-      container.dataset.tickerLoaded = '1';
+      target.dataset.tickerLoaded = '1';
       window.__ZZX_TICKER_LOADED = true;
     } catch (e) {
       console.warn('Ticker loader error:', e);
@@ -72,7 +84,7 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
   } else {
     boot();
   }
