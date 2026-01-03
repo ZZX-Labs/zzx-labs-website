@@ -47,7 +47,7 @@
     <div class="btc-card__sub"><span data-sub>reachable</span></div>
   </div>
 
-  <!-- 5b) node breakdown by nation (top list) -->
+  <!-- 6) node breakdown by nation (top list) -->
   <div class="btc-card" id="btc-nodes-nations">
     <div class="btc-card__title">Nodes by Nation</div>
     <div class="btc-kv">
@@ -58,14 +58,14 @@
     <div class="btc-mini-list" aria-live="polite"></div>
   </div>
 
-  <!-- 6) LN stats (summary) -->
+  <!-- 7) LN stats (summary) -->
   <div class="btc-card" id="btc-lnstats">
     <div class="btc-card__title">Lightning</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>capacity</span></div>
   </div>
 
-  <!-- 6b) LN detail -->
+  <!-- 8) LN detail -->
   <div class="btc-card" id="btc-ln-detail">
     <div class="btc-card__title">LN Detail</div>
     <div class="btc-kv">
@@ -75,50 +75,51 @@
     </div>
   </div>
 
-  <!-- 7) mempool stats -->
+  <!-- 9) mempool stats -->
   <div class="btc-card" id="btc-mempool">
     <div class="btc-card__title">Mempool</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>tx</span></div>
   </div>
 
-  <!-- 8) mempool fees -->
+  <!-- 10) mempool fees -->
   <div class="btc-card" id="btc-fees">
     <div class="btc-card__title">Fees</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>sat/vB</span></div>
   </div>
 
-  <!-- 9) block tip -->
+  <!-- 11) block tip -->
   <div class="btc-card" id="btc-tip">
     <div class="btc-card__title">Tip</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>height</span></div>
   </div>
 
-  <!-- 10) clock drift -->
+  <!-- 12) clock drift -->
   <div class="btc-card" id="btc-clockdrift">
     <div class="btc-card__title">Clock Drift</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>vs last block</span></div>
   </div>
 
-  <!-- 10b) mempool goggles frame (cropped iframe) -->
-  <div class="btc-card btc-frame" id="btc-goggles">
-    <div class="btc-card__title">Mempool Goggles</div>
-    <div class="btc-frame__viewport">
-      <iframe
-        class="btc-frame__iframe"
-        title="Mempool.space goggles"
-        loading="lazy"
-        referrerpolicy="no-referrer"
-        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-      ></iframe>
-    </div>
-    <div class="btc-card__sub"><span data-sub>live</span></div>
+<!-- 13) mempool goggles (canvas clone, block/0 “next block”) -->
+<div class="btc-card btc-goggles" id="btc-goggles">
+  <div class="btc-card__title">Mempool Goggles</div>
+
+  <!-- small status line -->
+  <div class="btc-card__sub">
+    <span data-sub>block/0 — next block fill</span>
   </div>
 
-  <!-- 11) intel -->
+  <canvas id="btc-goggles-canvas" width="320" height="220"></canvas>
+
+  <div class="btc-card__sub" style="margin-top:.35rem">
+    <span data-meta>loading…</span>
+  </div>
+</div>
+
+  <!-- 14) intel -->
   <div class="btc-card btc-intel" id="btc-intel">
     <div class="btc-card__title">Bitcoin Intel</div>
     <div class="btc-news__list" aria-live="polite">
@@ -126,7 +127,7 @@
     </div>
   </div>
 
-  <!-- 12) satoshi quote -->
+  <!-- 15) satoshi quote -->
   <div class="btc-card btc-quote" id="btc-satoshiquote">
     <div class="btc-card__title">Satoshi Quote</div>
     <div class="btc-quote__q"><span data-quote>“—”</span></div>
