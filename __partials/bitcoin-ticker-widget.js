@@ -1,27 +1,41 @@
 // __partials/bitcoin-ticker-widget.js
-// DROP-IN: Spot + 24h graphs + mempool stats + LN + Bitnodes (AllOrigins) + Intel + Satoshi quotes + Goggles canvas
-// FIXED: no MutationObserver spam, per-job in-flight locks, safe mount re-detect.
+// V3 DROP-IN: robust reinjection + all widgets + satoshi-quotes.txt URL scraping via AllOrigins
+// Goals:
+// - NO "run once and die" guard. Instead: one global controller that can re-bind to new DOM mounts.
+// - Timers created once; each tick re-checks mount and writes only if elements exist.
+// - In-flight locks per job.
+// - Satoshi quote now uses __partials/satoshi-quotes.txt (one URL per line) and scrapes quotes client-side.
+//
+// Optional debugging:
+//   window.__ZZX_BTC_DEBUG = true;
 
 (function () {
-  // ---- page-level singleton guard ----
-  if (window.__ZZX_BTC_WIDGET_V2) return;
-  window.__ZZX_BTC_WIDGET_V2 = true;
+  const DEBUG = !!window.__ZZX_BTC_DEBUG;
+  const log = (...a) => DEBUG && console.log("[ZZX-BTC]", ...a);
+  const warn = (...a) => DEBUG && console.warn("[ZZX-BTC]", ...a);
 
-  // ---- helpers ----
+  // If controller exists, just poke it to rebind and exit.
+  if (window.__ZZX_BTC_CONTROLLER) {
+    window.__ZZX_BTC_CONTROLLER.rebind();
+    return;
+  }
+
+  // ---------------- Helpers ----------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const byId = (id) => document.getElementById(id);
 
   function mounted() {
-    return !!byId("btc-value"); // primary spot span exists
+    return !!byId("btc-value");
   }
 
   function setCard(id, valueText, subText) {
     const card = byId(id);
-    if (!card) return;
+    if (!card) return false;
     const v = $('[data-val]', card);
     const s = $('[data-sub]', card);
     if (v) v.textContent = (valueText ?? "—");
     if (s && subText != null) s.textContent = subText;
+    return true;
   }
 
   async function jget(url, opts) {
@@ -36,7 +50,6 @@
     return await r.text();
   }
 
-  // ---- AllOrigins JSON fetch (raw) ----
   async function jgetAllOrigins(targetUrl) {
     const ao = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
     const r = await fetch(ao, { cache: "no-store" });
@@ -44,12 +57,17 @@
     return await r.json();
   }
 
-  // ---- formatting ----
+  async function tgetAllOrigins(targetUrl) {
+    const ao = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+    const r = await fetch(ao, { cache: "no-store" });
+    if (!r.ok) throw new Error(`AllOrigins HTTP ${r.status}`);
+    return await r.text();
+  }
+
   function fmtUSD(n) {
     if (!Number.isFinite(n)) return "—";
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
   function fmtBig(n) {
     if (!Number.isFinite(n)) return "—";
     const abs = Math.abs(n);
@@ -61,7 +79,7 @@
     return sign + abs.toFixed(2);
   }
 
-  // ---- sparkline (optional) ----
+  // ---------------- Sparkline ----------------
   function ensureSpark(cardId) {
     const card = byId(cardId);
     if (!card) return null;
@@ -117,22 +135,14 @@
     fillPath.setAttribute("d", dFill);
   }
 
-  // ============================================================
-  // In-flight locks (prevents overlaps / API pileups)
-  // ============================================================
-  const inflight = {
-    spot: false,
-    graphs: false,
-    fees: false,
-    mempool: false,
-    tip: false,
-    hashrate: false,
-    ln: false,
-    nodes: false,
-    intel: false,
-    goggles: false,
-    quotes: false,
-  };
+  // ---------------- In-flight locks ----------------
+  const inflight = Object.create(null);
+  function lock(name) {
+    if (inflight[name]) return false;
+    inflight[name] = true;
+    return true;
+  }
+  function unlock(name) { inflight[name] = false; }
 
   // ============================================================
   // 1) Spot ticker (Coinbase)
@@ -140,8 +150,8 @@
   const SPOT = "https://api.coinbase.com/v2/prices/spot?currency=USD";
 
   async function updateSpot() {
-    if (!mounted() || inflight.spot) return;
-    inflight.spot = true;
+    if (!mounted()) return;
+    if (!lock("spot")) return;
     try {
       const data = await jget(SPOT);
       const btcPrice = parseFloat(data?.data?.amount);
@@ -161,10 +171,10 @@
       b.textContent = mbtc.toFixed(2);
       c.textContent = ubtc.toFixed(4);
       d.textContent = sat.toFixed(6);
-    } catch (_) {
-      // keep stale
+    } catch (e) {
+      warn("spot", e);
     } finally {
-      inflight.spot = false;
+      unlock("spot");
     }
   }
 
@@ -174,22 +184,20 @@
   const CANDLES_15M = "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=900";
 
   async function update24hGraphs() {
-    if (!mounted() || inflight.graphs) return;
-    inflight.graphs = true;
+    if (!mounted()) return;
+    if (!lock("graphs")) return;
     try {
       const candles = await jget(CANDLES_15M);
       if (!Array.isArray(candles) || candles.length < 2) return;
 
       const rows = candles.slice().reverse();
-      const last96 = rows.slice(-96); // 24h @ 15m
+      const last96 = rows.slice(-96);
 
       const closes = last96.map(r => Number(r?.[4])).filter(Number.isFinite);
       if (closes.length >= 2) {
         const first = closes[0];
         const last = closes[closes.length - 1];
-        const changePct = (Number.isFinite(first) && first !== 0)
-          ? ((last - first) / first) * 100
-          : NaN;
+        const changePct = (Number.isFinite(first) && first !== 0) ? ((last - first) / first) * 100 : NaN;
 
         setCard("btc-24hprice", fmtUSD(last), Number.isFinite(changePct) ? `${changePct.toFixed(2)}%` : "—");
         drawSpark("btc-24hprice", closes);
@@ -206,10 +214,10 @@
 
       setCard("btc-24hvolume", `$${fmtBig(totalUsd)}`, "USD");
       drawSpark("btc-24hvolume", volsUsd);
-    } catch (_) {
-      // keep stale
+    } catch (e) {
+      warn("graphs", e);
     } finally {
-      inflight.graphs = false;
+      unlock("graphs");
     }
   }
 
@@ -219,8 +227,8 @@
   const MEMPOOL = "https://mempool.space/api";
 
   async function updateFees() {
-    if (!mounted() || inflight.fees) return;
-    inflight.fees = true;
+    if (!mounted()) return;
+    if (!lock("fees")) return;
     try {
       const f = await jget(`${MEMPOOL}/v1/fees/recommended`);
       const fast = Number(f?.fastestFee);
@@ -230,30 +238,34 @@
         ? `H:${fast}  M:${mid}  L:${slow}`
         : "—";
       setCard("btc-fees", txt, "sat/vB");
-    } catch (_) {
+    } catch (e) {
+      warn("fees", e);
       setCard("btc-fees", "—", "sat/vB");
     } finally {
-      inflight.fees = false;
+      unlock("fees");
     }
   }
 
   async function updateMempool() {
-    if (!mounted() || inflight.mempool) return;
-    inflight.mempool = true;
+    if (!mounted()) return;
+    if (!lock("mempool")) return;
     try {
       const m = await jget(`${MEMPOOL}/mempool`);
       const count = Number(m?.count);
       setCard("btc-mempool", Number.isFinite(count) ? fmtBig(count) : "—", "tx");
-    } catch (_) {
+      // keep fee_histogram around for goggles (optional reuse)
+      controller._lastFeeHistogram = m?.fee_histogram || null;
+    } catch (e) {
+      warn("mempool", e);
       setCard("btc-mempool", "—", "tx");
     } finally {
-      inflight.mempool = false;
+      unlock("mempool");
     }
   }
 
   async function updateTipAndDrift() {
-    if (!mounted() || inflight.tip) return;
-    inflight.tip = true;
+    if (!mounted()) return;
+    if (!lock("tip")) return;
     try {
       const heightText = await tget(`${MEMPOOL}/blocks/tip/height`);
       const h = parseInt(String(heightText).trim(), 10);
@@ -288,17 +300,18 @@
         : `avg:—`;
 
       setCard("btc-clockdrift", `+${sinceMin.toFixed(1)}m`, sub);
-    } catch (_) {
+    } catch (e) {
+      warn("tip/drift", e);
       setCard("btc-tip", "—", "height");
       setCard("btc-clockdrift", "—", "vs last block");
     } finally {
-      inflight.tip = false;
+      unlock("tip");
     }
   }
 
   async function updateHashrate() {
-    if (!mounted() || inflight.hashrate) return;
-    inflight.hashrate = true;
+    if (!mounted()) return;
+    if (!lock("hashrate")) return;
 
     const candidates = [
       `${MEMPOOL}/v1/mining/hashrate/3d`,
@@ -329,20 +342,25 @@
         } catch (_) {}
       }
       setCard("btc-hashrate", "—", "EH/s");
+    } catch (e) {
+      warn("hashrate", e);
+      setCard("btc-hashrate", "—", "EH/s");
     } finally {
-      inflight.hashrate = false;
+      unlock("hashrate");
     }
   }
 
+  // ============================================================
+  // 4) Lightning (mempool.space)
+  // ============================================================
   async function updateLN() {
-    if (!mounted() || inflight.ln) return;
-    inflight.ln = true;
+    if (!mounted()) return;
+    if (!lock("ln")) return;
 
     const candidates = [
       `${MEMPOOL}/v1/lightning/statistics`,
       `${MEMPOOL}/v1/lightning`,
       `${MEMPOOL}/v1/lightning/network`,
-      `${MEMPOOL}/v1/lightning/nodes`,
     ];
 
     try {
@@ -362,9 +380,7 @@
         return;
       }
 
-      const cap = Number(
-        ln?.capacity ?? ln?.total_capacity ?? ln?.totalCapacity ?? ln?.network_capacity ?? ln?.totalLiquidity
-      );
+      const cap = Number(ln?.capacity ?? ln?.total_capacity ?? ln?.totalCapacity ?? ln?.network_capacity);
       const nodes = Number(ln?.nodes ?? ln?.node_count ?? ln?.nodeCount);
       const chans = Number(ln?.channels ?? ln?.channel_count ?? ln?.channelCount);
 
@@ -381,18 +397,19 @@
         if (nodesEl) nodesEl.textContent = Number.isFinite(nodes) ? fmtBig(nodes) : "—";
         if (chansEl) chansEl.textContent = Number.isFinite(chans) ? fmtBig(chans) : "—";
       }
+    } catch (e) {
+      warn("ln", e);
+      setCard("btc-lnstats", "—", "capacity");
     } finally {
-      inflight.ln = false;
+      unlock("ln");
     }
   }
 
   // ============================================================
-  // 4) Nodes via Bitnodes (AllOrigins) + Nations list if present
+  // 5) Nodes (Bitnodes via AllOrigins) + Nations totals
   // ============================================================
-  const BITNODES_ENDPOINTS = [
-    "https://bitnodes.io/api/v1/snapshots/latest/",
-    "https://bitnodes.io/api/v1/snapshots/latest",
-  ];
+  const BITNODES_SNAPSHOT = "https://bitnodes.io/api/v1/snapshots/latest/";
+  const BITNODES_COUNTRIES = "https://bitnodes.io/api/v1/countries/";
 
   function renderNations(pairs, totals) {
     const card = byId("btc-nodes-nations");
@@ -424,28 +441,19 @@
     }
   }
 
-  function extractCountryMap(obj) {
-    const cand = obj?.countries || obj?.country || obj?.countries_by_code || obj?.countriesByCode;
-    if (cand && typeof cand === "object") return cand;
-    return null;
-  }
-
   async function updateNodes() {
-    if (!mounted() || inflight.nodes) return;
-    inflight.nodes = true;
+    if (!mounted()) return;
+    if (!lock("nodes")) return;
 
     try {
-      let data = null;
-      for (const ep of BITNODES_ENDPOINTS) {
-        try { data = await jgetAllOrigins(ep); break; } catch (_) {}
-      }
-      if (!data || typeof data !== "object") throw new Error("bitnodes no data");
+      // Snapshot (reachable/total)
+      let snap = null;
+      try { snap = await jgetAllOrigins(BITNODES_SNAPSHOT); } catch (_) {}
+      if (!snap || typeof snap !== "object") throw new Error("bitnodes snapshot missing");
 
-      const total = Number(data?.total_nodes ?? data?.total ?? data?.count ?? data?.nodes_count);
-      const reachable = Number(data?.reachable_nodes ?? data?.reachable ?? data?.total_reachable ?? data?.reachable_count);
-      const unreachable = Number.isFinite(total) && Number.isFinite(reachable)
-        ? (total - reachable)
-        : Number(data?.unreachable ?? data?.unreachable_nodes ?? NaN);
+      const total = Number(snap?.total_nodes ?? snap?.total ?? snap?.count);
+      const reachable = Number(snap?.reachable_nodes ?? snap?.reachable ?? snap?.total_reachable);
+      const unreachable = (Number.isFinite(total) && Number.isFinite(reachable)) ? (total - reachable) : NaN;
 
       setCard(
         "btc-nodecount",
@@ -453,14 +461,33 @@
         "reachable"
       );
 
-      const countries = extractCountryMap(data);
+      // Countries (top list)
+      let countries = null;
+      try { countries = await jgetAllOrigins(BITNODES_COUNTRIES); } catch (_) {}
+      // bitnodes countries endpoint often returns {"countries":[["US", 1234], ...]} or {"results":...}
       let pairs = [];
+
       if (countries) {
-        pairs = Object.entries(countries)
-          .map(([cc, n]) => [String(cc).toUpperCase(), Number(n)])
-          .filter(([, n]) => Number.isFinite(n))
-          .sort((a, b) => b[1] - a[1])
-          .map(([cc, n]) => [cc, fmtBig(n)]);
+        if (Array.isArray(countries?.countries)) {
+          pairs = countries.countries
+            .map(x => [String(x?.[0] || "").toUpperCase(), Number(x?.[1])])
+            .filter(([cc, n]) => cc && Number.isFinite(n))
+            .sort((a, b) => b[1] - a[1])
+            .map(([cc, n]) => [cc, fmtBig(n)]);
+        } else if (Array.isArray(countries?.results)) {
+          pairs = countries.results
+            .map(x => [String(x?.country || x?.code || "").toUpperCase(), Number(x?.count)])
+            .filter(([cc, n]) => cc && Number.isFinite(n))
+            .sort((a, b) => b[1] - a[1])
+            .map(([cc, n]) => [cc, fmtBig(n)]);
+        } else if (countries && typeof countries === "object") {
+          // fallback: if it’s a map {US:123,...}
+          pairs = Object.entries(countries)
+            .map(([cc, n]) => [String(cc).toUpperCase(), Number(n)])
+            .filter(([, n]) => Number.isFinite(n))
+            .sort((a, b) => b[1] - a[1])
+            .map(([cc, n]) => [cc, fmtBig(n)]);
+        }
       }
 
       renderNations(pairs, {
@@ -468,28 +495,24 @@
         reachable: Number.isFinite(reachable) ? fmtBig(reachable) : "—",
         unreachable: Number.isFinite(unreachable) ? fmtBig(unreachable) : "—",
       });
-    } catch (_) {
+    } catch (e) {
+      warn("nodes", e);
       setCard("btc-nodecount", "—", "reachable");
       renderNations([], { total: "—", reachable: "—", unreachable: "—" });
     } finally {
-      inflight.nodes = false;
+      unlock("nodes");
     }
   }
 
   // ============================================================
-  // 5) Intel: GitHub commits + HN (throttle)
+  // 6) Intel + News (use same renderer if both cards exist)
   // ============================================================
   const GH = "https://api.github.com";
-  const INTEL_REPOS = [
-    "bitcoin/bitcoin",
-    "bitcoin/bips",
-    "lightning/bolts",
-    "lightningnetwork/lnd",
-  ];
+  const INTEL_REPOS = ["bitcoin/bitcoin", "bitcoin/bips", "lightning/bolts", "lightningnetwork/lnd"];
   const HN_QUERY = "https://hn.algolia.com/api/v1/search?query=bitcoin%20OR%20satoshi%20OR%20lightning%20OR%20bips&tags=story";
 
-  function renderIntel(items) {
-    const box = byId("btc-intel");
+  function renderNewsCard(hostId, items) {
+    const box = byId(hostId);
     if (!box) return;
     const list = $(".btc-news__list", box);
     if (!list) return;
@@ -514,12 +537,12 @@
     if (!items.length) {
       const row = document.createElement("div");
       row.className = "btc-news__item";
-      row.innerHTML = `<span class="btc-news__src">intel</span><a href="#" tabindex="-1">no items</a>`;
+      row.innerHTML = `<span class="btc-news__src">news</span><a href="#" tabindex="-1">no items</a>`;
       list.appendChild(row);
     }
   }
 
-  const __intelCache = { ts: 0, items: [] };
+  const intelCache = { ts: 0, items: [] };
 
   async function ghLatestCommit(repo) {
     const url = `${GH}/repos/${repo}/commits?per_page=1`;
@@ -534,30 +557,33 @@
     };
   }
 
-  async function updateIntel() {
-    if (!mounted() || inflight.intel) return;
-    inflight.intel = true;
+  async function updateIntelAndNews() {
+    if (!mounted()) return;
+    if (!lock("intel")) return;
 
     try {
       const now = Date.now();
 
-      if (__intelCache.items.length && (now - __intelCache.ts) < 60_000) {
-        renderIntel(__intelCache.items);
+      if (intelCache.items.length && (now - intelCache.ts) < 60_000) {
+        renderNewsCard("btc-intel", intelCache.items);
+        renderNewsCard("btc-news", intelCache.items);
         return;
       }
 
       const items = [];
 
+      // GH: 2 repos per minute round-robin
       try {
         const idx = Math.floor(now / 60_000) % INTEL_REPOS.length;
         const batch = [INTEL_REPOS[idx], INTEL_REPOS[(idx + 1) % INTEL_REPOS.length]];
         for (const repo of batch) items.push(await ghLatestCommit(repo));
       } catch (_) {}
 
+      // HN
       try {
         const data = await jget(HN_QUERY);
         const hits = Array.isArray(data?.hits) ? data.hits : [];
-        const hn = hits.slice(0, 4).map(h => ({
+        const hn = hits.slice(0, 6).map(h => ({
           source: "HN",
           title: h.title || h.story_title || "—",
           url: h.url || h.story_url || `https://news.ycombinator.com/item?id=${h.objectID}`,
@@ -567,34 +593,32 @@
       } catch (_) {}
 
       items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-      __intelCache.ts = now;
-      __intelCache.items = items;
-      renderIntel(items);
+      intelCache.ts = now;
+      intelCache.items = items;
+
+      // Render to both if both exist
+      renderNewsCard("btc-intel", items);
+      renderNewsCard("btc-news", items);
     } finally {
-      inflight.intel = false;
+      unlock("intel");
     }
   }
 
   // ============================================================
-  // 6) Satoshi Quote (simple + stable; your current JSON fallback stays)
+  // 7) Satoshi quotes from __partials/satoshi-quotes.txt (URL list)
   // ============================================================
-  const QUOTES_FALLBACK = [
-    { q: "The root problem with conventional currency is all the trust that's required to make it work.", src: "Satoshi (2009)", url: "https://p2pfoundation.ning.com/forum/topics/bitcoin-open-source" },
-    { q: "Lost coins only make everyone else's coins worth slightly more. Think of it as a donation to everyone.", src: "Satoshi (2010)", url: "https://nakamotoinstitute.org/quotes/" },
-    { q: "I'm sure that in 20 years there will either be very large transaction volume or no volume.", src: "Satoshi (2010)", url: "https://nakamotoinstitute.org/quotes/" },
-    { q: "It might make sense just to get some in case it catches on.", src: "Satoshi (2009)", url: "https://nakamotoinstitute.org/quotes/" }
-  ];
-  const QUOTES_JSON = "/static/data/satoshi-quotes.json";
+  const QUOTE_URL_LIST = "/__partials/satoshi-quotes.txt";
+  const QUOTE_FALLBACK = {
+    q: "The root problem with conventional currency is all the trust that's required to make it work.",
+    src: "Satoshi (2009)",
+    url: "https://p2pfoundation.ning.com/forum/topics/bitcoin-open-source"
+  };
 
-  async function loadQuotes() {
-    try {
-      const r = await fetch(QUOTES_JSON, { cache: "no-store" });
-      if (!r.ok) throw new Error("no local quotes json");
-      const data = await r.json();
-      if (Array.isArray(data) && data.length) return data;
-    } catch (_) {}
-    return QUOTES_FALLBACK;
-  }
+  const quoteState = {
+    urls: null,
+    cache: new Map(), // url -> [{q, src, url}]
+    timer: null,
+  };
 
   function renderQuote(item) {
     const card = byId("btc-satoshiquote");
@@ -605,38 +629,115 @@
     if (qt) qt.textContent = `“${item?.q || "—"}”`;
     if (src) src.textContent = item?.src || "Satoshi";
     if (link) {
-      link.href = item?.url || "https://nakamotoinstitute.org/quotes/";
+      link.href = item?.url || "https://satoshi.nakamotoinstitute.org/quotes/";
       link.textContent = "source";
     }
   }
 
-  let __quotes = null;
-  let __qtTimer = null;
+  async function loadQuoteUrlList() {
+    if (quoteState.urls) return quoteState.urls;
+    const txt = await fetch(QUOTE_URL_LIST, { cache: "no-store" }).then(r => r.ok ? r.text() : "");
+    const urls = txt
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(s => s && !s.startsWith("#"));
+    quoteState.urls = urls.length ? urls : [];
+    return quoteState.urls;
+  }
 
-  async function startQuotes() {
-    if (!mounted() || inflight.quotes) return;
+  function parseQuotesFromNakamotoInstituteHTML(html, pageUrl) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    // Robust: collect all blockquotes + nearby attribution
+    const blocks = Array.from(doc.querySelectorAll("blockquote"));
+    const out = [];
+
+    for (const bq of blocks) {
+      const q = (bq.textContent || "").trim().replace(/\s+/g, " ");
+      if (!q || q.length < 20) continue;
+
+      // Try to find a nearby citation/attribution
+      let src = "Satoshi";
+      const cite =
+        bq.parentElement?.querySelector("cite") ||
+        bq.nextElementSibling?.querySelector?.("cite") ||
+        bq.closest("article")?.querySelector("cite");
+
+      if (cite && cite.textContent) src = cite.textContent.trim().replace(/\s+/g, " ");
+
+      // Try to find a permalink for that quote (best effort)
+      let url = pageUrl;
+      const a =
+        bq.parentElement?.querySelector('a[href*="nakamotoinstitute"], a[href^="/quotes/"], a[href^="#"]') ||
+        bq.querySelector('a[href]');
+      if (a?.getAttribute) {
+        const href = a.getAttribute("href");
+        if (href) {
+          try {
+            url = new URL(href, pageUrl).toString();
+          } catch {}
+        }
+      }
+
+      out.push({ q, src, url });
+    }
+
+    // If their markup uses dedicated quote blocks instead:
+    if (!out.length) {
+      const qEls = Array.from(doc.querySelectorAll(".quote, .quotes, .quote__text, .quote-text, .quote-content"));
+      for (const el of qEls) {
+        const q = (el.textContent || "").trim().replace(/\s+/g, " ");
+        if (q && q.length >= 20) out.push({ q, src: "Satoshi", url: pageUrl });
+      }
+    }
+
+    return out;
+  }
+
+  async function pickAndRenderSatoshiQuote() {
+    if (!mounted()) return;
     if (!byId("btc-satoshiquote")) return;
-    inflight.quotes = true;
 
     try {
-      if (!__quotes) __quotes = await loadQuotes();
-      if (!Array.isArray(__quotes) || !__quotes.length) __quotes = QUOTES_FALLBACK;
+      const urls = await loadQuoteUrlList();
+      if (!urls.length) {
+        renderQuote(QUOTE_FALLBACK);
+        return;
+      }
 
-      const pick = () => __quotes[Math.floor(Math.random() * __quotes.length)];
-      renderQuote(pick());
+      // pick a random category page
+      const pageUrl = urls[Math.floor(Math.random() * urls.length)];
 
-      if (__qtTimer) return;
-      __qtTimer = setInterval(() => {
-        if (!mounted() || !byId("btc-satoshiquote")) return;
-        renderQuote(pick());
-      }, 45_000);
-    } finally {
-      inflight.quotes = false;
+      // cache per page
+      if (!quoteState.cache.has(pageUrl)) {
+        const html = await tgetAllOrigins(pageUrl);
+        const quotes = parseQuotesFromNakamotoInstituteHTML(html, pageUrl);
+        quoteState.cache.set(pageUrl, quotes);
+      }
+
+      const quotes = quoteState.cache.get(pageUrl) || [];
+      if (!quotes.length) {
+        renderQuote({ ...QUOTE_FALLBACK, url: pageUrl });
+        return;
+      }
+
+      const item = quotes[Math.floor(Math.random() * quotes.length)];
+      renderQuote(item);
+    } catch (e) {
+      warn("satoshi quote", e);
+      renderQuote(QUOTE_FALLBACK);
     }
   }
 
+  function startSatoshiQuotes() {
+    if (quoteState.timer) return;
+    // prime once immediately
+    pickAndRenderSatoshiQuote();
+    // rotate
+    quoteState.timer = setInterval(pickAndRenderSatoshiQuote, 45_000);
+  }
+
   // ============================================================
-  // 7) Goggles canvas (your stable strip renderer)
+  // 8) Goggles canvas (your “in-family” block/0 approximation)
   // ============================================================
   function fnv1a32(str) {
     let h = 0x811c9dc5;
@@ -646,7 +747,6 @@
     }
     return h >>> 0;
   }
-
   function mulberry32(seed) {
     let t = seed >>> 0;
     return function () {
@@ -656,6 +756,21 @@
       x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
       return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
     };
+  }
+
+  async function ensureThemeLoaded() {
+    if (window.ZZXTheme?.widgets?.mempoolGoggles) return;
+    if (document.querySelector('script[data-zzx-theme="1"]')) return;
+
+    await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "/static/js/theme.js";
+      s.defer = true;
+      s.dataset.zzxTheme = "1";
+      s.onload = () => resolve();
+      s.onerror = () => resolve();
+      document.head.appendChild(s);
+    });
   }
 
   function computeNextBlockFromHistogram(hist, targetVSize = 1_000_000) {
@@ -690,21 +805,6 @@
       tiers[t].w += x.vsize;
     }
     return tiers.map((t, i) => ({ idx: i, w: t.w })).filter(t => t.w > 0);
-  }
-
-  async function ensureThemeLoaded() {
-    if (window.ZZXTheme?.widgets?.mempoolGoggles) return;
-    if (document.querySelector('script[data-zzx-theme="1"]')) return;
-
-    await new Promise((resolve) => {
-      const s = document.createElement("script");
-      s.src = "/static/js/theme.js";
-      s.defer = true;
-      s.dataset.zzxTheme = "1";
-      s.onload = () => resolve();
-      s.onerror = () => resolve();
-      document.head.appendChild(s);
-    });
   }
 
   function drawStableTiles(canvas, tiers, seed, metaText) {
@@ -768,14 +868,13 @@
   }
 
   async function updateGoggles() {
-    if (!mounted() || inflight.goggles) return;
-    const canvas = byId("btc-goggles-canvas");
-    if (!canvas) return;
-
-    inflight.goggles = true;
-    const metaEl = $("#btc-goggles [data-meta]") || $("#btc-goggles [data-sub]");
+    if (!mounted()) return;
+    if (!lock("goggles")) return;
 
     try {
+      const canvas = byId("btc-goggles-canvas") || $("#btc-goggles canvas");
+      if (!canvas) return;
+
       await ensureThemeLoaded();
 
       let tipHeight = null;
@@ -785,8 +884,13 @@
         if (Number.isFinite(h)) tipHeight = h;
       } catch (_) {}
 
-      const mem = await jget(`${MEMPOOL}/mempool`);
-      const hist = mem?.fee_histogram;
+      // reuse last histogram when available (smoother)
+      let hist = controller._lastFeeHistogram;
+      if (!hist) {
+        const m = await jget(`${MEMPOOL}/mempool`);
+        hist = m?.fee_histogram;
+        controller._lastFeeHistogram = hist || null;
+      }
 
       const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
       const paletteLen = (window.ZZXTheme?.widgets?.mempoolGoggles?.tiers?.length) || 7;
@@ -794,80 +898,105 @@
 
       const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
       const meta = `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()}`;
+
+      const metaEl = $("#btc-goggles [data-meta]") || $("#btc-goggles [data-sub]");
       if (metaEl) metaEl.textContent = meta;
 
       const snapshot = JSON.stringify((Array.isArray(hist) ? hist.slice(0, 40) : []));
       const seed = fnv1a32(`${tipHeight || "x"}|${snapshot}`);
 
+      // Ensure crisp rendering: set internal canvas resolution once
+      if (!canvas.dataset.__zzxSized) {
+        const cssW = canvas.clientWidth || 320;
+        const cssH = canvas.clientHeight || 220;
+        canvas.width = Math.max(240, Math.floor(cssW * (window.devicePixelRatio || 1)));
+        canvas.height = Math.max(160, Math.floor(cssH * (window.devicePixelRatio || 1)));
+        canvas.dataset.__zzxSized = "1";
+      }
+
       drawStableTiles(canvas, tiers, seed, meta);
-    } catch (_) {
+    } catch (e) {
+      warn("goggles", e);
+      const metaEl = $("#btc-goggles [data-meta]") || $("#btc-goggles [data-sub]");
       if (metaEl) metaEl.textContent = "mempool api error";
     } finally {
-      inflight.goggles = false;
+      unlock("goggles");
     }
   }
 
   // ============================================================
-  // Mount-safe prime (runs ONCE per mount instance, not per mutation)
+  // Controller: one set of timers, rebind-safe
   // ============================================================
-  let lastMountToken = 0;
+  const controller = {
+    _timers: [],
+    _bound: false,
+    _lastFeeHistogram: null,
 
-  function mountToken() {
-    // changes if widget is removed/re-added
-    const el = byId("btc-value");
-    if (!el) return 0;
-    // token: element identity + time (stable enough)
-    return (el.dataset.__zzxMountToken
-      ? Number(el.dataset.__zzxMountToken)
-      : (el.dataset.__zzxMountToken = String(Date.now()), Number(el.dataset.__zzxMountToken)));
-  }
+    prime() {
+      if (!mounted()) return;
+      log("prime");
 
-  function primeAllOncePerMount() {
-    if (!mounted()) return;
-    const tok = mountToken();
-    if (tok && tok === lastMountToken) return; // already primed this mount
-    lastMountToken = tok;
+      // Prime all (non-blocking; each updater locks itself)
+      updateSpot();
+      update24hGraphs();
+      updateHashrate();
+      updateNodes();
+      updateLN();
+      updateMempool();
+      updateFees();
+      updateTipAndDrift();
+      updateIntelAndNews();
+      startSatoshiQuotes();
+      updateGoggles();
+    },
 
-    // Prime (no await fanout; each function locks itself)
-    updateSpot();
-    update24hGraphs();
-    updateHashrate();
-    updateLN();
-    updateFees();
-    updateMempool();
-    updateTipAndDrift();
-    updateNodes();
-    updateIntel();
-    startQuotes();
-    updateGoggles();
-  }
+    startTimers() {
+      if (this._bound) return;
+      this._bound = true;
 
-  // ============================================================
-  // Timers (stable; do nothing if not mounted)
-  // ============================================================
-  setInterval(() => { if (mounted()) updateSpot(); }, 250);
-  setInterval(() => { if (mounted()) update24hGraphs(); }, 60_000);
+      this._timers.push(setInterval(() => { if (mounted()) updateSpot(); }, 250));
+      this._timers.push(setInterval(() => { if (mounted()) update24hGraphs(); }, 60_000));
 
-  setInterval(() => {
-    if (!mounted()) return;
-    updateHashrate();
-    updateLN();
-    updateFees();
-    updateMempool();
-    updateTipAndDrift();
-    updateNodes();
-    updateGoggles();
-  }, 15_000);
+      this._timers.push(setInterval(() => {
+        if (!mounted()) return;
+        updateHashrate();
+        updateNodes();
+        updateLN();
+        updateMempool();
+        updateFees();
+        updateTipAndDrift();
+        updateGoggles();
+      }, 15_000));
 
-  setInterval(() => { if (mounted()) updateIntel(); }, 60_000);
+      this._timers.push(setInterval(() => { if (mounted()) updateIntelAndNews(); }, 60_000));
 
-  // Mount detector: lightweight polling (no MutationObserver spam)
-  setInterval(primeAllOncePerMount, 800);
+      // mount watcher (lightweight): if fragment reinjected, prime once
+      this._timers.push(setInterval(() => this.rebind(), 900));
+    },
 
-  // Initial
+    rebind() {
+      // If the fragment appears (or reappears), prime.
+      if (!mounted()) return;
+      // Use a token that changes if element is replaced
+      const el = byId("btc-value");
+      if (!el) return;
+      const tok = el.dataset.__zzxTok || (el.dataset.__zzxTok = String(Date.now() + Math.random()));
+      if (this._lastTok === tok) return;
+      this._lastTok = tok;
+      this.prime();
+    },
+  };
+
+  window.__ZZX_BTC_CONTROLLER = controller;
+
+  // Start
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", primeAllOncePerMount, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+      controller.startTimers();
+      controller.rebind();
+    }, { once: true });
   } else {
-    primeAllOncePerMount();
+    controller.startTimers();
+    controller.rebind();
   }
 })();
