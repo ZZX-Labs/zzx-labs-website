@@ -1,7 +1,7 @@
 /* __partials/bitcoin-ticker-widget.css
    Bitcoin Ticker Widget positioning & styling
-   - Centered rail aligned with navbar
-   - Future-proof for multiple widgets
+   - Centered header rail aligned with navbar
+   - Future multi-widget row (wraps cleanly)
    - No scrollbars
 */
 
@@ -10,17 +10,21 @@
   width: 100%;
   margin-inline: auto;
 
+  /* If parent is grid, span it */
+  grid-column: 1 / -1;
+
   display: flex;
-  justify-content: center;  /* ✅ centered always */
+  justify-content: center;     /* centered always */
   align-items: center;
 
-  gap: .5rem;               /* future widgets */
-  flex-wrap: wrap;          /* future widgets can wrap cleanly */
+  gap: .5rem;                  /* future widgets */
+  flex-wrap: wrap;             /* future widgets: second row if needed */
 
   margin-top: .5rem;
   margin-bottom: .5rem;
 
-  order: 2;                 /* below logo in flex contexts */
+  padding-inline: .5rem;       /* safe on mobile if not inside container */
+  order: 2;                    /* below logo in flex contexts */
 }
 
 /* Inner ticker element(s) */
@@ -36,7 +40,7 @@
   box-shadow: 0 4px 12px rgba(0,0,0,.25);
 }
 
-/* Medium screens */
+/* Medium screens: breathing room */
 @media (min-width: 600px) {
   #ticker-container {
     margin-top: .75rem;
@@ -44,11 +48,11 @@
   }
 }
 
-/* Wide screens: align to header rail + cancel container padding skew */
+/* Desktop: lock to same rail as navbar and neutralize container padding skew */
 @media (min-width: 1024px) {
   #ticker-container {
     max-width: min(var(--header-rail, 1100px), 100%);
-    padding-inline: 0;   /* prevents the container's 1rem padding from visually offsetting centering */
+    padding-inline: 0;         /* cancels .container padding effect visually */
     order: unset;
   }
 }
