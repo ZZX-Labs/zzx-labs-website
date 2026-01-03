@@ -1,7 +1,7 @@
 /* __partials/bitcoin-ticker-widget.css
-   - Centers the mount on every page
-   - Restores the original ticker styling (amber border / black bg)
-   - No body/html rules
+   - Centers reliably on every page
+   - Restores original ticker styling (amber border, black bg)
+   - Embed-safe (no html/body rules)
 */
 
 @font-face {
@@ -21,6 +21,7 @@
   width: 100%;
   max-width: min(var(--header-rail, 1100px), 100%);
   margin: .5rem auto;
+
   grid-column: 1 / -1;
   justify-self: center;
 
@@ -39,19 +40,20 @@
   display: block;
   margin-inline: auto;
   max-width: 100%;
+  text-align: center;
 }
 
-/* ---- Restored ticker visuals (matches your old inline styles) ---- */
+/* ---- Restored visuals (matches your previous inline styles) ---- */
 .ticker-shell{
   background-color: #000;
   border: 4px solid #e6a42b;
   border-radius: 10px;
   padding: 4px;
-  display: inline-block; /* shrink-to-fit so centering works */
+  display: inline-block;
 }
 
 #ticker{
-  text-align: left; /* matches what you had */
+  text-align: left; /* keep your old look */
   color: #c0d674;
   font-family: 'IBMPlexMono', ui-monospace, monospace;
 }
@@ -81,7 +83,7 @@
 .credit{
   font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
   color: #c0d674;
-  font-size: .8rem;
+  font-size: 0.8rem;
   margin: 2px 0;
   text-align: right;
 }
