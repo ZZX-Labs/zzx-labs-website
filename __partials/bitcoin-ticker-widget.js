@@ -1,20 +1,27 @@
 // __partials/bitcoin-ticker-widget.js
-// DROP-IN (restores Satoshi quote + adds Bitnodes via AllOrigins + LN via mempool + goggles iframe + better drift)
-// Safe if fragment missing or re-injected.
+// DROP-IN: Spot + 24h graphs + mempool stats + LN + Bitnodes (AllOrigins) + Intel + Satoshi quotes + Goggles canvas
+// Safe if fragment missing or re-injected. No iframe use.
 
 (function () {
+  // ---- single-run guard (page-level) ----
+  if (window.__ZZX_BTC_WIDGET_V1) return;
+  window.__ZZX_BTC_WIDGET_V1 = true;
+
+  // ---- helpers ----
   const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const byId = (id) => document.getElementById(id);
 
-  function mounted() { return !!byId("btc-value"); }
+  function mounted() {
+    // we consider widget mounted if the primary spot span exists
+    return !!byId("btc-value");
+  }
 
   function setCard(id, valueText, subText) {
     const card = byId(id);
     if (!card) return;
     const v = $('[data-val]', card);
     const s = $('[data-sub]', card);
-    if (v) v.textContent = (valueText ?? '—');
+    if (v) v.textContent = (valueText ?? "—");
     if (s && subText != null) s.textContent = subText;
   }
 
@@ -23,14 +30,14 @@
     if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
     return await r.json();
   }
+
   async function tget(url, opts) {
     const r = await fetch(url, { cache: "no-store", ...opts });
     if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
     return await r.text();
   }
 
-  // -------- AllOrigins helper (raw mode) --------
-  // This is how we bypass CORS for sources that block browsers (bitnodes, etc.)
+  // ---- AllOrigins JSON fetch (raw) ----
   async function jgetAllOrigins(targetUrl) {
     const ao = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
     const r = await fetch(ao, { cache: "no-store" });
@@ -38,10 +45,12 @@
     return await r.json();
   }
 
+  // ---- formatting ----
   function fmtUSD(n) {
     if (!Number.isFinite(n)) return "—";
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
   function fmtBig(n) {
     if (!Number.isFinite(n)) return "—";
     const abs = Math.abs(n);
@@ -53,7 +62,7 @@
     return sign + abs.toFixed(2);
   }
 
-  // -------- Sparkline (optional; only if your CSS includes btc-spark rules) --------
+  // ---- sparkline (optional) ----
   function ensureSpark(cardId) {
     const card = byId(cardId);
     if (!card) return null;
@@ -79,10 +88,7 @@
     const svg = ensureSpark(cardId);
     if (!svg) return;
 
-    const nums = (Array.isArray(series) ? series : [])
-      .map(Number)
-      .filter(Number.isFinite);
-
+    const nums = (Array.isArray(series) ? series : []).map(Number).filter(Number.isFinite);
     const linePath = svg.querySelector("path.line");
     const fillPath = svg.querySelector("path.fill");
     if (!linePath || !fillPath) return;
@@ -108,7 +114,6 @@
 
     const dLine = "M " + pts.map(p => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ");
     const dFill = dLine + ` L ${W} ${H} L 0 ${H} Z`;
-
     linePath.setAttribute("d", dLine);
     fillPath.setAttribute("d", dFill);
   }
@@ -125,15 +130,15 @@
       const btcPrice = parseFloat(data?.data?.amount);
       if (!Number.isFinite(btcPrice)) return;
 
-      const mbtc = btcPrice * 0.001;
-      const ubtc = btcPrice * 0.000001;
-      const sat  = btcPrice * 0.00000001;
-
       const a = byId("btc-value");
       const b = byId("mbtc-value");
       const c = byId("ubtc-value");
       const d = byId("sats-value");
       if (!a || !b || !c || !d) return;
+
+      const mbtc = btcPrice * 0.001;
+      const ubtc = btcPrice * 0.000001;
+      const sat  = btcPrice * 0.00000001;
 
       a.textContent = btcPrice.toFixed(2);
       b.textContent = mbtc.toFixed(2);
@@ -143,7 +148,7 @@
   }
 
   // ============================================================
-  // 2) 24h price + volume with sparklines (Coinbase Exchange candles)
+  // 2) 24h price + volume graphs (Coinbase Exchange candles)
   // ============================================================
   const CANDLES_15M = "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=900";
 
@@ -164,12 +169,10 @@
           ? ((last - first) / first) * 100
           : NaN;
 
-        // Card already prints "$" in HTML, so value is numeric string only
         setCard("btc-24hprice", fmtUSD(last), Number.isFinite(changePct) ? `${changePct.toFixed(2)}%` : "—");
         drawSpark("btc-24hprice", closes);
       }
 
-      // Volume USD
       let totalUsd = 0;
       const volsUsd = last96.map(r => {
         const vbtc = Number(r?.[5]);
@@ -179,14 +182,14 @@
         return v;
       }).filter(Number.isFinite);
 
-      // This card does NOT have "$" in its HTML
+      // This card in your HTML has no "$" prefix -> include it
       setCard("btc-24hvolume", `$${fmtBig(totalUsd)}`, "USD");
       drawSpark("btc-24hvolume", volsUsd);
     } catch (_) {}
   }
 
   // ============================================================
-  // 3) mempool.space stats (fees, mempool count, tip, drift, LN, hashrate)
+  // 3) mempool.space stats
   // ============================================================
   const MEMPOOL = "https://mempool.space/api";
 
@@ -217,9 +220,6 @@
     }
   }
 
-  // Better drift:
-  // - show: time since last block
-  // - and in sub: avg interval (last 6 blocks) + delta vs 10m
   async function updateTipAndDrift() {
     if (!mounted()) return;
     try {
@@ -227,37 +227,35 @@
       const h = parseInt(String(heightText).trim(), 10);
       setCard("btc-tip", Number.isFinite(h) ? String(h) : "—", "height");
 
-      // Recent blocks list includes timestamps
       const blocks = await jget(`${MEMPOOL}/blocks`);
       const arr = Array.isArray(blocks) ? blocks : [];
       const tip = arr[0];
       const tsTip = Number(tip?.timestamp);
 
-      // time since last block
-      if (Number.isFinite(tsTip)) {
-        const sinceSec = Math.max(0, Math.round(Date.now()/1000 - tsTip));
-        const sinceMin = (sinceSec / 60);
-
-        // avg interval for last N blocks
-        const N = 6;
-        const ts = arr.slice(0, N).map(b => Number(b?.timestamp)).filter(Number.isFinite);
-        let avgMin = NaN;
-        if (ts.length >= 2) {
-          const diffs = [];
-          for (let i = 0; i < ts.length - 1; i++) diffs.push(ts[i] - ts[i+1]);
-          const avgSec = diffs.reduce((a, x) => a + x, 0) / diffs.length;
-          avgMin = avgSec / 60;
-        }
-
-        const delta10 = Number.isFinite(avgMin) ? (avgMin - 10) : NaN;
-        const sub = Number.isFinite(avgMin)
-          ? `avg:${avgMin.toFixed(1)}m  Δ10:${delta10 >= 0 ? "+" : ""}${delta10.toFixed(1)}m`
-          : `avg:—`;
-
-        setCard("btc-clockdrift", `+${sinceMin.toFixed(1)}m`, sub);
-      } else {
+      if (!Number.isFinite(tsTip)) {
         setCard("btc-clockdrift", "—", "vs last block");
+        return;
       }
+
+      const sinceSec = Math.max(0, Math.round(Date.now() / 1000 - tsTip));
+      const sinceMin = sinceSec / 60;
+
+      const N = 6;
+      const ts = arr.slice(0, N).map(b => Number(b?.timestamp)).filter(Number.isFinite);
+      let avgMin = NaN;
+      if (ts.length >= 2) {
+        const diffs = [];
+        for (let i = 0; i < ts.length - 1; i++) diffs.push(ts[i] - ts[i + 1]);
+        const avgSec = diffs.reduce((a, x) => a + x, 0) / diffs.length;
+        avgMin = avgSec / 60;
+      }
+
+      const delta10 = Number.isFinite(avgMin) ? (avgMin - 10) : NaN;
+      const sub = Number.isFinite(avgMin)
+        ? `avg:${avgMin.toFixed(1)}m  Δ10:${delta10 >= 0 ? "+" : ""}${delta10.toFixed(1)}m`
+        : `avg:—`;
+
+      setCard("btc-clockdrift", `+${sinceMin.toFixed(1)}m`, sub);
     } catch (_) {
       setCard("btc-tip", "—", "height");
       setCard("btc-clockdrift", "—", "vs last block");
@@ -266,19 +264,20 @@
 
   async function updateHashrate() {
     if (!mounted()) return;
-    // endpoint naming varies across mempool deployments; we try a few.
+
     const candidates = [
       `${MEMPOOL}/v1/mining/hashrate/3d`,
       `${MEMPOOL}/v1/mining/hashrate/7d`,
-      `${MEMPOOL}/v1/mining/hashrate`
+      `${MEMPOOL}/v1/mining/hashrate`,
     ];
+
     for (const u of candidates) {
       try {
         const data = await jget(u);
         let seriesEH = [];
 
         if (Array.isArray(data)) {
-          seriesEH = data.map(x => Number(x?.hashrate)).filter(Number.isFinite).map(hs => hs / 1e18);
+          seriesEH = data.map(x => Number(x?.hashrate ?? x?.value)).filter(Number.isFinite).map(hs => hs / 1e18);
         } else if (data && typeof data === "object") {
           const cur = Number(data?.currentHashrate ?? data?.hashrate ?? data?.value);
           if (Number.isFinite(cur)) seriesEH = [cur / 1e18];
@@ -290,17 +289,18 @@
         return;
       } catch (_) {}
     }
+
     setCard("btc-hashrate", "—", "EH/s");
   }
 
   async function updateLN() {
     if (!mounted()) return;
 
-    // Mempool LN endpoints vary by instance; try a few.
     const candidates = [
       `${MEMPOOL}/v1/lightning/statistics`,
       `${MEMPOOL}/v1/lightning`,
-      `${MEMPOOL}/v1/lightning/nodes`
+      `${MEMPOOL}/v1/lightning/network`,
+      `${MEMPOOL}/v1/lightning/nodes`,
     ];
 
     let ln = null;
@@ -310,6 +310,7 @@
 
     if (!ln || typeof ln !== "object") {
       setCard("btc-lnstats", "—", "capacity");
+      // optional detail card if you have one:
       const d = byId("btc-ln-detail");
       if (d) {
         const cap = d.querySelector("[data-cap]"); if (cap) cap.textContent = "—";
@@ -319,16 +320,16 @@
       return;
     }
 
-    const cap = Number(ln?.capacity ?? ln?.total_capacity ?? ln?.totalCapacity ?? ln?.network_capacity);
+    const cap = Number(
+      ln?.capacity ?? ln?.total_capacity ?? ln?.totalCapacity ?? ln?.network_capacity ?? ln?.totalLiquidity
+    );
     const nodes = Number(ln?.nodes ?? ln?.node_count ?? ln?.nodeCount);
     const chans = Number(ln?.channels ?? ln?.channel_count ?? ln?.channelCount);
 
-    // summary card
     if (Number.isFinite(cap)) setCard("btc-lnstats", fmtBig(cap), "BTC cap");
     else if (Number.isFinite(nodes)) setCard("btc-lnstats", fmtBig(nodes), "LN nodes");
     else setCard("btc-lnstats", "—", "capacity");
 
-    // detail card
     const d = byId("btc-ln-detail");
     if (d) {
       const capEl = d.querySelector("[data-cap]");
@@ -341,13 +342,16 @@
   }
 
   // ============================================================
-  // 4) Nodes via Bitnodes (CORS bypass via AllOrigins)
+  // 4) Nodes via Bitnodes (AllOrigins) + Nations list if present
   // ============================================================
-  // NOTE: I’m using the commonly-known Bitnodes snapshot endpoint.
-  // If your preferred endpoint differs, swap BITNODES_* constants only.
-  const BITNODES_LATEST = "https://bitnodes.io/api/v1/snapshots/latest/";
+  // Bitnodes API shapes vary. We probe a few endpoints and parse defensively.
+  const BITNODES_ENDPOINTS = [
+    "https://bitnodes.io/api/v1/snapshots/latest/",
+    "https://bitnodes.io/api/v1/snapshots/latest",          // sometimes without trailing slash
+    "https://bitnodes.io/api/v1/snapshots/",                // may redirect / require extra parsing
+  ];
 
-  function renderNations(topPairs, totals) {
+  function renderNations(pairs, totals) {
     const card = byId("btc-nodes-nations");
     if (!card) return;
 
@@ -362,14 +366,14 @@
     if (!host) return;
     host.innerHTML = "";
 
-    topPairs.slice(0, 8).forEach(([cc, n]) => {
+    (pairs || []).slice(0, 10).forEach(([cc, n]) => {
       const row = document.createElement("div");
       row.className = "row";
       row.innerHTML = `<span class="cc">${cc}</span><span class="n">${n}</span>`;
       host.appendChild(row);
     });
 
-    if (!topPairs.length) {
+    if (!pairs || !pairs.length) {
       const row = document.createElement("div");
       row.className = "row";
       row.innerHTML = `<span class="cc">—</span><span class="n">—</span>`;
@@ -377,29 +381,42 @@
     }
   }
 
+  function extractCountryMap(obj) {
+    // common guesses:
+    // obj.countries: { "US": 1234, ... }
+    // obj.country: { ... }
+    // obj.countries_by_code: { ... }
+    const cand = obj?.countries || obj?.country || obj?.countries_by_code || obj?.countriesByCode;
+    if (cand && typeof cand === "object") return cand;
+    return null;
+  }
+
   async function updateNodes() {
     if (!mounted()) return;
+
     try {
-      const data = await jgetAllOrigins(BITNODES_LATEST);
+      let data = null;
+      for (const ep of BITNODES_ENDPOINTS) {
+        try { data = await jgetAllOrigins(ep); break; } catch (_) {}
+      }
+      if (!data || typeof data !== "object") throw new Error("bitnodes no data");
 
-      // Bitnodes commonly returns keys like:
-      // - total_nodes, latest_height
-      // Some variants include:
-      // - nodes (map), countries (map), etc.
-      const total = Number(data?.total_nodes ?? data?.total ?? data?.count);
-      const reachable = Number(data?.reachable_nodes ?? data?.reachable ?? data?.total_reachable);
-      const unreachable = Number.isFinite(total) && Number.isFinite(reachable) ? (total - reachable) : Number(data?.unreachable ?? NaN);
+      const total = Number(data?.total_nodes ?? data?.total ?? data?.count ?? data?.nodes_count);
+      const reachable = Number(data?.reachable_nodes ?? data?.reachable ?? data?.total_reachable ?? data?.reachable_count);
+      const unreachable = Number.isFinite(total) && Number.isFinite(reachable)
+        ? (total - reachable)
+        : Number(data?.unreachable ?? data?.unreachable_nodes ?? NaN);
 
-      setCard("btc-nodecount",
+      // Card: show reachable if we have it, else total
+      setCard(
+        "btc-nodecount",
         Number.isFinite(reachable) ? fmtBig(reachable) : (Number.isFinite(total) ? fmtBig(total) : "—"),
         "reachable"
       );
 
-      // Country map if present; otherwise we just leave the list with totals.
-      const countries = data?.countries ?? data?.country ?? null;
-
+      const countries = extractCountryMap(data);
       let pairs = [];
-      if (countries && typeof countries === "object") {
+      if (countries) {
         pairs = Object.entries(countries)
           .map(([cc, n]) => [String(cc).toUpperCase(), Number(n)])
           .filter(([, n]) => Number.isFinite(n))
@@ -410,7 +427,7 @@
       renderNations(pairs, {
         total: Number.isFinite(total) ? fmtBig(total) : "—",
         reachable: Number.isFinite(reachable) ? fmtBig(reachable) : "—",
-        unreachable: Number.isFinite(unreachable) ? fmtBig(unreachable) : "—"
+        unreachable: Number.isFinite(unreachable) ? fmtBig(unreachable) : "—",
       });
     } catch (_) {
       setCard("btc-nodecount", "—", "reachable");
@@ -419,7 +436,7 @@
   }
 
   // ============================================================
-  // 5) Intel feeds: GitHub commits + HN
+  // 5) Intel: GitHub commits + HN (throttle)
   // ============================================================
   const GH = "https://api.github.com";
   const INTEL_REPOS = [
@@ -480,7 +497,6 @@
     if (!mounted()) return;
     const now = Date.now();
 
-    // 60s cache to avoid GH throttling pain
     if (__intelCache.items.length && (now - __intelCache.ts) < 60_000) {
       renderIntel(__intelCache.items);
       return;
@@ -488,7 +504,7 @@
 
     const items = [];
 
-    // GitHub: 2 repos per minute, round-robin
+    // GH: 2 repos per minute round-robin to reduce throttling
     try {
       const idx = Math.floor(now / 60_000) % INTEL_REPOS.length;
       const batch = [INTEL_REPOS[idx], INTEL_REPOS[(idx + 1) % INTEL_REPOS.length]];
@@ -503,7 +519,7 @@
         source: "HN",
         title: h.title || h.story_title || "—",
         url: h.url || h.story_url || `https://news.ycombinator.com/item?id=${h.objectID}`,
-        ts: h.created_at_i ? (h.created_at_i * 1000) : 0
+        ts: h.created_at_i ? (h.created_at_i * 1000) : 0,
       }));
       items.push(...hn);
     } catch (_) {}
@@ -515,7 +531,7 @@
   }
 
   // ============================================================
-  // 6) Satoshi Quote (local JSON preferred, fallback built-in)
+  // 6) Satoshi Quote (robust across reinjection)
   // ============================================================
   const QUOTES_FALLBACK = [
     {
@@ -580,56 +596,15 @@
 
     if (__qtTimer) return;
     __qtTimer = setInterval(() => {
-      if (!byId("btc-satoshiquote")) { clearInterval(__qtTimer); __qtTimer = null; return; }
+      // Re-acquire DOM each tick (survives reinjection)
+      if (!mounted() || !byId("btc-satoshiquote")) return;
       renderQuote(pick());
     }, 45_000);
   }
 
-// ===============================
-// Mempool Goggles (client-only, stable)
-// - NO iframe (blocked by mempool.space anti-framing headers)
-// - Deterministic fill visuals (no flicker)
-// - Uses fee_histogram -> “next block” approximation
-// ===============================
-(function () {
-  const MEMPOOL = "https://mempool.space/api";
-
-  function $(sel, root = document) { return root.querySelector(sel); }
-  function byId(id) { return document.getElementById(id); }
-
-  function mounted() {
-    return !!byId("btc-goggles-canvas");
-  }
-
-  async function jget(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
-    return await r.json();
-  }
-
-  async function tget(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
-    return await r.text();
-  }
-
-  function ensureThemeLoaded() {
-    // Optional: if you have /static/js/theme.js
-    if (window.ZZXTheme?.widgets?.mempoolGoggles) return Promise.resolve();
-    if (document.querySelector('script[data-zzx-theme="1"]')) return Promise.resolve();
-
-    return new Promise((resolve) => {
-      const s = document.createElement("script");
-      s.src = "/static/js/theme.js";
-      s.defer = true;
-      s.dataset.zzxTheme = "1";
-      s.onload = () => resolve();
-      s.onerror = () => resolve(); // non-fatal
-      document.head.appendChild(s);
-    });
-  }
-
-  // -------- stable hash + seeded RNG --------
+  // ============================================================
+  // 7) Goggles canvas (stable, no iframe)
+  // ============================================================
   function fnv1a32(str) {
     let h = 0x811c9dc5;
     for (let i = 0; i < str.length; i++) {
@@ -650,13 +625,11 @@
     };
   }
 
-  // fee_histogram: [[feeRate, vsize], ...]
   function computeNextBlockFromHistogram(hist, targetVSize = 1_000_000) {
     const rows = (Array.isArray(hist) ? hist : [])
       .map(([fee, vsize]) => [Number(fee), Number(vsize)])
       .filter(([fee, vsize]) => Number.isFinite(fee) && Number.isFinite(vsize) && vsize > 0);
 
-    // Highest fee first
     rows.sort((a, b) => b[0] - a[0]);
 
     let used = 0;
@@ -678,17 +651,12 @@
     const maxFee = Math.max(...fees);
     const span = (maxFee - minFee) || 1;
 
-    const tiers = Array.from({ length: tierCount }, () => ({ w: 0, f0: Infinity, f1: -Infinity }));
+    const tiers = Array.from({ length: tierCount }, () => ({ w: 0 }));
     for (const x of picked) {
       const t = Math.max(0, Math.min(tierCount - 1, Math.floor(((x.fee - minFee) / span) * tierCount)));
       tiers[t].w += x.vsize;
-      tiers[t].f0 = Math.min(tiers[t].f0, x.fee);
-      tiers[t].f1 = Math.max(tiers[t].f1, x.fee);
     }
-    // low -> high for palette indexing convenience
-    return tiers
-      .map((t, i) => ({ ...t, idx: i }))
-      .filter(t => t.w > 0);
+    return tiers.map((t, i) => ({ idx: i, w: t.w })).filter(t => t.w > 0);
   }
 
   function drawStableTiles(canvas, tiers, seed, metaText) {
@@ -698,51 +666,40 @@
     const theme = window.ZZXTheme?.widgets?.mempoolGoggles || {};
     const palette = Array.isArray(theme.tiers) && theme.tiers.length
       ? theme.tiers
-      : ["#0b3d2e","#0f5a3f","#12724f","#168a61","#1aa374","#6aa92a","#b6a11c"];
+      : ["#0b3d2e", "#0f5a3f", "#12724f", "#168a61", "#1aa374", "#6aa92a", "#b6a11c"];
 
     const bg = theme.canvasBg || "#000";
     const grid = theme.gridLine || "rgba(255,255,255,0.06)";
     const tile = Number.isFinite(theme.tileSize) ? theme.tileSize : 4;
-    const gap  = Number.isFinite(theme.tileGap)  ? theme.tileGap  : 1;
+    const gap = Number.isFinite(theme.tileGap) ? theme.tileGap : 1;
 
     const W = canvas.width, H = canvas.height;
 
-    // Clear
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Subtle grid
+    // subtle grid
     ctx.strokeStyle = grid;
     ctx.lineWidth = 1;
     for (let y = 0; y <= H; y += 22) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
     for (let x = 0; x <= W; x += 32) { ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
 
     const total = tiers.reduce((a, t) => a + t.w, 0) || 1;
-
-    // Stable RNG
     const rnd = mulberry32(seed);
 
-    // We want “mempool-ish” vertical dominance on the right:
-    // render tiers as vertical strips, with higher fees pushed right.
-    // That’s visually closer to their “filled right edge” feel than horizontal banding.
+    // low fee left, high fee right (strip fill)
     let x0 = 0;
-
-    // iterate low->high but draw low first (left), high last (right)
     const ordered = tiers.slice().sort((a, b) => a.idx - b.idx);
 
     for (let i = 0; i < ordered.length; i++) {
-      const t = ordered[i];
-      const stripW = Math.max(tile * 6, Math.round((t.w / total) * W));
+      const stripW = Math.max(tile * 6, Math.round((ordered[i].w / total) * W));
       const x1 = (i === ordered.length - 1) ? W : Math.min(W, x0 + stripW);
 
-      // Choose palette based on fee tier position
       const pIdx = Math.round((i / Math.max(1, ordered.length - 1)) * (palette.length - 1));
       ctx.fillStyle = palette[Math.min(palette.length - 1, Math.max(0, pIdx))];
 
-      // Fill tiles in this strip with stable stochastic density
-      // Higher fee -> denser fill
-      const density = 0.68 + (i / Math.max(1, ordered.length - 1)) * 0.26; // 0.68..0.94
+      const density = 0.68 + (i / Math.max(1, ordered.length - 1)) * 0.26;
 
       for (let y = 0; y < H; y += (tile + gap)) {
         for (let x = x0; x < x1; x += (tile + gap)) {
@@ -755,7 +712,6 @@
       if (x0 >= W) break;
     }
 
-    // Meta label
     if (metaText) {
       ctx.save();
       ctx.font = "12px IBMPlexMono, ui-monospace, monospace";
@@ -765,106 +721,102 @@
     }
   }
 
+  async function ensureThemeLoaded() {
+    if (window.ZZXTheme?.widgets?.mempoolGoggles) return;
+    if (document.querySelector('script[data-zzx-theme="1"]')) return;
+
+    await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "/static/js/theme.js";
+      s.defer = true;
+      s.dataset.zzxTheme = "1";
+      s.onload = () => resolve();
+      s.onerror = () => resolve(); // non-fatal
+      document.head.appendChild(s);
+    });
+  }
+
   async function updateGoggles() {
     if (!mounted()) return;
-
     const canvas = byId("btc-goggles-canvas");
-    const metaEl = $("#btc-goggles [data-meta]");
     if (!canvas) return;
+
+    const metaEl = $("#btc-goggles [data-meta]") || $("#btc-goggles [data-sub]");
 
     try {
       await ensureThemeLoaded();
 
-      // Use tip height as part of seed so the pattern stays stable within a block,
-      // and changes when a new block arrives.
       let tipHeight = null;
       try {
         const htxt = await tget(`${MEMPOOL}/blocks/tip/height`);
-        const h = parseInt(htxt, 10);
+        const h = parseInt(String(htxt).trim(), 10);
         if (Number.isFinite(h)) tipHeight = h;
-      } catch {}
+      } catch (_) {}
 
       const mem = await jget(`${MEMPOOL}/mempool`);
       const hist = mem?.fee_histogram;
 
       const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
-
       const paletteLen = (window.ZZXTheme?.widgets?.mempoolGoggles?.tiers?.length) || 7;
       const tiers = toTiers(picked, paletteLen);
 
       const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
       const meta = `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()}`;
-
       if (metaEl) metaEl.textContent = meta;
 
-      // Seed from (tipHeight + histogram snapshot)
       const snapshot = JSON.stringify((Array.isArray(hist) ? hist.slice(0, 40) : []));
-      const seedStr = `${tipHeight || "x"}|${snapshot}`;
-      const seed = fnv1a32(seedStr);
+      const seed = fnv1a32(`${tipHeight || "x"}|${snapshot}`);
 
       drawStableTiles(canvas, tiers, seed, meta);
-    } catch (e) {
+    } catch (_) {
       if (metaEl) metaEl.textContent = "mempool api error";
     }
   }
 
-  let timer = null;
-  function start() {
-    if (timer) return;
-    updateGoggles();
-    timer = setInterval(updateGoggles, 5000);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => start(), { once: true });
-  } else {
-    start();
-  }
-})();
-
   // ============================================================
-  // scheduling (single-run guard)
+  // Scheduling + reinjection hardening
   // ============================================================
-  let started = false;
-
-  function start() {
-    if (started) return;
-    started = true;
-
-    // Prime
+  function primeAll() {
     updateSpot();
     update24hGraphs();
-
     updateHashrate();
     updateLN();
     updateFees();
     updateMempool();
     updateTipAndDrift();
-
     updateNodes();
     updateIntel();
     startQuotes();
-    initGogglesFrame();
-
-    // Timers
-    setInterval(updateSpot, 250);
-
-    setInterval(update24hGraphs, 60_000);
-
-    setInterval(() => {
-      updateHashrate();
-      updateLN();
-      updateFees();
-      updateMempool();
-      updateTipAndDrift();
-      updateNodes();
-    }, 15_000);
-
-    setInterval(updateIntel, 60_000);
-
-    // Quotes stay independent
-    // (startQuotes sets its own interval)
+    updateGoggles();
   }
 
-  start();
+  // timers
+  setInterval(() => { if (mounted()) updateSpot(); }, 250);
+  setInterval(() => { if (mounted()) update24hGraphs(); }, 60_000);
+
+  setInterval(() => {
+    if (!mounted()) return;
+    updateHashrate();
+    updateLN();
+    updateFees();
+    updateMempool();
+    updateTipAndDrift();
+    updateNodes();
+    updateGoggles();
+  }, 15_000);
+
+  setInterval(() => { if (mounted()) updateIntel(); }, 60_000);
+
+  // if partial is injected after script runs, watch for mount and prime
+  const mo = new MutationObserver(() => {
+    if (mounted()) primeAll();
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  // initial
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", primeAll, { once: true });
+  } else {
+    primeAll();
+  }
 })();
