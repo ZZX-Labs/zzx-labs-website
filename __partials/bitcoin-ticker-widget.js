@@ -1,22 +1,46 @@
 // __partials/bitcoin-ticker-widget.js
-<script>
-  // Load ticker HTML into the btc-ticker mount (NOT the container)
-  fetch('/bitcoin/ticker/ticker.html')
-    .then(r => r.text())
-    .then(html => {
-      const mount = document.getElementById('btc-ticker');
-      if (!mount) throw new Error('#btc-ticker mount not found');
+// Updates the embedded BTC widget safely (idempotent, mount-aware)
 
-      mount.innerHTML = html;
+(function () {
+  const API_URL = "https://api.coinbase.com/v2/prices/spot?currency=USD";
+  let timer = null;
 
-      // Load ticker.js once
-      if (!document.querySelector('script[data-ticker-js="1"]')) {
-        const s = document.createElement('script');
-        s.src = '/bitcoin/ticker/ticker.js';
-        s.defer = true;
-        s.dataset.tickerJs = "1";
-        document.body.appendChild(s);
-      }
-    })
-    .catch(err => console.error('Error loading ticker widget:', err));
-</script>
+  function qs(id) { return document.getElementById(id); }
+
+  async function updateOnce() {
+    const btcValue  = qs("btc-value");
+    const mbtcValue = qs("mbtc-value");
+    const ubtcValue = qs("ubtc-value");
+    const satsValue = qs("sats-value");
+
+    // Not mounted (or got replaced) — skip quietly
+    if (!btcValue || !mbtcValue || !ubtcValue || !satsValue) return;
+
+    try {
+      const r = await fetch(API_URL, { cache: "no-store" });
+      const j = await r.json();
+      const btc = parseFloat(j?.data?.amount);
+      if (!Number.isFinite(btc)) return;
+
+      const mbtc = btc * 0.001;
+      const ubtc = btc * 0.000001;
+      const sat  = btc * 0.00000001;
+
+      btcValue.textContent  = btc.toFixed(2);
+      mbtcValue.textContent = mbtc.toFixed(2);
+      ubtcValue.textContent = ubtc.toFixed(4);
+      satsValue.textContent = sat.toFixed(6);
+    } catch (e) {
+      console.warn("[ticker] price fetch failed:", e);
+    }
+  }
+
+  function start() {
+    if (timer) return;
+    updateOnce();
+    timer = setInterval(updateOnce, 250);
+  }
+
+  // Start immediately; safe even if widget arrives slightly later
+  start();
+})();
