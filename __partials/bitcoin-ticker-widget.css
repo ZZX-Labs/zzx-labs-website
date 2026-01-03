@@ -1,43 +1,67 @@
 /* __partials/bitcoin-ticker-widget.css
-   Bitcoin Ticker Widget positioning & styling
+   Bitcoin Ticker Widget
+   - Centered rail
+   - Future multi-widget horizontal row
+   - Layout-safe inside grid or flex parents
 */
 
-/* Wrapper */
+/* ---------- TICKER RAIL (FULL WIDTH) ---------- */
 #ticker-container {
-  display: flex;
-  justify-content: flex-start;   /* left-align by default */
-  align-items: center;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
+  /* always span full available width */
   width: 100%;
-  order: 2; /* appear below logo in flex/grid contexts */
+  max-width: 100%;
+
+  /* neutralize parent layout quirks */
+  margin-left: auto;
+  margin-right: auto;
+
+  display: flex;
+  justify-content: center;     /* ✅ center by default */
+  align-items: center;
+  gap: .5rem;                  /* future widgets */
+
+  padding: .25rem .5rem;
+  margin-top: .5rem;
+  margin-bottom: .5rem;
+
+  /* never cause horizontal scroll */
+  overflow-x: clip;
 }
 
-/* Inner ticker element(s) */
+/* Fallback for older engines */
+@supports not (overflow-x: clip) {
+  #ticker-container { overflow-x: hidden; }
+}
+
+/* ---------- INNER WIDGET(S) ---------- */
 #ticker-container > * {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.95rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: .95rem;
   color: #c0d674;
+
   background: #111;
   border: 1px solid #2a2a2a;
   border-radius: 6px;
-  padding: 0.4rem 0.7rem;
+
+  padding: .4rem .7rem;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
 }
 
-/* Medium screens: keep it left but add breathing room */
+/* ---------- RESPONSIVE TUNING ---------- */
 @media (min-width: 600px) {
   #ticker-container {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+    margin-top: .75rem;
+    margin-bottom: .75rem;
   }
 }
 
-/* Wide screens: center it horizontally */
+/* Large screens: lock to same rail width as navbar */
 @media (min-width: 1024px) {
   #ticker-container {
-    justify-content: center;
-    order: unset; /* allow natural flow if header grid is used */
+    max-width: 1100px;   /* MATCH navbar rail */
+    padding-left: 0;
+    padding-right: 0;
   }
 }
