@@ -1,66 +1,87 @@
 /* __partials/bitcoin-ticker-widget.css
-   Bitcoin Ticker Widget positioning & styling (DROP-IN)
-   - Centers reliably on every page (even with injected markup)
-   - Aligns to header rail token (--header-rail)
-   - Future multi-widget ready
-   - No scrollbars
+   - Centers the mount on every page
+   - Restores the original ticker styling (amber border / black bg)
+   - No body/html rules
 */
 
-/* Wrapper (rail) */
+@font-face {
+  font-family: 'AdultSwimFont';
+  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBMPlexMono';
+  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* ---- Centered rail ---- */
 #ticker-container{
   width: 100%;
   max-width: min(var(--header-rail, 1100px), 100%);
   margin: .5rem auto;
-
-  /* If parent is grid, span it */
   grid-column: 1 / -1;
   justify-self: center;
 
-  /* Most resilient centering primitive */
   display: grid;
   place-items: center;
 
-  /* future widgets */
-  gap: .5rem;
-
-  /* safe mobile padding; removed on desktop below */
   padding-inline: .5rem;
-
-  /* below logo in flex contexts */
   order: 2;
 }
 
-/* Injection mount should not fight centering */
+@media (min-width: 1024px){
+  #ticker-container{ padding-inline: 0; order: unset; }
+}
+
 #btc-ticker{
   display: block;
   margin-inline: auto;
   max-width: 100%;
-  text-align: center;
 }
 
-/* Anything injected inside: keep it centered */
-#btc-ticker > *{
-  margin-inline: auto;
+/* ---- Restored ticker visuals (matches your old inline styles) ---- */
+.ticker-shell{
+  background-color: #000;
+  border: 4px solid #e6a42b;
+  border-radius: 10px;
+  padding: 4px;
+  display: inline-block; /* shrink-to-fit so centering works */
 }
 
-/* If injected markup contains a known ticker wrapper, neutralize offsets */
-#btc-ticker #ticker{
-  margin-left: 0 !important;
-  margin-right: 0 !important;
+#ticker{
+  text-align: left; /* matches what you had */
+  color: #c0d674;
+  font-family: 'IBMPlexMono', ui-monospace, monospace;
 }
 
-/* Medium screens: breathing room */
-@media (min-width: 600px){
-  #ticker-container{
-    margin-top: .75rem;
-    margin-bottom: .75rem;
-  }
+#btc{
+  font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
+  color: #c0d674;
+  font-size: 2rem;
+  margin-bottom: 10px;
+  white-space: nowrap;
 }
 
-/* Desktop: neutralize container padding skew and allow natural header flow */
-@media (min-width: 1024px){
-  #ticker-container{
-    padding-inline: 0;
-    order: unset;
-  }
+#subunits{
+  background-color: #333;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.unit{
+  font-family: 'IBMPlexMono', ui-monospace, monospace;
+  color: #c0d674;
+  font-size: 1.2rem;
+  margin: 5px 0;
+  white-space: nowrap;
+}
+
+.credit{
+  font-family: 'AdultSwimFont', 'IBMPlexMono', monospace;
+  color: #c0d674;
+  font-size: .8rem;
+  margin: 2px 0;
+  text-align: right;
 }
