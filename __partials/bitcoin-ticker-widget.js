@@ -585,20 +585,242 @@
     }, 45_000);
   }
 
-  // ============================================================
-  // 7) Mempool goggles “picture frame”
-  // ============================================================
-  function initGogglesFrame() {
-    const card = byId("btc-goggles");
-    if (!card) return;
-    const iframe = card.querySelector("iframe");
-    if (!iframe) return;
+// ===============================
+// Mempool Goggles (client-only, stable)
+// - NO iframe (blocked by mempool.space anti-framing headers)
+// - Deterministic fill visuals (no flicker)
+// - Uses fee_histogram -> “next block” approximation
+// ===============================
+(function () {
+  const MEMPOOL = "https://mempool.space/api";
 
-    // This is the best client-side method to be visually identical:
-    // embed mempool.space and crop via CSS transforms.
-    // You will tune translate/scale in CSS once.
-    iframe.src = "https://mempool.space/";
+  function $(sel, root = document) { return root.querySelector(sel); }
+  function byId(id) { return document.getElementById(id); }
+
+  function mounted() {
+    return !!byId("btc-goggles-canvas");
   }
+
+  async function jget(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+    return await r.json();
+  }
+
+  async function tget(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+    return await r.text();
+  }
+
+  function ensureThemeLoaded() {
+    // Optional: if you have /static/js/theme.js
+    if (window.ZZXTheme?.widgets?.mempoolGoggles) return Promise.resolve();
+    if (document.querySelector('script[data-zzx-theme="1"]')) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "/static/js/theme.js";
+      s.defer = true;
+      s.dataset.zzxTheme = "1";
+      s.onload = () => resolve();
+      s.onerror = () => resolve(); // non-fatal
+      document.head.appendChild(s);
+    });
+  }
+
+  // -------- stable hash + seeded RNG --------
+  function fnv1a32(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t += 0x6D2B79F5;
+      let x = t;
+      x = Math.imul(x ^ (x >>> 15), x | 1);
+      x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // fee_histogram: [[feeRate, vsize], ...]
+  function computeNextBlockFromHistogram(hist, targetVSize = 1_000_000) {
+    const rows = (Array.isArray(hist) ? hist : [])
+      .map(([fee, vsize]) => [Number(fee), Number(vsize)])
+      .filter(([fee, vsize]) => Number.isFinite(fee) && Number.isFinite(vsize) && vsize > 0);
+
+    // Highest fee first
+    rows.sort((a, b) => b[0] - a[0]);
+
+    let used = 0;
+    const picked = [];
+    for (const [fee, vsize] of rows) {
+      if (used >= targetVSize) break;
+      const take = Math.min(vsize, targetVSize - used);
+      if (take <= 0) continue;
+      picked.push({ fee, vsize: take });
+      used += take;
+    }
+    return { picked, used, targetVSize };
+  }
+
+  function toTiers(picked, tierCount) {
+    if (!picked.length) return [];
+    const fees = picked.map(x => x.fee);
+    const minFee = Math.min(...fees);
+    const maxFee = Math.max(...fees);
+    const span = (maxFee - minFee) || 1;
+
+    const tiers = Array.from({ length: tierCount }, () => ({ w: 0, f0: Infinity, f1: -Infinity }));
+    for (const x of picked) {
+      const t = Math.max(0, Math.min(tierCount - 1, Math.floor(((x.fee - minFee) / span) * tierCount)));
+      tiers[t].w += x.vsize;
+      tiers[t].f0 = Math.min(tiers[t].f0, x.fee);
+      tiers[t].f1 = Math.max(tiers[t].f1, x.fee);
+    }
+    // low -> high for palette indexing convenience
+    return tiers
+      .map((t, i) => ({ ...t, idx: i }))
+      .filter(t => t.w > 0);
+  }
+
+  function drawStableTiles(canvas, tiers, seed, metaText) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const theme = window.ZZXTheme?.widgets?.mempoolGoggles || {};
+    const palette = Array.isArray(theme.tiers) && theme.tiers.length
+      ? theme.tiers
+      : ["#0b3d2e","#0f5a3f","#12724f","#168a61","#1aa374","#6aa92a","#b6a11c"];
+
+    const bg = theme.canvasBg || "#000";
+    const grid = theme.gridLine || "rgba(255,255,255,0.06)";
+    const tile = Number.isFinite(theme.tileSize) ? theme.tileSize : 4;
+    const gap  = Number.isFinite(theme.tileGap)  ? theme.tileGap  : 1;
+
+    const W = canvas.width, H = canvas.height;
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle grid
+    ctx.strokeStyle = grid;
+    ctx.lineWidth = 1;
+    for (let y = 0; y <= H; y += 22) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+    for (let x = 0; x <= W; x += 32) { ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+
+    const total = tiers.reduce((a, t) => a + t.w, 0) || 1;
+
+    // Stable RNG
+    const rnd = mulberry32(seed);
+
+    // We want “mempool-ish” vertical dominance on the right:
+    // render tiers as vertical strips, with higher fees pushed right.
+    // That’s visually closer to their “filled right edge” feel than horizontal banding.
+    let x0 = 0;
+
+    // iterate low->high but draw low first (left), high last (right)
+    const ordered = tiers.slice().sort((a, b) => a.idx - b.idx);
+
+    for (let i = 0; i < ordered.length; i++) {
+      const t = ordered[i];
+      const stripW = Math.max(tile * 6, Math.round((t.w / total) * W));
+      const x1 = (i === ordered.length - 1) ? W : Math.min(W, x0 + stripW);
+
+      // Choose palette based on fee tier position
+      const pIdx = Math.round((i / Math.max(1, ordered.length - 1)) * (palette.length - 1));
+      ctx.fillStyle = palette[Math.min(palette.length - 1, Math.max(0, pIdx))];
+
+      // Fill tiles in this strip with stable stochastic density
+      // Higher fee -> denser fill
+      const density = 0.68 + (i / Math.max(1, ordered.length - 1)) * 0.26; // 0.68..0.94
+
+      for (let y = 0; y < H; y += (tile + gap)) {
+        for (let x = x0; x < x1; x += (tile + gap)) {
+          if (rnd() > density) continue;
+          ctx.fillRect(x, y, tile, tile);
+        }
+      }
+
+      x0 = x1;
+      if (x0 >= W) break;
+    }
+
+    // Meta label
+    if (metaText) {
+      ctx.save();
+      ctx.font = "12px IBMPlexMono, ui-monospace, monospace";
+      ctx.fillStyle = "rgba(192,214,116,0.85)";
+      ctx.fillText(metaText, 8, H - 10);
+      ctx.restore();
+    }
+  }
+
+  async function updateGoggles() {
+    if (!mounted()) return;
+
+    const canvas = byId("btc-goggles-canvas");
+    const metaEl = $("#btc-goggles [data-meta]");
+    if (!canvas) return;
+
+    try {
+      await ensureThemeLoaded();
+
+      // Use tip height as part of seed so the pattern stays stable within a block,
+      // and changes when a new block arrives.
+      let tipHeight = null;
+      try {
+        const htxt = await tget(`${MEMPOOL}/blocks/tip/height`);
+        const h = parseInt(htxt, 10);
+        if (Number.isFinite(h)) tipHeight = h;
+      } catch {}
+
+      const mem = await jget(`${MEMPOOL}/mempool`);
+      const hist = mem?.fee_histogram;
+
+      const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
+
+      const paletteLen = (window.ZZXTheme?.widgets?.mempoolGoggles?.tiers?.length) || 7;
+      const tiers = toTiers(picked, paletteLen);
+
+      const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
+      const meta = `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()}`;
+
+      if (metaEl) metaEl.textContent = meta;
+
+      // Seed from (tipHeight + histogram snapshot)
+      const snapshot = JSON.stringify((Array.isArray(hist) ? hist.slice(0, 40) : []));
+      const seedStr = `${tipHeight || "x"}|${snapshot}`;
+      const seed = fnv1a32(seedStr);
+
+      drawStableTiles(canvas, tiers, seed, meta);
+    } catch (e) {
+      if (metaEl) metaEl.textContent = "mempool api error";
+    }
+  }
+
+  let timer = null;
+  function start() {
+    if (timer) return;
+    updateGoggles();
+    timer = setInterval(updateGoggles, 5000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => start(), { once: true });
+  } else {
+    start();
+  }
+})();
 
   // ============================================================
   // scheduling (single-run guard)
