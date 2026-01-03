@@ -1,58 +1,66 @@
 /* __partials/bitcoin-ticker-widget.css
-   Bitcoin Ticker Widget positioning & styling
-   - Centered header rail aligned with navbar
-   - Future multi-widget row (wraps cleanly)
+   Bitcoin Ticker Widget positioning & styling (DROP-IN)
+   - Centers reliably on every page (even with injected markup)
+   - Aligns to header rail token (--header-rail)
+   - Future multi-widget ready
    - No scrollbars
 */
 
-/* Wrapper */
-#ticker-container {
+/* Wrapper (rail) */
+#ticker-container{
   width: 100%;
-  margin-inline: auto;
+  max-width: min(var(--header-rail, 1100px), 100%);
+  margin: .5rem auto;
 
   /* If parent is grid, span it */
   grid-column: 1 / -1;
+  justify-self: center;
 
-  display: flex;
-  justify-content: center;     /* centered always */
-  align-items: center;
+  /* Most resilient centering primitive */
+  display: grid;
+  place-items: center;
 
-  gap: .5rem;                  /* future widgets */
-  flex-wrap: wrap;             /* future widgets: second row if needed */
+  /* future widgets */
+  gap: .5rem;
 
-  margin-top: .5rem;
-  margin-bottom: .5rem;
+  /* safe mobile padding; removed on desktop below */
+  padding-inline: .5rem;
 
-  padding-inline: .5rem;       /* safe on mobile if not inside container */
-  order: 2;                    /* below logo in flex contexts */
+  /* below logo in flex contexts */
+  order: 2;
 }
 
-/* Inner ticker element(s) */
-#ticker-container > * {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: .95rem;
-  color: var(--brand-green, #c0d674);
-  background: #111;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  padding: .4rem .7rem;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+/* Injection mount should not fight centering */
+#btc-ticker{
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Anything injected inside: keep it centered */
+#btc-ticker > *{
+  margin-inline: auto;
+}
+
+/* If injected markup contains a known ticker wrapper, neutralize offsets */
+#btc-ticker #ticker{
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 /* Medium screens: breathing room */
-@media (min-width: 600px) {
-  #ticker-container {
+@media (min-width: 600px){
+  #ticker-container{
     margin-top: .75rem;
     margin-bottom: .75rem;
   }
 }
 
-/* Desktop: lock to same rail as navbar and neutralize container padding skew */
-@media (min-width: 1024px) {
-  #ticker-container {
-    max-width: min(var(--header-rail, 1100px), 100%);
-    padding-inline: 0;         /* cancels .container padding effect visually */
+/* Desktop: neutralize container padding skew and allow natural header flow */
+@media (min-width: 1024px){
+  #ticker-container{
+    padding-inline: 0;
     order: unset;
   }
 }
