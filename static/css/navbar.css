@@ -2,6 +2,7 @@
    Primary navigation (components layer)
    - Compact, scrollable mobile drawer
    - Keeps your existing HTML & JS (.open toggling)
+   - FIX: Desktop no longer spills right; centered rail + wrap + optional horizontal scroll
 */
 
 /* ---------- NAVBAR WRAPPER ---------- */
@@ -143,25 +144,43 @@
 
 /* ---------- DESKTOP LAYOUT ---------- */
 @media (min-width: 769px) {
+
+  /* Stop the mobile 1fr/auto grid from forcing odd widths on desktop */
+  .navbar,
+  .header .container .navbar {
+    grid-template-columns: 1fr;   /* links only */
+    justify-items: center;        /* center the nav rail */
+  }
+
   .nav-links {
-    grid-column: auto;
+    grid-column: 1 / -1;
+
+    /* desktop row */
     flex-direction: row;
+    flex-wrap: wrap;              /* ✅ FIX: wrap instead of infinite spill */
     align-items: center;
     justify-content: center;
+
     gap: .25rem;
     background: transparent;
     border: 0;
     border-radius: 0;
-    padding: 0;
+    padding: .15rem .25rem;
     margin: 0;
+
     box-shadow: none;
     opacity: 1 !important;
     max-height: none !important;
     pointer-events: auto;
-    overflow: visible; /* no drawer scroll on desktop */
+
+    /* ✅ FIX: contain width and prevent horizontal overflow */
+    width: 100%;
+    max-width: min(1100px, 100%); /* rail width; tune if desired */
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 
-  .nav-links > li { padding: .15rem .08rem; }
+  .nav-links > li { padding: .15rem .08rem; position: relative; }
 
   .nav-links > li > a {
     padding: .48rem .65rem;   /* compact but clickable */
@@ -190,7 +209,6 @@
   }
 
   /* Desktop dropdowns */
-  .nav-links > li { position: relative; }
   .submenu {
     position: absolute;
     top: calc(100% + 8px);
@@ -203,13 +221,17 @@
     padding: .5rem;
     box-shadow: 0 18px 36px rgba(0,0,0,.35);
     backdrop-filter: blur(6px);
+
     opacity: 0;
     transform: translateY(-6px);
     pointer-events: none;
     margin: 0;
     max-height: none;
     overflow: visible;
+
+    z-index: 1000; /* ensure dropdown overlays */
   }
+
   .nav-links > li:hover > .submenu,
   .nav-links > li > .submenu.open {
     opacity: 1;
