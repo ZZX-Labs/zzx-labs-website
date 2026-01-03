@@ -1,50 +1,67 @@
 @font-face {
   font-family: 'AdultSwimFont';
   src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-display: swap;
 }
 
 @font-face {
   font-family: 'IBMPlexMono';
   src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+  font-display: swap;
 }
 
-body {
-  margin: 0;
-  font-family: 'IBMPlexMono', mono; /* Default font for the body */
-  background-color: #000;  /* Overall page background is black */
-  color: #c0d674;  /* Text color */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
+/*
+  IMPORTANT:
+  This CSS is used as an EMBEDDED WIDGET inside your header.
+  Therefore: DO NOT style `body` / `html` / viewport sizing here.
+  Scope everything to #ticker (or a widget root) only.
+*/
 
 #ticker {
-  background: #000;  /* Black background for the entire ticker area */
-  color: #c0d674;  /* Text color */
-  padding: 20px;
+  /* Visuals */
+  background: #111;
+  color: #c0d674;
+  border: 1px solid #2a2a2a;
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+
+  /* Layout */
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  /* Size + spacing */
+  padding: .6rem .9rem;
+  margin: 0;                /* ✅ remove left bias */
   text-align: center;
-  margin-left: 20px;  /* Padding from the left side */
+
+  /* Prevent internal line wrapping from blowing up header */
+  max-width: 100%;
 }
 
 #btc {
-  font-family: 'AdultSwimFont', sans-serif;  /* AdultSwimFont for BTC and its value */
-  color: #c0d674;  /* Text color */
-  font-size: 2rem;
-  margin-bottom: 10px;
+  font-family: 'AdultSwimFont', 'IBM Plex Mono', monospace;
+  color: #c0d674;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  margin: 0 0 .4rem 0;
+  white-space: nowrap;      /* keep BTC price on one line */
 }
 
 #subunits {
-  background: #333;  /* Greyish background for the subunit area */
-  padding: 10px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  padding: .45rem .6rem;
   border-radius: 8px;
+  width: 100%;
 }
 
 .unit {
-  font-family: 'IBMPlexMono', mono;  /* IBMPlexMono for subunit values */
-  font-size: 1.2rem;
-  color: #c0d674;  /* Text color */
-  margin: 5px 0;
+  font-family: 'IBMPlexMono', ui-monospace, monospace;
+  font-size: 1rem;
+  line-height: 1.25;
+  color: #c0d674;
+  margin: .2rem 0;
+  white-space: nowrap;
 }
