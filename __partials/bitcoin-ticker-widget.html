@@ -1,7 +1,8 @@
 <!-- __partials/bitcoin-ticker-widget.html (EMBED FRAGMENT ONLY) -->
 
 <div class="btc-rail" role="region" aria-label="Bitcoin dashboard widgets">
-  <!-- 1) Primary BTC price widget (your existing look) -->
+
+  <!-- 1) Primary BTC price widget -->
   <div class="ticker-shell">
     <div id="ticker">
       <div id="btc">
@@ -22,14 +23,6 @@
   <div class="btc-card" id="btc-24hprice">
     <div class="btc-card__title">24h Price</div>
     <div class="btc-card__value">$<span data-val>—</span></div>
-
-    <!-- SVG sparkline (matches your CSS) -->
-    <svg class="btc-spark" viewBox="0 0 240 38" preserveAspectRatio="none" aria-hidden="true">
-      <path class="grid" d="M0 19 H240"></path>
-      <path class="fill" d=""></path>
-      <path class="line" d=""></path>
-    </svg>
-
     <div class="btc-card__sub"><span data-sub>—</span></div>
   </div>
 
@@ -37,14 +30,6 @@
   <div class="btc-card" id="btc-24hvolume">
     <div class="btc-card__title">24h Volume</div>
     <div class="btc-card__value"><span data-val>—</span></div>
-
-    <!-- SVG sparkline (matches your CSS) -->
-    <svg class="btc-spark" viewBox="0 0 240 38" preserveAspectRatio="none" aria-hidden="true">
-      <path class="grid" d="M0 19 H240"></path>
-      <path class="fill" d=""></path>
-      <path class="line" d=""></path>
-    </svg>
-
     <div class="btc-card__sub"><span data-sub>USD</span></div>
   </div>
 
@@ -55,18 +40,39 @@
     <div class="btc-card__sub"><span data-sub>EH/s</span></div>
   </div>
 
-  <!-- 5) nodecount -->
+  <!-- 5) nodecount (summary) -->
   <div class="btc-card" id="btc-nodecount">
-    <div class="btc-card__title">Node Count</div>
+    <div class="btc-card__title">Nodes</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>reachable</span></div>
   </div>
 
-  <!-- 6) LN stats -->
+  <!-- 5b) node breakdown by nation (top list) -->
+  <div class="btc-card" id="btc-nodes-nations">
+    <div class="btc-card__title">Nodes by Nation</div>
+    <div class="btc-kv">
+      <div class="btc-kv__row"><span class="k">total</span><span class="v" data-total>—</span></div>
+      <div class="btc-kv__row"><span class="k">reachable</span><span class="v" data-reachable>—</span></div>
+      <div class="btc-kv__row"><span class="k">unreachable</span><span class="v" data-unreachable>—</span></div>
+    </div>
+    <div class="btc-mini-list" aria-live="polite"></div>
+  </div>
+
+  <!-- 6) LN stats (summary) -->
   <div class="btc-card" id="btc-lnstats">
     <div class="btc-card__title">Lightning</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>capacity</span></div>
+  </div>
+
+  <!-- 6b) LN detail -->
+  <div class="btc-card" id="btc-ln-detail">
+    <div class="btc-card__title">LN Detail</div>
+    <div class="btc-kv">
+      <div class="btc-kv__row"><span class="k">capacity</span><span class="v" data-cap>—</span></div>
+      <div class="btc-kv__row"><span class="k">nodes</span><span class="v" data-nodes>—</span></div>
+      <div class="btc-kv__row"><span class="k">channels</span><span class="v" data-chans>—</span></div>
+    </div>
   </div>
 
   <!-- 7) mempool stats -->
@@ -83,18 +89,33 @@
     <div class="btc-card__sub"><span data-sub>sat/vB</span></div>
   </div>
 
-  <!-- 9) block height clock -->
+  <!-- 9) block tip -->
   <div class="btc-card" id="btc-tip">
     <div class="btc-card__title">Tip</div>
     <div class="btc-card__value"><span data-val>—</span></div>
     <div class="btc-card__sub"><span data-sub>height</span></div>
   </div>
 
-  <!-- 10) clock drift between blocks -->
+  <!-- 10) clock drift -->
   <div class="btc-card" id="btc-clockdrift">
     <div class="btc-card__title">Clock Drift</div>
     <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>vs tip</span></div>
+    <div class="btc-card__sub"><span data-sub>vs last block</span></div>
+  </div>
+
+  <!-- 10b) mempool goggles frame (cropped iframe) -->
+  <div class="btc-card btc-frame" id="btc-goggles">
+    <div class="btc-card__title">Mempool Goggles</div>
+    <div class="btc-frame__viewport">
+      <iframe
+        class="btc-frame__iframe"
+        title="Mempool.space goggles"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      ></iframe>
+    </div>
+    <div class="btc-card__sub"><span data-sub>live</span></div>
   </div>
 
   <!-- 11) intel -->
@@ -114,4 +135,5 @@
       <a data-link href="https://nakamotoinstitute.org/quotes/" target="_blank" rel="noopener noreferrer">source</a>
     </div>
   </div>
+
 </div>
