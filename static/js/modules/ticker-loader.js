@@ -1,9 +1,5 @@
 // static/js/modules/ticker-loader.js
-// ROLLBACK: mounts the classic single-file widget rail again.
-// - prefix-aware
-// - injects /__partials/bitcoin-ticker-widget.css once
-// - mounts /__partials/bitcoin-ticker-widget.html into #btc-ticker only
-// - loads /__partials/bitcoin-ticker-widget.js once
+// Loads the HUD shell (runtime.html) + core css + runtime.js into #btc-ticker (prefix-aware)
 
 (function () {
   const W = window;
@@ -26,9 +22,9 @@
   function hrefs() {
     const prefix = getPrefix();
     return {
-      CSS_HREF: join(prefix, "/__partials/bitcoin-ticker-widget.css"),
-      HTML_HREF: join(prefix, "/__partials/bitcoin-ticker-widget.html"),
-      JS_SRC:   join(prefix, "/__partials/bitcoin-ticker-widget.js"),
+      CSS_HREF: join(prefix, "/__partials/widgets/_core/widget-core.css"),
+      HTML_HREF: join(prefix, "/__partials/widgets/runtime.html"),
+      JS_SRC: join(prefix, "/__partials/widgets/runtime.js"),
     };
   }
 
@@ -50,7 +46,7 @@
     document.body.appendChild(s);
   }
 
-  async function mountHTML(htmlHref, jsSrc) {
+  async function loadHTMLIntoMount(htmlHref, jsSrc) {
     const container = document.getElementById("ticker-container");
     const mount = document.getElementById("btc-ticker");
     if (!container || !mount) return false;
@@ -65,7 +61,7 @@
 
     try {
       const r = await fetch(htmlHref, { cache: "no-store" });
-      if (!r.ok) throw new Error(`widget html HTTP ${r.status}`);
+      if (!r.ok) throw new Error(`runtime shell html HTTP ${r.status}`);
       mount.innerHTML = await r.text();
       container.dataset.tickerLoaded = "1";
       ensureJS(jsSrc);
@@ -81,8 +77,10 @@
   async function tryBootOnce() {
     const { CSS_HREF, HTML_HREF, JS_SRC } = hrefs();
     ensureCSS(CSS_HREF);
+
     try {
-      return await mountHTML(HTML_HREF, JS_SRC);
+      const ok = await loadHTMLIntoMount(HTML_HREF, JS_SRC);
+      return !!ok;
     } catch (e) {
       console.warn("Ticker loader error:", e);
       const container = document.getElementById("ticker-container");
@@ -91,7 +89,9 @@
     }
   }
 
-  function startWatching() {
+  function startWatchingForMount() {
+    if (mo) return;
+
     if (!retryTimer) {
       retryTimer = setInterval(async () => {
         const ok = await tryBootOnce();
@@ -99,13 +99,11 @@
       }, 700);
     }
 
-    if (!mo) {
-      mo = new MutationObserver(async () => {
-        const ok = await tryBootOnce();
-        if (ok) stopWatching();
-      });
-      mo.observe(document.documentElement, { childList: true, subtree: true });
-    }
+    mo = new MutationObserver(async () => {
+      const ok = await tryBootOnce();
+      if (ok) stopWatching();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   function stopWatching() {
@@ -115,7 +113,7 @@
 
   async function boot() {
     const ok = await tryBootOnce();
-    if (!ok) startWatching();
+    if (!ok) startWatchingForMount();
   }
 
   if (document.readyState === "loading") {
