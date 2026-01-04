@@ -1,54 +1,93 @@
 // __partials/widgets/_core/widget-core.js
 (function () {
-  const W = window;
+  if (window.ZZXWidgetsCore) return;
 
   function getPrefix() {
-    return (typeof W.ZZX?.PREFIX === "string" && W.ZZX.PREFIX.length) ? W.ZZX.PREFIX : ".";
+    const p = window.ZZX?.PREFIX;
+    return (typeof p === "string" && p.length) ? p : ".";
   }
 
   function join(prefix, path) {
-    // If no leading slash, leave as-is.
     if (!path) return path;
+    if (prefix === "/" || path.startsWith("http://") || path.startsWith("https://")) return path;
     if (!path.startsWith("/")) return path;
-
-    // If hosted at root, absolute is already correct.
-    if (prefix === "/" || prefix === "") return path;
-
-    // Prefix + absolute
     return prefix.replace(/\/+$/, "") + path;
   }
 
-  async function fetchText(url) {
+  async function jget(url) {
     const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return await r.text();
-  }
-
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
     return await r.json();
   }
-
-  async function fetchAllOriginsText(targetUrl) {
-    const ao = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-    const r = await fetch(ao, { cache: "no-store" });
-    if (!r.ok) throw new Error(`AllOrigins HTTP ${r.status}`);
+  async function tget(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
     return await r.text();
   }
 
-  function htmlToFragment(html) {
-    const t = document.createElement("template");
-    t.innerHTML = html;
-    return t.content;
+  function fmtBig(n) {
+    if (!Number.isFinite(n)) return "—";
+    const abs = Math.abs(n);
+    const sign = n < 0 ? "-" : "";
+    if (abs >= 1e12) return sign + (abs / 1e12).toFixed(2) + "T";
+    if (abs >= 1e9)  return sign + (abs / 1e9).toFixed(2) + "B";
+    if (abs >= 1e6)  return sign + (abs / 1e6).toFixed(2) + "M";
+    if (abs >= 1e3)  return sign + (abs / 1e3).toFixed(2) + "K";
+    return sign + abs.toFixed(2);
   }
 
-  W.ZZXWidgetsCore = {
+  function fmtUSD(n) {
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  const api = {
     getPrefix,
     join,
-    fetchText,
-    fetchJSON,
-    fetchAllOriginsText,
-    htmlToFragment
+    jget,
+    tget,
+    fmtBig,
+    fmtUSD,
+
+    widgetBase(id) {
+      return join(getPrefix(), `/__partials/widgets/${id}`);
+    },
+
+    async fetchWidgetHTML(id) {
+      return await tget(`${this.widgetBase(id)}/widget.html`);
+    },
+    async fetchWidgetCSS(id) {
+      return await tget(`${this.widgetBase(id)}/widget.css`);
+    },
+    async fetchLocalJSON(id, filename) {
+      return await jget(`${this.widgetBase(id)}/${filename}`);
+    },
+
+    ensureStyleTag(id, cssText) {
+      const key = `style[data-zzx-widget-css="${id}"]`;
+      if (document.querySelector(key)) return;
+      const st = document.createElement("style");
+      st.setAttribute("data-zzx-widget-css", id);
+      st.textContent = cssText || "";
+      document.head.appendChild(st);
+    },
+
+    ensureScriptTag(id) {
+      const key = `script[data-zzx-widget-js="${id}"]`;
+      if (document.querySelector(key)) return;
+      const s = document.createElement("script");
+      s.src = `${this.widgetBase(id)}/widget.js`;
+      s.defer = true;
+      s.setAttribute("data-zzx-widget-js", id);
+      document.body.appendChild(s);
+    },
+
+    mountToken(el) {
+      if (!el) return "";
+      if (!el.dataset.zzxTok) el.dataset.zzxTok = String(Date.now() + Math.random());
+      return el.dataset.zzxTok;
+    }
   };
+
+  window.ZZXWidgetsCore = api;
 })();
