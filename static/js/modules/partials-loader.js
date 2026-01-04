@@ -11,7 +11,7 @@
     "/" // final attempt: site root (only works if hosted at domain root)
   ];
 
-  // ---------- small event so other loaders (ticker-loader) can react immediately ----------
+  // Emit readiness so other modules (ticker-loader) can react immediately
   function emitReady(prefix) {
     try {
       window.dispatchEvent(new CustomEvent("zzx:partials-ready", { detail: { prefix } }));
@@ -44,13 +44,12 @@
     if (cached) {
       const ok = await probe(join(cached, PARTIALS_DIR, "header/header.html"));
       if (ok) return cached;
-      sessionStorage.removeItem("zzx.partials.prefix");
+      try { sessionStorage.removeItem("zzx.partials.prefix"); } catch (_) {}
     }
-    // recompute:
     for (const p of PATHS) {
       const url = join(p, PARTIALS_DIR, "header/header.html");
       if (await probe(url)) {
-        sessionStorage.setItem("zzx.partials.prefix", p);
+        try { sessionStorage.setItem("zzx.partials.prefix", p); } catch (_) {}
         return p;
       }
     }
@@ -58,7 +57,8 @@
   }
 
   async function findPrefix() {
-    const cached = sessionStorage.getItem("zzx.partials.prefix");
+    let cached = null;
+    try { cached = sessionStorage.getItem("zzx.partials.prefix"); } catch (_) { cached = null; }
     return await validateOrRecomputePrefix(cached);
   }
 
@@ -82,7 +82,6 @@
     rewriteAttr("href");
     rewriteAttr("src");
     rewriteAttr("poster");
-    // if you ever use data-src lazyload patterns:
     rewriteAttr("data-src");
     rewriteAttr("data-href");
   }
@@ -159,6 +158,10 @@
 
     // Make prefix available ASAP for other modules (ticker-loader, widgets runtime, etc.)
     window.ZZX = Object.assign({}, window.ZZX || {}, { PREFIX: prefix });
+
+    // Optional: also expose as an attribute for debugging
+    try { document.documentElement.setAttribute("data-zzx-prefix", prefix); } catch (_) {}
+
     emitReady(prefix);
 
     // Ensure header/footer host nodes exist
