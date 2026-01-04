@@ -105,3 +105,52 @@
 .btc-news__src{ font-family:'AdultSwimFont','IBMPlexMono',monospace; font-size:.85rem; color:#e6a42b; }
 .btc-news__item a{ color:#c0d674; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .btc-news__item a:hover{ color:#e6a42b; text-decoration:underline; }
+
+/* Handle defaults */
+.zzx-hud-handle{
+  position: sticky;
+  top: .35rem;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  margin: .25rem auto;
+  width: 100%;
+  pointer-events: none; /* only the button is clickable */
+}
+
+.zzx-hud-handle .zzx-hud-show{
+  pointer-events: auto;
+  background: #0b0b0b;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: .35rem .7rem;
+  color: #c0d674;
+  font-family: IBMPlexMono, ui-monospace, monospace;
+  cursor: pointer;
+}
+
+.zzx-hud-handle .zzx-hud-show:hover{
+  border-color: #e6a42b;
+  color: #e6a42b;
+}
+
+/* Hidden mode: hide ONLY the hud root, show ONLY the handle */
+[data-hud-state="hidden"] [data-hud-root] { display: none !important; }
+[data-hud-state="hidden"] .zzx-hud-handle { display: flex !important; }
+[data-hud-state="hidden"] .zzx-hud-handle[hidden] { display: flex !important; }
+
+/* Non-hidden modes: handle stays hidden */
+[data-hud-state="full"] .zzx-hud-handle,
+[data-hud-state="ticker-only"] .zzx-hud-handle { display: none !important; }
+
+/* ticker-only: show only ticker widget inside root (adapt selector to your runtime) */
+/* If you're still using the monolithic rail, just hide all cards except .ticker-shell */
+[data-hud-state="ticker-only"] .btc-rail .btc-card,
+[data-hud-state="ticker-only"] .btc-rail .btc-goggles,
+[data-hud-state="ticker-only"] .btc-rail .btc-intel,
+[data-hud-state="ticker-only"] .btc-rail .btc-quote {
+  display: none !important;
+}
+[data-hud-state="ticker-only"] .btc-rail .ticker-shell{
+  display: inline-block !important;
+}
