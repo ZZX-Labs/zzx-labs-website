@@ -1,66 +1,57 @@
 // __partials/widgets/_core/widget-core.js
+// Minimal core helpers + widget loader utilities.
+
 (function () {
-  const W = window;
+  if (window.ZZXWidgetsCore) return;
 
-  function getPrefix() {
-    const p = W.ZZX?.PREFIX;
-    return (typeof p === "string" && p.length) ? p : ".";
-  }
+  const Core = {
+    qs(sel, root = document) { return root.querySelector(sel); },
+    qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); },
 
-  function join(prefix, path) {
-    if (!path) return path;
-    if (prefix === "/" || /^https?:\/\//.test(path)) return path;
-    if (!path.startsWith("/")) return path;
-    return prefix.replace(/\/+$/, "") + path;
-  }
+    join(prefix, path) {
+      if (!path) return path;
+      if (prefix === "/" || /^https?:\/\//i.test(path)) return path;
+      if (!path.startsWith("/")) return path;
+      return String(prefix || ".").replace(/\/+$/, "") + path;
+    },
 
-  function onceTag(selector) {
-    return !!document.querySelector(selector);
-  }
+    getPrefix() {
+      const p = window.ZZX?.PREFIX;
+      return (typeof p === "string" && p.length) ? p : ".";
+    },
 
-  function ensureCSS(href, key) {
-    const sel = `link[data-zzx-css="${key}"]`;
-    if (onceTag(sel)) return;
-    const l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = href;
-    l.setAttribute("data-zzx-css", key);
-    document.head.appendChild(l);
-  }
+    async fetchText(url) {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return await r.text();
+    },
 
-  function ensureJS(src, key) {
-    const sel = `script[data-zzx-js="${key}"]`;
-    if (onceTag(sel)) return;
-    const s = document.createElement("script");
-    s.src = src;
-    s.defer = true;
-    s.setAttribute("data-zzx-js", key);
-    document.body.appendChild(s);
-  }
+    async fetchJSON(url) {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return await r.json();
+    },
 
-  async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return await r.text();
-  }
+    ensureCSS(href, key) {
+      const attr = `data-zzx-css-${key}`;
+      if (document.querySelector(`link[${attr}="1"]`)) return;
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = href;
+      l.setAttribute(attr, "1");
+      document.head.appendChild(l);
+    },
 
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return await r.json();
-  }
+    ensureJS(src, key) {
+      const attr = `data-zzx-js-${key}`;
+      if (document.querySelector(`script[${attr}="1"]`)) return;
+      const s = document.createElement("script");
+      s.src = src;
+      s.defer = true;
+      s.setAttribute(attr, "1");
+      document.body.appendChild(s);
+    }
+  };
 
-  function qs(sel, root = document) { return root.querySelector(sel); }
-  function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
-
-  W.ZZXWidgetsCore = Object.assign({}, W.ZZXWidgetsCore || {}, {
-    getPrefix,
-    join,
-    ensureCSS,
-    ensureJS,
-    fetchText,
-    fetchJSON,
-    qs,
-    qsa,
-  });
+  window.ZZXWidgetsCore = Core;
 })();
