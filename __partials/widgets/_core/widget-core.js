@@ -1,81 +1,21 @@
 // __partials/widgets/_core/widget-core.js
-// DROP-IN REPLACEMENT — fixes “widgets render but never load data”
-// Root cause: many widget.js files bind on DOMContentLoaded. When we load them *after*
-// DOMContentLoaded has already fired (because runtime mounts them later), their boot
-// never runs. This file patches that safely: any *late* DOMContentLoaded listeners
-// fire immediately (next tick) when the DOM is already ready.
-//
-// This avoids editing every widget.
+// DROP-IN REPLACEMENT (single-file fix)
+// Fixes “widgets render but never load data” by:
+//  1) Making late-registered DOMContentLoaded/load listeners fire immediately
+//     (many widget.js files bind on DOMContentLoaded and were being injected AFTER it fired)
+//  2) Prefix-rewriting SAME-ORIGIN absolute fetches ("/static/...", "/api/...", "/__partials/...")
+//     so GH Pages / subpath hosting works without editing every widget
+//  3) Keeping back-compat API: window.ZZXWidgetsCore.{qs,qsa,fetchJSON,fetchText,ensureCSS,ensureJS,mountWidget,mountAll,...}
 
-/* eslint-disable no-console */
 (function () {
   const W = window;
 
   // Prevent double-definition across reinjections
   if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__version) return;
 
-  // ---------------------------------------------------------------------------
-  // 0) DOMContentLoaded late-listener patch (the critical fix)
-  // ---------------------------------------------------------------------------
-  (function patchDOMContentLoadedOnce() {
-    if (W.__ZZX_PATCHED_DOMCONTENTLOADED) return;
-    W.__ZZX_PATCHED_DOMCONTENTLOADED = true;
-
-    function isDOMReady() {
-      return document.readyState !== "loading";
-    }
-
-    // Store originals
-    const origDocAdd = document.addEventListener.bind(document);
-    const origWinAdd = W.addEventListener.bind(W);
-
-    // Wrap document.addEventListener
-    document.addEventListener = function (type, listener, options) {
-      // If someone registers DOMContentLoaded after it already fired, run it ASAP.
-      if (
-        type === "DOMContentLoaded" &&
-        typeof listener === "function" &&
-        isDOMReady()
-      ) {
-        // Preserve async semantics (don’t run inline)
-        Promise.resolve().then(() => {
-          try {
-            // Event object is optional in most handlers; give a real one anyway.
-            listener.call(document, new Event("DOMContentLoaded"));
-          } catch (e) {
-            console.warn("[ZZXWidgetsCore] DOMContentLoaded late-listener error:", e);
-          }
-        });
-        // Still register it (harmless) in case some code expects it to exist.
-        // But avoid double-calls by registering a noop wrapper.
-        return origDocAdd(type, function () {}, options);
-      }
-      return origDocAdd(type, listener, options);
-    };
-
-    // Wrap window.addEventListener (some widgets attach to window instead)
-    W.addEventListener = function (type, listener, options) {
-      if (
-        type === "DOMContentLoaded" &&
-        typeof listener === "function" &&
-        isDOMReady()
-      ) {
-        Promise.resolve().then(() => {
-          try {
-            listener.call(W, new Event("DOMContentLoaded"));
-          } catch (e) {
-            console.warn("[ZZXWidgetsCore] window DOMContentLoaded late-listener error:", e);
-          }
-        });
-        return origWinAdd(type, function () {}, options);
-      }
-      return origWinAdd(type, listener, options);
-    };
-  })();
-
-  // ---------------------------------------------------------------------------
-  // 1) Prefix + URL helpers (prefix-aware from any depth)
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // Prefix + URL helpers
+  // ----------------------------
   function getPrefix() {
     // partials-loader sets window.ZZX.PREFIX = '.' | '..' | ... | '/'
     const p = W.ZZX && typeof W.ZZX.PREFIX === "string" ? W.ZZX.PREFIX : ".";
@@ -83,17 +23,17 @@
   }
 
   function join(prefix, absPath) {
-    // absPath should start with "/" (site-absolute)
     if (!absPath) return absPath;
     if (/^https?:\/\//i.test(absPath)) return absPath;
     if (prefix === "/") return absPath; // hosted at domain root
-    if (!absPath.startsWith("/")) return absPath; // already relative
-    return prefix.replace(/\/+$/, "") + absPath;
+    if (!String(absPath).startsWith("/")) return absPath; // already relative
+    return String(prefix).replace(/\/+$/, "") + absPath;
   }
 
   function widgetBase(widgetId) {
     return `/__partials/widgets/${widgetId}`;
   }
+
   function hrefWidgetHTML(widgetId) {
     return join(getPrefix(), `${widgetBase(widgetId)}/widget.html`);
   }
@@ -103,15 +43,92 @@
   function hrefWidgetJS(widgetId) {
     return join(getPrefix(), `${widgetBase(widgetId)}/widget.js`);
   }
-  function hrefWidgetData(widgetId, filename) {
-    // convenience for widgets that keep JSON beside them:
-    // Core.hrefWidgetData("btc-lost", "btc-lost.json")
-    return join(getPrefix(), `${widgetBase(widgetId)}/${filename}`);
-  }
 
-  // ---------------------------------------------------------------------------
-  // 2) Fetch helpers
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // (1) Late DOM events shim (THE big fix)
+  // ----------------------------
+  // Many of your widget scripts do:
+  //   document.addEventListener("DOMContentLoaded", boot)
+  // but runtime injects widget.js AFTER DOMContentLoaded already fired.
+  // Solution: if DOM is already ready, immediately invoke those callbacks.
+
+  (function patchLateDOMEvents() {
+    if (document.__zzx_patched_dom_events) return;
+    document.__zzx_patched_dom_events = true;
+
+    const origDocAdd = document.addEventListener.bind(document);
+    const origWinAdd = window.addEventListener.bind(window);
+
+    function callSoon(fn, ctx, args) {
+      Promise.resolve().then(() => {
+        try { fn.apply(ctx, args); } catch (e) { console.warn("[ZZXWidgetsCore] listener error:", e); }
+      });
+    }
+
+    // Patch document.addEventListener
+    document.addEventListener = function (type, listener, options) {
+      // Always register normally first (so removeEventListener still works)
+      origDocAdd(type, listener, options);
+
+      // If DOMContentLoaded already passed, fire listener ASAP.
+      if (type === "DOMContentLoaded" && document.readyState !== "loading") {
+        // Respect { once:true } by calling once and leaving native registration in place.
+        // (Native once would have removed it, but event won't fire again anyway.)
+        if (typeof listener === "function") callSoon(listener, document, [new Event("DOMContentLoaded")]);
+        else if (listener && typeof listener.handleEvent === "function") callSoon(listener.handleEvent, listener, [new Event("DOMContentLoaded")]);
+      }
+    };
+
+    // Patch window.addEventListener for "load" (some widgets use it)
+    window.addEventListener = function (type, listener, options) {
+      origWinAdd(type, listener, options);
+
+      if (type === "load" && document.readyState === "complete") {
+        if (typeof listener === "function") callSoon(listener, window, [new Event("load")]);
+        else if (listener && typeof listener.handleEvent === "function") callSoon(listener.handleEvent, listener, [new Event("load")]);
+      }
+    };
+  })();
+
+  // ----------------------------
+  // (2) Prefix-rewrite SAME-ORIGIN absolute fetches
+  // ----------------------------
+  // If site is served from /<repo>/ (GH Pages), fetch("/static/...") hits domain root and 404s.
+  // We rewrite ONLY string URLs that begin with "/" and are not already prefixed.
+
+  (function patchFetch() {
+    if (W.__zzx_fetch_patched) return;
+    W.__zzx_fetch_patched = true;
+
+    const origFetch = W.fetch.bind(W);
+
+    function rewriteUrl(input) {
+      if (typeof input !== "string") return input;
+      if (!input.startsWith("/")) return input;
+      // If already prefixed (e.g., "./static/..."), leave it.
+      const prefix = getPrefix();
+      if (prefix === "/") return input;
+
+      // Avoid double-prefix:
+      const normalizedPrefix = String(prefix).replace(/\/+$/, "");
+      if (normalizedPrefix && input.startsWith(normalizedPrefix + "/")) return input;
+
+      return normalizedPrefix + input;
+    }
+
+    W.fetch = function (input, init) {
+      try {
+        const rewritten = rewriteUrl(input);
+        return origFetch(rewritten, init);
+      } catch (e) {
+        return origFetch(input, init);
+      }
+    };
+  })();
+
+  // ----------------------------
+  // Fetch helpers (widgets often use these)
+  // ----------------------------
   async function fetchText(url, opts = {}) {
     const r = await fetch(url, { cache: "no-store", ...opts });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
@@ -124,9 +141,9 @@
     return await r.json();
   }
 
-  // ---------------------------------------------------------------------------
-  // 3) DOM helpers (scoped)
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // DOM helpers (scoped)
+  // ----------------------------
   function qs(sel, scope) {
     return (scope || document).querySelector(sel);
   }
@@ -134,9 +151,9 @@
     return Array.from((scope || document).querySelectorAll(sel));
   }
 
-  // ---------------------------------------------------------------------------
-  // 4) Asset injectors (deduped)
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // Asset injectors (deduped)
+  // ----------------------------
   function ensureCSS(href, key) {
     const attr = `data-zzx-css-${key}`;
     if (document.querySelector(`link[${attr}="1"]`)) return;
@@ -152,9 +169,12 @@
     if (document.querySelector(`script[${attr}="1"]`)) return Promise.resolve(true);
 
     return new Promise((resolve, reject) => {
+      // IMPORTANT: do NOT rely on defer/DOMContentLoaded timing.
+      // Dynamic scripts execute immediately when appended; our DOMContentLoaded shim
+      // ensures widget handlers still fire if they register late.
       const s = document.createElement("script");
       s.src = src;
-      s.defer = true;
+      s.async = true; // load ASAP
       s.setAttribute(attr, "1");
       s.onload = () => resolve(true);
       s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
@@ -162,14 +182,14 @@
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // 5) Widget mounting (slot stays, root mounts inside)
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // Widget mounting
+  // ----------------------------
   function mkWidgetRoot(widgetId) {
     const root = document.createElement("div");
     root.className = "zzx-widget";
     root.setAttribute("data-widget-id", widgetId);
-    // Back-compat marker some widgets use:
+    // Back-compat for scripts that use data-widget-root="..."
     root.setAttribute("data-widget-root", widgetId);
     return root;
   }
@@ -202,19 +222,21 @@
     slotEl.dataset.loading = "1";
 
     try {
-      // CSS first (safe even if widget.css is empty)
+      // CSS first (safe even if empty file)
       ensureCSS(hrefWidgetCSS(widgetId), widgetId);
 
-      // HTML next
+      // HTML mount next
       const html = await fetchText(hrefWidgetHTML(widgetId));
       const root = mkWidgetRoot(widgetId);
       root.innerHTML = html;
+
+      // Keep slot stable; replace children only
       slotEl.replaceChildren(root);
 
-      // JS last (after DOM exists)
+      // JS last
       await ensureJS(hrefWidgetJS(widgetId), widgetId);
 
-      // Optional init hook (if any widget uses it)
+      // Optional init hook (if you ever add it)
       try {
         const initMap = W.ZZXWidgetInit;
         if (initMap && typeof initMap === "object" && typeof initMap[widgetId] === "function") {
@@ -234,22 +256,11 @@
   }
 
   async function mountAll(scope = document, { force = false } = {}) {
-    // Supports both patterns:
-    // 1) old:  <div class="btc-slot" data-widget="nodes"></div>
-    // 2) new:  <div data-widget-slot="nodes"></div>
-    const slotsA = qsa(".btc-slot[data-widget]", scope);
-    const slotsB = qsa("[data-widget-slot]", scope);
-
+    const slots = qsa(".btc-slot[data-widget]", scope);
     const tasks = [];
 
-    for (const slot of slotsA) {
+    for (const slot of slots) {
       const id = slot.getAttribute("data-widget");
-      if (!id) continue;
-      tasks.push(mountWidget(id, slot, { force }));
-    }
-
-    for (const slot of slotsB) {
-      const id = slot.getAttribute("data-widget-slot");
       if (!id) continue;
       tasks.push(mountWidget(id, slot, { force }));
     }
@@ -257,11 +268,11 @@
     return await Promise.allSettled(tasks);
   }
 
-  // ---------------------------------------------------------------------------
-  // 6) Public Core API (back-compat with existing widgets)
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // Public Core API
+  // ----------------------------
   W.ZZXWidgetsCore = {
-    __version: "1.1.0-dropin",
+    __version: "1.0.1-dropin",
 
     // prefix + url helpers
     getPrefix,
@@ -288,6 +299,5 @@
     hrefWidgetHTML,
     hrefWidgetCSS,
     hrefWidgetJS,
-    hrefWidgetData,
   };
 })();
