@@ -2,15 +2,14 @@
   const ID = "btc-halving-suite";
   const MEMPOOL = "https://mempool.space/api";
 
+  const HALVING_INTERVAL = 210000;
+  const INITIAL_REWARD = 50;     // BTC
+  const MAX_SUPPLY = 21000000;   // BTC
+
   function fmtBTC(x){
     if (!Number.isFinite(x)) return "—";
     return x.toLocaleString(undefined, { maximumFractionDigits: 8 });
   }
-
-  // Consensus constants
-  const HALVING_INTERVAL = 210000;
-  const INITIAL_REWARD = 50; // BTC
-  const MAX_SUPPLY = 21000000;
 
   function rewardAtHeight(height){
     const era = Math.floor(height / HALVING_INTERVAL);
@@ -18,17 +17,16 @@
   }
 
   function totalMinedAtHeight(height){
-    // Sum rewards for all full eras + partial current era
-    let remaining = height; // blocks already mined (roughly)
+    let remainingBlocks = height; // mined blocks up to tip height
     let era = 0;
     let total = 0;
 
-    while (remaining > 0) {
-      const blocksThisEra = Math.min(remaining, HALVING_INTERVAL);
+    while (remainingBlocks > 0) {
+      const blocksThisEra = Math.min(remainingBlocks, HALVING_INTERVAL);
       const r = INITIAL_REWARD / Math.pow(2, era);
       if (r <= 0) break;
       total += blocksThisEra * r;
-      remaining -= blocksThisEra;
+      remainingBlocks -= blocksThisEra;
       era++;
     }
     return total;
@@ -42,12 +40,12 @@
     async init({ root, core }) {
       this._root = root;
       this._core = core;
-      await this.update();
+      await this.update(true);
     },
 
-    async update() {
+    async update(force=false) {
       const now = Date.now();
-      if (now - this._last < 15_000) return;
+      if (!force && now - this._last < 15_000) return;
       this._last = now;
 
       const tipEl = this._root.querySelector("[data-tip]");
@@ -76,10 +74,14 @@
         if (remEl) remEl.textContent = `${fmtBTC(remain)} BTC`;
       } catch {
         if (tipEl) tipEl.textContent = "—";
+        if (rEl) rEl.textContent = "—";
+        if (hEl) hEl.textContent = "—";
+        if (mEl) mEl.textContent = "—";
+        if (remEl) remEl.textContent = "—";
       }
     },
 
-    tick() { this.update(); },
+    tick() { this.update(false); },
     destroy() {}
   });
 })();
