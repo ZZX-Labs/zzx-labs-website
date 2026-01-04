@@ -1,53 +1,71 @@
-/* __partials/widgets/_core/widget-core.css */
-/* global-ish but safe: only scopes under [data-hud-root] and .zzx-widgets */
+/* __partials/widgets/_core/widget-core.css
+   Core HUD + widget card styling.
+   IMPORTANT: This version intentionally DOES NOT @font-face load any custom fonts.
+   Reason: your console shows the IBM Plex Mono webfont URLs failing + TTF sanitizer rejects,
+   which spams errors and can stall first paint on some browsers.
+   Once your server serves .woff2/.woff with correct MIME + CORS, we can re-enable @font-face.
+*/
 
-@font-face {
-  font-family: 'AdultSwimFont';
-  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'IBMPlexMono';
-  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-  font-display: swap;
+/* -----------------------------
+   Typography + theme tokens
+------------------------------ */
+:root{
+  --zzx-accent: #c0d674;
+  --zzx-accent-alt: #e6a42b;
+  --zzx-bg: #0b0b0b;
+  --zzx-border: rgba(255,255,255,.14);
+  --zzx-border-strong: #2a2a2a;
+  --zzx-shadow: 0 6px 18px rgba(0,0,0,.25);
+
+  /* System-first stacks (no network fetches) */
+  --zzx-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  --zzx-font-title: var(--zzx-font-mono);
+
+  /* Layout rail width (your site already uses --header-rail) */
+  --zzx-rail: min(var(--header-rail, 1100px), 100%);
 }
 
-/* Handle is ALWAYS visible */
+/* -----------------------------
+   HUD handle (ALWAYS visible)
+------------------------------ */
 .zzx-hud-handle{
   width:100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
+  max-width: var(--zzx-rail);
   margin:.35rem auto 0;
   padding-inline:.5rem;
   box-sizing:border-box;
   display:flex;
   justify-content:center;
 }
+
 .zzx-hud-show{
   background:#000;
-  color:#c0d674;
+  color:var(--zzx-accent);
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
   padding:.35rem .65rem;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family:var(--zzx-font-mono);
   cursor:pointer;
 }
-.zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
+.zzx-hud-show:hover{ border-color:var(--zzx-accent-alt); color:var(--zzx-accent-alt); }
 
-/* HUD root wrapper */
+/* -----------------------------
+   HUD root wrapper
+------------------------------ */
 [data-hud-root]{
   width:100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
+  max-width: var(--zzx-rail);
   margin:.45rem auto;
   padding-inline:.5rem;
   box-sizing:border-box;
 }
 
-/* Hide modes: do NOT delete the handle */
-[data-hud-root][data-hud-state="hidden"]{
-  display:none;
-}
+/* Hide mode: do NOT delete the handle */
+[data-hud-root][data-hud-state="hidden"]{ display:none; }
 
-/* Runtime bar (SINGLE BAR) */
+/* -----------------------------
+   Runtime bar (SINGLE BAR)
+------------------------------ */
 .zzx-widgets__bar{
   display:flex;
   align-items:center;
@@ -55,25 +73,31 @@
   flex-wrap:wrap;
   justify-content:center;
   padding:.35rem .45rem;
-  background:#0b0b0b;
+  background:var(--zzx-bg);
   border:1px solid rgba(255,255,255,.10);
   border-radius:10px;
   margin-bottom:.5rem;
 }
 
 .zzx-widgets__btn{
-  background:#0b0b0b;
-  color:#c0d674;
-  border:1px solid rgba(255,255,255,.14);
+  background:var(--zzx-bg);
+  color:var(--zzx-accent);
+  border:1px solid var(--zzx-border);
   border-radius:10px;
   padding:.35rem .55rem;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family:var(--zzx-font-mono);
   cursor:pointer;
 }
-.zzx-widgets__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
+.zzx-widgets__btn:hover{ border-color:var(--zzx-accent-alt); color:var(--zzx-accent-alt); }
+
 .zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
 
-/* Rail */
+/* -----------------------------
+   Rail: responsive columns
+   - Ticker = full width (1 column)
+   - Middle widgets = 2-up mobile, 4-up desktop
+   - Last widget (choose IDs below) = full width (1 column)
+------------------------------ */
 .zzx-widgets__rail{
   display:flex;
   flex-wrap:wrap;
@@ -83,39 +107,79 @@
   width:100%;
 }
 
-/* Card base — supports both .zzx-card and .btc-card without forcing changes */
-.zzx-card, .btc-card{
-  background:#0b0b0b;
-  border:1px solid #2a2a2a;
-  border-radius:10px;
-  box-shadow:0 6px 18px rgba(0,0,0,.25);
-  padding:.55rem .65rem;
-  min-width:220px;
-  flex:1 1 240px;
-  max-width:360px;
-  color:#c0d674;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+/* Slot defaults: 2 columns on small screens */
+.zzx-widgets__rail > [data-widget-slot]{
+  display:block;
+  box-sizing:border-box;
+  flex: 1 1 calc(50% - .6rem);
+  min-width: 260px;     /* prevents tiny cards */
+  max-width: 420px;     /* keeps punchy card width */
 }
 
-/* Common title/value/sub helpers (won't break existing widget markup) */
+/* 4 columns on wider screens */
+@media (min-width: 980px){
+  .zzx-widgets__rail > [data-widget-slot]{
+    flex: 1 1 calc(25% - .6rem);
+    max-width: 360px;
+  }
+}
+
+/* Ticker is always full width (1 column) */
+.zzx-widgets__rail > [data-widget-slot="bitcoin-ticker"]{
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+}
+
+/* LAST widget full width (pick the actual last widget id(s) you use)
+   - If your true last widget is different, change these selectors ONLY. */
+.zzx-widgets__rail > :is(
+  [data-widget-slot="btc-lost"],
+  [data-widget-slot="bitrng"]
+){
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+}
+
+/* -----------------------------
+   Card base — supports both .zzx-card and .btc-card without forcing changes
+------------------------------ */
+.zzx-card, .btc-card{
+  background:var(--zzx-bg);
+  border:1px solid var(--zzx-border-strong);
+  border-radius:10px;
+  box-shadow:var(--zzx-shadow);
+  padding:.55rem .65rem;
+  color:var(--zzx-accent);
+  font-family:var(--zzx-font-mono);
+  width:100%;
+  box-sizing:border-box;
+}
+
+/* Common title/value/sub helpers */
 .zzx-card__title, .btc-card__title{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
-  color:#e6a42b;
+  font-family:var(--zzx-font-title);
+  color:var(--zzx-accent-alt);
   font-size:1rem;
   line-height:1.1;
   margin-bottom:.35rem;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .zzx-card__value, .btc-card__value{
   font-size:1.35rem;
   line-height:1.2;
   margin-bottom:.15rem;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .zzx-card__sub, .btc-card__sub{
   font-size:.95rem;
   color:#b7bf9a;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 /* ticker-only: hide everything except ticker slot */
