@@ -11,21 +11,20 @@
     "/" // final attempt: site root (only works if hosted at domain root)
   ];
 
+  // IMPORTANT:
+  // Prefix is RELATIVE to the CURRENT page depth.
+  // Caching a single prefix globally will break when navigating between depths.
+  const CACHE_KEY = (() => {
+    // Normalize index.html → directory-ish key to reduce churn
+    const p = (location.pathname || "/").replace(/\/index\.html$/i, "/");
+    return `zzx.partials.prefix:${p}`;
+  })();
+
   // Emit readiness so other modules (ticker-loader) can react immediately
   function emitReady(prefix) {
     try {
       window.dispatchEvent(new CustomEvent("zzx:partials-ready", { detail: { prefix } }));
     } catch (_) {}
-  }
-
-  // Try a URL to see if it's OK (GET, no-store) — returns true/false
-  async function probe(url) {
-    try {
-      const r = await fetch(url, { method: "GET", cache: "no-store" });
-      return r.ok;
-    } catch (_) {
-      return false;
-    }
   }
 
   // Preserve absolute root if first seg is exactly '/'
@@ -39,26 +38,53 @@
       .join("/");
   }
 
+  // Strong probe:
+  // Some hosts return a 200 HTML error page for missing assets, which makes r.ok true.
+  // So we also require that the fetched HTML contains a known marker from header.html.
+  const HEADER_PROBE_PATH = () => join(PARTIALS_DIR, "header/header.html");
+  const HEADER_MARKER = "<!-- navbar Here -->";
+
+  async function probeHeader(prefixCandidate) {
+    const url = join(prefixCandidate, HEADER_PROBE_PATH());
+    try {
+      const r = await fetch(url, { method: "GET", cache: "no-store" });
+
+      if (!r.ok) return false;
+
+      const ct = (r.headers.get("content-type") || "").toLowerCase();
+      // We expect HTML here; if the host serves something else, bail.
+      if (!ct.includes("text/html")) return false;
+
+      const text = await r.text();
+      // Must contain marker from the real header partial (not a generic 404 page).
+      return text.includes(HEADER_MARKER);
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Validate a cached prefix; if invalid, clear & recompute
   async function validateOrRecomputePrefix(cached) {
     if (cached) {
-      const ok = await probe(join(cached, PARTIALS_DIR, "header/header.html"));
+      const ok = await probeHeader(cached);
       if (ok) return cached;
-      try { sessionStorage.removeItem("zzx.partials.prefix"); } catch (_) {}
+      try { sessionStorage.removeItem(CACHE_KEY); } catch (_) {}
     }
+
     for (const p of PATHS) {
-      const url = join(p, PARTIALS_DIR, "header/header.html");
-      if (await probe(url)) {
-        try { sessionStorage.setItem("zzx.partials.prefix", p); } catch (_) {}
+      if (await probeHeader(p)) {
+        try { sessionStorage.setItem(CACHE_KEY, p); } catch (_) {}
         return p;
       }
     }
+
+    // If nothing matched, fall back to '.' (best effort)
     return ".";
   }
 
   async function findPrefix() {
     let cached = null;
-    try { cached = sessionStorage.getItem("zzx.partials.prefix"); } catch (_) { cached = null; }
+    try { cached = sessionStorage.getItem(CACHE_KEY); } catch (_) { cached = null; }
     return await validateOrRecomputePrefix(cached);
   }
 
@@ -94,10 +120,9 @@
 
   // Insert NAV into HEADER at <!-- navbar Here --> or append
   function injectNavIntoHeader(headerHTML, navHTML) {
-    const marker = "<!-- navbar Here -->";
-    if (headerHTML.includes(marker)) {
-      return headerHTML.replace(marker, navHTML);
-    }
+    const marker = HEADER_MARKER;
+    if (headerHTML.includes(marker)) return headerHTML.replace(marker, navHTML);
+
     const idx = headerHTML.lastIndexOf("</div>");
     if (idx !== -1) {
       return headerHTML.slice(0, idx) + "\n" + navHTML + "\n" + headerHTML.slice(idx);
@@ -105,22 +130,20 @@
     return headerHTML + "\n" + navHTML;
   }
 
-  // Minimal nav interactivity after injection (fallback only), mirrors sitewide behavior
+  // Minimal nav interactivity after injection (fallback only)
   function initNavUX(scope = document) {
     const toggle = scope.querySelector("#navbar-toggle");
     const links = scope.querySelector("#navbar-links");
     const body = document.body;
 
-    if (toggle && links) {
-      if (!toggle.__bound_click) {
-        toggle.__bound_click = true;
-        toggle.addEventListener("click", () => {
-          const isOpen = links.classList.toggle("open");
-          toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          links.setAttribute("aria-hidden", isOpen ? "false" : "true");
-          body.classList.toggle("no-scroll", isOpen);
-        });
-      }
+    if (toggle && links && !toggle.__bound_click) {
+      toggle.__bound_click = true;
+      toggle.addEventListener("click", () => {
+        const isOpen = links.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        links.setAttribute("aria-hidden", isOpen ? "false" : "true");
+        body.classList.toggle("no-scroll", isOpen);
+      });
     }
 
     scope.querySelectorAll(".submenu-toggle").forEach((btn) => {
@@ -150,16 +173,12 @@
 
   async function boot() {
     let prefix = ".";
-    try {
-      prefix = await findPrefix();
-    } catch (_) {
-      prefix = ".";
-    }
+    try { prefix = await findPrefix(); } catch (_) { prefix = "."; }
 
     // Make prefix available ASAP for other modules (ticker-loader, widgets runtime, etc.)
     window.ZZX = Object.assign({}, window.ZZX || {}, { PREFIX: prefix });
 
-    // Optional: also expose as an attribute for debugging
+    // Debug aid
     try { document.documentElement.setAttribute("data-zzx-prefix", prefix); } catch (_) {}
 
     emitReady(prefix);
@@ -171,6 +190,7 @@
       headerHost.id = "zzx-header";
       document.body.prepend(headerHost);
     }
+
     let footerHost = document.getElementById("zzx-footer");
     if (!footerHost) {
       footerHost = document.createElement("div");
@@ -213,7 +233,7 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
     boot();
   }
