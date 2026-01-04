@@ -1,22 +1,22 @@
 /* __partials/widgets/_core/widget-core.css */
-/* Scopes to HUD + provides compatibility aliases for older btc-* widgets */
+/* global-ish but safe: only scopes under [data-hud-root] and .zzx-widgets */
 
-@font-face{
-  font-family:'AdultSwimFont';
-  src:url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-  font-display:swap;
+@font-face {
+  font-family: 'AdultSwimFont';
+  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-display: swap;
 }
-@font-face{
-  font-family:'IBMPlexMono';
-  src:url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-  font-display:swap;
+@font-face {
+  font-family: 'IBMPlexMono';
+  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+  font-display: swap;
 }
 
-/* --- HUD recover handle --- */
+/* Handle is ALWAYS visible */
 .zzx-hud-handle{
   width:100%;
-  max-width:min(var(--header-rail,1100px),100%);
-  margin:.5rem auto;
+  max-width: min(var(--header-rail, 1100px), 100%);
+  margin:.35rem auto 0;
   padding-inline:.5rem;
   box-sizing:border-box;
   display:flex;
@@ -28,38 +28,37 @@
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
   padding:.35rem .65rem;
-  font-family:'IBMPlexMono',ui-monospace,monospace;
-  font-size:.95rem;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
   cursor:pointer;
 }
 .zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
 
-/* --- HUD root --- */
-.zzx-widgets{
+/* HUD root wrapper */
+[data-hud-root]{
   width:100%;
-  max-width:min(var(--header-rail,1100px),100%);
-  margin:.5rem auto;
+  max-width: min(var(--header-rail, 1100px), 100%);
+  margin:.45rem auto;
   padding-inline:.5rem;
   box-sizing:border-box;
-  display:grid;
-  gap:.6rem;
 }
 
-/* only hide HUD root in hidden mode */
-.zzx-widgets[data-mode="hidden"]{ display:none; }
+/* Hide modes: do NOT delete the handle */
+[data-hud-root][data-hud-state="hidden"]{
+  display:none;
+}
 
-/* control bar */
+/* Runtime bar (SINGLE BAR) */
 .zzx-widgets__bar{
   display:flex;
   align-items:center;
   gap:.45rem;
   flex-wrap:wrap;
   justify-content:center;
-
   padding:.35rem .45rem;
   background:#0b0b0b;
   border:1px solid rgba(255,255,255,.10);
   border-radius:10px;
+  margin-bottom:.5rem;
 }
 
 .zzx-widgets__btn{
@@ -68,13 +67,13 @@
   border:1px solid rgba(255,255,255,.14);
   border-radius:10px;
   padding:.35rem .55rem;
-  font-family:'IBMPlexMono',ui-monospace,monospace;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
   cursor:pointer;
 }
 .zzx-widgets__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
 .zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
 
-/* rail */
+/* Rail */
 .zzx-widgets__rail{
   display:flex;
   flex-wrap:wrap;
@@ -84,25 +83,22 @@
   width:100%;
 }
 
-/* widget wrapper */
-.zzx-widget{
-  flex:1 1 240px;
-  max-width:360px;
-  min-width:220px;
-}
-
-/* generic card */
-.zzx-card{
+/* Card base — supports both .zzx-card and .btc-card without forcing changes */
+.zzx-card, .btc-card{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.25);
   padding:.55rem .65rem;
-
+  min-width:220px;
+  flex:1 1 240px;
+  max-width:360px;
   color:#c0d674;
-  font-family:'IBMPlexMono',ui-monospace,monospace;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
 }
-.zzx-card__title{
+
+/* Common title/value/sub helpers (won't break existing widget markup) */
+.zzx-card__title, .btc-card__title{
   font-family:'AdultSwimFont','IBMPlexMono',monospace;
   color:#e6a42b;
   font-size:1rem;
@@ -110,65 +106,22 @@
   margin-bottom:.35rem;
   white-space:nowrap;
 }
-.zzx-card__value{
+.zzx-card__value, .btc-card__value{
   font-size:1.35rem;
   line-height:1.2;
   margin-bottom:.15rem;
   white-space:nowrap;
 }
-.zzx-card__sub{
+.zzx-card__sub, .btc-card__sub{
   font-size:.95rem;
   color:#b7bf9a;
   white-space:nowrap;
 }
 
-/* ticker-only mode */
-.zzx-widgets[data-mode="ticker-only"] .zzx-widget{ display:none; }
-.zzx-widgets[data-mode="ticker-only"] .zzx-widget[data-widget-id="bitcoin-ticker"]{ display:block; }
-
-/* -------------------------------------------------------------
-   COMPATIBILITY ALIASES (your older widgets still use btc-*):
-   ------------------------------------------------------------- */
-
-.btc-rail{ /* if some widgets still render inside btc-rail */
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:stretch;
-  gap:.6rem;
-  width:100%;
+/* ticker-only: hide everything except ticker slot */
+[data-hud-root][data-hud-state="ticker-only"] .zzx-widgets__rail > [data-widget-slot]{
+  display:none !important;
 }
-
-/* Map old btc-card styles to zzx-card */
-.btc-card{ composes: zzx-card; } /* harmless if ignored */
-.btc-card{
-  background:#0b0b0b;
-  border:1px solid #2a2a2a;
-  border-radius:10px;
-  box-shadow:0 6px 18px rgba(0,0,0,.25);
-  padding:.55rem .65rem;
-  color:#c0d674;
-  font-family:'IBMPlexMono',ui-monospace,monospace;
-  min-width:220px;
-  flex:1 1 240px;
-  max-width:360px;
-}
-.btc-card__title{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
-  color:#e6a42b;
-  font-size:1rem;
-  line-height:1.1;
-  margin-bottom:.35rem;
-  white-space:nowrap;
-}
-.btc-card__value{
-  font-size:1.35rem;
-  line-height:1.2;
-  margin-bottom:.15rem;
-  white-space:nowrap;
-}
-.btc-card__sub{
-  font-size:.95rem;
-  color:#b7bf9a;
-  white-space:nowrap;
+[data-hud-root][data-hud-state="ticker-only"] .zzx-widgets__rail > [data-widget-slot="bitcoin-ticker"]{
+  display:block !important;
 }
