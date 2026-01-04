@@ -20,9 +20,40 @@
   box-sizing: border-box;
 }
 
-.zzx-widgets[data-mode="hidden"]{
-  display: none;
+/* Recovery handle */
+.zzx-hud-handle{
+  display:none;
+  justify-content:center;
+  margin:.35rem 0;
+  position: sticky;
+  top: .35rem;
+  z-index: 9999;
 }
+.zzx-hud-show{
+  background:#000;
+  color:#c0d674;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;
+  padding:.35rem .55rem;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-size:.9rem;
+  cursor:pointer;
+}
+.zzx-hud-show:hover{
+  border-color:#e6a42b;
+  color:#e6a42b;
+}
+
+/* Hidden mode: hide ONLY the HUD container; show handle */
+.zzx-widgets[data-mode="hidden"]{ display:none; }
+.zzx-widgets[data-mode="hidden"] + .anything { /* ignore */ }
+
+/* Show handle whenever HUD is hidden (JS will also set inline display) */
+html[data-zzx-hud="hidden"] .zzx-hud-handle{ display:flex; }
+html[data-zzx-hud="hidden"] .zzx-widgets{ display:none; }
+
+/* When not hidden, hide the handle */
+html:not([data-zzx-hud="hidden"]) .zzx-hud-handle{ display:none; }
 
 .zzx-widgets__bar{
   display:flex;
