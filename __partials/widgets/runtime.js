@@ -1,21 +1,25 @@
 // __partials/widgets/runtime.js
 // ZZX Widgets Runtime (DROP-IN REPLACEMENT)
 //
-// Purpose: make your existing widget scripts work again WITHOUT rewriting every widget.
+// PURPOSE
+// - Mount widgets from manifest WITHOUT rewriting 30+ widget scripts.
+// - Guarantee the legacy APIs exist by ensuring widget-core.js loads FIRST.
+// - After each widget.js loads, explicitly boot it (covers widgets that only register).
 //
-// What this fixes (based on your console):
-// - "window.ZZXWidgets is undefined"  (many widgets call ZZXWidgets.register)
-// - "window.ZZXWidgetRegistry is undefined" (some widgets call ZZXWidgetRegistry.register)
-// - "Core.onMount is not a function" (some widgets call ZZXWidgetsCore.onMount)
-// - runtime loaded directly from /__partials/script.js (without core) => now runtime self-loads core
+// FIXES YOUR CURRENT FAILURE MODE
+// - Many widgets render HTML/CSS but never fetch data because their widget.js:
+//     (a) registers into ZZXWidgets / ZZXWidgetRegistry, and
+//     (b) expects someone to call start()/bootOne().
+// - Some pages load runtime.js directly (via /__partials/script.js) without core:
+//     => runtime now self-loads /__partials/widgets/_core/widget-core.js before any widget.js.
 //
-// Rules respected:
-// - Prefix-aware fetch (works from any depth)
-// - manifest-driven mounting
-// - HTML -> CSS -> JS load order
-// - Single HUD bar + safe hide/show
+// ALSO FIXES
+// - hashrate-by-nation “HTML load failed” when folder name != manifest id:
+//   runtime will try directory aliases automatically (dash/underscore/nodash/camel).
 //
-// NOTE: This file intentionally adds compatibility shims. It does NOT remove your existing APIs.
+// DOES NOT
+// - Remove/replace any of your existing APIs.
+// - Change your ticker-loader / partials-loader strategy.
 
 (function () {
   const W = window;
@@ -23,49 +27,51 @@
   if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
   W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
 
-  // ---------- prefix helpers ----------
+  // ---------------- prefix helpers ----------------
   function getPrefix() {
     const p = W.ZZX?.PREFIX;
     if (typeof p === "string" && p.length) return p;
-
     const p2 = document.documentElement?.getAttribute("data-zzx-prefix");
     if (typeof p2 === "string" && p2.length) return p2;
-
     return ".";
   }
 
   function join(prefix, path) {
     if (!path) return path;
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    if (/^https?:\/\//i.test(path)) return path;
     if (prefix === "/") return path;
     if (!path.startsWith("/")) return path;
     return prefix.replace(/\/+$/, "") + path;
   }
 
-  function urlFor(pathAbs) {
-    return join(getPrefix(), pathAbs);
+  function urlFor(absPath) {
+    return join(getPrefix(), absPath);
   }
 
-  // ---------- tiny loaders ----------
-  function ensureCSSOnce(id, href) {
-    const sel = `link[data-zzx-css="${id}"]`;
+  // ---------------- tiny loaders ----------------
+  function ensureCSSOnce(key, href) {
+    const k = String(key);
+    const sel = `link[data-zzx-css="${k}"]`;
     if (document.querySelector(sel)) return;
+
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute("data-zzx-css", id);
+    l.setAttribute("data-zzx-css", k);
     document.head.appendChild(l);
   }
 
-  function ensureScriptOnce(id, src) {
+  function ensureScriptOnce(key, src) {
     return new Promise((resolve) => {
-      const sel = `script[data-zzx-js="${id}"]`;
+      const k = String(key);
+      const sel = `script[data-zzx-js="${k}"]`;
       if (document.querySelector(sel)) return resolve(true);
 
       const s = document.createElement("script");
       s.src = src;
       s.defer = true;
-      s.setAttribute("data-zzx-js", id);
+      s.async = false; // predictable order
+      s.setAttribute("data-zzx-js", k);
       s.onload = () => resolve(true);
       s.onerror = () => resolve(false);
       document.body.appendChild(s);
@@ -84,159 +90,20 @@
     return await r.json();
   }
 
-  // ---------- compatibility layer ----------
-  // Widgets in your tree use a mix of:
-  // - window.ZZXWidgets.register(...)
-  // - window.ZZXWidgetRegistry.register(...)
-  // - window.__ZZX_WIDGETS?.start?.()
-  // - window.ZZXWidgetsCore.onMount(...)
-  //
-  // This runtime makes all of those exist and work.
-
-  function ensureCoreAndShims() {
-    // If core exists, still ensure shims
-    if (!W.ZZXWidgetsCore) {
-      // core should be at /__partials/widgets/_core/widget-core.js
-      // (load it before any widget.js runs)
-    }
-
-    // onMount shim for Core
-    // - supports Core.onMount(fn)
-    // - supports Core.onMount(widgetId, fn)
-    if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount !== "function") {
-      const mountHooks = []; // { id?: string, fn: Function }
-
-      W.ZZXWidgetsCore.onMount = function (a, b) {
-        if (typeof a === "function") {
-          mountHooks.push({ id: null, fn: a });
-          return;
-        }
-        if (typeof a === "string" && typeof b === "function") {
-          mountHooks.push({ id: a, fn: b });
-        }
-      };
-
-      // fire helper used by runtime after it mounts HTML
-      W.ZZXWidgetsCore.__fireMount = function (widgetId, widgetRootOrSlot) {
-        for (const h of mountHooks) {
-          if (h.id && h.id !== widgetId) continue;
-          try { h.fn(widgetRootOrSlot, widgetId); } catch (e) { console.warn("[HUD] onMount hook error", widgetId, e); }
-        }
-      };
-    }
-
-    // Unified registry for widget initializers
-    const REG = (W.__ZZX_WIDGET_REGISTRY = W.__ZZX_WIDGET_REGISTRY || {
-      started: false,
-      inits: new Map(), // id -> fn(root, Core)
-    });
-
-    function resolveWidgetRoot(id) {
-      // Prefer explicit mounted marker first:
-      // runtime sets data-widget-id on the SLOT itself.
-      const slot = document.querySelector(`[data-widget-slot="${id}"]`);
-      if (!slot) return null;
-      // If widget HTML includes its own wrapper, root might be first child; otherwise slot is fine.
-      return slot;
-    }
-
-    function runInit(id) {
-      const fn = REG.inits.get(id);
-      if (typeof fn !== "function") return;
-      const root = resolveWidgetRoot(id);
-      if (!root) return;
-
-      // Prevent double-init per slot
-      if (root.dataset.zzxInitDone === "1") return;
-      root.dataset.zzxInitDone = "1";
-
-      try { fn(root, W.ZZXWidgetsCore || null); } catch (e) { console.warn("[HUD] widget init error", id, e); }
-    }
-
-    function startAll() {
-      REG.started = true;
-      for (const id of REG.inits.keys()) runInit(id);
-    }
-
-    // window.ZZXWidgets shim
-    if (!W.ZZXWidgets) {
-      W.ZZXWidgets = {
-        register(id, fn) {
-          if (!id || typeof fn !== "function") return;
-          REG.inits.set(String(id), fn);
-          if (REG.started) runInit(String(id));
-        },
-        start() {
-          startAll();
-        },
-      };
-    } else {
-      // Ensure required methods exist
-      if (typeof W.ZZXWidgets.register !== "function") {
-        W.ZZXWidgets.register = function (id, fn) {
-          if (!id || typeof fn !== "function") return;
-          REG.inits.set(String(id), fn);
-          if (REG.started) runInit(String(id));
-        };
-      }
-      if (typeof W.ZZXWidgets.start !== "function") {
-        W.ZZXWidgets.start = function () {
-          startAll();
-        };
-      }
-    }
-
-    // window.ZZXWidgetRegistry shim (alias)
-    if (!W.ZZXWidgetRegistry) {
-      W.ZZXWidgetRegistry = {
-        register: W.ZZXWidgets.register,
-        start: W.ZZXWidgets.start,
-      };
-    } else {
-      if (typeof W.ZZXWidgetRegistry.register !== "function") {
-        W.ZZXWidgetRegistry.register = W.ZZXWidgets.register;
-      }
-      if (typeof W.ZZXWidgetRegistry.start !== "function") {
-        W.ZZXWidgetRegistry.start = W.ZZXWidgets.start;
-      }
-    }
-
-    // window.__ZZX_WIDGETS shim (older boot call in /__partials/script.js)
-    if (!W.__ZZX_WIDGETS) {
-      W.__ZZX_WIDGETS = {
-        start: W.ZZXWidgets.start,
-      };
-    } else {
-      if (typeof W.__ZZX_WIDGETS.start !== "function") {
-        W.__ZZX_WIDGETS.start = W.ZZXWidgets.start;
-      }
-    }
-
-    // expose internal helpers (non-breaking)
-    W.__ZZX_WIDGETS_RUNTIME = W.__ZZX_WIDGETS_RUNTIME || {};
-    W.__ZZX_WIDGETS_RUNTIME._runInit = runInit;
-    W.__ZZX_WIDGETS_RUNTIME._startAll = startAll;
-  }
-
+  // ---------------- ensure core (ONLY) ----------------
   async function ensureCoreLoaded() {
-    // Many pages load runtime.js directly without core.
-    // If any widget expects ZZXWidgetsCore / registry shims, we must load core first.
-    const needCore = !W.ZZXWidgetsCore;
-    if (!needCore) {
-      ensureCoreAndShims();
-      return true;
-    }
+    // This is the canonical compatibility layer. Do NOT duplicate shims here.
+    if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__zzx_ok) return true;
 
     const coreUrl = urlFor("/__partials/widgets/_core/widget-core.js");
-    const ok = await ensureScriptOnce("zzx-widgets-core", coreUrl);
+    const ok = await ensureScriptOnce("zzx-core", coreUrl);
 
-    // Even if core fails, install shims so ZZXWidgets.register exists (best effort)
-    ensureCoreAndShims();
-
+    // Even if it failed, don’t hard-crash HUD; just warn.
+    if (!ok) console.warn("[HUD] failed to load core:", coreUrl);
     return ok;
   }
 
-  // ---------- state (HUD mode) ----------
+  // ---------------- HUD state ----------------
   const STATE_KEY = "zzx.hud.mode";
 
   function readMode() {
@@ -265,70 +132,123 @@
     setMode("full");
   }
 
-  // ---------- widget mount ----------
-  function slotEl(id) {
-    return document.querySelector(`[data-widget-slot="${id}"]`);
+  // ---------------- widget base resolution (aliases) ----------------
+  // Manifest id might be "hashrate-by-nation" but folder could be:
+  // - hashrate-by-nation
+  // - hashrate_by_nation
+  // - hashratebynation
+  // - hashrateByNation
+  const _baseCache = new Map();
+
+  function candidateDirs(id) {
+    const raw = String(id || "").trim();
+    if (!raw) return [];
+
+    const underscore = raw.replaceAll("-", "_");
+    const nodash = raw.replaceAll("-", "");
+    const camel = raw.replace(/[-_]+([a-zA-Z0-9])/g, (_, c) => String(c).toUpperCase());
+
+    const out = [];
+    for (const d of [raw, underscore, nodash, camel]) {
+      if (d && !out.includes(d)) out.push(d);
+    }
+    return out;
   }
 
-  async function loadWidgetJS(id, jsUrl) {
-    // Do not block the entire HUD if one widget JS fails.
-    // But we DO want the console warning.
-    const ok = await ensureScriptOnce(`w:${id}`, jsUrl);
-    if (!ok) console.warn(`[HUD] ${id} js failed to load: ${jsUrl}`);
-    return ok;
+  async function resolveBaseDir(id) {
+    if (_baseCache.has(id)) return _baseCache.get(id);
+
+    const dirs = candidateDirs(id);
+    const attempted = [];
+
+    for (const dir of dirs) {
+      const base = `/__partials/widgets/${dir}`;
+      const htmlUrl = urlFor(`${base}/widget.html`);
+      attempted.push(htmlUrl);
+
+      try {
+        await fetchText(htmlUrl);
+        _baseCache.set(id, base);
+        return base;
+      } catch (_) {}
+    }
+
+    const err = new Error(`widget.html not found for "${id}"`);
+    err.attempted = attempted;
+    _baseCache.set(id, null);
+    throw err;
+  }
+
+  function escapeHTML(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // ---------------- widget mount ----------------
+  function slotEl(id) {
+    return document.querySelector(`[data-widget-slot="${id}"]`);
   }
 
   async function mountWidget(id) {
     const slot = slotEl(id);
     if (!slot) return;
 
-    // prevent double mount
     if (slot.dataset.mounted === "1") return;
     slot.dataset.mounted = "1";
 
-    const base = `/__partials/widgets/${id}`;
+    let base;
+    try {
+      base = await resolveBaseDir(id);
+    } catch (e) {
+      console.warn(`[HUD] ${id} html failed`, e);
+      slot.innerHTML =
+        `<div class="btc-card">
+           <div class="btc-card__title">${escapeHTML(id)}</div>
+           <div class="btc-card__value">HTML load failed</div>
+           <div class="btc-card__sub">${escapeHTML(e?.message || "missing widget.html")}</div>
+         </div>`;
+      try {
+        if (e?.attempted?.length) slot.setAttribute("data-hud-debug-attempted", e.attempted.join(" | "));
+      } catch (_) {}
+      return;
+    }
+
     const htmlUrl = urlFor(`${base}/widget.html`);
-    const cssUrl = urlFor(`${base}/widget.css`);
-    const jsUrl = urlFor(`${base}/widget.js`);
+    const cssUrl  = urlFor(`${base}/widget.css`);
+    const jsUrl   = urlFor(`${base}/widget.js`);
 
     // 1) HTML
     try {
       const html = await fetchText(htmlUrl);
       slot.innerHTML = html;
       slot.setAttribute("data-widget-id", id);
+      slot.setAttribute("data-widget-base", base);
     } catch (e) {
+      console.warn(`[HUD] ${id} html failed`, e);
       slot.innerHTML =
         `<div class="btc-card">
-           <div class="btc-card__title">${id}</div>
+           <div class="btc-card__title">${escapeHTML(id)}</div>
            <div class="btc-card__sub">HTML load failed</div>
          </div>`;
-      console.warn(`[HUD] ${id} html failed`, e);
       return;
     }
 
-    // 2) CSS
-    try {
-      ensureCSSOnce(`wcss:${id}`, cssUrl);
-    } catch (_) {}
+    // 2) CSS (browser will silently skip if 404)
+    try { ensureCSSOnce(`wcss:${id}`, cssUrl); } catch (_) {}
 
     // 3) JS (after mount)
-    await loadWidgetJS(id, jsUrl);
+    const okJS = await ensureScriptOnce(`wjs:${id}`, jsUrl);
+    if (!okJS) console.warn(`[HUD] ${id} js failed to load:`, jsUrl);
 
-    // 4) Fire Core.onMount hooks (compat for widgets using Core.onMount)
-    try {
-      const Core = W.ZZXWidgetsCore;
-      if (Core && typeof Core.__fireMount === "function") {
-        Core.__fireMount(id, slot);
-      }
-    } catch (_) {}
-
-    // 5) If widget registered itself via ZZXWidgets.register, run it now (and/or at start()).
-    // Some widget scripts register but rely on start() being called later.
-    try {
-      if (W.__ZZX_WIDGETS_RUNTIME && typeof W.__ZZX_WIDGETS_RUNTIME._runInit === "function") {
-        W.__ZZX_WIDGETS_RUNTIME._runInit(id);
-      }
-    } catch (_) {}
+    // 4) CRITICAL: boot widget after its JS loads (covers "register-only" widgets)
+    // This is safe even if the widget self-boots via Core.onMount.
+    try { W.__ZZX_WIDGETS?.bootOne?.(id); } catch (_) {}
+    try { W.ZZXWidgets?.start?.(); } catch (_) {}           // harmless if already started
+    try { W.ZZXWidgetRegistry?.start?.(); } catch (_) {}    // alias safety
   }
 
   async function mountAll(manifest) {
@@ -350,9 +270,14 @@
 
       await mountWidget(w.id);
     }
+
+    // 5) Final start pass (covers widgets that register late)
+    try { W.__ZZX_WIDGETS?.start?.(); } catch (_) {}
+    try { W.ZZXWidgets?.start?.(); } catch (_) {}
+    try { W.ZZXWidgetRegistry?.start?.(); } catch (_) {}
   }
 
-  // ---------- controls ----------
+  // ---------------- controls ----------------
   function bindControls() {
     const root = document.querySelector("[data-hud-root]");
     if (!root || root.__boundControls) return;
@@ -370,10 +295,11 @@
       if (action === "reset") {
         resetState();
 
-        // clear + remount
+        // Clear + remount (also clear base cache so aliases can re-resolve)
+        _baseCache.clear();
+
         root.querySelectorAll("[data-widget-slot]").forEach((el) => {
           el.dataset.mounted = "0";
-          el.dataset.zzxInitDone = "0";
           el.innerHTML = "";
           el.style.display = "";
         });
@@ -389,9 +315,12 @@
     }
   }
 
-  // ---------- boot ----------
-  async function bootWidgets(forceRemount = false) {
-    // Ensure core loaded BEFORE any widget JS executes
+  // ---------------- boot ----------------
+  async function bootWidgets(_force) {
+    // Ensure base CSS exists even in the “runtime loaded directly” path
+    try { ensureCSSOnce("widgets-core-css", urlFor("/__partials/widgets/_core/widget-core.css")); } catch (_) {}
+
+    // MUST load core shim before any widget.js loads
     await ensureCoreLoaded();
 
     const manifestUrl = urlFor("/__partials/widgets/manifest.json");
@@ -410,28 +339,10 @@
       };
     }
 
-    if (forceRemount) {
-      // allow re-init if needed
-      try {
-        if (W.__ZZX_WIDGET_REGISTRY) W.__ZZX_WIDGET_REGISTRY.started = false;
-      } catch (_) {}
-    }
-
     await mountAll(manifest);
-
-    // Final: start registry (covers widgets that only register & never self-run)
-    try { W.ZZXWidgets?.start?.(); } catch (_) {}
-    try { W.ZZXWidgetRegistry?.start?.(); } catch (_) {}
-    try { W.__ZZX_WIDGETS?.start?.(); } catch (_) {}
   }
 
   async function boot() {
-    // Make sure CSS base is available if ticker-loader didn’t inject it.
-    // (Non-fatal if missing; but helps in the “runtime loaded directly” path.)
-    try {
-      ensureCSSOnce("widgets-core-css", urlFor("/__partials/widgets/_core/widget-core.css"));
-    } catch (_) {}
-
     setMode(readMode());
     bindControls();
     await bootWidgets(false);
