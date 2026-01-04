@@ -1,140 +1,27 @@
-<!-- __partials/bitcoin-ticker-widget.html (EMBED FRAGMENT ONLY) -->
+<!-- __partials/bitcoin-ticker-widget.html (WRAPPER ONLY) -->
+<div class="btc-rail" id="btc-rail" role="region" aria-label="Bitcoin dashboard widgets">
 
-<div class="btc-rail" role="region" aria-label="Bitcoin dashboard widgets">
+  <div class="btc-slot" data-widget="bitcoin-ticker"></div>
 
-  <!-- 1) Primary BTC price widget -->
-  <div class="ticker-shell">
-    <div id="ticker">
-      <div id="btc">
-        [BTC]: $<span id="btc-value">0.00</span> (USD)
-      </div>
+  <div class="btc-slot" data-widget="price-24h"></div>
+  <div class="btc-slot" data-widget="volume-24h"></div>
 
-      <div id="subunits">
-        <div class="unit">[mBTC]: $<span id="mbtc-value">0.00</span> (USD)</div>
-        <div class="unit">[μBTC]: $<span id="ubtc-value">0.00</span> (USD)</div>
-        <div class="unit">[sat]: $<span id="sats-value">0.00</span> (USD)</div>
-      </div>
+  <div class="btc-slot" data-widget="hashrate"></div>
 
-      <div class="credit"><u>Made by:</u> <i>[0xdeadbeef]</i></div>
-    </div>
-  </div>
+  <div class="btc-slot" data-widget="nodes"></div>
+  <div class="btc-slot" data-widget="nodes-by-nation"></div>
 
-  <!-- 2) 24h price -->
-  <div class="btc-card" id="btc-24hprice">
-    <div class="btc-card__title">24h Price</div>
-    <div class="btc-card__value">$<span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>—</span></div>
-  </div>
+  <div class="btc-slot" data-widget="lightning"></div>
+  <div class="btc-slot" data-widget="lightning-detail"></div>
 
-  <!-- 3) 24h volume -->
-  <div class="btc-card" id="btc-24hvolume">
-    <div class="btc-card__title">24h Volume</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>USD</span></div>
-  </div>
+  <div class="btc-slot" data-widget="mempool"></div>
+  <div class="btc-slot" data-widget="fees"></div>
 
-  <!-- 4) hashrate -->
-  <div class="btc-card" id="btc-hashrate">
-    <div class="btc-card__title">Hashrate</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>EH/s</span></div>
-  </div>
+  <div class="btc-slot" data-widget="tip-drift"></div>
 
-  <!-- 5) nodecount (summary) -->
-  <div class="btc-card" id="btc-nodecount">
-    <div class="btc-card__title">Nodes</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>reachable</span></div>
-  </div>
+  <div class="btc-slot" data-widget="goggles"></div>
 
-  <!-- 6) node breakdown by nation (top list) -->
-  <div class="btc-card" id="btc-nodes-nations">
-    <div class="btc-card__title">Nodes by Nation</div>
-    <div class="btc-kv">
-      <div class="btc-kv__row"><span class="k">total</span><span class="v" data-total>—</span></div>
-      <div class="btc-kv__row"><span class="k">reachable</span><span class="v" data-reachable>—</span></div>
-      <div class="btc-kv__row"><span class="k">unreachable</span><span class="v" data-unreachable>—</span></div>
-    </div>
-    <div class="btc-mini-list" aria-live="polite"></div>
-  </div>
+  <div class="btc-slot" data-widget="intel"></div>
 
-  <!-- 7) LN stats (summary) -->
-  <div class="btc-card" id="btc-lnstats">
-    <div class="btc-card__title">Lightning</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>capacity</span></div>
-  </div>
-
-  <!-- 8) LN detail -->
-  <div class="btc-card" id="btc-ln-detail">
-    <div class="btc-card__title">LN Detail</div>
-    <div class="btc-kv">
-      <div class="btc-kv__row"><span class="k">capacity</span><span class="v" data-cap>—</span></div>
-      <div class="btc-kv__row"><span class="k">nodes</span><span class="v" data-nodes>—</span></div>
-      <div class="btc-kv__row"><span class="k">channels</span><span class="v" data-chans>—</span></div>
-    </div>
-  </div>
-
-  <!-- 9) mempool stats -->
-  <div class="btc-card" id="btc-mempool">
-    <div class="btc-card__title">Mempool</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>tx</span></div>
-  </div>
-
-  <!-- 10) mempool fees -->
-  <div class="btc-card" id="btc-fees">
-    <div class="btc-card__title">Fees</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>sat/vB</span></div>
-  </div>
-
-  <!-- 11) block tip -->
-  <div class="btc-card" id="btc-tip">
-    <div class="btc-card__title">Tip</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>height</span></div>
-  </div>
-
-  <!-- 12) clock drift -->
-  <div class="btc-card" id="btc-clockdrift">
-    <div class="btc-card__title">Clock Drift</div>
-    <div class="btc-card__value"><span data-val>—</span></div>
-    <div class="btc-card__sub"><span data-sub>vs last block</span></div>
-  </div>
-
-<!-- 13) mempool goggles (canvas clone, block/0 “next block”) -->
-<div class="btc-card btc-goggles" id="btc-goggles">
-  <div class="btc-card__title">Mempool Goggles</div>
-
-  <!-- small status line -->
-  <div class="btc-card__sub">
-    <span data-sub>block/0 — next block fill</span>
-  </div>
-
-  <canvas id="btc-goggles-canvas" width="320" height="220"></canvas>
-
-  <div class="btc-card__sub" style="margin-top:.35rem">
-    <span data-meta>loading…</span>
-  </div>
-</div>
-
-  <!-- 14) intel -->
-  <div class="btc-card btc-intel" id="btc-intel">
-    <div class="btc-card__title">Bitcoin Intel</div>
-    <div class="btc-news__list" aria-live="polite">
-      <div class="btc-news__item"><span class="btc-news__src">boot</span><a href="#" tabindex="-1">loading…</a></div>
-    </div>
-  </div>
-
-  <!-- 15) satoshi quote -->
-  <div class="btc-card btc-quote" id="btc-satoshiquote">
-    <div class="btc-card__title">Satoshi Quote</div>
-    <div class="btc-quote__q"><span data-quote>“—”</span></div>
-    <div class="btc-quote__meta">
-      <span data-src>—</span>
-      <a data-link href="https://nakamotoinstitute.org/quotes/" target="_blank" rel="noopener noreferrer">source</a>
-    </div>
-  </div>
-
+  <div class="btc-slot" data-widget="satoshi-quote"></div>
 </div>
