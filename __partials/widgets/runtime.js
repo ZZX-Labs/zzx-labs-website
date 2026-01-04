@@ -1,85 +1,188 @@
 // __partials/widgets/runtime.js
-// Minimal widget registry + mount + ticking.
-// No modules needed. Safe to include once site-wide.
-
 (function () {
-  if (window.__ZZX_WIDGETS) return;
+  const W = window;
 
-  const DEBUG = !!window.__ZZX_WIDGET_DEBUG;
-  const log = (...a) => DEBUG && console.log("[ZZX-WIDGET]", ...a);
-
-  const registry = [];
-  const state = {
-    started: false,
-    timers: [],
-    mounts: new WeakMap(), // rootEl -> { widgets: Set<string> }
-  };
-
-  function mounted(root) {
-    return !!root && root.isConnected;
+  // one runtime controller
+  if (W.__ZZX_WIDGETS_RUNTIME) {
+    W.__ZZX_WIDGETS_RUNTIME.rebind();
+    return;
   }
 
-  function scanAndBind() {
-    // Convention: each widget root has [data-zzx-widget="name"]
-    const roots = document.querySelectorAll("[data-zzx-widget]");
-    roots.forEach((root) => {
-      const name = root.getAttribute("data-zzx-widget");
-      if (!name) return;
+  const LS_MODE = "zzx.widgets.mode";
+  const LS_DISABLED = "zzx.widgets.disabled"; // optional future
 
-      const m = state.mounts.get(root) || { widgets: new Set() };
-      state.mounts.set(root, m);
-      if (m.widgets.has(name)) return;
+  function $(sel, root = document) { return root.querySelector(sel); }
+  function rail() { return document.getElementById("zzx-widgets-rail"); }
+  function shell() { return document.querySelector('.zzx-widgets[data-zzx-widgets="1"]'); }
 
-      const w = registry.find(x => x.name === name);
-      if (!w) return;
+  async function ensureCoreLoaded() {
+    if (W.ZZXWidgetsCore) return;
+    // load core script (prefix-aware)
+    const prefix = W.ZZX?.PREFIX || ".";
+    const src = (prefix === "/" ? "" : String(prefix).replace(/\/+$/, "")) + "/__partials/widgets/_core/widget-core.js";
 
-      try {
-        w.bind?.(root);
-        m.widgets.add(name);
-        log("bound", name);
-      } catch (e) {
-        console.warn("[ZZX-WIDGET] bind failed", name, e);
-      }
+    await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.defer = true;
+      s.onload = () => resolve();
+      s.onerror = () => resolve(); // don't hard-fail
+      document.body.appendChild(s);
     });
   }
 
-  function tickAll() {
-    scanAndBind();
-    registry.forEach((w) => {
-      try {
-        // Each widget decides if it’s mounted by checking its own root(s)
-        w.tick?.();
-      } catch (e) {
-        console.warn("[ZZX-WIDGET] tick failed", w.name, e);
+  async function loadManifest() {
+    const api = W.ZZXWidgetsCore;
+    const url = api.join(api.getPrefix(), "/__partials/widgets/manifest.json");
+    return await api.jget(url);
+  }
+
+  function applyMode(mode) {
+    const sh = shell();
+    if (!sh) return;
+    sh.dataset.mode = mode;
+    try { localStorage.setItem(LS_MODE, mode); } catch (_) {}
+  }
+
+  function getSavedMode() {
+    try {
+      const v = localStorage.getItem(LS_MODE);
+      return v || "full";
+    } catch (_) {
+      return "full";
+    }
+  }
+
+  function bindControls() {
+    const sh = shell();
+    if (!sh || sh.__zzxBound) return;
+    sh.__zzxBound = true;
+
+    sh.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-zzx-mode],[data-zzx-action]");
+      if (!btn) return;
+
+      const mode = btn.getAttribute("data-zzx-mode");
+      if (mode) applyMode(mode);
+
+      const act = btn.getAttribute("data-zzx-action");
+      if (act === "reset") {
+        try { localStorage.removeItem(LS_MODE); } catch (_) {}
+        applyMode("full");
       }
+    });
+
+    applyMode(getSavedMode());
+  }
+
+  async function mountAllWidgets() {
+    const api = W.ZZXWidgetsCore;
+    const r = rail();
+    if (!r) return;
+
+    const manifest = await loadManifest();
+    const widgets = Array.isArray(manifest?.widgets) ? manifest.widgets.slice() : [];
+
+    widgets.sort((a, b) => Number(a.priority ?? 9999) - Number(b.priority ?? 9999));
+
+    // clear and rebuild rail (safe; each widget init should be rebind-safe)
+    r.innerHTML = "";
+
+    for (const w of widgets) {
+      if (!w || !w.id) continue;
+      const id = String(w.id);
+      const enabled = (w.enabled !== false);
+
+      const host = document.createElement("section");
+      host.className = "zzx-widget";
+      host.dataset.widget = id;
+      host.dataset.enabled = enabled ? "1" : "0";
+      host.setAttribute("aria-label", w.title || id);
+
+      // if disabled, still mount container but hide; later user prefs can enable
+      if (!enabled) host.style.display = "none";
+
+      // placeholder while HTML loads
+      host.innerHTML = `<div class="zzx-card"><div class="zzx-card__title">${w.title || id}</div><div class="zzx-card__sub">loading…</div></div>`;
+      r.appendChild(host);
+
+      // load widget assets
+      try {
+        const html = await api.fetchWidgetHTML(id);
+        host.innerHTML = html;
+      } catch (_) {
+        // keep placeholder
+      }
+
+      // inject css once
+      try {
+        const css = await api.fetchWidgetCSS(id);
+        api.ensureStyleTag(id, css);
+      } catch (_) {}
+
+      // load js once (widget registers itself)
+      api.ensureScriptTag(id);
+    }
+  }
+
+  // registry: widgets register themselves here
+  W.ZZXWidgets = W.ZZXWidgets || {};
+  W.ZZXWidgets.registry = W.ZZXWidgets.registry || new Map();
+
+  function initRegisteredWidgets() {
+    const api = W.ZZXWidgetsCore;
+    const r = rail();
+    if (!api || !r) return;
+
+    r.querySelectorAll(".zzx-widget").forEach(host => {
+      const id = host.dataset.widget;
+      if (!id) return;
+
+      const entry = W.ZZXWidgets.registry.get(id);
+      if (!entry || typeof entry.init !== "function") return;
+
+      const tok = api.mountToken(host);
+      if (host.__zzxInitedTok === tok) return;
+      host.__zzxInitedTok = tok;
+
+      try { entry.init(host, api); } catch (e) { /* keep silent */ }
     });
   }
 
-  window.__ZZX_WIDGETS = {
-    register(widget) {
-      if (!widget || !widget.name) throw new Error("widget must have name");
-      if (registry.some(w => w.name === widget.name)) return;
-      registry.push(widget);
-      log("registered", widget.name);
-      // bind immediately if already on DOM
-      scanAndBind();
+  let observer = null;
+  function watchForWidgetJSReady() {
+    if (observer) return;
+    observer = new MutationObserver(() => initRegisteredWidgets());
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  const controller = {
+    async prime() {
+      await ensureCoreLoaded();
+      bindControls();
+      await mountAllWidgets();
+
+      // init any widgets whose js is already loaded/registered
+      initRegisteredWidgets();
+
+      // keep watching for late-loaded widget.js registration
+      watchForWidgetJSReady();
     },
-    start() {
-      if (state.started) return;
-      state.started = true;
-      scanAndBind();
 
-      // fast tick for UI-responsiveness, but widgets internally throttle network
-      state.timers.push(setInterval(tickAll, 800));
-      // initial kick
-      tickAll();
+    rebind() {
+      // if shell exists but rail is empty (reinjection), re-prime
+      const r = rail();
+      if (!r) return;
+      if (!r.children.length) this.prime();
+      else initRegisteredWidgets();
     }
   };
 
-  // auto-start
+  W.__ZZX_WIDGETS_RUNTIME = controller;
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => window.__ZZX_WIDGETS.start(), { once: true });
+    document.addEventListener("DOMContentLoaded", () => controller.prime(), { once: true });
   } else {
-    window.__ZZX_WIDGETS.start();
+    controller.prime();
   }
 })();
