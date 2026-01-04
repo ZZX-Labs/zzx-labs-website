@@ -1,14 +1,18 @@
 // __partials/widgets/_core/widget-core.js
-// DROP-IN REPLACEMENT (fixes the errors you pasted)
+// DROP-IN REPLACEMENT v1.3 (fixes “register-based widgets don’t run”)
 //
-// Fixes:
-// 1) window.ZZXWidgets undefined  -> provides window.ZZXWidgets.register(...)
-// 2) window.ZZXWidgetRegistry undefined -> alias to same registry
-// 3) Core.onMount is not a function -> provides Core.onMount(...)
-// 4) Bad PREFIX causing ../__partials/... 404s on root -> clamps prefix on root pages
-// 5) Makes ALL fetch("/...") prefix-aware (keeps widgets working without editing each widget)
+// What this fixes (based on your current status):
+// - tip/drift/high-low/repo now work because they use Core.onMount()
+// - MOST other widgets still don’t because they use:
+//      window.ZZXWidgets.register(id, initFn)
+//   BUT your runtime is loading widget.js BEFORE widget.html is mounted.
+//   So register() happens when the widget root does NOT exist yet.
+//   Previously, your older runtime/registry probably called init later.
+//   Now we make the registry robust:
+//      register() -> if root exists, init immediately
+//                -> if root does NOT exist, queue + auto-init when it appears
 //
-// This file is intentionally "compat-first". It DOES NOT require changing each widget JS.
+// This requires NO per-widget edits.
 
 (function () {
   const W = window;
@@ -25,11 +29,9 @@
   }
 
   function clampPrefix(prefix) {
-    // If you're on domain root ("/") but the cached prefix ended up like "..",
-    // that produces "../__partials/..." and 404s. Clamp to "." in that case.
     const path = String(location.pathname || "/");
     const isRootish = (path === "/" || path.endsWith("/index.html"));
-    if (isRootish && prefix.startsWith("..")) return ".";
+    if (isRootish && String(prefix).startsWith("..")) return ".";
     return prefix;
   }
 
@@ -44,26 +46,18 @@
   function join(prefix, path) {
     if (!path) return path;
     if (typeof path !== "string") return path;
-
     if (/^https?:\/\//i.test(path)) return path;
-
-    // hosted at domain root
     if (prefix === "/") return path;
-
-    // already relative
     if (!path.startsWith("/")) return path;
-
-    // prefix + site-absolute path
     return prefix.replace(/\/+$/, "") + path;
   }
 
-  // Public: prefix-safe absolute resolver for "/x/y"
   function abs(pathAbs) {
     return join(getPrefix(), pathAbs);
   }
 
   // ---------------------------------------------------------
-  // Global fetch patch (so existing widgets keep working)
+  // Patch fetch to be prefix-aware for "/..." URLs
   // ---------------------------------------------------------
   function patchFetchOnce() {
     if (W.__ZZX_FETCH_PATCHED) return;
@@ -82,15 +76,13 @@
             input = new Request(fixed, input);
           }
         }
-      } catch (_) {
-        // ignore; fall through
-      }
+      } catch (_) {}
       return nativeFetch(input, init);
     };
   }
 
   // ---------------------------------------------------------
-  // Fetch helpers (used by some widgets)
+  // Fetch helpers
   // ---------------------------------------------------------
   async function fetchText(url, opts = {}) {
     const u = (typeof url === "string") ? abs(url) : url;
@@ -147,44 +139,32 @@
   }
 
   // ---------------------------------------------------------
-  // Widget registry (WHAT YOUR WIDGETS EXPECT)
+  // Registry + auto-init when DOM appears (CRITICAL FIX)
   // ---------------------------------------------------------
-  // Many of your widget.js files do:
-  //   window.ZZXWidgets.register("price-24h", (root, Core) => { ... })
-  //
-  // Others do:
-  //   window.ZZXWidgetRegistry.register(...)
-  //
-  // Provide both.
+  const _registry = new Map();     // id -> initFn
+  const _booted   = new Set();     // id@@uid -> boolean
+  const _pending  = new Set();     // ids waiting for DOM root
+  let _mo = null;
 
-  const _registry = new Map();       // id -> initFn
-  const _booted = new Set();         // id -> boolean (init already invoked for a given root)
-
-  function register(id, initFn) {
-    if (!id || typeof initFn !== "function") return;
-    _registry.set(String(id), initFn);
-
-    // If the widget DOM already exists, init immediately.
-    // Widget root marker we guarantee at mount time is: [data-widget-root="<id>"] OR [data-widget-id="<id>"]
-    const root =
-      document.querySelector(`[data-widget-root="${CSS.escape(String(id))}"]`) ||
-      document.querySelector(`[data-widget-id="${CSS.escape(String(id))}"]`);
-
-    if (root) safeInit(String(id), root);
+  function findWidgetRootById(id) {
+    // Two markers supported (your widgets use either)
+    const safe = CSS.escape(String(id));
+    return (
+      document.querySelector(`[data-widget-root="${safe}"]`) ||
+      document.querySelector(`[data-widget-id="${safe}"]`)
+    );
   }
 
   function safeInit(id, root) {
-    const key = `${id}@@${root && root.dataset ? (root.dataset.__zzx_uid || "") : ""}`;
+    if (!id || !root) return;
 
-    // give each root a stable uid once
-    if (root && root.dataset && !root.dataset.__zzx_uid) {
+    if (root.dataset && !root.dataset.__zzx_uid) {
       root.dataset.__zzx_uid = Math.random().toString(16).slice(2);
     }
-
-    const uniq = `${id}@@${root && root.dataset ? root.dataset.__zzx_uid : ""}`;
+    const uniq = `${id}@@${root.dataset ? root.dataset.__zzx_uid : ""}`;
     if (_booted.has(uniq)) return;
 
-    const fn = _registry.get(id);
+    const fn = _registry.get(String(id));
     if (typeof fn !== "function") return;
 
     try {
@@ -195,17 +175,70 @@
     }
   }
 
-  function initIfRegistered(id, root) {
-    if (!id || !root) return;
-    const fn = _registry.get(String(id));
-    if (typeof fn === "function") safeInit(String(id), root);
+  function startObserverIfNeeded() {
+    if (_mo) return;
+
+    _mo = new MutationObserver(() => {
+      // Try to resolve pending ids when DOM changes
+      if (_pending.size === 0) return;
+
+      for (const id of Array.from(_pending)) {
+        const root = findWidgetRootById(id);
+        if (root) {
+          _pending.delete(id);
+          safeInit(id, root);
+        }
+      }
+
+      // If nothing pending, stop observing (no leaks)
+      if (_pending.size === 0) {
+        try { _mo.disconnect(); } catch (_) {}
+        _mo = null;
+      }
+    });
+
+    _mo.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function register(id, initFn) {
+    if (!id || typeof initFn !== "function") return;
+    id = String(id);
+
+    _registry.set(id, initFn);
+
+    // If already mounted, init immediately
+    const root = findWidgetRootById(id);
+    if (root) {
+      safeInit(id, root);
+      return;
+    }
+
+    // Otherwise, queue for auto-init when it mounts
+    _pending.add(id);
+    startObserverIfNeeded();
+
+    // Also do a short timed retry window (covers “no DOM mutation” edge cases)
+    // without leaving timers forever.
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      const r2 = findWidgetRootById(id);
+      if (r2) {
+        clearInterval(t);
+        _pending.delete(id);
+        safeInit(id, r2);
+      } else if (tries >= 10) {
+        clearInterval(t);
+        // keep in _pending for the MutationObserver (in case it mounts later)
+      }
+    }, 200);
   }
 
   function has(id) {
     return _registry.has(String(id));
   }
 
-  // Global objects expected by widgets
+  // Expose global registry objects your widgets reference
   W.ZZXWidgets = W.ZZXWidgets || {};
   W.ZZXWidgets.register = register;
   W.ZZXWidgets.has = has;
@@ -215,14 +248,8 @@
   W.ZZXWidgetRegistry.has = has;
 
   // ---------------------------------------------------------
-  // Core.onMount (WHAT SOME WIDGETS EXPECT)
+  // Core.onMount (for widgets that use it)
   // ---------------------------------------------------------
-  // Your errors show: "Core.onMount is not a function" in high-low-24h, tip, drift, btc-repo...
-  // Implement a tolerant version that supports:
-  //   Core.onMount(fn)                      // runs when DOM ready, passes { root } if found
-  //   Core.onMount(widgetId, fn)            // runs when that widget root exists
-  //   Core.onMount(widgetId, rootSel, fn)   // (extra compatibility) if they ever did this
-
   function onMount(a, b, c) {
     let widgetId = null;
     let fn = null;
@@ -245,42 +272,32 @@
         return;
       }
 
-      // Find widget root (both markers supported)
-      const root =
-        document.querySelector(`[data-widget-root="${CSS.escape(widgetId)}"]`) ||
-        document.querySelector(`[data-widget-id="${CSS.escape(widgetId)}"]`);
-
+      const root = findWidgetRootById(widgetId);
       if (root) {
         try { fn(root); } catch (e) { console.warn(`[Core.onMount] ${widgetId} callback failed:`, e); }
         return;
       }
 
-      // Not mounted yet: observe briefly
       const mo = new MutationObserver(() => {
-        const r2 =
-          document.querySelector(`[data-widget-root="${CSS.escape(widgetId)}"]`) ||
-          document.querySelector(`[data-widget-id="${CSS.escape(widgetId)}"]`);
+        const r2 = findWidgetRootById(widgetId);
         if (r2) {
           mo.disconnect();
           try { fn(r2); } catch (e) { console.warn(`[Core.onMount] ${widgetId} callback failed:`, e); }
         }
       });
       mo.observe(document.documentElement, { childList: true, subtree: true });
-
-      // Safety stop (don’t leak observers forever)
       setTimeout(() => { try { mo.disconnect(); } catch (_) {} }, 5000);
     };
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", run, { once: true });
     } else {
-      // next tick so widget HTML has a chance to land
       setTimeout(run, 0);
     }
   }
 
   // ---------------------------------------------------------
-  // Mounting helpers (kept, but NOT required for your current runtime)
+  // Optional mounting helpers (kept)
   // ---------------------------------------------------------
   function widgetBase(widgetId) {
     return `/__partials/widgets/${widgetId}`;
@@ -302,7 +319,7 @@
     const root = document.createElement("div");
     root.className = "zzx-widget";
     root.setAttribute("data-widget-id", widgetId);
-    root.setAttribute("data-widget-root", widgetId); // compatibility
+    root.setAttribute("data-widget-root", widgetId);
     return root;
   }
 
@@ -343,8 +360,9 @@
 
       await ensureJS(hrefWidgetJS(widgetId), `w:${widgetId}`);
 
-      // If the widget used register(), init now.
-      initIfRegistered(widgetId, root);
+      // If the widget registered, init now
+      const fn = _registry.get(String(widgetId));
+      if (typeof fn === "function") safeInit(String(widgetId), root);
 
       return true;
     } catch (err) {
@@ -372,7 +390,8 @@
   patchFetchOnce();
 
   W.ZZXWidgetsCore = {
-    __version: "1.2.0-dropin",
+    __version: "1.3.0-dropin",
+
     // prefix/url
     getPrefix,
     join,
@@ -390,10 +409,10 @@
     ensureCSS,
     ensureJS,
 
-    // compat hooks
+    // compat
     onMount,
 
-    // mount helpers
+    // mount
     mountWidget,
     mountAll,
 
