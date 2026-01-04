@@ -1,28 +1,40 @@
 // __partials/widgets/_core/widget-core.js
-// DROP-IN REPLACEMENT (global fix)
-// Purpose: stop breaking every widget when hosted under a subpath (GH Pages / nested routes)
-// by making ALL absolute fetches + asset URLs prefix-aware WITHOUT editing each widget.
+// DROP-IN REPLACEMENT (fixes the errors you pasted)
 //
-// What this does:
-//  - exposes window.ZZXWidgetsCore (qs/qsa/fetchJSON/etc) as before
-//  - adds Core.abs("/...") => "<PREFIX>/..." when PREFIX !== "/" (or "." / ".." etc)
-//  - PATCHES window.fetch so ANY widget calling fetch("/something") automatically becomes
-//        fetch("<PREFIX>/something")
-//    (only when PREFIX is not "/" and the URL is site-absolute)
-//  - injects @font-face at runtime with prefix-aware URLs (fixes /static/fonts 404s on GH Pages)
+// Fixes:
+// 1) window.ZZXWidgets undefined  -> provides window.ZZXWidgets.register(...)
+// 2) window.ZZXWidgetRegistry undefined -> alias to same registry
+// 3) Core.onMount is not a function -> provides Core.onMount(...)
+// 4) Bad PREFIX causing ../__partials/... 404s on root -> clamps prefix on root pages
+// 5) Makes ALL fetch("/...") prefix-aware (keeps widgets working without editing each widget)
+//
+// This file is intentionally "compat-first". It DOES NOT require changing each widget JS.
 
 (function () {
   const W = window;
 
-  // Avoid double-definitions across reinjections
+  // Prevent redefinition
   if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__version) return;
 
-  // ----------------------------
+  // ---------------------------------------------------------
   // Prefix helpers
-  // ----------------------------
-  function getPrefix() {
+  // ---------------------------------------------------------
+  function getPrefixRaw() {
     const p = W.ZZX?.PREFIX;
     return (typeof p === "string" && p.length) ? p : ".";
+  }
+
+  function clampPrefix(prefix) {
+    // If you're on domain root ("/") but the cached prefix ended up like "..",
+    // that produces "../__partials/..." and 404s. Clamp to "." in that case.
+    const path = String(location.pathname || "/");
+    const isRootish = (path === "/" || path.endsWith("/index.html"));
+    if (isRootish && prefix.startsWith("..")) return ".";
+    return prefix;
+  }
+
+  function getPrefix() {
+    return clampPrefix(getPrefixRaw());
   }
 
   function isAbsSitePath(u) {
@@ -33,55 +45,80 @@
     if (!path) return path;
     if (typeof path !== "string") return path;
 
-    // Already absolute URL (http/https)
     if (/^https?:\/\//i.test(path)) return path;
 
-    // If hosted at domain root, keep site-absolute paths unchanged
+    // hosted at domain root
     if (prefix === "/") return path;
 
-    // Already relative
+    // already relative
     if (!path.startsWith("/")) return path;
 
-    // Prefix + site-absolute path
+    // prefix + site-absolute path
     return prefix.replace(/\/+$/, "") + path;
   }
 
-  // Public: make any "/x/y" safe under PREFIX
+  // Public: prefix-safe absolute resolver for "/x/y"
   function abs(pathAbs) {
     return join(getPrefix(), pathAbs);
   }
 
-  // ----------------------------
-  // Fetch helpers
-  // ----------------------------
+  // ---------------------------------------------------------
+  // Global fetch patch (so existing widgets keep working)
+  // ---------------------------------------------------------
+  function patchFetchOnce() {
+    if (W.__ZZX_FETCH_PATCHED) return;
+    W.__ZZX_FETCH_PATCHED = true;
+
+    const nativeFetch = W.fetch.bind(W);
+
+    W.fetch = function patchedFetch(input, init) {
+      try {
+        if (typeof input === "string") {
+          if (isAbsSitePath(input)) input = abs(input);
+        } else if (input && typeof input === "object" && "url" in input) {
+          const url = String(input.url || "");
+          if (isAbsSitePath(url)) {
+            const fixed = abs(url);
+            input = new Request(fixed, input);
+          }
+        }
+      } catch (_) {
+        // ignore; fall through
+      }
+      return nativeFetch(input, init);
+    };
+  }
+
+  // ---------------------------------------------------------
+  // Fetch helpers (used by some widgets)
+  // ---------------------------------------------------------
   async function fetchText(url, opts = {}) {
-    const u = typeof url === "string" ? abs(url) : url;
+    const u = (typeof url === "string") ? abs(url) : url;
     const r = await fetch(u, { cache: "no-store", ...opts });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${typeof u === "string" ? u : "(request)"}`);
     return await r.text();
   }
 
   async function fetchJSON(url, opts = {}) {
-    const u = typeof url === "string" ? abs(url) : url;
+    const u = (typeof url === "string") ? abs(url) : url;
     const r = await fetch(u, { cache: "no-store", ...opts });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${typeof u === "string" ? u : "(request)"}`);
     return await r.json();
   }
 
-  // ----------------------------
+  // ---------------------------------------------------------
   // DOM helpers
-  // ----------------------------
+  // ---------------------------------------------------------
   function qs(sel, scope) {
     return (scope || document).querySelector(sel);
   }
-
   function qsa(sel, scope) {
     return Array.from((scope || document).querySelectorAll(sel));
   }
 
-  // ----------------------------
-  // Asset injectors (deduped)
-  // ----------------------------
+  // ---------------------------------------------------------
+  // Assets (dedupe)
+  // ---------------------------------------------------------
   function ensureCSS(href, key = "1") {
     const u = abs(href);
     const sel = `link[data-zzx-css="${key}"]`;
@@ -109,9 +146,142 @@
     });
   }
 
-  // ----------------------------
-  // Widget path helpers
-  // ----------------------------
+  // ---------------------------------------------------------
+  // Widget registry (WHAT YOUR WIDGETS EXPECT)
+  // ---------------------------------------------------------
+  // Many of your widget.js files do:
+  //   window.ZZXWidgets.register("price-24h", (root, Core) => { ... })
+  //
+  // Others do:
+  //   window.ZZXWidgetRegistry.register(...)
+  //
+  // Provide both.
+
+  const _registry = new Map();       // id -> initFn
+  const _booted = new Set();         // id -> boolean (init already invoked for a given root)
+
+  function register(id, initFn) {
+    if (!id || typeof initFn !== "function") return;
+    _registry.set(String(id), initFn);
+
+    // If the widget DOM already exists, init immediately.
+    // Widget root marker we guarantee at mount time is: [data-widget-root="<id>"] OR [data-widget-id="<id>"]
+    const root =
+      document.querySelector(`[data-widget-root="${CSS.escape(String(id))}"]`) ||
+      document.querySelector(`[data-widget-id="${CSS.escape(String(id))}"]`);
+
+    if (root) safeInit(String(id), root);
+  }
+
+  function safeInit(id, root) {
+    const key = `${id}@@${root && root.dataset ? (root.dataset.__zzx_uid || "") : ""}`;
+
+    // give each root a stable uid once
+    if (root && root.dataset && !root.dataset.__zzx_uid) {
+      root.dataset.__zzx_uid = Math.random().toString(16).slice(2);
+    }
+
+    const uniq = `${id}@@${root && root.dataset ? root.dataset.__zzx_uid : ""}`;
+    if (_booted.has(uniq)) return;
+
+    const fn = _registry.get(id);
+    if (typeof fn !== "function") return;
+
+    try {
+      _booted.add(uniq);
+      fn(root, W.ZZXWidgetsCore);
+    } catch (e) {
+      console.warn(`[ZZXWidgets] init failed for ${id}:`, e);
+    }
+  }
+
+  function initIfRegistered(id, root) {
+    if (!id || !root) return;
+    const fn = _registry.get(String(id));
+    if (typeof fn === "function") safeInit(String(id), root);
+  }
+
+  function has(id) {
+    return _registry.has(String(id));
+  }
+
+  // Global objects expected by widgets
+  W.ZZXWidgets = W.ZZXWidgets || {};
+  W.ZZXWidgets.register = register;
+  W.ZZXWidgets.has = has;
+
+  W.ZZXWidgetRegistry = W.ZZXWidgetRegistry || {};
+  W.ZZXWidgetRegistry.register = register;
+  W.ZZXWidgetRegistry.has = has;
+
+  // ---------------------------------------------------------
+  // Core.onMount (WHAT SOME WIDGETS EXPECT)
+  // ---------------------------------------------------------
+  // Your errors show: "Core.onMount is not a function" in high-low-24h, tip, drift, btc-repo...
+  // Implement a tolerant version that supports:
+  //   Core.onMount(fn)                      // runs when DOM ready, passes { root } if found
+  //   Core.onMount(widgetId, fn)            // runs when that widget root exists
+  //   Core.onMount(widgetId, rootSel, fn)   // (extra compatibility) if they ever did this
+
+  function onMount(a, b, c) {
+    let widgetId = null;
+    let fn = null;
+
+    if (typeof a === "function") {
+      fn = a;
+    } else if (typeof a === "string" && typeof b === "function") {
+      widgetId = a;
+      fn = b;
+    } else if (typeof a === "string" && typeof b === "string" && typeof c === "function") {
+      widgetId = a;
+      fn = c;
+    }
+
+    if (typeof fn !== "function") return;
+
+    const run = () => {
+      if (!widgetId) {
+        try { fn(); } catch (e) { console.warn("[Core.onMount] callback failed:", e); }
+        return;
+      }
+
+      // Find widget root (both markers supported)
+      const root =
+        document.querySelector(`[data-widget-root="${CSS.escape(widgetId)}"]`) ||
+        document.querySelector(`[data-widget-id="${CSS.escape(widgetId)}"]`);
+
+      if (root) {
+        try { fn(root); } catch (e) { console.warn(`[Core.onMount] ${widgetId} callback failed:`, e); }
+        return;
+      }
+
+      // Not mounted yet: observe briefly
+      const mo = new MutationObserver(() => {
+        const r2 =
+          document.querySelector(`[data-widget-root="${CSS.escape(widgetId)}"]`) ||
+          document.querySelector(`[data-widget-id="${CSS.escape(widgetId)}"]`);
+        if (r2) {
+          mo.disconnect();
+          try { fn(r2); } catch (e) { console.warn(`[Core.onMount] ${widgetId} callback failed:`, e); }
+        }
+      });
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+
+      // Safety stop (don’t leak observers forever)
+      setTimeout(() => { try { mo.disconnect(); } catch (_) {} }, 5000);
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      // next tick so widget HTML has a chance to land
+      setTimeout(run, 0);
+    }
+  }
+
+  // ---------------------------------------------------------
+  // Mounting helpers (kept, but NOT required for your current runtime)
+  // ---------------------------------------------------------
   function widgetBase(widgetId) {
     return `/__partials/widgets/${widgetId}`;
   }
@@ -128,71 +298,11 @@
     return abs(`${widgetBase(widgetId)}/${filename}`);
   }
 
-  // ----------------------------
-  // Runtime-injected fonts (prefix-safe)
-  // ----------------------------
-  function ensureFonts() {
-    if (document.querySelector('style[data-zzx-fonts="1"]')) return;
-
-    const prefix = getPrefix();
-    const font1 = join(prefix, "/static/fonts/Adult-Swim-Font.ttf");
-    const font2 = join(prefix, "/static/fonts/IBMPlexMono-Regular.ttf");
-
-    const st = document.createElement("style");
-    st.setAttribute("data-zzx-fonts", "1");
-    st.textContent = `
-@font-face{
-  font-family:'AdultSwimFont';
-  src:url('${font1}') format('truetype');
-  font-display:swap;
-}
-@font-face{
-  font-family:'IBMPlexMono';
-  src:url('${font2}') format('truetype');
-  font-display:swap;
-}`.trim();
-    document.head.appendChild(st);
-  }
-
-  // ----------------------------
-  // Fetch patch (THIS IS THE GLOBAL FIX)
-  // ----------------------------
-  function patchFetchOnce() {
-    if (W.__ZZX_FETCH_PATCHED) return;
-    W.__ZZX_FETCH_PATCHED = true;
-
-    const nativeFetch = W.fetch.bind(W);
-
-    W.fetch = function patchedFetch(input, init) {
-      try {
-        // If widgets call fetch("/something"), rewrite to "<PREFIX>/something"
-        if (typeof input === "string") {
-          if (isAbsSitePath(input)) {
-            input = abs(input);
-          }
-        } else if (input && typeof input === "object" && "url" in input) {
-          // Request object: clone with rewritten URL if needed
-          const url = String(input.url || "");
-          if (isAbsSitePath(url)) {
-            const fixed = abs(url);
-            input = new Request(fixed, input);
-          }
-        }
-      } catch (_) {
-        // fall through to native
-      }
-      return nativeFetch(input, init);
-    };
-  }
-
-  // ----------------------------
-  // Widget mounting (kept compatible)
-  // ----------------------------
   function mkWidgetRoot(widgetId) {
     const root = document.createElement("div");
     root.className = "zzx-widget";
     root.setAttribute("data-widget-id", widgetId);
-    root.setAttribute("data-widget-root", widgetId); // back-compat
+    root.setAttribute("data-widget-root", widgetId); // compatibility
     return root;
   }
 
@@ -224,27 +334,17 @@
     slotEl.dataset.loading = "1";
 
     try {
-      // Widget CSS (deduped)
       ensureCSS(hrefWidgetCSS(widgetId), `w:${widgetId}`);
 
-      // HTML
       const html = await fetchText(hrefWidgetHTML(widgetId));
       const root = mkWidgetRoot(widgetId);
       root.innerHTML = html;
       slotEl.replaceChildren(root);
 
-      // JS (deduped)
       await ensureJS(hrefWidgetJS(widgetId), `w:${widgetId}`);
 
-      // Optional init hook convention (non-breaking)
-      try {
-        const initMap = W.ZZXWidgetInit;
-        if (initMap && typeof initMap === "object" && typeof initMap[widgetId] === "function") {
-          initMap[widgetId](root, W.ZZXWidgetsCore);
-        } else if (typeof initMap === "function") {
-          initMap(widgetId, root, W.ZZXWidgetsCore);
-        }
-      } catch (_) {}
+      // If the widget used register(), init now.
+      initIfRegistered(widgetId, root);
 
       return true;
     } catch (err) {
@@ -266,14 +366,13 @@
     return await Promise.allSettled(jobs);
   }
 
-  // ----------------------------
-  // Boot core
-  // ----------------------------
+  // ---------------------------------------------------------
+  // Publish core API
+  // ---------------------------------------------------------
   patchFetchOnce();
-  ensureFonts();
 
   W.ZZXWidgetsCore = {
-    __version: "1.1.0-dropin",
+    __version: "1.2.0-dropin",
     // prefix/url
     getPrefix,
     join,
@@ -291,7 +390,10 @@
     ensureCSS,
     ensureJS,
 
-    // mount
+    // compat hooks
+    onMount,
+
+    // mount helpers
     mountWidget,
     mountAll,
 
