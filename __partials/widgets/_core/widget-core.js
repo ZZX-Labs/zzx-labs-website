@@ -108,19 +108,23 @@
     const slot = document.querySelector(`[data-widget-slot="${widgetId}"]`);
     if (slot) {
       // widget runtime mounts html into this slot; root might be firstElementChild
-      return slot.querySelector(`[data-widget-root="${widgetId}"]`)
-        || slot.querySelector(`.zzx-widget[data-widget-id="${widgetId}"]`)
-        || slot.firstElementChild
-        || slot;
+      return (
+        slot.querySelector(`[data-widget-root="${widgetId}"]`) ||
+        slot.querySelector(`.zzx-widget[data-widget-id="${widgetId}"]`) ||
+        slot.firstElementChild ||
+        slot
+      );
     }
 
     // fallback: old slot style .btc-slot[data-widget="id"]
     const btcSlot = document.querySelector(`.btc-slot[data-widget="${widgetId}"]`);
     if (btcSlot) {
-      return btcSlot.querySelector(`[data-widget-root="${widgetId}"]`)
-        || btcSlot.querySelector(`.zzx-widget[data-widget-id="${widgetId}"]`)
-        || btcSlot.firstElementChild
-        || btcSlot;
+      return (
+        btcSlot.querySelector(`[data-widget-root="${widgetId}"]`) ||
+        btcSlot.querySelector(`.zzx-widget[data-widget-id="${widgetId}"]`) ||
+        btcSlot.firstElementChild ||
+        btcSlot
+      );
     }
 
     return null;
@@ -224,7 +228,6 @@
   // ----------------------------
   // Legacy registries: window.__ZZX_WIDGETS, window.ZZXWidgets, window.ZZXWidgetRegistry
   // ----------------------------
-
   // Your widgets throw when they try:
   //   window.ZZXWidgets.register("price-24h", { boot(){...} })
   //
@@ -241,13 +244,14 @@
   }
 
   function register(id, def) {
+    // allow register({id:'x', boot(){...}})
+    if (id && typeof id === "object" && typeof id.id === "string") {
+      def = id;
+      id = id.id;
+    }
+
     const wid = normalizeId(id);
     if (!wid) return false;
-
-    // support "register({id:'x', boot(){}})"
-    if (def && typeof def === "object" && !def.boot && def.id && typeof def.id === "string") {
-      def = def;
-    }
 
     _registry.set(wid, def || {});
     return true;
@@ -258,14 +262,8 @@
     const def = _registry.get(wid);
     if (!def) return false;
 
-    // find root
     const root = getWidgetRoot(wid);
 
-    // Several patterns exist in your widgets:
-    //  - def.boot(root, Core)
-    //  - def.init(root, Core)
-    //  - def.start(root, Core)
-    //  - def(root, Core) if def itself is a function
     try {
       if (typeof def === "function") {
         def(root, W.ZZXWidgetsCore);
@@ -290,6 +288,7 @@
   }
 
   function start() {
+    if (_started) return true;
     _started = true;
     for (const id of _registry.keys()) bootOne(id);
     return true;
@@ -349,12 +348,9 @@
     bootOne,
   };
 
-  // If runtime already injected widgets and some widget scripts already registered,
-  // auto-start on DOM ready so data begins flowing without manual calls.
-  // (Safe: start() is idempotent.)
+  // If widget scripts register handlers, ensure they actually start.
   function autoStartIfNeeded() {
     if (_started) return;
-    // Only autostart if *something* is registered.
     if (_registry.size === 0) return;
     start();
   }
