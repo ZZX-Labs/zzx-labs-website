@@ -1,58 +1,61 @@
 /* __partials/widgets/_core/widget-core.css */
-/* scoped to HUD only */
+/* Scoped HUD core styles */
 
-@font-face{
-  font-family:'AdultSwimFont';
-  src:url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-  font-display:swap;
+@font-face {
+  font-family: 'AdultSwimFont';
+  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-display: swap;
 }
-@font-face{
-  font-family:'IBMPlexMono';
-  src:url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-  font-display:swap;
+@font-face {
+  font-family: 'IBMPlexMono';
+  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+  font-display: swap;
 }
 
+/* Recovery handle */
 .zzx-hud-handle{
-  width:100%;
-  max-width:min(var(--header-rail,1100px),100%);
-  margin:.5rem auto;
-  padding-inline:.5rem;
-  box-sizing:border-box;
+  width: 100%;
+  max-width: min(var(--header-rail, 1100px), 100%);
+  margin: .5rem auto;
+  padding-inline: .5rem;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
 }
 .zzx-hud-show{
-  width:100%;
   background:#000;
   color:#c0d674;
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
-  padding:.45rem .65rem;
+  padding:.45rem .75rem;
   font-family:'IBMPlexMono', ui-monospace, monospace;
   cursor:pointer;
 }
 .zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
 
+/* HUD root */
 .zzx-widgets{
-  width:100%;
-  max-width:min(var(--header-rail,1100px),100%);
-  margin:.5rem auto;
-  padding-inline:.5rem;
-  box-sizing:border-box;
-  display:grid;
-  gap:.6rem;
+  width: 100%;
+  max-width: min(var(--header-rail, 1100px), 100%);
+  margin: .5rem auto;
+  padding-inline: .5rem;
+  box-sizing: border-box;
 }
 
-/* control bar */
+/* single bar */
 .zzx-widgets__bar{
   display:flex;
   align-items:center;
   gap:.45rem;
-  flex-wrap:wrap;
-  justify-content:center;
-  padding:.35rem .45rem;
-  background:#0b0b0b;
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: .35rem .45rem;
+  background: #0b0b0b;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 10px;
+  margin-bottom: .6rem;
 }
+
 .zzx-widgets__btn{
   background:#0b0b0b;
   color:#c0d674;
@@ -63,7 +66,8 @@
   cursor:pointer;
 }
 .zzx-widgets__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
-.zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
+
+.zzx-widgets__spacer{ flex: 1 1 auto; min-width: 1rem; }
 
 /* rail */
 .zzx-widgets__rail{
@@ -75,30 +79,52 @@
   width:100%;
 }
 
-/* widget shell (runtime mounts each widget into this wrapper) */
+/* generic widget wrapper */
 .zzx-widget{
+  flex: 1 1 240px;
+  max-width: 360px;
+  min-width: 220px;
+}
+
+/* cards */
+.zzx-card{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.25);
   padding:.55rem .65rem;
-  min-width:220px;
-  flex:1 1 240px;
-  max-width:360px;
   color:#c0d674;
   font-family:'IBMPlexMono', ui-monospace, monospace;
 }
+.zzx-card__title{
+  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  color:#e6a42b;
+  font-size:1rem;
+  line-height:1.1;
+  margin-bottom:.35rem;
+  white-space:nowrap;
+}
+.zzx-card__value{
+  font-size:1.35rem;
+  line-height:1.2;
+  margin-bottom:.15rem;
+  white-space:nowrap;
+}
+.zzx-card__sub{
+  font-size:.95rem;
+  color:#b7bf9a;
+  white-space:nowrap;
+}
 
-/* HUD state behavior */
-[data-hud-state="hidden"] .zzx-widgets__bar,
-[data-hud-state="hidden"] .zzx-widgets__rail{
+/* MODE: hidden => hide root, show handle */
+[data-hud-mode="hidden"]{
   display:none !important;
 }
 
-/* ticker-only: hide everything except ticker widget */
-[data-hud-state="ticker-only"] .zzx-widgets__rail .zzx-widget{
+/* MODE: ticker-only => hide all widgets except bitcoin-ticker */
+[data-hud-mode="ticker-only"] .zzx-widget{
   display:none !important;
 }
-[data-hud-state="ticker-only"] .zzx-widgets__rail .zzx-widget[data-widget-id="bitcoin-ticker"]{
+[data-hud-mode="ticker-only"] .zzx-widget[data-widget-id="bitcoin-ticker"]{
   display:block !important;
 }
