@@ -1,5 +1,5 @@
 /* __partials/widgets/_core/widget-core.css */
-/* scopes to the HUD wrapper + handle */
+/* Global-ish but SAFE: scope is under .zzx-widgets only */
 
 @font-face {
   font-family: 'AdultSwimFont';
@@ -12,65 +12,129 @@
   font-display: swap;
 }
 
-/* ALWAYS visible handle */
-.zzx-hud-handle{
+/* ============ SHELL ============ */
+.zzx-widgets{
   width: 100%;
   max-width: min(var(--header-rail, 1100px), 100%);
   margin: .5rem auto;
   padding-inline: .5rem;
   box-sizing: border-box;
+
+  display: grid;
+  gap: .6rem;
+}
+
+/* IMPORTANT:
+   Never use display:none on the entire shell.
+   Hidden mode hides bar+rail but keeps recover UI alive. */
+.zzx-widgets[data-hud-state="hidden"]{
+  /* keep layout alive so recovery button can show */
+}
+
+/* ============ ALWAYS-VISIBLE HANDLE (outside shell) ============ */
+.zzx-hud-handle{
+  width: 100%;
+  max-width: min(var(--header-rail, 1100px), 100%);
+  margin: .5rem auto 0;
+  padding-inline: .5rem;
+  box-sizing: border-box;
+
   display: flex;
   justify-content: center;
 }
+.zzx-hud-handle[hidden]{ display:none !important; }
+
 .zzx-hud-show{
-  background:#000;
+  background:#0b0b0b;
   color:#c0d674;
-  border:1px solid rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.14);
   border-radius:10px;
-  padding:.35rem .75rem;
+  padding:.35rem .60rem;
   font-family:'IBMPlexMono', ui-monospace, monospace;
-  font-size:.95rem;
   cursor:pointer;
 }
-.zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
-
-/* HUD root: this is what collapses */
-[data-hud-root]{
-  width: 100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
-  margin: .25rem auto .5rem;
-  padding-inline: .5rem;
-  box-sizing: border-box;
+.zzx-hud-show:hover{
+  border-color:#e6a42b;
+  color:#e6a42b;
 }
 
-/* Modes */
-[data-hud-root][data-mode="hidden"]{ display:none; }
+/* ============ CONTROL BAR ============ */
+.zzx-widgets__bar{
+  display:flex;
+  align-items:center;
+  gap:.45rem;
+  flex-wrap:wrap;
+  justify-content:center;
 
-/* ticker-only = show only ticker widget slots */
-[data-hud-root][data-mode="ticker-only"] .btc-slot{ display:none; }
-[data-hud-root][data-mode="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"]{ display:block; }
-[data-hud-root][data-mode="ticker-only"] .btc-slot[data-widget="runtime"]{ display:block; } /* keep controls */
+  padding:.35rem .45rem;
+  background:#0b0b0b;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:10px;
+}
 
-/* rail layout */
-.btc-rail{
+.zzx-widgets__btn{
+  background:#0b0b0b;
+  color:#c0d674;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;
+  padding:.35rem .55rem;
+  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-size:.9rem;
+  cursor:pointer;
+}
+.zzx-widgets__btn:hover{
+  border-color:#e6a42b;
+  color:#e6a42b;
+}
+
+.zzx-widgets__spacer{ flex: 1 1 auto; min-width: 1rem; }
+
+/* ============ RAIL ============ */
+.zzx-widgets__rail{
   display:flex;
   flex-wrap:wrap;
   justify-content:center;
   align-items:stretch;
   gap:.6rem;
-  width:100%;
+  width: 100%;
 }
 
-/* card base (shared look) */
+/* ============ RECOVER ROW (inside shell) ============ */
+.zzx-widgets__recover{
+  display:none;
+  justify-content:center;
+  margin-top:.15rem;
+}
+
+/* hidden mode: hide bar + rail, show recover */
+.zzx-widgets[data-hud-state="hidden"] .zzx-widgets__bar,
+.zzx-widgets[data-hud-state="hidden"] .zzx-widgets__rail{
+  display:none !important;
+}
+.zzx-widgets[data-hud-state="hidden"] .zzx-widgets__recover{
+  display:flex !important;
+}
+
+/* ticker-only: show only ticker widget */
+.zzx-widgets[data-hud-state="ticker-only"] .zzx-widgets__rail [data-widget-id]{
+  display:none !important;
+}
+.zzx-widgets[data-hud-state="ticker-only"] .zzx-widgets__rail [data-widget-id="bitcoin-ticker"]{
+  display:block !important;
+}
+
+/* ============ CARD BASE ============ */
 .zzx-card{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.25);
   padding:.55rem .65rem;
+
   min-width:220px;
   flex:1 1 240px;
   max-width:360px;
+
   color:#c0d674;
   font-family:'IBMPlexMono', ui-monospace, monospace;
 }
