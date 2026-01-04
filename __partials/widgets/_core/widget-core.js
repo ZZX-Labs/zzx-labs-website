@@ -1,6 +1,6 @@
-// __partials/widgets/_core/widget-core.js
-// Minimal, reliable widget runtime helpers: prefix-aware fetch, mount callbacks, css/js inject once.
-
+/* __partials/widgets/_core/widget-core.js
+   Core helpers for ZZX HUD widgets (prefix-aware, safe, idempotent).
+*/
 (function () {
   const W = window;
   if (W.ZZXWidgetsCore) return;
@@ -10,101 +10,113 @@
     return (typeof p === "string" && p.length) ? p : ".";
   }
 
-  function join(path) {
-    const p = getPrefix();
+  function join(prefix, path) {
     if (!path) return path;
-    if (p === "/" || /^https?:\/\//i.test(path)) return path;
-    if (!path.startsWith("/")) return path;
-    return p.replace(/\/+$/, "") + path;
+    if (prefix === "/" || path.startsWith("http://") || path.startsWith("https://")) return path;
+    if (!path.startsWith("/")) return path; // already relative
+    return prefix.replace(/\/+$/, "") + path;
   }
 
-  function qs(sel, root = document) { return root.querySelector(sel); }
-  function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+  function url(path) {
+    return join(getPrefix(), path);
+  }
 
-  async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+  async function fetchText(path) {
+    const r = await fetch(url(path), { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${path}`);
     return await r.text();
   }
 
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+  async function fetchJSON(path) {
+    const r = await fetch(url(path), { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${path}`);
     return await r.json();
   }
 
-  function ensureCSS(href, key) {
-    const id = `zzx-css-${key || href}`;
-    if (document.getElementById(id)) return;
+  function qs(sel, root = document) {
+    return root.querySelector(sel);
+  }
+
+  function qsa(sel, root = document) {
+    return Array.from(root.querySelectorAll(sel));
+  }
+
+  function ensureLinkCSS(href, key) {
+    const attr = `data-zzx-css-${key}`;
+    if (document.querySelector(`link[${attr}="1"]`)) return;
     const l = document.createElement("link");
-    l.id = id;
     l.rel = "stylesheet";
     l.href = href;
+    l.setAttribute(attr, "1");
     document.head.appendChild(l);
   }
 
-  function ensureJS(src, key) {
-    const id = `zzx-js-${key || src}`;
-    if (document.getElementById(id)) return;
+  function ensureScript(src, key) {
+    const attr = `data-zzx-js-${key}`;
+    if (document.querySelector(`script[${attr}="1"]`)) return;
     const s = document.createElement("script");
-    s.id = id;
     s.src = src;
     s.defer = true;
+    s.setAttribute(attr, "1");
     document.body.appendChild(s);
   }
 
-  // ---------- mount callbacks ----------
-  const mountCbs = new Map();   // id -> [fn]
-  const mountedOnce = new Set(); // id -> token string
+  // Mount widget fragment into a slot:
+  // - inject widget.css once (if exists)
+  // - inject widget.js once (if exists)
+  // - mount widget.html into slot
+  async function mountWidget(widgetId, slotEl) {
+    if (!slotEl) return false;
 
-  function widgetRoot(id) {
-    return qs(`[data-widget-root="${id}"]`);
+    // avoid double-mount
+    if (slotEl.dataset.mounted === "1") return true;
+    slotEl.dataset.mounted = "1";
+
+    const base = `/__partials/widgets/${widgetId}`;
+    const htmlPath = `${base}/widget.html`;
+    const cssPath  = `${base}/widget.css`;
+    const jsPath   = `${base}/widget.js`;
+
+    // Try CSS (optional)
+    try {
+      // If css exists, link it (probe via fetch HEAD-ish GET)
+      const cssUrl = url(cssPath);
+      const r = await fetch(cssUrl, { method: "GET", cache: "no-store" });
+      if (r.ok) ensureLinkCSS(cssUrl, `widget-${widgetId}`);
+    } catch (_) {}
+
+    // HTML is required for a widget slot to be considered “working”
+    const html = await fetchText(htmlPath);
+
+    // Wrap into a predictable root (widgets can also include their own wrappers)
+    const wrap = document.createElement("div");
+    wrap.className = "zzx-widget";
+    wrap.setAttribute("data-widget-id", widgetId);
+    wrap.setAttribute("data-widget-root", widgetId);
+    wrap.innerHTML = html;
+
+    slotEl.replaceChildren(wrap);
+
+    // Try JS (optional)
+    try {
+      const jsUrl = url(jsPath);
+      const r = await fetch(jsUrl, { method: "GET", cache: "no-store" });
+      if (r.ok) ensureScript(jsUrl, `widget-${widgetId}`);
+    } catch (_) {}
+
+    return true;
   }
-
-  function onMount(id, fn) {
-    if (!mountCbs.has(id)) mountCbs.set(id, []);
-    mountCbs.get(id).push(fn);
-
-    // If already mounted, run immediately
-    const root = widgetRoot(id);
-    if (root) safeRun(fn, root);
-  }
-
-  function safeRun(fn, root) {
-    try { fn(root); } catch (e) { console.warn(`[ZZXWidgets] ${root?.dataset?.widgetRoot || "widget"} init`, e); }
-  }
-
-  function notifyMount(id) {
-    const root = widgetRoot(id);
-    if (!root) return;
-    const tok = root.dataset.__tok || (root.dataset.__tok = String(Date.now() + Math.random()));
-    if (mountedOnce.has(`${id}:${tok}`)) return;
-    mountedOnce.add(`${id}:${tok}`);
-
-    const list = mountCbs.get(id) || [];
-    list.forEach(fn => safeRun(fn, root));
-  }
-
-  // Watch DOM for injected widget HTML
-  const mo = new MutationObserver(() => {
-    // any widget root that exists should notify
-    qsa("[data-widget-root]").forEach(el => {
-      const id = el.getAttribute("data-widget-root");
-      if (id) notifyMount(id);
-    });
-  });
-  mo.observe(document.documentElement, { childList: true, subtree: true });
 
   W.ZZXWidgetsCore = {
     getPrefix,
     join,
-    qs,
-    qsa,
+    url,
     fetchText,
     fetchJSON,
-    ensureCSS,
-    ensureJS,
-    onMount,
-    notifyMount
+    qs,
+    qsa,
+    ensureLinkCSS,
+    ensureScript,
+    mountWidget,
   };
 })();
