@@ -1,44 +1,86 @@
 // __partials/widgets/runtime.js
-// HARD-FIX: never exit early if Core isn't ready yet.
-// - waits for window.ZZXWidgetsCore
-// - mounts widgets from manifest.json
-// - loads each widget's html/css/js
-// - supports legacy widgets (that just run on load) AND mount-registered widgets
+// Loads widgets described by /__partials/widgets/manifest.json into #zzx-widgets-rail
+// Also binds HUD controls + recover handle using ZZXHUD.
 
 (function () {
   const W = window;
 
-  // prevent duplicate boot loops
+  // Prevent double boot
   if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
   W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
 
-  const MANIFEST_PATH = "/__partials/widgets/manifest.json";
-  const WIDGETS_BASE = "/__partials/widgets";
+  // ---------- prefix-aware helpers ----------
+  function getPrefix() {
+    const p = W.ZZX?.PREFIX;
+    return (typeof p === "string" && p.length) ? p : ".";
+  }
+  function join(prefix, path) {
+    if (!path) return path;
+    if (prefix === "/" || /^https?:\/\//i.test(path)) return path;
+    if (!path.startsWith("/")) return path;
+    return prefix.replace(/\/+$/, "") + path;
+  }
+  function url(path) {
+    return join(getPrefix(), path);
+  }
 
-  function waitForCore(timeoutMs = 8000, intervalMs = 25) {
-    return new Promise((resolve, reject) => {
-      const t0 = performance.now();
-      (function poll() {
-        if (W.ZZXWidgetsCore) return resolve(W.ZZXWidgetsCore);
-        if (performance.now() - t0 > timeoutMs) return reject(new Error("ZZXWidgetsCore not ready"));
-        setTimeout(poll, intervalMs);
-      })();
+  // ---------- DOM helpers ----------
+  const qs = (s, r = document) => r.querySelector(s);
+
+  function hudRoot() { return qs("[data-hud-root]"); }
+  function hudHandle() { return qs("[data-hud-handle]"); }
+  function rail() { return document.getElementById("zzx-widgets-rail"); }
+
+  // ---------- ensure HUD state lib ----------
+  async function ensureHudState() {
+    if (W.ZZXHUD && typeof W.ZZXHUD.read === "function") return;
+    const src = url("/__partials/widgets/hud-state.js");
+    await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.defer = true;
+      s.onload = resolve;
+      s.onerror = resolve;
+      document.head.appendChild(s);
     });
   }
 
-  function hudRoot(Core) { return Core.qs('[data-hud-root]'); }
-  function hudHandle(Core) { return Core.qs('[data-hud-handle]'); }
-  function rail(Core) { return Core.qs("#zzx-widgets-rail"); }
+  // ---------- mode application ----------
+  function applyMode(mode) {
+    const root = hudRoot();
+    const handle = hudHandle();
 
-  function applyMode(Core, mode) {
-    const root = hudRoot(Core);
-    const handle = hudHandle(Core);
-    if (root) root.setAttribute("data-hud-mode", mode);
+    if (root) root.setAttribute("data-mode", mode);
+
+    // handle visible ONLY when hidden
     if (handle) handle.hidden = (mode !== "hidden");
   }
 
-  function bindBarOnce(Core) {
-    const root = hudRoot(Core);
+  function readModeOrDefault() {
+    try {
+      const s = W.ZZXHUD?.read?.();
+      return W.ZZXHUD?.normalize ? W.ZZXHUD.normalize(s?.mode) : (s?.mode || "full");
+    } catch (_) {
+      return "full";
+    }
+  }
+
+  function setMode(mode) {
+    const m = W.ZZXHUD?.normalize ? W.ZZXHUD.normalize(mode) : (mode || "full");
+    W.ZZXHUD?.write?.(m);
+    applyMode(m);
+    return m;
+  }
+
+  function resetMode() {
+    W.ZZXHUD?.reset?.();
+    applyMode("full");
+    return "full";
+  }
+
+  // ---------- controls ----------
+  function bindControlsOnce() {
+    const root = hudRoot();
     if (!root || root.__zzxBound) return;
     root.__zzxBound = true;
 
@@ -46,140 +88,156 @@
       const btn = e.target.closest("button");
       if (!btn) return;
 
-      if (btn.hasAttribute("data-hud-setmode")) {
-        const mode = btn.getAttribute("data-hud-setmode");
-        const s = W.ZZXHUD?.setMode(mode) || { mode: "full" };
-        applyMode(Core, s.mode);
-      }
+      const mode = btn.getAttribute("data-zzx-mode");
+      const action = btn.getAttribute("data-zzx-action");
 
-      if (btn.hasAttribute("data-hud-reset")) {
-        const s = W.ZZXHUD?.reset() || { mode: "full" };
-        applyMode(Core, s.mode);
-        // full remount
-        mountAll(Core, true).catch(err => console.warn("[ZZX] remount error:", err));
+      if (mode) setMode(mode);
+      if (action === "reset") {
+        resetMode();
+        // reload widgets in case user toggled config previously
+        mountAllWidgets(true);
       }
     });
 
-    const showBtn = Core.qs("[data-hud-show]");
+    const showBtn = qs("[data-hud-show]");
     if (showBtn && !showBtn.__zzxBound) {
       showBtn.__zzxBound = true;
-      showBtn.addEventListener("click", () => {
-        const s = W.ZZXHUD?.setMode("full") || { mode: "full" };
-        applyMode(Core, s.mode);
-      });
+      showBtn.addEventListener("click", () => setMode("full"));
     }
   }
 
-  function widgetURL(Core, id, file) {
-    return Core.asset(`${WIDGETS_BASE}/${id}/${file}`);
-  }
+  // ---------- widget loader ----------
+  const LOADED_CSS = new Set();
+  const LOADED_JS = new Set();
 
-  async function loadWidget(Core, def, cacheBust) {
-    const id = String(def?.id || "").trim();
-    if (!id) return;
-    if (def.enabled === false) return;
-
-    const host = document.createElement("div");
-    host.className = "zzx-widget";
-    host.setAttribute("data-widget-id", id);
-    host.setAttribute("data-widget-root", id);
-
-    rail(Core).appendChild(host);
-
-    // CSS (best-effort)
-    try {
-      Core.ensureLinkOnce(`widget-css:${id}`, widgetURL(Core, id, "widget.css"));
-    } catch (_) {}
-
-    // HTML (required)
-    try {
-      const html = await Core.fetchText(widgetURL(Core, id, "widget.html"));
-      host.innerHTML = html;
-    } catch (e) {
-      console.warn(`[ZZX] ${id} html failed`, e);
-      host.innerHTML = `<div class="zzx-card"><div class="zzx-card__title">${def.title || id}</div><div class="zzx-card__sub">widget.html failed</div></div>`;
+  function ensureWidgetCSS(href) {
+    if (!href || LOADED_CSS.has(href)) return;
+    if (document.querySelector(`link[data-zzx-widget-css="${CSS.escape(href)}"]`)) {
+      LOADED_CSS.add(href);
       return;
     }
-
-    // JS (required for data)
-    try {
-      // cache-bust so updates actually apply while you iterate
-      const js = widgetURL(Core, id, `widget.js?v=${encodeURIComponent(cacheBust)}`);
-      await Core.ensureScriptOnce(`widget-js:${id}`, js);
-    } catch (e) {
-      console.warn(`[ZZX] ${id} js failed`, e);
-      return;
-    }
-
-    // Mount hook (optional)
-    // Preferred: window.ZZXWidgetMount[id].mount(host, Core)
-    try {
-      const m = W.ZZXWidgetMount?.[id];
-      if (m && typeof m.mount === "function") {
-        m.mount(host, Core);
-      } else {
-        // Legacy compatibility: if widget.js is written "run immediately",
-        // it can find its DOM under host. We also dispatch an event.
-        host.dispatchEvent(new CustomEvent("zzx:widget-mounted", { bubbles: true, detail: { id, host } }));
-      }
-    } catch (e) {
-      console.warn(`[ZZX] ${id} mount error`, e);
-    }
+    const l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    l.setAttribute("data-zzx-widget-css", href);
+    document.head.appendChild(l);
+    LOADED_CSS.add(href);
   }
 
-  async function mountAll(Core, force = false) {
-    const r = rail(Core);
+  async function fetchText(href) {
+    const r = await fetch(href, { cache: "no-store" });
+    if (!r.ok) throw new Error(`fetch ${href} HTTP ${r.status}`);
+    return await r.text();
+  }
+
+  async function loadWidgetJS(src) {
+    if (!src || LOADED_JS.has(src)) return;
+    if (document.querySelector(`script[data-zzx-widget-js="${CSS.escape(src)}"]`)) {
+      LOADED_JS.add(src);
+      return;
+    }
+    await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.defer = true;
+      s.setAttribute("data-zzx-widget-js", src);
+      s.onload = resolve;
+      s.onerror = resolve;
+      document.body.appendChild(s);
+    });
+    LOADED_JS.add(src);
+  }
+
+  async function mountWidget(id, slotEl) {
+    // Paths
+    const base = `/__partials/widgets/${id}`;
+    const htmlHref = url(`${base}/widget.html`);
+    const cssHref  = url(`${base}/widget.css`);
+    const jsSrc    = url(`${base}/widget.js`);
+
+    // CSS first
+    ensureWidgetCSS(cssHref);
+
+    // HTML
+    const html = await fetchText(htmlHref);
+
+    // Wrap + inject
+    slotEl.className = "zzx-widget";
+    slotEl.setAttribute("data-widget-id", id);
+    slotEl.innerHTML = html;
+
+    // JS last
+    await loadWidgetJS(jsSrc);
+  }
+
+  async function loadManifest() {
+    const mHref = url("/__partials/widgets/manifest.json");
+    const txt = await fetchText(mHref);
+    const obj = JSON.parse(txt);
+    const widgets = Array.isArray(obj?.widgets) ? obj.widgets : [];
+    return { version: obj?.version ?? 1, widgets };
+  }
+
+  async function mountAllWidgets(force = false) {
+    const r = rail();
     if (!r) return;
 
-    if (r.dataset.mounted === "1" && !force) return;
-
-    r.innerHTML = "";
+    if (!force && r.dataset.mounted === "1") return;
     r.dataset.mounted = "0";
 
-    let manifest;
     try {
-      manifest = await Core.fetchJSON(Core.asset(MANIFEST_PATH));
+      const { widgets } = await loadManifest();
+
+      // Filter + sort
+      const enabled = widgets
+        .filter(w => w && w.id && w.enabled !== false)
+        .filter(w => String(w.id) !== "runtime") // runtime is shell, not a widget
+        .sort((a, b) => (Number(a.priority ?? 9999) - Number(b.priority ?? 9999)));
+
+      // Clear rail and rebuild slots
+      r.innerHTML = "";
+
+      for (const w of enabled) {
+        const slot = document.createElement("div");
+        r.appendChild(slot);
+        try {
+          await mountWidget(String(w.id), slot);
+        } catch (e) {
+          // Render an error card so you SEE what failed instead of silent death
+          slot.className = "zzx-widget";
+          slot.setAttribute("data-widget-id", String(w.id));
+          slot.innerHTML = `
+            <div class="zzx-card">
+              <div class="zzx-card__title">${String(w.title || w.id)}</div>
+              <div class="zzx-card__value">—</div>
+              <div class="zzx-card__sub">widget load failed</div>
+            </div>
+          `;
+          console.warn("[ZZX widgets] mount failed:", w.id, e);
+        }
+      }
+
+      r.dataset.mounted = "1";
     } catch (e) {
-      console.warn("[ZZX] manifest.json failed", e);
-      r.innerHTML = `<div class="zzx-card"><div class="zzx-card__title">HUD</div><div class="zzx-card__sub">manifest.json failed</div></div>`;
-      return;
+      console.warn("[ZZX widgets] manifest/runtime failed:", e);
+      r.innerHTML = `
+        <div class="zzx-card" style="max-width:720px">
+          <div class="zzx-card__title">Bitcoin HUD</div>
+          <div class="zzx-card__value">—</div>
+          <div class="zzx-card__sub">runtime failed to load manifest.json</div>
+        </div>
+      `;
     }
-
-    const list = Array.isArray(manifest?.widgets) ? manifest.widgets.slice() : [];
-    list.sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0));
-
-    const cacheBust = Date.now().toString(36);
-
-    // sequential to avoid API stampede and race bugs
-    for (const def of list) {
-      // eslint-disable-next-line no-await-in-loop
-      await loadWidget(Core, def, cacheBust);
-    }
-
-    r.dataset.mounted = "1";
   }
 
+  // ---------- boot ----------
   async function boot() {
-    let Core;
-    try {
-      Core = await waitForCore();
-    } catch (e) {
-      console.warn("[ZZX] runtime cannot start:", e);
-      return;
-    }
+    await ensureHudState();
 
-    // Bind bar + apply persisted mode
-    bindBarOnce(Core);
-    const s = W.ZZXHUD?.read() || { mode: "full" };
-    applyMode(Core, s.mode);
-
-    // Mount all widgets
-    await mountAll(Core, false);
-
-    // expose for manual poke if needed
-    W.ZZXWidgetsRuntime = {
-      rebind: (force) => mountAll(Core, !!force),
-    };
+    const mode = readModeOrDefault();      // default full
+    applyMode(mode);
+    bindControlsOnce();
+    await mountAllWidgets(false);
   }
 
   if (document.readyState === "loading") {
