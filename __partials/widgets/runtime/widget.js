@@ -1,45 +1,77 @@
+// __partials/widgets/runtime/widget.js
 (function () {
-  if (window.__ZZX_RUNTIME_WIDGET_BOUND) return;
-  window.__ZZX_RUNTIME_WIDGET_BOUND = true;
+  const Core = window.ZZXWidgetsCore;
+  if (!Core || !window.ZZXHUD) return;
 
-  function $(sel, root = document){ return root.querySelector(sel); }
+  function applyModeToDOM(mode) {
+    const hudRoot = Core.qs('[data-hud-root]');
+    const handle = Core.qs('[data-hud-handle]');
 
-  function bind() {
-    const card = $("[data-runtime-card]");
-    if (!card) return;
+    if (hudRoot) hudRoot.setAttribute("data-mode", mode);
 
-    const status = $("[data-runtime-status]", card);
-
-    function refresh() {
-      const m = window.ZZXHudState?.getMode?.() || document.documentElement.dataset.zzxHud || "full";
-      if (status) status.textContent = `mode: ${m}`;
+    // Handle is ALWAYS present. Only show the button when HUD is hidden.
+    if (handle) {
+      handle.hidden = (mode !== "hidden");
     }
 
-    card.querySelectorAll("[data-zzx-mode]").forEach(btn => {
-      if (btn.__bound) return;
-      btn.__bound = true;
-      btn.addEventListener("click", () => {
-        window.ZZXHudState?.setMode?.(btn.dataset.zzxMode);
-        refresh();
-      });
-    });
-
-    const reset = card.querySelector('[data-zzx-action="reset"]');
-    if (reset && !reset.__bound) {
-      reset.__bound = true;
-      reset.addEventListener("click", () => {
-        try { localStorage.removeItem("zzx.hud.mode"); } catch (_) {}
-        window.ZZXHudState?.setMode?.("full");
-        refresh();
-      });
-    }
-
-    refresh();
+    // Also update runtime label if present
+    const label = Core.qs('[data-runtime-mode]');
+    if (label) label.textContent = mode;
   }
 
+  function bindRuntimeControls() {
+    const root = Core.qs('[data-widget-root="runtime"]');
+    if (!root || root.__bound) return;
+    root.__bound = true;
+
+    root.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const mode = btn.getAttribute("data-zzx-mode");
+      const action = btn.getAttribute("data-zzx-action");
+
+      if (mode) {
+        const s = window.ZZXHUD.setMode(mode);
+        applyModeToDOM(s.mode);
+      }
+
+      if (action === "reset") {
+        const s = window.ZZXHUD.reset();
+        applyModeToDOM(s.mode);
+        // optional: trigger re-mount/reload
+        if (window.ZZXWidgetsRuntime?.rebind) window.ZZXWidgetsRuntime.rebind(true);
+      }
+    });
+  }
+
+  function bindHudHandle() {
+    const showBtn = Core.qs('[data-hud-show]');
+    if (!showBtn || showBtn.__bound) return;
+    showBtn.__bound = true;
+    showBtn.addEventListener("click", () => {
+      const s = window.ZZXHUD.setMode("full");
+      applyModeToDOM(s.mode);
+    });
+  }
+
+  function boot() {
+    const s = window.ZZXHUD.read();
+    applyModeToDOM(s.mode);
+    bindRuntimeControls();
+    bindHudHandle();
+  }
+
+  // Re-run safely if fragment reinjected
+  if (window.__ZZX_RUNTIME_WIDGET_BOOTED) {
+    boot();
+    return;
+  }
+  window.__ZZX_RUNTIME_WIDGET_BOOTED = true;
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bind, { once: true });
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
-    bind();
+    boot();
   }
 })();
