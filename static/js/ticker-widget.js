@@ -3,14 +3,9 @@
 //
 // IMPORTANT (matches your current HUD architecture):
 // - DO NOT mount into #btc-ticker (that is the HUD/runtime shell mount point).
-// - Instead, mount the ticker fragment into the ticker WIDGET SLOT:
+// - Mount the ticker fragment into the ticker WIDGET SLOT:
 //
 //     [data-widget-slot="bitcoin-ticker"]
-//
-// This prevents clobbering the runtime bar + other widgets.
-// It also works whether the page is using:
-// - the HUD runtime (__partials/widgets/runtime.js), or
-// - a standalone page that only has the ticker slot.
 //
 // Assumes your ticker files remain at:
 //   /bitcoin/ticker/ticker.html
@@ -27,16 +22,30 @@
 
   if (!slot) return;
 
-  // Prevent double-load per page
+  // Prevent double-load per page (per slot)
   if (slot.dataset.tickerLoaded === "1") return;
   slot.dataset.tickerLoaded = "1";
 
-  // Small helper: safe HTML injection
+  // Prefer a dedicated inner mount if widget.html provides one:
+  // <div data-ticker-mount></div>
+  function getMount() {
+    return slot.querySelector("[data-ticker-mount]") || slot;
+  }
+
   function setHTML(html) {
-    // Prefer a dedicated inner mount if your widget.html provides one:
-    // <div data-ticker-mount></div>
-    const inner = slot.querySelector("[data-ticker-mount]");
-    (inner || slot).innerHTML = html;
+    const mount = getMount();
+    mount.innerHTML = html;
+  }
+
+  function renderFail(msg) {
+    try {
+      slot.innerHTML =
+        `<div class="btc-card">
+           <div class="btc-card__title">[BTC]</div>
+           <div class="btc-card__value">$—</div>
+           <div class="btc-card__sub">${String(msg || "ticker load failed")}</div>
+         </div>`;
+    } catch (_) {}
   }
 
   // Load embeddable HTML fragment
@@ -46,6 +55,8 @@
       return r.text();
     })
     .then((html) => {
+      // If runtime mounted a richer widget.html wrapper, only fill the inner mount.
+      // If not, we inject into the slot itself.
       setHTML(html);
 
       // Load ticker logic once (and only after HTML exists)
@@ -60,14 +71,6 @@
     })
     .catch((err) => {
       console.error("Ticker widget load failed:", err);
-      // Keep slot visually sane if ticker fails
-      try {
-        slot.innerHTML =
-          `<div class="btc-card">
-             <div class="btc-card__title">[BTC]</div>
-             <div class="btc-card__value">$—</div>
-             <div class="btc-card__sub">ticker load failed</div>
-           </div>`;
-      } catch (_) {}
+      renderFail(err && err.message ? err.message : "ticker load failed");
     });
 })();
