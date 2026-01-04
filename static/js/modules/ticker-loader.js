@@ -1,5 +1,6 @@
 // static/js/modules/ticker-loader.js
-// Loads the HUD shell (runtime.html) + core css + runtime.js into #btc-ticker (prefix-aware)
+// Loads the Bitcoin HUD wrapper + runtime loader (prefix-aware, any depth).
+// Single bar. No duplicate runtime bars. Widgets mount first, JS loads after.
 
 (function () {
   const W = window;
@@ -14,7 +15,7 @@
 
   function join(prefix, path) {
     if (!path) return path;
-    if (prefix === "/" || /^https?:\/\//i.test(path)) return path;
+    if (prefix === "/" || path.startsWith("http://") || path.startsWith("https://")) return path;
     if (!path.startsWith("/")) return path;
     return prefix.replace(/\/+$/, "") + path;
   }
@@ -22,52 +23,50 @@
   function hrefs() {
     const prefix = getPrefix();
     return {
-      CSS_HREF: join(prefix, "/__partials/widgets/_core/widget-core.css"),
-      HTML_HREF: join(prefix, "/__partials/widgets/runtime.html"),
-      JS_SRC: join(prefix, "/__partials/widgets/runtime.js"),
+      CORE_CSS: join(prefix, "/__partials/widgets/_core/widget-core.css"),
+      RUNTIME_HTML: join(prefix, "/__partials/widgets/runtime.html"),
+      RUNTIME_JS: join(prefix, "/__partials/widgets/runtime.js"),
     };
   }
 
   function ensureCSS(href) {
-    if (document.querySelector('link[data-zzx-btc-css="1"]')) return;
+    if (document.querySelector('link[data-zzx-hud-css="1"]')) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute("data-zzx-btc-css", "1");
+    l.setAttribute("data-zzx-hud-css", "1");
     document.head.appendChild(l);
   }
 
   function ensureJS(src) {
-    if (document.querySelector('script[data-zzx-btc-js="1"]')) return;
+    if (document.querySelector('script[data-zzx-hud-js="1"]')) return;
     const s = document.createElement("script");
     s.src = src;
     s.defer = true;
-    s.setAttribute("data-zzx-btc-js", "1");
+    s.setAttribute("data-zzx-hud-js", "1");
     document.body.appendChild(s);
   }
 
-  async function loadHTMLIntoMount(htmlHref, jsSrc) {
+  async function mountRuntimeShell(runtimeHtmlUrl) {
     const container = document.getElementById("ticker-container");
     const mount = document.getElementById("btc-ticker");
     if (!container || !mount) return false;
 
-    if (container.dataset.tickerLoaded === "1" && mount.innerHTML.trim().length) {
-      ensureJS(jsSrc);
+    if (container.dataset.hudLoaded === "1" && mount.innerHTML.trim().length) {
       return true;
     }
 
-    if (container.dataset.tickerLoading === "1") return false;
-    container.dataset.tickerLoading = "1";
+    if (container.dataset.hudLoading === "1") return false;
+    container.dataset.hudLoading = "1";
 
     try {
-      const r = await fetch(htmlHref, { cache: "no-store" });
-      if (!r.ok) throw new Error(`runtime shell html HTTP ${r.status}`);
+      const r = await fetch(runtimeHtmlUrl, { cache: "no-store" });
+      if (!r.ok) throw new Error(`runtime.html HTTP ${r.status}`);
       mount.innerHTML = await r.text();
-      container.dataset.tickerLoaded = "1";
-      ensureJS(jsSrc);
+      container.dataset.hudLoaded = "1";
       return true;
     } finally {
-      container.dataset.tickerLoading = "0";
+      container.dataset.hudLoading = "0";
     }
   }
 
@@ -75,16 +74,17 @@
   let retryTimer = null;
 
   async function tryBootOnce() {
-    const { CSS_HREF, HTML_HREF, JS_SRC } = hrefs();
-    ensureCSS(CSS_HREF);
+    const { CORE_CSS, RUNTIME_HTML, RUNTIME_JS } = hrefs();
+    ensureCSS(CORE_CSS);
 
     try {
-      const ok = await loadHTMLIntoMount(HTML_HREF, JS_SRC);
+      const ok = await mountRuntimeShell(RUNTIME_HTML);
+      if (ok) ensureJS(RUNTIME_JS);
       return !!ok;
     } catch (e) {
-      console.warn("Ticker loader error:", e);
+      console.warn("HUD loader error:", e);
       const container = document.getElementById("ticker-container");
-      if (container) container.dataset.tickerLoaded = "0";
+      if (container) container.dataset.hudLoaded = "0";
       return false;
     }
   }
