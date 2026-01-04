@@ -1,149 +1,92 @@
-// __partials/widgets/runtime/widget.js
+// __partials/widgets/runtime.js
 (function () {
   const W = window;
-  W.ZZXWidgets = W.ZZXWidgets || {};
+  if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
+  W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
 
-  const HUD_KEY = "zzx.hud.state";
-  const ORDER_KEY = "zzx.hud.order"; // optional later
+  function $(sel, root = document) { return root.querySelector(sel); }
 
-  function getState() {
-    try {
-      const v = localStorage.getItem(HUD_KEY);
-      if (v === "full" || v === "ticker-only" || v === "hidden") return v;
-    } catch {}
-    return "full";
-  }
+  async function boot() {
+    const Core = W.ZZXWidgetsCore;
+    if (!Core) return console.warn("ZZXWidgetsCore missing");
 
-  function setState(rootEl, state) {
-    rootEl.setAttribute("data-hud-state", state);
-    try { localStorage.setItem(HUD_KEY, state); } catch {}
-    // toggle recover visibility is handled by CSS + [data-hud-state]
-    const rec = rootEl.querySelector("[data-zzx-recover]");
-    if (rec) rec.hidden = (state !== "hidden");
-  }
+    const prefix = Core.getPrefix();
 
-  // prefix-aware join
-  function getPrefix() {
-    const p = W.ZZX?.PREFIX;
-    return (typeof p === "string" && p.length) ? p : ".";
-  }
-  function join(prefix, path) {
-    if (!path) return path;
-    if (prefix === "/" || path.startsWith("http://") || path.startsWith("https://")) return path;
-    if (!path.startsWith("/")) return path;
-    return prefix.replace(/\/+$/, "") + path;
-  }
+    // 1) Ensure core CSS first
+    Core.ensureCSS(Core.join(prefix, "/__partials/widgets/_core/widget-core.css"), "widgets-core");
 
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
-    return await r.json();
-  }
-  async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
-    return await r.text();
-  }
+    // 2) Load runtime.html into #btc-ticker mount (or whatever your ticker-loader uses)
+    // You are mounting the entire HUD fragment somewhere already. Here we only ensure slots get built.
+    const rail = document.getElementById("btc-rail") || $("[data-hud-root]");
+    if (!rail) return; // ticker-loader will retry later
 
-  function ensureCSS(href, key) {
-    if (document.querySelector(`link[data-zzx-css="${key}"]`)) return;
-    const l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = href;
-    l.setAttribute("data-zzx-css", key);
-    document.head.appendChild(l);
-  }
+    // 3) Load widgets manifest
+    const manifestUrl = Core.join(prefix, "/__partials/widgets/manifest.json");
+    const manifest = await Core.fetchJSON(manifestUrl);
 
-  function ensureJS(src, key) {
-    if (document.querySelector(`script[data-zzx-js="${key}"]`)) return;
-    const s = document.createElement("script");
-    s.src = src;
-    s.defer = true;
-    s.setAttribute("data-zzx-js", key);
-    document.body.appendChild(s);
-  }
+    // 4) Boot HUD state machine
+    Core.ensureJS(Core.join(prefix, "/__partials/widgets/hud-state.js"), "hud-state");
+    // wait a tick for hud-state global to exist
+    await new Promise(r => setTimeout(r, 0));
+    if (W.ZZXHudState) W.ZZXHudState.boot(manifest.defaultMode || "full");
 
-  async function mountWidget(widgetId, railEl) {
-    const prefix = getPrefix();
-    const base = join(prefix, `/__partials/widgets/${widgetId}`);
-    const htmlURL = `${base}/widget.html`;
-    const cssURL  = `${base}/widget.css`;
-    const jsURL   = `${base}/widget.js`;
+    // 5) Build slots based on manifest
+    const list = Array.isArray(manifest.widgets) ? manifest.widgets.slice() : [];
+    list.sort((a, b) => (a.priority ?? 9999) - (b.priority ?? 9999));
 
-    // inject CSS/JS once
-    ensureCSS(cssURL, `w:${widgetId}`);
-    ensureJS(jsURL, `w:${widgetId}`);
+    const slotClass = manifest.slotClass || "btc-slot";
+    const enabled = list.filter(w => w && w.id && w.enabled !== false);
 
-    // create host wrapper for the widget
-    let host = railEl.querySelector(`[data-widget-id="${widgetId}"]`);
-    if (!host) {
-      host = document.createElement("div");
-      host.setAttribute("data-widget-id", widgetId);
-      // you can add common card sizing here if you want:
-      host.className = "btc-slot";
-      railEl.appendChild(host);
+    rail.innerHTML = "";
+    for (const w of enabled) {
+      const slot = document.createElement("div");
+      slot.className = slotClass;
+      slot.dataset.widget = w.id;
+      slot.setAttribute("data-widget", w.id);
+      rail.appendChild(slot);
     }
 
-    // load html once into host
-    if (!host.dataset.zzxMounted) {
-      const html = await fetchText(htmlURL);
-      host.innerHTML = html;
-      host.dataset.zzxMounted = "1";
-      // if widget-core exists, let it init; else widget can self-init on load
-      if (W.ZZXWidgetCore?.notifyMounted) W.ZZXWidgetCore.notifyMounted(widgetId, host);
-    }
-  }
+    // 6) Load each widget: widget.html -> slot, widget.css -> head, widget.js -> body
+    for (const w of enabled) {
+      const id = w.id;
+      const base = `/__partials/widgets/${id}`;
 
-  async function mountAll(rootSlotEl) {
-    const prefix = getPrefix();
-    const rail = rootSlotEl.querySelector("#zzx-widgets-rail");
-    if (!rail) return;
+      const cssHref = Core.join(prefix, `${base}/widget.css`);
+      const jsSrc   = Core.join(prefix, `${base}/widget.js`);
+      const htmlUrl = Core.join(prefix, `${base}/widget.html`);
 
-    const manifestURL = join(prefix, "/__partials/widgets/manifest.json");
-    const mf = await fetchJSON(manifestURL);
-    const list = Array.isArray(mf?.widgets) ? mf.widgets.slice() : [];
+      // runtime widget may have no css/html? (yours does)
+      try { Core.ensureCSS(cssHref, `w-${id}`); } catch (_) {}
+      try { Core.ensureJS(jsSrc, `w-${id}`); } catch (_) {}
 
-    // sort by priority if present
-    list.sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0));
+      const slot = rail.querySelector(`[data-widget="${id}"]`);
+      if (!slot) continue;
 
-    for (const w of list) {
-      if (!w?.id) continue;
-      if (w.enabled === false) continue;
-      await mountWidget(w.id, rail);
-    }
-  }
-
-  W.ZZXWidgets["runtime"] = {
-    async init(slot) {
-      // apply saved state immediately
-      setState(slot, getState());
-
-      // bind bar buttons
-      slot.querySelectorAll("[data-zzx-mode]").forEach(btn => {
-        if (btn.__bound) return;
-        btn.__bound = true;
-        btn.addEventListener("click", () => setState(slot, btn.getAttribute("data-zzx-mode")));
-      });
-
-      // reset = back to full + (later) reset order/layout/user prefs
-      const reset = slot.querySelector('[data-zzx-action="reset"]');
-      if (reset && !reset.__bound) {
-        reset.__bound = true;
-        reset.addEventListener("click", () => {
-          try { localStorage.removeItem(HUD_KEY); } catch {}
-          setState(slot, "full");
-        });
+      try {
+        const html = await Core.fetchText(htmlUrl);
+        slot.innerHTML = html;
+      } catch (e) {
+        slot.innerHTML = `<div class="btc-card"><div class="btc-card__title">${w.title || id}</div><div class="btc-card__sub">widget.html missing</div></div>`;
+        console.warn("Widget html load failed:", id, e);
       }
-
-      // recover show button
-      const show = slot.querySelector('[data-zzx-action="show"]');
-      if (show && !show.__bound) {
-        show.__bound = true;
-        show.addEventListener("click", () => setState(slot, "full"));
-      }
-
-      // mount all widgets into rail
-      await mountAll(slot);
     }
-  };
+  }
+
+  // Retry logic: partials/ticker-loader may mount late
+  let tries = 0;
+  const max = 30;
+
+  async function tryBootLoop() {
+    tries++;
+    try { await boot(); } catch (e) { console.warn("runtime boot error:", e); }
+    const rail = document.getElementById("btc-rail") || document.querySelector("[data-hud-root]");
+    if (rail || tries >= max) return;
+    setTimeout(tryBootLoop, 350);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", tryBootLoop, { once: true });
+  } else {
+    tryBootLoop();
+  }
 })();
