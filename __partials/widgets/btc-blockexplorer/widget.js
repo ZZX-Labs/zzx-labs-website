@@ -2,68 +2,35 @@
   const ID = "btc-blockexplorer";
 
   function mk(url, label){
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.textContent = label;
-    return a;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
   }
 
   window.ZZXWidgetRegistry.register(ID, {
-    _root: null,
-
     async init({ root }) {
-      this._root = root;
-
       const inp = root.querySelector("[data-q]");
       const go  = root.querySelector("[data-go]");
       const links = root.querySelector("[data-links]");
 
       const run = () => {
         const q = String(inp?.value || "").trim();
-        if (!q) return;
+        if (!q || !links) return;
 
-        // naive classification
         const isNum = /^\d+$/.test(q);
         const isTx  = /^[0-9a-fA-F]{64}$/.test(q);
         const isAddr = /^[13bc1][a-zA-Z0-9]{20,}$/i.test(q);
 
-        const list = [];
-        if (isNum) {
-          list.push({ cc:"mempool", url:`https://mempool.space/block/${q}`, n:"block height" });
-        }
-        if (isTx) {
-          list.push({ cc:"mempool", url:`https://mempool.space/tx/${q}`, n:"tx" });
-        }
-        if (isAddr) {
-          list.push({ cc:"mempool", url:`https://mempool.space/address/${q}`, n:"address" });
-        }
+        const out = [];
+        if (isNum) out.push({ k:"mempool", v: mk(`https://mempool.space/block/${q}`, "block (height)") });
+        if (isTx)  out.push({ k:"mempool", v: mk(`https://mempool.space/tx/${q}`, "tx") });
+        if (isAddr) out.push({ k:"mempool", v: mk(`https://mempool.space/address/${q}`, "address") });
 
-        // Always provide search fallback
-        list.push({ cc:"mempool", url:`https://mempool.space/search?q=${encodeURIComponent(q)}`, n:"search" });
+        out.push({ k:"mempool", v: mk(`https://mempool.space/search?q=${encodeURIComponent(q)}`, "search") });
 
-        if (links) {
-          links.innerHTML = "";
-          list.forEach(x => {
-            const row = document.createElement("div");
-            row.className = "row";
-            const left = document.createElement("span");
-            left.className = "cc";
-            left.textContent = x.cc;
-            const right = document.createElement("span");
-            right.appendChild(mk(x.url, x.n));
-            row.appendChild(left);
-            row.appendChild(right);
-            links.appendChild(row);
-          });
-        }
+        links.innerHTML = out.map(x => `<div class="row"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
       };
 
       go?.addEventListener("click", run);
-      inp?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") run();
-      });
+      inp?.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
     },
 
     tick(){},
