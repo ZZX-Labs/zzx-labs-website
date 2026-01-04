@@ -5,24 +5,24 @@
 // prefix-aware (works from any depth / GH Pages / subpaths),
 // and mounts the runtime shell into #btc-ticker (never overwrites #ticker-container).
 //
-// Fixes the “containers show but data never loads” failure mode by guaranteeing:
-//  1) _core/widget-core.css is loaded
-//  2) _core/widget-core.js is loaded BEFORE runtime.js
-//  3) hud-state.js is loaded BEFORE runtime widget binds buttons/state
-//  4) runtime.html is mounted, then runtime.js runs
+// HARD REQUIREMENTS (fixes “HTML loads but widget JS never loads data”):
+//  1) Load _core/widget-core.css
+//  2) Load hud-state.js
+//  3) Load _core/widget-core.js (this defines window.ZZXWidgets.register + Core.onMount)
+//  4) Mount runtime.html into #btc-ticker
+//  5) Load runtime.js (which mounts all widgets from manifest)
 //
-// NOTE: This file intentionally does NOT try to load every widget here.
-// runtime.js should mount widgets from __partials/widgets/manifest.json.
+// ALSO:
+//  - waits for partials-loader to publish window.ZZX.PREFIX (or zzx:partials-ready event)
+//  - retries safely if mount nodes appear later (partials injected after initial paint)
 
 (function () {
   const W = window;
 
-  // Prevent double-boot across reinjections
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
-  // ---------------- prefix-aware URL builder ----------------
-  // partials-loader sets: window.ZZX = { PREFIX: '.' | '..' | ... | '/' }
+  // ---------- prefix-aware URL builder ----------
   function getPrefix() {
     const p = W.ZZX?.PREFIX;
     return (typeof p === "string" && p.length) ? p : ".";
@@ -31,34 +31,35 @@
   function join(prefix, path) {
     if (!path) return path;
     if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    if (prefix === "/") return path;            // site root hosting
-    if (!path.startsWith("/")) return path;     // already relative
+    if (prefix === "/") return path;           // hosted at domain root
+    if (!path.startsWith("/")) return path;    // already relative
     return prefix.replace(/\/+$/, "") + path;
   }
 
-  function hrefs() {
-    const prefix = getPrefix();
-    return {
-      // Core styling for HUD + shared widget card styles
-      CORE_CSS: join(prefix, "/__partials/widgets/_core/widget-core.css"),
+  function hrefs(prefixOverride) {
+    const prefix = (typeof prefixOverride === "string" && prefixOverride.length)
+      ? prefixOverride
+      : getPrefix();
 
-      // Runtime shell + boot logic
-      RUNTIME_HTML: join(prefix, "/__partials/widgets/runtime.html"),
+    return {
+      CORE_CSS: join(prefix, "/__partials/widgets/_core/widget-core.css"),
       HUD_STATE_JS: join(prefix, "/__partials/widgets/hud-state.js"),
-      CORE_JS:      join(prefix, "/__partials/widgets/_core/widget-core.js"),
-      RUNTIME_JS:   join(prefix, "/__partials/widgets/runtime.js"),
+      CORE_JS: join(prefix, "/__partials/widgets/_core/widget-core.js"),
+      RUNTIME_HTML: join(prefix, "/__partials/widgets/runtime.html"),
+      RUNTIME_JS: join(prefix, "/__partials/widgets/runtime.js"),
     };
   }
 
-  // ---------------- DOM injection helpers ----------------
+  // ---------- injectors ----------
   function ensureCSS(href, marker) {
     const sel = `link[data-zzx-css="${marker}"]`;
-    if (document.querySelector(sel)) return;
+    if (document.querySelector(sel)) return true;
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
     l.setAttribute("data-zzx-css", marker);
     document.head.appendChild(l);
+    return true;
   }
 
   function ensureScriptOnce(src, marker) {
@@ -81,10 +82,10 @@
     const mount = document.getElementById("btc-ticker");
     if (!container || !mount) return false;
 
-    // Already mounted? fine.
+    // already mounted and non-empty
     if (container.dataset.tickerLoaded === "1" && mount.innerHTML.trim().length) return true;
 
-    // Prevent overlapping loads
+    // prevent overlapping loads
     if (container.dataset.tickerLoading === "1") return false;
     container.dataset.tickerLoading = "1";
 
@@ -92,7 +93,10 @@
       const r = await fetch(runtimeHtmlUrl, { cache: "no-store" });
       if (!r.ok) throw new Error(`runtime.html HTTP ${r.status}`);
       const html = await r.text();
+
+      // IMPORTANT: mount only. never touch container.innerHTML.
       mount.innerHTML = html;
+
       container.dataset.tickerLoaded = "1";
       return true;
     } finally {
@@ -100,28 +104,80 @@
     }
   }
 
-  // ---------------- boot + retry strategy ----------------
+  // ---------- readiness gates ----------
+  function prefixLooksReady() {
+    // partials-loader sets window.ZZX.PREFIX, but on some pages the first boot can race it.
+    // We consider ready if it's a non-empty string.
+    const p = W.ZZX?.PREFIX;
+    return (typeof p === "string" && p.length > 0);
+  }
+
+  function waitForPrefix(timeoutMs = 1200) {
+    if (prefixLooksReady()) return Promise.resolve(getPrefix());
+
+    return new Promise((resolve) => {
+      let done = false;
+
+      const onEvt = (e) => {
+        if (done) return;
+        done = true;
+        cleanup();
+        const p = e?.detail?.prefix;
+        resolve((typeof p === "string" && p.length) ? p : getPrefix());
+      };
+
+      const pollStart = performance.now();
+      const poll = () => {
+        if (done) return;
+        if (prefixLooksReady()) {
+          done = true;
+          cleanup();
+          resolve(getPrefix());
+          return;
+        }
+        if (performance.now() - pollStart >= timeoutMs) {
+          done = true;
+          cleanup();
+          resolve(getPrefix());
+          return;
+        }
+        setTimeout(poll, 60);
+      };
+
+      const cleanup = () => {
+        try { W.removeEventListener("zzx:partials-ready", onEvt); } catch (_) {}
+      };
+
+      W.addEventListener("zzx:partials-ready", onEvt, { once: true });
+      poll();
+    });
+  }
+
+  // ---------- boot + retry strategy ----------
   let mo = null;
   let retryTimer = null;
+  let inflight = false;
 
-  async function tryBootOnce() {
-    const { CORE_CSS, RUNTIME_HTML, HUD_STATE_JS, CORE_JS, RUNTIME_JS } = hrefs();
+  async function tryBootOnce(prefixOverride) {
+    if (inflight) return false;
+    inflight = true;
 
-    // Always inject core CSS first
-    ensureCSS(CORE_CSS, "widgets-core");
+    const { CORE_CSS, HUD_STATE_JS, CORE_JS, RUNTIME_HTML, RUNTIME_JS } = hrefs(prefixOverride);
 
     try {
+      ensureCSS(CORE_CSS, "widgets-core");
+
+      // Need mount nodes (#ticker-container + #btc-ticker)
       const mounted = await mountRuntimeShell(RUNTIME_HTML);
       if (!mounted) return false;
 
-      // CRITICAL: load scripts in dependency order
+      // CRITICAL: dependency order
       const okHud  = await ensureScriptOnce(HUD_STATE_JS, "hud-state");
       const okCore = await ensureScriptOnce(CORE_JS, "widgets-core");
       const okRun  = await ensureScriptOnce(RUNTIME_JS, "widgets-runtime");
 
-      // If any script failed, runtime won’t load widgets
       if (!okHud || !okCore || !okRun) {
-        // allow retries
+        // allow retries (do not permanently brick the mount)
         const container = document.getElementById("ticker-container");
         if (container) container.dataset.tickerLoaded = "0";
         return false;
@@ -129,27 +185,27 @@
 
       return true;
     } catch (e) {
-      console.warn("HUD loader error:", e);
+      console.warn("[ZZX HUD] loader error:", e);
       const container = document.getElementById("ticker-container");
       if (container) container.dataset.tickerLoaded = "0";
       return false;
+    } finally {
+      inflight = false;
     }
   }
 
-  function startWatchingForMount() {
+  function startWatching(prefixOverride) {
     if (mo) return;
 
-    // retry even without DOM mutations (slow networks)
     if (!retryTimer) {
       retryTimer = setInterval(async () => {
-        const ok = await tryBootOnce();
+        const ok = await tryBootOnce(prefixOverride);
         if (ok) stopWatching();
       }, 700);
     }
 
-    // observe DOM changes (partials-loader injection)
     mo = new MutationObserver(async () => {
-      const ok = await tryBootOnce();
+      const ok = await tryBootOnce(prefixOverride);
       if (ok) stopWatching();
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
@@ -161,8 +217,14 @@
   }
 
   async function boot() {
-    const ok = await tryBootOnce();
-    if (!ok) startWatchingForMount();
+    // wait for prefix (or timeout to ".")
+    const prefix = await waitForPrefix(1200);
+
+    // attempt once immediately
+    const ok = await tryBootOnce(prefix);
+
+    // if the mount nodes come later (partials injection / slow), watch + retry
+    if (!ok) startWatching(prefix);
   }
 
   if (document.readyState === "loading") {
