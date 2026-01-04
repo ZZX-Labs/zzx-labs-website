@@ -1,16 +1,16 @@
 // static/js/modules/ticker-loader.js
-// HARD-FIX: enforce load order so runtime never runs before widget-core exists.
+// ROLLBACK: mounts the classic single-file widget rail again.
 // - prefix-aware
-// - mounts runtime.html into #btc-ticker only
-// - loads core -> hud-state -> runtime (strict order, no defer races)
-// - retries until mounts exist (partials-loader injection delay safe)
+// - injects /__partials/bitcoin-ticker-widget.css once
+// - mounts /__partials/bitcoin-ticker-widget.html into #btc-ticker only
+// - loads /__partials/bitcoin-ticker-widget.js once
 
 (function () {
   const W = window;
+
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
-  // -------- prefix-aware URL builder --------
   function getPrefix() {
     const p = W.ZZX?.PREFIX;
     return (typeof p === "string" && p.length) ? p : ".";
@@ -26,110 +26,82 @@
   function hrefs() {
     const prefix = getPrefix();
     return {
-      CORE_CSS: join(prefix, "/__partials/widgets/_core/widget-core.css"),
-      CORE_JS: join(prefix, "/__partials/widgets/_core/widget-core.js"),
-      HUD_STATE_JS: join(prefix, "/__partials/widgets/hud-state.js"),
-      HUD_HTML: join(prefix, "/__partials/widgets/runtime.html"),
-      HUD_RUNTIME_JS: join(prefix, "/__partials/widgets/runtime.js"),
+      CSS_HREF: join(prefix, "/__partials/bitcoin-ticker-widget.css"),
+      HTML_HREF: join(prefix, "/__partials/bitcoin-ticker-widget.html"),
+      JS_SRC:   join(prefix, "/__partials/bitcoin-ticker-widget.js"),
     };
   }
 
-  // -------- inject helpers --------
-  function ensureCSSOnce(href) {
-    if (document.querySelector('link[data-zzx-core-css="1"]')) return;
+  function ensureCSS(href) {
+    if (document.querySelector('link[data-zzx-btc-css="1"]')) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute("data-zzx-core-css", "1");
+    l.setAttribute("data-zzx-btc-css", "1");
     document.head.appendChild(l);
   }
 
-  function loadScriptOnce(key, src) {
-    const sel = `script[data-zzx-script="${key}"]`;
-    const existing = document.querySelector(sel);
-    if (existing) return Promise.resolve(existing);
-
-    return new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = src;
-      // IMPORTANT: no defer here. We want deterministic execution timing.
-      s.async = true; // load async, but we await onload in a strict chain
-      s.setAttribute("data-zzx-script", key);
-      s.onload = () => resolve(s);
-      s.onerror = () => reject(new Error(`Failed to load ${src}`));
-      document.body.appendChild(s);
-    });
+  function ensureJS(src) {
+    if (document.querySelector('script[data-zzx-btc-js="1"]')) return;
+    const s = document.createElement("script");
+    s.src = src;
+    s.defer = true;
+    s.setAttribute("data-zzx-btc-js", "1");
+    document.body.appendChild(s);
   }
 
-  async function mountHUDShell(HUD_HTML) {
+  async function mountHTML(htmlHref, jsSrc) {
     const container = document.getElementById("ticker-container");
     const mount = document.getElementById("btc-ticker");
     if (!container || !mount) return false;
 
-    // prevent overlapping loads
-    if (container.dataset.hudLoading === "1") return false;
-
-    // already mounted?
-    if (container.dataset.hudLoaded === "1" && mount.innerHTML.trim().length) {
+    if (container.dataset.tickerLoaded === "1" && mount.innerHTML.trim().length) {
+      ensureJS(jsSrc);
       return true;
     }
 
-    container.dataset.hudLoading = "1";
+    if (container.dataset.tickerLoading === "1") return false;
+    container.dataset.tickerLoading = "1";
+
     try {
-      const r = await fetch(HUD_HTML, { cache: "no-store" });
-      if (!r.ok) throw new Error(`runtime.html HTTP ${r.status}`);
-      const html = await r.text();
-      mount.innerHTML = html;
-      container.dataset.hudLoaded = "1";
+      const r = await fetch(htmlHref, { cache: "no-store" });
+      if (!r.ok) throw new Error(`widget html HTTP ${r.status}`);
+      mount.innerHTML = await r.text();
+      container.dataset.tickerLoaded = "1";
+      ensureJS(jsSrc);
       return true;
     } finally {
-      container.dataset.hudLoading = "0";
+      container.dataset.tickerLoading = "0";
     }
   }
 
-  async function bootOnce() {
-    const { CORE_CSS, CORE_JS, HUD_STATE_JS, HUD_HTML, HUD_RUNTIME_JS } = hrefs();
-
-    // 1) CSS first (so UI isn't naked)
-    ensureCSSOnce(CORE_CSS);
-
-    // 2) Ensure HUD shell is mounted (bar + rail exist)
-    const mounted = await mountHUDShell(HUD_HTML);
-    if (!mounted) return false;
-
-    // 3) HARD ORDER: core -> hud-state -> runtime
-    await loadScriptOnce("zzx-widget-core", CORE_JS);
-    await loadScriptOnce("zzx-hud-state", HUD_STATE_JS);
-    await loadScriptOnce("zzx-widgets-runtime", HUD_RUNTIME_JS);
-
-    return true;
-  }
-
-  // -------- retry/watch --------
   let mo = null;
-  let timer = null;
+  let retryTimer = null;
 
-  async function tryBoot() {
+  async function tryBootOnce() {
+    const { CSS_HREF, HTML_HREF, JS_SRC } = hrefs();
+    ensureCSS(CSS_HREF);
     try {
-      const ok = await bootOnce();
-      return !!ok;
+      return await mountHTML(HTML_HREF, JS_SRC);
     } catch (e) {
-      console.warn("[ZZX HUD] boot error:", e);
+      console.warn("Ticker loader error:", e);
+      const container = document.getElementById("ticker-container");
+      if (container) container.dataset.tickerLoaded = "0";
       return false;
     }
   }
 
   function startWatching() {
-    if (!timer) {
-      timer = setInterval(async () => {
-        const ok = await tryBoot();
+    if (!retryTimer) {
+      retryTimer = setInterval(async () => {
+        const ok = await tryBootOnce();
         if (ok) stopWatching();
-      }, 650);
+      }, 700);
     }
 
     if (!mo) {
       mo = new MutationObserver(async () => {
-        const ok = await tryBoot();
+        const ok = await tryBootOnce();
         if (ok) stopWatching();
       });
       mo.observe(document.documentElement, { childList: true, subtree: true });
@@ -137,12 +109,12 @@
   }
 
   function stopWatching() {
-    if (timer) { clearInterval(timer); timer = null; }
     if (mo) { mo.disconnect(); mo = null; }
+    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
   }
 
   async function boot() {
-    const ok = await tryBoot();
+    const ok = await tryBootOnce();
     if (!ok) startWatching();
   }
 
