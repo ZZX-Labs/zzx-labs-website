@@ -1,148 +1,276 @@
 // __partials/widgets/runtime.js
-// Loads manifest + mounts widgets into #zzx-widgets-rail
-// Also guarantees _core + hud-state are loaded once.
+// HARDENED runtime: loud errors + fallback widget list + per-widget error cards.
+// This prevents the "bar exists but no widgets" silent failure.
 
 (function () {
   const W = window;
 
-  // prevent double boot across reinjections
   if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
   W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
 
-  function prefix() {
+  // ---------------- prefix helpers ----------------
+  function getPrefix() {
     const p = W.ZZX?.PREFIX;
     return (typeof p === "string" && p.length) ? p : ".";
   }
 
   function join(path) {
-    const p = prefix();
+    const p = getPrefix();
+    if (!path) return path;
     if (p === "/" || /^https?:\/\//i.test(path)) return path;
     if (!path.startsWith("/")) return path;
     return p.replace(/\/+$/, "") + path;
   }
 
-  const CORE_JS   = join("/__partials/widgets/_core/widget-core.js");
-  const HUD_JS    = join("/__partials/widgets/hud-state.js");
-  const MANIFEST  = join("/__partials/widgets/manifest.json");
+  const CORE_JS  = join("/__partials/widgets/_core/widget-core.js");
+  const HUD_JS   = join("/__partials/widgets/hud-state.js");
+  const MANIFEST = join("/__partials/widgets/manifest.json");
+
+  // Fallback list if manifest is missing/bad
+  const FALLBACK_WIDGETS = [
+    "runtime",
+    "bitcoin-ticker",
+    "price-24h",
+    "volume-24h",
+    "high-low-24h",
+    "fees",
+    "mempool",
+    "mempool-goggles",
+    "tip",
+    "drift",
+    "hashrate",
+    "hashrate-by-nation",
+    "nodes",
+    "nodes-by-nation",
+    "lightning",
+    "lightning-detail",
+    "intel",
+    "btc-intel",
+    "btc-repo",
+    "btc-news",
+    "satoshi-quote",
+    "btc-halving-suite",
+    "btc-blockexplorer",
+    "btc-notabletxs",
+    "bitrng",
+    "btc-stolen",
+    "btc-burned",
+    "btc-lost"
+  ];
+
+  // ---------------- core loader ----------------
+  async function ensureScript(src) {
+    return await new Promise((resolve) => {
+      const existing = Array.from(document.scripts).some(s => s.src && s.src.includes(src));
+      if (existing) return resolve(true);
+      const s = document.createElement("script");
+      s.src = src;
+      s.defer = true;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    });
+  }
 
   async function ensureCoreLoaded() {
-    if (!W.ZZXWidgetsCore) {
-      await new Promise((resolve) => {
-        const s = document.createElement("script");
-        s.src = CORE_JS;
-        s.defer = true;
-        s.onload = () => resolve();
-        s.onerror = () => resolve();
-        document.body.appendChild(s);
-      });
-    }
-    if (!W.ZZXHUD) {
-      await new Promise((resolve) => {
-        const s = document.createElement("script");
-        s.src = HUD_JS;
-        s.defer = true;
-        s.onload = () => resolve();
-        s.onerror = () => resolve();
-        document.body.appendChild(s);
-      });
-    }
+    if (!W.ZZXWidgetsCore) await ensureScript(CORE_JS);
+    if (!W.ZZXHUD) await ensureScript(HUD_JS);
+    return !!(W.ZZXWidgetsCore && W.ZZXHUD);
+  }
+
+  // ---------------- UI helpers ----------------
+  function shell() {
+    return document.querySelector('[data-zzx-widgets="1"]') || document.querySelector(".zzx-widgets");
+  }
+
+  function rail() {
+    return document.getElementById("zzx-widgets-rail");
+  }
+
+  function handle() {
+    return document.querySelector("[data-hud-handle]");
   }
 
   function applyMode(mode) {
-    const shell = document.querySelector('[data-zzx-widgets="1"]') || document.querySelector(".zzx-widgets");
-    const handle = document.querySelector("[data-hud-handle]");
-    if (shell) shell.setAttribute("data-hud-state", mode);
-    if (handle) handle.hidden = (mode !== "hidden");
+    const sh = shell();
+    const hd = handle();
+    if (sh) sh.setAttribute("data-hud-state", mode);
+    if (hd) hd.hidden = (mode !== "hidden");
   }
 
+  function errorCardHTML(title, lines = []) {
+    const msg = lines.map(l => `<div style="opacity:.9; margin-top:.15rem;">${escapeHTML(String(l))}</div>`).join("");
+    return `
+      <div class="zzx-card" style="border-color: rgba(255,80,80,.45);">
+        <div class="zzx-card__title" style="color:#ff6b6b;">${escapeHTML(title)}</div>
+        <div class="zzx-card__sub" style="white-space: normal; color:#ffd1d1;">
+          ${msg || "—"}
+        </div>
+      </div>
+    `;
+  }
+
+  function escapeHTML(s) {
+    return s.replace(/[&<>"']/g, m => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    }[m]));
+  }
+
+  function ensureRailExistsOrScream() {
+    const r = rail();
+    if (r) return r;
+
+    const sh = shell();
+    if (!sh) return null;
+
+    // Create rail if missing (prevents total failure)
+    const created = document.createElement("div");
+    created.className = "zzx-widgets__rail";
+    created.id = "zzx-widgets-rail";
+    created.setAttribute("role", "region");
+    created.setAttribute("aria-label", "Bitcoin dashboard widgets");
+    sh.appendChild(created);
+
+    return created;
+  }
+
+  // ---------------- widget mounting ----------------
   async function mountWidget(id) {
     const Core = W.ZZXWidgetsCore;
-    const rail = document.getElementById("zzx-widgets-rail");
-    if (!rail) return;
+    const r = ensureRailExistsOrScream();
+    if (!Core || !r) return false;
 
-    const slot = rail.querySelector(`[data-widget-id="${id}"]`);
-    if (slot && slot.dataset.mounted === "1") return;
+    // Slot container
+    let slot = r.querySelector(`[data-widget-id="${id}"]`);
+    if (!slot) {
+      slot = document.createElement("div");
+      slot.className = "zzx-widget";
+      slot.setAttribute("data-widget-id", id);
+      r.appendChild(slot);
+    }
 
-    const wrap = slot || document.createElement("div");
-    wrap.className = "zzx-widget";
-    wrap.setAttribute("data-widget-id", id);
+    // Don’t remount if already mounted and non-empty
+    if (slot.dataset.mounted === "1" && slot.innerHTML.trim().length) return true;
 
-    // URLs
     const base = join(`/__partials/widgets/${id}`);
     const htmlUrl = `${base}/widget.html`;
     const cssUrl  = `${base}/widget.css`;
     const jsUrl   = `${base}/widget.js`;
 
-    // CSS first
+    // CSS (safe if missing—won’t break runtime)
     Core.ensureCSS(cssUrl, `w-${id}`);
 
     // HTML
-    let html = "";
     try {
-      html = await Core.fetchText(htmlUrl);
+      const html = await Core.fetchText(htmlUrl);
+      slot.innerHTML = html;
+      slot.dataset.mounted = "1";
     } catch (e) {
-      html = `<div class="zzx-card"><div class="zzx-card__title">${id}</div><div class="zzx-card__sub">missing widget.html</div></div>`;
+      slot.innerHTML = errorCardHTML(
+        `Widget missing: ${id}`,
+        [`HTML 404? → ${htmlUrl}`, String(e && e.message ? e.message : e)]
+      );
+      slot.dataset.mounted = "1";
+      return false;
     }
-    wrap.innerHTML = html;
-    wrap.dataset.mounted = "1";
 
-    if (!slot) rail.appendChild(wrap);
-
-    // JS last
+    // JS (safe if missing—widget might still render static)
     Core.ensureJS(jsUrl, `w-${id}`);
+
+    return true;
   }
 
-  async function mountFromManifest(force = false) {
+  async function loadManifestOrFallback() {
     const Core = W.ZZXWidgetsCore;
-    const rail = document.getElementById("zzx-widgets-rail");
-    if (!rail) return;
 
-    // If already built and not forcing, skip
-    if (!force && rail.dataset.built === "1") return;
-
-    let manifest;
     try {
-      manifest = await Core.fetchJSON(MANIFEST);
+      const m = await Core.fetchJSON(MANIFEST);
+      if (!m || typeof m !== "object") throw new Error("manifest not an object");
+      const widgets = Array.isArray(m.widgets) ? m.widgets.slice() : [];
+
+      // sort by priority if present
+      widgets.sort((a, b) => {
+        const ap = Number.isFinite(a?.priority) ? a.priority : 9999;
+        const bp = Number.isFinite(b?.priority) ? b.priority : 9999;
+        return ap - bp;
+      });
+
+      // use enabled default true
+      const ids = widgets
+        .map(w => String(w?.id || "").trim())
+        .filter(Boolean)
+        .filter((id, idx, arr) => arr.indexOf(id) === idx)
+        .filter((id) => {
+          const w = widgets.find(x => String(x?.id || "").trim() === id);
+          return !(w && w.enabled === false);
+        });
+
+      return { ids, manifestOk: true, raw: m };
     } catch (e) {
-      manifest = { version: 1, widgets: [] };
+      return { ids: FALLBACK_WIDGETS.slice(), manifestOk: false, err: e };
+    }
+  }
+
+  async function build(force = false) {
+    const Core = W.ZZXWidgetsCore;
+    const r = ensureRailExistsOrScream();
+    if (!Core || !r) return;
+
+    if (!force && r.dataset.built === "1") return;
+    r.dataset.built = "0";
+
+    // clear rail
+    r.innerHTML = "";
+
+    const { ids, manifestOk, err } = await loadManifestOrFallback();
+
+    // Loud error if manifest failed
+    if (!manifestOk) {
+      const box = document.createElement("div");
+      box.className = "zzx-widget";
+      box.setAttribute("data-widget-id", "runtime-error");
+      box.innerHTML = errorCardHTML(
+        "HUD manifest failed to load",
+        [
+          `Tried: ${MANIFEST}`,
+          `Prefix: ${getPrefix()}`,
+          `Error: ${String(err && err.message ? err.message : err)}`
+        ]
+      );
+      r.appendChild(box);
     }
 
-    const list = Array.isArray(manifest.widgets) ? manifest.widgets.slice() : [];
-
-    // sort by priority if present, otherwise keep order
-    list.sort((a, b) => {
-      const ap = Number.isFinite(a?.priority) ? a.priority : 9999;
-      const bp = Number.isFinite(b?.priority) ? b.priority : 9999;
-      return ap - bp;
-    });
-
-    // clear rail and re-create stable slots
-    rail.innerHTML = "";
-    for (const w of list) {
-      const id = String(w.id || "").trim();
-      if (!id) continue;
-
-      const enabled = (w.enabled !== false); // default true
-      if (!enabled) continue;
-
-      const slot = document.createElement("div");
-      slot.className = "zzx-widget";
-      slot.setAttribute("data-widget-id", id);
-      rail.appendChild(slot);
-
-      // mount actual widget contents
-      await mountWidget(id);
+    // Mount widgets in order
+    let mountedAny = false;
+    for (const id of ids) {
+      const ok = await mountWidget(id);
+      mountedAny = mountedAny || ok;
     }
 
-    rail.dataset.built = "1";
+    // If absolutely nothing mounted, scream
+    if (!mountedAny && r.children.length === 0) {
+      const box = document.createElement("div");
+      box.className = "zzx-widget";
+      box.innerHTML = errorCardHTML(
+        "No widgets mounted",
+        [
+          "Rail is empty after build()",
+          `Prefix: ${getPrefix()}`,
+          `Manifest URL: ${MANIFEST}`
+        ]
+      );
+      r.appendChild(box);
+    }
+
+    r.dataset.built = "1";
   }
 
   function bindControlsOnce() {
-    const shell = document.querySelector('[data-zzx-widgets="1"]');
-    if (!shell || shell.__bound) return;
-    shell.__bound = true;
+    const sh = shell();
+    if (!sh || sh.__bound) return;
+    sh.__bound = true;
 
-    shell.addEventListener("click", async (e) => {
+    sh.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
 
@@ -157,8 +285,7 @@
       if (action === "reset") {
         const s = W.ZZXHUD.reset();
         applyMode(s.mode);
-        // rebuild widgets after reset (safe)
-        await mountFromManifest(true);
+        await build(true);
       }
 
       if (action === "show") {
@@ -167,34 +294,53 @@
       }
     });
 
-    // external handle button
+    // external handle
     const showBtn = document.querySelector("[data-hud-show]");
     if (showBtn && !showBtn.__bound) {
       showBtn.__bound = true;
-      showBtn.addEventListener("click", () => {
+      showBtn.addEventListener("click", async () => {
         const s = W.ZZXHUD.setMode("full");
         applyMode(s.mode);
+        // if rail is empty (hidden bug), rebuild
+        const r = rail();
+        if (r && r.children.length === 0) await build(true);
       });
     }
   }
 
   async function boot(force = false) {
-    await ensureCoreLoaded();
+    const ok = await ensureCoreLoaded();
 
-    // apply persisted mode immediately (before mounting)
+    // If core failed, paint a visible failure card
+    if (!ok) {
+      const r = ensureRailExistsOrScream();
+      if (r) {
+        r.innerHTML = errorCardHTML(
+          "HUD core failed to load",
+          [
+            `CORE: ${CORE_JS}`,
+            `HUD: ${HUD_JS}`,
+            `Prefix: ${getPrefix()}`
+          ]
+        );
+      }
+      return;
+    }
+
+    // Apply saved mode early
     const s = W.ZZXHUD.read();
     applyMode(s.mode);
 
-    // mount widgets
-    await mountFromManifest(force);
+    // Build widgets
+    await build(force);
 
-    // bind controls
+    // Bind controls
     bindControlsOnce();
   }
 
-  // expose rebind
+  // Expose rebind
   W.ZZXWidgetsRuntime = {
-    rebind(force = false) { return boot(force); }
+    rebind(force = false) { return boot(!!force); }
   };
 
   if (document.readyState === "loading") {
