@@ -1,63 +1,34 @@
-/* __partials/widgets/hud-state.js
-   Persists HUD mode and guarantees a recover path.
-   Modes: "full" | "ticker-only" | "hidden"
-*/
+// __partials/widgets/hud-state.js
 (function () {
   const W = window;
   if (W.ZZXHUD) return;
 
   const KEY = "zzx.hud.mode.v1";
-  const VALID = new Set(["full", "ticker-only", "hidden"]);
 
-  function readMode() {
+  function normalize(mode) {
+    if (mode === "hidden" || mode === "ticker-only" || mode === "full") return mode;
+    return "full";
+  }
+
+  function read() {
     try {
-      const v = localStorage.getItem(KEY) || "full";
-      return VALID.has(v) ? v : "full";
+      const v = localStorage.getItem(KEY);
+      return { mode: normalize(v || "full") };
     } catch (_) {
-      return "full";
+      return { mode: "full" };
     }
   }
 
-  function writeMode(mode) {
-    const m = VALID.has(mode) ? mode : "full";
-    try { localStorage.setItem(KEY, m); } catch (_) {}
-    return m;
-  }
-
-  function apply(mode) {
-    const hudRoot = document.querySelector("[data-hud-root]");
-    const handle  = document.querySelector("[data-hud-handle]");
-    if (hudRoot) hudRoot.setAttribute("data-hud-state", mode);
-
-    // handle should appear only when hidden
-    if (handle) handle.hidden = (mode !== "hidden");
-  }
-
-  function setMode(mode) {
-    const m = writeMode(mode);
-    apply(m);
-    return { mode: m };
+  function write(mode) {
+    mode = normalize(mode);
+    try { localStorage.setItem(KEY, mode); } catch (_) {}
+    return { mode };
   }
 
   function reset() {
     try { localStorage.removeItem(KEY); } catch (_) {}
-    const m = "full";
-    apply(m);
-    return { mode: m };
+    return { mode: "full" };
   }
 
-  function read() {
-    const m = readMode();
-    apply(m);
-    return { mode: m };
-  }
-
-  // boot apply immediately
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => read(), { once: true });
-  } else {
-    read();
-  }
-
-  W.ZZXHUD = { read, setMode, reset };
+  W.ZZXHUD = { read, write, reset };
 })();
