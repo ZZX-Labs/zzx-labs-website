@@ -1,106 +1,80 @@
 // __partials/widgets/_core/widget-core.js
-// DROP-IN REPLACEMENT v1.3 (fixes “register-based widgets don’t run”)
+// DROP-IN REPLACEMENT (compat-first)
 //
-// What this fixes (based on your current status):
-// - tip/drift/high-low/repo now work because they use Core.onMount()
-// - MOST other widgets still don’t because they use:
-//      window.ZZXWidgets.register(id, initFn)
-//   BUT your runtime is loading widget.js BEFORE widget.html is mounted.
-//   So register() happens when the widget root does NOT exist yet.
-//   Previously, your older runtime/registry probably called init later.
-//   Now we make the registry robust:
-//      register() -> if root exists, init immediately
-//                -> if root does NOT exist, queue + auto-init when it appears
+// Fixes the current breakage where widget scripts expect:
+//   - window.ZZXWidgets.register(...)
+//   - window.ZZXWidgetRegistry.register(...)
+//   - Core.onMount(...)
+// …but those APIs are missing, so widgets crash before they fetch/render data.
 //
-// This requires NO per-widget edits.
+// Design goals:
+//   1) Do NOT require editing every widget.
+//   2) Works whether a widget registers BEFORE or AFTER its DOM is mounted.
+//   3) Works from any depth (prefix-aware via window.ZZX.PREFIX when available).
+//   4) Keeps your existing Core-style helpers (qs/qsa/fetchJSON/etc).
+//
+// This file is intentionally conservative: it adds compatibility shims and
+// avoids “frameworky” behavior that could fight your existing widget code.
 
 (function () {
   const W = window;
 
-  // Prevent redefinition
-  if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__version) return;
+  // If already loaded, don't redefine (helps with partial reinjection).
+  if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__compat_version) return;
 
-  // ---------------------------------------------------------
-  // Prefix helpers
-  // ---------------------------------------------------------
-  function getPrefixRaw() {
-    const p = W.ZZX?.PREFIX;
-    return (typeof p === "string" && p.length) ? p : ".";
-  }
-
-  function clampPrefix(prefix) {
-    const path = String(location.pathname || "/");
-    const isRootish = (path === "/" || path.endsWith("/index.html"));
-    if (isRootish && String(prefix).startsWith("..")) return ".";
-    return prefix;
-  }
-
+  // -----------------------------
+  // Prefix + URL helpers
+  // -----------------------------
   function getPrefix() {
-    return clampPrefix(getPrefixRaw());
+    const p = W.ZZX && typeof W.ZZX.PREFIX === "string" ? W.ZZX.PREFIX : ".";
+    return p && p.length ? p : ".";
   }
 
-  function isAbsSitePath(u) {
-    return typeof u === "string" && u.startsWith("/") && !u.startsWith("//");
+  function join(prefix, absPath) {
+    if (!absPath) return absPath;
+    if (/^https?:\/\//i.test(absPath)) return absPath;
+
+    // Hosted at domain root
+    if (prefix === "/") return absPath;
+
+    // Already relative
+    if (!String(absPath).startsWith("/")) return absPath;
+
+    return String(prefix).replace(/\/+$/, "") + absPath;
   }
 
-  function join(prefix, path) {
-    if (!path) return path;
-    if (typeof path !== "string") return path;
-    if (/^https?:\/\//i.test(path)) return path;
-    if (prefix === "/") return path;
-    if (!path.startsWith("/")) return path;
-    return prefix.replace(/\/+$/, "") + path;
+  function widgetBase(widgetId) {
+    return `/__partials/widgets/${widgetId}`;
   }
 
-  function abs(pathAbs) {
-    return join(getPrefix(), pathAbs);
+  function hrefWidgetHTML(widgetId) {
+    return join(getPrefix(), `${widgetBase(widgetId)}/widget.html`);
+  }
+  function hrefWidgetCSS(widgetId) {
+    return join(getPrefix(), `${widgetBase(widgetId)}/widget.css`);
+  }
+  function hrefWidgetJS(widgetId) {
+    return join(getPrefix(), `${widgetBase(widgetId)}/widget.js`);
   }
 
-  // ---------------------------------------------------------
-  // Patch fetch to be prefix-aware for "/..." URLs
-  // ---------------------------------------------------------
-  function patchFetchOnce() {
-    if (W.__ZZX_FETCH_PATCHED) return;
-    W.__ZZX_FETCH_PATCHED = true;
-
-    const nativeFetch = W.fetch.bind(W);
-
-    W.fetch = function patchedFetch(input, init) {
-      try {
-        if (typeof input === "string") {
-          if (isAbsSitePath(input)) input = abs(input);
-        } else if (input && typeof input === "object" && "url" in input) {
-          const url = String(input.url || "");
-          if (isAbsSitePath(url)) {
-            const fixed = abs(url);
-            input = new Request(fixed, input);
-          }
-        }
-      } catch (_) {}
-      return nativeFetch(input, init);
-    };
-  }
-
-  // ---------------------------------------------------------
+  // -----------------------------
   // Fetch helpers
-  // ---------------------------------------------------------
+  // -----------------------------
   async function fetchText(url, opts = {}) {
-    const u = (typeof url === "string") ? abs(url) : url;
-    const r = await fetch(u, { cache: "no-store", ...opts });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${typeof u === "string" ? u : "(request)"}`);
+    const r = await fetch(url, { cache: "no-store", ...opts });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
     return await r.text();
   }
 
   async function fetchJSON(url, opts = {}) {
-    const u = (typeof url === "string") ? abs(url) : url;
-    const r = await fetch(u, { cache: "no-store", ...opts });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${typeof u === "string" ? u : "(request)"}`);
+    const r = await fetch(url, { cache: "no-store", ...opts });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
     return await r.json();
   }
 
-  // ---------------------------------------------------------
+  // -----------------------------
   // DOM helpers
-  // ---------------------------------------------------------
+  // -----------------------------
   function qs(sel, scope) {
     return (scope || document).querySelector(sel);
   }
@@ -108,294 +82,304 @@
     return Array.from((scope || document).querySelectorAll(sel));
   }
 
-  // ---------------------------------------------------------
-  // Assets (dedupe)
-  // ---------------------------------------------------------
-  function ensureCSS(href, key = "1") {
-    const u = abs(href);
-    const sel = `link[data-zzx-css="${key}"]`;
-    if (document.querySelector(sel)) return;
+  // Find the mounted root for a widget id, in a way that matches BOTH
+  // the new runtime mounting and older markup conventions.
+  function findWidgetRoot(widgetId) {
+    if (!widgetId) return null;
+
+    // Newer convention used by the runtime mounting: data-widget-id / data-widget-root
+    let el =
+      document.querySelector(`[data-widget-id="${cssEscape(widgetId)}"]`) ||
+      document.querySelector(`[data-widget-root="${cssEscape(widgetId)}"]`);
+
+    if (el) return el;
+
+    // Older convention: slot wrapper itself
+    // (Some widgets might expect the slot as their scope.)
+    el = document.querySelector(`.btc-slot[data-widget="${cssEscape(widgetId)}"]`);
+    return el || null;
+  }
+
+  // CSS.escape polyfill (limited but safe for ids like "btc-news", "mempool-goggles")
+  function cssEscape(s) {
+    s = String(s);
+    if (window.CSS && typeof window.CSS.escape === "function") return window.CSS.escape(s);
+    // minimal escape: backslash quotes and brackets
+    return s.replace(/["\\\]\[]/g, "\\$&");
+  }
+
+  // -----------------------------
+  // Asset injectors (deduped)
+  // -----------------------------
+  function ensureCSS(href, key) {
+    const attr = `data-zzx-css-${String(key)}`;
+    if (document.querySelector(`link[${attr}="1"]`)) return;
+
     const l = document.createElement("link");
     l.rel = "stylesheet";
-    l.href = u;
-    l.setAttribute("data-zzx-css", key);
+    l.href = href;
+    l.setAttribute(attr, "1");
     document.head.appendChild(l);
   }
 
-  function ensureJS(src, key = "1") {
-    const u = abs(src);
-    const sel = `script[data-zzx-js="${key}"]`;
-    if (document.querySelector(sel)) return Promise.resolve(true);
+  function ensureJS(src, key) {
+    const attr = `data-zzx-js-${String(key)}`;
+    if (document.querySelector(`script[${attr}="1"]`)) return Promise.resolve(true);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const s = document.createElement("script");
-      s.src = u;
+      s.src = src;
       s.defer = true;
-      s.setAttribute("data-zzx-js", key);
+      s.setAttribute(attr, "1");
       s.onload = () => resolve(true);
-      s.onerror = () => reject(new Error(`Failed to load script: ${u}`));
+      s.onerror = () => resolve(false);
       document.body.appendChild(s);
     });
   }
 
-  // ---------------------------------------------------------
-  // Registry + auto-init when DOM appears (CRITICAL FIX)
-  // ---------------------------------------------------------
-  const _registry = new Map();     // id -> initFn
-  const _booted   = new Set();     // id@@uid -> boolean
-  const _pending  = new Set();     // ids waiting for DOM root
+  // -----------------------------
+  // Core.onMount (compat)
+  // -----------------------------
+  // Many of your widget scripts use:
+  //   Core.onMount("tip", (root, Core) => {...})
+  // or
+  //   Core.onMount(() => {...})  // generic DOM-ready
+  //
+  // This implementation:
+  //  - calls immediately if root exists
+  //  - otherwise queues + MutationObserver watches for mount
+  const _onMountQueue = new Map(); // id -> [fn]
   let _mo = null;
 
-  function findWidgetRootById(id) {
-    // Two markers supported (your widgets use either)
-    const safe = CSS.escape(String(id));
-    return (
-      document.querySelector(`[data-widget-root="${safe}"]`) ||
-      document.querySelector(`[data-widget-id="${safe}"]`)
-    );
-  }
-
-  function safeInit(id, root) {
-    if (!id || !root) return;
-
-    if (root.dataset && !root.dataset.__zzx_uid) {
-      root.dataset.__zzx_uid = Math.random().toString(16).slice(2);
-    }
-    const uniq = `${id}@@${root.dataset ? root.dataset.__zzx_uid : ""}`;
-    if (_booted.has(uniq)) return;
-
-    const fn = _registry.get(String(id));
-    if (typeof fn !== "function") return;
-
-    try {
-      _booted.add(uniq);
-      fn(root, W.ZZXWidgetsCore);
-    } catch (e) {
-      console.warn(`[ZZXWidgets] init failed for ${id}:`, e);
-    }
-  }
-
-  function startObserverIfNeeded() {
+  function _ensureObserver() {
     if (_mo) return;
 
     _mo = new MutationObserver(() => {
-      // Try to resolve pending ids when DOM changes
-      if (_pending.size === 0) return;
-
-      for (const id of Array.from(_pending)) {
-        const root = findWidgetRootById(id);
-        if (root) {
-          _pending.delete(id);
-          safeInit(id, root);
-        }
-      }
-
-      // If nothing pending, stop observing (no leaks)
-      if (_pending.size === 0) {
-        try { _mo.disconnect(); } catch (_) {}
-        _mo = null;
+      // For each queued widgetId, check if root exists yet; if so, flush.
+      for (const [id, fns] of _onMountQueue.entries()) {
+        const root = findWidgetRoot(id);
+        if (!root) continue;
+        _onMountQueue.delete(id);
+        for (const fn of fns) safeCall(fn, root);
       }
     });
 
     _mo.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  function register(id, initFn) {
-    if (!id || typeof initFn !== "function") return;
-    id = String(id);
+  function safeCall(fn, root) {
+    try {
+      fn(root, W.ZZXWidgetsCore);
+    } catch (e) {
+      console.warn(`[ZZXWidgetsCore] onMount handler failed (${root && root.getAttribute ? root.getAttribute("data-widget-id") : "?"})`, e);
+    }
+  }
 
-    _registry.set(id, initFn);
-
-    // If already mounted, init immediately
-    const root = findWidgetRootById(id);
-    if (root) {
-      safeInit(id, root);
+  function onMount(a, b) {
+    // Signature A: onMount(fn)
+    if (typeof a === "function") {
+      const fn = a;
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+          try { fn(document, W.ZZXWidgetsCore); } catch (e) { console.warn("[ZZXWidgetsCore] onMount(dom) failed", e); }
+        }, { once: true });
+      } else {
+        try { fn(document, W.ZZXWidgetsCore); } catch (e) { console.warn("[ZZXWidgetsCore] onMount(dom) failed", e); }
+      }
       return;
     }
 
-    // Otherwise, queue for auto-init when it mounts
-    _pending.add(id);
-    startObserverIfNeeded();
+    // Signature B: onMount(widgetId, fn)
+    const widgetId = a;
+    const fn = b;
+    if (!widgetId || typeof fn !== "function") return;
 
-    // Also do a short timed retry window (covers “no DOM mutation” edge cases)
-    // without leaving timers forever.
-    let tries = 0;
-    const t = setInterval(() => {
-      tries++;
-      const r2 = findWidgetRootById(id);
-      if (r2) {
-        clearInterval(t);
-        _pending.delete(id);
-        safeInit(id, r2);
-      } else if (tries >= 10) {
-        clearInterval(t);
-        // keep in _pending for the MutationObserver (in case it mounts later)
-      }
-    }, 200);
-  }
-
-  function has(id) {
-    return _registry.has(String(id));
-  }
-
-  // Expose global registry objects your widgets reference
-  W.ZZXWidgets = W.ZZXWidgets || {};
-  W.ZZXWidgets.register = register;
-  W.ZZXWidgets.has = has;
-
-  W.ZZXWidgetRegistry = W.ZZXWidgetRegistry || {};
-  W.ZZXWidgetRegistry.register = register;
-  W.ZZXWidgetRegistry.has = has;
-
-  // ---------------------------------------------------------
-  // Core.onMount (for widgets that use it)
-  // ---------------------------------------------------------
-  function onMount(a, b, c) {
-    let widgetId = null;
-    let fn = null;
-
-    if (typeof a === "function") {
-      fn = a;
-    } else if (typeof a === "string" && typeof b === "function") {
-      widgetId = a;
-      fn = b;
-    } else if (typeof a === "string" && typeof b === "string" && typeof c === "function") {
-      widgetId = a;
-      fn = c;
+    const root = findWidgetRoot(widgetId);
+    if (root) {
+      safeCall(fn, root);
+      return;
     }
 
-    if (typeof fn !== "function") return;
+    // Queue for later
+    const arr = _onMountQueue.get(widgetId) || [];
+    arr.push(fn);
+    _onMountQueue.set(widgetId, arr);
+    _ensureObserver();
+  }
 
-    const run = () => {
-      if (!widgetId) {
-        try { fn(); } catch (e) { console.warn("[Core.onMount] callback failed:", e); }
-        return;
-      }
+  // -----------------------------
+  // Widget registry (compat)
+  // -----------------------------
+  // Widgets currently failing are throwing:
+  //   window.ZZXWidgets is undefined
+  //   window.ZZXWidgetRegistry is undefined
+  //
+  // Existing widget patterns in your tree (observed from console logs):
+  //   window.ZZXWidgets.register("price-24h", function(root, Core){...})
+  //   window.ZZXWidgetRegistry.register("btc-news", function(root, Core){...})
+  // Some widgets are self-booting and never register — we don't break those.
+  const _registry = new Map(); // id -> { init: fn }
+  const _mountedOnce = new Set(); // prevent double-init per root instance
 
-      const root = findWidgetRootById(widgetId);
-      if (root) {
-        try { fn(root); } catch (e) { console.warn(`[Core.onMount] ${widgetId} callback failed:`, e); }
-        return;
-      }
+  function _normalizeRegistrationArgs(id, def) {
+    // Allow register(id, fn) or register(id, { init|mount|render|run: fn })
+    if (typeof def === "function") return { init: def };
 
-      const mo = new MutationObserver(() => {
-        const r2 = findWidgetRootById(widgetId);
-        if (r2) {
-          mo.disconnect();
-          try { fn(r2); } catch (e) { console.warn(`[Core.onMount] ${widgetId} callback failed:`, e); }
-        }
-      });
-      mo.observe(document.documentElement, { childList: true, subtree: true });
-      setTimeout(() => { try { mo.disconnect(); } catch (_) {} }, 5000);
-    };
+    if (def && typeof def === "object") {
+      const fn =
+        def.init ||
+        def.mount ||
+        def.render ||
+        def.run ||
+        def.start;
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", run, { once: true });
-    } else {
-      setTimeout(run, 0);
+      if (typeof fn === "function") return { init: fn };
     }
+    return { init: null };
   }
 
-  // ---------------------------------------------------------
-  // Optional mounting helpers (kept)
-  // ---------------------------------------------------------
-  function widgetBase(widgetId) {
-    return `/__partials/widgets/${widgetId}`;
-  }
-  function hrefWidgetHTML(widgetId) {
-    return abs(`${widgetBase(widgetId)}/widget.html`);
-  }
-  function hrefWidgetCSS(widgetId) {
-    return abs(`${widgetBase(widgetId)}/widget.css`);
-  }
-  function hrefWidgetJS(widgetId) {
-    return abs(`${widgetBase(widgetId)}/widget.js`);
-  }
-  function hrefWidgetData(widgetId, filename) {
-    return abs(`${widgetBase(widgetId)}/${filename}`);
+  function _initIfPresent(id) {
+    const reg = _registry.get(id);
+    if (!reg || typeof reg.init !== "function") return false;
+
+    const root = findWidgetRoot(id);
+    if (!root) return false;
+
+    // Prevent repeated init on same DOM node
+    const marker = `${id}::${getNodeKey(root)}`;
+    if (_mountedOnce.has(marker)) return true;
+
+    _mountedOnce.add(marker);
+
+    try {
+      reg.init(root, W.ZZXWidgetsCore);
+    } catch (e) {
+      console.warn(`[ZZXWidgets] init failed for ${id}`, e);
+    }
+    return true;
   }
 
-  function mkWidgetRoot(widgetId) {
+  function getNodeKey(el) {
+    // stable-ish key for the same element instance
+    if (!el.__zzx_node_key) el.__zzx_node_key = Math.random().toString(36).slice(2);
+    return el.__zzx_node_key;
+  }
+
+  function register(id, def) {
+    if (!id) return;
+
+    const { init } = _normalizeRegistrationArgs(id, def);
+    if (typeof init !== "function") {
+      console.warn(`[ZZXWidgets] register(${id}) called without a usable init fn`);
+      _registry.set(id, { init: null });
+      return;
+    }
+
+    _registry.set(id, { init });
+
+    // If the widget DOM is already mounted (it is, in your runtime: HTML then JS),
+    // initialize immediately.
+    if (_initIfPresent(id)) return;
+
+    // Otherwise, watch for mount and run once available.
+    onMount(id, () => _initIfPresent(id));
+  }
+
+  function init(id) {
+    return _initIfPresent(id);
+  }
+
+  function initAll() {
+    let n = 0;
+    for (const id of _registry.keys()) {
+      if (_initIfPresent(id)) n++;
+    }
+    return n;
+  }
+
+  // Expose the registry objects exactly where your widgets expect them.
+  const ZZXWidgetsAPI = {
+    register,
+    init,
+    initAll,
+    // For debugging
+    _registry,
+  };
+
+  // Some widgets reference window.ZZXWidgets, others window.ZZXWidgetRegistry.
+  W.ZZXWidgets = W.ZZXWidgets || ZZXWidgetsAPI;
+  W.ZZXWidgetRegistry = W.ZZXWidgetRegistry || ZZXWidgetsAPI;
+
+  // If one exists already (from older code), ensure it has at least register/init.
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register !== "function") W.ZZXWidgets.register = register;
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.init !== "function") W.ZZXWidgets.init = init;
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.initAll !== "function") W.ZZXWidgets.initAll = initAll;
+
+  if (W.ZZXWidgetRegistry && typeof W.ZZXWidgetRegistry.register !== "function") W.ZZXWidgetRegistry.register = register;
+  if (W.ZZXWidgetRegistry && typeof W.ZZXWidgetRegistry.init !== "function") W.ZZXWidgetRegistry.init = init;
+  if (W.ZZXWidgetRegistry && typeof W.ZZXWidgetRegistry.initAll !== "function") W.ZZXWidgetRegistry.initAll = initAll;
+
+  // Also: if widgets register before this file loads (rare but possible),
+  // and left behind a queue, you can adapt here later. (Not adding guesswork now.)
+
+  // -----------------------------
+  // Optional: mount helper (kept, but NOT required)
+  // -----------------------------
+  // If you ever want to remount manually:
+  //   Core.mountWidget("btc-news", slotEl, {force:true})
+  //
+  async function mountWidget(widgetId, slotEl, { force = false } = {}) {
+    if (!widgetId || !slotEl) return false;
+
+    if (!force && slotEl.dataset.mounted === "1") return true;
+    slotEl.dataset.mounted = "1";
+
+    // Ensure CSS
+    ensureCSS(hrefWidgetCSS(widgetId), widgetId);
+
+    // Mount HTML
+    const html = await fetchText(hrefWidgetHTML(widgetId));
     const root = document.createElement("div");
     root.className = "zzx-widget";
     root.setAttribute("data-widget-id", widgetId);
     root.setAttribute("data-widget-root", widgetId);
-    return root;
-  }
+    root.innerHTML = html;
+    slotEl.replaceChildren(root);
 
-  function escapeHTML(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+    // Load JS (once)
+    const ok = await ensureJS(hrefWidgetJS(widgetId), widgetId);
+    if (!ok) return false;
 
-  function renderLoadFailed(slotEl, widgetId, err) {
-    slotEl.innerHTML = "";
-    const card = document.createElement("div");
-    card.className = "btc-card";
-    card.innerHTML =
-      `<div class="btc-card__title">${escapeHTML(widgetId)}</div>` +
-      `<div class="btc-card__value">widget load failed</div>` +
-      `<div class="btc-card__sub">${escapeHTML(String(err && err.message ? err.message : err))}</div>`;
-    slotEl.appendChild(card);
-  }
-
-  async function mountWidget(widgetId, slotEl, { force = false } = {}) {
-    if (!slotEl) throw new Error(`No slot element for ${widgetId}`);
-
-    if (!force && slotEl.dataset.mounted === "1") return true;
-    slotEl.dataset.mounted = "1";
-    slotEl.dataset.loading = "1";
-
-    try {
-      ensureCSS(hrefWidgetCSS(widgetId), `w:${widgetId}`);
-
-      const html = await fetchText(hrefWidgetHTML(widgetId));
-      const root = mkWidgetRoot(widgetId);
-      root.innerHTML = html;
-      slotEl.replaceChildren(root);
-
-      await ensureJS(hrefWidgetJS(widgetId), `w:${widgetId}`);
-
-      // If the widget registered, init now
-      const fn = _registry.get(String(widgetId));
-      if (typeof fn === "function") safeInit(String(widgetId), root);
-
-      return true;
-    } catch (err) {
-      renderLoadFailed(slotEl, widgetId, err);
-      return false;
-    } finally {
-      slotEl.dataset.loading = "0";
-    }
+    // If widget registered, init now.
+    _initIfPresent(widgetId);
+    return true;
   }
 
   async function mountAll(scope = document, { force = false } = {}) {
     const slots = qsa(".btc-slot[data-widget]", scope);
-    const jobs = [];
+    const ps = [];
     for (const slot of slots) {
       const id = slot.getAttribute("data-widget");
       if (!id) continue;
-      jobs.push(mountWidget(id, slot, { force }));
+      ps.push(mountWidget(id, slot, { force }));
     }
-    return await Promise.allSettled(jobs);
+    const settled = await Promise.allSettled(ps);
+    return settled;
   }
 
-  // ---------------------------------------------------------
-  // Publish core API
-  // ---------------------------------------------------------
-  patchFetchOnce();
-
+  // -----------------------------
+  // Publish Core API
+  // -----------------------------
   W.ZZXWidgetsCore = {
-    __version: "1.3.0-dropin",
+    __compat_version: "compat-1.0.0",
 
     // prefix/url
     getPrefix,
     join,
-    abs,
+    widgetBase,
+    hrefWidgetHTML,
+    hrefWidgetCSS,
+    hrefWidgetJS,
 
     // fetch
     fetchText,
@@ -404,23 +388,25 @@
     // dom
     qs,
     qsa,
+    findWidgetRoot,
 
     // assets
     ensureCSS,
     ensureJS,
 
-    // compat
+    // compat hook used by widgets
     onMount,
 
-    // mount
+    // optional mounters
     mountWidget,
     mountAll,
-
-    // paths
-    widgetBase,
-    hrefWidgetHTML,
-    hrefWidgetCSS,
-    hrefWidgetJS,
-    hrefWidgetData,
   };
+
+  // If any widgets already registered (because another core existed),
+  // try to init whatever is now mounted.
+  try {
+    if (W.ZZXWidgets && typeof W.ZZXWidgets.initAll === "function") {
+      W.ZZXWidgets.initAll();
+    }
+  } catch (_) {}
 })();
