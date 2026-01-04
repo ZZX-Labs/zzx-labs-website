@@ -1,59 +1,50 @@
-// hud-state.js (or inside runtime/core)
-// Persists state + guarantees recovery handle always works.
-
+// __partials/widgets/hud-state.js
 (function () {
-  const KEY = "zzx.hud.state"; // "full" | "ticker-only" | "hidden"
+  if (window.ZZXHudState) return;
 
-  function getHost() {
-    // pick something stable that always exists when the widget exists:
-    return document.getElementById("ticker-container") || document.body;
+  const STORAGE_KEY = "zzx.hud.mode";
+  const VALID = new Set(["full", "ticker-only", "hidden"]);
+
+  function getRoot() { return document.querySelector("[data-hud-root]"); }
+  function getHandle() { return document.querySelector("[data-hud-handle]"); }
+
+  function setMode(mode) {
+    const m = VALID.has(mode) ? mode : "full";
+    document.documentElement.dataset.zzxHud = m;
+    try { localStorage.setItem(STORAGE_KEY, m); } catch (_) {}
+
+    const root = getRoot();
+    const handle = getHandle();
+
+    // Root visibility
+    if (root) root.dataset.hudState = m;
+
+    // Handle visibility: shown only when hidden
+    if (handle) handle.style.display = (m === "hidden") ? "flex" : "none";
   }
 
-  function setState(state) {
-    const host = getHost();
-    host.setAttribute("data-hud-state", state);
-    try { localStorage.setItem(KEY, state); } catch {}
-    syncHandleVisibility();
-  }
-
-  function getState() {
+  function getMode() {
+    const dom = document.documentElement.dataset.zzxHud;
+    if (VALID.has(dom)) return dom;
     try {
-      const v = localStorage.getItem(KEY);
-      if (v === "full" || v === "ticker-only" || v === "hidden") return v;
-    } catch {}
+      const ls = localStorage.getItem(STORAGE_KEY);
+      if (VALID.has(ls)) return ls;
+    } catch (_) {}
     return "full";
   }
 
-  function syncHandleVisibility() {
-    const host = getHost();
-    const state = host.getAttribute("data-hud-state") || "full";
-    const handle = document.querySelector(".zzx-hud-handle[data-hud-handle]");
-    if (!handle) return;
-    // show handle only when hidden
-    handle.hidden = (state !== "hidden");
+  function bindHandleOnce() {
+    const btn = document.querySelector("[data-hud-show]");
+    if (!btn || btn.__bound) return;
+    btn.__bound = true;
+    btn.addEventListener("click", () => setMode("full"));
   }
 
-  function bind() {
-    const host = getHost();
-    host.setAttribute("data-hud-state", getState());
-
-    // Recovery handle: always bind if it exists
-    const showBtn = document.querySelector("[data-hud-show]");
-    if (showBtn && !showBtn.__bound) {
-      showBtn.__bound = true;
-      showBtn.addEventListener("click", () => setState("full"));
-    }
-
-    syncHandleVisibility();
+  function boot(defaultMode = "full") {
+    const m = getMode() || defaultMode;
+    setMode(m);
+    bindHandleOnce();
   }
 
-  // initial + reinjection safe
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bind, { once: true });
-  } else {
-    bind();
-  }
-
-  // expose for your runtime buttons to call:
-  window.ZZXHUD = { setState, getState };
+  window.ZZXHudState = { boot, setMode, getMode };
 })();
