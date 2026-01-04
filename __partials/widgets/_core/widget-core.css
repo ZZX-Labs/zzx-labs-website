@@ -1,59 +1,68 @@
 /* __partials/widgets/_core/widget-core.css */
-/* Scoped HUD core styles */
+/* Global-ish but safe: scopes to .zzx-hud-handle + .zzx-widgets */
 
-@font-face {
-  font-family: 'AdultSwimFont';
-  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-  font-display: swap;
+@font-face{
+  font-family:'AdultSwimFont';
+  src:url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
+  font-display:swap;
 }
-@font-face {
-  font-family: 'IBMPlexMono';
-  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-  font-display: swap;
+@font-face{
+  font-family:'IBMPlexMono';
+  src:url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+  font-display:swap;
 }
 
-/* Recovery handle */
+/* --- HUD recover handle (ALWAYS in DOM; only shown when HUD hidden) --- */
 .zzx-hud-handle{
-  width: 100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
-  margin: .5rem auto;
-  padding-inline: .5rem;
-  box-sizing: border-box;
-  display: flex;
-  justify-content: center;
+  width:100%;
+  max-width:min(var(--header-rail,1100px),100%);
+  margin:.5rem auto;
+  padding-inline:.5rem;
+  box-sizing:border-box;
+  display:flex;
+  justify-content:center;
 }
 .zzx-hud-show{
   background:#000;
   color:#c0d674;
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
-  padding:.45rem .75rem;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  padding:.35rem .65rem;
+  font-family:'IBMPlexMono',ui-monospace,monospace;
+  font-size:.95rem;
   cursor:pointer;
 }
 .zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
 
-/* HUD root */
+/* --- HUD root wrapper --- */
 .zzx-widgets{
-  width: 100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
-  margin: .5rem auto;
-  padding-inline: .5rem;
-  box-sizing: border-box;
+  width:100%;
+  max-width:min(var(--header-rail,1100px),100%);
+  margin:.5rem auto;
+  padding-inline:.5rem;
+  box-sizing:border-box;
+
+  display:grid;
+  gap:.6rem;
 }
 
-/* single bar */
+/* IMPORTANT: only hide the HUD ROOT when in hidden mode */
+.zzx-widgets[data-mode="hidden"]{
+  display:none;
+}
+
+/* Top control bar (single bar only) */
 .zzx-widgets__bar{
   display:flex;
   align-items:center;
   gap:.45rem;
-  flex-wrap: wrap;
-  justify-content: center;
-  padding: .35rem .45rem;
-  background: #0b0b0b;
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 10px;
-  margin-bottom: .6rem;
+  flex-wrap:wrap;
+  justify-content:center;
+
+  padding:.35rem .45rem;
+  background:#0b0b0b;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:10px;
 }
 
 .zzx-widgets__btn{
@@ -62,14 +71,13 @@
   border:1px solid rgba(255,255,255,.14);
   border-radius:10px;
   padding:.35rem .55rem;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family:'IBMPlexMono',ui-monospace,monospace;
   cursor:pointer;
 }
 .zzx-widgets__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
+.zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
 
-.zzx-widgets__spacer{ flex: 1 1 auto; min-width: 1rem; }
-
-/* rail */
+/* Rail */
 .zzx-widgets__rail{
   display:flex;
   flex-wrap:wrap;
@@ -79,23 +87,26 @@
   width:100%;
 }
 
-/* generic widget wrapper */
+/* Widget card wrapper */
 .zzx-widget{
-  flex: 1 1 240px;
-  max-width: 360px;
-  min-width: 220px;
+  /* This wrapper gets the widget.html injected inside */
+  flex:1 1 240px;
+  max-width:360px;
+  min-width:220px;
 }
 
-/* cards */
+/* Generic card styles used by most widgets */
 .zzx-card{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.25);
   padding:.55rem .65rem;
+
   color:#c0d674;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family:'IBMPlexMono',ui-monospace,monospace;
 }
+
 .zzx-card__title{
   font-family:'AdultSwimFont','IBMPlexMono',monospace;
   color:#e6a42b;
@@ -116,15 +127,6 @@
   white-space:nowrap;
 }
 
-/* MODE: hidden => hide root, show handle */
-[data-hud-mode="hidden"]{
-  display:none !important;
-}
-
-/* MODE: ticker-only => hide all widgets except bitcoin-ticker */
-[data-hud-mode="ticker-only"] .zzx-widget{
-  display:none !important;
-}
-[data-hud-mode="ticker-only"] .zzx-widget[data-widget-id="bitcoin-ticker"]{
-  display:block !important;
-}
+/* ticker-only mode: hide all widgets except bitcoin-ticker */
+.zzx-widgets[data-mode="ticker-only"] .zzx-widget{ display:none; }
+.zzx-widgets[data-mode="ticker-only"] .zzx-widget[data-widget-id="bitcoin-ticker"]{ display:block; }
