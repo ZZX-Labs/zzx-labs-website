@@ -1,15 +1,5 @@
 <!-- __partials/widgets/runtime.html -->
-<!-- This is the SHELL that runtime.js mounts into #btc-ticker -->
-
-<!-- Always-visible handle: shown only when HUD hidden -->
-<div class="zzx-hud-handle" data-hud-handle hidden>
-  <button type="button" class="zzx-hud-show" data-hud-show aria-label="Show Bitcoin HUD">
-    Show Bitcoin HUD
-  </button>
-</div>
-
-<!-- HUD shell -->
-<div class="zzx-widgets" data-zzx-widgets="1" data-hud-state="full">
+<div class="zzx-widgets" data-zzx-widgets="1">
   <div class="zzx-widgets__bar" aria-label="Bitcoin HUD controls">
     <button class="zzx-widgets__btn" type="button" data-zzx-mode="full">Full</button>
     <button class="zzx-widgets__btn" type="button" data-zzx-mode="ticker-only">Ticker</button>
@@ -20,13 +10,13 @@
     <button class="zzx-widgets__btn" type="button" data-zzx-action="reset">Reset</button>
   </div>
 
-  <!-- Visible only in hidden state (failsafe recovery) -->
-  <div class="zzx-widgets__recover">
-    <button class="zzx-widgets__btn" type="button" data-zzx-action="show">
-      Show Bitcoin HUD
-    </button>
-  </div>
-
-  <!-- Widgets mount here -->
+  <!-- WIDGETS MOUNT HERE -->
   <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets"></div>
+</div>
+
+<!-- HUD handle: ALWAYS visible even if HUD is hidden -->
+<div class="zzx-hud-handle" data-hud-handle hidden>
+  <button type="button" class="zzx-hud-show zzx-widgets__btn" data-hud-show aria-label="Show Bitcoin HUD">
+    Show Bitcoin HUD
+  </button>
 </div>
