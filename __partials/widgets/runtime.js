@@ -1,119 +1,136 @@
-/* __partials/widgets/runtime.js
-   Orchestrator:
-   - ensures core JS + HUD state are loaded
-   - loads manifest
-   - mounts each widget into matching .btc-slot[data-widget="id"]
-*/
+// __partials/widgets/runtime.js
 (function () {
   const W = window;
 
-  // prevent double-boot
-  if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
-  W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
+  // prevent double boot
+  if (W.__ZZX_WIDGET_RUNTIME_BOOTED) return;
+  W.__ZZX_WIDGET_RUNTIME_BOOTED = true;
 
-  function getPrefix() {
-    const p = W.ZZX?.PREFIX;
-    return (typeof p === "string" && p.length) ? p : ".";
-  }
-  function join(prefix, path) {
-    if (!path) return path;
-    if (prefix === "/" || path.startsWith("http://") || path.startsWith("https://")) return path;
-    if (!path.startsWith("/")) return path;
-    return prefix.replace(/\/+$/, "") + path;
-  }
-  function url(path) {
-    return join(getPrefix(), path);
-  }
+  function qs(sel, root = document) { return root.querySelector(sel); }
+  function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
-  function ensureScript(src, key) {
-    const attr = `data-zzx-js-${key}`;
-    if (document.querySelector(`script[${attr}="1"]`)) return Promise.resolve(true);
-    return new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = src;
-      s.defer = true;
-      s.setAttribute(attr, "1");
-      s.onload = () => resolve(true);
-      s.onerror = (e) => reject(e);
-      document.body.appendChild(s);
-    });
-  }
+  function applyMode(mode) {
+    const hudRoot = qs("[data-hud-root]");
+    const handle  = qs("[data-hud-handle]");
+    const label   = qs("[data-hud-mode-label]");
 
-  async function ensureCore() {
-    // core should already be present because ticker-loader injects core CSS,
-    // but we still ensure JS dependencies here.
-    const coreJS = url("/__partials/widgets/_core/widget-core.js");
-    const hudJS  = url("/__partials/widgets/hud-state.js");
+    if (hudRoot) hudRoot.setAttribute("data-hud-state", mode);
+    if (label) label.textContent = mode;
 
-    if (!W.ZZXWidgetsCore) await ensureScript(coreJS, "core");
-    if (!W.ZZXHUD) await ensureScript(hudJS, "hud");
-    return true;
-  }
-
-  async function loadManifest() {
-    const Core = W.ZZXWidgetsCore;
-    return await Core.fetchJSON("/__partials/widgets/manifest.json");
-  }
-
-  function bindHudHandle() {
-    const Core = W.ZZXWidgetsCore;
-    const btn = Core.qs("[data-hud-show]");
-    if (!btn || btn.__bound) return;
-    btn.__bound = true;
-    btn.addEventListener("click", () => {
-      const s = W.ZZXHUD.setMode("full");
-      // apply already done by ZZXHUD
-      return s;
-    });
-  }
-
-  async function mountAllWidgets(manifest) {
-    const Core = W.ZZXWidgetsCore;
-
-    const list = Array.isArray(manifest?.widgets) ? manifest.widgets.slice() : [];
-    list.sort((a, b) => (a.priority ?? 9999) - (b.priority ?? 9999));
-
-    // Mount only those with enabled true AND slot exists
-    for (const w of list) {
-      if (!w || !w.id) continue;
-
-      const slot = Core.qs(`.btc-slot[data-widget="${CSS.escape(w.id)}"]`);
-      if (!slot) continue;
-
-      if (w.enabled === false) {
-        // keep slot empty if disabled
-        slot.replaceChildren();
-        continue;
-      }
-
-      try {
-        await Core.mountWidget(w.id, slot);
-      } catch (e) {
-        // show a minimal error card, keep layout stable
-        const err = document.createElement("div");
-        err.className = "btc-card";
-        err.innerHTML = `
-          <div class="btc-card__title">${w.title || w.id}</div>
-          <div class="btc-card__sub">widget failed to load</div>
-          <div class="btc-card__sub" style="opacity:.85;white-space:normal;">${String(e)}</div>
-        `;
-        slot.replaceChildren(err);
-      }
+    // Show handle button only when hidden
+    if (handle) {
+      handle.style.display = (mode === "hidden") ? "block" : "none";
     }
   }
 
-  function applyDefaultMode(manifest) {
-    const mode = manifest?.defaultMode || "full";
-    if (W.ZZXHUD) W.ZZXHUD.setMode(mode);
+  function bindControls() {
+    const bar = qs(".zzx-widgets__bar");
+    const showBtn = qs("[data-hud-show]");
+
+    if (bar && !bar.__bound) {
+      bar.__bound = true;
+      bar.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+
+        const mode = btn.getAttribute("data-hud-mode");
+        const action = btn.getAttribute("data-hud-action");
+
+        if (mode) {
+          const s = W.ZZXHUD.write(mode);
+          applyMode(s.mode);
+        }
+
+        if (action === "reset") {
+          const s = W.ZZXHUD.reset();
+          applyMode(s.mode);
+
+          // force remount attempt
+          const slots = qsa(".btc-slot[data-widget]");
+          for (const slot of slots) {
+            slot.dataset.mounted = "0";
+            slot.dataset.mounting = "0";
+          }
+          mountAll(true);
+        }
+      });
+    }
+
+    if (showBtn && !showBtn.__bound) {
+      showBtn.__bound = true;
+      showBtn.addEventListener("click", () => {
+        const s = W.ZZXHUD.write("full");
+        applyMode(s.mode);
+      });
+    }
+  }
+
+  async function mountAll(force = false) {
+    const Core = W.ZZXWidgetsCore;
+    if (!Core) return 0;
+
+    const root = qs("[data-hud-root]") || document;
+    const slots = qsa(".btc-slot[data-widget]", root);
+
+    if (force) {
+      for (const slot of slots) {
+        slot.dataset.mounted = "0";
+        slot.innerHTML = "";
+      }
+    }
+
+    // mount sequentially (keeps API bursts calmer)
+    let ok = 0;
+    for (const slot of slots) {
+      const id = slot.getAttribute("data-widget");
+      const did = await Core.mountWidget(id, slot);
+      if (did) ok++;
+    }
+    return ok;
+  }
+
+  // If runtime is injected before core is ready, retry
+  let mo = null;
+  let retryTimer = null;
+
+  function startWatch() {
+    if (mo) return;
+
+    retryTimer = setInterval(async () => {
+      if (W.ZZXWidgetsCore && W.ZZXHUD) {
+        const ok = await mountAll(false);
+        if (ok) stopWatch();
+      }
+    }, 700);
+
+    mo = new MutationObserver(async () => {
+      if (W.ZZXWidgetsCore && W.ZZXHUD) {
+        const ok = await mountAll(false);
+        if (ok) stopWatch();
+      }
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function stopWatch() {
+    if (mo) { mo.disconnect(); mo = null; }
+    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
   }
 
   async function boot() {
-    await ensureCore();
-    bindHudHandle();
+    // Ensure state + controls
+    const s = W.ZZXHUD.read();
+    applyMode(s.mode);
+    bindControls();
 
-    const manifest = await loadManifest();
-    applyDefaultMode(manifest);
-    await mountAllWidgets(manifest);
+    // Try mount now; if no core yet, watch
+    if (!W.ZZXWidgetsCore) {
+      startWatch();
+      return;
+    }
+
+    const ok = await mountAll(false);
+    if (!ok) startWatch();
   }
 
   if (document.readyState === "loading") {
@@ -121,20 +138,4 @@
   } else {
     boot();
   }
-
-  // optional rebind hook
-  W.ZZXWidgetsRuntime = {
-    rebind: async function (force = false) {
-      if (force) {
-        // clear mounted flags so everything remounts
-        document.querySelectorAll(".btc-slot").forEach(s => {
-          s.dataset.mounted = "0";
-          s.replaceChildren();
-        });
-      }
-      try {
-        await boot();
-      } catch (_) {}
-    }
-  };
 })();
