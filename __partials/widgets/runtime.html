@@ -1,25 +1,65 @@
 <!-- __partials/widgets/runtime.html -->
-<!-- This is the shell that ticker-loader mounts into #btc-ticker -->
-
-<!-- Recover handle (ONLY visible when HUD is hidden) -->
-<div class="zzx-hud-handle" data-hud-handle hidden>
+<!-- HUD handle: ALWAYS visible even if HUD hidden -->
+<div class="zzx-hud-handle" data-hud-handle>
   <button type="button" class="zzx-hud-show" data-hud-show aria-label="Show Bitcoin HUD">
     Show Bitcoin HUD
   </button>
 </div>
 
-<!-- HUD root -->
-<div class="zzx-widgets" data-hud-root data-mode="full">
+<!-- HUD root (hidden/collapsed by state) -->
+<div class="zzx-widgets" data-hud-root data-hud-state="full" role="region" aria-label="Bitcoin HUD">
+
+  <!-- SINGLE control bar -->
   <div class="zzx-widgets__bar" aria-label="Bitcoin HUD controls">
-    <button class="zzx-widgets__btn" type="button" data-zzx-mode="full">Full</button>
-    <button class="zzx-widgets__btn" type="button" data-zzx-mode="ticker-only">Ticker</button>
-    <button class="zzx-widgets__btn" type="button" data-zzx-mode="hidden">Hide</button>
+    <button class="zzx-widgets__btn" type="button" data-hud-mode="full">Full</button>
+    <button class="zzx-widgets__btn" type="button" data-hud-mode="ticker-only">Ticker</button>
+    <button class="zzx-widgets__btn" type="button" data-hud-mode="hidden">Hide</button>
 
     <span class="zzx-widgets__spacer"></span>
 
-    <button class="zzx-widgets__btn" type="button" data-zzx-action="reset">Reset</button>
+    <button class="zzx-widgets__btn" type="button" data-hud-action="reset">Reset</button>
   </div>
 
-  <!-- Widgets mount here -->
-  <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets"></div>
+  <!-- Widget slots (runtime mounts widget.html into each slot, then loads widget.js AFTER mount) -->
+  <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets">
+    <div data-widget-slot="bitcoin-ticker"></div>
+
+    <div data-widget-slot="price-24h"></div>
+    <div data-widget-slot="volume-24h"></div>
+    <div data-widget-slot="high-low-24h"></div>
+
+    <div data-widget-slot="fees"></div>
+    <div data-widget-slot="mempool"></div>
+    <div data-widget-slot="mempool-goggles"></div>
+
+    <div data-widget-slot="hashrate"></div>
+    <div data-widget-slot="hashrate-by-nation"></div>
+
+    <div data-widget-slot="nodes"></div>
+    <div data-widget-slot="nodes-by-nation"></div>
+
+    <div data-widget-slot="lightning"></div>
+    <div data-widget-slot="lightning-detail"></div>
+
+    <div data-widget-slot="tip"></div>
+    <div data-widget-slot="drift"></div>
+
+    <div data-widget-slot="intel"></div>
+    <div data-widget-slot="btc-intel"></div>
+    <div data-widget-slot="btc-repo"></div>
+    <div data-widget-slot="btc-news"></div>
+
+    <div data-widget-slot="satoshi-quote"></div>
+
+    <div data-widget-slot="btc-halving-suite"></div>
+
+    <div data-widget-slot="btc-blockexplorer"></div>
+    <div data-widget-slot="btc-notabletxs"></div>
+
+    <div data-widget-slot="bitrng"></div>
+
+    <div data-widget-slot="btc-stolen"></div>
+    <div data-widget-slot="btc-burned"></div>
+    <div data-widget-slot="btc-lost"></div>
+  </div>
 </div>
