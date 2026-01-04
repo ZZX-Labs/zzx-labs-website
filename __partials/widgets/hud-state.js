@@ -1,31 +1,36 @@
 // __partials/widgets/hud-state.js
-// Persists HUD mode + guarantees recovery button visibility
+// Single source of truth for HUD mode. Default = "full".
+// Persists in localStorage.
 
 (function () {
-  if (window.ZZXHUD) return;
-
   const KEY = "zzx.hud.mode";
   const VALID = new Set(["full", "ticker-only", "hidden"]);
 
-  function readMode() {
-    const v = String(localStorage.getItem(KEY) || "full");
-    return VALID.has(v) ? v : "full";
+  function normalize(mode) {
+    if (!mode) return "full";
+    mode = String(mode).trim();
+    return VALID.has(mode) ? mode : "full";
   }
 
-  function writeMode(mode) {
-    const m = VALID.has(mode) ? mode : "full";
-    localStorage.setItem(KEY, m);
-    return m;
+  function read() {
+    try {
+      const v = localStorage.getItem(KEY);
+      return { mode: normalize(v) };
+    } catch (_) {
+      return { mode: "full" };
+    }
+  }
+
+  function write(mode) {
+    const m = normalize(mode);
+    try { localStorage.setItem(KEY, m); } catch (_) {}
+    return { mode: m };
   }
 
   function reset() {
-    localStorage.removeItem(KEY);
-    return "full";
+    try { localStorage.removeItem(KEY); } catch (_) {}
+    return { mode: "full" };
   }
 
-  window.ZZXHUD = {
-    read() { return { mode: readMode() }; },
-    setMode(mode) { return { mode: writeMode(mode) }; },
-    reset() { return { mode: reset() }; },
-  };
+  window.ZZXHUD = { read, write, reset, normalize };
 })();
