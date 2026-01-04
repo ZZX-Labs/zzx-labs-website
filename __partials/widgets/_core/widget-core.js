@@ -1,72 +1,66 @@
 // __partials/widgets/_core/widget-core.js
 (function () {
-  if (window.ZZXWidgetsCore) return;
+  const W = window;
 
-  const Core = {};
-  const DEBUG = !!window.__ZZX_WIDGETS_DEBUG;
-  const log = (...a) => DEBUG && console.log("[ZZX-WIDGETS]", ...a);
-
-  Core.getPrefix = function () {
-    const p = window.ZZX?.PREFIX;
+  function getPrefix() {
+    const p = W.ZZX?.PREFIX;
     return (typeof p === "string" && p.length) ? p : ".";
-  };
+  }
 
-  Core.join = function (prefix, absPath) {
-    if (!absPath) return absPath;
-    if (prefix === "/" || absPath.startsWith("http://") || absPath.startsWith("https://")) return absPath;
-    if (!absPath.startsWith("/")) return absPath;
-    return prefix.replace(/\/+$/, "") + absPath;
-  };
+  function join(prefix, path) {
+    if (!path) return path;
+    if (prefix === "/" || /^https?:\/\//.test(path)) return path;
+    if (!path.startsWith("/")) return path;
+    return prefix.replace(/\/+$/, "") + path;
+  }
 
-  Core.ensureCSS = function (href, key) {
-    const attr = `data-zzx-css-${key}`;
-    if (document.querySelector(`link[${attr}="1"]`)) return;
+  function onceTag(selector) {
+    return !!document.querySelector(selector);
+  }
+
+  function ensureCSS(href, key) {
+    const sel = `link[data-zzx-css="${key}"]`;
+    if (onceTag(sel)) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute(attr, "1");
+    l.setAttribute("data-zzx-css", key);
     document.head.appendChild(l);
-  };
+  }
 
-  Core.ensureJS = function (src, key) {
-    const attr = `data-zzx-js-${key}`;
-    if (document.querySelector(`script[${attr}="1"]`)) return;
+  function ensureJS(src, key) {
+    const sel = `script[data-zzx-js="${key}"]`;
+    if (onceTag(sel)) return;
     const s = document.createElement("script");
     s.src = src;
     s.defer = true;
-    s.setAttribute(attr, "1");
+    s.setAttribute("data-zzx-js", key);
     document.body.appendChild(s);
-  };
+  }
 
-  Core.fetchText = async function (url) {
+  async function fetchText(url) {
     const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
     return await r.text();
-  };
+  }
 
-  Core.fetchJSON = async function (url) {
+  async function fetchJSON(url) {
     const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
     return await r.json();
-  };
+  }
 
-  // per-widget in-flight locks (prevents stampede)
-  const inflight = Object.create(null);
-  Core.lock = function (k) { if (inflight[k]) return false; inflight[k] = true; return true; };
-  Core.unlock = function (k) { inflight[k] = false; };
+  function qs(sel, root = document) { return root.querySelector(sel); }
+  function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
-  // stable interval registry (so reinjection doesn’t duplicate timers)
-  const timers = [];
-  Core.setIntervalOnce = function (fn, ms) {
-    const id = setInterval(fn, ms);
-    timers.push(id);
-    return id;
-  };
-  Core.clearAllIntervals = function () {
-    while (timers.length) clearInterval(timers.pop());
-  };
-
-  Core.log = log;
-
-  window.ZZXWidgetsCore = Core;
+  W.ZZXWidgetsCore = Object.assign({}, W.ZZXWidgetsCore || {}, {
+    getPrefix,
+    join,
+    ensureCSS,
+    ensureJS,
+    fetchText,
+    fetchJSON,
+    qs,
+    qsa,
+  });
 })();
