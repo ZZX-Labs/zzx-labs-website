@@ -1,152 +1,80 @@
 // __partials/widgets/_core/widget-core.js
-// DROP-IN REPLACEMENT (single-file fix)
-// Fixes “widgets render but never load data” by:
-//  1) Making late-registered DOMContentLoaded/load listeners fire immediately
-//     (many widget.js files bind on DOMContentLoaded and were being injected AFTER it fired)
-//  2) Prefix-rewriting SAME-ORIGIN absolute fetches ("/static/...", "/api/...", "/__partials/...")
-//     so GH Pages / subpath hosting works without editing every widget
-//  3) Keeping back-compat API: window.ZZXWidgetsCore.{qs,qsa,fetchJSON,fetchText,ensureCSS,ensureJS,mountWidget,mountAll,...}
+// DROP-IN REPLACEMENT (global fix)
+// Purpose: stop breaking every widget when hosted under a subpath (GH Pages / nested routes)
+// by making ALL absolute fetches + asset URLs prefix-aware WITHOUT editing each widget.
+//
+// What this does:
+//  - exposes window.ZZXWidgetsCore (qs/qsa/fetchJSON/etc) as before
+//  - adds Core.abs("/...") => "<PREFIX>/..." when PREFIX !== "/" (or "." / ".." etc)
+//  - PATCHES window.fetch so ANY widget calling fetch("/something") automatically becomes
+//        fetch("<PREFIX>/something")
+//    (only when PREFIX is not "/" and the URL is site-absolute)
+//  - injects @font-face at runtime with prefix-aware URLs (fixes /static/fonts 404s on GH Pages)
 
 (function () {
   const W = window;
 
-  // Prevent double-definition across reinjections
+  // Avoid double-definitions across reinjections
   if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__version) return;
 
   // ----------------------------
-  // Prefix + URL helpers
+  // Prefix helpers
   // ----------------------------
   function getPrefix() {
-    // partials-loader sets window.ZZX.PREFIX = '.' | '..' | ... | '/'
-    const p = W.ZZX && typeof W.ZZX.PREFIX === "string" ? W.ZZX.PREFIX : ".";
-    return p && p.length ? p : ".";
+    const p = W.ZZX?.PREFIX;
+    return (typeof p === "string" && p.length) ? p : ".";
   }
 
-  function join(prefix, absPath) {
-    if (!absPath) return absPath;
-    if (/^https?:\/\//i.test(absPath)) return absPath;
-    if (prefix === "/") return absPath; // hosted at domain root
-    if (!String(absPath).startsWith("/")) return absPath; // already relative
-    return String(prefix).replace(/\/+$/, "") + absPath;
+  function isAbsSitePath(u) {
+    return typeof u === "string" && u.startsWith("/") && !u.startsWith("//");
   }
 
-  function widgetBase(widgetId) {
-    return `/__partials/widgets/${widgetId}`;
+  function join(prefix, path) {
+    if (!path) return path;
+    if (typeof path !== "string") return path;
+
+    // Already absolute URL (http/https)
+    if (/^https?:\/\//i.test(path)) return path;
+
+    // If hosted at domain root, keep site-absolute paths unchanged
+    if (prefix === "/") return path;
+
+    // Already relative
+    if (!path.startsWith("/")) return path;
+
+    // Prefix + site-absolute path
+    return prefix.replace(/\/+$/, "") + path;
   }
 
-  function hrefWidgetHTML(widgetId) {
-    return join(getPrefix(), `${widgetBase(widgetId)}/widget.html`);
-  }
-  function hrefWidgetCSS(widgetId) {
-    return join(getPrefix(), `${widgetBase(widgetId)}/widget.css`);
-  }
-  function hrefWidgetJS(widgetId) {
-    return join(getPrefix(), `${widgetBase(widgetId)}/widget.js`);
+  // Public: make any "/x/y" safe under PREFIX
+  function abs(pathAbs) {
+    return join(getPrefix(), pathAbs);
   }
 
   // ----------------------------
-  // (1) Late DOM events shim (THE big fix)
-  // ----------------------------
-  // Many of your widget scripts do:
-  //   document.addEventListener("DOMContentLoaded", boot)
-  // but runtime injects widget.js AFTER DOMContentLoaded already fired.
-  // Solution: if DOM is already ready, immediately invoke those callbacks.
-
-  (function patchLateDOMEvents() {
-    if (document.__zzx_patched_dom_events) return;
-    document.__zzx_patched_dom_events = true;
-
-    const origDocAdd = document.addEventListener.bind(document);
-    const origWinAdd = window.addEventListener.bind(window);
-
-    function callSoon(fn, ctx, args) {
-      Promise.resolve().then(() => {
-        try { fn.apply(ctx, args); } catch (e) { console.warn("[ZZXWidgetsCore] listener error:", e); }
-      });
-    }
-
-    // Patch document.addEventListener
-    document.addEventListener = function (type, listener, options) {
-      // Always register normally first (so removeEventListener still works)
-      origDocAdd(type, listener, options);
-
-      // If DOMContentLoaded already passed, fire listener ASAP.
-      if (type === "DOMContentLoaded" && document.readyState !== "loading") {
-        // Respect { once:true } by calling once and leaving native registration in place.
-        // (Native once would have removed it, but event won't fire again anyway.)
-        if (typeof listener === "function") callSoon(listener, document, [new Event("DOMContentLoaded")]);
-        else if (listener && typeof listener.handleEvent === "function") callSoon(listener.handleEvent, listener, [new Event("DOMContentLoaded")]);
-      }
-    };
-
-    // Patch window.addEventListener for "load" (some widgets use it)
-    window.addEventListener = function (type, listener, options) {
-      origWinAdd(type, listener, options);
-
-      if (type === "load" && document.readyState === "complete") {
-        if (typeof listener === "function") callSoon(listener, window, [new Event("load")]);
-        else if (listener && typeof listener.handleEvent === "function") callSoon(listener.handleEvent, listener, [new Event("load")]);
-      }
-    };
-  })();
-
-  // ----------------------------
-  // (2) Prefix-rewrite SAME-ORIGIN absolute fetches
-  // ----------------------------
-  // If site is served from /<repo>/ (GH Pages), fetch("/static/...") hits domain root and 404s.
-  // We rewrite ONLY string URLs that begin with "/" and are not already prefixed.
-
-  (function patchFetch() {
-    if (W.__zzx_fetch_patched) return;
-    W.__zzx_fetch_patched = true;
-
-    const origFetch = W.fetch.bind(W);
-
-    function rewriteUrl(input) {
-      if (typeof input !== "string") return input;
-      if (!input.startsWith("/")) return input;
-      // If already prefixed (e.g., "./static/..."), leave it.
-      const prefix = getPrefix();
-      if (prefix === "/") return input;
-
-      // Avoid double-prefix:
-      const normalizedPrefix = String(prefix).replace(/\/+$/, "");
-      if (normalizedPrefix && input.startsWith(normalizedPrefix + "/")) return input;
-
-      return normalizedPrefix + input;
-    }
-
-    W.fetch = function (input, init) {
-      try {
-        const rewritten = rewriteUrl(input);
-        return origFetch(rewritten, init);
-      } catch (e) {
-        return origFetch(input, init);
-      }
-    };
-  })();
-
-  // ----------------------------
-  // Fetch helpers (widgets often use these)
+  // Fetch helpers
   // ----------------------------
   async function fetchText(url, opts = {}) {
-    const r = await fetch(url, { cache: "no-store", ...opts });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    const u = typeof url === "string" ? abs(url) : url;
+    const r = await fetch(u, { cache: "no-store", ...opts });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${typeof u === "string" ? u : "(request)"}`);
     return await r.text();
   }
 
   async function fetchJSON(url, opts = {}) {
-    const r = await fetch(url, { cache: "no-store", ...opts });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    const u = typeof url === "string" ? abs(url) : url;
+    const r = await fetch(u, { cache: "no-store", ...opts });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${typeof u === "string" ? u : "(request)"}`);
     return await r.json();
   }
 
   // ----------------------------
-  // DOM helpers (scoped)
+  // DOM helpers
   // ----------------------------
   function qs(sel, scope) {
     return (scope || document).querySelector(sel);
   }
+
   function qsa(sel, scope) {
     return Array.from((scope || document).querySelectorAll(sel));
   }
@@ -154,43 +82,117 @@
   // ----------------------------
   // Asset injectors (deduped)
   // ----------------------------
-  function ensureCSS(href, key) {
-    const attr = `data-zzx-css-${key}`;
-    if (document.querySelector(`link[${attr}="1"]`)) return;
+  function ensureCSS(href, key = "1") {
+    const u = abs(href);
+    const sel = `link[data-zzx-css="${key}"]`;
+    if (document.querySelector(sel)) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
-    l.href = href;
-    l.setAttribute(attr, "1");
+    l.href = u;
+    l.setAttribute("data-zzx-css", key);
     document.head.appendChild(l);
   }
 
-  function ensureJS(src, key) {
-    const attr = `data-zzx-js-${key}`;
-    if (document.querySelector(`script[${attr}="1"]`)) return Promise.resolve(true);
+  function ensureJS(src, key = "1") {
+    const u = abs(src);
+    const sel = `script[data-zzx-js="${key}"]`;
+    if (document.querySelector(sel)) return Promise.resolve(true);
 
     return new Promise((resolve, reject) => {
-      // IMPORTANT: do NOT rely on defer/DOMContentLoaded timing.
-      // Dynamic scripts execute immediately when appended; our DOMContentLoaded shim
-      // ensures widget handlers still fire if they register late.
       const s = document.createElement("script");
-      s.src = src;
-      s.async = true; // load ASAP
-      s.setAttribute(attr, "1");
+      s.src = u;
+      s.defer = true;
+      s.setAttribute("data-zzx-js", key);
       s.onload = () => resolve(true);
-      s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      s.onerror = () => reject(new Error(`Failed to load script: ${u}`));
       document.body.appendChild(s);
     });
   }
 
   // ----------------------------
-  // Widget mounting
+  // Widget path helpers
+  // ----------------------------
+  function widgetBase(widgetId) {
+    return `/__partials/widgets/${widgetId}`;
+  }
+  function hrefWidgetHTML(widgetId) {
+    return abs(`${widgetBase(widgetId)}/widget.html`);
+  }
+  function hrefWidgetCSS(widgetId) {
+    return abs(`${widgetBase(widgetId)}/widget.css`);
+  }
+  function hrefWidgetJS(widgetId) {
+    return abs(`${widgetBase(widgetId)}/widget.js`);
+  }
+  function hrefWidgetData(widgetId, filename) {
+    return abs(`${widgetBase(widgetId)}/${filename}`);
+  }
+
+  // ----------------------------
+  // Runtime-injected fonts (prefix-safe)
+  // ----------------------------
+  function ensureFonts() {
+    if (document.querySelector('style[data-zzx-fonts="1"]')) return;
+
+    const prefix = getPrefix();
+    const font1 = join(prefix, "/static/fonts/Adult-Swim-Font.ttf");
+    const font2 = join(prefix, "/static/fonts/IBMPlexMono-Regular.ttf");
+
+    const st = document.createElement("style");
+    st.setAttribute("data-zzx-fonts", "1");
+    st.textContent = `
+@font-face{
+  font-family:'AdultSwimFont';
+  src:url('${font1}') format('truetype');
+  font-display:swap;
+}
+@font-face{
+  font-family:'IBMPlexMono';
+  src:url('${font2}') format('truetype');
+  font-display:swap;
+}`.trim();
+    document.head.appendChild(st);
+  }
+
+  // ----------------------------
+  // Fetch patch (THIS IS THE GLOBAL FIX)
+  // ----------------------------
+  function patchFetchOnce() {
+    if (W.__ZZX_FETCH_PATCHED) return;
+    W.__ZZX_FETCH_PATCHED = true;
+
+    const nativeFetch = W.fetch.bind(W);
+
+    W.fetch = function patchedFetch(input, init) {
+      try {
+        // If widgets call fetch("/something"), rewrite to "<PREFIX>/something"
+        if (typeof input === "string") {
+          if (isAbsSitePath(input)) {
+            input = abs(input);
+          }
+        } else if (input && typeof input === "object" && "url" in input) {
+          // Request object: clone with rewritten URL if needed
+          const url = String(input.url || "");
+          if (isAbsSitePath(url)) {
+            const fixed = abs(url);
+            input = new Request(fixed, input);
+          }
+        }
+      } catch (_) {
+        // fall through to native
+      }
+      return nativeFetch(input, init);
+    };
+  }
+
+  // ----------------------------
+  // Widget mounting (kept compatible)
   // ----------------------------
   function mkWidgetRoot(widgetId) {
     const root = document.createElement("div");
     root.className = "zzx-widget";
     root.setAttribute("data-widget-id", widgetId);
-    // Back-compat for scripts that use data-widget-root="..."
-    root.setAttribute("data-widget-root", widgetId);
+    root.setAttribute("data-widget-root", widgetId); // back-compat
     return root;
   }
 
@@ -222,21 +224,19 @@
     slotEl.dataset.loading = "1";
 
     try {
-      // CSS first (safe even if empty file)
-      ensureCSS(hrefWidgetCSS(widgetId), widgetId);
+      // Widget CSS (deduped)
+      ensureCSS(hrefWidgetCSS(widgetId), `w:${widgetId}`);
 
-      // HTML mount next
+      // HTML
       const html = await fetchText(hrefWidgetHTML(widgetId));
       const root = mkWidgetRoot(widgetId);
       root.innerHTML = html;
-
-      // Keep slot stable; replace children only
       slotEl.replaceChildren(root);
 
-      // JS last
-      await ensureJS(hrefWidgetJS(widgetId), widgetId);
+      // JS (deduped)
+      await ensureJS(hrefWidgetJS(widgetId), `w:${widgetId}`);
 
-      // Optional init hook (if you ever add it)
+      // Optional init hook convention (non-breaking)
       try {
         const initMap = W.ZZXWidgetInit;
         if (initMap && typeof initMap === "object" && typeof initMap[widgetId] === "function") {
@@ -257,32 +257,33 @@
 
   async function mountAll(scope = document, { force = false } = {}) {
     const slots = qsa(".btc-slot[data-widget]", scope);
-    const tasks = [];
-
+    const jobs = [];
     for (const slot of slots) {
       const id = slot.getAttribute("data-widget");
       if (!id) continue;
-      tasks.push(mountWidget(id, slot, { force }));
+      jobs.push(mountWidget(id, slot, { force }));
     }
-
-    return await Promise.allSettled(tasks);
+    return await Promise.allSettled(jobs);
   }
 
   // ----------------------------
-  // Public Core API
+  // Boot core
   // ----------------------------
-  W.ZZXWidgetsCore = {
-    __version: "1.0.1-dropin",
+  patchFetchOnce();
+  ensureFonts();
 
-    // prefix + url helpers
+  W.ZZXWidgetsCore = {
+    __version: "1.1.0-dropin",
+    // prefix/url
     getPrefix,
     join,
+    abs,
 
-    // fetch helpers
+    // fetch
     fetchText,
     fetchJSON,
 
-    // DOM helpers
+    // dom
     qs,
     qsa,
 
@@ -294,10 +295,11 @@
     mountWidget,
     mountAll,
 
-    // widget path helpers
+    // paths
     widgetBase,
     hrefWidgetHTML,
     hrefWidgetCSS,
     hrefWidgetJS,
+    hrefWidgetData,
   };
 })();
