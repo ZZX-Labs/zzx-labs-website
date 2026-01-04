@@ -1,5 +1,5 @@
 /* __partials/widgets/_core/widget-core.css */
-/* Global-ish but safe: scopes to .zzx-hud-handle + .zzx-widgets */
+/* Scopes to HUD + provides compatibility aliases for older btc-* widgets */
 
 @font-face{
   font-family:'AdultSwimFont';
@@ -12,7 +12,7 @@
   font-display:swap;
 }
 
-/* --- HUD recover handle (ALWAYS in DOM; only shown when HUD hidden) --- */
+/* --- HUD recover handle --- */
 .zzx-hud-handle{
   width:100%;
   max-width:min(var(--header-rail,1100px),100%);
@@ -34,24 +34,21 @@
 }
 .zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
 
-/* --- HUD root wrapper --- */
+/* --- HUD root --- */
 .zzx-widgets{
   width:100%;
   max-width:min(var(--header-rail,1100px),100%);
   margin:.5rem auto;
   padding-inline:.5rem;
   box-sizing:border-box;
-
   display:grid;
   gap:.6rem;
 }
 
-/* IMPORTANT: only hide the HUD ROOT when in hidden mode */
-.zzx-widgets[data-mode="hidden"]{
-  display:none;
-}
+/* only hide HUD root in hidden mode */
+.zzx-widgets[data-mode="hidden"]{ display:none; }
 
-/* Top control bar (single bar only) */
+/* control bar */
 .zzx-widgets__bar{
   display:flex;
   align-items:center;
@@ -77,7 +74,7 @@
 .zzx-widgets__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
 .zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
 
-/* Rail */
+/* rail */
 .zzx-widgets__rail{
   display:flex;
   flex-wrap:wrap;
@@ -87,15 +84,14 @@
   width:100%;
 }
 
-/* Widget card wrapper */
+/* widget wrapper */
 .zzx-widget{
-  /* This wrapper gets the widget.html injected inside */
   flex:1 1 240px;
   max-width:360px;
   min-width:220px;
 }
 
-/* Generic card styles used by most widgets */
+/* generic card */
 .zzx-card{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
@@ -106,7 +102,6 @@
   color:#c0d674;
   font-family:'IBMPlexMono',ui-monospace,monospace;
 }
-
 .zzx-card__title{
   font-family:'AdultSwimFont','IBMPlexMono',monospace;
   color:#e6a42b;
@@ -127,6 +122,53 @@
   white-space:nowrap;
 }
 
-/* ticker-only mode: hide all widgets except bitcoin-ticker */
+/* ticker-only mode */
 .zzx-widgets[data-mode="ticker-only"] .zzx-widget{ display:none; }
 .zzx-widgets[data-mode="ticker-only"] .zzx-widget[data-widget-id="bitcoin-ticker"]{ display:block; }
+
+/* -------------------------------------------------------------
+   COMPATIBILITY ALIASES (your older widgets still use btc-*):
+   ------------------------------------------------------------- */
+
+.btc-rail{ /* if some widgets still render inside btc-rail */
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:stretch;
+  gap:.6rem;
+  width:100%;
+}
+
+/* Map old btc-card styles to zzx-card */
+.btc-card{ composes: zzx-card; } /* harmless if ignored */
+.btc-card{
+  background:#0b0b0b;
+  border:1px solid #2a2a2a;
+  border-radius:10px;
+  box-shadow:0 6px 18px rgba(0,0,0,.25);
+  padding:.55rem .65rem;
+  color:#c0d674;
+  font-family:'IBMPlexMono',ui-monospace,monospace;
+  min-width:220px;
+  flex:1 1 240px;
+  max-width:360px;
+}
+.btc-card__title{
+  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  color:#e6a42b;
+  font-size:1rem;
+  line-height:1.1;
+  margin-bottom:.35rem;
+  white-space:nowrap;
+}
+.btc-card__value{
+  font-size:1.35rem;
+  line-height:1.2;
+  margin-bottom:.15rem;
+  white-space:nowrap;
+}
+.btc-card__sub{
+  font-size:.95rem;
+  color:#b7bf9a;
+  white-space:nowrap;
+}
