@@ -1,4 +1,11 @@
 // static/js/modules/ticker-loader.js
+// ZZX HUD Loader (single source of truth)
+// - prefix-aware (works from any depth / GH Pages / subpaths)
+// - injects core CSS once
+// - mounts runtime.html into #btc-ticker only
+// - loads runtime.js once
+// - watches DOM until ticker-container + btc-ticker exist
+
 (function () {
   const W = window;
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
@@ -21,104 +28,106 @@
     return {
       CORE_CSS: join(prefix, "/__partials/widgets/_core/widget-core.css"),
       CORE_JS:  join(prefix, "/__partials/widgets/_core/widget-core.js"),
-      HUD_JS:   join(prefix, "/__partials/widgets/hud-state.js"),
-      HTML:     join(prefix, "/__partials/widgets/runtime.html"),
-      RUNTIME:  join(prefix, "/__partials/widgets/runtime.js"),
+      HUD_HTML: join(prefix, "/__partials/widgets/runtime.html"),
+      HUD_JS:   join(prefix, "/__partials/widgets/runtime.js"),
+      HUD_STATE: join(prefix, "/__partials/widgets/hud-state.js"),
     };
   }
 
-  function ensureCSS(href) {
-    if (document.querySelector('link[data-zzx-hud-css="1"]')) return;
+  function ensureLinkOnce(href, attrName, attrVal) {
+    if (document.querySelector(`link[${attrName}="${attrVal}"]`)) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute("data-zzx-hud-css", "1");
+    l.setAttribute(attrName, attrVal);
     document.head.appendChild(l);
   }
 
-  function ensureJS(src, key) {
-    const sel = `script[data-zzx-hud-js="${key}"]`;
-    if (document.querySelector(sel)) return;
+  function ensureScriptOnce(src, attrName, attrVal) {
+    if (document.querySelector(`script[${attrName}="${attrVal}"]`)) return;
     const s = document.createElement("script");
     s.src = src;
-    s.async = true;
-    s.setAttribute("data-zzx-hud-js", key);
+    s.defer = true;
+    s.setAttribute(attrName, attrVal);
     document.body.appendChild(s);
   }
 
-  async function loadHTMLIntoMount(htmlURL) {
+  async function mountHUD(hrefsObj) {
     const container = document.getElementById("ticker-container");
     const mount = document.getElementById("btc-ticker");
     if (!container || !mount) return false;
 
-    // don’t remount if already loaded
-    if (container.dataset.tickerLoaded === "1" && mount.innerHTML.trim().length) return true;
+    // already mounted?
+    if (container.dataset.hudLoaded === "1" && mount.innerHTML.trim().length) {
+      ensureScriptOnce(hrefsObj.CORE_JS, "data-zzx-core-js", "1");
+      ensureScriptOnce(hrefsObj.HUD_STATE, "data-zzx-hud-state-js", "1");
+      ensureScriptOnce(hrefsObj.HUD_JS, "data-zzx-hud-runtime-js", "1");
+      return true;
+    }
 
-    // avoid parallel loads
-    if (container.dataset.tickerLoading === "1") return false;
-    container.dataset.tickerLoading = "1";
+    if (container.dataset.hudLoading === "1") return false;
+    container.dataset.hudLoading = "1";
 
     try {
-      const r = await fetch(htmlURL, { cache: "no-store" });
-      if (!r.ok) throw new Error(`runtime shell html HTTP ${r.status}`);
+      const r = await fetch(hrefsObj.HUD_HTML, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HUD shell html HTTP ${r.status}`);
       const html = await r.text();
+
+      // IMPORTANT: mount only (never overwrite ticker-container itself)
       mount.innerHTML = html;
-      container.dataset.tickerLoaded = "1";
+      container.dataset.hudLoaded = "1";
+
+      // core + state + runtime
+      ensureScriptOnce(hrefsObj.CORE_JS, "data-zzx-core-js", "1");
+      ensureScriptOnce(hrefsObj.HUD_STATE, "data-zzx-hud-state-js", "1");
+      ensureScriptOnce(hrefsObj.HUD_JS, "data-zzx-hud-runtime-js", "1");
+
       return true;
     } finally {
-      container.dataset.tickerLoading = "0";
+      container.dataset.hudLoading = "0";
+    }
+  }
+
+  async function tryBootOnce() {
+    const h = hrefs();
+    ensureLinkOnce(h.CORE_CSS, "data-zzx-core-css", "1");
+    try {
+      return await mountHUD(h);
+    } catch (e) {
+      console.warn("[ZZX HUD] loader error:", e);
+      const container = document.getElementById("ticker-container");
+      if (container) container.dataset.hudLoaded = "0";
+      return false;
     }
   }
 
   let mo = null;
-  let retryTimer = null;
+  let retry = null;
 
-  async function tryBootOnce() {
-    const { CORE_CSS, CORE_JS, HUD_JS, HTML, RUNTIME } = hrefs();
-
-    ensureCSS(CORE_CSS);
-
-    // Ensure deps first
-    ensureJS(CORE_JS, "core");
-    ensureJS(HUD_JS, "hud");
-
-    // Mount shell
-    const ok = await loadHTMLIntoMount(HTML);
-
-    // Then runtime (will watch if deps not ready yet)
-    ensureJS(RUNTIME, "runtime");
-
-    return !!ok;
+  function watch() {
+    if (!retry) {
+      retry = setInterval(async () => {
+        const ok = await tryBootOnce();
+        if (ok) stop();
+      }, 700);
+    }
+    if (!mo) {
+      mo = new MutationObserver(async () => {
+        const ok = await tryBootOnce();
+        if (ok) stop();
+      });
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+    }
   }
 
-  function startWatchingForMount() {
-    if (mo) return;
-
-    retryTimer = setInterval(async () => {
-      const ok = await tryBootOnce();
-      if (ok) stopWatching();
-    }, 700);
-
-    mo = new MutationObserver(async () => {
-      const ok = await tryBootOnce();
-      if (ok) stopWatching();
-    });
-    mo.observe(document.documentElement, { childList: true, subtree: true });
-  }
-
-  function stopWatching() {
+  function stop() {
+    if (retry) { clearInterval(retry); retry = null; }
     if (mo) { mo.disconnect(); mo = null; }
-    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
   }
 
   async function boot() {
-    try {
-      const ok = await tryBootOnce();
-      if (!ok) startWatchingForMount();
-    } catch (e) {
-      console.warn("HUD loader error:", e);
-      startWatchingForMount();
-    }
+    const ok = await tryBootOnce();
+    if (!ok) watch();
   }
 
   if (document.readyState === "loading") {
