@@ -1,5 +1,5 @@
 /* __partials/widgets/_core/widget-core.css */
-/* Global-ish but scoped by data-hud-root / btc-rail / zzx-widget */
+/* scoped to HUD only */
 
 @font-face{
   font-family:'AdultSwimFont';
@@ -12,59 +12,37 @@
   font-display:swap;
 }
 
-/* --- HUD handle: ALWAYS visible --- */
 .zzx-hud-handle{
   width:100%;
-  max-width:min(var(--header-rail, 1100px), 100%);
-  margin:.35rem auto .15rem;
+  max-width:min(var(--header-rail,1100px),100%);
+  margin:.5rem auto;
   padding-inline:.5rem;
   box-sizing:border-box;
-  display:flex;
-  justify-content:center;
 }
 .zzx-hud-show{
-  background:#0b0b0b;
+  width:100%;
+  background:#000;
   color:#c0d674;
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
-  padding:.35rem .6rem;
+  padding:.45rem .65rem;
   font-family:'IBMPlexMono', ui-monospace, monospace;
   cursor:pointer;
 }
 .zzx-hud-show:hover{ border-color:#e6a42b; color:#e6a42b; }
 
-/* --- HUD root rail --- */
-.btc-rail[data-hud-root]{
+.zzx-widgets{
   width:100%;
-  max-width:min(var(--header-rail, 1100px), 100%);
-  margin:.15rem auto .5rem;
+  max-width:min(var(--header-rail,1100px),100%);
+  margin:.5rem auto;
   padding-inline:.5rem;
   box-sizing:border-box;
-
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:stretch;
+  display:grid;
   gap:.6rem;
 }
 
-/* slots are just mount points */
-.btc-slot{
-  flex:1 1 240px;
-  max-width:360px;
-  min-width:220px;
-  display:flex;
-}
-
-/* widget root wrapper that runtime.js injects */
-.zzx-widget{
-  width:100%;
-  display:block;
-}
-
-/* --- runtime bar (ONLY ONE bar: the runtime widget) --- */
+/* control bar */
 .zzx-widgets__bar{
-  width:100%;
   display:flex;
   align-items:center;
   gap:.45rem;
@@ -74,9 +52,7 @@
   background:#0b0b0b;
   border:1px solid rgba(255,255,255,.10);
   border-radius:10px;
-  box-sizing:border-box;
 }
-
 .zzx-widgets__btn{
   background:#0b0b0b;
   color:#c0d674;
@@ -89,58 +65,40 @@
 .zzx-widgets__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
 .zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
 
-.zzx-mode-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:.35rem;
-  padding:.25rem .5rem;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.12);
-  color:#b7bf9a;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
-  font-size:.85rem;
+/* rail */
+.zzx-widgets__rail{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:stretch;
+  gap:.6rem;
+  width:100%;
 }
 
-/* --- Core card styling used by many widgets --- */
-.btc-card{
+/* widget shell (runtime mounts each widget into this wrapper) */
+.zzx-widget{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.25);
   padding:.55rem .65rem;
+  min-width:220px;
+  flex:1 1 240px;
+  max-width:360px;
   color:#c0d674;
   font-family:'IBMPlexMono', ui-monospace, monospace;
-  width:100%;
-}
-.btc-card__title{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
-  color:#e6a42b;
-  font-size:1rem;
-  line-height:1.1;
-  margin-bottom:.35rem;
-  white-space:nowrap;
-}
-.btc-card__value{
-  font-size:1.35rem;
-  line-height:1.2;
-  margin-bottom:.15rem;
-  white-space:nowrap;
-}
-.btc-card__sub{
-  font-size:.95rem;
-  color:#b7bf9a;
-  white-space:nowrap;
 }
 
-/* --- HUD mode states (applied to [data-hud-root]) --- */
-[data-hud-root][data-hud-state="hidden"]{
-  display:none !important; /* hide the whole rail */
+/* HUD state behavior */
+[data-hud-state="hidden"] .zzx-widgets__bar,
+[data-hud-state="hidden"] .zzx-widgets__rail{
+  display:none !important;
 }
 
 /* ticker-only: hide everything except ticker widget */
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot{
+[data-hud-state="ticker-only"] .zzx-widgets__rail .zzx-widget{
   display:none !important;
 }
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"]{
-  display:flex !important;
+[data-hud-state="ticker-only"] .zzx-widgets__rail .zzx-widget[data-widget-id="bitcoin-ticker"]{
+  display:block !important;
 }
