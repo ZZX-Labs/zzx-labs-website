@@ -1,5 +1,7 @@
 <!-- __partials/widgets/runtime.html -->
-<!-- Always-visible HUD recovery handle (only shows when hidden) -->
+<!-- This is the shell that ticker-loader mounts into #btc-ticker -->
+
+<!-- Recover handle (ONLY visible when HUD is hidden) -->
 <div class="zzx-hud-handle" data-hud-handle hidden>
   <button type="button" class="zzx-hud-show" data-hud-show aria-label="Show Bitcoin HUD">
     Show Bitcoin HUD
@@ -7,20 +9,17 @@
 </div>
 
 <!-- HUD root -->
-<div class="zzx-widgets" data-hud-root data-hud-mode="full">
-  <!-- Single control bar -->
+<div class="zzx-widgets" data-hud-root data-mode="full">
   <div class="zzx-widgets__bar" aria-label="Bitcoin HUD controls">
-    <button class="zzx-widgets__btn" type="button" data-hud-setmode="full">Full</button>
-    <button class="zzx-widgets__btn" type="button" data-hud-setmode="ticker-only">Ticker</button>
-    <button class="zzx-widgets__btn" type="button" data-hud-setmode="hidden">Hide</button>
+    <button class="zzx-widgets__btn" type="button" data-zzx-mode="full">Full</button>
+    <button class="zzx-widgets__btn" type="button" data-zzx-mode="ticker-only">Ticker</button>
+    <button class="zzx-widgets__btn" type="button" data-zzx-mode="hidden">Hide</button>
 
     <span class="zzx-widgets__spacer"></span>
 
-    <button class="zzx-widgets__btn" type="button" data-hud-reset="1">Reset</button>
+    <button class="zzx-widgets__btn" type="button" data-zzx-action="reset">Reset</button>
   </div>
 
-  <!-- Widget rail -->
-  <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets">
-    <!-- runtime.js will populate slots from manifest.json -->
-  </div>
+  <!-- Widgets mount here -->
+  <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets"></div>
 </div>
