@@ -1,10 +1,10 @@
 // static/js/modules/ticker-loader.js
 // Single source of truth for the global BTC widget rail.
-// - does NOT require changing any pages
-// - loads __partials/bitcoin-ticker-widget.html into #btc-ticker
-// - injects widget CSS into <head> once
-// - loads widget JS once
-// - never overwrites #ticker-container after mount
+// - no page edits required
+// - waits for partials injection (mount appears later)
+// - prefix-aware (works from any depth / GH Pages / subpaths)
+// - injects widget CSS once, widget JS once
+// - mounts HTML into #btc-ticker only (never overwrites #ticker-container)
 
 (function () {
   const W = window;
@@ -13,11 +13,33 @@
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
-  const CSS_HREF = "/__partials/bitcoin-ticker-widget.css";
-  const HTML_HREF = "/__partials/bitcoin-ticker-widget.html";
-  const JS_SRC = "/__partials/bitcoin-ticker-widget.js";
+  // -------- prefix-aware URL builder --------
+  // partials-loader sets: window.ZZX = { PREFIX: '.' | '..' | ... | '/' }
+  function getPrefix() {
+    const p = W.ZZX?.PREFIX;
+    // If not ready yet, fall back to '.' (relative)
+    return (typeof p === "string" && p.length) ? p : ".";
+  }
 
-  function ensureCSS() {
+  function join(prefix, path) {
+    // path like "/__partials/..." or "/static/..."
+    if (!path) return path;
+    if (prefix === "/" || path.startsWith("http://") || path.startsWith("https://")) return path;
+    if (!path.startsWith("/")) return path; // already relative
+    return prefix.replace(/\/+$/, "") + path;
+  }
+
+  function hrefs() {
+    const prefix = getPrefix();
+    return {
+      CSS_HREF: join(prefix, "/__partials/bitcoin-ticker-widget.css"),
+      HTML_HREF: join(prefix, "/__partials/bitcoin-ticker-widget.html"),
+      JS_SRC:   join(prefix, "/__partials/bitcoin-ticker-widget.js"),
+    };
+  }
+
+  // -------- one-time injectors --------
+  function ensureCSS(CSS_HREF) {
     if (document.querySelector('link[data-zzx-btc-css="1"]')) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
@@ -26,7 +48,7 @@
     document.head.appendChild(l);
   }
 
-  function ensureJS() {
+  function ensureJS(JS_SRC) {
     if (document.querySelector('script[data-zzx-btc-js="1"]')) return;
     const s = document.createElement("script");
     s.src = JS_SRC;
@@ -35,38 +57,90 @@
     document.body.appendChild(s);
   }
 
-  async function loadHTMLIntoMount() {
+  // -------- mount logic --------
+  async function loadHTMLIntoMount(HTML_HREF, JS_SRC) {
     const container = document.getElementById("ticker-container");
     const mount = document.getElementById("btc-ticker");
+    if (!container || !mount) return false;
 
-    if (!container || !mount) return;
+    // If already mounted, just ensure JS exists and return.
+    if (container.dataset.tickerLoaded === "1" && mount.innerHTML.trim().length) {
+      ensureJS(JS_SRC);
+      return true;
+    }
 
-    // Prevent duplicate loads on the same page
-    if (container.dataset.tickerLoaded === "1") return;
-    container.dataset.tickerLoaded = "1";
+    // Prevent overlapping loads
+    if (container.dataset.tickerLoading === "1") return false;
+    container.dataset.tickerLoading = "1";
 
-    // Fetch fragment
-    const r = await fetch(HTML_HREF, { cache: "no-store" });
-    if (!r.ok) throw new Error(`widget html HTTP ${r.status}`);
-    const html = await r.text();
+    try {
+      const r = await fetch(HTML_HREF, { cache: "no-store" });
+      if (!r.ok) throw new Error(`widget html HTTP ${r.status}`);
+      const html = await r.text();
 
-    // IMPORTANT: mount only. Do NOT touch container.innerHTML.
-    mount.innerHTML = html;
+      // IMPORTANT: mount only. Do NOT touch container.innerHTML.
+      mount.innerHTML = html;
 
-    // Now ensure JS is present (it will wait until mounted if needed)
-    ensureJS();
+      // Mark success ONLY after mount is in DOM
+      container.dataset.tickerLoaded = "1";
+
+      // Ensure widget JS is present (it self-primes once mounted)
+      ensureJS(JS_SRC);
+
+      return true;
+    } finally {
+      container.dataset.tickerLoading = "0";
+    }
+  }
+
+  // -------- boot + retry strategy --------
+  let mo = null;
+  let retryTimer = null;
+
+  async function tryBootOnce() {
+    const { CSS_HREF, HTML_HREF, JS_SRC } = hrefs();
+    ensureCSS(CSS_HREF);
+
+    try {
+      const ok = await loadHTMLIntoMount(HTML_HREF, JS_SRC);
+      return !!ok;
+    } catch (e) {
+      console.warn("Ticker loader error:", e);
+      // allow retry
+      const container = document.getElementById("ticker-container");
+      if (container) container.dataset.tickerLoaded = "0";
+      return false;
+    }
+  }
+
+  function startWatchingForMount() {
+    if (mo) return;
+
+    // Retry a few times even without DOM mutations (slow networks)
+    if (!retryTimer) {
+      retryTimer = setInterval(async () => {
+        const ok = await tryBootOnce();
+        if (ok) stopWatching();
+      }, 700);
+    }
+
+    // Also observe DOM changes (partials-loader injection)
+    mo = new MutationObserver(async () => {
+      const ok = await tryBootOnce();
+      if (ok) stopWatching();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function stopWatching() {
+    if (mo) { mo.disconnect(); mo = null; }
+    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
   }
 
   async function boot() {
-    try {
-      ensureCSS();
-      await loadHTMLIntoMount();
-    } catch (e) {
-      console.warn("Ticker loader error:", e);
-      // allow retry if needed
-      const container = document.getElementById("ticker-container");
-      if (container) container.dataset.tickerLoaded = "0";
-    }
+    // If prefix isn’t ready yet, we still try; observer will catch later.
+    const ok = await tryBootOnce();
+    if (!ok) startWatchingForMount();
   }
 
   if (document.readyState === "loading") {
