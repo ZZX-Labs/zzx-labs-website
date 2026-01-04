@@ -1,31 +1,25 @@
 // __partials/widgets/_core/widget-core.js
-// ZZX Widgets Core — DROP-IN REPLACEMENT
+// DROP-IN REPLACEMENT
 //
-// Goals (compat + stability):
-// 1) Restore legacy registry APIs used by many widget scripts:
-//      - window.ZZXWidgets.register(id, initFn)
-//      - window.ZZXWidgetRegistry.register(id, initFn)   (alias)
-// 2) Restore Core helper used by other widgets:
-//      - Core.onMount(fn) (and tolerant variants)
-// 3) Auto-init widgets on register() when their DOM is already mounted.
-// 4) Prefix-aware URL helpers + fetch helpers.
-// 5) Provide minimal DOM helpers used across widget scripts.
+// Fixes the “HTML loads but widget JS never loads data” failure by restoring the
+// registry + lifecycle API that existing widget scripts expect:
 //
-// This file is intended to be the glue layer that fixes “containers show but data never loads”
-// by preventing early-crash on missing globals/methods.
+// - window.ZZXWidgets.register(id, bootFn)
+// - window.ZZXWidgetRegistry.register(id, bootFn)   (alias, also supports object-form)
+// - Core.onMount(id, cb) and Core.onMount(cb)       (id inferred from currentScript.src)
+// - Auto-runs bootFn as soon as the widget root exists (and re-runs on remount)
+//
+// This file does NOT require changing every widget.
 
 (function () {
   const W = window;
 
-  // Avoid redefining if injected twice
-  if (W.ZZXWidgetsCore && W.ZZXWidgetsCore.__zzx_core_v) return;
-
-  // ---------------------------
-  // Prefix + URL helpers
-  // ---------------------------
+  // ---------------------------------------------------------------------------
+  // Prefix-aware URL helpers (used by some widgets)
+  // ---------------------------------------------------------------------------
   function getPrefix() {
     const p = W.ZZX && typeof W.ZZX.PREFIX === "string" ? W.ZZX.PREFIX : ".";
-    return (p && p.length) ? p : ".";
+    return p && p.length ? p : ".";
   }
 
   function join(prefix, absPath) {
@@ -36,17 +30,23 @@
     return prefix.replace(/\/+$/, "") + absPath;
   }
 
-  function widgetBase(id) {
-    return `/__partials/widgets/${id}`;
+  function widgetBase(widgetId) {
+    return `/__partials/widgets/${widgetId}`;
   }
 
-  function hrefWidgetHTML(id) { return join(getPrefix(), `${widgetBase(id)}/widget.html`); }
-  function hrefWidgetCSS(id)  { return join(getPrefix(), `${widgetBase(id)}/widget.css`); }
-  function hrefWidgetJS(id)   { return join(getPrefix(), `${widgetBase(id)}/widget.js`); }
+  function hrefWidgetHTML(widgetId) {
+    return join(getPrefix(), `${widgetBase(widgetId)}/widget.html`);
+  }
+  function hrefWidgetCSS(widgetId) {
+    return join(getPrefix(), `${widgetBase(widgetId)}/widget.css`);
+  }
+  function hrefWidgetJS(widgetId) {
+    return join(getPrefix(), `${widgetBase(widgetId)}/widget.js`);
+  }
 
-  // ---------------------------
+  // ---------------------------------------------------------------------------
   // Fetch helpers
-  // ---------------------------
+  // ---------------------------------------------------------------------------
   async function fetchText(url, opts = {}) {
     const r = await fetch(url, { cache: "no-store", ...opts });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
@@ -59,202 +59,224 @@
     return await r.json();
   }
 
-  // ---------------------------
+  // ---------------------------------------------------------------------------
   // DOM helpers
-  // ---------------------------
-  function qs(sel, scope) { return (scope || document).querySelector(sel); }
-  function qsa(sel, scope) { return Array.from((scope || document).querySelectorAll(sel)); }
-
-  // Attempt to find the mounted DOM root for a widget id.
-  // Supports multiple mounting styles used in the repo over time.
-  function findWidgetRoot(id) {
-    // Newer runtime.js path: slots are data-widget-slot="id"
-    let el = document.querySelector(`[data-widget-slot="${id}"]`);
-    if (el) return el;
-
-    // Older wrapper: .btc-slot[data-widget="id"]
-    el = document.querySelector(`.btc-slot[data-widget="${id}"]`);
-    if (el) return el;
-
-    // Some flows tagged slot itself with data-widget-id="id"
-    el = document.querySelector(`[data-widget-id="${id}"]`);
-    if (el) return el;
-
-    // Some widgets may mark internal element with data-w="id"
-    el = document.querySelector(`[data-w="${id}"]`);
-    if (el) return el;
-
-    return null;
+  // ---------------------------------------------------------------------------
+  function qs(sel, scope) {
+    return (scope || document).querySelector(sel);
+  }
+  function qsa(sel, scope) {
+    return Array.from((scope || document).querySelectorAll(sel));
   }
 
-  // ---------------------------
-  // Asset injectors (deduped)
-  // ---------------------------
-  function ensureCSSOnce(key, href) {
-    const sel = `link[data-zzx-css="${key}"]`;
-    if (document.querySelector(sel)) return;
+  function widgetRootById(id) {
+    // runtime.js sets these; older widgets may rely on data-widget-root too
+    return (
+      document.querySelector(`[data-widget-id="${CSS.escape(id)}"]`) ||
+      document.querySelector(`[data-widget-root="${CSS.escape(id)}"]`) ||
+      null
+    );
+  }
+
+  function inferWidgetIdFromCurrentScript() {
+    const s = document.currentScript;
+    const src = s && s.src ? String(s.src) : "";
+    // Matches: /__partials/widgets/<id>/widget.js  (with any prefix before /__partials)
+    const m = src.match(/\/__partials\/widgets\/([^\/]+)\/widget\.js(?:\?|#|$)/i);
+    return m ? m[1] : null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Asset injection (deduped)
+  // ---------------------------------------------------------------------------
+  function ensureCSS(href, key) {
+    const attr = `data-zzx-css-${String(key).replace(/[^a-z0-9_-]/gi, "_")}`;
+    if (document.querySelector(`link[${attr}="1"]`)) return;
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute("data-zzx-css", key);
+    l.setAttribute(attr, "1");
     document.head.appendChild(l);
   }
 
-  function ensureJSOnce(key, src) {
-    const sel = `script[data-zzx-js="${key}"]`;
-    if (document.querySelector(sel)) return Promise.resolve(true);
+  function ensureJS(src, key) {
+    const attr = `data-zzx-js-${String(key).replace(/[^a-z0-9_-]/gi, "_")}`;
+    if (document.querySelector(`script[${attr}="1"]`)) return Promise.resolve(true);
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const s = document.createElement("script");
       s.src = src;
       s.defer = true;
-      s.setAttribute("data-zzx-js", key);
+      s.setAttribute(attr, "1");
       s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
+      s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
       document.body.appendChild(s);
     });
   }
 
-  // ---------------------------
-  // onMount helper (compat)
-  // ---------------------------
-  // Supports:
-  //   Core.onMount(fn)
-  //   Core.onMount(widgetId, fn)   (tolerant)
-  //   Core.onMount(fn, widgetId)   (tolerant)
-  function onMount(a, b) {
-    let fn = null;
-    if (typeof a === "function") fn = a;
-    else if (typeof b === "function") fn = b;
+  // ---------------------------------------------------------------------------
+  // Mount registry + lifecycle
+  // ---------------------------------------------------------------------------
+  const REG = new Map();          // id -> bootFn
+  const PENDING = new Map();      // id -> Array<cb>
+  let OBS = null;
 
-    if (!fn) return;
-
-    const run = () => {
-      try { fn(); } catch (e) { console.warn("[ZZXWidgetsCore] onMount handler error:", e); }
-    };
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", run, { once: true });
-    } else {
-      run();
-    }
-  }
-
-  // ---------------------------
-  // Registry (legacy compat)
-  // ---------------------------
-  const _registry = new Map(); // id -> initFn
-  const _inited = new Set();   // ids already initialized
-
-  // Initialize a widget if we can find its DOM root.
-  // We call initFn(root, Core) with best-effort compatibility.
-  function tryInit(id) {
-    const initFn = _registry.get(id);
-    if (!initFn) return false;
-    if (_inited.has(id)) return true;
-
-    const root = findWidgetRoot(id);
-    if (!root) return false;
-
+  function safeCall(fn, id, root) {
     try {
-      // Most compatible calling conventions:
-      //  - (root, Core)
-      //  - (Core)
-      //  - ()
-      if (initFn.length >= 2) initFn(root, W.ZZXWidgetsCore);
-      else if (initFn.length === 1) initFn(W.ZZXWidgetsCore);
-      else initFn();
-
-      _inited.add(id);
-      return true;
+      // Support common patterns:
+      //  - bootFn(root, Core)
+      //  - bootFn({ id, root, Core })
+      //  - bootFn()
+      if (fn.length >= 2) return fn(root, W.ZZXWidgetsCore);
+      if (fn.length === 1) {
+        // Ambiguous: could be (root) or ({root})
+        // We pass an object to be safe; if they wanted root they can do arg.root.
+        return fn({ id, root, Core: W.ZZXWidgetsCore });
+      }
+      return fn();
     } catch (e) {
-      console.warn(`[ZZXWidgetsCore] init failed for ${id}:`, e);
-      return false;
+      console.warn(`[ZZXWidgets] boot error for "${id}":`, e);
     }
   }
 
-  // Public register API expected by existing widgets
-  function register(id, initFn) {
-    if (!id || typeof initFn !== "function") return false;
-    id = String(id);
-    _registry.set(id, initFn);
+  function flushPendingFor(id) {
+    const root = widgetRootById(id);
+    if (!root) return;
 
-    // If DOM is already mounted (your runtime does HTML before JS), init now.
-    // Otherwise init at DOMContentLoaded.
-    if (!tryInit(id)) {
-      onMount(() => tryInit(id));
+    const list = PENDING.get(id);
+    if (list && list.length) {
+      PENDING.delete(id);
+      for (const cb of list) {
+        try { cb(root); } catch (e) { console.warn(`[ZZXWidgets] onMount cb error for "${id}":`, e); }
+      }
     }
+
+    const bootFn = REG.get(id);
+    if (typeof bootFn === "function") safeCall(bootFn, id, root);
+  }
+
+  function ensureObserver() {
+    if (OBS) return;
+    OBS = new MutationObserver(() => {
+      // Try to satisfy pending callbacks + auto-boot for any registered widgets
+      for (const id of REG.keys()) flushPendingFor(id);
+      for (const id of PENDING.keys()) flushPendingFor(id);
+    });
+    OBS.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  // Core.onMount:
+  //  - Core.onMount("widget-id", (root)=>{ ... })
+  //  - Core.onMount((root)=>{ ... })  // widget-id inferred from script URL
+  function onMount(idOrCb, maybeCb) {
+    let id = null;
+    let cb = null;
+
+    if (typeof idOrCb === "string") {
+      id = idOrCb;
+      cb = typeof maybeCb === "function" ? maybeCb : null;
+    } else if (typeof idOrCb === "function") {
+      cb = idOrCb;
+      id = inferWidgetIdFromCurrentScript();
+    }
+
+    if (!id || !cb) return;
+
+    const root = widgetRootById(id);
+    if (root) {
+      try { cb(root); } catch (e) { console.warn(`[ZZXWidgets] onMount cb error for "${id}":`, e); }
+      return;
+    }
+
+    if (!PENDING.has(id)) PENDING.set(id, []);
+    PENDING.get(id).push(cb);
+    ensureObserver();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public registries expected by existing widget scripts
+  // ---------------------------------------------------------------------------
+  function register(idOrObj, bootFnMaybe) {
+    // Supports:
+    //   register("id", fn)
+    //   register({ id:"id", boot: fn })
+    //   register({ id:"id", init: fn })
+    let id = null;
+    let fn = null;
+
+    if (typeof idOrObj === "string") {
+      id = idOrObj;
+      fn = bootFnMaybe;
+    } else if (idOrObj && typeof idOrObj === "object") {
+      id = idOrObj.id || idOrObj.name;
+      fn = idOrObj.boot || idOrObj.init || idOrObj.mount;
+    }
+
+    if (!id || typeof fn !== "function") return false;
+
+    REG.set(id, fn);
+
+    // If already mounted, boot immediately.
+    flushPendingFor(id);
+
+    // If not mounted yet, ensure observer so boot happens when it appears.
+    ensureObserver();
+
     return true;
   }
 
-  // Allow runtime/devtools to force init/reinit
-  function init(id) {
-    if (!id) return false;
-    return tryInit(String(id));
+  // ---------------------------------------------------------------------------
+  // Export Core API (keep existing shape, add missing functions)
+  // ---------------------------------------------------------------------------
+  const Core = (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore === "object")
+    ? W.ZZXWidgetsCore
+    : {};
+
+  Core.__version = Core.__version || "1.0.0-core-dropin";
+  Core.getPrefix = getPrefix;
+  Core.join = join;
+
+  Core.fetchText = Core.fetchText || fetchText;
+  Core.fetchJSON = Core.fetchJSON || fetchJSON;
+
+  Core.qs = Core.qs || qs;
+  Core.qsa = Core.qsa || qsa;
+
+  Core.ensureCSS = Core.ensureCSS || ensureCSS;
+  Core.ensureJS = Core.ensureJS || ensureJS;
+
+  Core.widgetBase = Core.widgetBase || widgetBase;
+  Core.hrefWidgetHTML = Core.hrefWidgetHTML || hrefWidgetHTML;
+  Core.hrefWidgetCSS = Core.hrefWidgetCSS || hrefWidgetCSS;
+  Core.hrefWidgetJS = Core.hrefWidgetJS || hrefWidgetJS;
+
+  // The missing one your console complained about:
+  Core.onMount = onMount;
+
+  W.ZZXWidgetsCore = Core;
+
+  // Registries expected by older widget JS:
+  // Many of your widgets call window.ZZXWidgets.register(...)
+  // Others call window.ZZXWidgetRegistry.register(...)
+  if (!W.ZZXWidgets) {
+    W.ZZXWidgets = { register };
+  } else if (typeof W.ZZXWidgets.register !== "function") {
+    W.ZZXWidgets.register = register;
   }
 
-  function resetInit(id) {
-    if (!id) {
-      _inited.clear();
-      return true;
-    }
-    _inited.delete(String(id));
-    return true;
+  if (!W.ZZXWidgetRegistry) {
+    W.ZZXWidgetRegistry = { register };
+  } else if (typeof W.ZZXWidgetRegistry.register !== "function") {
+    W.ZZXWidgetRegistry.register = register;
   }
 
-  // ---------------------------
-  // Expose Core + legacy globals
-  // ---------------------------
-  W.ZZXWidgetsCore = {
-    __zzx_core_v: "dropin-compat-1",
+  // Optional: expose internals for debugging
+  W.ZZXWidgetsCore.__registry = REG;
+  W.ZZXWidgetsCore.__pending = PENDING;
 
-    // prefix/url
-    getPrefix,
-    join,
-    widgetBase,
-    hrefWidgetHTML,
-    hrefWidgetCSS,
-    hrefWidgetJS,
-
-    // fetch
-    fetchText,
-    fetchJSON,
-
-    // dom
-    qs,
-    qsa,
-
-    // assets
-    ensureCSSOnce,
-    ensureJSOnce,
-
-    // compat
-    onMount,
-
-    // registry
-    register,
-    init,
-    resetInit,
-
-    // debug
-    _registry,
-    _inited,
-    _findWidgetRoot: findWidgetRoot,
-  };
-
-  // Legacy globals used by many widgets:
-  //   window.ZZXWidgets.register("id", fn)
-  W.ZZXWidgets = W.ZZXWidgets || {};
-  W.ZZXWidgets.register = register;
-  W.ZZXWidgets.init = init;
-  W.ZZXWidgets.resetInit = resetInit;
-
-  // Some widgets do: window.ZZXWidgetRegistry.register(...)
-  W.ZZXWidgetRegistry = W.ZZXWidgetRegistry || {};
-  W.ZZXWidgetRegistry.register = register;
-  W.ZZXWidgetRegistry.init = init;
-  W.ZZXWidgetRegistry.resetInit = resetInit;
-
-  // Optional alias for older scripts that referenced window.Core
-  if (!W.Core) W.Core = W.ZZXWidgetsCore;
+  // Kick once in case widgets registered before this core loaded.
+  // (If runtime loads widget.js earlier than core, this at least helps after reload.)
+  queueMicrotask(() => {
+    for (const id of REG.keys()) flushPendingFor(id);
+  });
 })();
