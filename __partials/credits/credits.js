@@ -36,6 +36,12 @@
     document.head.appendChild(l);
   }
 
+  async function fetchText(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    return await r.text();
+  }
+
   function cleanupLegacy() {
     // remove old injected blocks/panels
     qsa(".zzx-credits").forEach(el => { if (!el.closest("#zzx-credits-modal")) el.remove(); });
@@ -44,18 +50,16 @@
     const oldPanel = document.getElementById("zzx-credits");
     if (oldPanel && !oldPanel.closest("#zzx-credits-modal")) oldPanel.remove();
 
-    // remove stray “Credits” anchors (the white bottom-left link)
-    qsa("a").forEach(a => {
-      if (a.closest("footer")) {
-        const href = (a.getAttribute("href") || "").toLowerCase();
-        const text = (a.textContent || "").trim().toLowerCase();
-        if (
-          text === "credits" ||
-          href.includes("/__partials/credits/credits") ||
-          href.endsWith("#credits")
-        ) {
-          a.remove();
-        }
+    // remove stray “Credits” anchors INSIDE footer only (the white bottom-left link)
+    qsa("footer a").forEach(a => {
+      const href = (a.getAttribute("href") || "").toLowerCase();
+      const text = (a.textContent || "").trim().toLowerCase();
+      if (
+        text === "credits" ||
+        href.includes("/__partials/credits/credits") ||
+        href.endsWith("#credits")
+      ) {
+        a.remove();
       }
     });
   }
@@ -67,6 +71,7 @@
     modal = document.createElement("div");
     modal.id = "zzx-credits-modal";
     modal.hidden = true;
+    modal.className = "zzx-credits-modal";
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-label", "Credits");
@@ -101,22 +106,40 @@
     try { localStorage.setItem(STATE_KEY, "0"); } catch {}
   }
 
-  async function loadCreditsOnce(modal) {
+  async function loadCreditsOnce() {
     const body = document.getElementById("zzx-credits-body");
     if (!body || body.dataset.zzxLoaded === "1") return;
 
     const prefix = getPrefix();
-    const htmlURL = join(prefix, "/__partials/credits/credits.html");
     const cssURL  = join(prefix, "/__partials/credits/credits.css");
-
     ensureCSSOnce(cssURL);
 
+    const shellURL = join(prefix, "/__partials/credits/credits.html");
+    const creatorsURL = join(prefix, "/__partials/credits/creators.html");
+    const attribURL   = join(prefix, "/__partials/credits/attributions.html");
+    const thanksURL   = join(prefix, "/__partials/credits/thanks.html");
+
     try {
-      const r = await fetch(htmlURL, { cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      body.innerHTML = await r.text();
+      // 1) Load shell (contains 3 slots)
+      body.innerHTML = await fetchText(shellURL);
+
+      // 2) Load 3 sections
+      const [creatorsHTML, attribHTML, thanksHTML] = await Promise.all([
+        fetchText(creatorsURL),
+        fetchText(attribURL),
+        fetchText(thanksURL),
+      ]);
+
+      const slotCreators = body.querySelector('[data-credits-slot="creators"]');
+      const slotAttrib   = body.querySelector('[data-credits-slot="attributions"]');
+      const slotThanks   = body.querySelector('[data-credits-slot="thanks"]');
+
+      if (slotCreators) slotCreators.innerHTML = creatorsHTML;
+      if (slotAttrib)   slotAttrib.innerHTML   = attribHTML;
+      if (slotThanks)   slotThanks.innerHTML   = thanksHTML;
+
       body.dataset.zzxLoaded = "1";
-    } catch {
+    } catch (e) {
       body.innerHTML = `
         <section class="zzx-credits notice" aria-label="Credits (fallback)">
           <h3>Credits</h3>
@@ -141,7 +164,7 @@
 
         if (!modal.hidden) return closeModal(modal);
         openModal(modal);
-        await loadCreditsOnce(modal);
+        await loadCreditsOnce();
       });
     }
 
@@ -172,7 +195,7 @@
     try {
       if (localStorage.getItem(STATE_KEY) === "1") {
         openModal(modal);
-        loadCreditsOnce(modal);
+        loadCreditsOnce();
       }
     } catch {}
   }
