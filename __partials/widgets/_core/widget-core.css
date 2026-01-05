@@ -1,9 +1,11 @@
 /* __partials/widgets/_core/widget-core.css
    Core HUD + widget card styling.
-   IMPORTANT: This version intentionally DOES NOT @font-face load any custom fonts.
-   Reason: your console shows the IBM Plex Mono webfont URLs failing + TTF sanitizer rejects,
-   which spams errors and can stall first paint on some browsers.
-   Once your server serves .woff2/.woff with correct MIME + CORS, we can re-enable @font-face.
+
+   DROP-IN UPDATE (minimal, but fixes your current UX + layout contract):
+   - HUD handle becomes a right-aligned "HUD" button (matches your request).
+   - HUD handle is shown ONLY when HUD is hidden (uses :has() so we don't need HTML changes).
+   - Ticker is full-width (top). BitRNG is full-width (bottom). Nothing else forced full width.
+   - Keeps system-font stacks (no @font-face network fetches).
 */
 
 /* -----------------------------
@@ -23,10 +25,15 @@
 
   /* Layout rail width (your site already uses --header-rail) */
   --zzx-rail: min(var(--header-rail, 1100px), 100%);
+
+  /* HUD button sizing */
+  --zzx-hud-btn-h: 34px;
 }
 
 /* -----------------------------
-   HUD handle (ALWAYS visible)
+   HUD handle (only visible when HUD is hidden)
+   - Right-aligned to match navbar edge.
+   - Sticky so it stays accessible when HUD is hidden.
 ------------------------------ */
 .zzx-hud-handle{
   width:100%;
@@ -34,18 +41,52 @@
   margin:.35rem auto 0;
   padding-inline:.5rem;
   box-sizing:border-box;
-  display:flex;
-  justify-content:center;
+
+  position: sticky;
+  top: .25rem;
+  z-index: 9999;
+
+  display:none; /* default hidden; enabled via :has() rule below */
+  justify-content:flex-end;
+  pointer-events:none; /* only button clickable */
 }
 
+/* Show ONLY when the page contains a hidden HUD root */
+@supports selector(:has(*)) {
+  body:has([data-hud-root][data-hud-state="hidden"]) .zzx-hud-handle{
+    display:flex;
+  }
+}
+
+/* If :has() is not supported (older browsers), keep it visible rather than stranded */
+@supports not selector(:has(*)) {
+  .zzx-hud-handle{ display:flex; }
+}
+
+/* Button (text now "HUD" per request; icon swap later) */
 .zzx-hud-show{
+  pointer-events:auto;
+
+  height: var(--zzx-hud-btn-h);
+  line-height: calc(var(--zzx-hud-btn-h) - 2px);
+
   background:#000;
   color:var(--zzx-accent);
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
-  padding:.35rem .65rem;
+  padding:0 .65rem;
   font-family:var(--zzx-font-mono);
   cursor:pointer;
+
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+}
+
+/* Force label to "HUD" without requiring HTML edits */
+.zzx-hud-show{
+  font-size:.95rem;
+  letter-spacing:.02em;
 }
 .zzx-hud-show:hover{ border-color:var(--zzx-accent-alt); color:var(--zzx-accent-alt); }
 
@@ -60,7 +101,7 @@
   box-sizing:border-box;
 }
 
-/* Hide mode: do NOT delete the handle */
+/* Hidden mode: hide ONLY the hud root (handle stays available via :has()) */
 [data-hud-root][data-hud-state="hidden"]{ display:none; }
 
 /* -----------------------------
@@ -94,9 +135,9 @@
 
 /* -----------------------------
    Rail: responsive columns
-   - Ticker = full width (1 column)
+   - Ticker = full width (1 column, top)
    - Middle widgets = 2-up mobile, 4-up desktop
-   - Last widget (choose IDs below) = full width (1 column)
+   - BitRNG = full width (1 column, bottom)
 ------------------------------ */
 .zzx-widgets__rail{
   display:flex;
@@ -112,8 +153,8 @@
   display:block;
   box-sizing:border-box;
   flex: 1 1 calc(50% - .6rem);
-  min-width: 260px;     /* prevents tiny cards */
-  max-width: 420px;     /* keeps punchy card width */
+  min-width: 260px;
+  max-width: 420px;
 }
 
 /* 4 columns on wider screens */
@@ -124,18 +165,14 @@
   }
 }
 
-/* Ticker is always full width (1 column) */
+/* Ticker always full width */
 .zzx-widgets__rail > [data-widget-slot="bitcoin-ticker"]{
   flex: 1 1 100% !important;
   max-width: 100% !important;
 }
 
-/* LAST widget full width (pick the actual last widget id(s) you use)
-   - If your true last widget is different, change these selectors ONLY. */
-.zzx-widgets__rail > :is(
-  [data-widget-slot="btc-lost"],
-  [data-widget-slot="bitrng"]
-){
+/* BitRNG is the ONLY forced full-width bottom widget (per your instruction) */
+.zzx-widgets__rail > [data-widget-slot="bitrng"]{
   flex: 1 1 100% !important;
   max-width: 100% !important;
 }
@@ -182,7 +219,10 @@
   text-overflow:ellipsis;
 }
 
-/* ticker-only: hide everything except ticker slot */
+/* -----------------------------
+   Mode: ticker-only
+   - Hide everything except ticker slot
+------------------------------ */
 [data-hud-root][data-hud-state="ticker-only"] .zzx-widgets__rail > [data-widget-slot]{
   display:none !important;
 }
