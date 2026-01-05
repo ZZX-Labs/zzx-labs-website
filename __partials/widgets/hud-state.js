@@ -3,22 +3,30 @@
 // Persists in localStorage.
 
 (function () {
+  "use strict";
+
   const KEY = "zzx.hud.mode";
+
+  // Canonical states (match your runtime.html markup + CSS)
   const VALID = new Set(["full", "ticker-only", "hidden"]);
 
   function normalize(mode) {
+    if (mode && typeof mode === "object" && "mode" in mode) mode = mode.mode; // accept {mode:"..."}
     if (!mode) return "full";
-    mode = String(mode).trim();
-    return VALID.has(mode) ? mode : "full";
+
+    let m = String(mode).trim().toLowerCase();
+
+    // Back-compat: accept "ticker" and normalize to canonical "ticker-only"
+    if (m === "ticker") m = "ticker-only";
+    if (m === "ticker_only") m = "ticker-only";
+    if (m === "tickeronly") m = "ticker-only";
+
+    return VALID.has(m) ? m : "full";
   }
 
   function read() {
-    try {
-      const v = localStorage.getItem(KEY);
-      return { mode: normalize(v) };
-    } catch (_) {
-      return { mode: "full" };
-    }
+    try { return { mode: normalize(localStorage.getItem(KEY)) }; }
+    catch (_) { return { mode: "full" }; }
   }
 
   function write(mode) {
