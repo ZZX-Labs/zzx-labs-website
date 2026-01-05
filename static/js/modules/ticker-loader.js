@@ -6,10 +6,11 @@
 // - then loads __partials/widgets/runtime.js
 // - runtime.js is responsible for reading __partials/widgets/manifest.json and mounting widgets
 //
-// Fixes kept:
+// HARD FIXES (the ones that actually stop your current failures):
 // - Waits for partials on WINDOW (correct emitter)
-// - Injects wrapper HTML and EXECUTES any <script> tags inside it
-// - Prefix-safe URL joins
+// - Prefix-safe URL joins (NEVER uses "." fallback; subpages cannot produce ../__partials/...)
+// - CSS load is AWAITED before injecting wrapper HTML (prevents “raw HTML on left edge”)
+// - Injects wrapper HTML and EXECUTES any <script> tags inside it (innerHTML won’t)
 // - Idempotent CSS/JS loads
 //
 // IMPORTANT:
@@ -30,18 +31,31 @@
   // Prefix (single source)
   // ---------------------------------------------------------------------------
   function getPrefix() {
+    // Highest priority: runtime-set prefix
     if (typeof W.ZZX?.PREFIX === "string" && W.ZZX.PREFIX.length) return W.ZZX.PREFIX;
+
+    // GH Pages / subpath hint
     const htmlPrefix = D.documentElement?.getAttribute("data-zzx-prefix");
     if (htmlPrefix) return htmlPrefix;
-    return ""; // hosted at domain root
+
+    // CRITICAL: empty string means “domain root”.
+    // DO NOT return "." (that causes ./__partials -> subdir-relative -> ../__partials failures).
+    return "";
   }
 
   function join(prefix, path) {
     if (!path) return path;
     const s = String(path);
+
+    // absolute URL
     if (/^https?:\/\//i.test(s)) return s;
+
+    // already relative; leave it alone (we only join absolute-paths here)
     if (!s.startsWith("/")) return s;
+
+    // no prefix => domain root
     if (!prefix) return s;
+
     return String(prefix).replace(/\/+$/, "") + s;
   }
 
@@ -49,14 +63,13 @@
   W.ZZX = Object.assign({}, W.ZZX || {}, { PREFIX });
 
   // ---------------------------------------------------------------------------
-  // Assets
+  // Assets (prefix-aware absolute paths)
   // ---------------------------------------------------------------------------
-  const WIDGET_HTML   = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
-  const WIDGET_CSS    = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
-  const RUNTIME_JS    = join(PREFIX, "/__partials/widgets/runtime.js");
+  const WIDGET_HTML = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
+  const WIDGET_CSS  = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
+  const RUNTIME_JS  = join(PREFIX, "/__partials/widgets/runtime.js");
 
-  // Optional: publish canonical manifest URL for runtime.js (if you want it)
-  // runtime.js may ignore this; harmless either way.
+  // Optional: publish canonical manifest URL for runtime.js
   W.__ZZX_WIDGETS_MANIFEST_URL = join(PREFIX, "/__partials/widgets/manifest.json");
 
   // ---------------------------------------------------------------------------
@@ -69,16 +82,26 @@
 
   function loadCSSOnce(href) {
     const key = "zzxcss:" + keyify(href);
-    if (D.querySelector(`link[data-zzx-css="${key}"]`)) return;
-    const l = D.createElement("link");
-    l.rel = "stylesheet";
-    l.href = href;
-    l.setAttribute("data-zzx-css", key);
-    D.head.appendChild(l);
+
+    // If already present, treat as ready (we cannot reliably know load state; but it’s present)
+    const existing = D.querySelector(`link[data-zzx-css="${key}"]`);
+    if (existing) return Promise.resolve(true);
+
+    // AWAIT CSS load to prevent “raw HTML unstyled at left edge”
+    return new Promise((resolve) => {
+      const l = D.createElement("link");
+      l.rel = "stylesheet";
+      l.href = href;
+      l.setAttribute("data-zzx-css", key);
+      l.onload = () => resolve(true);
+      l.onerror = () => resolve(false); // non-fatal; we still mount so you SEE it fail
+      D.head.appendChild(l);
+    });
   }
 
   function loadJSOnce(src) {
     const key = "zzxjs:" + keyify(src);
+
     return new Promise((resolve) => {
       if (D.querySelector(`script[data-zzx-js="${key}"]`)) return resolve(true);
       const s = D.createElement("script");
@@ -109,17 +132,22 @@
 
     // Collect scripts (deep)
     const scripts = Array.from(tpl.content.querySelectorAll("script"));
-    scripts.forEach(sc => sc.remove());
+    scripts.forEach((sc) => sc.remove());
 
     // Append non-script content
     mountEl.appendChild(tpl.content);
 
-    // Recreate scripts so they execute
+    // Recreate scripts so they execute in DOM insertion order
     for (const old of scripts) {
       const s = D.createElement("script");
       for (const attr of Array.from(old.attributes)) s.setAttribute(attr.name, attr.value);
-      if (old.src) s.src = old.src;
-      else s.textContent = old.textContent || "";
+      if (old.src) {
+        // IMPORTANT: keep src as-is; if it’s absolute (/...), prefix is handled by the server.
+        // If you ever use relative src inside the wrapper, convert it to absolute in the wrapper.
+        s.src = old.src;
+      } else {
+        s.textContent = old.textContent || "";
+      }
       mountEl.appendChild(s);
     }
   }
@@ -168,8 +196,8 @@
       const mount = D.getElementById("ticker-container");
       if (!mount) return;
 
-      // 1) CSS first
-      loadCSSOnce(WIDGET_CSS);
+      // 1) CSS first — and WAIT until it loads (prevents unstyled “raw” flashes)
+      await loadCSSOnce(WIDGET_CSS);
 
       // 2) Inject wrapper HTML (AND execute its scripts)
       const html = await fetchHTML(WIDGET_HTML);
@@ -178,7 +206,7 @@
       // 3) Load runtime orchestrator (manifest-driven)
       await loadJSOnce(RUNTIME_JS);
 
-      // 4) runtime.js should mount from manifest; start registry (safe)
+      // 4) runtime.js mounts from manifest; start registry (safe)
       try { W.__ZZX_WIDGETS?.start?.(); } catch (_) {}
 
     } catch (e) {
