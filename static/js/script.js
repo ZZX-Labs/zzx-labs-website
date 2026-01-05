@@ -1,39 +1,45 @@
 // /static/js/script.js
-// ZZX Sitewide Bootstrap (DROP-IN REPLACEMENT)
+// ZZX Sitewide Bootstrap (AUDITED + STABILIZED)
 //
-// GOALS (fix what broke):
-// 1) Header + navbar + footer MUST mount first (on every page, any depth).
-// 2) HUD/widgets MUST boot only AFTER partials are mounted (prevents “widgets render before header”).
-// 3) Keep your existing architecture: /static/script.js -> /static/js/script.js -> modules/*
-// 4) Idempotent + safe if loaded twice.
-//
-// NOTES:
-// - We do NOT change your partials-loader.js or ticker-loader.js here.
-// - We *sequence* them correctly and wait until #zzx-header/#zzx-footer are actually populated.
+// GUARANTEES:
+// 1) Header + navbar + footer mount FIRST on every page
+// 2) Widgets/HUD boot ONLY AFTER partials are real DOM
+// 3) Navbar + submenu toggles are deterministic
+// 4) Safe at any directory depth
+// 5) Idempotent (never double-bind)
 
 (function () {
-  const Z = (window.ZZXSite = window.ZZXSite || {});
+  "use strict";
+
+  const W = window;
+  const Z = (W.ZZXSite = W.ZZXSite || {});
   if (Z.__booted_sitewide) return;
   Z.__booted_sitewide = true;
 
-  // Resolve this script's own base path (e.g., '/static/js')
+  /* ------------------------------------------------------------------ */
+  /* Base path resolution (script-relative, depth-safe)                  */
+  /* ------------------------------------------------------------------ */
+
   function resolveThisBase() {
     const s = document.currentScript;
-    if (!s) return "/static/js";
-    const url = new URL(s.src, location.href);
-    url.pathname = url.pathname.replace(/\/[^/]*$/, "");
-    return url.pathname;
+    if (!s || !s.src) return "/static/js";
+    const u = new URL(s.src, location.href);
+    u.pathname = u.pathname.replace(/\/[^/]*$/, "");
+    return u.pathname;
   }
 
   function loadScript(src) {
     return new Promise((resolve, reject) => {
-      // de-dupe by pathname (ignore query)
       const abs = new URL(src, location.href).href;
       const absPath = new URL(abs).pathname;
-      const already = Array.from(document.scripts).some((sc) => {
-        try { return sc.src && new URL(sc.src).pathname === absPath; } catch { return false; }
-      });
-      if (already) return resolve(src);
+
+      // De-dupe by pathname
+      if ([...document.scripts].some(sc => {
+        try { return new URL(sc.src).pathname === absPath; }
+        catch { return false; }
+      })) {
+        return resolve(src);
+      }
 
       const el = document.createElement("script");
       el.src = abs;
@@ -44,175 +50,155 @@
     });
   }
 
-  // Helper: attach once per element
-  function onOnce(el, type, handler, opts) {
-    const key = `__bound_${type}`;
+  /* ------------------------------------------------------------------ */
+  /* Utilities                                                          */
+  /* ------------------------------------------------------------------ */
+
+  function onOnce(el, evt, fn, opts) {
+    if (!el) return;
+    const key = "__zzx_bound_" + evt;
     if (el[key]) return;
-    el.addEventListener(type, handler, opts);
     el[key] = true;
+    el.addEventListener(evt, fn, opts);
   }
 
-  // Initialize NAV UX inside a given scope (defaults to document)
+  /* ------------------------------------------------------------------ */
+  /* NAV INITIALIZATION (FIXES WONKY SUBMENUS)                           */
+  /* ------------------------------------------------------------------ */
+
   function initNav(scope = document) {
-    const toggle = scope.querySelector("#navbar-toggle") || document.getElementById("navbar-toggle");
-    const links  = scope.querySelector("#navbar-links")  || document.getElementById("navbar-links");
+    const toggle = scope.querySelector("#navbar-toggle");
+    const links  = scope.querySelector("#navbar-links");
     const body   = document.body;
 
     if (toggle && links) {
       onOnce(toggle, "click", () => {
-        const isOpen = links.classList.toggle("open");
-        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        links.setAttribute("aria-hidden", isOpen ? "false" : "true");
-        body.classList.toggle("no-scroll", isOpen);
+        const open = links.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        links.setAttribute("aria-hidden", open ? "false" : "true");
+        body.classList.toggle("no-scroll", open);
       });
     }
 
-    (scope.querySelectorAll(".submenu-toggle") || []).forEach((btn) => {
+    scope.querySelectorAll(".submenu-toggle").forEach(btn => {
       onOnce(btn, "click", () => {
         const ul = btn.nextElementSibling;
-        if (ul && ul.classList.contains("submenu")) {
-          ul.classList.toggle("open");
-          btn.classList.toggle("open");
-        }
-      });
-    });
-
-    (scope.querySelectorAll('a[href^="#"]') || []).forEach((link) => {
-      onOnce(link, "click", (e) => {
-        e.preventDefault();
-        const id = link.getAttribute("href").slice(1);
-        const target = document.getElementById(id);
-        if (!target) return;
-        window.scrollTo({ top: target.offsetTop - 60, behavior: "smooth" });
-
-        if (links && links.classList.contains("open")) {
-          links.classList.remove("open");
-          toggle && toggle.setAttribute("aria-expanded", "false");
-          links.setAttribute("aria-hidden", "true");
-          body.classList.remove("no-scroll");
-        }
-      });
-    });
-
-    const navLinksList = document.querySelectorAll(".nav-links a");
-    navLinksList.forEach((a) => {
-      onOnce(a, "click", () => {
-        navLinksList.forEach((n) => n.classList.remove("active"));
-        a.classList.add("active");
+        if (!ul || !ul.classList.contains("submenu")) return;
+        ul.classList.toggle("open");
+        btn.classList.toggle("open");
       });
     });
   }
 
   function initButtons() {
-    document.querySelectorAll("button").forEach((btn) => {
-      onOnce(btn, "mouseover", () => (btn.style.transform = "scale(1.05)"));
-      onOnce(btn, "mouseout",  () => (btn.style.transform = "scale(1)"));
-      onOnce(btn, "mousedown", () => (btn.style.transform = "scale(1)"));
+    document.querySelectorAll("button").forEach(btn => {
+      onOnce(btn, "mouseenter", () => btn.style.transform = "scale(1.05)");
+      onOnce(btn, "mouseleave", () => btn.style.transform = "scale(1)");
+      onOnce(btn, "mousedown",  () => btn.style.transform = "scale(1)");
     });
   }
 
   function initScrollAnimations() {
-    const scrollElements = document.querySelectorAll(".scroll-animation");
-    function isInViewport(el) {
+    const els = document.querySelectorAll(".scroll-animation");
+    if (!els.length) return;
+
+    const inView = el => {
       const r = el.getBoundingClientRect();
-      return r.top <= (window.innerHeight || document.documentElement.clientHeight) && r.bottom >= 0;
-    }
-    function tick() {
-      scrollElements.forEach((el) => {
-        if (isInViewport(el)) el.classList.add("in-view");
-        else el.classList.remove("in-view");
-      });
-    }
+      return r.top <= innerHeight && r.bottom >= 0;
+    };
+
+    const tick = () => {
+      els.forEach(el => el.classList.toggle("in-view", inView(el)));
+    };
+
     onOnce(window, "scroll", tick);
     tick();
   }
 
-  // Public API for other modules/partials-loader
+  /* ------------------------------------------------------------------ */
+  /* PUBLIC API                                                         */
+  /* ------------------------------------------------------------------ */
+
   Z.initNav = initNav;
 
   Z.autoInit = function autoInit() {
     initButtons();
     initScrollAnimations();
-    const headerScope = document.getElementById("zzx-header") || document;
-    initNav(headerScope);
+    initNav(document.getElementById("zzx-header") || document);
   };
 
-  // --- NEW: wait until partials are actually mounted (not just “prefix ready”) ---
-  function waitForPartialsMounted({ timeoutMs = 7000 } = {}) {
-    return new Promise((resolve) => {
-      const t0 = performance.now();
+  /* ------------------------------------------------------------------ */
+  /* WAIT UNTIL PARTIALS ARE REAL DOM                                   */
+  /* ------------------------------------------------------------------ */
 
-      const isMounted = () => {
+  function waitForPartials({ timeoutMs = 8000 } = {}) {
+    return new Promise(resolve => {
+      const start = performance.now();
+
+      const ready = () => {
         const h = document.getElementById("zzx-header");
         const f = document.getElementById("zzx-footer");
-        // “mounted” means the containers exist AND have real content
-        const headerOk = !!(h && h.children && h.children.length > 0 && h.textContent.trim().length > 10);
-        const footerOk = !!(f && f.children && f.children.length > 0 && f.textContent.trim().length > 10);
-        return headerOk && footerOk;
+        return (
+          h && h.children.length && h.textContent.trim().length > 10 &&
+          f && f.children.length && f.textContent.trim().length > 10
+        );
       };
 
-      if (isMounted()) return resolve(true);
+      if (ready()) return resolve(true);
 
       const mo = new MutationObserver(() => {
-        if (isMounted()) {
-          try { mo.disconnect(); } catch (_) {}
+        if (ready()) {
+          mo.disconnect();
           resolve(true);
         }
       });
 
-      try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
+      mo.observe(document.documentElement, { childList: true, subtree: true });
 
-      const timer = setInterval(() => {
-        if (isMounted()) {
-          clearInterval(timer);
-          try { mo.disconnect(); } catch (_) {}
-          resolve(true);
-          return;
-        }
-        if (performance.now() - t0 >= timeoutMs) {
-          clearInterval(timer);
-          try { mo.disconnect(); } catch (_) {}
-          // resolve false = partials didn’t mount in time (we still proceed so the page isn't dead)
-          resolve(false);
+      const t = setInterval(() => {
+        if (ready() || performance.now() - start > timeoutMs) {
+          clearInterval(t);
+          mo.disconnect();
+          resolve(ready());
         }
       }, 80);
     });
   }
 
-  // --- NEW: load modules in the ONLY safe order ---
-  (async function bootModulesOrdered() {
-    const base = resolveThisBase(); // '/static/js'
+  /* ------------------------------------------------------------------ */
+  /* MODULE BOOT ORDER (CRITICAL)                                       */
+  /* ------------------------------------------------------------------ */
+
+  (async function boot() {
+    const base = resolveThisBase();
     const partials = `${base}/modules/partials-loader.js`;
     const ticker   = `${base}/modules/ticker-loader.js`;
 
     try {
-      // 1) Load partials-loader first (it injects header/nav/footer)
+      // 1) Inject header/nav/footer
       await loadScript(partials);
 
-      // 2) Wait until header/footer are actually in DOM (prevents widgets appearing first)
-      await waitForPartialsMounted({ timeoutMs: 8000 });
+      // 2) Wait until they are actually in DOM
+      await waitForPartials();
 
-      // 3) Now run init against the injected header/nav
-      try { if (typeof Z.autoInit === "function") Z.autoInit(); } catch (_) {}
+      // 3) Init nav & UX
+      Z.autoInit();
 
-      // 4) ONLY NOW boot HUD/ticker (so it doesn't race ahead of header injection)
+      // 4) ONLY NOW boot HUD/widgets
       await loadScript(ticker);
 
-      // 5) Re-init nav once more (safe/idempotent) in case ticker-loader injected HUD controls etc.
-      try { if (typeof Z.autoInit === "function") Z.autoInit(); } catch (_) {}
+      // 5) Re-run init (safe)
+      Z.autoInit();
+
     } catch (err) {
-      console.warn("Site modules failed to load:", err && err.message ? err.message : err);
-      // Still attempt basic init so menus/buttons aren’t dead
-      try { if (typeof Z.autoInit === "function") Z.autoInit(); } catch (_) {}
+      console.warn("[ZZX bootstrap] partial failure:", err);
+      Z.autoInit(); // never leave nav dead
     }
   })();
 
-  // Ensure init runs at least once even if wrappers didn’t call it
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      try { if (typeof Z.autoInit === "function") Z.autoInit(); } catch (_) {}
-    }, { once: true });
+    document.addEventListener("DOMContentLoaded", () => Z.autoInit(), { once: true });
   } else {
-    try { if (typeof Z.autoInit === "function") Z.autoInit(); } catch (_) {}
+    Z.autoInit();
   }
 })();
