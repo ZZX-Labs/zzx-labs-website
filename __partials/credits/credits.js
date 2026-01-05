@@ -1,25 +1,56 @@
 /* __partials/credits/credits.js */
-/* Pure, defensive, zero-side-effects credits renderer */
-/* Does NOT touch widgets, HUD, ticker, or global JS state */
-
 /*
-  DROP-IN FIX (for your new modal loader):
-  - DO NOT append anything to the footer anymore (your footer has the Credits button).
-  - Render INSIDE the modal body if present: #zzx-credits-body
-  - Fallback render target: #zzx-credits (legacy panel) or [data-zzx-credits-panel]
-  - If credits.html already populated the body, we DO NOTHING.
-  - ESC/backdrop/X handling is owned by loader.js, not here.
+  ZZX Credits — SINGLE FILE CONTROLLER
+
+  RESPONSIBILITIES (AND ONLY THESE):
+  - Bind to the EXISTING footer button: #footer-credits-btn
+  - Create ONE modal (if not already present)
+  - Open / close modal via:
+      • footer button click
+      • ✕ button
+      • ESC key
+      • backdrop click
+  - Load credits.html ONCE into the modal body
+  - Load credits.css ONCE
+  - Provide a safe fallback renderer if credits.html fails
+  - REMOVE / PREVENT any legacy credits UI from existing
+  - NEVER append anything to the footer or page body as a badge
+  - NO SVG, NO icons beyond Unicode characters
 */
 
 (function () {
   "use strict";
 
-  // prevent double init
   if (window.__ZZX_CREDITS_BOOTED) return;
   window.__ZZX_CREDITS_BOOTED = true;
 
-  function qs(sel, scope) {
-    return (scope || document).querySelector(sel);
+  const STATE_KEY = "zzx.credits.open";
+
+  /* -------------------- helpers -------------------- */
+
+  const qs  = (s, r) => (r || document).querySelector(s);
+  const qsa = (s, r) => Array.from((r || document).querySelectorAll(s));
+
+  function getPrefix() {
+    const p =
+      window.ZZX?.PREFIX ||
+      document.documentElement?.getAttribute("data-zzx-prefix") ||
+      ".";
+    return p.replace(/\/+$/, "");
+  }
+
+  function join(prefix, path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    if (!path.startsWith("/")) return path;
+    return prefix === "/" ? path : prefix + path;
+  }
+
+  function ensureCSSOnce(href) {
+    if (document.querySelector(`link[href="${href}"]`)) return;
+    const l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
   }
 
   function escapeHTML(s) {
@@ -31,158 +62,143 @@
       .replaceAll("'", "&#039;");
   }
 
-  function resolveMount() {
-    // preferred: modal body created by loader.js
-    const modalBody = document.getElementById("zzx-credits-body");
-    if (modalBody) return modalBody;
+  /* ---------------- legacy cleanup ---------------- */
 
-    // legacy panel mounts
-    const legacy =
-      document.getElementById("zzx-credits") ||
-      qs("[data-zzx-credits-panel]") ||
-      qs("#credits") ||
-      null;
+  function cleanupLegacy() {
+    qsa(".zzx-credits").forEach(el => el.remove());
+    qsa("[data-zzx-credits-host]").forEach(el => el.remove());
+    qsa("[data-zzx-credits-toggle]").forEach(el => el.remove());
 
-    return legacy;
+    const old = document.getElementById("zzx-credits");
+    if (old) old.remove();
   }
 
-  function hasRealContent(el) {
-    if (!el) return false;
+  /* ---------------- modal ---------------- */
 
-    // If loader fetched credits.html, the body will have non-empty markup.
-    // Consider it "real" if it has any element children besides our own fallback wrapper.
-    const kids = Array.from(el.children || []);
-    if (!kids.length) return false;
+  function ensureModal() {
+    let modal = document.getElementById("zzx-credits-modal");
+    if (modal) return modal;
 
-    // If it already has a dedicated credits root, treat as populated.
-    if (el.querySelector(".zzx-credits-modal, .zzx-credits-content, .zzx-credits__content")) return true;
+    modal = document.createElement("div");
+    modal.id = "zzx-credits-modal";
+    modal.hidden = true;
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "Credits");
 
-    // If any child is not our fallback root, treat as populated
-    const nonFallback = kids.some((k) => !k.classList.contains("zzx-credits"));
-    return nonFallback;
-  }
-
-  function buildFallbackCredits() {
-    const year = new Date().getFullYear();
-
-    // NOTE: Keep this content conservative; your real credits should live in credits.html.
-    // This is a safe fallback so the modal never opens "empty".
-    const creators = [
-      { name: "0xdeadbeef", role: "Founder / Builder", orgs: ["ZZX-Labs R&D", "0xdeadbeef Consulting", "BitTechIn"] }
-    ];
-
-    const oss = [
-      // You can expand these in credits.html; this is only a baseline.
-      { name: "Bitcoin", url: "https://bitcoin.org/" },
-      { name: "Bitcoin Core", url: "https://bitcoincore.org/" },
-      { name: "Lightning Network", url: "https://lightning.network/" },
-      { name: "mempool.space", url: "https://mempool.space/" },
-      { name: "Tor Project", url: "https://www.torproject.org/" },
-      { name: "nginx", url: "https://nginx.org/" },
-      { name: "Flask", url: "https://flask.palletsprojects.com/" },
-      { name: "GNU/Linux", url: "https://www.gnu.org/" }
-    ];
-
-    const el = document.createElement("div");
-    el.className = "zzx-credits";
-    el.setAttribute("aria-label", "Site credits");
-
-    el.innerHTML = `
-      <div class="zzx-credits__content">
-
-        <section class="zzx-credits__section" aria-label="Creators">
-          <h3 class="zzx-credits__h">Creators</h3>
-          <div class="zzx-credits__sub">
-            © ${year} <strong>ZZX-Labs R&amp;D</strong>. All rights reserved. Licensed under the MIT License.
-          </div>
-
-          <div class="zzx-credits__list">
-            ${creators
-              .map((c) => {
-                const orgs = (c.orgs || []).map(escapeHTML).join(" · ");
-                return `
-                  <div class="zzx-credits__row">
-                    <div class="zzx-credits__name">${escapeHTML(c.name)}</div>
-                    <div class="zzx-credits__meta">
-                      <span class="zzx-credits__role">${escapeHTML(c.role || "")}</span>
-                      ${orgs ? `<span class="zzx-credits__sep">·</span><span class="zzx-credits__orgs">${orgs}</span>` : ""}
-                    </div>
-                  </div>
-                `;
-              })
-              .join("")}
-          </div>
-        </section>
-
-        <hr class="zzx-credits__hr" />
-
-        <section class="zzx-credits__section" aria-label="Open Source and Attributions">
-          <h3 class="zzx-credits__h">Open Source &amp; Attributions</h3>
-          <div class="zzx-credits__sub">
-            We build on the shoulders of people who ship tools, publish research, and keep infrastructure free.
-          </div>
-
-          <ul class="zzx-credits__oss">
-            ${oss
-              .map((x) => {
-                const name = escapeHTML(x.name || "");
-                const url = String(x.url || "#");
-                return `<li class="zzx-credits__ossItem"><a href="${url}" target="_blank" rel="noopener">${name}</a></li>`;
-              })
-              .join("")}
-          </ul>
-
-          <div class="zzx-credits__sub">
-            If an attribution is missing or needs correction, please contact us and we will fix it promptly.
-          </div>
-        </section>
-
+    modal.innerHTML = `
+      <div class="zzx-credits-dialog">
+        <div class="zzx-credits-head">
+          <h2>Credits</h2>
+          <button class="zzx-credits-close" aria-label="Close">✕</button>
+        </div>
+        <div class="zzx-credits-body">
+          <div class="zzx-credits-loading">Loading…</div>
+        </div>
       </div>
     `;
 
-    return el;
+    document.body.appendChild(modal);
+    return modal;
   }
 
-  function ensureMinimalStyles(mount) {
-    // If your credits.css didn’t load, keep the fallback readable.
-    if (document.querySelector("style[data-zzx-credits-fallback='1']")) return;
+  function openModal(modal) {
+    modal.hidden = false;
+    document.body.classList.add("zzx-modal-open");
+    try { localStorage.setItem(STATE_KEY, "1"); } catch {}
+  }
 
-    const st = document.createElement("style");
-    st.setAttribute("data-zzx-credits-fallback", "1");
-    st.textContent = `
-.zzx-credits{ color:#c0d674; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-.zzx-credits__h{ margin:.25rem 0 .5rem 0; color:#e6a42b; font-size:1.05rem; }
-.zzx-credits__sub{ color:#b7bf9a; font-size:.95rem; margin:0 0 .75rem 0; }
-.zzx-credits__list{ display:grid; gap:.55rem; }
-.zzx-credits__row{ padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:10px; background: rgba(0,0,0,.18); }
-.zzx-credits__name{ color:#e6a42b; font-weight:600; margin-bottom:.2rem; }
-.zzx-credits__meta{ color:#b7bf9a; font-size:.95rem; display:flex; gap:.45rem; flex-wrap:wrap; align-items:baseline; }
-.zzx-credits__hr{ border:0; border-top:1px solid rgba(255,255,255,.12); margin:1rem 0; }
-.zzx-credits__oss{ margin:.35rem 0 0 1.2rem; padding:0; display:grid; gap:.35rem; }
-.zzx-credits__ossItem a{ color:#c0d674; text-decoration:none; }
-.zzx-credits__ossItem a:hover{ color:#e6a42b; text-decoration:underline; }
+  function closeModal(modal) {
+    modal.hidden = true;
+    document.body.classList.remove("zzx-modal-open");
+    try { localStorage.setItem(STATE_KEY, "0"); } catch {}
+  }
+
+  /* ---------------- content ---------------- */
+
+  async function loadCredits(modal) {
+    const body = qs(".zzx-credits-body", modal);
+    if (!body || body.dataset.loaded) return;
+
+    const prefix = getPrefix();
+    const htmlURL = join(prefix, "/__partials/credits/credits.html");
+    const cssURL  = join(prefix, "/__partials/credits/credits.css");
+
+    ensureCSSOnce(cssURL);
+
+    try {
+      const r = await fetch(htmlURL, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      body.innerHTML = await r.text();
+      body.dataset.loaded = "1";
+      return;
+    } catch {
+      body.innerHTML = buildFallbackHTML();
+      body.dataset.loaded = "1";
+    }
+  }
+
+  function buildFallbackHTML() {
+    const year = new Date().getFullYear();
+    return `
+      <div class="zzx-credits">
+        <h3>Credits</h3>
+        <p>© ${year} ZZX-Labs R&amp;D. MIT Licensed.</p>
+        <ul>
+          <li><a href="https://bitcoin.org" target="_blank" rel="noopener">Bitcoin</a></li>
+          <li><a href="https://www.kernel.org" target="_blank" rel="noopener">Linux</a></li>
+          <li><a href="https://www.mozilla.org" target="_blank" rel="noopener">Mozilla</a></li>
+          <li><a href="https://www.videolan.org" target="_blank" rel="noopener">VideoLAN</a></li>
+        </ul>
+      </div>
     `;
-    (document.head || document.documentElement).appendChild(st);
   }
 
-  function mount() {
-    const mountEl = resolveMount();
-    if (!mountEl) return;
+  /* ---------------- bindings ---------------- */
 
-    // If credits.html already provided content, do nothing.
-    if (hasRealContent(mountEl)) return;
+  function bind(modal) {
+    const btn = document.getElementById("footer-credits-btn");
+    if (!btn) return;
 
-    // Avoid duplicates of our fallback
-    if (mountEl.querySelector(".zzx-credits")) return;
+    btn.addEventListener("click", async () => {
+      if (!modal.hidden) {
+        closeModal(modal);
+        return;
+      }
+      openModal(modal);
+      await loadCredits(modal);
+    });
 
-    ensureMinimalStyles(mountEl);
-    mountEl.innerHTML = ""; // keep deterministic
-    mountEl.appendChild(buildFallbackCredits());
+    qs(".zzx-credits-close", modal)
+      .addEventListener("click", () => closeModal(modal));
+
+    modal.addEventListener("click", e => {
+      if (e.target === modal) closeModal(modal);
+    });
+
+    window.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !modal.hidden) closeModal(modal);
+    });
+  }
+
+  /* ---------------- boot ---------------- */
+
+  function boot() {
+    cleanupLegacy();
+    const modal = ensureModal();
+    bind(modal);
+
+    try {
+      if (localStorage.getItem(STATE_KEY) === "1") {
+        openModal(modal);
+        loadCredits(modal);
+      }
+    } catch {}
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount, { once: true });
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
-    mount();
+    boot();
   }
 })();
