@@ -1,133 +1,140 @@
-// /static/js/modules/partials-loader.js
-// ZZX Partials Loader — AUDITED & HARDENED
-//
-// RESPONSIBILITIES (ONLY):
-// - Load header, nav, footer, credits partials
-// - Work from ANY directory depth
-// - Mount ONCE (idempotent)
-// - Signal readiness so widgets/HUD wait correctly
-//
-// DOES NOT:
-// - Touch layout styles
-// - Modify partial HTML
-// - Bind widgets or HUD
-// - Change content
+/* /partials-loader.js
+   HARD FIX: restore header/nav/footer/credits/runtime on ALL subpages.
+
+   Symptoms this fixes:
+   - no header/nav/footer (relative paths broke on subpages)
+   - credits floating/overlaying (credits injected into wrong place or before CSS)
+   - HUD missing (runtime not loaded or widgets initialized before runtime exists)
+
+   Contract:
+   - Your HTML should include slots like:
+       <div id="site-header"></div>
+       <div id="site-nav"></div>
+       <div id="site-footer"></div>
+       <div id="site-credits"></div>
+       <div id="site-runtime"></div>
+
+     OR data-partial slots:
+       <div data-partial="header"></div> etc.
+
+   This loader:
+   - Always tries ROOT absolute first (/) so it works from /about/ and deeper.
+   - Falls back to relative paths only if root fetch fails.
+   - Emits `zzx:partials:ready` when done.
+*/
 
 (function () {
-  "use strict";
+  const CACHE = "no-store";
 
-  const W = window;
-  const D = document;
-
-  // Prevent double execution
-  if (W.__zzx_partials_loaded) return;
-  W.__zzx_partials_loaded = true;
-
-  /* ------------------------------------------------------------------ */
-  /* Base path resolution                                                */
-  /* ------------------------------------------------------------------ */
-
-  function resolveBase() {
-    // Prefer canonical base set by site bootstrap
-    if (typeof W.ZZX_BASE === "string" && W.ZZX_BASE) {
-      return W.ZZX_BASE.replace(/\/+$/, "");
-    }
-
-    // Fallback: derive from this script src
-    const s = D.currentScript;
-    if (s && s.src) {
-      const u = new URL(s.src, location.href);
-      return u.origin;
-    }
-
-    return location.origin;
-  }
-
-  const BASE = resolveBase();
-
-  const abs = (p) => {
-    try {
-      return new URL(p, BASE).href;
-    } catch {
-      return p;
-    }
+  // Map partial keys to preferred root paths
+  const PARTIAL_PATHS = {
+    header:  ["/partials/header.html",  "/__partials/header.html",  "/header.html"],
+    nav:     ["/partials/nav.html",     "/__partials/nav.html",     "/nav.html"],
+    footer:  ["/partials/footer.html",  "/__partials/footer.html",  "/footer.html"],
+    credits: ["/partials/credits.html", "/__partials/credits.html", "/credits.html"],
+    runtime: ["/partials/runtime.html", "/__partials/runtime.html", "/runtime.html"]
   };
 
-  /* ------------------------------------------------------------------ */
-  /* Fetch helper (NO silent failure)                                   */
-  /* ------------------------------------------------------------------ */
+  // Slot discovery: supports either #ids or data-partial attributes.
+  function findSlot(key) {
+    return (
+      document.getElementById(`site-${key}`) ||
+      document.querySelector(`[data-partial="${key}"]`) ||
+      null
+    );
+  }
 
-  async function fetchHTML(path) {
-    const url = abs(path);
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`Partial fetch failed ${r.status}: ${url}`);
+  async function tryFetch(url) {
+    const r = await fetch(url, { cache: CACHE, credentials: "same-origin" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
     return await r.text();
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Mount helper                                                        */
-  /* ------------------------------------------------------------------ */
-
-  async function mountPartial({ id, selector, src }) {
-    const host = D.querySelector(selector);
-    if (!host) return false;
-
-    // Already mounted?
-    if (host.dataset.zzxMounted === "1") return true;
-
-    const html = await fetchHTML(src);
-    host.innerHTML = html;
-    host.dataset.zzxMounted = "1";
-    return true;
+  function unique(arr) {
+    return Array.from(new Set(arr));
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Load order (STRICT)                                                 */
-  /* ------------------------------------------------------------------ */
+  // Build a safe candidate list:
+  // 1) absolute root paths (best for GitHub Pages + subdirectories)
+  // 2) relative fallback from current document
+  function buildCandidates(paths) {
+    const rel = [];
+    for (const p of paths) {
+      // If already absolute, keep
+      if (p.startsWith("/")) {
+        // also try as-is
+        rel.push(p);
+      } else {
+        rel.push(p);
+      }
 
-  const PARTIALS = [
-    {
-      id: "header",
-      selector: "#zzx-header",
-      src: "/partials/header.html",
-    },
-    {
-      id: "nav",
-      selector: "#zzx-nav",
-      src: "/partials/nav.html",
-    },
-    {
-      id: "footer",
-      selector: "#zzx-footer",
-      src: "/partials/footer.html",
-    },
-    {
-      id: "credits",
-      selector: "#zzx-credits",
-      src: "/partials/credits.html",
-    },
-  ];
+      // Also try relative variants for nested pages
+      // e.g. ../../partials/header.html
+      const depth = location.pathname.replace(/\/+$/, "").split("/").length - 1; // "/a/b/" -> 2
+      for (let i = 0; i < Math.min(depth, 6); i++) {
+        rel.push("../".repeat(i + 1) + p.replace(/^\/+/, ""));
+      }
+    }
+    return unique(rel);
+  }
 
-  /* ------------------------------------------------------------------ */
-  /* Boot                                                               */
-  /* ------------------------------------------------------------------ */
+  async function loadOne(key) {
+    const slot = findSlot(key);
+    if (!slot) return { key, ok: false, reason: "slot_missing" };
 
-  (async function boot() {
-    let mounted = 0;
+    const baseList = PARTIAL_PATHS[key] || [];
+    const candidates = buildCandidates(baseList);
 
-    for (const p of PARTIALS) {
+    for (const url of candidates) {
       try {
-        const ok = await mountPartial(p);
-        if (ok) mounted++;
+        const html = await tryFetch(url);
+        slot.innerHTML = html;
+        slot.setAttribute("data-partial-loaded", "1");
+        slot.setAttribute("data-partial-source", url);
+        return { key, ok: true, url };
       } catch (e) {
-        console.warn(`[partials-loader] ${p.id} failed:`, e.message);
+        // keep trying
       }
     }
 
-    // Signal readiness (CRITICAL for widgets & HUD)
-    W.__zzx_partials_ready = true;
-    D.dispatchEvent(new CustomEvent("zzx:partials:ready", {
-      detail: { mounted }
-    }));
-  })();
+    slot.setAttribute("data-partial-loaded", "0");
+    return { key, ok: false, reason: "fetch_failed", candidates };
+  }
+
+  async function loadAll() {
+    // Load in strict order: frame first, then credits, then runtime.
+    // This prevents credits overlaying and runtime being missing when widgets mount.
+    const results = [];
+    results.push(await loadOne("header"));
+    results.push(await loadOne("nav"));
+    results.push(await loadOne("footer"));
+    results.push(await loadOne("credits"));
+    results.push(await loadOne("runtime"));
+
+    // Signal readiness for widget-core/runtime to start mounting widgets/HUD.
+    window.dispatchEvent(new CustomEvent("zzx:partials:ready", { detail: results }));
+
+    // Also expose for debugging in console:
+    window.ZZXPartials = window.ZZXPartials || {};
+    window.ZZXPartials.lastResults = results;
+
+    return results;
+  }
+
+  // Auto-run ASAP, but after DOM is ready enough to find slots
+  function boot() {
+    loadAll().catch(() => {
+      // never hard-fail the page
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+
+  // Export API
+  window.ZZXPartials = window.ZZXPartials || {};
+  window.ZZXPartials.loadAll = loadAll;
 })();
