@@ -1,18 +1,21 @@
 // /static/js/modules/ticker-loader.js
-// ZZX Bitcoin HUD + Widget Orchestrator (AUTHORITATIVE)
+// ZZX Bitcoin HUD + Widget Orchestrator (AUTHORITATIVE) — DROP-IN REPLACEMENT
 //
-// This is the ONLY file allowed to:
-// - boot the HUD runtime
-// - mount bitcoin-ticker
-// - mount the remaining widgets
+// Manifest-first:
+// - ticker-loader injects ONLY the HUD wrapper (HTML+CSS)
+// - then loads __partials/widgets/runtime.js
+// - runtime.js is responsible for reading __partials/widgets/manifest.json and mounting widgets
 //
-// It is:
-// - prefix-safe
-// - idempotent
-// - ordered
-// - partials-aware
+// Fixes kept:
+// - Waits for partials on WINDOW (correct emitter)
+// - Injects wrapper HTML and EXECUTES any <script> tags inside it
+// - Prefix-safe URL joins
+// - Idempotent CSS/JS loads
 //
-// Legacy loaders must DEFER to this file.
+// IMPORTANT:
+// - This file does NOT load individual widget.js files anymore.
+// - If widgets are not mounting after this change, the bug is in __partials/widgets/runtime.js,
+//   not in this loader.
 
 (function () {
   "use strict";
@@ -20,113 +23,71 @@
   const W = window;
   const D = document;
 
-  // ---------------------------------------------------------------------------
-  // Hard stop: never boot twice
-  // ---------------------------------------------------------------------------
-
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
   // ---------------------------------------------------------------------------
-  // Prefix resolution (single source)
+  // Prefix (single source)
   // ---------------------------------------------------------------------------
-
   function getPrefix() {
-    // Highest priority: explicit runtime prefix
-    if (typeof W.ZZX?.PREFIX === "string" && W.ZZX.PREFIX.length) {
-      return W.ZZX.PREFIX;
-    }
-
-    // HTML-level override (GH Pages subpaths)
-    const htmlPrefix = document.documentElement.getAttribute("data-zzx-prefix");
+    if (typeof W.ZZX?.PREFIX === "string" && W.ZZX.PREFIX.length) return W.ZZX.PREFIX;
+    const htmlPrefix = D.documentElement?.getAttribute("data-zzx-prefix");
     if (htmlPrefix) return htmlPrefix;
-
-    // Fallback: root
-    return "";
+    return ""; // hosted at domain root
   }
 
   function join(prefix, path) {
     if (!path) return path;
-    if (/^https?:\/\//i.test(path)) return path;
-    if (!path.startsWith("/")) return path;
-    if (!prefix) return path;
-    return prefix.replace(/\/+$/, "") + path;
+    const s = String(path);
+    if (/^https?:\/\//i.test(s)) return s;
+    if (!s.startsWith("/")) return s;
+    if (!prefix) return s;
+    return String(prefix).replace(/\/+$/, "") + s;
   }
 
   const PREFIX = getPrefix();
+  W.ZZX = Object.assign({}, W.ZZX || {}, { PREFIX });
 
   // ---------------------------------------------------------------------------
-  // Asset paths (ABSOLUTE, PREFIX-AWARE)
+  // Assets
   // ---------------------------------------------------------------------------
+  const WIDGET_HTML   = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
+  const WIDGET_CSS    = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
+  const RUNTIME_JS    = join(PREFIX, "/__partials/widgets/runtime.js");
 
-  const RUNTIME_JS = join(PREFIX, "/__partials/widgets/runtime.js");
-  const WIDGET_HTML = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
-  const WIDGET_CSS  = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
-
-  // runtime subwidgets (order matters)
-  const SUBWIDGETS = [
-    "/__partials/widgets/bitcoin-ticker/widget.js",
-
-    "/__partials/widgets/price-24h/widget.js",
-    "/__partials/widgets/volume-24h/widget.js",
-
-    "/__partials/widgets/hashrate/widget.js",
-    "/__partials/widgets/hashrate-by-nation/widget.js",
-
-    "/__partials/widgets/nodes/widget.js",
-    "/__partials/widgets/nodes-by-nation/widget.js",
-
-    "/__partials/widgets/lightning/widget.js",
-    "/__partials/widgets/lightning-detail/widget.js",
-
-    "/__partials/widgets/mempool/widget.js",
-    "/__partials/widgets/fees/widget.js",
-    "/__partials/widgets/mempool-goggles/widget.js",
-
-    "/__partials/widgets/tip/widget.js",
-    "/__partials/widgets/drift/widget.js",
-
-    "/__partials/widgets/btc-intel/widget.js",
-    "/__partials/widgets/btc-news/widget.js",
-    "/__partials/widgets/satoshi-quote/widget.js",
-
-    "/__partials/widgets/btc-halving-suite/widget.js",
-
-    "/__partials/widgets/btc-mined/widget.js",
-    "/__partials/widgets/btc-to-mine/widget.js",
-
-    "/__partials/widgets/btc-blockexplorer/widget.js",
-    "/__partials/widgets/btc-notabletxs/widget.js",
-
-    // LAST widget: single full-width
-    "/__partials/widgets/bitrng/widget.js",
-  ].map(p => join(PREFIX, p));
+  // Optional: publish canonical manifest URL for runtime.js (if you want it)
+  // runtime.js may ignore this; harmless either way.
+  W.__ZZX_WIDGETS_MANIFEST_URL = join(PREFIX, "/__partials/widgets/manifest.json");
 
   // ---------------------------------------------------------------------------
-  // Load helpers (idempotent)
+  // Idempotent loaders
   // ---------------------------------------------------------------------------
+  function keyify(s) {
+    // stable key safe for attribute selectors
+    return btoa(unescape(encodeURIComponent(String(s)))).replace(/=+$/g, "");
+  }
 
   function loadCSSOnce(href) {
-    if (document.querySelector(`link[data-zzx-css="${href}"]`)) return;
-    const l = document.createElement("link");
+    const key = "zzxcss:" + keyify(href);
+    if (D.querySelector(`link[data-zzx-css="${key}"]`)) return;
+    const l = D.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.dataset.zzxCss = href;
-    document.head.appendChild(l);
+    l.setAttribute("data-zzx-css", key);
+    D.head.appendChild(l);
   }
 
   function loadJSOnce(src) {
+    const key = "zzxjs:" + keyify(src);
     return new Promise((resolve) => {
-      if (document.querySelector(`script[data-zzx-js="${src}"]`)) {
-        return resolve(true);
-      }
-      const s = document.createElement("script");
+      if (D.querySelector(`script[data-zzx-js="${key}"]`)) return resolve(true);
+      const s = D.createElement("script");
       s.src = src;
       s.defer = true;
-      s.dataset.zzxJs = src;
+      s.setAttribute("data-zzx-js", key);
       s.onload = () => resolve(true);
-      s.onerror = () => resolve(false); // non-fatal
-      document.head.appendChild(s);
+      s.onerror = () => resolve(false);
+      D.head.appendChild(s);
     });
   }
 
@@ -137,27 +98,69 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Wait for partials-loader (ABSOLUTE REQUIREMENT)
+  // Inject HTML AND execute scripts contained in the fragment
+  // (Needed because innerHTML does NOT execute <script> tags)
   // ---------------------------------------------------------------------------
+  function injectHTMLExecuteScripts(mountEl, htmlText) {
+    mountEl.replaceChildren();
 
-  function waitForPartials() {
+    const tpl = D.createElement("template");
+    tpl.innerHTML = htmlText;
+
+    // Collect scripts (deep)
+    const scripts = Array.from(tpl.content.querySelectorAll("script"));
+    scripts.forEach(sc => sc.remove());
+
+    // Append non-script content
+    mountEl.appendChild(tpl.content);
+
+    // Recreate scripts so they execute
+    for (const old of scripts) {
+      const s = D.createElement("script");
+      for (const attr of Array.from(old.attributes)) s.setAttribute(attr.name, attr.value);
+      if (old.src) s.src = old.src;
+      else s.textContent = old.textContent || "";
+      mountEl.appendChild(s);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wait for partials-loader (window is the emitter)
+  // ---------------------------------------------------------------------------
+  function waitForPartials(timeoutMs = 3500) {
     if (W.__zzx_partials_ready) return Promise.resolve(true);
 
     return new Promise((resolve) => {
-      const done = () => resolve(true);
-      D.addEventListener("zzx:partials:ready", done, { once: true });
+      let done = false;
 
-      // Hard fallback after DOM ready
-      if (D.readyState === "complete" || D.readyState === "interactive") {
-        setTimeout(done, 400);
-      }
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        resolve(!!ok);
+      };
+
+      const onEvt = () => {
+        W.__zzx_partials_ready = true;
+        finish(true);
+      };
+
+      W.addEventListener("zzx:partials:ready", onEvt, { once: true });
+
+      const t0 = performance.now();
+      (function poll() {
+        if (done) return;
+        const h = D.getElementById("zzx-header");
+        const f = D.getElementById("zzx-footer");
+        if (h && h.childNodes.length && f && f.childNodes.length) return finish(true);
+        if (performance.now() - t0 >= timeoutMs) return finish(false);
+        setTimeout(poll, 60);
+      })();
     });
   }
 
   // ---------------------------------------------------------------------------
-  // BOOT SEQUENCE (STRICT ORDER)
+  // Boot (strict order)
   // ---------------------------------------------------------------------------
-
   (async function boot() {
     try {
       await waitForPartials();
@@ -168,20 +171,15 @@
       // 1) CSS first
       loadCSSOnce(WIDGET_CSS);
 
-      // 2) Inject wrapper HTML
+      // 2) Inject wrapper HTML (AND execute its scripts)
       const html = await fetchHTML(WIDGET_HTML);
-      mount.innerHTML = html;
+      injectHTMLExecuteScripts(mount, html);
 
-      // 3) Runtime (HUD state, buttons, registry)
+      // 3) Load runtime orchestrator (manifest-driven)
       await loadJSOnce(RUNTIME_JS);
 
-      // 4) Subwidgets (deterministic order)
-      for (const src of SUBWIDGETS) {
-        await loadJSOnce(src);
-      }
-
-      // 5) Start widget registry (safe if already started)
-      W.__ZZX_WIDGETS?.start?.();
+      // 4) runtime.js should mount from manifest; start registry (safe)
+      try { W.__ZZX_WIDGETS?.start?.(); } catch (_) {}
 
     } catch (e) {
       console.error("[ZZX ticker-loader] fatal:", e);
