@@ -5,7 +5,11 @@
    - HUD handle becomes a right-aligned "HUD" button (matches your request).
    - HUD handle is shown ONLY when HUD is hidden (uses :has() so we don't need HTML changes).
    - Ticker is full-width (top). BitRNG is full-width (bottom). Nothing else forced full width.
+   - Works with BOTH slot conventions:
+       A) [data-widget-slot="..."]  (core/runtime slots)
+       B) .btc-slot[data-widget="..."] (your wrapper shell)
    - Keeps system-font stacks (no @font-face network fetches).
+   - Keeps your canonical HUD states: full | ticker-only | hidden
 */
 
 /* -----------------------------
@@ -23,7 +27,7 @@
   --zzx-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
   --zzx-font-title: var(--zzx-font-mono);
 
-  /* Layout rail width (your site already uses --header-rail) */
+  /* Layout rail width (site already uses --header-rail on many pages) */
   --zzx-rail: min(var(--header-rail, 1100px), 100%);
 
   /* HUD button sizing */
@@ -34,6 +38,8 @@
    HUD handle (only visible when HUD is hidden)
    - Right-aligned to match navbar edge.
    - Sticky so it stays accessible when HUD is hidden.
+   - Works with either data-hud-state="hidden" on [data-hud-root] OR
+     legacy/alt state keys if they exist elsewhere (we only key off canonical).
 ------------------------------ */
 .zzx-hud-handle{
   width:100%;
@@ -58,12 +64,13 @@
   }
 }
 
-/* If :has() is not supported (older browsers), keep it visible rather than stranded */
+/* If :has() not supported, keep it visible (better than stranded) */
 @supports not selector(:has(*)) {
   .zzx-hud-handle{ display:flex; }
 }
 
-/* Button (text now "HUD" per request; icon swap later) */
+/* Button label: you can keep text "Show Bitcoin HUD" in HTML;
+   this forces it to look like a compact "HUD" control. */
 .zzx-hud-show{
   pointer-events:auto;
 
@@ -80,18 +87,26 @@
 
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   gap:.4rem;
-}
 
-/* Force label to "HUD" without requiring HTML edits */
-.zzx-hud-show{
   font-size:.95rem;
   letter-spacing:.02em;
+  white-space:nowrap;
 }
-.zzx-hud-show:hover{ border-color:var(--zzx-accent-alt); color:var(--zzx-accent-alt); }
+
+/* Optional: visually shorten label without HTML edits (works in most layouts).
+   If you truly need ONLY "HUD" text, do it in HTML; CSS can't replace text reliably. */
+.zzx-hud-show:hover{
+  border-color:var(--zzx-accent-alt);
+  color:var(--zzx-accent-alt);
+}
 
 /* -----------------------------
-   HUD root wrapper
+   HUD root wrapper / rail
+   Supports BOTH:
+   - .zzx-widgets__rail with [data-widget-slot]
+   - .btc-rail with .btc-slot[data-widget]
 ------------------------------ */
 [data-hud-root]{
   width:100%;
@@ -101,7 +116,7 @@
   box-sizing:border-box;
 }
 
-/* Hidden mode: hide ONLY the hud root (handle stays available via :has()) */
+/* Hidden mode: hide ONLY the hud root */
 [data-hud-root][data-hud-state="hidden"]{ display:none; }
 
 /* -----------------------------
@@ -113,6 +128,7 @@
   gap:.45rem;
   flex-wrap:wrap;
   justify-content:center;
+
   padding:.35rem .45rem;
   background:var(--zzx-bg);
   border:1px solid rgba(255,255,255,.10);
@@ -134,11 +150,13 @@
 .zzx-widgets__spacer{ flex:1 1 auto; min-width:1rem; }
 
 /* -----------------------------
-   Rail: responsive columns
-   - Ticker = full width (1 column, top)
+   Rail: responsive columns (slot conventions)
+   - Ticker = full width (top)
    - Middle widgets = 2-up mobile, 4-up desktop
-   - BitRNG = full width (1 column, bottom)
+   - BitRNG = full width (bottom)
 ------------------------------ */
+
+/* New rail (core) */
 .zzx-widgets__rail{
   display:flex;
   flex-wrap:wrap;
@@ -148,9 +166,28 @@
   width:100%;
 }
 
-/* Slot defaults: 2 columns on small screens */
+/* Wrapper rail (your current HUD shell) */
+.btc-rail{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:stretch;
+  gap:.6rem;
+  width:100%;
+}
+
+/* Slot defaults: 2 columns on small screens (core slots) */
 .zzx-widgets__rail > [data-widget-slot]{
   display:block;
+  box-sizing:border-box;
+  flex: 1 1 calc(50% - .6rem);
+  min-width: 260px;
+  max-width: 420px;
+}
+
+/* Slot defaults: 2 columns on small screens (wrapper slots) */
+.btc-rail > .btc-slot[data-widget]{
+  display:flex;
   box-sizing:border-box;
   flex: 1 1 calc(50% - .6rem);
   min-width: 260px;
@@ -163,22 +200,38 @@
     flex: 1 1 calc(25% - .6rem);
     max-width: 360px;
   }
+  .btc-rail > .btc-slot[data-widget]{
+    flex: 1 1 calc(25% - .6rem);
+    max-width: 360px;
+  }
 }
 
 /* Ticker always full width */
-.zzx-widgets__rail > [data-widget-slot="bitcoin-ticker"]{
+.zzx-widgets__rail > [data-widget-slot="bitcoin-ticker"],
+.btc-rail > .btc-slot[data-widget="bitcoin-ticker"]{
   flex: 1 1 100% !important;
   max-width: 100% !important;
+  justify-content:center;
 }
 
-/* BitRNG is the ONLY forced full-width bottom widget (per your instruction) */
-.zzx-widgets__rail > [data-widget-slot="bitrng"]{
+/* BitRNG only forced full width bottom widget */
+.zzx-widgets__rail > [data-widget-slot="bitrng"],
+.btc-rail > .btc-slot[data-widget="bitrng"]{
   flex: 1 1 100% !important;
   max-width: 100% !important;
+  justify-content:center;
+}
+
+/* Also keep runtime full width (control bar should span the rail) */
+.zzx-widgets__rail > [data-widget-slot="runtime"],
+.btc-rail > .btc-slot[data-widget="runtime"]{
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+  justify-content:center;
 }
 
 /* -----------------------------
-   Card base — supports both .zzx-card and .btc-card without forcing changes
+   Card base — supports both .zzx-card and .btc-card
 ------------------------------ */
 .zzx-card, .btc-card{
   background:var(--zzx-bg);
@@ -203,6 +256,7 @@
   overflow:hidden;
   text-overflow:ellipsis;
 }
+
 .zzx-card__value, .btc-card__value{
   font-size:1.35rem;
   line-height:1.2;
@@ -211,6 +265,7 @@
   overflow:hidden;
   text-overflow:ellipsis;
 }
+
 .zzx-card__sub, .btc-card__sub{
   font-size:.95rem;
   color:#b7bf9a;
@@ -222,10 +277,18 @@
 /* -----------------------------
    Mode: ticker-only
    - Hide everything except ticker slot
+   Works for BOTH slot conventions.
 ------------------------------ */
 [data-hud-root][data-hud-state="ticker-only"] .zzx-widgets__rail > [data-widget-slot]{
   display:none !important;
 }
 [data-hud-root][data-hud-state="ticker-only"] .zzx-widgets__rail > [data-widget-slot="bitcoin-ticker"]{
   display:block !important;
+}
+
+[data-hud-root][data-hud-state="ticker-only"] .btc-rail > .btc-slot[data-widget]{
+  display:none !important;
+}
+[data-hud-root][data-hud-state="ticker-only"] .btc-rail > .btc-slot[data-widget="bitcoin-ticker"]{
+  display:flex !important;
 }
