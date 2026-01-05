@@ -110,13 +110,26 @@
   white-space:nowrap;
 }
 
+/* ---------- IMPORTANT: let full-width cards actually be full-width ---------- */
+/* Runtime + ticker + bitrng cards should not be capped at 360px. */
+.btc-slot[data-widget="runtime"] .btc-card,
+.btc-slot[data-widget="bitcoin-ticker"] .btc-card,
+.btc-slot[data-widget="bitrng"] .btc-card{
+  max-width: 100% !important;
+}
+
 /* ---------- Ticker-only mode ---------- */
 /* Hide all widget cards… */
 [data-hud-root][data-hud-state="ticker-only"] .btc-card{
   display:none !important;
 }
 
-/* …but allow the ticker widget slot to still show its content. */
+/* …but ALWAYS keep the runtime control card visible so you can exit ticker-only. */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="runtime"] .btc-card{
+  display:block !important;
+}
+
+/* …and allow the ticker widget slot to still show its content. */
 [data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"] .btc-card{
   display:block !important;
 }
