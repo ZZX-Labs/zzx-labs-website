@@ -1,261 +1,192 @@
-// __partials/widgets/runtime.js
-// ZZX Widgets Runtime — SINGLE orchestrator (FINAL, HUD-FIXED)
-//
-// FIXES:
-// - HUD buttons now ACTUALLY change state
-// - Full / Ticker / Hide / Reset work deterministically
-// - State restored on reload
-// - bitcoin-ticker stays visible in ticker-only
-// - No layout / CSS / HTML changes
-// - No widget logic touched
+/* __partials/widgets/runtime/widget.js */
+/* DROP-IN REPLACEMENT (final hardened) */
+/* Purpose: HUD controls only. Manifest/widget mounting is handled by __partials/widgets/runtime.js */
 
 (function () {
+  "use strict";
+
   const W = window;
   const D = document;
 
-  if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
-  W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
+  // Idempotent boot
+  if (W.__ZZX_HUD_WIDGET_BOOTED) return;
+  W.__ZZX_HUD_WIDGET_BOOTED = true;
 
-  /* ------------------------------------------------------------------ */
-  /* Prefix + helpers                                                    */
-  /* ------------------------------------------------------------------ */
+  // ----------------------------
+  // Canonical HUD modes
+  // ----------------------------
+  const KEY = "zzx.hud.mode";
+  const DEFAULT_MODE = "full";
+  const VALID = new Set(["full", "ticker-only", "hidden"]);
 
-  function getPrefix() {
-    return (
-      W.ZZX?.PREFIX ||
-      document.documentElement?.getAttribute("data-zzx-prefix") ||
-      "."
-    );
+  const qs = (sel, scope) => (scope || D).querySelector(sel);
+
+  function normalizeMode(mode) {
+    // tolerate object payloads: { mode: "..." }
+    if (mode && typeof mode === "object" && "mode" in mode) mode = mode.mode;
+
+    let m = String(mode || "").trim().toLowerCase();
+
+    // Back-compat aliases you had floating around
+    if (m === "ticker") m = "ticker-only";
+    if (m === "show") m = "full";
+    if (m === "hide") m = "hidden";
+    if (m === "visible") m = "full";
+
+    return VALID.has(m) ? m : DEFAULT_MODE;
   }
 
-  function join(prefix, p) {
-    if (!p) return p;
-    if (/^https?:\/\//i.test(p)) return p;
-    if (!p.startsWith("/")) return p;
-    if (prefix === "/") return p;
-    const s = String(prefix || ".").replace(/\/+$/, "");
-    return (!s || s === ".") ? p : s + p;
-  }
-
-  function urlFor(p) {
-    return join(getPrefix(), p);
-  }
-
-  const qsVersion = (() => {
-    const v = document.querySelector('meta[name="asset-version"]')?.content;
-    return v ? `?v=${encodeURIComponent(v)}` : "";
-  })();
-
-  /* ------------------------------------------------------------------ */
-  /* Low-level loaders                                                   */
-  /* ------------------------------------------------------------------ */
-
-  function ensureCSSOnce(key, href) {
-    if (document.querySelector(`link[data-zzx-css="${key}"]`)) return;
-    const l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = href;
-    l.dataset.zzxCss = key;
-    document.head.appendChild(l);
-  }
-
-  function ensureJSOnce(key, src) {
-    if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
-      return Promise.resolve(true);
-    }
-    return new Promise((resolve) => {
-      const s = document.createElement("script");
-      s.src = src;
-      s.defer = true;
-      s.dataset.zzxJs = key;
-      s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
-      document.body.appendChild(s);
-    });
-  }
-
-  async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return r.text();
-  }
-
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return r.json();
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Wait for header / partials                                          */
-  /* ------------------------------------------------------------------ */
-
-  function waitForHeader(timeout = 2500) {
-    return new Promise((resolve) => {
-      const t0 = performance.now();
-      (function poll() {
-        const h = document.getElementById("zzx-header");
-        if (h && h.children.length) return resolve(true);
-        if (performance.now() - t0 > timeout) return resolve(false);
-        setTimeout(poll, 60);
-      })();
-    });
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* HUD STATE → DOM                                                     */
-  /* ------------------------------------------------------------------ */
-
-  function applyHUDMode(mode) {
-    const root   = D.querySelector("[data-hud-root]");
-    const handle = D.querySelector("[data-hud-handle]");
-    if (!root) return;
-
-    root.setAttribute("data-hud-state", mode);
-
-    if (handle) {
-      handle.style.display = (mode === "hidden") ? "flex" : "none";
-    }
-  }
-
-  function bindHUDControls() {
-    if (!W.ZZXHUD) return;
-
-    // mode buttons
-    D.querySelectorAll("[data-hud-mode]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const m = btn.getAttribute("data-hud-mode");
-        const s = W.ZZXHUD.write(m);
-        applyHUDMode(s.mode);
-      });
-    });
-
-    // reset
-    const reset = D.querySelector("[data-hud-action='reset']");
-    if (reset) {
-      reset.addEventListener("click", () => {
-        const s = W.ZZXHUD.reset();
-        applyHUDMode(s.mode);
-      });
+  // ----------------------------
+  // Ensure ZZXHUD exists (shim)
+  // ----------------------------
+  function ensureHUD() {
+    if (
+      W.ZZXHUD &&
+      typeof W.ZZXHUD.read === "function" &&
+      typeof W.ZZXHUD.write === "function" &&
+      typeof W.ZZXHUD.reset === "function"
+    ) {
+      // ensure normalize exists
+      if (typeof W.ZZXHUD.normalize !== "function") {
+        W.ZZXHUD.normalize = (m) => ({ mode: normalizeMode(m) });
+      }
+      return W.ZZXHUD;
     }
 
-    // show handle
-    const show = D.querySelector("[data-hud-show]");
-    if (show) {
-      show.addEventListener("click", () => {
-        const s = W.ZZXHUD.write("full");
-        applyHUDMode(s.mode);
-      });
-    }
-
-    // restore persisted state
-    const init = W.ZZXHUD.read();
-    applyHUDMode(init.mode);
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Widget registry (UNCHANGED logic)                                   */
-  /* ------------------------------------------------------------------ */
-
-  const REG = (W.__ZZX_REGISTRY_SINGLETON ||= {
-    defs: new Map(),
-    booted: new Set(),
-  });
-
-  function register(id, def) {
-    REG.defs.set(id, def);
-  }
-
-  function bootOne(id, slot, ctx) {
-    if (REG.booted.has(id)) return;
-    const def = REG.defs.get(id);
-    if (!def) return;
-
-    const root =
-      slot.querySelector("[data-widget-root]") ||
-      slot.firstElementChild ||
-      slot;
-
-    try {
-      if (typeof def === "function") def(root, ctx);
-      else if (def.start) def.start.call(def, root, ctx);
-      REG.booted.add(id);
-    } catch (e) {
-      console.warn("[HUD widget]", id, e);
-    }
-  }
-
-  W.__ZZX_WIDGETS ||= {};
-  W.__ZZX_WIDGETS.register = register;
-  W.__ZZX_WIDGETS.start = function () {
-    const ctx = {
-      api: {
-        COINBASE_SPOT: "https://api.coinbase.com/v2/prices/BTC-USD/spot",
-        MEMPOOL: "https://mempool.space/api",
-        ...(W.ZZX_API || {}),
+    // Minimal, deterministic shim
+    W.ZZXHUD = {
+      normalize: (m) => ({ mode: normalizeMode(m) }),
+      read: () => {
+        try {
+          return { mode: normalizeMode(localStorage.getItem(KEY)) };
+        } catch (_) {
+          return { mode: DEFAULT_MODE };
+        }
       },
-      fetchJSON,
-      fetchText,
-      urlFor,
-      now: () => Date.now(),
+      write: (m) => {
+        const mode = normalizeMode(m);
+        try { localStorage.setItem(KEY, mode); } catch (_) {}
+        return { mode };
+      },
+      reset: () => {
+        try { localStorage.removeItem(KEY); } catch (_) {}
+        return { mode: DEFAULT_MODE };
+      },
     };
 
-    document.querySelectorAll("[data-widget-slot]").forEach(slot => {
-      if (slot.dataset.mountReady !== "1") return;
-      const id = slot.getAttribute("data-widget-slot");
-      bootOne(id, slot, ctx);
-    });
-  };
-
-  /* ------------------------------------------------------------------ */
-  /* Mount widgets from manifest                                         */
-  /* ------------------------------------------------------------------ */
-
-  async function mountWidgets() {
-    const manifest = await fetchJSON(
-      urlFor(`/__partials/widgets/manifest.json${qsVersion}`)
-    );
-
-    const widgets = manifest.widgets
-      .filter(w => w.enabled !== false)
-      .sort((a, b) => (a.priority ?? 9999) - (b.priority ?? 9999));
-
-    for (const w of widgets) {
-      const slot = document.querySelector(`[data-widget-slot="${w.id}"]`);
-      if (!slot || slot.dataset.mounted === "1") continue;
-      slot.dataset.mounted = "1";
-
-      try {
-        slot.innerHTML = await fetchText(
-          urlFor(`/__partials/widgets/${w.id}/widget.html${qsVersion}`)
-        );
-        slot.dataset.mountReady = "1";
-      } catch (e) {
-        slot.dataset.mountReady = "0";
-        slot.innerHTML = `<div class="btc-card"><div>${w.id}</div><div>load failed</div></div>`;
-        continue;
-      }
-
-      ensureCSSOnce(`css:${w.id}`,
-        urlFor(`/__partials/widgets/${w.id}/widget.css${qsVersion}`)
-      );
-
-      await ensureJSOnce(`js:${w.id}`,
-        urlFor(`/__partials/widgets/${w.id}/widget.js${qsVersion}`)
-      );
-    }
-
-    W.__ZZX_WIDGETS.start();
+    return W.ZZXHUD;
   }
 
-  /* ------------------------------------------------------------------ */
-  /* BOOT                                                               */
-  /* ------------------------------------------------------------------ */
+  // ----------------------------
+  // Apply state -> DOM
+  // ----------------------------
+  function applyToDOM(mode) {
+    const m = normalizeMode(mode);
 
-  (async function boot() {
-    await waitForHeader();
-    bindHUDControls();
-    await mountWidgets();
-  })();
+    const root   = qs("[data-hud-root]");
+    const handle = qs("[data-hud-handle]");
+    const label  = qs("[data-runtime-mode]");
 
+    if (root) root.setAttribute("data-hud-state", m);
+
+    // Handle lives OUTSIDE the root in your wrapper, so JS controls it explicitly
+    if (handle) handle.style.display = (m === "hidden") ? "flex" : "none";
+
+    if (label) label.textContent = m;
+
+    return m;
+  }
+
+  function readMode() {
+    const HUD = ensureHUD();
+    try {
+      return normalizeMode(HUD.read());
+    } catch (_) {
+      // last-resort fallback to DOM
+      return normalizeMode(qs("[data-hud-root]")?.getAttribute("data-hud-state"));
+    }
+  }
+
+  function writeMode(mode) {
+    const HUD = ensureHUD();
+    const m = normalizeMode(mode);
+    try { HUD.write(m); } catch (_) {}
+    return applyToDOM(m);
+  }
+
+  function resetMode() {
+    const HUD = ensureHUD();
+    let res;
+    try { res = HUD.reset(); } catch (_) { res = { mode: DEFAULT_MODE }; }
+    return applyToDOM(res);
+  }
+
+  // ----------------------------
+  // Delegated bindings (works for late-injected DOM)
+  // ----------------------------
+  function bindDelegated() {
+    if (D.__zzxHudDelegatedBound) return;
+    D.__zzxHudDelegatedBound = true;
+
+    D.addEventListener("click", (ev) => {
+      const t = ev.target;
+
+      // Mode buttons (Full/Ticker/Hide)
+      const modeBtn = t && t.closest ? t.closest("[data-hud-mode]") : null;
+      if (modeBtn) {
+        ev.preventDefault();
+        writeMode(modeBtn.getAttribute("data-hud-mode"));
+        return;
+      }
+
+      // Reset button
+      const resetBtn = t && t.closest ? t.closest('[data-hud-action="reset"]') : null;
+      if (resetBtn) {
+        ev.preventDefault();
+        resetMode();
+        return;
+      }
+
+      // Handle/icon show button (bring HUD back)
+      const showBtn = t && t.closest ? t.closest("[data-hud-show]") : null;
+      if (showBtn) {
+        ev.preventDefault();
+        const cur = readMode();
+        writeMode(cur === "hidden" ? "full" : "hidden"); // toggle
+        return;
+      }
+
+      // If someone clicks the handle container itself, also show
+      const handle = t && t.closest ? t.closest("[data-hud-handle]") : null;
+      if (handle) {
+        // only do something if currently hidden
+        if (readMode() === "hidden") writeMode("full");
+      }
+    }, { passive: false });
+
+    // ESC hides (unless Credits modal open)
+    W.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+
+      const cm = D.getElementById("zzx-credits-modal");
+      if (cm && cm.hidden === false) return;
+
+      if (readMode() !== "hidden") writeMode("hidden");
+    });
+  }
+
+  // ----------------------------
+  // Init
+  // ----------------------------
+  function init() {
+    ensureHUD();
+    bindDelegated();
+    applyToDOM(readMode());
+  }
+
+  if (D.readyState === "loading") {
+    D.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
 })();
