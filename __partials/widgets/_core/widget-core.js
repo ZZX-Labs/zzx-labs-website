@@ -1,20 +1,27 @@
 // __partials/widgets/_core/widget-core.js
 // ZZX Widgets Core — MANIFEST-DRIVEN MOUNTER (DROP-IN REPLACEMENT)
 //
-// PRIMARY FIXES FOR YOUR CURRENT FAILURE MODE:
-// 1) Guarantees the shared primitives CSS is loaded (btc-card/rail/HUD wrapper styles)
-//    BEFORE/while widgets mount, so you don’t get “raw HTML flash then disappear”.
-// 2) Wraps each widget mount in a stable container:
-//        <div class="zzx-widget zzx-widget--<id>" data-widget-root="<id>" data-widget-id="<id>"> … </div>
-//    This gives CSS a reliable target and avoids "display: contents" / slot fragility issues.
-// 3) Adds a MutationObserver so if runtime reinjects the HUD shell (or replaces slots),
-//    the widgets re-mount (your previous slot.dataset flags would otherwise block).
-// 4) Keeps legacy shims (ZZXWidgets / ZZXWidgetRegistry) but does NOT introduce a second orchestrator.
-// 5) Maintains the required load order per widget: HTML -> CSS -> JS -> hooks.
+// KEEPING YOUR ARCHITECTURE EXACTLY:
+// - Core reads manifest.json and mounts ALL widgets into their respective slots.
+// - Each widget lives at: /__partials/widgets/<id>/widget.html|widget.css|widget.js
+// - Core is the orchestrator. No parallel registries/loaders.
+// - Preserve legacy shims (ZZXWidgets / ZZXWidgetRegistry / __ZZX_WIDGETS).
 //
-// EXPECTATIONS:
-// - Your HUD skeleton (runtime.html) provides [data-widget-slot="<id>"] for each widget.
-// - manifest.json matches your posted structure (version/defaultMode/widgets[]).
+// FIXES (minimal but decisive):
+// 1) ALWAYS load shared primitives CSS so injected widget HTML is styled.
+//    This addresses: “raw HTML, no CSS, flashes then disappears”.
+//      - /__partials/bitcoin-ticker-widget.css (btc-card primitives + HUD hide/show rules)
+//      - /__partials/widgets/_core/widget-core.css (core rail/layout)
+// 2) Wrap each mounted widget in a stable container so CSS can target reliably:
+//      <div class="zzx-widget zzx-widget--<id>" data-widget-root="<id>" data-widget-id="<id>">...</div>
+//    This also prevents slot fragility if widget HTML doesn't provide a root element.
+// 3) Add a MutationObserver so if runtime/partials reinject the HUD shell, Core remounts
+//    (your old slot.dataset guard blocks remount otherwise).
+//
+// IMPORTANT:
+// - This expects your HUD shell (runtime.html) exists in the DOM and contains
+//   [data-widget-slot="..."] elements for each widget id.
+// - If runtime.html is injected later (partials loader / ticker loader), Core waits & retries.
 
 (() => {
   const W = window;
@@ -76,40 +83,46 @@
   }
 
   function sanitizeClassToken(s) {
-    return String(s || "").trim().replace(/[^a-z0-9_-]/gi, "-").replace(/-+/g, "-");
+    return String(s || "")
+      .trim()
+      .replace(/[^a-z0-9_-]/gi, "-")
+      .replace(/-+/g, "-");
   }
 
-  // Stable wrapper per widget (gives CSS hooks and prevents slot fragility)
+  // Ensure a stable wrapper exists for each widget mount.
+  // This gives CSS a reliable target and avoids "slot-innerHTML replaces slot node" problems.
   function ensureWidgetWrapper(slot, widgetId) {
     const id = String(widgetId || "").trim();
     if (!slot || !id) return null;
 
-    // If wrapper already exists, use it.
-    let w = slot.querySelector(`[data-widget-root="${id}"]`);
+    // Prefer explicit wrapper in widget HTML if present (already mounted).
+    let w =
+      slot.querySelector(`[data-widget-root="${id}"]`) ||
+      slot.querySelector(`.zzx-widget[data-widget-id="${id}"]`);
+
     if (w) return w;
 
-    // Create wrapper
+    // Create wrapper and replace slot contents (slot remains in DOM).
     w = document.createElement("div");
     w.className = `zzx-widget zzx-widget--${sanitizeClassToken(id)}`;
     w.setAttribute("data-widget-root", id);
     w.setAttribute("data-widget-id", id);
 
-    // Do not destroy any existing nodes if present (rare); replace cleanly.
     slot.textContent = "";
     slot.appendChild(w);
-
     return w;
   }
 
-  // Root resolution for widget boot code
+  // More robust root resolution for widget boot code
   function getWidgetRoot(widgetId) {
     const slot = slotEl(widgetId);
     if (!slot) return null;
-    return (
+
+    const explicit =
       slot.querySelector(`[data-widget-root="${widgetId}"]`) ||
-      slot.querySelector(`.zzx-widget[data-widget-id="${widgetId}"]`) ||
-      slot
-    );
+      slot.querySelector(`.zzx-widget[data-widget-id="${widgetId}"]`);
+
+    return explicit || slot;
   }
 
   // ----------------------------
@@ -151,9 +164,11 @@
   // ----------------------------
   const _mountHooks = []; // {id|null, fn}
 
-  function onMount(a, b) {
+  function onMount(a, b, c) {
+    // Supports:
     // - onMount(fn)
     // - onMount("id", fn)
+    // - onMount("id", fn, {timeoutMs})  (timeout ignored here; mount order is deterministic)
     if (typeof a === "function") {
       _mountHooks.push({ id: null, fn: a });
       return;
@@ -175,7 +190,7 @@
   }
 
   // ----------------------------
-  // Legacy compatibility: registry shims
+  // Legacy compatibility: registry shims (NO second orchestrator)
   // ----------------------------
   const _legacyDefs = new Map(); // id -> def
 
@@ -194,6 +209,7 @@
     const root = getWidgetRoot(wid);
     if (!root) return false;
 
+    // prevent double init
     if (root.dataset.zzxLegacyBoot === "1") return true;
     root.dataset.zzxLegacyBoot = "1";
 
@@ -213,6 +229,7 @@
     return true;
   }
 
+  // Expose legacy globals (aliases)
   W.ZZXWidgets = W.ZZXWidgets || {};
   if (typeof W.ZZXWidgets.register !== "function") W.ZZXWidgets.register = legacyRegister;
   if (typeof W.ZZXWidgets.start !== "function") W.ZZXWidgets.start = legacyStartAll;
@@ -261,8 +278,7 @@
     const slot = slotEl(id);
     if (!slot) return; // no slot on this page (ok)
 
-    // If the slot was replaced, previous dataset flags are irrelevant.
-    // Use wrapper flag instead.
+    // wrapper-local mount guard (slot may be replaced later by partial reinjection)
     const wrapper = ensureWidgetWrapper(slot, id);
     if (!wrapper) return;
 
@@ -271,37 +287,39 @@
 
     const { html, css, js } = widgetUrls(id);
 
-    // 1) HTML -> goes into wrapper (NOT directly into slot)
+    // 1) HTML -> goes into wrapper
     try {
       const markup = await fetchText(html);
       wrapper.innerHTML = markup;
+      // keep id visible at slot level for devtools/debugging
+      slot.setAttribute("data-widget-id", id);
     } catch (e) {
       renderSlotError(wrapper, id, `HTML load failed (${e?.message || "unknown"})`);
       console.warn(`[HUD] ${id} html failed:`, e);
       return;
     }
 
-    // 2) CSS (optional, but must be prefixed correctly)
+    // 2) CSS (optional but should exist for consistent appearance)
     try {
       ensureCSSOnce(`wcss:${id}`, css);
     } catch (e) {
       console.warn(`[HUD] ${id} css inject failed:`, e);
     }
 
-    // 3) JS (AFTER HTML exists)
+    // 3) JS (must run AFTER HTML exists)
     const ok = await ensureScriptOnce(`wjs:${id}`, js);
     if (!ok) {
       console.warn(`[HUD] ${id} js failed to load: ${js}`);
-      // keep going; HTML+CSS still visible
+      // Keep going; HTML+CSS still visible.
     }
 
-    // 4) Fire onMount hooks
+    // 4) Fire lifecycle hooks (widgets using Core.onMount("id", ...) will boot here)
     try {
       const root = getWidgetRoot(id);
       fireMount(id, root);
     } catch (_) {}
 
-    // 5) Boot legacy-registered widget defs (if any)
+    // 5) Boot legacy-registered widgets (widgets using ZZXWidgets.register(...) boot here)
     try {
       legacyBootOne(id);
     } catch (_) {}
@@ -329,12 +347,13 @@
   }
 
   // ----------------------------
-  // Wait for HUD shell to exist, then mount all
+  // Wait for HUD shell (runtime.html) to exist, then mount all
   // ----------------------------
   async function waitForHudShell(timeoutMs = 8000) {
     const t0 = performance.now();
     return new Promise((resolve) => {
       (function tick() {
+        // HUD shell "present" if at least one widget slot exists.
         const anySlot = document.querySelector("[data-widget-slot]");
         if (anySlot) return resolve(true);
         if (performance.now() - t0 >= timeoutMs) return resolve(false);
@@ -343,12 +362,9 @@
     });
   }
 
-  // ----------------------------
-  // Boot
-  // ----------------------------
   async function boot() {
-    // SAFETY: ensure shared primitives CSS is present.
-    // This is the #1 reason you see “raw HTML / no css” even when JS runs.
+    // CRITICAL: shared primitives that your widgets rely on (btc-card, rail, HUD hide/show)
+    // This is the direct fix for “ticker html shows unstyled / disappears”.
     try { ensureCSSOnce("btc-wrapper", url("/__partials/bitcoin-ticker-widget.css")); } catch (_) {}
     try { ensureCSSOnce("zzx-core-css", url("/__partials/widgets/_core/widget-core.css")); } catch (_) {}
 
@@ -364,7 +380,7 @@
       manifest = await fetchJSON(MANIFEST_URL);
     } catch (e) {
       console.warn("[HUD] manifest.json failed:", e);
-      // Fallback: mount whatever slots exist
+      // Fallback: mount whatever slots exist on the page
       manifest = {
         widgets: qsa("[data-widget-slot]").map((el) => ({
           id: el.getAttribute("data-widget-slot"),
@@ -376,29 +392,37 @@
 
     await mountAllFromManifest(manifest);
 
-    // Some legacy scripts expect a final "start()"
+    // Final: some legacy scripts expect a "start()" call after everything is present.
     try { W.__ZZX_WIDGETS?.start?.(); } catch (_) {}
     try { W.ZZXWidgets?.start?.(); } catch (_) {}
     try { W.ZZXWidgetRegistry?.start?.(); } catch (_) {}
   }
 
   // ----------------------------
-  // Re-mount if runtime reinjects/replaces slots
+  // Observe reinjections: if runtime/partials replace the HUD slots, remount safely
   // ----------------------------
-  function observeHud() {
+  function observeHudSlots() {
+    // Avoid multiple observers if core is re-evaluated somehow
+    if (document.__zzxWidgetCoreObserver) return;
+
     const mo = new MutationObserver((mutations) => {
-      // If any widget slot is added or replaced, ensure it gets mounted.
       for (const m of mutations) {
         if (m.type !== "childList") continue;
 
+        // If new widget slots are added anywhere, remount idempotently.
         const added = Array.from(m.addedNodes || []);
         if (!added.length) continue;
 
-        // If any new [data-widget-slot] appears, boot/mount (idempotent).
-        const hasSlot =
-          added.some((n) => n.nodeType === 1 && (n.matches?.("[data-widget-slot]") || n.querySelector?.("[data-widget-slot]")));
+        const hasSlot = added.some((n) => {
+          if (n.nodeType !== 1) return false;
+          return (
+            (typeof n.matches === "function" && n.matches("[data-widget-slot]")) ||
+            (typeof n.querySelector === "function" && n.querySelector("[data-widget-slot]"))
+          );
+        });
+
         if (hasSlot) {
-          // Defer slightly so DOM settles
+          // Defer so DOM settles; boot is idempotent due to wrapper flags.
           setTimeout(() => { try { boot(); } catch (_) {} }, 0);
           break;
         }
@@ -406,6 +430,7 @@
     });
 
     mo.observe(document.documentElement, { childList: true, subtree: true });
+    document.__zzxWidgetCoreObserver = mo;
   }
 
   // ----------------------------
@@ -433,21 +458,24 @@
     // lifecycle
     onMount,
 
-    // legacy
+    // legacy registry helpers (compat)
     legacyRegister,
     legacyBootOne,
     legacyStartAll,
 
-    // orchestrator
+    // orchestrator (exposed for manual debugging)
     mountWidget,
     boot,
   };
 
-  // Boot once DOM is ready + observe reinjections
+  // Boot once DOM is ready + observe slot reinjections
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => { boot(); observeHud(); }, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+      boot();
+      observeHudSlots();
+    }, { once: true });
   } else {
     boot();
-    observeHud();
+    observeHudSlots();
   }
 })();
