@@ -1,33 +1,43 @@
+// __partials/widgets/btc-lost/widget.js
+// FIXED: unified-runtime compatible (NO UI / layout / behavior changes)
+
 (function () {
   const ID = "btc-lost";
 
-  function fmtBTC(x){
+  function fmtBTC(x) {
     if (!Number.isFinite(x)) return "—";
     return x.toLocaleString(undefined, { maximumFractionDigits: 8 });
   }
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
 
-  window.ZZXWidgetRegistry.register(ID, {
-    _root: null,
-    _core: null,
-    _data: null,
-    _page: 0,
-    _pageSize: 6,
+  window.ZZXWidgets.register(ID, {
+    mount(slotEl) {
+      this._root = slotEl;
+    },
 
-    async init({ root, core }) {
-      this._root = root;
-      this._core = core;
+    async start(ctx) {
+      this._ctx = ctx;
+      this._data = null;
+      this._page = 0;
+      this._pageSize = 6;
+
+      const root = this._root;
+      if (!root) return;
 
       root.querySelector("[data-prev]")?.addEventListener("click", () => {
         this._page = Math.max(0, this._page - 1);
         this.render();
       });
       root.querySelector("[data-next]")?.addEventListener("click", () => {
-        const maxPage = Math.max(0, Math.ceil((this._data?.items?.length || 0) / this._pageSize) - 1);
+        const maxPage = Math.max(
+          0,
+          Math.ceil((this._data?.items?.length || 0) / this._pageSize) - 1
+        );
         this._page = Math.min(maxPage, this._page + 1);
         this.render();
       });
@@ -37,20 +47,32 @@
     },
 
     async load() {
-      const prefix = this._core.getPrefix();
-      const url = this._core.join(prefix, `/__partials/widgets/btc-lost/btc-lost.json`);
+      const ctx = this._ctx;
+      const url = ctx?.urlFor
+        ? ctx.urlFor("/__partials/widgets/btc-lost/btc-lost.json")
+        : "/__partials/widgets/btc-lost/btc-lost.json";
+
       try {
-        this._data = await this._core.fetchJSON(url);
+        if (ctx?.fetchJSON) {
+          this._data = await ctx.fetchJSON(url);
+        } else {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          this._data = await r.json();
+        }
       } catch {
-        this._data = { updated: null, unit:"BTC", items: [] };
+        this._data = { updated: null, unit: "BTC", items: [] };
       }
     },
 
     render() {
-      const totalEl = this._root.querySelector("[data-total]");
-      const updEl = this._root.querySelector("[data-updated]");
-      const list = this._root.querySelector("[data-list]");
-      const meta = this._root.querySelector("[data-meta]");
+      const root = this._root;
+      if (!root) return;
+
+      const totalEl = root.querySelector("[data-total]");
+      const updEl = root.querySelector("[data-updated]");
+      const list = root.querySelector("[data-list]");
+      const meta = root.querySelector("[data-meta]");
       if (!list || !meta) return;
 
       const items = Array.isArray(this._data?.items) ? this._data.items : [];
@@ -65,12 +87,14 @@
       const start = this._page * this._pageSize;
       const slice = items.slice(start, start + this._pageSize);
 
-      list.innerHTML = slice.map(it => {
+      list.innerHTML = slice.map((it) => {
         const label = escapeHtml(it.label || "—");
         const btc = fmtBTC(Number(it.btc));
         const src = it.source ? String(it.source) : "";
         const when = it.when ? ` (${escapeHtml(it.when)})` : "";
-        const right = src ? `<a href="${src}" target="_blank" rel="noopener noreferrer">${btc} BTC</a>` : `${btc} BTC`;
+        const right = src
+          ? `<a href="${src}" target="_blank" rel="noopener noreferrer">${btc} BTC</a>`
+          : `${btc} BTC`;
         return `<div class="row"><span class="k">lost</span><span class="v">${label}${when} · ${right}</span></div>`;
       }).join("");
 
@@ -81,7 +105,6 @@
       meta.textContent = `page ${this._page + 1}/${maxPage + 1} · items ${items.length}`;
     },
 
-    tick(){},
-    destroy(){}
+    stop() {}
   });
 })();
