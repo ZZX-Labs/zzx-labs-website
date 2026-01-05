@@ -1,71 +1,63 @@
-// __partials/bitcoin-ticker-widget.js
-// DROP-IN REPLACEMENT
-//
-// Purpose (and ONLY purpose):
-// - Ensure the HUD boots via /static/js/modules/ticker-loader.js (prefix-aware)
-// - Do NOT load runtime.js directly (that breaks widget dependency order and causes duplicates)
-//
-// This file is a compatibility shim for legacy pages that still include
-// "__partials/bitcoin-ticker-widget.js". The real orchestrator is ticker-loader.js.
+<!-- __partials/bitcoin-ticker-widget.html (WRAPPER ONLY) -->
 
-(function () {
-  "use strict";
+<!-- HUD handle: ALWAYS visible even if HUD is hidden -->
+<div class="zzx-hud-handle" data-hud-handle>
+  <button type="button" class="zzx-hud-show" data-hud-show aria-label="Show Bitcoin HUD">
+    Show Bitcoin HUD
+  </button>
+</div>
 
-  const W = window;
+<!-- HUD root (the thing that gets hidden/collapsed) -->
+<div class="btc-rail" id="btc-rail" data-hud-root role="region" aria-label="Bitcoin dashboard widgets">
 
-  // prevent duplicate injection across reinjections / partial reloads
-  if (W.__ZZX_PARTIAL_TICKER_SHIM_BOOTED) return;
-  W.__ZZX_PARTIAL_TICKER_SHIM_BOOTED = true;
+  <!-- runtime FIRST: it binds buttons + state -->
+  <div class="btc-slot" data-widget="runtime"></div>
 
-  function getPrefix() {
-    const p = W.ZZX?.PREFIX;
-    return (typeof p === "string" && p.length) ? p : ".";
-  }
+  <div class="btc-slot" data-widget="bitcoin-ticker"></div>
 
-  function join(prefix, path) {
-    if (!path) return path;
-    if (/^https?:\/\//i.test(path)) return path;
-    if (prefix === "/") return path;
-    if (!String(path).startsWith("/")) return path;
-    return String(prefix).replace(/\/+$/, "") + path;
-  }
+  
+  <div class="btc-slot" data-widget="price-24h"></div>
+  <div class="btc-slot" data-widget="volume-24h"></div>
 
-  function ensureTickerLoader() {
-    // ticker-loader.js is the single source of truth now
-    if (document.querySelector('script[data-zzx-ticker-loader="1"]')) return;
+  <div class="btc-slot" data-widget="hashrate"></div>
+  <div class="btc-slot" data-widget="hashrate-by-nation"></div>
 
-    const prefix = getPrefix();
-    const src = join(prefix, "/static/js/modules/ticker-loader.js");
+  <div class="btc-slot" data-widget="nodes"></div>
+  <div class="btc-slot" data-widget="nodes-by-nation"></div>
 
-    const s = document.createElement("script");
-    s.src = src;
-    s.defer = true;
-    s.setAttribute("data-zzx-ticker-loader", "1");
-    document.body.appendChild(s);
-  }
+  <div class="btc-slot" data-widget="lightning"></div>
+  <div class="btc-slot" data-widget="lightning-detail"></div>
 
-  // If prefix already known, inject immediately.
-  // Otherwise, wait for partials-loader event (zzx:partials-ready).
-  if (W.ZZX?.PREFIX) {
-    ensureTickerLoader();
-    return;
-  }
+  <div class="btc-slot" data-widget="mempool"></div>
+  <div class="btc-slot" data-widget="fees"></div>
+  
+  <div class="btc-slot" data-widget="mempool-goggles"></div>
+  
+  <div class="btc-slot" data-widget="tip"></div>
+  <div class="btc-slot" data-widget="drift"></div>
 
-  let done = false;
+  <div class="btc-slot" data-widget="intel"></div>
+  <div class="btc-slot" data-widget="btc-intel"></div>
+  
+  <div class="btc-slot" data-widget="btc-repo"></div>
+  <div class="btc-slot" data-widget="btc-news"></div>
 
-  function finish() {
-    if (done) return;
-    done = true;
-    ensureTickerLoader();
-  }
+  <div class="btc-slot" data-widget="satoshi-quote"></div>
 
-  // Listen for partials-loader readiness
-  W.addEventListener("zzx:partials-ready", finish, { once: true });
+  <div class="btc-slot" data-widget="btc-halving-suite"></div>
+  
+  <div class="btc-slot" data-widget="btc-mined"></div>
+  <div class="btc-slot" data-widget="btc-to-mine"></div>
+  
+  <div class="btc-slot" data-widget="btc-blockexplorer"></div>
+  <div class="btc-slot" data-widget="btc-notabletxs"></div>
 
-  // Fallback: inject after DOM ready even if event never fires
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", finish, { once: true });
-  } else {
-    finish();
-  }
-})();
+  <div class="btc-slot" data-widget="bitrng"></div>
+
+  <div class="btc-slot" data-widget="btc-stolen"></div>
+  <div class="btc-slot" data-widget="btc-burned"></div>
+  <div class="btc-slot" data-widget="btc-lost"></div>
+
+  
+
+</div>
