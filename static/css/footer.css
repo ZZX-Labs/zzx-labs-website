@@ -151,3 +151,128 @@
         transition: none;
     }
 }
+
+/* static/css/footer.css  (DROP-IN ADDITIONS — paste at END) */
+
+/* Keep footer centered; topline is ALWAYS 1-column stack */
+.footer .container.footer-topline{
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: .6rem !important;
+  text-align: center !important;
+}
+
+/* Clean paragraph spacing */
+.footer-copy{ margin: 0; }
+
+/* Credits button centered */
+.footer-credits-btn{
+  justify-self: center;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.95rem;
+  color: #c0d674;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.footer-credits-btn:hover{ color:#e6a42b; text-decoration: underline; }
+.footer-credits-btn:focus-visible{
+  outline: none;
+  color: #000;
+  background-color: #e6a42b;
+  box-shadow: 0 0 0 2px #e6a42b;
+  border-radius: 3px;
+  padding: 0.1rem 0.2rem;
+}
+
+/* HR: consistent + centered */
+.footer hr{
+  border: 0;
+  border-top: 1px solid #3e3e3e;
+  max-width: 1200px;
+  margin: 1.25rem auto;
+}
+
+/* Resource columns layout (1 mobile, 3 desktop) without relying on <br><br> */
+.footer-columns{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  width: 100%;
+}
+@media (min-width: 1024px){
+  .footer-columns{
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  }
+}
+
+/* Credits modal */
+.zzx-credits-modal{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.62);
+  display: flex;
+  align-items: flex-end;      /* covers footer/bottom region visually */
+  justify-content: center;
+  z-index: 10000;             /* above HUD */
+  padding: 1rem;
+}
+
+.zzx-credits-dialog{
+  width: min(820px, 100%);
+  max-height: min(70vh, 680px);
+  background: #0b0b0b;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 10px 40px rgba(0,0,0,.55);
+  overflow: hidden;
+  color: #c0d674;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.zzx-credits-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .85rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.zzx-credits-head h2{
+  margin: 0;
+  font-size: 1.05rem;
+  color: #e6a42b;
+}
+
+.zzx-credits-x{
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.18);
+  color: #c0d674;
+  border-radius: 10px;
+  padding: .25rem .55rem;
+  cursor: pointer;
+}
+.zzx-credits-x:hover{ color:#e6a42b; border-color:#e6a42b; }
+
+.zzx-credits-body{
+  padding: 1rem;
+  overflow: auto;
+  max-height: calc(min(70vh, 680px) - 56px);
+}
+
+.zzx-credits-loading{
+  color: #b7bf9a;
+  font-size: .95rem;
+}
+
+/* Footer-only: ignore stray <br><br> in footer so grid stays clean */
+.footer br{ display: none; }
