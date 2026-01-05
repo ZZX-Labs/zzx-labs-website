@@ -1,10 +1,8 @@
+// __partials/widgets/btc-news/widget.js
+// Unified-runtime adapter (NO UI / layout / behavior changes)
+
 (function () {
   const ID = "btc-news";
-
-  // NOTE:
-  // - HN via Algolia works great.
-  // - RSS feeds vary by publisher; these are examples you can swap.
-  // - We filter titles to "bitcoin-ish" keywords to stay on-scope.
 
   const SOURCES = [
     { name: "HN", type: "hn" },
@@ -12,9 +10,9 @@
     { name: "Bitcoin Magazine", type: "rss", url: "https://bitcoinmagazine.com/.rss/full/" }
   ];
 
-  function escapeHtml(s){
+  function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
 
@@ -27,15 +25,26 @@
     })).filter(x => x.title && x.url);
   }
 
-  async function fetchHN(core) {
+  function isBitcoinTitle(t) {
+    return /bitcoin|btc|satoshi|lightning|bip|taproot|mempool|miners|halving|ordinals|ln\b/i.test(t);
+  }
+
+  async function fetchHN(ctx) {
     const q = "bitcoin OR satoshi OR lightning OR bips";
     const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story`;
-    const data = await core.fetchJSON(url);
+    const data = await ctx.fetchJSON(url);
     const hits = Array.isArray(data?.hits) ? data.hits : [];
     return hits.slice(0, 14).map(h => ({
       title: h.title || h.story_title || "—",
       url: h.url || h.story_url || `https://news.ycombinator.com/item?id=${h.objectID}`
     })).filter(x => x.title && x.url);
+  }
+
+  async function fetchRSSText(url) {
+    // Direct fetch; some feeds may block via CORS — fail soft
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`RSS HTTP ${r.status}`);
+    return await r.text();
   }
 
   function packTrack(items) {
@@ -44,20 +53,16 @@
     ).join("  ");
   }
 
-  function isBitcoinTitle(t){
-    return /bitcoin|btc|satoshi|lightning|bip|taproot|mempool|miners|halving|ordinals|ln\b/i.test(t);
-  }
+  window.ZZXWidgets.register(ID, {
+    mount(slotEl) {
+      this._root = slotEl;
+      this._i = 0;
+      this._cache = new Map();
+      this._lastSwap = 0;
+    },
 
-  window.ZZXWidgetRegistry.register(ID, {
-    _root: null,
-    _core: null,
-    _i: 0,
-    _cache: new Map(),
-    _lastSwap: 0,
-
-    async init({ root, core }) {
-      this._root = root;
-      this._core = core;
+    async start(ctx) {
+      this._ctx = ctx;
       await this.swapSource();
     },
 
@@ -65,8 +70,11 @@
       const src = SOURCES[this._i % SOURCES.length];
       this._i++;
 
-      const srcEl = this._root.querySelector("[data-src]");
-      const trackEl = this._root.querySelector("[data-track]");
+      const root = this._root;
+      if (!root) return;
+
+      const srcEl = root.querySelector("[data-src]");
+      const trackEl = root.querySelector("[data-track]");
       if (!srcEl || !trackEl) return;
 
       srcEl.textContent = src.name;
@@ -76,9 +84,9 @@
 
         if (!items || !items.length) {
           if (src.type === "hn") {
-            items = await fetchHN(this._core);
+            items = await fetchHN(this._ctx);
           } else {
-            const xml = await this._core.fetchAllOriginsText(src.url);
+            const xml = await fetchRSSText(src.url);
             items = parseRSS(xml).filter(x => isBitcoinTitle(x.title));
           }
           this._cache.set(src.name, items);
@@ -102,6 +110,6 @@
       this.swapSource();
     },
 
-    destroy() {}
+    stop() {}
   });
 })();
