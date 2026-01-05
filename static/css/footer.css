@@ -1,242 +1,34 @@
 /* =======================================================================
-   static/css/footer.css — DROP-IN PATCH (PASTE AT END)
-   Goal:
-   - Footer topline is ALWAYS centered
-   - Credits button sits BELOW the copyright line (still centered)
-   - Then <hr>
-   - Then resources: 1 column on mobile, 3 columns on desktop
-   - Ignores noisy <br><br> inside footer to keep grid clean
+   static/css/footer.css — DROP-IN REPLACEMENT (COMPLETE FILE)
+   ZZX-Labs R&D — footer rail-aligned to header/nav, credits button + modal,
+   NO bullets anywhere in footer links or credits content.
    ======================================================================= */
 
-/* -------------------------------------------------
-   FOOTER RAIL ALIGNMENT (match header)
--------------------------------------------------- */
-.footer > .container{
-  max-width: var(--header-rail, 1100px);
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: var(--rail-pad, 1rem);
-  padding-right: var(--rail-pad, 1rem);
-  box-sizing: border-box;
-}
-
-/* 1) Topline: force a stacked, centered layout */
-.footer .container.footer-topline{
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: .65rem !important;
-  align-items: center !important;
-  justify-items: center !important;
-  text-align: center !important;
-}
-
-/* tighten paragraph spacing */
-.footer .footer-copy{
-  margin: 0 !important;
-  max-width: 1100px;
-}
-
-/* 2) Credits button: centered UNDER the paragraph */
-.footer .footer-credits-btn{
-  justify-self: center !important;
-
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  margin: 0;
-
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.95rem;
-  color: #c0d674;
-  cursor: pointer;
-  line-height: 1.2;
-  white-space: nowrap;
-  text-decoration: none;
-}
-.footer .footer-credits-btn:hover{
-  color: #e6a42b;
-  text-decoration: underline;
-}
-.footer .footer-credits-btn:focus-visible{
-  outline: none;
-  color: #000;
-  background-color: #e6a42b;
-  box-shadow: 0 0 0 2px #e6a42b;
-  border-radius: 3px;
-  padding: 0.12rem 0.25rem;
-}
-
-/* 3) HR: consistent and centered */
-.footer hr{
-  border: 0;
-  border-top: 1px solid #3e3e3e;
-  max-width: 1200px;
-  margin: 1.25rem auto !important;
-}
-
-/* 4) Resource columns: 1 col mobile, 3 col desktop */
-.footer .footer-columns{
-  display: grid !important;
-  grid-template-columns: 1fr !important; /* mobile */
-  gap: 2rem !important;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-@media (min-width: 1024px){
-  .footer .footer-columns{
-    grid-template-columns: repeat(3, minmax(220px, 1fr)) !important;
-    text-align: left !important;
-  }
-}
-
-/* Column alignment: center on mobile, normal on desktop */
-@media (max-width: 1023px){
-  .footer .footer-column{ align-items: center; }
-}
-
-/* Optional: hide <br><br> inside footer so your grid doesn’t get wrecked */
-.footer br{ display: none !important; }
-
-/* =======================================================================
-   Credits Modal (matches your requirement: centered popup, X + ESC closes)
-   This expects your credits loader creates:
-   - .zzx-credits-modal overlay
-   - .zzx-credits-dialog dialog
-   - .zzx-credits-head header row
-   - .zzx-credits-x close button
-   - .zzx-credits-body scroll area
-   ======================================================================= */
-
-.zzx-credits-modal[hidden]{ display:none !important; }
-
-.zzx-credits-modal{
-  position: fixed;
-  inset: 0;
-  z-index: 100000; /* above HUD */
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;           /* covers footer/bottom part */
-  padding: 1rem;
-  background: rgba(0,0,0,.62);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-}
-
-.zzx-credits-dialog{
-  width: min(900px, 100%);
-  max-height: min(72vh, 720px);
-  background: #0b0b0b;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 14px 14px 0 0;
-  box-shadow: 0 18px 60px rgba(0,0,0,.55);
-  overflow: hidden;
-  color: #c0d674;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-}
-
-.zzx-credits-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.75rem;
-  padding:.85rem 1rem;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-}
-
-.zzx-credits-head h2{
-  margin:0;
-  font-size: 1.05rem;
-  color:#e6a42b;
-}
-
-.zzx-credits-x{
-  appearance:none;
-  -webkit-appearance:none;
-  background: rgba(0,0,0,.18);
-  border: 1px solid rgba(255,255,255,.18);
-  color:#c0d674;
-  border-radius: 10px;
-  padding:.25rem .6rem;
-  cursor:pointer;
-  line-height:1;
-}
-.zzx-credits-x:hover{
-  color:#e6a42b;
-  border-color:#e6a42b;
-}
-
-.zzx-credits-body{
-  padding: 1rem;
-  overflow:auto;
-  max-height: calc(min(72vh, 720px) - 58px);
-  color:#b7bf9a;
-}
-
-.zzx-credits-body a{ color:#c0d674; text-decoration:none; }
-.zzx-credits-body a:hover{ color:#e6a42b; text-decoration:underline; }
-
-@media (prefers-reduced-motion: reduce){
-  .zzx-credits-modal{ backdrop-filter:none; -webkit-backdrop-filter:none; }
-}
-
-/* ===== Credits button icon (ⓘ) ===== */
-
-.footer-credits-btn{
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-/* i-in-circle icon */
-.footer-credits-btn .credits-icon{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 1.1em;
-  height: 1.1em;
-
-  border-radius: 50%;
-  border: 1px solid currentColor;
-
-  font-size: 0.75em;
-  font-weight: 600;
-  line-height: 1;
-
-  transform: translateY(-0.02em); /* optical centering */
-}
-
-/* hover / focus inherits color automatically */
-.footer-credits-btn:hover .credits-icon{
-  border-color: currentColor;
-}
-
-.footer-links {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.footer-links li { margin: 0; }
-.footer-links li + li { margin-top: .35rem; } /* keep spacing */
-
-/* =======================================================================
-   footer.css — DROP-IN PATCH (PASTE AT END)
-   Align footer to header rail + fix credits modal selectors to match credits.js
-   ======================================================================= */
-
-/* -------------------------------------------------
-   FOOTER RAIL ALIGNMENT (match header rail math)
--------------------------------------------------- */
+/* ---------- rail vars (matches sitewide header rail) ---------- */
 :root{
   --header-rail: 1100px;
   --rail-pad: 1rem;
+
+  --footer-bg: #0b0b0b;
+  --footer-fg: #c0d674;
+  --footer-muted: #8a8f98;
+  --footer-line: rgba(255,255,255,.14);
+  --footer-accent: #e6a42b;
+  --footer-surface: rgba(255,255,255,.03);
 }
 
+/* =======================================================================
+   Footer base
+   ======================================================================= */
+.footer{
+  width: 100%;
+  background: var(--footer-bg);
+  color: var(--footer-fg);
+  padding: 1.5rem 0 1.25rem;
+  box-sizing: border-box;
+}
+
+/* Rail align footer containers to header/nav rail */
 .footer > .container{
   max-width: var(--header-rail);
   margin-left: auto;
@@ -246,41 +38,45 @@
   box-sizing: border-box;
 }
 
-/* -------------------------------------------------
-   1) Topline: stacked + centered (copy then button)
--------------------------------------------------- */
-.footer .container.footer-topline{
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: .65rem !important;
-  align-items: center !important;
-  justify-items: center !important;
-  text-align: center !important;
+/* =======================================================================
+   Topline (stacked, centered)
+   ======================================================================= */
+.footer .footer-topline{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .65rem;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
 }
 
 .footer .footer-copy{
-  margin: 0 !important;
+  margin: 0;
   width: 100%;
+  max-width: var(--header-rail);
+  color: var(--footer-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .9rem;
+  line-height: 1.4;
 }
 
-/* -------------------------------------------------
-   2) Credits button: centered UNDER paragraph
-   (no extra span needed)
--------------------------------------------------- */
+/* Credits button under copyright (centered) */
 .footer #footer-credits-btn.footer-credits-btn{
-  justify-self: center !important;
+  justify-self: center;
 
   appearance: none;
   -webkit-appearance: none;
-  background: transparent;
   border: 0;
+  background: transparent;
   padding: 0;
   margin: 0;
 
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.95rem;
-  color: #c0d674;
+  color: var(--footer-fg);
   cursor: pointer;
+  user-select: none;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .95rem;
   line-height: 1.2;
   white-space: nowrap;
   text-decoration: none;
@@ -290,8 +86,7 @@
   gap: .45rem;
 }
 
-/* If you want an icon without changing markup:
-   add a leading ⓘ via CSS (Unicode only) */
+/* If your button text already contains [ⓘ], delete this ::before block */
 .footer #footer-credits-btn.footer-credits-btn::before{
   content: "ⓘ";
   display: inline-block;
@@ -300,65 +95,81 @@
 }
 
 .footer #footer-credits-btn.footer-credits-btn:hover{
-  color: #e6a42b;
+  color: var(--footer-accent);
   text-decoration: underline;
 }
 
 .footer #footer-credits-btn.footer-credits-btn:focus-visible{
   outline: none;
   color: #000;
-  background-color: #e6a42b;
-  box-shadow: 0 0 0 2px #e6a42b;
+  background-color: var(--footer-accent);
+  box-shadow: 0 0 0 2px var(--footer-accent);
   border-radius: 3px;
   padding: 0.12rem 0.25rem;
 }
 
-/* -------------------------------------------------
-   3) HR: centered to rail (don’t exceed rail)
--------------------------------------------------- */
+/* =======================================================================
+   HR
+   ======================================================================= */
 .footer hr{
   border: 0;
-  border-top: 1px solid rgba(255,255,255,.14);
+  border-top: 1px solid var(--footer-line);
   max-width: var(--header-rail);
-  margin: 1.25rem auto !important;
+  margin: 1.25rem auto;
 }
 
-/* -------------------------------------------------
-   4) Resource columns: 1 col mobile, 3 col desktop
--------------------------------------------------- */
+/* =======================================================================
+   Footer columns
+   ======================================================================= */
 .footer .footer-columns{
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: 2rem !important;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
   width: 100%;
   text-align: center;
 }
 
 @media (min-width: 1024px){
   .footer .footer-columns{
-    grid-template-columns: repeat(3, minmax(220px, 1fr)) !important;
-    text-align: left !important;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    text-align: left;
   }
 }
 
-/* Kill bullets + keep spacing without list markers */
-.footer .footer-links{
-  list-style: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
+.footer .footer-column h4{
+  margin: 0 0 .65rem;
+  color: #fff;
+  font-weight: 650;
+  letter-spacing: .02em;
 }
 
-.footer .footer-links li{ margin: 0 !important; }
-.footer .footer-links li + li{ margin-top: .35rem !important; }
+/* NO bullets anywhere */
+.footer .footer-links{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
-/* Optional: ignore noisy br in footer only */
+.footer .footer-links li{ margin: 0; }
+.footer .footer-links li + li{ margin-top: .35rem; }
+
+.footer .footer-links a{
+  color: var(--footer-fg);
+  opacity: .9;
+  text-decoration: none;
+}
+
+.footer .footer-links a:hover{
+  color: var(--footer-accent);
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* Prevent stray <br> from wrecking layout */
 .footer br{ display: none !important; }
 
-/* Add a touch of bottom padding so nothing hugs the viewport */
-.footer{ padding-bottom: 1.25rem; }
-
 /* =======================================================================
-   CREDITS MODAL — MATCHES YOUR credits.js GENERATED DOM
+   Credits modal — matches credits.js DOM
    credits.js creates:
      #zzx-credits-modal
        #zzx-credits-dialog
@@ -387,13 +198,14 @@
 #zzx-credits-dialog{
   width: min(var(--header-rail), 96vw);
   max-height: min(72vh, 720px);
-  background: #0b0b0b;
+
+  background: var(--footer-bg);
   border: 1px solid rgba(255,255,255,.18);
   border-radius: 14px;
   box-shadow: 0 18px 60px rgba(0,0,0,.55);
   overflow: hidden;
 
-  color: #c0d674;
+  color: var(--footer-fg);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
@@ -409,7 +221,8 @@
 #zzx-credits-dialog .zzx-credits__title{
   margin:0;
   font-size: 1.05rem;
-  color:#e6a42b;
+  line-height: 1.2;
+  color: var(--footer-accent);
 }
 
 #zzx-credits-dialog .zzx-credits__close{
@@ -417,7 +230,7 @@
   -webkit-appearance:none;
   background: rgba(0,0,0,.18);
   border: 1px solid rgba(255,255,255,.18);
-  color:#c0d674;
+  color: var(--footer-fg);
   border-radius: 10px;
   padding:.25rem .6rem;
   cursor:pointer;
@@ -425,20 +238,81 @@
 }
 
 #zzx-credits-dialog .zzx-credits__close:hover{
-  color:#e6a42b;
-  border-color:#e6a42b;
+  color: var(--footer-accent);
+  border-color: var(--footer-accent);
+}
+
+#zzx-credits-dialog .zzx-credits__close:focus-visible{
+  outline: 2px solid var(--footer-accent);
+  outline-offset: 2px;
 }
 
 #zzx-credits-body{
   padding: 1rem;
   overflow:auto;
   max-height: calc(min(72vh, 720px) - 58px);
-  color:#b7bf9a;
+  color: #b7bf9a;
 }
 
-#zzx-credits-body a{ color:#c0d674; text-decoration:none; }
-#zzx-credits-body a:hover{ color:#e6a42b; text-decoration:underline; }
+#zzx-credits-body a{ color: var(--footer-fg); text-decoration:none; }
+#zzx-credits-body a:hover{ color: var(--footer-accent); text-decoration:underline; }
 
+/* -----------------------------------------------------------------------
+   Credits content helpers (NO bullets anywhere in credits.html)
+   ----------------------------------------------------------------------- */
+#zzx-credits-body ul,
+#zzx-credits-body ol{
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#zzx-credits-body li{ margin: 0 !important; }
+#zzx-credits-body li + li{ margin-top: .45rem !important; }
+
+#zzx-credits-body hr{
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,.10);
+  margin: 1rem 0;
+}
+
+#zzx-credits-body h1,
+#zzx-credits-body h2,
+#zzx-credits-body h3,
+#zzx-credits-body h4{
+  color: var(--footer-accent);
+  margin: .35rem 0 .55rem;
+  line-height: 1.2;
+}
+
+#zzx-credits-body p{
+  margin: .35rem 0 .75rem;
+  color: #b7bf9a;
+}
+
+/* Optional “card rows” if your credits.html uses these classes */
+#zzx-credits-body .zzx-credits-list{ display: grid; gap: .55rem; }
+#zzx-credits-body .zzx-credits-row{
+  padding: .55rem .65rem;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  background: rgba(0,0,0,.18);
+}
+#zzx-credits-body .zzx-credits-name{
+  color: var(--footer-accent);
+  font-weight: 700;
+  margin-bottom: .15rem;
+}
+#zzx-credits-body .zzx-credits-meta{
+  color: #b7bf9a;
+  font-size: .95rem;
+  line-height: 1.35;
+}
+
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce){
-  #zzx-credits-modal{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+  #zzx-credits-modal{
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
