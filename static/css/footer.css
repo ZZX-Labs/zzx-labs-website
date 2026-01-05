@@ -1,278 +1,173 @@
-/* static/css/footer.css
-   DROP-IN PATCH (keeps your footer centered; fixes the flow you want)
+/* =======================================================================
+   static/css/footer.css — DROP-IN PATCH (PASTE AT END)
+   Goal:
+   - Footer topline is ALWAYS centered
+   - Credits button sits BELOW the copyright line (still centered)
+   - Then <hr>
+   - Then resources: 1 column on mobile, 3 columns on desktop
+   - Ignores noisy <br><br> inside footer to keep grid clean
+   ======================================================================= */
 
-   REQUIRED STRUCTURE (from your description):
-   1) Footer "header" (copyright paragraph) centered
-   2) Credits button centered BELOW that (links to /__partials/credits/)
-   3) <hr>
-   4) Resource columns: 1 column mobile, 3 columns desktop
-*/
-
-/* ========== FOOTER SECTION ========== */
-.footer {
-    background-color: #333;
-    color: #d1d1d1;
-    padding: 3rem 1rem;
-    width: 100%;
-    box-sizing: border-box;
-    border-top: 1px solid #3e3e3e;
-}
-
-/* ---------- NEW: dedicated top block (centered, single column always) ---------- */
-.footer-top{
-    max-width: 1200px;
-    margin: 0 auto;
-    text-align: center;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: .75rem;
-}
-
-/* paragraph inside the top block */
-.footer-top p{
-    margin: 0;
-}
-
-/* Credits button/link centered beneath the paragraph */
-.footer-credits-btn{
-    justify-self: center;
-    appearance: none;
-    -webkit-appearance: none;
-
-    background: transparent;
-    border: 0;
-    padding: 0;
-    margin: 0;
-
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.95rem;
-    color: #c0d674;
-    cursor: pointer;
-    line-height: 1.2;
-    text-decoration: none; /* if you use <a> */
-}
-
-.footer-credits-btn:hover{
-    color: #e6a42b;
-    text-decoration: underline;
-}
-
-.footer-credits-btn:focus-visible{
-    outline: none;
-    color: #000;
-    background-color: #e6a42b;
-    box-shadow: 0 0 0 2px #e6a42b;
-    border-radius: 3px;
-    padding: 0.1rem 0.2rem;
-}
-
-/* HR (kept centered + consistent) */
-.footer hr{
-    border: 0;
-    border-top: 1px solid #3e3e3e;
-    max-width: 1200px;
-    margin: 1.25rem auto;
-}
-
-/* ---------- Resource columns container: 1 col mobile, 3 col desktop ---------- */
-.footer .container {
-    margin-inline: auto;
-    max-width: 1200px;
-
-    display: grid;
-    grid-template-columns: 1fr;   /* ✅ 1 column on mobile */
-    gap: 2rem;
-    text-align: center;           /* ✅ centered on mobile */
-}
-
-@media (min-width: 1024px) {
-    .footer .container {
-        grid-template-columns: repeat(3, minmax(220px, 1fr)); /* ✅ 3 columns desktop */
-        text-align: left;                                     /* ✅ readable lists */
-    }
-}
-
-/* Footer Column */
-.footer-column {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
-/* Headings */
-.footer-column h4 {
-    font-family: 'Adult Swim Font', 'IBM Plex Mono', monospace;
-    font-size: 1.4rem;
-    color: #e6a42b;
-    margin-bottom: 0.75rem;
-    line-height: 1.2;
-}
-
-/* Links */
-.footer-links {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.footer-links li { margin-bottom: 0.5rem; }
-.footer-links a {
-    font-family: 'IBM Plex Mono', monospace;
-    color: #c0d674;
-    font-size: 0.95rem;
-    text-decoration: none;
-    transition: color 0.2s ease, text-decoration 0.2s ease, box-shadow 0.2s ease;
-    border-radius: 3px;
-    padding: 0.1rem 0.2rem;
-}
-.footer-links a:hover {
-    color: #e6a42b;
-    text-decoration: underline;
-}
-.footer-links a:focus-visible {
-    color: #000;
-    background-color: #e6a42b;
-    box-shadow: 0 0 0 2px #e6a42b;
-}
-
-/* Optional: center columns on mobile (keeps your existing behavior) */
-@media (max-width: 768px) {
-    .footer {
-        padding: 2.5rem 1rem;
-    }
-    .footer-column {
-        align-items: center;
-    }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-    .footer-links a {
-        transition: none;
-    }
-}
-
-/* static/css/footer.css  (DROP-IN ADDITIONS — paste at END) */
-
-/* Keep footer centered; topline is ALWAYS 1-column stack */
+/* 1) Topline: force a stacked, centered layout */
 .footer .container.footer-topline{
   display: grid !important;
   grid-template-columns: 1fr !important;
-  gap: .6rem !important;
+  gap: .65rem !important;
+  align-items: center !important;
+  justify-items: center !important;
   text-align: center !important;
 }
 
-/* Clean paragraph spacing */
-.footer-copy{ margin: 0; }
+/* tighten paragraph spacing */
+.footer .footer-copy{
+  margin: 0 !important;
+  max-width: 1100px;
+}
 
-/* Credits button centered */
-.footer-credits-btn{
-  justify-self: center;
+/* 2) Credits button: centered UNDER the paragraph */
+.footer .footer-credits-btn{
+  justify-self: center !important;
+
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
   border: 0;
   padding: 0;
   margin: 0;
-  font-family: 'IBM Plex Mono', monospace;
+
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.95rem;
   color: #c0d674;
   cursor: pointer;
   line-height: 1.2;
   white-space: nowrap;
+  text-decoration: none;
 }
-.footer-credits-btn:hover{ color:#e6a42b; text-decoration: underline; }
-.footer-credits-btn:focus-visible{
+.footer .footer-credits-btn:hover{
+  color: #e6a42b;
+  text-decoration: underline;
+}
+.footer .footer-credits-btn:focus-visible{
   outline: none;
   color: #000;
   background-color: #e6a42b;
   box-shadow: 0 0 0 2px #e6a42b;
   border-radius: 3px;
-  padding: 0.1rem 0.2rem;
+  padding: 0.12rem 0.25rem;
 }
 
-/* HR: consistent + centered */
+/* 3) HR: consistent and centered */
 .footer hr{
   border: 0;
   border-top: 1px solid #3e3e3e;
   max-width: 1200px;
-  margin: 1.25rem auto;
+  margin: 1.25rem auto !important;
 }
 
-/* Resource columns layout (1 mobile, 3 desktop) without relying on <br><br> */
-.footer-columns{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2rem;
+/* 4) Resource columns: 1 col mobile, 3 col desktop */
+.footer .footer-columns{
+  display: grid !important;
+  grid-template-columns: 1fr !important; /* mobile */
+  gap: 2rem !important;
   width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
 }
+
 @media (min-width: 1024px){
-  .footer-columns{
-    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  .footer .footer-columns{
+    grid-template-columns: repeat(3, minmax(220px, 1fr)) !important;
+    text-align: left !important;
   }
 }
 
-/* Credits modal */
+/* Column alignment: center on mobile, normal on desktop */
+@media (max-width: 1023px){
+  .footer .footer-column{ align-items: center; }
+}
+
+/* Optional: hide <br><br> inside footer so your grid doesn’t get wrecked */
+.footer br{ display: none !important; }
+
+/* =======================================================================
+   Credits Modal (matches your requirement: centered popup, X + ESC closes)
+   This expects your credits loader creates:
+   - .zzx-credits-modal overlay
+   - .zzx-credits-dialog dialog
+   - .zzx-credits-head header row
+   - .zzx-credits-x close button
+   - .zzx-credits-body scroll area
+   ======================================================================= */
+
+.zzx-credits-modal[hidden]{ display:none !important; }
+
 .zzx-credits-modal{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.62);
+  z-index: 100000; /* above HUD */
   display: flex;
-  align-items: flex-end;      /* covers footer/bottom region visually */
   justify-content: center;
-  z-index: 10000;             /* above HUD */
+  align-items: flex-end;           /* covers footer/bottom part */
   padding: 1rem;
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 .zzx-credits-dialog{
-  width: min(820px, 100%);
-  max-height: min(70vh, 680px);
+  width: min(900px, 100%);
+  max-height: min(72vh, 720px);
   background: #0b0b0b;
   border: 1px solid rgba(255,255,255,.18);
-  border-radius: 12px 12px 0 0;
-  box-shadow: 0 10px 40px rgba(0,0,0,.55);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
   overflow: hidden;
   color: #c0d674;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 .zzx-credits-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  padding: .85rem 1rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:.85rem 1rem;
   border-bottom: 1px solid rgba(255,255,255,.12);
 }
 
 .zzx-credits-head h2{
-  margin: 0;
+  margin:0;
   font-size: 1.05rem;
-  color: #e6a42b;
+  color:#e6a42b;
 }
 
 .zzx-credits-x{
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
+  appearance:none;
+  -webkit-appearance:none;
+  background: rgba(0,0,0,.18);
   border: 1px solid rgba(255,255,255,.18);
-  color: #c0d674;
+  color:#c0d674;
   border-radius: 10px;
-  padding: .25rem .55rem;
-  cursor: pointer;
+  padding:.25rem .6rem;
+  cursor:pointer;
+  line-height:1;
 }
-.zzx-credits-x:hover{ color:#e6a42b; border-color:#e6a42b; }
+.zzx-credits-x:hover{
+  color:#e6a42b;
+  border-color:#e6a42b;
+}
 
 .zzx-credits-body{
   padding: 1rem;
-  overflow: auto;
-  max-height: calc(min(70vh, 680px) - 56px);
+  overflow:auto;
+  max-height: calc(min(72vh, 720px) - 58px);
+  color:#b7bf9a;
 }
 
-.zzx-credits-loading{
-  color: #b7bf9a;
-  font-size: .95rem;
-}
+.zzx-credits-body a{ color:#c0d674; text-decoration:none; }
+.zzx-credits-body a:hover{ color:#e6a42b; text-decoration:underline; }
 
-/* Footer-only: ignore stray <br><br> in footer so grid stays clean */
-.footer br{ display: none; }
+@media (prefers-reduced-motion: reduce){
+  .zzx-credits-modal{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+}
