@@ -1,28 +1,30 @@
 /* =======================================================================
    static/css/footer.css — DROP-IN REPLACEMENT (COMPLETE FILE)
-   ZZX-Labs R&D — footer rail-aligned to header/nav, credits button + modal,
-   NO bullets anywhere in footer links or credits content.
+   Fixes:
+   - Footer rail-aligned to header/nav
+   - Topline centered; credits button perfectly centered under copy
+   - Columns: headings can be centered on mobile + optionally centered on desktop
+   - No bullets in footer or credits
+   - Does NOT darken footer: inherits your existing footer background
    ======================================================================= */
 
-/* ---------- rail vars (matches sitewide header rail) ---------- */
 :root{
   --header-rail: 1100px;
   --rail-pad: 1rem;
 
-  --footer-bg: #0b0b0b;
+  /* colors intentionally NOT forcing a darker footer anymore */
   --footer-fg: #c0d674;
   --footer-muted: #8a8f98;
   --footer-line: rgba(255,255,255,.14);
   --footer-accent: #e6a42b;
-  --footer-surface: rgba(255,255,255,.03);
 }
 
 /* =======================================================================
-   Footer base
+   Footer base (DO NOT override background — keeps your existing look)
    ======================================================================= */
 .footer{
   width: 100%;
-  background: var(--footer-bg);
+  /* background: (inherit) */
   color: var(--footer-fg);
   padding: 1.5rem 0 1.25rem;
   box-sizing: border-box;
@@ -60,7 +62,7 @@
   line-height: 1.4;
 }
 
-/* Credits button under copyright (centered) */
+/* Credits button under copy (centered, with balanced icon) */
 .footer #footer-credits-btn.footer-credits-btn{
   justify-self: center;
 
@@ -83,15 +85,29 @@
 
   display: inline-flex;
   align-items: center;
+  justify-content: center; /* centers icon+text as a unit */
   gap: .45rem;
 }
 
-/* If your button text already contains [ⓘ], delete this ::before block */
+/* IMPORTANT:
+   If your button text already includes "[ⓘ]" then remove this ::before block
+   (or you'll get double icon / spacing drift). */
 .footer #footer-credits-btn.footer-credits-btn::before{
-  content: "ⓘ";
-  display: inline-block;
-  transform: translateY(-0.02em);
-  opacity: .95;
+  content: "i";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+
+  font-size: .78em;
+  font-weight: 700;
+  line-height: 1;
+
+  transform: translateY(-0.03em); /* optical centering */
 }
 
 .footer #footer-credits-btn.footer-credits-btn:hover{
@@ -126,21 +142,30 @@
   grid-template-columns: 1fr;
   gap: 2rem;
   width: 100%;
-  text-align: center;
+  text-align: center; /* mobile: centered */
 }
 
 @media (min-width: 1024px){
   .footer .footer-columns{
     grid-template-columns: repeat(3, minmax(220px, 1fr));
-    text-align: left;
+    text-align: center; /* DESKTOP: keep headings/links centered to fix “Legal off-kilter” */
   }
 }
 
+/* Make each column a centered stack (this fixes the “Legal” column drifting) */
+.footer .footer-column{
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* ensures h4 and links align to same center line */
+}
+
+/* Column headings */
 .footer .footer-column h4{
   margin: 0 0 .65rem;
   color: #fff;
   font-weight: 650;
   letter-spacing: .02em;
+  text-align: center;
 }
 
 /* NO bullets anywhere */
@@ -148,10 +173,12 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  gap: .35rem;
+  justify-items: center; /* center the links under headings */
 }
 
 .footer .footer-links li{ margin: 0; }
-.footer .footer-links li + li{ margin-top: .35rem; }
 
 .footer .footer-links a{
   color: var(--footer-fg);
@@ -170,13 +197,6 @@
 
 /* =======================================================================
    Credits modal — matches credits.js DOM
-   credits.js creates:
-     #zzx-credits-modal
-       #zzx-credits-dialog
-         .zzx-credits__head
-           .zzx-credits__title
-           .zzx-credits__close
-         #zzx-credits-body
    ======================================================================= */
 
 #zzx-credits-modal[hidden]{ display:none !important; }
@@ -199,7 +219,8 @@
   width: min(var(--header-rail), 96vw);
   max-height: min(72vh, 720px);
 
-  background: var(--footer-bg);
+  /* do not force dark footer tone; modal can be dark independently */
+  background: #0b0b0b;
   border: 1px solid rgba(255,255,255,.18);
   border-radius: 14px;
   box-shadow: 0 18px 60px rgba(0,0,0,.55);
@@ -242,11 +263,6 @@
   border-color: var(--footer-accent);
 }
 
-#zzx-credits-dialog .zzx-credits__close:focus-visible{
-  outline: 2px solid var(--footer-accent);
-  outline-offset: 2px;
-}
-
 #zzx-credits-body{
   padding: 1rem;
   overflow:auto;
@@ -257,9 +273,7 @@
 #zzx-credits-body a{ color: var(--footer-fg); text-decoration:none; }
 #zzx-credits-body a:hover{ color: var(--footer-accent); text-decoration:underline; }
 
-/* -----------------------------------------------------------------------
-   Credits content helpers (NO bullets anywhere in credits.html)
-   ----------------------------------------------------------------------- */
+/* no bullets in credits content */
 #zzx-credits-body ul,
 #zzx-credits-body ol{
   list-style: none !important;
@@ -290,26 +304,6 @@
   color: #b7bf9a;
 }
 
-/* Optional “card rows” if your credits.html uses these classes */
-#zzx-credits-body .zzx-credits-list{ display: grid; gap: .55rem; }
-#zzx-credits-body .zzx-credits-row{
-  padding: .55rem .65rem;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 10px;
-  background: rgba(0,0,0,.18);
-}
-#zzx-credits-body .zzx-credits-name{
-  color: var(--footer-accent);
-  font-weight: 700;
-  margin-bottom: .15rem;
-}
-#zzx-credits-body .zzx-credits-meta{
-  color: #b7bf9a;
-  font-size: .95rem;
-  line-height: 1.35;
-}
-
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce){
   #zzx-credits-modal{
     backdrop-filter: none;
