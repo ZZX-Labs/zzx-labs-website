@@ -36,6 +36,8 @@
 
     // tolerate aliases
     if (s === "ticker-only") return "ticker";
+    if (s === "ticker_only") return "ticker";
+    if (s === "tickeronly") return "ticker";
     if (s === "visible") return "full";
 
     return HUD_DEFAULT_MODE;
@@ -58,26 +60,47 @@
   function ensureZZXHUD() {
     // If you have hud-state.js, keep it, but force sane normalization/aliases.
     if (W.ZZXHUD && typeof W.ZZXHUD.read === "function" && typeof W.ZZXHUD.write === "function") {
-      const origRead = W.ZZXHUD.read.bind(W.ZZXHUD);
-      const origWrite = W.ZZXHUD.write.bind(W.ZZXHUD);
+      // Wrap ONLY ONCE
+      if (!W.ZZXHUD.__zzxRuntimeWrapped) {
+        const origRead  = W.ZZXHUD.read.bind(W.ZZXHUD);
+        const origWrite = W.ZZXHUD.write.bind(W.ZZXHUD);
+        const origReset = (typeof W.ZZXHUD.reset === "function") ? W.ZZXHUD.reset.bind(W.ZZXHUD) : null;
 
-      // Wrap read/write so ticker-only always becomes ticker internally.
-      W.ZZXHUD.read = function () {
-        const r = origRead();
-        return { mode: normalizeMode(r && r.mode) };
-      };
-      W.ZZXHUD.write = function (m) {
-        const r = origWrite(normalizeMode(m));
-        return { mode: normalizeMode(r && r.mode) };
-      };
+        W.ZZXHUD.read = function () {
+          const r = origRead();
+          return { mode: normalizeMode(r && r.mode) };
+        };
 
-      if (!W.ZZXHUD.normalize) W.ZZXHUD.normalize = normalizeMode;
-      if (!W.ZZXHUD.reset) W.ZZXHUD.reset = function () { return this.write(HUD_DEFAULT_MODE); };
+        W.ZZXHUD.write = function (m) {
+          const r = origWrite(normalizeMode(m));
+          return { mode: normalizeMode(r && r.mode) };
+        };
+
+        if (!W.ZZXHUD.reset) {
+          W.ZZXHUD.reset = function () {
+            try { localStorage.removeItem(HUD_STORAGE_KEY); } catch (_) {}
+            // If underlying hud-state exists, this still preserves storage key usage.
+            return { mode: HUD_DEFAULT_MODE };
+          };
+        } else if (origReset) {
+          W.ZZXHUD.reset = function () {
+            const r = origReset();
+            return { mode: normalizeMode(r && r.mode) };
+          };
+        }
+
+        if (!W.ZZXHUD.normalize) W.ZZXHUD.normalize = normalizeMode;
+        if (!W.ZZXHUD.reset) W.ZZXHUD.reset = function () { return this.write(HUD_DEFAULT_MODE); };
+
+        W.ZZXHUD.__zzxRuntimeWrapped = true;
+      }
+
       return W.ZZXHUD;
     }
 
     // Shim so HUD is never dead
     W.ZZXHUD = {
+      __zzxRuntimeWrapped: true,
       normalize: normalizeMode,
       read()  { return { mode: hudReadRaw() }; },
       write(m){ return hudWriteRaw(m); },
@@ -242,6 +265,7 @@
     return new Promise((resolve) => {
       const s = D.createElement("script");
       s.src = src;
+      // IMPORTANT: avoid module semantics; keep classic so order is stable.
       s.defer = true;
       s.setAttribute("data-zzx-js", k);
       s.onload = () => resolve(true);
