@@ -1,32 +1,50 @@
 // __partials/widgets/hud-state.js
-// Single source of truth for HUD mode. Default = "full".
-// Persists in localStorage.
+// SINGLE SOURCE OF TRUTH — DROP-IN REPLACEMENT
+//
+// Canonical HUD modes:
+//   "full" | "ticker-only" | "hidden"
+//
+// Guarantees:
+// - One global authority (window.ZZXHUD)
+// - Backward-compatible aliases ("ticker", etc.)
+// - Safe if loaded multiple times
+// - Never throws
+// - Never breaks existing callers
+// - Persists state in localStorage
+//
+// NOTHING ELSE should define HUD state.
 
 (function () {
   "use strict";
 
   const KEY = "zzx.hud.mode";
-
-  // Canonical states (match your runtime.html markup + CSS)
   const VALID = new Set(["full", "ticker-only", "hidden"]);
 
   function normalize(mode) {
-    if (mode && typeof mode === "object" && "mode" in mode) mode = mode.mode; // accept {mode:"..."}
+    // Accept { mode: "..." }
+    if (mode && typeof mode === "object" && "mode" in mode) {
+      mode = mode.mode;
+    }
+
     if (!mode) return "full";
 
     let m = String(mode).trim().toLowerCase();
 
-    // Back-compat: accept "ticker" and normalize to canonical "ticker-only"
+    // Back-compat aliases
     if (m === "ticker") m = "ticker-only";
     if (m === "ticker_only") m = "ticker-only";
     if (m === "tickeronly") m = "ticker-only";
+    if (m === "visible") m = "full";
 
     return VALID.has(m) ? m : "full";
   }
 
   function read() {
-    try { return { mode: normalize(localStorage.getItem(KEY)) }; }
-    catch (_) { return { mode: "full" }; }
+    try {
+      return { mode: normalize(localStorage.getItem(KEY)) };
+    } catch (_) {
+      return { mode: "full" };
+    }
   }
 
   function write(mode) {
@@ -40,5 +58,14 @@
     return { mode: "full" };
   }
 
-  window.ZZXHUD = { read, write, reset, normalize };
+  // Preserve any existing object but HARD-SET the contract
+  const prev = window.ZZXHUD || {};
+
+  window.ZZXHUD = {
+    ...prev,
+    read,
+    write,
+    reset,
+    normalize,
+  };
 })();
