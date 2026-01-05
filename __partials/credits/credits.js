@@ -3,15 +3,13 @@
   ZZX Credits — SINGLE FILE CONTROLLER (DROP-IN REPLACEMENT)
 
   - Binds ONLY to: #footer-credits-btn
-  - Uses the modal that lives in footer.html:
+  - Uses modal already present in footer.html:
       #zzx-credits-modal
-      #zzx-credits-dialog
       #zzx-credits-body
-      .zzx-credits__close  (your footer)
-    (Also tolerates older classnames: .zzx-credits-close / .zzx-credits-x)
+      .zzx-credits__close  (also tolerates .zzx-credits-close / .zzx-credits-x)
   - Loads credits.html ONCE into #zzx-credits-body
   - Loads credits.css ONCE
-  - Kills legacy credits UIs/links
+  - Kills legacy credits UIs/links WITHOUT touching modal content
   - No footer/page badges. No SVG. Unicode only.
 */
 
@@ -22,9 +20,7 @@
   window.__ZZX_CREDITS_BOOTED = true;
 
   const STATE_KEY = "zzx.credits.open";
-  const CSS_KEY = "zzx-credits-css-loaded";
-
-  /* -------------------- helpers -------------------- */
+  const CSS_MARK  = "zzx-credits-css";
 
   const qs  = (s, r) => (r || document).querySelector(s);
   const qsa = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -42,19 +38,18 @@
     if (!s) return s;
     if (/^https?:\/\//i.test(s)) return s;
     if (!s.startsWith("/")) return s;
-    if (prefix === "/") return s;
-    return prefix.replace(/\/+$/, "") + s;
+    if (!prefix || prefix === "/") return s;
+    return prefix + s;
   }
 
   function ensureCSSOnce(href) {
     if (!href) return;
-    // Prefer a stable marker over href equality (prefix / cachebust differences).
-    if (document.querySelector(`link[data-${CSS_KEY}="1"]`)) return;
+    if (document.querySelector(`link[data-${CSS_MARK}="1"]`)) return;
 
     const l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute(`data-${CSS_KEY}`, "1");
+    l.setAttribute(`data-${CSS_MARK}`, "1");
     document.head.appendChild(l);
   }
 
@@ -69,53 +64,47 @@
 
   /* ---------------- legacy cleanup ---------------- */
 
+  function isInsideCreditsModal(node) {
+    return !!(node && node.closest && node.closest("#zzx-credits-modal"));
+  }
+  function isInsideCreditsBody(node) {
+    return !!(node && node.closest && node.closest("#zzx-credits-body"));
+  }
+
   function cleanupLegacy() {
-    // Remove any legacy injected credits blocks, but NEVER touch the modal's body content.
+    // Remove legacy injected credits blocks OUTSIDE the modal/body only
     qsa(".zzx-credits").forEach((el) => {
-      if (!el.closest("#zzx-credits-modal")) el.remove();
+      if (!isInsideCreditsModal(el) && !isInsideCreditsBody(el)) el.remove();
     });
 
-    // Remove legacy host wrappers/toggles from previous attempts
-    qsa("[data-zzx-credits-host]").forEach((el) => el.remove());
-    qsa("[data-zzx-credits-toggle]").forEach((el) => el.remove());
+    // Remove legacy host wrappers/toggles (older attempts)
+    qsa("[data-zzx-credits-host]").forEach((el) => {
+      if (!isInsideCreditsModal(el) && !isInsideCreditsBody(el)) el.remove();
+    });
+    qsa("[data-zzx-credits-toggle]").forEach((el) => {
+      if (!isInsideCreditsModal(el) && !isInsideCreditsBody(el)) el.remove();
+    });
 
-    // Remove old panel mount if it exists (and is not inside the modal)
-    const old = document.getElementById("zzx-credits");
-    if (old && !old.closest("#zzx-credits-modal")) old.remove();
+    // Remove old inline panel mount used for collapsing behavior
+    const oldPanel = document.getElementById("zzx-credits");
+    if (oldPanel && !isInsideCreditsModal(oldPanel) && !isInsideCreditsBody(oldPanel)) {
+      oldPanel.remove();
+    }
 
-    // Kill any stray "Credits" link/buttons outside the proper footer button.
-    // This is what you described: white "Credits" href sitting bottom-left.
-    qsa('a,button').forEach((n) => {
-      // Keep the real footer button
-      if (n.id === "footer-credits-btn") return;
+    // Remove ONLY anchors that directly point to the credits partial (the white link culprit)
+    qsa('a[href]').forEach((a) => {
+      if (isInsideCreditsModal(a) || isInsideCreditsBody(a)) return;
 
-      // Keep anything inside the modal
-      if (n.closest("#zzx-credits-modal")) return;
+      const href = (a.getAttribute("href") || "").trim();
+      if (!href) return;
 
-      const tag = n.tagName.toLowerCase();
-
-      if (tag === "a") {
-        const href = (n.getAttribute("href") || "").toLowerCase();
-        const text = (n.textContent || "").trim().toLowerCase();
-
-        // Remove obvious legacy credits anchors
-        if (
-          href.includes("/__partials/credits/credits") ||
-          href.endsWith("#credits") ||
-          href.includes("/credits") ||
-          text === "credits"
-        ) {
-          n.remove();
-        }
-      }
-
-      if (tag === "button") {
-        const text = (n.textContent || "").trim().toLowerCase();
-        // Remove legacy credits buttons (but not footer-credits-btn above)
-        if (text === "credits" || text.includes("credits")) {
-          // Only if it looks like an extra credits control (avoid nuking unrelated UI)
-          if (n.className && String(n.className).toLowerCase().includes("credits")) n.remove();
-        }
+      // Kill the specific direct-to-partial link (absolute or relative)
+      if (
+        href.includes("/__partials/credits/credits.html") ||
+        href.endsWith("__partials/credits/credits.html") ||
+        href.endsWith("/credits.html")
+      ) {
+        a.remove();
       }
     });
   }
@@ -123,33 +112,9 @@
   /* ---------------- modal ---------------- */
 
   function ensureModal() {
-    // Prefer footer-provided modal
-    let modal = document.getElementById("zzx-credits-modal");
-    if (modal) return modal;
-
-    // Defensive fallback ONLY if footer modal is missing.
-    modal = document.createElement("div");
-    modal.id = "zzx-credits-modal";
-    modal.hidden = true;
-    modal.className = "zzx-credits-modal";
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("aria-label", "Credits");
-
-    modal.innerHTML = `
-      <div id="zzx-credits-dialog" role="document">
-        <div class="zzx-credits__head">
-          <h2 class="zzx-credits__title" id="zzx-credits-title">Credits</h2>
-          <button type="button" class="zzx-credits__close" aria-label="Close Credits">✕</button>
-        </div>
-        <div id="zzx-credits-body">
-          <div class="zzx-credits-loading">Loading credits…</div>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-    return modal;
+    // MUST exist in footer.html for your chosen architecture
+    const modal = document.getElementById("zzx-credits-modal");
+    return modal || null;
   }
 
   function openModal(modal) {
@@ -169,8 +134,10 @@
   /* ---------------- content ---------------- */
 
   async function loadCreditsOnce(modal) {
-    const body = document.getElementById("zzx-credits-body") || qs("#zzx-credits-body", modal) || qs(".zzx-credits-body", modal);
+    const body = document.getElementById("zzx-credits-body");
     if (!body) return;
+
+    // already loaded
     if (body.dataset.zzxLoaded === "1") return;
 
     const prefix = getPrefix();
@@ -181,9 +148,11 @@
     try {
       const r = await fetch(htmlURL, { cache: "no-store" });
       if (!r.ok) throw new Error("HTTP " + r.status);
-      body.innerHTML = await r.text();
+
+      const html = await r.text();
+      body.innerHTML = html;
       body.dataset.zzxLoaded = "1";
-    } catch (e) {
+    } catch (_) {
       body.innerHTML = buildFallbackHTML();
       body.dataset.zzxLoaded = "1";
     }
@@ -192,10 +161,10 @@
   function buildFallbackHTML() {
     const year = new Date().getFullYear();
     const items = [
-      { name: "Bitcoin", url: "https://bitcoin.org" },
-      { name: "Linux", url: "https://www.kernel.org" },
-      { name: "Mozilla", url: "https://www.mozilla.org" },
-      { name: "VideoLAN", url: "https://www.videolan.org" }
+      { name: "Bitcoin",   url: "https://bitcoin.org" },
+      { name: "Linux",     url: "https://www.kernel.org" },
+      { name: "Mozilla",   url: "https://www.mozilla.org" },
+      { name: "VideoLAN",  url: "https://www.videolan.org" }
     ];
 
     return `
@@ -203,7 +172,9 @@
         <h3>Credits</h3>
         <p>© ${year} <strong>ZZX-Labs R&amp;D</strong>. Licensed under the MIT License.</p>
         <ul>
-          ${items.map(x => `<li><a href="${escapeHTML(x.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(x.name)}</a></li>`).join("")}
+          ${items.map(x =>
+            `<li><a href="${escapeHTML(x.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(x.name)}</a></li>`
+          ).join("")}
         </ul>
       </section>
     `;
@@ -215,12 +186,11 @@
     const btn = document.getElementById("footer-credits-btn");
     if (!btn) return;
 
-    // Make sure button never navigates (if someone accidentally changed it to <a>)
     btn.setAttribute("aria-controls", "zzx-credits-modal");
     btn.setAttribute("aria-haspopup", "dialog");
 
-    if (!btn.__zzxBound) {
-      btn.__zzxBound = true;
+    if (!btn.__zzxBoundCredits) {
+      btn.__zzxBoundCredits = true;
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault?.();
 
@@ -234,21 +204,21 @@
       });
     }
 
-    // Close button (support both new + older classnames)
+    // Close button (support multiple classnames)
     const closeBtn =
       qs(".zzx-credits__close", modal) ||
       qs(".zzx-credits-close", modal) ||
       qs(".zzx-credits-x", modal);
 
-    if (closeBtn && !closeBtn.__zzxBound) {
-      closeBtn.__zzxBound = true;
+    if (closeBtn && !closeBtn.__zzxBoundCredits) {
+      closeBtn.__zzxBoundCredits = true;
       closeBtn.addEventListener("click", (ev) => {
         ev.preventDefault?.();
         closeModal(modal);
       });
     }
 
-    // Backdrop click closes (but not clicks inside dialog)
+    // Backdrop click closes (only when clicking the overlay itself)
     if (!modal.__zzxBackdropBound) {
       modal.__zzxBackdropBound = true;
       modal.addEventListener("click", (e) => {
@@ -269,7 +239,13 @@
 
   function boot() {
     cleanupLegacy();
+
     const modal = ensureModal();
+    if (!modal) {
+      console.warn("[Credits] #zzx-credits-modal not found in footer.html");
+      return;
+    }
+
     bind(modal);
 
     try {
