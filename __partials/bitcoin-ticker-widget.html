@@ -1,15 +1,9 @@
 <!-- __partials/bitcoin-ticker-widget.html (WRAPPER ONLY) -->
-<!-- DROP-IN REPLACEMENT: replaces “Show Bitcoin HUD” text with PNG icon button,
-     adds ESC close behavior without changing layout/slots/content order.
-
-     Behavior:
-     - Handle is ALWAYS visible when HUD hidden, as before.
-     - Click icon toggles HUD (show when hidden, hide when shown).
-     - ESC key hides HUD (same as clicking Hide), if HUD is currently visible.
-     - No dependency on extra JS files; uses your existing hud-state.js API if present.
+<!-- DROP-IN: single handle + single rail + correct shim.
+     Canonical modes: full | ticker-only | hidden
 -->
 
-<!-- HUD handle: ALWAYS visible even if HUD is hidden -->
+<!-- HUD handle: shown ONLY when HUD hidden (controlled by JS) -->
 <div class="zzx-hud-handle" data-hud-handle>
   <button
     type="button"
@@ -17,9 +11,7 @@
     data-hud-show
     aria-label="Toggle Bitcoin HUD"
     title="Toggle Bitcoin HUD"
-    style="display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;padding:0;cursor:pointer;"
   >
-    <!-- PNG icon (hamburger-style). Put your real file here. -->
     <img
       src="/static/images/icons/hud.png"
       alt="HUD"
@@ -27,20 +19,16 @@
       height="28"
       decoding="async"
       loading="eager"
-      style="display:block;opacity:.95"
       onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"
     />
-    <!-- Text fallback if icon missing -->
-    <span style="display:none;font-size:12px;opacity:.9;line-height:1;">
-      HUD
-    </span>
+    <span class="zzx-hud-fallback">HUD</span>
   </button>
 </div>
 
-<!-- HUD root (the thing that gets hidden/collapsed) -->
-<div class="btc-rail" id="btc-rail" data-hud-root role="region" aria-label="Bitcoin dashboard widgets">
+<!-- HUD root -->
+<div class="btc-rail" id="btc-rail" data-hud-root data-hud-state="full" role="region" aria-label="Bitcoin dashboard widgets">
 
-  <!-- runtime FIRST: it binds buttons + state -->
+  <!-- runtime FIRST: it binds Full/Ticker/Hide/Reset -->
   <div class="btc-slot" data-widget="runtime"></div>
 
   <div class="btc-slot" data-widget="bitcoin-ticker"></div>
@@ -86,16 +74,17 @@
   <div class="btc-slot" data-widget="btc-stolen"></div>
   <div class="btc-slot" data-widget="btc-burned"></div>
   <div class="btc-slot" data-widget="btc-lost"></div>
-
 </div>
 
 <script>
-/* Inline control shim (small + safe):
-   - Uses window.ZZXHUD if present (recommended)
-   - Else toggles data-hud-state on [data-hud-root] + handle visibility
-   - Adds ESC-to-hide behavior
+/* Wrapper shim:
+   - ONLY controls the handle icon toggle + ESC hide.
+   - Does NOT bind Full/Ticker/Hide/Reset (runtime widget does that).
+   - Canonical modes: full | ticker-only | hidden
 */
 (function () {
+  "use strict";
+
   const qs = (sel, scope) => (scope || document).querySelector(sel);
 
   const root   = qs("[data-hud-root]");
@@ -104,56 +93,65 @@
 
   if (!root || !handle || !btn) return;
 
-  function apply(mode) {
-    root.setAttribute("data-hud-state", mode);
-    // show handle only when HUD hidden
-    handle.style.display = (mode === "hidden") ? "flex" : "none";
+  function normalize(mode){
+    if (mode && typeof mode === "object" && "mode" in mode) mode = mode.mode;
+    if (!mode) return "full";
+    let m = String(mode).trim().toLowerCase();
+
+    // Back-compat
+    if (m === "ticker") m = "ticker-only";
+
+    return (m === "full" || m === "ticker-only" || m === "hidden") ? m : "full";
   }
 
-  function readMode() {
-    // Prefer HUD API if available
+  function readMode(){
     if (window.ZZXHUD && typeof window.ZZXHUD.read === "function") {
-      const m = window.ZZXHUD.read();
-      return (m === "full" || m === "ticker" || m === "hidden") ? m : "full";
+      return normalize(window.ZZXHUD.read().mode);
     }
-    const m = root.getAttribute("data-hud-state");
-    return (m === "full" || m === "ticker" || m === "hidden") ? m : "full";
+    return normalize(root.getAttribute("data-hud-state"));
   }
 
-  function writeMode(mode) {
+  function apply(mode){
+    const m = normalize(mode);
+    root.setAttribute("data-hud-state", m);
+
+    // handle is outside root, so JS controls it explicitly
+    handle.style.display = (m === "hidden") ? "flex" : "none";
+  }
+
+  function writeMode(mode){
+    const m = normalize(mode);
     if (window.ZZXHUD && typeof window.ZZXHUD.write === "function") {
-      window.ZZXHUD.write(mode);
-      // ZZXHUD.write should already normalize + apply, but we still apply fallback.
-      apply(mode);
-      return;
+      window.ZZXHUD.write(m);
     }
-    apply(mode);
+    apply(m);
   }
 
-  // Toggle: hidden -> full, otherwise -> hidden
-  function toggle() {
+  function toggle(){
     const cur = readMode();
     writeMode(cur === "hidden" ? "full" : "hidden");
   }
 
-  // Bind once
   if (!btn.__zzxBound) {
     btn.__zzxBound = true;
     btn.addEventListener("click", toggle);
   }
 
-  // ESC hides HUD (if visible)
   if (!document.__zzxHudEscBound) {
     document.__zzxHudEscBound = true;
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+
+      // Don't fight the Credits modal if it is open
+      const cm = document.getElementById("zzx-credits-modal");
+      if (cm && !cm.hidden) return;
+
       const cur = readMode();
       if (cur !== "hidden") writeMode("hidden");
     });
   }
 
-  // Initial apply from state
-  const initial = readMode();
-  apply(initial);
+  // init
+  apply(readMode());
 })();
 </script>
