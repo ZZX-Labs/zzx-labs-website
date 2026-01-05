@@ -1,13 +1,16 @@
 // __partials/widgets/runtime.js
-// ZZX Widgets Runtime — SINGLE orchestrator (DROP-IN, HUD FIXED + MANIFEST FIXED)
+// ZZX Widgets Runtime — SINGLE orchestrator (DROP-IN REPLACEMENT)
 //
-// FIXES (the ones that matter):
-// - Accepts ticker-only as an alias (normalizes to "ticker")
-// - Mounts into EITHER slot style:
-//     A) [data-widget-slot="id"]  (new)
-//     B) .btc-slot[data-widget="id"] (current wrapper)
-// - Delegated HUD binding (works even when wrapper injected later)
-// - State persisted + restored; handle only visible when hidden
+// HARD FIXES FOR YOUR CURRENT BREAKAGE:
+// - Canonical HUD modes are EXACTLY: full | ticker-only | hidden (matches your CSS + hud-state.js)
+// - NEVER emits/uses "ticker" internally (that mismatch is why ticker-only CSS/handle behavior breaks)
+// - Delegated click binding so “Hide” never strands you (handle always reappears when hidden)
+// - ALL widget asset URLs are absolute (/__partials/...) + prefix-joined (NO ../ 404s)
+// - If a widget JS fails, you get an in-card error with the failing URL (no silent “HTML only”)
+//
+// Mounting:
+// - Mounts into [data-widget-slot="<id>"] (your wrapper now uses this)
+// - Reads manifest.json priorities and loads /__partials/widgets/<id>/{widget.html,widget.css,widget.js}
 
 (function () {
   "use strict";
@@ -15,98 +18,101 @@
   const W = window;
   const D = document;
 
-  // Prevent double boot
   if (W.__ZZX_WIDGETS_RUNTIME_BOOTED) return;
   W.__ZZX_WIDGETS_RUNTIME_BOOTED = true;
-
-  /* ---------------------------
-   * HUD (minimal, deterministic)
-   * ------------------------- */
-  const HUD_STORAGE_KEY = "zzx.hud.mode";
-  const HUD_DEFAULT_MODE = "full";
 
   const qs  = (s, r) => (r || D).querySelector(s);
   const qsa = (s, r) => Array.from((r || D).querySelectorAll(s));
 
+  // ---------------------------
+  // Prefix-safe URL
+  // ---------------------------
+  function getPrefix() {
+    const p1 = W.ZZX?.PREFIX;
+    if (typeof p1 === "string" && p1.length) return p1;
+    const p2 = D.documentElement?.getAttribute("data-zzx-prefix");
+    if (typeof p2 === "string" && p2.length) return p2;
+    return ""; // root
+  }
+
+  function urlFor(absPathOrUrl) {
+    const s = String(absPathOrUrl || "");
+    if (!s) return s;
+    if (/^https?:\/\//i.test(s)) return s;
+    if (!s.startsWith("/")) return s; // only absolute-paths are allowed here
+    const p = String(getPrefix()).replace(/\/+$/, "");
+    if (!p || p === "." || p === "/") return s;
+    return p + s;
+  }
+
+  function assetVersion() {
+    const v = D.querySelector('meta[name="asset-version"]')?.getAttribute("content");
+    return (v || "").trim();
+  }
+
+  function withV(u) {
+    const v = assetVersion();
+    if (!v) return u;
+    try {
+      const U = new URL(u, location.href);
+      if (!U.searchParams.has("v")) U.searchParams.set("v", v);
+      return U.href;
+    } catch {
+      return u;
+    }
+  }
+
+  // ---------------------------
+  // HUD (canonical: full | ticker-only | hidden)
+  // ---------------------------
+  const HUD_DEFAULT = "full";
+
   function normalizeMode(m) {
     const s = String(m || "").trim().toLowerCase();
 
-    // canonical internal modes: full | ticker | hidden
-    if (s === "full" || s === "ticker" || s === "hidden") return s;
+    if (s === "full" || s === "ticker-only" || s === "hidden") return s;
 
-    // tolerate aliases
-    if (s === "ticker-only") return "ticker";
-    if (s === "ticker_only") return "ticker";
-    if (s === "tickeronly") return "ticker";
+    // tolerate legacy aliases
+    if (s === "ticker") return "ticker-only";
+    if (s === "ticker_only") return "ticker-only";
+    if (s === "tickeronly") return "ticker-only";
     if (s === "visible") return "full";
 
-    return HUD_DEFAULT_MODE;
+    return HUD_DEFAULT;
   }
 
-  function hudReadRaw() {
-    try {
-      return normalizeMode(localStorage.getItem(HUD_STORAGE_KEY) || HUD_DEFAULT_MODE);
-    } catch (_) {
-      return HUD_DEFAULT_MODE;
-    }
-  }
-
-  function hudWriteRaw(mode) {
-    const m = normalizeMode(mode);
-    try { localStorage.setItem(HUD_STORAGE_KEY, m); } catch (_) {}
-    return { mode: m };
-  }
-
-  function ensureZZXHUD() {
-    // If you have hud-state.js, keep it, but force sane normalization/aliases.
+  function ensureHUD() {
+    // Prefer your hud-state.js if present
     if (W.ZZXHUD && typeof W.ZZXHUD.read === "function" && typeof W.ZZXHUD.write === "function") {
-      // Wrap ONLY ONCE
-      if (!W.ZZXHUD.__zzxRuntimeWrapped) {
-        const origRead  = W.ZZXHUD.read.bind(W.ZZXHUD);
-        const origWrite = W.ZZXHUD.write.bind(W.ZZXHUD);
-        const origReset = (typeof W.ZZXHUD.reset === "function") ? W.ZZXHUD.reset.bind(W.ZZXHUD) : null;
-
-        W.ZZXHUD.read = function () {
-          const r = origRead();
-          return { mode: normalizeMode(r && r.mode) };
-        };
-
-        W.ZZXHUD.write = function (m) {
-          const r = origWrite(normalizeMode(m));
-          return { mode: normalizeMode(r && r.mode) };
-        };
-
-        if (!W.ZZXHUD.reset) {
-          W.ZZXHUD.reset = function () {
-            try { localStorage.removeItem(HUD_STORAGE_KEY); } catch (_) {}
-            // If underlying hud-state exists, this still preserves storage key usage.
-            return { mode: HUD_DEFAULT_MODE };
-          };
-        } else if (origReset) {
-          W.ZZXHUD.reset = function () {
-            const r = origReset();
-            return { mode: normalizeMode(r && r.mode) };
-          };
-        }
-
-        if (!W.ZZXHUD.normalize) W.ZZXHUD.normalize = normalizeMode;
-        if (!W.ZZXHUD.reset) W.ZZXHUD.reset = function () { return this.write(HUD_DEFAULT_MODE); };
-
-        W.ZZXHUD.__zzxRuntimeWrapped = true;
-      }
-
+      const r = W.ZZXHUD.read();
+      // force normalized contract
+      try {
+        W.ZZXHUD.normalize = W.ZZXHUD.normalize || normalizeMode;
+      } catch (_) {}
+      // apply normalized state right now
+      applyHUDMode(normalizeMode(r?.mode));
       return W.ZZXHUD;
     }
 
-    // Shim so HUD is never dead
+    // Fallback shim (should rarely be used if ticker-loader loads hud-state.js)
+    const KEY = "zzx.hud.mode";
     W.ZZXHUD = {
-      __zzxRuntimeWrapped: true,
       normalize: normalizeMode,
-      read()  { return { mode: hudReadRaw() }; },
-      write(m){ return hudWriteRaw(m); },
-      reset() { return hudWriteRaw(HUD_DEFAULT_MODE); }
+      read() {
+        try { return { mode: normalizeMode(localStorage.getItem(KEY)) }; }
+        catch (_) { return { mode: HUD_DEFAULT }; }
+      },
+      write(mode) {
+        const m = normalizeMode(mode);
+        try { localStorage.setItem(KEY, m); } catch (_) {}
+        return { mode: m };
+      },
+      reset() {
+        try { localStorage.removeItem(KEY); } catch (_) {}
+        return { mode: HUD_DEFAULT };
+      }
     };
-
+    applyHUDMode(HUD_DEFAULT);
     return W.ZZXHUD;
   }
 
@@ -117,30 +123,32 @@
     const handle = qs("[data-hud-handle]");
 
     if (root) root.setAttribute("data-hud-state", m);
+
+    // CRITICAL: handle must be controlled by JS because CSS default is display:none
     if (handle) handle.style.display = (m === "hidden") ? "flex" : "none";
 
     const lbl = qs("[data-runtime-mode]");
     if (lbl) lbl.textContent = m;
   }
 
-  function currentHUDMode() {
-    ensureZZXHUD();
+  function currentMode() {
+    ensureHUD();
     try { return normalizeMode(W.ZZXHUD.read()?.mode); }
-    catch (_) { return HUD_DEFAULT_MODE; }
+    catch (_) { return HUD_DEFAULT; }
   }
 
-  function setHUDMode(mode) {
-    ensureZZXHUD();
+  function setMode(mode) {
+    ensureHUD();
     const res = W.ZZXHUD.write(mode);
     const m = normalizeMode(res?.mode || mode);
     applyHUDMode(m);
     return m;
   }
 
-  function resetHUDMode() {
-    ensureZZXHUD();
+  function resetMode() {
+    ensureHUD();
     const res = W.ZZXHUD.reset();
-    const m = normalizeMode(res?.mode || HUD_DEFAULT_MODE);
+    const m = normalizeMode(res?.mode || HUD_DEFAULT);
     applyHUDMode(m);
     return m;
   }
@@ -153,180 +161,107 @@
     target.addEventListener(evt, fn, opts);
   }
 
-  function bindHUDControls() {
-    ensureZZXHUD();
+  function bindHUDControlsDelegated() {
+    ensureHUD();
 
-    // Delegated: works even if wrapper injected after this runtime boots
+    // Delegated click wiring: works even if wrapper is injected later
     bindOnce(D, "hud_click", "click", (ev) => {
       const t = ev.target;
 
       const modeBtn = t?.closest?.("[data-hud-mode]");
       if (modeBtn) {
         ev.preventDefault?.();
-        setHUDMode(modeBtn.getAttribute("data-hud-mode"));
+        setMode(modeBtn.getAttribute("data-hud-mode"));
         return;
       }
 
       const resetBtn = t?.closest?.('[data-hud-action="reset"]');
       if (resetBtn) {
         ev.preventDefault?.();
-        resetHUDMode();
+        resetMode();
         return;
       }
 
       const showBtn = t?.closest?.("[data-hud-show]");
       if (showBtn) {
         ev.preventDefault?.();
-        // toggle behavior: hidden -> full, else -> hidden
-        const cur = currentHUDMode();
-        setHUDMode(cur === "hidden" ? "full" : "hidden");
+        // toggle: hidden <-> full
+        const cur = currentMode();
+        setMode(cur === "hidden" ? "full" : "hidden");
         return;
       }
 
+      // Clicking the handle area itself should restore HUD (safety net)
       const handle = t?.closest?.("[data-hud-handle]");
       if (handle) {
         ev.preventDefault?.();
-        setHUDMode("full");
-        return;
+        setMode("full");
       }
     });
 
-    // ESC hides HUD unless Credits modal is open
+    // ESC hides HUD unless credits modal is open
     bindOnce(W, "hud_esc", "keydown", (e) => {
       if (e.key !== "Escape") return;
-
       const cm = D.getElementById("zzx-credits-modal");
       if (cm && !cm.hidden) return;
-
-      if (currentHUDMode() !== "hidden") setHUDMode("hidden");
+      if (currentMode() !== "hidden") setMode("hidden");
     });
 
-    // Restore persisted state immediately
-    applyHUDMode(currentHUDMode());
+    // Apply persisted state immediately (this is what prevents “no unhide button”)
+    applyHUDMode(currentMode());
   }
 
-  /* ---------------------------
-   * Prefix + URL helpers
-   * ------------------------- */
-  function getPrefix() {
-    const p1 = W.ZZX?.PREFIX;
-    if (typeof p1 === "string" && p1.length) return p1;
-
-    const p2 = D.documentElement?.getAttribute("data-zzx-prefix");
-    if (typeof p2 === "string" && p2.length) return p2;
-
-    return ".";
+  // ---------------------------
+  // Load helpers
+  // ---------------------------
+  function keyify(k) {
+    return String(k).replace(/[^a-z0-9_-]/gi, "_");
   }
 
-  function join(prefix, absOrRel) {
-    if (!absOrRel) return absOrRel;
-    const s = String(absOrRel);
-
-    if (/^https?:\/\//i.test(s)) return s;
-    if (!s.startsWith("/")) return s;
-    if (prefix === "/") return s;
-
-    const p = String(prefix || ".").replace(/\/+$/, "");
-    if (!p || p === ".") return s;
-
-    return p + s;
-  }
-
-  function urlFor(absPath) {
-    return join(getPrefix(), absPath);
-  }
-
-  function assetVersionQS() {
-    const meta = D.querySelector('meta[name="asset-version"]')?.getAttribute("content");
-    if (!meta) return "";
-    return `?v=${encodeURIComponent(meta)}`;
-  }
-
-  /* ---------------------------
-   * Low-level loaders
-   * ------------------------- */
   function ensureCSSOnce(key, href) {
-    const k = String(key).replace(/[^a-z0-9_-]/gi, "_");
-    const sel = `link[data-zzx-css="${k}"]`;
-    if (D.querySelector(sel)) return;
-
+    const k = keyify(key);
+    if (D.querySelector(`link[data-zzx-css="${k}"]`)) return;
     const l = D.createElement("link");
     l.rel = "stylesheet";
-    l.href = href;
+    l.href = withV(href);
     l.setAttribute("data-zzx-css", k);
     D.head.appendChild(l);
   }
 
   function ensureScriptOnce(key, src) {
-    const k = String(key).replace(/[^a-z0-9_-]/gi, "_");
-    const sel = `script[data-zzx-js="${k}"]`;
-    if (D.querySelector(sel)) return Promise.resolve(true);
+    const k = keyify(key);
+    if (D.querySelector(`script[data-zzx-js="${k}"]`)) return Promise.resolve(true);
 
     return new Promise((resolve) => {
       const s = D.createElement("script");
-      s.src = src;
-      // IMPORTANT: avoid module semantics; keep classic so order is stable.
+      s.src = withV(src);
       s.defer = true;
       s.setAttribute("data-zzx-js", k);
       s.onload = () => resolve(true);
       s.onerror = () => resolve(false);
-      D.body.appendChild(s);
+      D.head.appendChild(s);
     });
   }
 
-  async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+  async function fetchText(u) {
+    const r = await fetch(withV(u), { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${u}`);
     return await r.text();
   }
 
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+  async function fetchJSON(u) {
+    const r = await fetch(withV(u), { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${u}`);
     return await r.json();
   }
 
-  /* ---------------------------
-   * Wait for partials/header readiness
-   * listens for BOTH event names
-   * ------------------------- */
-  function waitForPartialsReady(timeoutMs = 2500) {
-    return new Promise((resolve) => {
-      const t0 = performance.now();
-
-      const isReadyNow = () => {
-        // Header usually indicates frame is injected
-        const host = D.getElementById("zzx-header");
-        return !!(host && host.childNodes && host.childNodes.length > 0);
-      };
-
-      if (isReadyNow()) return resolve(true);
-
-      let done = false;
-      const finish = (ok) => {
-        if (done) return;
-        done = true;
-        try { W.removeEventListener("zzx:partials-ready", onEvt); } catch (_) {}
-        try { W.removeEventListener("zzx:partials:ready", onEvt); } catch (_) {}
-        resolve(!!ok);
-      };
-
-      const onEvt = () => finish(true);
-      W.addEventListener("zzx:partials-ready", onEvt, { once: true });
-      W.addEventListener("zzx:partials:ready", onEvt, { once: true });
-
-      (function poll() {
-        if (done) return;
-        if (isReadyNow()) return finish(true);
-        if (performance.now() - t0 >= timeoutMs) return finish(false);
-        setTimeout(poll, 60);
-      })();
-    });
+  // ---------------------------
+  // Slots + registry
+  // ---------------------------
+  function slotEl(id) {
+    return D.querySelector(`[data-widget-slot="${id}"]`);
   }
 
-  /* ---------------------------
-   * Unified registry (ONE registry, exposed via legacy names)
-   * ------------------------- */
   const REG = (W.__ZZX_REGISTRY_SINGLETON = W.__ZZX_REGISTRY_SINGLETON || {
     defs: new Map(),
     booted: new Set(),
@@ -339,33 +274,26 @@
       COINBASE_CANDLES_1H: "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=3600",
       MEMPOOL: "https://mempool.space/api",
     };
-
-    const api = Object.assign({}, DEFAULT_API, (W.ZZX_API || {}));
-
     return {
-      api,
-      theme: W.ZZXTheme || null,
+      api: Object.assign({}, DEFAULT_API, (W.ZZX_API || {})),
       fetchText,
       fetchJSON,
       now: () => Date.now(),
       urlFor,
+      theme: W.ZZXTheme || null,
     };
   }
 
   function resolveWidgetRoot(id, slot) {
     if (!slot) return null;
-
-    const byExact =
+    return (
       slot.querySelector?.(`[data-widget-root="${id}"]`) ||
-      slot.querySelector?.(`.zzx-widget[data-widget-id="${id}"]`);
-
-    if (byExact) return byExact;
-
-    const generic = slot.querySelector?.("[data-widget-root]") || slot.querySelector?.(".zzx-widget");
-    if (generic) return generic;
-
-    if (slot.firstElementChild) return slot.firstElementChild;
-    return slot;
+      slot.querySelector?.(`.zzx-widget[data-widget-id="${id}"]`) ||
+      slot.querySelector?.("[data-widget-root]") ||
+      slot.querySelector?.(".zzx-widget") ||
+      slot.firstElementChild ||
+      slot
+    );
   }
 
   function register(id, def) {
@@ -378,18 +306,15 @@
   function bootOne(id, slot, ctx) {
     const wid = String(id || "").trim();
     if (!wid) return false;
+    if (REG.booted.has(wid)) return true;
 
     const def = REG.defs.get(wid);
     if (!def) return false;
 
-    if (REG.booted.has(wid)) return true;
-
     const root = resolveWidgetRoot(wid, slot);
-
     try {
-      if (typeof def === "function") {
-        def(root, ctx);
-      } else if (def && typeof def === "object") {
+      if (typeof def === "function") def(root, ctx);
+      else if (def && typeof def === "object") {
         const fn = def.start || def.init || def.boot;
         if (typeof fn === "function") fn.call(def, root, ctx);
       }
@@ -401,41 +326,16 @@
     }
   }
 
-  // IMPORTANT: support BOTH slot conventions
-  function slotEl(id) {
-    return (
-      D.querySelector(`[data-widget-slot="${id}"]`) ||
-      D.querySelector(`.btc-slot[data-widget="${id}"]`) ||
-      D.querySelector(`[data-widget="${id}"]`)
-    );
-  }
-
-  function startAllMounted(ctx) {
-    // boot anything that already mounted (both styles)
-    const slots = [
-      ...Array.from(D.querySelectorAll("[data-widget-slot]")),
-      ...Array.from(D.querySelectorAll(".btc-slot[data-widget]"))
-    ];
-
-    for (const slot of slots) {
-      const id =
-        slot.getAttribute("data-widget-slot") ||
-        slot.getAttribute("data-widget") ||
-        slot.getAttribute("data-widget-id");
-
-      if (!id) continue;
-      if (slot.dataset.mountReady !== "1") continue;
-
-      bootOne(id, slot, ctx);
-    }
-  }
-
-  // Expose ONE registry under legacy names
+  // Expose legacy shims (compat)
   W.__ZZX_WIDGETS = W.__ZZX_WIDGETS || {};
   W.__ZZX_WIDGETS.register = register;
   W.__ZZX_WIDGETS.start = function () {
     const ctx = buildCtx();
-    startAllMounted(ctx);
+    const slots = qsa("[data-widget-slot]").filter(s => s.dataset.mountReady === "1");
+    for (const slot of slots) {
+      const id = slot.getAttribute("data-widget-slot");
+      if (id) bootOne(id, slot, ctx);
+    }
     return true;
   };
 
@@ -447,9 +347,9 @@
   W.ZZXWidgetRegistry.register = register;
   W.ZZXWidgetRegistry.start = W.__ZZX_WIDGETS.start;
 
-  /* ---------------------------
-   * Manifest-driven mounting
-   * ------------------------- */
+  // ---------------------------
+  // Error card helpers (NO SILENT FAIL)
+  // ---------------------------
   function escapeHTML(s) {
     return String(s ?? "")
       .replaceAll("&", "&amp;")
@@ -459,12 +359,27 @@
       .replaceAll("'", "&#039;");
   }
 
-  function renderHTMLFail(slot, id, msg) {
-    slot.innerHTML =
-      `<div class="btc-card">
-         <div class="btc-card__title">${escapeHTML(id)}</div>
-         <div class="btc-card__sub">${escapeHTML(msg || "HTML load failed")}</div>
-       </div>`;
+  function renderFail(slot, id, title, msg, url) {
+    if (!slot) return;
+    slot.innerHTML = `
+      <div class="btc-card">
+        <div class="btc-card__title">${escapeHTML(title || id)}</div>
+        <div class="btc-card__sub">${escapeHTML(msg || "failed")}</div>
+        ${url ? `<div class="btc-card__sub" style="opacity:.85">${escapeHTML(url)}</div>` : ``}
+      </div>
+    `;
+  }
+
+  // ---------------------------
+  // Manifest-driven mounting
+  // ---------------------------
+  async function loadManifest() {
+    const base = W.__ZZX_WIDGETS_MANIFEST_URL
+      ? String(W.__ZZX_WIDGETS_MANIFEST_URL)
+      : urlFor("/__partials/widgets/manifest.json");
+
+    const u = urlFor(base.startsWith("/") ? base : base); // normalize
+    return await fetchJSON(u);
   }
 
   async function mountWidget(id, ctx) {
@@ -474,37 +389,34 @@
     if (slot.dataset.mounted === "1") return;
     slot.dataset.mounted = "1";
 
-    const ver = assetVersionQS();
     const base = `/__partials/widgets/${id}`;
+    const htmlUrl = urlFor(`${base}/widget.html`);
+    const cssUrl  = urlFor(`${base}/widget.css`);
+    const jsUrl   = urlFor(`${base}/widget.js`);
 
-    const htmlUrl = urlFor(`${base}/widget.html${ver}`);
-    const cssUrl  = urlFor(`${base}/widget.css${ver}`);
-    const jsUrl   = urlFor(`${base}/widget.js${ver}`);
-
-    // 1) HTML
+    // HTML
     try {
       const html = await fetchText(htmlUrl);
       slot.innerHTML = html;
-      slot.setAttribute("data-widget-id", id);
       slot.dataset.mountReady = "1";
+      slot.setAttribute("data-widget-id", id);
     } catch (e) {
       slot.dataset.mountReady = "0";
-      console.warn(`[ZZX runtime] ${id} html failed`, e);
-      renderHTMLFail(slot, id, e?.message || "HTML load failed");
+      renderFail(slot, id, id, e?.message || "HTML load failed", htmlUrl);
       return;
     }
 
-    // 2) CSS (non-fatal if missing)
+    // CSS (non-fatal)
     try { ensureCSSOnce(`wcss:${id}`, cssUrl); } catch (_) {}
 
-    // 3) JS (after DOM exists)
+    // JS (fatal for behavior; show explicit error if missing)
     const ok = await ensureScriptOnce(`wjs:${id}`, jsUrl);
     if (!ok) {
-      console.warn(`[ZZX runtime] ${id} js failed to load: ${jsUrl}`);
+      renderFail(slot, id, id, "JS failed to load (check 404 / path)", jsUrl);
       return;
     }
 
-    // 4) If widget registered itself, boot now
+    // Boot if registered
     bootOne(id, slot, ctx);
   }
 
@@ -527,51 +439,40 @@
       await mountWidget(w.id, ctx);
     }
 
-    // After scripts register, start anything that prefers .start()
+    // Back-compat “start” pass
     try { W.__ZZX_WIDGETS.start(); } catch (_) {}
   }
 
-  async function loadManifest() {
-    const ver = assetVersionQS();
-    const manifestUrl =
-      W.__ZZX_WIDGETS_MANIFEST_URL
-        ? (W.__ZZX_WIDGETS_MANIFEST_URL + ver)
-        : urlFor(`/__partials/widgets/manifest.json${ver}`);
-
-    try {
-      return await fetchJSON(manifestUrl);
-    } catch (e) {
-      console.warn("[ZZX runtime] manifest.json failed:", e);
-      // fallback: mount whatever slots exist
-      const fallbackSlots = [
-        ...Array.from(D.querySelectorAll("[data-widget-slot]")),
-        ...Array.from(D.querySelectorAll(".btc-slot[data-widget]"))
-      ];
-      return {
-        widgets: fallbackSlots.map(el => ({
-          id: el.getAttribute("data-widget-slot") || el.getAttribute("data-widget"),
-          enabled: true,
-          priority: 9999,
-        })),
-      };
-    }
-  }
-
-  /* ---------------------------
-   * Boot
-   * ------------------------- */
+  // ---------------------------
+  // Boot
+  // ---------------------------
   async function boot() {
-    await waitForPartialsReady(2500);
+    // HARD REQUIREMENT for styling + handle behavior:
+    // This is what prevents “raw ticker HTML” when a page forgets to load the wrapper CSS.
+    try { ensureCSSOnce("btc-wrapper", urlFor("/__partials/bitcoin-ticker-widget.css")); } catch (_) {}
 
-    // HUD is delegated so binding early is correct
-    bindHUDControls();
+    bindHUDControlsDelegated();
 
     const ctx = buildCtx();
-    const manifest = await loadManifest();
+
+    let manifest;
+    try {
+      manifest = await loadManifest();
+    } catch (e) {
+      console.warn("[ZZX runtime] manifest.json failed, falling back to existing slots:", e);
+      manifest = {
+        widgets: qsa("[data-widget-slot]").map(el => ({
+          id: el.getAttribute("data-widget-slot"),
+          enabled: true,
+          priority: 9999
+        }))
+      };
+    }
+
     await mountAllFromManifest(manifest, ctx);
 
-    // ensure state re-applied after mounts
-    applyHUDMode(currentHUDMode());
+    // Re-apply persisted HUD mode after mounts (ensures handle reflects hidden state)
+    applyHUDMode(currentMode());
   }
 
   if (D.readyState === "loading") {
