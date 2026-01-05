@@ -1,5 +1,26 @@
 /* ========== HEADER ========== */
 
+/* -------------------------------------------------
+   HEADER RAIL ALIGNMENT (no markup change)
+   Makes header content align to the same centered rail
+   as the footer/nav containers.
+-------------------------------------------------- */
+
+:root{
+  /* Use the same rail everywhere (footer + header) */
+  --header-rail: 1100px;
+  --rail-pad: 1rem;
+}
+
+/* Replace the fixed 0.5rem side padding with rail padding */
+.header{
+  box-sizing: border-box;
+
+  /* Keep your vertical padding from earlier; only override left/right */
+  padding-left:  max(var(--rail-pad), calc((100vw - var(--header-rail)) / 2));
+  padding-right: max(var(--rail-pad), calc((100vw - var(--header-rail)) / 2));
+}
+
 /* Header Base */
 .header {
     background-color: #333;
