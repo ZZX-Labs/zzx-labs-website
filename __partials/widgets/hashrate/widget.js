@@ -1,21 +1,38 @@
+// __partials/widgets/hashrate/widget.js
+// Unified-runtime adapter (NO UI / layout / behavior changes)
+
 (function () {
-  window.ZZXWidgets.register("hashrate", {
-    mount(slotEl) { this.card = slotEl.querySelector('[data-w="hashrate"]'); },
+  const ID = "hashrate";
+
+  window.ZZXWidgets.register(ID, {
+    mount(slotEl) {
+      this.card = slotEl.querySelector('[data-w="hashrate"]');
+      this._t = null;
+    },
+
     start(ctx) {
       const MEMPOOL = ctx.api.MEMPOOL;
+      const card = this.card;
+      if (!card) return;
+
+      const valEl = card.querySelector("[data-val]");
+      const subEl = card.querySelector("[data-sub]");
+
       const candidates = [
         `${MEMPOOL}/v1/mining/hashrate/3d`,
         `${MEMPOOL}/v1/mining/hashrate/7d`,
         `${MEMPOOL}/v1/mining/hashrate`,
       ];
 
-      const run = async () => {
-        const card = this.card;
-        if (!card) return;
+      const render = (v) => {
+        if (valEl) valEl.textContent = v;
+        if (subEl) subEl.textContent = "EH/s";
+      };
 
+      const run = async () => {
         for (const u of candidates) {
           try {
-            const data = await ctx.util.jget(u);
+            const data = await ctx.fetchJSON(u);
             let seriesEH = [];
 
             if (Array.isArray(data)) {
@@ -28,19 +45,27 @@
               if (Number.isFinite(cur)) seriesEH = [cur / 1e18];
             }
 
-            const lastEH = seriesEH.length ? seriesEH[seriesEH.length - 1] : NaN;
-            ctx.util.setCard(card, Number.isFinite(lastEH) ? lastEH.toFixed(2) : "—", "EH/s");
-            if (seriesEH.length >= 2) ctx.util.drawSpark(card, seriesEH.slice(-96));
+            const lastEH = seriesEH.length
+              ? seriesEH[seriesEH.length - 1]
+              : NaN;
+
+            render(Number.isFinite(lastEH) ? lastEH.toFixed(2) : "—");
             return;
-          } catch {}
+          } catch {
+            // try next candidate
+          }
         }
 
-        ctx.util.setCard(card, "—", "EH/s");
+        render("—");
       };
 
       run();
       this._t = setInterval(run, 15_000);
     },
-    stop() { if (this._t) clearInterval(this._t); this._t = null; }
+
+    stop() {
+      if (this._t) clearInterval(this._t);
+      this._t = null;
+    }
   });
 })();
