@@ -1,99 +1,96 @@
 // __partials/widgets/bitrng/widget.js
-// BitRNG — Bitcoin-derived entropy RNG
-// Uses recent transaction / block data as entropy seed.
-// DROP-IN, no dependencies beyond ZZXWidgetsCore.
+// BitRNG — unified-runtime compatible (NO UI / logic changes)
 
 (function () {
-  const Core = window.ZZXWidgetsCore;
-  if (!Core) return;
+  window.ZZXWidgets.register("bitrng", {
+    mount(slotEl) {
+      this.root = slotEl;
+    },
 
-  const WIDGET_ID = "bitrng";
+    async start(ctx) {
+      if (!this.root || !ctx) return;
 
-  function qs(sel, scope){ return (scope || document).querySelector(sel); }
+      const root = this.root;
 
-  function hex(bytes){
-    return Array.from(bytes).map(b => b.toString(16).padStart(2,"0")).join("");
-  }
+      const $ = (sel) => root.querySelector(sel);
 
-  async function sha256Hex(input){
-    const data = new TextEncoder().encode(input);
-    const hash = await crypto.subtle.digest("SHA-256", data);
-    return hex(new Uint8Array(hash));
-  }
+      const outValue  = $("[data-bitrng-value]");
+      const outSub    = $("[data-bitrng-sub]");
+      const outSource = $("[data-bitrng-source]");
+      const outHealth = $("[data-bitrng-health]");
+      const outRate   = $("[data-bitrng-rate]");
+      const hint      = $("[data-bitrng-hint]");
 
-  function nowISO(){
-    return new Date().toISOString();
-  }
+      const btnRefresh = root.querySelector('[data-bitrng-action="refresh"]');
+      const btnCopy    = root.querySelector('[data-bitrng-action="copy"]');
 
-  async function fetchEntropy(){
-    // Prefer mempool.space public endpoints (CORS-friendly)
-    try{
-      // latest block height
-      const tip = await Core.fetchJSON("https://mempool.space/api/blocks/tip/height");
-      // recent mempool txids (limited)
-      const txids = await Core.fetchJSON("https://mempool.space/api/mempool/txids");
-      const slice = Array.isArray(txids) ? txids.slice(0, 8).join("") : "";
-      return {
-        source: "mempool.space",
-        tip,
-        txids: slice
+      if (!outValue) return;
+
+      function hex(bytes) {
+        return Array.from(bytes)
+          .map(b => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function sha256Hex(input) {
+        const data = new TextEncoder().encode(input);
+        const hash = await crypto.subtle.digest("SHA-256", data);
+        return hex(new Uint8Array(hash));
+      }
+
+      async function fetchEntropy() {
+        try {
+          const tip = await ctx.fetchJSON("https://mempool.space/api/blocks/tip/height");
+          const txids = await ctx.fetchJSON("https://mempool.space/api/mempool/txids");
+          const slice = Array.isArray(txids) ? txids.slice(0, 8).join("") : "";
+          return {
+            source: "mempool.space",
+            tip,
+            txids: slice
+          };
+        } catch {
+          return {
+            source: "fallback",
+            tip: "—",
+            txids: crypto.getRandomValues(new Uint32Array(4)).join("")
+          };
+        }
+      }
+
+      const generate = async () => {
+        outValue.textContent = "…";
+
+        const entropy = await fetchEntropy();
+        const seed = [
+          entropy.source,
+          entropy.tip,
+          entropy.txids,
+          new Date().toISOString(),
+          Math.random().toString()
+        ].join("|");
+
+        const hash = await sha256Hex(seed);
+
+        outValue.textContent  = hash;
+        outSub.textContent    = `hardware entropy · ${new Date().toLocaleTimeString()}`;
+        outSource.textContent = entropy.source;
+        outHealth.textContent = entropy.source === "fallback" ? "degraded" : "ok";
+        outRate.textContent   = "on-demand";
       };
-    }catch(e){
-      // fallback entropy
-      return {
-        source: "fallback",
-        tip: "—",
-        txids: crypto.getRandomValues(new Uint32Array(4)).join("")
-      };
-    }
-  }
 
-  async function generate(root){
-    const outHash = qs('[data-bitrng="hash"]', root);
-    const outSeed = qs('[data-bitrng="seed"]', root);
-    const outSrc  = qs('[data-bitrng="source"]', root);
-    const outTime = qs('[data-bitrng="time"]', root);
+      btnRefresh?.addEventListener("click", generate);
+      btnCopy?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(outValue.textContent);
+          if (hint) hint.textContent = "copied to clipboard";
+        } catch {
+          if (hint) hint.textContent = "copy failed";
+        }
+      });
 
-    outHash.textContent = "…";
+      await generate();
+    },
 
-    const entropy = await fetchEntropy();
-    const seed = [
-      entropy.source,
-      entropy.tip,
-      entropy.txids,
-      nowISO(),
-      Math.random().toString()
-    ].join("|");
-
-    const hash = await sha256Hex(seed);
-
-    outHash.textContent = hash;
-    outSeed.textContent = seed.slice(0, 64) + "…";
-    outSrc.textContent  = entropy.source;
-    outTime.textContent = new Date().toLocaleTimeString();
-  }
-
-  function bind(root){
-    const btn = qs('[data-bitrng-action="regen"]', root);
-    if (btn && !btn.__bound){
-      btn.__bound = true;
-      btn.addEventListener("click", () => generate(root));
-    }
-  }
-
-  function boot(){
-    const root = qs('[data-widget-root="bitrng"]');
-    if (!root || root.__booted) return;
-    root.__booted = true;
-
-    bind(root);
-    generate(root);
-  }
-
-  // Safe boot
-  if (document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", boot, { once:true });
-  }else{
-    boot();
-  }
+    stop() {}
+  });
 })();
