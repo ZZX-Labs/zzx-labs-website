@@ -1,4 +1,20 @@
-/* __partials/bitcoin-ticker-widget.css (WRAPPER + SHARED PRIMITIVES) */
+/* __partials/bitcoin-ticker-widget.css (WRAPPER + SHARED PRIMITIVES)
+   DROP-IN FIX: centers ticker widget, fixes HUD state selectors, and prevents “disappearing”
+   without changing your content/layout intentions.
+
+   Key fixes vs your current CSS:
+   1) Your state rules are written as: [data-hud-state="hidden"] [data-hud-root] ...
+      But data-hud-state is set ON the hud root itself (same element), not on an ancestor.
+      So those selectors never matched. We correct to: [data-hud-root][data-hud-state="..."] ...
+   2) Your JS uses modes: "full", "ticker", "hidden" (from hud-state.js/runtime widget).
+      Your CSS uses "ticker-only". We alias both.
+   3) The ticker “left aligned / disappears” is caused by:
+      - .btc-slot { display: contents } + fragment injection replacing nodes
+      - no forced full-width slot wrapper for ticker
+      We fix by making the bitcoin-ticker slot a real flex item that spans full width.
+
+   IMPORTANT: This file still defines the shared primitives as you intended.
+*/
 
 @font-face {
   font-family: 'AdultSwimFont';
@@ -38,7 +54,28 @@
   gap:.6rem;
   width:100%;
 }
+
+/* IMPORTANT:
+   display: contents is fragile when JS injects HTML fragments and when some hosts
+   reparent nodes; it can cause “disappearing” / unexpected layout.
+   Keep contents behavior for most slots, but force REAL boxes for the two full-width
+   rails: bitcoin-ticker (top) and bitrng (bottom).
+*/
 .btc-slot{ display: contents; }
+
+/* Full-width slots (top ticker + bottom bitrng) */
+.btc-slot[data-widget="bitcoin-ticker"],
+.btc-slot[data-widget="bitrng"]{
+  display:flex;
+  flex: 1 1 100%;
+  max-width: 100%;
+  justify-content:center;
+}
+
+/* Ensure the injected ticker fragment centers inside its slot */
+.btc-slot[data-widget="bitcoin-ticker"] > *{
+  margin-inline:auto;
+}
 
 /* shared card primitives */
 .btc-card{
@@ -106,6 +143,10 @@
 .btc-news__item a{ color:#c0d674; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .btc-news__item a:hover{ color:#e6a42b; text-decoration:underline; }
 
+/* ---------------------------------------------------------------------------
+   HUD Handle + State (FIXED SELECTORS + MODE ALIASES)
+--------------------------------------------------------------------------- */
+
 /* Handle defaults */
 .zzx-hud-handle{
   position: sticky;
@@ -134,23 +175,30 @@
   color: #e6a42b;
 }
 
-/* Hidden mode: hide ONLY the hud root, show ONLY the handle */
-[data-hud-state="hidden"] [data-hud-root] { display: none !important; }
-[data-hud-state="hidden"] .zzx-hud-handle { display: flex !important; }
-[data-hud-state="hidden"] .zzx-hud-handle[hidden] { display: flex !important; }
+/* IMPORTANT: data-hud-state is ON the root itself. Target that. */
+[data-hud-root][data-hud-state="hidden"] { display: none !important; }
+[data-hud-root][data-hud-state="hidden"] ~ .zzx-hud-handle { display: flex !important; }
 
-/* Non-hidden modes: handle stays hidden */
+/* If handle is above root in DOM (as in your wrapper), we also need a direct rule: */
+[data-hud-state="hidden"] .zzx-hud-handle { display: flex !important; }
+
+/* Non-hidden modes: hide handle */
 [data-hud-state="full"] .zzx-hud-handle,
+[data-hud-state="ticker"] .zzx-hud-handle,
 [data-hud-state="ticker-only"] .zzx-hud-handle { display: none !important; }
 
-/* ticker-only: show only ticker widget inside root (adapt selector to your runtime) */
-/* If you're still using the monolithic rail, just hide all cards except .ticker-shell */
-[data-hud-state="ticker-only"] .btc-rail .btc-card,
-[data-hud-state="ticker-only"] .btc-rail .btc-goggles,
-[data-hud-state="ticker-only"] .btc-rail .btc-intel,
-[data-hud-state="ticker-only"] .btc-rail .btc-quote {
+/* Ticker-only mode: support both "ticker" and legacy "ticker-only" */
+[data-hud-root][data-hud-state="ticker"] .btc-rail .btc-card,
+[data-hud-root][data-hud-state="ticker-only"] .btc-rail .btc-card{
   display: none !important;
 }
-[data-hud-state="ticker-only"] .btc-rail .ticker-shell{
-  display: inline-block !important;
+
+/* Allow ticker shell through (both common class names) */
+[data-hud-root][data-hud-state="ticker"] .btc-rail .ticker-shell,
+[data-hud-root][data-hud-state="ticker-only"] .btc-rail .ticker-shell,
+[data-hud-root][data-hud-state="ticker"] .btc-rail [data-w="bitcoin-ticker"],
+[data-hud-root][data-hud-state="ticker-only"] .btc-rail [data-w="bitcoin-ticker"]{
+  display: flex !important;
 }
+
+/* In full mode everything displays naturally (no overrides needed) */
