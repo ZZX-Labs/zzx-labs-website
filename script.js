@@ -1,22 +1,54 @@
 // /script.js (homepage bootstrapper)
 //
-// 1) Load /static/script.js (partials + nav + ticker)
-// 2) Load credits loader (idempotent, NON-FATAL)
-// 3) Apply home-specific tweak (add scroll-animation to .hero)
+// PURPOSE
+// - Ensure header/nav/footer inject FIRST (via /static/script.js)
+// - Ensure HUD + widgets can resolve paths from ANY subdirectory depth
+// - Ensure bitcoin-ticker mounts cleanly at the top (centered container already in HTML)
+// - Keep page layout/content unchanged (JS only)
+// - Keep changes minimal + backward compatible
 //
-// Hardening:
+// NOTES
+// - We do NOT assume /__partials/credits/loader.js exists or serves JS correctly.
+//   It remains NON-FATAL.
+// - We DO hard-fail loudly if /static/script.js fails, because without it your
+//   header/nav/footer/widgets framework can’t initialize.
+//
+// Hardening features kept:
 // - CSP nonce support via <meta name="csp-nonce" content="...">
 // - Asset versioning via <meta name="asset-version" content="..."> (adds ?v=...)
 // - Idempotent loader with normalized duplicate detection
 // - Gentle retry/backoff for ZZXSite.autoInit()
 //
-// IMPORTANT FIX:
-// - credits loader is NOT loaded as type="module" because your server currently serves
-//   text/html for that path when missing/misrouted, which browsers block for modules.
-// - credits loader failure must never break header/nav/footer injection.
+// CRITICAL ADDITION
+// - Unified base-path resolution (window.ZZX_BASE) using <base href="/"> or fallback
+//   so widget/partial fetches never 404 due to ../ pathing.
 
 (function () {
-  const ABS = (u) => new URL(u, location.href).href;
+  "use strict";
+
+  // ---------------------------------------------------------------------------
+  // Base path (site root) unification
+  // ---------------------------------------------------------------------------
+  // Prefer the document's <base href="..."> (your index.html already sets <base href="/"/>)
+  // If missing, fall back to origin root. Keep it as an absolute URL for safe joins.
+  function computeBase() {
+    const baseEl = document.querySelector("base[href]");
+    const href = baseEl ? (baseEl.getAttribute("href") || "").trim() : "";
+    try {
+      // If href is "/", this becomes "https://domain/"
+      return new URL(href || "/", location.href).href.replace(/([^/])$/, "$1/");
+    } catch {
+      return location.origin + "/";
+    }
+  }
+
+  // Export a single canonical base used by other scripts (non-breaking if already set)
+  if (typeof window.ZZX_BASE !== "string" || !window.ZZX_BASE) {
+    window.ZZX_BASE = computeBase();
+  }
+
+  // Helper: absolute URL resolver
+  const ABS = (u) => new URL(u, window.ZZX_BASE || location.href).href;
 
   // read <meta> helpers (optional)
   const META = (name) => {
@@ -51,7 +83,7 @@
 
   function withBust(src) {
     if (!VER) return src;
-    const u = new URL(src, location.href);
+    const u = new URL(src, window.ZZX_BASE || location.href);
     if (!u.searchParams.has("v")) u.searchParams.set("v", VER);
     return u.href;
   }
@@ -84,26 +116,30 @@
     });
   }
 
-  // Try calling ZZXSite.autoInit a few times in case modules load slightly later
-  async function tryAutoInit(retries = 4, delayMs = 120) {
+  // Try calling ZZXSite.autoInit a few times in case scripts load slightly later
+  async function tryAutoInit(retries = 6, delayMs = 120) {
     for (let i = 0; i < retries; i++) {
       if (window.ZZXSite && typeof window.ZZXSite.autoInit === "function") {
-        try { window.ZZXSite.autoInit(); } catch {}
+        try { window.ZZXSite.autoInit(); } catch (e) { /* keep going */ }
         return true;
       }
       await new Promise((r) => setTimeout(r, delayMs));
-      delayMs = Math.min(500, Math.round(delayMs * 1.5));
+      delayMs = Math.min(700, Math.round(delayMs * 1.5));
     }
     log("autoInit not found (ok if static only)");
     return false;
   }
 
   async function boot() {
-    // 1) Sitewide (partials/nav/ticker). This must run first.
+    // 1) Sitewide (partials/nav/ticker + shared utilities). This must run first.
     const okSite = await load("/static/script.js", { fatal: true });
+
     if (!okSite) {
       // If /static/script.js fails, header/footer will be gone everywhere — report clearly.
-      console.warn("[home-boot] /static/script.js failed; partials/nav will not inject.");
+      console.warn("[home-boot] /static/script.js failed; header/nav/footer/widgets will not inject.");
+      // Still attempt credits (non-fatal) so the page doesn't appear "dead" if it exists.
+      await load("/__partials/credits/loader.js", { fatal: false });
+      return;
     }
 
     // Ensure init (idempotent)
@@ -113,7 +149,7 @@
     // If this path is missing or serves HTML, it must NOT break the rest of the page.
     await load("/__partials/credits/loader.js", { fatal: false });
 
-    // 3) Home-only nicety
+    // 3) Home-only nicety (does not affect layout)
     const hero = document.querySelector(".hero");
     if (hero) hero.classList.add("scroll-animation"); // picked up by global scroll FX
   }
