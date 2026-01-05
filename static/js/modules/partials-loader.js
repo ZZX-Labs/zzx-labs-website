@@ -3,17 +3,18 @@
 // FRAME-FIRST ORDER (required):
 //   1) header + nav (composed)
 //   2) footer
-//   3) credits toggle button attached inside footer (right side), credits panel loaded + hidden
+//   3) credits controller loaded AFTER footer (binds to #footer-credits-btn)
 //   4) runtime loaded last
 //   5) emit events so widget-core/HUD can safely start AFTER the frame exists
 //
 // Events:
-//   - "zzx:frame:ready"   after header/nav/footer + credits button/panel are ready
+//   - "zzx:frame:ready"    after header/nav/footer + credits controller are ready
 //   - "zzx:partials:ready" after runtime is injected
 //
-// Notes:
-// - Minimal change policy: preserves your existing prefix-probing strategy and URL rewriting.
-// - Does NOT move or delete any content. Only appends a single small button + credits panel node.
+// IMPORTANT (per your requirements):
+// - DOES NOT inject any credits link, panel, host, toggle, or image icon.
+// - DOES NOT touch header/nav/ticker/footer markup besides injecting the partial HTML.
+// - Credits are handled ONLY by __partials/credits/credits.js bound to #footer-credits-btn (ⓘ Credits).
 
 (function () {
   const PARTIALS_DIR = "__partials";
@@ -147,157 +148,15 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Credits button + panel (must be attached AFTER footer loads)
-  // ---------------------------------------------------------------------------
-  const CREDITS_ICON_CANDIDATES = [
-    "/static/images/icons/credits.png",
-    "/static/images/credits.png",
-    "/static/icons/credits.png",
-    "/static/credits.png"
-  ];
-
-  function ensureCreditsNodes(prefix, footerHost) {
-    if (!footerHost) return { ok: false, reason: "no_footer_host" };
-
-    // Panel container (hidden by default)
-    let panel = document.getElementById("zzx-credits-panel");
-    if (!panel) {
-      panel = document.createElement("div");
-      panel.id = "zzx-credits-panel";
-      panel.style.display = "none";
-      panel.style.position = "relative";
-      panel.style.zIndex = "1";
-      footerHost.appendChild(panel);
-    }
-
-    // Toggle button (placed at end of footer content; visually right in most footers)
-    let btn = footerHost.querySelector("[data-credits-toggle]");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.type = "button";
-      btn.setAttribute("data-credits-toggle", "1");
-      btn.setAttribute("aria-expanded", "false");
-      btn.setAttribute("aria-controls", "zzx-credits-panel");
-      btn.title = "Credits";
-
-      // minimal inline style to avoid CSS dependency / layout breakage
-      btn.style.marginLeft = "12px";
-      btn.style.display = "inline-flex";
-      btn.style.alignItems = "center";
-      btn.style.justifyContent = "center";
-      btn.style.padding = "0";
-      btn.style.border = "0";
-      btn.style.background = "transparent";
-      btn.style.cursor = "pointer";
-      btn.style.lineHeight = "0";
-      btn.style.verticalAlign = "middle";
-
-      const img = document.createElement("img");
-      img.alt = "Credits";
-      img.width = 20;
-      img.height = 20;
-      img.decoding = "async";
-      img.loading = "eager";
-      img.style.display = "block";
-      img.style.opacity = "0.92";
-
-      const txt = document.createElement("span");
-      txt.textContent = "Credits";
-      txt.style.display = "none";
-      txt.style.fontSize = "12px";
-      txt.style.opacity = "0.9";
-      txt.style.lineHeight = "1";
-
-      btn.appendChild(img);
-      btn.appendChild(txt);
-
-      // Insert rightmost: try to find a footer text container; else append to host.
-      // (No structural rewrites; this avoids wrecking your footer layout.)
-      const target =
-        footerHost.querySelector("footer") ||
-        footerHost.querySelector(".footer") ||
-        footerHost.querySelector("[data-footer]") ||
-        footerHost;
-
-      target.appendChild(btn);
-
-      const setOpen = (on) => {
-        panel.style.display = on ? "" : "none";
-        panel.setAttribute("data-open", on ? "1" : "0");
-        btn.setAttribute("aria-expanded", on ? "true" : "false");
-      };
-
-      setOpen(false);
-
-      btn.addEventListener("click", () => {
-        const open = panel.getAttribute("data-open") === "1";
-        setOpen(!open);
-      });
-
-      // icon discovery
-      (async () => {
-        const tryList = CREDITS_ICON_CANDIDATES.map(u => absToPrefix(u, prefix));
-        for (const src of tryList) {
-          try {
-            await new Promise((resolve, reject) => {
-              const t = new Image();
-              t.onload = resolve;
-              t.onerror = reject;
-              t.src = src;
-            });
-            img.src = src;
-            return;
-          } catch (_) {}
-        }
-        img.style.display = "none";
-        txt.style.display = "inline";
-      })();
-    }
-
-    return { ok: true, panelId: "zzx-credits-panel" };
-  }
-
-  async function loadCreditsIntoPanel(prefix) {
-    const panel = document.getElementById("zzx-credits-panel");
-    if (!panel) return { ok: false, reason: "no_panel" };
-
-    // credits location candidates (matches your current partials pattern)
-    const candidates = [
-      join(prefix, PARTIALS_DIR, "credits/credits.html"),
-      join(prefix, PARTIALS_DIR, "credits/credits.html").replace(/\/+$/, ""),
-      join(prefix, PARTIALS_DIR, "credits.html"),
-      join(prefix, "credits.html")
-    ];
-
-    for (const url of candidates) {
-      try {
-        const html = await loadHTML(url);
-        const wrap = document.createElement("div");
-        wrap.innerHTML = html;
-        rewriteAbsoluteURLs(wrap, prefix);
-        panel.replaceChildren(...wrap.childNodes);
-        panel.setAttribute("data-credits-source", url);
-        return { ok: true, url };
-      } catch (_) {}
-    }
-
-    // no crash: leave empty
-    panel.replaceChildren();
-    return { ok: false, reason: "fetch_failed" };
-  }
-
-  // ---------------------------------------------------------------------------
   // Runtime (HUD + widgets) must load LAST
   // ---------------------------------------------------------------------------
   async function loadRuntime(prefix) {
-    // runtime location candidates
     const candidates = [
       join(prefix, PARTIALS_DIR, "runtime/runtime.html"),
       join(prefix, PARTIALS_DIR, "runtime.html"),
       join(prefix, "runtime.html")
     ];
 
-    // Host node
     let runtimeHost = document.getElementById("zzx-runtime");
     if (!runtimeHost) {
       runtimeHost = document.createElement("div");
@@ -347,6 +206,32 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Credits controller loader (AFTER footer)
+  // ---------------------------------------------------------------------------
+  function loadScriptOnce(src, dataAttr) {
+    return new Promise((resolve) => {
+      // De-dupe by marker OR by pathname
+      if (dataAttr && document.querySelector(`script[${dataAttr}="1"]`)) return resolve({ ok: true, deduped: true });
+
+      const abs = new URL(src, location.href).href;
+      const absPath = new URL(abs).pathname;
+
+      if ([...document.scripts].some(sc => {
+        try { return new URL(sc.src).pathname === absPath; }
+        catch { return false; }
+      })) return resolve({ ok: true, deduped: true });
+
+      const s = document.createElement("script");
+      s.src = abs;
+      s.defer = true;
+      if (dataAttr) s.setAttribute(dataAttr, "1");
+      s.onload = () => resolve({ ok: true });
+      s.onerror = () => resolve({ ok: false });
+      document.head.appendChild(s);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Boot (STRICT ORDER)
   // ---------------------------------------------------------------------------
   async function boot() {
@@ -387,11 +272,10 @@
     rewriteAbsoluteURLs(footerWrap, prefix);
     footerHost.replaceChildren(...footerWrap.childNodes);
 
-    // 2) Attach credits toggle button to footer (after footer exists)
-    const creditsNodes = ensureCreditsNodes(prefix, footerHost);
-
-    // 3) Load credits content into hidden panel (still before runtime)
-    const creditsLoad = await loadCreditsIntoPanel(prefix);
+    // 2) Credits controller AFTER footer exists (binds to #footer-credits-btn)
+    //    IMPORTANT: no panels, no anchors, no injected buttons, no icons here.
+    const creditsSrc = join(prefix, PARTIALS_DIR, "credits/credits.js") + `?v=${Date.now()}`;
+    const creditsLoad = await loadScriptOnce(creditsSrc, "data-zzx-credits");
 
     // Nav UX (prefer sitewide initializer; fallback if absent)
     const hasSitewide = await waitForSitewideInit();
@@ -405,31 +289,24 @@
     // Optional ticker can load anytime after header exists (kept here)
     await maybeLoadTicker(prefix);
 
-    // Signal: frame is stable now
+    // Signal: frame is stable now (includes credits controller status)
     window.dispatchEvent(new CustomEvent("zzx:frame:ready", {
       detail: {
         prefix,
-        header: headerHost.getAttribute("data-partial-source") || null,
-        footer: footerHost.getAttribute("data-partial-source") || null,
-        credits: { nodes: creditsNodes, load: creditsLoad }
+        credits: creditsLoad
       }
     }));
 
-    // 4) Load runtime LAST (HUD + widgets depend on frame)
+    // 3) Load runtime LAST (HUD + widgets depend on frame)
     const runtime = await loadRuntime(prefix);
 
-    // Signal: runtime is ready — widget core/HUD should start now
     window.dispatchEvent(new CustomEvent("zzx:partials:ready", {
       detail: { prefix, runtime }
     }));
 
     // Debug surface
     window.ZZXPartials = window.ZZXPartials || {};
-    window.ZZXPartials.lastResults = {
-      prefix,
-      credits: { nodes: creditsNodes, load: creditsLoad },
-      runtime
-    };
+    window.ZZXPartials.lastResults = { prefix, credits: creditsLoad, runtime };
   }
 
   if (document.readyState === "loading") {
