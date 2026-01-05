@@ -1,5 +1,11 @@
 /* static/css/footer.css
-   Footer Section (components layer)
+   DROP-IN PATCH (keeps your footer centered; fixes the flow you want)
+
+   REQUIRED STRUCTURE (from your description):
+   1) Footer "header" (copyright paragraph) centered
+   2) Credits button centered BELOW that (links to /__partials/credits/)
+   3) <hr>
+   4) Resource columns: 1 column mobile, 3 columns desktop
 */
 
 /* ========== FOOTER SECTION ========== */
@@ -12,27 +18,77 @@
     border-top: 1px solid #3e3e3e;
 }
 
-/* Single unified container */
+/* ---------- NEW: dedicated top block (centered, single column always) ---------- */
+.footer-top{
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .75rem;
+}
+
+/* paragraph inside the top block */
+.footer-top p{
+    margin: 0;
+}
+
+/* Credits button/link centered beneath the paragraph */
+.footer-credits-btn{
+    justify-self: center;
+    appearance: none;
+    -webkit-appearance: none;
+
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+    color: #c0d674;
+    cursor: pointer;
+    line-height: 1.2;
+    text-decoration: none; /* if you use <a> */
+}
+
+.footer-credits-btn:hover{
+    color: #e6a42b;
+    text-decoration: underline;
+}
+
+.footer-credits-btn:focus-visible{
+    outline: none;
+    color: #000;
+    background-color: #e6a42b;
+    box-shadow: 0 0 0 2px #e6a42b;
+    border-radius: 3px;
+    padding: 0.1rem 0.2rem;
+}
+
+/* HR (kept centered + consistent) */
+.footer hr{
+    border: 0;
+    border-top: 1px solid #3e3e3e;
+    max-width: 1200px;
+    margin: 1.25rem auto;
+}
+
+/* ---------- Resource columns container: 1 col mobile, 3 col desktop ---------- */
 .footer .container {
     margin-inline: auto;
     max-width: 1200px;
+
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr;   /* ✅ 1 column on mobile */
     gap: 2rem;
-    text-align: center; /* default centered */
+    text-align: center;           /* ✅ centered on mobile */
 }
 
-/* ≥768px: two cols; ≥1024px: 3 cols (legal/docs/opportunities).
-   If you want 4, add another .footer-column in HTML. */
-@media (min-width: 768px) {
-    .footer .container {
-        grid-template-columns: repeat(2, minmax(220px, 1fr));
-        text-align: left;
-    }
-}
 @media (min-width: 1024px) {
     .footer .container {
-        grid-template-columns: repeat(3, minmax(220px, 1fr));
+        grid-template-columns: repeat(3, minmax(220px, 1fr)); /* ✅ 3 columns desktop */
+        text-align: left;                                     /* ✅ readable lists */
     }
 }
 
@@ -79,24 +135,10 @@
     box-shadow: 0 0 0 2px #e6a42b;
 }
 
-/* Footer Bottom (copyright strip) */
-.footer-bottom {
-    max-width: 1200px;
-    margin: 2rem auto 0 auto;
-    text-align: center;
-    font-size: 0.9rem;
-    color: #c0d674;
-    border-top: 1px solid #3e3e3e;
-    padding-top: 1rem;
-}
-
-/* Responsive Adjustments */
+/* Optional: center columns on mobile (keeps your existing behavior) */
 @media (max-width: 768px) {
     .footer {
         padding: 2.5rem 1rem;
-    }
-    .footer .container {
-        text-align: center;
     }
     .footer-column {
         align-items: center;
