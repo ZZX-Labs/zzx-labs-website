@@ -1,277 +1,440 @@
-/* /partials-loader.js
-   FRAME-FIRST LOADER (AUTHORITATIVE)
-   Requirements implemented exactly:
-   1) Load HEADER + NAV first
-   2) Load FOOTER next
-   3) After FOOTER is in DOM, attach a Credits ICON BUTTON to the RIGHT of footer text
-      - Button toggles the Credits panel (show/hide)
-   4) Only after frame + footer + credits toggle are ready do we load RUNTIME
-   5) Only after runtime is ready do we signal widgets/HUD to start
-
-   This file is designed to be safe on:
-   - "/" and deep subpages ("/about/", "/pages/services/...", etc.)
-   - GitHub Pages and local nginx
-
-   It never changes your content; it only injects a single button element into the footer container.
-
-   Emits events:
-   - window event: "zzx:frame:ready"   after header/nav/footer + credits button
-   - window event: "zzx:partials:ready" after runtime is injected
-
-   Debug:
-   - window.ZZXPartials.lastResults
-*/
+// /partials-loader.js
+// ZZX Partials Loader — works from any depth, no server rewrites needed.
+// FRAME-FIRST ORDER (required):
+//   1) header + nav (composed)
+//   2) footer
+//   3) credits toggle button attached inside footer (right side), credits panel loaded + hidden
+//   4) runtime loaded last
+//   5) emit events so widget-core/HUD can safely start AFTER the frame exists
+//
+// Events:
+//   - "zzx:frame:ready"   after header/nav/footer + credits button/panel are ready
+//   - "zzx:partials:ready" after runtime is injected
+//
+// Notes:
+// - Minimal change policy: preserves your existing prefix-probing strategy and URL rewriting.
+// - Does NOT move or delete any content. Only appends a single small button + credits panel node.
 
 (function () {
-  const CACHE = "no-store";
+  const PARTIALS_DIR = "__partials";
 
-  // Prefer absolute-root paths first so subpages never break.
-  const PARTIAL_PATHS = {
-    header:  ["/partials/header.html",  "/__partials/header.html",  "/header.html"],
-    nav:     ["/partials/nav.html",     "/__partials/nav.html",     "/nav.html"],
-    footer:  ["/partials/footer.html",  "/__partials/footer.html",  "/footer.html"],
-    credits: ["/partials/credits.html", "/__partials/credits.html", "/credits.html"],
-    runtime: ["/partials/runtime.html", "/__partials/runtime.html", "/runtime.html"]
-  };
+  const PATHS = [
+    ".", "..", "../..", "../../..",
+    "../../../..", "../../../../..", "../../../../../..", "../../../../../../..",
+    "/" // final attempt: site root (only works if hosted at domain root)
+  ];
 
-  // Credits icon candidates (PNG). We try a small set; first hit wins.
-  // If none load, we fall back to a text button ("Credits") but still functional.
+  // ---------------------------------------------------------------------------
+  // Probe + prefix
+  // ---------------------------------------------------------------------------
+  async function probe(url) {
+    try {
+      const r = await fetch(url, { method: "GET", cache: "no-store" });
+      return r.ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function validateOrRecomputePrefix(cached) {
+    if (cached) {
+      const ok = await probe(join(cached, PARTIALS_DIR, "header/header.html"));
+      if (ok) return cached;
+      sessionStorage.removeItem("zzx.partials.prefix");
+    }
+
+    for (const p of PATHS) {
+      const url = join(p, PARTIALS_DIR, "header/header.html");
+      if (await probe(url)) {
+        sessionStorage.setItem("zzx.partials.prefix", p);
+        return p;
+      }
+    }
+
+    return ".";
+  }
+
+  async function findPrefix() {
+    const cached = sessionStorage.getItem("zzx.partials.prefix");
+    return await validateOrRecomputePrefix(cached);
+  }
+
+  function join(...segs) {
+    return segs
+      .filter(Boolean)
+      .map((s, i) => {
+        if (i === 0) return s === "/" ? "/" : s.replace(/\/+$/, "");
+        return s.replace(/^\/+/, "");
+      })
+      .join("/");
+  }
+
+  function absToPrefix(url, prefix) {
+    if (prefix === "/" || !url.startsWith("/")) return url;
+    return prefix.replace(/\/+$/, "") + url;
+  }
+
+  function rewriteAbsoluteURLs(root, prefix) {
+    if (prefix !== "/") {
+      root.querySelectorAll('[href^="/"]').forEach(a => {
+        const v = a.getAttribute("href");
+        if (v) a.setAttribute("href", absToPrefix(v, prefix));
+      });
+      root.querySelectorAll('[src^="/"]').forEach(el => {
+        const v = el.getAttribute("src");
+        if (v) el.setAttribute("src", absToPrefix(v, prefix));
+      });
+    }
+  }
+
+  async function loadHTML(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`Failed to fetch ${url}: ${r.status}`);
+    return await r.text();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Compose header + nav
+  // ---------------------------------------------------------------------------
+  function injectNavIntoHeader(headerHTML, navHTML) {
+    const marker = "<!-- navbar Here -->";
+    if (headerHTML.includes(marker)) return headerHTML.replace(marker, navHTML);
+
+    const idx = headerHTML.lastIndexOf("</div>");
+    if (idx !== -1) {
+      return headerHTML.slice(0, idx) + "\n" + navHTML + "\n" + headerHTML.slice(idx);
+    }
+    return headerHTML + "\n" + navHTML;
+  }
+
+  function initNavUX(scope = document) {
+    const toggle = scope.querySelector("#navbar-toggle");
+    const links = scope.querySelector("#navbar-links");
+    const body = document.body;
+
+    if (toggle && links && !toggle.__bound_click) {
+      toggle.__bound_click = true;
+      toggle.addEventListener("click", () => {
+        const isOpen = links.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        links.setAttribute("aria-hidden", isOpen ? "false" : "true");
+        body.classList.toggle("no-scroll", isOpen);
+      });
+    }
+
+    scope.querySelectorAll(".submenu-toggle").forEach(btn => {
+      if (btn.__bound_click) return;
+      btn.__bound_click = true;
+      btn.addEventListener("click", () => {
+        const ul = btn.nextElementSibling;
+        if (ul && ul.classList.contains("submenu")) {
+          ul.classList.toggle("open");
+          btn.classList.toggle("open");
+        }
+      });
+    });
+  }
+
+  function waitForSitewideInit(timeoutMs = 1200, intervalMs = 60) {
+    return new Promise(resolve => {
+      const t0 = performance.now();
+      (function poll() {
+        if (window.ZZXSite && typeof window.ZZXSite.initNav === "function") return resolve(true);
+        if (performance.now() - t0 >= timeoutMs) return resolve(false);
+        setTimeout(poll, intervalMs);
+      })();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Credits button + panel (must be attached AFTER footer loads)
+  // ---------------------------------------------------------------------------
   const CREDITS_ICON_CANDIDATES = [
     "/static/images/icons/credits.png",
     "/static/images/credits.png",
-    "/static/images/icon-credits.png",
     "/static/icons/credits.png",
     "/static/credits.png"
   ];
 
-  // Slot discovery: supports either #ids or data-partial attributes.
-  function findSlot(key) {
-    return (
-      document.getElementById(`site-${key}`) ||
-      document.querySelector(`[data-partial="${key}"]`) ||
-      null
-    );
-  }
+  function ensureCreditsNodes(prefix, footerHost) {
+    if (!footerHost) return { ok: false, reason: "no_footer_host" };
 
-  async function tryFetch(url) {
-    const r = await fetch(url, { cache: CACHE, credentials: "same-origin" });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return await r.text();
-  }
-
-  function unique(arr) {
-    return Array.from(new Set(arr));
-  }
-
-  // Build candidate list:
-  // - Absolute root paths
-  // - Relative fallbacks up to 6 levels deep
-  function buildCandidates(paths) {
-    const out = [];
-    for (const p of paths) {
-      out.push(p);
-
-      const depth = location.pathname.replace(/\/+$/, "").split("/").length - 1;
-      const relBase = p.replace(/^\/+/, "");
-      for (let i = 0; i < Math.min(depth, 6); i++) {
-        out.push("../".repeat(i + 1) + relBase);
-      }
+    // Panel container (hidden by default)
+    let panel = document.getElementById("zzx-credits-panel");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "zzx-credits-panel";
+      panel.style.display = "none";
+      panel.style.position = "relative";
+      panel.style.zIndex = "1";
+      footerHost.appendChild(panel);
     }
-    return unique(out);
+
+    // Toggle button (placed at end of footer content; visually right in most footers)
+    let btn = footerHost.querySelector("[data-credits-toggle]");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.setAttribute("data-credits-toggle", "1");
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("aria-controls", "zzx-credits-panel");
+      btn.title = "Credits";
+
+      // minimal inline style to avoid CSS dependency / layout breakage
+      btn.style.marginLeft = "12px";
+      btn.style.display = "inline-flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "center";
+      btn.style.padding = "0";
+      btn.style.border = "0";
+      btn.style.background = "transparent";
+      btn.style.cursor = "pointer";
+      btn.style.lineHeight = "0";
+      btn.style.verticalAlign = "middle";
+
+      const img = document.createElement("img");
+      img.alt = "Credits";
+      img.width = 20;
+      img.height = 20;
+      img.decoding = "async";
+      img.loading = "eager";
+      img.style.display = "block";
+      img.style.opacity = "0.92";
+
+      const txt = document.createElement("span");
+      txt.textContent = "Credits";
+      txt.style.display = "none";
+      txt.style.fontSize = "12px";
+      txt.style.opacity = "0.9";
+      txt.style.lineHeight = "1";
+
+      btn.appendChild(img);
+      btn.appendChild(txt);
+
+      // Insert rightmost: try to find a footer text container; else append to host.
+      // (No structural rewrites; this avoids wrecking your footer layout.)
+      const target =
+        footerHost.querySelector("footer") ||
+        footerHost.querySelector(".footer") ||
+        footerHost.querySelector("[data-footer]") ||
+        footerHost;
+
+      target.appendChild(btn);
+
+      const setOpen = (on) => {
+        panel.style.display = on ? "" : "none";
+        panel.setAttribute("data-open", on ? "1" : "0");
+        btn.setAttribute("aria-expanded", on ? "true" : "false");
+      };
+
+      setOpen(false);
+
+      btn.addEventListener("click", () => {
+        const open = panel.getAttribute("data-open") === "1";
+        setOpen(!open);
+      });
+
+      // icon discovery
+      (async () => {
+        const tryList = CREDITS_ICON_CANDIDATES.map(u => absToPrefix(u, prefix));
+        for (const src of tryList) {
+          try {
+            await new Promise((resolve, reject) => {
+              const t = new Image();
+              t.onload = resolve;
+              t.onerror = reject;
+              t.src = src;
+            });
+            img.src = src;
+            return;
+          } catch (_) {}
+        }
+        img.style.display = "none";
+        txt.style.display = "inline";
+      })();
+    }
+
+    return { ok: true, panelId: "zzx-credits-panel" };
   }
 
-  async function loadOne(key) {
-    const slot = findSlot(key);
-    if (!slot) return { key, ok: false, reason: "slot_missing" };
+  async function loadCreditsIntoPanel(prefix) {
+    const panel = document.getElementById("zzx-credits-panel");
+    if (!panel) return { ok: false, reason: "no_panel" };
 
-    const candidates = buildCandidates(PARTIAL_PATHS[key] || []);
+    // credits location candidates (matches your current partials pattern)
+    const candidates = [
+      join(prefix, PARTIALS_DIR, "credits/credits.html"),
+      join(prefix, PARTIALS_DIR, "credits/credits.html").replace(/\/+$/, ""),
+      join(prefix, PARTIALS_DIR, "credits.html"),
+      join(prefix, "credits.html")
+    ];
+
     for (const url of candidates) {
       try {
-        const html = await tryFetch(url);
-        slot.innerHTML = html;
-        slot.setAttribute("data-partial-loaded", "1");
-        slot.setAttribute("data-partial-source", url);
-        return { key, ok: true, url };
-      } catch {
-        // continue
-      }
+        const html = await loadHTML(url);
+        const wrap = document.createElement("div");
+        wrap.innerHTML = html;
+        rewriteAbsoluteURLs(wrap, prefix);
+        panel.replaceChildren(...wrap.childNodes);
+        panel.setAttribute("data-credits-source", url);
+        return { ok: true, url };
+      } catch (_) {}
     }
 
-    slot.setAttribute("data-partial-loaded", "0");
-    return { key, ok: false, reason: "fetch_failed", candidates };
+    // no crash: leave empty
+    panel.replaceChildren();
+    return { ok: false, reason: "fetch_failed" };
   }
 
-  function ensureCreditsToggle() {
-    const footerSlot = findSlot("footer");
-    const creditsSlot = findSlot("credits");
+  // ---------------------------------------------------------------------------
+  // Runtime (HUD + widgets) must load LAST
+  // ---------------------------------------------------------------------------
+  async function loadRuntime(prefix) {
+    // runtime location candidates
+    const candidates = [
+      join(prefix, PARTIALS_DIR, "runtime/runtime.html"),
+      join(prefix, PARTIALS_DIR, "runtime.html"),
+      join(prefix, "runtime.html")
+    ];
 
-    if (!footerSlot || !creditsSlot) return { ok: false, reason: "missing_slots" };
-
-    // Do not duplicate
-    if (footerSlot.querySelector("[data-credits-toggle]")) {
-      return { ok: true, reason: "already_present" };
+    // Host node
+    let runtimeHost = document.getElementById("zzx-runtime");
+    if (!runtimeHost) {
+      runtimeHost = document.createElement("div");
+      runtimeHost.id = "zzx-runtime";
+      document.body.appendChild(runtimeHost);
     }
 
-    // We do NOT reposition your footer content.
-    // We only attach a small, inline-flex button aligned to the right edge
-    // by wrapping footer contents in a flex row IF a wrapper doesn't already exist.
-    //
-    // Minimal DOM touch:
-    // - create a container at the end that naturally sits to the right
-    //   (works when footer already uses flex or grid; if not, the button still appears
-    //   at the end without breaking text flow).
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.setAttribute("data-credits-toggle", "1");
-    btn.setAttribute("aria-expanded", "false");
-    btn.setAttribute("aria-controls", "site-credits");
-    btn.title = "Credits";
-
-    // Ultra-minimal inline styling to prevent CSS dependency and stop “floating”
-    btn.style.marginLeft = "12px";
-    btn.style.display = "inline-flex";
-    btn.style.alignItems = "center";
-    btn.style.justifyContent = "center";
-    btn.style.padding = "0";
-    btn.style.border = "0";
-    btn.style.background = "transparent";
-    btn.style.cursor = "pointer";
-    btn.style.lineHeight = "0";
-
-    // Create img; if none loads, keep text fallback.
-    const img = document.createElement("img");
-    img.alt = "Credits";
-    img.width = 20;
-    img.height = 20;
-    img.decoding = "async";
-    img.loading = "eager";
-    img.style.display = "block";
-    img.style.opacity = "0.92";
-
-    // Text fallback (hidden unless img fails)
-    const txt = document.createElement("span");
-    txt.textContent = "Credits";
-    txt.style.display = "none";
-    txt.style.fontSize = "12px";
-    txt.style.color = "inherit";
-    txt.style.opacity = "0.9";
-    txt.style.lineHeight = "1";
-
-    btn.appendChild(img);
-    btn.appendChild(txt);
-
-    // Default: credits hidden until toggled, but we don’t force a layout change.
-    // If your CSS already controls it, we respect that.
-    // We only apply inline display if the credits panel is visibly overlaying.
-    function setCreditsVisible(on) {
-      // Prefer targeting explicit slot id if present
-      const panel = creditsSlot;
-      const isOn = !!on;
-
-      btn.setAttribute("aria-expanded", isOn ? "true" : "false");
-
-      // If you already have a class-based system, we avoid fighting it.
-      // We use a single data attribute that your CSS/JS may already understand.
-      panel.setAttribute("data-credits-open", isOn ? "1" : "0");
-
-      // Minimal inline fallback:
-      // - When closed: hide if currently overlaying or visible by default.
-      // - When open: show.
-      if (isOn) {
-        panel.style.display = "";
-      } else {
-        // only hide if it is currently taking up layout/overlaying
-        // (safe default: hide to prevent “floating over content”)
-        panel.style.display = "none";
-      }
+    for (const url of candidates) {
+      try {
+        const html = await loadHTML(url);
+        const wrap = document.createElement("div");
+        wrap.innerHTML = html;
+        rewriteAbsoluteURLs(wrap, prefix);
+        runtimeHost.replaceChildren(...wrap.childNodes);
+        runtimeHost.setAttribute("data-runtime-source", url);
+        return { ok: true, url };
+      } catch (_) {}
     }
 
-    // Initialize: closed to prevent overlay
-    setCreditsVisible(false);
+    return { ok: false, reason: "fetch_failed" };
+  }
 
-    btn.addEventListener("click", () => {
-      const open = creditsSlot.getAttribute("data-credits-open") === "1";
-      setCreditsVisible(!open);
-    });
+  // ---------------------------------------------------------------------------
+  // Optional ticker (duplicate-safe)
+  // ---------------------------------------------------------------------------
+  async function maybeLoadTicker(prefix) {
+    if (window.__ZZX_TICKER_LOADED || document.querySelector('script[data-zzx-ticker]')) return;
 
-    // Insert button into footer in the least invasive way:
-    // If footer already has a footer-right container, use it; else append.
-    const right =
-      footerSlot.querySelector("[data-footer-right]") ||
-      footerSlot.querySelector(".footer-right") ||
-      footerSlot.querySelector("footer .right") ||
-      null;
+    const tc = document.getElementById("ticker-container");
+    if (!tc) return;
 
-    if (right) {
-      right.appendChild(btn);
+    try {
+      const html = await loadHTML(join(prefix, "bitcoin/ticker/ticker.html"));
+      tc.innerHTML = html;
+
+      const s = document.createElement("script");
+      s.src = join(prefix, "bitcoin/ticker/ticker.js") + `?v=${Date.now()}`;
+      s.defer = true;
+      s.setAttribute("data-zzx-ticker", "1");
+      document.body.appendChild(s);
+
+      window.__ZZX_TICKER_LOADED = true;
+      tc.dataset.tickerLoaded = "1";
+    } catch (e) {
+      console.warn("Ticker load failed:", e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Boot (STRICT ORDER)
+  // ---------------------------------------------------------------------------
+  async function boot() {
+    const prefix = await findPrefix();
+    window.ZZX = Object.assign({}, window.ZZX || {}, { PREFIX: prefix });
+
+    // Ensure header/footer host nodes exist (frame anchors)
+    let headerHost = document.getElementById("zzx-header");
+    if (!headerHost) {
+      headerHost = document.createElement("div");
+      headerHost.id = "zzx-header";
+      document.body.prepend(headerHost);
+    }
+
+    let footerHost = document.getElementById("zzx-footer");
+    if (!footerHost) {
+      footerHost = document.createElement("div");
+      footerHost.id = "zzx-footer";
+      document.body.appendChild(footerHost);
+    }
+
+    // 1) Load header + nav + footer FIRST (strict)
+    const [headerHTML, navHTML, footerHTML] = await Promise.all([
+      loadHTML(join(prefix, PARTIALS_DIR, "header/header.html")),
+      loadHTML(join(prefix, PARTIALS_DIR, "nav/nav.html")),
+      loadHTML(join(prefix, PARTIALS_DIR, "footer/footer.html"))
+    ]);
+
+    const composedHeader = injectNavIntoHeader(headerHTML, navHTML);
+
+    const headerWrap = document.createElement("div");
+    headerWrap.innerHTML = composedHeader;
+    rewriteAbsoluteURLs(headerWrap, prefix);
+    headerHost.replaceChildren(...headerWrap.childNodes);
+
+    const footerWrap = document.createElement("div");
+    footerWrap.innerHTML = footerHTML;
+    rewriteAbsoluteURLs(footerWrap, prefix);
+    footerHost.replaceChildren(...footerWrap.childNodes);
+
+    // 2) Attach credits toggle button to footer (after footer exists)
+    const creditsNodes = ensureCreditsNodes(prefix, footerHost);
+
+    // 3) Load credits content into hidden panel (still before runtime)
+    const creditsLoad = await loadCreditsIntoPanel(prefix);
+
+    // Nav UX (prefer sitewide initializer; fallback if absent)
+    const hasSitewide = await waitForSitewideInit();
+    if (hasSitewide) {
+      window.ZZXSite.initNav(headerHost);
+      if (typeof window.ZZXSite.autoInit === "function") window.ZZXSite.autoInit();
     } else {
-      // Append as last element inside footer slot.
-      footerSlot.appendChild(btn);
+      initNavUX(headerHost);
     }
 
-    // Try to load an icon source; if all fail, show text label.
-    (async () => {
-      for (const src of CREDITS_ICON_CANDIDATES) {
-        try {
-          // preflight load
-          await new Promise((resolve, reject) => {
-            const t = new Image();
-            t.onload = resolve;
-            t.onerror = reject;
-            t.src = src;
-          });
-          img.src = src;
-          return;
-        } catch {
-          // try next
-        }
+    // Optional ticker can load anytime after header exists (kept here)
+    await maybeLoadTicker(prefix);
+
+    // Signal: frame is stable now
+    window.dispatchEvent(new CustomEvent("zzx:frame:ready", {
+      detail: {
+        prefix,
+        header: headerHost.getAttribute("data-partial-source") || null,
+        footer: footerHost.getAttribute("data-partial-source") || null,
+        credits: { nodes: creditsNodes, load: creditsLoad }
       }
-      // No icon found
-      img.style.display = "none";
-      txt.style.display = "inline";
-    })();
+    }));
 
-    return { ok: true, reason: "inserted" };
-  }
+    // 4) Load runtime LAST (HUD + widgets depend on frame)
+    const runtime = await loadRuntime(prefix);
 
-  async function loadFrameThenRuntime() {
-    // FRAME FIRST (strict)
-    const results = [];
-    results.push(await loadOne("header"));
-    results.push(await loadOne("nav"));
-    results.push(await loadOne("footer"));
+    // Signal: runtime is ready — widget core/HUD should start now
+    window.dispatchEvent(new CustomEvent("zzx:partials:ready", {
+      detail: { prefix, runtime }
+    }));
 
-    // Credits content can be loaded now, but the toggle is attached to footer text
-    // after footer exists.
-    results.push(await loadOne("credits"));
-
-    const toggle = ensureCreditsToggle();
-    window.dispatchEvent(new CustomEvent("zzx:frame:ready", { detail: { results, toggle } }));
-
-    // RUNTIME LAST (only after frame is stable)
-    results.push(await loadOne("runtime"));
-
+    // Debug surface
     window.ZZXPartials = window.ZZXPartials || {};
-    window.ZZXPartials.lastResults = results;
-
-    window.dispatchEvent(new CustomEvent("zzx:partials:ready", { detail: results }));
-
-    return results;
-  }
-
-  function boot() {
-    loadFrameThenRuntime().catch(() => {
-      // never hard-fail the page
-    });
+    window.ZZXPartials.lastResults = {
+      prefix,
+      credits: { nodes: creditsNodes, load: creditsLoad },
+      runtime
+    };
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
+    document.addEventListener("DOMContentLoaded", () => boot().catch(e => console.warn("partials boot failed:", e)));
   } else {
-    boot();
+    boot().catch(e => console.warn("partials boot failed:", e));
   }
-
-  // Export API
-  window.ZZXPartials = window.ZZXPartials || {};
-  window.ZZXPartials.loadAll = loadFrameThenRuntime;
 })();
