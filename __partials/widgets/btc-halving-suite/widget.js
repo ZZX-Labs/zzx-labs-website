@@ -1,3 +1,6 @@
+// __partials/widgets/btc-halving-suite/widget.js
+// FIXED: unified-runtime compatible (NO UI / logic changes)
+
 (function () {
   const ID = "btc-halving-suite";
   const MEMPOOL = "https://mempool.space/api";
@@ -6,18 +9,18 @@
   const INITIAL_REWARD = 50;     // BTC
   const MAX_SUPPLY = 21000000;   // BTC
 
-  function fmtBTC(x){
+  function fmtBTC(x) {
     if (!Number.isFinite(x)) return "—";
     return x.toLocaleString(undefined, { maximumFractionDigits: 8 });
   }
 
-  function rewardAtHeight(height){
+  function rewardAtHeight(height) {
     const era = Math.floor(height / HALVING_INTERVAL);
     return INITIAL_REWARD / Math.pow(2, era);
   }
 
-  function totalMinedAtHeight(height){
-    let remainingBlocks = height; // mined blocks up to tip height
+  function totalMinedAtHeight(height) {
+    let remainingBlocks = height;
     let era = 0;
     let total = 0;
 
@@ -32,30 +35,33 @@
     return total;
   }
 
-  window.ZZXWidgetRegistry.register(ID, {
-    _root: null,
-    _core: null,
-    _last: 0,
+  window.ZZXWidgets.register(ID, {
+    mount(slotEl) {
+      this._root = slotEl;
+      this._last = 0;
+    },
 
-    async init({ root, core }) {
-      this._root = root;
-      this._core = core;
+    async start(ctx) {
+      this._ctx = ctx;
       await this.update(true);
     },
 
-    async update(force=false) {
+    async update(force = false) {
       const now = Date.now();
       if (!force && now - this._last < 15_000) return;
       this._last = now;
 
-      const tipEl = this._root.querySelector("[data-tip]");
-      const rEl   = this._root.querySelector("[data-reward]");
-      const hEl   = this._root.querySelector("[data-halving]");
-      const mEl   = this._root.querySelector("[data-mined]");
-      const remEl = this._root.querySelector("[data-remain]");
+      const root = this._root;
+      if (!root) return;
+
+      const tipEl = root.querySelector("[data-tip]");
+      const rEl   = root.querySelector("[data-reward]");
+      const hEl   = root.querySelector("[data-halving]");
+      const mEl   = root.querySelector("[data-mined]");
+      const remEl = root.querySelector("[data-remain]");
 
       try {
-        const tipTxt = await this._core.fetchText(`${MEMPOOL}/blocks/tip/height`);
+        const tipTxt = await this._ctx.fetchText(`${MEMPOOL}/blocks/tip/height`);
         const tip = parseInt(String(tipTxt).trim(), 10);
         if (!Number.isFinite(tip)) throw new Error("bad tip");
 
@@ -81,7 +87,10 @@
       }
     },
 
-    tick() { this.update(false); },
-    destroy() {}
+    tick() {
+      this.update(false);
+    },
+
+    stop() {}
   });
 })();
