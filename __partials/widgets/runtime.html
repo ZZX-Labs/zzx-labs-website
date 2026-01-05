@@ -1,105 +1,65 @@
-<!-- __partials/runtime/runtime.html -->
-<!-- DROP-IN: deterministic runtime boot + prefix-safe CSS/JS injection
-     Guarantees:
-     - CSS for HUD/widget primitives is present BEFORE widgets mount
-     - widget-core initializes only AFTER CSS and DOM are ready
-     - avoids double-loads
--->
-
-<div data-runtime-root>
-  <!-- Controls bar is rendered by your runtime widget (runtime/widget.html), not here. -->
+<!-- __partials/widgets/runtime.html -->
+<!-- HUD handle: ALWAYS visible even if HUD hidden -->
+<div class="zzx-hud-handle" data-hud-handle>
+  <button type="button" class="zzx-hud-show" data-hud-show aria-label="Show Bitcoin HUD">
+    Show Bitcoin HUD
+  </button>
 </div>
 
-<script>
-(function () {
-  const W = window;
+<!-- HUD root (hidden/collapsed by state) -->
+<div class="zzx-widgets" data-hud-root data-hud-state="full" role="region" aria-label="Bitcoin HUD">
 
-  // -------------------------
-  // Prefix-safe path builder
-  // -------------------------
-  function prefix() {
-    const p = W.ZZX && typeof W.ZZX.PREFIX === "string" ? W.ZZX.PREFIX : "";
-    if (!p || p === "/") return "";
-    return p.replace(/\/+$/, "");
-  }
-  function u(path) { return prefix() + path; }
+  <!-- SINGLE control bar -->
+  <div class="zzx-widgets__bar" aria-label="Bitcoin HUD controls">
+    <button class="zzx-widgets__btn" type="button" data-hud-mode="full">Full</button>
+    <button class="zzx-widgets__btn" type="button" data-hud-mode="ticker-only">Ticker</button>
+    <button class="zzx-widgets__btn" type="button" data-hud-mode="hidden">Hide</button>
 
-  // -------------------------
-  // Ensure CSS (once)
-  // -------------------------
-  function ensureCSS(href, key) {
-    if (document.querySelector(`link[data-zzx-css="${key}"]`)) return Promise.resolve(true);
+    <span class="zzx-widgets__spacer"></span>
 
-    return new Promise((resolve) => {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = href;
-      link.setAttribute("data-zzx-css", key);
-      link.onload = () => resolve(true);
-      link.onerror = () => resolve(false);
-      document.head.appendChild(link);
-    });
-  }
+    <button class="zzx-widgets__btn" type="button" data-hud-action="reset">Reset</button>
+  </div>
 
-  // -------------------------
-  // Ensure JS (once)
-  // -------------------------
-  function ensureScript(src, key) {
-    if (document.querySelector(`script[data-zzx-js="${key}"]`)) return Promise.resolve(true);
+  <!-- Widget slots (runtime mounts widget.html into each slot, then loads widget.js AFTER mount) -->
+  <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets">
+    <div data-widget-slot="bitcoin-ticker"></div>
 
-    return new Promise((resolve) => {
-      const s = document.createElement("script");
-      s.src = src;
-      s.defer = true;
-      s.setAttribute("data-zzx-js", key);
-      s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
-      document.body.appendChild(s);
-    });
-  }
+    <div data-widget-slot="price-24h"></div>
+    <div data-widget-slot="volume-24h"></div>
+    <div data-widget-slot="high-low-24h"></div>
 
-  // -------------------------
-  // Boot sequence
-  // -------------------------
-  async function boot() {
-    // 1) Load CSS primitives REQUIRED for ticker + cards + rail + HUD handle
-    //    (these must exist before any widget HTML is injected)
-    await ensureCSS(u("/__partials/bitcoin-ticker-widget.css"), "btc-wrapper");
-    await ensureCSS(u("/__partials/widgets/widget-core.css"), "widget-core");
+    <div data-widget-slot="fees"></div>
+    <div data-widget-slot="mempool"></div>
+    <div data-widget-slot="mempool-goggles"></div>
 
-    // 2) Load widget core (mount engine)
-    await ensureScript(u("/__partials/widgets/widget-core.js"), "widget-core");
+    <div data-widget-slot="hashrate"></div>
+    <div data-widget-slot="hashrate-by-nation"></div>
 
-    // 3) Load HUD state + runtime binding (the code that makes Full/Ticker/Hide/Reset work)
-    //    If your site already includes these elsewhere, this will no-op due to data keys.
-    await ensureScript(u("/__partials/widgets/runtime/hud-state.js"), "hud-state");
-    await ensureScript(u("/__partials/widgets/runtime/widget.js"), "runtime-widget");
+    <div data-widget-slot="nodes"></div>
+    <div data-widget-slot="nodes-by-nation"></div>
 
-    // 4) Kick widget mounting only when the frame is ready
-    //    (partials-loader emits zzx:partials:ready; if already fired, start immediately)
-    const startWidgets = () => {
-      try {
-        // widget-core should expose a mount/boot entry; if not, it self-boots.
-        if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.boot === "function") {
-          W.ZZXWidgetsCore.boot();
-        }
-      } catch (_) {}
-    };
+    <div data-widget-slot="lightning"></div>
+    <div data-widget-slot="lightning-detail"></div>
 
-    let started = false;
-    function startOnce() {
-      if (started) return;
-      started = true;
-      startWidgets();
-    }
+    <div data-widget-slot="tip"></div>
+    <div data-widget-slot="drift"></div>
 
-    W.addEventListener("zzx:frame:ready", startOnce, { once: true });
-    W.addEventListener("zzx:partials:ready", startOnce, { once: true });
+    <div data-widget-slot="intel"></div>
+    <div data-widget-slot="btc-intel"></div>
+    <div data-widget-slot="btc-repo"></div>
+    <div data-widget-slot="btc-news"></div>
 
-    // Fallback: if events never fire, start after a short tick
-    setTimeout(startOnce, 50);
-  }
+    <div data-widget-slot="satoshi-quote"></div>
 
-  boot();
-})();
-</script>
+    <div data-widget-slot="btc-halving-suite"></div>
+
+    <div data-widget-slot="btc-blockexplorer"></div>
+    <div data-widget-slot="btc-notabletxs"></div>
+
+    <div data-widget-slot="bitrng"></div>
+
+    <div data-widget-slot="btc-stolen"></div>
+    <div data-widget-slot="btc-burned"></div>
+    <div data-widget-slot="btc-lost"></div>
+  </div>
+</div>
