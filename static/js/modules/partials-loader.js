@@ -1,143 +1,85 @@
-// static/js/modules/partials-loader.js
-// ZZX Partials Loader — works from any depth, no server rewrites needed.
-// DROP-IN REPLACEMENT
-// NOTE: ticker/HUD injection is handled ONLY by /static/js/modules/ticker-loader.js
+// /static/js/modules/partials-loader.js
+// ZZX Partials Loader (ROOT-RELATIVE, DEPTH-SAFE)
+// Fixes the “https://__partials/…” CORS failure by NEVER emitting protocol-relative URLs (//__partials/...).
+// Loads header/nav/footer from /__partials/... and injects them into #zzx-header / #zzx-footer.
+// Ticker/HUD is NOT handled here.
 
 (function () {
-  const PARTIALS_DIR = "__partials";
-  const PATHS = [
-    ".", "..", "../..", "../../..",
-    "../../../..", "../../../../..", "../../../../../..", "../../../../../../..",
-    "/" // final attempt: site root (only works if hosted at domain root)
-  ];
+  const W = window;
 
-  // IMPORTANT:
-  // Prefix is RELATIVE to the CURRENT page depth.
-  // Caching a single prefix globally will break when navigating between depths.
-  const CACHE_KEY = (() => {
-    // Normalize index.html → directory-ish key to reduce churn
-    const p = (location.pathname || "/").replace(/\/index\.html$/i, "/");
-    return `zzx.partials.prefix:${p}`;
-  })();
+  // idempotent
+  if (W.__ZZX_PARTIALS_LOADER_BOOTED) return;
+  W.__ZZX_PARTIALS_LOADER_BOOTED = true;
 
-  // Emit readiness so other modules (ticker-loader) can react immediately
-  function emitReady(prefix) {
+  // ROOT-relative (works from any page depth on zzx-labs.io)
+  const URLS = {
+    header: "/__partials/header/header.html",
+    nav:    "/__partials/nav/nav.html",
+    footer: "/__partials/footer/footer.html",
+  };
+
+  // Expose a stable prefix for other modules (ticker-loader/runtime) without breaking root hosting.
+  // Use "" (empty) to mean “domain root”; DO NOT use "/" to avoid accidental '//' joins elsewhere.
+  W.ZZX = Object.assign({}, W.ZZX || {}, { PREFIX: "" });
+
+  // Optional debug attr (safe)
+  try { document.documentElement.setAttribute("data-zzx-prefix", ""); } catch (_) {}
+
+  function emitReady() {
     try {
-      window.dispatchEvent(new CustomEvent("zzx:partials-ready", { detail: { prefix } }));
+      W.dispatchEvent(new CustomEvent("zzx:partials-ready", { detail: { prefix: "" } }));
     } catch (_) {}
   }
 
-  // Preserve absolute root if first seg is exactly '/'
-  function join(...segs) {
-    return segs
-      .filter(Boolean)
-      .map((s, i) => {
-        if (i === 0) return s === "/" ? "/" : String(s).replace(/\/+$/, "");
-        return String(s).replace(/^\/+/, "");
-      })
-      .join("/");
-  }
-
-  // Strong probe:
-  // Some hosts return a 200 HTML error page for missing assets, which makes r.ok true.
-  // So we also require that the fetched HTML contains a known marker from header.html.
-  const HEADER_PROBE_PATH = () => join(PARTIALS_DIR, "header/header.html");
-  const HEADER_MARKER = "<!-- navbar Here -->";
-
-  async function probeHeader(prefixCandidate) {
-    const url = join(prefixCandidate, HEADER_PROBE_PATH());
-    try {
-      const r = await fetch(url, { method: "GET", cache: "no-store" });
-
-      if (!r.ok) return false;
-
-      const ct = (r.headers.get("content-type") || "").toLowerCase();
-      // We expect HTML here; if the host serves something else, bail.
-      if (!ct.includes("text/html")) return false;
-
-      const text = await r.text();
-      // Must contain marker from the real header partial (not a generic 404 page).
-      return text.includes(HEADER_MARKER);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  // Validate a cached prefix; if invalid, clear & recompute
-  async function validateOrRecomputePrefix(cached) {
-    if (cached) {
-      const ok = await probeHeader(cached);
-      if (ok) return cached;
-      try { sessionStorage.removeItem(CACHE_KEY); } catch (_) {}
-    }
-
-    for (const p of PATHS) {
-      if (await probeHeader(p)) {
-        try { sessionStorage.setItem(CACHE_KEY, p); } catch (_) {}
-        return p;
-      }
-    }
-
-    // If nothing matched, fall back to '.' (best effort)
-    return ".";
-  }
-
-  async function findPrefix() {
-    let cached = null;
-    try { cached = sessionStorage.getItem(CACHE_KEY); } catch (_) { cached = null; }
-    return await validateOrRecomputePrefix(cached);
-  }
-
-  // Convert absolute '/x/y' → '<prefix>/x/y' safely (no double slashes)
-  function absToPrefix(url, prefix) {
-    if (prefix === "/" || !url || !url.startsWith("/")) return url;
-    return prefix.replace(/\/+$/, "") + url;
-  }
-
-  // Rewrites site-absolute URLs on common attributes
-  function rewriteAbsoluteURLs(root, prefix) {
-    if (!root || prefix === "/") return;
-
-    const rewriteAttr = (attr) => {
-      root.querySelectorAll(`[${attr}^="/"]`).forEach((el) => {
-        const v = el.getAttribute(attr);
-        if (v) el.setAttribute(attr, absToPrefix(v, prefix));
-      });
-    };
-
-    rewriteAttr("href");
-    rewriteAttr("src");
-    rewriteAttr("poster");
-    rewriteAttr("data-src");
-    rewriteAttr("data-href");
-  }
-
-  async function loadHTML(url) {
+  async function fetchText(url) {
     const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`Failed to fetch ${url}: ${r.status}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
     return await r.text();
   }
 
-  // Insert NAV into HEADER at <!-- navbar Here --> or append
+  function ensureHost(id, where) {
+    let el = document.getElementById(id);
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = id;
+    if (where === "prepend") document.body.prepend(el);
+    else document.body.appendChild(el);
+    return el;
+  }
+
   function injectNavIntoHeader(headerHTML, navHTML) {
-    const marker = HEADER_MARKER;
+    const marker = "<!-- navbar Here -->";
     if (headerHTML.includes(marker)) return headerHTML.replace(marker, navHTML);
 
-    const idx = headerHTML.lastIndexOf("</div>");
+    // fallback: try to place nav near end of header wrapper
+    const idx = headerHTML.lastIndexOf("</header>");
     if (idx !== -1) {
       return headerHTML.slice(0, idx) + "\n" + navHTML + "\n" + headerHTML.slice(idx);
     }
     return headerHTML + "\n" + navHTML;
   }
 
-  // Minimal nav interactivity after injection (fallback only)
-  function initNavUX(scope = document) {
-    const toggle = scope.querySelector("#navbar-toggle");
-    const links = scope.querySelector("#navbar-links");
-    const body = document.body;
+  // Wait briefly for sitewide initializer to exist (prevents double-binding / races)
+  function waitForSitewideInit(timeoutMs = 1400, intervalMs = 60) {
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      (function poll() {
+        if (W.ZZXSite && typeof W.ZZXSite.initNav === "function") return resolve(true);
+        if (performance.now() - t0 >= timeoutMs) return resolve(false);
+        setTimeout(poll, intervalMs);
+      })();
+    });
+  }
 
-    if (toggle && links && !toggle.__bound_click) {
-      toggle.__bound_click = true;
+  // Minimal fallback nav UX (only if ZZXSite.initNav never appears)
+  function fallbackInitNav(scope) {
+    const root = scope || document;
+    const toggle = root.querySelector("#navbar-toggle") || document.getElementById("navbar-toggle");
+    const links  = root.querySelector("#navbar-links")  || document.getElementById("navbar-links");
+    const body   = document.body;
+
+    if (toggle && links && !toggle.__zzx_bound) {
+      toggle.__zzx_bound = true;
       toggle.addEventListener("click", () => {
         const isOpen = links.classList.toggle("open");
         toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
@@ -146,9 +88,9 @@
       });
     }
 
-    scope.querySelectorAll(".submenu-toggle").forEach((btn) => {
-      if (btn.__bound_click) return;
-      btn.__bound_click = true;
+    root.querySelectorAll(".submenu-toggle").forEach((btn) => {
+      if (btn.__zzx_bound) return;
+      btn.__zzx_bound = true;
       btn.addEventListener("click", () => {
         const ul = btn.nextElementSibling;
         if (ul && ul.classList.contains("submenu")) {
@@ -159,77 +101,43 @@
     });
   }
 
-  // Wait briefly for sitewide initializer to appear (avoids double-binding race)
-  function waitForSitewideInit(timeoutMs = 1200, intervalMs = 60) {
-    return new Promise((resolve) => {
-      const t0 = performance.now();
-      (function poll() {
-        if (window.ZZXSite && typeof window.ZZXSite.initNav === "function") return resolve(true);
-        if (performance.now() - t0 >= timeoutMs) return resolve(false);
-        setTimeout(poll, intervalMs);
-      })();
-    });
-  }
-
   async function boot() {
-    let prefix = ".";
-    try { prefix = await findPrefix(); } catch (_) { prefix = "."; }
+    emitReady();
 
-    // Make prefix available ASAP for other modules (ticker-loader, widgets runtime, etc.)
-    window.ZZX = Object.assign({}, window.ZZX || {}, { PREFIX: prefix });
+    const headerHost = ensureHost("zzx-header", "prepend");
+    const footerHost = ensureHost("zzx-footer", "append");
 
-    // Debug aid
-    try { document.documentElement.setAttribute("data-zzx-prefix", prefix); } catch (_) {}
+    try {
+      const [headerHTML, navHTML, footerHTML] = await Promise.all([
+        fetchText(URLS.header),
+        fetchText(URLS.nav),
+        fetchText(URLS.footer),
+      ]);
 
-    emitReady(prefix);
+      // Compose header + nav
+      const composedHeader = injectNavIntoHeader(headerHTML, navHTML);
 
-    // Ensure header/footer host nodes exist
-    let headerHost = document.getElementById("zzx-header");
-    if (!headerHost) {
-      headerHost = document.createElement("div");
-      headerHost.id = "zzx-header";
-      document.body.prepend(headerHost);
+      // Inject
+      const headerWrap = document.createElement("div");
+      headerWrap.innerHTML = composedHeader;
+      headerHost.replaceChildren(...headerWrap.childNodes);
+
+      const footerWrap = document.createElement("div");
+      footerWrap.innerHTML = footerHTML;
+      footerHost.replaceChildren(...footerWrap.childNodes);
+
+      // Prefer sitewide initializer; fallback only if it never arrives
+      const hasSitewide = await waitForSitewideInit();
+      if (hasSitewide) {
+        try { W.ZZXSite.initNav(headerHost); } catch (_) {}
+        try { if (typeof W.ZZXSite.autoInit === "function") W.ZZXSite.autoInit(); } catch (_) {}
+      } else {
+        fallbackInitNav(headerHost);
+      }
+    } catch (e) {
+      // Don’t nuke the page if partials aren’t reachable; just log.
+      console.warn("[partials-loader] failed:", e && e.message ? e.message : e);
     }
-
-    let footerHost = document.getElementById("zzx-footer");
-    if (!footerHost) {
-      footerHost = document.createElement("div");
-      footerHost.id = "zzx-footer";
-      document.body.appendChild(footerHost);
-    }
-
-    // Load partials
-    const [headerHTML, navHTML, footerHTML] = await Promise.all([
-      loadHTML(join(prefix, PARTIALS_DIR, "header/header.html")),
-      loadHTML(join(prefix, PARTIALS_DIR, "nav/nav.html")),
-      loadHTML(join(prefix, PARTIALS_DIR, "footer/footer.html")),
-    ]);
-
-    // Compose header + nav
-    const composedHeader = injectNavIntoHeader(headerHTML, navHTML);
-
-    // Inject into DOM
-    const headerWrap = document.createElement("div");
-    headerWrap.innerHTML = composedHeader;
-    rewriteAbsoluteURLs(headerWrap, prefix);
-    headerHost.replaceChildren(...headerWrap.childNodes);
-
-    const footerWrap = document.createElement("div");
-    footerWrap.innerHTML = footerHTML;
-    rewriteAbsoluteURLs(footerWrap, prefix);
-    footerHost.replaceChildren(...footerWrap.childNodes);
-
-    // Prefer sitewide initializer; if not present soon, attach fallback
-    const hasSitewide = await waitForSitewideInit();
-    if (hasSitewide) {
-      try { window.ZZXSite.initNav(headerHost); } catch (_) {}
-      try { if (typeof window.ZZXSite.autoInit === "function") window.ZZXSite.autoInit(); } catch (_) {}
-    } else {
-      initNavUX(headerHost);
-    }
-
-    // IMPORTANT:
-    // No ticker/HUD loading here. That is handled by /static/js/modules/ticker-loader.js only.
   }
 
   if (document.readyState === "loading") {
