@@ -1,60 +1,68 @@
 /* __partials/widgets/runtime/widget.js */
-/* DROP-IN REPLACEMENT */
+/* DROP-IN REPLACEMENT (final hardened) */
 
 (function () {
-  const Core = window.ZZXWidgetsCore;
-  const HUD  = window.ZZXHUD;
+  const HUD = window.ZZXHUD;
 
-  // Allow Core-less fallback so the controls don't silently die.
-  const qs = (sel, scope) => (Core?.qs ? Core.qs(sel, scope) : (scope || document).querySelector(sel));
-
+  // If HUD isn't present, don't crash the page.
   if (!HUD) return;
 
+  const qs = (sel, scope) => (scope || document).querySelector(sel);
+
+  function normalizeMode(mode) {
+    if (typeof HUD.normalize === "function") return HUD.normalize(mode).mode;
+    // fallback normalize
+    return (mode === "full" || mode === "ticker-only" || mode === "hidden") ? mode : "full";
+  }
+
   function applyModeToDOM(mode) {
+    const m = normalizeMode(mode);
+
+    // hudRoot is the wrapper that gets data-hud-state
     const hudRoot = qs('[data-hud-root]');
-    const handle  = qs('[data-hud-handle]');
+    if (hudRoot) hudRoot.setAttribute("data-hud-state", m);
 
-    if (hudRoot) hudRoot.setAttribute("data-hud-state", mode);
+    // handle is ALWAYS present; show it only when HUD hidden
+    const handle = qs('[data-hud-handle]');
+    if (handle) handle.style.display = (m === "hidden") ? "flex" : "none";
 
-    // Handle is ALWAYS present; show it only when HUD hidden
-    if (handle) handle.style.display = (mode === "hidden") ? "flex" : "none";
-
+    // runtime label (optional)
     const label = qs('[data-runtime-mode]');
-    if (label) label.textContent = mode;
+    if (label) label.textContent = m;
+
+    return m;
   }
 
   function setMode(mode) {
-    // Prefer the HUD API if present (your hud-state.js defines read/write/reset/normalize)
+    // Prefer HUD.write if it exists
     if (typeof HUD.write === "function") {
       const s = HUD.write(mode);
-      applyModeToDOM(s.mode);
-      return s.mode;
+      return applyModeToDOM(s?.mode || mode);
     }
 
     // Fallback: localStorage + DOM
-    try { localStorage.setItem("zzx.hud.mode", mode); } catch (_) {}
-    applyModeToDOM(mode);
-    return mode;
+    const m = normalizeMode(mode);
+    try { localStorage.setItem("zzx.hud.mode", m); } catch (_) {}
+    return applyModeToDOM(m);
   }
 
   function reset() {
     if (typeof HUD.reset === "function") {
       const s = HUD.reset();
-      // After reset, ensure DOM matches the reset mode
-      applyModeToDOM(s.mode);
-      return s.mode;
+      return applyModeToDOM(s?.mode || "full");
     }
+
     try { localStorage.removeItem("zzx.hud.mode"); } catch (_) {}
-    applyModeToDOM("full");
-    return "full";
+    return applyModeToDOM("full");
   }
 
-  function syncLabel() {
+  function syncFromState() {
     if (typeof HUD.read === "function") {
       const s = HUD.read();
-      applyModeToDOM(s.mode);
+      applyModeToDOM(s?.mode || "full");
       return;
     }
+
     // fallback read
     let m = "full";
     try {
@@ -65,9 +73,14 @@
   }
 
   function bind() {
-    const root = qs('[data-widget-root="runtime"]');
-    if (!root || root.__bound) return;
-    root.__bound = true;
+    // NOTE: runtime widget root should be inside runtime/widget.html
+    const root =
+      qs('[data-widget-root="runtime"]') ||
+      qs('[data-widget-id="runtime"]') ||
+      qs('[data-widget-slot="runtime"]');
+
+    if (!root || root.__zzxBoundRuntimeControls) return;
+    root.__zzxBoundRuntimeControls = true;
 
     root.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
@@ -80,14 +93,14 @@
 
       if (action === "reset") {
         reset();
-        // If your runtime exposes a rebind hook, call it (non-fatal if absent)
+
+        // Optional: if you ever implement a runtime rebind hook, call it safely.
         try { window.ZZXWidgetsRuntime?.rebind?.(true); } catch (_) {}
         try { window.__ZZX_WIDGETS_RUNTIME?.rebind?.(true); } catch (_) {}
       }
     });
 
-    // initial sync
-    syncLabel();
+    syncFromState();
   }
 
   if (document.readyState === "loading") {
