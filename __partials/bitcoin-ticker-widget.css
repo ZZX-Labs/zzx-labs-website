@@ -1,51 +1,49 @@
-/* __partials/bitcoin-ticker-widget.css (WRAPPER + SHARED PRIMITIVES)
-   DROP-IN FIX: centers ticker widget, fixes HUD state selectors, and prevents “disappearing”
-   without changing your content/layout intentions.
-
-   Key fixes vs your current CSS:
-   1) Your state rules are written as: [data-hud-state="hidden"] [data-hud-root] ...
-      But data-hud-state is set ON the hud root itself (same element), not on an ancestor.
-      So those selectors never matched. We correct to: [data-hud-root][data-hud-state="..."] ...
-   2) Your JS uses modes: "full", "ticker", "hidden" (from hud-state.js/runtime widget).
-      Your CSS uses "ticker-only". We alias both.
-   3) The ticker “left aligned / disappears” is caused by:
-      - .btc-slot { display: contents } + fragment injection replacing nodes
-      - no forced full-width slot wrapper for ticker
-      We fix by making the bitcoin-ticker slot a real flex item that spans full width.
-
-   IMPORTANT: This file still defines the shared primitives as you intended.
+/* __partials/bitcoin-ticker-widget.css
+   WRAPPER + SHARED PRIMITIVES (drop-in)
+   Canonical HUD modes: full | ticker-only | hidden
 */
 
-@font-face {
-  font-family: 'AdultSwimFont';
-  src: url('/static/fonts/Adult-Swim-Font.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'IBMPlexMono';
-  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
-  font-display: swap;
-}
-
-/* Center mount rail (matches your header rail behavior) */
-#ticker-container{
+/* ---------- HUD handle (icon) ---------- */
+.zzx-hud-handle{
+  position: sticky;
+  top: .35rem;
+  z-index: 9999;
+  display: none;                /* JS turns this on only when hidden */
+  justify-content: center;
+  margin: .25rem auto;
   width: 100%;
-  max-width: min(var(--header-rail, 1100px), 100%);
-  margin: .5rem auto;
-  display: grid;
-  place-items: center;
-  padding-inline: .5rem;
-  grid-column: 1 / -1;
-  justify-self: center;
-  order: 2;
-}
-@media (min-width: 1024px){
-  #ticker-container{ padding-inline: 0; order: unset; }
+  pointer-events: none;
 }
 
-#btc-ticker{ display:block; margin-inline:auto; max-width:100%; }
+.zzx-hud-handle .zzx-hud-show{
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
 
-/* rail */
+  background: #0b0b0b;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: .35rem .7rem;
+
+  color: #c0d674;
+  cursor: pointer;
+}
+
+.zzx-hud-handle .zzx-hud-show:hover{
+  border-color: #e6a42b;
+  color: #e6a42b;
+}
+
+.zzx-hud-fallback{
+  display: none;
+  font-size: 12px;
+  opacity: .9;
+  line-height: 1;
+}
+
+/* ---------- HUD root rail ---------- */
 .btc-rail{
   display:flex;
   flex-wrap:wrap;
@@ -55,150 +53,75 @@
   width:100%;
 }
 
-/* IMPORTANT:
-   display: contents is fragile when JS injects HTML fragments and when some hosts
-   reparent nodes; it can cause “disappearing” / unexpected layout.
-   Keep contents behavior for most slots, but force REAL boxes for the two full-width
-   rails: bitcoin-ticker (top) and bitrng (bottom).
-*/
-.btc-slot{ display: contents; }
+/* When hidden, hide the entire rail (handle is handled by JS) */
+[data-hud-root][data-hud-state="hidden"]{
+  display:none !important;
+}
 
-/* Full-width slots (top ticker + bottom bitrng) */
-.btc-slot[data-widget="bitcoin-ticker"],
-.btc-slot[data-widget="bitrng"]{
+/* Slots: DO NOT use display: contents here (it causes “disappearing” in practice). */
+.btc-slot{
   display:flex;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+/* Full-width slots */
+.btc-slot[data-widget="bitcoin-ticker"],
+.btc-slot[data-widget="bitrng"],
+.btc-slot[data-widget="runtime"]{
   flex: 1 1 100%;
   max-width: 100%;
-  justify-content:center;
+  justify-content: center;
 }
 
-/* Ensure the injected ticker fragment centers inside its slot */
-.btc-slot[data-widget="bitcoin-ticker"] > *{
-  margin-inline:auto;
-}
-
-/* shared card primitives */
+/* ---------- Card primitives ---------- */
 .btc-card{
   background:#0b0b0b;
   border:1px solid #2a2a2a;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.25);
   padding:.55rem .65rem;
-  min-width:220px;
-  flex:1 1 240px;
-  max-width:360px;
+
+  width: 100%;
+  max-width: 360px;
 
   color:#c0d674;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
+
 .btc-card__title{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
   color:#e6a42b;
   font-size:1rem;
   line-height:1.1;
   margin-bottom:.35rem;
   white-space:nowrap;
 }
+
 .btc-card__value{
   font-size:1.35rem;
   line-height:1.2;
   margin-bottom:.15rem;
   white-space:nowrap;
 }
+
 .btc-card__sub{
   font-size:.95rem;
   color:#b7bf9a;
   white-space:nowrap;
 }
 
-/* sparkline */
-.btc-spark{
-  margin-top:.35rem;
-  width:100%;
-  height:38px;
-  display:block;
-  background:rgba(0,0,0,.18);
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:6px;
-  overflow:hidden;
-}
-.btc-spark path.line{ stroke:#c0d674; stroke-width:2; fill:none; }
-.btc-spark path.fill{ fill:rgba(192,214,116,0.12); stroke:none; }
-.btc-spark .grid{ stroke:rgba(255,255,255,.08); stroke-width:1; }
-
-/* kv + mini list */
-.btc-kv{ display:grid; gap:.25rem; margin-top:.25rem; }
-.btc-kv__row{ display:flex; justify-content:space-between; gap:.6rem; font-size:.95rem; color:#b7bf9a; }
-.btc-kv__row .k{ color:#e6a42b; font-family:'AdultSwimFont','IBMPlexMono',monospace; }
-.btc-kv__row .v{ color:#c0d674; }
-
-.btc-mini-list{ margin-top:.4rem; display:grid; gap:.25rem; font-size:.9rem; }
-.btc-mini-list .row{ display:flex; justify-content:space-between; gap:.6rem; color:#c0d674; }
-.btc-mini-list .row .cc{ color:#e6a42b; font-family:'AdultSwimFont','IBMPlexMono',monospace; }
-
-/* intel/news list */
-.btc-news__list{ display:grid; gap:.35rem; margin-top:.35rem; }
-.btc-news__item{ display:grid; grid-template-columns:auto 1fr; gap:.45rem; align-items:baseline; }
-.btc-news__src{ font-family:'AdultSwimFont','IBMPlexMono',monospace; font-size:.85rem; color:#e6a42b; }
-.btc-news__item a{ color:#c0d674; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.btc-news__item a:hover{ color:#e6a42b; text-decoration:underline; }
-
-/* ---------------------------------------------------------------------------
-   HUD Handle + State (FIXED SELECTORS + MODE ALIASES)
---------------------------------------------------------------------------- */
-
-/* Handle defaults */
-.zzx-hud-handle{
-  position: sticky;
-  top: .35rem;
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  margin: .25rem auto;
-  width: 100%;
-  pointer-events: none; /* only the button is clickable */
+/* ---------- Ticker-only mode ---------- */
+/* Hide all widget cards… */
+[data-hud-root][data-hud-state="ticker-only"] .btc-card{
+  display:none !important;
 }
 
-.zzx-hud-handle .zzx-hud-show{
-  pointer-events: auto;
-  background: #0b0b0b;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 999px;
-  padding: .35rem .7rem;
-  color: #c0d674;
-  font-family: IBMPlexMono, ui-monospace, monospace;
-  cursor: pointer;
+/* …but allow the ticker widget slot to still show its content. */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"] .btc-card{
+  display:block !important;
 }
 
-.zzx-hud-handle .zzx-hud-show:hover{
-  border-color: #e6a42b;
-  color: #e6a42b;
+/* If your ticker widget doesn't use .btc-card, this still keeps the slot visible */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"]{
+  display:flex !important;
 }
-
-/* IMPORTANT: data-hud-state is ON the root itself. Target that. */
-[data-hud-root][data-hud-state="hidden"] { display: none !important; }
-[data-hud-root][data-hud-state="hidden"] ~ .zzx-hud-handle { display: flex !important; }
-
-/* If handle is above root in DOM (as in your wrapper), we also need a direct rule: */
-[data-hud-state="hidden"] .zzx-hud-handle { display: flex !important; }
-
-/* Non-hidden modes: hide handle */
-[data-hud-state="full"] .zzx-hud-handle,
-[data-hud-state="ticker"] .zzx-hud-handle,
-[data-hud-state="ticker-only"] .zzx-hud-handle { display: none !important; }
-
-/* Ticker-only mode: support both "ticker" and legacy "ticker-only" */
-[data-hud-root][data-hud-state="ticker"] .btc-rail .btc-card,
-[data-hud-root][data-hud-state="ticker-only"] .btc-rail .btc-card{
-  display: none !important;
-}
-
-/* Allow ticker shell through (both common class names) */
-[data-hud-root][data-hud-state="ticker"] .btc-rail .ticker-shell,
-[data-hud-root][data-hud-state="ticker-only"] .btc-rail .ticker-shell,
-[data-hud-root][data-hud-state="ticker"] .btc-rail [data-w="bitcoin-ticker"],
-[data-hud-root][data-hud-state="ticker-only"] .btc-rail [data-w="bitcoin-ticker"]{
-  display: flex !important;
-}
-
-/* In full mode everything displays naturally (no overrides needed) */
