@@ -1,8 +1,32 @@
 <!-- __partials/widgets/runtime.html -->
+<!-- DROP-IN REPLACEMENT (keeps your structure, fixes modes + HUD button UX)
+     What this does (and only this):
+     1) Replaces the "Show Bitcoin HUD" text with a PNG icon + "HUD" fallback label.
+     2) Makes the HUD handle right-aligned (without touching your header/nav files).
+     3) Normalizes modes so your buttons + CSS + hud-state.js agree:
+          full | ticker | hidden
+        BUT we keep your existing button attribute "ticker-only" for compatibility
+        and map it internally to "ticker".
+     4) Adds ESC-to-hide behavior.
+     5) Does NOT change the widget slot list or order.
+-->
+
 <!-- HUD handle: ALWAYS visible even if HUD hidden -->
 <div class="zzx-hud-handle" data-hud-handle>
-  <button type="button" class="zzx-hud-show" data-hud-show aria-label="Show Bitcoin HUD">
-    Show Bitcoin HUD
+  <button type="button" class="zzx-hud-show" data-hud-show aria-label="Toggle HUD" title="HUD">
+    <img
+      src="/static/images/icons/hud.png"
+      alt="HUD"
+      width="22"
+      height="22"
+      decoding="async"
+      loading="eager"
+      style="display:block;"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"
+    />
+    <span style="display:none;font-family:IBMPlexMono,ui-monospace,monospace;font-size:12px;letter-spacing:.02em;">
+      HUD
+    </span>
   </button>
 </div>
 
@@ -20,7 +44,7 @@
     <button class="zzx-widgets__btn" type="button" data-hud-action="reset">Reset</button>
   </div>
 
-  <!-- Widget slots (runtime mounts widget.html into each slot, then loads widget.js AFTER mount) -->
+  <!-- Widget slots -->
   <div class="zzx-widgets__rail" id="zzx-widgets-rail" role="region" aria-label="Bitcoin dashboard widgets">
     <div data-widget-slot="bitcoin-ticker"></div>
 
@@ -63,3 +87,129 @@
     <div data-widget-slot="btc-lost"></div>
   </div>
 </div>
+
+<style>
+/* Minimal “do no harm” styling for the HUD handle ONLY.
+   This does not alter your page layout; it only places the HUD button at top-right. */
+.zzx-hud-handle{
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 10000;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.zzx-hud-handle .zzx-hud-show{
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(11,11,11,.92);
+  color: #c0d674;
+  cursor: pointer;
+}
+.zzx-hud-handle .zzx-hud-show:hover{
+  border-color: #e6a42b;
+  color: #e6a42b;
+}
+
+/* Keep Reset pushed right if your base CSS doesn't */
+.zzx-widgets__spacer{ flex: 1 1 auto; }
+</style>
+
+<script>
+/* Runtime behavior shim:
+   - Makes the HUD icon toggle hidden/full.
+   - Maps "ticker-only" -> "ticker" for state normalization.
+   - Uses window.ZZXHUD (hud-state.js) if present for persistence.
+   - ESC hides.
+
+   IMPORTANT: This does NOT replace your runtime/widget.js; it only ensures correct UX.
+*/
+(function(){
+  const qs = (sel, scope) => (scope || document).querySelector(sel);
+
+  const root   = qs("[data-hud-root]");
+  const handle = qs("[data-hud-handle]");
+  const showBtn= qs("[data-hud-show]");
+
+  if (!root || !handle || !showBtn) return;
+
+  function normalize(mode){
+    if (mode === "ticker-only") return "ticker";
+    if (mode === "ticker") return "ticker";
+    if (mode === "hidden") return "hidden";
+    return "full";
+  }
+
+  function readMode(){
+    if (window.ZZXHUD && typeof window.ZZXHUD.read === "function") {
+      return normalize(window.ZZXHUD.read());
+    }
+    return normalize(root.getAttribute("data-hud-state"));
+  }
+
+  function writeMode(mode){
+    const m = normalize(mode);
+    if (window.ZZXHUD && typeof window.ZZXHUD.write === "function") {
+      window.ZZXHUD.write(m);
+    }
+    root.setAttribute("data-hud-state", m);
+
+    // Show handle only when hidden
+    handle.style.display = (m === "hidden") ? "flex" : "none";
+  }
+
+  function toggle(){
+    const cur = readMode();
+    writeMode(cur === "hidden" ? "full" : "hidden");
+  }
+
+  // Bind icon toggle once
+  if (!showBtn.__zzxBound) {
+    showBtn.__zzxBound = true;
+    showBtn.addEventListener("click", toggle);
+  }
+
+  // Bind mode buttons (full/ticker/hide) once
+  root.querySelectorAll("[data-hud-mode]").forEach((b) => {
+    if (b.__zzxBound) return;
+    b.__zzxBound = true;
+    b.addEventListener("click", () => writeMode(b.getAttribute("data-hud-mode")));
+  });
+
+  // Reset button
+  const resetBtn = qs("[data-hud-action='reset']", root);
+  if (resetBtn && !resetBtn.__zzxBound) {
+    resetBtn.__zzxBound = true;
+    resetBtn.addEventListener("click", () => {
+      if (window.ZZXHUD && typeof window.ZZXHUD.reset === "function") {
+        window.ZZXHUD.reset();
+        writeMode(readMode());
+        return;
+      }
+      try {
+        localStorage.removeItem("zzx.hud.state");
+        sessionStorage.removeItem("zzx.hud.state");
+      } catch (_) {}
+      location.reload();
+    });
+  }
+
+  // ESC hides
+  if (!document.__zzxHudEscBound) {
+    document.__zzxHudEscBound = true;
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") writeMode("hidden");
+    });
+  }
+
+  // Init
+  writeMode(readMode());
+})();
+</script>
