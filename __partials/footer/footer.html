@@ -1,74 +1,88 @@
+<!-- __partials/footer/footer.html  (DROP-IN REPLACEMENT) -->
 <footer class="footer">
-    <div class="container footer-topline">
-        <p class="footer-copy">
-            &copy; 2026 <strong>ZZX-Labs R&D</strong>. All rights reserved.
-            Licensed under the MIT Open Source Software License.
-            Created by <i>[0xdeadbeef]</i> of <strong>ZZX-Labs R&D</strong>,
-            <strong>[0xdeadbeef] Consulting</strong>, & <strong>BitTechIn</strong>.
-        </p>
+  <!-- Topline (centered stack: copyright then credits button) -->
+  <div class="container footer-topline">
+    <p class="footer-copy">
+      &copy; 2026 <strong>ZZX-Labs R&amp;D</strong>. All rights reserved.
+      Licensed under the MIT Open Source Software License.
+      Created by <i>[0xdeadbeef]</i> of <strong>ZZX-Labs R&amp;D</strong>,
+      <strong>[0xdeadbeef] Consulting</strong>, &amp; <strong>BitTechIn</strong>.
+    </p>
 
-        <!-- ✅ Credits button moved HERE -->
-        <button
-            type="button"
-            class="footer-credits-btn"
-            id="footer-credits-btn"
-            aria-label="Open Credits"
-            aria-haspopup="dialog"
-            aria-controls="zzx-credits-modal"
-        >
-            Credits
-        </button>
+    <button
+      type="button"
+      class="footer-credits-btn"
+      id="footer-credits-btn"
+      aria-label="Open Credits"
+      aria-haspopup="dialog"
+      aria-controls="zzx-credits-modal"
+    >
+      Credits
+    </button>
+  </div>
+
+  <hr>
+
+  <!-- Footer Links -->
+  <div class="container">
+    <div class="footer-columns">
+      <!-- Left Column -->
+      <div class="footer-column">
+        <h4>Documentation</h4>
+        <ul class="footer-links">
+          <li><a href="/docs/README.md/">README.md</a></li>
+          <li><a href="/docs/LICENSE.md/">LICENSE.md</a></li>
+          <li><a href="/docs/DONATE.md/">DONATE.md</a></li>
+          <li><a href="/docs/guide/">Guide</a></li>
+          <li><a href="/docs/manual/">Manual</a></li>
+          <li><a href="/docs/man-page/">man page</a></li>
+        </ul>
+      </div>
+
+      <!-- Center Column -->
+      <div class="footer-column">
+        <h4>Legal</h4>
+        <ul class="footer-links">
+          <li><a href="/legal/terms-of-service">Terms of Service</a></li>
+          <li><a href="/legal/legal-notice">Legal Notice</a></li>
+          <li><a href="/legal/legal-disclaimer">Legal Disclaimer</a></li>
+          <li><a href="/legal/legal-waiver">Legal Waiver</a></li>
+          <li><a href="/legal/privacy-policy">Privacy Policy</a></li>
+        </ul>
+      </div>
+
+      <!-- Right Column -->
+      <div class="footer-column">
+        <h4>Opportunities</h4>
+        <ul class="footer-links">
+          <li><a href="/opportunities/careers">Careers</a></li>
+          <li><a href="/opportunities/partnerships">Partnerships</a></li>
+          <li><a href="/opportunities/investments">Investments</a></li>
+          <li><a href="/opportunities/volunteer">Volunteer</a></li>
+        </ul>
+      </div>
     </div>
+  </div>
 
-    <br><br>
-    <hr>
-    <br><br>
+  <!-- Credits Modal (popup) -->
+  <div
+    id="zzx-credits-modal"
+    class="zzx-credits-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="zzx-credits-title"
+    hidden
+  >
+    <div class="zzx-credits-dialog" role="document">
+      <div class="zzx-credits-head">
+        <h2 id="zzx-credits-title">Credits</h2>
+        <button type="button" class="zzx-credits-x" aria-label="Close Credits">✕</button>
+      </div>
 
-    <!-- Footer Links -->
-    <div class="container">
-        <div class="footer-columns">
-
-            <!-- Left Column -->
-            <div class="footer-column">
-                <h4>Documentation</h4>
-                <ul class="footer-links">
-                    <li><a href="/docs/README.md/">README.md</a></li>
-                    <li><a href="/docs/LICENSE.md/">LICENSE.md</a></li>
-                    <li><a href="/docs/DONATE.md/">DONATE.md</a></li>
-                    <li><a href="/docs/guide/">Guide</a></li>
-                    <li><a href="/docs/manual/">Manual</a></li>
-                    <li><a href="/docs/man-page/">man page</a></li>
-                </ul>
-            </div>
-
-            <br><br>
-
-            <!-- Center Column -->
-            <div class="footer-column">
-                <h4>Legal</h4>
-                <ul class="footer-links">
-                    <li><a href="/legal/terms-of-service">Terms of Service</a></li>
-                    <li><a href="/legal/legal-notice">Legal Notice</a></li>
-                    <li><a href="/legal/legal-disclaimer">Legal Disclaimer</a></li>
-                    <li><a href="/legal/legal-waiver">Legal Waiver</a></li>
-                    <li><a href="/legal/privacy-policy">Privacy Policy</a></li>
-                </ul>
-            </div>
-
-            <br><br>
-
-            <!-- Right Column -->
-            <div class="footer-column">
-                <h4>Opportunities</h4>
-                <ul class="footer-links">
-                    <li><a href="/opportunities/careers">Careers</a></li>
-                    <li><a href="/opportunities/partnerships">Partnerships</a></li>
-                    <li><a href="/opportunities/investments">Investments</a></li>
-                    <li><a href="/opportunities/volunteer">Volunteer</a></li>
-                </ul>
-            </div>
-
-            <br><br>
-        </div>
+      <!-- Loads /__partials/credits/ into this box -->
+      <div class="zzx-credits-body" id="zzx-credits-body">
+        <div class="zzx-credits-loading">Loading credits…</div>
+      </div>
     </div>
+  </div>
 </footer>
