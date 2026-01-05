@@ -1,5 +1,6 @@
 // __partials/widgets/high-low-24h/widget.js
-// Unified-runtime adapter (NO UI / layout / behavior changes)
+// Unified-runtime replacement for legacy Core.onMount version
+// Logic, cadence, and UI preserved exactly.
 
 (function () {
   const ID = "high-low-24h";
