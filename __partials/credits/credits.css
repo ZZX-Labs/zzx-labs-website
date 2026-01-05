@@ -1,8 +1,8 @@
 /* __partials/credits/credits.css */
 /* DROP-IN REPLACEMENT — Modal-only, footer-safe, non-invasive
    - Styles ONLY the footer credits button + credits modal
-   - No inline credits badge styling
    - Does NOT affect HUD / widgets / header / layout
+   - NO bullets inside credits modal (even if HTML contains <ul>)
 */
 
 /* ----------------------------
@@ -35,7 +35,7 @@
   outline-offset: 2px;
 }
 
-/* Footer topline layout (already present, reinforced here only) */
+/* Footer topline layout (reinforce only) */
 .footer-topline {
   display: flex;
   align-items: center;
@@ -48,23 +48,18 @@
 .footer-copy { margin: 0; }
 
 @media (min-width: 900px) {
-  .footer-credits-btn {
-    margin-left: 1.25rem;
-  }
+  .footer-credits-btn { margin-left: 1.25rem; }
 }
 
 /* ----------------------------
    Credits modal overlay
 ----------------------------- */
-#zzx-credits-modal[hidden] {
-  display: none !important;
-}
+#zzx-credits-modal[hidden] { display: none !important; }
 
 #zzx-credits-modal {
   position: fixed;
   inset: 0;
   z-index: 100000; /* above HUD handle */
-
   display: grid;
   place-items: end center;
   padding: 1rem;
@@ -96,7 +91,8 @@
 }
 
 /* Header row */
-.zzx-credits-head {
+.zzx-credits-head,
+.zzx-credits__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -106,14 +102,18 @@
   border-bottom: 1px solid rgba(255,255,255,.10);
 }
 
-.zzx-credits-head h2 {
+#zzx-credits-title,
+.zzx-credits-head h2,
+.zzx-credits__title {
   margin: 0;
   font-size: 1.05rem;
   line-height: 1.2;
   color: #e6a42b;
 }
 
-/* Close button */
+/* Close button (support ALL historical classnames) */
+.zzx-credits__close,
+.zzx-credits-close,
 .zzx-credits-x {
   appearance: none;
   border: 1px solid rgba(255,255,255,.16);
@@ -126,11 +126,15 @@
   line-height: 1;
 }
 
+.zzx-credits__close:hover,
+.zzx-credits-close:hover,
 .zzx-credits-x:hover {
   border-color: #e6a42b;
   color: #e6a42b;
 }
 
+.zzx-credits__close:focus-visible,
+.zzx-credits-close:focus-visible,
 .zzx-credits-x:focus-visible {
   outline: 2px solid #e6a42b;
   outline-offset: 2px;
@@ -148,7 +152,8 @@
 /* Typography inside modal */
 #zzx-credits-body h1,
 #zzx-credits-body h2,
-#zzx-credits-body h3 {
+#zzx-credits-body h3,
+#zzx-credits-body h4 {
   color: #e6a42b;
   margin: .35rem 0 .55rem;
   line-height: 1.2;
@@ -175,106 +180,31 @@
   margin: 1rem 0;
 }
 
-#zzx-credits-body ul {
-  margin: .35rem 0 .9rem 1.2rem;
+/* ✅ NO BULLETS anywhere inside credits modal */
+#zzx-credits-body ul,
+#zzx-credits-body ol {
+  list-style: none;
+  margin: .35rem 0 .9rem;
   padding: 0;
   display: grid;
   gap: .35rem;
 }
 
 #zzx-credits-body li {
+  margin: 0;
+  padding: 0;
   color: #c0d674;
 }
 
 /* ----------------------------
-   Reduced motion
+   Credits content helpers (NO bullets)
 ----------------------------- */
-@media (prefers-reduced-motion: reduce) {
-  #zzx-credits-modal {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-/* ---- Credits content layout (NO bullets) ---- */
-.zzx-credits-page { display: block; }
-
-.zzx-credits-section { margin: 0; }
-
-.zzx-credits-h {
-  margin: .25rem 0 .5rem;
-  color: #e6a42b;
-  font-size: 1.05rem;
-}
-
-.zzx-credits-sub {
-  color: #b7bf9a;
-  font-size: .95rem;
-  margin: 0 0 .85rem;
-}
-
-.zzx-credits-hr {
-  border: 0;
-  border-top: 1px solid rgba(255,255,255,.10);
-  margin: 1rem 0;
-}
-
-.zzx-credits-list { display: grid; gap: .55rem; }
-.zzx-credits-row {
-  padding: .55rem .65rem;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 10px;
-  background: rgba(0,0,0,.18);
-}
-.zzx-credits-name { color: #e6a42b; font-weight: 700; margin-bottom: .15rem; }
-.zzx-credits-meta { color: #b7bf9a; font-size: .95rem; line-height: 1.35; }
-
-.zzx-credits-block { display: grid; gap: .85rem; }
-.zzx-credits-k { color: #e6a42b; font-weight: 650; margin: 0; }
-
-.zzx-credits-links { display: grid; gap: .4rem; }
-.zzx-credits-link { color: #c0d674; text-decoration: none; }
-.zzx-credits-link:hover { color: #e6a42b; text-decoration: underline; }
-.zzx-credits-text { color: #c0d674; opacity: .9; }
-
-.zzx-credits-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: .5rem;
-}
-
-.zzx-credits-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: .45rem .6rem;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.18);
-  color: #c0d674;
-  text-decoration: none;
-  text-align: center;
-}
-.zzx-credits-chip:hover {
-  border-color: #e6a42b;
-  color: #e6a42b;
-  text-decoration: none;
-}
-
-.zzx-credits-fineprint {
-  margin-top: .9rem;
-  color: #8a8f98;
-  font-size: .85rem;
-  line-height: 1.35;
-}
-
-/* ---- credits content helpers (no bullets anywhere) ---- */
-
 #zzx-credits-body .zzx-credits-sections { display: grid; gap: .75rem; }
 #zzx-credits-body .zzx-credits-section h4 { margin: .15rem 0 .35rem; color: #e6a42b; }
 
 #zzx-credits-body .zzx-credits-muted { opacity: .65; }
 
+#zzx-credits-body .zzx-credits-block { display: grid; gap: .85rem; }
 #zzx-credits-body .zzx-credits-block p { margin: .35rem 0 .75rem; color: #b7bf9a; }
 
 #zzx-credits-body .zzx-credits-lines { display: grid; gap: .55rem; }
@@ -290,12 +220,14 @@
 #zzx-credits-body .zzx-credits-k { color: #c0d674; opacity: .95; }
 #zzx-credits-body .zzx-credits-v { color: #b7bf9a; }
 
+/* Chips: single definition (no duplicate/conflict) */
 #zzx-credits-body .zzx-credits-grid {
   display: flex;
   flex-wrap: wrap;
   gap: .45rem;
   margin-top: .5rem;
 }
+
 #zzx-credits-body .zzx-credits-chip {
   display: inline-flex;
   align-items: center;
@@ -308,8 +240,26 @@
   text-decoration: none;
   line-height: 1;
 }
+
 #zzx-credits-body .zzx-credits-chip:hover {
   border-color: #e6a42b;
   color: #e6a42b;
   text-decoration: none;
+}
+
+#zzx-credits-body .zzx-credits-fineprint {
+  margin-top: .9rem;
+  color: #8a8f98;
+  font-size: .85rem;
+  line-height: 1.35;
+}
+
+/* ----------------------------
+   Reduced motion
+----------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  #zzx-credits-modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
