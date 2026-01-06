@@ -4,11 +4,12 @@
 // Purpose (and ONLY purpose):
 // - Ensure the HUD boots via /static/js/modules/ticker-loader.js (prefix-aware)
 // - Ensure the ticker NEVER renders “raw/unstyled” by FORCE-injecting required CSS primitives
-// - Do NOT load runtime.js directly (prevents duplicate orchestrators / bad order)
+// - Do NOT load runtime.js directly
 //
-// This is a compatibility shim for legacy pages that still include
-// "/__partials/bitcoin-ticker-widget.js". The authoritative orchestrator is:
-// "/static/js/modules/ticker-loader.js"
+// NOTES (critical fixes, no new architecture):
+// - NORMALIZE PREFIX: never allow "." or "./" (those create ./__partials/... 404s in Core)
+// - KEEP CSS injection first (prevents “raw ticker” flashes)
+// - KEEP idempotency
 
 (function () {
   "use strict";
@@ -45,12 +46,26 @@
   // Prefix + join (NO ../ ever)
   // ----------------------------
   function getPrefix() {
-    const p = W.ZZX?.PREFIX;
-    // Hosted at root => "" is fine; "." also works with your join() rules, but "" is cleaner.
-    if (typeof p === "string") return p;
-    const htmlPrefix = D.documentElement?.getAttribute("data-zzx-prefix");
-    if (typeof htmlPrefix === "string" && htmlPrefix.length) return htmlPrefix;
-    return "";
+    // Prefer already-established prefix
+    let p = W.ZZX?.PREFIX;
+    if (typeof p === "string") p = p.trim();
+
+    // Fall back to html attribute if needed
+    if (!p) {
+      const htmlPrefix = D.documentElement?.getAttribute("data-zzx-prefix");
+      if (typeof htmlPrefix === "string") p = htmlPrefix.trim();
+    }
+
+    // CRITICAL: never allow "." or "./" (it generates ./__partials/... paths)
+    if (p === "." || p === "./") p = "";
+
+    // Remove trailing slashes
+    p = String(p || "").replace(/\/+$/g, "");
+
+    // Persist normalized prefix so everyone agrees
+    W.ZZX = Object.assign({}, W.ZZX || {}, { PREFIX: p });
+
+    return p;
   }
 
   function join(prefix, path) {
@@ -64,8 +79,7 @@
     if (!s.startsWith("/")) return s;
 
     const p = String(prefix || "").replace(/\/+$/, "");
-    if (!p || p === ".") return s; // root-hosted
-    if (p === "/") return s;
+    if (!p || p === "." || p === "/") return s;
 
     return p + s;
   }
@@ -99,7 +113,7 @@
     // REQUIRED primitives (btc-card, btc-rail, ticker-only rules, handle rules)
     const wrapperCSS = join(prefix, "/__partials/bitcoin-ticker-widget.css");
 
-    // Optional (but usually present): ticker widget styling itself
+    // Optional: ticker widget styling itself
     const tickerCSS = join(prefix, "/__partials/widgets/bitcoin-ticker/widget.css");
 
     ensureCSSOnce(wrapperCSS);
@@ -119,7 +133,6 @@
     s.src = src;
     s.defer = true;
     s.setAttribute("data-zzx-ticker-loader", "1");
-    // head is slightly safer than body for early boot on some pages
     (D.head || D.documentElement).appendChild(s);
   }
 
@@ -127,7 +140,7 @@
   // Boot
   // ----------------------------
   function boot() {
-    // 1) CSS first — this is what fixes “raw ticker” even when JS/data is correct
+    // 1) CSS first — prevents “raw ticker”
     ensurePrimitivesCSS();
 
     // 2) Orchestrator
@@ -136,6 +149,8 @@
 
   // If prefix already known, boot immediately.
   if (W.ZZX && typeof W.ZZX.PREFIX === "string") {
+    // Normalize even if already set (prevents "." / "./" bugs)
+    getPrefix();
     boot();
     return;
   }
