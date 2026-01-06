@@ -1,10 +1,14 @@
 // /static/js/modules/ticker-loader.js
 // DROP-IN REPLACEMENT (SINGLE ORCHESTRATOR: widget-core)
-// - Inject wrapper CSS first
-// - Inject wrapper HTML (slots)
-// - Load hud-state
-// - Load widget-core (manifest mounter)
-// - DOES NOT load runtime.js
+//
+// FIXES (NO new files, no new routes, no runtime.js):
+// 1) Race-proof remount: if partials/header reinjection replaces #ticker-container AFTER first boot,
+//    we detect it and reinject wrapper + re-run hud-state + core boot.
+// 2) CSS-stability: wait for WRAP_CSS + CORE_CSS to finish loading before injecting wrapper HTML.
+//    This stops the “raw white left-aligned flash / unstyled ticker” behavior.
+// 3) Still strict order: CSS -> HTML -> hud-state -> widget-core.
+//
+// NOTE: Keeps your existing globals + patterns. Only refactors inside this file.
 
 (function () {
   "use strict";
@@ -12,6 +16,7 @@
   const W = window;
   const D = document;
 
+  // Allow a single "controller" install, but we still remount on DOM replacement.
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
@@ -79,16 +84,41 @@
     return btoa(unescape(encodeURIComponent(String(s)))).replace(/=+$/g, "");
   }
 
+  // IMPORTANT: return a Promise that resolves when CSS is actually loaded.
   function loadCSSOnce(href) {
     const h = withV(href);
     const key = "zzxcss:" + keyify(h);
-    if (D.querySelector(`link[data-zzx-css="${key}"]`)) return;
 
-    const l = D.createElement("link");
-    l.rel = "stylesheet";
-    l.href = h;
-    l.setAttribute("data-zzx-css", key);
-    D.head.appendChild(l);
+    const existing = D.querySelector(`link[data-zzx-css="${key}"]`);
+    if (existing) {
+      // If already loaded (or loading), resolve safely.
+      if (existing.dataset.zzxLoaded === "1") return Promise.resolve(true);
+
+      return new Promise((resolve) => {
+        const done = () => {
+          existing.dataset.zzxLoaded = "1";
+          resolve(true);
+        };
+        existing.addEventListener("load", done, { once: true });
+        existing.addEventListener("error", () => resolve(false), { once: true });
+
+        // Fallback: some browsers don’t reliably fire load for cached CSS
+        setTimeout(() => resolve(true), 800);
+      });
+    }
+
+    return new Promise((resolve) => {
+      const l = D.createElement("link");
+      l.rel = "stylesheet";
+      l.href = h;
+      l.setAttribute("data-zzx-css", key);
+      l.onload = () => { l.dataset.zzxLoaded = "1"; resolve(true); };
+      l.onerror = () => resolve(false);
+      D.head.appendChild(l);
+
+      // Fallback: don’t hang boot if browser never fires onload
+      setTimeout(() => resolve(true), 800);
+    });
   }
 
   function loadJSOnce(src) {
@@ -157,38 +187,75 @@
   }
 
   // ----------------------------
+  // Remount detection
+  // - If #ticker-container gets replaced after initial boot, re-run boot.
+  // ----------------------------
+  function needsMount(mount) {
+    if (!mount) return false;
+    // Wrapper inject creates [data-hud-root] inside mount; if missing, we need reinject.
+    return !mount.querySelector("[data-hud-root]") && !mount.querySelector(".btc-rail");
+  }
+
+  // ----------------------------
   // Boot (strict order)
   // ----------------------------
-  (async function boot() {
+  let __booting = false;
+
+  async function bootOnceForCurrentMount() {
+    if (__booting) return;
+    __booting = true;
+
     try {
       await waitForPartials();
 
       const mount = D.getElementById("ticker-container");
       if (!mount) return;
 
-      // 1) primitives CSS FIRST (prevents raw/unstyled flashes)
-      loadCSSOnce(WRAP_CSS);
+      // If already mounted, do nothing (but still allow widget-core boot to re-run safely)
+      if (!needsMount(mount)) {
+        try { W.ZZXWidgetsCore?.boot?.(); } catch (_) {}
+        return;
+      }
 
-      // 2) core CSS (layout + slot/grid rules)
-      loadCSSOnce(CORE_CSS);
+      // 1) CSS FIRST and WAIT (prevents raw/unstyled)
+      const okWrapCss = await loadCSSOnce(WRAP_CSS);
+      if (!okWrapCss) console.warn("[ticker-loader] wrapper CSS failed:", WRAP_CSS);
 
-      // 3) wrapper HTML (slots)
+      const okCoreCss = await loadCSSOnce(CORE_CSS);
+      if (!okCoreCss) console.warn("[ticker-loader] core CSS failed:", CORE_CSS);
+
+      // 2) wrapper HTML (slots)
       const html = await fetchHTML(WRAP_HTML);
       injectHTML(mount, html);
 
-      // 4) hud-state first (so hide/unhide is correct)
+      // 3) hud-state first (so hide/unhide is correct)
       const okHud = await loadJSOnce(HUD_STATE);
       if (!okHud) console.warn("[ticker-loader] hud-state failed:", HUD_STATE);
 
-      // 5) core orchestrator (manifest mounts widgets, boots them)
+      // 4) core orchestrator (manifest mounts widgets, boots them)
       const okCore = await loadJSOnce(CORE_JS);
       if (!okCore) console.warn("[ticker-loader] widget-core failed:", CORE_JS);
 
-      // 6) kick core if it exposes boot (safe)
+      // 5) kick core if it exposes boot (safe)
       try { W.ZZXWidgetsCore?.boot?.(); } catch (_) {}
 
     } catch (e) {
       console.error("[ZZX ticker-loader] fatal:", e);
+    } finally {
+      __booting = false;
     }
-  })();
+  }
+
+  // Initial boot
+  bootOnceForCurrentMount();
+
+  // Observe for late reinjection of #ticker-container or its contents being replaced
+  try {
+    const mo = new MutationObserver(() => {
+      const mount = D.getElementById("ticker-container");
+      if (mount && needsMount(mount)) bootOnceForCurrentMount();
+    });
+    mo.observe(D.documentElement, { childList: true, subtree: true });
+    D.__zzxTickerLoaderObserver = mo;
+  } catch (_) {}
 })();
