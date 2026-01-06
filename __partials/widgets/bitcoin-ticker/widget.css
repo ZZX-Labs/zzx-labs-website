@@ -1,3 +1,34 @@
+/* __partials/widgets/bitcoin-ticker/widget.css
+   DROP-IN REPLACEMENT
+   LOCAL FONTS ONLY — NO NETWORK, NO CDN
+*/
+
+/* -----------------------------
+   Local font wiring (existing files)
+------------------------------ */
+@font-face{
+  font-family:"IBMPlexMono";
+  src:
+    url("/static/fonts/IBMPlexMono-Regular.woff2") format("woff2"),
+    url("/static/fonts/IBMPlexMono-Regular.woff") format("woff");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"AdultSwimFont";
+  src:
+    url("/static/fonts/AdultSwimFont.woff2") format("woff2"),
+    url("/static/fonts/AdultSwimFont.woff") format("woff");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
+/* -----------------------------
+   Ticker shell
+------------------------------ */
 .ticker-shell{
   background:#000;
   border:4px solid #e6a42b;
@@ -6,20 +37,27 @@
   display:inline-block;
 }
 
+/* -----------------------------
+   Main ticker text
+------------------------------ */
 .zzx-ticker{
   text-align:left;
   color:#c0d674;
-  font-family:'IBMPlexMono',ui-monospace,monospace;
+  font-family:"IBMPlexMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
+/* BTC headline */
 .btc-line{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
   color:#c0d674;
   font-size:2rem;
   margin:0 0 10px 0;
   white-space:nowrap;
 }
 
+/* -----------------------------
+   Sub-units block
+------------------------------ */
 .subunits{
   background:#333;
   padding:10px;
@@ -27,15 +65,18 @@
 }
 
 .unit{
-  font-family:'IBMPlexMono',ui-monospace,monospace;
+  font-family:"IBMPlexMono", ui-monospace, monospace;
   font-size:1.2rem;
   color:#c0d674;
   margin:5px 0;
   white-space:nowrap;
 }
 
+/* -----------------------------
+   Credit line
+------------------------------ */
 .credit{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
   color:#c0d674;
   font-size:.8rem;
   margin:2px 0;
