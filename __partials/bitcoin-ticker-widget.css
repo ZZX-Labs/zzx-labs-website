@@ -1,18 +1,37 @@
 /* __partials/bitcoin-ticker-widget.css
    WRAPPER + SHARED PRIMITIVES (drop-in)
    Canonical HUD modes: full | ticker-only | hidden
+
+   FIXES:
+   - Your wrapper HTML uses: .btc-slot[data-widget-slot="..."]
+     so this CSS MUST target data-widget-slot (and also tolerates legacy data-widget).
+   - HUD handle is visible ONLY when HUD is hidden (CSS-driven via :has()).
+   - Full-width rules apply to: runtime, bitcoin-ticker, bitrng.
 */
 
-/* ---------- HUD handle (icon) ---------- */
+/* ---------- HUD handle ---------- */
 .zzx-hud-handle{
   position: sticky;
   top: .35rem;
   z-index: 9999;
-  display: none;                /* JS turns this on only when hidden */
-  justify-content: center;
-  margin: .25rem auto;
+
   width: 100%;
+  margin: .25rem auto;
   pointer-events: none;
+
+  display: none;
+  justify-content: center;
+}
+
+/* Show ONLY when HUD is hidden */
+@supports selector(:has(*)) {
+  body:has([data-hud-root][data-hud-state="hidden"]) .zzx-hud-handle{
+    display: flex;
+  }
+}
+/* Fallback: if :has() unsupported, keep handle visible so user is never stranded */
+@supports not selector(:has(*)) {
+  .zzx-hud-handle{ display: flex; }
 }
 
 .zzx-hud-handle .zzx-hud-show{
@@ -29,6 +48,9 @@
 
   color: #c0d674;
   cursor: pointer;
+
+  /* keep local/system; no remote font loads */
+  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
 }
 
 .zzx-hud-handle .zzx-hud-show:hover{
@@ -53,22 +75,26 @@
   width:100%;
 }
 
-/* When hidden, hide the entire rail (handle is handled by JS) */
+/* When hidden, hide the entire rail */
 [data-hud-root][data-hud-state="hidden"]{
   display:none !important;
 }
 
-/* Slots: DO NOT use display: contents here (it causes “disappearing” in practice). */
+/* Slots */
 .btc-slot{
   display:flex;
   flex: 1 1 240px;
   max-width: 360px;
+  box-sizing: border-box;
 }
 
-/* Full-width slots */
+/* Full-width slots (supports BOTH conventions) */
 .btc-slot[data-widget="bitcoin-ticker"],
 .btc-slot[data-widget="bitrng"],
-.btc-slot[data-widget="runtime"]{
+.btc-slot[data-widget="runtime"],
+.btc-slot[data-widget-slot="bitcoin-ticker"],
+.btc-slot[data-widget-slot="bitrng"],
+.btc-slot[data-widget-slot="runtime"]{
   flex: 1 1 100%;
   max-width: 100%;
   justify-content: center;
@@ -86,7 +112,8 @@
   max-width: 360px;
 
   color:#c0d674;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  box-sizing: border-box;
 }
 
 .btc-card__title{
@@ -95,6 +122,8 @@
   line-height:1.1;
   margin-bottom:.35rem;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .btc-card__value{
@@ -102,39 +131,42 @@
   line-height:1.2;
   margin-bottom:.15rem;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .btc-card__sub{
   font-size:.95rem;
   color:#b7bf9a;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-/* ---------- IMPORTANT: let full-width cards actually be full-width ---------- */
-/* Runtime + ticker + bitrng cards should not be capped at 360px. */
+/* Let full-width cards actually be full-width (supports BOTH conventions) */
 .btc-slot[data-widget="runtime"] .btc-card,
 .btc-slot[data-widget="bitcoin-ticker"] .btc-card,
-.btc-slot[data-widget="bitrng"] .btc-card{
+.btc-slot[data-widget="bitrng"] .btc-card,
+.btc-slot[data-widget-slot="runtime"] .btc-card,
+.btc-slot[data-widget-slot="bitcoin-ticker"] .btc-card,
+.btc-slot[data-widget-slot="bitrng"] .btc-card{
   max-width: 100% !important;
 }
 
 /* ---------- Ticker-only mode ---------- */
-/* Hide all widget cards… */
-[data-hud-root][data-hud-state="ticker-only"] .btc-card{
+/* Hide all slots… */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot{
   display:none !important;
 }
 
-/* …but ALWAYS keep the runtime control card visible so you can exit ticker-only. */
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="runtime"] .btc-card{
-  display:block !important;
+/* …but keep ticker slot visible (supports BOTH conventions) */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"],
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget-slot="bitcoin-ticker"]{
+  display:flex !important;
 }
 
-/* …and allow the ticker widget slot to still show its content. */
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"] .btc-card{
-  display:block !important;
-}
-
-/* If your ticker widget doesn't use .btc-card, this still keeps the slot visible */
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"]{
+/* …and keep runtime slot visible so you can exit ticker-only (supports BOTH conventions) */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="runtime"],
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget-slot="runtime"]{
   display:flex !important;
 }
