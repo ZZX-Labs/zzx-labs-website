@@ -37,11 +37,13 @@
   // Prefix policy
   // ----------------------------
   function getPrefix() {
-    const p = W.ZZX?.PREFIX;
-    if (typeof p === "string" && p.length) return p.replace(/\/+$/, "");
-    const p2 = D.documentElement?.getAttribute("data-zzx-prefix");
-    if (typeof p2 === "string" && p2.length) return p2.replace(/\/+$/, "");
-    return ""; // root
+    let p = W.ZZX?.PREFIX;
+    if (typeof p === "string") p = p.trim();
+    if (!p) p = D.documentElement?.getAttribute("data-zzx-prefix") || "";
+    p = String(p || "").trim().replace(/\/+$/, "");
+    // CRITICAL: never allow "./__partials/..." URLs
+    if (p === "." || p === "./") return "";
+    return p;
   }
 
   function url(absPathOrUrl) {
