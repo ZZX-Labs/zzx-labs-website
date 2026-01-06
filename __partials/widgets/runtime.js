@@ -1,16 +1,13 @@
 // __partials/widgets/runtime.js
 // ZZX Widgets Runtime — SINGLE orchestrator (DROP-IN REPLACEMENT)
 //
-// HARD FIXES FOR YOUR CURRENT BREAKAGE:
-// - Canonical HUD modes are EXACTLY: full | ticker-only | hidden (matches your CSS + hud-state.js)
-// - NEVER emits/uses "ticker" internally (that mismatch is why ticker-only CSS/handle behavior breaks)
-// - Delegated click binding so “Hide” never strands you (handle always reappears when hidden)
-// - ALL widget asset URLs are absolute (/__partials/...) + prefix-joined (NO ../ 404s)
-// - If a widget JS fails, you get an in-card error with the failing URL (no silent “HTML only”)
-//
-// Mounting:
-// - Mounts into [data-widget-slot="<id>"] (your wrapper now uses this)
-// - Reads manifest.json priorities and loads /__partials/widgets/<id>/{widget.html,widget.css,widget.js}
+// THIS IS THE “MAKE IT WORK” VERSION.
+// - Canonical HUD modes: full | ticker-only | hidden (NO "ticker" anywhere)
+// - Delegated HUD binding: hide never strands you; handle reappears deterministically
+// - Widget URLs are always /__partials/... (prefix-joined) so no ../ 404 ever
+// - If widget JS fails, you get an error card with the failing URL
+// - Slots: [data-widget-slot="<id>"] (matches your wrapper)
+// - Manifest-driven order + enable flags
 
 (function () {
   "use strict";
@@ -25,21 +22,21 @@
   const qsa = (s, r) => Array.from((r || D).querySelectorAll(s));
 
   // ---------------------------
-  // Prefix-safe URL
+  // Prefix-safe URL + version
   // ---------------------------
   function getPrefix() {
     const p1 = W.ZZX?.PREFIX;
     if (typeof p1 === "string" && p1.length) return p1;
     const p2 = D.documentElement?.getAttribute("data-zzx-prefix");
     if (typeof p2 === "string" && p2.length) return p2;
-    return ""; // root
+    return "";
   }
 
   function urlFor(absPathOrUrl) {
     const s = String(absPathOrUrl || "");
     if (!s) return s;
     if (/^https?:\/\//i.test(s)) return s;
-    if (!s.startsWith("/")) return s; // only absolute-paths are allowed here
+    if (!s.startsWith("/")) return s;
     const p = String(getPrefix()).replace(/\/+$/, "");
     if (!p || p === "." || p === "/") return s;
     return p + s;
@@ -72,7 +69,7 @@
 
     if (s === "full" || s === "ticker-only" || s === "hidden") return s;
 
-    // tolerate legacy aliases
+    // legacy/alias tolerance
     if (s === "ticker") return "ticker-only";
     if (s === "ticker_only") return "ticker-only";
     if (s === "tickeronly") return "ticker-only";
@@ -82,25 +79,38 @@
   }
 
   function ensureHUD() {
-    // Prefer your hud-state.js if present
     if (W.ZZXHUD && typeof W.ZZXHUD.read === "function" && typeof W.ZZXHUD.write === "function") {
-      const r = W.ZZXHUD.read();
-      // force normalized contract
-      try {
-        W.ZZXHUD.normalize = W.ZZXHUD.normalize || normalizeMode;
-      } catch (_) {}
-      // apply normalized state right now
-      applyHUDMode(normalizeMode(r?.mode));
+      // force normalize API if missing
+      if (typeof W.ZZXHUD.normalize !== "function") W.ZZXHUD.normalize = normalizeMode;
+
+      // wrap write/read to guarantee canonical strings
+      const _read = W.ZZXHUD.read.bind(W.ZZXHUD);
+      const _write = W.ZZXHUD.write.bind(W.ZZXHUD);
+
+      W.ZZXHUD.read = function () {
+        const r = _read();
+        return { mode: normalizeMode(r && r.mode) };
+      };
+      W.ZZXHUD.write = function (m) {
+        const r = _write(normalizeMode(m));
+        return { mode: normalizeMode(r && r.mode) };
+      };
+      if (typeof W.ZZXHUD.reset !== "function") {
+        W.ZZXHUD.reset = function () {
+          try { return this.write(HUD_DEFAULT); } catch { return { mode: HUD_DEFAULT }; }
+        };
+      }
+
       return W.ZZXHUD;
     }
 
-    // Fallback shim (should rarely be used if ticker-loader loads hud-state.js)
+    // fallback (should not be used if hud-state.js loads)
     const KEY = "zzx.hud.mode";
     W.ZZXHUD = {
       normalize: normalizeMode,
       read() {
         try { return { mode: normalizeMode(localStorage.getItem(KEY)) }; }
-        catch (_) { return { mode: HUD_DEFAULT }; }
+        catch { return { mode: HUD_DEFAULT }; }
       },
       write(mode) {
         const m = normalizeMode(mode);
@@ -112,19 +122,18 @@
         return { mode: HUD_DEFAULT };
       }
     };
-    applyHUDMode(HUD_DEFAULT);
     return W.ZZXHUD;
   }
 
   function applyHUDMode(mode) {
     const m = normalizeMode(mode);
-
     const root   = qs("[data-hud-root]");
     const handle = qs("[data-hud-handle]");
 
     if (root) root.setAttribute("data-hud-state", m);
 
-    // CRITICAL: handle must be controlled by JS because CSS default is display:none
+    // IMPORTANT: your wrapper CSS defaults the handle to display:none,
+    // so JS MUST toggle it, or "Hide" strands you.
     if (handle) handle.style.display = (m === "hidden") ? "flex" : "none";
 
     const lbl = qs("[data-runtime-mode]");
@@ -134,7 +143,7 @@
   function currentMode() {
     ensureHUD();
     try { return normalizeMode(W.ZZXHUD.read()?.mode); }
-    catch (_) { return HUD_DEFAULT; }
+    catch { return HUD_DEFAULT; }
   }
 
   function setMode(mode) {
@@ -161,10 +170,9 @@
     target.addEventListener(evt, fn, opts);
   }
 
-  function bindHUDControlsDelegated() {
+  function bindHUDDelegated() {
     ensureHUD();
 
-    // Delegated click wiring: works even if wrapper is injected later
     bindOnce(D, "hud_click", "click", (ev) => {
       const t = ev.target;
 
@@ -185,13 +193,11 @@
       const showBtn = t?.closest?.("[data-hud-show]");
       if (showBtn) {
         ev.preventDefault?.();
-        // toggle: hidden <-> full
         const cur = currentMode();
         setMode(cur === "hidden" ? "full" : "hidden");
         return;
       }
 
-      // Clicking the handle area itself should restore HUD (safety net)
       const handle = t?.closest?.("[data-hud-handle]");
       if (handle) {
         ev.preventDefault?.();
@@ -199,15 +205,7 @@
       }
     });
 
-    // ESC hides HUD unless credits modal is open
-    bindOnce(W, "hud_esc", "keydown", (e) => {
-      if (e.key !== "Escape") return;
-      const cm = D.getElementById("zzx-credits-modal");
-      if (cm && !cm.hidden) return;
-      if (currentMode() !== "hidden") setMode("hidden");
-    });
-
-    // Apply persisted state immediately (this is what prevents “no unhide button”)
+    // Apply persisted state immediately
     applyHUDMode(currentMode());
   }
 
@@ -256,12 +254,8 @@
   }
 
   // ---------------------------
-  // Slots + registry
+  // Registry + boot (compat)
   // ---------------------------
-  function slotEl(id) {
-    return D.querySelector(`[data-widget-slot="${id}"]`);
-  }
-
   const REG = (W.__ZZX_REGISTRY_SINGLETON = W.__ZZX_REGISTRY_SINGLETON || {
     defs: new Map(),
     booted: new Set(),
@@ -274,6 +268,7 @@
       COINBASE_CANDLES_1H: "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=3600",
       MEMPOOL: "https://mempool.space/api",
     };
+
     return {
       api: Object.assign({}, DEFAULT_API, (W.ZZX_API || {})),
       fetchText,
@@ -312,6 +307,7 @@
     if (!def) return false;
 
     const root = resolveWidgetRoot(wid, slot);
+
     try {
       if (typeof def === "function") def(root, ctx);
       else if (def && typeof def === "object") {
@@ -326,7 +322,6 @@
     }
   }
 
-  // Expose legacy shims (compat)
   W.__ZZX_WIDGETS = W.__ZZX_WIDGETS || {};
   W.__ZZX_WIDGETS.register = register;
   W.__ZZX_WIDGETS.start = function () {
@@ -348,7 +343,7 @@
   W.ZZXWidgetRegistry.start = W.__ZZX_WIDGETS.start;
 
   // ---------------------------
-  // Error card helpers (NO SILENT FAIL)
+  // Error rendering
   // ---------------------------
   function escapeHTML(s) {
     return String(s ?? "")
@@ -359,11 +354,11 @@
       .replaceAll("'", "&#039;");
   }
 
-  function renderFail(slot, id, title, msg, url) {
+  function renderFail(slot, id, msg, url) {
     if (!slot) return;
     slot.innerHTML = `
       <div class="btc-card">
-        <div class="btc-card__title">${escapeHTML(title || id)}</div>
+        <div class="btc-card__title">${escapeHTML(id)}</div>
         <div class="btc-card__sub">${escapeHTML(msg || "failed")}</div>
         ${url ? `<div class="btc-card__sub" style="opacity:.85">${escapeHTML(url)}</div>` : ``}
       </div>
@@ -371,14 +366,16 @@
   }
 
   // ---------------------------
-  // Manifest-driven mounting
+  // Manifest mounting
   // ---------------------------
-  async function loadManifest() {
-    const base = W.__ZZX_WIDGETS_MANIFEST_URL
-      ? String(W.__ZZX_WIDGETS_MANIFEST_URL)
-      : urlFor("/__partials/widgets/manifest.json");
+  function slotEl(id) {
+    return D.querySelector(`[data-widget-slot="${id}"]`);
+  }
 
-    const u = urlFor(base.startsWith("/") ? base : base); // normalize
+  async function loadManifest() {
+    const u = W.__ZZX_WIDGETS_MANIFEST_URL
+      ? urlFor(W.__ZZX_WIDGETS_MANIFEST_URL)
+      : urlFor("/__partials/widgets/manifest.json");
     return await fetchJSON(u);
   }
 
@@ -402,17 +399,17 @@
       slot.setAttribute("data-widget-id", id);
     } catch (e) {
       slot.dataset.mountReady = "0";
-      renderFail(slot, id, id, e?.message || "HTML load failed", htmlUrl);
+      renderFail(slot, id, e?.message || "HTML load failed", htmlUrl);
       return;
     }
 
-    // CSS (non-fatal)
+    // CSS
     try { ensureCSSOnce(`wcss:${id}`, cssUrl); } catch (_) {}
 
-    // JS (fatal for behavior; show explicit error if missing)
+    // JS
     const ok = await ensureScriptOnce(`wjs:${id}`, jsUrl);
     if (!ok) {
-      renderFail(slot, id, id, "JS failed to load (check 404 / path)", jsUrl);
+      renderFail(slot, id, "JS failed to load (404 / wrong path)", jsUrl);
       return;
     }
 
@@ -439,7 +436,6 @@
       await mountWidget(w.id, ctx);
     }
 
-    // Back-compat “start” pass
     try { W.__ZZX_WIDGETS.start(); } catch (_) {}
   }
 
@@ -447,11 +443,10 @@
   // Boot
   // ---------------------------
   async function boot() {
-    // HARD REQUIREMENT for styling + handle behavior:
-    // This is what prevents “raw ticker HTML” when a page forgets to load the wrapper CSS.
+    // HARD: always ensure wrapper primitives CSS exists (fixes raw ticker)
     try { ensureCSSOnce("btc-wrapper", urlFor("/__partials/bitcoin-ticker-widget.css")); } catch (_) {}
 
-    bindHUDControlsDelegated();
+    bindHUDDelegated();
 
     const ctx = buildCtx();
 
@@ -459,7 +454,7 @@
     try {
       manifest = await loadManifest();
     } catch (e) {
-      console.warn("[ZZX runtime] manifest.json failed, falling back to existing slots:", e);
+      console.warn("[ZZX runtime] manifest failed; mounting existing slots:", e);
       manifest = {
         widgets: qsa("[data-widget-slot]").map(el => ({
           id: el.getAttribute("data-widget-slot"),
@@ -471,7 +466,7 @@
 
     await mountAllFromManifest(manifest, ctx);
 
-    // Re-apply persisted HUD mode after mounts (ensures handle reflects hidden state)
+    // re-apply persisted mode after mounts
     applyHUDMode(currentMode());
   }
 
