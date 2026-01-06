@@ -1,46 +1,78 @@
 // __partials/widgets/bitcoin-ticker/widget.js
-// FIXED: aligned to unified ZZX runtime ctx (NO behavior changes)
+// DROP-IN: compatible with core-widget.js (NO runtime dependency)
 
 (function () {
-  window.ZZXWidgets.register("bitcoin-ticker", {
-    mount(slotEl) {
-      this.root = slotEl;
-    },
+  "use strict";
 
-    start(ctx) {
-      if (!this.root || !ctx || !ctx.api) return;
+  const W = window;
 
-      const SPOT = ctx.api.COINBASE_SPOT;
-      const root = this.root;
+  const DEFAULTS = {
+    COINBASE_SPOT: "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+  };
 
-      const a = root.querySelector("[data-btc]");
-      const b = root.querySelector("[data-mbtc]");
-      const c = root.querySelector("[data-ubtc]");
-      const d = root.querySelector("[data-sat]");
-      if (!a || !b || !c || !d) return;
+  function getSpotUrl() {
+    // Prefer user-provided API map if you have it
+    const u = W.ZZX_API && typeof W.ZZX_API.COINBASE_SPOT === "string" ? W.ZZX_API.COINBASE_SPOT : "";
+    return u || DEFAULTS.COINBASE_SPOT;
+  }
 
-      const tick = async () => {
-        try {
-          const data = await ctx.fetchJSON(SPOT);
-          const btc = parseFloat(data?.data?.amount);
-          if (!Number.isFinite(btc)) return;
+  function boot(root, core) {
+    if (!root) return;
 
-          a.textContent = btc.toFixed(2);
-          b.textContent = (btc * 0.001).toFixed(2);
-          c.textContent = (btc * 0.000001).toFixed(4);
-          d.textContent = (btc * 0.00000001).toFixed(6);
-        } catch {
-          // network hiccup → ignore, keep last good value
-        }
-      };
+    const a = root.querySelector("[data-btc]");
+    const b = root.querySelector("[data-mbtc]");
+    const c = root.querySelector("[data-ubtc]");
+    const d = root.querySelector("[data-sat]");
+    if (!a || !b || !c || !d) return;
 
-      tick();
-      this._t = setInterval(tick, 250);
-    },
-
-    stop() {
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+    // avoid double intervals if reinjected
+    if (root.__zzxTickerTimer) {
+      clearInterval(root.__zzxTickerTimer);
+      root.__zzxTickerTimer = null;
     }
-  });
+
+    const SPOT = getSpotUrl();
+
+    // Use core.fetchJSON if available (it accepts absolute URLs too)
+    const fetchJSON = (core && typeof core.fetchJSON === "function")
+      ? (u) => core.fetchJSON(u)
+      : async (u) => {
+          const r = await fetch(u, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return await r.json();
+        };
+
+    async function tick() {
+      try {
+        const data = await fetchJSON(SPOT);
+        const btc = parseFloat(data && data.data && data.data.amount);
+        if (!Number.isFinite(btc)) return;
+
+        // USD value of 1 unit (BTC / mBTC / μBTC / sat)
+        a.textContent = btc.toFixed(2);
+        b.textContent = (btc * 1e-3).toFixed(2);     // 1 mBTC = 0.001 BTC
+        c.textContent = (btc * 1e-6).toFixed(4);     // 1 μBTC = 0.000001 BTC
+        d.textContent = (btc * 1e-8).toFixed(6);     // 1 sat = 0.00000001 BTC
+      } catch (_) {
+        // network hiccup -> keep last values
+      }
+    }
+
+    tick();
+    root.__zzxTickerTimer = setInterval(tick, 250);
+  }
+
+  // Preferred: core lifecycle (fires AFTER HTML is injected)
+  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
+    W.ZZXWidgetsCore.onMount("bitcoin-ticker", (root, core) => boot(root, core));
+    return;
+  }
+
+  // Fallback: legacy shim path (core-widget.js creates ZZXWidgets.register)
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
+    // Register as a FUNCTION so legacyBootOne calls it with (root, core)
+    W.ZZXWidgets.register("bitcoin-ticker", function (root, core) {
+      boot(root, core);
+    });
+  }
 })();
