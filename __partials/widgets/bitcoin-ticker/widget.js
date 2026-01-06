@@ -1,5 +1,7 @@
 // __partials/widgets/bitcoin-ticker/widget.js
-// DROP-IN: compatible with core-widget.js (NO runtime dependency)
+// DROP-IN: compatible with widget-core.js (NO runtime dependency)
+// - Works with Core.onMount() (preferred) OR legacy ZZXWidgets.register()
+// - Survives HUD reinjection (clears prior interval on the new root)
 
 (function () {
   "use strict";
@@ -11,8 +13,9 @@
   };
 
   function getSpotUrl() {
-    // Prefer user-provided API map if you have it
-    const u = W.ZZX_API && typeof W.ZZX_API.COINBASE_SPOT === "string" ? W.ZZX_API.COINBASE_SPOT : "";
+    const u =
+      (W.ZZX_API && typeof W.ZZX_API.COINBASE_SPOT === "string" && W.ZZX_API.COINBASE_SPOT) ||
+      "";
     return u || DEFAULTS.COINBASE_SPOT;
   }
 
@@ -25,7 +28,7 @@
     const d = root.querySelector("[data-sat]");
     if (!a || !b || !c || !d) return;
 
-    // avoid double intervals if reinjected
+    // kill any previous timer tied to THIS root
     if (root.__zzxTickerTimer) {
       clearInterval(root.__zzxTickerTimer);
       root.__zzxTickerTimer = null;
@@ -33,28 +36,29 @@
 
     const SPOT = getSpotUrl();
 
-    // Use core.fetchJSON if available (it accepts absolute URLs too)
-    const fetchJSON = (core && typeof core.fetchJSON === "function")
-      ? (u) => core.fetchJSON(u)
-      : async (u) => {
-          const r = await fetch(u, { cache: "no-store" });
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return await r.json();
-        };
+    const fetchJSON =
+      core && typeof core.fetchJSON === "function"
+        ? (u) => core.fetchJSON(u) // core.url() leaves https URLs untouched
+        : async (u) => {
+            const r = await fetch(u, { cache: "no-store" });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return await r.json();
+          };
 
     async function tick() {
       try {
         const data = await fetchJSON(SPOT);
-        const btc = parseFloat(data && data.data && data.data.amount);
+        const amt = data && data.data && data.data.amount;
+        const btc = parseFloat(amt);
         if (!Number.isFinite(btc)) return;
 
         // USD value of 1 unit (BTC / mBTC / μBTC / sat)
         a.textContent = btc.toFixed(2);
-        b.textContent = (btc * 1e-3).toFixed(2);     // 1 mBTC = 0.001 BTC
-        c.textContent = (btc * 1e-6).toFixed(4);     // 1 μBTC = 0.000001 BTC
-        d.textContent = (btc * 1e-8).toFixed(6);     // 1 sat = 0.00000001 BTC
+        b.textContent = (btc * 1e-3).toFixed(2);  // 1 mBTC = 0.001 BTC
+        c.textContent = (btc * 1e-6).toFixed(4);  // 1 μBTC = 0.000001 BTC
+        d.textContent = (btc * 1e-8).toFixed(6);  // 1 sat  = 0.00000001 BTC
       } catch (_) {
-        // network hiccup -> keep last values
+        // ignore transient network errors; keep last good numbers
       }
     }
 
@@ -62,15 +66,16 @@
     root.__zzxTickerTimer = setInterval(tick, 250);
   }
 
-  // Preferred: core lifecycle (fires AFTER HTML is injected)
+  // Preferred: core lifecycle (fires AFTER widget HTML is injected)
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount("bitcoin-ticker", (root, core) => boot(root, core));
+    W.ZZXWidgetsCore.onMount("bitcoin-ticker", function (root, core) {
+      boot(root, core);
+    });
     return;
   }
 
-  // Fallback: legacy shim path (core-widget.js creates ZZXWidgets.register)
+  // Fallback: legacy registry (core creates this shim even without runtime.js)
   if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
-    // Register as a FUNCTION so legacyBootOne calls it with (root, core)
     W.ZZXWidgets.register("bitcoin-ticker", function (root, core) {
       boot(root, core);
     });
