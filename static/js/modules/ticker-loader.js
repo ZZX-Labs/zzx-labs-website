@@ -1,24 +1,24 @@
 // /static/js/modules/ticker-loader.js
 // ZZX Bitcoin HUD + Widget Orchestrator (AUTHORITATIVE) — DROP-IN REPLACEMENT
 //
-// THIS FIXES YOUR TWO REAL FAILURES:
+// GOAL: make this work EVERY time, on EVERY page depth.
 //
-// 1) “Ticker renders raw white HTML (no CSS)”: we FORCE-load the wrapper primitives CSS
-//    BEFORE injecting wrapper HTML, every time, prefix-safe.
-// 2) “Hide makes HUD disappear with no unhide button”: we ALSO FORCE-load
-//    /__partials/widgets/hud-state.js + /__partials/widgets/runtime.js
-//    (the code that toggles the handle + persists mode) AFTER wrapper injection.
-//    No reliance on <script> tags inside wrapper HTML.
+// Contract:
+// - ticker-loader injects wrapper CSS (primitives) FIRST
+// - injects wrapper HTML (slots)
+// - loads hud-state.js (single source of truth)
+// - loads runtime.js (manifest-driven mounter + HUD binder)
+// - NEVER uses ../
+// - Idempotent (safe across reinjections)
 //
-// Architecture kept (manifest-first):
-// - ticker-loader injects ONLY the HUD wrapper HTML+CSS
-// - then loads hud-state.js (single source of truth)
-// - then loads runtime.js (manifest-driven widget mount + HUD binding)
-// - runtime.js loads widget HTML/CSS/JS from /__partials/widgets/<id>/
+// REQUIRED FILES THAT MUST EXIST (exact paths):
+//   /__partials/bitcoin-ticker-widget.html
+//   /__partials/bitcoin-ticker-widget.css
+//   /__partials/widgets/hud-state.js
+//   /__partials/widgets/runtime.js
+//   /__partials/widgets/manifest.json
 //
-// IMPORTANT:
-// - This file is prefix-safe and idempotent.
-// - It NEVER uses ../ paths. Ever.
+// NOTE: runtime.js will show an in-card error if a widget JS/CSS/HTML is missing.
 
 (function () {
   "use strict";
@@ -30,48 +30,29 @@
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
   // ----------------------------
-  // Prefix (single source)
+  // Prefix-safe URL join
   // ----------------------------
   function getPrefix() {
     if (typeof W.ZZX?.PREFIX === "string") return W.ZZX.PREFIX;
     const htmlPrefix = D.documentElement?.getAttribute("data-zzx-prefix");
     if (htmlPrefix) return htmlPrefix;
-    return ""; // domain root
+    return "";
   }
 
   function join(prefix, path) {
     if (!path) return path;
     const s = String(path);
 
-    // absolute URL
-    if (/^https?:\/\//i.test(s)) return s;
-
-    // only join absolute-paths
-    if (!s.startsWith("/")) return s;
+    if (/^https?:\/\//i.test(s)) return s;     // absolute URL
+    if (!s.startsWith("/")) return s;          // non-absolute path (shouldn't be used here)
 
     const p = String(prefix || "").replace(/\/+$/, "");
-    if (!p || p === ".") return s;
-    if (p === "/") return s;
+    if (!p || p === "." || p === "/") return s;
     return p + s;
   }
 
   const PREFIX = getPrefix();
   W.ZZX = Object.assign({}, W.ZZX || {}, { PREFIX });
-
-  // ----------------------------
-  // Assets (CANONICAL PATHS)
-  // ----------------------------
-  const HUD_WRAPPER_HTML = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
-  const HUD_WRAPPER_CSS  = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
-
-  // Single source of truth for HUD mode (your file path, not runtime/hud-state.js)
-  const HUD_STATE_JS     = join(PREFIX, "/__partials/widgets/hud-state.js");
-
-  // Manifest-driven widget runtime
-  const RUNTIME_JS       = join(PREFIX, "/__partials/widgets/runtime.js");
-
-  // Publish canonical manifest URL for runtime.js (optional; harmless)
-  W.__ZZX_WIDGETS_MANIFEST_URL = join(PREFIX, "/__partials/widgets/manifest.json");
 
   // ----------------------------
   // Versioning
@@ -81,7 +62,7 @@
     return (v || "").trim();
   }
 
-  function withBust(u) {
+  function withV(u) {
     const v = assetVersion();
     if (!v) return u;
     try {
@@ -94,14 +75,26 @@
   }
 
   // ----------------------------
-  // Idempotent loaders
+  // Assets (canonical)
+  // ----------------------------
+  const WRAP_HTML   = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
+  const WRAP_CSS    = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
+  const HUD_STATE   = join(PREFIX, "/__partials/widgets/hud-state.js");
+  const RUNTIME_JS  = join(PREFIX, "/__partials/widgets/runtime.js");
+  const MANIFEST    = join(PREFIX, "/__partials/widgets/manifest.json");
+
+  // publish manifest URL (optional)
+  W.__ZZX_WIDGETS_MANIFEST_URL = MANIFEST;
+
+  // ----------------------------
+  // Idempotent injectors
   // ----------------------------
   function keyify(s) {
     return btoa(unescape(encodeURIComponent(String(s)))).replace(/=+$/g, "");
   }
 
   function loadCSSOnce(href) {
-    const h = withBust(href);
+    const h = withV(href);
     const key = "zzxcss:" + keyify(h);
     if (D.querySelector(`link[data-zzx-css="${key}"]`)) return;
 
@@ -113,7 +106,7 @@
   }
 
   function loadJSOnce(src) {
-    const s0 = withBust(src);
+    const s0 = withV(src);
     const key = "zzxjs:" + keyify(s0);
 
     return new Promise((resolve) => {
@@ -130,15 +123,12 @@
   }
 
   async function fetchHTML(url) {
-    const u = withBust(url);
+    const u = withV(url);
     const r = await fetch(u, { cache: "no-store" });
     if (!r.ok) throw new Error(`HTML fetch failed ${r.status}: ${u}`);
     return await r.text();
   }
 
-  // ----------------------------
-  // Inject HTML (NO script exec reliance)
-  // ----------------------------
   function injectHTML(mountEl, htmlText) {
     mountEl.replaceChildren();
     const tpl = D.createElement("template");
@@ -147,7 +137,7 @@
   }
 
   // ----------------------------
-  // Wait for partials-loader (window is emitter)
+  // Wait for partials injection (correct emitter = window)
   // ----------------------------
   function waitForPartials(timeoutMs = 3500) {
     if (W.__zzx_partials_ready) return Promise.resolve(true);
@@ -181,7 +171,7 @@
   }
 
   // ----------------------------
-  // Boot (STRICT ORDER)
+  // Boot (strict order)
   // ----------------------------
   (async function boot() {
     try {
@@ -190,21 +180,21 @@
       const mount = D.getElementById("ticker-container");
       if (!mount) return;
 
-      // 1) CSS FIRST (fixes “raw ticker HTML”)
-      loadCSSOnce(HUD_WRAPPER_CSS);
+      // 1) primitives CSS FIRST (fixes “raw white ticker”)
+      loadCSSOnce(WRAP_CSS);
 
-      // 2) Inject wrapper HTML (slots)
-      const html = await fetchHTML(HUD_WRAPPER_HTML);
+      // 2) wrapper HTML (slots)
+      const html = await fetchHTML(WRAP_HTML);
       injectHTML(mount, html);
 
-      // 3) Load HUD state + runtime (so hide/show ALWAYS works)
-      const okHud = await loadJSOnce(HUD_STATE_JS);
-      if (!okHud) console.warn("[ticker-loader] failed to load hud-state.js:", HUD_STATE_JS);
+      // 3) hud-state then runtime (so hide/unhide always works)
+      const okHud = await loadJSOnce(HUD_STATE);
+      if (!okHud) console.warn("[ticker-loader] hud-state failed:", HUD_STATE);
 
       const okRt = await loadJSOnce(RUNTIME_JS);
-      if (!okRt) console.warn("[ticker-loader] failed to load runtime.js:", RUNTIME_JS);
+      if (!okRt) console.warn("[ticker-loader] runtime failed:", RUNTIME_JS);
 
-      // 4) Kick start (safe; runtime may already self-boot)
+      // 4) kick legacy start (safe)
       try { W.__ZZX_WIDGETS?.start?.(); } catch (_) {}
 
     } catch (e) {
