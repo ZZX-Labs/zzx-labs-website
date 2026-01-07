@@ -1,0 +1,72 @@
+/* __partials/widgets/nodes-by-version/widget.css
+   DROP-IN
+   Prevent overflow + keep table tight inside card.
+*/
+
+[data-widget-root="nodes-by-version"]{
+  width:100%;
+  box-sizing:border-box;
+}
+
+[data-widget-root="nodes-by-version"] .btc-card__value,
+[data-widget-root="nodes-by-version"] .btc-card__sub{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-table{
+  margin-top:.45rem;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:10px;
+  overflow:hidden;
+  width:100%;
+  box-sizing:border-box;
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-row{
+  display:grid;
+  grid-template-columns: 40px 1fr 96px 72px;
+  gap:.4rem;
+  align-items:center;
+  padding:.35rem .45rem;
+  box-sizing:border-box;
+}
+
+@media (max-width: 520px){
+  [data-widget-root="nodes-by-version"] .zzx-nbv-row{
+    grid-template-columns: 32px 1fr 84px 64px;
+  }
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-head{
+  background: rgba(255,255,255,.04);
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-cell{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.92rem;
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-num{
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-pager{
+  margin-top:.5rem;
+  display:flex;
+  align-items:center;
+  gap:.45rem;
+  flex-wrap:wrap;
+}
+
+[data-widget-root="nodes-by-version"] .zzx-nbv-page{
+  font-size:.9rem;
+  color:#b7bf9a;
+  font-variant-numeric: tabular-nums;
+}
