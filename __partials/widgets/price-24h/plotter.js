@@ -1,24 +1,24 @@
 // __partials/widgets/price-24h/plotter.js
-// DROP-IN (module, not a widget)
-// MUST satisfy widget.js ensureDeps():
-//   window.ZZXPlotter.drawHL exists
+// DROP-IN (module)
+// Exports: window.ZZXPlotter.drawHL(ctx, candles, opts)
 
 (function () {
   "use strict";
 
   const W = window;
 
-  function n(x) {
+  function num(x) {
     const v = Number(x);
     return Number.isFinite(v) ? v : null;
   }
 
   function boundsHL(series) {
     let lo = Infinity, hi = -Infinity;
+
     for (const p of series) {
-      const h = n(p?.h);
-      const l = n(p?.l);
-      const c = n(p?.c);
+      const h = num(p?.h);
+      const l = num(p?.l);
+      const c = num(p?.c);
 
       const hh = (h !== null) ? h : c;
       const ll = (l !== null) ? l : c;
@@ -26,13 +26,15 @@
       if (hh !== null) hi = Math.max(hi, hh);
       if (ll !== null) lo = Math.min(lo, ll);
     }
+
     if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) {
       lo = 0; hi = 1;
     }
+
     return { lo, hi, span: (hi - lo) || 1 };
   }
 
-  function drawGrid(ctx, w, h, grid = "rgba(255,255,255,0.06)") {
+  function drawGrid(ctx, w, h, grid) {
     ctx.save();
     ctx.strokeStyle = grid;
     ctx.lineWidth = 1;
@@ -49,10 +51,13 @@
       ctx.lineTo(x + 0.5, h);
       ctx.stroke();
     }
+
     ctx.restore();
   }
 
-  // series: [{t,o,h,l,c,v}] ascending by time
+  // ctx: 2d context
+  // series: [{t,o,h,l,c,v}] ascending
+  // opts: {bg,bgAlpha,grid,bandFill,lineStroke,dotFill,border,lineWidth,pad}
   function drawHL(ctx, series, opts = {}) {
     if (!ctx || !Array.isArray(series) || series.length < 2) return;
 
@@ -63,7 +68,7 @@
     const iw = Math.max(1, w - pad * 2);
     const ih = Math.max(1, h - pad * 2);
 
-    const { lo, hi, span } = boundsHL(series);
+    const { lo, span } = boundsHL(series);
 
     const xAt = (i) => pad + (i / (series.length - 1)) * iw;
     const yAt = (v) => pad + (1 - ((v - lo) / span)) * ih;
@@ -79,12 +84,12 @@
     // Grid
     drawGrid(ctx, w, h, opts.grid || "rgba(255,255,255,0.06)");
 
-    // HL band (envelope)
+    // HL band (upper envelope then lower envelope backwards)
     ctx.beginPath();
     for (let i = 0; i < series.length; i++) {
       const p = series[i];
-      const hh = n(p?.h);
-      const cc = n(p?.c);
+      const hh = num(p?.h);
+      const cc = num(p?.c);
       const v = (hh !== null) ? hh : (cc ?? lo);
       const x = xAt(i), y = yAt(v);
       if (i === 0) ctx.moveTo(x, y);
@@ -92,11 +97,10 @@
     }
     for (let i = series.length - 1; i >= 0; i--) {
       const p = series[i];
-      const ll = n(p?.l);
-      const cc = n(p?.c);
+      const ll = num(p?.l);
+      const cc = num(p?.c);
       const v = (ll !== null) ? ll : (cc ?? lo);
-      const x = xAt(i), y = yAt(v);
-      ctx.lineTo(x, y);
+      ctx.lineTo(xAt(i), yAt(v));
     }
     ctx.closePath();
     ctx.fillStyle = opts.bandFill || "rgba(192,214,116,0.10)";
@@ -105,8 +109,8 @@
     // Close line
     ctx.beginPath();
     for (let i = 0; i < series.length; i++) {
-      const cc = n(series[i]?.c);
-      const x = xAt(i), y = yAt(cc ?? lo);
+      const c = num(series[i]?.c);
+      const x = xAt(i), y = yAt(c ?? lo);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -116,12 +120,10 @@
 
     // End dot
     const last = series[series.length - 1];
-    const lc = n(last?.c);
+    const lc = num(last?.c);
     if (lc !== null) {
-      const lx = xAt(series.length - 1);
-      const ly = yAt(lc);
       ctx.beginPath();
-      ctx.arc(lx, ly, 3.1, 0, Math.PI * 2);
+      ctx.arc(xAt(series.length - 1), yAt(lc), 3.1, 0, Math.PI * 2);
       ctx.fillStyle = opts.dotFill || "#e6a42b";
       ctx.fill();
     }
@@ -132,11 +134,6 @@
     ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
   }
 
-  // Register expected global
   W.ZZXPlotter = W.ZZXPlotter || {};
   W.ZZXPlotter.drawHL = drawHL;
-
-  // Optional alias (won’t hurt anything)
-  W.ZZXPrice24Plotter = W.ZZXPrice24Plotter || {};
-  W.ZZXPrice24Plotter.drawHL = drawHL;
 })();
