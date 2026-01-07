@@ -1,210 +1,165 @@
 // __partials/widgets/price-24h/widget.js
-// DROP-IN REPLACEMENT (price + % change + 24h area spark, spill-proof)
-//
-// Source: Coinbase Exchange 1h candles (close series)
-// - % change computed from first->last close in the 24h window
-// - Canvas sized to container to avoid right overflow
+// DROP-IN REPLACEMENT
+// - Exchange selector (local, persisted)
+// - AllOrigins RAW fetch
+// - Normalized 1h candles -> 24h price + % change + spark chart
+// - Fetch cadence is sane (network every 30s); rendering is immediate.
 
 (function () {
   "use strict";
 
-  const W = window;
+  const ID = "price-24h";
+  const STORE_KEY = "zzx.price24.exchange";
+  const DEBUG = !!window.__ZZX_WIDGET_DEBUG;
 
-  const DEFAULT_CANDLES_1H =
-    "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=3600";
-
-  function getCandlesUrl() {
-    const u = W.ZZX_API && typeof W.ZZX_API.COINBASE_CANDLES_1H === "string"
-      ? W.ZZX_API.COINBASE_CANDLES_1H
-      : "";
-    return u || DEFAULT_CANDLES_1H;
+  function fmtUSD(n){
+    return Number.isFinite(n)
+      ? n.toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 })
+      : "—";
   }
 
-  function fmtUSD(n) {
-    if (!Number.isFinite(n)) return "—";
-    try {
-      return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    } catch {
-      return String(n.toFixed(2));
-    }
+  function pct(a,b){
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return null;
+    return ((a - b) / b) * 100;
   }
 
-  function setText(el, s) {
+  function setDelta(el, p){
     if (!el) return;
-    el.textContent = String(s ?? "");
-  }
-
-  function setDelta(el, pct) {
-    if (!el) return;
-    el.classList.remove("is-up", "is-dn", "is-flat");
-
-    if (!Number.isFinite(pct)) {
+    if (!Number.isFinite(p)){
+      el.textContent = "—%";
+      el.classList.remove("is-up","is-down");
       el.classList.add("is-flat");
-      setText(el, "—%");
       return;
     }
-
-    const sign = pct > 0 ? "+" : "";
-    setText(el, `${sign}${pct.toFixed(2)}%`);
-
-    if (pct > 0.01) el.classList.add("is-up");
-    else if (pct < -0.01) el.classList.add("is-dn");
+    const s = (p>=0?"+":"") + p.toFixed(2) + "%";
+    el.textContent = s;
+    el.classList.remove("is-up","is-down","is-flat");
+    if (p>0.0001) el.classList.add("is-up");
+    else if (p<-0.0001) el.classList.add("is-down");
     else el.classList.add("is-flat");
   }
 
-  async function fetchCandles(fetchJSON, url) {
-    const data = await fetchJSON(url);
-    if (!Array.isArray(data)) return null;
-
-    const rows = data
-      .map((r) => (Array.isArray(r) ? r : null))
-      .filter(Boolean);
-
-    if (rows.length < 2) return null;
-
-    // [time, low, high, open, close, volume]
-    rows.sort((a, b) => Number(a[0]) - Number(b[0]));
-    return rows;
+  function safeGet(k){
+    try{ return localStorage.getItem(k); }catch{ return null; }
+  }
+  function safeSet(k,v){
+    try{ localStorage.setItem(k, v); }catch{}
   }
 
-  function drawAreaSpark(canvas, series) {
-    if (!canvas || !canvas.getContext) return;
-    const ctx = canvas.getContext("2d", { alpha: true });
-    if (!ctx) return;
-
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    const n = series.length;
-    if (n < 2) return;
-
-    let min = Infinity, max = -Infinity;
-    for (let i = 0; i < n; i++) {
-      const v = series[i];
-      if (!Number.isFinite(v)) continue;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return;
-    if (max === min) max = min + 1;
-
-    const padL = 10, padR = 10, padT = 10, padB = 12;
-    const iw = Math.max(1, w - padL - padR);
-    const ih = Math.max(1, h - padT - padB);
-
-    const xAt = (i) => padL + (i / (n - 1)) * iw;
-    const yAt = (v) => padT + (1 - ((v - min) / (max - min))) * ih;
-
-    // area
-    ctx.beginPath();
-    ctx.moveTo(xAt(0), yAt(series[0]));
-    for (let i = 1; i < n; i++) ctx.lineTo(xAt(i), yAt(series[i]));
-    ctx.lineTo(padL + iw, padT + ih);
-    ctx.lineTo(padL, padT + ih);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(230,164,43,.14)";
-    ctx.fill();
-
-    // line
-    ctx.beginPath();
-    ctx.moveTo(xAt(0), yAt(series[0]));
-    for (let i = 1; i < n; i++) ctx.lineTo(xAt(i), yAt(series[i]));
-    ctx.strokeStyle = "rgba(230,164,43,1)";
-    ctx.lineWidth = 3;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.stroke();
+  async function loadCandles(src){
+    // expects window.ZZXAO.json and src.normalize
+    const json = await window.ZZXAO.json(src.url);
+    const candles = src.normalize(json);
+    // Use last 24 points if more exist
+    const tail = candles.slice(-24);
+    return tail;
   }
 
-  function boot(root, core) {
-    if (!root) return;
-
-    const card =
-      root.querySelector('[data-widget-root="price-24h"]') || root;
-
-    const priceEl = card.querySelector("[data-price]");
-    const deltaEl = card.querySelector("[data-delta]");
-    const subEl   = card.querySelector("[data-sub]");
-    const canvas  = card.querySelector("canvas[data-spark]") || card.querySelector("canvas.btc-spark");
-
-    if (card.__zzxPrice24Timer) {
-      clearInterval(card.__zzxPrice24Timer);
-      card.__zzxPrice24Timer = null;
+  function populateSelect(sel, sources, chosenId){
+    sel.replaceChildren();
+    for (const s of sources){
+      const o = document.createElement("option");
+      o.value = s.id;
+      o.textContent = s.label;
+      sel.appendChild(o);
     }
+    if (chosenId && sources.some(s=>s.id===chosenId)) sel.value = chosenId;
+  }
 
-    const URL = getCandlesUrl();
+  window.ZZXWidgets.register(ID, {
+    mount(slotEl){
+      this.root = slotEl;
+      this._t = null;
+      this._srcId = null;
+      this._busy = false;
+      this._lastNetAt = 0;
+    },
 
-    const fetchJSON =
-      core && typeof core.fetchJSON === "function"
-        ? (u) => core.fetchJSON(u)
-        : async (u) => {
-            const r = await fetch(u, { cache: "no-store" });
-            if (!r.ok) throw new Error("HTTP " + r.status);
-            return await r.json();
-          };
+    start(){
+      const root = this.root;
+      if (!root) return;
 
-    async function run() {
-      try {
-        const rows = await fetchCandles(fetchJSON, URL);
-        if (!rows) return;
+      const $ = (s)=>root.querySelector(s);
+      const outPrice = $("[data-price]");
+      const outDelta = $("[data-delta]");
+      const outSub   = $("[data-sub]");
+      const canvas   = $("[data-spark]");
+      const sel      = root.querySelector("select[data-exchange]");
 
-        const last = rows.slice(-24);
-        if (last.length < 8) return;
+      const sources = (window.ZZXPriceSources?.list ? window.ZZXPriceSources.list() : []);
+      if (!sources.length){
+        if (outSub) outSub.textContent = "error: sources.js missing";
+        return;
+      }
 
-        const closes = last.map((r) => Number(r[4]));
-        const first = closes[0];
-        const lastClose = closes[closes.length - 1];
+      // init choice
+      const saved = safeGet(STORE_KEY);
+      this._srcId = (saved && sources.some(s=>s.id===saved)) ? saved : sources[0].id;
 
-        setText(priceEl, fmtUSD(lastClose));
+      if (sel){
+        populateSelect(sel, sources, this._srcId);
+        sel.addEventListener("change", () => {
+          this._srcId = sel.value;
+          safeSet(STORE_KEY, this._srcId);
+          this._lastNetAt = 0; // force refresh
+        });
+      }
 
-        const pct = (Number.isFinite(first) && first !== 0 && Number.isFinite(lastClose))
-          ? ((lastClose - first) / first) * 100
-          : NaN;
+      const tick = async () => {
+        if (!root.isConnected) return;
+        if (this._busy) return;
 
-        setDelta(deltaEl, pct);
+        const now = Date.now();
+        const needNet = (now - this._lastNetAt) > 30_000; // network cadence
+        if (!needNet) return;
 
-        setText(subEl, "Coinbase Exchange (1h candles)");
-        if (subEl) subEl.style.color = "#b7bf9a";
+        this._busy = true;
+        try{
+          const src = sources.find(s=>s.id===this._srcId) || sources[0];
 
-        if (canvas) {
-          // size canvas to container to prevent spill
-          const wrap = canvas.parentElement || canvas;
-          const rect = wrap.getBoundingClientRect();
-          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          if (outSub) outSub.textContent = `loading… (${src.label})`;
 
-          const cssW = Math.max(260, Math.floor(rect.width || 320));
-          const cssH = 60;
+          const candles = await loadCandles(src);
+          if (!candles.length) throw new Error("no candle data");
 
-          const pxW = Math.floor(cssW * dpr);
-          const pxH = Math.floor(cssH * dpr);
+          const closes = candles.map(x=>Number(x.c)).filter(Number.isFinite);
+          const first = closes[0];
+          const last  = closes[closes.length-1];
 
-          if (canvas.width !== pxW || canvas.height !== pxH) {
-            canvas.width = pxW;
-            canvas.height = pxH;
-            canvas.style.height = cssH + "px";
+          if (outPrice) outPrice.textContent = fmtUSD(last);
+
+          const p = pct(last, first);
+          setDelta(outDelta, p);
+
+          // draw spark
+          try{
+            window.ZZXSpark?.drawPrice?.(canvas, closes, Number.isFinite(p) ? (p >= 0) : true);
+          }catch(e){
+            if (DEBUG) console.warn("[price-24h] spark draw failed", e);
           }
 
-          drawAreaSpark(canvas, closes);
+          // sublabel
+          const points = closes.length;
+          if (outSub) outSub.textContent = `${src.label} · 1h candles · ${points} pts`;
+
+          this._lastNetAt = Date.now();
+        }catch(e){
+          if (outSub) outSub.textContent = `error: ${String(e?.message || e)}`;
+          if (DEBUG) console.warn("[price-24h] fetch failed", e);
+          this._lastNetAt = Date.now(); // back off to cadence
+        }finally{
+          this._busy = false;
         }
-      } catch (e) {
-        setText(subEl, `error: ${String(e && e.message ? e.message : e)}`);
-        if (subEl) subEl.style.color = "#ff5a5a";
-      }
+      };
+
+      // fast UI loop, slow network gate
+      tick();
+      this._t = setInterval(tick, 750);
+    },
+
+    stop(){
+      if (this._t) clearInterval(this._t);
+      this._t = null;
     }
-
-    run();
-    card.__zzxPrice24Timer = setInterval(run, 60_000);
-  }
-
-  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount("price-24h", (root, core) => boot(root, core));
-    return;
-  }
-
-  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
-    W.ZZXWidgets.register("price-24h", function (root, core) {
-      boot(root, core);
-    });
-  }
+  });
 })();
