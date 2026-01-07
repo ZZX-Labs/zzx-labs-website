@@ -1,70 +1,94 @@
 /* __partials/widgets/price-24h/widget.css
-   DROP-IN PATCH (spill fix + unified layout)
-   - Forces canvas/svg/anything inside card to stay within card width
-   - Makes value + % change sit on one line (wrap-safe)
-   - No webfonts; uses your existing mono stack vars if present
+   DROP-IN REPLACEMENT
+   Goals:
+   - consistent chart sizing (no overflow on mobile)
+   - clean exchange selector that matches your dark/mono look
 */
 
-.zzx-widget--price-24h,
-.zzx-widget--price-24h *{
-  box-sizing: border-box;
+.price24{ min-width: 0; }
+
+/* Title row with selector */
+.price24 .zzx-card__title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
 }
 
-.zzx-widget--price-24h .zzx-card,
-.zzx-widget--price-24h .btc-card{
-  width: 100%;
-  min-width: 0;           /* CRITICAL for flex children overflow */
-  overflow: hidden;       /* CRITICAL stops right-spill */
+.price24 .zzx-exchange{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  min-width:0;
 }
 
-.zzx-widget--price-24h .zzx-card__title,
-.zzx-widget--price-24h .btc-card__title{
+.price24 .zzx-exchange__label{
+  font-size:.78rem;
+  color: rgba(255,255,255,.62);
+  text-transform: lowercase;
+  letter-spacing:.02em;
+}
+
+.price24 select[data-exchange]{
+  background:#000;
+  color:#c0d674;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;
+  padding:.22rem .45rem;
   font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  font-size:.80rem;
+  max-width: 170px;
 }
 
-/* Value row: $PRICE + %Δ */
-.zzx-widget--price-24h .zzx-card__value,
-.zzx-widget--price-24h .btc-card__value{
+/* Metric row */
+.price24 .zzx-metrics{
   display:flex;
   align-items:baseline;
-  gap:.5rem;
-  flex-wrap:wrap;
+  justify-content:space-between;
+  gap:.6rem;
   min-width:0;
 }
 
-.zzx-widget--price-24h .zzx-metric{
+.price24 .zzx-metric{
   min-width:0;
-  white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-}
-
-.zzx-widget--price-24h .zzx-delta{
-  font-size: .98rem;
-  padding: .05rem .35rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,.12);
   white-space:nowrap;
 }
 
-.zzx-widget--price-24h .zzx-delta.is-up{ color:#43d17a; border-color:rgba(67,209,122,.35); background:rgba(67,209,122,.08); }
-.zzx-widget--price-24h .zzx-delta.is-dn{ color:#ff5a5a; border-color:rgba(255,90,90,.35);  background:rgba(255,90,90,.08); }
-.zzx-widget--price-24h .zzx-delta.is-flat{ color:#b7bf9a; }
+/* Delta styling matches your existing pattern */
+.price24 .zzx-delta{
+  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  font-size:.95rem;
+  white-space:nowrap;
+}
+.price24 .zzx-delta.is-up{ color:#6aa92a; }
+.price24 .zzx-delta.is-down{ color:#e05858; }
+.price24 .zzx-delta.is-flat{ color:#b7bf9a; }
 
-/* Spark container + canvas */
-.zzx-widget--price-24h .zzx-spark-wrap{
+/* === Consistent chart box (prevents spill, matches volume/high-low later) === */
+.price24 .zzx-sparkbox{
   width:100%;
+  box-sizing:border-box;
   min-width:0;
+  overflow:hidden;
+
+  height:92px;                 /* one knob: keep all widgets identical */
   margin-top:.45rem;
-  overflow:hidden;        /* CRITICAL */
-  border-radius:8px;
-  background: rgba(255,255,255,.03);
+
+  border-radius:10px;
+  background: rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
 }
 
-.zzx-widget--price-24h canvas.btc-spark,
-.zzx-widget--price-24h svg.btc-spark{
+.price24 .zzx-sparkbox canvas{
   width:100% !important;
-  max-width:100% !important;
-  height:60px !important;
+  height:100% !important;
   display:block;
+}
+
+@media (max-width: 620px){
+  .price24 select[data-exchange]{ max-width: 140px; }
+  .price24 .zzx-sparkbox{ height:88px; }
 }
