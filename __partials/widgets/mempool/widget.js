@@ -1,51 +1,120 @@
 // __partials/widgets/mempool/widget.js
-// Unified-runtime adapter (NO UI / layout / behavior changes)
+// DROP-IN (manifest/core compatible)
+// - Uses allorigins for mempool.space endpoints
+// - Shows: vMB, tx count, size MB, total fees BTC + USD
+// - Pulls BTCUSD spot from Coinbase (via public api.coinbase.com) for USD calc
+// - Idempotent; no runtime.js
 
 (function () {
+  "use strict";
+
+  const W = window;
   const ID = "mempool";
 
-  function fmtBig(n) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "—";
-    if (x >= 1e9) return (x / 1e9).toFixed(2) + "B";
-    if (x >= 1e6) return (x / 1e6).toFixed(2) + "M";
-    if (x >= 1e3) return (x / 1e3).toFixed(2) + "K";
-    return x.toLocaleString();
+  const DEFAULTS = {
+    MEMPOOL_SUMMARY: "https://mempool.space/api/mempool",
+    ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
+    COINBASE_SPOT: "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+    REFRESH_MS: 60_000
+  };
+
+  function allOrigins(url) {
+    return DEFAULTS.ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
   }
 
-  window.ZZXWidgets.register(ID, {
-    mount(slotEl) {
-      this.card = slotEl.querySelector('[data-w="mempool"]');
-      this._t = null;
-    },
+  async function fetchJSON(u) {
+    const r = await fetch(u, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
 
-    start(ctx) {
-      const MEMPOOL = ctx.api.MEMPOOL;
-      const card = this.card;
-      if (!card) return;
+  function setText(root, sel, txt) {
+    const el = root.querySelector(sel);
+    if (el) el.textContent = txt;
+  }
 
-      const valEl = card.querySelector("[data-val]");
-      const subEl = card.querySelector("[data-sub]");
+  function fmtInt(n) {
+    return Number.isFinite(n) ? Math.round(n).toLocaleString() : "—";
+  }
+  function fmt2(n) {
+    return Number.isFinite(n) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+  }
+  function fmt6(n) {
+    return Number.isFinite(n) ? n.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 }) : "—";
+  }
 
-      const run = async () => {
-        try {
-          const m = await ctx.fetchJSON(`${MEMPOOL}/mempool`);
-          const count = Number(m?.count);
-          if (valEl) valEl.textContent = Number.isFinite(count) ? fmtBig(count) : "—";
-          if (subEl) subEl.textContent = "tx";
-        } catch {
-          if (valEl) valEl.textContent = "—";
-          if (subEl) subEl.textContent = "tx";
-        }
-      };
+  let inflight = false;
 
-      run();
-      this._t = setInterval(run, 15_000);
-    },
+  async function refresh(root) {
+    if (!root || inflight) return;
+    inflight = true;
 
-    stop() {
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+    try {
+      setText(root, "[data-mp-status]", "loading…");
+
+      const [mp, spot] = await Promise.all([
+        fetchJSON(allOrigins(DEFAULTS.MEMPOOL_SUMMARY)),
+        fetchJSON(DEFAULTS.COINBASE_SPOT)
+      ]);
+
+      // mempool.space /api/mempool example:
+      // { count, vsize, total_fee }
+      const count = Number(mp?.count);
+      const vsize = Number(mp?.vsize);      // vbytes
+      const feeSat = Number(mp?.total_fee); // sats
+
+      // vMB = 1,000,000 vbytes (mempool.space uses vbytes)
+      const vmb = Number.isFinite(vsize) ? (vsize / 1_000_000) : NaN;
+
+      // rough MB display (bytes->MB); vbytes ~ bytes for our UI purposes
+      const mb = Number.isFinite(vsize) ? (vsize / 1_000_000) : NaN;
+
+      const feeBTC = Number.isFinite(feeSat) ? (feeSat / 100_000_000) : NaN;
+
+      const btcUsd = parseFloat(spot?.data?.amount);
+      const feeUSD = (Number.isFinite(feeBTC) && Number.isFinite(btcUsd)) ? (feeBTC * btcUsd) : NaN;
+
+      setText(root, "[data-mp-vmb]", fmt2(vmb));
+      setText(root, "[data-mp-tx]", fmtInt(count));
+      setText(root, "[data-mp-mb]", fmt2(mb));
+      setText(root, "[data-mp-fees-btc]", fmt6(feeBTC));
+      setText(root, "[data-mp-fees-usd]", fmt2(feeUSD));
+
+      setText(root, "[data-mp-status]", "mempool.space + Coinbase (via allorigins for mempool)");
+    } catch (e) {
+      setText(root, "[data-mp-status]", "error: " + String(e?.message || e));
+    } finally {
+      inflight = false;
     }
-  });
+  }
+
+  function wire(root) {
+    const btn = root.querySelector("[data-mp-refresh]");
+    if (btn && btn.dataset.zzxBound !== "1") {
+      btn.dataset.zzxBound = "1";
+      btn.addEventListener("click", () => refresh(root));
+    }
+  }
+
+  function boot(root) {
+    if (!root) return;
+
+    if (root.__zzxMempoolTimer) {
+      clearInterval(root.__zzxMempoolTimer);
+      root.__zzxMempoolTimer = null;
+    }
+
+    wire(root);
+    refresh(root);
+    root.__zzxMempoolTimer = setInterval(() => refresh(root), DEFAULTS.REFRESH_MS);
+  }
+
+  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
+    W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
+    return;
+  }
+
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
+    W.ZZXWidgets.register(ID, function (root) { boot(root); });
+  }
 })();
