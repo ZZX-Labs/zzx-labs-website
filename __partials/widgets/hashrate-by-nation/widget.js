@@ -1,26 +1,10 @@
 // __partials/widgets/hashrate-by-nation/widget.js
 // DROP-IN (manifest/core compatible; paged 5 per page)
 //
-// NOTE (important/explicit):
-// There is no authoritative public API that provides "Bitcoin hashrate by nation" in real time.
-// This widget is built to be correct + stable:
+// Uses ONLY a same-directory dataset:
+//   __partials/widgets/hashrate-by-nation/hashrate-by-nation.json
 //
-// - If you provide your own dataset at:
-//     /bitcoin/mining-stats/hashrate/by-nation.json
-//   (or set window.ZZX_API.HASHRATE_BY_NATION),
-//   it will page and compute % totals + estimated power.
-//
-// - Otherwise it will display a clear "no data source configured" message (not blank).
-//
-// Dataset format expected (simple):
-// {
-//   "updated": "2026-01-06T00:00:00Z",
-//   "total_hashrate_zh": 620.5,              // optional; computed if missing
-//   "rows": [
-//     { "nation": "United States", "code": "US", "hashrate_zh": 210.1, "power_w": 6.3e10 },
-//     { "nation": "China",         "code": "CN", "hashrate_zh": 150.0 }
-//   ]
-// }
+// No other paths. No extra routes. No runtime dependency.
 
 (function () {
   "use strict";
@@ -30,10 +14,10 @@
   const ID = "hashrate-by-nation";
 
   const DEFAULTS = {
-    // Your own site path (preferred). Keep it same-origin for reliability.
-    LOCAL_JSON: "hashrate-by-nation.json",
+    DATA_JSON: "./hashrate-by-nation.json",
     PAGE_SIZE: 5,
     DEFAULT_J_PER_TH: 30, // used if power_w not provided
+    REFRESH_MS: 10 * 60_000
   };
 
   let inflight = false;
@@ -56,20 +40,32 @@
     return String.fromCodePoint(A + (c.charCodeAt(0) - base), A + (c.charCodeAt(1) - base));
   }
 
+  function escapeHTML(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function clamp(n, a, b) {
+    return Math.max(a, Math.min(b, n));
+  }
+
   function getJPerTH() {
     const v = W.ZZX_MINING && Number(W.ZZX_MINING.J_PER_TH);
     return Number.isFinite(v) && v > 0 ? v : DEFAULTS.DEFAULT_J_PER_TH;
   }
 
   function estimatePowerW(hashrateZH, jPerTH) {
-    // TH/s = ZH/s * 1e9
-    // W = TH/s * J/TH
+    // TH/s = ZH/s * 1e9; W = TH/s * J/TH
     const zh = Number(hashrateZH);
     if (!Number.isFinite(zh)) return NaN;
     return zh * 1e9 * jPerTH;
   }
 
-  async function fetchJSON(url) {
+  async function fetchJSONSameDir(url) {
     const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
@@ -115,31 +111,12 @@
     return r;
   }
 
-  function escapeHTML(s) {
-    return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function clamp(n, a, b) {
-    return Math.max(a, Math.min(b, n));
-  }
-
-  function getDataUrl() {
-    if (W.ZZX_API && typeof W.ZZX_API.HASHRATE_BY_NATION === "string" && W.ZZX_API.HASHRATE_BY_NATION.trim()) {
-      return W.ZZX_API.HASHRATE_BY_NATION.trim();
-    }
-    return DEFAULTS.LOCAL_JSON;
-  }
-
   function renderNoData(root, msg) {
     setText(root, "[data-hbn-summary]", "No dataset");
-    setText(root, "[data-hbn-sub]", msg || "Configure ZZX_API.HASHRATE_BY_NATION or provide by-nation.json.");
+    setText(root, "[data-hbn-sub]", msg || "hashrate-by-nation.json missing or empty.");
     const body = clearBody(root);
     if (!body) return;
+
     const D = document;
     const r = D.createElement("div");
     r.className = "zzx-hbn-row";
@@ -204,13 +181,11 @@
     inflight = true;
 
     try {
-      const url = getDataUrl();
-
       let data;
       try {
-        data = await fetchJSON(url);
+        data = await fetchJSONSameDir(DEFAULTS.DATA_JSON);
       } catch (e) {
-        renderNoData(root, `Failed to load ${url} (${String(e?.message || e)})`);
+        renderNoData(root, `Failed to load ${DEFAULTS.DATA_JSON} (${String(e?.message || e)})`);
         return;
       }
 
@@ -220,7 +195,6 @@
         return;
       }
 
-      // Sort by hashrate desc
       rows.sort((a, b) => (Number(b.hashrate_zh) || 0) - (Number(a.hashrate_zh) || 0));
 
       const totalZH =
@@ -235,7 +209,7 @@
       state.page = clamp(state.page, 1, state.pages);
 
       setText(root, "[data-hbn-summary]", `Top nations: ${rows.length} • Total: ${fmtNum(totalZH, 2)} ZH/s`);
-      setText(root, "[data-hbn-sub]", data?.updated ? `Updated: ${String(data.updated)}` : "Local dataset");
+      setText(root, "[data-hbn-sub]", data?.updated ? `Updated: ${String(data.updated)}` : "hashrate-by-nation.json");
 
       renderPage(root, state);
     } finally {
@@ -246,7 +220,6 @@
   function boot(root) {
     if (!root) return;
 
-    // Avoid duplicate timers if reinjected
     if (root.__zzxHbnTimer) {
       clearInterval(root.__zzxHbnTimer);
       root.__zzxHbnTimer = null;
@@ -265,17 +238,14 @@
     wirePager(root, state);
 
     update(root, state);
-    // Refresh every 10 minutes by default (dataset updates are usually slow)
-    root.__zzxHbnTimer = setInterval(() => update(root, state), 10 * 60_000);
+    root.__zzxHbnTimer = setInterval(() => update(root, state), DEFAULTS.REFRESH_MS);
   }
 
-  // Core lifecycle
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
     W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
     return;
   }
 
-  // Legacy registry fallback
   if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
     W.ZZXWidgets.register(ID, function (root) { boot(root); });
   }
