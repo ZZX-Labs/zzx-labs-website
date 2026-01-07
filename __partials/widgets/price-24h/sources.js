@@ -1,17 +1,15 @@
 // __partials/widgets/price-24h/sources.js
-// Exchange candle sources (1h candles where possible) + normalizers.
-// Add more exchanges here without touching widget.js.
+// Exchange candle sources (prefer 1h candles) + normalizers.
+// Loaded by price-24h/widget.js at runtime.
 
 (function () {
   "use strict";
 
   const NS = (window.ZZXPriceSources = window.ZZXPriceSources || {});
 
-  // All entries must produce a normalized array:
+  // Normalized output:
   // [{ t, o, h, l, c, v }] ascending by time
-  //
-  // NOTE: Many exchanges use different symbol formats.
-  // Keep these as BTC/USD only for now to match your widgets.
+  // t is ms epoch
 
   NS.list = function listSources() {
     return [
@@ -63,7 +61,7 @@
         id: "bitstamp",
         label: "Bitstamp",
         kind: "candles",
-        url: "https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=3600&limit=24",
+        url: "https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=3600&limit=48",
         // data.ohlc: [{timestamp, open, high, low, close, volume}, ...] (asc)
         normalize(json) {
           const rows = json?.data?.ohlc;
@@ -82,11 +80,10 @@
 
       {
         id: "binance",
-        label: "Binance",
+        label: "Binance (USDT proxy)",
         kind: "candles",
-        url: "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=24",
+        url: "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=48",
         // rows: [openTime, open, high, low, close, volume, ...] (asc)
-        // NOTE: USDT proxy. Still gives clean candle motion.
         normalize(json) {
           const rows = Array.isArray(json) ? json : [];
           const out = rows.map(r => ({
@@ -106,7 +103,7 @@
         id: "gemini",
         label: "Gemini",
         kind: "candles",
-        url: "https://api.gemini.com/v2/candles/btcusd/1hr?limit=24",
+        url: "https://api.gemini.com/v2/candles/btcusd/1hr?limit=48",
         // rows: [time, open, high, low, close, volume] (ms, desc)
         normalize(json) {
           const rows = Array.isArray(json) ? json : [];
