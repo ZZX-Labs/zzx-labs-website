@@ -1,53 +1,99 @@
 // __partials/widgets/fees/widget.js
-// Unified-runtime adapter (NO UI / layout / behavior changes)
+// DROP-IN (manifest/core compatible)
+// - Uses allorigins to query mempool.space fees (avoids CORS issues)
+// - Updates UI + refresh button
+// - Idempotent; no runtime.js
 
 (function () {
+  "use strict";
+
+  const W = window;
   const ID = "fees";
 
-  window.ZZXWidgets.register(ID, {
-    mount(slotEl) {
-      this.card = slotEl.querySelector('[data-w="fees"]');
-      this._t = null;
-    },
+  const DEFAULTS = {
+    FEES_URL: "https://mempool.space/api/v1/fees/recommended",
+    ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
+    REFRESH_MS: 60_000
+  };
 
-    start(ctx) {
-      const MEMPOOL = ctx.api.MEMPOOL;
-      const card = this.card;
-      if (!card) return;
+  function allOrigins(url) {
+    return DEFAULTS.ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
+  }
 
-      const valEl = card.querySelector("[data-val]");
-      const subEl = card.querySelector("[data-sub]");
+  async function fetchJSON(u) {
+    const r = await fetch(u, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
 
-      const render = (txt) => {
-        if (valEl) valEl.textContent = txt;
-        if (subEl) subEl.textContent = "sat/vB";
-      };
+  function setText(root, sel, text) {
+    const el = root.querySelector(sel);
+    if (el) el.textContent = text;
+  }
 
-      const run = async () => {
-        try {
-          const f = await ctx.fetchJSON(`${MEMPOOL}/v1/fees/recommended`);
-          const H = Number(f?.fastestFee);
-          const M = Number(f?.halfHourFee);
-          const L = Number(f?.hourFee);
+  function fmt(n) {
+    return Number.isFinite(n) ? String(Math.round(n)) : "—";
+  }
 
-          const txt =
-            Number.isFinite(H) && Number.isFinite(M) && Number.isFinite(L)
-              ? `H:${H}  M:${M}  L:${L}`
-              : "—";
+  let inflight = false;
 
-          render(txt);
-        } catch {
-          render("—");
-        }
-      };
+  async function refresh(root) {
+    if (!root || inflight) return;
+    inflight = true;
 
-      run();
-      this._t = setInterval(run, 15_000);
-    },
+    try {
+      setText(root, "[data-fees-status]", "loading…");
 
-    stop() {
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+      const data = await fetchJSON(allOrigins(DEFAULTS.FEES_URL));
+
+      // mempool.space: { fastestFee, halfHourFee, hourFee, economyFee, minimumFee }
+      const fastest = Number(data?.fastestFee);
+      const halfHr  = Number(data?.halfHourFee);
+      const hour    = Number(data?.hourFee);
+      const econ    = Number(data?.economyFee);
+      const min     = Number(data?.minimumFee);
+
+      setText(root, "[data-fees-fast]", fmt(fastest));
+      setText(root, "[data-fees-30m]", fmt(halfHr));
+      setText(root, "[data-fees-1h]", fmt(hour));
+      setText(root, "[data-fees-econ]", fmt(econ));
+      setText(root, "[data-fees-min]", fmt(min));
+
+      setText(root, "[data-fees-status]", "mempool.space (via allorigins)");
+    } catch (e) {
+      setText(root, "[data-fees-status]", "error: " + String(e?.message || e));
+    } finally {
+      inflight = false;
     }
-  });
+  }
+
+  function wire(root) {
+    const btn = root.querySelector("[data-fees-refresh]");
+    if (btn && btn.dataset.zzxBound !== "1") {
+      btn.dataset.zzxBound = "1";
+      btn.addEventListener("click", () => refresh(root));
+    }
+  }
+
+  function boot(root) {
+    if (!root) return;
+
+    if (root.__zzxFeesTimer) {
+      clearInterval(root.__zzxFeesTimer);
+      root.__zzxFeesTimer = null;
+    }
+
+    wire(root);
+    refresh(root);
+    root.__zzxFeesTimer = setInterval(() => refresh(root), DEFAULTS.REFRESH_MS);
+  }
+
+  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
+    W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
+    return;
+  }
+
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
+    W.ZZXWidgets.register(ID, function (root) { boot(root); });
+  }
 })();
