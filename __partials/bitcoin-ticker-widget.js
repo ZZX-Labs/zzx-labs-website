@@ -10,6 +10,10 @@
 // - NORMALIZE PREFIX: never allow "." or "./" (those create ./__partials/... 404s in Core)
 // - KEEP CSS injection first (prevents “raw ticker” flashes)
 // - KEEP idempotency
+//
+// FIX (your instability case):
+// - Ensure ticker-loader boots even if partials events never fire
+// - Still safe/idempotent if it *does* fire later
 
 (function () {
   "use strict";
@@ -147,14 +151,6 @@
     ensureTickerLoader();
   }
 
-  // If prefix already known, boot immediately.
-  if (W.ZZX && typeof W.ZZX.PREFIX === "string") {
-    // Normalize even if already set (prevents "." / "./" bugs)
-    getPrefix();
-    boot();
-    return;
-  }
-
   let done = false;
   function finish() {
     if (done) return;
@@ -162,14 +158,19 @@
     boot();
   }
 
-  // Listen for either partials-ready event name (you used both historically)
-  W.addEventListener("zzx:partials-ready", finish, { once: true });
-  W.addEventListener("zzx:partials:ready", finish, { once: true });
-
-  // Fallback: boot after DOM ready even if event never fires
+  // Always boot on DOM readiness (covers pages where partials events never fire)
   if (D.readyState === "loading") {
     D.addEventListener("DOMContentLoaded", finish, { once: true });
   } else {
     finish();
+  }
+
+  // Also boot when partials-ready fires (covers pages that inject header/footer after)
+  W.addEventListener("zzx:partials-ready", finish, { once: true });
+  W.addEventListener("zzx:partials:ready", finish, { once: true });
+
+  // If prefix already known, normalize immediately (prevents "." / "./" bugs)
+  if (W.ZZX && typeof W.ZZX.PREFIX === "string") {
+    getPrefix();
   }
 })();
