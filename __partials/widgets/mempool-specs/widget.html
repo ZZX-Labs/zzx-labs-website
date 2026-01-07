@@ -1,45 +1,41 @@
-<!-- __partials/widgets/mempool-specs/widget.html
-     DROP-IN
-     Purpose: “Mempool Specs” (fee recommendations + congestion snapshot)
-     Source: mempool.space via allorigins
--->
-<div class="btc-card" data-widget-root="mempool-specs">
-  <div class="btc-card__title">Mempool Specs</div>
+<!-- __partials/widgets/mempool-specs/widget.html -->
+<!-- DROP-IN (VISUAL BLOCK CONSTRUCTION / MEMPOOL SIMULATOR) -->
+<!-- This file defines ONLY structure. All logic lives in JS modules. -->
 
-  <div class="btc-card__value">
-    <span data-ms-fast>—</span><span class="zzx-ms-unit"> sat/vB</span>
+<div class="zzx-card mempool-specs" data-widget-root="mempool-specs">
+  <div class="zzx-card__title">Mempool · Block Construction</div>
+
+  <div class="zzx-card__value">
+    <span data-ms-summary>loading…</span>
   </div>
 
-  <div class="btc-card__sub">
-    Fast • <span data-ms-sub>loading…</span>
+  <div class="zzx-card__sub">
+    <span data-ms-sub>pending transactions</span>
   </div>
 
-  <div class="zzx-ms-grid" role="table" aria-label="Fee recommendations">
-    <div class="zzx-ms-row" role="row">
-      <div class="zzx-ms-cell" role="cell">Fastest</div>
-      <div class="zzx-ms-cell zzx-ms-num" role="cell"><span data-ms-fastest>—</span> sat/vB</div>
-    </div>
-    <div class="zzx-ms-row" role="row">
-      <div class="zzx-ms-cell" role="cell">Half hour</div>
-      <div class="zzx-ms-cell zzx-ms-num" role="cell"><span data-ms-half>—</span> sat/vB</div>
-    </div>
-    <div class="zzx-ms-row" role="row">
-      <div class="zzx-ms-cell" role="cell">Hour</div>
-      <div class="zzx-ms-cell zzx-ms-num" role="cell"><span data-ms-hour>—</span> sat/vB</div>
-    </div>
-    <div class="zzx-ms-row" role="row">
-      <div class="zzx-ms-cell" role="cell">Economy</div>
-      <div class="zzx-ms-cell zzx-ms-num" role="cell"><span data-ms-eco>—</span> sat/vB</div>
-    </div>
-    <div class="zzx-ms-row" role="row">
-      <div class="zzx-ms-cell" role="cell">Minimum</div>
-      <div class="zzx-ms-cell zzx-ms-num" role="cell"><span data-ms-min>—</span> sat/vB</div>
-    </div>
+  <!-- Block visualization container -->
+  <div
+    class="ms-block"
+    data-ms-block
+    role="img"
+    aria-label="Bitcoin block construction from mempool transactions"
+  >
+    <!-- grid / canvas injected here -->
   </div>
 
-  <div class="zzx-ms-foot">
-    <span data-ms-status>—</span>
-    <span class="zzx-ms-spacer" aria-hidden="true"></span>
-    <button type="button" class="zzx-ms-btn" data-ms-refresh>Refresh</button>
+  <!-- Footer / legend -->
+  <div class="ms-legend" aria-hidden="true">
+    <div class="ms-legend-item">
+      <span class="ms-swatch low"></span>
+      <span>low fee</span>
+    </div>
+    <div class="ms-legend-item">
+      <span class="ms-swatch mid"></span>
+      <span>medium fee</span>
+    </div>
+    <div class="ms-legend-item">
+      <span class="ms-swatch high"></span>
+      <span>high fee</span>
+    </div>
   </div>
 </div>
