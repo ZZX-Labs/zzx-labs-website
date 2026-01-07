@@ -1,5 +1,5 @@
 <!-- __partials/widgets/bitrng/widget.html -->
-<div class="btc-card bitrng" data-widget-card="bitrng">
+<div class="btc-card bitrng" data-widget-root="bitrng">
   <div class="btc-card__title">BitRNG</div>
 
   <div class="btc-card__value">
@@ -7,7 +7,28 @@
   </div>
 
   <div class="btc-card__sub">
-    <span data-bitrng-sub>hardware entropy · last update —</span>
+    <span data-bitrng-sub>entropy · last update —</span>
+  </div>
+
+  <div class="bitrng__controls" aria-label="BitRNG controls">
+    <label class="bitrng__label">
+      engine
+      <select class="bitrng__select" data-bitrng-engine></select>
+    </label>
+
+    <label class="bitrng__label">
+      mode
+      <select class="bitrng__select" data-bitrng-mode></select>
+    </label>
+
+    <label class="bitrng__label">
+      output
+      <select class="bitrng__select" data-bitrng-output>
+        <option value="hex">hex</option>
+        <option value="base64">base64</option>
+        <option value="dice">dice</option>
+      </select>
+    </label>
   </div>
 
   <div class="bitrng__meta">
@@ -27,10 +48,10 @@
 
   <div class="bitrng__actions" aria-label="BitRNG actions">
     <button type="button" class="bitrng__btn" data-bitrng-action="refresh">Refresh</button>
-    <button type="button" class="bitrng__btn" data-bitrng-action="copy" title="Copy latest sample">Copy</button>
+    <button type="button" class="bitrng__btn" data-bitrng-action="copy" title="Copy latest output">Copy</button>
   </div>
 
   <div class="bitrng__hint" data-bitrng-hint>
-    expects JSON in this widget folder (e.g., <code>bitrng.json</code>) or an API endpoint configured in widget.js
+    engines + entropy are local modules in <code>__partials/widgets/bitrng/</code>
   </div>
 </div>
