@@ -1,11 +1,38 @@
-<div class="btc-card" data-w="nodes-by-nation">
+<!-- __partials/widgets/nodes-by-nation/widget.html
+     DROP-IN
+     5-per-page ranked listing (Bitnodes countries snapshot via allorigins; done in widget.js).
+-->
+<div class="btc-card" data-widget-root="nodes-by-nation">
   <div class="btc-card__title">Nodes by Nation</div>
 
-  <div class="btc-kv">
-    <div class="btc-kv__row"><span class="k">total</span><span class="v" data-total>—</span></div>
-    <div class="btc-kv__row"><span class="k">reachable</span><span class="v" data-reach>—</span></div>
-    <div class="btc-kv__row"><span class="k">unreachable</span><span class="v" data-unreach>—</span></div>
+  <div class="btc-card__value">
+    <span data-nbn-summary>loading…</span>
   </div>
 
-  <div class="btc-mini-list" data-list></div>
+  <div class="btc-card__sub">
+    <span data-nbn-sub>—</span>
+  </div>
+
+  <div class="zzx-nbn-table" role="table" aria-label="Nodes by nation">
+    <div class="zzx-nbn-row zzx-nbn-head" role="row">
+      <div class="zzx-nbn-cell" role="columnheader">#</div>
+      <div class="zzx-nbn-cell" role="columnheader">Nation</div>
+      <div class="zzx-nbn-cell zzx-nbn-num" role="columnheader">Nodes</div>
+      <div class="zzx-nbn-cell zzx-nbn-num" role="columnheader">%</div>
+    </div>
+
+    <div data-nbn-body>
+      <!-- rows injected -->
+    </div>
+  </div>
+
+  <div class="zzx-nbn-pager" aria-label="Nodes by nation pagination">
+    <button type="button" class="zzx-widgets__btn" data-nbn-prev aria-label="Previous page">Prev</button>
+    <span class="zzx-nbn-page" data-nbn-page>Page 1 / 1</span>
+    <button type="button" class="zzx-widgets__btn" data-nbn-next aria-label="Next page">Next</button>
+
+    <span class="zzx-widgets__spacer" aria-hidden="true"></span>
+
+    <button type="button" class="zzx-widgets__btn" data-nbn-refresh aria-label="Refresh">Refresh</button>
+  </div>
 </div>
