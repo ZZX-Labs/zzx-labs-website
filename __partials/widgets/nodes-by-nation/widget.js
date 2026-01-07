@@ -1,141 +1,247 @@
 // __partials/widgets/nodes-by-nation/widget.js
-// Unified-runtime fix + nation ranking + flag emoji + TOR exclusion (nation list only)
+// DROP-IN (manifest/core compatible)
 //
-// Notes:
-// - Replaces legacy ctx.util.* calls in your current file :contentReference[oaicite:0]{index=0}
-// - HTML unchanged :contentReference[oaicite:1]{index=1}
-// - CSS unchanged :contentReference[oaicite:2]{index=2}
+// Requirements met:
+// - Uses allorigins for Bitnodes API.
+// - Paged list: 5 per page.
+// - Safe if reinjected (clears interval, rebinds buttons idempotently).
+// - No runtime.js, no new routes/files.
 //
-// Requirements implemented:
-// - TOR is excluded ONLY from the nation listing (not from global totals).
-// - Each row shows: global rank position + flag emoji + CC + node count.
-// - Default shows top 10 (same as your current behavior), but supports "all":
-//     - If the widget root has attribute: data-all="1" → show all countries
-//     - Or: data-limit="25" → show that many
+// NOTE:
+// Bitnodes country endpoint naming can vary. Default is:
+//   https://bitnodes.io/api/v1/snapshots/latest/countries/
+// If that 404s, the widget will show an error in the subline.
+// (You can swap the endpoint string without changing any other logic.)
 
 (function () {
+  "use strict";
+
+  const W = window;
+
   const ID = "nodes-by-nation";
 
-  function fmtBig(n) {
-    const x = Number(n);
+  const DEFAULTS = {
+    BITNODES_COUNTRIES: "https://bitnodes.io/api/v1/snapshots/latest/countries/",
+    ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
+    PAGE_SIZE: 5,
+    REFRESH_MS: 10 * 60_000
+  };
+
+  let inflight = false;
+
+  function allOrigins(url) {
+    return DEFAULTS.ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
+  }
+
+  function fmtInt(n) {
+    return Number.isFinite(n) ? Math.round(n).toLocaleString() : "—";
+  }
+
+  function fmtPct(x) {
     if (!Number.isFinite(x)) return "—";
-    if (x >= 1e9) return (x / 1e9).toFixed(2) + "B";
-    if (x >= 1e6) return (x / 1e6).toFixed(2) + "M";
-    if (x >= 1e3) return (x / 1e3).toFixed(2) + "K";
-    return x.toLocaleString();
+    return (x * 100).toFixed(2) + "%";
   }
 
-  // Convert ISO-3166 alpha-2 country code to flag emoji
-  function flagEmoji(cc) {
-    const s = String(cc || "").toUpperCase();
+  function setText(root, sel, text) {
+    const el = root.querySelector(sel);
+    if (el) el.textContent = text;
+  }
+
+  function iso2ToFlag(iso2) {
+    const s = String(iso2 || "").trim().toUpperCase();
     if (!/^[A-Z]{2}$/.test(s)) return "🏳️";
-    const A = 0x1f1e6; // regional indicator A
-    return String.fromCodePoint(A + (s.charCodeAt(0) - 65), A + (s.charCodeAt(1) - 65));
+    const A = 0x1F1E6;
+    const cp1 = A + (s.charCodeAt(0) - 65);
+    const cp2 = A + (s.charCodeAt(1) - 65);
+    return String.fromCodePoint(cp1, cp2);
   }
 
-  function isTorCode(cc) {
-    const s = String(cc || "").toUpperCase();
-    // Be conservative: exclude only clearly non-nation tor-like buckets.
-    return s === "TOR" || s === "ONION" || s === "ZZ" || s === "XX";
+  async function fetchJSON(u) {
+    const r = await fetch(u, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
   }
 
-  function readLimit(card) {
-    const all = card?.getAttribute("data-all");
-    if (all === "1" || all === "true") return Infinity;
-    const lim = Number(card?.getAttribute("data-limit"));
-    if (Number.isFinite(lim) && lim > 0) return lim;
-    return 10; // matches your current slice(0, 10)
-  }
+  function normalizeRows(payload) {
+    // Goal: [{ code:"US", name:"United States", nodes:1234, share:0.12 }, ...]
+    //
+    // We tolerate different shapes:
+    // - payload.countries: { US: { country:"United States", nodes:123 }, ... }
+    // - payload.results: [...]
+    // - payload: [...]
+    const out = [];
 
-  window.ZZXWidgets.register(ID, {
-    mount(slotEl) {
-      this.card = slotEl.querySelector('[data-w="nodes-by-nation"]');
-      this.totalEl = this.card?.querySelector("[data-total]");
-      this.reachEl = this.card?.querySelector("[data-reach]");
-      this.unreachEl = this.card?.querySelector("[data-unreach]");
-      this.listEl = this.card?.querySelector("[data-list]");
-      this._t = null;
-    },
+    const src =
+      (payload && payload.countries && typeof payload.countries === "object" && payload.countries) ||
+      (payload && payload.results && Array.isArray(payload.results) && payload.results) ||
+      (Array.isArray(payload) ? payload : null);
 
-    start(ctx) {
-      const run = async () => {
-        if (!this.card) return;
+    if (!src) return out;
 
-        // totals from latest snapshot (TOR not excluded here)
-        let total = NaN, reach = NaN, unreach = NaN;
-        try {
-          const snap = await ctx.fetchJSON(ctx.api.BITNODES_LATEST);
-          total = Number(snap?.total_nodes ?? snap?.total ?? snap?.count ?? snap?.nodes_total);
-          reach = Number(snap?.reachable_nodes ?? snap?.reachable ?? snap?.total_reachable ?? snap?.reachable_total);
-          unreach = (Number.isFinite(total) && Number.isFinite(reach)) ? (total - reach) : NaN;
-        } catch {}
-
-        if (this.totalEl) this.totalEl.textContent = Number.isFinite(total) ? fmtBig(total) : "—";
-        if (this.reachEl) this.reachEl.textContent = Number.isFinite(reach) ? fmtBig(reach) : "—";
-        if (this.unreachEl) this.unreachEl.textContent = Number.isFinite(unreach) ? fmtBig(unreach) : "—";
-
-        // countries list (TOR excluded ONLY here)
-        try {
-          const data = await ctx.fetchJSON(ctx.api.BITNODES_COUNTRIES);
-
-          // common shapes:
-          // { countries: { US: 1234, DE: 456, ... } } OR { US: 1234, ... }
-          const map =
-            (data?.countries && typeof data.countries === "object") ? data.countries :
-            (data && typeof data === "object") ? data :
-            null;
-
-          const limit = readLimit(this.card);
-
-          const pairs = map
-            ? Object.entries(map)
-                .map(([cc, n]) => [String(cc).toUpperCase(), Number(n)])
-                .filter(([cc, n]) => Number.isFinite(n) && cc)
-                .filter(([cc]) => !isTorCode(cc))            // <-- TOR exclusion only here
-                .sort((a, b) => b[1] - a[1])
-            : [];
-
-          const view = (limit === Infinity) ? pairs : pairs.slice(0, limit);
-
-          if (this.listEl) {
-            this.listEl.innerHTML = "";
-
-            let rank = 0;
-            for (const [cc, n] of view) {
-              rank += 1;
-
-              const row = document.createElement("div");
-              row.className = "row";
-
-              // Position number + flag emoji + CC
-              const left = `${rank}. ${flagEmoji(cc)} ${cc}`;
-              const right = fmtBig(n);
-
-              row.innerHTML = `<span class="cc">${left}</span><span class="n">${right}</span>`;
-              this.listEl.appendChild(row);
-            }
-
-            if (!view.length) {
-              const row = document.createElement("div");
-              row.className = "row";
-              row.innerHTML = `<span class="cc">—</span><span class="n">—</span>`;
-              this.listEl.appendChild(row);
-            }
-          }
-        } catch {
-          if (this.listEl) {
-            this.listEl.innerHTML = `<div class="row"><span class="cc">—</span><span class="n">—</span></div>`;
-          }
-        }
-      };
-
-      run();
-      this._t = setInterval(run, 60_000);
-    },
-
-    stop() {
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+    if (Array.isArray(src)) {
+      for (const r of src) {
+        const code = r?.code || r?.country_code || r?.iso2 || r?.cc;
+        const name = r?.name || r?.country || r?.country_name;
+        const nodes = Number(r?.nodes ?? r?.count ?? r?.total);
+        // share might come as 0-1 or 0-100; detect > 1 means percent
+        let share = Number(r?.share ?? r?.pct ?? r?.percent);
+        if (Number.isFinite(share) && share > 1) share = share / 100;
+        out.push({ code, name, nodes, share });
+      }
+      return out;
     }
-  });
+
+    // object map case
+    for (const [code, v] of Object.entries(src)) {
+      const name = v?.country || v?.name || v?.country_name;
+      const nodes = Number(v?.nodes ?? v?.count ?? v?.total);
+      let share = Number(v?.share ?? v?.pct ?? v?.percent);
+      if (Number.isFinite(share) && share > 1) share = share / 100;
+      out.push({ code, name, nodes, share });
+    }
+    return out;
+  }
+
+  function render(root, state) {
+    const body = root.querySelector("[data-nbn-body]");
+    if (!body) return;
+
+    const rows = state.rows || [];
+    const pageSize = DEFAULTS.PAGE_SIZE;
+
+    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+    const page = Math.min(Math.max(1, state.page || 1), totalPages);
+
+    state.page = page;
+    state.totalPages = totalPages;
+
+    const start = (page - 1) * pageSize;
+    const slice = rows.slice(start, start + pageSize);
+
+    body.textContent = "";
+
+    for (let i = 0; i < slice.length; i++) {
+      const r = slice[i];
+      const rank = start + i + 1;
+
+      const code = String(r.code || "").toUpperCase();
+      const name = String(r.name || "").trim() || code || "Unknown";
+      const flag = iso2ToFlag(code);
+
+      const row = document.createElement("div");
+      row.className = "zzx-nbn-row";
+      row.setAttribute("role", "row");
+
+      row.innerHTML = `
+        <div class="zzx-nbn-cell" role="cell">${rank}</div>
+        <div class="zzx-nbn-cell" role="cell"><span class="zzx-nbn-flag">${flag}</span>${escapeHTML(name)}</div>
+        <div class="zzx-nbn-cell zzx-nbn-num" role="cell">${escapeHTML(fmtInt(r.nodes))}</div>
+        <div class="zzx-nbn-cell zzx-nbn-num" role="cell">${escapeHTML(fmtPct(r.share))}</div>
+      `;
+
+      body.appendChild(row);
+    }
+
+    setText(root, "[data-nbn-page]", `Page ${page} / ${totalPages}`);
+  }
+
+  function escapeHTML(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  async function update(root, state) {
+    if (!root || inflight) return;
+    inflight = true;
+
+    try {
+      const url = allOrigins(DEFAULTS.BITNODES_COUNTRIES);
+      const data = await fetchJSON(url);
+
+      let rows = normalizeRows(data)
+        .filter((r) => Number.isFinite(r.nodes) && r.nodes > 0)
+        .sort((a, b) => (b.nodes ?? 0) - (a.nodes ?? 0));
+
+      // If share missing, compute from total
+      const total = rows.reduce((s, r) => s + (Number.isFinite(r.nodes) ? r.nodes : 0), 0);
+      for (const r of rows) {
+        if (!Number.isFinite(r.share) && total > 0) r.share = r.nodes / total;
+      }
+
+      state.rows = rows;
+
+      setText(root, "[data-nbn-summary]", `${fmtInt(total)} nodes (top nations)`);
+      setText(root, "[data-nbn-sub]", "Bitnodes countries (via allorigins)");
+
+      // keep page if possible
+      render(root, state);
+    } catch (e) {
+      setText(root, "[data-nbn-summary]", "—");
+      setText(root, "[data-nbn-sub]", "error: " + String(e?.message || e));
+      state.rows = [];
+      state.page = 1;
+      render(root, state);
+    } finally {
+      inflight = false;
+    }
+  }
+
+  function wire(root, state) {
+    const prev = root.querySelector("[data-nbn-prev]");
+    const next = root.querySelector("[data-nbn-next]");
+    const refresh = root.querySelector("[data-nbn-refresh]");
+
+    if (prev && prev.dataset.zzxBound !== "1") {
+      prev.dataset.zzxBound = "1";
+      prev.addEventListener("click", () => {
+        state.page = Math.max(1, (state.page || 1) - 1);
+        render(root, state);
+      });
+    }
+
+    if (next && next.dataset.zzxBound !== "1") {
+      next.dataset.zzxBound = "1";
+      next.addEventListener("click", () => {
+        state.page = Math.min(state.totalPages || 1, (state.page || 1) + 1);
+        render(root, state);
+      });
+    }
+
+    if (refresh && refresh.dataset.zzxBound !== "1") {
+      refresh.dataset.zzxBound = "1";
+      refresh.addEventListener("click", () => update(root, state));
+    }
+  }
+
+  function boot(root) {
+    if (!root) return;
+
+    // per-root state (survives reinjection)
+    const state = { rows: [], page: 1, totalPages: 1 };
+    root.__zzxNBNState = state;
+
+    wire(root, state);
+
+    // avoid double intervals if reinjected
+    if (root.__zzxNBNTimer) {
+      clearInterval(root.__zzxNBNTimer);
+      root.__zzxNBNTimer = null;
+    }
+
+    update(root, state);
+    root.__zzxNBNTimer = setInterval(() => update(root, state), DEFAULTS.REFRESH_MS);
+  }
+
+  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
+    W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
+    return;
+  }
+
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
+    W.ZZXWidgets.register(ID, function (root) { boot(root); });
+  }
 })();
