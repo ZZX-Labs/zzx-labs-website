@@ -1,78 +1,101 @@
 // __partials/widgets/mempool-specs/widget.js
 // DROP-IN REPLACEMENT (core-compatible) — mempool-specs
-// - Works with widget-core.js (ZZXWidgetsCore.onMount / ZZXWidgets.register)
-// - Uses AllOrigins RAW to fetch mempool.space reliably
-// - DPR-aware canvas sizing
-// - Throttled network + stable deterministic tile rendering
-// - Uses ZZXTheme if present, else fallback palette
 //
-// This is the "block/0 fill" visual precursor. Your full tetris/bin-fill system
-// (txfetcher/scaler/themes/grid/plotter/sorter/animation) can replace drawStableTiles later.
+// Integrates:
+//   txfetcher.js  -> window.ZZXMempoolSpecs.TxFetcher
+//   scaler.js     -> window.ZZXMempoolSpecs.Scaler
+//   themes.js     -> window.ZZXMempoolSpecs.Theme
+//   grid.js       -> window.ZZXMempoolSpecs.Grid
+//   sorter.js     -> window.ZZXMempoolSpecs.Sorter
+//   plotter.js    -> window.ZZXMempoolSpecs.Plotter
+//   animation.js  -> window.ZZXMempoolSpecs.Anim
+//
+// Network:
+// - Uses AllOrigins RAW for mempool.space API.
+//
+// Visual:
+// - DPR-aware canvas
+// - Builds a "block/0 fill" square pack using fee histogram (fast + robust)
+// - Draws using Plotter (fee->color)
+// - Animates between layouts using Anim
+//
+// Notes:
+// - This is the “precursor” (histogram-derived) block fill.
+// - When you’re ready, swap the item source from histogram -> real tx list (blockTxids + /tx).
+//   The packing/plotting pipeline remains identical.
 
 (function () {
   "use strict";
 
   const W = window;
-
   const ID = "mempool-specs";
+
   const MEMPOOL = "https://mempool.space/api";
-  const AO_RAW = "https://api.allorigins.win/raw?url=";
+  const AO_RAW  = "https://api.allorigins.win/raw?url=";
 
   const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
+  const log = (...a) => DEBUG && console.log("[ZZX:MEMPOOL-SPECS]", ...a);
 
-  function makeState() {
-    return {
-      inflight: false,
-      lastFetchAt: 0,
-      lastTipHeight: null,
-      lastHist: null,
+  // -----------------------------
+  // Require modules (fail-soft)
+  // -----------------------------
+  const NS      = (W.ZZXMempoolSpecs = W.ZZXMempoolSpecs || {});
+  const Grid    = NS.Grid;
+  const Sorter  = NS.Sorter;
+  const Plotter = NS.Plotter;
+  const Theme   = NS.Theme;
+  const ScalerC = NS.Scaler;
+  const AnimC   = NS.Anim?.Anim;
+  const TxFetcherC = NS.TxFetcher; // you renamed NS in txfetcher.js per mempool-specs
 
-      // resize tracking
-      lastCssW: 0,
-      lastCssH: 0,
-    };
+  function havePipeline() {
+    return !!(Grid && Sorter && Plotter && Theme && ScalerC && AnimC && TxFetcherC);
   }
 
-  function bySel(root, sel) {
-    return root ? root.querySelector(sel) : null;
-  }
+  // -----------------------------
+  // AllOrigins fetch wrappers
+  // -----------------------------
+  function aoUrl(u) { return AO_RAW + encodeURIComponent(String(u)); }
 
-  function aoUrl(u) {
-    return AO_RAW + encodeURIComponent(String(u));
-  }
-
-  async function jget(u) {
-    const r = await fetch(aoUrl(u), { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  }
-
-  async function tget(u) {
-    const r = await fetch(aoUrl(u), { cache: "no-store" });
+  async function aoText(u, { signal } = {}) {
+    const r = await fetch(aoUrl(u), { cache: "no-store", signal });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.text();
   }
 
-  function fnv1a32(str) {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
-    }
-    return h >>> 0;
+  async function aoJSON(u, { signal } = {}) {
+    const r = await fetch(aoUrl(u), { cache: "no-store", signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
   }
 
-  function mulberry32(seed) {
-    let t = seed >>> 0;
-    return function () {
-      t += 0x6D2B79F5;
-      let x = t;
-      x = Math.imul(x ^ (x >>> 15), x | 1);
-      x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-    };
+  // -----------------------------
+  // DOM helpers
+  // -----------------------------
+  function qs(root, sel) { return root ? root.querySelector(sel) : null; }
+
+  function ensureCanvasInBlock(root) {
+    const host = qs(root, "[data-ms-block]");
+    if (!host) return null;
+
+    let canvas = host.querySelector("canvas[data-canvas]");
+    if (canvas) return canvas;
+
+    canvas = document.createElement("canvas");
+    canvas.setAttribute("data-canvas", "1");
+    // CSS will control display sizing; JS sets DPR buffer via Grid.ensureCanvas/makeGrid.
+    host.appendChild(canvas);
+    return canvas;
   }
 
+  function setText(root, sel, txt) {
+    const el = qs(root, sel);
+    if (el) el.textContent = txt;
+  }
+
+  // -----------------------------
+  // Histogram -> pseudo items
+  // -----------------------------
   function computeNextBlockFromHistogram(hist, targetVSize = 1_000_000) {
     const rows = (Array.isArray(hist) ? hist : [])
       .map(([fee, vsize]) => [Number(fee), Number(vsize)])
@@ -86,251 +109,252 @@
       if (used >= targetVSize) break;
       const take = Math.min(vsize, targetVSize - used);
       if (take <= 0) continue;
-      picked.push({ fee, vsize: take });
+      picked.push({ feeRate: fee, vbytes: take });
       used += take;
     }
     return { picked, used, targetVSize };
   }
 
-  function toTiers(picked, tierCount) {
-    if (!picked.length) return [];
-    const fees = picked.map((x) => x.fee);
-    const minFee = Math.min(...fees);
-    const maxFee = Math.max(...fees);
-    const span = (maxFee - minFee) || 1;
+  // Turn picked fee bands into “tx-like” squares:
+  // - We split each band into chunkSquares so we actually get a tetris field.
+  function bandsToSquares(picked, scaler, seed = 0) {
+    const out = [];
+    let n = 0;
 
-    const tiers = Array.from({ length: tierCount }, () => ({ w: 0 }));
-    for (const x of picked) {
-      const t = Math.max(
-        0,
-        Math.min(tierCount - 1, Math.floor(((x.fee - minFee) / span) * tierCount))
-      );
-      tiers[t].w += x.vsize;
-    }
-    return tiers.map((t, i) => ({ idx: i, w: t.w })).filter((t) => t.w > 0);
-  }
+    // chunking: more chunks => more "tx squares", but heavier pack.
+    // keep this bounded so it stays fast.
+    const MAX_SQUARES = 420;
+    const MIN_CHUNK_VB = 900; // don't create tiny shards
 
-  function ensureCanvasSized(canvas, st) {
-    const dpr = W.devicePixelRatio || 1;
+    for (const band of picked) {
+      const vb = Number(band.vbytes) || 0;
+      const fee = Number(band.feeRate) || 0;
+      if (vb <= 0) continue;
 
-    const cssW = Math.max(1, Math.floor(canvas.clientWidth || 320));
-    const cssH = Math.max(1, Math.floor(canvas.clientHeight || 220));
+      // decide chunk count proportional to vb
+      let chunks = Math.floor(vb / 12_000); // rough: one square per ~12k vB
+      chunks = Math.max(1, Math.min(24, chunks));
 
-    if (cssW === st.lastCssW && cssH === st.lastCssH) return false;
-    st.lastCssW = cssW;
-    st.lastCssH = cssH;
+      const chunkVb = Math.max(MIN_CHUNK_VB, Math.floor(vb / chunks));
 
-    canvas.width = Math.floor(cssW * dpr);
-    canvas.height = Math.floor(cssH * dpr);
-    return true;
-  }
+      for (let i = 0; i < chunks; i++) {
+        if (out.length >= MAX_SQUARES) break;
 
-  function drawStableTiles(canvas, tiers, seed, metaText) {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+        const vbi = (i === chunks - 1) ? (vb - chunkVb * (chunks - 1)) : chunkVb;
+        const side = scaler.sideCellsFromVBytes(vbi);
 
-    const theme =
-      W.ZZXTheme?.widgets?.mempoolSpecs ||
-      W.ZZXTheme?.widgets?.mempoolGoggles ||
-      {};
-
-    const palette = Array.isArray(theme.tiers) && theme.tiers.length
-      ? theme.tiers
-      : ["#0b3d2e", "#0f5a3f", "#12724f", "#168a61", "#1aa374", "#6aa92a", "#b6a11c"];
-
-    const bg = theme.canvasBg || "#000";
-    const grid = theme.gridLine || "rgba(255,255,255,0.06)";
-    const tile = Number.isFinite(theme.tileSize) ? theme.tileSize : 5;
-    const gap  = Number.isFinite(theme.tileGap)  ? theme.tileGap  : 1;
-
-    const CW = canvas.width;
-    const CH = canvas.height;
-
-    ctx.clearRect(0, 0, CW, CH);
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, CW, CH);
-
-    // subtle grid
-    ctx.strokeStyle = grid;
-    ctx.lineWidth = 1;
-    for (let y = 0; y <= CH; y += 28) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(CW, y + 0.5);
-      ctx.stroke();
-    }
-    for (let x = 0; x <= CW; x += 44) {
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, CH);
-      ctx.stroke();
-    }
-
-    const total = tiers.reduce((a, t) => a + t.w, 0) || 1;
-    const rnd = mulberry32(seed);
-
-    // low fee left, high fee right
-    let x0 = 0;
-    const ordered = tiers.slice().sort((a, b) => a.idx - b.idx);
-
-    for (let i = 0; i < ordered.length; i++) {
-      const stripW = Math.max(tile * 10, Math.round((ordered[i].w / total) * CW));
-      const x1 = (i === ordered.length - 1) ? CW : Math.min(CW, x0 + stripW);
-
-      const pIdx = Math.round((i / Math.max(1, ordered.length - 1)) * (palette.length - 1));
-      ctx.fillStyle = palette[Math.min(palette.length - 1, Math.max(0, pIdx))];
-
-      const density = 0.62 + (i / Math.max(1, ordered.length - 1)) * 0.30;
-
-      for (let y = 0; y < CH; y += (tile + gap)) {
-        for (let x = x0; x < x1; x += (tile + gap)) {
-          if (rnd() > density) continue;
-          ctx.fillRect(x, y, tile, tile);
-        }
+        out.push({
+          txid: `band:${fee}:${seed}:${n++}:${i}`,
+          feeRate: fee,
+          vbytes: vbi,
+          side
+        });
       }
-
-      x0 = x1;
-      if (x0 >= CW) break;
+      if (out.length >= MAX_SQUARES) break;
     }
 
-    if (metaText) {
-      ctx.save();
-      // Local font family name (must be defined by your local fonts.css)
-      ctx.font = "12px 'IBM Plex Mono', ui-monospace, monospace";
-      ctx.fillStyle = "rgba(192,214,116,0.85)";
-      ctx.fillText(metaText, 10, CH - 14);
-      ctx.restore();
-    }
+    return out;
   }
 
+  // -----------------------------
+  // State per mount
+  // -----------------------------
+  function makeState() {
+    return {
+      fetcher: null,
+      scaler: null,
+      anim: null,
+
+      lastAt: 0,
+      lastTip: null,
+      lastHist: null,
+      lastLayout: null,
+      lastGridSig: "",
+
+      inflight: false,
+      timer: null,
+      rafGuard: false,
+    };
+  }
+
+  function shouldFetch(st) {
+    return (Date.now() - st.lastAt) > 15_000;
+  }
+
+  function gridSignature(grid) {
+    return `${grid.cols}x${grid.rows}@${grid.cellPx}/${grid.gapPx}/${grid.padPx}`;
+  }
+
+  // -----------------------------
+  // Render pipeline (modules)
+  // -----------------------------
   async function fetchSnapshot(st) {
     if (st.inflight) return;
     st.inflight = true;
 
     try {
-      let tipHeight = null;
-      try {
-        const htxt = await tget(`${MEMPOOL}/blocks/tip/height`);
-        const h = parseInt(String(htxt).trim(), 10);
-        if (Number.isFinite(h)) tipHeight = h;
-      } catch (_) {}
+      // Use TxFetcher but inject ctx so it uses AllOrigins for its internal fetches
+      // (txfetcher.js supports ctx.fetchJSON/fetchText)
+      const ctx = {
+        api: { MEMPOOL },
+        fetchJSON: async (url, { signal } = {}) => await aoJSON(url, { signal }),
+        fetchText: async (url, { signal } = {}) => await aoText(url, { signal }),
+      };
 
-      const mem = await jget(`${MEMPOOL}/mempool`);
-      const hist = mem?.fee_histogram || null;
+      if (!st.fetcher) st.fetcher = new TxFetcherC({ ctx, base: MEMPOOL, minIntervalMs: 15_000 });
 
-      st.lastTipHeight = tipHeight;
-      st.lastHist = hist;
-      st.lastFetchAt = Date.now();
+      const snap = await st.fetcher.snapshot({ force: true });
+
+      st.lastAt = snap.at || Date.now();
+      st.lastTip = snap.tipHeight ?? null;
+      st.lastHist = snap.feeHistogram ?? null;
+
+      return snap;
     } finally {
       st.inflight = false;
     }
   }
 
-  function shouldFetch(st) {
-    return (Date.now() - st.lastFetchAt) > 15_000;
+  function buildLayoutFromHistogram(hist, grid, st) {
+    const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
+
+    // Seed: stable across same tip + hist
+    const seed = (Number(st.lastTip) || 0) ^ (picked.length << 16);
+
+    const squares = bandsToSquares(picked, st.scaler, seed);
+
+    // Pack squares into grid
+    const layout = Sorter.packSquares(squares, grid, {
+      seed,
+      bubblePasses: 1,
+    });
+
+    const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
+    const meta = `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()} · tiles: ${layout.placed.length}`;
+
+    return { layout, meta };
   }
 
-  function findCanvas(root) {
-    return (
-      bySel(root, 'canvas[data-canvas]') ||
-      bySel(root, ".mempool-specs canvas") ||
-      bySel(root, ".ms-block canvas") ||
-      bySel(root, ".btc-goggles canvas") || // tolerate older HTML during migration
-      bySel(root, "canvas") ||
-      null
-    );
-  }
-
-  function findMeta(root) {
-    return (
-      bySel(root, "[data-meta]") ||
-      bySel(root, "[data-ms-meta]") ||
-      bySel(root, ".zzx-card__sub") ||
-      null
-    );
-  }
-
-  async function render(root, st) {
-    if (!root || !root.isConnected) return;
-
-    const canvas = findCanvas(root);
-    const metaEl = findMeta(root);
+  function paint(root, st) {
+    const canvas = ensureCanvasInBlock(root);
     if (!canvas) return;
 
-    ensureCanvasSized(canvas, st);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const grid = Grid.makeGrid(canvas, {
+      minCssH: 220,
+      cellCss: 7,  // tweak later
+      gapCss:  1,
+      padCss:  10
+    });
+
+    const sig = gridSignature(grid);
+    const gridChanged = (sig !== st.lastGridSig);
+    st.lastGridSig = sig;
 
     const hist = st.lastHist;
     if (!hist) {
-      if (metaEl) metaEl.textContent = "mempool data unavailable";
+      setText(root, "[data-ms-summary]", "mempool data unavailable");
+      setText(root, "[data-ms-sub]", "—");
+      // blank paint
+      Plotter.draw(ctx, canvas, grid, { placed: [] }, "mempool data unavailable");
       return;
     }
 
-    const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
+    const { layout: newLayout, meta } = buildLayoutFromHistogram(hist, grid, st);
 
-    const paletteLen =
-      (W.ZZXTheme?.widgets?.mempoolSpecs?.tiers?.length) ||
-      (W.ZZXTheme?.widgets?.mempoolGoggles?.tiers?.length) ||
-      7;
+    setText(root, "[data-ms-summary]", meta);
+    setText(root, "[data-ms-sub]", `tip: ${st.lastTip ?? "—"} · source: mempool.space (AllOrigins)`);
 
-    const tiers = toTiers(picked, paletteLen);
-
-    const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
-    const meta = `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()}`;
-    if (metaEl) metaEl.textContent = meta;
-
-    const snapshot = JSON.stringify((Array.isArray(hist) ? hist.slice(0, 50) : []));
-    const seed = fnv1a32(`${st.lastTipHeight || "x"}|${snapshot}`);
-
-    drawStableTiles(canvas, tiers, seed, meta);
-  }
-
-  function startLoop(root, st) {
-    if (root.__zzxMempoolSpecsTimer) {
-      clearInterval(root.__zzxMempoolSpecsTimer);
-      root.__zzxMempoolSpecsTimer = null;
+    // If first render or grid changed, draw hard (no tween)
+    if (!st.lastLayout || gridChanged) {
+      Plotter.draw(ctx, canvas, grid, newLayout, meta);
+      st.lastLayout = newLayout;
+      return;
     }
 
-    const tick = async () => {
-      try {
-        if (shouldFetch(st)) await fetchSnapshot(st);
-        await render(root, st);
-      } catch (e) {
-        if (DEBUG) console.warn("[ZZX:MEMPOOL-SPECS] tick failed", e);
-      }
-    };
+    // Animate between last and new
+    if (!st.anim) st.anim = new AnimC({ ms: 650 });
 
-    tick();
-    root.__zzxMempoolSpecsTimer = setInterval(tick, 750);
+    const from = st.lastLayout;
+    const to   = newLayout;
+
+    st.anim.play(from, to, (lay /* tweened */, u) => {
+      // Lay is { placed:[...] } with float x/y; Plotter expects ints but works fine with floats.
+      Plotter.draw(ctx, canvas, grid, lay, meta);
+    });
+
+    st.lastLayout = newLayout;
+  }
+
+  async function tick(root, st) {
+    if (!root || !root.isConnected) return;
+
+    try {
+      if (shouldFetch(st)) await fetchSnapshot(st);
+      paint(root, st);
+    } catch (e) {
+      if (DEBUG) console.warn("[ZZX:MEMPOOL-SPECS] tick failed", e);
+      setText(root, "[data-ms-sub]", `error: ${String(e?.message || e)}`);
+    }
+  }
+
+  function start(root, st) {
+    if (st.timer) clearInterval(st.timer);
+
+    // quick cadence for animation/resize response; fetch throttled separately
+    st.timer = setInterval(() => tick(root, st), 850);
+    tick(root, st);
+
+    if (!root.__zzxMempoolSpecsResizeBound) {
+      root.__zzxMempoolSpecsResizeBound = true;
+      window.addEventListener("resize", () => {
+        try { paint(root, st); } catch (_) {}
+      });
+    }
+  }
+
+  function stop(st) {
+    if (st?.timer) clearInterval(st.timer);
+    if (st?.anim) st.anim.stop();
+    if (st) st.timer = null;
   }
 
   function boot(root) {
     if (!root) return;
 
+    if (!havePipeline()) {
+      // If modules aren’t loaded yet, fail-soft with a clear message.
+      setText(root, "[data-ms-summary]", "mempool-specs modules missing");
+      setText(root, "[data-ms-sub]", "ensure txfetcher/scaler/themes/grid/sorter/plotter/animation are loaded");
+      return;
+    }
+
     if (!root.__zzxMempoolSpecsState) root.__zzxMempoolSpecsState = makeState();
     const st = root.__zzxMempoolSpecsState;
 
-    startLoop(root, st);
+    if (!st.scaler) st.scaler = new ScalerC();
 
-    if (!root.__zzxMempoolSpecsResizeBound) {
-      root.__zzxMempoolSpecsResizeBound = true;
-      W.addEventListener("resize", () => {
-        try { render(root, st); } catch (_) {}
-      });
-    }
+    // ensure canvas exists
+    ensureCanvasInBlock(root);
+
+    start(root, st);
   }
 
-  // Preferred: core lifecycle
+  // -----------------------------
+  // Core mount hooks
+  // -----------------------------
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
     W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
   }
 
-  // Legacy shim path
   if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
     W.ZZXWidgets.register(ID, function (root) { boot(root); });
   }
 
-  // Ultra-legacy compatibility (won’t break if present)
   if (W.__ZZX_WIDGETS && typeof W.__ZZX_WIDGETS.register === "function") {
     try { W.__ZZX_WIDGETS.register(ID, function (root) { boot(root); }); } catch (_) {}
   }
+
 })();
