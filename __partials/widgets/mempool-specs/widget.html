@@ -1,29 +1,27 @@
 <!-- __partials/widgets/mempool-specs/widget.html -->
 <!-- DROP-IN (VISUAL BLOCK CONSTRUCTION / MEMPOOL SIMULATOR) -->
-<!-- This file defines ONLY structure. All logic lives in JS modules. -->
+<!-- Structure only. Logic is in widget.js + submodules. -->
 
-<div class="zzx-card mempool-specs" data-widget-root="mempool-specs">
-  <div class="zzx-card__title">Mempool · Block Construction</div>
+<div class="btc-card mempool-specs" data-widget-root="mempool-specs">
+  <div class="btc-card__title">Mempool · Block Construction</div>
 
-  <div class="zzx-card__value">
+  <div class="btc-card__value">
     <span data-ms-summary>loading…</span>
   </div>
 
-  <div class="zzx-card__sub">
+  <div class="btc-card__sub">
     <span data-ms-sub>pending transactions</span>
   </div>
 
-  <!-- Block visualization container -->
+  <!-- Block visualization container (widget.js will inject a DPR-aware canvas here) -->
   <div
     class="ms-block"
     data-ms-block
     role="img"
     aria-label="Bitcoin block construction from mempool transactions"
-  >
-    <!-- grid / canvas injected here -->
-  </div>
+  ></div>
 
-  <!-- Footer / legend -->
+  <!-- Legend (static; optional JS can recolor swatches later via Theme) -->
   <div class="ms-legend" aria-hidden="true">
     <div class="ms-legend-item">
       <span class="ms-swatch low"></span>
