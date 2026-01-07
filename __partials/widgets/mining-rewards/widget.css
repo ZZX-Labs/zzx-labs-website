@@ -1,74 +1,83 @@
 /* __partials/widgets/mining-rewards/widget.css
    DROP-IN (NEW WIDGET)
-   Uses existing core card primitives (.zzx-card, .zzx-widgets__btn).
-   No external fonts; inherits from core (--zzx-font-mono / site defaults).
+   Matches existing ZZX card primitives + rail layout.
+   Fixes overflow/spill and keeps table responsive.
 */
 
+:root{
+  --zzx-mr-line: rgba(255,255,255,.12);
+  --zzx-mr-surface: rgba(255,255,255,.03);
+}
+
 .zzx-card[data-widget-root="mining-rewards"]{
-  /* keep inside card */
-  overflow: hidden;
+  width: 100%;
+  overflow: hidden;          /* critical: stops spill */
 }
 
-.zzx-card[data-widget-root="mining-rewards"] [data-mr-summary]{
-  color: var(--zzx-accent, #c0d674);
+.zzx-card[data-widget-root="mining-rewards"] .zzx-card__value{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.5rem;
+  flex-wrap:wrap;
+  min-width: 0;
 }
 
-.zzx-card[data-widget-root="mining-rewards"] [data-mr-sub]{
-  color: #b7bf9a;
-}
-
-/* Table */
 .zzx-mr-table{
-  margin-top: .45rem;
-  border: 1px solid rgba(255,255,255,.10);
+  margin-top: .55rem;
+  border: 1px solid var(--zzx-mr-line);
   border-radius: 10px;
-  overflow: hidden;             /* prevents spill to the right */
-  background: rgba(255,255,255,.02);
+  background: var(--zzx-mr-surface);
+  overflow: hidden;          /* prevents right overflow */
 }
 
+/* The body wrapper */
+.zzx-mr-table [data-mr-body]{
+  display:block;
+}
+
+/* Row grid */
 .zzx-mr-row{
-  display: grid;
-  grid-template-columns: 2.5rem 1fr 4.25rem 5.25rem 6.25rem;
-  gap: .35rem;
-  align-items: center;
+  display:grid;
+  grid-template-columns: 42px 1fr 92px 120px 120px; /* # | name | blocks | btc | usd */
+  gap:.45rem;
+  align-items:center;
 
   padding: .45rem .55rem;
-  border-top: 1px solid rgba(255,255,255,.08);
+  border-top: 1px solid var(--zzx-mr-line);
+
+  min-width: 0;              /* critical for truncation */
 }
 
-.zzx-mr-row:first-child{ border-top: 0; }
-
 .zzx-mr-head{
-  background: rgba(0,0,0,.35);
-  border-top: 0;
+  border-top: none;
+  background: rgba(0,0,0,.55);
 }
 
 .zzx-mr-cell{
-  min-width: 0;                 /* allows ellipsis */
-  font-size: .95rem;
-  color: var(--zzx-accent, #c0d674);
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.zzx-mr-head .zzx-mr-cell{
-  color: var(--zzx-accent-alt, #e6a42b);
-  font-size: .92rem;
-  letter-spacing: .02em;
-}
-
+/* Numeric alignment */
 .zzx-mr-num{
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
+/* Slightly different header tone */
+.zzx-mr-head .zzx-mr-cell{
+  color: var(--zzx-accent-alt, #e6a42b);
+}
+
 /* Pager */
 .zzx-mr-pager{
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  flex-wrap: wrap;
+  display:flex;
+  align-items:center;
+  gap:.45rem;
+  flex-wrap:wrap;
 
   margin-top: .55rem;
 }
@@ -76,24 +85,18 @@
 .zzx-mr-page{
   color: #b7bf9a;
   font-size: .95rem;
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* Small screens: tighten columns to stop overflow */
+/* Buttons reuse core look; just ensure they don't overflow */
+.zzx-card[data-widget-root="mining-rewards"] .zzx-widgets__btn{
+  max-width: 100%;
+}
+
+/* Mobile: tighten columns to prevent overflow */
 @media (max-width: 520px){
   .zzx-mr-row{
-    grid-template-columns: 2.15rem 1fr 3.75rem 4.75rem 5.25rem;
-    padding: .4rem .45rem;
-  }
-  .zzx-mr-cell{ font-size: .9rem; }
-}
-
-/* Very small screens: drop USD column (still accessible via ellipsis? we fully hide to prevent spill) */
-@media (max-width: 390px){
-  .zzx-mr-row{
-    grid-template-columns: 2.15rem 1fr 3.75rem 4.75rem;
-  }
-  .zzx-mr-row .zzx-mr-cell:nth-child(5){
-    display:none;
+    grid-template-columns: 34px 1fr 78px 96px 96px;
+    padding: .40rem .45rem;
   }
 }
