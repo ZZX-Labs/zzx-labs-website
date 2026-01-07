@@ -1,2 +1,70 @@
-/* __partials/widgets/volume-24h/widget.css */
-/* Intentionally minimal: uses shared btc-card primitives + fonts from wrapper/fonts.css */
+/* __partials/widgets/volume-24h/widget.css
+   DROP-IN PATCH (spill fix + unified layout)
+   - Same layout contract as price-24h
+   - Prevents right overflow / canvas spill
+   - No webfonts; uses your existing mono stack vars if present
+*/
+
+.zzx-widget--volume-24h,
+.zzx-widget--volume-24h *{
+  box-sizing: border-box;
+}
+
+.zzx-widget--volume-24h .zzx-card,
+.zzx-widget--volume-24h .btc-card{
+  width: 100%;
+  min-width: 0;           /* CRITICAL for flex overflow containment */
+  overflow: hidden;       /* CRITICAL stops right-spill */
+}
+
+.zzx-widget--volume-24h .zzx-card__title,
+.zzx-widget--volume-24h .btc-card__title{
+  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+}
+
+/* Value row: VOL + %Δ */
+.zzx-widget--volume-24h .zzx-card__value,
+.zzx-widget--volume-24h .btc-card__value{
+  display:flex;
+  align-items:baseline;
+  gap:.5rem;
+  flex-wrap:wrap;
+  min-width:0;
+}
+
+.zzx-widget--volume-24h .zzx-metric{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.zzx-widget--volume-24h .zzx-delta{
+  font-size: .98rem;
+  padding: .05rem .35rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  white-space:nowrap;
+}
+
+.zzx-widget--volume-24h .zzx-delta.is-up{ color:#43d17a; border-color:rgba(67,209,122,.35); background:rgba(67,209,122,.08); }
+.zzx-widget--volume-24h .zzx-delta.is-dn{ color:#ff5a5a; border-color:rgba(255,90,90,.35);  background:rgba(255,90,90,.08); }
+.zzx-widget--volume-24h .zzx-delta.is-flat{ color:#b7bf9a; }
+
+/* Spark container + canvas */
+.zzx-widget--volume-24h .zzx-spark-wrap{
+  width:100%;
+  min-width:0;
+  margin-top:.45rem;
+  overflow:hidden;        /* CRITICAL */
+  border-radius:8px;
+  background: rgba(255,255,255,.03);
+}
+
+.zzx-widget--volume-24h canvas.btc-spark,
+.zzx-widget--volume-24h svg.btc-spark{
+  width:100% !important;
+  max-width:100% !important;
+  height:60px !important;
+  display:block;
+}
