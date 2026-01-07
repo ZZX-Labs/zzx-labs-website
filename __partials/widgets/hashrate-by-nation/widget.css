@@ -1,1 +1,66 @@
+/* __partials/widgets/hashrate-by-nation/widget.css */
 
+.zzx-hbn-table{
+  margin-top:.5rem;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.02);
+  border-radius:10px;
+  overflow:hidden;
+}
+
+.zzx-hbn-row{
+  display:grid;
+  grid-template-columns: 44px 1.3fr .9fr .9fr .7fr;
+  gap:0;
+  align-items:center;
+}
+
+.zzx-hbn-head{
+  background: rgba(255,255,255,.04);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+.zzx-hbn-cell{
+  padding:.42rem .5rem;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  color: var(--zzx-accent, #c0d674);
+  font-size:.9rem;
+}
+
+.zzx-hbn-head .zzx-hbn-cell{
+  color: var(--zzx-accent-alt, #e6a42b);
+  font-size:.85rem;
+}
+
+.zzx-hbn-num{
+  text-align:right;
+}
+
+.zzx-hbn-row[data-hbn-row]{
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.zzx-hbn-row[data-hbn-row]:last-child{
+  border-bottom:none;
+}
+
+.zzx-hbn-pager{
+  margin-top:.55rem;
+  display:flex;
+  align-items:center;
+  gap:.45rem;
+  flex-wrap:wrap;
+}
+
+.zzx-hbn-page{
+  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  color:#b7bf9a;
+  font-size:.9rem;
+}
+
+/* Make sure the table never causes horizontal spill */
+.zzx-hbn-table, .zzx-hbn-row{ max-width:100%; }
