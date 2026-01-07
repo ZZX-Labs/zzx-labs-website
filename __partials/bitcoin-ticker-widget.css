@@ -3,10 +3,10 @@
    Canonical HUD modes: full | ticker-only | hidden
 
    FIXES:
-   - Your wrapper HTML uses: .btc-slot[data-widget-slot="..."]
-     so this CSS MUST target data-widget-slot (and also tolerates legacy data-widget).
-   - HUD handle is visible ONLY when HUD is hidden (CSS-driven via :has()).
-   - Full-width rules apply to: runtime, bitcoin-ticker, bitrng.
+   - Targets BOTH: data-widget-slot (current) + data-widget (legacy tolerance)
+   - HUD handle visible ONLY when HUD is hidden (CSS-driven via :has()) + safe fallback
+   - Full-width rules for: runtime, bitcoin-ticker, bitrng
+   - Mobile overflow hardening: min-width:0 + wrap fallback for long unbroken strings
 */
 
 /* ---------- HUD handle ---------- */
@@ -87,7 +87,15 @@
   max-width: 360px;
   box-sizing: border-box;
 
-  min-width: 0; /* FIX: prevents flex children (long hashes) from forcing overflow on mobile */
+  min-width: 0; /* critical: prevents flex children (long hashes) from forcing overflow */
+}
+
+/* Mobile: force 1-up cards to avoid side spill */
+@media (max-width: 620px){
+  .btc-slot{
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
 }
 
 /* Full-width slots (supports BOTH conventions) */
@@ -101,7 +109,6 @@
   max-width: 100%;
   justify-content: center;
 }
-
 
 /* ---------- Card primitives ---------- */
 .btc-card{
@@ -117,33 +124,10 @@
   color:#c0d674;
   font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
   box-sizing: border-box;
-}
 
-.btc-card__title{
-  color:#e6a42b;
-  font-size:1rem;
-  line-height:1.1;
-  margin-bottom:.35rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.btc-card__value{
-  font-size:1.35rem;
-  line-height:1.2;
-  margin-bottom:.15rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.btc-card__sub{
-  font-size:.95rem;
-  color:#b7bf9a;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  /* containment */
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Let full-width cards actually be full-width (supports BOTH conventions) */
@@ -154,6 +138,43 @@
 .btc-slot[data-widget-slot="bitcoin-ticker"] .btc-card,
 .btc-slot[data-widget-slot="bitrng"] .btc-card{
   max-width: 100% !important;
+}
+
+/* Title / value / sub */
+.btc-card__title{
+  color:#e6a42b;
+  font-size:1rem;
+  line-height:1.1;
+  margin-bottom:.35rem;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  min-width: 0;
+}
+
+.btc-card__value{
+  font-size:1.35rem;
+  line-height:1.2;
+  margin-bottom:.15rem;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  min-width: 0;
+}
+
+.btc-card__sub{
+  font-size:.95rem;
+  color:#b7bf9a;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  min-width: 0;
 }
 
 /* ---------- Ticker-only mode ---------- */
@@ -174,3 +195,23 @@
   display:flex !important;
 }
 
+/* ---------- Global containment helpers (safe, minimal) ---------- */
+
+/* prevents long unbroken strings (hashes) from forcing overflow */
+.btc-card,
+[data-widget-root]{
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* keep media from pushing past card edge */
+canvas, svg, img, video{
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+pre, code{
+  max-width: 100%;
+  overflow-x: auto;
+}
