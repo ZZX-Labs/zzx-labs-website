@@ -1,7 +1,6 @@
 // __partials/widgets/price-24h/chart.js
-// DROP-IN (module, not a widget)
-// MUST satisfy widget.js ensureDeps():
-//   window.ZZXChart.drawPrice24 exists
+// DROP-IN (module)
+// Exports: window.ZZXChart.drawPrice24(canvas, candles, isUp)
 
 (function () {
   "use strict";
@@ -19,7 +18,6 @@
     return { w: rw, h: rh, dpr };
   }
 
-  // candles: [{t,o,h,l,c,v}]
   function drawPrice24(canvas, candles, isUp) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
