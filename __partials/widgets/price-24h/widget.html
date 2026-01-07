@@ -1,15 +1,14 @@
 <!-- __partials/widgets/price-24h/widget.html
-     DROP-IN REPLACEMENT (price + % change + chart + exchange selector) -->
+     DROP-IN REPLACEMENT (24h Price: price + % + exchange selector + chart) -->
+
 <div class="zzx-card price24" data-widget-root="price-24h">
   <div class="zzx-card__title">
     <span>24h Price</span>
 
-    <label class="zzx-exchange" aria-label="Select exchange">
-      <span class="zzx-exchange__label">src</span>
-      <select data-exchange>
-        <!-- options injected by widget.js (sources.js) -->
-      </select>
-    </label>
+    <span class="zzx-exchange" aria-label="Exchange selector">
+      <span class="zzx-exchange__label">exchange</span>
+      <select data-exchange aria-label="Select exchange"></select>
+    </span>
   </div>
 
   <div class="zzx-card__value zzx-metrics">
@@ -19,8 +18,7 @@
 
   <div class="zzx-card__sub"><span data-sub>loading…</span></div>
 
-  <!-- fixed-size chart box to prevent spill + keep all widgets identical -->
-  <div class="zzx-sparkbox">
-    <canvas class="btc-spark" data-spark aria-hidden="true"></canvas>
+  <div class="zzx-sparkbox" aria-hidden="true">
+    <canvas data-chart></canvas>
   </div>
 </div>
