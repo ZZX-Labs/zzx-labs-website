@@ -1,15 +1,15 @@
-// __partials/widgets/mempool-goggles/txfetcher.js
-// TxFetcher for mempool goggles
+// __partials/widgets/mempool-specs/txfetcher.js
+// TxFetcher for mempool-specs
 // - Fetches: tip height (and hash if available), mempool snapshot, fee histogram
 // - Optional: fetches block/tip transactions when endpoints are available
 // - Throttled + abort-safe
 // - Works with unified runtime ctx if passed (ctx.fetchJSON / ctx.fetchText / ctx.api.MEMPOOL)
 // - Falls back to plain fetch for standalone use
 //
-// Exposes: window.ZZXGoggles.TxFetcher
+// Exposes: window.ZZXMempoolSpecs.TxFetcher
 
 (function () {
-  const NS = (window.ZZXGoggles = window.ZZXGoggles || {});
+  const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
   const DEFAULT_BASE = "https://mempool.space/api";
 
   function nowMs() { return Date.now(); }
@@ -55,6 +55,7 @@
       // internal state
       this._lastAt = 0;
       this._inflight = null;
+      this._cached = null;
 
       // throttle gate
       this._throttle = makeThrottle(Math.max(250, Math.min(5_000, this.minIntervalMs / 4)));
@@ -66,6 +67,7 @@
     }
 
     async _ctxText(url, signal) {
+      // unified core sometimes uses (url, opts) rather than (url, signal)
       if (this.ctx?.fetchText) return await this.ctx.fetchText(url, { signal });
       return await fetchText(url, signal);
     }
@@ -75,7 +77,7 @@
       return await fetchJSON(url, signal);
     }
 
-    // --- Public: fetch a “snapshot” for goggles ---
+    // --- Public: fetch a “snapshot” for mempool-specs ---
     // Returns:
     // {
     //   at: ms epoch,
@@ -86,6 +88,7 @@
     // }
     async snapshot({ force = false } = {}) {
       const t = nowMs();
+
       if (!force && (t - this._lastAt) < this.minIntervalMs) {
         return this._cached || {
           at: this._lastAt || 0,
@@ -136,7 +139,6 @@
           }
         } catch {}
 
-        // Cache + mark time
         this._cached = out;
         this._lastAt = out.at;
 
@@ -151,7 +153,7 @@
     }
 
     // --- Optional: fetch a block’s txids (for “block/0” style visuals) ---
-    // This is intentionally robust: tries several plausible endpoints.
+    // Robust: tries several plausible endpoints.
     // If unsupported, returns [] without throwing.
     async blockTxids({ hash = null, height = null } = {}) {
       const ac = new AbortController();
@@ -160,10 +162,9 @@
       const tryUrls = [];
 
       if (hash) {
-        // common mempool endpoints
         tryUrls.push(this._url(`/block/${hash}/txids`));
         tryUrls.push(this._url(`/block/${hash}/txid`));
-        tryUrls.push(this._url(`/block/${hash}/txs`)); // sometimes full txs
+        tryUrls.push(this._url(`/block/${hash}/txs`));
       }
 
       // if only height provided, attempt resolve to hash via /block-height/<h>
@@ -181,14 +182,13 @@
         try {
           const data = await this._ctxJSON(u, signal);
           if (Array.isArray(data) && data.length && typeof data[0] === "string") return data;
+
           if (Array.isArray(data) && data.length && typeof data[0] === "object" && data[0]?.txid) {
             return data.map(x => x.txid).filter(Boolean);
           }
-          // Some endpoints return a plain string array as text; try text parse
         } catch {
           try {
             const txt = await this._ctxText(u, signal);
-            // crude parse for JSON array
             const parsed = JSON.parse(txt);
             if (Array.isArray(parsed)) return parsed;
           } catch {}
@@ -199,12 +199,12 @@
     }
 
     // --- Optional: fetch a block’s “header-like” info ---
-    // Useful for including weight/vsize/time in your meta overlay.
     async blockInfo({ hash = null, height = null } = {}) {
       const ac = new AbortController();
       const signal = ac.signal;
 
       let h = hash;
+
       if (!h && Number.isFinite(height)) {
         try {
           const txt = await this._ctxText(this._url(`/block-height/${height}`), signal);
@@ -212,6 +212,7 @@
           if (s && s.length >= 32) h = s;
         } catch {}
       }
+
       if (!h) return null;
 
       const tryUrls = [
@@ -225,6 +226,7 @@
           if (info && typeof info === "object") return info;
         } catch {}
       }
+
       return null;
     }
   }
