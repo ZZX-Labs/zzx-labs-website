@@ -1,132 +1,126 @@
 // __partials/widgets/volume-24h/widget.js
-// FIXED + EXTENDED: unified-runtime compatible + +/- percent change (green/red)
-//
-// Your current file still uses ctx.util.jget/setCard/fmtBig/drawSpark which do not
-// exist in unified runtime :contentReference[oaicite:0]{index=0}.
-// HTML stays unchanged :contentReference[oaicite:1]{index=1}.
-// CSS stays unchanged :contentReference[oaicite:2]{index=2}.
-//
-// What we do (same data source as price-24h):
-// - Use Coinbase 15m candles (BTC-USD, granularity=900s)
-// - Compute USD volume per candle = volume(BTC) * close(USD)
-// - Total 24h USD volume = sum of last 96 candles
-// - 24h % change = compare current 24h total vs previous 24h total
-//   (96-candle window vs the prior 96-candle window)
-// - Subline becomes: "+1.23%" or "−1.23%" (always signed when finite)
-// - Color: green for +, red for − (inline only; no CSS changes)
-// - Updates every 60s
+// DROP-IN (core-compatible, no runtime.js, no ctx.util/api dependencies)
 
 (function () {
-  const ID = "volume-24h";
+  "use strict";
+
+  const W = window;
+  const Core = W.ZZXWidgetsCore;
+  if (!Core || typeof Core.onMount !== "function") return;
+
+  // Coinbase Exchange candles:
+  // Each row: [time, low, high, open, close, volume]
+  // granularity=900 => 15m candles; 96 candles ≈ 24h
+  const CANDLES_15M = "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=900";
 
   function fmtBig(n) {
     const x = Number(n);
     if (!Number.isFinite(x)) return "—";
-    if (x >= 1e12) return (x / 1e12).toFixed(2) + "T";
-    if (x >= 1e9) return (x / 1e9).toFixed(2) + "B";
-    if (x >= 1e6) return (x / 1e6).toFixed(2) + "M";
-    if (x >= 1e3) return (x / 1e3).toFixed(2) + "K";
-    return x.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const abs = Math.abs(x);
+    if (abs >= 1e12) return (x / 1e12).toFixed(2) + "T";
+    if (abs >= 1e9)  return (x / 1e9).toFixed(2) + "B";
+    if (abs >= 1e6)  return (x / 1e6).toFixed(2) + "M";
+    if (abs >= 1e3)  return (x / 1e3).toFixed(2) + "K";
+    return x.toFixed(2);
   }
 
-  function fmtSignedPct(p) {
-    const x = Number(p);
-    if (!Number.isFinite(x)) return "—";
-    const sign = x > 0 ? "+" : (x < 0 ? "−" : "");
-    return `${sign}${Math.abs(x).toFixed(2)}%`;
+  function setCard(root, valueText, subText) {
+    const v = root.querySelector("[data-val]");
+    const s = root.querySelector("[data-sub]");
+    if (v) v.textContent = valueText;
+    if (s) s.textContent = subText;
   }
 
-  function setSubColor(el, pct) {
-    if (!el) return;
-    el.style.color = "";
-    el.style.fontWeight = "";
+  function drawSpark(root, series) {
+    const svg = root.querySelector("[data-spark]");
+    if (!svg) return;
 
-    const x = Number(pct);
-    if (!Number.isFinite(x) || x === 0) return;
+    const line = svg.querySelector("path.line");
+    const fill = svg.querySelector("path.fill");
+    if (!line || !fill) return;
 
-    el.style.color = (x > 0) ? "#c0d674" : "#ff4d4d";
-    el.style.fontWeight = "700";
-  }
-
-  window.ZZXWidgets.register(ID, {
-    mount(slotEl) {
-      this.card = slotEl.querySelector('[data-w="volume-24h"]');
-      this._t = null;
-    },
-
-    start(ctx) {
-      const URL = ctx.api.COINBASE_CANDLES_15M;
-
-      const run = async () => {
-        const card = this.card;
-        if (!card) return;
-
-        const valEl = card.querySelector("[data-val]");
-        const subEl = card.querySelector("[data-sub]");
-
-        try {
-          const candles = await ctx.fetchJSON(URL);
-          if (!Array.isArray(candles) || candles.length < 200) {
-            // need enough data for current 24h and previous 24h
-            if (valEl) valEl.textContent = "—";
-            if (subEl) subEl.textContent = "USD";
-            setSubColor(subEl, NaN);
-            return;
-          }
-
-          // Coinbase candles: [time, low, high, open, close, volume]
-          // newest-first; normalize oldest-first
-          const rows = candles.slice().reverse();
-
-          const WINDOW = 96; // 24h at 15m
-          const last192 = rows.slice(-2 * WINDOW);
-          if (last192.length < 2 * WINDOW) {
-            if (valEl) valEl.textContent = "—";
-            if (subEl) subEl.textContent = "USD";
-            setSubColor(subEl, NaN);
-            return;
-          }
-
-          const prev = last192.slice(0, WINDOW);
-          const cur  = last192.slice(WINDOW);
-
-          function sumUsdVol(block) {
-            let total = 0;
-            for (const r of block) {
-              const vbtc = Number(r?.[5]);
-              const close = Number(r?.[4]);
-              if (!Number.isFinite(vbtc) || !Number.isFinite(close)) continue;
-              total += vbtc * close;
-            }
-            return total;
-          }
-
-          const prevTot = sumUsdVol(prev);
-          const curTot  = sumUsdVol(cur);
-
-          const pct = (Number.isFinite(prevTot) && prevTot > 0)
-            ? ((curTot - prevTot) / prevTot) * 100
-            : NaN;
-
-          if (valEl) valEl.textContent = `$${fmtBig(curTot)}`;
-
-          // Subline is percent change (per your request), color coded.
-          if (subEl) subEl.textContent = fmtSignedPct(pct);
-          setSubColor(subEl, pct);
-        } catch {
-          if (valEl) valEl.textContent = "—";
-          if (subEl) subEl.textContent = "USD";
-          setSubColor(subEl, NaN);
-        }
-      };
-
-      run();
-      this._t = setInterval(run, 60_000);
-    },
-
-    stop() {
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+    const w = 300, h = 38, pad = 2;
+    const data = Array.isArray(series) ? series.filter(Number.isFinite) : [];
+    if (data.length < 2) {
+      line.setAttribute("d", "");
+      fill.setAttribute("d", "");
+      return;
     }
+
+    let min = Infinity, max = -Infinity;
+    for (const v of data) { if (v < min) min = v; if (v > max) max = v; }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
+      line.setAttribute("d", "");
+      fill.setAttribute("d", "");
+      return;
+    }
+
+    const dx = (w - pad * 2) / (data.length - 1);
+    const scaleY = (h - pad * 2) / (max - min);
+
+    let d = "";
+    for (let i = 0; i < data.length; i++) {
+      const x = pad + i * dx;
+      const y = (h - pad) - (data[i] - min) * scaleY;
+      d += (i === 0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2) + " ";
+    }
+
+    line.setAttribute("d", d.trim());
+
+    // Fill to baseline
+    const firstX = pad;
+    const lastX = pad + (data.length - 1) * dx;
+    const baseY = h - pad;
+    const fd = `M ${firstX.toFixed(2)} ${baseY.toFixed(2)} ` + d.trim() + ` L ${lastX.toFixed(2)} ${baseY.toFixed(2)} Z`;
+    fill.setAttribute("d", fd);
+  }
+
+  Core.onMount("volume-24h", (root) => {
+    if (!root) return;
+
+    // prevent double intervals on reinjection
+    if (root.__zzxVol24Timer) {
+      clearInterval(root.__zzxVol24Timer);
+      root.__zzxVol24Timer = null;
+    }
+
+    let inflight = false;
+
+    async function update() {
+      if (inflight) return;
+      inflight = true;
+
+      try {
+        const r = await fetch(CANDLES_15M, { cache: "no-store" });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const candles = await r.json();
+        if (!Array.isArray(candles) || candles.length < 2) return;
+
+        // Coinbase returns newest-first; take the newest ~24h
+        const slice = candles.slice(0, 96).slice().reverse(); // oldest->newest for sparkline
+
+        let totalUsd = 0;
+        const volsUsd = [];
+
+        for (const row of slice) {
+          const close = Number(row?.[4]);
+          const volBtc = Number(row?.[5]);
+          if (!Number.isFinite(close) || !Number.isFinite(volBtc)) continue;
+          const v = close * volBtc;
+          totalUsd += v;
+          volsUsd.push(v);
+        }
+
+        setCard(root, `$${fmtBig(totalUsd)}`, "Coinbase Exchange (15m candles)");
+        drawSpark(root, volsUsd);
+      } catch (_) {
+        // keep last values on network hiccups
+      } finally {
+        inflight = false;
+      }
+    }
+
+    update();
+    root.__zzxVol24Timer = setInterval(update, 60_000);
   });
 })();
