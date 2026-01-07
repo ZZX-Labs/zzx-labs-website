@@ -1,112 +1,129 @@
 // __partials/widgets/price-24h/plotter.js
-// DPR-aware plotter for 24h price candles: High/Low band + close line
+// Low-level drawing primitives for HUD charts (DPR-aware).
+// Used by chart.js. No network, no DOM assumptions beyond a canvas.
 
 (function () {
   "use strict";
 
   const NS = (window.ZZXPlotter = window.ZZXPlotter || {});
 
-  function sizeCanvas(canvas) {
-    const dpr = window.devicePixelRatio || 1;
+  function dpr() { return window.devicePixelRatio || 1; }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function finite(n) { return Number.isFinite(n); }
+
+  NS.sizeCanvas = function sizeCanvas(canvas, cssHFallback = 96) {
+    const r = dpr();
     const cssW = Math.max(1, Math.floor(canvas.clientWidth || 300));
-    const cssH = Math.max(1, Math.floor(canvas.clientHeight || 96));
-    const w = Math.floor(cssW * dpr);
-    const h = Math.floor(cssH * dpr);
+    const cssH = Math.max(1, Math.floor(canvas.clientHeight || cssHFallback));
+    const w = Math.floor(cssW * r);
+    const h = Math.floor(cssH * r);
 
     if (canvas.width !== w) canvas.width = w;
     if (canvas.height !== h) canvas.height = h;
 
-    return { w, h, dpr };
-  }
+    return { w, h, r, cssW, cssH };
+  };
 
-  function finite(n){ return Number.isFinite(n); }
+  NS.clear = function clear(ctx, W, H, bg, alpha = 1) {
+    ctx.clearRect(0, 0, W, H);
+    if (bg) {
+      const old = ctx.globalAlpha;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = old;
+    }
+  };
 
-  NS.drawHL = function drawHL(canvas, candles, deltaIsUp) {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const { w, h } = sizeCanvas(canvas);
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Theme hook
-    const theme = window.ZZXTheme?.widgets?.price24 || {};
-    const bg = theme.bg || "#000";
-    const grid = theme.grid || "rgba(255,255,255,0.06)";
-    const band = theme.band || "rgba(192,214,116,0.10)";
-    const line = deltaIsUp ? (theme.up || "#6aa92a") : (theme.down || "#e05858");
-    const dot  = theme.dot || "#e6a42b";
-
-    // background wash
-    ctx.fillStyle = bg;
-    ctx.globalAlpha = 0.20;
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalAlpha = 1;
-
-    const arr = Array.isArray(candles) ? candles : [];
-    const pts = arr.filter(x => finite(x.h) && finite(x.l) && finite(x.c));
-    if (pts.length < 2) return;
-
-    const highs = pts.map(x => x.h);
-    const lows  = pts.map(x => x.l);
-
-    const min = Math.min(...lows);
-    const max = Math.max(...highs);
-    const span = (max - min) || 1;
-
-    const pad = Math.floor(8 * (window.devicePixelRatio || 1));
-    const iw = w - pad * 2;
-    const ih = h - pad * 2;
-
-    const xAt = (i) => pad + (i / (pts.length - 1)) * iw;
-    const yAt = (v) => pad + (1 - ((v - min) / span)) * ih;
-
-    // subtle grid
-    ctx.strokeStyle = grid;
+  NS.gridH = function gridH(ctx, x0, x1, y0, y1, step, stroke) {
+    ctx.save();
+    ctx.strokeStyle = stroke;
     ctx.lineWidth = 1;
-    for (let y = pad; y < h - pad; y += Math.floor(24 * (window.devicePixelRatio || 1))) {
+    for (let y = y0; y <= y1; y += step) {
       ctx.beginPath();
-      ctx.moveTo(pad, y + 0.5);
-      ctx.lineTo(w - pad, y + 0.5);
+      ctx.moveTo(x0, y + 0.5);
+      ctx.lineTo(x1, y + 0.5);
       ctx.stroke();
     }
+    ctx.restore();
+  };
 
-    // High/Low band
+  NS.border = function border(ctx, W, H, stroke) {
+    ctx.save();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+    ctx.restore();
+  };
+
+  NS.bandHL = function bandHL(ctx, xAt, yAt, highs, lows, fill) {
+    if (!highs.length || highs.length !== lows.length) return;
+    ctx.save();
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx.lineTo(xAt(i), yAt(pts[i].h));
-    }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(xAt(i), yAt(pts[i].l));
-    }
+    for (let i = 0; i < highs.length; i++) ctx.lineTo(xAt(i), yAt(highs[i]));
+    for (let i = lows.length - 1; i >= 0; i--) ctx.lineTo(xAt(i), yAt(lows[i]));
     ctx.closePath();
-    ctx.fillStyle = band;
     ctx.fill();
+    ctx.restore();
+  };
 
-    // Close line
+  NS.line = function line(ctx, xAt, yAt, values, stroke, widthPx) {
+    if (!values.length) return;
+    ctx.save();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = widthPx;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      const x = xAt(i);
-      const y = yAt(pts[i].c);
+    for (let i = 0; i < values.length; i++) {
+      const x = xAt(i), y = yAt(values[i]);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = line;
-    ctx.lineWidth = Math.max(2, Math.floor(2 * (window.devicePixelRatio || 1)));
     ctx.stroke();
+    ctx.restore();
+  };
 
-    // last dot
-    const last = pts[pts.length - 1];
-    const lx = xAt(pts.length - 1);
-    const ly = yAt(last.c);
+  NS.dot = function dot(ctx, x, y, radius, fill) {
+    ctx.save();
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.arc(lx, ly, Math.max(3, Math.floor(3.25 * (window.devicePixelRatio || 1))), 0, Math.PI * 2);
-    ctx.fillStyle = dot;
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  };
 
-    // border
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+  NS.volumeBars = function volumeBars(ctx, xAt, y0, y1, vols, fill, maxBarW) {
+    if (!vols.length) return;
+    const n = vols.length;
+    const wAvail = (xAt(n - 1) - xAt(0)) || 1;
+    const step = wAvail / Math.max(1, n - 1);
+    const bw = clamp(step * 0.70, 1, maxBarW);
+
+    const vmax = Math.max(...vols.map(v => finite(v) ? v : 0)) || 1;
+
+    ctx.save();
+    ctx.fillStyle = fill;
+
+    for (let i = 0; i < n; i++) {
+      const v = finite(vols[i]) ? vols[i] : 0;
+      const h = ((v / vmax) * (y1 - y0));
+      const x = xAt(i) - bw / 2;
+      const y = y1 - h;
+      ctx.fillRect(x, y, bw, h);
+    }
+
+    ctx.restore();
+  };
+
+  // optional: tiny labels for min/max
+  NS.label = function label(ctx, text, x, y, color, font) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = font;
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(text, x, y);
+    ctx.restore();
   };
 })();
