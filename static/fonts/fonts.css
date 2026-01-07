@@ -2,15 +2,17 @@
    LOCAL FONTS ONLY (TTF)
    - No remote webfonts
    - No woff/woff2
-   - Uses your existing TTF inventory
-
-   Families:
-   - "AdultSwimFont" (display headings / ticker emphasis)
-   - "IBMPlexMono"   (primary mono)
-   - "IBMPlexSansJP" (jp sans when needed)
-   - "IBMPlexMath"   (math glyph coverage)
+   - Defines fixed @font-face families:
+       "AdultSwimFont"
+       "IBMPlexMono"
+       "IBMPlexSansJP"
+       "IBMPlexMath"
+   - Then exposes CSS variables for consumption elsewhere.
 */
 
+/* ---------------------------
+   Adult Swim display
+--------------------------- */
 @font-face{
   font-family:"AdultSwimFont";
   src:url("/static/fonts/Adult-Swim-Font.ttf") format("truetype");
@@ -19,194 +21,198 @@
   font-display:swap;
 }
 
-/* IBM Plex Mono (map weights/styles) */
+/* ---------------------------
+   IBM Plex Mono
+--------------------------- */
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-Thin.ttf") format("truetype");
   font-weight:100;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-ThinItalic.ttf") format("truetype");
   font-weight:100;
   font-style:italic;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-ExtraLight.ttf") format("truetype");
   font-weight:200;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-ExtraLightItalic.ttf") format("truetype");
   font-weight:200;
   font-style:italic;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-Light.ttf") format("truetype");
   font-weight:300;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-LightItalic.ttf") format("truetype");
   font-weight:300;
   font-style:italic;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-Regular.ttf") format("truetype");
   font-weight:400;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-Italic.ttf") format("truetype");
   font-weight:400;
   font-style:italic;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
-  src:url("/static/fonts/IBMPlexMono-Medium.ttf") format("truetype");
-  font-weight:500;
-  font-style:normal;
-  font-display:swap;
-}
-@font-face{
-  font-family: var(--zzx-font-mono);
-  src:url("/static/fonts/IBMPlexMono-MediumItalic.ttf") format("truetype");
-  font-weight:500;
-  font-style:italic;
-  font-display:swap;
-}
-@font-face{
-  font-family: var(--zzx-font-mono);
-  src:url("/static/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
-  font-weight:600;
-  font-style:normal;
-  font-display:swap;
-}
-@font-face{
-  font-family: var(--zzx-font-mono);
-  src:url("/static/fonts/IBMPlexMono-Bold.ttf") format("truetype");
-  font-weight:700;
-  font-style:normal;
-  font-display:swap;
-}
-@font-face{
-  font-family: var(--zzx-font-mono);
-  src:url("/static/fonts/IBMPlexMono-BoldItalic.ttf") format("truetype");
-  font-weight:700;
-  font-style:italic;
-  font-display:swap;
-}
-
-/* Optional "Text" cuts (still map into same family) */
-@font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-Text.ttf") format("truetype");
   font-weight:450;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-mono);
+  font-family:"IBMPlexMono";
   src:url("/static/fonts/IBMPlexMono-TextItalic.ttf") format("truetype");
   font-weight:450;
   font-style:italic;
   font-display:swap;
 }
-
-/* IBM Plex Sans JP */
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexMono";
+  src:url("/static/fonts/IBMPlexMono-Medium.ttf") format("truetype");
+  font-weight:500;
+  font-style:normal;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("/static/fonts/IBMPlexMono-MediumItalic.ttf") format("truetype");
+  font-weight:500;
+  font-style:italic;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("/static/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
+  font-weight:600;
+  font-style:normal;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("/static/fonts/IBMPlexMono-Bold.ttf") format("truetype");
+  font-weight:700;
+  font-style:normal;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("/static/fonts/IBMPlexMono-BoldItalic.ttf") format("truetype");
+  font-weight:700;
+  font-style:italic;
+  font-display:swap;
+}
+
+/* ---------------------------
+   IBM Plex Sans JP
+--------------------------- */
+@font-face{
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-Thin.ttf") format("truetype");
   font-weight:100;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-ExtraLight.ttf") format("truetype");
   font-weight:200;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-Light.ttf") format("truetype");
   font-weight:300;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-Regular.ttf") format("truetype");
   font-weight:400;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-Text.ttf") format("truetype");
   font-weight:450;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-Medium.ttf") format("truetype");
   font-weight:500;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-SemiBold.ttf") format("truetype");
   font-weight:600;
   font-style:normal;
   font-display:swap;
 }
 @font-face{
-  font-family: var(--zzx-font-sans);
+  font-family:"IBMPlexSansJP";
   src:url("/static/fonts/IBMPlexSansJP-Bold.ttf") format("truetype");
   font-weight:700;
   font-style:normal;
   font-display:swap;
 }
 
-/* IBM Plex Math */
+/* ---------------------------
+   IBM Plex Math
+--------------------------- */
 @font-face{
-  font-family: var(--zzx-font-math);
+  font-family:"IBMPlexMath";
   src:url("/static/fonts/IBMPlexMath-Regular.ttf") format("truetype");
   font-weight:400;
   font-style:normal;
   font-display:swap;
 }
 
-/* Site-level variables (widgets can consume these)
-   LOCAL FONTS ONLY — NO system fallbacks */
+/* ---------------------------
+   Site-level variables (consumption)
+   LOCAL FONTS ONLY — no system fallbacks
+--------------------------- */
 :root{
-  /* Display headings / emphasis */
   --zzx-font-display: "AdultSwimFont";
-
-  /* Primary widget/body mono */
   --zzx-font-mono: "IBMPlexMono";
-
-  /* JP sans when needed (still local) */
   --zzx-font-sans: "IBMPlexSansJP";
-
-  /* Math glyph coverage (local) */
   --zzx-font-math: "IBMPlexMath";
+}
+
+/* Optional: reduce “fake” bold/italic synthesis across widgets */
+.zzx-card, .btc-card, [data-widget-root]{
+  font-synthesis: none;
 }
