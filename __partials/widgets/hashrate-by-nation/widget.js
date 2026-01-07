@@ -31,7 +31,7 @@
 
   const DEFAULTS = {
     // Your own site path (preferred). Keep it same-origin for reliability.
-    LOCAL_JSON: "/bitcoin/mining-stats/hashrate/by-nation.json",
+    LOCAL_JSON: "hashrate-by-nation.json",
     PAGE_SIZE: 5,
     DEFAULT_J_PER_TH: 30, // used if power_w not provided
   };
