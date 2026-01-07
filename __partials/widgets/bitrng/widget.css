@@ -1,22 +1,37 @@
 /* __partials/widgets/bitrng/widget.css */
+/* MOBILE OVERFLOW FIX — prevents long hashes from blowing out the card */
 
 .bitrng{
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;              /* hard stop any accidental overflow */
 }
 
-.bitrng__meta{
-  margin-top: .35rem;
-  padding-top: .35rem;
-  border-top: 1px solid rgba(255,255,255,.08);
-  display: grid;
-  gap: .25rem;
+/* Make the main value wrap safely */
+.bitrng .btc-card__value{
+  max-width: 100%;
+  overflow: hidden;
 }
 
+/* This is the critical part: break long unspaced strings */
+.bitrng [data-bitrng-value]{
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;       /* best modern behavior */
+  word-break: break-word;        /* fallback */
+  white-space: normal;           /* allow wrapping */
+  line-height: 1.15;
+}
+
+/* Meta rows: allow wrapping on tiny screens instead of forcing width */
 .bitrng__row{
   display:flex;
   align-items:baseline;
   justify-content:space-between;
   gap:.6rem;
+  min-width: 0;                  /* allows flex children to shrink */
 }
 
 .bitrng__k{
@@ -25,24 +40,29 @@
   letter-spacing:.02em;
   text-transform:lowercase;
   white-space:nowrap;
+  flex: 0 0 auto;
 }
 
 .bitrng__v{
   color:#c0d674;
   font-size:.9rem;
-  white-space:nowrap;
+  text-align:right;
+  max-width: 70%;
+  min-width: 0;                  /* required for ellipsis in flex */
   overflow:hidden;
   text-overflow:ellipsis;
-  max-width: 65%;
-  text-align:right;
+  white-space:nowrap;
+  flex: 1 1 auto;
 }
 
+/* Buttons: prevent pushing wider than container */
 .bitrng__actions{
   margin-top:.45rem;
   display:flex;
   gap:.45rem;
   justify-content:flex-start;
   flex-wrap:wrap;
+  max-width: 100%;
 }
 
 .bitrng__btn{
@@ -51,20 +71,25 @@
   border:1px solid rgba(255,255,255,.18);
   border-radius:10px;
   padding:.30rem .55rem;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family:'IBM Plex Mono', ui-monospace, monospace; /* use your local font-family name */
   font-size:.85rem;
   cursor:pointer;
+  max-width: 100%;
 }
-.bitrng__btn:hover{ border-color:#e6a42b; color:#e6a42b; }
 
+/* Hint: keep code from overflowing */
 .bitrng__hint{
   margin-top:.35rem;
   color:#8a8f98;
   font-size:.78rem;
   line-height:1.25;
+  max-width: 100%;
+  overflow-wrap:anywhere;
 }
+
 .bitrng__hint code{
   color:#e6a42b;
-  font-family:'IBMPlexMono', ui-monospace, monospace;
+  font-family:'IBM Plex Mono', ui-monospace, monospace;
   font-size:.78rem;
+  overflow-wrap:anywhere;
 }
