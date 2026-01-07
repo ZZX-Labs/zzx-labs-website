@@ -2,13 +2,14 @@
 // DROP-IN REPLACEMENT (SINGLE ORCHESTRATOR: widget-core)
 //
 // FIXES (NO new files, no new routes, no runtime.js):
+// 0) LOCAL FONTS ONLY: inject @font-face from /static/fonts/*.ttf
+//    - Uses /static/fonts/fonts.json as the “presence/contract” file (and future mapping hook).
+//    - Does NOT load any remote fonts, woff, or CDN fallbacks.
 // 1) Race-proof remount: if partials/header reinjection replaces #ticker-container AFTER first boot,
 //    we detect it and reinject wrapper + re-run hud-state + core boot.
 // 2) CSS-stability: wait for WRAP_CSS + CORE_CSS to finish loading before injecting wrapper HTML.
 //    This stops the “raw white left-aligned flash / unstyled ticker” behavior.
-// 3) Still strict order: CSS -> HTML -> hud-state -> widget-core.
-//
-// NOTE: Keeps your existing globals + patterns. Only refactors inside this file.
+// 3) Strict order: FONTS -> CSS -> HTML -> hud-state -> widget-core.
 
 (function () {
   "use strict";
@@ -24,10 +25,14 @@
   // Prefix-safe URL join
   // ----------------------------
   function getPrefix() {
-    if (typeof W.ZZX?.PREFIX === "string") return W.ZZX.PREFIX;
-    const htmlPrefix = D.documentElement?.getAttribute("data-zzx-prefix");
-    if (htmlPrefix) return htmlPrefix;
-    return "";
+    let p = (typeof W.ZZX?.PREFIX === "string") ? W.ZZX.PREFIX : "";
+    if (!p) p = D.documentElement?.getAttribute("data-zzx-prefix") || "";
+    p = String(p || "").trim();
+    // CRITICAL: never allow "." / "./" prefixes
+    if (p === "." || p === "./") p = "";
+    // strip trailing slash
+    p = p.replace(/\/+$/, "");
+    return p;
   }
 
   function join(prefix, path) {
@@ -74,6 +79,9 @@
   const CORE_CSS   = join(PREFIX, "/__partials/widgets/_core/widget-core.css");
   const CORE_JS    = join(PREFIX, "/__partials/widgets/_core/widget-core.js");
 
+  // Fonts contract (local)
+  const FONTS_JSON = join(PREFIX, "/static/fonts/fonts.json");
+
   // Publish manifest URL for core (optional; core can also hardcode it)
   W.__ZZX_WIDGETS_MANIFEST_URL = join(PREFIX, "/__partials/widgets/manifest.json");
 
@@ -91,18 +99,12 @@
 
     const existing = D.querySelector(`link[data-zzx-css="${key}"]`);
     if (existing) {
-      // If already loaded (or loading), resolve safely.
       if (existing.dataset.zzxLoaded === "1") return Promise.resolve(true);
-
       return new Promise((resolve) => {
-        const done = () => {
-          existing.dataset.zzxLoaded = "1";
-          resolve(true);
-        };
+        const done = () => { existing.dataset.zzxLoaded = "1"; resolve(true); };
         existing.addEventListener("load", done, { once: true });
         existing.addEventListener("error", () => resolve(false), { once: true });
-
-        // Fallback: some browsers don’t reliably fire load for cached CSS
+        // cached CSS may not fire load consistently
         setTimeout(() => resolve(true), 800);
       });
     }
@@ -115,8 +117,6 @@
       l.onload = () => { l.dataset.zzxLoaded = "1"; resolve(true); };
       l.onerror = () => resolve(false);
       D.head.appendChild(l);
-
-      // Fallback: don’t hang boot if browser never fires onload
       setTimeout(() => resolve(true), 800);
     });
   }
@@ -150,6 +150,69 @@
     const tpl = D.createElement("template");
     tpl.innerHTML = htmlText;
     mountEl.appendChild(tpl.content);
+  }
+
+  // ----------------------------
+  // LOCAL FONTS: inject @font-face (TTF only)
+  // Uses fonts.json as the contract/presence file (and future mapping hook).
+  // ----------------------------
+  function ensureLocalFontsOnce() {
+    if (D.getElementById("zzx-local-fonts")) return Promise.resolve(true);
+
+    const style = D.createElement("style");
+    style.id = "zzx-local-fonts";
+    style.type = "text/css";
+
+    // IMPORTANT:
+    // - absolute paths (prefix-safe handled by browser because site is root-hosted or prefixed)
+    // - NO woff/woff2
+    // - NO remote URLs
+    // - font-display swap to reduce “wrong font flash”
+    const fontCSS = `
+@font-face{font-family:"AdultSwimFont";src:url("${join(PREFIX,"/static/fonts/Adult-Swim-Font.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
+
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Thin.ttf")}") format("truetype");font-weight:100;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-ThinItalic.ttf")}") format("truetype");font-weight:100;font-style:italic;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-ExtraLight.ttf")}") format("truetype");font-weight:200;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-ExtraLightItalic.ttf")}") format("truetype");font-weight:200;font-style:italic;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Light.ttf")}") format("truetype");font-weight:300;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-LightItalic.ttf")}") format("truetype");font-weight:300;font-style:italic;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Regular.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Italic.ttf")}") format("truetype");font-weight:400;font-style:italic;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Medium.ttf")}") format("truetype");font-weight:500;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-MediumItalic.ttf")}") format("truetype");font-weight:500;font-style:italic;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-SemiBold.ttf")}") format("truetype");font-weight:600;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Bold.ttf")}") format("truetype");font-weight:700;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-BoldItalic.ttf")}") format("truetype");font-weight:700;font-style:italic;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Text.ttf")}") format("truetype");font-weight:450;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-TextItalic.ttf")}") format("truetype");font-weight:450;font-style:italic;font-display:swap;}
+
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Thin.ttf")}") format("truetype");font-weight:100;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-ExtraLight.ttf")}") format("truetype");font-weight:200;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Light.ttf")}") format("truetype");font-weight:300;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Regular.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Text.ttf")}") format("truetype");font-weight:450;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Medium.ttf")}") format("truetype");font-weight:500;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-SemiBold.ttf")}") format("truetype");font-weight:600;font-style:normal;font-display:swap;}
+@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Bold.ttf")}") format("truetype");font-weight:700;font-style:normal;font-display:swap;}
+
+@font-face{font-family:"IBMPlexMath";src:url("${join(PREFIX,"/static/fonts/IBMPlexMath-Regular.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
+
+:root{
+  --zzx-font-display:"AdultSwimFont","IBMPlexMono",ui-monospace,monospace;
+  --zzx-font-mono:"IBMPlexMono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  --zzx-font-sans:"IBMPlexSansJP",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+`;
+    style.appendChild(D.createTextNode(fontCSS));
+    (D.head || D.documentElement).appendChild(style);
+
+    // Use fonts.json as the canonical "font set exists" contract.
+    // We do not depend on its contents yet (because it doesn't map filenames),
+    // but we verify it is reachable so we can extend this later without changing architecture.
+    return fetch(withV(FONTS_JSON), { cache: "no-store" })
+      .then((r) => r.ok)
+      .catch(() => false);
   }
 
   // ----------------------------
@@ -188,11 +251,9 @@
 
   // ----------------------------
   // Remount detection
-  // - If #ticker-container gets replaced after initial boot, re-run boot.
   // ----------------------------
   function needsMount(mount) {
     if (!mount) return false;
-    // Wrapper inject creates [data-hud-root] inside mount; if missing, we need reinject.
     return !mount.querySelector("[data-hud-root]") && !mount.querySelector(".btc-rail");
   }
 
@@ -216,6 +277,9 @@
         try { W.ZZXWidgetsCore?.boot?.(); } catch (_) {}
         return;
       }
+
+      // 0) Fonts FIRST (local TTF only)
+      await ensureLocalFontsOnce();
 
       // 1) CSS FIRST and WAIT (prevents raw/unstyled)
       const okWrapCss = await loadCSSOnce(WRAP_CSS);
