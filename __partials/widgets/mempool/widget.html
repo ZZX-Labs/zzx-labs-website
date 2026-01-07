@@ -1,5 +1,34 @@
-<div class="btc-card" data-w="mempool">
+<!-- __partials/widgets/mempool/widget.html
+     DROP-IN
+     Purpose: mempool summary (tx count, vbytes, size MB, total fees BTC + USD)
+     Source: mempool.space (via allorigins)
+-->
+<div class="btc-card" data-widget-root="mempool">
   <div class="btc-card__title">Mempool</div>
-  <div class="btc-card__value"><span data-val>—</span></div>
-  <div class="btc-card__sub"><span data-sub>tx</span></div>
+
+  <div class="btc-card__value">
+    <span data-mp-vmb>—</span><span class="zzx-mp-unit"> vMB</span>
+  </div>
+
+  <div class="btc-card__sub">
+    TX: <span data-mp-tx>—</span> •
+    Size: <span data-mp-mb>—</span> MB
+  </div>
+
+  <div class="zzx-mp-grid" role="table" aria-label="Mempool totals">
+    <div class="zzx-mp-row" role="row">
+      <div class="zzx-mp-cell" role="cell">Total fees</div>
+      <div class="zzx-mp-cell zzx-mp-num" role="cell"><span data-mp-fees-btc>—</span> BTC</div>
+    </div>
+    <div class="zzx-mp-row" role="row">
+      <div class="zzx-mp-cell" role="cell">Fees (USD)</div>
+      <div class="zzx-mp-cell zzx-mp-num" role="cell">$<span data-mp-fees-usd>—</span></div>
+    </div>
+  </div>
+
+  <div class="zzx-mp-foot">
+    <span data-mp-status>loading…</span>
+    <span class="zzx-mp-spacer" aria-hidden="true"></span>
+    <button type="button" class="zzx-mp-btn" data-mp-refresh>Refresh</button>
+  </div>
 </div>
