@@ -1,6 +1,6 @@
 // __partials/widgets/price-24h/widget.js
 // DROP-IN REPLACEMENT (price-24h)
-// - Ensures sources.js is loaded (auto) before use
+// - Ensures sources.js + spark.js are loaded (auto) before use
 // - Exchange selector (optional in HTML; if absent, still works)
 // - AllOrigins RAW fetch (via ctx.fetchJSON or window.ZZXAO.json fallback)
 // - Normalized 1h candles -> 24h price + % change + spark chart
@@ -13,10 +13,9 @@
   const STORE_KEY = "zzx.price24.exchange";
   const DEBUG = !!window.__ZZX_WIDGET_DEBUG;
 
-  // Default cadence: sane by default (you can tighten later)
-  // NOTE: Exchanges will rate-limit if you hammer them; AllOrigins also has limits.
-  const NET_MIN_MS = 5_000;   // 5s
-  const UI_TICK_MS = 750;     // repaint / net gate check
+  // Default cadence: safe (you can tighten later, but be mindful of AO + exchange limits)
+  const NET_MIN_MS = 5_000;   // network minimum interval
+  const UI_TICK_MS = 750;     // UI loop interval
 
   function fmtUSD(n) {
     return Number.isFinite(n)
@@ -54,38 +53,50 @@
   }
 
   function widgetBasePath() {
-    // Prefer core path resolver if present
+    // Prefer your core resolver if present
     const Core = window.ZZXWidgetsCore;
     if (Core?.widgetBase) return String(Core.widgetBase(ID)).replace(/\/+$/, "") + "/";
     return "/__partials/widgets/price-24h/";
   }
 
-  async function ensureSourcesLoaded() {
-    if (window.ZZXPriceSources?.list) return true;
-
-    const key = "zzx:price-24h:sources";
+  async function loadScriptOnce(url, key) {
     if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
-      // script already injected; give it a microtick to register
-      await new Promise(r => setTimeout(r, 0));
-      return !!window.ZZXPriceSources?.list;
+      // already injected; give it one microtick
+      await new Promise((r) => setTimeout(r, 0));
+      return true;
     }
 
-    const src = widgetBasePath() + "sources.js";
-
-    const ok = await new Promise((resolve) => {
+    return await new Promise((resolve) => {
       const s = document.createElement("script");
-      s.src = src;
+      s.src = url;
       s.defer = true;
       s.setAttribute("data-zzx-js", key);
       s.onload = () => resolve(true);
       s.onerror = () => resolve(false);
       document.head.appendChild(s);
     });
+  }
 
-    if (!ok) return false;
+  async function ensureDepsLoaded() {
+    const base = widgetBasePath();
 
-    await new Promise(r => setTimeout(r, 0));
-    return !!window.ZZXPriceSources?.list;
+    // 1) sources.js
+    if (!window.ZZXPriceSources?.list) {
+      const ok = await loadScriptOnce(base + "sources.js", "zzx:price-24h:sources");
+      if (!ok) return { ok: false, why: "sources.js missing" };
+      await new Promise((r) => setTimeout(r, 0));
+      if (!window.ZZXPriceSources?.list) return { ok: false, why: "sources.js did not register" };
+    }
+
+    // 2) spark.js
+    if (!window.ZZXSpark?.drawPrice) {
+      const ok = await loadScriptOnce(base + "spark.js", "zzx:price-24h:spark");
+      if (!ok) return { ok: false, why: "spark.js missing" };
+      await new Promise((r) => setTimeout(r, 0));
+      if (!window.ZZXSpark?.drawPrice) return { ok: false, why: "spark.js did not register" };
+    }
+
+    return { ok: true };
   }
 
   function populateSelect(sel, sources, chosenId) {
@@ -99,17 +110,17 @@
       sel.appendChild(o);
     }
 
-    if (chosenId && sources.some(s => s.id === chosenId)) sel.value = chosenId;
+    if (chosenId && sources.some((s) => s.id === chosenId)) sel.value = chosenId;
   }
 
   async function fetchJSON(ctx, url) {
-    // 1) prefer ctx.fetchJSON (your unified runtime likely wraps AllOrigins already)
+    // 1) Prefer ctx.fetchJSON (your runtime wrapper likely handles AllOrigins)
     if (ctx?.fetchJSON) return await ctx.fetchJSON(url);
 
-    // 2) fall back to window.ZZXAO.json (your AllOrigins helper)
+    // 2) Fall back to your AllOrigins helper if present
     if (window.ZZXAO?.json) return await window.ZZXAO.json(url);
 
-    // 3) last resort: raw fetch via AllOrigins RAW
+    // 3) Last resort: raw AllOrigins RAW
     const AO_RAW = "https://api.allorigins.win/raw?url=";
     const r = await fetch(AO_RAW + encodeURIComponent(String(url)), { cache: "no-store" });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -119,8 +130,6 @@
   async function loadCandles(ctx, src) {
     const json = await fetchJSON(ctx, src.url);
     const candles = src.normalize(json);
-
-    // Use last 24 points if more exist
     return (Array.isArray(candles) ? candles : []).slice(-24);
   }
 
@@ -150,10 +159,9 @@
       const canvas   = $("[data-spark]");
       const sel      = root.querySelector("select[data-exchange]"); // optional
 
-      // Ensure sources.js exists
-      const ok = await ensureSourcesLoaded();
-      if (!ok) {
-        if (outSub) outSub.textContent = "error: sources.js missing";
+      const deps = await ensureDepsLoaded();
+      if (!deps.ok) {
+        if (outSub) outSub.textContent = `error: ${deps.why}`;
         return;
       }
 
@@ -165,9 +173,9 @@
         return;
       }
 
-      // init choice (persisted)
+      // init persisted choice
       const saved = safeGet(STORE_KEY);
-      this._srcId = (saved && sources.some(s => s.id === saved)) ? saved : sources[0].id;
+      this._srcId = (saved && sources.some((s) => s.id === saved)) ? saved : sources[0].id;
 
       // selector (if present)
       if (sel) {
@@ -189,13 +197,14 @@
 
         this._busy = true;
         try {
-          const src = sources.find(s => s.id === this._srcId) || sources[0];
+          const src = sources.find((s) => s.id === this._srcId) || sources[0];
+
           if (outSub) outSub.textContent = `loading… (${src.label})`;
 
           const candles = await loadCandles(this._ctx, src);
           if (!candles.length) throw new Error("no candle data");
 
-          const closes = candles.map(x => Number(x.c)).filter(Number.isFinite);
+          const closes = candles.map((x) => Number(x.c)).filter(Number.isFinite);
           if (closes.length < 2) throw new Error("insufficient candle closes");
 
           const first = closes[0];
@@ -206,9 +215,9 @@
           const p = pct(last, first);
           setDelta(outDelta, p);
 
-          // sparkline draw (your shared utility)
+          // spark draw (now guaranteed loaded)
           try {
-            window.ZZXSpark?.drawPrice?.(canvas, closes, Number.isFinite(p) ? (p >= 0) : true);
+            window.ZZXSpark.drawPrice(canvas, closes, Number.isFinite(p) ? (p >= 0) : true);
           } catch (e) {
             if (DEBUG) console.warn("[price-24h] spark draw failed", e);
           }
