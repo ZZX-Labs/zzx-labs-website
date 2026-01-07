@@ -1,11 +1,66 @@
-/* __partials/widgets/mempool-goggles/widget.css */
-.btc-goggles canvas{
+/* __partials/widgets/mempool-specs/widget.css
+   MIGRATED FROM mempool-goggles
+   DROP-IN, SAFE, CONTAINED
+*/
+
+.mempool-specs{
+  overflow: hidden;
+}
+
+/* Visualization container (owns size & containment) */
+.mempool-specs .ms-block{
   width: 100%;
-  height: auto;
-  display: block;
+  box-sizing: border-box;
+
   margin-top: .45rem;
   background: #000;
   border: 4px solid #e6a42b;
   border-radius: 10px;
+
+  /* CRITICAL: containment */
+  overflow: hidden;
+  position: relative;
+
+  /* Stable sizing (prevents flash + spill) */
+  aspect-ratio: 16 / 10;
+  min-height: 220px;
+  max-height: 520px;
+}
+
+/* Canvas fills the block, never escapes */
+.mempool-specs .ms-block canvas{
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* If using div-based squares instead of canvas */
+.mempool-specs .ms-grid{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* TX square primitive */
+.mempool-specs .ms-tx{
+  position: absolute;
   box-sizing: border-box;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.25);
+  will-change: transform, left, top, width, height;
+}
+
+/* Fee-rate colors (mapped later via themes.js) */
+.mempool-specs .ms-tx.low  { background: rgba(120,140,160,.85); }
+.mempool-specs .ms-tx.mid  { background: rgba(220,170, 60,.90); }
+.mempool-specs .ms-tx.high { background: rgba( 70,200,110,.92); }
+
+/* Mobile tuning */
+@media (max-width: 560px){
+  .mempool-specs .ms-block{
+    aspect-ratio: 4 / 3;
+    min-height: 200px;
+    max-height: 420px;
+  }
 }
