@@ -1,116 +1,93 @@
 // __partials/widgets/price-24h/widget.js
-// FIXED + EXTENDED: unified-runtime compatible + +/- percent change w/ color
+// DROP-IN REPLACEMENT (runtime-free; uses widget-core onMount)
 //
-// Your current file uses ctx.util.jget / setCard / fmtUSD / drawSpark, which do not
-// exist in unified runtime :contentReference[oaicite:0]{index=0}.
-// HTML stays unchanged :contentReference[oaicite:1]{index=1}, CSS stays unchanged :contentReference[oaicite:2]{index=2}.
+// Computes 24h price + % change using Coinbase Exchange 15m candles.
+// Updates:
+//   [data-w="price-24h"] [data-val]  -> last price (USD)
+//   [data-w="price-24h"] [data-sub]  -> change percent + source
 //
-// Behavior:
-// - Uses Coinbase 15m candles (ctx.api.COINBASE_CANDLES_15M)
-// - Computes last price (last close) and 24h % change from first->last close over last 96 candles
-// - Subline becomes: "+1.23%" or "-1.23%" (always signed when finite)
-// - Color: green for +, red for -, neutral for 0/unknown
-// - No layout changes; uses inline style on [data-sub] only (safe + minimal)
+// Notes:
+// - Your existing widget.html is fine: :contentReference[oaicite:0]{index=0}
+// - This removes the old dependency on ctx.api / ctx.util (runtime is gone).
 
 (function () {
-  const ID = "price-24h";
+  "use strict";
+
+  const W = window;
+
+  const Core = W.ZZXWidgetsCore;
+  if (!Core || typeof Core.onMount !== "function") return;
+
+  const CANDLES_15M =
+    "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=900"; // 15m
+  const N = 96; // 24h @ 15m
 
   function fmtUSD(n) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "—";
-    return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  function fmtSignedPct(n) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "—";
-    const sign = x > 0 ? "+" : (x < 0 ? "−" : ""); // U+2212 minus for nicer typography
-    return `${sign}${Math.abs(x).toFixed(2)}%`;
+  function fmtPct(n) {
+    if (!Number.isFinite(n)) return "—";
+    const s = (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+    return s;
   }
 
-  function setSubColor(el, pct) {
-    if (!el) return;
+  async function fetchCandles() {
+    // Prefer Core.fetchJSON when available (it is already prefix-safe, but handles absolute URLs too)
+    if (Core && typeof Core.fetchJSON === "function") return await Core.fetchJSON(CANDLES_15M);
 
-    // default / neutral
-    el.style.color = "";
-    el.style.fontWeight = "";
-
-    const x = Number(pct);
-    if (!Number.isFinite(x) || x === 0) return;
-
-    // Match your palette semantics:
-    // - green for positive
-    // - red for negative
-    el.style.color = (x > 0) ? "#c0d674" : "#ff4d4d";
-    el.style.fontWeight = "700";
+    const r = await fetch(CANDLES_15M, { cache: "no-store" });
+    if (!r.ok) throw new Error("candles HTTP " + r.status);
+    return await r.json();
   }
 
-  window.ZZXWidgets.register(ID, {
-    mount(slotEl) {
-      this.card = slotEl.querySelector('[data-w="price-24h"]');
-      this._t = null;
-    },
+  async function update(root) {
+    const card = root?.querySelector?.('[data-w="price-24h"]');
+    if (!card) return;
 
-    start(ctx) {
-      const URL = ctx.api.COINBASE_CANDLES_15M;
+    const valEl = card.querySelector("[data-val]");
+    const subEl = card.querySelector("[data-sub]");
+    if (!valEl || !subEl) return;
 
-      const run = async () => {
-        const card = this.card;
-        if (!card) return;
+    // simple in-flight lock per card
+    if (card.__zzxInflight) return;
+    card.__zzxInflight = true;
 
-        const valEl = card.querySelector("[data-val]");
-        const subEl = card.querySelector("[data-sub]");
+    try {
+      const arr = await fetchCandles();
+      if (!Array.isArray(arr) || arr.length < 2) return;
 
-        try {
-          // unified runtime fetch
-          const candles = await ctx.fetchJSON(URL);
+      // Coinbase returns newest-first. Take newest N, then reverse to chronological.
+      const sample = arr.slice(0, N).slice().reverse();
 
-          if (!Array.isArray(candles) || candles.length < 2) {
-            if (valEl) valEl.textContent = "—";
-            if (subEl) subEl.textContent = "—";
-            setSubColor(subEl, NaN);
-            return;
-          }
+      // each row: [time, low, high, open, close, volume]
+      const closes = sample.map((r) => Number(r?.[4])).filter(Number.isFinite);
+      if (closes.length < 2) return;
 
-          // Coinbase candles: [time, low, high, open, close, volume]
-          // Returned newest-first; normalize to oldest-first
-          const rows = candles.slice().reverse();
+      const first = closes[0];
+      const last = closes[closes.length - 1];
+      const changePct = first !== 0 ? ((last - first) / first) * 100 : NaN;
 
-          // 24h @ 15m granularity = 96 candles
-          const last96 = rows.slice(-96);
-          const closes = last96.map(r => Number(r?.[4])).filter(Number.isFinite);
-
-          if (closes.length < 2) {
-            if (valEl) valEl.textContent = "—";
-            if (subEl) subEl.textContent = "—";
-            setSubColor(subEl, NaN);
-            return;
-          }
-
-          const first = closes[0];
-          const last = closes[closes.length - 1];
-          const changePct = (first !== 0) ? ((last - first) / first) * 100 : NaN;
-
-          if (valEl) valEl.textContent = fmtUSD(last);
-
-          const pctTxt = fmtSignedPct(changePct);
-          if (subEl) subEl.textContent = pctTxt;
-
-          setSubColor(subEl, changePct);
-        } catch {
-          if (valEl) valEl.textContent = "—";
-          if (subEl) subEl.textContent = "—";
-          setSubColor(subEl, NaN);
-        }
-      };
-
-      run();
-      this._t = setInterval(run, 60_000);
-    },
-
-    stop() {
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+      valEl.textContent = fmtUSD(last);
+      subEl.textContent = `${fmtPct(changePct)} · Coinbase Exchange (15m candles)`;
+    } catch (_) {
+      // keep last values; avoid noisy UI
+    } finally {
+      card.__zzxInflight = false;
     }
+  }
+
+  Core.onMount("price-24h", (root) => {
+    if (!root) return;
+
+    // clear any prior timer if reinjected
+    if (root.__zzxTimer) {
+      clearInterval(root.__zzxTimer);
+      root.__zzxTimer = null;
+    }
+
+    update(root);
+    root.__zzxTimer = setInterval(() => update(root), 60_000);
   });
 })();
