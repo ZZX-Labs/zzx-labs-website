@@ -240,3 +240,46 @@
 [data-hud-root][data-hud-state="ticker-only"] .btc-rail > .btc-slot[data-widget="bitcoin-ticker"]{
   display:flex !important;
 }
+
+/* Global containment patch — add to widget-core.css OR a shared primitives file */
+
+.btc-slot,
+.zzx-card,
+.btc-card,
+[data-widget-root]{
+  min-width: 0;             /* critical for flex/grid overflow */
+}
+
+.btc-card,
+.zzx-card{
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;         /* prevents charts/tables pushing past card edge */
+}
+
+.btc-card__value,
+.zzx-card__value,
+.btc-card__sub,
+.zzx-card__sub{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+canvas, svg, img, video{
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+table{
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+pre, code{
+  max-width: 100%;
+  overflow-x: auto;
+}
