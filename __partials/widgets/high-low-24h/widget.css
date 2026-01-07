@@ -1,1 +1,55 @@
-/* __partials/widgets/high-low-24h/widget.css */
+/* __partials/widgets/high-low-24h/widget.css
+   DROP-IN REPLACEMENT
+   Matches the visual contract of price-24h + volume-24h:
+   - zzx-card / btc-card compatible
+   - inline spark area
+   - hi/lo markers (green high, red low)
+   - NO webfonts, uses your existing mono stack variables if present
+*/
+
+:root{
+  /* safe fallbacks if core tokens not present */
+  --zzx-accent: var(--zzx-accent, #c0d674);
+  --zzx-accent-alt: var(--zzx-accent-alt, #e6a42b);
+  --zzx-bg: var(--zzx-bg, #0b0b0b);
+  --zzx-border-strong: var(--zzx-border-strong, #2a2a2a);
+  --zzx-shadow: var(--zzx-shadow, 0 6px 18px rgba(0,0,0,.25));
+  --zzx-font-mono: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+}
+
+.zzx-widget--high-low-24h .zzx-card,
+.zzx-widget--high-low-24h .btc-card{
+  width:100%;
+  box-sizing:border-box;
+}
+
+.zzx-widget--high-low-24h .zzx-card__title,
+.zzx-widget--high-low-24h .btc-card__title{
+  font-family: var(--zzx-font-mono);
+}
+
+.zzx-widget--high-low-24h .zzx-card__value,
+.zzx-widget--high-low-24h .btc-card__value{
+  display:flex;
+  align-items:baseline;
+  gap:.35rem;
+  flex-wrap:wrap;
+}
+
+.zzx-widget--high-low-24h [data-hi]{
+  color: #43d17a; /* green high */
+}
+
+.zzx-widget--high-low-24h [data-lo]{
+  color: #ff5a5a; /* red low */
+}
+
+/* spark canvas injected by widget.js */
+.zzx-widget--high-low-24h canvas.btc-spark{
+  width:100%;
+  height:60px;
+  display:block;
+  margin-top:.45rem;
+  border-radius:8px;
+  background: rgba(255,255,255,.03);
+}
