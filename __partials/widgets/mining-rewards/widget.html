@@ -1,0 +1,44 @@
+<!-- __partials/widgets/mining-rewards/widget.html
+     DROP-IN (NEW WIDGET)
+     Purpose: paged leaderboard (5 per page) of top mining pools/miners by blocks in last 24h,
+     with estimated BTC earned + USD value.
+     NOTE: widget.js will populate everything; this is just the stable DOM contract.
+-->
+
+<div class="zzx-card" data-widget-root="mining-rewards">
+  <div class="zzx-card__title">Mining Rewards (24h)</div>
+
+  <div class="zzx-card__value">
+    <span data-mr-summary>loading…</span>
+  </div>
+
+  <div class="zzx-card__sub">
+    <span data-mr-sub>—</span>
+  </div>
+
+  <!-- Table -->
+  <div class="zzx-mr-table" role="table" aria-label="Mining rewards leaderboard">
+    <div class="zzx-mr-row zzx-mr-head" role="row">
+      <div class="zzx-mr-cell" role="columnheader">#</div>
+      <div class="zzx-mr-cell" role="columnheader">Pool / Miner</div>
+      <div class="zzx-mr-cell zzx-mr-num" role="columnheader">Blocks</div>
+      <div class="zzx-mr-cell zzx-mr-num" role="columnheader">Est. BTC</div>
+      <div class="zzx-mr-cell zzx-mr-num" role="columnheader">Est. USD</div>
+    </div>
+
+    <div data-mr-body>
+      <!-- rows injected here -->
+    </div>
+  </div>
+
+  <!-- Pager -->
+  <div class="zzx-mr-pager" aria-label="Mining rewards pagination">
+    <button type="button" class="zzx-widgets__btn" data-mr-prev aria-label="Previous page">Prev</button>
+    <span class="zzx-mr-page" data-mr-page>Page 1 / 1</span>
+    <button type="button" class="zzx-widgets__btn" data-mr-next aria-label="Next page">Next</button>
+
+    <span class="zzx-widgets__spacer" aria-hidden="true"></span>
+
+    <button type="button" class="zzx-widgets__btn" data-mr-refresh aria-label="Refresh">Refresh</button>
+  </div>
+</div>
