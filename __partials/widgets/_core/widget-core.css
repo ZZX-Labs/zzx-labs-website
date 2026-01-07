@@ -10,7 +10,7 @@
    - Works with BOTH conventions simultaneously:
        A) wrapper shell uses [data-widget-slot="..."]
        B) legacy CSS uses .btc-slot[data-widget="..."]
-     (widget-core.js now mirrors data-widget automatically, so BOTH work)
+     (widget-core.js mirrors data-widget automatically, so BOTH work)
 
    IMPORTANT:
    - DO NOT add display:contents anywhere.
@@ -116,18 +116,31 @@
 }
 
 /* ----------------------------------------
-   SLOTS (2 columns contract)
-   - base: 2-up
-   - wider screens: still 2-up (because you explicitly want pairs/rows)
+   SLOTS (2 columns contract on desktop/tablet)
+   FIXES:
+   - min-width:0 prevents flex overflow due to long strings/canvases.
+   - mobile collapses to 1 column to prevent rail overflow.
 ----------------------------------------- */
 .btc-rail > .btc-slot{
   display:flex;
   box-sizing:border-box;
 
-  /* 2 columns always (pairs) */
+  /* 2-up by default (pairs) */
   flex: 1 1 calc(50% - var(--zzx-gap));
   min-width: 260px;
   max-width: 520px;
+
+  /* critical: allow children to shrink (prevents mobile spill) */
+  min-width: 0;
+}
+
+/* Mobile: MUST be 1-up or it will overflow on many viewports */
+@media (max-width: 620px){
+  .btc-rail > .btc-slot{
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
 }
 
 /* ----------------------------------------
@@ -159,11 +172,17 @@
   font-family:var(--zzx-font-mono);
 
   width:100%;
+  max-width: 100%;
   box-sizing:border-box;
+
+  /* containment */
+  min-width: 0;
+  overflow: hidden;
 }
 
-/* Keep small widgets from stretching too wide visually */
-.btc-rail > .btc-slot .btc-card{
+/* Keep small widgets from stretching too wide visually (desktop/tablet) */
+.btc-rail > .btc-slot .btc-card,
+.btc-rail > .btc-slot .zzx-card{
   max-width: 520px;
 }
 
@@ -173,7 +192,13 @@
 .btc-rail > .btc-slot[data-widget-slot="bitcoin-ticker"] .btc-card,
 .btc-rail > .btc-slot[data-widget="bitcoin-ticker"] .btc-card,
 .btc-rail > .btc-slot[data-widget-slot="bitrng"] .btc-card,
-.btc-rail > .btc-slot[data-widget="bitrng"] .btc-card{
+.btc-rail > .btc-slot[data-widget="bitrng"] .btc-card,
+.btc-rail > .btc-slot[data-widget-slot="runtime"] .zzx-card,
+.btc-rail > .btc-slot[data-widget="runtime"] .zzx-card,
+.btc-rail > .btc-slot[data-widget-slot="bitcoin-ticker"] .zzx-card,
+.btc-rail > .btc-slot[data-widget="bitcoin-ticker"] .zzx-card,
+.btc-rail > .btc-slot[data-widget-slot="bitrng"] .zzx-card,
+.btc-rail > .btc-slot[data-widget="bitrng"] .zzx-card{
   max-width: 100% !important;
 }
 
@@ -185,6 +210,7 @@
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  min-width: 0;
 }
 
 .btc-card__value, .zzx-card__value{
@@ -194,6 +220,7 @@
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  min-width: 0;
 }
 
 .btc-card__sub, .zzx-card__sub{
@@ -202,6 +229,7 @@
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  min-width: 0;
 }
 
 /* Buttons used by built-in runtime (in widget-core.js) */
@@ -241,30 +269,20 @@
   display:flex !important;
 }
 
-/* Global containment patch — add to widget-core.css OR a shared primitives file */
-
+/* ----------------------------------------
+   GLOBAL CONTAINMENT PATCH (keep here; applies to every widget)
+----------------------------------------- */
 .btc-slot,
 .zzx-card,
 .btc-card,
 [data-widget-root]{
-  min-width: 0;             /* critical for flex/grid overflow */
-}
-
-.btc-card,
-.zzx-card{
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;         /* prevents charts/tables pushing past card edge */
-}
-
-.btc-card__value,
-.zzx-card__value,
-.btc-card__sub,
-.zzx-card__sub{
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+/* prevents long unbroken strings from forcing overflow */
+.btc-card, .zzx-card, [data-widget-root]{
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 canvas, svg, img, video{
@@ -282,10 +300,4 @@ table{
 pre, code{
   max-width: 100%;
   overflow-x: auto;
-}
-
-/* prevents long unbroken strings from forcing overflow */
-.btc-card, .zzx-card, [data-widget-root]{
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
