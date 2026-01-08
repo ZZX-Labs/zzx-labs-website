@@ -1,4 +1,8 @@
 // __partials/widgets/hashrate/widget.js
+// DROP-IN REPLACEMENT (fixes: "hashrate series empty" by accepting mempool payload shapes)
+// Requires separate files present:
+//   sources.js, fetch.js, plotter.js, chart.js
+
 (function () {
   "use strict";
 
@@ -59,41 +63,76 @@
       await new Promise(r=>setTimeout(r,0));
       if (!okfn()) return { ok:false, why:`${file} did not register` };
     }
-
     return { ok:true };
   }
 
-  function hsToZH(hs){ const v = n(hs); return Number.isFinite(v) ? (v / 1e21) : NaN; }
+  function hsToZH(hs){
+    const v = n(hs);
+    return Number.isFinite(v) ? (v / 1e21) : NaN;
+  }
+
+  // ---- robust: accept mempool shapes ----
+  function pickArray(payload){
+    // Most common:
+    // 1) payload is already an array
+    if (Array.isArray(payload)) return payload;
+
+    // 2) payload.hashrates is an array
+    if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.hashrates)) return payload.hashrates;
+      if (Array.isArray(payload.data)) return payload.data;
+      if (Array.isArray(payload.series)) return payload.series;
+
+      // Some proxies wrap:
+      // { data: { hashrates: [...] } } or { hashrates: { hashrates:[...] } }
+      if (payload.data && typeof payload.data === "object") {
+        if (Array.isArray(payload.data.hashrates)) return payload.data.hashrates;
+        if (Array.isArray(payload.data.data)) return payload.data.data;
+        if (Array.isArray(payload.data.series)) return payload.data.series;
+      }
+      if (payload.hashrates && typeof payload.hashrates === "object") {
+        if (Array.isArray(payload.hashrates.hashrates)) return payload.hashrates.hashrates;
+        if (Array.isArray(payload.hashrates.data)) return payload.hashrates.data;
+        if (Array.isArray(payload.hashrates.series)) return payload.hashrates.series;
+      }
+    }
+    return null;
+  }
 
   function normalizeSeries(payload){
-    let arr = payload;
-    if (!Array.isArray(arr) && payload && typeof payload === "object") {
-      if (Array.isArray(payload.hashrates)) arr = payload.hashrates;
-      else if (Array.isArray(payload.data)) arr = payload.data;
-      else if (Array.isArray(payload.series)) arr = payload.series;
-    }
-    if (!Array.isArray(arr)) return [];
+    const arr = pickArray(payload);
+    if (!arr) return [];
 
     const out = [];
     for (const p of arr) {
-      if (!p) continue;
+      if (p == null) continue;
 
+      // mempool sometimes returns [timestamp, avgHashrate]
       if (Array.isArray(p)) {
         const t = n(p[0]);
         const hs = n(p[1]);
         if (Number.isFinite(hs)) out.push({ t, hs });
         continue;
       }
+
       if (typeof p === "object") {
+        // mempool object form: { timestamp, avgHashrate, height }
         const t = n(p.timestamp ?? p.time ?? p.t);
-        const hs = n(p.hashrate ?? p.avgHashrate ?? p.value ?? p.v ?? p.h);
+        const hs = n(
+          p.avgHashrate ??
+          p.avg_hashrate ??
+          p.hashrate ??
+          p.value ??
+          p.v ??
+          p.h
+        );
         if (Number.isFinite(hs)) out.push({ t, hs });
       }
     }
 
     // seconds -> ms
     for (const pt of out) {
-      if (Number.isFinite(pt.t) && pt.t < 2e12) pt.t = pt.t * 1000;
+      if (Number.isFinite(pt.t) && pt.t > 0 && pt.t < 2e12) pt.t = pt.t * 1000;
     }
 
     out.sort((a,b)=> (a.t||0) - (b.t||0));
@@ -102,15 +141,14 @@
 
   function normalizeDifficulty(payload){
     const candidates = [
+      payload?.difficulty,
       payload?.currentDifficulty,
       payload?.current_difficulty,
-      payload?.difficulty,
-      payload?.previousRetarget,
-      payload?.previous_retarget,
       payload?.newDifficulty,
       payload?.new_difficulty,
       payload?.data?.difficulty,
       payload?.data?.currentDifficulty,
+      payload?.data?.current_difficulty,
     ];
     for (const c of candidates) {
       const v = n(c);
@@ -150,6 +188,16 @@
     return NaN;
   }
 
+  function previewPayload(x){
+    try{
+      const s = JSON.stringify(x);
+      if (!s) return "null";
+      return s.length > 220 ? s.slice(0,220) + "…" : s;
+    }catch{
+      return String(x);
+    }
+  }
+
   async function update(root, core){
     if (!root || inflight) return;
     inflight = true;
@@ -174,30 +222,35 @@
       const ttlMs = pol.cacheTtlMs || 300000;
       const timeoutMs = pol.timeoutMs || 12000;
 
+      // ---- series ----
       const seriesRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.hashrate3d, {
-        cacheKey: "zzx:hashrate:series:v2",
+        cacheKey: "zzx:hashrate:series:v3",
         ttlMs, timeoutMs
       });
 
       const points = normalizeSeries(seriesRes.data);
-      if (!points.length) throw new Error("hashrate series empty");
+      if (!points.length) {
+        // Show preview so you can see what mempool/allorigins returned
+        const pv = previewPayload(seriesRes.data);
+        throw new Error(`hashrate series empty · payload=${pv}`);
+      }
 
       const latest = points[points.length - 1];
       const zhNow = hsToZH(latest.hs);
 
-      // publish for other widgets
+      // publish global for other widgets
       W.ZZXMiningStats = W.ZZXMiningStats || {};
       if (Number.isFinite(zhNow)) W.ZZXMiningStats.globalHashrateZH = zhNow;
 
       setText(root, "[data-hr-zh]", fmtNum(zhNow, 3));
 
-      // spark uses last 24 points
+      // chart: last ~24 points (mempool 3d is hourly; 24 points = ~24h)
       const tail = points.slice(Math.max(0, points.length - 24));
       const valsZH = tail.map(p => hsToZH(p.hs));
       const svg = root.querySelector("[data-hr-svg]");
       if (svg) W.ZZXHashrateChart.draw(svg, valsZH);
 
-      // power: instant (GW) + energy 1h + energy 24h using avg of tail
+      // power/energy
       const gwNow = (zhNow * 1e9 * jPerTH) / 1e9;
       const finite = valsZH.filter(Number.isFinite);
       const avgZH = finite.reduce((a,b)=>a+b,0) / Math.max(1, finite.length);
@@ -207,15 +260,16 @@
       setText(root, "[data-hr-e1]", Number.isFinite(gwNow) ? `${fmtNum(gwNow, 2)} GWh` : "—");
       setText(root, "[data-hr-e24]", Number.isFinite(gwAvg) ? `${fmtNum(gwAvg * 24, 1)} GWh` : "—");
 
+      // ---- difficulty ----
       const diffRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty, {
-        cacheKey: "zzx:hashrate:diff:v2",
+        cacheKey: "zzx:hashrate:diff:v3",
         ttlMs, timeoutMs
       });
 
       const diff = normalizeDifficulty(diffRes.data);
       setText(root, "[data-hr-diff]", Number.isFinite(diff) ? fmtInt(diff) : "—");
 
-      // tor estimation (only if you expose node totals)
+      // ---- tor estimate (only if you provide node totals) ----
       const torCfg = W.ZZXHashrateSources.tor || { clampMin:0.05, clampMax:0.85, bandLowMult:0.70, bandHighMult:1.30 };
       let torFrac = inferTorFraction();
 
