@@ -1,6 +1,5 @@
 // __partials/widgets/nodes-by-version/sources.js
-// DROP-IN
-// Declares inputs/endpoints for nodes-by-version widget.
+// DROP-IN (FIXED ENDPOINTS)
 
 (function () {
   "use strict";
@@ -15,14 +14,15 @@
     pageSize: 5,
     refreshMs: 10 * 60_000,
 
-    // Bitnodes API (best effort)
+    // Prefer user-agent distribution endpoint (more common than versions).
+    // Keep versions as fallback only.
     endpoints: {
-      versions: "https://bitnodes.io/api/v1/nodes/versions/",
-      snapshotLatest: "https://bitnodes.io/api/v1/snapshots/latest/",
+      userAgents: "https://bitnodes.io/api/v1/nodes/user_agents/",
+      versions: "https://bitnodes.io/api/v1/nodes/versions/",          // fallback (may 404)
+      snapshotLatest: "https://bitnodes.io/api/v1/snapshots/latest/",  // final fallback
     },
   };
 
-  // optional: allow overriding endpoints from elsewhere
   NS.get = function get() {
     const cfg = NS.config;
     const ovr = W.ZZX_WIDGET_OVERRIDES?.[NS.id];
