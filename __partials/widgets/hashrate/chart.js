@@ -1,7 +1,4 @@
 // __partials/widgets/hashrate/chart.js
-// Wires plotter -> DOM.
-// Exposes: window.ZZXHashrateChart.draw(svgEl, valuesZH)
-
 (function () {
   "use strict";
 
@@ -10,11 +7,15 @@
 
   NS.draw = function draw(svgEl, valuesZH) {
     if (!svgEl) return;
+
     const pLine = svgEl.querySelector("[data-hr-line]");
     const pArea = svgEl.querySelector("[data-hr-area]");
     if (!pLine || !pArea) return;
 
-    const res = W.ZZXHashratePlotter?.build ? W.ZZXHashratePlotter.build(valuesZH) : { line:"", area:"" };
+    const res = W.ZZXHashratePlotter?.build
+      ? W.ZZXHashratePlotter.build(valuesZH)
+      : { line:"", area:"" };
+
     pLine.setAttribute("d", res.line || "");
     pArea.setAttribute("d", res.area || "");
   };
