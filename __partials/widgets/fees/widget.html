@@ -1,28 +1,80 @@
 <!-- __partials/widgets/fees/widget.html
      DROP-IN
-     Purpose: mempool fee recommendations (sats/vB) via mempool.space (through allorigins)
+     Purpose: mempool fee recommendations with unit toggle + full tier table
+     DOM CONTRACT PRESERVED:
+       data-fees-fast, data-fees-30m, data-fees-1h, data-fees-econ, data-fees-min, data-fees-status, data-fees-refresh
 -->
 <div class="btc-card" data-widget-root="fees">
-  <div class="btc-card__title">Fees</div>
+  <div class="btc-card__title zzx-w-title">
+    <span>Fees</span>
 
-  <div class="btc-card__value">
-    <span data-fees-fast>—</span><span class="zzx-fees-unit"> sat/vB</span>
+    <!-- unit toggle (click cycles sat/vB → BTC/vB → msat/vB → μsat/vB) -->
+    <button type="button" class="zzx-fees-unitbtn" data-fees-unit aria-label="Toggle fee units">
+      sat/vB
+    </button>
   </div>
 
-  <div class="btc-card__sub">
-    Fastest •
-    30m: <span data-fees-30m>—</span> •
-    1h: <span data-fees-1h>—</span>
+  <!-- Main stat under title: Avg Fee (your “main output below title”) -->
+  <div class="btc-card__value zzx-fees-main">
+    <span class="zzx-fees-main-k">Avg Fee</span>
+    <span class="zzx-fees-main-v">
+      <span data-fees-fast>—</span><span class="zzx-fees-unit"> sat/vB</span>
+    </span>
+  </div>
+
+  <div class="btc-card__sub zzx-fees-subline">
+    Instant: <span data-fees-instant>—</span> •
+    Fast: <span data-fees-30m>—</span> •
+    Low: <span data-fees-1h>—</span>
   </div>
 
   <div class="zzx-fees-grid" role="table" aria-label="Fee tiers">
+    <div class="zzx-fees-head" role="row">
+      <div class="zzx-fees-cell" role="columnheader">Tier</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="columnheader">Fee</div>
+      <div class="zzx-fees-cell zzx-fees-range" role="columnheader">Range</div>
+    </div>
+
+    <div class="zzx-fees-row" role="row">
+      <div class="zzx-fees-cell" role="cell">Instant</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-instant>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-instant-r>—</span></div>
+    </div>
+
+    <div class="zzx-fees-row" role="row">
+      <div class="zzx-fees-cell" role="cell">Fast</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-30m>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-fast-r>—</span></div>
+    </div>
+
+    <div class="zzx-fees-row" role="row">
+      <div class="zzx-fees-cell" role="cell">High</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-high>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-high-r>—</span></div>
+    </div>
+
+    <div class="zzx-fees-row" role="row">
+      <div class="zzx-fees-cell" role="cell">Mid</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-mid>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-mid-r>—</span></div>
+    </div>
+
+    <div class="zzx-fees-row" role="row">
+      <div class="zzx-fees-cell" role="cell">Low</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-1h>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-low-r>—</span></div>
+    </div>
+
     <div class="zzx-fees-row" role="row">
       <div class="zzx-fees-cell" role="cell">Economy</div>
-      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-econ>—</span> sat/vB</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-econ>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-econ-r>—</span></div>
     </div>
+
     <div class="zzx-fees-row" role="row">
-      <div class="zzx-fees-cell" role="cell">Minimum</div>
-      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-min>—</span> sat/vB</div>
+      <div class="zzx-fees-cell" role="cell">Min</div>
+      <div class="zzx-fees-cell zzx-fees-num" role="cell"><span data-fees-min>—</span> <span class="zzx-fees-unit">sat/vB</span></div>
+      <div class="zzx-fees-cell zzx-fees-range" role="cell"><span data-fees-min-r>—</span></div>
     </div>
   </div>
 
