@@ -84,14 +84,32 @@
   }
 
   async function loadData(cfg) {
-    // Try versions first; fallback to snapshot
-    const r1 = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.versions);
-    const p1 = W.ZZXNodesByVersionAdapter.parse(r1.json);
-    if (p1.items && p1.items.length) return { parsed: p1, from: r1.from, endpoint: "versions" };
+    // Try userAgents first (most reliable)
+    try {
+      const rUA = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.userAgents);
+      const pUA = W.ZZXNodesByVersionAdapter.parse(rUA.json);
+      if (pUA.items && pUA.items.length) {
+        return { parsed: pUA, from: rUA.from, endpoint: "userAgents" };
+      }
+    } catch (eUA) {
+      // ignore; fall through
+    }
 
-    const r2 = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.snapshotLatest);
-    const p2 = W.ZZXNodesByVersionAdapter.parse(r2.json);
-    return { parsed: p2, from: r2.from, endpoint: "snapshotLatest" };
+    // Try versions (may 404)
+    try {
+      const rV = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.versions);
+      const pV = W.ZZXNodesByVersionAdapter.parse(rV.json);
+      if (pV.items && pV.items.length) {
+        return { parsed: pV, from: rV.from, endpoint: "versions" };
+      }
+    } catch (eV) {
+      // ignore; fall through
+    }
+
+    // Final fallback: snapshot
+    const rS = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.snapshotLatest);
+    const pS = W.ZZXNodesByVersionAdapter.parse(rS.json);
+    return { parsed: pS, from: rS.from, endpoint: "snapshotLatest" };
   }
 
   function render(root) {
