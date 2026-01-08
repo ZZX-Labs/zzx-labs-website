@@ -1,156 +1,493 @@
 /* static/css/widgets-uniform.css
-   DROP-IN — uniform widget sizing + chart box sizing across all widgets
-   Goal: consistent width + consistent visual density; height similar.
+   ZZX-Labs Widgets — UNIFORM STYLE CONTRACT (DROP-IN)
+   ---------------------------------------------------
+   Goals:
+   - All widgets visually uniform: same width rules, consistent padding, borders, radii
+   - Titles: AdultSwimFont + #e6a42b
+   - Everything else: IBMPlexMono (via vars from static/fonts/fonts.css)
+   - Values: #c0d674 (price/primary), #e6a42b (volume/flow), deltas green/red
+   - Charts: same box sizing/height across widgets (canvas + svg)
+   - No font jumping: stable line-heights + numeric-variant tabular
+   - Safe: scoped to .zzx-card / .btc-card and [data-widget-root]
 */
 
+/* =========================================================
+   0) Font variables expected from static/fonts/fonts.css
+   -----------------------------------------------------
+   You said you already define these; keep consistent:
+     --zzx-font-title  : AdultSwimFont
+     --zzx-font-mono   : IBMPlexMono (or your mono stack)
+   ========================================================= */
+
 :root{
-  /* Tune once. Everything follows. */
-  --zzx-widget-minh: 190px;          /* minimum card height */
-  --zzx-widget-pad:  .75rem;         /* card inner padding */
-  --zzx-widget-gap:  .50rem;         /* vertical spacing inside cards */
+  /* If fonts.css already defines these, these act as fallback only */
+  --zzx-font-title: var(--font-adultswim, "AdultSwimFont", system-ui, sans-serif);
+  --zzx-font-mono : var(--font-ibmplexmono, "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
 
-  --zzx-chart-h:      56px;          /* default chart height */
-  --zzx-chart-h-tall: 72px;          /* high/low or dual-series charts */
+  /* Color tokens */
+  --zzx-c-price: #c0d674; /* primary values / price / hashrate / counts */
+  --zzx-c-flow : #e6a42b; /* volume / throughput / rewards / fees */
+  --zzx-c-up   : #6aa92a;
+  --zzx-c-down : #e05858;
+  --zzx-c-label: #b7bf9a;
+  --zzx-c-muted: #8a8f98;
 
-  --zzx-chart-pad:   .35rem .45rem;  /* chart container padding */
-  --zzx-radius:      12px;
+  /* Surfaces */
+  --zzx-line   : rgba(255,255,255,.10);
+  --zzx-line-2 : rgba(255,255,255,.14);
+  --zzx-surf   : rgba(255,255,255,.03);
+  --zzx-surf-2 : rgba(0,0,0,.35);
 
-  --zzx-line:        rgba(255,255,255,.10);
-  --zzx-surface:     rgba(255,255,255,.02);
+  /* Geometry */
+  --zzx-r      : 12px;
+  --zzx-r-sm   : 10px;
+
+  /* Spacing */
+  --zzx-pad    : .75rem;
+  --zzx-gap    : .45rem;
+
+  /* Chart sizing contract */
+  --zzx-chart-h: 92px;
+  --zzx-chart-h-sm: 88px;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Card shell normalization                                                    */
-/* -------------------------------------------------------------------------- */
+/* =========================================================
+   1) Widget card base (covers .zzx-card and .btc-card)
+   ========================================================= */
 
-.btc-card,
-.zzx-card{
+.zzx-card,
+.btc-card{
   width: 100%;
-  box-sizing: border-box;
-
-  padding: var(--zzx-widget-pad);
-  border-radius: var(--zzx-radius);
-
-  min-height: var(--zzx-widget-minh);
-
-  display: flex;
-  flex-direction: column;
-  gap: var(--zzx-widget-gap);
-
-  overflow: hidden; /* prevents right-edge spills from charts/tables */
-}
-
-/* Make sure internal blocks don't force overflow */
-.btc-card > *,
-.zzx-card > *{
   min-width: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Title / value / sub consistency                                             */
-/* -------------------------------------------------------------------------- */
-
-.btc-card__title,
-.zzx-card__title{
-  margin: 0;
-  line-height: 1.1;
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-  gap: .5rem;
-  min-width: 0;
-}
-
-.btc-card__value,
-.zzx-card__value{
-  margin: 0;
-  line-height: 1.1;
-
-  display:flex;
-  align-items: baseline;
-  gap: .4rem;
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  min-width: 0;
-}
-
-.btc-card__sub,
-.zzx-card__sub{
-  margin: 0;
-  line-height: 1.2;
-  min-height: 1.2em; /* reduces layout “jump” while loading */
-  min-width: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Standard chart container: opt-in via .zzx-chartbox                           */
-/* -------------------------------------------------------------------------- */
-
-.zzx-chartbox{
-  width: 100%;
   box-sizing: border-box;
 
   border: 1px solid var(--zzx-line);
-  background: var(--zzx-surface);
-  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+  border-radius: var(--zzx-r);
 
-  padding: var(--zzx-chart-pad);
+  padding: var(--zzx-pad);
   overflow: hidden;
+
+  /* Stop font-jitter from variable digit widths */
+  font-variant-numeric: tabular-nums;
 }
 
-/* Standard chart height */
-.zzx-chartbox svg,
-.zzx-chartbox canvas{
-  width: 100%;
-  display: block;
-  height: var(--zzx-chart-h);
+/* If you already have btc-card variants, keep them, but ensure no overflow */
+[data-widget-root]{
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Taller variant (high/low or dual-series charts) */
-.zzx-chartbox[data-chart="tall"] svg,
-.zzx-chartbox[data-chart="tall"] canvas{
-  height: var(--zzx-chart-h-tall);
+/* Consistent internal rhythm */
+.zzx-card > * + *,
+.btc-card > * + *{
+  margin-top: .35rem;
 }
 
-/* If a widget uses an internal <canvas> with no CSS height set, ensure it obeys */
-.zzx-chartbox canvas{
-  max-width: 100%;
+/* =========================================================
+   2) Titles — AdultSwimFont + #e6a42b
+   ========================================================= */
+
+.zzx-card__title,
+.btc-card__title,
+.zzx-card .zzx-card__title,
+.btc-card .btc-card__title{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  min-width: 0;
+
+  font-family: var(--zzx-font-title);
+  font-weight: 400;
+  letter-spacing: .02em;
+
+  color: var(--zzx-c-flow);
+  line-height: 1.05;
+  font-size: 1.05rem;
+
+  /* prevent wrap blowouts */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Helpful extras for common widget UI bits                                     */
-/* -------------------------------------------------------------------------- */
+/* =========================================================
+   3) Values + Subs — IBMPlexMono everywhere else
+   ========================================================= */
 
-/* Exchange selectors / small controls in titles shouldn't blow up layout */
-.zzx-card__title select,
-.btc-card__title select{
-  max-width: 100%;
+.zzx-card__value,
+.btc-card__value,
+.zzx-metric,
+.zzx-hr-v,
+.zzx-nodes-v,
+.hl24__v,
+.vol24__usd{
+  font-family: var(--zzx-font-mono);
+  letter-spacing: .01em;
 }
 
-/* Tables inside cards should never push the card wider */
-.zzx-card table,
-.btc-card table{
-  width: 100%;
-  max-width: 100%;
-  table-layout: fixed;
+.zzx-card__value,
+.btc-card__value{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+
+  min-width: 0;
+  line-height: 1.15;
+  font-size: 1.35rem; /* keep values visually consistent */
 }
 
-/* Generic metric grids: prevent overflow */
-.zzx-metrics,
-.zzx-hr-metrics,
-.zzx-nodes-meta{
+/* Common “metric” chunk */
+.zzx-metric{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sub line */
+.zzx-card__sub,
+.btc-card__sub{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-label);
+  font-size: .86rem;
+  line-height: 1.2;
+
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Units */
+.zzx-unit,
+.zzx-nodes-unit,
+.vol24__unit{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-label);
+  opacity: .92;
+  font-size: .90rem;
+}
+
+/* =========================================================
+   4) Semantic color contract (LOCKED)
+   ========================================================= */
+
+/* Primary values: price/primary/hasrate/nodes */
+.zzx-metric,
+[data-price],
+[data-high],
+[data-low],
+[data-hr-zh],
+[data-nodes-total],
+[data-nodes-height],
+.zzx-hbn-value{
+  color: var(--zzx-c-price);
+}
+
+/* Flow values: volume/rewards/fees/throughput */
+[data-vol-btc],
+[data-vol-usd],
+.vol24__usd,
+[data-fees],
+[data-rewards],
+[data-mempool-size],
+[data-ln-capacity],
+.hl24__k{
+  color: var(--zzx-c-flow);
+}
+
+/* Delta colors */
+.zzx-delta,
+.hl24__delta{
+  font-family: var(--zzx-font-mono);
+  font-size: .95rem;
+  white-space: nowrap;
+}
+.zzx-delta.is-up, .hl24__delta.is-up{ color: var(--zzx-c-up); }
+.zzx-delta.is-down, .hl24__delta.is-down{ color: var(--zzx-c-down); }
+.zzx-delta.is-flat, .hl24__delta.is-flat{ color: var(--zzx-c-label); }
+
+/* Muted / meta */
+.zzx-muted{ color: var(--zzx-c-muted); }
+.zzx-meta { color: var(--zzx-c-label); }
+
+/* =========================================================
+   5) Exchange selector (shared)
+   ========================================================= */
+
+.zzx-exchange{
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
   min-width: 0;
 }
 
-/* -------------------------------------------------------------------------- */
-/* OPTIONAL: force “visual sameness” when cards are in grid/rows               */
-/* (If you already use a grid system, you can delete this section.)            */
-/* -------------------------------------------------------------------------- */
-
-/* If widgets are placed in a grid, ensure cards stretch equally */
-.zzx-widgets-grid{
-  align-items: stretch;
+.zzx-exchange__label{
+  font-family: var(--zzx-font-mono);
+  font-size: .78rem;
+  color: rgba(255,255,255,.62);
+  letter-spacing: .02em;
+  white-space: nowrap;
 }
+
+select[data-exchange]{
+  background: #000;
+  color: var(--zzx-c-price);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 10px;
+  padding: .22rem .45rem;
+
+  font-family: var(--zzx-font-mono);
+  font-size: .80rem;
+  line-height: 1.1;
+
+  max-width: 170px;
+  min-width: 0;
+
+  outline: none;
+  appearance: none;
+}
+select[data-exchange]:hover{
+  border-color: rgba(230,164,43,.85);
+}
+select[data-exchange]:focus{
+  border-color: var(--zzx-c-flow);
+  box-shadow: 0 0 0 2px rgba(230,164,43,.18);
+}
+
+/* =========================================================
+   6) Uniform chart containers (canvas + svg)
+   ---------------------------------------------------------
+   Any widget can opt-in by using one of these wrappers:
+     .zzx-sparkbox
+     .zzx-spark-wrap
+     .hl24__chartbox
+     .zzx-hr-chart
+     .zzx-hbn-chart
+   ========================================================= */
+
+.zzx-sparkbox,
+.zzx-spark-wrap,
+.hl24__chartbox,
+.zzx-hr-chart,
+.zzx-hbn-chart{
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  height: var(--zzx-chart-h);
+  margin-top: .45rem;
+
+  border-radius: var(--zzx-r-sm);
+  background: var(--zzx-surf-2);
+  border: 1px solid var(--zzx-line);
+  padding: .35rem .45rem;
+}
+
+/* Canvas fill */
+.zzx-sparkbox canvas,
+.zzx-spark-wrap canvas,
+.hl24__chartbox canvas,
+canvas[data-chart],
+canvas[data-spark]{
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* SVG fill */
+.zzx-hr-chart svg,
+.zzx-hbn-chart svg,
+svg[data-hr-svg],
+svg[data-hbn-svg]{
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Hashrate sparkline colors (SVG) */
+.zzx-hr-chart [data-hr-area]{ fill: rgba(192, 214, 116, .14); }
+.zzx-hr-chart [data-hr-line]{
+  fill: none;
+  stroke: rgba(192, 214, 116, .95);
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Hashrate-by-nation bars */
+.zzx-hbn-bar{ fill: rgba(192,214,116,.85); }
+.zzx-hbn-band{ fill: rgba(230,164,43,.18); }
+.zzx-hbn-label{
+  fill: var(--zzx-c-label);
+  font-family: var(--zzx-font-mono);
+  font-size: 10px;
+}
+.zzx-hbn-value{
+  fill: var(--zzx-c-price);
+  font-family: var(--zzx-font-mono);
+  font-size: 10px;
+}
+
+/* Mobile chart height */
+@media (max-width: 620px){
+  .zzx-sparkbox,
+  .zzx-spark-wrap,
+  .hl24__chartbox,
+  .zzx-hr-chart,
+  .zzx-hbn-chart{
+    height: var(--zzx-chart-h-sm);
+  }
+
+  select[data-exchange]{ max-width: 140px; }
+}
+
+/* =========================================================
+   7) Uniform inner “stat grid” boxes (hashrate metrics, etc.)
+   ========================================================= */
+
+.zzx-hr-metrics,
+.zzx-metrics-grid{
+  margin-top: .45rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .45rem .6rem;
+}
+@media (min-width: 980px){
+  .zzx-hr-metrics,
+  .zzx-metrics-grid{
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.zzx-hr-metric,
+.zzx-metricbox{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius: 10px;
+  padding: .45rem .55rem;
+  min-width: 0;
+}
+
+.zzx-hr-k,
+.zzx-metricbox__k{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-flow);
+  font-size: .85rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zzx-hr-v,
+.zzx-metricbox__v{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-price);
+  font-size: 1.05rem;
+  line-height: 1.25;
+  margin-top: .15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zzx-hr-s,
+.zzx-metricbox__s{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-label);
+  font-size: .80rem;
+  line-height: 1.15;
+  margin-top: .15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   8) Nodes meta rows (used by nodes widget and similar)
+   ========================================================= */
+
+.zzx-nodes-meta{
+  margin-top: .45rem;
+  border-top: 1px solid var(--zzx-line);
+  padding-top: .4rem;
+}
+
+.zzx-nodes-meta__row{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .75rem;
+  margin: .15rem 0;
+}
+
+.zzx-nodes-k{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-label);
+  font-size: .92rem;
+  white-space: nowrap;
+}
+
+.zzx-nodes-v{
+  font-family: var(--zzx-font-mono);
+  color: var(--zzx-c-price);
+  font-size: .92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+  text-align: right;
+}
+
+/* =========================================================
+   9) High/Low legend pills (if used)
+   ========================================================= */
+
+.hl24__legend{
+  margin-top: .35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  font-family: var(--zzx-font-mono);
+  font-size: .78rem;
+  line-height: 1.15;
+  color: var(--zzx-c-muted);
+}
+
+.hl24__tag{
+  border: 1px solid var(--zzx-line);
+  border-radius: 999px;
+  padding: .12rem .45rem;
+  white-space: nowrap;
+}
+.hl24__tag.price{ color: var(--zzx-c-flow); }
+.hl24__tag.vol{ color: var(--zzx-c-up); }
+.hl24__tag.mark{ color: var(--zzx-c-label); }
+
+/* =========================================================
+   10) Hard clamps to prevent “font jump” and layout jitter
+   ========================================================= */
+
+/* Prevent huge numbers from forcing reflow */
+.zzx-card__value > *{
+  min-width: 0;
+}
+
+/* Ensure sublines don’t expand height unexpectedly */
+.zzx-card__sub, .btc-card__sub{
+  max-width: 100%;
+}
+
+/* Optional: stabilize titles if they contain long exchange names */
+.zzx-card__title > *{
+  min-width: 0;
+}
+
+/* =========================================================
+   END
+   ========================================================= */
