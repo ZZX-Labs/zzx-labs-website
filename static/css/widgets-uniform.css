@@ -1,82 +1,156 @@
 /* static/css/widgets-uniform.css
-   DROP-IN — uniform widget sizing + chart box sizing
+   DROP-IN — uniform widget sizing + chart box sizing across all widgets
    Goal: consistent width + consistent visual density; height similar.
 */
 
 :root{
-  /* Tune once, everything follows */
+  /* Tune once. Everything follows. */
   --zzx-widget-minh: 190px;          /* minimum card height */
-  --zzx-widget-pad:  .75rem;         /* inner padding */
-  --zzx-widget-gap:  .50rem;         /* vertical spacing */
-  --zzx-chart-h:     56px;           /* default chart height */
-  --zzx-chart-h-tall:72px;           /* for high/low type charts */
+  --zzx-widget-pad:  .75rem;         /* card inner padding */
+  --zzx-widget-gap:  .50rem;         /* vertical spacing inside cards */
+
+  --zzx-chart-h:      56px;          /* default chart height */
+  --zzx-chart-h-tall: 72px;          /* high/low or dual-series charts */
+
   --zzx-chart-pad:   .35rem .45rem;  /* chart container padding */
   --zzx-radius:      12px;
+
   --zzx-line:        rgba(255,255,255,.10);
   --zzx-surface:     rgba(255,255,255,.02);
 }
 
-/* Apply to ALL cards (btc-card or zzx-card) */
+/* -------------------------------------------------------------------------- */
+/* Card shell normalization                                                    */
+/* -------------------------------------------------------------------------- */
+
 .btc-card,
 .zzx-card{
   width: 100%;
   box-sizing: border-box;
+
   padding: var(--zzx-widget-pad);
   border-radius: var(--zzx-radius);
+
   min-height: var(--zzx-widget-minh);
-  display:flex;
+
+  display: flex;
   flex-direction: column;
   gap: var(--zzx-widget-gap);
+
+  overflow: hidden; /* prevents right-edge spills from charts/tables */
 }
 
-/* Title/value/sub spacing consistency */
+/* Make sure internal blocks don't force overflow */
+.btc-card > *,
+.zzx-card > *{
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Title / value / sub consistency                                             */
+/* -------------------------------------------------------------------------- */
+
 .btc-card__title,
 .zzx-card__title{
   margin: 0;
   line-height: 1.1;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: .5rem;
+  min-width: 0;
 }
 
 .btc-card__value,
 .zzx-card__value{
   margin: 0;
   line-height: 1.1;
+
   display:flex;
   align-items: baseline;
   gap: .4rem;
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  min-width: 0;
 }
 
 .btc-card__sub,
 .zzx-card__sub{
   margin: 0;
   line-height: 1.2;
-  min-height: 1.2em; /* keeps cards from “jumping” when loading */
+  min-height: 1.2em; /* reduces layout “jump” while loading */
+  min-width: 0;
 }
 
-/* Unified chart container: opt-in via .zzx-chartbox */
+/* -------------------------------------------------------------------------- */
+/* Standard chart container: opt-in via .zzx-chartbox                           */
+/* -------------------------------------------------------------------------- */
+
 .zzx-chartbox{
   width: 100%;
   box-sizing: border-box;
+
   border: 1px solid var(--zzx-line);
   background: var(--zzx-surface);
   border-radius: 10px;
+
   padding: var(--zzx-chart-pad);
   overflow: hidden;
 }
 
-/* Standard chart heights */
+/* Standard chart height */
 .zzx-chartbox svg,
 .zzx-chartbox canvas{
   width: 100%;
-  display:block;
+  display: block;
   height: var(--zzx-chart-h);
 }
 
+/* Taller variant (high/low or dual-series charts) */
 .zzx-chartbox[data-chart="tall"] svg,
 .zzx-chartbox[data-chart="tall"] canvas{
   height: var(--zzx-chart-h-tall);
 }
 
-/* If a widget has extra metric grids (like hashrate), it can grow naturally */
+/* If a widget uses an internal <canvas> with no CSS height set, ensure it obeys */
+.zzx-chartbox canvas{
+  max-width: 100%;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpful extras for common widget UI bits                                     */
+/* -------------------------------------------------------------------------- */
+
+/* Exchange selectors / small controls in titles shouldn't blow up layout */
+.zzx-card__title select,
+.btc-card__title select{
+  max-width: 100%;
+}
+
+/* Tables inside cards should never push the card wider */
+.zzx-card table,
+.btc-card table{
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+}
+
+/* Generic metric grids: prevent overflow */
+.zzx-metrics,
+.zzx-hr-metrics,
+.zzx-nodes-meta{
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* OPTIONAL: force “visual sameness” when cards are in grid/rows               */
+/* (If you already use a grid system, you can delete this section.)            */
+/* -------------------------------------------------------------------------- */
+
+/* If widgets are placed in a grid, ensure cards stretch equally */
+.zzx-widgets-grid{
+  align-items: stretch;
+}
