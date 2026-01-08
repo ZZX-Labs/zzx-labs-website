@@ -1,14 +1,8 @@
 /* __partials/widgets/price-24h/widget.css
    DROP-IN REPLACEMENT
-
-   Goals:
-   - local fonts only (AdultSwimFont / IBMPlexMono via variables)
-   - consistent chart sizing (no overflow on mobile)
-   - clean exchange selector styling
-   - same chart box size contract used by volume/high-low later
+   Uses shared chart sizing from static/css/widgets-uniform.css via .zzx-chartbox
 */
 
-/* Root containment (prevents overflow + long strings) */
 [data-widget-root="price-24h"]{
   min-width: 0;
   overflow: hidden;
@@ -23,7 +17,6 @@
   min-width:0;
 }
 
-/* If you use a wrapper span/div for selector */
 [data-widget-root="price-24h"] .zzx-exchange{
   display:inline-flex;
   align-items:center;
@@ -47,7 +40,6 @@
   border-radius:10px;
   padding:.22rem .45rem;
 
-  /* LOCAL fonts only */
   font-family: var(--zzx-font-mono);
   font-size:.80rem;
 
@@ -56,6 +48,7 @@
 
   outline: none;
 }
+
 [data-widget-root="price-24h"] select[data-exchange]:hover{
   border-color: rgba(230,164,43,.85);
 }
@@ -73,19 +66,16 @@
   min-width:0;
 }
 
-/* Price text */
 [data-widget-root="price-24h"] .zzx-metric{
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 
-  /* keep consistent mono feel */
   font-family: var(--zzx-font-mono);
   letter-spacing: .01em;
 }
 
-/* Delta */
 [data-widget-root="price-24h"] .zzx-delta{
   font-family: var(--zzx-font-mono);
   font-size:.95rem;
@@ -103,29 +93,13 @@
   white-space:nowrap;
 }
 
-/* === Chart container (the contract) ===
-   IMPORTANT:
-   - Your current HTML uses .zzx-spark-wrap + canvas[data-spark]
-   - We keep support for BOTH .zzx-sparkbox and .zzx-spark-wrap so you don’t need to change HTML.
-*/
-[data-widget-root="price-24h"] .zzx-sparkbox,
-[data-widget-root="price-24h"] .zzx-spark-wrap{
-  width:100%;
-  box-sizing:border-box;
-  min-width:0;
-  overflow:hidden;
-
-  height:92px;                 /* ONE knob: match volume/high-low */
+/* Chartbox is defined globally; we only ensure the canvas behaves */
+[data-widget-root="price-24h"] .zzx-chartbox{
   margin-top:.45rem;
-
-  border-radius:10px;
-  background: rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
 }
 
-/* Canvas fill (prevents right spill) */
-[data-widget-root="price-24h"] canvas[data-spark],
-[data-widget-root="price-24h"] .zzx-sparkbox canvas{
+/* Canvas must fill the box without causing overflow */
+[data-widget-root="price-24h"] .zzx-chartbox canvas{
   width:100% !important;
   height:100% !important;
   display:block;
@@ -134,6 +108,4 @@
 /* Mobile tweaks */
 @media (max-width: 620px){
   [data-widget-root="price-24h"] select[data-exchange]{ max-width: 140px; }
-  [data-widget-root="price-24h"] .zzx-sparkbox,
-  [data-widget-root="price-24h"] .zzx-spark-wrap{ height:88px; }
 }
