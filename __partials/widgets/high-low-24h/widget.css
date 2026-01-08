@@ -1,55 +1,149 @@
 /* __partials/widgets/high-low-24h/widget.css
    DROP-IN REPLACEMENT
-   Matches the visual contract of price-24h + volume-24h:
-   - zzx-card / btc-card compatible
-   - inline spark area
-   - hi/lo markers (green high, red low)
-   - NO webfonts, uses your existing mono stack variables if present
+
+   Goals:
+   - match your dark mono look
+   - selector styling consistent with price-24h
+   - identical chart sizing contract (92px desktop / 88px mobile)
+   - prevent overflow on mobile
 */
 
-:root{
-  /* safe fallbacks if core tokens not present */
-  --zzx-accent: var(--zzx-accent, #c0d674);
-  --zzx-accent-alt: var(--zzx-accent-alt, #e6a42b);
-  --zzx-bg: var(--zzx-bg, #0b0b0b);
-  --zzx-border-strong: var(--zzx-border-strong, #2a2a2a);
-  --zzx-shadow: var(--zzx-shadow, 0 6px 18px rgba(0,0,0,.25));
-  --zzx-font-mono: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+[data-widget-root="high-low-24h"]{
+  min-width:0;
+  overflow:hidden;
 }
 
-.zzx-widget--high-low-24h .zzx-card,
-.zzx-widget--high-low-24h .btc-card{
-  width:100%;
-  box-sizing:border-box;
+/* Title row + selector */
+[data-widget-root="high-low-24h"] .zzx-card__title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
 }
 
-.zzx-widget--high-low-24h .zzx-card__title,
-.zzx-widget--high-low-24h .btc-card__title{
+[data-widget-root="high-low-24h"] .zzx-exchange{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  min-width:0;
+}
+
+[data-widget-root="high-low-24h"] .zzx-exchange__label{
+  font-size:.78rem;
+  color: rgba(255,255,255,.62);
+  text-transform: lowercase;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+[data-widget-root="high-low-24h"] select[data-exchange]{
+  background:#000;
+  color:#c0d674;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;
+  padding:.22rem .45rem;
+
   font-family: var(--zzx-font-mono);
+  font-size:.80rem;
+
+  max-width: 170px;
+  min-width: 0;
+  outline:none;
+}
+[data-widget-root="high-low-24h"] select[data-exchange]:hover{
+  border-color: rgba(230,164,43,.85);
+}
+[data-widget-root="high-low-24h"] select[data-exchange]:focus{
+  border-color:#e6a42b;
+  box-shadow: 0 0 0 2px rgba(230,164,43,.18);
 }
 
-.zzx-widget--high-low-24h .zzx-card__value,
-.zzx-widget--high-low-24h .btc-card__value{
+/* Metric row */
+[data-widget-root="high-low-24h"] .hl24__metrics{
   display:flex;
   align-items:baseline;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+[data-widget-root="high-low-24h"] .hl24__metric{
+  display:inline-flex;
+  align-items:baseline;
   gap:.35rem;
-  flex-wrap:wrap;
+  min-width:0;
 }
 
-.zzx-widget--high-low-24h [data-hi]{
-  color: #43d17a; /* green high */
+[data-widget-root="high-low-24h"] .hl24__k{
+  color:#e6a42b;
+  font-size:.90rem;
+  letter-spacing:.02em;
 }
 
-.zzx-widget--high-low-24h [data-lo]{
-  color: #ff5a5a; /* red low */
+[data-widget-root="high-low-24h"] .hl24__v{
+  font-family: var(--zzx-font-mono);
+  font-size:1.05rem;
+  color:#c0d674;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  min-width:0;
 }
 
-/* spark canvas injected by widget.js */
-.zzx-widget--high-low-24h canvas.btc-spark{
+/* Delta */
+[data-widget-root="high-low-24h"] .hl24__delta{
+  font-family: var(--zzx-font-mono);
+  font-size:.95rem;
+  white-space:nowrap;
+}
+[data-widget-root="high-low-24h"] .hl24__delta.is-up{ color:#6aa92a; }
+[data-widget-root="high-low-24h"] .hl24__delta.is-down{ color:#e05858; }
+[data-widget-root="high-low-24h"] .hl24__delta.is-flat{ color:#b7bf9a; }
+
+/* Chart box contract */
+[data-widget-root="high-low-24h"] .hl24__chartbox{
   width:100%;
-  height:60px;
-  display:block;
+  box-sizing:border-box;
+  min-width:0;
+  overflow:hidden;
+
+  height:92px;
   margin-top:.45rem;
-  border-radius:8px;
-  background: rgba(255,255,255,.03);
+
+  border-radius:10px;
+  background: rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
+}
+
+[data-widget-root="high-low-24h"] canvas[data-chart]{
+  width:100% !important;
+  height:100% !important;
+  display:block;
+}
+
+[data-widget-root="high-low-24h"] .hl24__legend{
+  margin-top:.35rem;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.35rem;
+  color:#8a8f98;
+  font-size:.78rem;
+  line-height:1.15;
+}
+
+[data-widget-root="high-low-24h"] .hl24__tag{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;
+  padding:.12rem .45rem;
+  font-family: var(--zzx-font-mono);
+  white-space:nowrap;
+}
+[data-widget-root="high-low-24h"] .hl24__tag.price{ color:#e6a42b; }
+[data-widget-root="high-low-24h"] .hl24__tag.vol{ color:#6aa92a; }
+[data-widget-root="high-low-24h"] .hl24__tag.mark{ color:#b7bf9a; }
+
+@media (max-width: 620px){
+  [data-widget-root="high-low-24h"] select[data-exchange]{ max-width: 140px; }
+  [data-widget-root="high-low-24h"] .hl24__chartbox{ height:88px; }
 }
