@@ -1,11 +1,6 @@
 /* __partials/widgets/volume-24h/widget.css
    DROP-IN REPLACEMENT
-
-   Goals:
-   - local fonts only (AdultSwimFont / IBMPlexMono via variables)
-   - consistent chart sizing (same contract as price-24h)
-   - clean selector styling
-   - right-side: delta % + USD equivalent
+   Uses shared chart sizing from static/css/widgets-uniform.css via .zzx-chartbox
 */
 
 [data-widget-root="volume-24h"]{
@@ -72,6 +67,7 @@
   display:flex;
   align-items:baseline;
   justify-content:space-between;
+  min-width:0;
 }
 
 [data-widget-root="volume-24h"] .zzx-metric{
@@ -123,22 +119,12 @@
   white-space:nowrap;
 }
 
-/* Chart contract */
-[data-widget-root="volume-24h"] .zzx-sparkbox{
-  width:100%;
-  box-sizing:border-box;
-  min-width:0;
-  overflow:hidden;
-
-  height:92px;
+/* Chartbox is defined globally; we only ensure the canvas behaves */
+[data-widget-root="volume-24h"] .zzx-chartbox{
   margin-top:.45rem;
-
-  border-radius:10px;
-  background: rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
 }
 
-[data-widget-root="volume-24h"] .zzx-sparkbox > canvas{
+[data-widget-root="volume-24h"] .zzx-chartbox canvas{
   width:100% !important;
   height:100% !important;
   display:block;
@@ -146,5 +132,4 @@
 
 @media (max-width: 620px){
   [data-widget-root="volume-24h"] select[data-exchange]{ max-width: 140px; }
-  [data-widget-root="volume-24h"] .zzx-sparkbox{ height:88px; }
 }
