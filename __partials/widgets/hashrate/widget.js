@@ -1,47 +1,65 @@
 // __partials/widgets/hashrate/widget.js
 // DROP-IN REPLACEMENT
-// - Ensures deps: sources.js, fetch.js, plotter.js, chart.js (auto-load from same dir)
-// - Uses mempool.space via AllOrigins (through core.fetchJSON / ZZXAO fallback)
-// - Renders: current ZH/s, difficulty, power + energy estimates, 24h spark (last 24 points)
+// - Auto-loads sources.js + fetch.js from same widget dir
+// - Uses robust text-first JSON parsing w/ direct→AllOrigins fallback
+// - Keeps your DOM contract intact
 
 (function () {
   "use strict";
 
   const W = window;
   const ID = "hashrate";
-  const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
-
-  const UI_TICK_MS  = 750;
-  const NET_MIN_MS  = 60_000;
 
   const DEFAULT_J_PER_TH = 30;
+  let inflight = false;
 
-  function n2(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
+  const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
 
   function fmtNum(n, digits = 2) {
     return Number.isFinite(n)
       ? n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
       : "—";
   }
-
   function fmtInt(n) {
     return Number.isFinite(n) ? Math.round(n).toLocaleString() : "—";
   }
+  function n2(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
 
-  // H/s -> ZH/s
+  function getJPerTH() {
+    const v = W.ZZX_MINING && Number(W.ZZX_MINING.J_PER_TH);
+    return Number.isFinite(v) && v > 0 ? v : DEFAULT_J_PER_TH;
+  }
+
   function hsToZH(hs) {
-    const v = n2(hs);
-    return Number.isFinite(v) ? (v / 1e21) : NaN;
+    const n = n2(hs);
+    return Number.isFinite(n) ? (n / 1e21) : NaN;
+  }
+
+  function buildSpark(valuesZH) {
+    const w = 300, h = 70, pad = 6;
+    const vals = valuesZH.filter(Number.isFinite);
+    if (!vals.length) return { line: "", area: "" };
+
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const span = (max - min) || 1;
+
+    const n = valuesZH.length;
+    const pts = valuesZH.map((v, i) => {
+      const x = (i / Math.max(1, n - 1)) * (w - pad * 2) + pad;
+      const vv = Number.isFinite(v) ? v : min;
+      const y = (h - pad) - ((vv - min) / span) * (h - pad * 2);
+      return [x, y];
+    });
+
+    const line = "M " + pts.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ");
+    const area = [line, `L ${(w - pad).toFixed(2)} ${(h - pad).toFixed(2)}`, `L ${pad.toFixed(2)} ${(h - pad).toFixed(2)}`, "Z"].join(" ");
+    return { line, area };
   }
 
   function setText(root, sel, text) {
     const el = root.querySelector(sel);
     if (el) el.textContent = text;
-  }
-
-  function getJPerTH() {
-    const v = n2(W.ZZX_MINING && W.ZZX_MINING.J_PER_TH);
-    return Number.isFinite(v) && v > 0 ? v : DEFAULT_J_PER_TH;
   }
 
   function widgetBasePath(){
@@ -69,149 +87,161 @@
   async function ensureDeps(){
     const base = widgetBasePath();
 
-    if (!W.ZZXHashrateSources?.get){
+    if (!W.ZZXHashrateSources?.list){
       const ok = await loadScriptOnce(base+"sources.js", "zzx:hashrate:sources");
       if (!ok) return { ok:false, why:"sources.js missing" };
       await new Promise(r=>setTimeout(r,0));
-      if (!W.ZZXHashrateSources?.get) return { ok:false, why:"sources.js did not register" };
+      if (!W.ZZXHashrateSources?.list) return { ok:false, why:"sources.js did not register" };
     }
 
-    if (!W.ZZXHashrateFetch?.fetchHashrateSeries){
+    if (!W.ZZXHashrateFetch?.fetchJSON){
       const ok = await loadScriptOnce(base+"fetch.js", "zzx:hashrate:fetch");
       if (!ok) return { ok:false, why:"fetch.js missing" };
       await new Promise(r=>setTimeout(r,0));
-      if (!W.ZZXHashrateFetch?.fetchHashrateSeries) return { ok:false, why:"fetch.js did not register" };
-    }
-
-    if (!W.ZZXHashratePlotter?.build){
-      const ok = await loadScriptOnce(base+"plotter.js", "zzx:hashrate:plotter");
-      if (!ok) return { ok:false, why:"plotter.js missing" };
-      await new Promise(r=>setTimeout(r,0));
-      if (!W.ZZXHashratePlotter?.build) return { ok:false, why:"plotter.js did not register" };
-    }
-
-    if (!W.ZZXHashrateChart?.draw){
-      const ok = await loadScriptOnce(base+"chart.js", "zzx:hashrate:chart");
-      if (!ok) return { ok:false, why:"chart.js missing" };
-      await new Promise(r=>setTimeout(r,0));
-      if (!W.ZZXHashrateChart?.draw) return { ok:false, why:"chart.js did not register" };
+      if (!W.ZZXHashrateFetch?.fetchJSON) return { ok:false, why:"fetch.js did not register" };
     }
 
     return { ok:true };
   }
 
-  window.ZZXWidgets.register(ID, {
-    mount(slotEl){
-      this.root = slotEl;
-      this._t = null;
-      this._ctx = null;
-      this._busy = false;
-      this._lastNetAt = 0;
-      this._depsOk = false;
-      this._src = null;
-      this._cache = { points: null, diff: NaN, when: 0 };
-    },
+  function normalizeSeries(payload) {
+    let arr = payload;
 
-    async start(ctx){
-      this._ctx = ctx || null;
-      const root = this.root;
-      if (!root) return;
+    if (!Array.isArray(arr) && payload && typeof payload === "object") {
+      if (Array.isArray(payload.hashrates)) arr = payload.hashrates;
+      else if (Array.isArray(payload.data)) arr = payload.data;
+      else if (Array.isArray(payload.series)) arr = payload.series;
+    }
+    if (!Array.isArray(arr)) return [];
 
-      const sub = root.querySelector("[data-hr-sub]");
+    const out = [];
+    for (const p of arr) {
+      if (!p) continue;
 
+      if (Array.isArray(p)) {
+        const t = n2(p[0]);
+        const hs = n2(p[1]);
+        if (Number.isFinite(hs)) out.push({ t, hs });
+        continue;
+      }
+
+      if (typeof p === "object") {
+        const t = n2(p.timestamp ?? p.time ?? p.t);
+        const hs = n2(p.hashrate ?? p.avgHashrate ?? p.value ?? p.v ?? p.h);
+        if (Number.isFinite(hs)) out.push({ t, hs });
+      }
+    }
+
+    // seconds -> ms
+    for (const pt of out) {
+      if (Number.isFinite(pt.t) && pt.t < 2e12) pt.t = pt.t * 1000;
+    }
+
+    out.sort((a,b)=> (a.t||0) - (b.t||0));
+    return out;
+  }
+
+  function normalizeDifficulty(payload) {
+    return (
+      n2(payload?.difficulty) ||
+      n2(payload?.currentDifficulty) ||
+      n2(payload?.current_difficulty) ||
+      n2(payload?.previousRetarget) ||
+      n2(payload?.previous_retarget) ||
+      NaN
+    );
+  }
+
+  async function update(root, core) {
+    if (!root || inflight) return;
+    inflight = true;
+
+    try {
       const deps = await ensureDeps();
-      if (!deps.ok){
-        if (sub) sub.textContent = `error: ${deps.why}`;
+      if (!deps.ok) {
+        setText(root, "[data-hr-sub]", `error: ${deps.why}`);
         return;
       }
 
-      this._depsOk = true;
-      this._src = W.ZZXHashrateSources.get();
+      const src = (W.ZZXHashrateSources.list()?.[0]) || null;
+      if (!src) {
+        setText(root, "[data-hr-sub]", "error: no sources");
+        return;
+      }
 
-      const tick = async () => {
-        if (!root.isConnected) return;
-        if (this._busy) return;
+      const jPerTH = getJPerTH();
+      setText(root, "[data-hr-eff]", fmtInt(jPerTH));
 
-        const now = Date.now();
-        if ((now - this._lastNetAt) < NET_MIN_MS) return;
+      // fetch hashrate series + difficulty via robust fetch
+      const seriesPayload = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.hashrate3d);
+      const points = normalizeSeries(seriesPayload);
+      if (!points.length) throw new Error("hashrate series empty");
 
-        this._busy = true;
-        try{
-          const jPerTH = getJPerTH();
-          setText(root, "[data-hr-eff]", fmtInt(jPerTH));
+      const latest = points[points.length - 1];
+      const zhNow = hsToZH(latest.hs);
+      setText(root, "[data-hr-zh]", fmtNum(zhNow, 3));
 
-          const src = this._src || W.ZZXHashrateSources.get();
+      const last24 = points.slice(Math.max(0, points.length - 24));
+      const last24ZH = last24.map(p => hsToZH(p.hs));
 
-          if (sub) sub.textContent = "loading…";
+      const svg = root.querySelector("[data-hr-svg]");
+      if (svg) {
+        const { line, area } = buildSpark(last24ZH);
+        const pLine = svg.querySelector("[data-hr-line]");
+        const pArea = svg.querySelector("[data-hr-area]");
+        if (pLine) pLine.setAttribute("d", line);
+        if (pArea) pArea.setAttribute("d", area);
+      }
 
-          const [points, diff] = await Promise.all([
-            W.ZZXHashrateFetch.fetchHashrateSeries(this._ctx, src.hashrate3d),
-            W.ZZXHashrateFetch.fetchDifficulty(this._ctx, src.difficultyAdj),
-          ]);
+      // Power estimate
+      const watts = zhNow * 1e9 * jPerTH;  // ZH/s -> TH/s (×1e9) then ×J/TH => W
+      const gw = watts / 1e9;
 
-          this._cache.points = points;
-          this._cache.diff = diff;
-          this._cache.when = Date.now();
+      const gwh1 = gw;
+      const finite24 = last24ZH.filter(Number.isFinite);
+      const avgZH24 = finite24.reduce((a,b)=>a+b,0) / Math.max(1, finite24.length);
+      const gwAvg24 = (avgZH24 * 1e9 * jPerTH) / 1e9;
+      const gwh24 = gwAvg24 * 24;
 
-          // latest ZH/s
-          const latest = points[points.length - 1];
-          const zhNow = hsToZH(latest.hs);
-          setText(root, "[data-hr-zh]", fmtNum(zhNow, 3));
+      setText(root, "[data-hr-power]", Number.isFinite(gw) ? `${fmtNum(gw, 2)} GW` : "—");
+      setText(root, "[data-hr-e1]", Number.isFinite(gwh1) ? `${fmtNum(gwh1, 2)} GWh` : "—");
+      setText(root, "[data-hr-e24]", Number.isFinite(gwh24) ? `${fmtNum(gwh24, 1)} GWh` : "—");
 
-          // difficulty
-          setText(root, "[data-hr-diff]", Number.isFinite(diff) ? fmtInt(diff) : "—");
+      const diffPayload = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty);
+      const dNow = normalizeDifficulty(diffPayload);
+      setText(root, "[data-hr-diff]", Number.isFinite(dNow) ? fmtInt(dNow) : "—");
 
-          // last ~24 points for 24h spark (hourly-ish series)
-          const last24 = points.slice(Math.max(0, points.length - 24));
-          const last24ZH = last24.map(p => hsToZH(p.hs));
+      setText(root, "[data-hr-tor]", "—");
+      setText(root, "[data-hr-tor-note]", "no public feed");
 
-          const svg = root.querySelector("[data-hr-svg]");
-          try{
-            W.ZZXHashrateChart.draw(svg, last24ZH);
-          }catch(e){
-            if (DEBUG) console.warn("[hashrate] chart draw failed", e);
-          }
-
-          // power + energy estimates
-          // TH/s = ZH/s * 1e9
-          // W = TH/s * J/TH
-          const watts = zhNow * 1e9 * jPerTH;
-          const gw = watts / 1e9;
-
-          const gwh1 = gw; // GW * 1h = GWh
-
-          const finite24 = last24ZH.filter(Number.isFinite);
-          const avgZH24 = finite24.reduce((a,b)=>a+b,0) / Math.max(1, finite24.length);
-          const gwAvg24 = (avgZH24 * 1e9 * jPerTH) / 1e9;
-          const gwh24 = gwAvg24 * 24;
-
-          setText(root, "[data-hr-power]", Number.isFinite(gw) ? `${fmtNum(gw, 2)} GW` : "—");
-          setText(root, "[data-hr-e1]", Number.isFinite(gwh1) ? `${fmtNum(gwh1, 2)} GWh` : "—");
-          setText(root, "[data-hr-e24]", Number.isFinite(gwh24) ? `${fmtNum(gwh24, 1)} GWh` : "—");
-
-          // Tor fields: no public canonical feed (keep stable placeholders)
-          setText(root, "[data-hr-tor]", "—");
-          setText(root, "[data-hr-tor-note]", "no public feed");
-
-          if (sub) sub.textContent = "Source: mempool.space (hashrate 3d + difficulty-adjustment)";
-          this._lastNetAt = Date.now();
-        }catch(e){
-          if (sub) sub.textContent = `error: ${String(e?.message || e)}`;
-          if (DEBUG) console.warn("[hashrate] update failed", e);
-          this._lastNetAt = Date.now(); // back off
-        }finally{
-          this._busy = false;
-        }
-      };
-
-      // immediate + loop
-      tick();
-      this._t = setInterval(tick, UI_TICK_MS);
-    },
-
-    stop(){
-      if (this._t) clearInterval(this._t);
-      this._t = null;
+      setText(root, "[data-hr-sub]", `Source: ${src.label} (hashrate 3d + difficulty-adjustment)`);
+    } catch (e) {
+      const msg = String(e?.message || e);
+      setText(root, "[data-hr-sub]", `error: ${msg}`);
+      if (DEBUG) console.warn("[hashrate]", e);
+    } finally {
+      inflight = false;
     }
-  });
+  }
+
+  function boot(root, core) {
+    if (!root) return;
+
+    if (root.__zzxHashrateTimer) {
+      clearInterval(root.__zzxHashrateTimer);
+      root.__zzxHashrateTimer = null;
+    }
+
+    update(root, core);
+    root.__zzxHashrateTimer = setInterval(() => update(root, core), 60_000);
+  }
+
+  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
+    W.ZZXWidgetsCore.onMount(ID, (root, core) => boot(root, core));
+    return;
+  }
+
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
+    W.ZZXWidgets.register(ID, function (root, core) { boot(root, core); });
+  }
 })();
