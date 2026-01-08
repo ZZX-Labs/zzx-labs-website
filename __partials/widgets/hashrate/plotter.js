@@ -1,20 +1,17 @@
 // __partials/widgets/hashrate/plotter.js
-// Builds SVG path strings for line+area spark.
-// Exposes: window.ZZXHashratePlotter.build(values)
-
 (function () {
   "use strict";
 
   const W = window;
   const NS = (W.ZZXHashratePlotter = W.ZZXHashratePlotter || {});
 
-  NS.build = function build(values) {
+  NS.build = function build(valuesZH) {
     const w = 300, h = 70, pad = 6;
 
-    const src = Array.isArray(values) ? values : [];
+    const src = Array.isArray(valuesZH) ? valuesZH : [];
     if (src.length < 2) return { line:"", area:"" };
 
-    const vals = src.map(v => (Number.isFinite(v) ? v : NaN)).filter(Number.isFinite);
+    const vals = src.filter(Number.isFinite);
     if (!vals.length) return { line:"", area:"" };
 
     const min = Math.min(...vals);
@@ -31,7 +28,6 @@
 
     const line = "M " + pts.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ");
     const area = `${line} L ${(w - pad).toFixed(2)} ${(h - pad).toFixed(2)} L ${pad.toFixed(2)} ${(h - pad).toFixed(2)} Z`;
-
     return { line, area };
   };
 })();
