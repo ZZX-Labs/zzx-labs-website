@@ -1,7 +1,6 @@
 // __partials/widgets/hashrate/widget.js
-// DROP-IN REPLACEMENT (fixes: "hashrate series empty" by accepting mempool payload shapes)
-// Requires separate files present:
-//   sources.js, fetch.js, plotter.js, chart.js
+// DROP-IN REPLACEMENT (fixes Difficulty: — by reading difficulty from tip block)
+// Requires: sources.js, fetch.js, plotter.js, chart.js
 
 (function () {
   "use strict";
@@ -9,6 +8,9 @@
   const W = window;
   const ID = "hashrate";
   const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
+
+  // mempool base (used for difficulty fallback even if sources.js changes)
+  const MEMPOOL = "https://mempool.space";
 
   let inflight = false;
 
@@ -71,31 +73,27 @@
     return Number.isFinite(v) ? (v / 1e21) : NaN;
   }
 
-  // ---- robust: accept mempool shapes ----
   function pickArray(payload){
-    // Most common:
-    // 1) payload is already an array
     if (Array.isArray(payload)) return payload;
 
-    // 2) payload.hashrates is an array
     if (payload && typeof payload === "object") {
       if (Array.isArray(payload.hashrates)) return payload.hashrates;
       if (Array.isArray(payload.data)) return payload.data;
       if (Array.isArray(payload.series)) return payload.series;
 
-      // Some proxies wrap:
-      // { data: { hashrates: [...] } } or { hashrates: { hashrates:[...] } }
       if (payload.data && typeof payload.data === "object") {
         if (Array.isArray(payload.data.hashrates)) return payload.data.hashrates;
         if (Array.isArray(payload.data.data)) return payload.data.data;
         if (Array.isArray(payload.data.series)) return payload.data.series;
       }
+
       if (payload.hashrates && typeof payload.hashrates === "object") {
         if (Array.isArray(payload.hashrates.hashrates)) return payload.hashrates.hashrates;
         if (Array.isArray(payload.hashrates.data)) return payload.hashrates.data;
         if (Array.isArray(payload.hashrates.series)) return payload.hashrates.series;
       }
     }
+
     return null;
   }
 
@@ -107,7 +105,6 @@
     for (const p of arr) {
       if (p == null) continue;
 
-      // mempool sometimes returns [timestamp, avgHashrate]
       if (Array.isArray(p)) {
         const t = n(p[0]);
         const hs = n(p[1]);
@@ -116,7 +113,6 @@
       }
 
       if (typeof p === "object") {
-        // mempool object form: { timestamp, avgHashrate, height }
         const t = n(p.timestamp ?? p.time ?? p.t);
         const hs = n(
           p.avgHashrate ??
@@ -139,21 +135,26 @@
     return out;
   }
 
-  function normalizeDifficulty(payload){
+  // Prefer absolute difficulty if present anywhere
+  function readDifficultyFromPayload(payload){
     const candidates = [
       payload?.difficulty,
       payload?.currentDifficulty,
       payload?.current_difficulty,
-      payload?.newDifficulty,
-      payload?.new_difficulty,
       payload?.data?.difficulty,
       payload?.data?.currentDifficulty,
       payload?.data?.current_difficulty,
+      payload?.block?.difficulty,
+      payload?.data?.block?.difficulty,
     ];
     for (const c of candidates) {
       const v = n(c);
       if (Number.isFinite(v) && v > 0) return v;
     }
+    // If payload itself is numeric
+    const self = n(payload);
+    if (Number.isFinite(self) && self > 0) return self;
+
     return NaN;
   }
 
@@ -188,14 +189,30 @@
     return NaN;
   }
 
-  function previewPayload(x){
-    try{
-      const s = JSON.stringify(x);
-      if (!s) return "null";
-      return s.length > 220 ? s.slice(0,220) + "…" : s;
-    }catch{
-      return String(x);
-    }
+  // --- difficulty fallback: tip hash -> tip block -> difficulty ---
+  async function fetchTipDifficulty(core, opts){
+    // tip hash (string)
+    const tipHashRes = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/blocks/tip/hash`, {
+      cacheKey: "zzx:hashrate:tiphash:v1",
+      ttlMs: opts.ttlMs,
+      timeoutMs: opts.timeoutMs
+    });
+
+    const tipHash = (typeof tipHashRes?.data === "string")
+      ? tipHashRes.data.trim()
+      : (typeof tipHashRes === "string" ? tipHashRes.trim() : "");
+
+    if (!tipHash || tipHash.length < 16) return NaN;
+
+    // tip block
+    const blockRes = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/block/${encodeURIComponent(tipHash)}`, {
+      cacheKey: "zzx:hashrate:tipblock:v1",
+      ttlMs: opts.ttlMs,
+      timeoutMs: opts.timeoutMs
+    });
+
+    const diff = readDifficultyFromPayload(blockRes?.data);
+    return diff;
   }
 
   async function update(root, core){
@@ -222,18 +239,14 @@
       const ttlMs = pol.cacheTtlMs || 300000;
       const timeoutMs = pol.timeoutMs || 12000;
 
-      // ---- series ----
+      // ---- hashrate series ----
       const seriesRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.hashrate3d, {
-        cacheKey: "zzx:hashrate:series:v3",
+        cacheKey: "zzx:hashrate:series:v4",
         ttlMs, timeoutMs
       });
 
-      const points = normalizeSeries(seriesRes.data);
-      if (!points.length) {
-        // Show preview so you can see what mempool/allorigins returned
-        const pv = previewPayload(seriesRes.data);
-        throw new Error(`hashrate series empty · payload=${pv}`);
-      }
+      const points = normalizeSeries(seriesRes?.data);
+      if (!points.length) throw new Error("hashrate series empty");
 
       const latest = points[points.length - 1];
       const zhNow = hsToZH(latest.hs);
@@ -244,14 +257,15 @@
 
       setText(root, "[data-hr-zh]", fmtNum(zhNow, 3));
 
-      // chart: last ~24 points (mempool 3d is hourly; 24 points = ~24h)
+      // chart: last ~24 points
       const tail = points.slice(Math.max(0, points.length - 24));
       const valsZH = tail.map(p => hsToZH(p.hs));
       const svg = root.querySelector("[data-hr-svg]");
       if (svg) W.ZZXHashrateChart.draw(svg, valsZH);
 
-      // power/energy
+      // power/energy estimates
       const gwNow = (zhNow * 1e9 * jPerTH) / 1e9;
+
       const finite = valsZH.filter(Number.isFinite);
       const avgZH = finite.reduce((a,b)=>a+b,0) / Math.max(1, finite.length);
       const gwAvg = (avgZH * 1e9 * jPerTH) / 1e9;
@@ -261,16 +275,30 @@
       setText(root, "[data-hr-e24]", Number.isFinite(gwAvg) ? `${fmtNum(gwAvg * 24, 1)} GWh` : "—");
 
       // ---- difficulty ----
-      const diffRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty, {
-        cacheKey: "zzx:hashrate:diff:v3",
-        ttlMs, timeoutMs
-      });
+      let diff = NaN;
 
-      const diff = normalizeDifficulty(diffRes.data);
-      setText(root, "[data-hr-diff]", Number.isFinite(diff) ? fmtInt(diff) : "—");
+      // 1) try your existing endpoint first
+      if (src.endpoints?.difficulty) {
+        const diffRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty, {
+          cacheKey: "zzx:hashrate:diff:v4",
+          ttlMs, timeoutMs
+        });
+        diff = readDifficultyFromPayload(diffRes?.data);
+      }
+
+      // 2) if still missing, use tip block difficulty
+      if (!(diff > 0)) {
+        diff = await fetchTipDifficulty(core, { ttlMs, timeoutMs });
+      }
+
+      setText(root, "[data-hr-diff]", (diff > 0) ? fmtInt(diff) : "—");
 
       // ---- tor estimate (only if you provide node totals) ----
-      const torCfg = W.ZZXHashrateSources.tor || { clampMin:0.05, clampMax:0.85, bandLowMult:0.70, bandHighMult:1.30 };
+      const torCfg = W.ZZXHashrateSources.tor || {
+        clampMin: 0.05, clampMax: 0.85,
+        bandLowMult: 0.70, bandHighMult: 1.30
+      };
+
       let torFrac = inferTorFraction();
 
       if (Number.isFinite(torFrac)) {
@@ -289,12 +317,7 @@
         setText(root, "[data-hr-tor-note]", "no tor node signal");
       }
 
-      const staleBits = [];
-      if (seriesRes.stale) staleBits.push("hashrate stale");
-      if (diffRes.stale) staleBits.push("difficulty stale");
-      const staleNote = staleBits.length ? ` · (${staleBits.join(", ")})` : "";
-
-      setText(root, "[data-hr-sub]", `Source: ${src.label}${staleNote}`);
+      setText(root, "[data-hr-sub]", `Source: ${src.label} (mempool.space)`);
 
     } catch(e){
       setText(root, "[data-hr-sub]", `error: ${String(e?.message || e)}`);
