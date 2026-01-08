@@ -1,89 +1,90 @@
 // __partials/widgets/hashrate-by-nation/estimator.js
-// DROP-IN (DEBUGGED)
-// Pure estimator module — NO network, NO AllOrigins.
+// DROP-IN (WORKING, NO FETCHES, NO DEPS)
 //
-// INPUTS (required, provided elsewhere):
-//   window.ZZXMiningStats.globalHashrateZH      -> Number (global ZH/s)
-//   window.ZZXNodesByNation                     -> { shares } OR { byNation }
+// Purpose:
+//   Centralize the math so widget.js stays thin.
+//   Uses ONLY globals you already generate elsewhere.
 //
-// OPTIONAL INPUTS:
-//   window.ZZXPowerByNation[ISO].gw             -> Number (power production in GW, optional cap)
-//   window.ZZX_MINING.J_PER_TH                  -> Number (efficiency assumption, default 30)
+// Inputs (required):
+//   window.ZZXMiningStats.globalHashrateZH   -> Number (global hashrate in ZH/s)
+//   window.ZZXNodesByNation                 -> { shares: {ISO:weight} } OR { byNation: {ISO:{nodes:N}} }
 //
-// OUTPUT:
-//   window.ZZXHashrateNationEstimator.estimate({ topN? })
-//     -> rows: [{ iso, sharePublic, shareTorBase, shareLow, shareHigh, zh, lowZH, highZH, capped }]
+// Inputs (optional):
+//   window.ZZX_MINING.J_PER_TH              -> Number (efficiency, default 30 J/TH)
+//   window.ZZXPowerByNation                 -> { ISO: { gw:Number } }   (cap by national power ceiling)
 //
-// This is intentionally “best-effort”: if optional inputs are missing, it still works.
+// Output:
+//   window.ZZXHashrateByNationEstimator.estimate(opts?)
+//     -> [{ iso, zh, low, high, share, lowShare, highShare, capped, capZH }]
+//
+// Notes:
+// - “Tor band” here is a *distribution uncertainty band* around your node-share allocation.
+// - This estimator does NOT claim ground truth; it provides an internally consistent ranking
+//   using your chosen assumptions.
 
 (function () {
   "use strict";
 
-  const W = window;
+  const NS = (window.ZZXHashrateByNationEstimator =
+    window.ZZXHashrateByNationEstimator || {});
 
-  const NS = (W.ZZXHashrateNationEstimator =
-    W.ZZXHashrateNationEstimator || {});
+  const DEFAULTS = {
+    topN: 10,
 
-  const CFG = {
-    // How much of global hashrate we model as “hidden / unattributable” (Tor/hosting/obfuscation)
+    // Tor uncertainty model
     torFraction: 0.68,
-
-    // Per-nation tor allocation bands relative to public node share
     torMinMult: 0.25,
-    torMaxMult: 2.50,
+    torMaxMult: 2.5,
 
-    // Efficiency baseline
+    // Optional cap-by-power
+    enablePowerCap: false,
+
+    // Mining efficiency for power cap conversion
     defaultJPerTH: 30,
   };
 
-  // ---------------- utils ----------------
   function n(x) {
     const v = Number(x);
     return Number.isFinite(v) ? v : NaN;
   }
 
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
-
   function normalizeShares(map) {
     if (!map || typeof map !== "object") return null;
+
     let sum = 0;
-    const tmp = {};
     for (const k in map) {
       const v = n(map[k]);
-      if (v > 0) {
-        const iso = String(k).toUpperCase();
-        tmp[iso] = v;
-        sum += v;
-      }
+      if (v > 0) sum += v;
     }
     if (!(sum > 0)) return null;
 
     const out = {};
-    for (const iso in tmp) out[iso] = tmp[iso] / sum;
+    for (const k in map) {
+      const v = n(map[k]);
+      if (v > 0) out[String(k).toUpperCase()] = v / sum;
+    }
     return out;
   }
 
   function getGlobalZH() {
-    return n(W.ZZXMiningStats?.globalHashrateZH);
+    return n(window.ZZXMiningStats?.globalHashrateZH);
   }
 
   function getNodeShares() {
-    const src = W.ZZXNodesByNation;
+    const src = window.ZZXNodesByNation;
     if (!src || typeof src !== "object") return null;
 
-    // Preferred: already shares
+    // Preferred: shares already computed
     if (src.shares && typeof src.shares === "object") {
       return normalizeShares(src.shares);
     }
 
-    // Fallback: counts
+    // Fallback: byNation counts
     if (src.byNation && typeof src.byNation === "object") {
       const counts = {};
       for (const iso in src.byNation) {
-        const nodes = n(src.byNation[iso]?.nodes ?? src.byNation[iso]);
-        if (nodes > 0) counts[String(iso).toUpperCase()] = nodes;
+        const c = n(src.byNation[iso]?.nodes);
+        if (c > 0) counts[String(iso).toUpperCase()] = c;
       }
       return normalizeShares(counts);
     }
@@ -91,92 +92,93 @@
     return null;
   }
 
-  // Optional: cap by nation power production (GW).
-  // We convert GW to a loose upper bound ZH/s using J/TH:
-  //
-  // TH/s = W / (J/TH)      (because J/s = W)
-  // ZH/s = TH/s / 1e9
-  // => ZH_cap = (GW * 1e9) / (J/TH) / 1e9 = GW / (J/TH)
-  //
-  // So: capZH ≈ GW / J_PER_TH
-  function getJPerTH() {
-    const v = n(W.ZZX_MINING?.J_PER_TH);
-    return (Number.isFinite(v) && v > 0) ? v : CFG.defaultJPerTH;
+  function getJPerTH(opts) {
+    const o = opts || {};
+    const v1 = n(o.jPerTH);
+    if (Number.isFinite(v1) && v1 > 0) return v1;
+
+    const v2 = n(window.ZZX_MINING?.J_PER_TH);
+    if (Number.isFinite(v2) && v2 > 0) return v2;
+
+    return DEFAULTS.defaultJPerTH;
   }
 
-  function getPowerCapZH(iso) {
-    const gw = n(W.ZZXPowerByNation?.[iso]?.gw);
+  // Optional cap: power ceiling -> max plausible ZH/s
+  // Derivation (same as your hashrate widget):
+  //   W = TH/s * (J/TH)  => TH/s = W / (J/TH)
+  //   ZH/s = (TH/s) / 1e9
+  //   Given GW: W = GW * 1e9
+  //   => ZH/s cap = (GW*1e9)/(J/TH) / 1e9 = GW/(J/TH)
+  function getPowerCapZH(iso, jPerTH) {
+    const p = window.ZZXPowerByNation?.[iso];
+    const gw = n(p?.gw);
     if (!Number.isFinite(gw) || gw <= 0) return Infinity;
-    const jPerTH = getJPerTH();
-    return gw / jPerTH;
+    return gw / (jPerTH > 0 ? jPerTH : DEFAULTS.defaultJPerTH);
   }
 
-  // ---------------- tor redistribution ----------------
-  // We produce an alternate distribution for the “torFraction” pool.
-  // Instead of “flat” we allow bounds: each nation can be under/over-weighted
-  // but must renormalize to 1.
-  function torRedistribute(publicShares, multMin, multMax) {
+  // Tor redistribution: create alternative share maps to form min/max band.
+  // Important: we renormalize after weighting, so totals always sum to 1.
+  function torRedistribute(base, multMin, multMax) {
     const tmp = {};
-    for (const iso in publicShares) {
-      const p = publicShares[iso];
-      // allow scaling within bounds
-      const scaled = clamp(p, p * multMin, p * multMax);
-      tmp[iso] = scaled;
+    for (const iso in base) {
+      const p = base[iso];
+      // center weight is p; band adjusts weight within [p*multMin, p*multMax]
+      const w = Math.max(p * multMin, Math.min(p * multMax, p));
+      tmp[iso] = w;
     }
     return normalizeShares(tmp);
   }
 
-  // ---------------- estimator core ----------------
-  function buildRows(globalZH, publicShares) {
-    const torFrac = clamp(CFG.torFraction, 0, 0.95);
-    const pubFrac = 1 - torFrac;
+  function buildRows(globalZH, publicShares, opts) {
+    const torFrac = n(opts.torFraction);
+    const torFraction = Number.isFinite(torFrac) ? torFrac : DEFAULTS.torFraction;
 
-    // “base” tor distribution = publicShares
+    const pubFrac = 1 - torFraction;
+
+    const torMinMult = Number.isFinite(n(opts.torMinMult)) ? n(opts.torMinMult) : DEFAULTS.torMinMult;
+    const torMaxMult = Number.isFinite(n(opts.torMaxMult)) ? n(opts.torMaxMult) : DEFAULTS.torMaxMult;
+
     const torBase = publicShares;
+    const torLow = torRedistribute(publicShares, torMinMult, 1.0) || torBase;
+    const torHigh = torRedistribute(publicShares, 1.0, torMaxMult) || torBase;
 
-    // pessimistic: tor is less aligned with public shares
-    const torLow = torRedistribute(publicShares, CFG.torMinMult, 1.0) || torBase;
-
-    // optimistic: tor can be more concentrated than public shares
-    const torHigh = torRedistribute(publicShares, 1.0, CFG.torMaxMult) || torBase;
+    const enableCap = !!opts.enablePowerCap;
+    const jPerTH = getJPerTH(opts);
 
     const rows = [];
-
     for (const iso in publicShares) {
       const p = publicShares[iso];
 
-      const shareTorBase = torBase[iso] ?? 0;
-      const shareLowTor  = torLow[iso] ?? 0;
-      const shareHighTor = torHigh[iso] ?? 0;
+      const baseShare = pubFrac * p + torFraction * (torBase[iso] || 0);
+      const lowShare  = pubFrac * p + torFraction * (torLow[iso]  || 0);
+      const highShare = pubFrac * p + torFraction * (torHigh[iso] || 0);
 
-      const shareBase = pubFrac * p + torFrac * shareTorBase;
-      const shareLow  = pubFrac * p + torFrac * shareLowTor;
-      const shareHigh = pubFrac * p + torFrac * shareHighTor;
+      let zh   = globalZH * baseShare;
+      let low  = globalZH * lowShare;
+      let high = globalZH * highShare;
 
-      let zh     = globalZH * shareBase;
-      let lowZH  = globalZH * shareLow;
-      let highZH = globalZH * shareHigh;
-
-      // Optional power cap
-      const capZH = getPowerCapZH(iso);
       let capped = false;
+      let capZH = Infinity;
 
-      if (Number.isFinite(capZH) && capZH !== Infinity) {
-        if (zh > capZH) { zh = capZH; capped = true; }
-        if (lowZH > capZH) lowZH = capZH;
-        if (highZH > capZH) highZH = capZH;
+      if (enableCap) {
+        capZH = getPowerCapZH(iso, jPerTH);
+        if (Number.isFinite(capZH)) {
+          if (zh > capZH) { zh = capZH; capped = true; }
+          if (low > capZH) low = capZH;
+          if (high > capZH) high = capZH;
+        }
       }
 
       rows.push({
         iso,
-        sharePublic: p,
-        shareTorBase,
-        shareLow,
-        shareHigh,
+        share: baseShare,
+        lowShare,
+        highShare,
         zh,
-        lowZH,
-        highZH,
+        low,
+        high,
         capped,
+        capZH,
       });
     }
 
@@ -185,8 +187,8 @@
   }
 
   // Public API
-  NS.estimate = function estimate(opts) {
-    const topN = Math.max(1, Math.min(250, Number(opts?.topN ?? 10)));
+  NS.estimate = function estimate(options) {
+    const opts = { ...DEFAULTS, ...(options || {}) };
 
     const globalZH = getGlobalZH();
     if (!(globalZH > 0)) return [];
@@ -194,25 +196,16 @@
     const shares = getNodeShares();
     if (!shares) return [];
 
-    const rows = buildRows(globalZH, shares);
+    const rows = buildRows(globalZH, shares, opts);
+
+    const topN = Math.max(1, Math.floor(opts.topN || DEFAULTS.topN));
     return rows.slice(0, topN);
   };
 
-  // Optional: allow tuning without editing file
-  NS.setConfig = function setConfig(next) {
-    if (!next || typeof next !== "object") return;
-    if (Number.isFinite(n(next.torFraction))) CFG.torFraction = clamp(n(next.torFraction), 0, 0.95);
-    if (Number.isFinite(n(next.torMinMult))) CFG.torMinMult = clamp(n(next.torMinMult), 0.01, 10);
-    if (Number.isFinite(n(next.torMaxMult))) CFG.torMaxMult = clamp(n(next.torMaxMult), 0.01, 10);
-    if (Number.isFinite(n(next.defaultJPerTH))) CFG.defaultJPerTH = clamp(n(next.defaultJPerTH), 1, 200);
-  };
-
-  NS._debug = function _debug() {
-    return {
-      cfg: { ...CFG },
-      globalZH: getGlobalZH(),
-      shares: getNodeShares(),
-      jPerTH: getJPerTH(),
-    };
+  // Convenience for widget.js
+  NS.inputsReady = function inputsReady() {
+    const g = window.ZZXMiningStats?.globalHashrateZH;
+    const nbn = window.ZZXNodesByNation;
+    return Number.isFinite(g) && !!nbn;
   };
 })();
