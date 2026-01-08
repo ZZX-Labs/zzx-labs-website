@@ -1,6 +1,14 @@
 // __partials/widgets/hashrate/widget.js
-// DROP-IN REPLACEMENT (fixes Difficulty: — by reading difficulty from tip block)
-// Requires: sources.js, fetch.js, plotter.js, chart.js
+// DROP-IN REPLACEMENT (FIXED CONTRACT: fetchJSON returns payload directly)
+// Fixes:
+// - "hashrate series empty" caused by expecting {data:...}
+// - Difficulty: — by falling back to tip block difficulty
+//
+// Requires existing files already in your widget dir:
+//   sources.js  (ZZXHashrateSources.list())
+//   fetch.js    (ZZXHashrateFetch.fetchJSON(core?, url))
+//   plotter.js  (ZZXHashratePlotter.build(values))
+//   chart.js    (ZZXHashrateChart.draw(svg, values))
 
 (function () {
   "use strict";
@@ -9,18 +17,20 @@
   const ID = "hashrate";
   const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
 
-  // mempool base (used for difficulty fallback even if sources.js changes)
   const MEMPOOL = "https://mempool.space";
 
   let inflight = false;
 
   function n(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
+  function hsToZH(hs){ const v = n(hs); return Number.isFinite(v) ? (v / 1e21) : NaN; }
+
   function fmtNum(x, d=2){
     return Number.isFinite(x)
       ? x.toLocaleString(undefined, { minimumFractionDigits:d, maximumFractionDigits:d })
       : "—";
   }
   function fmtInt(x){ return Number.isFinite(x) ? Math.round(x).toLocaleString() : "—"; }
+
   function setText(root, sel, text){
     const el = root.querySelector(sel);
     if (el) el.textContent = text;
@@ -68,11 +78,7 @@
     return { ok:true };
   }
 
-  function hsToZH(hs){
-    const v = n(hs);
-    return Number.isFinite(v) ? (v / 1e21) : NaN;
-  }
-
+  // ---- series parsing (mempool hashrate/3d is usually [[ts,hs], ...] OR {hashrates:[...]} ) ----
   function pickArray(payload){
     if (Array.isArray(payload)) return payload;
 
@@ -81,17 +87,9 @@
       if (Array.isArray(payload.data)) return payload.data;
       if (Array.isArray(payload.series)) return payload.series;
 
-      if (payload.data && typeof payload.data === "object") {
-        if (Array.isArray(payload.data.hashrates)) return payload.data.hashrates;
-        if (Array.isArray(payload.data.data)) return payload.data.data;
-        if (Array.isArray(payload.data.series)) return payload.data.series;
-      }
-
-      if (payload.hashrates && typeof payload.hashrates === "object") {
-        if (Array.isArray(payload.hashrates.hashrates)) return payload.hashrates.hashrates;
-        if (Array.isArray(payload.hashrates.data)) return payload.hashrates.data;
-        if (Array.isArray(payload.hashrates.series)) return payload.hashrates.series;
-      }
+      // sometimes a nested object shows up from proxies
+      if (payload.result && Array.isArray(payload.result)) return payload.result;
+      if (payload.results && Array.isArray(payload.results)) return payload.results;
     }
 
     return null;
@@ -115,9 +113,9 @@
       if (typeof p === "object") {
         const t = n(p.timestamp ?? p.time ?? p.t);
         const hs = n(
+          p.hashrate ??
           p.avgHashrate ??
           p.avg_hashrate ??
-          p.hashrate ??
           p.value ??
           p.v ??
           p.h
@@ -135,84 +133,66 @@
     return out;
   }
 
-  // Prefer absolute difficulty if present anywhere
-  function readDifficultyFromPayload(payload){
-    const candidates = [
+  // ---- difficulty parsing (absolute difficulty may appear in block payload) ----
+  function readDifficulty(payload){
+    const cands = [
       payload?.difficulty,
       payload?.currentDifficulty,
       payload?.current_difficulty,
-      payload?.data?.difficulty,
-      payload?.data?.currentDifficulty,
-      payload?.data?.current_difficulty,
+      payload?.data?.difficulty, // if some proxy wraps
       payload?.block?.difficulty,
-      payload?.data?.block?.difficulty,
     ];
-    for (const c of candidates) {
+    for (const c of cands) {
       const v = n(c);
       if (Number.isFinite(v) && v > 0) return v;
     }
-    // If payload itself is numeric
     const self = n(payload);
     if (Number.isFinite(self) && self > 0) return self;
-
     return NaN;
   }
 
+  // ---- energy model ----
   function getJPerTH(){
     const v = n(W.ZZX_MINING?.J_PER_TH);
-    const d = n(W.ZZXHashrateSources?.defaults?.jPerTH);
-    return (Number.isFinite(v) && v > 0) ? v : ((Number.isFinite(d) && d > 0) ? d : 30);
+    return (Number.isFinite(v) && v > 0) ? v : 30;
   }
 
+  // ---- optional tor fraction inference ----
   function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
 
   function inferTorFraction(){
+    // you may expose any of these in your node widgets
     const total = [
       W.ZZXNodesTotals?.total,
       W.ZZXNodes?.total,
-      W.ZZXTorStats?.totalNodes,
-      W.ZZXNodesByNation?.totalNodes
+      W.ZZXNodesByNation?.totalNodes,
     ].map(n).find(v => Number.isFinite(v) && v > 0);
 
     const tor = [
       W.ZZXNodesTotals?.tor,
       W.ZZXNodes?.tor,
-      W.ZZXTorStats?.torNodes,
-      W.ZZXNodesByNation?.torTotal
+      W.ZZXNodesByNation?.torTotal,
     ].map(n).find(v => Number.isFinite(v) && v > 0);
 
     if (Number.isFinite(total) && Number.isFinite(tor) && total > 0) return tor / total;
 
-    const f = n(W.ZZXTorStats?.torFraction ?? W.ZZXNodesTotals?.torFraction);
+    const f = n(W.ZZXNodesTotals?.torFraction);
     if (Number.isFinite(f) && f > 0) return f;
 
     return NaN;
   }
 
-  // --- difficulty fallback: tip hash -> tip block -> difficulty ---
-  async function fetchTipDifficulty(core, opts){
-    // tip hash (string)
-    const tipHashRes = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/blocks/tip/hash`, {
-      cacheKey: "zzx:hashrate:tiphash:v1",
-      ttlMs: opts.ttlMs,
-      timeoutMs: opts.timeoutMs
-    });
-
-    const tipHash = (typeof tipHashRes?.data === "string")
-      ? tipHashRes.data.trim()
-      : (typeof tipHashRes === "string" ? tipHashRes.trim() : "");
+  async function fetchTipDifficulty(core){
+    // tip hash is plain string from mempool
+    const tipHashPayload = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/blocks/tip/hash`);
+    const tipHash = (typeof tipHashPayload === "string")
+      ? tipHashPayload.trim()
+      : (typeof tipHashPayload?.data === "string" ? tipHashPayload.data.trim() : "");
 
     if (!tipHash || tipHash.length < 16) return NaN;
 
-    // tip block
-    const blockRes = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/block/${encodeURIComponent(tipHash)}`, {
-      cacheKey: "zzx:hashrate:tipblock:v1",
-      ttlMs: opts.ttlMs,
-      timeoutMs: opts.timeoutMs
-    });
-
-    const diff = readDifficultyFromPayload(blockRes?.data);
-    return diff;
+    const blockPayload = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/block/${encodeURIComponent(tipHash)}`);
+    return readDifficulty(blockPayload);
   }
 
   async function update(root, core){
@@ -227,31 +207,30 @@
       }
 
       const src = W.ZZXHashrateSources.list()?.[0];
-      if (!src) {
-        setText(root, "[data-hr-sub]", "error: sources empty");
+      if (!src?.endpoints?.hashrate3d) {
+        setText(root, "[data-hr-sub]", "error: no sources");
         return;
       }
 
       const jPerTH = getJPerTH();
       setText(root, "[data-hr-eff]", fmtInt(jPerTH));
 
-      const pol = W.ZZXHashrateSources.policy || {};
-      const ttlMs = pol.cacheTtlMs || 300000;
-      const timeoutMs = pol.timeoutMs || 12000;
+      // ---- series ----
+      const seriesPayload = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.hashrate3d);
+      const points = normalizeSeries(seriesPayload);
 
-      // ---- hashrate series ----
-      const seriesRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.hashrate3d, {
-        cacheKey: "zzx:hashrate:series:v4",
-        ttlMs, timeoutMs
-      });
-
-      const points = normalizeSeries(seriesRes?.data);
-      if (!points.length) throw new Error("hashrate series empty");
+      if (!points.length) {
+        // show a real debug hint without dumping huge objects
+        const hint = (seriesPayload && typeof seriesPayload === "object")
+          ? `keys=${Object.keys(seriesPayload).slice(0,8).join(",")}`
+          : `type=${typeof seriesPayload}`;
+        throw new Error(`hashrate series empty (${hint})`);
+      }
 
       const latest = points[points.length - 1];
       const zhNow = hsToZH(latest.hs);
 
-      // publish global for other widgets
+      // publish for other widgets (your nation estimator uses this)
       W.ZZXMiningStats = W.ZZXMiningStats || {};
       if (Number.isFinite(zhNow)) W.ZZXMiningStats.globalHashrateZH = zhNow;
 
@@ -265,7 +244,6 @@
 
       // power/energy estimates
       const gwNow = (zhNow * 1e9 * jPerTH) / 1e9;
-
       const finite = valsZH.filter(Number.isFinite);
       const avgZH = finite.reduce((a,b)=>a+b,0) / Math.max(1, finite.length);
       const gwAvg = (avgZH * 1e9 * jPerTH) / 1e9;
@@ -277,50 +255,39 @@
       // ---- difficulty ----
       let diff = NaN;
 
-      // 1) try your existing endpoint first
+      // 1) try your configured difficulty endpoint if present
       if (src.endpoints?.difficulty) {
-        const diffRes = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty, {
-          cacheKey: "zzx:hashrate:diff:v4",
-          ttlMs, timeoutMs
-        });
-        diff = readDifficultyFromPayload(diffRes?.data);
+        const diffPayload = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty);
+        diff = readDifficulty(diffPayload);
       }
 
-      // 2) if still missing, use tip block difficulty
+      // 2) fallback: read difficulty from tip block (reliable)
       if (!(diff > 0)) {
-        diff = await fetchTipDifficulty(core, { ttlMs, timeoutMs });
+        diff = await fetchTipDifficulty(core);
       }
 
       setText(root, "[data-hr-diff]", (diff > 0) ? fmtInt(diff) : "—");
 
-      // ---- tor estimate (only if you provide node totals) ----
-      const torCfg = W.ZZXHashrateSources.tor || {
-        clampMin: 0.05, clampMax: 0.85,
-        bandLowMult: 0.70, bandHighMult: 1.30
-      };
-
+      // ---- tor estimate ----
       let torFrac = inferTorFraction();
-
       if (Number.isFinite(torFrac)) {
-        torFrac = clamp(torFrac, torCfg.clampMin, torCfg.clampMax);
-        const lowF = clamp(torFrac * torCfg.bandLowMult, torCfg.clampMin, torCfg.clampMax);
-        const highF = clamp(torFrac * torCfg.bandHighMult, torCfg.clampMin, torCfg.clampMax);
-
+        torFrac = clamp(torFrac, 0.05, 0.85);
         const torZH = zhNow * torFrac;
-        const torLow = zhNow * lowF;
-        const torHigh = zhNow * highF;
+        const low = zhNow * clamp(torFrac * 0.70, 0.05, 0.85);
+        const high = zhNow * clamp(torFrac * 1.30, 0.05, 0.85);
 
         setText(root, "[data-hr-tor]", `${fmtNum(torZH, 2)} ZH/s`);
-        setText(root, "[data-hr-tor-note]", `${fmtNum(torLow, 2)}–${fmtNum(torHigh, 2)} ZH/s · ${fmtNum(torFrac*100, 1)}% inferred`);
+        setText(root, "[data-hr-tor-note]", `${fmtNum(low, 2)}–${fmtNum(high, 2)} ZH/s · ${fmtNum(torFrac*100, 1)}% inferred`);
       } else {
         setText(root, "[data-hr-tor]", "—");
         setText(root, "[data-hr-tor-note]", "no tor node signal");
       }
 
-      setText(root, "[data-hr-sub]", `Source: ${src.label} (mempool.space)`);
+      setText(root, "[data-hr-sub]", `Source: ${src.label || "mempool.space"}`);
 
     } catch(e){
-      setText(root, "[data-hr-sub]", `error: ${String(e?.message || e)}`);
+      const msg = String(e?.message || e);
+      setText(root, "[data-hr-sub]", `error: ${msg}`);
       if (DEBUG) console.warn("[hashrate]", e);
     } finally {
       inflight = false;
@@ -337,7 +304,8 @@
 
     update(root, core);
 
-    const base = Number(W.ZZXHashrateSources?.policy?.refreshMs) || 60000;
+    // jitter reduces rate-limit collisions when many widgets update simultaneously
+    const base = 60_000;
     const jitter = Math.floor(Math.random() * 7000);
     root.__zzxHashrateTimer = setInterval(() => update(root, core), base + jitter);
   }
@@ -346,5 +314,7 @@
     W.ZZXWidgetsCore.onMount(ID, (root, core) => boot(root, core));
   } else if (W.ZZXWidgets?.register) {
     W.ZZXWidgets.register(ID, (root, core) => boot(root, core));
+  } else {
+    if (DEBUG) console.warn("[hashrate] no widget registry found");
   }
 })();
