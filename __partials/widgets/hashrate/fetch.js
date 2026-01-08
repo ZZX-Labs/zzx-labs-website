@@ -1,6 +1,9 @@
 // __partials/widgets/hashrate/fetch.js
 // DROP-IN REPLACEMENT
-// AllOrigins RAW fetch + tolerant parsers.
+// - Forces AllOrigins RAW for absolute URLs (mempool.space) to avoid CORS/HTML surprises
+// - Parses as text first, then JSON.parse with better errors
+// - If provider returns plain numbers (rare here), supports numeric fallback
+//
 // Exposes:
 //   window.ZZXHashrateFetch.fetchHashrateSeries(core, url)
 //   window.ZZXHashrateFetch.fetchDifficulty(core, url)
@@ -14,19 +17,64 @@
   const AO_RAW = "https://api.allorigins.win/raw?url=";
   const ao = (u) => AO_RAW + encodeURIComponent(String(u));
 
+  function isAbsUrl(u) {
+    return /^https?:\/\//i.test(String(u || ""));
+  }
+
   function n2(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
 
-  async function fetchJSON(core, url) {
-    // Prefer your runtime fetcher if present (it may already proxy/normalize)
-    if (core && typeof core.fetchJSON === "function") return await core.fetchJSON(url);
+  function snip(s, n=140){
+    const t = String(s || "").replace(/\s+/g, " ").trim();
+    return t.length > n ? (t.slice(0, n) + "…") : t;
+  }
 
-    // Prefer your AO helper if you have it
-    if (W.ZZXAO && typeof W.ZZXAO.json === "function") return await W.ZZXAO.json(url);
-
-    // Always AllOrigins RAW for cross-origin safety
+  async function fetchTextViaAO(url) {
     const r = await fetch(ao(url), { cache: "no-store" });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
+    return await r.text();
+  }
+
+  async function fetchText(core, url) {
+    // If you have a site fetcher and the URL is site-relative, let it handle it.
+    // For absolute URLs, we FORCE AllOrigins for reliability.
+    if (!isAbsUrl(url) && core && typeof core.fetchText === "function") {
+      return await core.fetchText(url);
+    }
+    return await fetchTextViaAO(url);
+  }
+
+  async function fetchJSON(core, url) {
+    // If you already have ZZXAO.json and want it, it's fine for abs URLs too,
+    // but we still keep the robust "text-first" parsing because ZZXAO.json may call r.json().
+    if (W.ZZXAO && typeof W.ZZXAO.text === "function") {
+      const t = await W.ZZXAO.text(url);
+      return parseJSONish(t, url);
+    }
+
+    const t = await fetchText(core, url);
+    return parseJSONish(t, url);
+  }
+
+  function parseJSONish(text, url) {
+    const raw = String(text ?? "");
+
+    // Sometimes endpoints return just a number or a quoted string.
+    const trimmed = raw.trim();
+
+    // Numeric-only fallback
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+
+    // JSON parse attempt
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      // Common case: HTML error page or plaintext throttle message
+      const hint =
+        trimmed.startsWith("<") ? "Looks like HTML (blocked / error page)." :
+        trimmed.toLowerCase().includes("rate") || trimmed.toLowerCase().includes("too many") ? "Looks like rate-limiting text." :
+        "Non-JSON response.";
+      throw new Error(`JSON.parse failed for ${url}. ${hint} First bytes: "${snip(trimmed)}"`);
+    }
   }
 
   // Normalize mempool hashrate series into:
@@ -34,7 +82,6 @@
   function normalizeHashrateSeries(payload) {
     let arr = payload;
 
-    // wrappers: { hashrates }, { data }, { series }
     if (!Array.isArray(arr) && payload && typeof payload === "object") {
       if (Array.isArray(payload.hashrates)) arr = payload.hashrates;
       else if (Array.isArray(payload.data)) arr = payload.data;
@@ -48,7 +95,6 @@
     for (const p of arr) {
       if (!p) continue;
 
-      // Some providers might return [[t, v], ...]
       if (Array.isArray(p)) {
         const t = n2(p[0]);
         const hs = n2(p[1]);
@@ -57,13 +103,13 @@
       }
 
       if (typeof p === "object") {
-        const t = n2(p.timestamp ?? p.time ?? p.t ?? p[0]);
-        const hs = n2(p.hashrate ?? p.avgHashrate ?? p.value ?? p.v ?? p.h ?? p[1]);
+        const t = n2(p.timestamp ?? p.time ?? p.t);
+        const hs = n2(p.hashrate ?? p.avgHashrate ?? p.value ?? p.v ?? p.h);
         if (Number.isFinite(hs)) out.push({ t, hs });
       }
     }
 
-    // Normalize timestamps: seconds -> ms if needed
+    // seconds -> ms
     for (const pt of out) {
       if (Number.isFinite(pt.t) && pt.t < 2e12) pt.t = pt.t * 1000;
     }
@@ -92,6 +138,7 @@
 
   NS.fetchDifficulty = async function fetchDifficulty(core, url) {
     const json = await fetchJSON(core, url);
-    return normalizeDifficulty(json);
+    const d = normalizeDifficulty(json);
+    return d;
   };
 })();
