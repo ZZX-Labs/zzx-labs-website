@@ -1,30 +1,79 @@
 // __partials/widgets/hashrate-by-nation/chart.js
-(function(){
+// DROP-IN (DEBUGGED)
+//
+// Renders hashrate-by-nation bars with optional uncertainty bands.
+// Compatible with ZZXHashrateNationPlotter.layout() output.
+//
+// Expects rows shaped like:
+// {
+//   iso,
+//   x, y, w, h,
+//   bandMinW?, bandMaxW?,
+//   hashrateZH
+// }
+
+(function () {
   "use strict";
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
 
   const NS = (window.ZZXHashrateNationChart =
     window.ZZXHashrateNationChart || {});
 
-  NS.draw = function(svg, rows){
-    if (!svg) return;
-    svg.innerHTML = "";
+  function el(name, attrs = {}, text) {
+    const n = document.createElementNS(SVG_NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    return n;
+  }
 
-    rows.forEach(r=>{
-      const bar = document.createElementNS("http://www.w3.org/2000/svg","rect");
-      bar.setAttribute("x", r.x);
-      bar.setAttribute("y", r.y);
-      bar.setAttribute("width", r.w);
-      bar.setAttribute("height", r.h);
-      bar.setAttribute("class","zzx-hbn-bar");
+  NS.draw = function draw(svg, rows) {
+    if (!svg || !Array.isArray(rows)) return;
 
-      const label = document.createElementNS("http://www.w3.org/2000/svg","text");
-      label.setAttribute("x", 4);
-      label.setAttribute("y", r.y + 10);
-      label.setAttribute("class","zzx-hbn-label");
-      label.textContent = `${r.iso} ${r.hashrateZH.toFixed(1)} ZH/s`;
+    // Clear safely (no innerHTML string parsing)
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-      svg.appendChild(bar);
-      svg.appendChild(label);
+    rows.forEach(r => {
+      const yMid = r.y + r.h / 2 + 4;
+
+      // --- Uncertainty band (if present) ---
+      if (Number.isFinite(r.bandMinW) && Number.isFinite(r.bandMaxW)) {
+        const bandX = r.x + Math.min(r.bandMinW, r.bandMaxW);
+        const bandW = Math.abs(r.bandMaxW - r.bandMinW);
+
+        svg.appendChild(el("rect", {
+          x: bandX.toFixed(2),
+          y: r.y.toFixed(2),
+          width: bandW.toFixed(2),
+          height: r.h.toFixed(2),
+          class: "zzx-hbn-band",
+        }));
+      }
+
+      // --- Main bar ---
+      svg.appendChild(el("rect", {
+        x: r.x.toFixed(2),
+        y: r.y.toFixed(2),
+        width: Math.max(0, r.w).toFixed(2),
+        height: r.h.toFixed(2),
+        class: "zzx-hbn-bar",
+      }));
+
+      // --- Nation label ---
+      svg.appendChild(el("text", {
+        x: 4,
+        y: yMid.toFixed(2),
+        class: "zzx-hbn-label",
+        "dominant-baseline": "middle",
+      }, r.iso));
+
+      // --- Value label ---
+      svg.appendChild(el("text", {
+        x: (r.x + r.w + 6).toFixed(2),
+        y: yMid.toFixed(2),
+        class: "zzx-hbn-value",
+        "dominant-baseline": "middle",
+      }, `${r.hashrateZH.toFixed(2)} ZH/s`));
     });
   };
 })();
