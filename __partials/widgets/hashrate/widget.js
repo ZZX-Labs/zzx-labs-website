@@ -1,5 +1,5 @@
 // __partials/widgets/hashrate/widget.js
-// DROP-IN REPLACEMENT (FIX: unwrap cached wrapper {data,source,stale,cachedAt})
+// DROP-IN REPLACEMENT (FIX: unwrap wrapper AND parse nested JSON strings)
 (function () {
   "use strict";
 
@@ -65,28 +65,61 @@
     return { ok:true };
   }
 
-  // ---- IMPORTANT FIX ----
-  // Unwrap common cache/proxy wrappers:
-  //   { data, source, stale, cachedAt }
-  //   { data: { data: ... } }  etc.
-  function unwrapPayload(p){
-    let cur = p;
-    for (let i=0; i<6; i++){
-      if (!cur || typeof cur !== "object") break;
-      if (!("data" in cur)) break;
+  // ---- CRITICAL: unwrap proxy/cached wrappers AND parse nested JSON strings ----
+  function looksLikeJSON(s){
+    const t = String(s ?? "").trim();
+    return t.startsWith("{") || t.startsWith("[");
+  }
 
-      const next = cur.data;
+  function tryParseJSON(s){
+    try { return JSON.parse(String(s)); } catch { return null; }
+  }
 
-      // stop if data points back to itself
-      if (next === cur) break;
+  function materialize(payload){
+    // Goal: reach the real mempool payload (array or object), not wrapper shells.
+    let cur = payload;
 
-      cur = next;
+    for (let i=0; i<10; i++){
+      // If we got a JSON string, parse it.
+      if (typeof cur === "string" && looksLikeJSON(cur)) {
+        const parsed = tryParseJSON(cur);
+        if (parsed != null) { cur = parsed; continue; }
+      }
+
+      // If it’s the common wrapper shape: {data, source, stale, cachedAt}
+      if (cur && typeof cur === "object" && ("data" in cur)) {
+        const next = cur.data;
+
+        // If wrapper.data is a JSON string, parse it then keep unwrapping.
+        if (typeof next === "string" && looksLikeJSON(next)) {
+          const parsed = tryParseJSON(next);
+          if (parsed != null) { cur = parsed; continue; }
+        }
+
+        // Otherwise just unwrap into .data
+        if (next === cur) break;
+        cur = next;
+        continue;
+      }
+
+      break;
     }
+
+    // One last attempt: some systems put JSON in {body:"..."} or {text:"..."}
+    if (cur && typeof cur === "object") {
+      for (const k of ["body","text","raw","payload"]) {
+        if (typeof cur[k] === "string" && looksLikeJSON(cur[k])) {
+          const parsed = tryParseJSON(cur[k]);
+          if (parsed != null) return parsed;
+        }
+      }
+    }
+
     return cur;
   }
 
   function pickArray(payload){
-    const p = unwrapPayload(payload);
+    const p = materialize(payload);
 
     if (Array.isArray(p)) return p;
 
@@ -95,7 +128,9 @@
       if (Array.isArray(p.data)) return p.data;
       if (Array.isArray(p.series)) return p.series;
       if (Array.isArray(p.results)) return p.results;
+      if (Array.isArray(p.items)) return p.items;
     }
+
     return null;
   }
 
@@ -107,6 +142,7 @@
     for (const pt of arr){
       if (pt == null) continue;
 
+      // mempool often returns [ts, hashrate]
       if (Array.isArray(pt)){
         const t = n(pt[0]);
         const hs = n(pt[1]);
@@ -137,20 +173,25 @@
   }
 
   function readDifficulty(payload){
-    const p = unwrapPayload(payload);
+    const p = materialize(payload);
+
     const cands = [
       p?.difficulty,
       p?.currentDifficulty,
       p?.current_difficulty,
       p?.block?.difficulty,
       p?.data?.difficulty,
+      p?.result?.difficulty,
     ];
     for (const c of cands){
       const v = n(c);
       if (Number.isFinite(v) && v > 0) return v;
     }
+
+    // sometimes difficulty is the numeric payload itself
     const self = n(p);
     if (Number.isFinite(self) && self > 0) return self;
+
     return NaN;
   }
 
@@ -158,8 +199,6 @@
     const v = n(W.ZZX_MINING?.J_PER_TH);
     return (Number.isFinite(v) && v > 0) ? v : 30;
   }
-
-  function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
 
   function inferTorFraction(){
     const total = [
@@ -182,11 +221,12 @@
     return NaN;
   }
 
+  function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
   async function fetchTipDifficulty(core){
     const tipHashPayload = await W.ZZXHashrateFetch.fetchJSON(core, `${MEMPOOL}/api/blocks/tip/hash`);
-    const tipHash = (typeof tipHashPayload === "string")
-      ? tipHashPayload.trim()
-      : (typeof tipHashPayload?.data === "string" ? tipHashPayload.data.trim() : "");
+    const tipHashMat = materialize(tipHashPayload);
+    const tipHash = (typeof tipHashMat === "string") ? tipHashMat.trim() : "";
 
     if (!tipHash || tipHash.length < 16) return NaN;
 
@@ -214,15 +254,15 @@
       const jPerTH = getJPerTH();
       setText(root, "[data-hr-eff]", fmtInt(jPerTH));
 
-      // ---- series ----
+      // series
       const seriesPayload = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.hashrate3d);
       const points = normalizeSeries(seriesPayload);
 
       if (!points.length){
-        const unwrapped = unwrapPayload(seriesPayload);
-        const hint = (unwrapped && typeof unwrapped === "object")
-          ? `keys=${Object.keys(unwrapped).slice(0,10).join(",")}`
-          : `type=${typeof unwrapped}`;
+        const mat = materialize(seriesPayload);
+        const hint = (mat && typeof mat === "object")
+          ? `keys=${Object.keys(mat).slice(0,12).join(",")}`
+          : `type=${typeof mat}`;
         throw new Error(`hashrate series empty (${hint})`);
       }
 
@@ -235,7 +275,7 @@
 
       setText(root, "[data-hr-zh]", fmtNum(zhNow, 3));
 
-      // sparkline
+      // sparkline (last 24 points)
       const tail = points.slice(Math.max(0, points.length - 24));
       const valsZH = tail.map(p => hsToZH(p.hs));
       const svg = root.querySelector("[data-hr-svg]");
@@ -251,21 +291,20 @@
       setText(root, "[data-hr-e1]", Number.isFinite(gwNow) ? `${fmtNum(gwNow, 2)} GWh` : "—");
       setText(root, "[data-hr-e24]", Number.isFinite(gwAvg) ? `${fmtNum(gwAvg * 24, 1)} GWh` : "—");
 
-      // ---- difficulty ----
+      // difficulty
       let diff = NaN;
 
       if (src.endpoints?.difficulty){
         const diffPayload = await W.ZZXHashrateFetch.fetchJSON(core, src.endpoints.difficulty);
         diff = readDifficulty(diffPayload);
       }
-
       if (!(diff > 0)){
         diff = await fetchTipDifficulty(core);
       }
 
       setText(root, "[data-hr-diff]", (diff > 0) ? fmtInt(diff) : "—");
 
-      // ---- tor estimate ----
+      // tor estimate
       let torFrac = inferTorFraction();
       if (Number.isFinite(torFrac)){
         torFrac = clamp(torFrac, 0.05, 0.85);
@@ -301,6 +340,7 @@
 
     update(root, core);
 
+    // slight jitter helps reduce “thundering herd” vs proxies
     const base = 60_000;
     const jitter = Math.floor(Math.random() * 7000);
     root.__zzxHashrateTimer = setInterval(() => update(root, core), base + jitter);
