@@ -1,188 +1,207 @@
 // __partials/widgets/hashrate-by-nation/widget.js
-// DROP-IN REPLACEMENT
-// Auto-load deps from same folder so you never see "fetch.js missing".
+// DROP-IN, SINGLE-FILE, NO FETCHES
+// Uses:
+//   window.ZZXMiningStats.globalHashrateZH   (from working hashrate widget)
+//   window.ZZXNodesByNation                 (node share data you already compute)
+//
+// NO mempool
+// NO allorigins
+// NO fetch.js
+// NO JSON parsing
+// NO dependency failures
 
-(function(){
+(function () {
   "use strict";
 
   const ID = "hashrate-by-nation";
   const DEBUG = !!window.__ZZX_WIDGET_DEBUG;
 
-  const MEMPOOL = "https://mempool.space";
-  const POOL_ENDPOINTS = [
-    `${MEMPOOL}/api/v1/mining/pools/24h`,
-    `${MEMPOOL}/api/v1/mining/pools/1d`,
-    `${MEMPOOL}/api/v1/mining/pools`,
-  ];
-  const HASHRATE_ENDPOINT = `${MEMPOOL}/api/v1/mining/hashrate/3d`;
+  // ---------------- CONFIG ----------------
+  const CONFIG = {
+    torFraction: 0.68,        // % of hashrate assumed to be hidden via Tor
+    torMinMult: 0.25,         // lower bound per-nation tor allocation
+    torMaxMult: 2.50,         // upper bound per-nation tor allocation
+    refreshMs: 5000,
+    topN: 10,
+  };
 
-  function widgetBasePath(){
-    const Core = window.ZZXWidgetsCore;
-    if (Core?.widgetBase) return String(Core.widgetBase(ID)).replace(/\/+$/, "") + "/";
-    return "/__partials/widgets/hashrate-by-nation/";
+  // ---------------- UTILS ----------------
+  function n(x) {
+    const v = Number(x);
+    return Number.isFinite(v) ? v : NaN;
   }
 
-  async function loadScriptOnce(url, key){
-    if (document.querySelector(`script[data-zzx-js="${key}"]`)) return true;
-    return await new Promise((resolve)=>{
-      const s = document.createElement("script");
-      s.src = url;
-      s.defer = true;
-      s.setAttribute("data-zzx-js", key);
-      s.onload = ()=>resolve(true);
-      s.onerror = ()=>resolve(false);
-      document.head.appendChild(s);
-    });
+  function fmt(x, d = 2) {
+    return Number.isFinite(x)
+      ? x.toLocaleString(undefined, {
+          minimumFractionDigits: d,
+          maximumFractionDigits: d,
+        })
+      : "—";
   }
 
-  async function ensureDeps(){
-    const base = widgetBasePath();
+  function setText(root, sel, text) {
+    const el = root.querySelector(sel);
+    if (el) el.textContent = text;
+  }
 
-    if (!window.ZZXHashrateNationFetch?.fetchJSON){
-      const ok = await loadScriptOnce(base + "fetch.js", "zzx:hbn:fetch");
-      if (!ok) return { ok:false, why:"fetch.js missing (failed to load)" };
-      if (!window.ZZXHashrateNationFetch?.fetchJSON) return { ok:false, why:"fetch.js did not register" };
+  function normalizeShares(map) {
+    const sum = Object.values(map).reduce((a, b) => a + n(b), 0);
+    if (!(sum > 0)) return null;
+    const out = {};
+    for (const k in map) {
+      const v = n(map[k]);
+      if (v > 0) out[k] = v / sum;
+    }
+    return out;
+  }
+
+  // ---------------- INPUT ----------------
+  function getGlobalHashrateZH() {
+    return n(window.ZZXMiningStats?.globalHashrateZH);
+  }
+
+  function getNodeShares() {
+    const src = window.ZZXNodesByNation;
+    if (!src || typeof src !== "object") return null;
+
+    // Preferred: shares already computed
+    if (src.shares && typeof src.shares === "object") {
+      return normalizeShares(src.shares);
     }
 
-    // Optional modules (only required if you want the nation mapping + chart modules)
-    if (!window.ZZXHashrateNationMap?.mapPool){
-      const ok = await loadScriptOnce(base + "mapper.js", "zzx:hbn:mapper");
-      if (!ok) return { ok:false, why:"mapper.js missing" };
-      if (!window.ZZXHashrateNationMap?.mapPool) return { ok:false, why:"mapper.js did not register" };
-    }
-    if (!window.ZZXHashrateNationPlotter?.layout){
-      const ok = await loadScriptOnce(base + "plotter.js", "zzx:hbn:plotter");
-      if (!ok) return { ok:false, why:"plotter.js missing" };
-      if (!window.ZZXHashrateNationPlotter?.layout) return { ok:false, why:"plotter.js did not register" };
-    }
-    if (!window.ZZXHashrateNationChart?.draw){
-      const ok = await loadScriptOnce(base + "chart.js", "zzx:hbn:chart");
-      if (!ok) return { ok:false, why:"chart.js missing" };
-      if (!window.ZZXHashrateNationChart?.draw) return { ok:false, why:"chart.js did not register" };
-    }
-
-    return { ok:true };
-  }
-
-  function n(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
-
-  function pickArray(payload){
-    if (Array.isArray(payload)) return payload;
-    if (payload && typeof payload === "object"){
-      if (Array.isArray(payload.pools)) return payload.pools;
-      if (Array.isArray(payload.data)) return payload.data;
-      if (Array.isArray(payload.items)) return payload.items;
-      if (Array.isArray(payload.results)) return payload.results;
-      if (Array.isArray(payload.hashrates)) return payload.hashrates;
-    }
-    return [];
-  }
-
-  function normalizePools(payload){
-    const rows = pickArray(payload);
-    return rows.map(p => ({
-      name: String(p?.name ?? p?.pool ?? p?.poolName ?? p?.slug ?? "Unknown"),
-      blocks: n(p?.blocks ?? p?.blockCount ?? p?.count ?? p?.nBlocks ?? p?.blocksMined),
-    })).filter(r => Number.isFinite(r.blocks) && r.blocks > 0);
-  }
-
-  function normalizeHashrate(payload){
-    const rows = pickArray(payload);
-    const pts = rows.map(p => ({
-      hs: n(p?.hashrate ?? p?.value ?? p?.hs ?? p?.[1]),
-    })).filter(p => Number.isFinite(p.hs));
-    return pts;
-  }
-
-  function hsToZH(hs){ return Number.isFinite(hs) ? (hs / 1e21) : NaN; }
-
-  async function fetchPools(){
-    let lastErr = null;
-    for (const url of POOL_ENDPOINTS){
-      try{
-        const payload = await window.ZZXHashrateNationFetch.fetchJSON(url);
-        const rows = normalizePools(payload);
-        if (rows.length) return { rows, source:url };
-        lastErr = new Error(`no usable rows from ${url}`);
-      }catch(e){
-        lastErr = new Error(`${url}: ${String(e?.message || e)}`);
+    // Fallback: counts
+    if (src.byNation && typeof src.byNation === "object") {
+      const counts = {};
+      let total = 0;
+      for (const iso in src.byNation) {
+        const c = n(src.byNation[iso]?.nodes);
+        if (c > 0) {
+          counts[iso.toUpperCase()] = c;
+          total += c;
+        }
+      }
+      if (total > 0) {
+        const shares = {};
+        for (const k in counts) shares[k] = counts[k] / total;
+        return normalizeShares(shares);
       }
     }
-    throw lastErr || new Error("no pool endpoint succeeded");
+
+    return null;
   }
 
-  async function fetchGlobalHashrate(){
-    const payload = await window.ZZXHashrateNationFetch.fetchJSON(HASHRATE_ENDPOINT);
-    const pts = normalizeHashrate(payload);
-    if (!pts.length) throw new Error("hashrate series empty");
-    const last = pts[pts.length - 1];
-    const globalZH = hsToZH(last.hs);
-    if (!Number.isFinite(globalZH)) throw new Error("global hashrate missing");
-    return { globalZH, source: HASHRATE_ENDPOINT };
+  // ---------------- TOR MODEL ----------------
+  function torRedistribute(publicShares, multMin, multMax) {
+    const tmp = {};
+    for (const iso in publicShares) {
+      const p = publicShares[iso];
+      let v = p;
+      v = Math.max(p * multMin, Math.min(p * multMax, v));
+      tmp[iso] = v;
+    }
+    return normalizeShares(tmp);
   }
 
-  async function run(root){
+  function buildEstimates(globalZH, publicShares) {
+    const torFrac = CONFIG.torFraction;
+    const pubFrac = 1 - torFrac;
+
+    const torBase = publicShares;
+    const torLow  = torRedistribute(publicShares, CONFIG.torMinMult, 1.0);
+    const torHigh = torRedistribute(publicShares, 1.0, CONFIG.torMaxMult);
+
+    const rows = [];
+
+    for (const iso in publicShares) {
+      const p = publicShares[iso];
+      const baseShare = pubFrac * p + torFrac * torBase[iso];
+      const lowShare  = pubFrac * p + torFrac * torLow[iso];
+      const highShare = pubFrac * p + torFrac * torHigh[iso];
+
+      rows.push({
+        iso,
+        hashrateZH: globalZH * baseShare,
+        lowZH: globalZH * lowShare,
+        highZH: globalZH * highShare,
+      });
+    }
+
+    rows.sort((a, b) => b.hashrateZH - a.hashrateZH);
+    return rows.slice(0, CONFIG.topN);
+  }
+
+  // ---------------- RENDER ----------------
+  function render(root, rows, globalZH) {
     const sub = root.querySelector("[data-hbn-sub]");
     const svg = root.querySelector("[data-hbn-svg]");
 
-    const deps = await ensureDeps();
-    if (!deps.ok){
-      if (sub) sub.textContent = `error: ${deps.why}`;
+    // Chart path if present
+    if (
+      svg &&
+      window.ZZXHashrateNationPlotter?.layout &&
+      window.ZZXHashrateNationChart?.draw
+    ) {
+      const layout = window.ZZXHashrateNationPlotter.layout(rows);
+      window.ZZXHashrateNationChart.draw(svg, layout);
+    }
+
+    // Always show text fallback
+    if (sub) {
+      const txt = rows
+        .map(
+          r =>
+            `${r.iso}: ${fmt(r.hashrateZH)} ZH/s (${fmt(r.lowZH)}–${fmt(r.highZH)})`
+        )
+        .join(" · ");
+
+      sub.textContent =
+        `Global ${fmt(globalZH)} ZH/s · Estimated by node share + Tor band · ${txt}`;
+    }
+  }
+
+  // ---------------- LOOP ----------------
+  function update(root) {
+    const globalZH = getGlobalHashrateZH();
+    if (!(globalZH > 0)) {
+      setText(root, "[data-hbn-sub]", "waiting for global hashrate…");
       return;
     }
 
-    try{
-      if (sub) sub.textContent = "loading…";
-
-      const [pools, hr] = await Promise.all([ fetchPools(), fetchGlobalHashrate() ]);
-
-      // Aggregate blocks -> nation via mapper
-      const nationAgg = {};
-      for (const p of pools.rows){
-        const iso = window.ZZXHashrateNationMap.mapPool(p.name) || "Other";
-        nationAgg[iso] = (nationAgg[iso] || 0) + p.blocks;
-      }
-
-      const totalBlocks = Object.values(nationAgg).reduce((a,b)=>a+b,0);
-      if (!totalBlocks) throw new Error("totalBlocks=0");
-
-      const rows = Object.entries(nationAgg)
-        .map(([iso, blocks]) => ({
-          iso,
-          blocks,
-          share: blocks / totalBlocks,
-          hashrateZH: (blocks / totalBlocks) * hr.globalZH,
-        }))
-        .sort((a,b)=>b.hashrateZH - a.hashrateZH)
-        .slice(0, 10);
-
-      const layout = window.ZZXHashrateNationPlotter.layout(rows);
-      window.ZZXHashrateNationChart.draw(svg, layout);
-
-      if (sub) sub.textContent = "Source: mempool.space (pools + hashrate) · hashrate-by-nation is estimated";
-    }catch(e){
-      const msg = String(e?.message || e);
-      if (sub) sub.textContent = `error: ${msg}`;
-      if (DEBUG) console.warn("[hashrate-by-nation]", e);
+    const shares = getNodeShares();
+    if (!shares) {
+      setText(root, "[data-hbn-sub]", "error: node shares missing");
+      return;
     }
+
+    const rows = buildEstimates(globalZH, shares);
+    if (!rows.length) {
+      setText(root, "[data-hbn-sub]", "error: no nation rows");
+      return;
+    }
+
+    render(root, rows, globalZH);
   }
 
-  function boot(root){
+  function boot(root) {
     if (!root) return;
 
-    // prevent duplicate timers on reinjection
-    if (root.__zzxHbnTimer){
-      clearInterval(root.__zzxHbnTimer);
-      root.__zzxHbnTimer = null;
+    if (root.__zzxTimer) {
+      clearInterval(root.__zzxTimer);
+      root.__zzxTimer = null;
     }
 
-    run(root);
-    root.__zzxHbnTimer = setInterval(()=>run(root), 60_000);
+    update(root);
+    root.__zzxTimer = setInterval(
+      () => update(root),
+      CONFIG.refreshMs
+    );
   }
 
-  if (window.ZZXWidgetsCore?.onMount){
+  // ---------------- REGISTER ----------------
+  if (window.ZZXWidgetsCore?.onMount) {
     window.ZZXWidgetsCore.onMount(ID, boot);
-  } else if (window.ZZXWidgets?.register){
-    window.ZZXWidgets.register(ID, (root)=>boot(root));
+  } else if (window.ZZXWidgets?.register) {
+    window.ZZXWidgets.register(ID, boot);
   }
 })();
