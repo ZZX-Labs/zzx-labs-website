@@ -1,25 +1,91 @@
 /* __partials/widgets/fees/widget.css
    DROP-IN
-   Compact, no overflow, matches btc-card look.
+   Fonts:
+     Title: AdultSwimFont, color #e6a42b
+     Everything else: IBMPlexMono via var(--zzx-font-mono)
 */
 
 [data-widget-root="fees"]{
   width:100%;
   box-sizing:border-box;
+  min-width:0;
+  overflow:hidden;
 }
 
-[data-widget-root="fees"] .btc-card__value,
-[data-widget-root="fees"] .btc-card__sub{
-  overflow:hidden;
-  text-overflow:ellipsis;
+/* Title styling: AdultSwimFont + e6a42b */
+[data-widget-root="fees"] .zzx-w-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
+
+  font-family: var(--zzx-font-title, "AdultSwimFont", system-ui);
+  color: #e6a42b;
+  letter-spacing:.02em;
+}
+
+/* Unit toggle button (IBM Plex Mono) */
+[data-widget-root="fees"] .zzx-fees-unitbtn{
+  background: rgba(0,0,0,.35);
+  color:#c0d674;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;
+  padding:.22rem .50rem;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+  font-size:.82rem;
+  cursor:pointer;
   white-space:nowrap;
 }
+[data-widget-root="fees"] .zzx-fees-unitbtn:hover{
+  border-color:#e6a42b;
+  color:#e6a42b;
+}
+[data-widget-root="fees"] .zzx-fees-unitbtn:focus{
+  outline:none;
+  border-color:#e6a42b;
+  box-shadow:0 0 0 2px rgba(230,164,43,.18);
+}
 
+/* Main row: “Avg Fee” + value */
+[data-widget-root="fees"] .zzx-fees-main{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:.75rem;
+  min-width:0;
+}
+[data-widget-root="fees"] .zzx-fees-main-k{
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+  font-size:.92rem;
+  color:#b7bf9a;
+  white-space:nowrap;
+}
+[data-widget-root="fees"] .zzx-fees-main-v{
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  color:#c0d674;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Unit text inline */
 [data-widget-root="fees"] .zzx-fees-unit{
   font-size:.95rem;
   color:#b7bf9a;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
 }
 
+/* Subline */
+[data-widget-root="fees"] .zzx-fees-subline{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+}
+
+/* Grid: fixed row height so nothing “jumps” */
 [data-widget-root="fees"] .zzx-fees-grid{
   margin-top:.45rem;
   border:1px solid rgba(255,255,255,.10);
@@ -27,15 +93,37 @@
   overflow:hidden;
   width:100%;
   box-sizing:border-box;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
 }
 
-[data-widget-root="fees"] .zzx-fees-row{
-  display:flex;
+/* Header row */
+[data-widget-root="fees"] .zzx-fees-head{
+  display:grid;
+  grid-template-columns: 1.05fr .95fr 1.15fr; /* Tier | Fee | Range */
   align-items:center;
-  justify-content:space-between;
   gap:.6rem;
-  padding:.35rem .45rem;
+  padding:.34rem .45rem;
+  background: rgba(0,0,0,.28);
+  border-bottom:1px solid rgba(255,255,255,.10);
   box-sizing:border-box;
+}
+
+[data-widget-root="fees"] .zzx-fees-head .zzx-fees-cell{
+  font-size:.78rem;
+  color: rgba(255,255,255,.62);
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+/* Rows */
+[data-widget-root="fees"] .zzx-fees-row{
+  display:grid;
+  grid-template-columns: 1.05fr .95fr 1.15fr;
+  align-items:center;
+  gap:.6rem;
+  padding:.34rem .45rem;
+  box-sizing:border-box;
+  min-height: 30px; /* stability knob */
 }
 
 [data-widget-root="fees"] .zzx-fees-row + .zzx-fees-row{
@@ -47,7 +135,7 @@
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-  font-size:.95rem;
+  font-size:.92rem;
 }
 
 [data-widget-root="fees"] .zzx-fees-num{
@@ -56,6 +144,14 @@
   color:#c0d674;
 }
 
+[data-widget-root="fees"] .zzx-fees-range{
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+  color:#b7bf9a;
+  font-size:.84rem;
+}
+
+/* Footer */
 [data-widget-root="fees"] .zzx-fees-foot{
   margin-top:.5rem;
   display:flex;
@@ -63,6 +159,7 @@
   gap:.5rem;
   font-size:.9rem;
   color:#b7bf9a;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
 }
 
 [data-widget-root="fees"] .zzx-fees-spacer{
@@ -74,12 +171,20 @@
   color:#c0d674;
   border:1px solid rgba(255,255,255,.14);
   border-radius:10px;
-  padding:.3rem .55rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  padding:.30rem .55rem;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
   cursor:pointer;
+  white-space:nowrap;
 }
 
 [data-widget-root="fees"] .zzx-fees-btn:hover{
   border-color:#e6a42b;
   color:#e6a42b;
+}
+
+@media (max-width: 620px){
+  [data-widget-root="fees"] .zzx-fees-row,
+  [data-widget-root="fees"] .zzx-fees-head{
+    grid-template-columns: 1.0fr 1.0fr 1.0fr;
+  }
 }
