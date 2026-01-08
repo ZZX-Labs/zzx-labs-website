@@ -1,11 +1,6 @@
 /* __partials/widgets/high-low-24h/widget.css
    DROP-IN REPLACEMENT
-
-   Goals:
-   - match your dark mono look
-   - selector styling consistent with price-24h
-   - identical chart sizing contract (92px desktop / 88px mobile)
-   - prevent overflow on mobile
+   Uses shared chart sizing from static/css/widgets-uniform.css via .zzx-chartbox
 */
 
 [data-widget-root="high-low-24h"]{
@@ -101,27 +96,19 @@
 [data-widget-root="high-low-24h"] .hl24__delta.is-down{ color:#e05858; }
 [data-widget-root="high-low-24h"] .hl24__delta.is-flat{ color:#b7bf9a; }
 
-/* Chart box contract */
-[data-widget-root="high-low-24h"] .hl24__chartbox{
-  width:100%;
-  box-sizing:border-box;
-  min-width:0;
-  overflow:hidden;
-
-  height:92px;
+/* Chartbox: sizing comes from widgets-uniform.css
+   We only set spacing + canvas fill. */
+[data-widget-root="high-low-24h"] .zzx-chartbox{
   margin-top:.45rem;
-
-  border-radius:10px;
-  background: rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
 }
 
-[data-widget-root="high-low-24h"] canvas[data-chart]{
+[data-widget-root="high-low-24h"] .zzx-chartbox canvas[data-chart]{
   width:100% !important;
   height:100% !important;
   display:block;
 }
 
+/* Legend */
 [data-widget-root="high-low-24h"] .hl24__legend{
   margin-top:.35rem;
   display:flex;
@@ -145,5 +132,4 @@
 
 @media (max-width: 620px){
   [data-widget-root="high-low-24h"] select[data-exchange]{ max-width: 140px; }
-  [data-widget-root="high-low-24h"] .hl24__chartbox{ height:88px; }
 }
