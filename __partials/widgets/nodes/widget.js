@@ -1,155 +1,141 @@
 // __partials/widgets/nodes/widget.js
-// DROP-IN (manifest/core compatible)
-//
-// - Uses allorigins RAW so Bitnodes works from static GH pages.
-// - Robust text-first JSON parse with preview (fixes "unexpected character at line 1").
-// - Safe reinjection (clears interval).
-//
-// Data source:
-//   https://bitnodes.io/api/v1/snapshots/latest/
-// AllOrigins RAW passthrough:
-//   https://api.allorigins.win/raw?url=<encoded>
+// DROP-IN (MODULAR)
+// - Auto-loads sources.js + fetch.js + adapter.js (+chart.js optional)
+// - Uses Bitnodes latest snapshot (direct -> allorigins fallback handled in fetch.js)
+// - Safe reinjection (clears interval)
+// - Keeps your current widget.html contract intact
 
 (function () {
   "use strict";
 
   const W = window;
   const ID = "nodes";
-
-  const DEFAULTS = {
-    BITNODES_LATEST: "https://bitnodes.io/api/v1/snapshots/latest/",
-    ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
-    REFRESH_MS: 5 * 60_000
-  };
+  const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
 
   let inflight = false;
-
-  function allOrigins(url) {
-    return DEFAULTS.ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
-  }
-
-  function n(x){
-    const v = Number(x);
-    return Number.isFinite(v) ? v : NaN;
-  }
-
-  function fmtInt(x) {
-    const v = n(x);
-    return Number.isFinite(v) ? Math.round(v).toLocaleString() : "—";
-  }
 
   function setText(root, sel, text) {
     const el = root.querySelector(sel);
     if (el) el.textContent = text;
   }
 
-  function compactPreview(s, max = 180){
-    const t = String(s ?? "").replace(/\s+/g, " ").trim();
-    return t.length > max ? (t.slice(0, max) + "…") : t;
+  function fmtInt(x) {
+    const v = Number(x);
+    return Number.isFinite(v) ? Math.round(v).toLocaleString() : "—";
   }
 
-  async function fetchText(u) {
-    const r = await fetch(u, {
-      cache: "no-store",
-      redirect: "follow",
-      credentials: "omit"
+  function widgetBasePath() {
+    const Core = W.ZZXWidgetsCore;
+    if (Core?.widgetBase) return String(Core.widgetBase(ID)).replace(/\/+$/, "") + "/";
+    return "/__partials/widgets/nodes/";
+  }
+
+  async function loadScriptOnce(url, key) {
+    if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
+      await Promise.resolve();
+      return true;
+    }
+    return await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = url;
+      s.defer = true;
+      s.setAttribute("data-zzx-js", key);
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
     });
-
-    const t = await r.text();
-
-    if (!r.ok) {
-      throw new Error(`HTTP ${r.status}: ${compactPreview(t) || "no body"}`);
-    }
-    return t;
   }
 
-  function parseJSON(text) {
-    const s = String(text ?? "").trim();
-    if (!s) throw new Error("empty response");
-    try {
-      return JSON.parse(s);
-    } catch {
-      // This is the key fix: show WHAT we got (HTML, rate limit, etc.)
-      throw new Error(`JSON.parse failed: ${compactPreview(s) || "no preview"}`);
+  async function ensureDeps() {
+    const base = widgetBasePath();
+
+    if (!W.ZZXNodesSources?.endpoints) {
+      const ok = await loadScriptOnce(base + "sources.js", "zzx:nodes:sources");
+      if (!ok) return { ok: false, why: "sources.js missing" };
+      if (!W.ZZXNodesSources?.endpoints) return { ok: false, why: "sources.js did not register" };
     }
+
+    if (!W.ZZXNodesFetch?.fetchJSON) {
+      const ok = await loadScriptOnce(base + "fetch.js", "zzx:nodes:fetch");
+      if (!ok) return { ok: false, why: "fetch.js missing" };
+      if (!W.ZZXNodesFetch?.fetchJSON) return { ok: false, why: "fetch.js did not register" };
+    }
+
+    if (!W.ZZXNodesAdapter?.normalizeLatest) {
+      const ok = await loadScriptOnce(base + "adapter.js", "zzx:nodes:adapter");
+      if (!ok) return { ok: false, why: "adapter.js missing" };
+      if (!W.ZZXNodesAdapter?.normalizeLatest) return { ok: false, why: "adapter.js did not register" };
+    }
+
+    // chart is optional; never fail widget if missing
+    if (!W.ZZXNodesChart?.draw) {
+      await loadScriptOnce(base + "chart.js", "zzx:nodes:chart");
+    }
+
+    return { ok: true };
   }
 
-  function pickSnapshot(payload){
-    // Support multiple plausible shapes without guessing:
-    // A) { total_nodes, latest_height, timestamp }
-    // B) { data: { ... } }
-    // C) { results: { ... } }
-    // D) { snapshot: { ... } }
-    if (!payload || typeof payload !== "object") return {};
-
-    if (payload.total_nodes != null || payload.latest_height != null || payload.timestamp != null) {
-      return payload;
-    }
-    if (payload.data && typeof payload.data === "object") return payload.data;
-    if (payload.results && typeof payload.results === "object") return payload.results;
-    if (payload.snapshot && typeof payload.snapshot === "object") return payload.snapshot;
-
-    return payload;
-  }
-
-  async function update(root) {
+  async function update(root, core) {
     if (!root || inflight) return;
     inflight = true;
 
     try {
-      const url = allOrigins(DEFAULTS.BITNODES_LATEST);
+      const deps = await ensureDeps();
+      if (!deps.ok) {
+        setText(root, "[data-nodes-sub]", "error: " + deps.why);
+        return;
+      }
 
-      // Text-first so we can diagnose non-JSON responses.
-      const text = await fetchText(url);
-      const payload = parseJSON(text);
-      const data = pickSnapshot(payload);
+      const url = W.ZZXNodesSources.endpoints.bitnodesLatest;
+      const payload = await W.ZZXNodesFetch.fetchJSON(core, url);
+      const snap = W.ZZXNodesAdapter.normalizeLatest(payload);
 
-      const total = n(data?.total_nodes ?? data?.total ?? data?.nodes_total);
-      const height = n(data?.latest_height ?? data?.height ?? data?.block_height);
+      setText(root, "[data-nodes-total]", fmtInt(snap.totalNodes));
+      setText(root, "[data-nodes-height]", fmtInt(snap.latestHeight));
 
-      // bitnodes timestamp is typically seconds; handle ms if needed
-      let ts = n(data?.timestamp ?? data?.updated_at ?? data?.ts);
-      if (Number.isFinite(ts) && ts > 0 && ts < 2e12) ts = ts * 1000;
-
-      setText(root, "[data-nodes-total]", fmtInt(total));
-      setText(root, "[data-nodes-height]", fmtInt(height));
-
-      if (Number.isFinite(ts) && ts > 0) {
-        const d = new Date(ts);
+      if (Number.isFinite(snap.updatedMs) && snap.updatedMs > 0) {
+        const d = new Date(snap.updatedMs);
         setText(root, "[data-nodes-updated]", d.toLocaleString());
-        setText(root, "[data-nodes-sub]", "Bitnodes (latest snapshot via allorigins)");
+        setText(root, "[data-nodes-sub]", "Bitnodes (latest snapshot)");
       } else {
         setText(root, "[data-nodes-updated]", "—");
-        setText(root, "[data-nodes-sub]", "Bitnodes (via allorigins)");
+        setText(root, "[data-nodes-sub]", "Bitnodes (latest snapshot)");
       }
+
+      // Optional: record + draw mini history sparkline if you later add DOM for it
+      if (W.ZZXNodesChart?.pushPoint) W.ZZXNodesChart.pushPoint(snap.totalNodes);
+
+      const svg = root.querySelector("[data-nodes-svg]");
+      if (svg && W.ZZXNodesChart?.draw) W.ZZXNodesChart.draw(svg);
+
     } catch (e) {
       setText(root, "[data-nodes-sub]", "error: " + String(e?.message || e));
-      // keep height/updated stable instead of flashing garbage
-      setText(root, "[data-nodes-updated]", "—");
+      if (DEBUG) console.warn("[nodes]", e);
     } finally {
       inflight = false;
     }
   }
 
-  function boot(root) {
+  function boot(root, core) {
     if (!root) return;
 
-    // avoid double intervals if reinjected
     if (root.__zzxNodesTimer) {
       clearInterval(root.__zzxNodesTimer);
       root.__zzxNodesTimer = null;
     }
 
-    update(root);
-    root.__zzxNodesTimer = setInterval(() => update(root), DEFAULTS.REFRESH_MS);
+    update(root, core);
+
+    const refreshMs = W.ZZXNodesSources?.defaults?.refreshMs || (5 * 60_000);
+    root.__zzxNodesTimer = setInterval(() => update(root, core), refreshMs);
   }
 
-  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
+  if (W.ZZXWidgetsCore?.onMount) {
+    W.ZZXWidgetsCore.onMount(ID, (root, core) => boot(root, core));
     return;
   }
 
-  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
-    W.ZZXWidgets.register(ID, function (root) { boot(root); });
+  if (W.ZZXWidgets?.register) {
+    W.ZZXWidgets.register(ID, (root, core) => boot(root, core));
   }
 })();
