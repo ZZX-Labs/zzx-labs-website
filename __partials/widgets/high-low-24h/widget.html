@@ -1,8 +1,39 @@
 <!-- __partials/widgets/high-low-24h/widget.html
-     DROP-IN REPLACEMENT
-     (keeps your existing structure; canvas is appended by JS) -->
-<div class="zzx-card" data-widget-root="high-low-24h">
-  <div class="zzx-card__title">24h High / Low</div>
-  <div class="zzx-card__value">$<span data-hi>—</span> / $<span data-lo>—</span></div>
+     DROP-IN REPLACEMENT (24h High/Low + Volume overlay) -->
+
+<div class="zzx-card hl24" data-widget-root="high-low-24h">
+  <div class="zzx-card__title">
+    <span>24h High/Low</span>
+
+    <span class="zzx-exchange" aria-label="Exchange selector">
+      <span class="zzx-exchange__label">exchange</span>
+      <select data-exchange aria-label="Select exchange"></select>
+    </span>
+  </div>
+
+  <div class="zzx-card__value hl24__metrics">
+    <span class="hl24__metric">
+      <span class="hl24__k">H</span>
+      <span class="hl24__v">$<span data-high>—</span></span>
+    </span>
+
+    <span class="hl24__metric">
+      <span class="hl24__k">L</span>
+      <span class="hl24__v">$<span data-low>—</span></span>
+    </span>
+
+    <span class="hl24__delta is-flat" data-delta>—%</span>
+  </div>
+
   <div class="zzx-card__sub"><span data-sub>loading…</span></div>
+
+  <div class="hl24__chartbox" aria-hidden="true">
+    <canvas data-chart></canvas>
+  </div>
+
+  <div class="hl24__legend" aria-hidden="true">
+    <span class="hl24__tag price">price</span>
+    <span class="hl24__tag vol">volume</span>
+    <span class="hl24__tag mark">markers: 24h hi/lo</span>
+  </div>
 </div>
