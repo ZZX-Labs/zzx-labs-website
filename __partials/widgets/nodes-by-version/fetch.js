@@ -56,7 +56,7 @@
     const t = await r.text();
     if (!r.ok) {
       const head = snip(t);
-      const err = new Error(`HTTP ${r.status}: ${head || "no body"}`);
+      const err = new Error(`HTTP ${r.status} for ${url}: ${head || "no body"}`);
       err.status = r.status;
       err.body = t;
       throw err;
