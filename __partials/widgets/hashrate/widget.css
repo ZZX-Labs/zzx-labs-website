@@ -1,20 +1,54 @@
 /* __partials/widgets/hashrate/widget.css */
-/* DROP-IN REPLACEMENT
-   Goals:
-   - no overflow on mobile (min-width:0 everywhere needed)
-   - keep your existing look
-   - chart box respects the same containment rules as other widgets
-*/
+/* DROP-IN REPLACEMENT */
 
 .zzx-card[data-widget-root="hashrate"]{
-  min-width: 0;
-  overflow: hidden;
+  min-width:0;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 
-/* unit */
-.zzx-unit{
+/* Title font/color contract */
+.zzx-card[data-widget-root="hashrate"] .zzx-card__title,
+.zzx-card[data-widget-root="hashrate"] .btc-card__title{
+  font-family: var(--zzx-font-title, "AdultSwimFont", system-ui);
+  color: #e6a42b;
+}
+
+/* Value row: right-align numeric for stability */
+.zzx-card[data-widget-root="hashrate"] .zzx-card__value,
+.zzx-card[data-widget-root="hashrate"] .btc-card__value{
+  display:flex;
+  align-items:baseline;
+  justify-content:flex-end; /* aligns to right edge */
+  gap:.4rem;
+  min-width:0;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+}
+
+.zzx-card[data-widget-root="hashrate"] [data-hr-zh]{
+  display:inline-block;
+  min-width: 12ch;            /* prevents font jump */
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+  color: var(--zzx-accent, #c0d674);
+}
+
+.zzx-card[data-widget-root="hashrate"] .zzx-unit{
   opacity:.9;
   font-size:.95em;
+  color:#b7bf9a;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+}
+
+/* Sub lines use mono */
+.zzx-card[data-widget-root="hashrate"] .zzx-card__sub,
+.zzx-card[data-widget-root="hashrate"] .btc-card__sub{
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 /* metrics grid */
@@ -24,16 +58,15 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap:.45rem .6rem;
   min-width:0;
+  font-family: var(--zzx-font-mono, "IBMPlexMono", ui-monospace, monospace);
 }
 
 @media (min-width: 980px){
-  .zzx-hr-metrics{
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  .zzx-hr-metrics{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .zzx-hr-metric{
-  border: 1px solid rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.03);
   border-radius:10px;
   padding:.45rem .55rem;
@@ -59,6 +92,7 @@
   overflow:hidden;
   text-overflow:ellipsis;
   font-variant-numeric: tabular-nums;
+  text-align:right;
 }
 
 .zzx-hr-s{
@@ -78,34 +112,23 @@
   max-width:100%;
   min-width:0;
   overflow:hidden;
-
-  border: 1px solid rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.10);
   background: rgba(0,0,0,.22);
   border-radius:10px;
   padding:.35rem .45rem;
   box-sizing:border-box;
 }
 
-/* keep SVG from forcing overflow */
 .zzx-hr-chart svg{
   width:100%;
   height:56px;
   display:block;
 }
 
-.zzx-hr-chart [data-hr-area]{
-  fill: rgba(192, 214, 116, .14);
-}
-
+.zzx-hr-chart [data-hr-area]{ fill: rgba(192,214,116,.14); }
 .zzx-hr-chart [data-hr-line]{
   fill:none;
-  stroke: rgba(192, 214, 116, .95);
+  stroke: rgba(192,214,116,.95);
   stroke-width: 2.2;
   vector-effect: non-scaling-stroke;
-}
-
-/* long strings protection (belt + suspenders) */
-.zzx-card[data-widget-root="hashrate"]{
-  overflow-wrap:anywhere;
-  word-break:break-word;
 }
