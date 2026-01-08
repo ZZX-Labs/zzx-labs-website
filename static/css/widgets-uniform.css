@@ -1,0 +1,82 @@
+/* static/css/widgets-uniform.css
+   DROP-IN — uniform widget sizing + chart box sizing
+   Goal: consistent width + consistent visual density; height similar.
+*/
+
+:root{
+  /* Tune once, everything follows */
+  --zzx-widget-minh: 190px;          /* minimum card height */
+  --zzx-widget-pad:  .75rem;         /* inner padding */
+  --zzx-widget-gap:  .50rem;         /* vertical spacing */
+  --zzx-chart-h:     56px;           /* default chart height */
+  --zzx-chart-h-tall:72px;           /* for high/low type charts */
+  --zzx-chart-pad:   .35rem .45rem;  /* chart container padding */
+  --zzx-radius:      12px;
+  --zzx-line:        rgba(255,255,255,.10);
+  --zzx-surface:     rgba(255,255,255,.02);
+}
+
+/* Apply to ALL cards (btc-card or zzx-card) */
+.btc-card,
+.zzx-card{
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--zzx-widget-pad);
+  border-radius: var(--zzx-radius);
+  min-height: var(--zzx-widget-minh);
+  display:flex;
+  flex-direction: column;
+  gap: var(--zzx-widget-gap);
+}
+
+/* Title/value/sub spacing consistency */
+.btc-card__title,
+.zzx-card__title{
+  margin: 0;
+  line-height: 1.1;
+}
+
+.btc-card__value,
+.zzx-card__value{
+  margin: 0;
+  line-height: 1.1;
+  display:flex;
+  align-items: baseline;
+  gap: .4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btc-card__sub,
+.zzx-card__sub{
+  margin: 0;
+  line-height: 1.2;
+  min-height: 1.2em; /* keeps cards from “jumping” when loading */
+}
+
+/* Unified chart container: opt-in via .zzx-chartbox */
+.zzx-chartbox{
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--zzx-line);
+  background: var(--zzx-surface);
+  border-radius: 10px;
+  padding: var(--zzx-chart-pad);
+  overflow: hidden;
+}
+
+/* Standard chart heights */
+.zzx-chartbox svg,
+.zzx-chartbox canvas{
+  width: 100%;
+  display:block;
+  height: var(--zzx-chart-h);
+}
+
+.zzx-chartbox[data-chart="tall"] svg,
+.zzx-chartbox[data-chart="tall"] canvas{
+  height: var(--zzx-chart-h-tall);
+}
+
+/* If a widget has extra metric grids (like hashrate), it can grow naturally */
