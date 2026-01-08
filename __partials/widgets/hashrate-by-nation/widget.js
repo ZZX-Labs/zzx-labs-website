@@ -1,31 +1,33 @@
 // __partials/widgets/hashrate-by-nation/widget.js
-// DROP-IN, SINGLE-FILE, NO FETCHES
-// Uses:
-//   window.ZZXMiningStats.globalHashrateZH   (from working hashrate widget)
-//   window.ZZXNodesByNation                 (node share data you already compute)
-//
-// NO mempool
-// NO allorigins
-// NO fetch.js
-// NO JSON parsing
-// NO dependency failures
-
+// DROP-IN, WORKING, NO FETCHES, NO DEPS
+// Inputs:
+//   window.ZZXMiningStats.globalHashrateZH   (Number, ZH/s)
+//   window.ZZXNodesByNation                 (shares OR counts)
+// Output: SVG bars + subline text
 (function () {
   "use strict";
 
   const ID = "hashrate-by-nation";
   const DEBUG = !!window.__ZZX_WIDGET_DEBUG;
 
-  // ---------------- CONFIG ----------------
-  const CONFIG = {
-    torFraction: 0.68,        // % of hashrate assumed to be hidden via Tor
-    torMinMult: 0.25,         // lower bound per-nation tor allocation
-    torMaxMult: 2.50,         // upper bound per-nation tor allocation
+  const CFG = {
     refreshMs: 5000,
     topN: 10,
+
+    // Tor uncertainty model (band around node-share allocation)
+    torFraction: 0.68,
+    torMinMult: 0.25,
+    torMaxMult: 2.50,
+
+    // SVG layout
+    svgW: 300,
+    rowH: 14,
+    rowGap: 4,
+    padX: 10,
+    barMaxW: 240,
+    labelX: 4,
   };
 
-  // ---------------- UTILS ----------------
   function n(x) {
     const v = Number(x);
     return Number.isFinite(v) ? v : NaN;
@@ -33,10 +35,7 @@
 
   function fmt(x, d = 2) {
     return Number.isFinite(x)
-      ? x.toLocaleString(undefined, {
-          minimumFractionDigits: d,
-          maximumFractionDigits: d,
-        })
+      ? x.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d })
       : "—";
   }
 
@@ -46,18 +45,23 @@
   }
 
   function normalizeShares(map) {
-    const sum = Object.values(map).reduce((a, b) => a + n(b), 0);
+    if (!map || typeof map !== "object") return null;
+    let sum = 0;
+    for (const k in map) {
+      const v = n(map[k]);
+      if (v > 0) sum += v;
+    }
     if (!(sum > 0)) return null;
+
     const out = {};
     for (const k in map) {
       const v = n(map[k]);
-      if (v > 0) out[k] = v / sum;
+      if (v > 0) out[String(k).toUpperCase()] = v / sum;
     }
     return out;
   }
 
-  // ---------------- INPUT ----------------
-  function getGlobalHashrateZH() {
+  function getGlobalZH() {
     return n(window.ZZXMiningStats?.globalHashrateZH);
   }
 
@@ -70,99 +74,120 @@
       return normalizeShares(src.shares);
     }
 
-    // Fallback: counts
+    // Fallback: byNation counts
     if (src.byNation && typeof src.byNation === "object") {
       const counts = {};
-      let total = 0;
       for (const iso in src.byNation) {
         const c = n(src.byNation[iso]?.nodes);
-        if (c > 0) {
-          counts[iso.toUpperCase()] = c;
-          total += c;
-        }
+        if (c > 0) counts[String(iso).toUpperCase()] = c;
       }
-      if (total > 0) {
-        const shares = {};
-        for (const k in counts) shares[k] = counts[k] / total;
-        return normalizeShares(shares);
-      }
+      return normalizeShares(counts);
     }
 
     return null;
   }
 
-  // ---------------- TOR MODEL ----------------
-  function torRedistribute(publicShares, multMin, multMax) {
+  // Tor redistribution: creates alternative share maps to create a min/max band
+  function torRedistribute(baseShares, multMin, multMax) {
     const tmp = {};
-    for (const iso in publicShares) {
-      const p = publicShares[iso];
-      let v = p;
-      v = Math.max(p * multMin, Math.min(p * multMax, v));
-      tmp[iso] = v;
+    for (const iso in baseShares) {
+      const p = baseShares[iso];
+      // clamp the share weight with multipliers, then renormalize
+      const w = Math.max(p * multMin, Math.min(p * multMax, p));
+      tmp[iso] = w;
     }
     return normalizeShares(tmp);
   }
 
-  function buildEstimates(globalZH, publicShares) {
-    const torFrac = CONFIG.torFraction;
+  function buildRows(globalZH, publicShares) {
+    const torFrac = CFG.torFraction;
     const pubFrac = 1 - torFrac;
 
-    const torBase = publicShares;
-    const torLow  = torRedistribute(publicShares, CONFIG.torMinMult, 1.0);
-    const torHigh = torRedistribute(publicShares, 1.0, CONFIG.torMaxMult);
+    const torBase = publicShares; // center
+    const torLow  = torRedistribute(publicShares, CFG.torMinMult, 1.0) || torBase;
+    const torHigh = torRedistribute(publicShares, 1.0, CFG.torMaxMult) || torBase;
 
     const rows = [];
-
     for (const iso in publicShares) {
       const p = publicShares[iso];
-      const baseShare = pubFrac * p + torFrac * torBase[iso];
-      const lowShare  = pubFrac * p + torFrac * torLow[iso];
-      const highShare = pubFrac * p + torFrac * torHigh[iso];
+
+      const baseShare = pubFrac * p + torFrac * (torBase[iso] || 0);
+      const lowShare  = pubFrac * p + torFrac * (torLow[iso]  || 0);
+      const highShare = pubFrac * p + torFrac * (torHigh[iso] || 0);
 
       rows.push({
         iso,
-        hashrateZH: globalZH * baseShare,
-        lowZH: globalZH * lowShare,
-        highZH: globalZH * highShare,
+        zh: globalZH * baseShare,
+        low: globalZH * lowShare,
+        high: globalZH * highShare,
       });
     }
 
-    rows.sort((a, b) => b.hashrateZH - a.hashrateZH);
-    return rows.slice(0, CONFIG.topN);
+    rows.sort((a, b) => b.zh - a.zh);
+    return rows.slice(0, CFG.topN);
   }
 
-  // ---------------- RENDER ----------------
-  function render(root, rows, globalZH) {
-    const sub = root.querySelector("[data-hbn-sub]");
-    const svg = root.querySelector("[data-hbn-svg]");
+  // SVG render (self-contained)
+  function renderSVG(svg, rows) {
+    if (!svg) return;
 
-    // Chart path if present
-    if (
-      svg &&
-      window.ZZXHashrateNationPlotter?.layout &&
-      window.ZZXHashrateNationChart?.draw
-    ) {
-      const layout = window.ZZXHashrateNationPlotter.layout(rows);
-      window.ZZXHashrateNationChart.draw(svg, layout);
-    }
+    // clear
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-    // Always show text fallback
-    if (sub) {
-      const txt = rows
-        .map(
-          r =>
-            `${r.iso}: ${fmt(r.hashrateZH)} ZH/s (${fmt(r.lowZH)}–${fmt(r.highZH)})`
-        )
-        .join(" · ");
+    const NS = "http://www.w3.org/2000/svg";
+    const maxVal = Math.max(1, ...rows.map(r => (Number.isFinite(r.high) ? r.high : r.zh)));
 
-      sub.textContent =
-        `Global ${fmt(globalZH)} ZH/s · Estimated by node share + Tor band · ${txt}`;
-    }
+    const make = (tag) => document.createElementNS(NS, tag);
+
+    rows.forEach((r, i) => {
+      const y = CFG.padX + i * (CFG.rowH + CFG.rowGap);
+
+      const w = (r.zh / maxVal) * CFG.barMaxW;
+      const wLow = (r.low / maxVal) * CFG.barMaxW;
+      const wHigh = (r.high / maxVal) * CFG.barMaxW;
+
+      // uncertainty band (low..high)
+      const band = make("rect");
+      band.setAttribute("x", String(CFG.padX + Math.min(wLow, wHigh)));
+      band.setAttribute("y", String(y));
+      band.setAttribute("width", String(Math.max(0, Math.abs(wHigh - wLow))));
+      band.setAttribute("height", String(CFG.rowH));
+      band.setAttribute("class", "zzx-hbn-band");
+      svg.appendChild(band);
+
+      // main bar
+      const bar = make("rect");
+      bar.setAttribute("x", String(CFG.padX));
+      bar.setAttribute("y", String(y));
+      bar.setAttribute("width", String(Math.max(0, w)));
+      bar.setAttribute("height", String(CFG.rowH));
+      bar.setAttribute("class", "zzx-hbn-bar");
+      svg.appendChild(bar);
+
+      // ISO label
+      const t1 = make("text");
+      t1.setAttribute("x", String(CFG.labelX));
+      t1.setAttribute("y", String(y + CFG.rowH - 3));
+      t1.setAttribute("class", "zzx-hbn-label");
+      t1.textContent = r.iso;
+      svg.appendChild(t1);
+
+      // value label
+      const t2 = make("text");
+      t2.setAttribute("x", String(CFG.padX + Math.max(0, w) + 6));
+      t2.setAttribute("y", String(y + CFG.rowH - 3));
+      t2.setAttribute("class", "zzx-hbn-value");
+      t2.textContent = `${r.zh.toFixed(2)} ZH/s`;
+      svg.appendChild(t2);
+    });
+
+    // resize viewBox height to fit rows cleanly
+    const h = CFG.padX * 2 + rows.length * (CFG.rowH + CFG.rowGap);
+    svg.setAttribute("viewBox", `0 0 ${CFG.svgW} ${Math.max(80, h)}`);
   }
 
-  // ---------------- LOOP ----------------
   function update(root) {
-    const globalZH = getGlobalHashrateZH();
+    const globalZH = getGlobalZH();
     if (!(globalZH > 0)) {
       setText(root, "[data-hbn-sub]", "waiting for global hashrate…");
       return;
@@ -170,17 +195,28 @@
 
     const shares = getNodeShares();
     if (!shares) {
-      setText(root, "[data-hbn-sub]", "error: node shares missing");
+      setText(root, "[data-hbn-sub]", "error: ZZXNodesByNation missing (shares or counts)");
       return;
     }
 
-    const rows = buildEstimates(globalZH, shares);
+    const rows = buildRows(globalZH, shares);
     if (!rows.length) {
       setText(root, "[data-hbn-sub]", "error: no nation rows");
       return;
     }
 
-    render(root, rows, globalZH);
+    const svg = root.querySelector("[data-hbn-svg]");
+    renderSVG(svg, rows);
+
+    const sub = rows
+      .map(r => `${r.iso}: ${fmt(r.zh)} (${fmt(r.low)}–${fmt(r.high)})`)
+      .join(" · ");
+
+    setText(
+      root,
+      "[data-hbn-sub]",
+      `Global ${fmt(globalZH)} ZH/s · node-share × tor-band estimate · ${sub}`
+    );
   }
 
   function boot(root) {
@@ -192,16 +228,14 @@
     }
 
     update(root);
-    root.__zzxTimer = setInterval(
-      () => update(root),
-      CONFIG.refreshMs
-    );
+    root.__zzxTimer = setInterval(() => update(root), CFG.refreshMs);
   }
 
-  // ---------------- REGISTER ----------------
   if (window.ZZXWidgetsCore?.onMount) {
     window.ZZXWidgetsCore.onMount(ID, boot);
   } else if (window.ZZXWidgets?.register) {
     window.ZZXWidgets.register(ID, boot);
+  } else {
+    if (DEBUG) console.warn("[hashrate-by-nation] no widget registry found");
   }
 })();
