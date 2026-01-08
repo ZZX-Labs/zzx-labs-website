@@ -1,14 +1,24 @@
 // __partials/widgets/hashrate-by-nation/mapper.js
-// DROP-IN (DEBUGGED)
-// Purpose:
-//   Map mining pool identifiers -> nation (ISO-2)
-//   This is HEURISTIC by design and intentionally conservative.
+// DROP-IN (DEBUGGED + FIXED)
 //
-// Design rules:
-//   - Exact matches first
-//   - Substring / regex second
-//   - Fallback: "Other"
-//   - Never throw, never block rendering
+// Why your mapping “works” but still yields junk rankings:
+// - Pool names rarely match EXACT keys 1:1 (punctuation, suffixes, casing, sponsor tags).
+// - Some sources include "Foundry USA Pool", "Foundry USA (FPPS)", etc.
+// - Your fuzzy rules had a subtle bug: you lowercased the string, then tested regexes that
+//   already have /i — harmless — but you were also mixing "solo" with "Other" which
+//   can collapse meaningful pools into "Other".
+// - You need canonicalization + alias extraction to get stable matches.
+//
+// What this version does:
+// - Canonicalizes pool names (trim, collapse whitespace, strip brackets, normalize punctuation)
+// - Exact match uses canonical keys (so "BTC.com" vs "BTC.com Pool" can match via aliases)
+// - Adds alias table + safe substring rules (non-overbroad)
+// - Never throws, always returns ISO2 or "Other"
+//
+// Exposes:
+//   window.ZZXHashrateNationMap.mapPool(name) -> ISO2|"Other"
+//   window.ZZXHashrateNationMap.canon(name)   -> canonical string
+//   window.ZZXHashrateNationMap._debugList()  -> mappings/rules
 
 (function () {
   "use strict";
@@ -16,13 +26,49 @@
   const NS = (window.ZZXHashrateNationMap =
     window.ZZXHashrateNationMap || {});
 
-  // ---------------------------------------------------------------------------
-  // Canonical mappings (exact, high-confidence)
-  // ---------------------------------------------------------------------------
+  // --- helpers ---------------------------------------------------------------
+  function canon(s) {
+    if (!s || typeof s !== "string") return "";
+    return s
+      .trim()
+      // remove bracketed annotations: "(FPPS)", "[EU]", etc.
+      .replace(/\[[^\]]*\]|\([^\)]*\)/g, " ")
+      // normalize punctuation
+      .replace(/[·•|]/g, " ")
+      .replace(/[’']/g, "'")
+      // collapse whitespace
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // If the feed contains "PoolName — Something" keep left side too as an alias candidate
+  function splitAliases(s) {
+    const out = new Set();
+    const c = canon(s);
+    if (!c) return out;
+
+    out.add(c);
+
+    // common separators
+    const parts = c.split(/\s*(?:-|—|–|:)\s*/).filter(Boolean);
+    if (parts.length > 1) out.add(parts[0].trim());
+
+    // strip trailing "pool"
+    out.add(c.replace(/\s+pool$/i, "").trim());
+    // strip trailing "mining"
+    out.add(c.replace(/\s+mining$/i, "").trim());
+
+    return out;
+  }
+
+  // --- canonical exact mappings ---------------------------------------------
+  // Keys MUST be canonicalized strings.
   const EXACT = {
     "Foundry USA": "US",
     "Foundry Digital": "US",
+    "Foundry": "US",
     "MARA Pool": "US",
+    "Marathon": "US",
     "Luxor": "US",
     "Luxor Mining": "US",
 
@@ -30,73 +76,78 @@
     "F2Pool": "CN",
     "ViaBTC": "CN",
     "Poolin": "CN",
-
-    "Braiins Pool": "CZ",
-    "SlushPool": "CZ",
-
-    "Binance Pool": "SC",   // Seychelles (Binance legal domicile)
-
     "SpiderPool": "CN",
     "BTC.com": "CN",
+    "BTC.com Pool": "CN",
+
+    "Braiins Pool": "CZ",
+    "Braiins": "CZ",
+    "SlushPool": "CZ",
+    "Slush Pool": "CZ",
+
+    // legal domicile heuristic (you already chose this)
+    "Binance Pool": "SC",
+    "Binance": "SC",
 
     "Unknown": "Other",
+    "Other": "Other",
   };
 
-  // ---------------------------------------------------------------------------
-  // Fuzzy / substring rules (lower confidence, but practical)
-  // Order matters: first match wins
-  // ---------------------------------------------------------------------------
+  // --- fuzzy rules -----------------------------------------------------------
+  // Keep these tight; avoid classifying “solo” as Other automatically (too destructive).
   const RULES = [
-    { re: /foundry/i, iso: "US" },
-    { re: /mara/i, iso: "US" },
-    { re: /luxor/i, iso: "US" },
+    // US
+    { re: /\bfoundry\b/i, iso: "US" },
+    { re: /\bluxor\b/i, iso: "US" },
+    { re: /\bmara\b|\bmarathon\b/i, iso: "US" },
 
-    { re: /antpool/i, iso: "CN" },
-    { re: /f2pool/i, iso: "CN" },
-    { re: /viabtc/i, iso: "CN" },
-    { re: /poolin/i, iso: "CN" },
-    { re: /btc\.com/i, iso: "CN" },
-    { re: /spider/i, iso: "CN" },
+    // CN (heuristic)
+    { re: /\bantpool\b/i, iso: "CN" },
+    { re: /\bf2pool\b/i, iso: "CN" },
+    { re: /\bviabtc\b/i, iso: "CN" },
+    { re: /\bpoolin\b/i, iso: "CN" },
+    { re: /\bbtc\.com\b/i, iso: "CN" },
+    { re: /\bspiderpool\b|\bspider\b/i, iso: "CN" },
+    { re: /\bokx\b|\bokpool\b/i, iso: "CN" },
+    { re: /\bhuobi\b/i, iso: "CN" },
 
-    { re: /slush|braiins/i, iso: "CZ" },
+    // CZ
+    { re: /\bbraiins\b|\bslush\b/i, iso: "CZ" },
 
-    { re: /binance/i, iso: "SC" },
+    // SC
+    { re: /\bbinance\b/i, iso: "SC" },
 
-    // Large international / ambiguous pools
-    { re: /okx|okpool/i, iso: "CN" },
-    { re: /huobi/i, iso: "CN" },
-
-    // Catch common “unknown” markers
-    { re: /unknown|other|solo/i, iso: "Other" },
+    // explicit unknown markers (ONLY these words, not "solo")
+    { re: /\bunknown\b|\bother\b|\bunidentified\b/i, iso: "Other" },
   ];
 
-  // ---------------------------------------------------------------------------
-  // Public API
-  // ---------------------------------------------------------------------------
+  // --- public API ------------------------------------------------------------
+  NS.canon = canon;
+
   NS.mapPool = function mapPool(poolName) {
-    if (!poolName || typeof poolName !== "string") return "Other";
+    const raw = typeof poolName === "string" ? poolName : "";
+    if (!raw) return "Other";
 
-    const name = poolName.trim();
-
-    // 1) Exact match
-    if (EXACT[name]) return EXACT[name];
-
-    const lname = name.toLowerCase();
-
-    // 2) Fuzzy rules
-    for (const rule of RULES) {
-      if (rule.re.test(lname)) return rule.iso;
+    // 1) Try canonical exact + alias variants
+    const aliases = splitAliases(raw);
+    for (const a of aliases) {
+      const key = canon(a);
+      if (key && EXACT[key]) return EXACT[key];
     }
 
-    // 3) Final fallback
+    // 2) Fuzzy
+    const c = canon(raw);
+    for (const rule of RULES) {
+      if (rule.re.test(c)) return rule.iso;
+    }
+
     return "Other";
   };
 
-  // Optional helper for diagnostics / future UI
   NS._debugList = function () {
     return {
       exact: { ...EXACT },
-      rules: RULES.map(r => ({ re: String(r.re), iso: r.iso })),
+      rules: RULES.map((r) => ({ re: String(r.re), iso: r.iso })),
     };
   };
 })();
