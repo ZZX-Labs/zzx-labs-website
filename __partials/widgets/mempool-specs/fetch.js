@@ -20,9 +20,14 @@
   const AO_RAW = "https://api.allorigins.win/raw?url=";
 
   const CACHE_PREFIX = "zzx:mempool-specs:";
-  const CACHE_TTL_MS = 10 * 60_000; // 10 min
+  const CACHE_TTL_MS = 10 * 60_000;          // 10 min "fresh"
+  const CACHE_STALE_MAX_MS = 7 * 24 * 60_000; // 7 days "survival"
 
   function now() { return Date.now(); }
+
+  function isAbort(err) {
+    return !!err && (err.name === "AbortError" || err.code === 20);
+  }
 
   function snip(s, n = 180) {
     const t = String(s ?? "").replace(/\s+/g, " ").trim();
@@ -33,14 +38,31 @@
     return `${CACHE_PREFIX}${kind}:` + encodeURIComponent(String(url || ""));
   }
 
-  function cacheRead(url, kind) {
+  // Returns { v, ageMs, stale: boolean } or null
+  function cacheRead(url, kind, { allowStale = false } = {}) {
     try {
       const raw = localStorage.getItem(cacheKey(url, kind));
       if (!raw) return null;
+
       const obj = JSON.parse(raw);
       if (!obj || typeof obj !== "object") return null;
-      if (!obj.t || (now() - obj.t) > CACHE_TTL_MS) return null;
-      return obj.v ?? null;
+
+      const t = Number(obj.t || 0);
+      if (!t) return null;
+
+      const age = now() - t;
+
+      // Fresh path
+      if (age <= CACHE_TTL_MS) {
+        return { v: obj.v ?? null, ageMs: age, stale: false };
+      }
+
+      // Stale survival path
+      if (allowStale && age <= CACHE_STALE_MAX_MS) {
+        return { v: obj.v ?? null, ageMs: age, stale: true };
+      }
+
+      return null;
     } catch {
       return null;
     }
@@ -61,7 +83,9 @@
       redirect: "follow",
       ...(init || {})
     });
+
     const t = await r.text();
+
     if (!r.ok) {
       const err = new Error(`HTTP ${r.status}: ${snip(t) || "no body"}`);
       err.status = r.status;
@@ -92,7 +116,7 @@
     } catch {
       const hint =
         s.startsWith("<") ? "Looks like HTML (edge page / blocked)." :
-        s.toLowerCase().includes("too many") || s.toLowerCase().includes("rate") ? "Looks like rate-limit text." :
+        (s.toLowerCase().includes("too many") || s.toLowerCase().includes("rate")) ? "Looks like rate-limit text." :
         "Non-JSON response.";
       throw new Error(`JSON.parse failed (${hint}, ${tag}) for ${url}: "${snip(s)}"`);
     }
@@ -106,10 +130,14 @@
       cacheWrite(url, "text", t);
       return { ok: true, text: t, from: "direct" };
     } catch (e1) {
-      // rate-limited / transient? use cache immediately if available
+      if (isAbort(e1)) throw e1;
+
+      // rate-limited / transient? use fresh cache immediately if available
       if (e1 && (e1.status === 429 || e1.status === 503)) {
-        const cached = cacheRead(url, "text");
-        if (cached != null) return { ok: true, text: cached, from: "cache(rate-limit)" };
+        const c = cacheRead(url, "text", { allowStale: true });
+        if (c && c.v != null) {
+          return { ok: true, text: c.v, from: c.stale ? "cache(stale,rate-limit)" : "cache(rate-limit)" };
+        }
       }
 
       // 2) AllOrigins
@@ -118,9 +146,13 @@
         cacheWrite(url, "text", t);
         return { ok: true, text: t, from: "allorigins" };
       } catch (e2) {
-        // 3) last-good cache
-        const cached = cacheRead(url, "text");
-        if (cached != null) return { ok: true, text: cached, from: "cache(fallback)" };
+        if (isAbort(e2)) throw e2;
+
+        // 3) last-good cache (fresh OR stale survival)
+        const c = cacheRead(url, "text", { allowStale: true });
+        if (c && c.v != null) {
+          return { ok: true, text: c.v, from: c.stale ? "cache(stale,fallback)" : "cache(fallback)" };
+        }
 
         throw new Error(
           `fetchText failed\n` +
@@ -140,9 +172,13 @@
       cacheWrite(url, "json", j);
       return { ok: true, json: j, from: "direct" };
     } catch (e1) {
+      if (isAbort(e1)) throw e1;
+
       if (e1 && (e1.status === 429 || e1.status === 503)) {
-        const cached = cacheRead(url, "json");
-        if (cached != null) return { ok: true, json: cached, from: "cache(rate-limit)" };
+        const c = cacheRead(url, "json", { allowStale: true });
+        if (c && c.v != null) {
+          return { ok: true, json: c.v, from: c.stale ? "cache(stale,rate-limit)" : "cache(rate-limit)" };
+        }
       }
 
       // 2) AO
@@ -152,9 +188,13 @@
         cacheWrite(url, "json", j);
         return { ok: true, json: j, from: "allorigins" };
       } catch (e2) {
-        // 3) cache fallback
-        const cached = cacheRead(url, "json");
-        if (cached != null) return { ok: true, json: cached, from: "cache(fallback)" };
+        if (isAbort(e2)) throw e2;
+
+        // 3) cache fallback (fresh OR stale survival)
+        const c = cacheRead(url, "json", { allowStale: true });
+        if (c && c.v != null) {
+          return { ok: true, json: c.v, from: c.stale ? "cache(stale,fallback)" : "cache(fallback)" };
+        }
 
         throw new Error(
           `fetchJSON failed\n` +
