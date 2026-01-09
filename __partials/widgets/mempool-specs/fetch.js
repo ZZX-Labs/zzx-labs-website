@@ -1,14 +1,16 @@
 // __partials/widgets/mempool-specs/fetch.js
-// DROP-IN (UPDATED)
-// Robust fetch:
-// - direct first
+// DROP-IN COMPLETE REPLACEMENT
+//
+// Robust fetch layer used by mempool-specs (and its TxFetcher ctx):
+// - direct fetch first
 // - fallback to AllOrigins RAW
-// - text-first parse with previews
-// - cached last-good (localStorage)
+// - text-first parsing for readable errors (HTML/edge pages, rate-limits, etc.)
+// - cached last-good response in localStorage (keeps widget alive on 429/temporary outages)
+//
 // Exposes:
-//   window.ZZXMempoolSpecsFetch.fetchText(url, opts)
-//   window.ZZXMempoolSpecsFetch.fetchJSON(url, opts)
-
+//   window.ZZXMempoolSpecsFetch.fetchText(url, {signal})
+//   window.ZZXMempoolSpecsFetch.fetchJSON(url, {signal})
+//
 (function () {
   "use strict";
 
@@ -48,7 +50,7 @@
     try {
       localStorage.setItem(cacheKey(url, kind), JSON.stringify({ t: now(), v: value }));
     } catch {
-      // ignore
+      // ignore quota/private mode
     }
   }
 
@@ -81,14 +83,22 @@
   function parseJSON(text, url, tag) {
     const s = String(text ?? "").trim();
     if (!s) throw new Error(`empty response (${tag}) for ${url}`);
+
+    // allow numeric-only
+    if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+
     try {
       return JSON.parse(s);
     } catch {
-      throw new Error(`JSON.parse failed (${tag}) for ${url}: "${snip(s)}"`);
+      const hint =
+        s.startsWith("<") ? "Looks like HTML (edge page / blocked)." :
+        s.toLowerCase().includes("too many") || s.toLowerCase().includes("rate") ? "Looks like rate-limit text." :
+        "Non-JSON response.";
+      throw new Error(`JSON.parse failed (${hint}, ${tag}) for ${url}: "${snip(s)}"`);
     }
   }
 
-  // Public: fetchText with direct->AO->cache
+  // Public: fetchText with direct -> AO -> cache
   NS.fetchText = async function fetchText(url, { signal } = {}) {
     // 1) direct
     try {
@@ -96,18 +106,19 @@
       cacheWrite(url, "text", t);
       return { ok: true, text: t, from: "direct" };
     } catch (e1) {
+      // rate-limited / transient? use cache immediately if available
       if (e1 && (e1.status === 429 || e1.status === 503)) {
         const cached = cacheRead(url, "text");
         if (cached != null) return { ok: true, text: cached, from: "cache(rate-limit)" };
       }
 
-      // 2) AO
+      // 2) AllOrigins
       try {
         const t = await fetchTextAO(url, { signal });
         cacheWrite(url, "text", t);
         return { ok: true, text: t, from: "allorigins" };
       } catch (e2) {
-        // 3) cache fallback
+        // 3) last-good cache
         const cached = cacheRead(url, "text");
         if (cached != null) return { ok: true, text: cached, from: "cache(fallback)" };
 
@@ -120,9 +131,9 @@
     }
   };
 
-  // Public: fetchJSON built atop fetchText (so parsing errors are readable)
+  // Public: fetchJSON built on text-first (better error reporting)
   NS.fetchJSON = async function fetchJSON(url, { signal } = {}) {
-    // 1) direct -> JSON parse
+    // 1) direct
     try {
       const t = await fetchTextDirect(url, { signal });
       const j = parseJSON(t, url, "direct");
@@ -134,7 +145,7 @@
         if (cached != null) return { ok: true, json: cached, from: "cache(rate-limit)" };
       }
 
-      // 2) AO -> JSON parse
+      // 2) AO
       try {
         const t = await fetchTextAO(url, { signal });
         const j = parseJSON(t, url, "allorigins");
