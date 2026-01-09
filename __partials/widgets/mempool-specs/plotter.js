@@ -1,28 +1,38 @@
 // __partials/widgets/mempool-specs/plotter.js
-// - Draws packed tx squares to canvas
-// - Uses Theme.colorForFeeRate for fee bands
-// Exposes: window.ZZXMempoolSpecs.Plotter
+// DROP-IN COMPLETE REPLACEMENT
+//
+// Purpose:
+// - Paint packed tx squares onto canvas
+// - Fee-rate → color via Theme
+// - Zero layout logic, zero fetching
+//
+// Exposes:
+//   window.ZZXMempoolSpecs.Plotter.draw(ctx, canvas, grid, layout, meta)
 
 (function () {
+  "use strict";
+
   const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
 
-  function drawGridLines(ctx, grid, theme) {
-    const { W, H, padPx } = grid;
+  function drawGrid(ctx, grid, theme) {
     ctx.save();
-    ctx.strokeStyle = theme.gridLine;
+    ctx.strokeStyle = theme.gridLine || "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1;
 
-    // subtle stripes, not full cell grid (keeps it fast)
-    for (let y = padPx; y < H - padPx; y += Math.max(24, Math.round(28 * grid.dpr))) {
+    const stepY = Math.max(24, Math.round(28 * grid.dpr));
+    const stepX = Math.max(34, Math.round(44 * grid.dpr));
+
+    for (let y = grid.padPx; y < grid.H - grid.padPx; y += stepY) {
       ctx.beginPath();
       ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(W, y + 0.5);
+      ctx.lineTo(grid.W, y + 0.5);
       ctx.stroke();
     }
-    for (let x = padPx; x < W - padPx; x += Math.max(34, Math.round(44 * grid.dpr))) {
+
+    for (let x = grid.padPx; x < grid.W - grid.padPx; x += stepX) {
       ctx.beginPath();
       ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, H);
+      ctx.lineTo(x + 0.5, grid.H);
       ctx.stroke();
     }
 
@@ -30,13 +40,14 @@
   }
 
   function draw(ctx, canvas, grid, layout, meta) {
-    const theme = NS.Theme?.get?.() || {};
-    const colorForFee = NS.Theme?.colorForFeeRate || (() => "#555");
+    const Theme = NS.Theme;
+    const theme = Theme?.get?.() || {};
+    const colorForFee = Theme?.colorForFeeRate || (() => "#555");
 
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // bg
+    // background
     ctx.fillStyle = theme.canvasBg || "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -50,17 +61,19 @@
       canvas.height - Math.round(4 * grid.dpr)
     );
 
-    drawGridLines(ctx, grid, theme);
+    drawGrid(ctx, grid, theme);
 
     const outline = theme.tileOutline || "rgba(255,255,255,0.08)";
 
-    // draw squares
+    // tiles
     for (const tx of (layout?.placed || [])) {
       const x = grid.x0 + tx.x * grid.step;
       const y = grid.y0 + tx.y * grid.step;
+      const s = Math.max(1, tx.side || 1);
 
-      const sideCells = tx.side || 1;
-      const px = (sideCells * grid.cellPx) + (Math.max(0, sideCells - 1) * grid.gapPx);
+      const px =
+        (s * grid.cellPx) +
+        (Math.max(0, s - 1) * grid.gapPx);
 
       ctx.fillStyle = colorForFee(Number(tx.feeRate) || 0, theme);
       ctx.fillRect(x, y, px, px);
@@ -70,14 +83,17 @@
       ctx.strokeRect(x + 0.5, y + 0.5, px - 1, px - 1);
     }
 
-    // meta text overlay (bottom-left)
+    // meta text
     if (meta) {
       ctx.save();
-      const fs = Math.max(12, Math.round(11 * grid.dpr));
-      ctx.font = `${fs}px IBMPlexMono, ui-monospace, monospace`;
-      ctx.fillStyle = theme.text || "#c0d674";
       ctx.globalAlpha = 0.9;
-      ctx.fillText(String(meta), Math.round(10 * grid.dpr), canvas.height - Math.round(14 * grid.dpr));
+      ctx.fillStyle = theme.text || "#c0d674";
+      ctx.font = `${Math.max(12, Math.round(11 * grid.dpr))}px IBMPlexMono, monospace`;
+      ctx.fillText(
+        String(meta),
+        Math.round(10 * grid.dpr),
+        canvas.height - Math.round(14 * grid.dpr)
+      );
       ctx.restore();
     }
 
