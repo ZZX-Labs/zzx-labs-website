@@ -2,47 +2,60 @@
 // DROP-IN COMPLETE REPLACEMENT
 //
 // Purpose:
-// - Render SQUARE tiles (side x side, in grid cells) to canvas using the Grid metrics.
-// - This replaces the older Plotter for the "tile field" look, but keeps compatibility:
-//     renderer.draw(ctx, canvas, grid, layout, meta)
+// - Paint a *tiled field* of variable-size TX tiles onto the canvas.
+// - Supports BOTH square tiles (tx.side) and rectangle tiles (tx.w/tx.h in cells).
+// - Uses Theme for colors + chrome, identical look regardless of packer used.
+// - This replaces “columns” vibes by honoring packed geometry (w/h or side).
 //
-// Layout contract (from binfill/tetrifill):
-//   layout = { placed:[{ txid, feeRate, vbytes, side, x, y, ... }], cols, rows }
-//
-// Color:
-// - Uses Theme.colorForFeeRate(feeRate) to color tiles.
-// - Optional: subtle alpha/outline + a tiny “heat” overlay for high fee.
+// Input:
+//   - grid: from Grid.makeGrid()
+//   - layout: { placed:[ {x,y, side? , w?, h?, feeRate, ...} ] }
+//     where x/y and side/w/h are in GRID CELLS.
 //
 // Exposes:
-//   window.ZZXMempoolSpecs.Renderer.draw(...)
+//   window.ZZXMempoolSpecs.Renderer.draw(ctx, canvas, grid, layout, meta)
+//
+// Notes:
+// - Your packer can be: tetrifill (squares), binfill (squares), treemap (rectangles).
+// - This renderer will faithfully draw what the packer outputs.
+
 (function () {
   "use strict";
 
   const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
-  const API = (NS.Renderer = NS.Renderer || {});
 
-  function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
-
-  function getTheme() {
-    return (NS.Theme?.get?.() || {
-      canvasBg: "#000",
-      border: "#e6a42b",
-      text: "#c0d674",
-      muted: "rgba(192,214,116,0.75)",
-      gridLine: "rgba(255,255,255,0.06)",
-      tileOutline: "rgba(0,0,0,0.35)",
-    });
+  function pxSpan(cells, cellPx, gapPx) {
+    const c = Math.max(1, Math.floor(cells || 1));
+    return (c * cellPx) + (Math.max(0, c - 1) * gapPx);
   }
 
-  function colorForFee(feeRate, theme) {
-    const fn = NS.Theme?.colorForFeeRate;
-    if (typeof fn === "function") return fn(feeRate, theme);
-    return "#3a3a3a";
+  function drawStripes(ctx, grid, theme) {
+    ctx.save();
+    ctx.strokeStyle = theme.gridLine || "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+
+    // subtle stripes only (fast)
+    const stepY = Math.max(24, Math.round(28 * grid.dpr));
+    const stepX = Math.max(34, Math.round(44 * grid.dpr));
+
+    for (let y = grid.padPx; y < grid.H - grid.padPx; y += stepY) {
+      ctx.beginPath();
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(grid.W, y + 0.5);
+      ctx.stroke();
+    }
+    for (let x = grid.padPx; x < grid.W - grid.padPx; x += stepX) {
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, grid.H);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   function drawFrame(ctx, canvas, grid, theme) {
     ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // bg
     ctx.fillStyle = theme.canvasBg || "#000";
@@ -50,97 +63,81 @@
 
     // border frame
     ctx.strokeStyle = theme.border || "#e6a42b";
-    ctx.lineWidth = Math.max(2, Math.round(3 * (grid.dpr || 1)));
-    const inset = Math.round(2 * (grid.dpr || 1));
-    ctx.strokeRect(inset, inset, canvas.width - inset * 2, canvas.height - inset * 2);
+    ctx.lineWidth = Math.max(2, Math.round(3 * grid.dpr));
+    ctx.strokeRect(
+      Math.round(2 * grid.dpr),
+      Math.round(2 * grid.dpr),
+      canvas.width - Math.round(4 * grid.dpr),
+      canvas.height - Math.round(4 * grid.dpr)
+    );
 
-    // subtle guide stripes (not full grid; keeps it fast)
-    ctx.strokeStyle = theme.gridLine || "rgba(255,255,255,0.06)";
-    ctx.lineWidth = 1;
-
-    const stepStripeY = Math.max(26, Math.round(30 * (grid.dpr || 1)));
-    const stepStripeX = Math.max(38, Math.round(46 * (grid.dpr || 1)));
-
-    for (let y = grid.y0; y < canvas.height - grid.padPx; y += stepStripeY) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(canvas.width, y + 0.5);
-      ctx.stroke();
-    }
-    for (let x = grid.x0; x < canvas.width - grid.padPx; x += stepStripeX) {
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, canvas.height);
-      ctx.stroke();
-    }
+    drawStripes(ctx, grid, theme);
 
     ctx.restore();
-  }
-
-  function cellRectPx(grid, x, y, side) {
-    const sx = grid.x0 + x * grid.step;
-    const sy = grid.y0 + y * grid.step;
-
-    // side cells occupy: side*cellPx + (side-1)*gapPx
-    const px = (side * grid.cellPx) + (Math.max(0, side - 1) * grid.gapPx);
-    return { x: sx, y: sy, w: px, h: px };
-  }
-
-  function drawTiles(ctx, canvas, grid, layout, theme) {
-    const placed = (layout && Array.isArray(layout.placed)) ? layout.placed : [];
-    if (!placed.length) return;
-
-    const outline = theme.tileOutline || "rgba(0,0,0,0.35)";
-    const dpr = grid.dpr || 1;
-
-    // render order: draw big first, small last (avoids “small hidden under big” when animating)
-    const arr = placed.slice().sort((a,b) => (Number(b.side)||1) - (Number(a.side)||1));
-
-    for (const t of arr) {
-      const side = clamp(Math.floor(Number(t.side) || 1), 1, 999);
-      const x = Math.floor(Number(t.x) || 0);
-      const y = Math.floor(Number(t.y) || 0);
-
-      const r = cellRectPx(grid, x, y, side);
-
-      // fill
-      ctx.fillStyle = colorForFee(Number(t.feeRate) || 0, theme);
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-
-      // subtle “heat” glaze for very high fees
-      const fr = Number(t.feeRate) || 0;
-      if (fr >= 150) {
-        ctx.save();
-        ctx.globalAlpha = 0.14;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(r.x, r.y, r.w, r.h);
-        ctx.restore();
-      }
-
-      // outline
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = Math.max(1, Math.round(1 * dpr));
-      ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
-    }
   }
 
   function drawMeta(ctx, canvas, grid, theme, meta) {
     if (!meta) return;
     ctx.save();
-    const dpr = grid.dpr || 1;
-    const fs = Math.max(12, Math.round(11 * dpr));
-    ctx.font = `${fs}px IBMPlexMono, ui-monospace, monospace`;
+    ctx.globalAlpha = 0.9;
     ctx.fillStyle = theme.text || "#c0d674";
-    ctx.globalAlpha = 0.92;
-    ctx.fillText(String(meta), Math.round(10 * dpr), canvas.height - Math.round(14 * dpr));
+    ctx.font = `${Math.max(12, Math.round(11 * grid.dpr))}px IBMPlexMono, ui-monospace, monospace`;
+    ctx.fillText(
+      String(meta),
+      Math.round(10 * grid.dpr),
+      canvas.height - Math.round(14 * grid.dpr)
+    );
     ctx.restore();
   }
 
-  API.draw = function draw(ctx, canvas, grid, layout, meta) {
-    if (!ctx || !canvas || !grid) return;
-    const theme = getTheme();
+  function draw(ctx, canvas, grid, layout, meta) {
+    const Theme = NS.Theme;
+    const theme = Theme?.get?.() || {};
+    const colorForFee = Theme?.colorForFeeRate || (() => "#555");
+
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     drawFrame(ctx, canvas, grid, theme);
-    drawTiles(ctx, canvas, grid, layout, theme);
+
+    const outline = theme.tileOutline || "rgba(255,255,255,0.10)";
+    const placed = (layout && Array.isArray(layout.placed)) ? layout.placed : [];
+
+    // Paint tiles
+    for (const tx of placed) {
+      const cx = Math.max(0, Math.floor(tx.x || 0));
+      const cy = Math.max(0, Math.floor(tx.y || 0));
+
+      // Prefer rectangles if present, else squares
+      const wCells = Number.isFinite(tx.w) ? Math.max(1, Math.floor(tx.w)) : null;
+      const hCells = Number.isFinite(tx.h) ? Math.max(1, Math.floor(tx.h)) : null;
+
+      const sideCells = Number.isFinite(tx.side)
+        ? Math.max(1, Math.floor(tx.side))
+        : 1;
+
+      const wc = (wCells != null && hCells != null) ? wCells : sideCells;
+      const hc = (wCells != null && hCells != null) ? hCells : sideCells;
+
+      const x = grid.x0 + cx * grid.step;
+      const y = grid.y0 + cy * grid.step;
+
+      const wpx = pxSpan(wc, grid.cellPx, grid.gapPx);
+      const hpx = pxSpan(hc, grid.cellPx, grid.gapPx);
+
+      ctx.fillStyle = colorForFee(Number(tx.feeRate) || 0, theme);
+      ctx.fillRect(x, y, wpx, hpx);
+
+      // outline
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, wpx - 1), Math.max(0, hpx - 1));
+    }
+
     drawMeta(ctx, canvas, grid, theme, meta);
-  };
+
+    ctx.restore();
+  }
+
+  NS.Renderer = { draw };
 })();
