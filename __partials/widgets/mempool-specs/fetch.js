@@ -1,0 +1,156 @@
+// __partials/widgets/mempool-specs/fetch.js
+// DROP-IN (UPDATED)
+// Robust fetch:
+// - direct first
+// - fallback to AllOrigins RAW
+// - text-first parse with previews
+// - cached last-good (localStorage)
+// Exposes:
+//   window.ZZXMempoolSpecsFetch.fetchText(url, opts)
+//   window.ZZXMempoolSpecsFetch.fetchJSON(url, opts)
+
+(function () {
+  "use strict";
+
+  const W = window;
+  const NS = (W.ZZXMempoolSpecsFetch = W.ZZXMempoolSpecsFetch || {});
+
+  const AO_RAW = "https://api.allorigins.win/raw?url=";
+
+  const CACHE_PREFIX = "zzx:mempool-specs:";
+  const CACHE_TTL_MS = 10 * 60_000; // 10 min
+
+  function now() { return Date.now(); }
+
+  function snip(s, n = 180) {
+    const t = String(s ?? "").replace(/\s+/g, " ").trim();
+    return t.length > n ? t.slice(0, n) + "…" : t;
+  }
+
+  function cacheKey(url, kind) {
+    return `${CACHE_PREFIX}${kind}:` + encodeURIComponent(String(url || ""));
+  }
+
+  function cacheRead(url, kind) {
+    try {
+      const raw = localStorage.getItem(cacheKey(url, kind));
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || typeof obj !== "object") return null;
+      if (!obj.t || (now() - obj.t) > CACHE_TTL_MS) return null;
+      return obj.v ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  function cacheWrite(url, kind, value) {
+    try {
+      localStorage.setItem(cacheKey(url, kind), JSON.stringify({ t: now(), v: value }));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function fetchTextRaw(url, init) {
+    const r = await fetch(url, {
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "follow",
+      ...(init || {})
+    });
+    const t = await r.text();
+    if (!r.ok) {
+      const err = new Error(`HTTP ${r.status}: ${snip(t) || "no body"}`);
+      err.status = r.status;
+      err.body = t;
+      throw err;
+    }
+    return t;
+  }
+
+  async function fetchTextDirect(url, { signal } = {}) {
+    return await fetchTextRaw(url, { signal });
+  }
+
+  async function fetchTextAO(url, { signal } = {}) {
+    const u = AO_RAW + encodeURIComponent(String(url));
+    return await fetchTextRaw(u, { signal });
+  }
+
+  function parseJSON(text, url, tag) {
+    const s = String(text ?? "").trim();
+    if (!s) throw new Error(`empty response (${tag}) for ${url}`);
+    try {
+      return JSON.parse(s);
+    } catch {
+      throw new Error(`JSON.parse failed (${tag}) for ${url}: "${snip(s)}"`);
+    }
+  }
+
+  // Public: fetchText with direct->AO->cache
+  NS.fetchText = async function fetchText(url, { signal } = {}) {
+    // 1) direct
+    try {
+      const t = await fetchTextDirect(url, { signal });
+      cacheWrite(url, "text", t);
+      return { ok: true, text: t, from: "direct" };
+    } catch (e1) {
+      if (e1 && (e1.status === 429 || e1.status === 503)) {
+        const cached = cacheRead(url, "text");
+        if (cached != null) return { ok: true, text: cached, from: "cache(rate-limit)" };
+      }
+
+      // 2) AO
+      try {
+        const t = await fetchTextAO(url, { signal });
+        cacheWrite(url, "text", t);
+        return { ok: true, text: t, from: "allorigins" };
+      } catch (e2) {
+        // 3) cache fallback
+        const cached = cacheRead(url, "text");
+        if (cached != null) return { ok: true, text: cached, from: "cache(fallback)" };
+
+        throw new Error(
+          `fetchText failed\n` +
+          `direct: ${String(e1?.message || e1)}\n` +
+          `allorigins: ${String(e2?.message || e2)}`
+        );
+      }
+    }
+  };
+
+  // Public: fetchJSON built atop fetchText (so parsing errors are readable)
+  NS.fetchJSON = async function fetchJSON(url, { signal } = {}) {
+    // 1) direct -> JSON parse
+    try {
+      const t = await fetchTextDirect(url, { signal });
+      const j = parseJSON(t, url, "direct");
+      cacheWrite(url, "json", j);
+      return { ok: true, json: j, from: "direct" };
+    } catch (e1) {
+      if (e1 && (e1.status === 429 || e1.status === 503)) {
+        const cached = cacheRead(url, "json");
+        if (cached != null) return { ok: true, json: cached, from: "cache(rate-limit)" };
+      }
+
+      // 2) AO -> JSON parse
+      try {
+        const t = await fetchTextAO(url, { signal });
+        const j = parseJSON(t, url, "allorigins");
+        cacheWrite(url, "json", j);
+        return { ok: true, json: j, from: "allorigins" };
+      } catch (e2) {
+        // 3) cache fallback
+        const cached = cacheRead(url, "json");
+        if (cached != null) return { ok: true, json: cached, from: "cache(fallback)" };
+
+        throw new Error(
+          `fetchJSON failed\n` +
+          `direct: ${String(e1?.message || e1)}\n` +
+          `allorigins: ${String(e2?.message || e2)}`
+        );
+      }
+    }
+  };
+})();
