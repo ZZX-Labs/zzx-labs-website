@@ -1,16 +1,20 @@
 // __partials/widgets/mempool-specs/widget.js
-// DROP-IN COMPLETE REPLACEMENT (SELF-LOADING, FAIL-LOUD)
+// DROP-IN COMPLETE REPLACEMENT
 //
-// Fixes “loading…” forever by:
-// - auto-loading required modules from same directory
-// - hard error reporting into [data-ms-sub]
-// - using ZZXMempoolSpecsFetch (direct -> AllOrigins -> cache) for ALL network
-// - stable timers, idempotent mount
+// Goal: mempool.space "goggles-like" field:
+// - many tiles, heavy-tailed sizes (few big, lots tiny)
+// - feeRate -> color via themes.js
+// - pack via Sorter.packSquares (tetris scan), NOT treemap columns
+// - animate via Anim
 //
-// Requires these sibling files in /__partials/widgets/mempool-specs/:
-//   fetch.js, txfetcher.js, scaler.js, themes.js, grid.js, sorter.js, plotter.js, animation.js
+// Data strategy (low-call):
+// 1) Prefer /api/v1/fees/mempool-blocks (gives feeRange + blockVSize + nTx)
+//    -> synthesize tx tiles per projected block with realistic size distribution.
+// 2) Fallback to /api/mempool fee_histogram
 //
-// Exposes nothing; registers widget "mempool-specs" into your widget system.
+// Requires sibling modules in same dir:
+// fetch.js, themes.js, grid.js, sorter.js, scaler.js, plotter.js, animation.js
+// (txfetcher.js optional; used only for tip height if present)
 (function () {
   "use strict";
 
@@ -18,8 +22,12 @@
   const ID = "mempool-specs";
   const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
 
-  const log = (...a) => DEBUG && console.log("[ZZX:MEMPOOL-SPECS]", ...a);
-  const warn = (...a) => DEBUG && console.warn("[ZZX:MEMPOOL-SPECS]", ...a);
+  const MEMPOOL_BASE = "https://mempool.space/api";
+  const EP = {
+    tipHeight: `${MEMPOOL_BASE}/blocks/tip/height`,
+    mempool:   `${MEMPOOL_BASE}/mempool`,
+    blocks:    `${MEMPOOL_BASE}/v1/fees/mempool-blocks`,
+  };
 
   // -----------------------------
   // DOM helpers
@@ -29,14 +37,11 @@
     const el = qs(root, sel);
     if (el) el.textContent = String(txt ?? "");
   }
-
   function ensureCanvas(root) {
     const host = qs(root, "[data-ms-block]");
     if (!host) return null;
-
     let c = host.querySelector("canvas[data-canvas]");
     if (c) return c;
-
     c = document.createElement("canvas");
     c.setAttribute("data-canvas", "1");
     host.appendChild(c);
@@ -44,7 +49,7 @@
   }
 
   // -----------------------------
-  // Module loader (like NBV)
+  // Dependency auto-loader (fail-loud)
   // -----------------------------
   function widgetBasePath() {
     const Core = W.ZZXWidgetsCore;
@@ -68,31 +73,18 @@
     });
   }
 
-  function haveAll() {
-    const NS = W.ZZXMempoolSpecs;
-    return !!(
-      W.ZZXMempoolSpecsFetch?.fetchJSON &&
-      NS?.TxFetcher &&
-      NS?.Scaler &&
-      NS?.Theme &&
-      NS?.Grid &&
-      NS?.Sorter?.packSquares &&
-      NS?.Plotter?.draw &&
-      NS?.Anim?.Anim
-    );
-  }
-
   async function ensureDeps() {
     const base = widgetBasePath();
     const deps = [
-      ["fetch.js",     "zzx:ms:fetch",     () => !!W.ZZXMempoolSpecsFetch?.fetchJSON],
-      ["txfetcher.js", "zzx:ms:txfetcher", () => !!W.ZZXMempoolSpecs?.TxFetcher],
-      ["scaler.js",    "zzx:ms:scaler",    () => !!W.ZZXMempoolSpecs?.Scaler],
-      ["themes.js",    "zzx:ms:themes",    () => !!W.ZZXMempoolSpecs?.Theme],
-      ["grid.js",      "zzx:ms:grid",      () => !!W.ZZXMempoolSpecs?.Grid],
-      ["sorter.js",    "zzx:ms:sorter",    () => !!W.ZZXMempoolSpecs?.Sorter?.packSquares],
-      ["plotter.js",   "zzx:ms:plotter",   () => !!W.ZZXMempoolSpecs?.Plotter?.draw],
-      ["animation.js", "zzx:ms:anim",      () => !!W.ZZXMempoolSpecs?.Anim?.Anim],
+      ["fetch.js",     "zzx:ms:fetch",   () => !!W.ZZXMempoolSpecsFetch?.fetchJSON],
+      ["themes.js",    "zzx:ms:themes",  () => !!W.ZZXMempoolSpecs?.Theme],
+      ["grid.js",      "zzx:ms:grid",    () => !!W.ZZXMempoolSpecs?.Grid],
+      ["sorter.js",    "zzx:ms:sorter",  () => !!W.ZZXMempoolSpecs?.Sorter?.packSquares],
+      ["scaler.js",    "zzx:ms:scaler",  () => !!W.ZZXMempoolSpecs?.Scaler],
+      ["plotter.js",   "zzx:ms:plotter", () => !!W.ZZXMempoolSpecs?.Plotter?.draw],
+      ["animation.js", "zzx:ms:anim",    () => !!W.ZZXMempoolSpecs?.Anim?.Anim],
+      // txfetcher.js is optional (tip height); widget works without it
+      ["txfetcher.js", "zzx:ms:txf",     () => true],
     ];
 
     for (const [file, key, okfn] of deps) {
@@ -100,21 +92,192 @@
       const ok = await loadOnce(base + file, key);
       if (!ok) return { ok: false, why: `${file} failed to load (${base}${file})` };
       await new Promise(r => setTimeout(r, 0));
-      if (!okfn()) return { ok: false, why: `${file} loaded but did not register` };
+      // for non-optional modules, verify again:
+      if (file !== "txfetcher.js" && !okfn()) return { ok: false, why: `${file} loaded but did not register` };
     }
     return { ok: true };
   }
 
+  function havePipeline() {
+    const NS = W.ZZXMempoolSpecs;
+    return !!(
+      W.ZZXMempoolSpecsFetch?.fetchJSON &&
+      NS?.Theme &&
+      NS?.Grid &&
+      NS?.Sorter?.packSquares &&
+      NS?.Scaler &&
+      NS?.Plotter?.draw &&
+      NS?.Anim?.Anim
+    );
+  }
+
   // -----------------------------
-  // Histogram -> pseudo items
-  // (this version outputs areaCells, enabling treemap sorter)
+  // RNG helpers (seeded, deterministic-ish)
   // -----------------------------
+  function xorshift32(seed) {
+    let x = (seed >>> 0) || 0x12345678;
+    return function rand() {
+      // xorshift32
+      x ^= x << 13; x >>>= 0;
+      x ^= x >> 17; x >>>= 0;
+      x ^= x << 5;  x >>>= 0;
+      return (x >>> 0) / 0x100000000;
+    };
+  }
+
+  // lognormal-ish sample (cheap)
+  function sampleLogNormal(rand, mu, sigma) {
+    // Box-Muller normal -> exp
+    const u1 = Math.max(1e-9, rand());
+    const u2 = Math.max(1e-9, rand());
+    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return Math.exp(mu + sigma * z);
+  }
+
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  // -----------------------------
+  // Data fetch
+  // -----------------------------
+  async function fetchJSON(url, { signal } = {}) {
+    const r = await W.ZZXMempoolSpecsFetch.fetchJSON(url, { signal });
+    return r.json;
+  }
+
+  async function fetchText(url, { signal } = {}) {
+    const r = await W.ZZXMempoolSpecsFetch.fetchText(url, { signal });
+    return r.text;
+  }
+
+  // Prefer /v1/fees/mempool-blocks if present
+  async function loadMempoolBlocks(st) {
+    try {
+      const blocks = await fetchJSON(EP.blocks);
+      if (Array.isArray(blocks) && blocks.length) return blocks;
+    } catch (_) {}
+    return null;
+  }
+
+  async function loadHistogram(st) {
+    try {
+      const mem = await fetchJSON(EP.mempool);
+      if (mem && Array.isArray(mem.fee_histogram) && mem.fee_histogram.length) return mem.fee_histogram;
+    } catch (_) {}
+    return null;
+  }
+
+  async function loadTipHeight(st) {
+    // Use txfetcher if it exists, otherwise use direct height endpoint
+    try {
+      if (W.ZZXMempoolSpecs?.TxFetcher) {
+        if (!st._txf) st._txf = new W.ZZXMempoolSpecs.TxFetcher({ base: MEMPOOL_BASE, minIntervalMs: 15_000 });
+        const snap = await st._txf.snapshot({ force: true });
+        if (snap?.tipHeight != null) return snap.tipHeight;
+      }
+    } catch (_) {}
+    try {
+      const t = await fetchText(EP.tipHeight);
+      const n = parseInt(String(t).trim(), 10);
+      if (Number.isFinite(n)) return n;
+    } catch (_) {}
+    return null;
+  }
+
+  // -----------------------------
+  // Tile synthesis (GOGGLES-LIKE)
+  // -----------------------------
+  function synthFromMempoolBlocks(blocks, scaler, seedBase) {
+    // blocks[] typical shape (best-effort):
+    // { blockVSize|blockSize, nTx, feeRange:[min,max] or array, medianFee? }
+    //
+    // We will synthesize many tx tiles with:
+    // - vbytes distributed lognormally around mean = blockVSize/nTx
+    // - feeRate sampled within feeRange (biased upward for earlier blocks)
+    //
+    // Cap total tiles for performance on mobile.
+    const MAX_TILES = 1800;
+
+    const out = [];
+    let tileId = 0;
+
+    // seed ties to tip + block count so it stays stable between refreshes
+    const rand = xorshift32((seedBase >>> 0) ^ (blocks.length << 8) ^ 0xA5A5A5A5);
+
+    // earlier blocks are higher fee, so bias fee samples upward for index=0
+    for (let bi = 0; bi < blocks.length; bi++) {
+      if (out.length >= MAX_TILES) break;
+
+      const b = blocks[bi] || {};
+      const nTx = Math.max(0, Math.floor(Number(b.nTx ?? b.ntx ?? 0)));
+      const vsize = Number(b.blockVSize ?? b.blockSize ?? b.block_vsize ?? 0);
+
+      if (!Number.isFinite(nTx) || !Number.isFinite(vsize) || nTx <= 0 || vsize <= 0) continue;
+
+      // fee range: could be [a,b] or long array; normalize to min/max
+      let fr = b.feeRange ?? b.fee_range ?? null;
+      let fMin = 1, fMax = 2;
+      if (Array.isArray(fr) && fr.length >= 2) {
+        const nums = fr.map(Number).filter(Number.isFinite);
+        if (nums.length) {
+          fMin = Math.min(...nums);
+          fMax = Math.max(...nums);
+        }
+      }
+
+      fMin = Number.isFinite(fMin) ? fMin : 1;
+      fMax = Number.isFinite(fMax) ? fMax : (fMin + 10);
+
+      const mean = vsize / nTx;                 // mean vB
+      const sigma = 0.95;                       // heavy tail
+      const mu = Math.log(Math.max(60, mean)) - 0.5 * sigma * sigma;
+
+      // how many tiles from this block? keep density but cap
+      const tilesHere = clamp(Math.floor(nTx * 0.55), 80, 520);
+
+      // fee bias: earlier blocks push toward high end
+      const bias = clamp(1.25 - (bi * 0.18), 0.55, 1.25);
+
+      let usedVb = 0;
+      const targetVb = vsize;
+
+      for (let i = 0; i < tilesHere; i++) {
+        if (out.length >= MAX_TILES) break;
+
+        // sample vbytes; clamp to keep extremes sane
+        let vb = sampleLogNormal(rand, mu, sigma);
+        vb = clamp(vb, 60, 80_000);
+
+        // scale vb so total roughly matches block vsize
+        // do a soft stop if we run out of vbytes budget
+        if (usedVb >= targetVb) break;
+        vb = Math.min(vb, targetVb - usedVb);
+        if (vb < 40) break;
+        usedVb += vb;
+
+        // sample feeRate within range, biased
+        const u = Math.pow(rand(), bias);
+        const feeRate = fMin + (fMax - fMin) * u;
+
+        const side = scaler.sideCellsFromVBytes(vb);
+
+        out.push({
+          txid: `b${bi}:${seedBase}:${tileId++}`,
+          feeRate,
+          vbytes: vb,
+          side
+        });
+      }
+    }
+
+    return out;
+  }
+
   function computeNextBlockFromHistogram(hist, targetVSize = 1_000_000) {
     const rows = (Array.isArray(hist) ? hist : [])
       .map(([fee, vsize]) => [Number(fee), Number(vsize)])
       .filter(([fee, vsize]) => Number.isFinite(fee) && Number.isFinite(vsize) && vsize > 0);
 
-    rows.sort((a, b) => b[0] - a[0]); // high fee first
+    rows.sort((a, b) => b[0] - a[0]);
 
     let used = 0;
     const picked = [];
@@ -128,68 +291,83 @@
     return { picked, used, targetVSize };
   }
 
-  function bandsToRects(picked, scaler, seed = 0) {
-    const out = [];
-    let n = 0;
+  function synthFromHistogram(hist, scaler, seedBase) {
+    // Turn fee bands into many tx-like tiles with a heavy tail.
+    const { picked } = computeNextBlockFromHistogram(hist, 1_000_000);
 
-    // More items => denser micro-tiles. Keep bounded for mobile.
-    const MAX_ITEMS = 1600;
-    const MIN_CHUNK_VB = 220;  // allow many small tiles (mempool-like)
-    const MAX_CHUNKS_PER_BAND = 220;
+    const MAX_TILES = 1600;
+    const out = [];
+    let id = 0;
+
+    const rand = xorshift32((seedBase >>> 0) ^ (picked.length << 16) ^ 0x5C3A21D7);
 
     for (const band of picked) {
-      const vb = Number(band.vbytes) || 0;
+      if (out.length >= MAX_TILES) break;
+
       const fee = Number(band.feeRate) || 0;
+      let vb = Number(band.vbytes) || 0;
       if (vb <= 0) continue;
 
-      // choose chunks: proportional, but capped
-      let chunks = Math.floor(vb / 1400);         // ~1 tile per 1.4k vB
-      chunks = Math.max(1, Math.min(MAX_CHUNKS_PER_BAND, chunks));
+      // Create a few large tiles + many small tiles per band
+      // Big tiles capture "whales" / CPFP clusters feel.
+      const bigCount = clamp(Math.floor(vb / 180_000), 0, 6);
+      for (let i = 0; i < bigCount; i++) {
+        if (out.length >= MAX_TILES) break;
+        const take = clamp(vb * (0.12 + rand() * 0.10), 45_000, 210_000);
+        vb -= take;
+        out.push({ txid: `h:${fee}:${seedBase}:${id++}`, feeRate: fee, vbytes: take, side: scaler.sideCellsFromVBytes(take) });
+      }
 
-      const chunkVb = Math.max(MIN_CHUNK_VB, Math.floor(vb / chunks));
+      // Then many small/medium tiles with lognormal spread
+      const mean = clamp(vb / 220, 80, 4000);
+      const sigma = 1.05;
+      const mu = Math.log(mean) - 0.5 * sigma * sigma;
 
-      for (let i = 0; i < chunks; i++) {
-        if (out.length >= MAX_ITEMS) break;
+      const tiles = clamp(Math.floor(vb / 1200), 40, 360);
+      let used = 0;
 
-        const vbi = (i === chunks - 1) ? (vb - chunkVb * (chunks - 1)) : chunkVb;
+      for (let i = 0; i < tiles; i++) {
+        if (out.length >= MAX_TILES) break;
+        if (used >= vb) break;
 
-        const areaCells =
-          (typeof scaler.areaCellsFromTx === "function")
-            ? scaler.areaCellsFromTx({ vbytes: vbi, feeRate: fee })
-            : (typeof scaler.areaCellsFromVBytes === "function")
-              ? scaler.areaCellsFromVBytes(vbi)
-              : 1;
+        let t = sampleLogNormal(rand, mu, sigma);
+        t = clamp(t, 60, 60_000);
+
+        t = Math.min(t, vb - used);
+        if (t < 40) break;
+        used += t;
 
         out.push({
-          txid: `band:${fee}:${seed}:${n++}:${i}`,
+          txid: `h:${fee}:${seedBase}:${id++}`,
           feeRate: fee,
-          vbytes: vbi,
-          areaCells
+          vbytes: t,
+          side: scaler.sideCellsFromVBytes(t)
         });
       }
-      if (out.length >= MAX_ITEMS) break;
     }
 
     return out;
   }
 
   // -----------------------------
-  // State
+  // State + loop
   // -----------------------------
   function makeState() {
     return {
-      fetcher: null,
       scaler: null,
       anim: null,
+      timer: null,
 
       lastAt: 0,
-      lastTip: null,
-      lastHist: null,
+      tip: null,
+
+      blocks: null,
+      hist: null,
+
       lastLayout: null,
       lastGridSig: "",
-
-      timer: null,
       inflight: false,
+      _txf: null
     };
   }
 
@@ -201,160 +379,93 @@
     return (Date.now() - st.lastAt) > 15_000;
   }
 
-  // -----------------------------
-  // Network (ALWAYS via ZZXMempoolSpecsFetch)
-  // -----------------------------
-  const MEMPOOL_BASE = "https://mempool.space/api";
-
-  function makeCtx() {
-    // Note: txfetcher.js in your repo currently uses raw fetch().
-    // We bypass that by giving it ctx.fetchText/fetchJSON, but ONLY if it supports ctx.
-    // If it doesn’t, widget still fetches via ctx and can set st.lastHist directly.
-    return {
-      api: { MEMPOOL: MEMPOOL_BASE },
-      fetchJSON: async (url, { signal } = {}) => {
-        const r = await W.ZZXMempoolSpecsFetch.fetchJSON(url, { signal });
-        return r.json;
-      },
-      fetchText: async (url, { signal } = {}) => {
-        const r = await W.ZZXMempoolSpecsFetch.fetchText(url, { signal });
-        return r.text;
-      },
-    };
-  }
-
-  async function fetchSnapshot(st) {
+  async function refreshData(st) {
     if (st.inflight) return;
     st.inflight = true;
 
     try {
-      const NS = W.ZZXMempoolSpecs;
-      const TxFetcher = NS.TxFetcher;
+      st.tip = await loadTipHeight(st);
 
-      // Prefer TxFetcher if it supports ctx; otherwise do minimal fetch here.
-      if (!st.fetcher) {
-        try {
-          st.fetcher = new TxFetcher({
-            base: MEMPOOL_BASE,
-            minIntervalMs: 15_000,
-            ctx: makeCtx(), // ok if txfetcher ignores it; we handle fallback
-          });
-        } catch (e) {
-          st.fetcher = null;
-        }
+      // prefer mempool-blocks
+      const blocks = await loadMempoolBlocks(st);
+      if (blocks) {
+        st.blocks = blocks;
+        st.hist = null;
+      } else {
+        st.blocks = null;
+        st.hist = await loadHistogram(st);
       }
 
-      // 1) Try txfetcher.snapshot()
-      if (st.fetcher && typeof st.fetcher.snapshot === "function") {
-        try {
-          const snap = await st.fetcher.snapshot({ force: true });
-          st.lastAt = snap.at || Date.now();
-          st.lastTip = snap.tipHeight ?? null;
-          st.lastHist = snap.feeHistogram ?? null;
-          return snap;
-        } catch (e) {
-          // fall through to direct fetch
-          warn("txfetcher snapshot failed", e);
-        }
-      }
-
-      // 2) Fallback: direct endpoints via fetch.js
-      const ctx = makeCtx();
-
-      let tipHeight = null;
-      try {
-        const t = await ctx.fetchText(`${MEMPOOL_BASE}/blocks/tip/height`);
-        const n = parseInt(String(t).trim(), 10);
-        if (Number.isFinite(n)) tipHeight = n;
-      } catch {}
-
-      let feeHistogram = null;
-      try {
-        const mem = await ctx.fetchJSON(`${MEMPOOL_BASE}/mempool`);
-        if (mem && typeof mem === "object" && Array.isArray(mem.fee_histogram)) {
-          feeHistogram = mem.fee_histogram;
-        }
-      } catch {}
-
-      const snap = {
-        at: Date.now(),
-        tipHeight,
-        tipHash: null,
-        mempool: null,
-        feeHistogram,
-      };
-
-      st.lastAt = snap.at;
-      st.lastTip = tipHeight;
-      st.lastHist = feeHistogram;
-      return snap;
+      st.lastAt = Date.now();
     } finally {
       st.inflight = false;
     }
   }
 
-  // -----------------------------
-  // Render
-  // -----------------------------
-  function buildLayoutFromHistogram(hist, grid, st) {
+  function buildLayout(st, grid) {
     const NS = W.ZZXMempoolSpecs;
 
-    const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
-    const seed = (Number(st.lastTip) || 0) ^ (picked.length << 16);
+    const seedBase = (Number(st.tip) || 0) ^ (grid.cols << 10) ^ (grid.rows << 20);
 
-    const items = bandsToRects(picked, st.scaler, seed);
+    let items = [];
+    let source = "";
 
-    // IMPORTANT: sorter now produces x,y,w,h (treemap)
-    const layout = NS.Sorter.packSquares(items, grid, { seed });
+    if (Array.isArray(st.blocks) && st.blocks.length) {
+      items = synthFromMempoolBlocks(st.blocks, st.scaler, seedBase);
+      source = "mempool-blocks";
+    } else if (Array.isArray(st.hist) && st.hist.length) {
+      items = synthFromHistogram(st.hist, st.scaler, seedBase);
+      source = "fee_histogram";
+    } else {
+      return { layout: { placed: [] }, meta: "mempool data unavailable", source: "none" };
+    }
 
-    const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
-    const meta = `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()} · tiles: ${layout.placed.length}`;
-    return { layout, meta };
+    // Pack using YOUR tetris scan packer (not treemap)
+    const layout = NS.Sorter.packSquares(items, grid, {
+      seed: seedBase,
+      bubblePasses: 1
+    });
+
+    const tiles = layout.placed.length;
+    const meta = `block/0 fill: ${tiles ? "≈" : "0"} · tiles: ${tiles.toLocaleString()} · source: ${source}`;
+    return { layout, meta, source };
   }
 
   function paint(root, st) {
     const NS = W.ZZXMempoolSpecs;
 
     const canvas = ensureCanvas(root);
-    if (!canvas) throw new Error("canvas missing");
+    if (!canvas) return;
 
-    const ctx2d = canvas.getContext("2d");
-    if (!ctx2d) throw new Error("2D context missing");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const grid = NS.Grid.makeGrid(canvas, {
       minCssH: 220,
-      cellCss: 7,
-      gapCss: 1,
-      padCss: 10
+      cellCss: 6.5,   // smaller cells => more tiles visible (closer to goggles)
+      gapCss:  1,
+      padCss:  10
     });
 
     const sig = gridSignature(grid);
     const gridChanged = (sig !== st.lastGridSig);
     st.lastGridSig = sig;
 
-    const hist = st.lastHist;
-    if (!hist) {
-      setText(root, "[data-ms-summary]", "mempool data unavailable");
-      setText(root, "[data-ms-sub]", "—");
-      NS.Plotter.draw(ctx2d, canvas, grid, { placed: [] }, "mempool data unavailable");
-      return;
-    }
-
-    const { layout: newLayout, meta } = buildLayoutFromHistogram(hist, grid, st);
+    const { layout: newLayout, meta, source } = buildLayout(st, grid);
 
     setText(root, "[data-ms-summary]", meta);
-    setText(root, "[data-ms-sub]", `tip: ${st.lastTip ?? "—"} · source: mempool.space`);
+    setText(root, "[data-ms-sub]", `tip: ${st.tip ?? "—"} · mempool.space`);
 
     if (!st.lastLayout || gridChanged) {
-      NS.Plotter.draw(ctx2d, canvas, grid, newLayout, meta);
+      NS.Plotter.draw(ctx, canvas, grid, newLayout, meta);
       st.lastLayout = newLayout;
       return;
     }
 
-    if (!st.anim) st.anim = new NS.Anim.Anim({ ms: 650 });
+    if (!st.anim) st.anim = new NS.Anim.Anim({ ms: 750 });
 
     st.anim.play(st.lastLayout, newLayout, (lay) => {
-      NS.Plotter.draw(ctx2d, canvas, grid, lay, meta);
+      NS.Plotter.draw(ctx, canvas, grid, lay, meta);
     });
 
     st.lastLayout = newLayout;
@@ -364,20 +475,20 @@
     if (!root || !root.isConnected) return;
 
     try {
-      if (shouldFetch(st)) await fetchSnapshot(st);
+      if (shouldFetch(st)) await refreshData(st);
       paint(root, st);
     } catch (e) {
       const msg = String(e?.message || e);
       setText(root, "[data-ms-sub]", `error: ${msg}`);
-      if (DEBUG) warn("tick failed", e);
+      if (DEBUG) console.warn("[ZZX:MEMPOOL-SPECS] tick failed", e);
     }
   }
 
   function start(root, st) {
     if (st.timer) clearInterval(st.timer);
 
-    // fast repaint cadence; fetch is throttled
-    st.timer = setInterval(() => tick(root, st), 900);
+    // paint cadence; network fetch throttled separately
+    st.timer = setInterval(() => tick(root, st), 950);
     tick(root, st);
 
     if (!root.__zzxMempoolSpecsResizeBound) {
@@ -394,18 +505,11 @@
     if (st) st.timer = null;
   }
 
-  // -----------------------------
-  // Boot
-  // -----------------------------
   async function boot(root) {
     if (!root) return;
 
-    // clear old timer if reinjected
-    if (root.__zzxMempoolSpecsState) {
-      stop(root.__zzxMempoolSpecsState);
-    } else {
-      root.__zzxMempoolSpecsState = makeState();
-    }
+    if (root.__zzxMempoolSpecsState) stop(root.__zzxMempoolSpecsState);
+    else root.__zzxMempoolSpecsState = makeState();
 
     setText(root, "[data-ms-summary]", "loading…");
     setText(root, "[data-ms-sub]", "loading modules…");
@@ -419,32 +523,29 @@
       return;
     }
 
-    if (!haveAll()) {
+    if (!havePipeline()) {
       setText(root, "[data-ms-summary]", "mempool-specs modules missing");
-      setText(root, "[data-ms-sub]", "one or more modules loaded but not registered");
+      setText(root, "[data-ms-sub]", "fetch/themes/grid/sorter/scaler/plotter/animation not registered");
       return;
     }
 
     const st = root.__zzxMempoolSpecsState;
     const NS = W.ZZXMempoolSpecs;
-
     if (!st.scaler) st.scaler = new NS.Scaler();
 
-    setText(root, "[data-ms-sub]", "loading mempool snapshot…");
+    setText(root, "[data-ms-sub]", "loading mempool…");
 
     start(root, st);
   }
 
-  // -----------------------------
-  // Register with your widget system
-  // -----------------------------
+  // register
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount(ID, (root) => { boot(root); });
+    W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
   } else if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
     W.ZZXWidgets.register(ID, function (root) { boot(root); });
   } else if (W.__ZZX_WIDGETS && typeof W.__ZZX_WIDGETS.register === "function") {
     try { W.__ZZX_WIDGETS.register(ID, function (root) { boot(root); }); } catch (_) {}
   } else {
-    if (DEBUG) warn("no widget registry found");
+    if (DEBUG) console.warn("[ZZX:MEMPOOL-SPECS] no widget registry found");
   }
 })();
