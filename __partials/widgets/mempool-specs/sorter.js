@@ -1,142 +1,158 @@
 // __partials/widgets/mempool-specs/sorter.js
 // DROP-IN COMPLETE REPLACEMENT
 //
-// Deterministic square packing for mempool block visualization.
-// Goals:
-// - Stable ordering (same input = same layout)
-// - Fast (O(n * grid scan))
-// - No physics, no randomness unless seeded
+// Squarified Treemap packer:
+// - Packs items by AREA into a rectangle (grid cols x rows)
+// - Produces mempool.space-like big tiles and dense small tiles
 //
-// Exposes:
-//   window.ZZXMempoolSpecs.Sorter.packSquares()
-
+// Input items: [{ txid, feeRate, vbytes, areaCells, ... }]
+// Output layout: { placed:[{... , x,y,w,h}], cols, rows, rejected }
+//
+// Exposes: window.ZZXMempoolSpecs.Sorter.packSquares (kept name for compatibility)
+// NOTE: It packs RECTANGLES, not "squares". The squarify algorithm keeps them
+// near-square when possible.
 (function () {
   "use strict";
 
   const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
-  function hashSeed(str, seed = 0) {
-    let h = seed ^ 0x9e3779b9;
-    for (let i = 0; i < str.length; i++) {
-      h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+  function worst(row, w) {
+    // classic squarify "worst aspect ratio" metric
+    let sum = 0, maxA = 0, minA = Infinity;
+    for (const a of row) {
+      sum += a;
+      if (a > maxA) maxA = a;
+      if (a < minA) minA = a;
     }
-    return h >>> 0;
+    const s2 = sum * sum;
+    const w2 = w * w;
+    return Math.max((w2 * maxA) / s2, s2 / (w2 * minA));
   }
 
-  function makeOcc(rows, cols) {
-    const occ = new Array(rows);
-    for (let y = 0; y < rows; y++) {
-      occ[y] = new Uint8Array(cols);
-    }
-    return occ;
-  }
+  function layoutRow(rowItems, rowAreas, rect, horizontal, placed) {
+    // rect: {x,y,w,h} in CELLS
+    const sum = rowAreas.reduce((a, b) => a + b, 0);
+    if (sum <= 0) return rect;
 
-  function canPlace(occ, cols, rows, x, y, side) {
-    if (x < 0 || y < 0 || x + side > cols || y + side > rows) return false;
-    for (let yy = y; yy < y + side; yy++) {
-      const row = occ[yy];
-      for (let xx = x; xx < x + side; xx++) {
-        if (row[xx]) return false;
+    if (horizontal) {
+      // row spans full width, fixed height
+      const rowH = Math.max(1, Math.round(sum / rect.w));
+      let x = rect.x;
+      for (let i = 0; i < rowItems.length; i++) {
+        const area = rowAreas[i];
+        const wi = Math.max(1, Math.round(area / rowH));
+        placed.push({ ...rowItems[i], x, y: rect.y, w: wi, h: rowH });
+        x += wi;
       }
+      // leftover rect below
+      return { x: rect.x, y: rect.y + rowH, w: rect.w, h: Math.max(0, rect.h - rowH) };
+    } else {
+      // column spans full height, fixed width
+      const colW = Math.max(1, Math.round(sum / rect.h));
+      let y = rect.y;
+      for (let i = 0; i < rowItems.length; i++) {
+        const area = rowAreas[i];
+        const hi = Math.max(1, Math.round(area / colW));
+        placed.push({ ...rowItems[i], x: rect.x, y, w: colW, h: hi });
+        y += hi;
+      }
+      // leftover rect to the right
+      return { x: rect.x + colW, y: rect.y, w: Math.max(0, rect.w - colW), h: rect.h };
     }
-    return true;
   }
 
-  function mark(occ, x, y, side, v = 1) {
-    for (let yy = y; yy < y + side; yy++) {
-      const row = occ[yy];
-      for (let xx = x; xx < x + side; xx++) {
-        row[xx] = v;
-      }
-    }
+  function normalizeAreas(items, cols, rows) {
+    // Scale item areas so total area ~= available area
+    const avail = Math.max(1, cols * rows);
+    const sum = items.reduce((s, it) => s + (Number(it.areaCells) || 0), 0);
+    if (sum <= 0) return items;
+
+    const k = avail / sum;
+    return items.map(it => ({
+      ...it,
+      _a: Math.max(1, Math.round((Number(it.areaCells) || 1) * k))
+    }));
   }
 
   function packSquares(items, grid, opts = {}) {
-    const cols = grid.cols;
-    const rows = grid.rows;
+    const cols = grid.cols, rows = grid.rows;
 
-    const seed = Number.isFinite(opts.seed) ? opts.seed : 0;
-    const bubblePasses = Number.isFinite(opts.bubblePasses) ? opts.bubblePasses : 0;
-
-    const occ = makeOcc(rows, cols);
-
-    // Sort: fee DESC → size DESC → stable seeded hash
-    const sorted = items.slice().sort((a, b) => {
+    // sort: big first (critical for treemap quality), then fee desc as tiebreak
+    const arr0 = items.slice().sort((a, b) => {
+      const aa = Number(a.areaCells) || 0;
+      const ba = Number(b.areaCells) || 0;
+      if (ba !== aa) return ba - aa;
       const fa = Number(a.feeRate) || 0;
       const fb = Number(b.feeRate) || 0;
-      if (fb !== fa) return fb - fa;
-
-      const sa = Number(a.side) || 1;
-      const sb = Number(b.side) || 1;
-      if (sb !== sa) return sb - sa;
-
-      return hashSeed(String(a.txid || ""), seed) -
-             hashSeed(String(b.txid || ""), seed);
+      return fb - fa;
     });
+
+    const arr = normalizeAreas(arr0, cols, rows);
 
     const placed = [];
     const rejected = [];
 
-    // Primary scan: top → bottom, left → right
-    for (const it of sorted) {
-      const side = Math.max(1, Math.floor(it.side || 1));
-      let placedOK = false;
+    // remaining rectangle in cell space
+    let rect = { x: 0, y: 0, w: cols, h: rows };
 
-      for (let y = 0; y <= rows - side && !placedOK; y++) {
-        for (let x = 0; x <= cols - side; x++) {
-          if (canPlace(occ, cols, rows, x, y, side)) {
-            mark(occ, x, y, side, 1);
-            placed.push({ ...it, x, y });
-            placedOK = true;
-            break;
-          }
-        }
+    // squarify
+    let rowItems = [];
+    let rowAreas = [];
+
+    let i = 0;
+    while (i < arr.length) {
+      const it = arr[i];
+      const a = Number(it._a) || 1;
+
+      // if rect is exhausted, reject remainder
+      if (rect.w <= 0 || rect.h <= 0) {
+        rejected.push(...arr.slice(i).map(x => ({ ...x, _a: undefined })));
+        break;
       }
 
-      if (!placedOK) rejected.push(it);
-    }
+      const w = Math.min(rect.w, rect.h); // squarify uses the shorter side
 
-    // Optional compaction pass
-    for (let pass = 0; pass < bubblePasses; pass++) {
-      let moved = 0;
-      const occ2 = makeOcc(rows, cols);
-      for (const p of placed) mark(occ2, p.x, p.y, p.side, 1);
-
-      for (const p of placed) {
-        mark(occ2, p.x, p.y, p.side, 0);
-
-        let bestX = p.x;
-        let bestY = p.y;
-
-        for (let y = 0; y <= p.y; y++) {
-          for (let x = 0; x <= p.x; x++) {
-            if (canPlace(occ2, cols, rows, x, y, p.side)) {
-              bestX = x;
-              bestY = y;
-              break;
-            }
-          }
-          if (bestX !== p.x || bestY !== p.y) break;
-        }
-
-        mark(occ2, bestX, bestY, p.side, 1);
-
-        if (bestX !== p.x || bestY !== p.y) {
-          p.x = bestX;
-          p.y = bestY;
-          moved++;
-        }
+      if (rowAreas.length === 0) {
+        rowItems.push(it);
+        rowAreas.push(a);
+        i++;
+        continue;
       }
 
-      if (!moved) break;
+      const currentWorst = worst(rowAreas, w);
+      const nextWorst = worst(rowAreas.concat([a]), w);
+
+      if (nextWorst <= currentWorst) {
+        rowItems.push(it);
+        rowAreas.push(a);
+        i++;
+      } else {
+        const horizontal = rect.w >= rect.h; // fill along longer dimension first
+        rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed);
+        rowItems = [];
+        rowAreas = [];
+      }
     }
 
-    return {
-      placed,
-      rejected,
-      cols,
-      rows
-    };
+    // flush last row
+    if (rowAreas.length && rect.w > 0 && rect.h > 0) {
+      const horizontal = rect.w >= rect.h;
+      rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed);
+    }
+
+    // clean internal fields
+    for (const p of placed) delete p._a;
+
+    // final clamp (keeps within grid)
+    for (const p of placed) {
+      p.x = clamp(p.x, 0, cols - 1);
+      p.y = clamp(p.y, 0, rows - 1);
+      p.w = clamp(p.w, 1, cols - p.x);
+      p.h = clamp(p.h, 1, rows - p.y);
+    }
+
+    return { placed, rejected, cols, rows };
   }
 
   NS.Sorter = { packSquares };
