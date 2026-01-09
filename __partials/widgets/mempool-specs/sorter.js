@@ -1,211 +1,224 @@
 // __partials/widgets/mempool-specs/sorter.js
 // DROP-IN COMPLETE REPLACEMENT
 //
-// Squarified Treemap packer (stable, no overlap):
-// - Packs items by AREA into a rectangle (grid cols x rows)
-// - Deterministic row/col sizing (no rounding overflow/gaps)
-// - Last item absorbs remainder so each row/col exactly fits
+// Square Tile Packer (mempool-goggles style):
+// - Packs VARIABLE-SIZE SQUARES into a grid (cols x rows)
+// - Deterministic ordering: fee desc, then size desc, then seeded txid hash
+// - No overlap, no rectangles, no "columns" artifact from treemaps
 //
-// Input items: [{ txid, feeRate, vbytes, areaCells, ... }]
-// Output layout: { placed:[{... , x,y,w,h}], cols, rows, rejected }
+// Input items (expected):
+//   [{ txid, feeRate, vbytes, areaCells?, side?, ... }]
+//
+// Output layout:
+//   { placed:[{... , x,y,side}], rejected:[...], cols, rows }
+//
+// Notes:
+// - If item.side is missing, we derive it from item.areaCells using sqrt(area).
+// - This works with your Renderer/Plotter that expects tx.side.
+// - Keep item count bounded (~<= 450) for mobile smoothness.
 //
 // Exposes: window.ZZXMempoolSpecs.Sorter.packSquares
+
 (function () {
   "use strict";
 
   const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
+
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
-  function worst(row, w) {
-    let sum = 0, maxA = 0, minA = Infinity;
-    for (const a of row) {
-      sum += a;
-      if (a > maxA) maxA = a;
-      if (a < minA) minA = a;
+  // Deterministic hash for stable tiebreaks
+  function seededHash(str, seed) {
+    const s = String(str || "");
+    let h = (seed >>> 0) ^ 0x9e3779b9;
+    for (let i = 0; i < s.length; i++) {
+      h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
     }
-    const s2 = sum * sum;
-    const w2 = w * w;
-    return Math.max((w2 * maxA) / s2, s2 / (w2 * minA));
+    return h >>> 0;
   }
 
-  function normalizeAreas(items, cols, rows) {
-    const avail = Math.max(1, cols * rows);
-    const sum = items.reduce((s, it) => s + (Number(it.areaCells) || 0), 0);
-    if (sum <= 0) return items;
-
-    const k = avail / sum;
-    return items.map(it => ({
-      ...it,
-      _a: Math.max(1, Math.round((Number(it.areaCells) || 1) * k))
-    }));
+  // Occupancy grid: rows of Uint8Array(cols)
+  function makeOcc(rows, cols) {
+    const occ = new Array(rows);
+    for (let y = 0; y < rows; y++) occ[y] = new Uint8Array(cols);
+    return occ;
   }
 
-  // Allocate integer lengths that sum exactly to totalSpan.
-  // Uses proportional floors + last absorbs remainder, with a minimum of 1.
-  function splitSpan(areas, totalSpan) {
-    const out = new Array(areas.length).fill(1);
-    if (areas.length === 0) return out;
-
-    const sumA = areas.reduce((s, a) => s + a, 0);
-    if (sumA <= 0) return out;
-
-    // We must give at least 1 to each item; remaining span to distribute
-    const base = areas.length; // 1 each
-    let rem = totalSpan - base;
-
-    if (rem <= 0) {
-      // Not enough span for 1 each: caller should reject, but be safe.
-      return out.map(() => 1);
+  function canPlace(occ, cols, rows, x, y, side) {
+    if (x < 0 || y < 0 || x + side > cols || y + side > rows) return false;
+    for (let yy = y; yy < y + side; yy++) {
+      const row = occ[yy];
+      for (let xx = x; xx < x + side; xx++) {
+        if (row[xx]) return false;
+      }
     }
-
-    // Proportional allocation of the remaining span (floors)
-    let used = 0;
-    for (let i = 0; i < areas.length; i++) {
-      const share = Math.floor((areas[i] / sumA) * rem);
-      out[i] = 1 + share;
-      used += share;
-    }
-
-    // Give remainder to the last item (ensures exact sum)
-    const leftover = rem - used;
-    out[out.length - 1] += leftover;
-
-    return out;
+    return true;
   }
 
-  function layoutRow(rowItems, rowAreas, rect, horizontal, placed, rejected) {
-    const sum = rowAreas.reduce((a, b) => a + b, 0);
-    if (sum <= 0) return rect;
+  function mark(occ, x, y, side, v = 1) {
+    for (let yy = y; yy < y + side; yy++) {
+      const row = occ[yy];
+      for (let xx = x; xx < x + side; xx++) row[xx] = v;
+    }
+  }
 
-    if (horizontal) {
-      // Row spans full width, fixed height
-      // Thickness chosen so row area ~= sum, but never exceeds remaining height
-      let rowH = Math.ceil(sum / Math.max(1, rect.w));
-      rowH = clamp(rowH, 1, rect.h);
+  // Find the next empty cell scanning top->bottom, left->right
+  function nextEmpty(occ, cols, rows, startY, startX) {
+    for (let y = startY; y < rows; y++) {
+      const row = occ[y];
+      for (let x = (y === startY ? startX : 0); x < cols; x++) {
+        if (!row[x]) return { x, y };
+      }
+    }
+    return null;
+  }
 
-      // Not enough vertical room for this row at all
-      if (rowH <= 0) {
-        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
-        return rect;
+  // Convert "areaCells" into a square side (cells)
+  function sideFromArea(areaCells, minSide, maxSide) {
+    const a = Number(areaCells);
+    if (!Number.isFinite(a) || a <= 1) return minSide;
+    // sqrt(area) gives side; keep it slightly flatter to avoid huge blocks
+    let side = Math.sqrt(a);
+    // gently compress extremes
+    side = Math.pow(side, 0.92);
+    return clamp(Math.round(side), minSide, maxSide);
+  }
+
+  // Attempt to place a square near a target position, searching outward
+  function placeNear(occ, cols, rows, side, targetX, targetY) {
+    // Spiral-ish expanding box search
+    const maxR = Math.max(cols, rows);
+    for (let r = 0; r <= maxR; r++) {
+      const x0 = clamp(targetX - r, 0, cols - side);
+      const x1 = clamp(targetX + r, 0, cols - side);
+      const y0 = clamp(targetY - r, 0, rows - side);
+      const y1 = clamp(targetY + r, 0, rows - side);
+
+      // top edge
+      for (let x = x0; x <= x1; x++) if (canPlace(occ, cols, rows, x, y0, side)) return { x, y: y0 };
+      // right edge
+      for (let y = y0; y <= y1; y++) if (canPlace(occ, cols, rows, x1, y, side)) return { x: x1, y };
+      // bottom edge
+      for (let x = x1; x >= x0; x--) if (canPlace(occ, cols, rows, x, y1, side)) return { x, y: y1 };
+      // left edge
+      for (let y = y1; y >= y0; y--) if (canPlace(occ, cols, rows, x0, y, side)) return { x: x0, y };
+    }
+    return null;
+  }
+
+  // Optional small compaction: try to nudge placed tiles up/left
+  function bubbleUpLeft(placed, cols, rows) {
+    // rebuild occ
+    const occ = makeOcc(rows, cols);
+    for (const p of placed) mark(occ, p.x, p.y, p.side, 1);
+
+    for (const p of placed) {
+      // clear current
+      mark(occ, p.x, p.y, p.side, 0);
+
+      let bestX = p.x, bestY = p.y;
+
+      // try move up
+      for (let y = 0; y <= p.y; y++) {
+        if (canPlace(occ, cols, rows, p.x, y, p.side)) {
+          bestY = y;
+          break;
+        }
+      }
+      // try move left (at new y)
+      for (let x = 0; x <= p.x; x++) {
+        if (canPlace(occ, cols, rows, x, bestY, p.side)) {
+          bestX = x;
+          break;
+        }
       }
 
-      // Split widths to exactly fill rect.w
-      // If rect.w < rowItems.length, we can't give 1 col each => reject all
-      if (rect.w < rowItems.length) {
-        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
-        return rect;
-      }
-
-      const widths = splitSpan(rowAreas, rect.w);
-
-      let x = rect.x;
-      for (let i = 0; i < rowItems.length; i++) {
-        const wi = widths[i];
-        placed.push({ ...rowItems[i], x, y: rect.y, w: wi, h: rowH });
-        x += wi;
-      }
-
-      return { x: rect.x, y: rect.y + rowH, w: rect.w, h: rect.h - rowH };
-    } else {
-      // Column spans full height, fixed width
-      let colW = Math.ceil(sum / Math.max(1, rect.h));
-      colW = clamp(colW, 1, rect.w);
-
-      if (colW <= 0) {
-        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
-        return rect;
-      }
-
-      if (rect.h < rowItems.length) {
-        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
-        return rect;
-      }
-
-      const heights = splitSpan(rowAreas, rect.h);
-
-      let y = rect.y;
-      for (let i = 0; i < rowItems.length; i++) {
-        const hi = heights[i];
-        placed.push({ ...rowItems[i], x: rect.x, y, w: colW, h: hi });
-        y += hi;
-      }
-
-      return { x: rect.x + colW, y: rect.y, w: rect.w - colW, h: rect.h };
+      // mark at best
+      mark(occ, bestX, bestY, p.side, 1);
+      p.x = bestX; p.y = bestY;
     }
   }
 
   function packSquares(items, grid, opts = {}) {
     const cols = grid.cols, rows = grid.rows;
 
-    // sort: big first (critical for treemap quality), then fee desc tiebreak
-    const arr0 = items.slice().sort((a, b) => {
-      const aa = Number(a.areaCells) || 0;
-      const ba = Number(b.areaCells) || 0;
-      if (ba !== aa) return ba - aa;
-      const fa = Number(a.feeRate) || 0;
-      const fb = Number(b.feeRate) || 0;
-      return fb - fa;
+    const seed = Number.isFinite(opts.seed) ? (opts.seed | 0) : 0;
+    const bubblePasses = Number.isFinite(opts.bubblePasses) ? opts.bubblePasses : 1;
+
+    // Side clamps in cell units
+    const minSide = clamp(Number(opts.minSide ?? 1), 1, 64);
+    const maxSide = clamp(Number(opts.maxSide ?? 22), 2, 96);
+
+    // Build working list with resolved side
+    const arr = (items || []).slice().map(it => {
+      const side =
+        Number.isFinite(it.side) ? clamp(Math.floor(it.side), minSide, maxSide)
+        : sideFromArea(it.areaCells, minSide, maxSide);
+
+      return { ...it, side };
     });
 
-    const arr = normalizeAreas(arr0, cols, rows);
+    // Sort: fee desc, side desc, stable hash tiebreak
+    arr.sort((a, b) => {
+      const fa = Number(a.feeRate) || 0;
+      const fb = Number(b.feeRate) || 0;
+      if (fb !== fa) return fb - fa;
 
+      const sa = Number(a.side) || 1;
+      const sb = Number(b.side) || 1;
+      if (sb !== sa) return sb - sa;
+
+      return seededHash(a.txid, seed) - seededHash(b.txid, seed);
+    });
+
+    const occ = makeOcc(rows, cols);
     const placed = [];
     const rejected = [];
 
-    let rect = { x: 0, y: 0, w: cols, h: rows };
+    // Main loop: place each tile.
+    // Strategy:
+    // - Find the next empty cell (scan)
+    // - Try to place the current tile near that cell (expanding search)
+    // - If it doesn't fit, progressively shrink the tile (down to minSide) before rejecting.
+    let cursor = { x: 0, y: 0 };
 
-    let rowItems = [];
-    let rowAreas = [];
+    for (const it of arr) {
+      // update cursor to next empty
+      const ne = nextEmpty(occ, cols, rows, cursor.y, cursor.x);
+      if (!ne) {
+        rejected.push(it);
+        continue;
+      }
+      cursor = ne;
 
-    let i = 0;
-    while (i < arr.length) {
-      const it = arr[i];
-      const a = Number(it._a) || 1;
+      let side = clamp(Math.floor(it.side || 1), minSide, maxSide);
+      let placedPos = null;
 
-      if (rect.w <= 0 || rect.h <= 0) {
-        rejected.push(...arr.slice(i).map(x => ({ ...x, _a: undefined })));
-        break;
+      // Try fit at side, else shrink
+      for (let s = side; s >= minSide; s--) {
+        // target at current empty cell
+        const pos = placeNear(occ, cols, rows, s, cursor.x, cursor.y);
+        if (pos) {
+          placedPos = { ...pos, side: s };
+          break;
+        }
       }
 
-      const w = Math.min(rect.w, rect.h);
-
-      if (rowAreas.length === 0) {
-        rowItems.push(it);
-        rowAreas.push(a);
-        i++;
+      if (!placedPos) {
+        rejected.push(it);
         continue;
       }
 
-      const currentWorst = worst(rowAreas, w);
-      const nextWorst = worst(rowAreas.concat([a]), w);
+      mark(occ, placedPos.x, placedPos.y, placedPos.side, 1);
+      placed.push({ ...it, x: placedPos.x, y: placedPos.y, side: placedPos.side });
 
-      if (nextWorst <= currentWorst) {
-        rowItems.push(it);
-        rowAreas.push(a);
-        i++;
-      } else {
-        const horizontal = rect.w >= rect.h;
-        rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed, rejected);
-        rowItems = [];
-        rowAreas = [];
-      }
+      // advance cursor a bit
+      cursor.x = Math.min(cols - 1, placedPos.x + placedPos.side);
+      cursor.y = placedPos.y;
     }
 
-    // flush last row
-    if (rowAreas.length && rect.w > 0 && rect.h > 0) {
-      const horizontal = rect.w >= rect.h;
-      rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed, rejected);
-    }
-
-    // clean internal fields
-    for (const p of placed) delete p._a;
-
-    // final clamp (safety only; should be unnecessary now)
-    for (const p of placed) {
-      p.x = clamp(p.x, 0, cols - 1);
-      p.y = clamp(p.y, 0, rows - 1);
-      p.w = clamp(p.w, 1, cols - p.x);
-      p.h = clamp(p.h, 1, rows - p.y);
+    // Optional compaction
+    for (let pass = 0; pass < bubblePasses; pass++) {
+      bubbleUpLeft(placed, cols, rows);
     }
 
     return { placed, rejected, cols, rows };
