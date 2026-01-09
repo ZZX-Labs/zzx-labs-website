@@ -1,54 +1,36 @@
 // __partials/widgets/mempool-specs/widget.js
-// DROP-IN COMPLETE REPLACEMENT — mempool-specs
+// DROP-IN COMPLETE REPLACEMENT (FIXES "modules missing")
 //
-// Requires these globals to be loaded BEFORE this widget runs:
-//   window.ZZXMempoolSpecsFetch.fetchJSON / fetchText   (from fetch.js you pasted)
-//   window.ZZXMempoolSpecs.TxFetcher                    (txfetcher.js)
-//   window.ZZXMempoolSpecs.Grid
-//   window.ZZXMempoolSpecs.Sorter
-//   window.ZZXMempoolSpecs.Plotter
-//   window.ZZXMempoolSpecs.Theme
-//   window.ZZXMempoolSpecs.Scaler
-//   window.ZZXMempoolSpecs.Anim.Anim
+// What this fixes:
+// - Auto-loads REQUIRED submodules from the SAME widget dir, exactly once:
+//   fetch.js, txfetcher.js, scaler.js, themes.js, grid.js, sorter.js, plotter.js, animation.js
+// - Uses fetch.js (ZZXMempoolSpecsFetch) and passes it into TxFetcher via ctx,
+//   so your AllOrigins/cache/rate-limit handling is actually used.
+// - Keeps the DOM contract you already shipped (data-ms-summary, data-ms-sub, data-ms-block).
+// - Draws immediately (even before first network fetch) so the box is never blank.
 //
-// Network:
-// - Uses your fetch.js (direct → allorigins → cache) through ctx injection.
-// - TxFetcher only sees raw json/text (no wrapper objects).
+// Notes:
+// - This is the histogram-driven “block/0 fill” visual (fast + stable).
+// - No Bitnodes. No extra endpoints. mempool.space only (via fetch.js).
 //
-// Visual:
-// - DPR-aware canvas
-// - Builds a pseudo block fill from fee histogram (fast, stable)
-
 (function () {
   "use strict";
 
   const W = window;
   const ID = "mempool-specs";
-
-  const MEMPOOL = "https://mempool.space/api";
-
   const DEBUG = !!W.__ZZX_WIDGET_DEBUG;
 
   const NS = (W.ZZXMempoolSpecs = W.ZZXMempoolSpecs || {});
-  const Fetch = W.ZZXMempoolSpecsFetch;
+  const MEMPOOL_BASE = "https://mempool.space/api";
 
-  const Grid    = NS.Grid;
-  const Sorter  = NS.Sorter;
-  const Plotter = NS.Plotter;
-  const Theme   = NS.Theme;
-  const ScalerC = NS.Scaler;
-  const AnimC   = NS.Anim?.Anim;
-  const TxFetcherC = NS.TxFetcher;
-
-  function havePipeline() {
-    return !!(Fetch?.fetchJSON && Fetch?.fetchText && Grid && Sorter && Plotter && Theme && ScalerC && AnimC && TxFetcherC);
-  }
-
+  // -----------------------------
+  // DOM helpers
+  // -----------------------------
   function qs(root, sel) { return root ? root.querySelector(sel) : null; }
 
   function setText(root, sel, txt) {
     const el = qs(root, sel);
-    if (el) el.textContent = txt;
+    if (el) el.textContent = String(txt ?? "");
   }
 
   function ensureCanvasInBlock(root) {
@@ -65,14 +47,66 @@
   }
 
   // -----------------------------
-  // Histogram -> pseudo items
+  // Script loader
+  // -----------------------------
+  function widgetBasePath() {
+    const Core = W.ZZXWidgetsCore;
+    if (Core?.widgetBase) return String(Core.widgetBase(ID)).replace(/\/+$/, "") + "/";
+    return "/__partials/widgets/mempool-specs/";
+  }
+
+  async function loadOnce(url, key) {
+    if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
+      // allow the script’s globals to settle
+      await new Promise(r => setTimeout(r, 0));
+      return true;
+    }
+    return await new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = url;
+      s.defer = true;
+      s.setAttribute("data-zzx-js", key);
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureDeps() {
+    const base = widgetBasePath();
+
+    const deps = [
+      // order matters: Theme used by Plotter; Anim used by widget; etc.
+      ["fetch.js",     "zzx:ms:fetch",     () => W.ZZXMempoolSpecsFetch?.fetchJSON],
+      ["txfetcher.js", "zzx:ms:txfetcher", () => W.ZZXMempoolSpecs?.TxFetcher],
+      ["scaler.js",    "zzx:ms:scaler",    () => W.ZZXMempoolSpecs?.Scaler],
+      ["themes.js",    "zzx:ms:themes",    () => W.ZZXMempoolSpecs?.Theme],
+      ["grid.js",      "zzx:ms:grid",      () => W.ZZXMempoolSpecs?.Grid],
+      ["sorter.js",    "zzx:ms:sorter",    () => W.ZZXMempoolSpecs?.Sorter],
+      ["plotter.js",   "zzx:ms:plotter",   () => W.ZZXMempoolSpecs?.Plotter],
+      ["animation.js", "zzx:ms:anim",      () => W.ZZXMempoolSpecs?.Anim?.Anim],
+    ];
+
+    for (const [file, key, okfn] of deps) {
+      if (okfn()) continue;
+      const ok = await loadOnce(base + file, key);
+      if (!ok) return { ok: false, why: `${file} missing` };
+      await new Promise(r => setTimeout(r, 0));
+      if (!okfn()) return { ok: false, why: `${file} did not register` };
+    }
+
+    return { ok: true };
+  }
+
+  // -----------------------------
+  // Histogram -> pseudo tx squares
   // -----------------------------
   function computeNextBlockFromHistogram(hist, targetVSize = 1_000_000) {
     const rows = (Array.isArray(hist) ? hist : [])
-      .map(([fee, vsize]) => [Number(fee), Number(vsize)])
+      .map((x) => Array.isArray(x) ? [Number(x[0]), Number(x[1])] : [NaN, NaN])
       .filter(([fee, vsize]) => Number.isFinite(fee) && Number.isFinite(vsize) && vsize > 0);
 
-    rows.sort((a, b) => b[0] - a[0]);
+    rows.sort((a, b) => b[0] - a[0]); // highest fee first
 
     let used = 0;
     const picked = [];
@@ -122,6 +156,10 @@
     return out;
   }
 
+  function gridSignature(grid) {
+    return `${grid.cols}x${grid.rows}@${grid.cellPx}/${grid.gapPx}/${grid.padPx}`;
+  }
+
   // -----------------------------
   // State
   // -----------------------------
@@ -146,40 +184,33 @@
     return (Date.now() - st.lastAt) > 15_000;
   }
 
-  function gridSignature(grid) {
-    return `${grid.cols}x${grid.rows}@${grid.cellPx}/${grid.gapPx}/${grid.padPx}`;
-  }
-
   // -----------------------------
-  // Fetch snapshot via TxFetcher
+  // Fetch snapshot (via fetch.js)
   // -----------------------------
   async function fetchSnapshot(st) {
     if (st.inflight) return;
     st.inflight = true;
 
     try {
-      // ctx wrappers MUST return raw text/json (not {ok, ...})
+      const Fetch = W.ZZXMempoolSpecsFetch;
+
+      // ctx adapters: TxFetcher expects ctx.fetchJSON/fetchText to return the *payload*,
+      // but your fetch.js returns {ok,json,from}. We normalize here.
       const ctx = {
-        api: { MEMPOOL },
-
-        fetchJSON: async (url, { signal } = {}) => {
-          const r = await Fetch.fetchJSON(url, { signal });
-          // keep a hint for UI/debug if you want it later:
-          ctx._lastFrom = r.from;
-          return r.json;
+        api: { MEMPOOL: MEMPOOL_BASE },
+        fetchJSON: async (url, opts = {}) => {
+          const r = await Fetch.fetchJSON(url, opts);
+          return r?.json;
         },
-
-        fetchText: async (url, { signal } = {}) => {
-          const r = await Fetch.fetchText(url, { signal });
-          ctx._lastFrom = r.from;
-          return r.text;
+        fetchText: async (url, opts = {}) => {
+          const r = await Fetch.fetchText(url, opts);
+          return r?.text;
         }
       };
 
-      if (!st.fetcher) st.fetcher = new TxFetcherC({ ctx, base: MEMPOOL, minIntervalMs: 15_000 });
+      if (!st.fetcher) st.fetcher = new W.ZZXMempoolSpecs.TxFetcher({ ctx, base: MEMPOOL_BASE, minIntervalMs: 15_000 });
 
       const snap = await st.fetcher.snapshot({ force: true });
-
       st.lastAt = snap.at || Date.now();
       st.lastTip = snap.tipHeight ?? null;
       st.lastHist = snap.feeHistogram ?? null;
@@ -190,21 +221,19 @@
     }
   }
 
+  // -----------------------------
+  // Build + paint
+  // -----------------------------
   function buildLayoutFromHistogram(hist, grid, st) {
     const { picked, used, targetVSize } = computeNextBlockFromHistogram(hist, 1_000_000);
-
     const seed = (Number(st.lastTip) || 0) ^ (picked.length << 16);
 
     const squares = bandsToSquares(picked, st.scaler, seed);
-
-    const layout = Sorter.packSquares(squares, grid, {
-      seed,
-      bubblePasses: 1
-    });
+    const layout = W.ZZXMempoolSpecs.Sorter.packSquares(squares, grid, { seed, bubblePasses: 1 });
 
     const pct = Math.max(0, Math.min(100, (used / targetVSize) * 100));
     const meta =
-      `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()} · tiles: ${layout.placed.length}`;
+      `block/0 fill: ${pct.toFixed(1)}% · vB: ${Math.round(used).toLocaleString()} · tiles: ${(layout?.placed?.length || 0)}`;
 
     return { layout, meta };
   }
@@ -215,6 +244,9 @@
 
     const ctx2d = canvas.getContext("2d");
     if (!ctx2d) return;
+
+    const Grid = W.ZZXMempoolSpecs.Grid;
+    const Plotter = W.ZZXMempoolSpecs.Plotter;
 
     const grid = Grid.makeGrid(canvas, {
       minCssH: 220,
@@ -229,9 +261,9 @@
 
     const hist = st.lastHist;
     if (!hist) {
-      setText(root, "[data-ms-summary]", "mempool data unavailable");
-      setText(root, "[data-ms-sub]", "—");
-      Plotter.draw(ctx2d, canvas, grid, { placed: [] }, "mempool data unavailable");
+      setText(root, "[data-ms-summary]", "loading…");
+      setText(root, "[data-ms-sub]", "pending transactions");
+      Plotter.draw(ctx2d, canvas, grid, { placed: [] }, "loading…");
       return;
     }
 
@@ -240,13 +272,15 @@
     setText(root, "[data-ms-summary]", meta);
     setText(root, "[data-ms-sub]", `tip: ${st.lastTip ?? "—"} · source: mempool.space`);
 
+    // first draw or resize -> hard draw
     if (!st.lastLayout || gridChanged) {
       Plotter.draw(ctx2d, canvas, grid, newLayout, meta);
       st.lastLayout = newLayout;
       return;
     }
 
-    if (!st.anim) st.anim = new AnimC({ ms: 650 });
+    // animate between layouts
+    if (!st.anim) st.anim = new W.ZZXMempoolSpecs.Anim.Anim({ ms: 650 });
 
     const from = st.lastLayout;
     const to = newLayout;
@@ -265,7 +299,7 @@
       if (shouldFetch(st)) await fetchSnapshot(st);
       paint(root, st);
     } catch (e) {
-      if (DEBUG) console.warn("[ZZX:MEMPOOL-SPECS] tick failed", e);
+      if (DEBUG) console.warn("[mempool-specs] tick failed", e);
       setText(root, "[data-ms-sub]", `error: ${String(e?.message || e)}`);
     }
   }
@@ -273,7 +307,8 @@
   function start(root, st) {
     if (st.timer) clearInterval(st.timer);
 
-    st.timer = setInterval(() => tick(root, st), 850);
+    // draw fast; fetch is throttled inside fetchSnapshot/TxFetcher
+    st.timer = setInterval(() => tick(root, st), 900);
     tick(root, st);
 
     if (!root.__zzxMempoolSpecsResizeBound) {
@@ -287,25 +322,39 @@
   function boot(root) {
     if (!root) return;
 
-    if (!havePipeline()) {
-      setText(root, "[data-ms-summary]", "mempool-specs modules missing");
-      setText(root, "[data-ms-sub]", "ensure fetch/txfetcher/scaler/themes/grid/sorter/plotter/animation are loaded");
-      return;
-    }
+    // Always create canvas so the orange frame area is never empty
+    ensureCanvasInBlock(root);
 
     if (!root.__zzxMempoolSpecsState) root.__zzxMempoolSpecsState = makeState();
     const st = root.__zzxMempoolSpecsState;
 
-    if (!st.scaler) st.scaler = new ScalerC();
+    // IMPORTANT: deps are loaded here
+    (async () => {
+      setText(root, "[data-ms-summary]", "loading…");
+      setText(root, "[data-ms-sub]", "pending transactions");
 
-    ensureCanvasInBlock(root);
-    start(root, st);
+      const deps = await ensureDeps();
+      if (!deps.ok) {
+        setText(root, "[data-ms-summary]", "mempool-specs modules missing");
+        setText(root, "[data-ms-sub]", deps.why);
+        return;
+      }
+
+      if (!st.scaler) st.scaler = new W.ZZXMempoolSpecs.Scaler();
+      start(root, st);
+    })().catch((e) => {
+      setText(root, "[data-ms-summary]", "mempool-specs init error");
+      setText(root, "[data-ms-sub]", String(e?.message || e));
+      if (DEBUG) console.warn("[mempool-specs] boot error", e);
+    });
   }
 
+  // -----------------------------
+  // Mount hooks
+  // -----------------------------
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
     W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
   } else if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
     W.ZZXWidgets.register(ID, function (root) { boot(root); });
   }
-
 })();
