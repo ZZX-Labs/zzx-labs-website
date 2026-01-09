@@ -2,43 +2,63 @@
 // DROP-IN COMPLETE REPLACEMENT
 //
 // Purpose:
-// - Convert tx "mass" into AREA in grid-cells (areaCells).
-// - ALSO exposes sideCells helpers for compatibility with Sorter.packSquares,
-//   which expects square tiles with integer side length in cells.
+// - Convert tx "mass" into a SQUARE tile size (side length in grid cells).
+// - Keeps compatibility with older widget code that calls:
+//     scaler.sideCellsFromVBytes(vb)
+// - Adds richer helpers for value/fee-rate weighting:
+//     scaler.sideCellsFromTx(tx)
+//
+// Notes:
+// - This is the key to "mempool goggles" look: a few big tiles, many small.
+// - Tune SIDE_PER_VBYTE (and clamps) to change density.
 //
 // Exposes:
 //   window.ZZXMempoolSpecs.Scaler
-//     - areaCellsFromVBytes(vb)
-//     - areaCellsFromTx(tx)
-//     - sideCellsFromVBytes(vb)   // compat
-//     - sideCellsFromTx(tx)       // compat
+//     - sideCellsFromVBytes(vb)
+//     - sideCellsFromWeight(weight)         // weight -> vbytes -> side
+//     - sideCellsFromAreaCells(areaCells)   // if you later compute area first
+//     - sideCellsFromTx(tx)
+//
+// tx expected fields (best-effort):
+//   tx.vbytes, tx.weight, tx.feeRate (sat/vB), tx.feeUsd (optional), tx.valueUsd (optional)
+//
+// IMPORTANT:
+// - Output is an INTEGER side length in CELLS.
+// - Packing stage must treat tiles as squares (side x side).
 //
 (function () {
   "use strict";
 
   const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function n2(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
   const DEFAULTS = {
-    // AREA scale: larger => larger tiles overall
-    // Start around 1 cell / 850 vB (you chose this)
-    cellsPerVByte: 1 / 850,
+    // --- Base size mapping (vbytes -> area -> side) ---
+    // Treat vb as "mass". Convert vb -> areaCells, then side = sqrt(areaCells).
+    // Bigger AREA_PER_VB => bigger tiles.
+    //
+    // Starting point that yields visible size diversity on phone:
+    // - If you later create ~250-420 tiles total, this looks good.
+    AREA_PER_VBYTE: 1 / 620,  // cells^2 per vB (tune)
 
-    // Clamp for AREA (not side)
-    minAreaCells: 1,
-    maxAreaCells: 2200,
+    // Curve controls (shape the distribution of sizes)
+    // gamma < 1 makes big tiles a bit more common (fatter tail)
+    GAMMA: 0.88,
+    K: 1.00,
 
-    // Subtle weighting so higher-value txs can appear slightly larger
-    valueK: 0.06,    // based on feeUsd
-    feeRateK: 0.02,  // based on feeRate sat/vB
+    // Clamps on the final side length
+    MIN_SIDE: 1,
+    MAX_SIDE: 18,
 
-    // Side clamps derived from area
-    minSideCells: 1,
-    maxSideCells: 64,
+    // --- Optional subtle weighting (keeps "size ≈ vbytes" but nudges importance) ---
+    // These are deliberately small to avoid destroying the “block mass” feel.
+    FEE_USD_K: 0.05,     // log bump vs feeUsd
+    VALUE_USD_K: 0.03,   // log bump vs valueUsd (if provided)
+    FEERATE_K: 0.02,     // log bump vs feeRate (sat/vB)
 
-    // Optional curve to avoid giant whales dominating (side-based)
-    // side = ceil(pow(sqrt(area), sideGamma))
-    sideGamma: 1.0,  // 1.0 = linear in sqrt(area). <1 compresses big tiles.
+    // If you only have histogram (no per-tx), you can ignore USD fields.
   };
 
   class Scaler {
@@ -46,64 +66,78 @@
       this.cfg = { ...DEFAULTS, ...(opts || {}) };
     }
 
-    // -----------------------------
-    // AREA API (your primary)
-    // -----------------------------
-    areaCellsFromVBytes(vb) {
-      const v = Number(vb);
-      if (!Number.isFinite(v) || v <= 0) return this.cfg.minAreaCells;
-
-      let a = v * this.cfg.cellsPerVByte; // area in "cell units"
-      a = clamp(a, this.cfg.minAreaCells, this.cfg.maxAreaCells);
-      return Math.max(this.cfg.minAreaCells, Math.round(a));
-    }
-
-    areaCellsFromTx(tx) {
-      const vb = Number(tx?.vbytes);
-      let a = this.areaCellsFromVBytes(vb);
-
-      // value bump (subtle)
-      const feeUsd = Number(tx?.feeUsd);
-      if (Number.isFinite(feeUsd) && feeUsd > 0) {
-        const bump = 1 + this.cfg.valueK * Math.log10(1 + feeUsd);
-        a *= bump;
-      }
-
-      // fee-rate bump (very subtle)
-      const fr = Number(tx?.feeRate);
-      if (Number.isFinite(fr) && fr > 0) {
-        const bump = 1 + this.cfg.feeRateK * Math.log10(1 + fr);
-        a *= bump;
-      }
-
-      a = clamp(a, this.cfg.minAreaCells, this.cfg.maxAreaCells);
-      return Math.max(this.cfg.minAreaCells, Math.round(a));
-    }
-
-    // -----------------------------
-    // SIDE API (compat for packer)
-    // -----------------------------
-    _sideFromArea(areaCells) {
-      const a = clamp(Number(areaCells) || 1, this.cfg.minAreaCells, this.cfg.maxAreaCells);
-
-      // Base: side ~= sqrt(area)
-      let side = Math.sqrt(a);
-
-      // Optional compression/expansion
-      const g = Number(this.cfg.sideGamma);
-      if (Number.isFinite(g) && g > 0 && g !== 1) side = Math.pow(side, g);
-
-      side = Math.ceil(side);
-      side = clamp(side, this.cfg.minSideCells, this.cfg.maxSideCells);
-      return Math.max(this.cfg.minSideCells, Math.floor(side));
-    }
-
+    // --- Core: vbytes -> side in cells ---
+    // Compatibility: widget.js currently calls this.
     sideCellsFromVBytes(vb) {
-      return this._sideFromArea(this.areaCellsFromVBytes(vb));
+      const v = n2(vb);
+      if (!Number.isFinite(v) || v <= 0) return this.cfg.MIN_SIDE;
+
+      // area in "cell^2" units
+      let area = v * this.cfg.AREA_PER_VBYTE;
+
+      // convert to side
+      let side = Math.sqrt(Math.max(0, area)) * this.cfg.K;
+
+      // shape distribution
+      side = Math.pow(side, this.cfg.GAMMA);
+
+      // clamp + integer
+      side = clamp(side, this.cfg.MIN_SIDE, this.cfg.MAX_SIDE);
+      return Math.max(this.cfg.MIN_SIDE, Math.round(side));
     }
 
-    sideCellsFromTx(tx) {
-      return this._sideFromArea(this.areaCellsFromTx(tx));
+    sideCellsFromWeight(weight) {
+      const w = n2(weight);
+      if (!Number.isFinite(w) || w <= 0) return this.cfg.MIN_SIDE;
+      return this.sideCellsFromVBytes(w / 4);
+    }
+
+    // If you compute areaCells elsewhere (e.g., from a treemap mass),
+    // convert area -> side for square packing.
+    sideCellsFromAreaCells(areaCells) {
+      const a = n2(areaCells);
+      if (!Number.isFinite(a) || a <= 0) return this.cfg.MIN_SIDE;
+
+      let side = Math.sqrt(Math.max(0, a)) * this.cfg.K;
+      side = Math.pow(side, this.cfg.GAMMA);
+
+      side = clamp(side, this.cfg.MIN_SIDE, this.cfg.MAX_SIDE);
+      return Math.max(this.cfg.MIN_SIDE, Math.round(side));
+    }
+
+    // --- Rich helper: tx -> side ---
+    // Uses vbytes/weight as primary mass, then nudges size based on fee/value/feerate if present.
+    sideCellsFromTx(tx = {}) {
+      // base mass
+      const vb = n2(tx.vbytes);
+      const wt = n2(tx.weight);
+
+      let baseSide = Number.isFinite(vb)
+        ? this.sideCellsFromVBytes(vb)
+        : (Number.isFinite(wt) ? this.sideCellsFromWeight(wt) : this.cfg.MIN_SIDE);
+
+      // optional nudges (log-scale)
+      let bump = 1.0;
+
+      const feeUsd = n2(tx.feeUsd);
+      if (Number.isFinite(feeUsd) && feeUsd > 0) {
+        bump *= (1 + this.cfg.FEE_USD_K * Math.log10(1 + feeUsd));
+      }
+
+      const valueUsd = n2(tx.valueUsd);
+      if (Number.isFinite(valueUsd) && valueUsd > 0) {
+        bump *= (1 + this.cfg.VALUE_USD_K * Math.log10(1 + valueUsd));
+      }
+
+      const fr = n2(tx.feeRate);
+      if (Number.isFinite(fr) && fr > 0) {
+        bump *= (1 + this.cfg.FEERATE_K * Math.log10(1 + fr));
+      }
+
+      let side = baseSide * bump;
+
+      side = clamp(side, this.cfg.MIN_SIDE, this.cfg.MAX_SIDE);
+      return Math.max(this.cfg.MIN_SIDE, Math.round(side));
     }
   }
 
