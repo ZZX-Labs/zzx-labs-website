@@ -1,10 +1,16 @@
 // __partials/widgets/mempool-specs/plotter.js
-// DROP-IN COMPLETE REPLACEMENT
+// DROP-IN COMPLETE REPLACEMENT (RECT + SQUARE SUPPORT)
 //
 // Purpose:
-// - Paint packed tx squares onto canvas
+// - Paint packed tx *tiles* onto canvas
+// - Works with BOTH shapes:
+//    A) square-tiles layout: {x,y,side}
+//    B) rect-tiles layout:   {x,y,w,h}   (treemap / binpack / tetrifill)
 // - Fee-rate → color via Theme
 // - Zero layout logic, zero fetching
+//
+// Layout contract expected by renderer/widget:
+//   layout = { placed: [ { txid, feeRate, vbytes, x,y, (side|w,h), ... } ] }
 //
 // Exposes:
 //   window.ZZXMempoolSpecs.Plotter.draw(ctx, canvas, grid, layout, meta)
@@ -19,6 +25,7 @@
     ctx.strokeStyle = theme.gridLine || "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1;
 
+    // subtle stripes only (fast)
     const stepY = Math.max(24, Math.round(28 * grid.dpr));
     const stepX = Math.max(34, Math.round(44 * grid.dpr));
 
@@ -39,10 +46,26 @@
     ctx.restore();
   }
 
+  // Convert cell units to device pixels.
+  // A tile of width "w cells" occupies: w*cellPx + (w-1)*gapPx.
+  function cellsToPx(cells, cellPx, gapPx) {
+    const c = Math.max(1, Math.floor(cells || 1));
+    return (c * cellPx) + (Math.max(0, c - 1) * gapPx);
+  }
+
+  function clampInt(n, a, b) {
+    n = Math.floor(n);
+    if (n < a) return a;
+    if (n > b) return b;
+    return n;
+  }
+
   function draw(ctx, canvas, grid, layout, meta) {
     const Theme = NS.Theme;
     const theme = Theme?.get?.() || {};
     const colorForFee = Theme?.colorForFeeRate || (() => "#555");
+
+    const placed = Array.isArray(layout?.placed) ? layout.placed : [];
 
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -64,31 +87,61 @@
     drawGrid(ctx, grid, theme);
 
     const outline = theme.tileOutline || "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+
+    const cols = Math.max(1, grid.cols || 1);
+    const rows = Math.max(1, grid.rows || 1);
 
     // tiles
-    for (const tx of (layout?.placed || [])) {
-      const x = grid.x0 + tx.x * grid.step;
-      const y = grid.y0 + tx.y * grid.step;
-      const s = Math.max(1, tx.side || 1);
+    for (const tx of placed) {
+      if (!tx) continue;
 
-      const px =
-        (s * grid.cellPx) +
-        (Math.max(0, s - 1) * grid.gapPx);
+      // prefer rect fields if present, else square "side"
+      let cx = Number(tx.x);
+      let cy = Number(tx.y);
+
+      if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue;
+
+      cx = clampInt(cx, 0, cols - 1);
+      cy = clampInt(cy, 0, rows - 1);
+
+      let wCells, hCells;
+
+      if (Number.isFinite(Number(tx.w)) || Number.isFinite(Number(tx.h))) {
+        wCells = Number(tx.w);
+        hCells = Number(tx.h);
+      } else {
+        const s = Number(tx.side);
+        wCells = s;
+        hCells = s;
+      }
+
+      wCells = clampInt(wCells || 1, 1, cols - cx);
+      hCells = clampInt(hCells || 1, 1, rows - cy);
+
+      const x = grid.x0 + cx * grid.step;
+      const y = grid.y0 + cy * grid.step;
+
+      const wPx = cellsToPx(wCells, grid.cellPx, grid.gapPx);
+      const hPx = cellsToPx(hCells, grid.cellPx, grid.gapPx);
 
       ctx.fillStyle = colorForFee(Number(tx.feeRate) || 0, theme);
-      ctx.fillRect(x, y, px, px);
+      ctx.fillRect(x, y, wPx, hPx);
 
       ctx.strokeStyle = outline;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, px - 1, px - 1);
+      ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, wPx - 1), Math.max(0, hPx - 1));
     }
 
-    // meta text
+    // meta text overlay (bottom-left)
     if (meta) {
       ctx.save();
-      ctx.globalAlpha = 0.9;
+      ctx.globalAlpha = 0.92;
       ctx.fillStyle = theme.text || "#c0d674";
-      ctx.font = `${Math.max(12, Math.round(11 * grid.dpr))}px IBMPlexMono, monospace`;
+
+      // Use your site font stack (fonts.css should define IBMPlexMono)
+      const fs = Math.max(12, Math.round(11 * grid.dpr));
+      ctx.font = `${fs}px IBMPlexMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
+
       ctx.fillText(
         String(meta),
         Math.round(10 * grid.dpr),
