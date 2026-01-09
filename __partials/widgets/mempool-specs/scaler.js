@@ -2,13 +2,16 @@
 // DROP-IN COMPLETE REPLACEMENT
 //
 // Purpose:
-// - Convert tx "mass" into AREA in grid-cells (not side length).
-// - This is what enables mempool.space-like treemap packing.
+// - Convert tx "mass" into AREA in grid-cells (areaCells).
+// - ALSO exposes sideCells helpers for compatibility with Sorter.packSquares,
+//   which expects square tiles with integer side length in cells.
 //
 // Exposes:
 //   window.ZZXMempoolSpecs.Scaler
 //     - areaCellsFromVBytes(vb)
-//     - areaCellsFromTx(tx, { btcUsd })
+//     - areaCellsFromTx(tx)
+//     - sideCellsFromVBytes(vb)   // compat
+//     - sideCellsFromTx(tx)       // compat
 //
 (function () {
   "use strict";
@@ -17,19 +20,25 @@
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
   const DEFAULTS = {
-    // Roughly: cells per vbyte. Bigger => more/larger tiles.
-    // Tune this to change overall density.
-    // For mobile-friendly treemap, start around ~1 cell / 850 vB.
+    // AREA scale: larger => larger tiles overall
+    // Start around 1 cell / 850 vB (you chose this)
     cellsPerVByte: 1 / 850,
 
-    // Area clamps (cells^2, but we're using "area cells" as scalar)
+    // Clamp for AREA (not side)
     minAreaCells: 1,
     maxAreaCells: 2200,
 
-    // Subtle weighting (optional) so expensive txs become slightly larger
-    // without breaking "size drives area" feel.
-    valueK: 0.06,    // based on feeUsd if available
+    // Subtle weighting so higher-value txs can appear slightly larger
+    valueK: 0.06,    // based on feeUsd
     feeRateK: 0.02,  // based on feeRate sat/vB
+
+    // Side clamps derived from area
+    minSideCells: 1,
+    maxSideCells: 64,
+
+    // Optional curve to avoid giant whales dominating (side-based)
+    // side = ceil(pow(sqrt(area), sideGamma))
+    sideGamma: 1.0,  // 1.0 = linear in sqrt(area). <1 compresses big tiles.
   };
 
   class Scaler {
@@ -37,6 +46,9 @@
       this.cfg = { ...DEFAULTS, ...(opts || {}) };
     }
 
+    // -----------------------------
+    // AREA API (your primary)
+    // -----------------------------
     areaCellsFromVBytes(vb) {
       const v = Number(vb);
       if (!Number.isFinite(v) || v <= 0) return this.cfg.minAreaCells;
@@ -46,7 +58,7 @@
       return Math.max(this.cfg.minAreaCells, Math.round(a));
     }
 
-    areaCellsFromTx(tx, opts = {}) {
+    areaCellsFromTx(tx) {
       const vb = Number(tx?.vbytes);
       let a = this.areaCellsFromVBytes(vb);
 
@@ -66,6 +78,32 @@
 
       a = clamp(a, this.cfg.minAreaCells, this.cfg.maxAreaCells);
       return Math.max(this.cfg.minAreaCells, Math.round(a));
+    }
+
+    // -----------------------------
+    // SIDE API (compat for packer)
+    // -----------------------------
+    _sideFromArea(areaCells) {
+      const a = clamp(Number(areaCells) || 1, this.cfg.minAreaCells, this.cfg.maxAreaCells);
+
+      // Base: side ~= sqrt(area)
+      let side = Math.sqrt(a);
+
+      // Optional compression/expansion
+      const g = Number(this.cfg.sideGamma);
+      if (Number.isFinite(g) && g > 0 && g !== 1) side = Math.pow(side, g);
+
+      side = Math.ceil(side);
+      side = clamp(side, this.cfg.minSideCells, this.cfg.maxSideCells);
+      return Math.max(this.cfg.minSideCells, Math.floor(side));
+    }
+
+    sideCellsFromVBytes(vb) {
+      return this._sideFromArea(this.areaCellsFromVBytes(vb));
+    }
+
+    sideCellsFromTx(tx) {
+      return this._sideFromArea(this.areaCellsFromTx(tx));
     }
   }
 
