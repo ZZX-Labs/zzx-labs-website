@@ -2,166 +2,220 @@
 // DROP-IN COMPLETE REPLACEMENT
 //
 // Purpose:
-// - Convert “tx-like” items into SQUARE tiles sized in grid cells.
-// - Keeps compatibility with older code that expected sideCellsFromVBytes()
-// - Supports: vbytes-driven sizing + subtle fee/feeRate/value weighting.
-// - Outputs tiles ready for BinFill.pack() (or tetrifill.js later).
+// - Convert an input stream of "tx-like" items (or fee bands) into *square tiles*
+//   with a `side` (cells) suitable for square-packing / tetris-fill.
+// - Keeps compatibility with older code that expected `sideCellsFromVBytes()`
+//   by providing a deterministic fallback based on area.
 //
-// Input items (minimum):
-//   [{ txid, vbytes, feeRate, feeSats, feeUsd, ... }]
+// Inputs supported:
+//   A) tx-like items: [{ txid, vbytes, feeRate, feeUsd?, valueUsd?, ... }]
+//   B) fee bands:    [{ feeRate, vbytes }]  (from fee histogram / block template)
 //
 // Output:
-//   [{ ...item, side }]   // side is integer in GRID CELLS
+//   [{ txid, feeRate, vbytes, areaCells, side, ... }]
 //
 // Exposes:
-//   window.ZZXMempoolSpecs.Tiler.makeTiles(items, grid, opts)
-//   window.ZZXMempoolSpecs.Tiler.sideFromTx(tx, grid, opts)
-//   window.ZZXMempoolSpecs.Tiler.ensureScalerCompat()  (patches Scaler API compat)
+//   window.ZZXMempoolSpecs.Tiler.fromTxs(txs, scaler, opts)
+//   window.ZZXMempoolSpecs.Tiler.fromFeeBands(bands, scaler, opts)
 //
 // Notes:
-// - Sizing target: keep the "block field" visually dense on mobile.
-// - You can tune overall density with opts.density (default 1.0).
-//
+// - This module DOES NOT fetch.
+// - It only produces tiles; your packer decides placement.
+// - “mempool-goggles feel” comes from: many small tiles + a few big tiles.
+//   Tune `MAX_TILES`, `TARGET_CHUNK_VB`, and side clamps.
+
 (function () {
   "use strict";
 
   const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
-  const API = (NS.Tiler = NS.Tiler || {});
 
-  function n2(x){ const v = Number(x); return Number.isFinite(v) ? v : NaN; }
-  function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
-
-  // Default sizing knobs
-  const DEFAULTS = {
-    density: 1.0,          // global multiplier (bigger => larger tiles)
-    minSide: 1,
-    maxSide: 18,           // clamped to grid anyway
-
-    // Base mapping: side ~ (vbytes / vbPerCell)^(gamma)
-    vbPerCell: 1100,       // smaller => bigger tiles
-    gamma: 0.52,           // <1 compresses large txs (keeps small txs visible)
-
-    // Optional bumps (gentle)
-    feeRateK: 0.08,        // sat/vB
-    feeUsdK: 0.10,         // log-scaled
-    feeSatsK: 0.06,        // log-scaled
-
-    // If you want a “big tile” feel more like mempool goggles, raise this a bit:
-    bigBias: 0.10,         // adds slight curvature toward larger tiles
-  };
-
-  function sideFromVBytes(vb, cfg) {
-    const v = n2(vb);
-    if (!Number.isFinite(v) || v <= 0) return cfg.minSide;
-
-    // base: scale vbytes into “cell mass”
-    const mass = (v / cfg.vbPerCell) * cfg.density;
-
-    // side from mass (compressed by gamma)
-    let side = Math.pow(Math.max(0.0001, mass), cfg.gamma);
-
-    // bias toward bigger tiles without exploding
-    side = side * (1 + cfg.bigBias * Math.log10(1 + mass));
-
-    // convert to integer side in cells
-    side = Math.round(side);
-
-    return clamp(side, cfg.minSide, cfg.maxSide);
+  function n(x, d = NaN) {
+    const v = Number(x);
+    return Number.isFinite(v) ? v : d;
   }
 
-  function sideFromTx(tx, grid, opts = {}) {
-    const cfg = { ...DEFAULTS, ...(opts || {}) };
-
-    // clamp maxSide by grid dimensions
-    const cols = Math.max(1, Math.floor(grid?.cols || 1));
-    const rows = Math.max(1, Math.floor(grid?.rows || 1));
-    cfg.maxSide = clamp(cfg.maxSide, 1, Math.min(cols, rows));
-
-    let side = sideFromVBytes(tx?.vbytes, cfg);
-
-    // Gentle bumps:
-    // - feeRate: high priority tends to be larger (subtle)
-    const fr = n2(tx?.feeRate);
-    if (Number.isFinite(fr) && fr > 0) {
-      side *= (1 + cfg.feeRateK * Math.log10(1 + fr));
-    }
-
-    // - fee in sats: log bump
-    const feeSats = n2(tx?.feeSats ?? tx?.fee);
-    if (Number.isFinite(feeSats) && feeSats > 0) {
-      side *= (1 + cfg.feeSatsK * Math.log10(1 + (feeSats / 1e4)));
-    }
-
-    // - fee in USD if available
-    const feeUsd = n2(tx?.feeUsd);
-    if (Number.isFinite(feeUsd) && feeUsd > 0) {
-      side *= (1 + cfg.feeUsdK * Math.log10(1 + feeUsd));
-    }
-
-    side = Math.round(side);
-    side = clamp(side, cfg.minSide, cfg.maxSide);
-
-    return side;
+  function clamp(nv, a, b) {
+    return Math.max(a, Math.min(b, nv));
   }
 
-  // Back-compat patch: some of your widget.js expects scaler.sideCellsFromVBytes()
-  // and/or scaler.sideCellsFromWeight(). If Scaler was replaced, patch it.
-  function ensureScalerCompat() {
-    const Scaler = NS.Scaler;
-    if (!Scaler || !Scaler.prototype) return false;
+  // Deterministic string hash (for stable ids / tiebreakers if needed)
+  function hash32(s) {
+    s = String(s ?? "");
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
 
-    // If already present, do nothing
-    if (typeof Scaler.prototype.sideCellsFromVBytes === "function") return true;
+  // --- Core: area -> square side (cells) ---
+  function sideFromArea(areaCells, cfg) {
+    // areaCells is a scalar in "cell units" (not pixels).
+    const a = Math.max(1, Math.floor(areaCells || 1));
 
-    // Provide compat methods by mapping "area" => side, or using vbytes directly.
-    Scaler.prototype.sideCellsFromVBytes = function (vb) {
-      // Prefer an existing areaCellsFromVBytes if present
-      if (typeof this.areaCellsFromVBytes === "function") {
-        const a = n2(this.areaCellsFromVBytes(vb));
-        const s = Math.sqrt(Math.max(1, a));
-        return Math.max(1, Math.round(s));
-      }
-      // fallback
-      return Math.max(1, Math.round(Math.sqrt(Math.max(1, n2(vb) / 1100))));
+    // square side ~= sqrt(area). Keep a gentle curve so whales exist but don’t eat the canvas.
+    // gamma < 1 makes large tiles less dominant.
+    const gamma = Number.isFinite(cfg?.sideGamma) ? cfg.sideGamma : 0.92;
+    const k = Number.isFinite(cfg?.sideK) ? cfg.sideK : 1.0;
+
+    let side = Math.sqrt(a) * k;
+    side = Math.pow(Math.max(1e-9, side), gamma);
+
+    const minSide = Number.isFinite(cfg?.minSide) ? cfg.minSide : 1;
+    const maxSide = Number.isFinite(cfg?.maxSide) ? cfg.maxSide : 20;
+
+    return clamp(Math.round(side), minSide, maxSide);
+  }
+
+  // --- Helper: derive areaCells from scaler (supports multiple scaler APIs) ---
+  function areaFromVBytes(vbytes, scaler) {
+    if (!scaler) return Math.max(1, Math.round(n(vbytes, 0) / 850));
+
+    // Preferred (your new scaler)
+    if (typeof scaler.areaCellsFromVBytes === "function") {
+      return scaler.areaCellsFromVBytes(vbytes);
+    }
+
+    // Old API: sideCellsFromVBytes -> convert side^2 -> area
+    if (typeof scaler.sideCellsFromVBytes === "function") {
+      const side = Math.max(1, Math.round(scaler.sideCellsFromVBytes(vbytes)));
+      return side * side;
+    }
+
+    // Last resort: proportional
+    return Math.max(1, Math.round(n(vbytes, 0) / 850));
+  }
+
+  function areaFromTx(tx, scaler, opts) {
+    if (!tx) return 1;
+
+    if (scaler && typeof scaler.areaCellsFromTx === "function") {
+      return scaler.areaCellsFromTx(tx, opts);
+    }
+
+    // fallback: use vbytes only
+    return areaFromVBytes(tx.vbytes, scaler);
+  }
+
+  // --- Build tiles from tx list (already discrete txs) ---
+  function fromTxs(txs, scaler, opts = {}) {
+    const cfg = {
+      MAX_TILES: Number.isFinite(opts.maxTiles) ? opts.maxTiles : 520,
+      minSide: Number.isFinite(opts.minSide) ? opts.minSide : 1,
+      maxSide: Number.isFinite(opts.maxSide) ? opts.maxSide : 22,
+      sideGamma: Number.isFinite(opts.sideGamma) ? opts.sideGamma : 0.92,
+      sideK: Number.isFinite(opts.sideK) ? opts.sideK : 1.0,
+      btcUsd: Number.isFinite(opts.btcUsd) ? opts.btcUsd : undefined,
     };
 
-    Scaler.prototype.sideCellsFromWeight = function (w) {
-      const vb = n2(w) / 4;
-      return this.sideCellsFromVBytes(vb);
-    };
-
-    // Optional helper: side from tx (if it exists)
-    if (typeof Scaler.prototype.sideCellsFromTx !== "function") {
-      Scaler.prototype.sideCellsFromTx = function (tx, grid, opts) {
-        return sideFromTx(tx, grid, opts);
-      };
-    }
-
-    return true;
-  }
-
-  function makeTiles(items, grid, opts = {}) {
-    const src = Array.isArray(items) ? items : [];
     const out = [];
+    const src = Array.isArray(txs) ? txs : [];
 
-    for (let i = 0; i < src.length; i++) {
-      const tx = src[i];
-      const txid = String(tx?.txid ?? tx?.id ?? `tx:${i}`);
-      const side = sideFromTx({ ...tx, txid }, grid, opts);
+    for (let i = 0; i < src.length && out.length < cfg.MAX_TILES; i++) {
+      const t = src[i];
+      if (!t) continue;
+
+      const txid = String(t.txid ?? t.hash ?? t.id ?? `tx:${i}:${hash32(JSON.stringify(t))}`);
+      const vbytes = Math.max(1, Math.round(n(t.vbytes ?? t.vsize ?? t.size, 0)));
+      const feeRate = n(t.feeRate ?? t.fee_rate ?? t.feerate ?? t.feePerVb, 0);
+
+      const txObj = {
+        txid,
+        vbytes,
+        feeRate,
+        feeUsd: n(t.feeUsd, NaN),
+        valueUsd: n(t.valueUsd, NaN),
+      };
+
+      const areaCells = areaFromTx(txObj, scaler, { btcUsd: cfg.btcUsd });
+      const side = sideFromArea(areaCells, cfg);
 
       out.push({
-        ...tx,
+        ...t,
         txid,
+        vbytes,
+        feeRate,
+        areaCells,
         side
       });
     }
 
-    // Sort big->small for packers (stable enough)
-    out.sort((a, b) => (b.side - a.side) || ((n2(b.feeRate)||0) - (n2(a.feeRate)||0)));
     return out;
   }
 
-  API.sideFromTx = sideFromTx;
-  API.makeTiles = makeTiles;
-  API.ensureScalerCompat = ensureScalerCompat;
+  // --- Build tiles from fee bands (histogram-derived) ---
+  // We “shard” each band into chunks so you get many tiles, like goggles.
+  function fromFeeBands(bands, scaler, opts = {}) {
+    const cfg = {
+      // cap total tiles (performance)
+      MAX_TILES: Number.isFinite(opts.maxTiles) ? opts.maxTiles : 520,
+
+      // chunking
+      TARGET_CHUNK_VB: Number.isFinite(opts.targetChunkVb) ? opts.targetChunkVb : 12_000,
+      MIN_CHUNK_VB: Number.isFinite(opts.minChunkVb) ? opts.minChunkVb : 900,
+      MAX_CHUNKS_PER_BAND: Number.isFinite(opts.maxChunksPerBand) ? opts.maxChunksPerBand : 28,
+
+      // side shaping
+      minSide: Number.isFinite(opts.minSide) ? opts.minSide : 1,
+      maxSide: Number.isFinite(opts.maxSide) ? opts.maxSide : 22,
+      sideGamma: Number.isFinite(opts.sideGamma) ? opts.sideGamma : 0.92,
+      sideK: Number.isFinite(opts.sideK) ? opts.sideK : 1.0,
+
+      // deterministic seed (stabilizes txids across refreshes)
+      seed: Number.isFinite(opts.seed) ? opts.seed : 0,
+    };
+
+    const rows = (Array.isArray(bands) ? bands : [])
+      .map(b => ({
+        feeRate: n(b?.feeRate ?? b?.fee ?? (Array.isArray(b) ? b[0] : NaN), NaN),
+        vbytes: n(b?.vbytes ?? (Array.isArray(b) ? b[1] : NaN), NaN),
+      }))
+      .filter(r => Number.isFinite(r.feeRate) && Number.isFinite(r.vbytes) && r.vbytes > 0);
+
+    // high fee first (goggles vibe)
+    rows.sort((a, b) => b.feeRate - a.feeRate);
+
+    const out = [];
+    let serial = 0;
+
+    for (const band of rows) {
+      if (out.length >= cfg.MAX_TILES) break;
+
+      const vb = Math.max(1, Math.round(band.vbytes));
+      const feeRate = band.feeRate;
+
+      // choose chunk count: proportional to band size but bounded
+      let chunks = Math.round(vb / cfg.TARGET_CHUNK_VB);
+      chunks = clamp(chunks, 1, cfg.MAX_CHUNKS_PER_BAND);
+
+      // compute chunk size, enforce minimum
+      let chunkVb = Math.max(cfg.MIN_CHUNK_VB, Math.floor(vb / chunks));
+      chunks = clamp(Math.round(vb / chunkVb), 1, cfg.MAX_CHUNKS_PER_BAND);
+
+      for (let i = 0; i < chunks && out.length < cfg.MAX_TILES; i++) {
+        const isLast = (i === chunks - 1);
+        const vbi = isLast ? (vb - chunkVb * (chunks - 1)) : chunkVb;
+        const vbytes = Math.max(1, Math.round(vbi));
+
+        const areaCells = areaFromVBytes(vbytes, scaler);
+        const side = sideFromArea(areaCells, cfg);
+
+        // stable-ish txid
+        const txid = `band:${feeRate}:${cfg.seed}:${serial++}:${i}`;
+
+        out.push({
+          txid,
+          feeRate,
+          vbytes,
+          areaCells,
+          side
+        });
+      }
+    }
+
+    return out;
+  }
+
+  NS.Tiler = { fromTxs, fromFeeBands };
 })();
