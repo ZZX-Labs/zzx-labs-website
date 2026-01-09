@@ -1,13 +1,16 @@
 /* __partials/widgets/mempool-specs/widget.css
    DROP-IN COMPLETE REPLACEMENT
-   Contained, no bleed, DPR-safe canvas host
+   Canvas-safe, DPR-safe, tx-card ready
 */
 
 .mempool-specs{
+  position: relative;
   overflow: hidden;
 }
 
-/* Block visualization container */
+/* ============================================================
+   Block visualization container
+   ============================================================ */
 .mempool-specs .ms-block{
   position: relative;
   width: 100%;
@@ -31,9 +34,70 @@
   display: block;
   width: 100%;
   height: 100%;
+  image-rendering: pixelated;
 }
 
-/* Legend */
+/* ============================================================
+   Hit overlay layer (future tx-card.js)
+   Transparent divs positioned over canvas tiles
+   ============================================================ */
+.mempool-specs .ms-hitlayer{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.mempool-specs .ms-hit{
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Optional hover feedback (very subtle) */
+.mempool-specs .ms-hit:hover{
+  outline: 1px solid rgba(255,255,255,0.25);
+  outline-offset: -1px;
+}
+
+/* ============================================================
+   Tx card popup host
+   ============================================================ */
+.mempool-specs .ms-txcard-host{
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Actual card (tx-card.js will inject this) */
+.mempool-specs .ms-txcard{
+  position: absolute;
+  max-width: min(92vw, 420px);
+  background: rgba(10,10,10,0.96);
+  border: 1px solid rgba(230,164,43,0.6);
+  border-radius: 10px;
+  padding: .65rem .75rem;
+  font-size: .8rem;
+  color: #c0d674;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  pointer-events: auto;
+}
+
+.mempool-specs .ms-txcard h4{
+  margin: 0 0 .25rem 0;
+  font-size: .85rem;
+  font-weight: 600;
+  color: #e6a42b;
+}
+
+.mempool-specs .ms-txcard .muted{
+  color: rgba(192,214,116,0.7);
+}
+
+/* ============================================================
+   Legend
+   ============================================================ */
 .mempool-specs .ms-legend{
   display: flex;
   gap: .75rem;
@@ -59,11 +123,17 @@
 .mempool-specs .ms-swatch.mid  { background: #b6a11c; }
 .mempool-specs .ms-swatch.high { background: #ff6b35; }
 
-/* Mobile tuning */
+/* ============================================================
+   Mobile tuning
+   ============================================================ */
 @media (max-width: 560px){
   .mempool-specs .ms-block{
     aspect-ratio: 4 / 3;
     min-height: 200px;
     max-height: 420px;
+  }
+
+  .mempool-specs .ms-txcard{
+    font-size: .75rem;
   }
 }
