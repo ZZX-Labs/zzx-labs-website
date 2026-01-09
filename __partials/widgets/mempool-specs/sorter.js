@@ -1,16 +1,15 @@
 // __partials/widgets/mempool-specs/sorter.js
 // DROP-IN COMPLETE REPLACEMENT
 //
-// Squarified Treemap packer:
+// Squarified Treemap packer (stable, no overlap):
 // - Packs items by AREA into a rectangle (grid cols x rows)
-// - Produces mempool.space-like big tiles and dense small tiles
+// - Deterministic row/col sizing (no rounding overflow/gaps)
+// - Last item absorbs remainder so each row/col exactly fits
 //
 // Input items: [{ txid, feeRate, vbytes, areaCells, ... }]
 // Output layout: { placed:[{... , x,y,w,h}], cols, rows, rejected }
 //
-// Exposes: window.ZZXMempoolSpecs.Sorter.packSquares (kept name for compatibility)
-// NOTE: It packs RECTANGLES, not "squares". The squarify algorithm keeps them
-// near-square when possible.
+// Exposes: window.ZZXMempoolSpecs.Sorter.packSquares
 (function () {
   "use strict";
 
@@ -18,7 +17,6 @@
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
   function worst(row, w) {
-    // classic squarify "worst aspect ratio" metric
     let sum = 0, maxA = 0, minA = Infinity;
     for (const a of row) {
       sum += a;
@@ -30,40 +28,7 @@
     return Math.max((w2 * maxA) / s2, s2 / (w2 * minA));
   }
 
-  function layoutRow(rowItems, rowAreas, rect, horizontal, placed) {
-    // rect: {x,y,w,h} in CELLS
-    const sum = rowAreas.reduce((a, b) => a + b, 0);
-    if (sum <= 0) return rect;
-
-    if (horizontal) {
-      // row spans full width, fixed height
-      const rowH = Math.max(1, Math.round(sum / rect.w));
-      let x = rect.x;
-      for (let i = 0; i < rowItems.length; i++) {
-        const area = rowAreas[i];
-        const wi = Math.max(1, Math.round(area / rowH));
-        placed.push({ ...rowItems[i], x, y: rect.y, w: wi, h: rowH });
-        x += wi;
-      }
-      // leftover rect below
-      return { x: rect.x, y: rect.y + rowH, w: rect.w, h: Math.max(0, rect.h - rowH) };
-    } else {
-      // column spans full height, fixed width
-      const colW = Math.max(1, Math.round(sum / rect.h));
-      let y = rect.y;
-      for (let i = 0; i < rowItems.length; i++) {
-        const area = rowAreas[i];
-        const hi = Math.max(1, Math.round(area / colW));
-        placed.push({ ...rowItems[i], x: rect.x, y, w: colW, h: hi });
-        y += hi;
-      }
-      // leftover rect to the right
-      return { x: rect.x + colW, y: rect.y, w: Math.max(0, rect.w - colW), h: rect.h };
-    }
-  }
-
   function normalizeAreas(items, cols, rows) {
-    // Scale item areas so total area ~= available area
     const avail = Math.max(1, cols * rows);
     const sum = items.reduce((s, it) => s + (Number(it.areaCells) || 0), 0);
     if (sum <= 0) return items;
@@ -75,10 +40,104 @@
     }));
   }
 
+  // Allocate integer lengths that sum exactly to totalSpan.
+  // Uses proportional floors + last absorbs remainder, with a minimum of 1.
+  function splitSpan(areas, totalSpan) {
+    const out = new Array(areas.length).fill(1);
+    if (areas.length === 0) return out;
+
+    const sumA = areas.reduce((s, a) => s + a, 0);
+    if (sumA <= 0) return out;
+
+    // We must give at least 1 to each item; remaining span to distribute
+    const base = areas.length; // 1 each
+    let rem = totalSpan - base;
+
+    if (rem <= 0) {
+      // Not enough span for 1 each: caller should reject, but be safe.
+      return out.map(() => 1);
+    }
+
+    // Proportional allocation of the remaining span (floors)
+    let used = 0;
+    for (let i = 0; i < areas.length; i++) {
+      const share = Math.floor((areas[i] / sumA) * rem);
+      out[i] = 1 + share;
+      used += share;
+    }
+
+    // Give remainder to the last item (ensures exact sum)
+    const leftover = rem - used;
+    out[out.length - 1] += leftover;
+
+    return out;
+  }
+
+  function layoutRow(rowItems, rowAreas, rect, horizontal, placed, rejected) {
+    const sum = rowAreas.reduce((a, b) => a + b, 0);
+    if (sum <= 0) return rect;
+
+    if (horizontal) {
+      // Row spans full width, fixed height
+      // Thickness chosen so row area ~= sum, but never exceeds remaining height
+      let rowH = Math.ceil(sum / Math.max(1, rect.w));
+      rowH = clamp(rowH, 1, rect.h);
+
+      // Not enough vertical room for this row at all
+      if (rowH <= 0) {
+        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
+        return rect;
+      }
+
+      // Split widths to exactly fill rect.w
+      // If rect.w < rowItems.length, we can't give 1 col each => reject all
+      if (rect.w < rowItems.length) {
+        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
+        return rect;
+      }
+
+      const widths = splitSpan(rowAreas, rect.w);
+
+      let x = rect.x;
+      for (let i = 0; i < rowItems.length; i++) {
+        const wi = widths[i];
+        placed.push({ ...rowItems[i], x, y: rect.y, w: wi, h: rowH });
+        x += wi;
+      }
+
+      return { x: rect.x, y: rect.y + rowH, w: rect.w, h: rect.h - rowH };
+    } else {
+      // Column spans full height, fixed width
+      let colW = Math.ceil(sum / Math.max(1, rect.h));
+      colW = clamp(colW, 1, rect.w);
+
+      if (colW <= 0) {
+        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
+        return rect;
+      }
+
+      if (rect.h < rowItems.length) {
+        rejected.push(...rowItems.map(it => ({ ...it, _a: undefined })));
+        return rect;
+      }
+
+      const heights = splitSpan(rowAreas, rect.h);
+
+      let y = rect.y;
+      for (let i = 0; i < rowItems.length; i++) {
+        const hi = heights[i];
+        placed.push({ ...rowItems[i], x: rect.x, y, w: colW, h: hi });
+        y += hi;
+      }
+
+      return { x: rect.x + colW, y: rect.y, w: rect.w - colW, h: rect.h };
+    }
+  }
+
   function packSquares(items, grid, opts = {}) {
     const cols = grid.cols, rows = grid.rows;
 
-    // sort: big first (critical for treemap quality), then fee desc as tiebreak
+    // sort: big first (critical for treemap quality), then fee desc tiebreak
     const arr0 = items.slice().sort((a, b) => {
       const aa = Number(a.areaCells) || 0;
       const ba = Number(b.areaCells) || 0;
@@ -93,10 +152,8 @@
     const placed = [];
     const rejected = [];
 
-    // remaining rectangle in cell space
     let rect = { x: 0, y: 0, w: cols, h: rows };
 
-    // squarify
     let rowItems = [];
     let rowAreas = [];
 
@@ -105,13 +162,12 @@
       const it = arr[i];
       const a = Number(it._a) || 1;
 
-      // if rect is exhausted, reject remainder
       if (rect.w <= 0 || rect.h <= 0) {
         rejected.push(...arr.slice(i).map(x => ({ ...x, _a: undefined })));
         break;
       }
 
-      const w = Math.min(rect.w, rect.h); // squarify uses the shorter side
+      const w = Math.min(rect.w, rect.h);
 
       if (rowAreas.length === 0) {
         rowItems.push(it);
@@ -128,8 +184,8 @@
         rowAreas.push(a);
         i++;
       } else {
-        const horizontal = rect.w >= rect.h; // fill along longer dimension first
-        rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed);
+        const horizontal = rect.w >= rect.h;
+        rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed, rejected);
         rowItems = [];
         rowAreas = [];
       }
@@ -138,13 +194,13 @@
     // flush last row
     if (rowAreas.length && rect.w > 0 && rect.h > 0) {
       const horizontal = rect.w >= rect.h;
-      rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed);
+      rect = layoutRow(rowItems, rowAreas, rect, horizontal, placed, rejected);
     }
 
     // clean internal fields
     for (const p of placed) delete p._a;
 
-    // final clamp (keeps within grid)
+    // final clamp (safety only; should be unnecessary now)
     for (const p of placed) {
       p.x = clamp(p.x, 0, cols - 1);
       p.y = clamp(p.y, 0, rows - 1);
