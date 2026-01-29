@@ -1,43 +1,69 @@
 <!-- __partials/widgets/knots-vs-core/widget.html
-     DROP-IN
-     Purpose: compare Bitcoin Core vs Bitcoin Knots node counts + % share (Bitnodes via allorigins).
+     DROP-IN (v2)
+     Purpose: Compare Bitcoin Core vs Bitcoin Knots across:
+       - Reachable (public) nodes
+       - Unreachable (recently seen / short-lived) nodes (derived between snapshots)
+       - Tor-only reachable nodes (best-effort)
+     Data sources (via JS logic):
+       - Bitnodes snapshots (via allorigins) for authoritative UA breakdown
+       - Mempool.space (optional corroboration + Tor availability hints)
 -->
 <div class="btc-card" data-widget-root="knots-vs-core">
-  <div class="btc-card__title">Knots vs Core</div>
+  <div class="btc-card__title">
+    Knots vs Core
+    <span class="zzx-kvc-badge" data-kvc-badge>loading…</span>
+  </div>
 
   <div class="btc-card__value">
-    <span data-kvc-summary>loading…</span>
+    <span data-kvc-summary>—</span>
   </div>
 
   <div class="btc-card__sub">
     <span data-kvc-sub>—</span>
   </div>
 
+  <!-- Totals table -->
   <div class="zzx-kvc-rows" role="table" aria-label="Knots vs Core comparison">
     <div class="zzx-kvc-row zzx-kvc-head" role="row">
       <div class="zzx-kvc-cell" role="columnheader">Client</div>
-      <div class="zzx-kvc-cell zzx-kvc-num" role="columnheader">Nodes</div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="columnheader">Reachable</div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="columnheader">Unreachable</div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="columnheader">Tor</div>
       <div class="zzx-kvc-cell zzx-kvc-num" role="columnheader">%</div>
     </div>
 
     <div class="zzx-kvc-row" role="row">
       <div class="zzx-kvc-cell" role="cell">Bitcoin Core</div>
-      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-core>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-core-reach>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-core-unreach>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-core-tor>—</span></div>
       <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-core-pct>—</span></div>
     </div>
 
     <div class="zzx-kvc-row" role="row">
       <div class="zzx-kvc-cell" role="cell">Bitcoin Knots</div>
-      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-knots>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-knots-reach>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-knots-unreach>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-knots-tor>—</span></div>
       <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-knots-pct>—</span></div>
+    </div>
+
+    <div class="zzx-kvc-row zzx-kvc-total" role="row">
+      <div class="zzx-kvc-cell" role="cell">Total (all clients)</div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-total-reach>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-total-unreach>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-total-tor>—</span></div>
+      <div class="zzx-kvc-cell zzx-kvc-num" role="cell"><span data-kvc-total-pct>100%</span></div>
     </div>
   </div>
 
-  <div class="zzx-kvc-bar" aria-label="Share bar">
-    <div class="zzx-kvc-bar__core" data-kvc-bar-core></div>
-    <div class="zzx-kvc-bar__knots" data-kvc-bar-knots></div>
+  <!-- Share bars (Core vs Knots) -->
+  <div class="zzx-kvc-bar" aria-label="Share bar (Core vs Knots)">
+    <div class="zzx-kvc-bar__core" data-kvc-bar-core title="Core share"></div>
+    <div class="zzx-kvc-bar__knots" data-kvc-bar-knots title="Knots share"></div>
   </div>
 
+  <!-- Detail / provenance -->
   <div class="zzx-kvc-note">
     <span data-kvc-note>—</span>
   </div>
