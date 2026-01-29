@@ -1,31 +1,37 @@
 // __partials/widgets/knots-vs-core/bitnodes-snapshots.js
-// DROP-IN helper (no globals required except attaching to window for other widget files)
-//
-// Purpose:
-// - Fetch Bitnodes snapshot(s) via allorigins (CORS-safe)
-// - Extract UA distribution and (best-effort) reachable / unreachable / tor counts
-// - Provide "latest" + "previous" so the widget can compute deltas
-//
-// Notes:
-// - Bitnodes response shape can drift; this module is defensive.
-// - "Core vs Knots" logic is handled by the widget; this module only returns raw-ish numbers.
+// Helper for knots-vs-core widget:
+// - Fetch latest Bitnodes snapshot (via AllOrigins raw proxy)
+// - Best-effort fetch "previous" snapshot for delta calculations
+// - Normalizes payload into a stable shape:
+//     { ua: <map>, reachable: <number|NaN>, unreachable: <number|NaN>, tor: <number|NaN>, total: <number|NaN>, stamp: <string|null>, raw }
+// - Exposes: window.ZZXKnotsVsCore.Bitnodes.snapshotPair()
 
 (function () {
   "use strict";
 
   const W = window;
 
-  const API = {
-    base: "https://bitnodes.io/api/v1",
-    latest: "https://bitnodes.io/api/v1/snapshots/latest/",
-    list: "https://bitnodes.io/api/v1/snapshots/",
-    // sometimes older APIs provide /snapshots/?limit=2, sometimes pagination; we try both.
+  const NS = (W.ZZXKnotsVsCore = W.ZZXKnotsVsCore || {});
+  const API = (NS.Bitnodes = NS.Bitnodes || {});
+
+  const DEFAULTS = {
+    ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
+    SNAPSHOT_LATEST: "https://bitnodes.io/api/v1/snapshots/latest/",
+    // Some Bitnodes instances expose a list endpoint. If it exists, we’ll use it to locate the previous snapshot.
+    SNAPSHOT_INDEX: "https://bitnodes.io/api/v1/snapshots/",
+    TIMEOUT_MS: 12_000,
   };
 
-  const ALLORIGINS_RAW = "https://api.allorigins.win/raw?url=";
-
   function allOrigins(url) {
-    return ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
+    return DEFAULTS.ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
+  }
+
+  function withTimeout(promise, ms, label) {
+    let t = null;
+    const timeout = new Promise((_, rej) => {
+      t = setTimeout(() => rej(new Error((label || "timeout") + " after " + ms + "ms")), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
   }
 
   async function fetchJSON(url) {
@@ -34,230 +40,219 @@
     return r.json();
   }
 
-  function isObj(x) {
-    return !!x && typeof x === "object" && !Array.isArray(x);
-  }
-
-  // Normalize possible UA maps from Bitnodes payload.
+  // -----------------------------
+  // Normalization / extraction
+  // -----------------------------
   function extractUserAgents(payload) {
-    if (!isObj(payload)) return {};
-    // known/likely keys
-    if (isObj(payload.user_agents)) return payload.user_agents;
-    if (isObj(payload.userAgents)) return payload.userAgents;
-    if (isObj(payload.versions)) return payload.versions;
-    if (isObj(payload.user_agent_distribution)) return payload.user_agent_distribution;
-
-    // Some payloads have nested "data"
-    if (isObj(payload.data)) {
-      const d = payload.data;
-      if (isObj(d.user_agents)) return d.user_agents;
-      if (isObj(d.versions)) return d.versions;
-      if (isObj(d.user_agent_distribution)) return d.user_agent_distribution;
+    // Most common: payload.user_agents
+    if (payload && typeof payload === "object") {
+      if (payload.user_agents && typeof payload.user_agents === "object") return payload.user_agents;
+      if (payload.versions && typeof payload.versions === "object") return payload.versions;
+      if (payload.data && payload.data.user_agents && typeof payload.data.user_agents === "object") return payload.data.user_agents;
+      if (payload.data && payload.data.versions && typeof payload.data.versions === "object") return payload.data.versions;
     }
     return {};
   }
 
-  // Best-effort numeric getter (top-level or nested "data")
-  function pickNumber(payload, keys) {
-    if (!isObj(payload)) return null;
+  function extractNumbers(payload) {
+    const p = payload && typeof payload === "object" ? payload : {};
 
-    for (const k of keys) {
-      const v = payload[k];
+    // Reachable
+    const reachable =
+      Number(p.reachable_nodes) ||
+      Number(p.reachable) ||
+      Number(p.total_reachable) ||
+      Number(p.reachable_count) ||
+      NaN;
+
+    // Unreachable (some APIs provide this)
+    const unreachable =
+      Number(p.unreachable_nodes) ||
+      Number(p.unreachable) ||
+      Number(p.total_unreachable) ||
+      Number(p.unreachable_count) ||
+      NaN;
+
+    // Total nodes observed (sometimes equals reachable)
+    const total =
+      Number(p.total_nodes) ||
+      Number(p.total) ||
+      Number(p.nodes) ||
+      Number(p.total_count) ||
+      NaN;
+
+    // Tor count: Bitnodes may provide something like tor_nodes / onion_nodes etc.
+    // If absent, we leave NaN (widget will render "—")
+    const tor =
+      Number(p.tor_nodes) ||
+      Number(p.onion_nodes) ||
+      Number(p.onion) ||
+      Number(p.tor) ||
+      NaN;
+
+    // Timestamp-ish
+    const stamp =
+      (p.timestamp != null ? String(p.timestamp) : null) ||
+      (p.ts != null ? String(p.ts) : null) ||
+      (p.time != null ? String(p.time) : null) ||
+      (p.date != null ? String(p.date) : null) ||
+      (p.created_at != null ? String(p.created_at) : null) ||
+      null;
+
+    return { reachable, unreachable, total, tor, stamp };
+  }
+
+  function normalize(payload) {
+    const ua = extractUserAgents(payload);
+    const nums = extractNumbers(payload);
+
+    // If reachable is missing, fall back to UA-summed total (reachable proxy)
+    let uaSum = 0;
+    for (const v of Object.values(ua)) {
       const n = Number(v);
-      if (Number.isFinite(n)) return n;
+      if (Number.isFinite(n) && n > 0) uaSum += n;
     }
 
-    if (isObj(payload.data)) {
-      for (const k of keys) {
-        const v = payload.data[k];
-        const n = Number(v);
-        if (Number.isFinite(n)) return n;
-      }
-    }
-
-    return null;
-  }
-
-  // Attempt to infer snapshot time/height identifiers for display.
-  function pickStamp(payload) {
-    if (!isObj(payload)) return null;
-    const cand =
-      payload.timestamp ??
-      payload.time ??
-      payload.datetime ??
-      payload.created_at ??
-      (isObj(payload.data) ? (payload.data.timestamp ?? payload.data.time ?? payload.data.datetime ?? payload.data.created_at) : null);
-
-    if (cand == null) return null;
-
-    // If it's seconds-since-epoch
-    const n = Number(cand);
-    if (Number.isFinite(n) && n > 1e9 && n < 1e11) {
-      // could be seconds or ms; guess:
-      const ms = n < 1e12 ? n * 1000 : n;
-      const d = new Date(ms);
-      if (!Number.isNaN(d.getTime())) return d.toISOString();
-    }
-
-    // else keep as string
-    return String(cand);
-  }
-
-  // Some Bitnodes list endpoints return { results: [...] } or { snapshots: [...] } or an array.
-  function extractList(payload) {
-    if (Array.isArray(payload)) return payload;
-    if (!isObj(payload)) return [];
-    if (Array.isArray(payload.results)) return payload.results;
-    if (Array.isArray(payload.snapshots)) return payload.snapshots;
-    if (isObj(payload.data) && Array.isArray(payload.data.results)) return payload.data.results;
-    return [];
-  }
-
-  // Attempt to fetch "latest" and one "previous" snapshot.
-  async function fetchLatestAndPrev() {
-    // Always fetch latest first
-    const latest = await fetchJSON(allOrigins(API.latest));
-
-    // For "previous" snapshot, try a few strategies:
-    // 1) /snapshots/?limit=2
-    // 2) /snapshots/ then take first two
-    // 3) if latest provides a previous url/id, attempt it (rare)
-    let prev = null;
-
-    // Strategy 1
-    try {
-      const list1 = await fetchJSON(allOrigins(API.list + "?limit=2"));
-      const arr1 = extractList(list1);
-      if (arr1.length >= 2) {
-        // determine which is latest vs previous; assume sorted newest->oldest
-        prev = arr1[1];
-      }
-    } catch (_) {}
-
-    // Strategy 2
-    if (!prev) {
-      try {
-        const list2 = await fetchJSON(allOrigins(API.list));
-        const arr2 = extractList(list2);
-        if (arr2.length >= 2) prev = arr2[1];
-      } catch (_) {}
-    }
-
-    // If prev is a "summary row" not a full snapshot, it may contain a "url" to fetch.
-    // We attempt to expand it into full snapshot payload.
-    async function expandMaybe(x) {
-      if (!x) return null;
-      if (isObj(x) && (x.user_agents || x.versions || x.user_agent_distribution || (isObj(x.data) && x.data.user_agents))) {
-        return x; // already full-ish
-      }
-      if (isObj(x)) {
-        const u =
-          x.url ||
-          x.snapshot_url ||
-          x.href ||
-          (isObj(x.links) ? (x.links.self || x.links.url) : null);
-        if (u && typeof u === "string" && u.startsWith("http")) {
-          try { return await fetchJSON(allOrigins(u)); } catch (_) {}
-        }
-        // Sometimes an "id" exists and endpoint is /snapshots/<id>/
-        const id = x.id ?? x.pk ?? x.snapshot_id;
-        if (id != null) {
-          const url = `${API.base}/snapshots/${id}/`;
-          try { return await fetchJSON(allOrigins(url)); } catch (_) {}
-        }
-      }
-      return x; // keep as-is
-    }
-
-    prev = await expandMaybe(prev);
-
-    return { latest, prev };
-  }
-
-  // Public function: returns normalized snapshot info
-  async function snapshotPair() {
-    const { latest, prev } = await fetchLatestAndPrev();
-
-    const latestUA = extractUserAgents(latest);
-    const prevUA = extractUserAgents(prev);
-
-    // Totals (fallback: compute from UA map)
-    function sumUA(map) {
-      let t = 0;
-      if (!isObj(map)) return 0;
-      for (const v of Object.values(map)) {
-        const n = Number(v);
-        if (Number.isFinite(n) && n > 0) t += n;
-      }
-      return t;
-    }
-
-    const latestTotal =
-      pickNumber(latest, ["total_nodes", "total", "nodes", "node_count"]) ??
-      sumUA(latestUA) ??
-      null;
-
-    const prevTotal =
-      pickNumber(prev, ["total_nodes", "total", "nodes", "node_count"]) ??
-      sumUA(prevUA) ??
-      null;
-
-    // Reachable/unreachable/tor (best-effort; if absent -> null)
-    const latestReachable =
-      pickNumber(latest, ["reachable_nodes", "reachable", "reachable_total", "nodes_reachable"]) ??
-      pickNumber(latest, ["reachable_nodes_count"]) ??
-      null;
-
-    const prevReachable =
-      pickNumber(prev, ["reachable_nodes", "reachable", "reachable_total", "nodes_reachable"]) ??
-      pickNumber(prev, ["reachable_nodes_count"]) ??
-      null;
-
-    const latestUnreachable =
-      pickNumber(latest, ["unreachable_nodes", "unreachable", "unreachable_total", "nodes_unreachable"]) ??
-      pickNumber(latest, ["unreachable_nodes_count"]) ??
-      null;
-
-    const prevUnreachable =
-      pickNumber(prev, ["unreachable_nodes", "unreachable", "unreachable_total", "nodes_unreachable"]) ??
-      pickNumber(prev, ["unreachable_nodes_count"]) ??
-      null;
-
-    const latestTor =
-      pickNumber(latest, ["tor_nodes", "tor", "onion_nodes", "tor_total"]) ??
-      pickNumber(latest, ["tor_nodes_count"]) ??
-      null;
-
-    const prevTor =
-      pickNumber(prev, ["tor_nodes", "tor", "onion_nodes", "tor_total"]) ??
-      pickNumber(prev, ["tor_nodes_count"]) ??
-      null;
+    const reachable = Number.isFinite(nums.reachable) ? nums.reachable : (uaSum > 0 ? uaSum : NaN);
+    const total = Number.isFinite(nums.total) ? nums.total : (uaSum > 0 ? uaSum : NaN);
 
     return {
-      latest: {
-        stamp: pickStamp(latest),
-        ua: latestUA,
-        total: latestTotal,
-        reachable: latestReachable,
-        unreachable: latestUnreachable,
-        tor: latestTor,
-      },
-      prev: prev
-        ? {
-            stamp: pickStamp(prev),
-            ua: prevUA,
-            total: prevTotal,
-            reachable: prevReachable,
-            unreachable: prevUnreachable,
-            tor: prevTor,
-          }
-        : null
+      ua,
+      reachable,
+      unreachable: nums.unreachable,
+      tor: nums.tor,
+      total,
+      stamp: nums.stamp,
+      raw: payload,
     };
   }
 
-  // Register on window for widget.js to use.
-  W.ZZXKnotsVsCore = W.ZZXKnotsVsCore || {};
-  W.ZZXKnotsVsCore.Bitnodes = {
-    snapshotPair,
+  function findPreviousUrlFromPayload(payload) {
+    // Bitnodes might include:
+    // - payload.previous
+    // - payload.links.previous
+    // - payload.data.previous
+    const p = payload && typeof payload === "object" ? payload : {};
+    if (p.previous) return String(p.previous);
+    if (p.links && p.links.previous) return String(p.links.previous);
+    if (p.data && p.data.previous) return String(p.data.previous);
+    return null;
+  }
+
+  // Best-effort index parsing:
+  // Some APIs return { results: [ {url: "...", timestamp: ...}, ... ] }
+  // Others return a simple array.
+  function pickPrevFromIndex(indexPayload, latestNorm) {
+    if (!indexPayload) return null;
+
+    let arr = null;
+
+    if (Array.isArray(indexPayload)) {
+      arr = indexPayload;
+    } else if (indexPayload.results && Array.isArray(indexPayload.results)) {
+      arr = indexPayload.results;
+    } else if (indexPayload.data && Array.isArray(indexPayload.data)) {
+      arr = indexPayload.data;
+    }
+
+    if (!arr || !arr.length) return null;
+
+    // Try to get "url" fields, and skip the one matching latest if possible.
+    const latestStamp = latestNorm && latestNorm.stamp ? String(latestNorm.stamp) : null;
+
+    const candidates = arr
+      .map((x) => {
+        if (typeof x === "string") return { url: x, stamp: null };
+        if (x && typeof x === "object") {
+          return {
+            url: x.url || x.href || x.link || x.api_url || null,
+            stamp: x.timestamp || x.ts || x.time || x.date || x.created_at || null,
+          };
+        }
+        return { url: null, stamp: null };
+      })
+      .filter((x) => !!x.url);
+
+    if (!candidates.length) return null;
+
+    // If we can compare stamps, choose the first candidate that doesn't match latest stamp.
+    if (latestStamp) {
+      const different = candidates.find((c) => c.stamp && String(c.stamp) !== latestStamp);
+      if (different) return String(different.url);
+    }
+
+    // Otherwise: if the index is ordered newest->oldest, prev is candidates[1] when candidates[0] is latest.
+    if (candidates.length >= 2) return String(candidates[1].url);
+    return String(candidates[0].url);
+  }
+
+  // -----------------------------
+  // Public API: snapshotPair()
+  // -----------------------------
+  let cache = {
+    at: 0,
+    latest: null,
+    prev: null,
+  };
+
+  API.snapshotPair = async function snapshotPair() {
+    // Lightweight cache to prevent multiple widgets hammering the proxy simultaneously.
+    const now = Date.now();
+    if (cache.latest && (now - cache.at) < 15_000) {
+      return { latest: cache.latest, prev: cache.prev };
+    }
+
+    // 1) Latest
+    const latestPayload = await withTimeout(
+      fetchJSON(allOrigins(DEFAULTS.SNAPSHOT_LATEST)),
+      DEFAULTS.TIMEOUT_MS,
+      "bitnodes latest"
+    );
+    const latestNorm = normalize(latestPayload);
+
+    // 2) Previous: prefer explicit "previous" link
+    let prevNorm = null;
+
+    const prevUrl = findPreviousUrlFromPayload(latestPayload);
+    if (prevUrl) {
+      try {
+        const prevPayload = await withTimeout(
+          fetchJSON(allOrigins(prevUrl)),
+          DEFAULTS.TIMEOUT_MS,
+          "bitnodes previous"
+        );
+        prevNorm = normalize(prevPayload);
+      } catch (_) {
+        prevNorm = null;
+      }
+    }
+
+    // 3) If still missing, try the index endpoint and pick previous
+    if (!prevNorm) {
+      try {
+        const indexPayload = await withTimeout(
+          fetchJSON(allOrigins(DEFAULTS.SNAPSHOT_INDEX)),
+          DEFAULTS.TIMEOUT_MS,
+          "bitnodes index"
+        );
+        const prevFromIndex = pickPrevFromIndex(indexPayload, latestNorm);
+        if (prevFromIndex) {
+          const prevPayload2 = await withTimeout(
+            fetchJSON(allOrigins(prevFromIndex)),
+            DEFAULTS.TIMEOUT_MS,
+            "bitnodes previous (index)"
+          );
+          prevNorm = normalize(prevPayload2);
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    cache.at = Date.now();
+    cache.latest = latestNorm;
+    cache.prev = prevNorm;
+
+    return { latest: latestNorm, prev: prevNorm };
   };
 })();
