@@ -1,6 +1,6 @@
 /* __partials/widgets/knots-vs-core/widget.css
-   DROP-IN
-   Tight, non-overflowing layout + simple share bar.
+   DROP-IN (v2)
+   Stable layout, no overflow, responsive columns.
 */
 
 [data-widget-root="knots-vs-core"]{
@@ -8,6 +8,19 @@
   box-sizing:border-box;
 }
 
+/* Header badge */
+[data-widget-root="knots-vs-core"] .zzx-kvc-badge{
+  margin-left:.4rem;
+  padding:.1rem .45rem;
+  border-radius:999px;
+  font-size:.75rem;
+  line-height:1.4;
+  background:rgba(255,255,255,.08);
+  color:#b7bf9a;
+  vertical-align:middle;
+}
+
+/* Title + value lines */
 [data-widget-root="knots-vs-core"] .btc-card__value,
 [data-widget-root="knots-vs-core"] .btc-card__sub{
   overflow:hidden;
@@ -15,41 +28,59 @@
   white-space:nowrap;
 }
 
+/* Table wrapper */
 [data-widget-root="knots-vs-core"] .zzx-kvc-rows{
   margin-top:.45rem;
-  border:1px solid rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.12);
   border-radius:10px;
   overflow:hidden;
   width:100%;
   box-sizing:border-box;
 }
 
+/* Rows */
 [data-widget-root="knots-vs-core"] .zzx-kvc-row{
   display:grid;
-  grid-template-columns: 1fr 110px 76px;
+  grid-template-columns: 1fr 96px 96px 72px 64px;
   gap:.4rem;
   align-items:center;
   padding:.35rem .45rem;
   box-sizing:border-box;
 }
 
-@media (max-width:520px){
+@media (max-width:640px){
   [data-widget-root="knots-vs-core"] .zzx-kvc-row{
-    grid-template-columns: 1fr 96px 68px;
+    grid-template-columns: 1fr 80px 80px 56px 56px;
   }
 }
 
-[data-widget-root="knots-vs-core"] .zzx-kvc-head{
-  background: rgba(255,255,255,.04);
-  border-bottom:1px solid rgba(255,255,255,.10);
+@media (max-width:480px){
+  [data-widget-root="knots-vs-core"] .zzx-kvc-row{
+    grid-template-columns: 1fr 72px 72px 48px 48px;
+    font-size:.9rem;
+  }
 }
 
+/* Header row */
+[data-widget-root="knots-vs-core"] .zzx-kvc-head{
+  background:rgba(255,255,255,.05);
+  border-bottom:1px solid rgba(255,255,255,.12);
+  font-weight:600;
+}
+
+/* Total row */
+[data-widget-root="knots-vs-core"] .zzx-kvc-total{
+  border-top:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.03);
+  font-weight:600;
+}
+
+/* Cells */
 [data-widget-root="knots-vs-core"] .zzx-kvc-cell{
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-  font-size:.95rem;
 }
 
 [data-widget-root="knots-vs-core"] .zzx-kvc-num{
@@ -57,31 +88,43 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Share bar */
 [data-widget-root="knots-vs-core"] .zzx-kvc-bar{
   margin-top:.55rem;
   height:10px;
   border-radius:999px;
   overflow:hidden;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);
   display:flex;
 }
 
 [data-widget-root="knots-vs-core"] .zzx-kvc-bar__core{
   height:100%;
   width:0%;
-  background: linear-gradient(90deg, rgba(192,214,116,.85), rgba(192,214,116,.55));
+  background:linear-gradient(
+    90deg,
+    rgba(192,214,116,.9),
+    rgba(192,214,116,.6)
+  );
+  transition:width 400ms ease;
 }
 
 [data-widget-root="knots-vs-core"] .zzx-kvc-bar__knots{
   height:100%;
   width:0%;
-  background: linear-gradient(90deg, rgba(230,164,43,.85), rgba(230,164,43,.55));
+  background:linear-gradient(
+    90deg,
+    rgba(230,164,43,.9),
+    rgba(230,164,43,.6)
+  );
+  transition:width 400ms ease;
 }
 
+/* Footer note */
 [data-widget-root="knots-vs-core"] .zzx-kvc-note{
   margin-top:.4rem;
-  font-size:.9rem;
+  font-size:.85rem;
   color:#b7bf9a;
   white-space:nowrap;
   overflow:hidden;
