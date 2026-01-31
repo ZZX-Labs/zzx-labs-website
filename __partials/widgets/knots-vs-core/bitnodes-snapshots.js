@@ -1,17 +1,13 @@
 // __partials/widgets/knots-vs-core/bitnodes-snapshots.js
-// Shared Bitnodes snapshot cache + proxy rotation (for all node widgets)
-// Exposes: window.ZZXBitnodesCache.snapshotPair()
+// Shared Bitnodes snapshot cache for ALL node widgets.
 //
-// Normalized snapshot shape:
-// {
-//   ua: { [userAgent: string]: number },
-//   reachable: number|NaN,
-//   unreachable: number|NaN,
-//   tor: number|NaN,
-//   total: number|NaN,
-//   stamp: string|null,
-//   raw: any
-// }
+// Key fixes vs earlier versions:
+// - DIRECT fetch first (your "Nodes" widget already works via direct).
+// - AllOrigins is fallback only.
+// - Robust JSON parsing (detects HTML/403/Cloudflare pages that break JSON.parse).
+// - Longer timeout + retry.
+// - Coalesces concurrent callers (multiple widgets) into one network flight.
+// - Provides stable API: window.ZZXBitnodesCache.snapshotPair()
 
 (function () {
   "use strict";
@@ -23,23 +19,28 @@
   const CFG = {
     SNAPSHOT_LATEST: "https://bitnodes.io/api/v1/snapshots/latest/",
     SNAPSHOT_INDEX: "https://bitnodes.io/api/v1/snapshots/",
-    // timeouts tuned for mobile + proxy variance
+    ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
+
+    // Make this forgiving; Bitnodes can be slow. 12s was too tight in real world.
     TIMEOUT_MS: 25_000,
-    // cache TTL: all widgets share a single fetch for this period
+    RETRIES: 1,
+    RETRY_DELAY_MS: 700,
+
+    // Shared cache TTL to keep widgets from hammering endpoints.
     CACHE_TTL_MS: 60_000,
-    // short anti-stampede backoff when failures happen
-    FAIL_TTL_MS: 15_000,
-    // proxy rotation (order matters)
-    PROXIES: [
-      { name: "direct", kind: "direct" },
-      { name: "allorigins_raw", kind: "wrap_raw", base: "https://api.allorigins.win/raw?url=" },
-      { name: "allorigins_json", kind: "wrap_json", base: "https://api.allorigins.win/get?url=" },
-      // r.jina.ai fetches remote content server-side and returns text with a prefix
-      { name: "jina", kind: "jina" }
-    ]
+
+    // If your site uses aggressive caching/CDN, you can flip this on:
+    // Adds a cache-busting query param.
+    CACHE_BUST: false,
   };
 
-  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function allOrigins(url) {
+    return CFG.ALLORIGINS_RAW + encodeURIComponent(String(url || ""));
+  }
+
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
 
   function withTimeout(promise, ms, label) {
     let t = null;
@@ -49,75 +50,64 @@
     return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
   }
 
+  function looksLikeHTML(text) {
+    const s = String(text || "").trim().toLowerCase();
+    return s.startsWith("<!doctype") || s.startsWith("<html") || s.includes("<head") || s.includes("<body");
+  }
+
   async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return r.text();
-  }
-
-  function looksLikeHTML(s) {
-    const t = String(s || "").trim().toLowerCase();
-    return t.startsWith("<!doctype") || t.startsWith("<html") || t.includes("<head") || t.includes("<body");
-  }
-
-  function stripJinaPrefix(text) {
-    // r.jina.ai often prefixes with something like "###" or includes metadata lines.
-    // We try to extract the first JSON object/array substring.
-    const s = String(text || "");
-    const firstObj = s.indexOf("{");
-    const firstArr = s.indexOf("[");
-    const start = (firstObj === -1) ? firstArr : (firstArr === -1 ? firstObj : Math.min(firstObj, firstArr));
-    if (start <= 0) return s;
-    return s.slice(start);
-  }
-
-  function safeJSONParse(text) {
-    const raw = String(text || "");
-    if (looksLikeHTML(raw)) throw new Error("non-json (html) response");
-    // handle BOM
-    const cleaned = raw.replace(/^\uFEFF/, "").trim();
-    return JSON.parse(cleaned);
-  }
-
-  async function fetchJSONViaProxy(url, proxy) {
-    const u = String(url);
-
-    if (proxy.kind === "direct") {
-      // direct JSON fetch
-      const r = await fetch(u, { cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
+    const u = CFG.CACHE_BUST ? (url + (url.includes("?") ? "&" : "?") + "t=" + Date.now()) : url;
+    const r = await fetch(u, {
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "follow",
+    });
+    const txt = await r.text();
+    if (!r.ok) {
+      // Include a small snippet to make debugging real failures easier
+      const snippet = String(txt || "").slice(0, 180).replace(/\s+/g, " ").trim();
+      throw new Error(`HTTP ${r.status} from ${url} :: ${snippet || "no body"}`);
     }
-
-    if (proxy.kind === "wrap_raw") {
-      const wrapped = proxy.base + encodeURIComponent(u);
-      const txt = await fetchText(wrapped);
-      return safeJSONParse(txt);
-    }
-
-    if (proxy.kind === "wrap_json") {
-      // allorigins /get returns JSON: { contents: "...", status: { ... } }
-      const wrapped = proxy.base + encodeURIComponent(u);
-      const outerTxt = await fetchText(wrapped);
-      const outer = safeJSONParse(outerTxt);
-      const contents = outer && outer.contents != null ? String(outer.contents) : "";
-      return safeJSONParse(contents);
-    }
-
-    if (proxy.kind === "jina") {
-      const wrapped = "https://r.jina.ai/http://r.jina.ai/http://" + u.replace(/^https?:\/\//, "");
-      // r.jina.ai can be flaky; parse as text then extract JSON
-      const txt = await fetchText(wrapped);
-      const stripped = stripJinaPrefix(txt);
-      return safeJSONParse(stripped);
-    }
-
-    throw new Error("unknown proxy kind");
+    return txt;
   }
 
-  // -----------------------------
-  // Normalization / extraction
-  // -----------------------------
+  async function fetchJSONRobust(url, label) {
+    const txt = await withTimeout(fetchText(url), CFG.TIMEOUT_MS, label || "fetch");
+    if (looksLikeHTML(txt)) {
+      const snippet = txt.slice(0, 200).replace(/\s+/g, " ").trim();
+      throw new Error(`Non-JSON response (HTML) from ${url} :: ${snippet}`);
+    }
+    try {
+      return JSON.parse(txt);
+    } catch (e) {
+      const snippet = txt.slice(0, 200).replace(/\s+/g, " ").trim();
+      throw new Error(`JSON.parse failed for ${url} :: ${snippet}`);
+    }
+  }
+
+  async function tryFetchLatestDirectThenProxy() {
+    // 1) direct
+    try {
+      const j = await fetchJSONRobust(CFG.SNAPSHOT_LATEST, "bitnodes latest (direct)");
+      return { payload: j, via: "direct" };
+    } catch (e1) {
+      // 2) allorigins fallback
+      const j = await fetchJSONRobust(allOrigins(CFG.SNAPSHOT_LATEST), "bitnodes latest (allorigins)");
+      return { payload: j, via: "allorigins" };
+    }
+  }
+
+  async function tryFetchAny(url) {
+    // Used for previous snapshot/index; direct first, then proxy.
+    try {
+      const j = await fetchJSONRobust(url, "bitnodes (direct)");
+      return { payload: j, via: "direct" };
+    } catch (e1) {
+      const j = await fetchJSONRobust(allOrigins(url), "bitnodes (allorigins)");
+      return { payload: j, via: "allorigins" };
+    }
+  }
+
   function extractUserAgents(payload) {
     if (payload && typeof payload === "object") {
       if (payload.user_agents && typeof payload.user_agents === "object") return payload.user_agents;
@@ -129,7 +119,7 @@
   }
 
   function extractNumbers(payload) {
-    const p = (payload && typeof payload === "object") ? payload : {};
+    const p = payload && typeof payload === "object" ? payload : {};
 
     const reachable =
       Number(p.reachable_nodes) ||
@@ -165,13 +155,12 @@
       (p.time != null ? String(p.time) : null) ||
       (p.date != null ? String(p.date) : null) ||
       (p.created_at != null ? String(p.created_at) : null) ||
-      (p.data && p.data.timestamp != null ? String(p.data.timestamp) : null) ||
       null;
 
     return { reachable, unreachable, total, tor, stamp };
   }
 
-  function normalize(payload) {
+  function normalize(payload, via) {
     const ua = extractUserAgents(payload);
     const nums = extractNumbers(payload);
 
@@ -191,12 +180,13 @@
       tor: nums.tor,
       total,
       stamp: nums.stamp,
-      raw: payload
+      via: via || "unknown",
+      raw: payload,
     };
   }
 
   function findPreviousUrlFromPayload(payload) {
-    const p = (payload && typeof payload === "object") ? payload : {};
+    const p = payload && typeof payload === "object" ? payload : {};
     if (p.previous) return String(p.previous);
     if (p.links && p.links.previous) return String(p.links.previous);
     if (p.data && p.data.previous) return String(p.data.previous);
@@ -215,21 +205,23 @@
 
     const latestStamp = latestNorm && latestNorm.stamp ? String(latestNorm.stamp) : null;
 
-    const candidates = arr.map((x) => {
-      if (typeof x === "string") return { url: x, stamp: null };
-      if (x && typeof x === "object") {
-        return {
-          url: x.url || x.href || x.link || x.api_url || null,
-          stamp: x.timestamp || x.ts || x.time || x.date || x.created_at || null
-        };
-      }
-      return { url: null, stamp: null };
-    }).filter(c => !!c.url);
+    const candidates = arr
+      .map((x) => {
+        if (typeof x === "string") return { url: x, stamp: null };
+        if (x && typeof x === "object") {
+          return {
+            url: x.url || x.href || x.link || x.api_url || null,
+            stamp: x.timestamp || x.ts || x.time || x.date || x.created_at || null,
+          };
+        }
+        return { url: null, stamp: null };
+      })
+      .filter((x) => !!x.url);
 
     if (!candidates.length) return null;
 
     if (latestStamp) {
-      const different = candidates.find(c => c.stamp && String(c.stamp) !== latestStamp);
+      const different = candidates.find((c) => c.stamp && String(c.stamp) !== latestStamp);
       if (different) return String(different.url);
     }
 
@@ -237,106 +229,83 @@
     return String(candidates[0].url);
   }
 
-  // -----------------------------
-  // Cache + in-flight sharing
-  // -----------------------------
+  // -----------------------------------
+  // Shared cache + request coalescing
+  // -----------------------------------
   let cache = {
     at: 0,
-    ok: false,
     latest: null,
     prev: null,
-    inflight: null
+    inFlight: null,
   };
 
-  async function tryFetch(url) {
+  async function snapshotPairImpl() {
+    // Retry wrapper around the whole pipeline.
     let lastErr = null;
-
-    for (const proxy of CFG.PROXIES) {
+    for (let attempt = 0; attempt <= CFG.RETRIES; attempt++) {
       try {
-        const payload = await withTimeout(
-          fetchJSONViaProxy(url, proxy),
-          CFG.TIMEOUT_MS,
-          proxy.name + " fetch"
-        );
-        return payload;
+        // 1) latest
+        const latestRes = await tryFetchLatestDirectThenProxy();
+        const latestNorm = normalize(latestRes.payload, latestRes.via);
+
+        // 2) previous (best-effort)
+        let prevNorm = null;
+
+        const prevUrl = findPreviousUrlFromPayload(latestRes.payload);
+        if (prevUrl) {
+          try {
+            const prevRes = await tryFetchAny(prevUrl);
+            prevNorm = normalize(prevRes.payload, prevRes.via);
+          } catch (_) {
+            prevNorm = null;
+          }
+        }
+
+        if (!prevNorm) {
+          try {
+            const indexRes = await tryFetchAny(CFG.SNAPSHOT_INDEX);
+            const prevFromIndex = pickPrevFromIndex(indexRes.payload, latestNorm);
+            if (prevFromIndex) {
+              const prevRes2 = await tryFetchAny(prevFromIndex);
+              prevNorm = normalize(prevRes2.payload, prevRes2.via);
+            }
+          } catch (_) {
+            // ignore
+          }
+        }
+
+        return { latest: latestNorm, prev: prevNorm };
       } catch (e) {
         lastErr = e;
-        // tiny backoff between proxies (helps mobile)
-        await sleep(150);
+        if (attempt < CFG.RETRIES) await sleep(CFG.RETRY_DELAY_MS);
       }
     }
-
-    throw lastErr || new Error("all proxies failed");
+    throw lastErr || new Error("snapshotPair failed");
   }
 
   NS.snapshotPair = async function snapshotPair() {
     const now = Date.now();
 
-    // Fresh ok cache
-    if (cache.ok && cache.latest && (now - cache.at) < CFG.CACHE_TTL_MS) {
+    // Serve fresh cache
+    if (cache.latest && (now - cache.at) < CFG.CACHE_TTL_MS) {
       return { latest: cache.latest, prev: cache.prev };
     }
 
-    // Recent failure cache to avoid hammering
-    if (!cache.ok && (now - cache.at) < CFG.FAIL_TTL_MS && cache.latest) {
-      return { latest: cache.latest, prev: cache.prev };
-    }
+    // Coalesce callers
+    if (cache.inFlight) return cache.inFlight;
 
-    // Share in-flight work
-    if (cache.inflight) return cache.inflight;
-
-    cache.inflight = (async () => {
-      // 1) Latest
-      const latestPayload = await tryFetch(CFG.SNAPSHOT_LATEST);
-      const latestNorm = normalize(latestPayload);
-
-      // 2) Previous
-      let prevNorm = null;
-
-      const prevUrl = findPreviousUrlFromPayload(latestPayload);
-      if (prevUrl) {
-        try {
-          const prevPayload = await tryFetch(prevUrl);
-          prevNorm = normalize(prevPayload);
-        } catch (_) {
-          prevNorm = null;
-        }
-      }
-
-      // 3) Try index endpoint if no explicit previous
-      if (!prevNorm) {
-        try {
-          const indexPayload = await tryFetch(CFG.SNAPSHOT_INDEX);
-          const prevFromIndex = pickPrevFromIndex(indexPayload, latestNorm);
-          if (prevFromIndex) {
-            const prevPayload2 = await tryFetch(prevFromIndex);
-            prevNorm = normalize(prevPayload2);
-          }
-        } catch (_) {
-          // ignore
-        }
-      }
-
+    cache.inFlight = (async () => {
+      const pair = await snapshotPairImpl();
       cache.at = Date.now();
-      cache.ok = true;
-      cache.latest = latestNorm;
-      cache.prev = prevNorm;
-      return { latest: latestNorm, prev: prevNorm };
-    })();
-
-    try {
-      return await cache.inflight;
-    } catch (e) {
-      cache.at = Date.now();
-      cache.ok = false;
-
-      // Keep a minimal cache object so widgets don't crash on repeated refresh
-      cache.latest = cache.latest || normalize({});
-      cache.prev = cache.prev || null;
-
+      cache.latest = pair.latest;
+      cache.prev = pair.prev;
+      cache.inFlight = null;
+      return pair;
+    })().catch((e) => {
+      cache.inFlight = null;
       throw e;
-    } finally {
-      cache.inflight = null;
-    }
+    });
+
+    return cache.inFlight;
   };
 })();
