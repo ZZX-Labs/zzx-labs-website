@@ -1,15 +1,15 @@
 // __partials/widgets/nodes-by-version/widget.js
-// DROP-IN (DEBUGGED, modular)
-// Requires (auto-loaded from same dir):
+// DROP-IN (FIXED to use Bitnodes snapshots/<timestamp>/)
+//
+// Uses the most reliable path in practice:
+//   1) GET snapshots/latest  (direct, fallback allorigins via fetch.js)
+//   2) GET snapshots/<timestamp>/ (direct, fallback allorigins via fetch.js)
+//   3) adapter.js derives UA distribution from payload.nodes
+//
+// Keeps your existing deps:
 //   sources.js -> window.ZZXNodesByVersionSources.get()
 //   fetch.js   -> window.ZZXNodesByVersionFetch.fetchJSON(url)
 //   adapter.js -> window.ZZXNodesByVersionAdapter.parse(payload)
-//
-// Features:
-// - 5/page pager
-// - refresh button
-// - rate-limit tolerant (uses cached last-good via fetch.js)
-// - idempotent (clears intervals, binds once)
 
 (function () {
   "use strict";
@@ -22,7 +22,7 @@
 
   function setText(root, sel, text) {
     const el = root.querySelector(sel);
-    if (el) el.textContent = text;
+    if (el) el.textContent = String(text ?? "—");
   }
 
   function fmtInt(x) {
@@ -50,7 +50,7 @@
 
   async function loadOnce(url, key) {
     if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
-      await new Promise(r => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
       return true;
     }
     return await new Promise((resolve) => {
@@ -77,39 +77,60 @@
       if (okfn()) continue;
       const ok = await loadOnce(base + file, key);
       if (!ok) return { ok: false, why: `${file} missing` };
-      await new Promise(r => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
       if (!okfn()) return { ok: false, why: `${file} did not register` };
     }
     return { ok: true };
   }
 
+  function buildSnapshotTsUrl(cfg, ts) {
+    // Allow override; default base if not provided.
+    const base = (cfg?.endpoints?.snapshotByTsBase || "https://bitnodes.io/api/v1/snapshots/").replace(/\/+$/, "/");
+    return base + String(ts).trim().replace(/^\/+/, "").replace(/\/+$/, "") + "/";
+  }
+
   async function loadData(cfg) {
-    // Try userAgents first (most reliable)
+    // Primary path: latest -> timestamp -> snapshot/<ts> (contains nodes map)
+    const latestRes = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.snapshotLatest);
+    const latest = latestRes.json || {};
+    const ts = latest.timestamp || latest.ts || latest.time || null;
+
+    if (!ts) {
+      // If latest already contains a map (rare), parse directly.
+      const parsedLatest = W.ZZXNodesByVersionAdapter.parse(latest);
+      if (parsedLatest.items && parsedLatest.items.length) {
+        return { parsed: parsedLatest, from: latestRes.from, endpoint: "snapshotLatest" };
+      }
+      throw new Error("snapshotLatest missing timestamp");
+    }
+
+    const snapUrl = buildSnapshotTsUrl(cfg, ts);
+    const snapRes = await W.ZZXNodesByVersionFetch.fetchJSON(snapUrl);
+    const parsedSnap = W.ZZXNodesByVersionAdapter.parse(snapRes.json);
+
+    if (parsedSnap.items && parsedSnap.items.length) {
+      // Use total_nodes from snapshot/<ts> if present; adapter also sets total by sum if needed.
+      return { parsed: parsedSnap, from: snapRes.from, endpoint: `snapshots/${ts}` };
+    }
+
+    // Fallbacks (only if snapshots/<ts> didn’t yield items, which would be unusual)
     try {
       const rUA = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.userAgents);
       const pUA = W.ZZXNodesByVersionAdapter.parse(rUA.json);
       if (pUA.items && pUA.items.length) {
         return { parsed: pUA, from: rUA.from, endpoint: "userAgents" };
       }
-    } catch (eUA) {
-      // ignore; fall through
-    }
+    } catch (_) {}
 
-    // Try versions (may 404)
     try {
       const rV = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.versions);
       const pV = W.ZZXNodesByVersionAdapter.parse(rV.json);
       if (pV.items && pV.items.length) {
         return { parsed: pV, from: rV.from, endpoint: "versions" };
       }
-    } catch (eV) {
-      // ignore; fall through
-    }
+    } catch (_) {}
 
-    // Final fallback: snapshot
-    const rS = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.snapshotLatest);
-    const pS = W.ZZXNodesByVersionAdapter.parse(rS.json);
-    return { parsed: pS, from: rS.from, endpoint: "snapshotLatest" };
+    return { parsed: parsedSnap, from: snapRes.from, endpoint: `snapshots/${ts}` };
   }
 
   function render(root) {
@@ -138,7 +159,6 @@
       row.className = "zzx-nbv-row";
       row.setAttribute("role", "row");
 
-      // safe HTML (escaped)
       row.innerHTML =
         `<div class="zzx-nbv-cell" role="cell">${rank}</div>` +
         `<div class="zzx-nbv-cell" role="cell" title="${escapeHtml(it.label)}">${escapeHtml(it.label)}</div>` +
@@ -202,21 +222,23 @@
       }
 
       const cfg = W.ZZXNodesByVersionSources.get();
+      // ensure new optional endpoint exists even if old sources.js doesn’t include it yet
+      cfg.endpoints = cfg.endpoints || {};
+      if (!cfg.endpoints.snapshotLatest) cfg.endpoints.snapshotLatest = "https://bitnodes.io/api/v1/snapshots/latest/";
+      if (!cfg.endpoints.snapshotByTsBase) cfg.endpoints.snapshotByTsBase = "https://bitnodes.io/api/v1/snapshots/";
+
       root.__zzxNBVCfg = cfg;
 
       setText(root, "[data-nbv-sub]", "loading…");
 
       const { parsed, from, endpoint } = await loadData(cfg);
 
-      // sort by count desc
       parsed.items.sort((a, b) => (b.count || 0) - (a.count || 0));
 
-      // stash
       root.__zzxNBV = root.__zzxNBV || { page: 1, items: [], total: NaN };
       root.__zzxNBV.items = parsed.items;
       root.__zzxNBV.total = parsed.total;
 
-      // render
       render(root);
 
       setText(root, "[data-nbv-sub]", `Bitnodes (${endpoint} via ${from})`);
@@ -231,17 +253,14 @@
   function boot(root) {
     if (!root) return;
 
-    // clear old timer if reinjected
     if (root.__zzxNBVTimer) {
       clearInterval(root.__zzxNBVTimer);
       root.__zzxNBVTimer = null;
     }
 
-    // deps + config
     wire(root);
     refresh(root);
 
-    // refresh with slight jitter
     const base = 10 * 60_000;
     const jitter = Math.floor(Math.random() * 9000);
     root.__zzxNBVTimer = setInterval(() => refresh(root), base + jitter);
