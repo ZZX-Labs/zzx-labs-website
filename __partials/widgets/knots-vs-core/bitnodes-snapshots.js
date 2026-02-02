@@ -1,36 +1,50 @@
 // __partials/widgets/knots-vs-core/bitnodes-snapshots.js
-// Shared Bitnodes snapshot cache for ALL node widgets.
+// Shared Bitnodes snapshot cache (timestamped snapshots) for ALL node widgets.
 //
-// Key fixes vs earlier versions:
-// - DIRECT fetch first (your "Nodes" widget already works via direct).
-// - AllOrigins is fallback only.
-// - Robust JSON parsing (detects HTML/403/Cloudflare pages that break JSON.parse).
-// - Longer timeout + retry.
-// - Coalesces concurrent callers (multiple widgets) into one network flight.
-// - Provides stable API: window.ZZXBitnodesCache.snapshotPair()
+// Works with the payload shape you pasted:
+// {
+//   "timestamp": 1769991597,
+//   "total_nodes": 24672,
+//   "latest_height": 934662,
+//   "nodes": {
+//      "host:8333": [services, "/Satoshi:29.2.0/Knots:20251110/", last_seen, ..., height],
+//      ...
+//   }
+// }
+//
+// Provides stable API:
+//   window.ZZXBitnodesCache.getSnapshot(ts?)
+//   window.ZZXBitnodesCache.getSnapshotPair()  -> { latest, prev, delta }
+//   window.ZZXBitnodesCache.aggregate(snapshot) -> precomputed totals/buckets
+//
+// Key behavior:
+// - DIRECT fetch first; AllOrigins fallback.
+// - Robust non-JSON detection (HTML/WAF) to avoid JSON.parse explosions.
+// - Cache + request coalescing to avoid rate limits.
+// - Uses snapshots/latest to discover timestamp; then fetches snapshots/<ts>/ (stable).
+//
+// IMPORTANT: "unreachable" is not provided by this payload.
+// We expose delta.newNodes / delta.goneNodes as your “between snapshots” signal.
 
 (function () {
   "use strict";
 
   const W = window;
-
   const NS = (W.ZZXBitnodesCache = W.ZZXBitnodesCache || {});
 
   const CFG = {
     SNAPSHOT_LATEST: "https://bitnodes.io/api/v1/snapshots/latest/",
+    SNAPSHOT_AT: (ts) => `https://bitnodes.io/api/v1/snapshots/${encodeURIComponent(String(ts))}/`,
     SNAPSHOT_INDEX: "https://bitnodes.io/api/v1/snapshots/",
     ALLORIGINS_RAW: "https://api.allorigins.win/raw?url=",
 
-    // Make this forgiving; Bitnodes can be slow. 12s was too tight in real world.
     TIMEOUT_MS: 25_000,
     RETRIES: 1,
-    RETRY_DELAY_MS: 700,
+    RETRY_DELAY_MS: 800,
 
-    // Shared cache TTL to keep widgets from hammering endpoints.
+    // Shared TTL. Widgets should refresh less frequently than Bitnodes updates.
     CACHE_TTL_MS: 60_000,
 
-    // If your site uses aggressive caching/CDN, you can flip this on:
-    // Adds a cache-busting query param.
     CACHE_BUST: false,
   };
 
@@ -52,139 +66,194 @@
 
   function looksLikeHTML(text) {
     const s = String(text || "").trim().toLowerCase();
-    return s.startsWith("<!doctype") || s.startsWith("<html") || s.includes("<head") || s.includes("<body");
+    return (
+      s.startsWith("<!doctype") ||
+      s.startsWith("<html") ||
+      s.includes("<head") ||
+      s.includes("<body") ||
+      s.includes("cloudflare") ||
+      s.includes("attention required")
+    );
   }
 
-  async function fetchText(url) {
+  function snip(text, n) {
+    return String(text || "").replace(/\s+/g, " ").trim().slice(0, n);
+  }
+
+  async function fetchText(url, label) {
     const u = CFG.CACHE_BUST ? (url + (url.includes("?") ? "&" : "?") + "t=" + Date.now()) : url;
+
     const r = await fetch(u, {
       cache: "no-store",
       credentials: "omit",
       redirect: "follow",
+      headers: { "Accept": "application/json,text/plain,*/*" },
     });
+
     const txt = await r.text();
-    if (!r.ok) {
-      // Include a small snippet to make debugging real failures easier
-      const snippet = String(txt || "").slice(0, 180).replace(/\s+/g, " ").trim();
-      throw new Error(`HTTP ${r.status} from ${url} :: ${snippet || "no body"}`);
-    }
+    if (!r.ok) throw new Error(`${label || "fetch"}: HTTP ${r.status} :: ${snip(txt, 220) || "no body"}`);
     return txt;
   }
 
   async function fetchJSONRobust(url, label) {
-    const txt = await withTimeout(fetchText(url), CFG.TIMEOUT_MS, label || "fetch");
-    if (looksLikeHTML(txt)) {
-      const snippet = txt.slice(0, 200).replace(/\s+/g, " ").trim();
-      throw new Error(`Non-JSON response (HTML) from ${url} :: ${snippet}`);
-    }
+    const txt = await withTimeout(fetchText(url, label), CFG.TIMEOUT_MS, label || "fetch");
+    if (looksLikeHTML(txt)) throw new Error(`${label || "fetch"}: Non-JSON (HTML/WAF) :: ${snip(txt, 240)}`);
     try {
       return JSON.parse(txt);
-    } catch (e) {
-      const snippet = txt.slice(0, 200).replace(/\s+/g, " ").trim();
-      throw new Error(`JSON.parse failed for ${url} :: ${snippet}`);
+    } catch (_) {
+      throw new Error(`${label || "fetch"}: JSON.parse failed :: ${snip(txt, 240)}`);
     }
   }
 
-  async function tryFetchLatestDirectThenProxy() {
-    // 1) direct
+  async function tryFetchDirectThenProxy(url, labelDirect, labelProxy) {
     try {
-      const j = await fetchJSONRobust(CFG.SNAPSHOT_LATEST, "bitnodes latest (direct)");
-      return { payload: j, via: "direct" };
-    } catch (e1) {
-      // 2) allorigins fallback
-      const j = await fetchJSONRobust(allOrigins(CFG.SNAPSHOT_LATEST), "bitnodes latest (allorigins)");
-      return { payload: j, via: "allorigins" };
+      const payload = await fetchJSONRobust(url, labelDirect || "direct");
+      return { payload, via: "direct" };
+    } catch (_) {
+      const payload = await fetchJSONRobust(allOrigins(url), labelProxy || "allorigins");
+      return { payload, via: "allorigins" };
     }
   }
 
-  async function tryFetchAny(url) {
-    // Used for previous snapshot/index; direct first, then proxy.
-    try {
-      const j = await fetchJSONRobust(url, "bitnodes (direct)");
-      return { payload: j, via: "direct" };
-    } catch (e1) {
-      const j = await fetchJSONRobust(allOrigins(url), "bitnodes (allorigins)");
-      return { payload: j, via: "allorigins" };
-    }
-  }
-
-  function extractUserAgents(payload) {
-    if (payload && typeof payload === "object") {
-      if (payload.user_agents && typeof payload.user_agents === "object") return payload.user_agents;
-      if (payload.versions && typeof payload.versions === "object") return payload.versions;
-      if (payload.data && payload.data.user_agents && typeof payload.data.user_agents === "object") return payload.data.user_agents;
-      if (payload.data && payload.data.versions && typeof payload.data.versions === "object") return payload.data.versions;
-    }
-    return {};
-  }
-
-  function extractNumbers(payload) {
+  // -----------------------------
+  // Snapshot normalization (timestamped "nodes" map)
+  // -----------------------------
+  function extractTimestamp(payload) {
     const p = payload && typeof payload === "object" ? payload : {};
-
-    const reachable =
-      Number(p.reachable_nodes) ||
-      Number(p.reachable) ||
-      Number(p.total_reachable) ||
-      Number(p.reachable_count) ||
-      NaN;
-
-    const unreachable =
-      Number(p.unreachable_nodes) ||
-      Number(p.unreachable) ||
-      Number(p.total_unreachable) ||
-      Number(p.unreachable_count) ||
-      NaN;
-
-    const total =
-      Number(p.total_nodes) ||
-      Number(p.total) ||
-      Number(p.nodes) ||
-      Number(p.total_count) ||
-      NaN;
-
-    const tor =
-      Number(p.tor_nodes) ||
-      Number(p.onion_nodes) ||
-      Number(p.onion) ||
-      Number(p.tor) ||
-      NaN;
-
-    const stamp =
-      (p.timestamp != null ? String(p.timestamp) : null) ||
-      (p.ts != null ? String(p.ts) : null) ||
-      (p.time != null ? String(p.time) : null) ||
-      (p.date != null ? String(p.date) : null) ||
-      (p.created_at != null ? String(p.created_at) : null) ||
-      null;
-
-    return { reachable, unreachable, total, tor, stamp };
+    const ts = Number(p.timestamp) || Number(p.ts) || Number(p.time) || NaN;
+    return Number.isFinite(ts) ? ts : NaN;
   }
 
   function normalize(payload, via) {
-    const ua = extractUserAgents(payload);
-    const nums = extractNumbers(payload);
+    const p = payload && typeof payload === "object" ? payload : {};
 
-    let uaSum = 0;
-    for (const v of Object.values(ua)) {
-      const n = Number(v);
-      if (Number.isFinite(n) && n > 0) uaSum += n;
-    }
+    const ts = extractTimestamp(p);
+    const total_nodes = Number(p.total_nodes) || Number(p.total) || Number(p.nodes_count) || NaN;
+    const latest_height = Number(p.latest_height) || Number(p.height) || NaN;
 
-    const reachable = Number.isFinite(nums.reachable) ? nums.reachable : (uaSum > 0 ? uaSum : NaN);
-    const total = Number.isFinite(nums.total) ? nums.total : (uaSum > 0 ? uaSum : NaN);
+    // The critical map:
+    const nodes = (p.nodes && typeof p.nodes === "object") ? p.nodes : {};
+
+    // Derive a reachable count from nodes map size if missing.
+    const reachable = Number.isFinite(total_nodes) ? total_nodes : Object.keys(nodes).length;
 
     return {
-      ua,
-      reachable,
-      unreachable: nums.unreachable,
-      tor: nums.tor,
-      total,
-      stamp: nums.stamp,
+      ts,
+      stamp: Number.isFinite(ts) ? String(ts) : null,
+      total_nodes: total_nodes,
+      latest_height: latest_height,
+      nodes,         // raw node map
+      reachable,     // derived reachable
       via: via || "unknown",
       raw: payload,
     };
   }
 
+  // -----------------------------
+  // Aggregation helpers
+  // -----------------------------
+  function uaFromNodeEntry(entry) {
+    // entry shape: [services, "/Satoshi:29.2.0/Knots:20251110/", last_seen, ..., height]
+    if (!Array.isArray(entry)) return "";
+    return String(entry[1] || "");
+  }
+
+  function isTorKey(nodeKey) {
+    const s = String(nodeKey || "").toLowerCase();
+    return s.includes(".onion");
+  }
+
+  function isKnotsUA(ua) {
+    const s = String(ua || "").toLowerCase();
+    // Your real data uses "/.../Knots:YYYYMMDD/" inside UA.
+    return s.includes("knots:");
+  }
+
+  function classifyUA(ua) {
+    return isKnotsUA(ua) ? "knots" : "core";
+  }
+
+  // Aggregates for all widgets:
+  // - core vs knots totals (reachable derived from nodes map)
+  // - tor totals (by key)
+  // - versions list (UA string counts)
+  function aggregate(snapshot) {
+    const nodes = snapshot && snapshot.nodes ? snapshot.nodes : {};
+
+    let total = 0;
+    let core = 0;
+    let knots = 0;
+
+    let torTotal = 0;
+    let torCore = 0;
+    let torKnots = 0;
+
+    const uaCounts = Object.create(null);
+
+    for (const [k, entry] of Object.entries(nodes)) {
+      total += 1;
+
+      const ua = uaFromNodeEntry(entry);
+      if (ua) {
+        uaCounts[ua] = (uaCounts[ua] || 0) + 1;
+      }
+
+      const c = classifyUA(ua);
+      if (c === "knots") knots += 1;
+      else core += 1;
+
+      if (isTorKey(k)) {
+        torTotal += 1;
+        if (c === "knots") torKnots += 1;
+        else torCore += 1;
+      }
+    }
+
+    // Build sorted UA list for "Nodes by Version"
+    const versions = Object.entries(uaCounts)
+      .map(([ua, n]) => ({ ua, n }))
+      .sort((a, b) => b.n - a.n);
+
+    return {
+      total,              // derived from nodes map
+      reachable: total,   // in this model: nodes map is your reachable set
+      core,
+      knots,
+      torTotal,
+      torCore,
+      torKnots,
+      versions,
+      uaCounts,
+    };
+  }
+
+  function computeDelta(latestSnap, prevSnap) {
+    if (!latestSnap || !prevSnap) return null;
+
+    const a = latestSnap.nodes || {};
+    const b = prevSnap.nodes || {};
+
+    // new = keys in latest not in prev
+    // gone = keys in prev not in latest
+    let newCount = 0;
+    let goneCount = 0;
+
+    for (const k of Object.keys(a)) {
+      if (!(k in b)) newCount += 1;
+    }
+    for (const k of Object.keys(b)) {
+      if (!(k in a)) goneCount += 1;
+    }
+
+    return {
+      newNodes: newCount,
+      goneNodes: goneCount,
+    };
+  }
+
+  // Previous snapshot selection:
+  // 1) if latest payload contains previous URL, use it
+  // 2) else use index endpoint and pick second entry
   function findPreviousUrlFromPayload(payload) {
     const p = payload && typeof payload === "object" ? payload : {};
     if (p.previous) return String(p.previous);
@@ -193,112 +262,142 @@
     return null;
   }
 
-  function pickPrevFromIndex(indexPayload, latestNorm) {
-    if (!indexPayload) return null;
-
+  function pickPrevFromIndex(indexPayload) {
     let arr = null;
+
     if (Array.isArray(indexPayload)) arr = indexPayload;
     else if (indexPayload.results && Array.isArray(indexPayload.results)) arr = indexPayload.results;
     else if (indexPayload.data && Array.isArray(indexPayload.data)) arr = indexPayload.data;
 
-    if (!arr || !arr.length) return null;
+    if (!arr || arr.length < 2) return null;
 
-    const latestStamp = latestNorm && latestNorm.stamp ? String(latestNorm.stamp) : null;
-
-    const candidates = arr
+    const urls = arr
       .map((x) => {
-        if (typeof x === "string") return { url: x, stamp: null };
-        if (x && typeof x === "object") {
-          return {
-            url: x.url || x.href || x.link || x.api_url || null,
-            stamp: x.timestamp || x.ts || x.time || x.date || x.created_at || null,
-          };
-        }
-        return { url: null, stamp: null };
+        if (typeof x === "string") return x;
+        if (x && typeof x === "object") return x.url || x.href || x.link || x.api_url || null;
+        return null;
       })
-      .filter((x) => !!x.url);
+      .filter(Boolean);
 
-    if (!candidates.length) return null;
-
-    if (latestStamp) {
-      const different = candidates.find((c) => c.stamp && String(c.stamp) !== latestStamp);
-      if (different) return String(different.url);
-    }
-
-    if (candidates.length >= 2) return String(candidates[1].url);
-    return String(candidates[0].url);
+    if (urls.length >= 2) return String(urls[1]);
+    return urls.length ? String(urls[0]) : null;
   }
 
   // -----------------------------------
-  // Shared cache + request coalescing
+  // Cache + request coalescing
   // -----------------------------------
   let cache = {
     at: 0,
-    latest: null,
-    prev: null,
+    pair: null,
     inFlight: null,
   };
 
+  async function getLatestStableSnapshot() {
+    // 1) latest (discover ts)
+    const latestRes = await tryFetchDirectThenProxy(
+      CFG.SNAPSHOT_LATEST,
+      "bitnodes latest (direct)",
+      "bitnodes latest (allorigins)"
+    );
+
+    const latestPayload = latestRes.payload;
+    const ts = extractTimestamp(latestPayload);
+
+    // 2) fetch snapshot/<ts>/ as stable
+    if (Number.isFinite(ts)) {
+      const stableRes = await tryFetchDirectThenProxy(
+        CFG.SNAPSHOT_AT(ts),
+        "bitnodes snapshotAt (direct)",
+        "bitnodes snapshotAt (allorigins)"
+      );
+      return normalize(stableRes.payload, stableRes.via);
+    }
+
+    // fallback: normalize latest itself
+    return normalize(latestPayload, latestRes.via);
+  }
+
+  async function getPreviousSnapshot(latestNorm) {
+    // Try explicit previous URL (from raw latest snapshotAt payload if present)
+    const raw = latestNorm && latestNorm.raw ? latestNorm.raw : null;
+    const prevUrl = raw ? findPreviousUrlFromPayload(raw) : null;
+
+    if (prevUrl) {
+      try {
+        const prevRes = await tryFetchDirectThenProxy(prevUrl, "bitnodes prev (direct)", "bitnodes prev (allorigins)");
+        return normalize(prevRes.payload, prevRes.via);
+      } catch (_) {
+        // continue
+      }
+    }
+
+    // Try index
+    try {
+      const indexRes = await tryFetchDirectThenProxy(
+        CFG.SNAPSHOT_INDEX,
+        "bitnodes index (direct)",
+        "bitnodes index (allorigins)"
+      );
+      const picked = pickPrevFromIndex(indexRes.payload);
+      if (!picked) return null;
+
+      const prevRes2 = await tryFetchDirectThenProxy(picked, "bitnodes prev2 (direct)", "bitnodes prev2 (allorigins)");
+      return normalize(prevRes2.payload, prevRes2.via);
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function snapshotPairImpl() {
-    // Retry wrapper around the whole pipeline.
     let lastErr = null;
+
     for (let attempt = 0; attempt <= CFG.RETRIES; attempt++) {
       try {
-        // 1) latest
-        const latestRes = await tryFetchLatestDirectThenProxy();
-        const latestNorm = normalize(latestRes.payload, latestRes.via);
+        const latest = await getLatestStableSnapshot();
+        const prev = await getPreviousSnapshot(latest);
+        const delta = prev ? computeDelta(latest, prev) : null;
 
-        // 2) previous (best-effort)
-        let prevNorm = null;
-
-        const prevUrl = findPreviousUrlFromPayload(latestRes.payload);
-        if (prevUrl) {
-          try {
-            const prevRes = await tryFetchAny(prevUrl);
-            prevNorm = normalize(prevRes.payload, prevRes.via);
-          } catch (_) {
-            prevNorm = null;
-          }
-        }
-
-        if (!prevNorm) {
-          try {
-            const indexRes = await tryFetchAny(CFG.SNAPSHOT_INDEX);
-            const prevFromIndex = pickPrevFromIndex(indexRes.payload, latestNorm);
-            if (prevFromIndex) {
-              const prevRes2 = await tryFetchAny(prevFromIndex);
-              prevNorm = normalize(prevRes2.payload, prevRes2.via);
-            }
-          } catch (_) {
-            // ignore
-          }
-        }
-
-        return { latest: latestNorm, prev: prevNorm };
+        return {
+          latest,
+          prev,
+          delta,
+          latestAgg: aggregate(latest),
+          prevAgg: prev ? aggregate(prev) : null,
+        };
       } catch (e) {
         lastErr = e;
         if (attempt < CFG.RETRIES) await sleep(CFG.RETRY_DELAY_MS);
       }
     }
-    throw lastErr || new Error("snapshotPair failed");
+
+    throw lastErr || new Error("Bitnodes snapshotPair failed");
   }
 
-  NS.snapshotPair = async function snapshotPair() {
+  // Public API
+  NS.aggregate = aggregate;
+
+  NS.getSnapshot = async function getSnapshot(ts) {
+    const res = await tryFetchDirectThenProxy(
+      CFG.SNAPSHOT_AT(ts),
+      "bitnodes snapshotAt (direct)",
+      "bitnodes snapshotAt (allorigins)"
+    );
+    return normalize(res.payload, res.via);
+  };
+
+  NS.getSnapshotPair = async function getSnapshotPair() {
     const now = Date.now();
 
-    // Serve fresh cache
-    if (cache.latest && (now - cache.at) < CFG.CACHE_TTL_MS) {
-      return { latest: cache.latest, prev: cache.prev };
+    if (cache.pair && (now - cache.at) < CFG.CACHE_TTL_MS) {
+      return cache.pair;
     }
 
-    // Coalesce callers
     if (cache.inFlight) return cache.inFlight;
 
     cache.inFlight = (async () => {
       const pair = await snapshotPairImpl();
       cache.at = Date.now();
-      cache.latest = pair.latest;
-      cache.prev = pair.prev;
+      cache.pair = pair;
       cache.inFlight = null;
       return pair;
     })().catch((e) => {
@@ -308,4 +407,6 @@
 
     return cache.inFlight;
   };
+
+  NS.__cfg = CFG;
 })();
