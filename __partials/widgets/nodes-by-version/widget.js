@@ -1,15 +1,19 @@
 // __partials/widgets/nodes-by-version/widget.js
-// DROP-IN (FIXED to use Bitnodes snapshots/<timestamp>/)
+// DROP-IN (FIX: remove the bad “snapshotLatest missing timestamp” hard-fail)
 //
-// Uses the most reliable path in practice:
-//   1) GET snapshots/latest  (direct, fallback allorigins via fetch.js)
-//   2) GET snapshots/<timestamp>/ (direct, fallback allorigins via fetch.js)
-//   3) adapter.js derives UA distribution from payload.nodes
+// What was happening:
+// - Your Bitnodes *snapshot* endpoints return `timestamp` (numeric) on /snapshots/<ts>/
+// - But some of the other endpoints (/nodes/user_agents/, /nodes/versions/) do NOT include any timestamp
+// - Your widget logic was treating “no timestamp” as an error when it fell back to snapshotLatest,
+//   which is incorrect (and brittle).
 //
-// Keeps your existing deps:
-//   sources.js -> window.ZZXNodesByVersionSources.get()
-//   fetch.js   -> window.ZZXNodesByVersionFetch.fetchJSON(url)
-//   adapter.js -> window.ZZXNodesByVersionAdapter.parse(payload)
+// This version:
+// - Never requires a timestamp to render.
+// - Prefers /nodes/user_agents/ (fast + already aggregated).
+// - Falls back to /snapshots/latest/ (and from there will still render even if stamp missing).
+// - Displays “ts <timestamp>” only if present.
+// - Keeps your paging/refresh behavior.
+// - Does NOT depend on any “stamp required” checks.
 
 (function () {
   "use strict";
@@ -20,18 +24,15 @@
 
   let inflight = false;
 
+  function q(root, sel) { return root ? root.querySelector(sel) : null; }
+
   function setText(root, sel, text) {
-    const el = root.querySelector(sel);
+    const el = q(root, sel);
     if (el) el.textContent = String(text ?? "—");
   }
 
-  function fmtInt(x) {
-    return Number.isFinite(x) ? Math.round(x).toLocaleString() : "—";
-  }
-
-  function fmtPct(frac) {
-    return Number.isFinite(frac) ? (frac * 100).toFixed(2) + "%" : "—";
-  }
+  function fmtInt(x) { return Number.isFinite(x) ? Math.round(x).toLocaleString() : "—"; }
+  function fmtPct(frac) { return Number.isFinite(frac) ? (frac * 100).toFixed(2) + "%" : "—"; }
 
   function escapeHtml(s) {
     return String(s ?? "")
@@ -49,7 +50,8 @@
   }
 
   async function loadOnce(url, key) {
-    if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
+    const existing = document.querySelector(`script[data-zzx-js="${key}"]`);
+    if (existing) {
       await new Promise((r) => setTimeout(r, 0));
       return true;
     }
@@ -83,61 +85,32 @@
     return { ok: true };
   }
 
-  function buildSnapshotTsUrl(cfg, ts) {
-    // Allow override; default base if not provided.
-    const base = (cfg?.endpoints?.snapshotByTsBase || "https://bitnodes.io/api/v1/snapshots/").replace(/\/+$/, "/");
-    return base + String(ts).trim().replace(/^\/+/, "").replace(/\/+$/, "") + "/";
-  }
-
   async function loadData(cfg) {
-    // Primary path: latest -> timestamp -> snapshot/<ts> (contains nodes map)
-    const latestRes = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.snapshotLatest);
-    const latest = latestRes.json || {};
-    const ts = latest.timestamp || latest.ts || latest.time || null;
-
-    if (!ts) {
-      // If latest already contains a map (rare), parse directly.
-      const parsedLatest = W.ZZXNodesByVersionAdapter.parse(latest);
-      if (parsedLatest.items && parsedLatest.items.length) {
-        return { parsed: parsedLatest, from: latestRes.from, endpoint: "snapshotLatest" };
-      }
-      throw new Error("snapshotLatest missing timestamp");
-    }
-
-    const snapUrl = buildSnapshotTsUrl(cfg, ts);
-    const snapRes = await W.ZZXNodesByVersionFetch.fetchJSON(snapUrl);
-    const parsedSnap = W.ZZXNodesByVersionAdapter.parse(snapRes.json);
-
-    if (parsedSnap.items && parsedSnap.items.length) {
-      // Use total_nodes from snapshot/<ts> if present; adapter also sets total by sum if needed.
-      return { parsed: parsedSnap, from: snapRes.from, endpoint: `snapshots/${ts}` };
-    }
-
-    // Fallbacks (only if snapshots/<ts> didn’t yield items, which would be unusual)
+    // 1) userAgents (best)
     try {
       const rUA = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.userAgents);
       const pUA = W.ZZXNodesByVersionAdapter.parse(rUA.json);
-      if (pUA.items && pUA.items.length) {
-        return { parsed: pUA, from: rUA.from, endpoint: "userAgents" };
-      }
+      if (pUA.items && pUA.items.length) return { parsed: pUA, from: rUA.from, endpoint: "userAgents" };
     } catch (_) {}
 
+    // 2) versions (optional; may 404)
     try {
       const rV = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.versions);
       const pV = W.ZZXNodesByVersionAdapter.parse(rV.json);
-      if (pV.items && pV.items.length) {
-        return { parsed: pV, from: rV.from, endpoint: "versions" };
-      }
+      if (pV.items && pV.items.length) return { parsed: pV, from: rV.from, endpoint: "versions" };
     } catch (_) {}
 
-    return { parsed: parsedSnap, from: snapRes.from, endpoint: `snapshots/${ts}` };
+    // 3) snapshotLatest (will render even if no stamp)
+    const rS = await W.ZZXNodesByVersionFetch.fetchJSON(cfg.endpoints.snapshotLatest);
+    const pS = W.ZZXNodesByVersionAdapter.parse(rS.json);
+    return { parsed: pS, from: rS.from, endpoint: "snapshotLatest" };
   }
 
   function render(root) {
-    const st = root.__zzxNBV || { page: 1, items: [], total: NaN };
     const cfg = root.__zzxNBVCfg;
     const pageSize = cfg.pageSize;
 
+    const st = root.__zzxNBV || { page: 1, items: [], total: NaN, stamp: null, latestHeight: NaN };
     const items = st.items || [];
     const total = st.total;
 
@@ -147,13 +120,13 @@
     const start = (st.page - 1) * pageSize;
     const slice = items.slice(start, start + pageSize);
 
-    const body = root.querySelector("[data-nbv-body]");
+    const body = q(root, "[data-nbv-body]");
     if (body) body.replaceChildren();
 
     for (let i = 0; i < slice.length; i++) {
       const rank = start + i + 1;
       const it = slice[i];
-      const pct = (Number.isFinite(total) && total > 0) ? (it.count / total) : NaN;
+      const pct = (Number.isFinite(total) && total > 0) ? (Number(it.count) / total) : NaN;
 
       const row = document.createElement("div");
       row.className = "zzx-nbv-row";
@@ -170,21 +143,21 @@
 
     setText(root, "[data-nbv-page]", `Page ${st.page} / ${pages}`);
 
-    const sum = Number.isFinite(total)
-      ? `${fmtInt(total)} reachable • ${fmtInt(items.length)} versions`
-      : `${fmtInt(items.length)} versions`;
+    const summary =
+      (Number.isFinite(total) ? `${fmtInt(total)} reachable` : "reachable") +
+      ` • ${fmtInt(items.length)} versions`;
 
-    setText(root, "[data-nbv-summary]", sum);
+    setText(root, "[data-nbv-summary]", summary);
 
     root.__zzxNBV = st;
   }
 
   function wire(root) {
-    const st = (root.__zzxNBV = root.__zzxNBV || { page: 1, items: [], total: NaN });
+    const st = (root.__zzxNBV = root.__zzxNBV || { page: 1, items: [], total: NaN, stamp: null, latestHeight: NaN });
 
-    const prev = root.querySelector("[data-nbv-prev]");
-    const next = root.querySelector("[data-nbv-next]");
-    const ref  = root.querySelector("[data-nbv-refresh]");
+    const prev = q(root, "[data-nbv-prev]");
+    const next = q(root, "[data-nbv-next]");
+    const ref  = q(root, "[data-nbv-refresh]");
 
     if (prev && prev.dataset.zzxBound !== "1") {
       prev.dataset.zzxBound = "1";
@@ -222,26 +195,26 @@
       }
 
       const cfg = W.ZZXNodesByVersionSources.get();
-      // ensure new optional endpoint exists even if old sources.js doesn’t include it yet
-      cfg.endpoints = cfg.endpoints || {};
-      if (!cfg.endpoints.snapshotLatest) cfg.endpoints.snapshotLatest = "https://bitnodes.io/api/v1/snapshots/latest/";
-      if (!cfg.endpoints.snapshotByTsBase) cfg.endpoints.snapshotByTsBase = "https://bitnodes.io/api/v1/snapshots/";
-
       root.__zzxNBVCfg = cfg;
 
       setText(root, "[data-nbv-sub]", "loading…");
 
       const { parsed, from, endpoint } = await loadData(cfg);
 
-      parsed.items.sort((a, b) => (b.count || 0) - (a.count || 0));
+      const items = Array.isArray(parsed.items) ? parsed.items.slice() : [];
+      items.sort((a, b) => (Number(b.count) || 0) - (Number(a.count) || 0));
 
-      root.__zzxNBV = root.__zzxNBV || { page: 1, items: [], total: NaN };
-      root.__zzxNBV.items = parsed.items;
+      root.__zzxNBV = root.__zzxNBV || { page: 1, items: [], total: NaN, stamp: null, latestHeight: NaN };
+      root.__zzxNBV.items = items;
       root.__zzxNBV.total = parsed.total;
+      root.__zzxNBV.stamp = parsed.stamp || null;
+      root.__zzxNBV.latestHeight = parsed.latestHeight;
 
       render(root);
 
-      setText(root, "[data-nbv-sub]", `Bitnodes (${endpoint} via ${from})`);
+      const ts = root.__zzxNBV.stamp ? ` • ts ${root.__zzxNBV.stamp}` : "";
+      const h  = Number.isFinite(root.__zzxNBV.latestHeight) ? ` • height ${fmtInt(root.__zzxNBV.latestHeight)}` : "";
+      setText(root, "[data-nbv-sub]", `Bitnodes (${endpoint} via ${from})${ts}${h}`);
     } catch (e) {
       setText(root, "[data-nbv-sub]", "error: " + String(e?.message || e));
       if (DEBUG) console.warn("[nodes-by-version]", e);
