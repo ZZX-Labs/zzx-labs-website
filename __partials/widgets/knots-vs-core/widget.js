@@ -1,7 +1,16 @@
 // __partials/widgets/knots-vs-core/widget.js
-// DROP-IN (v3.1) — no page HTML changes required.
-// Fixes: robust auto-load of bitnodes-snapshots.js even when document.currentScript is null.
-// Uses: window.ZZXBitnodesCache.snapshotPair() (shared cached Bitnodes fetch).
+// DROP-IN (v4) — no page HTML changes required.
+//
+// Uses the timestamped Bitnodes snapshot payload (nodes map) via shared cache:
+//   window.ZZXBitnodesCache.getSnapshotPair()
+//   window.ZZXBitnodesCache.aggregate(snapshot)
+//
+// Fixes vs prior attempts:
+// - Robustly loads bitnodes-snapshots.js from the same directory WITHOUT relying on document.currentScript.
+// - Computes Core vs Knots from UA strings containing "Knots:".
+// - Computes Tor from node keys containing ".onion" (accurate).
+// - "Unreachable" column shows ephemeral delta (+new vs previous snapshot). (Bitnodes doesn't provide unreachable here.)
+// - Shared cache prevents rate limit / multiple widgets hammering endpoints.
 
 (function () {
   "use strict";
@@ -9,9 +18,11 @@
   const W = window;
   const ID = "knots-vs-core";
 
-  const DEFAULTS = {
+  const CFG = {
     REFRESH_MS: 10 * 60_000,
     LOAD_TIMEOUT_MS: 15_000,
+    // file living beside this widget.js
+    CACHE_SCRIPT: "bitnodes-snapshots.js",
   };
 
   function qs(root, sel) { return root ? root.querySelector(sel) : null; }
@@ -25,7 +36,6 @@
     const p = Number.isFinite(pct0to100) ? Math.max(0, Math.min(100, pct0to100)) : 0;
     el.style.width = p.toFixed(2) + "%";
   }
-
   function fmtInt(n) { return Number.isFinite(n) ? Math.round(n).toLocaleString() : "—"; }
   function fmtPct(frac) { return Number.isFinite(frac) ? (frac * 100).toFixed(2) + "%" : "—"; }
 
@@ -37,48 +47,34 @@
     return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
   }
 
-  // -----------------------------
-  // Helper loader (no HTML edits)
-  // -----------------------------
-  function getBaseFromCurrentScript() {
-    const cs = document.currentScript;
-    const src = cs && cs.src ? String(cs.src) : "";
-    if (!src) return null;
-    return src.slice(0, src.lastIndexOf("/") + 1);
-  }
-
-  function getBaseFromScriptScan() {
-    // When mounted dynamically, currentScript is often null.
-    // Scan for a script whose src ends with ".../knots-vs-core/widget.js" or contains "/knots-vs-core/widget.js".
+  // ---------------------------------
+  // Robust sibling script loader
+  // ---------------------------------
+  function findThisScriptBase() {
+    // Prefer an actual <script src=".../knots-vs-core/widget.js"> tag.
+    // Works even when document.currentScript is null.
     const scripts = Array.from(document.getElementsByTagName("script"));
     for (const s of scripts) {
-      const src = s && s.src ? String(s.src) : "";
+      const src = String(s.src || "");
       if (!src) continue;
-
-      // tolerate cache-busters
-      const clean = src.split("#")[0].split("?")[0];
-
-      if (clean.endsWith("/knots-vs-core/widget.js") || clean.includes("/knots-vs-core/widget.js")) {
-        return clean.slice(0, clean.lastIndexOf("/") + 1);
+      if (src.includes("/knots-vs-core/widget.js") || src.endsWith("knots-vs-core/widget.js")) {
+        return src.slice(0, src.lastIndexOf("/") + 1);
       }
-      // also tolerate if your system renames it (rare), but keeps folder:
-      if (clean.includes("/knots-vs-core/") && clean.endsWith("/widget.js")) {
-        return clean.slice(0, clean.lastIndexOf("/") + 1);
+      // fallback: if it ends with "/widget.js" and contains knots-vs-core
+      if (src.includes("knots-vs-core") && src.endsWith("/widget.js")) {
+        return src.slice(0, src.lastIndexOf("/") + 1);
       }
     }
     return null;
   }
 
-  function getWidgetBase() {
-    return getBaseFromCurrentScript() || getBaseFromScriptScan() || null;
-  }
-
   function loadScriptOnce(url) {
     return new Promise((resolve, reject) => {
-      const existing = document.querySelector(`script[data-zzx-src="${url}"]`);
+      const key = `script[data-zzx-src="${url}"]`;
+      const existing = document.querySelector(key);
       if (existing) {
         if (existing.dataset.zzxLoaded === "1") return resolve(true);
-        if (existing.dataset.zzxLoaded === "0") return reject(new Error("previous load failed"));
+        if (existing.dataset.zzxLoaded === "0") return reject(new Error("failed to load " + url));
         existing.addEventListener("load", () => resolve(true), { once: true });
         existing.addEventListener("error", () => reject(new Error("failed to load " + url)), { once: true });
         return;
@@ -87,124 +83,66 @@
       const s = document.createElement("script");
       s.async = true;
       s.src = url;
-      s.setAttribute("data-zzx-src", url);
+      s.dataset.zzxSrc = url;
       s.dataset.zzxLoaded = "";
-
       s.onload = () => { s.dataset.zzxLoaded = "1"; resolve(true); };
       s.onerror = () => { s.dataset.zzxLoaded = "0"; reject(new Error("failed to load " + url)); };
-
       document.head.appendChild(s);
     });
   }
 
-  async function ensureBitnodesCacheLoaded() {
-    if (W.ZZXBitnodesCache && typeof W.ZZXBitnodesCache.snapshotPair === "function") return true;
+  async function ensureCacheLoaded() {
+    if (W.ZZXBitnodesCache && typeof W.ZZXBitnodesCache.getSnapshotPair === "function") return true;
 
-    const base = getWidgetBase();
-    const url = base ? (base + "bitnodes-snapshots.js") : "bitnodes-snapshots.js";
+    const base = findThisScriptBase();
+    const url = (base ? (base + CFG.CACHE_SCRIPT) : CFG.CACHE_SCRIPT);
 
-    await withTimeout(loadScriptOnce(url), DEFAULTS.LOAD_TIMEOUT_MS, "load bitnodes-snapshots.js");
+    await withTimeout(loadScriptOnce(url), CFG.LOAD_TIMEOUT_MS, "load " + CFG.CACHE_SCRIPT);
 
-    if (!(W.ZZXBitnodesCache && typeof W.ZZXBitnodesCache.snapshotPair === "function")) {
-      throw new Error("bitnodes-snapshots.js loaded but cache API missing");
+    if (!(W.ZZXBitnodesCache && typeof W.ZZXBitnodesCache.getSnapshotPair === "function")) {
+      throw new Error(CFG.CACHE_SCRIPT + " loaded but cache API missing");
     }
     return true;
   }
 
-  // -----------------------------
-  // Classification / sums
-  // -----------------------------
-  function classifyClient(uaKey) {
-    const s = String(uaKey || "").toLowerCase();
-    if (s.includes("bitcoinknots") || s.includes("bitcoin knots") || s.includes(" kno ts") || s.includes("knots")) return "knots";
-    return "core"; // non-knots bucket
-  }
+  // ---------------------------------
+  // Render
+  // ---------------------------------
+  function render(root, m) {
+    setText(root, "[data-kvc-badge]", m.badge || "Bitnodes");
 
-  function isTorUAKey(uaKey) {
-    const s = String(uaKey || "").toLowerCase();
-    return s.includes(".onion") || s.includes("onion") || s.includes("tor");
-  }
+    setText(root, "[data-kvc-summary]",
+      Number.isFinite(m.reachTotal) ? `${fmtInt(m.reachTotal)} reachable nodes` : "—"
+    );
 
-  function sumBuckets(uaMap) {
-    let core = 0, knots = 0, total = 0;
-    let torCore = 0, torKnots = 0, torTotal = 0;
+    setText(root, "[data-kvc-sub]", m.prevStamp ? "delta vs prev snapshot enabled" : "delta vs prev snapshot unavailable");
 
-    for (const [ua, v] of Object.entries(uaMap || {})) {
-      const n = Number(v);
-      if (!Number.isFinite(n) || n <= 0) continue;
+    setText(root, "[data-kvc-core-reach]", fmtInt(m.coreReach));
+    setText(root, "[data-kvc-knots-reach]", fmtInt(m.knotsReach));
+    setText(root, "[data-kvc-total-reach]", fmtInt(m.reachTotal));
 
-      total += n;
-      const c = classifyClient(ua);
-      if (c === "knots") knots += n;
-      else core += n;
+    // "Unreachable" column is your between-snapshots signal (ephemeral +new)
+    setText(root, "[data-kvc-core-unreach]", Number.isFinite(m.coreDeltaNew) ? fmtInt(m.coreDeltaNew) : "—");
+    setText(root, "[data-kvc-knots-unreach]", Number.isFinite(m.knotsDeltaNew) ? fmtInt(m.knotsDeltaNew) : "—");
+    setText(root, "[data-kvc-total-unreach]", Number.isFinite(m.deltaNewTotal) ? fmtInt(m.deltaNewTotal) : "—");
 
-      if (isTorUAKey(ua)) {
-        torTotal += n;
-        if (c === "knots") torKnots += n;
-        else torCore += n;
-      }
-    }
+    setText(root, "[data-kvc-core-tor]", Number.isFinite(m.torCore) ? fmtInt(m.torCore) : "—");
+    setText(root, "[data-kvc-knots-tor]", Number.isFinite(m.torKnots) ? fmtInt(m.torKnots) : "—");
+    setText(root, "[data-kvc-total-tor]", Number.isFinite(m.torTotal) ? fmtInt(m.torTotal) : "—");
 
-    return { total, core, knots, torTotal, torCore, torKnots };
-  }
-
-  function computeDeltaHeuristic(latestBuckets, prevBuckets) {
-    if (!prevBuckets) {
-      return { totalUnreach: NaN, coreUnreach: NaN, knotsUnreach: NaN, note: "unreachable: delta unavailable" };
-    }
-    const totalUnreach = Math.max(0, latestBuckets.total - prevBuckets.total);
-    const coreUnreach = Math.max(0, latestBuckets.core - prevBuckets.core);
-    const knotsUnreach = Math.max(0, latestBuckets.knots - prevBuckets.knots);
-    return { totalUnreach, coreUnreach, knotsUnreach, note: "unreachable: +delta vs prev snapshot (heuristic)" };
-  }
-
-  // -----------------------------
-  // Render (expects your widget.html data-* hooks)
-  // -----------------------------
-  function render(root, model) {
-    const {
-      badge,
-      reachTotal,
-      coreReach,
-      knotsReach,
-      corePct,
-      knotsPct,
-      totalUnreach,
-      coreUnreach,
-      knotsUnreach,
-      torTotal,
-      torCore,
-      torKnots,
-      stampLatest,
-      stampPrev,
-      note
-    } = model;
-
-    setText(root, "[data-kvc-badge]", badge || "Bitnodes");
-    setText(root, "[data-kvc-summary]", Number.isFinite(reachTotal) ? `${fmtInt(reachTotal)} reachable nodes` : "—");
-    setText(root, "[data-kvc-sub]", stampPrev ? "delta vs prev snapshot enabled" : "delta vs prev snapshot unavailable");
-
-    setText(root, "[data-kvc-core-reach]", fmtInt(coreReach));
-    setText(root, "[data-kvc-knots-reach]", fmtInt(knotsReach));
-    setText(root, "[data-kvc-total-reach]", fmtInt(reachTotal));
-
-    setText(root, "[data-kvc-core-unreach]", Number.isFinite(coreUnreach) ? fmtInt(coreUnreach) : "—");
-    setText(root, "[data-kvc-knots-unreach]", Number.isFinite(knotsUnreach) ? fmtInt(knotsUnreach) : "—");
-    setText(root, "[data-kvc-total-unreach]", Number.isFinite(totalUnreach) ? fmtInt(totalUnreach) : "—");
-
-    setText(root, "[data-kvc-core-tor]", Number.isFinite(torCore) ? fmtInt(torCore) : "—");
-    setText(root, "[data-kvc-knots-tor]", Number.isFinite(torKnots) ? fmtInt(torKnots) : "—");
-    setText(root, "[data-kvc-total-tor]", Number.isFinite(torTotal) ? fmtInt(torTotal) : "—");
-
-    setText(root, "[data-kvc-core-pct]", fmtPct(corePct));
-    setText(root, "[data-kvc-knots-pct]", fmtPct(knotsPct));
+    setText(root, "[data-kvc-core-pct]", fmtPct(m.corePct));
+    setText(root, "[data-kvc-knots-pct]", fmtPct(m.knotsPct));
     setText(root, "[data-kvc-total-pct]", "100%");
 
-    setWidth(root, "[data-kvc-bar-core]", Number.isFinite(corePct) ? corePct * 100 : 0);
-    setWidth(root, "[data-kvc-bar-knots]", Number.isFinite(knotsPct) ? knotsPct * 100 : 0);
+    setWidth(root, "[data-kvc-bar-core]", Number.isFinite(m.corePct) ? m.corePct * 100 : 0);
+    setWidth(root, "[data-kvc-bar-knots]", Number.isFinite(m.knotsPct) ? m.knotsPct * 100 : 0);
 
-    const ts = `latest: ${stampLatest || "—"}` + (stampPrev ? ` · prev: ${stampPrev}` : "");
-    setText(root, "[data-kvc-note]", `Bitnodes snapshots (shared cache) • Core=non-Knots bucket • ${note || ""} • ${ts}`.trim());
+    const ts = `latest: ${m.latestStamp || "—"}` + (m.prevStamp ? ` · prev: ${m.prevStamp}` : "");
+    setText(
+      root,
+      "[data-kvc-note]",
+      `Bitnodes timestamped snapshots (shared cache) • Core=non-Knots • Δ new nodes shown in "Unreachable" column • ${ts}`.trim()
+    );
   }
 
   function renderError(root, err) {
@@ -215,9 +153,30 @@
     setText(root, "[data-kvc-note]", "Bitnodes snapshot fetch failed (shared cache).");
   }
 
-  // -----------------------------
-  // Main refresh loop
-  // -----------------------------
+  // ---------------------------------
+  // Model building
+  // ---------------------------------
+  function classifyUA(ua) {
+    const s = String(ua || "").toLowerCase();
+    return s.includes("knots:") ? "knots" : "core";
+  }
+
+  function countBucketsFromNodesMap(nodesMap) {
+    // returns { total, core, knots }
+    let total = 0, core = 0, knots = 0;
+    for (const entry of Object.values(nodesMap || {})) {
+      if (!Array.isArray(entry)) continue;
+      total += 1;
+      const ua = String(entry[1] || "");
+      if (classifyUA(ua) === "knots") knots += 1;
+      else core += 1;
+    }
+    return { total, core, knots };
+  }
+
+  // ---------------------------------
+  // Refresh loop
+  // ---------------------------------
   let inflight = false;
 
   async function refresh(root) {
@@ -228,39 +187,57 @@
       setText(root, "[data-kvc-badge]", "syncing…");
       setText(root, "[data-kvc-sub]", "loading…");
 
-      await ensureBitnodesCacheLoaded();
+      await ensureCacheLoaded();
 
-      const pair = await W.ZZXBitnodesCache.snapshotPair();
-      const latest = pair && pair.latest ? pair.latest : null;
-      const prev = pair && pair.prev ? pair.prev : null;
+      const pair = await W.ZZXBitnodesCache.getSnapshotPair();
+      const latest = pair?.latest || null;
+      const prev = pair?.prev || null;
+      const delta = pair?.delta || null;
 
-      const latestBuckets = sumBuckets(latest && latest.ua ? latest.ua : {});
-      const prevBuckets = prev ? sumBuckets(prev && prev.ua ? prev.ua : {}) : null;
+      if (!latest || !latest.nodes) throw new Error("missing latest snapshot nodes map");
 
-      const reachTotal = Number.isFinite(latest && latest.reachable) ? Number(latest.reachable) : latestBuckets.total;
+      // Use shared aggregator (preferred) if present, else compute quick.
+      const aggLatest = (typeof W.ZZXBitnodesCache.aggregate === "function")
+        ? W.ZZXBitnodesCache.aggregate(latest)
+        : null;
 
-      const coreReach = latestBuckets.core;
-      const knotsReach = latestBuckets.knots;
+      const reachTotal = aggLatest ? aggLatest.total : Object.keys(latest.nodes).length;
+
+      const coreReach = aggLatest ? aggLatest.core : countBucketsFromNodesMap(latest.nodes).core;
+      const knotsReach = aggLatest ? aggLatest.knots : countBucketsFromNodesMap(latest.nodes).knots;
 
       const denom = coreReach + knotsReach;
       const corePct = denom > 0 ? coreReach / denom : NaN;
       const knotsPct = denom > 0 ? knotsReach / denom : NaN;
 
-      let totalUnreach = Number.isFinite(latest && latest.unreachable) ? Number(latest.unreachable) : NaN;
-      const heur = computeDeltaHeuristic(latestBuckets, prevBuckets);
-      if (!Number.isFinite(totalUnreach)) totalUnreach = heur.totalUnreach;
+      // Tor from node keys (.onion) is accurate. Use agg when available.
+      const torTotal = aggLatest ? aggLatest.torTotal : NaN;
+      const torCore = aggLatest ? aggLatest.torCore : NaN;
+      const torKnots = aggLatest ? aggLatest.torKnots : NaN;
 
-      const coreUnreach = heur.coreUnreach;
-      const knotsUnreach = heur.knotsUnreach;
+      // Delta-new by client: compute via UA bucket delta using prev snapshot nodes map.
+      let coreDeltaNew = NaN, knotsDeltaNew = NaN, deltaNewTotal = NaN;
 
-      const torTotal = Number.isFinite(latest && latest.tor) ? Number(latest.tor)
-        : (latestBuckets.torTotal > 0 ? latestBuckets.torTotal : NaN);
+      if (prev && prev.nodes) {
+        // For delta-by-client, we need sets of keys and then classify only new keys.
+        const prevKeys = new Set(Object.keys(prev.nodes));
+        let newCore = 0, newKnots = 0, newTotal = 0;
 
-      const torCore = (latestBuckets.torCore > 0) ? latestBuckets.torCore : NaN;
-      const torKnots = (latestBuckets.torKnots > 0) ? latestBuckets.torKnots : NaN;
+        for (const [k, entry] of Object.entries(latest.nodes)) {
+          if (prevKeys.has(k)) continue;
+          newTotal += 1;
+          const ua = Array.isArray(entry) ? String(entry[1] || "") : "";
+          if (classifyUA(ua) === "knots") newKnots += 1;
+          else newCore += 1;
+        }
 
-      const note = (Number.isFinite(latest && latest.unreachable) ? "unreachable: Bitnodes field" : heur.note) +
-        (Number.isFinite(latest && latest.tor) ? " • tor: Bitnodes field" : "");
+        coreDeltaNew = newCore;
+        knotsDeltaNew = newKnots;
+        deltaNewTotal = newTotal;
+
+        // If cache computed delta.newNodes, prefer that for total consistency
+        if (delta && Number.isFinite(delta.newNodes)) deltaNewTotal = Number(delta.newNodes);
+      }
 
       render(root, {
         badge: "Bitnodes",
@@ -269,15 +246,14 @@
         knotsReach,
         corePct,
         knotsPct,
-        totalUnreach,
-        coreUnreach,
-        knotsUnreach,
-        torTotal,
-        torCore,
-        torKnots,
-        stampLatest: latest ? latest.stamp : null,
-        stampPrev: prev ? prev.stamp : null,
-        note
+        torTotal: Number.isFinite(torTotal) && torTotal > 0 ? torTotal : NaN,
+        torCore: Number.isFinite(torCore) && torCore > 0 ? torCore : NaN,
+        torKnots: Number.isFinite(torKnots) && torKnots > 0 ? torKnots : NaN,
+        coreDeltaNew,
+        knotsDeltaNew,
+        deltaNewTotal,
+        latestStamp: latest.stamp || (latest.ts ? String(latest.ts) : null),
+        prevStamp: prev ? (prev.stamp || (prev.ts ? String(prev.ts) : null)) : null,
       });
 
     } catch (e) {
@@ -296,9 +272,10 @@
     }
 
     refresh(root);
-    root.__zzxKVCTimer = setInterval(() => refresh(root), DEFAULTS.REFRESH_MS);
+    root.__zzxKVCTimer = setInterval(() => refresh(root), CFG.REFRESH_MS);
   }
 
+  // Register with your widget core
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
     W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
     return;
