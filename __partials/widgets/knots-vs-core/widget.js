@@ -1,10 +1,7 @@
 // __partials/widgets/knots-vs-core/widget.js
-// DROP-IN (v3) — no page HTML changes required.
-// - Auto-loads bitnodes-snapshots.js (same directory) if missing.
-// - Uses window.ZZXBitnodesCache.snapshotPair() for shared cached Bitnodes fetch.
-// - Computes Core vs Knots totals from UA map.
-// - Best-effort "unreachable" = positive delta vs previous snapshot (heuristic).
-// - Tor: uses Bitnodes tor field if present; per-client tor by UA-key heuristic if present (usually unavailable).
+// DROP-IN (v3.1) — no page HTML changes required.
+// Fixes: robust auto-load of bitnodes-snapshots.js even when document.currentScript is null.
+// Uses: window.ZZXBitnodesCache.snapshotPair() (shared cached Bitnodes fetch).
 
 (function () {
   "use strict";
@@ -14,7 +11,7 @@
 
   const DEFAULTS = {
     REFRESH_MS: 10 * 60_000,
-    LOAD_TIMEOUT_MS: 12_000,
+    LOAD_TIMEOUT_MS: 15_000,
   };
 
   function qs(root, sel) { return root ? root.querySelector(sel) : null; }
@@ -43,13 +40,37 @@
   // -----------------------------
   // Helper loader (no HTML edits)
   // -----------------------------
-  function getCurrentScriptBase() {
-    // Best-effort base path of this widget.js, so we can load bitnodes-snapshots.js beside it.
-    // Works when script is loaded via <script src=".../widget.js">.
+  function getBaseFromCurrentScript() {
     const cs = document.currentScript;
-    const src = cs && cs.src ? cs.src : "";
+    const src = cs && cs.src ? String(cs.src) : "";
     if (!src) return null;
     return src.slice(0, src.lastIndexOf("/") + 1);
+  }
+
+  function getBaseFromScriptScan() {
+    // When mounted dynamically, currentScript is often null.
+    // Scan for a script whose src ends with ".../knots-vs-core/widget.js" or contains "/knots-vs-core/widget.js".
+    const scripts = Array.from(document.getElementsByTagName("script"));
+    for (const s of scripts) {
+      const src = s && s.src ? String(s.src) : "";
+      if (!src) continue;
+
+      // tolerate cache-busters
+      const clean = src.split("#")[0].split("?")[0];
+
+      if (clean.endsWith("/knots-vs-core/widget.js") || clean.includes("/knots-vs-core/widget.js")) {
+        return clean.slice(0, clean.lastIndexOf("/") + 1);
+      }
+      // also tolerate if your system renames it (rare), but keeps folder:
+      if (clean.includes("/knots-vs-core/") && clean.endsWith("/widget.js")) {
+        return clean.slice(0, clean.lastIndexOf("/") + 1);
+      }
+    }
+    return null;
+  }
+
+  function getWidgetBase() {
+    return getBaseFromCurrentScript() || getBaseFromScriptScan() || null;
   }
 
   function loadScriptOnce(url) {
@@ -58,7 +79,6 @@
       if (existing) {
         if (existing.dataset.zzxLoaded === "1") return resolve(true);
         if (existing.dataset.zzxLoaded === "0") return reject(new Error("previous load failed"));
-        // still loading
         existing.addEventListener("load", () => resolve(true), { once: true });
         existing.addEventListener("error", () => reject(new Error("failed to load " + url)), { once: true });
         return;
@@ -67,10 +87,12 @@
       const s = document.createElement("script");
       s.async = true;
       s.src = url;
-      s.dataset.zzxSrc = url;
+      s.setAttribute("data-zzx-src", url);
       s.dataset.zzxLoaded = "";
+
       s.onload = () => { s.dataset.zzxLoaded = "1"; resolve(true); };
       s.onerror = () => { s.dataset.zzxLoaded = "0"; reject(new Error("failed to load " + url)); };
+
       document.head.appendChild(s);
     });
   }
@@ -78,9 +100,8 @@
   async function ensureBitnodesCacheLoaded() {
     if (W.ZZXBitnodesCache && typeof W.ZZXBitnodesCache.snapshotPair === "function") return true;
 
-    const base = getCurrentScriptBase();
-    // If we cannot infer base, we fall back to a plain relative path.
-    const url = (base ? (base + "bitnodes-snapshots.js") : "bitnodes-snapshots.js");
+    const base = getWidgetBase();
+    const url = base ? (base + "bitnodes-snapshots.js") : "bitnodes-snapshots.js";
 
     await withTimeout(loadScriptOnce(url), DEFAULTS.LOAD_TIMEOUT_MS, "load bitnodes-snapshots.js");
 
@@ -95,8 +116,8 @@
   // -----------------------------
   function classifyClient(uaKey) {
     const s = String(uaKey || "").toLowerCase();
-    if (s.includes("bitcoinknots") || s.includes("bitcoin knots") || s.includes("knots")) return "knots";
-    return "core";
+    if (s.includes("bitcoinknots") || s.includes("bitcoin knots") || s.includes(" kno ts") || s.includes("knots")) return "knots";
+    return "core"; // non-knots bucket
   }
 
   function isTorUAKey(uaKey) {
@@ -138,7 +159,7 @@
   }
 
   // -----------------------------
-  // Render
+  // Render (expects your widget.html data-* hooks)
   // -----------------------------
   function render(root, model) {
     const {
@@ -160,7 +181,6 @@
     } = model;
 
     setText(root, "[data-kvc-badge]", badge || "Bitnodes");
-
     setText(root, "[data-kvc-summary]", Number.isFinite(reachTotal) ? `${fmtInt(reachTotal)} reachable nodes` : "—");
     setText(root, "[data-kvc-sub]", stampPrev ? "delta vs prev snapshot enabled" : "delta vs prev snapshot unavailable");
 
@@ -211,15 +231,14 @@
       await ensureBitnodesCacheLoaded();
 
       const pair = await W.ZZXBitnodesCache.snapshotPair();
-      const latest = pair?.latest || null;
-      const prev = pair?.prev || null;
+      const latest = pair && pair.latest ? pair.latest : null;
+      const prev = pair && pair.prev ? pair.prev : null;
 
-      const latestBuckets = sumBuckets(latest?.ua || {});
-      const prevBuckets = prev ? sumBuckets(prev?.ua || {}) : null;
+      const latestBuckets = sumBuckets(latest && latest.ua ? latest.ua : {});
+      const prevBuckets = prev ? sumBuckets(prev && prev.ua ? prev.ua : {}) : null;
 
-      const reachTotal = Number.isFinite(latest?.reachable) ? Number(latest.reachable) : latestBuckets.total;
+      const reachTotal = Number.isFinite(latest && latest.reachable) ? Number(latest.reachable) : latestBuckets.total;
 
-      // Reachable per client uses UA sums (Bitnodes doesn't reliably split reachable per client otherwise)
       const coreReach = latestBuckets.core;
       const knotsReach = latestBuckets.knots;
 
@@ -227,26 +246,21 @@
       const corePct = denom > 0 ? coreReach / denom : NaN;
       const knotsPct = denom > 0 ? knotsReach / denom : NaN;
 
-      // Unreachable: prefer explicit aggregate if provided, otherwise delta heuristic.
-      let totalUnreach = Number.isFinite(latest?.unreachable) ? Number(latest.unreachable) : NaN;
+      let totalUnreach = Number.isFinite(latest && latest.unreachable) ? Number(latest.unreachable) : NaN;
       const heur = computeDeltaHeuristic(latestBuckets, prevBuckets);
-
       if (!Number.isFinite(totalUnreach)) totalUnreach = heur.totalUnreach;
 
-      // Per-client unreachable is not provided by Bitnodes; we show heuristic deltas
       const coreUnreach = heur.coreUnreach;
       const knotsUnreach = heur.knotsUnreach;
 
-      // Tor: if Bitnodes gives aggregate tor, use it for total; per-client tor usually unknown.
-      // We also attempt UA-key tor heuristic if present.
-      const torTotal = Number.isFinite(latest?.tor) ? Number(latest.tor)
+      const torTotal = Number.isFinite(latest && latest.tor) ? Number(latest.tor)
         : (latestBuckets.torTotal > 0 ? latestBuckets.torTotal : NaN);
 
       const torCore = (latestBuckets.torCore > 0) ? latestBuckets.torCore : NaN;
       const torKnots = (latestBuckets.torKnots > 0) ? latestBuckets.torKnots : NaN;
 
-      const note = (Number.isFinite(latest?.unreachable) ? "unreachable: Bitnodes field" : heur.note) +
-        (Number.isFinite(latest?.tor) ? " • tor: Bitnodes field" : "");
+      const note = (Number.isFinite(latest && latest.unreachable) ? "unreachable: Bitnodes field" : heur.note) +
+        (Number.isFinite(latest && latest.tor) ? " • tor: Bitnodes field" : "");
 
       render(root, {
         badge: "Bitnodes",
@@ -261,8 +275,8 @@
         torTotal,
         torCore,
         torKnots,
-        stampLatest: latest?.stamp || null,
-        stampPrev: prev?.stamp || null,
+        stampLatest: latest ? latest.stamp : null,
+        stampPrev: prev ? prev.stamp : null,
         note
       });
 
@@ -285,7 +299,6 @@
     root.__zzxKVCTimer = setInterval(() => refresh(root), DEFAULTS.REFRESH_MS);
   }
 
-  // Register with your widget core
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
     W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
     return;
