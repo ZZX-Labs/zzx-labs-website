@@ -1,8 +1,13 @@
 // __partials/widgets/nodes/widget.js
-// DROP-IN REPLACEMENT
-// - Auto-loads sources.js + fetch.js from same widget dir
-// - Uses cached/backoff fetch logic in nodes/fetch.js
-// - Prevents duplicate intervals
+// DROP-IN (FIXED + uses adapter + chart if present)
+//
+// Fixes:
+// - Your widget.js was reading data.total_nodes / latest_height / timestamp directly,
+//   but you also have an adapter.js that already normalizes payload drift.
+// - This version loads sources.js + fetch.js + adapter.js (+ chart.js optional) from same dir.
+// - Uses fetch.js cached/backoff logic, but renders via adapter normalized fields.
+// - Exports window.ZZXNodesLatest (stable) for other widgets to baseline off.
+// - Prevents duplicate intervals on reinjection.
 
 (function () {
   "use strict";
@@ -15,16 +20,16 @@
 
   function setText(root, sel, text) {
     const el = root.querySelector(sel);
-    if (el) el.textContent = text;
+    if (el) el.textContent = String(text ?? "—");
   }
 
   function fmtInt(n) {
     return Number.isFinite(n) ? Math.round(n).toLocaleString() : "—";
   }
 
-  function fmtWhen(tsSec) {
-    if (!Number.isFinite(tsSec) || tsSec <= 0) return "—";
-    return new Date(tsSec * 1000).toLocaleString();
+  function fmtWhenMs(tsMs) {
+    if (!Number.isFinite(tsMs) || tsMs <= 0) return "—";
+    return new Date(tsMs).toLocaleString();
   }
 
   function widgetBasePath() {
@@ -34,17 +39,19 @@
   }
 
   async function loadScriptOnce(url, key) {
-    if (document.querySelector(`script[data-zzx-js="${key}"]`)) {
+    const existing = document.querySelector(`script[data-zzx-js="${key}"]`);
+    if (existing) {
       await new Promise(r => setTimeout(r, 0));
-      return true;
+      return existing.dataset.zzxLoaded !== "0";
     }
     return await new Promise((resolve) => {
       const s = document.createElement("script");
       s.src = url;
       s.defer = true;
       s.setAttribute("data-zzx-js", key);
-      s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
+      s.dataset.zzxLoaded = "";
+      s.onload = () => { s.dataset.zzxLoaded = "1"; resolve(true); };
+      s.onerror = () => { s.dataset.zzxLoaded = "0"; resolve(false); };
       document.head.appendChild(s);
     });
   }
@@ -64,6 +71,19 @@
       if (!ok) return { ok: false, why: "fetch.js missing (failed to load)" };
       await new Promise(r => setTimeout(r, 0));
       if (!W.ZZXNodesFetch?.fetchJSON) return { ok: false, why: "fetch.js did not register" };
+    }
+
+    if (!W.ZZXNodesAdapter?.normalizeLatest) {
+      const ok = await loadScriptOnce(base + "adapter.js", "zzx:nodes:adapter");
+      if (!ok) return { ok: false, why: "adapter.js missing (failed to load)" };
+      await new Promise(r => setTimeout(r, 0));
+      if (!W.ZZXNodesAdapter?.normalizeLatest) return { ok: false, why: "adapter.js did not register" };
+    }
+
+    // Optional: chart support if you later add an SVG.
+    if (!W.ZZXNodesChart?.pushPoint) {
+      await loadScriptOnce(base + "chart.js", "zzx:nodes:chart");
+      await new Promise(r => setTimeout(r, 0));
     }
 
     return { ok: true };
@@ -94,28 +114,35 @@
         timeoutMs: Number(policy.timeoutMs) || 12_000
       });
 
-      const data = res?.data || {};
+      const normalized = W.ZZXNodesAdapter.normalizeLatest(res?.data);
 
-      const total = Number(data.total_nodes);
-      const height = Number(data.latest_height);
-      const ts = Number(data.timestamp);
+      const totalNodes = Number(normalized.totalNodes);
+      const latestHeight = Number(normalized.latestHeight);
+      const updatedMs = Number(normalized.updatedMs);
 
-      setText(root, "[data-nodes-total]", fmtInt(total));
-      setText(root, "[data-nodes-height]", fmtInt(height));
-      setText(root, "[data-nodes-updated]", fmtWhen(ts));
+      setText(root, "[data-nodes-total]", fmtInt(totalNodes));
+      setText(root, "[data-nodes-height]", fmtInt(latestHeight));
+      setText(root, "[data-nodes-updated]", fmtWhenMs(updatedMs));
 
       const staleTag = res?.stale ? " (stale cache)" : "";
       setText(root, "[data-nodes-sub]", `Bitnodes latest snapshot · ${res.source}${staleTag}`);
 
-      // Optional export for other widgets
+      // Export a stable baseline for other widgets
       W.ZZXNodesLatest = {
-        total_nodes: total,
-        latest_height: height,
-        timestamp: ts,
+        total_nodes: totalNodes,
+        latest_height: latestHeight,
+        timestamp_ms: updatedMs,
         _source: res?.source || "unknown",
         _stale: !!res?.stale,
         _cachedAt: res?.cachedAt || null
       };
+
+      // Optional sparkline history if you add an SVG later
+      if (W.ZZXNodesChart?.pushPoint) {
+        W.ZZXNodesChart.pushPoint(totalNodes);
+        const svg = root.querySelector("[data-nodes-svg]");
+        if (svg && W.ZZXNodesChart.draw) W.ZZXNodesChart.draw(svg);
+      }
 
     } catch (e) {
       const msg = String(e?.message || e);
@@ -136,9 +163,9 @@
 
     update(root);
 
-    // Prefer policy refresh if sources.js is present later; default 30 min
+    // Refresh cadence from policy (default 30m) with small jitter
     const baseRefresh = Number(W.ZZXNodesSources?.policy?.refreshMs) || (30 * 60_000);
-    const jitter = Math.floor(Math.random() * 12_000); // 0–12s
+    const jitter = Math.floor(Math.random() * 12_000);
     root.__zzxNodesTimer = setInterval(() => update(root), baseRefresh + jitter);
   }
 
