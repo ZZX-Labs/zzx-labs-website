@@ -1,16 +1,30 @@
-.btc-newsTicker{ display:grid; gap:.35rem; }
-.btc-newsTicker__src{
-  font-family:'AdultSwimFont','IBMPlexMono',monospace;
+/* __partials/widgets/btc-news/widget.css */
+/* Keep your look, just scope it to the widget root and match other widgets (box-sizing, widths). */
+
+[data-widget-root="btc-news"]{
+  width:100%;
+  box-sizing:border-box;
+}
+
+[data-widget-root="btc-news"] .btc-newsTicker{
+  display:grid;
+  gap:.35rem;
+}
+
+[data-widget-root="btc-news"] .btc-newsTicker__src{
+  font-family: AdultSwimFont, IBMPlexMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   color:#e6a42b;
   font-size:.95rem;
 }
-.btc-newsTicker__marquee{
+
+[data-widget-root="btc-news"] .btc-newsTicker__marquee{
   overflow:hidden;
   border:1px solid rgba(255,255,255,.10);
   border-radius:10px;
   background:rgba(0,0,0,.22);
 }
-.btc-newsTicker__track{
+
+[data-widget-root="btc-news"] .btc-newsTicker__track{
   display:inline-block;
   white-space:nowrap;
   padding:.35rem .6rem;
@@ -18,9 +32,17 @@
   will-change: transform;
   animation: zzxMarquee 22s linear infinite;
 }
+
 @keyframes zzxMarquee{
   from { transform: translateX(100%); }
   to   { transform: translateX(-100%); }
 }
-.btc-newsTicker__track a{ color:#c0d674; text-decoration:none; }
-.btc-newsTicker__track a:hover{ color:#e6a42b; text-decoration:underline; }
+
+[data-widget-root="btc-news"] .btc-newsTicker__track a{
+  color:#c0d674;
+  text-decoration:none;
+}
+[data-widget-root="btc-news"] .btc-newsTicker__track a:hover{
+  color:#e6a42b;
+  text-decoration:underline;
+}
