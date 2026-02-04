@@ -1,8 +1,4 @@
-/* __partials/widgets/btc-halving-suite/widget.css
-   DROP-IN
-   Purpose: make Supply/Halving behave like the other widgets (no overflow, consistent spacing),
-   while still relying on shared .btc-card + .btc-kv styles if present.
-*/
+/* __partials/widgets/btc-halving-suite/widget.css */
 
 [data-widget-root="btc-halving-suite"]{
   width:100%;
@@ -11,19 +7,17 @@
   overflow:hidden;
 }
 
-/* If your shared .btc-kv exists, this just tightens/normalizes spacing safely. */
+/* consistent divider feel like your other metrics widgets */
 [data-widget-root="btc-halving-suite"] .btc-kv{
   margin-top:.45rem;
   border-top:1px solid rgba(255,255,255,.10);
   padding-top:.4rem;
 }
 
-[data-widget-root="btc-halving-suite"] .btc-kv__row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:.75rem;
-  padding:.16rem 0;
+/* do NOT fight shared layout; just ensure truncation behaves */
+[data-widget-root="btc-halving-suite"] .btc-kv__row,
+[data-widget-root="btc-halving-suite"] .btc-kv__row .k,
+[data-widget-root="btc-halving-suite"] .btc-kv__row .v{
   min-width:0;
 }
 
@@ -33,7 +27,6 @@
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  flex:0 0 auto;
 }
 
 [data-widget-root="btc-halving-suite"] .btc-kv__row .v{
@@ -44,12 +37,16 @@
   text-overflow:ellipsis;
   text-align:right;
   font-variant-numeric: tabular-nums;
-  flex:1 1 auto;
-  min-width:0;
 }
 
 [data-widget-root="btc-halving-suite"] .btc-card__sub{
   margin-top:.45rem;
+  min-width:0;
+}
+
+[data-widget-root="btc-halving-suite"] .btc-card__sub span{
+  display:block;
+  min-width:0;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
