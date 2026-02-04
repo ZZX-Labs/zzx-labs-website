@@ -1,15 +1,42 @@
-.btc-explorer{
-  display:flex;
-  gap:.35rem;
-  align-items:center;
-  margin:.25rem 0 .45rem 0;
+/* __partials/widgets/btc-blockexplorer/widget.css */
+/* Make it match the rest: scoped styles, shared tokens, no global leakage. */
+
+[data-widget-root="btc-blockexplorer"]{
+  width:100%;
+  box-sizing:border-box;
 }
-.btc-explorer__in{
+
+[data-widget-root="btc-blockexplorer"] .btc-explorer{
+  display:flex;
+  gap:.45rem;
+  align-items:center;
+  margin:.35rem 0 .5rem 0;
+}
+
+[data-widget-root="btc-blockexplorer"] .btc-explorer__in{
   flex:1;
-  background:#000;
-  color:#c0d674;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius:10px;
-  padding:.38rem .55rem;
-  font-family:'IBMPlexMono',ui-monospace,monospace;
+  min-width: 0;
+  background: rgba(0,0,0,.35);
+  color: #e8efc9;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  padding: .42rem .6rem;
+  font-family: 'IBMPlexMono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .92rem;
+  outline: none;
+}
+
+[data-widget-root="btc-blockexplorer"] .btc-explorer__in::placeholder{
+  color: rgba(183,191,154,.75);
+}
+
+[data-widget-root="btc-blockexplorer"] .btc-explorer__in:focus{
+  border-color: rgba(192,214,116,.55);
+  box-shadow: 0 0 0 2px rgba(192,214,116,.15);
+}
+
+[data-widget-root="btc-blockexplorer"] [data-links]{
+  margin-top:.25rem;
+  border-top: 1px solid rgba(255,255,255,.10);
+  padding-top:.35rem;
 }
