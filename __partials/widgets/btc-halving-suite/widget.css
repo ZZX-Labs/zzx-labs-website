@@ -1,1 +1,56 @@
-/* no extra styling needed; uses shared card + kv styles */
+/* __partials/widgets/btc-halving-suite/widget.css
+   DROP-IN
+   Purpose: make Supply/Halving behave like the other widgets (no overflow, consistent spacing),
+   while still relying on shared .btc-card + .btc-kv styles if present.
+*/
+
+[data-widget-root="btc-halving-suite"]{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+
+/* If your shared .btc-kv exists, this just tightens/normalizes spacing safely. */
+[data-widget-root="btc-halving-suite"] .btc-kv{
+  margin-top:.45rem;
+  border-top:1px solid rgba(255,255,255,.10);
+  padding-top:.4rem;
+}
+
+[data-widget-root="btc-halving-suite"] .btc-kv__row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:.75rem;
+  padding:.16rem 0;
+  min-width:0;
+}
+
+[data-widget-root="btc-halving-suite"] .btc-kv__row .k{
+  color:#b7bf9a;
+  font-size:.92rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  flex:0 0 auto;
+}
+
+[data-widget-root="btc-halving-suite"] .btc-kv__row .v{
+  color:#c0d674;
+  font-size:.92rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+  flex:1 1 auto;
+  min-width:0;
+}
+
+[data-widget-root="btc-halving-suite"] .btc-card__sub{
+  margin-top:.45rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
