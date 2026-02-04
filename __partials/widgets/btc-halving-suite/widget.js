@@ -1,7 +1,6 @@
 // __partials/widgets/btc-halving-suite/widget.js
-// DROP-IN (unified-runtime compatible; no UI/logic changes)
-// - Works with either ZZXWidgetsCore.onMount(...) OR legacy ZZXWidgets.register(...)
-// - Keeps your ctx.fetchText(...) path (so mempool.space is fetched through your shared fetch layer)
+// DROP-IN: unified-runtime compatible, no UI changes.
+// Uses mempool.space. Uses AllOrigins fallback if ctx.fetchText is not available.
 
 (function () {
   "use strict";
@@ -9,6 +8,7 @@
   const W = window;
   const ID = "btc-halving-suite";
   const MEMPOOL = "https://mempool.space/api";
+  const AO_RAW = "https://api.allorigins.win/raw?url=";
 
   const HALVING_INTERVAL = 210000;
   const INITIAL_REWARD = 50;     // BTC
@@ -40,6 +40,36 @@
     return total;
   }
 
+  function q(root, sel) { return root ? root.querySelector(sel) : null; }
+
+  async function fetchTextDirect(url) {
+    const r = await fetch(url, { cache: "no-store", credentials: "omit", redirect: "follow" });
+    const t = await r.text();
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return t;
+  }
+
+  async function fetchTextDirectThenAO(url) {
+    try {
+      return await fetchTextDirect(url);
+    } catch (e1) {
+      const ao = AO_RAW + encodeURIComponent(String(url));
+      try {
+        return await fetchTextDirect(ao);
+      } catch (e2) {
+        throw new Error("fetch failed: " + String(e1?.message || e1) + " | " + String(e2?.message || e2));
+      }
+    }
+  }
+
+  async function getTipHeight(ctx) {
+    const url = `${MEMPOOL}/blocks/tip/height`;
+    if (ctx && typeof ctx.fetchText === "function") {
+      return await ctx.fetchText(url);
+    }
+    return await fetchTextDirectThenAO(url);
+  }
+
   async function update(root, ctx, state, force) {
     const now = Date.now();
     if (!force && now - (state.last || 0) < 15_000) return;
@@ -47,18 +77,14 @@
 
     if (!root) return;
 
-    const tipEl = root.querySelector("[data-tip]");
-    const rEl   = root.querySelector("[data-reward]");
-    const hEl   = root.querySelector("[data-halving]");
-    const mEl   = root.querySelector("[data-mined]");
-    const remEl = root.querySelector("[data-remain]");
+    const tipEl = q(root, "[data-tip]");
+    const rEl   = q(root, "[data-reward]");
+    const hEl   = q(root, "[data-halving]");
+    const mEl   = q(root, "[data-mined]");
+    const remEl = q(root, "[data-remain]");
 
     try {
-      if (!ctx || typeof ctx.fetchText !== "function") {
-        throw new Error("missing ctx.fetchText");
-      }
-
-      const tipTxt = await ctx.fetchText(`${MEMPOOL}/blocks/tip/height`);
+      const tipTxt = await getTipHeight(ctx);
       const tip = parseInt(String(tipTxt).trim(), 10);
       if (!Number.isFinite(tip)) throw new Error("bad tip");
 
@@ -89,8 +115,7 @@
 
     const state = (root.__zzxBHS = root.__zzxBHS || { last: 0 });
 
-    // If you have a central scheduler calling widget tick(), we just do one update here.
-    // If not, we self-schedule a conservative interval (same behavior as most of your other widgets).
+    // If legacy runtime ticks, it will call update(); if not, we self-refresh safely.
     update(root, ctx, state, true);
 
     if (root.__zzxBHSTimer) {
@@ -98,36 +123,21 @@
       root.__zzxBHSTimer = null;
     }
 
-    // Only create our own timer if your core isn’t providing tick().
-    // (If core exists, prefer core tick loop.)
-    if (!W.ZZXWidgetsCore?.usesGlobalTick) {
-      root.__zzxBHSTimer = setInterval(() => update(root, ctx, state, false), 15_000);
-    }
+    // conservative self-refresh (won’t hurt even if tick exists; update() is throttled)
+    root.__zzxBHSTimer = setInterval(() => update(root, ctx, state, false), 15_000);
   }
 
-  // Unified runtime preferred
-  if (W.ZZXWidgetsCore?.onMount) {
-    W.ZZXWidgetsCore.onMount(ID, (root, ctx) => boot(root, ctx || W.ZZXWidgetsCore?.ctx));
+  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
+    W.ZZXWidgetsCore.onMount(ID, (root, ctx) => boot(root, ctx));
     return;
   }
 
-  // Legacy runtime fallback (keeps your previous structure)
-  if (W.ZZXWidgets?.register) {
+  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
     W.ZZXWidgets.register(ID, {
-      mount(slotEl) {
-        this._root = slotEl;
-        this._last = 0;
-      },
-      async start(ctx) {
-        this._ctx = ctx;
-        await update(this._root, this._ctx, this, true);
-      },
-      async update(force = false) {
-        await update(this._root, this._ctx, this, force);
-      },
-      tick() {
-        this.update(false);
-      },
+      mount(slotEl) { this._root = slotEl; this._state = { last: 0 }; },
+      async start(ctx) { this._ctx = ctx; await update(this._root, this._ctx, this._state, true); },
+      async update(force=false) { await update(this._root, this._ctx, this._state, force); },
+      tick() { this.update(false); },
       stop() {}
     });
   }
