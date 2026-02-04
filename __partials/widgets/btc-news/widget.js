@@ -1,7 +1,11 @@
 // __partials/widgets/btc-news/widget.js
 // Unified-runtime adapter (NO UI / layout / behavior changes)
+// Updated: RSS fetch uses ctx.fetchText (direct + AllOrigins fallback) to avoid CORS failures.
 
 (function () {
+  "use strict";
+
+  const W = window;
   const ID = "btc-news";
 
   const SOURCES = [
@@ -11,13 +15,13 @@
   ];
 
   function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
+    return String(s ?? "").replace(/[&<>"']/g, c => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
 
   function parseRSS(xmlText) {
-    const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+    const doc = new DOMParser().parseFromString(String(xmlText || ""), "text/xml");
     const items = Array.from(doc.querySelectorAll("item")).slice(0, 16);
     return items.map(it => ({
       title: (it.querySelector("title")?.textContent || "").trim(),
@@ -26,7 +30,7 @@
   }
 
   function isBitcoinTitle(t) {
-    return /bitcoin|btc|satoshi|lightning|bip|taproot|mempool|miners|halving|ordinals|ln\b/i.test(t);
+    return /bitcoin|btc|satoshi|lightning|bip|taproot|mempool|miners|halving|ordinals|ln\b/i.test(String(t || ""));
   }
 
   async function fetchHN(ctx) {
@@ -40,25 +44,19 @@
     })).filter(x => x.title && x.url);
   }
 
-  async function fetchRSSText(url) {
-    // Direct fetch; some feeds may block via CORS — fail soft
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`RSS HTTP ${r.status}`);
-    return await r.text();
-  }
-
   function packTrack(items) {
     return items.map(x =>
       `• <a href="${x.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(x.title)}</a>`
     ).join("  ");
   }
 
-  window.ZZXWidgets.register(ID, {
+  W.ZZXWidgets.register(ID, {
     mount(slotEl) {
       this._root = slotEl;
       this._i = 0;
       this._cache = new Map();
       this._lastSwap = 0;
+      this._ctx = null;
     },
 
     async start(ctx) {
@@ -86,17 +84,18 @@
           if (src.type === "hn") {
             items = await fetchHN(this._ctx);
           } else {
-            const xml = await fetchRSSText(src.url);
+            // Use unified runtime fetchText (it already does direct + AO fallback)
+            const xml = await this._ctx.fetchText(src.url);
             items = parseRSS(xml).filter(x => isBitcoinTitle(x.title));
           }
           this._cache.set(src.name, items);
         }
 
-        trackEl.innerHTML = packTrack(items.slice(0, 9)) || "no items";
+        trackEl.innerHTML = packTrack((items || []).slice(0, 9)) || "no items";
 
         // restart marquee animation
         trackEl.style.animation = "none";
-        trackEl.offsetHeight;
+        trackEl.offsetHeight; // force reflow
         trackEl.style.animation = "";
       } catch {
         trackEl.textContent = "news fetch error";
