@@ -1,4 +1,11 @@
+// __partials/widgets/btc-intel/widget.js
+// FIXED: unified-runtime compatible + correct registry (window.ZZXWidgets.register)
+// NO UI / layout / behavior changes.
+
 (function () {
+  "use strict";
+
+  const W = window;
   const ID = "btc-intel";
 
   const GH = "https://api.github.com";
@@ -9,11 +16,12 @@
     "lightningnetwork/lnd"
   ];
 
-  const HN_QUERY = "https://hn.algolia.com/api/v1/search?query=bitcoin%20OR%20satoshi%20OR%20lightning%20OR%20bips&tags=story";
+  const HN_QUERY =
+    "https://hn.algolia.com/api/v1/search?query=bitcoin%20OR%20satoshi%20OR%20lightning%20OR%20bips&tags=story";
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
 
@@ -21,6 +29,7 @@
     const url = `${GH}/repos/${repo}/commits?per_page=1`;
     const data = await core.fetchJSON(url);
     const c = Array.isArray(data) ? data[0] : null;
+
     const msg = String(c?.commit?.message || "").split("\n")[0].slice(0, 110);
     const when = c?.commit?.author?.date ? Date.parse(c.commit.author.date) : 0;
 
@@ -46,11 +55,11 @@
   }
 
   function render(root, items) {
-    const host = root.querySelector("[data-list]");
+    const host = root?.querySelector?.("[data-list]");
     if (!host) return;
 
     host.innerHTML = "";
-    if (!items.length) {
+    if (!items || !items.length) {
       host.innerHTML = `<div class="row"><span class="k">intel</span><span class="v">no items</span></div>`;
       return;
     }
@@ -58,28 +67,30 @@
     for (const it of items.slice(0, 10)) {
       const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `
-        <span class="k">${escapeHtml(it.src)}</span>
-        <span class="v"><a href="${it.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.k + ": " + it.title)}</a></span>
-      `;
+      row.innerHTML =
+        `<span class="k">${escapeHtml(it.src)}</span>` +
+        `<span class="v"><a href="${it.url}" target="_blank" rel="noopener noreferrer">` +
+        `${escapeHtml(it.k + ": " + it.title)}` +
+        `</a></span>`;
       host.appendChild(row);
     }
   }
 
-  window.ZZXWidgetRegistry.register(ID, {
-    _root: null,
-    _core: null,
-    _last: 0,
-    _rr: 0,
-    _cache: { ts: 0, items: [] },
+  W.ZZXWidgets.register(ID, {
+    mount(slotEl) {
+      this._root = slotEl;
+      this._ctx = null;
+      this._last = 0;
+      this._rr = 0;
+      this._cache = { ts: 0, items: [] };
+    },
 
-    async init({ root, core }) {
-      this._root = root;
-      this._core = core;
+    async start(ctx) {
+      this._ctx = ctx;
       await this.update(true);
     },
 
-    async update(force=false) {
+    async update(force = false) {
       const now = Date.now();
       if (!force && now - this._last < 60_000) return;
       this._last = now;
@@ -98,11 +109,11 @@
         const b = REPOS[(this._rr + 1) % REPOS.length];
         this._rr += 2;
 
-        try { items.push(await ghLatestCommit(this._core, a)); } catch {}
-        try { items.push(await ghLatestCommit(this._core, b)); } catch {}
+        try { items.push(await ghLatestCommit(this._ctx, a)); } catch {}
+        try { items.push(await ghLatestCommit(this._ctx, b)); } catch {}
 
         // HN
-        try { items.push(...await hnItems(this._core)); } catch {}
+        try { items.push(...await hnItems(this._ctx)); } catch {}
 
         items.sort((x, y) => (y.ts || 0) - (x.ts || 0));
 
@@ -114,6 +125,6 @@
     },
 
     tick() { this.update(false); },
-    destroy() {}
+    stop() {}
   });
 })();
