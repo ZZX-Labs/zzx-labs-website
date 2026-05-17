@@ -27,7 +27,7 @@
 }
 
 /* -----------------------------
-   Ticker shell
+   Legacy ticker shell
 ------------------------------ */
 .ticker-shell{
   background:#000;
@@ -38,7 +38,7 @@
 }
 
 /* -----------------------------
-   Main ticker text
+   Legacy ticker text
 ------------------------------ */
 .zzx-ticker{
   text-align:left;
@@ -56,7 +56,7 @@
 }
 
 /* -----------------------------
-   Sub-units block
+   Legacy sub-units block
 ------------------------------ */
 .subunits{
   background:#333;
@@ -73,7 +73,7 @@
 }
 
 /* -----------------------------
-   Credit line
+   Legacy credit line
 ------------------------------ */
 .credit{
   font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
@@ -83,6 +83,10 @@
   text-align:right;
 }
 
+/* =========================================================
+   Unified Global BPI Widget Compatibility Layer
+========================================================= */
+
 .bitcoin-ticker-widget{
   background:#000;
   border:4px solid #e6a42b;
@@ -90,48 +94,101 @@
   padding:10px;
   color:#c0d674;
   font-family:"IBMPlexMono", ui-monospace, monospace;
+  box-sizing:border-box;
+}
+
+.bitcoin-ticker-widget *{
+  box-sizing:border-box;
 }
 
 .bitcoin-ticker-widget .zzx-widget-header{
   display:flex;
   justify-content:space-between;
+  align-items:center;
   gap:12px;
-  margin-bottom:8px;
+  margin-bottom:10px;
 }
 
-.bitcoin-ticker-widget .zzx-widget-title,
+.bitcoin-ticker-widget .zzx-widget-title{
+  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
+  color:#c0d674;
+  font-size:1rem;
+  letter-spacing:.03em;
+}
+
+.bitcoin-ticker-widget .zzx-widget-status{
+  font-family:"IBMPlexMono", ui-monospace, monospace;
+  color:#e6a42b;
+  font-size:.8rem;
+  text-transform:uppercase;
+}
+
 .bitcoin-ticker-widget .zzx-widget-primary{
   font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
   color:#c0d674;
-}
-
-.bitcoin-ticker-widget .zzx-widget-primary{
   font-size:2rem;
+  line-height:1.1;
+  margin-bottom:10px;
   white-space:nowrap;
-}
-
-.bitcoin-ticker-widget .zzx-widget-status,
-.bitcoin-ticker-widget .zzx-widget-foot{
-  color:#e6a42b;
-  font-size:.8rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .bitcoin-ticker-widget .ticker-denoms{
   background:#333;
-  padding:10px;
   border-radius:8px;
+  padding:10px;
   display:grid;
-  gap:6px;
+  gap:8px;
+  margin-bottom:10px;
 }
 
 .bitcoin-ticker-widget .ticker-denoms div{
   display:flex;
   justify-content:space-between;
+  align-items:center;
   gap:12px;
 }
 
-.bitcoin-ticker-widget .ticker-denoms span,
-.bitcoin-ticker-widget .ticker-denoms strong{
-  color:#c0d674;
+.bitcoin-ticker-widget .ticker-denoms span{
   font-family:"IBMPlexMono", ui-monospace, monospace;
+  color:#c0d674;
+  opacity:.9;
+}
+
+.bitcoin-ticker-widget .ticker-denoms strong{
+  font-family:"IBMPlexMono", ui-monospace, monospace;
+  color:#c0d674;
+  font-weight:400;
+}
+
+.bitcoin-ticker-widget .zzx-widget-foot{
+  font-family:"IBMPlexMono", ui-monospace, monospace;
+  color:#e6a42b;
+  font-size:.8rem;
+  line-height:1.4;
+  text-align:right;
+}
+
+/* -----------------------------
+   Responsive
+------------------------------ */
+@media (max-width:640px){
+
+  .btc-line,
+  .bitcoin-ticker-widget .zzx-widget-primary{
+    font-size:1.4rem;
+  }
+
+  .unit{
+    font-size:1rem;
+  }
+
+  .bitcoin-ticker-widget .ticker-denoms{
+    padding:8px;
+  }
+
+  .bitcoin-ticker-widget{
+    padding:8px;
+  }
 }
