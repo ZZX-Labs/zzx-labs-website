@@ -8,27 +8,38 @@
   const REFRESH_MS = 60000;
 
   const API = {
+    latest: "/bitcoin/bpi/api/latest.json",
     exchanges: "/bitcoin/bpi/api/exchanges.json",
     currencies: "/bitcoin/bpi/api/currencies.json",
     exchangeRates: "/bitcoin/bpi/api/exchange_rates.json",
     assets: "/bitcoin/bpi/api/assets.json",
     commodities: "/bitcoin/bpi/api/commodities.json",
-    symbols: "/bitcoin/bpi/api/symbols.json"
+    symbols: "/bitcoin/bpi/api/symbols.json",
+    changes: "/bitcoin/bpi/api/changes.json",
+    history: "/bitcoin/bpi/api/history.json",
+    deadopop: "/bitcoin/bpi/api/deadopop.json"
   };
 
   const PARSERS = {
-    coinbase_stats: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.volume),
-      high_24h: Number(d && d.high),
-      low_24h: Number(d && d.low)
-    }),
+    coinbase_stats: function (d) {
+      return {
+        price_usd: Number(d && d.last),
+        volume_24h_btc: Number(d && d.volume),
+        high_24h: Number(d && d.high),
+        low_24h: Number(d && d.low)
+      };
+    },
 
-    coinbase_spot: d => ({
-      price_usd: Number(d && d.data && d.data.amount)
-    }),
+    coinbase_spot: function (d) {
+      return {
+        price_usd: Number(d && d.data && d.data.amount),
+        volume_24h_btc: 0,
+        high_24h: 0,
+        low_24h: 0
+      };
+    },
 
-    kraken_ticker: d => {
+    kraken_ticker: function (d) {
       const r = d && d.result ? d.result : {};
       const k = r.XXBTZUSD || r.XBTUSD || r.BTCUSD || Object.values(r)[0] || {};
       return {
@@ -39,27 +50,35 @@
       };
     },
 
-    gemini_pubticker: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.volume && d.volume.BTC),
-      volume_24h_usd: Number(d && d.volume && d.volume.USD)
-    }),
+    gemini_pubticker: function (d) {
+      return {
+        price_usd: Number(d && d.last),
+        volume_24h_btc: Number(d && d.volume && d.volume.BTC),
+        volume_24h_usd: Number(d && d.volume && d.volume.USD),
+        high_24h: 0,
+        low_24h: 0
+      };
+    },
 
-    bitstamp_ticker: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.volume),
-      high_24h: Number(d && d.high),
-      low_24h: Number(d && d.low)
-    }),
+    bitstamp_ticker: function (d) {
+      return {
+        price_usd: Number(d && d.last),
+        volume_24h_btc: Number(d && d.volume),
+        high_24h: Number(d && d.high),
+        low_24h: Number(d && d.low)
+      };
+    },
 
-    bitfinex_v2_ticker: d => ({
-      price_usd: Array.isArray(d) ? Number(d[6]) : Number(d && (d.last_price || d.last || d.price)),
-      volume_24h_btc: Array.isArray(d) ? Number(d[7]) : Number(d && (d.volume || d.volume_24h_btc)),
-      high_24h: Array.isArray(d) ? Number(d[8]) : Number(d && (d.high || d.high_24h)),
-      low_24h: Array.isArray(d) ? Number(d[9]) : Number(d && (d.low || d.low_24h))
-    }),
+    bitfinex_v2_ticker: function (d) {
+      return {
+        price_usd: Array.isArray(d) ? Number(d[6]) : Number(d && (d.last_price || d.last || d.price)),
+        volume_24h_btc: Array.isArray(d) ? Number(d[7]) : Number(d && (d.volume || d.volume_24h_btc)),
+        high_24h: Array.isArray(d) ? Number(d[8]) : Number(d && (d.high || d.high_24h)),
+        low_24h: Array.isArray(d) ? Number(d[9]) : Number(d && (d.low || d.low_24h))
+      };
+    },
 
-    okx_ticker: d => {
+    okx_ticker: function (d) {
       const t = d && d.data && d.data[0] ? d.data[0] : {};
       return {
         price_usd: Number(t.last),
@@ -70,7 +89,7 @@
       };
     },
 
-    crypto_com_ticker: d => {
+    crypto_com_ticker: function (d) {
       const arr = d && d.result && d.result.data ? d.result.data : [];
       const t = arr[0] || {};
       return {
@@ -81,7 +100,7 @@
       };
     },
 
-    kucoin_stats: d => {
+    kucoin_stats: function (d) {
       const t = d && d.data ? d.data : {};
       return {
         price_usd: Number(t.last),
@@ -92,7 +111,7 @@
       };
     },
 
-    gateio_ticker: d => {
+    gateio_ticker: function (d) {
       const t = Array.isArray(d) ? (d[0] || {}) : (d || {});
       return {
         price_usd: Number(t.last),
@@ -103,7 +122,7 @@
       };
     },
 
-    bitget_ticker: d => {
+    bitget_ticker: function (d) {
       const arr = d && d.data ? d.data : [];
       const t = Array.isArray(arr) ? (arr[0] || {}) : arr;
       return {
@@ -115,15 +134,17 @@
       };
     },
 
-    mexc_24hr: d => ({
-      price_usd: Number(d && d.lastPrice),
-      volume_24h_btc: Number(d && d.volume),
-      volume_24h_usd: Number(d && d.quoteVolume),
-      high_24h: Number(d && d.highPrice),
-      low_24h: Number(d && d.lowPrice)
-    }),
+    mexc_24hr: function (d) {
+      return {
+        price_usd: Number(d && d.lastPrice),
+        volume_24h_btc: Number(d && d.volume),
+        volume_24h_usd: Number(d && d.quoteVolume),
+        high_24h: Number(d && d.highPrice),
+        low_24h: Number(d && d.lowPrice)
+      };
+    },
 
-    htx_merged: d => {
+    htx_merged: function (d) {
       const t = d && d.tick ? d.tick : {};
       return {
         price_usd: Number(t.close),
@@ -134,33 +155,38 @@
       };
     },
 
-    okcoin_ticker: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.base_volume_24h),
-      volume_24h_usd: Number(d && d.quote_volume_24h),
-      high_24h: Number(d && d.high_24h),
-      low_24h: Number(d && d.low_24h)
-    }),
+    okcoin_ticker: function (d) {
+      return {
+        price_usd: Number(d && d.last),
+        volume_24h_btc: Number(d && d.base_volume_24h),
+        volume_24h_usd: Number(d && d.quote_volume_24h),
+        high_24h: Number(d && d.high_24h),
+        low_24h: Number(d && d.low_24h)
+      };
+    },
 
-    binance_24hr: d => ({
-      price_usd: Number(d && d.lastPrice),
-      volume_24h_btc: Number(d && d.volume),
-      volume_24h_usd: Number(d && d.quoteVolume),
-      high_24h: Number(d && d.highPrice),
-      low_24h: Number(d && d.lowPrice)
-    }),
+    binance_24hr: function (d) {
+      return {
+        price_usd: Number(d && d.lastPrice),
+        volume_24h_btc: Number(d && d.volume),
+        volume_24h_usd: Number(d && d.quoteVolume),
+        high_24h: Number(d && d.highPrice),
+        low_24h: Number(d && d.lowPrice)
+      };
+    },
 
-    coingecko_bitcoin_tickers: d => {
+    coingecko_bitcoin_tickers: function (d) {
       const tickers = d && d.tickers ? d.tickers : [];
       let weighted = 0;
       let totalVol = 0;
       let high = 0;
       let low = Number.MAX_VALUE;
 
-      tickers.forEach(t => {
+      tickers.forEach(function (t) {
         const p = Number(t && t.converted_last && t.converted_last.usd);
         const vu = Number(t && t.converted_volume && t.converted_volume.usd);
         if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(vu) || vu <= 0) return;
+
         const vb = vu / p;
         weighted += p * vb;
         totalVol += vb;
@@ -171,25 +197,28 @@
       return {
         price_usd: totalVol > 0 ? weighted / totalVol : NaN,
         volume_24h_btc: totalVol,
+        volume_24h_usd: weighted,
         high_24h: high,
         low_24h: low === Number.MAX_VALUE ? NaN : low
       };
     },
 
-    zzx_bpi: d => ({
-      price_usd: Number(
-        (d && d.price_usd) ||
-        (d && d.btc_usd) ||
-        (d && d.price) ||
-        (d && d.vwap_usd) ||
-        (d && d.bpi_usd) ||
-        (d && d.weighted_average && d.weighted_average.price_usd) ||
-        (d && d.global_bpi && d.global_bpi.price_usd)
-      ),
-      volume_24h_btc: Number(d && d.volume_24h_btc),
-      high_24h: Number(d && d.high_24h),
-      low_24h: Number(d && d.low_24h)
-    })
+    zzx_bpi: function (d) {
+      return {
+        price_usd: Number(
+          (d && d.price_usd) ||
+          (d && d.btc_usd) ||
+          (d && d.price) ||
+          (d && d.vwap_usd) ||
+          (d && d.bpi_usd) ||
+          (d && d.weighted_average && d.weighted_average.price_usd) ||
+          (d && d.global_bpi && d.global_bpi.price_usd)
+        ),
+        volume_24h_btc: Number(d && d.volume_24h_btc),
+        high_24h: Number(d && d.high_24h),
+        low_24h: Number(d && d.low_24h)
+      };
+    }
   };
 
   let CONFIG = null;
@@ -221,16 +250,28 @@
     }
   }
 
+  async function optionalJson(url, fallback) {
+    try {
+      return await json(url);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   async function loadConfig(force) {
     if (CONFIG && !force) return CONFIG;
 
     CONFIG = {
+      latest: await optionalJson(API.latest, {}),
       exchanges: await json(API.exchanges),
       currencies: await json(API.currencies),
       exchangeRates: await json(API.exchangeRates),
       assets: await json(API.assets),
       commodities: await json(API.commodities),
-      symbols: await json(API.symbols)
+      symbols: await json(API.symbols),
+      changes: await optionalJson(API.changes, []),
+      history: await optionalJson(API.history, []),
+      deadopop: await optionalJson(API.deadopop, {})
     };
 
     return CONFIG;
@@ -289,8 +330,21 @@
     const parser = PARSERS[src.parser];
     if (!parser) throw new Error("missing parser " + src.parser);
 
-    const data = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
-    const parsed = parser(data);
+    let parsed;
+    try {
+      const raw = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
+      parsed = parser(raw);
+    } catch (err) {
+      if (src.fallback === "coingecko" && config.exchanges.sources && config.exchanges.sources.coingecko_global) {
+        const cg = config.exchanges.sources.coingecko_global;
+        const cgParser = PARSERS[cg.parser];
+        const cgRaw = await json(cg.url, { allowCorsProxy: !!cg.cors_proxy });
+        parsed = cgParser(cgRaw);
+      } else {
+        throw err;
+      }
+    }
+
     const price = Number(parsed && parsed.price_usd);
 
     if (!Number.isFinite(price) || price <= 0) {
@@ -321,8 +375,8 @@
 
   function ensureControls(root, config) {
     const host = root.querySelector(".zzx-ticker") || root;
-
     let controls = root.querySelector(".ticker-controls");
+
     if (!controls) {
       controls = document.createElement("div");
       controls.className = "ticker-controls";
@@ -345,7 +399,7 @@
     const sources = (config.exchanges && config.exchanges.sources) || {};
     const sourceOrder = (config.exchanges && config.exchanges.order) || Object.keys(sources);
 
-    sourceOrder.forEach(key => {
+    sourceOrder.forEach(function (key) {
       const src = sources[key];
       if (!src) return;
 
@@ -368,7 +422,7 @@
 
     const added = new Set();
 
-    ((config.currencies && config.currencies.order) || []).forEach(code => {
+    ((config.currencies && config.currencies.order) || []).forEach(function (code) {
       const opt = document.createElement("option");
       opt.value = code;
       opt.textContent = code;
@@ -376,7 +430,7 @@
       added.add(code);
     });
 
-    ((config.assets && config.assets.order) || []).forEach(code => {
+    ((config.assets && config.assets.order) || []).forEach(function (code) {
       if (code === "BTC" || added.has(code)) return;
       const opt = document.createElement("option");
       opt.value = code;
@@ -385,7 +439,7 @@
       added.add(code);
     });
 
-    Object.keys((config.commodities && config.commodities.sources) || {}).forEach(code => {
+    Object.keys((config.commodities && config.commodities.sources) || {}).forEach(function (code) {
       if (added.has(code)) return;
       const opt = document.createElement("option");
       opt.value = code;
@@ -394,13 +448,13 @@
       added.add(code);
     });
 
-    const allUnits = Array.from(unitSelect.options).map(o => o.value);
+    const allUnits = Array.from(unitSelect.options).map(function (o) { return o.value; });
     unitSelect.value = allUnits.includes(oldUnit) ? oldUnit : ((config.currencies && config.currencies.default) || "USD");
 
     unitLabel.appendChild(unitSelect);
     controls.appendChild(unitLabel);
 
-    return { sourceSelect, unitSelect };
+    return { sourceSelect: sourceSelect, unitSelect: unitSelect };
   }
 
   function writeMarkup(root, config, unit) {
@@ -467,16 +521,16 @@
     if (!root) return;
     if (root.__zzxTickerTimer) clearInterval(root.__zzxTickerTimer);
 
-    loadConfig(true).then(config => {
+    loadConfig(true).then(function (config) {
       const controls = ensureControls(root, config);
-      const redraw = () => draw(root);
+      const redraw = function () { draw(root); };
 
       controls.sourceSelect.onchange = redraw;
       controls.unitSelect.onchange = redraw;
 
       redraw();
       root.__zzxTickerTimer = setInterval(redraw, REFRESH_MS);
-    }).catch(err => {
+    }).catch(function (err) {
       ensureStatus(root, "ERROR loading /bitcoin/bpi/api JSON: " + err.message);
     });
   }
