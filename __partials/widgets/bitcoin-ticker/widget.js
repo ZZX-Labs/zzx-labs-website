@@ -17,28 +17,46 @@
   };
 
   const PARSERS = {
-    coinbase_spot: d => Number(d?.data?.amount),
+    coinbase_spot: d => Number(d && d.data && d.data.amount),
 
     kraken_ticker: d => {
-      const r = d?.result || {};
+      const r = d && d.result ? d.result : {};
       const k = r.XXBTZUSD || r.XBTUSD || r.BTCUSD || Object.values(r)[0];
-      return Number(k?.c?.[0]);
+      return Number(k && k.c && k.c[0]);
     },
 
-    gemini_pubticker: d => Number(d?.last),
+    gemini_pubticker: d => Number(d && d.last),
 
-    bitstamp_ticker: d => Number(d?.last),
+    bitstamp_ticker: d => Number(d && d.last),
 
-    bitfinex_v2_ticker: d => Array.isArray(d) ? Number(d[6]) : Number(d?.last_price || d?.last || d?.price),
+    bitfinex_v2_ticker: d => Array.isArray(d) ? Number(d[6]) : Number(d && (d.last_price || d.last || d.price)),
 
-    zzx_bpi: d => Number(
-      d?.price_usd ||
-      d?.btc_usd ||
-      d?.price ||
-      d?.weighted_average?.price_usd ||
-      d?.global_bpi?.price_usd ||
-      d?.vwap_usd
-    )
+    zzx_bpi: d => {
+      const candidates = [
+        d && d.price_usd,
+        d && d.btc_usd,
+        d && d.price,
+        d && d.vwap_usd,
+        d && d.bpi_usd,
+        d && d.global_price_usd,
+        d && d.weighted_price_usd,
+        d && d.weighted_average && d.weighted_average.price_usd,
+        d && d.weighted_average && d.weighted_average.vwap_usd,
+        d && d.weighted_average && d.weighted_average.price,
+        d && d.global_bpi && d.global_bpi.price_usd,
+        d && d.global_bpi && d.global_bpi.vwap_usd,
+        d && d.data && d.data.price_usd,
+        d && d.data && d.data.price,
+        d && d.data && d.data.amount
+      ];
+
+      for (const v of candidates) {
+        const n = Number(v);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+
+      return NaN;
+    }
   };
 
   let CONFIG = null;
@@ -79,44 +97,44 @@
   }
 
   function symbolOf(config, code) {
-    return config.symbols?.[code] || code + " ";
+    return config.symbols && config.symbols[code] ? config.symbols[code] : code + " ";
   }
 
   function labelOf(config, code) {
     return (
-      config.currencies?.names?.[code] ||
-      config.assets?.assets?.[code]?.label ||
-      config.commodities?.sources?.[code]?.label ||
+      (config.currencies && config.currencies.names && config.currencies.names[code]) ||
+      (config.assets && config.assets.assets && config.assets.assets[code] && config.assets.assets[code].label) ||
+      (config.commodities && config.commodities.sources && config.commodities.sources[code] && config.commodities.sources[code].label) ||
       code
     );
   }
 
   function isNonFiatUnit(config, code) {
     return Boolean(
-      config.assets?.assets?.[code] ||
-      config.commodities?.sources?.[code] ||
-      config.exchangeRates?.assets_usd?.[code] ||
-      config.exchangeRates?.commodities_usd?.[code]
+      (config.assets && config.assets.assets && config.assets.assets[code]) ||
+      (config.commodities && config.commodities.sources && config.commodities.sources[code]) ||
+      (config.exchangeRates && config.exchangeRates.assets_usd && config.exchangeRates.assets_usd[code]) ||
+      (config.exchangeRates && config.exchangeRates.commodities_usd && config.exchangeRates.commodities_usd[code])
     ) && code !== "BTC";
   }
 
   function conversionRate(config, unit) {
     if (unit === "USD") return 1;
 
-    const fiat = Number(config.exchangeRates?.rates?.[unit]);
+    const fiat = Number(config.exchangeRates && config.exchangeRates.rates && config.exchangeRates.rates[unit]);
     if (Number.isFinite(fiat) && fiat > 0) return fiat;
 
-    const assetUsd = Number(config.exchangeRates?.assets_usd?.[unit]);
+    const assetUsd = Number(config.exchangeRates && config.exchangeRates.assets_usd && config.exchangeRates.assets_usd[unit]);
     if (Number.isFinite(assetUsd) && assetUsd > 0) return 1 / assetUsd;
 
-    const commodityUsd = Number(config.exchangeRates?.commodities_usd?.[unit]);
+    const commodityUsd = Number(config.exchangeRates && config.exchangeRates.commodities_usd && config.exchangeRates.commodities_usd[unit]);
     if (Number.isFinite(commodityUsd) && commodityUsd > 0) return 1 / commodityUsd;
 
     throw new Error("missing exchange_rates value for " + unit);
   }
 
   async function getUsdPrice(config, sourceKey) {
-    const src = config.exchanges?.sources?.[sourceKey];
+    const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
     if (!src) throw new Error("missing exchange source " + sourceKey);
 
     const parser = PARSERS[src.parser];
@@ -157,8 +175,8 @@
       host.insertBefore(controls, host.firstChild);
     }
 
-    const oldSource = root.querySelector("[data-source-select]")?.value;
-    const oldUnit = root.querySelector("[data-currency-select]")?.value;
+    const oldSource = root.querySelector("[data-source-select]") && root.querySelector("[data-source-select]").value;
+    const oldUnit = root.querySelector("[data-currency-select]") && root.querySelector("[data-currency-select]").value;
 
     controls.innerHTML = "";
 
@@ -168,8 +186,8 @@
     const sourceSelect = document.createElement("select");
     sourceSelect.setAttribute("data-source-select", "");
 
-    const sources = config.exchanges?.sources || {};
-    const sourceOrder = config.exchanges?.order || Object.keys(sources);
+    const sources = config.exchanges && config.exchanges.sources ? config.exchanges.sources : {};
+    const sourceOrder = config.exchanges && config.exchanges.order ? config.exchanges.order : Object.keys(sources);
 
     sourceOrder.forEach(key => {
       const src = sources[key];
@@ -181,7 +199,7 @@
       sourceSelect.appendChild(opt);
     });
 
-    sourceSelect.value = sources[oldSource] ? oldSource : (config.exchanges?.default || sourceOrder[0] || "");
+    sourceSelect.value = sources[oldSource] ? oldSource : (config.exchanges.default || sourceOrder[0] || "");
 
     sourceLabel.appendChild(sourceSelect);
     controls.appendChild(sourceLabel);
@@ -194,7 +212,7 @@
 
     const added = new Set();
 
-    (config.currencies?.order || []).forEach(code => {
+    (config.currencies && config.currencies.order ? config.currencies.order : []).forEach(code => {
       const opt = document.createElement("option");
       opt.value = code;
       opt.textContent = code;
@@ -202,7 +220,7 @@
       added.add(code);
     });
 
-    (config.assets?.order || []).forEach(code => {
+    (config.assets && config.assets.order ? config.assets.order : []).forEach(code => {
       if (code === "BTC" || added.has(code)) return;
       const opt = document.createElement("option");
       opt.value = code;
@@ -211,7 +229,7 @@
       added.add(code);
     });
 
-    Object.keys(config.commodities?.sources || {}).forEach(code => {
+    Object.keys(config.commodities && config.commodities.sources ? config.commodities.sources : {}).forEach(code => {
       if (added.has(code)) return;
       const opt = document.createElement("option");
       opt.value = code;
@@ -221,7 +239,7 @@
     });
 
     const allUnits = Array.from(unitSelect.options).map(o => o.value);
-    unitSelect.value = allUnits.includes(oldUnit) ? oldUnit : (config.currencies?.default || "USD");
+    unitSelect.value = allUnits.includes(oldUnit) ? oldUnit : (config.currencies.default || "USD");
 
     unitLabel.appendChild(unitSelect);
     controls.appendChild(unitLabel);
@@ -278,7 +296,7 @@
       if (ubtc) ubtc.textContent = fmt(value * 1e-6, nonFiat ? 10 : 4);
       if (sat) sat.textContent = fmt(value * 1e-8, nonFiat ? 12 : 6);
 
-      ensureStatus(root, `${spot.label} · ${labelOf(config, unit)} · ${config.exchangeRates?.updated_at || "exchange_rates.json"}`);
+      ensureStatus(root, `${spot.label} · ${labelOf(config, unit)} · ${config.exchangeRates && config.exchangeRates.updated_at ? config.exchangeRates.updated_at : "exchange_rates.json"}`);
 
       root.dataset.status = "ok";
       root.dataset.source = source;
