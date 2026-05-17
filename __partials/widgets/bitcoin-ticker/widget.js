@@ -1,8 +1,6 @@
 // __partials/widgets/bitcoin-ticker/widget.js
 // ZZX-Labs Bitcoin Ticker
-// Default source: Coinbase
-// Optional sources: Kraken, Gemini, Bitstamp, Bitfinex, ZZX Global BPI
-// Currency conversion: local /bitcoin/bpi/api/currencies.json first, Frankfurter fallback.
+// Fully API-driven from /bitcoin/bpi/api/*.json
 
 (function () {
   "use strict";
@@ -11,208 +9,127 @@
   const ID = "bitcoin-ticker";
   const REFRESH_MS = 60000;
 
-  const CURRENCY_SYMBOLS = {
-    USD: "$",
-    EUR: "€",
-    GBP: "£",
-    CAD: "C$",
-    AUD: "A$",
-    NZD: "NZ$",
-    JPY: "¥",
-    CHF: "CHF ",
-    INR: "₹",
-    CNY: "¥",
-    HKD: "HK$",
-    SGD: "S$",
-    MXN: "MX$",
-    BRL: "R$",
-    ZAR: "R",
-    SEK: "kr ",
-    NOK: "kr ",
-    DKK: "kr ",
-    PLN: "zł ",
-    CZK: "Kč ",
-    HUF: "Ft ",
-    TRY: "₺",
-    ILS: "₪",
-    AED: "د.إ ",
-    SAR: "﷼ ",
-    KRW: "₩"
+  const API = {
+    exchanges: "/bitcoin/bpi/api/exchanges.json",
+    currencies: "/bitcoin/bpi/api/currencies.json",
+    exchangeRates: "/bitcoin/bpi/api/exchange_rates.json",
+    commodities: "/bitcoin/bpi/api/commodities.json",
+    assets: "/bitcoin/bpi/api/assets.json",
+    symbols: "/bitcoin/bpi/api/symbols.json"
   };
 
-  const SOURCES = {
-    coinbase: {
-      label: "Coinbase",
-      url: "https://api.coinbase.com/v2/prices/BTC-USD/spot",
-      parse: function (d) {
-        return Number(d && d.data && d.data.amount);
-      }
+  const PARSERS = {
+    coinbase_spot: d => Number(d && d.data && d.data.amount),
+    kraken_ticker: d => {
+      const r = d && d.result;
+      const k = r && (r.XXBTZUSD || r.XBTUSD || r.BTCUSD);
+      return Number(k && k.c && k.c[0]);
     },
-
-    kraken: {
-      label: "Kraken",
-      url: "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
-      parse: function (d) {
-        const r = d && d.result;
-        const k = r && (r.XXBTZUSD || r.XBTUSD || r.BTCUSD);
-        return Number(k && k.c && k.c[0]);
-      }
-    },
-
-    gemini: {
-      label: "Gemini",
-      url: "https://api.gemini.com/v1/pubticker/btcusd",
-      parse: function (d) {
-        return Number(d && d.last);
-      }
-    },
-
-    bitstamp: {
-      label: "Bitstamp",
-      url: "https://www.bitstamp.net/api/v2/ticker/btcusd/",
-      parse: function (d) {
-        return Number(d && d.last);
-      }
-    },
-
-    bitfinex: {
-      label: "Bitfinex",
-      url: "https://api-pub.bitfinex.com/v2/ticker/tBTCUSD",
-      parse: function (d) {
-        return Array.isArray(d) ? Number(d[6]) : NaN;
-      }
-    },
-
-    zzx: {
-      label: "ZZX Global BPI",
-      url: "/bitcoin/bpi/api/latest.json",
-      parse: function (d) {
-        return Number(d && (d.price_usd || d.btc_usd || d.price));
-      }
-    }
+    gemini_pubticker: d => Number(d && d.last),
+    bitstamp_ticker: d => Number(d && d.last),
+    bitfinex_v2_ticker: d => Array.isArray(d) ? Number(d[6]) : NaN,
+    zzx_bpi: d => Number(d && (d.price_usd || d.btc_usd || d.price))
   };
 
-  const SOURCE_ORDER = [
-    "coinbase",
-    "kraken",
-    "gemini",
-    "bitstamp",
-    "bitfinex",
-    "zzx"
-  ];
+  let CONFIG_CACHE = null;
 
-  function loadShared(cb) {
-    if (W.ZZXAPI) return cb();
-
-    const existing = document.querySelector('script[data-zzx-api-loader="1"]');
-    if (existing) {
-      existing.addEventListener("load", cb, { once: true });
-      return;
-    }
-
-    const s = document.createElement("script");
-    s.src = "/__partials/widgets/_shared/zzx-api.js";
-    s.dataset.zzxApiLoader = "1";
-    s.onload = cb;
-    s.onerror = cb;
-    document.head.appendChild(s);
-  }
-
-  async function rawJSON(url) {
+  async function json(url) {
     const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error("HTTP " + r.status);
+    if (!r.ok) throw new Error("HTTP " + r.status + " " + url);
     return await r.json();
   }
 
-  async function fetchJSON(core, url) {
-    if (core && typeof core.fetchJSON === "function") {
-      return await core.fetchJSON(url);
-    }
+  async function loadConfig() {
+    if (CONFIG_CACHE) return CONFIG_CACHE;
 
-    if (W.ZZXAPI && typeof W.ZZXAPI.json === "function") {
-      return await W.ZZXAPI.json(url, {});
-    }
+    CONFIG_CACHE = {
+      exchanges: await json(API.exchanges),
+      currencies: await json(API.currencies),
+      exchangeRates: await json(API.exchangeRates),
+      commodities: await json(API.commodities),
+      assets: await json(API.assets),
+      symbols: await json(API.symbols)
+    };
 
-    return await rawJSON(url);
+    return CONFIG_CACHE;
   }
 
-  function formatNumber(n, digits) {
-    const x = Number(n || 0);
-    if (!Number.isFinite(x)) return "0.00";
-
+  function fmt(n, digits) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return "—";
     return x.toLocaleString("en-US", {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits
     });
   }
 
-  function formatInt(n) {
-    const x = Number(n || 0);
-    if (!Number.isFinite(x)) return "0";
-    return x.toLocaleString("en-US");
+  function getSymbol(config, code) {
+    return config.symbols[code] || code + " ";
   }
 
-  function symbolFor(currency) {
-    return CURRENCY_SYMBOLS[currency] || currency + " ";
+  function getLabel(config, code) {
+    return (
+      config.currencies.names?.[code] ||
+      config.assets.assets?.[code]?.label ||
+      code
+    );
   }
 
-  async function getUsdPrice(core, sourceKey) {
-    const src = SOURCES[sourceKey] || SOURCES.coinbase;
-    const d = await fetchJSON(core, src.url);
-    const p = src.parse(d);
+  function isAsset(config, code) {
+    return !!config.assets.assets?.[code] && code !== "BTC";
+  }
 
-    if (!Number.isFinite(p) || p <= 0) {
-      throw new Error("Bad BTC price from " + sourceKey);
+  function getConversionRate(config, unit) {
+    if (unit === "USD") return 1;
+
+    const fiatRate = Number(config.exchangeRates.rates?.[unit]);
+    if (Number.isFinite(fiatRate) && fiatRate > 0) return fiatRate;
+
+    const usdPerAsset = Number(config.exchangeRates.assets_usd?.[unit]);
+    if (Number.isFinite(usdPerAsset) && usdPerAsset > 0) return 1 / usdPerAsset;
+
+    const usdPerCommodity = Number(config.exchangeRates.commodities_usd?.[unit]);
+    if (Number.isFinite(usdPerCommodity) && usdPerCommodity > 0) return 1 / usdPerCommodity;
+
+    return null;
+  }
+
+  async function getUsdPrice(config, sourceKey) {
+    const sources = config.exchanges.sources || {};
+    const key = sourceKey || config.exchanges.default || "coinbase";
+    const source = sources[key];
+
+    if (!source) throw new Error("Missing source: " + key);
+
+    const parser = PARSERS[source.parser];
+    if (!parser) throw new Error("Missing parser: " + source.parser);
+
+    const d = await json(source.url);
+    const price = parser(d);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error("Bad BTC price from " + key);
     }
 
     return {
-      price_usd: p,
-      label: src.label,
-      source: sourceKey,
-      raw: d
+      price_usd: price,
+      source_key: key,
+      source_label: source.label || key
     };
   }
 
-  async function getFxRate(core, currency) {
-    if (!currency || currency === "USD") return 1;
-
-    try {
-      const d = await fetchJSON(core, "/bitcoin/bpi/api/currencies.json");
-      const r = Number(
-        (d && d.rates && d.rates[currency]) ||
-        (d && d.USD && d.USD[currency]) ||
-        (d && d.usd && d.usd[currency]) ||
-        0
-      );
-
-      if (Number.isFinite(r) && r > 0) return r;
-    } catch (_) {}
-
-    try {
-      const d = await rawJSON(
-        "https://api.frankfurter.app/latest?from=USD&to=" +
-          encodeURIComponent(currency)
-      );
-
-      const r = Number(d && d.rates && d.rates[currency]);
-      if (Number.isFinite(r) && r > 0) return r;
-    } catch (_) {}
-
-    return 1;
-  }
-
-  function ensureControls(root) {
+  function ensureControls(root, config) {
+    const host = root.querySelector(".zzx-ticker") || root;
     let controls = root.querySelector(".ticker-controls");
 
     if (!controls) {
-      const ticker = root.querySelector(".zzx-ticker") || root;
       controls = document.createElement("div");
       controls.className = "ticker-controls";
-      ticker.insertBefore(controls, ticker.firstChild);
+      host.insertBefore(controls, host.firstChild);
     }
 
     let sourceSelect = root.querySelector("[data-source-select]");
-    let currencySelect = root.querySelector("[data-currency-select]");
+    let unitSelect = root.querySelector("[data-currency-select]");
 
     if (!sourceSelect) {
       const label = document.createElement("label");
@@ -221,11 +138,15 @@
       sourceSelect = document.createElement("select");
       sourceSelect.setAttribute("data-source-select", "");
 
-      SOURCE_ORDER.forEach(function (key) {
+      const order = config.exchanges.order || Object.keys(config.exchanges.sources || {});
+      order.forEach(key => {
+        const src = config.exchanges.sources?.[key];
+        if (!src) return;
+
         const opt = document.createElement("option");
         opt.value = key;
-        opt.textContent = SOURCES[key].label;
-        if (key === "coinbase") opt.selected = true;
+        opt.textContent = src.label || key;
+        if (key === config.exchanges.default) opt.selected = true;
         sourceSelect.appendChild(opt);
       });
 
@@ -233,209 +154,158 @@
       controls.appendChild(label);
     }
 
-    if (!currencySelect) {
+    if (!unitSelect) {
       const label = document.createElement("label");
-      label.textContent = "Currency: ";
+      label.textContent = "Unit: ";
 
-      currencySelect = document.createElement("select");
-      currencySelect.setAttribute("data-currency-select", "");
+      unitSelect = document.createElement("select");
+      unitSelect.setAttribute("data-currency-select", "");
 
-      [
-        "USD", "EUR", "GBP", "CAD", "AUD", "NZD", "JPY", "CHF",
-        "INR", "CNY", "HKD", "SGD", "MXN", "BRL", "ZAR",
-        "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "TRY",
-        "ILS", "AED", "SAR", "KRW"
-      ].forEach(function (code) {
+      (config.currencies.order || []).forEach(code => {
         const opt = document.createElement("option");
         opt.value = code;
         opt.textContent = code;
-        if (code === "USD") opt.selected = true;
-        currencySelect.appendChild(opt);
+        if (code === config.currencies.default) opt.selected = true;
+        unitSelect.appendChild(opt);
       });
 
-      label.appendChild(currencySelect);
+      (config.assets.order || []).forEach(code => {
+        if (code === "BTC") return;
+        const opt = document.createElement("option");
+        opt.value = code;
+        opt.textContent = getLabel(config, code);
+        unitSelect.appendChild(opt);
+      });
+
+      label.appendChild(unitSelect);
       controls.appendChild(label);
     }
 
-    return { sourceSelect: sourceSelect, currencySelect: currencySelect };
+    return { sourceSelect, unitSelect };
   }
 
-  function updateLegacyMarkup(root, price, currency) {
-    const sym = symbolFor(currency);
-
-    const btcEl = root.querySelector("[data-btc]");
-    const mbtcEl = root.querySelector("[data-mbtc]");
-    const ubtcEl = root.querySelector("[data-ubtc]");
-    const satEl = root.querySelector("[data-sat]");
-
-    if (btcEl) btcEl.textContent = formatNumber(price, 2);
-    if (mbtcEl) mbtcEl.textContent = formatNumber(price * 1e-3, 2);
-    if (ubtcEl) ubtcEl.textContent = formatNumber(price * 1e-6, 4);
-    if (satEl) satEl.textContent = formatNumber(price * 1e-8, 6);
-
-    root.querySelectorAll("[data-currency-symbol]").forEach(function (el) {
-      el.textContent = sym;
-    });
-
-    root.querySelectorAll("[data-currency-label]").forEach(function (el) {
-      el.textContent = currency;
-    });
+  function normalizeMarkup(root, config, unit) {
+    const sym = getSymbol(config, unit);
+    const label = getLabel(config, unit);
 
     const btcLine = root.querySelector(".btc-line");
-    if (btcLine && !root.querySelector("[data-currency-symbol]")) {
+    const units = root.querySelectorAll(".unit");
+
+    if (btcLine) {
       btcLine.innerHTML =
-        "[BTC]: " +
-        sym +
-        '<span class="btc-value" data-btc>' +
-        formatNumber(price, 2) +
-        "</span> (" +
-        currency +
-        ")";
+        `[BTC]: <span data-currency-symbol>${sym}</span>` +
+        `<span class="btc-value" data-btc>—</span> ` +
+        `(<span data-currency-label>${label}</span>)`;
     }
 
-    const units = root.querySelectorAll(".unit");
-    if (units.length >= 3 && !root.querySelector("[data-currency-symbol]")) {
+    if (units[0]) {
       units[0].innerHTML =
-        "[mBTC]: " +
-        sym +
-        "<span data-mbtc>" +
-        formatNumber(price * 1e-3, 2) +
-        "</span> (" +
-        currency +
-        ")";
+        `[mBTC]: <span data-currency-symbol>${sym}</span>` +
+        `<span data-mbtc>—</span> ` +
+        `(<span data-currency-label>${label}</span>)`;
+    }
+
+    if (units[1]) {
       units[1].innerHTML =
-        "[μBTC]: " +
-        sym +
-        "<span data-ubtc>" +
-        formatNumber(price * 1e-6, 4) +
-        "</span> (" +
-        currency +
-        ")";
+        `[μBTC]: <span data-currency-symbol>${sym}</span>` +
+        `<span data-ubtc>—</span> ` +
+        `(<span data-currency-label>${label}</span>)`;
+    }
+
+    if (units[2]) {
       units[2].innerHTML =
-        "[sat]: " +
-        sym +
-        "<span data-sat>" +
-        formatNumber(price * 1e-8, 6) +
-        "</span> (" +
-        currency +
-        ")";
+        `[sat]: <span data-currency-symbol>${sym}</span>` +
+        `<span data-sat>—</span> ` +
+        `(<span data-currency-label>${label}</span>)`;
     }
   }
 
-  async function draw(root, core) {
+  function ensureStatus(root) {
+    let status = root.querySelector("[data-ticker-status]");
+    if (!status) {
+      status = document.createElement("div");
+      status.className = "ticker-status";
+      status.setAttribute("data-ticker-status", "");
+      (root.querySelector(".zzx-ticker") || root).appendChild(status);
+    }
+    return status;
+  }
+
+  async function draw(root) {
     if (!root) return;
 
-    const controls = ensureControls(root);
-    const source = controls.sourceSelect.value || "coinbase";
-    const currency = controls.currencySelect.value || "USD";
-
     try {
-      const p = await getUsdPrice(core, source);
-      const rate = await getFxRate(core, currency);
-      const converted = p.price_usd * rate;
+      const config = await loadConfig();
+      const controls = ensureControls(root, config);
 
-      updateLegacyMarkup(root, converted, currency);
+      const source = controls.sourceSelect.value || config.exchanges.default;
+      const unit = controls.unitSelect.value || config.currencies.default || "USD";
+
+      normalizeMarkup(root, config, unit);
+
+      const price = await getUsdPrice(config, source);
+      const rate = getConversionRate(config, unit);
+
+      if (!Number.isFinite(rate) || rate <= 0) {
+        throw new Error("Missing conversion rate for " + unit);
+      }
+
+      const value = price.price_usd * rate;
+      const assetMode = isAsset(config, unit);
+
+      root.querySelector("[data-btc]").textContent = fmt(value, assetMode ? 6 : 2);
+      root.querySelector("[data-mbtc]").textContent = fmt(value * 1e-3, assetMode ? 8 : 2);
+      root.querySelector("[data-ubtc]").textContent = fmt(value * 1e-6, assetMode ? 10 : 4);
+      root.querySelector("[data-sat]").textContent = fmt(value * 1e-8, assetMode ? 12 : 6);
+
+      ensureStatus(root).textContent =
+        `${price.source_label} · ${getLabel(config, unit)} · ${config.exchangeRates.updated_at || "rates loaded"}`;
 
       root.dataset.status = "ok";
       root.dataset.source = source;
-      root.dataset.currency = currency;
-
-      let status = root.querySelector("[data-ticker-status]");
-      if (!status) {
-        status = document.createElement("div");
-        status.className = "ticker-status";
-        status.setAttribute("data-ticker-status", "");
-        const ticker = root.querySelector(".zzx-ticker") || root;
-        ticker.appendChild(status);
-      }
-
-      status.textContent =
-        p.label +
-        " · " +
-        currency +
-        (currency === "USD" ? "" : " · FX") +
-        " · refresh 60s";
-
-      root.__zzxTickerHadGoodDraw = true;
-    } catch (_) {
+      root.dataset.currency = unit;
+    } catch (err) {
       root.dataset.status = "stale";
-
-      if (!root.__zzxTickerHadGoodDraw) {
-        updateLegacyMarkup(root, 0, currency);
-
-        let status = root.querySelector("[data-ticker-status]");
-        if (!status) {
-          status = document.createElement("div");
-          status.className = "ticker-status";
-          status.setAttribute("data-ticker-status", "");
-          const ticker = root.querySelector(".zzx-ticker") || root;
-          ticker.appendChild(status);
-        }
-
-        status.textContent = "Awaiting BTC price source.";
-      }
+      ensureStatus(root).textContent = "Awaiting BPI API data: " + err.message;
     }
   }
 
-  function boot(root, core) {
+  function boot(root) {
     if (!root) return;
+    if (root.__zzxTickerTimer) clearInterval(root.__zzxTickerTimer);
 
-    if (root.__zzxTickerTimer) {
-      clearInterval(root.__zzxTickerTimer);
-      root.__zzxTickerTimer = null;
-    }
+    loadConfig().then(config => {
+      const controls = ensureControls(root, config);
+      const redraw = () => draw(root);
 
-    const controls = ensureControls(root);
+      if (!controls.sourceSelect.__zzxTickerBound) {
+        controls.sourceSelect.addEventListener("change", redraw);
+        controls.sourceSelect.__zzxTickerBound = true;
+      }
 
-    const redraw = function () {
-      draw(root, core);
-    };
+      if (!controls.unitSelect.__zzxTickerBound) {
+        controls.unitSelect.addEventListener("change", redraw);
+        controls.unitSelect.__zzxTickerBound = true;
+      }
 
-    if (!controls.sourceSelect.__zzxTickerBound) {
-      controls.sourceSelect.addEventListener("change", redraw);
-      controls.sourceSelect.__zzxTickerBound = true;
-    }
-
-    if (!controls.currencySelect.__zzxTickerBound) {
-      controls.currencySelect.addEventListener("change", redraw);
-      controls.currencySelect.__zzxTickerBound = true;
-    }
-
-    redraw();
-
-    root.__zzxTickerTimer = setInterval(redraw, REFRESH_MS);
-  }
-
-  function mount(root, core) {
-    loadShared(function () {
-      boot(root, core || W.ZZXWidgetsCore || null);
+      redraw();
+      root.__zzxTickerTimer = setInterval(redraw, REFRESH_MS);
+    }).catch(err => {
+      ensureStatus(root).textContent = "Missing /bitcoin/bpi/api JSON: " + err.message;
     });
   }
 
   if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount(ID, mount);
-    return;
-  }
-
-  if (W.ZZXAPI && typeof W.ZZXAPI.register === "function") {
-    W.ZZXAPI.register(ID, function (root, core) {
-      mount(root, core);
-    });
+    W.ZZXWidgetsCore.onMount(ID, boot);
     return;
   }
 
   if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
-    W.ZZXWidgets.register(ID, function (root, core) {
-      mount(root, core);
-    });
+    W.ZZXWidgets.register(ID, boot);
     return;
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    document
-      .querySelectorAll('[data-widget="bitcoin-ticker"], .ticker-shell')
-      .forEach(function (root) {
-        boot(root, null);
-      });
+    document.querySelectorAll('[data-widget="bitcoin-ticker"], .ticker-shell').forEach(boot);
   });
 })();
