@@ -17,59 +17,208 @@
   };
 
   const PARSERS = {
-    coinbase_spot: d => Number(d && d.data && d.data.amount),
+    coinbase_stats: d => ({
+      price_usd: Number(d && d.last),
+      volume_24h_btc: Number(d && d.volume),
+      high_24h: Number(d && d.high),
+      low_24h: Number(d && d.low)
+    }),
+
+    coinbase_spot: d => ({
+      price_usd: Number(d && d.data && d.data.amount)
+    }),
 
     kraken_ticker: d => {
       const r = d && d.result ? d.result : {};
-      const k = r.XXBTZUSD || r.XBTUSD || r.BTCUSD || Object.values(r)[0];
-      return Number(k && k.c && k.c[0]);
+      const k = r.XXBTZUSD || r.XBTUSD || r.BTCUSD || Object.values(r)[0] || {};
+      return {
+        price_usd: Number(k && k.c && k.c[0]),
+        volume_24h_btc: Number(k && k.v && k.v[1]),
+        high_24h: Number(k && k.h && k.h[1]),
+        low_24h: Number(k && k.l && k.l[1])
+      };
     },
 
-    gemini_pubticker: d => Number(d && d.last),
+    gemini_pubticker: d => ({
+      price_usd: Number(d && d.last),
+      volume_24h_btc: Number(d && d.volume && d.volume.BTC),
+      volume_24h_usd: Number(d && d.volume && d.volume.USD)
+    }),
 
-    bitstamp_ticker: d => Number(d && d.last),
+    bitstamp_ticker: d => ({
+      price_usd: Number(d && d.last),
+      volume_24h_btc: Number(d && d.volume),
+      high_24h: Number(d && d.high),
+      low_24h: Number(d && d.low)
+    }),
 
-    bitfinex_v2_ticker: d => Array.isArray(d) ? Number(d[6]) : Number(d && (d.last_price || d.last || d.price)),
+    bitfinex_v2_ticker: d => ({
+      price_usd: Array.isArray(d) ? Number(d[6]) : Number(d && (d.last_price || d.last || d.price)),
+      volume_24h_btc: Array.isArray(d) ? Number(d[7]) : Number(d && (d.volume || d.volume_24h_btc)),
+      high_24h: Array.isArray(d) ? Number(d[8]) : Number(d && (d.high || d.high_24h)),
+      low_24h: Array.isArray(d) ? Number(d[9]) : Number(d && (d.low || d.low_24h))
+    }),
 
-    zzx_bpi: d => {
-      const candidates = [
-        d && d.price_usd,
-        d && d.btc_usd,
-        d && d.price,
-        d && d.vwap_usd,
-        d && d.bpi_usd,
-        d && d.global_price_usd,
-        d && d.weighted_price_usd,
-        d && d.weighted_average && d.weighted_average.price_usd,
-        d && d.weighted_average && d.weighted_average.vwap_usd,
-        d && d.weighted_average && d.weighted_average.price,
-        d && d.global_bpi && d.global_bpi.price_usd,
-        d && d.global_bpi && d.global_bpi.vwap_usd,
-        d && d.data && d.data.price_usd,
-        d && d.data && d.data.price,
-        d && d.data && d.data.amount
-      ];
+    okx_ticker: d => {
+      const t = d && d.data && d.data[0] ? d.data[0] : {};
+      return {
+        price_usd: Number(t.last),
+        volume_24h_btc: Number(t.volCcy24h || t.vol24h),
+        volume_24h_usd: Number(t.vol24h),
+        high_24h: Number(t.high24h),
+        low_24h: Number(t.low24h)
+      };
+    },
 
-      for (const v of candidates) {
-        const n = Number(v);
-        if (Number.isFinite(n) && n > 0) return n;
-      }
+    crypto_com_ticker: d => {
+      const arr = d && d.result && d.result.data ? d.result.data : [];
+      const t = arr[0] || {};
+      return {
+        price_usd: Number(t.a || t.last || t.price),
+        volume_24h_btc: Number(t.v || t.volume),
+        high_24h: Number(t.h || t.high),
+        low_24h: Number(t.l || t.low)
+      };
+    },
 
-      return NaN;
-    }
+    kucoin_stats: d => {
+      const t = d && d.data ? d.data : {};
+      return {
+        price_usd: Number(t.last),
+        volume_24h_btc: Number(t.vol),
+        volume_24h_usd: Number(t.volValue),
+        high_24h: Number(t.high),
+        low_24h: Number(t.low)
+      };
+    },
+
+    gateio_ticker: d => {
+      const t = Array.isArray(d) ? (d[0] || {}) : (d || {});
+      return {
+        price_usd: Number(t.last),
+        volume_24h_btc: Number(t.base_volume),
+        volume_24h_usd: Number(t.quote_volume),
+        high_24h: Number(t.high_24h),
+        low_24h: Number(t.low_24h)
+      };
+    },
+
+    bitget_ticker: d => {
+      const arr = d && d.data ? d.data : [];
+      const t = Array.isArray(arr) ? (arr[0] || {}) : arr;
+      return {
+        price_usd: Number(t.lastPr || t.close || t.last),
+        volume_24h_btc: Number(t.baseVolume || t.baseVol),
+        volume_24h_usd: Number(t.quoteVolume || t.usdtVolume),
+        high_24h: Number(t.high24h || t.high),
+        low_24h: Number(t.low24h || t.low)
+      };
+    },
+
+    mexc_24hr: d => ({
+      price_usd: Number(d && d.lastPrice),
+      volume_24h_btc: Number(d && d.volume),
+      volume_24h_usd: Number(d && d.quoteVolume),
+      high_24h: Number(d && d.highPrice),
+      low_24h: Number(d && d.lowPrice)
+    }),
+
+    htx_merged: d => {
+      const t = d && d.tick ? d.tick : {};
+      return {
+        price_usd: Number(t.close),
+        volume_24h_btc: Number(t.amount),
+        volume_24h_usd: Number(t.vol),
+        high_24h: Number(t.high),
+        low_24h: Number(t.low)
+      };
+    },
+
+    okcoin_ticker: d => ({
+      price_usd: Number(d && d.last),
+      volume_24h_btc: Number(d && d.base_volume_24h),
+      volume_24h_usd: Number(d && d.quote_volume_24h),
+      high_24h: Number(d && d.high_24h),
+      low_24h: Number(d && d.low_24h)
+    }),
+
+    binance_24hr: d => ({
+      price_usd: Number(d && d.lastPrice),
+      volume_24h_btc: Number(d && d.volume),
+      volume_24h_usd: Number(d && d.quoteVolume),
+      high_24h: Number(d && d.highPrice),
+      low_24h: Number(d && d.lowPrice)
+    }),
+
+    coingecko_bitcoin_tickers: d => {
+      const tickers = d && d.tickers ? d.tickers : [];
+      let weighted = 0;
+      let totalVol = 0;
+      let high = 0;
+      let low = Number.MAX_VALUE;
+
+      tickers.forEach(t => {
+        const p = Number(t && t.converted_last && t.converted_last.usd);
+        const vu = Number(t && t.converted_volume && t.converted_volume.usd);
+        if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(vu) || vu <= 0) return;
+        const vb = vu / p;
+        weighted += p * vb;
+        totalVol += vb;
+        high = Math.max(high, p);
+        low = Math.min(low, p);
+      });
+
+      return {
+        price_usd: totalVol > 0 ? weighted / totalVol : NaN,
+        volume_24h_btc: totalVol,
+        high_24h: high,
+        low_24h: low === Number.MAX_VALUE ? NaN : low
+      };
+    },
+
+    zzx_bpi: d => ({
+      price_usd: Number(
+        (d && d.price_usd) ||
+        (d && d.btc_usd) ||
+        (d && d.price) ||
+        (d && d.vwap_usd) ||
+        (d && d.bpi_usd) ||
+        (d && d.weighted_average && d.weighted_average.price_usd) ||
+        (d && d.global_bpi && d.global_bpi.price_usd)
+      ),
+      volume_24h_btc: Number(d && d.volume_24h_btc),
+      high_24h: Number(d && d.high_24h),
+      low_24h: Number(d && d.low_24h)
+    })
   };
 
   let CONFIG = null;
 
   function localBust(url) {
-    if (!url.startsWith("/")) return url;
+    if (!url || !url.startsWith("/")) return url;
     return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
   }
 
-  async function json(url) {
+  function allOriginsRaw(url) {
+    return "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+  }
+
+  async function fetchJsonDirect(url) {
     const r = await fetch(localBust(url), { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status + " " + url);
     return await r.json();
+  }
+
+  async function json(url, opts) {
+    opts = opts || {};
+    try {
+      return await fetchJsonDirect(url);
+    } catch (err) {
+      if (opts.allowCorsProxy && url && !url.startsWith("/")) {
+        return await fetchJsonDirect(allOriginsRaw(url));
+      }
+      throw err;
+    }
   }
 
   async function loadConfig(force) {
@@ -97,7 +246,7 @@
   }
 
   function symbolOf(config, code) {
-    return config.symbols && config.symbols[code] ? config.symbols[code] : code + " ";
+    return (config.symbols && config.symbols[code]) || code + " ";
   }
 
   function labelOf(config, code) {
@@ -140,8 +289,9 @@
     const parser = PARSERS[src.parser];
     if (!parser) throw new Error("missing parser " + src.parser);
 
-    const data = await json(src.url);
-    const price = parser(data);
+    const data = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
+    const parsed = parser(data);
+    const price = Number(parsed && parsed.price_usd);
 
     if (!Number.isFinite(price) || price <= 0) {
       throw new Error("bad price from " + (src.label || sourceKey));
@@ -149,6 +299,10 @@
 
     return {
       price_usd: price,
+      volume_24h_btc: Number((parsed && parsed.volume_24h_btc) || 0),
+      volume_24h_usd: Number((parsed && parsed.volume_24h_usd) || 0),
+      high_24h: Number((parsed && parsed.high_24h) || 0),
+      low_24h: Number((parsed && parsed.low_24h) || 0),
       label: src.label || sourceKey
     };
   }
@@ -175,8 +329,10 @@
       host.insertBefore(controls, host.firstChild);
     }
 
-    const oldSource = root.querySelector("[data-source-select]") && root.querySelector("[data-source-select]").value;
-    const oldUnit = root.querySelector("[data-currency-select]") && root.querySelector("[data-currency-select]").value;
+    const oldSourceEl = root.querySelector("[data-source-select]");
+    const oldUnitEl = root.querySelector("[data-currency-select]");
+    const oldSource = oldSourceEl && oldSourceEl.value;
+    const oldUnit = oldUnitEl && oldUnitEl.value;
 
     controls.innerHTML = "";
 
@@ -186,8 +342,8 @@
     const sourceSelect = document.createElement("select");
     sourceSelect.setAttribute("data-source-select", "");
 
-    const sources = config.exchanges && config.exchanges.sources ? config.exchanges.sources : {};
-    const sourceOrder = config.exchanges && config.exchanges.order ? config.exchanges.order : Object.keys(sources);
+    const sources = (config.exchanges && config.exchanges.sources) || {};
+    const sourceOrder = (config.exchanges && config.exchanges.order) || Object.keys(sources);
 
     sourceOrder.forEach(key => {
       const src = sources[key];
@@ -199,7 +355,7 @@
       sourceSelect.appendChild(opt);
     });
 
-    sourceSelect.value = sources[oldSource] ? oldSource : (config.exchanges.default || sourceOrder[0] || "");
+    sourceSelect.value = sources[oldSource] ? oldSource : ((config.exchanges && config.exchanges.default) || sourceOrder[0] || "");
 
     sourceLabel.appendChild(sourceSelect);
     controls.appendChild(sourceLabel);
@@ -212,7 +368,7 @@
 
     const added = new Set();
 
-    (config.currencies && config.currencies.order ? config.currencies.order : []).forEach(code => {
+    ((config.currencies && config.currencies.order) || []).forEach(code => {
       const opt = document.createElement("option");
       opt.value = code;
       opt.textContent = code;
@@ -220,7 +376,7 @@
       added.add(code);
     });
 
-    (config.assets && config.assets.order ? config.assets.order : []).forEach(code => {
+    ((config.assets && config.assets.order) || []).forEach(code => {
       if (code === "BTC" || added.has(code)) return;
       const opt = document.createElement("option");
       opt.value = code;
@@ -229,7 +385,7 @@
       added.add(code);
     });
 
-    Object.keys(config.commodities && config.commodities.sources ? config.commodities.sources : {}).forEach(code => {
+    Object.keys((config.commodities && config.commodities.sources) || {}).forEach(code => {
       if (added.has(code)) return;
       const opt = document.createElement("option");
       opt.value = code;
@@ -239,7 +395,7 @@
     });
 
     const allUnits = Array.from(unitSelect.options).map(o => o.value);
-    unitSelect.value = allUnits.includes(oldUnit) ? oldUnit : (config.currencies.default || "USD");
+    unitSelect.value = allUnits.includes(oldUnit) ? oldUnit : ((config.currencies && config.currencies.default) || "USD");
 
     unitLabel.appendChild(unitSelect);
     controls.appendChild(unitLabel);
