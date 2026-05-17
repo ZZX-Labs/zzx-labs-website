@@ -1,11 +1,41 @@
 <div class="ticker-shell">
   <div class="zzx-ticker">
-    <div class="btc-line">[BTC]: $<span class="btc-value" data-btc>0.00</span> (USD)</div>
-    <div class="subunits">
-      <div class="unit">[mBTC]: $<span data-mbtc>0.00</span> (USD)</div>
-      <div class="unit">[μBTC]: $<span data-ubtc>0.00</span> (USD)</div>
-      <div class="unit">[sat]: $<span data-sat>0.00</span> (USD)</div>
+    <div class="ticker-controls">
+      <label>
+        Source:
+        <select data-source-select>
+          <option value="coinbase" selected>Coinbase</option>
+          <option value="kraken">Kraken</option>
+          <option value="gemini">Gemini</option>
+          <option value="bitstamp">Bitstamp</option>
+          <option value="bitfinex">Bitfinex</option>
+          <option value="zzx">ZZX Global BPI</option>
+        </select>
+      </label>
+
+      <label>
+        Currency:
+        <select data-currency-select>
+          <option value="USD" selected>USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="CAD">CAD</option>
+          <option value="AUD">AUD</option>
+          <option value="JPY">JPY</option>
+          <option value="CHF">CHF</option>
+          <option value="INR">INR</option>
+        </select>
+      </label>
     </div>
+
+    <div class="btc-line">[BTC]: <span data-currency-symbol>$</span><span class="btc-value" data-btc>0.00</span> (<span data-currency-label>USD</span>)</div>
+
+    <div class="subunits">
+      <div class="unit">[mBTC]: <span data-currency-symbol>$</span><span data-mbtc>0.00</span> (<span data-currency-label>USD</span>)</div>
+      <div class="unit">[μBTC]: <span data-currency-symbol>$</span><span data-ubtc>0.00</span> (<span data-currency-label>USD</span>)</div>
+      <div class="unit">[sat]: <span data-currency-symbol>$</span><span data-sat>0.00</span> (<span data-currency-label>USD</span>)</div>
+    </div>
+
     <div class="credit"><u>Made by:</u> <i>[0xdeadbeef]</i></div>
   </div>
 </div>
