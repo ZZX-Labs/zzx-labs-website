@@ -1,0 +1,36 @@
+{
+  "default": "coinbase",
+  "order": ["coinbase", "kraken", "gemini", "bitstamp", "bitfinex", "zzx"],
+  "sources": {
+    "coinbase": {
+      "label": "Coinbase",
+      "url": "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+      "parser": "coinbase_spot"
+    },
+    "kraken": {
+      "label": "Kraken",
+      "url": "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
+      "parser": "kraken_ticker"
+    },
+    "gemini": {
+      "label": "Gemini",
+      "url": "https://api.gemini.com/v1/pubticker/btcusd",
+      "parser": "gemini_pubticker"
+    },
+    "bitstamp": {
+      "label": "Bitstamp",
+      "url": "https://www.bitstamp.net/api/v2/ticker/btcusd/",
+      "parser": "bitstamp_ticker"
+    },
+    "bitfinex": {
+      "label": "Bitfinex",
+      "url": "https://api-pub.bitfinex.com/v2/ticker/tBTCUSD",
+      "parser": "bitfinex_v2_ticker"
+    },
+    "zzx": {
+      "label": "ZZX Global BPI",
+      "url": "/bitcoin/bpi/api/latest.json",
+      "parser": "zzx_bpi"
+    }
+  }
+}
