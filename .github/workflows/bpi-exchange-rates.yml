@@ -1,0 +1,38 @@
+name: Update BPI Exchange Rates
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-exchange-rates
+  cancel-in-progress: true
+
+jobs:
+  update-exchange-rates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update exchange rates
+        run: |
+          python tools/bpi/update_exchange_rates.py
+
+      - name: Commit exchange rates
+        run: |
+          git config user.name "zzx-bpi-bot"
+          git config user.email "actions@github.com"
+          git add bitcoin/bpi/api/exchange_rates.json
+          git diff --cached --quiet || git commit -m "Update BPI exchange rates"
+          git push
