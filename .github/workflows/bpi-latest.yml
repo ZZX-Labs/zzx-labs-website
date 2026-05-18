@@ -1,0 +1,38 @@
+name: Update BPI Latest
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-latest
+  cancel-in-progress: true
+
+jobs:
+  update-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update latest BPI data
+        run: |
+          python tools/bpi/update_latest.py
+
+      - name: Commit BPI latest data
+        run: |
+          git config user.name "zzx-bpi-bot"
+          git config user.email "actions@github.com"
+          git add bitcoin/bpi/api/latest.json bitcoin/bpi/api/changes.json bitcoin/bpi/api/history.json
+          git diff --cached --quiet || git commit -m "Update BPI latest data"
+          git push
