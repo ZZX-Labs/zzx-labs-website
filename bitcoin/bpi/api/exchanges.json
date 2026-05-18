@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "default": "zzx",
   "order": [
     "zzx",
@@ -15,35 +15,41 @@
     "bitget",
     "mexc",
     "htx",
-    "binance_us"
+    "okcoin",
+    "binance_us",
+    "coingecko_global"
   ],
   "sources": {
     "zzx": {
       "label": "ZZX Global BPI",
       "url": "/bitcoin/bpi/api/latest.json",
       "parser": "zzx_bpi",
-      "kind": "computed"
+      "kind": "computed",
+      "include_in_bpi": false
     },
     "coinbase": {
       "label": "Coinbase",
       "url": "https://api.exchange.coinbase.com/products/BTC-USD/stats",
       "parser": "coinbase_stats",
       "pair": "BTC-USD",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "kraken": {
       "label": "Kraken",
       "url": "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
       "parser": "kraken_ticker",
       "pair": "XBT-USD",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "gemini": {
       "label": "Gemini",
       "url": "https://api.gemini.com/v1/pubticker/btcusd",
       "parser": "gemini_pubticker",
       "pair": "BTC-USD",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "bitstamp": {
       "label": "Bitstamp",
@@ -51,7 +57,8 @@
       "parser": "bitstamp_ticker",
       "pair": "BTC-USD",
       "fallback": "coingecko_exchange",
-      "cors_proxy": true
+      "cors_proxy": true,
+      "include_in_bpi": true
     },
     "bitfinex": {
       "label": "Bitfinex",
@@ -59,73 +66,89 @@
       "parser": "bitfinex_v2_ticker",
       "pair": "BTC-USD",
       "fallback": "coingecko_exchange",
-      "cors_proxy": true
+      "cors_proxy": true,
+      "include_in_bpi": true
     },
     "okx": {
       "label": "OKX",
       "url": "https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT",
       "parser": "okx_ticker",
       "pair": "BTC-USDT",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "crypto_com": {
       "label": "Crypto.com",
       "url": "https://api.crypto.com/v2/public/get-ticker?instrument_name=BTC_USD",
       "parser": "crypto_com_ticker",
       "pair": "BTC-USD",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "kucoin": {
       "label": "KuCoin",
       "url": "https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT",
       "parser": "kucoin_stats",
       "pair": "BTC-USDT",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "gateio": {
       "label": "Gate.io",
       "url": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=BTC_USDT",
       "parser": "gateio_ticker",
       "pair": "BTC-USDT",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "bitget": {
       "label": "Bitget",
       "url": "https://api.bitget.com/api/v2/spot/market/tickers?symbol=BTCUSDT",
       "parser": "bitget_ticker",
       "pair": "BTC-USDT",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "mexc": {
       "label": "MEXC",
       "url": "https://api.mexc.com/api/v3/ticker/24hr?symbol=BTCUSDT",
       "parser": "mexc_24hr",
       "pair": "BTC-USDT",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "htx": {
       "label": "HTX",
       "url": "https://api.huobi.pro/market/detail/merged?symbol=btcusdt",
       "parser": "htx_merged",
       "pair": "BTC-USDT",
-      "fallback": "coingecko_exchange"
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
+    },
+    "okcoin": {
+      "label": "OKCoin",
+      "url": "https://www.okcoin.com/api/spot/v3/instruments/BTC-USD/ticker",
+      "parser": "okcoin_ticker",
+      "pair": "BTC-USD",
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true,
+      "note": "Kept as a selectable/logged source. If endpoint fails, per-exchange CoinGecko fallback is used."
     },
     "binance_us": {
       "label": "Binance US",
       "url": "https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSD",
       "parser": "binance_24hr",
       "pair": "BTC-USD",
-      "fallback": "coingecko_exchange"
-    }
-  },
-  "disabled_sources": {
-    "okcoin": {
-      "label": "OKCoin",
-      "reason": "Legacy endpoint unstable/deprecated. Re-add after a confirmed public BTC-USD ticker endpoint is selected."
+      "fallback": "coingecko_exchange",
+      "include_in_bpi": true
     },
     "coingecko_global": {
       "label": "CoinGecko Global",
-      "reason": "Global aggregate must never be counted as an exchange source because it double-counts exchanges."
+      "url": "https://api.coingecko.com/api/v3/coins/bitcoin/tickers",
+      "parser": "coingecko_bitcoin_tickers",
+      "pair": "BTC-global",
+      "include_in_bpi": false,
+      "note": "Selectable/display/logging source only. Excluded from ZZX BPI because it aggregates exchanges and would double-count."
     }
   },
   "coingecko_exchange_ids": {
@@ -165,6 +188,9 @@
     "htx": [
       "huobi"
     ],
+    "okcoin": [
+      "okcoin"
+    ],
     "binance_us": [
       "binance_us"
     ]
@@ -172,6 +198,6 @@
   "weighting": {
     "supply_basis": "mined_supply_to_date",
     "formula": "weight_i=(volume_24h_btc_i/mined_supply_btc)/sum(volume_24h_btc/mined_supply_btc); bpi=sum(price_usd_i*weight_i)",
-    "coingecko_policy": "CoinGecko may only be used as per-exchange fallback. No CoinGecko global aggregate is allowed as a source."
+    "coingecko_policy": "CoinGecko global remains available as a selectable/display source, but is excluded from ZZX BPI weighted average. CoinGecko exchange endpoints may be used only as per-exchange fallback."
   }
 }
