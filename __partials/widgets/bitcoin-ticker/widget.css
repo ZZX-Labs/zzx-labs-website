@@ -1,7 +1,4 @@
-/* __partials/widgets/bitcoin-ticker/widget.css
-   DROP-IN REPLACEMENT
-   LOCAL FONTS ONLY — NO NETWORK, NO CDN
-*/
+/* __partials/widgets/bitcoin-ticker/widget.css */
 
 @font-face{
   font-family:"IBMPlexMono";
@@ -38,33 +35,45 @@
 .zzx-ticker{
   text-align:left;
   color:#c0d674;
-  font-family:"IBMPlexMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family:"IBMPlexMono", ui-monospace, monospace;
   max-width:100%;
 }
 
-.ticker-controls{
-  display:flex;
+.ticker-controls-panel{
+  background:#1b1b1b;
+  border:1px solid #333;
+  border-radius:8px;
+  padding:8px;
+  margin:0 0 10px 0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
   gap:8px;
-  flex-wrap:wrap;
-  margin-bottom:8px;
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  color:#c0d674;
-  font-size:.8rem;
 }
 
-.ticker-controls label{
+.ticker-control-group{
   display:flex;
-  align-items:center;
-  gap:4px;
+  flex-direction:column;
+  gap:3px;
 }
 
-.ticker-controls select{
+.ticker-control-label{
+  color:#e6a42b;
+  font-family:"IBMPlexMono", ui-monospace, monospace;
+  font-size:.62rem;
+  letter-spacing:.12em;
+  line-height:1;
+  text-transform:uppercase;
+}
+
+.ticker-control-select{
+  width:100%;
   background:#111;
   color:#c0d674;
-  border:1px solid #e6a42b;
+  border:1px solid #3b3b3b;
   border-radius:6px;
-  padding:3px 6px;
+  padding:4px 6px;
   font-family:"IBMPlexMono", ui-monospace, monospace;
+  font-size:.78rem;
 }
 
 .btc-line{
@@ -101,6 +110,15 @@
   color:#c0d674;
   font-size:.8rem;
   margin:2px 0;
+  text-align:right;
+}
+
+.ticker-status{
+  color:#e6a42b;
+  font-family:"IBMPlexMono", ui-monospace, monospace;
+  font-size:.72rem;
+  line-height:1.35;
+  margin-top:6px;
   text-align:right;
 }
 
@@ -181,24 +199,22 @@
   text-align:right;
 }
 
-@media (max-width:640px){
+@media(max-width:640px){
   .ticker-shell,
   .bitcoin-ticker-widget{
     width:100%;
     padding:8px;
   }
 
-  .ticker-controls{
-    flex-direction:column;
-    align-items:flex-start;
+  .ticker-controls-panel{
+    grid-template-columns:1fr;
   }
 
-  .ticker-controls label{
+  .ticker-control-group{
     width:100%;
-    justify-content:space-between;
   }
 
-  .ticker-controls select{
+  .ticker-control-select{
     max-width:100%;
   }
 
@@ -214,32 +230,5 @@
   .subunits,
   .bitcoin-ticker-widget .ticker-denoms{
     padding:8px;
-  }
-}
-
-.ticker-controls-panel{
-  background:#1b1b1b;
-  border:1px solid #333;
-  border-radius:8px;
-  padding:8px;
-  margin:0 0 10px 0;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-}
-
-.ticker-control-group{display:flex;flex-direction:column;gap:3px;}
-.ticker-control-label{color:#e6a42b;font-family:"IBMPlexMono",ui-monospace,monospace;font-size:.62rem;letter-spacing:.12em;line-height:1;text-transform:uppercase;}
-.ticker-control-select{width:100%;background:#111;color:#c0d674;border:1px solid #3b3b3b;border-radius:6px;padding:4px 6px;font-family:"IBMPlexMono",ui-monospace,monospace;font-size:.78rem;}
-.ticker-status{color:#e6a42b;font-family:"IBMPlexMono",ui-monospace,monospace;font-size:.72rem;line-height:1.35;margin-top:6px;text-align:right;}
-@media(max-width:640px){.ticker-controls-panel{grid-template-columns:1fr;}}
-
-@media(max-width:640px){
-  .ticker-controls-panel{
-    grid-template-columns:1fr;
-  }
-
-  .ticker-control-group{
-    width:100%;
   }
 }
