@@ -1,19 +1,27 @@
 // __partials/widgets/bitcoin-ticker/widget.js
+// ZZX-Labs Bitcoin Ticker
+// 1s BTC exchange updates. 30m currency/commodity refresh window. WEED_LB fixed at $2,000/lb.
 
 (function () {
   "use strict";
 
   const W = window;
   const ID = "bitcoin-ticker";
-  const REFRESH_MS = 60000;
+
+  const BTC_REFRESH_MS = 1000;
+  const FX_REFRESH_MS = 30 * 60 * 1000;
+  const OIL_REFRESH_MS = 60 * 60 * 1000;
+  const WEED_LB_USD = 125 * 16;
 
   const API = {
+    latest: "/bitcoin/bpi/api/latest.json",
     exchanges: "/bitcoin/bpi/api/exchanges.json",
     currencies: "/bitcoin/bpi/api/currencies.json",
     exchangeRates: "/bitcoin/bpi/api/exchange_rates.json",
     assets: "/bitcoin/bpi/api/assets.json",
     commodities: "/bitcoin/bpi/api/commodities.json",
-    symbols: "/bitcoin/bpi/api/symbols.json"
+    symbols: "/bitcoin/bpi/api/symbols.json",
+    userValues: "/bitcoin/bpi/api/user_values.json"
   };
 
   const PARSERS = {
@@ -25,7 +33,10 @@
     }),
 
     coinbase_spot: d => ({
-      price_usd: Number(d && d.data && d.data.amount)
+      price_usd: Number(d && d.data && d.data.amount),
+      volume_24h_btc: 0,
+      high_24h: 0,
+      low_24h: 0
     }),
 
     kraken_ticker: d => {
@@ -42,7 +53,9 @@
     gemini_pubticker: d => ({
       price_usd: Number(d && d.last),
       volume_24h_btc: Number(d && d.volume && d.volume.BTC),
-      volume_24h_usd: Number(d && d.volume && d.volume.USD)
+      volume_24h_usd: Number(d && d.volume && d.volume.USD),
+      high_24h: 0,
+      low_24h: 0
     }),
 
     bitstamp_ticker: d => ({
@@ -61,10 +74,12 @@
 
     okx_ticker: d => {
       const t = d && d.data && d.data[0] ? d.data[0] : {};
+      const price = Number(t.last);
+      const baseVol = Number(t.volCcy24h || t.vol24h);
       return {
-        price_usd: Number(t.last),
-        volume_24h_btc: Number(t.volCcy24h || t.vol24h),
-        volume_24h_usd: Number(t.vol24h),
+        price_usd: price,
+        volume_24h_btc: baseVol,
+        volume_24h_usd: Number(t.vol24h || (baseVol && price ? baseVol * price : 0)),
         high_24h: Number(t.high24h),
         low_24h: Number(t.low24h)
       };
@@ -154,6 +169,7 @@
       const tickers = d && d.tickers ? d.tickers : [];
       let weighted = 0;
       let totalVol = 0;
+      let volUsd = 0;
       let high = 0;
       let low = Number.MAX_VALUE;
 
@@ -164,6 +180,7 @@
         const vb = vu / p;
         weighted += p * vb;
         totalVol += vb;
+        volUsd += vu;
         high = Math.max(high, p);
         low = Math.min(low, p);
       });
@@ -171,6 +188,7 @@
       return {
         price_usd: totalVol > 0 ? weighted / totalVol : NaN,
         volume_24h_btc: totalVol,
+        volume_24h_usd: volUsd,
         high_24h: high,
         low_24h: low === Number.MAX_VALUE ? NaN : low
       };
@@ -180,13 +198,13 @@
       price_usd: Number(
         (d && d.price_usd) ||
         (d && d.btc_usd) ||
-        (d && d.price) ||
         (d && d.vwap_usd) ||
         (d && d.bpi_usd) ||
         (d && d.weighted_average && d.weighted_average.price_usd) ||
         (d && d.global_bpi && d.global_bpi.price_usd)
       ),
       volume_24h_btc: Number(d && d.volume_24h_btc),
+      volume_24h_usd: Number(d && d.volume_24h_usd),
       high_24h: Number(d && d.high_24h),
       low_24h: Number(d && d.low_24h)
     })
@@ -195,6 +213,7 @@
   let CONFIG = null;
   let BPI_CACHE = null;
   let BPI_CACHE_AT = 0;
+  let EXCHANGE_RATES_CACHE_AT = 0;
 
   function localBust(url) {
     if (!url || !url.startsWith("/")) return url;
@@ -223,20 +242,43 @@
     }
   }
 
+  async function optionalJson(url, fallback) {
+    try {
+      return await json(url);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   async function loadConfig(force) {
     if (CONFIG && !force) return CONFIG;
 
     CONFIG = {
+      latest: await optionalJson(API.latest, {}),
       exchanges: await json(API.exchanges),
       currencies: await json(API.currencies),
       exchangeRates: await json(API.exchangeRates),
       assets: await json(API.assets),
       commodities: await json(API.commodities),
-      symbols: await json(API.symbols)
+      symbols: await json(API.symbols),
+      userValues: await optionalJson(API.userValues, { order: [], values: {} })
     };
 
+    EXCHANGE_RATES_CACHE_AT = Date.now();
     normalizeExchangeRates(CONFIG);
     return CONFIG;
+  }
+
+  async function refreshExchangeRatesIfNeeded(config, force) {
+    const now = Date.now();
+    if (!force && config.exchangeRates && now - EXCHANGE_RATES_CACHE_AT < FX_REFRESH_MS) {
+      return config.exchangeRates;
+    }
+
+    config.exchangeRates = await optionalJson(API.exchangeRates, config.exchangeRates || {});
+    EXCHANGE_RATES_CACHE_AT = now;
+    normalizeExchangeRates(config);
+    return config.exchangeRates;
   }
 
   function normalizeExchangeRates(config) {
@@ -249,10 +291,18 @@
     config.exchangeRates.rates.USD = 1;
 
     if (!Number(config.exchangeRates.commodities_usd.WEED_LB)) {
-      config.exchangeRates.commodities_usd.WEED_LB = 125 * 16;
+      config.exchangeRates.commodities_usd.WEED_LB = WEED_LB_USD;
     }
-  }
 
+    if (!config.exchangeRates.intervals) {
+      config.exchangeRates.intervals = {};
+    }
+
+    config.exchangeRates.intervals.currency_ms = FX_REFRESH_MS;
+    config.exchangeRates.intervals.commodity_ms = FX_REFRESH_MS;
+    config.exchangeRates.intervals.oil_ms = OIL_REFRESH_MS;
+    config.exchangeRates.intervals.weed_static_usd_per_lb = WEED_LB_USD;
+  }
 
   function fmt(n, digits) {
     const x = Number(n);
@@ -263,8 +313,21 @@
     });
   }
 
+  function compact(n, digits) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return "—";
+    return x.toLocaleString("en-US", {
+      notation: "compact",
+      maximumFractionDigits: digits == null ? 2 : digits
+    });
+  }
+
   function symbolOf(config, code) {
-    return (config.symbols && config.symbols[code]) || code + " ";
+    return (
+      (config.symbols && config.symbols[code]) ||
+      (config.userValues && config.userValues.values && config.userValues.values[code] && config.userValues.values[code].symbol) ||
+      code + " "
+    );
   }
 
   function labelOf(config, code) {
@@ -272,6 +335,7 @@
       (config.currencies && config.currencies.names && config.currencies.names[code]) ||
       (config.assets && config.assets.assets && config.assets.assets[code] && config.assets.assets[code].label) ||
       (config.commodities && config.commodities.sources && config.commodities.sources[code] && config.commodities.sources[code].label) ||
+      (config.userValues && config.userValues.values && config.userValues.values[code] && config.userValues.values[code].label) ||
       code
     );
   }
@@ -280,8 +344,10 @@
     return Boolean(
       (config.assets && config.assets.assets && config.assets.assets[code]) ||
       (config.commodities && config.commodities.sources && config.commodities.sources[code]) ||
+      (config.userValues && config.userValues.values && config.userValues.values[code]) ||
       (config.exchangeRates && config.exchangeRates.assets_usd && config.exchangeRates.assets_usd[code]) ||
-      (config.exchangeRates && config.exchangeRates.commodities_usd && config.exchangeRates.commodities_usd[code])
+      (config.exchangeRates && config.exchangeRates.commodities_usd && config.exchangeRates.commodities_usd[code]) ||
+      (config.exchangeRates && config.exchangeRates.user_values_usd && config.exchangeRates.user_values_usd[code])
     ) && code !== "BTC";
   }
 
@@ -305,8 +371,6 @@
     throw new Error("missing exchange_rates value for " + unit);
   }
 
-  
-
   function validParsed(p) {
     return p && Number.isFinite(Number(p.price_usd)) && Number(p.price_usd) > 0;
   }
@@ -323,6 +387,7 @@
       const parsed = parser(raw);
 
       if (!validParsed(parsed)) throw new Error("bad live parse");
+
       return {
         price_usd: Number(parsed.price_usd),
         volume_24h_btc: Number(parsed.volume_24h_btc || 0),
@@ -399,7 +464,7 @@
 
   async function computeLiveBPI(config) {
     const now = Date.now();
-    if (BPI_CACHE && now - BPI_CACHE_AT < REFRESH_MS) return BPI_CACHE;
+    if (BPI_CACHE && now - BPI_CACHE_AT < BTC_REFRESH_MS) return BPI_CACHE;
 
     const sources = config.exchanges && config.exchanges.sources ? config.exchanges.sources : {};
     const order = config.exchanges && config.exchanges.order ? config.exchanges.order : Object.keys(sources);
@@ -407,6 +472,7 @@
 
     for (const key of order) {
       if (key === "zzx" || key === "coingecko_global") continue;
+
       try {
         const q = await getLiveExchangeQuote(config, key);
         if (q && q.price_usd > 0) quotes.push(q);
@@ -451,7 +517,8 @@
     BPI_CACHE_AT = now;
     return q;
   }
-async function getUsdPrice(config, sourceKey) {
+
+  async function getUsdPrice(config, sourceKey) {
     config.latest = await optionalJson(API.latest, config.latest || {});
 
     if (sourceKey === "zzx") {
@@ -476,6 +543,7 @@ async function getUsdPrice(config, sourceKey) {
   function ensureControls(root, config) {
     const host = root.querySelector(".zzx-ticker") || root;
     let controls = root.querySelector(".ticker-controls");
+
     if (!controls) {
       controls = document.createElement("div");
       controls.className = "ticker-controls";
@@ -488,6 +556,7 @@ async function getUsdPrice(config, sourceKey) {
     const oldUnitEl = root.querySelector("[data-currency-select]");
     const oldSource = oldSourceEl && oldSourceEl.value;
     const oldUnit = oldUnitEl && oldUnitEl.value;
+
     controls.innerHTML = "";
 
     const sourceWrap = document.createElement("div");
@@ -514,6 +583,7 @@ async function getUsdPrice(config, sourceKey) {
     });
 
     sourceSelect.value = sources[oldSource] ? oldSource : ((config.exchanges && config.exchanges.default) || sourceOrder[0] || "");
+
     sourceWrap.appendChild(sourceLabel);
     sourceWrap.appendChild(sourceSelect);
     controls.appendChild(sourceWrap);
@@ -608,8 +678,10 @@ async function getUsdPrice(config, sourceKey) {
   async function draw(root) {
     try {
       const config = CONFIG || await loadConfig(false);
-      const controls = ensureControls(root, config);
 
+      await refreshExchangeRatesIfNeeded(config, false);
+
+      const controls = ensureControls(root, config);
       const source = controls.sourceSelect.value;
       const unit = controls.unitSelect.value;
 
@@ -633,6 +705,7 @@ async function getUsdPrice(config, sourceKey) {
       const vol = spot.volume_24h_btc > 0 ? " · Vol " + compact(spot.volume_24h_btc, 2) + " BTC" : "";
       const mode = spot.mode ? " · " + spot.mode : "";
       const updated = config.exchangeRates && config.exchangeRates.updated_at ? " · FX " + config.exchangeRates.updated_at : "";
+
       ensureStatus(root, `${spot.label}${mode} · ${labelOf(config, unit)}${vol}${updated}`);
 
       root.dataset.status = "ok";
@@ -648,16 +721,18 @@ async function getUsdPrice(config, sourceKey) {
     if (!root) return;
     if (root.__zzxTickerTimer) clearInterval(root.__zzxTickerTimer);
 
-    loadConfig(true).then(config => {
+    loadConfig(true).then(function (config) {
+      normalizeExchangeRates(config);
+
       const controls = ensureControls(root, config);
-      const redraw = () => draw(root);
+      const redraw = function () { draw(root); };
 
       controls.sourceSelect.onchange = redraw;
       controls.unitSelect.onchange = redraw;
 
       redraw();
-      root.__zzxTickerTimer = setInterval(redraw, REFRESH_MS);
-    }).catch(err => {
+      root.__zzxTickerTimer = setInterval(redraw, BTC_REFRESH_MS);
+    }).catch(function (err) {
       ensureStatus(root, "ERROR loading /bitcoin/bpi/api JSON: " + err.message);
     });
   }
