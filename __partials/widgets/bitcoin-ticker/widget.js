@@ -6,7 +6,7 @@
 
   const W = window;
   const ID = "bitcoin-ticker";
-  const REFRESH_MS = 60000;
+  const REFRESH_MS = 1000;
 
   const API = {
     latest: "/bitcoin/bpi/api/latest.json",
