@@ -1,6 +1,8 @@
 // __partials/widgets/bitcoin-ticker/widget.js
 // ZZX-Labs Bitcoin Ticker
-// 1s BTC exchange updates. 30m currency/commodity refresh window. WEED_LB fixed at $2,000/lb.
+// No-flicker build: controls are rendered once; only numeric text nodes update per tick.
+// BTC/source updates: 1s from latest.json first, direct APIs as fallback.
+// FX/commodities cache: 30m. Oil metadata interval: 1h. Weed baseline: $2,000/lb.
 
 (function () {
   "use strict";
@@ -10,7 +12,6 @@
 
   const BTC_REFRESH_MS = 1000;
   const FX_REFRESH_MS = 30 * 60 * 1000;
-  const OIL_REFRESH_MS = 60 * 60 * 1000;
   const WEED_LB_USD = 125 * 16;
 
   const API = {
@@ -177,6 +178,7 @@
         const p = Number(t && t.converted_last && t.converted_last.usd);
         const vu = Number(t && t.converted_volume && t.converted_volume.usd);
         if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(vu) || vu <= 0) return;
+
         const vb = vu / p;
         weighted += p * vb;
         totalVol += vb;
@@ -192,28 +194,14 @@
         high_24h: high,
         low_24h: low === Number.MAX_VALUE ? NaN : low
       };
-    },
-
-    zzx_bpi: d => ({
-      price_usd: Number(
-        (d && d.price_usd) ||
-        (d && d.btc_usd) ||
-        (d && d.vwap_usd) ||
-        (d && d.bpi_usd) ||
-        (d && d.weighted_average && d.weighted_average.price_usd) ||
-        (d && d.global_bpi && d.global_bpi.price_usd)
-      ),
-      volume_24h_btc: Number(d && d.volume_24h_btc),
-      volume_24h_usd: Number(d && d.volume_24h_usd),
-      high_24h: Number(d && d.high_24h),
-      low_24h: Number(d && d.low_24h)
-    })
+    }
   };
 
   let CONFIG = null;
-  let BPI_CACHE = null;
-  let BPI_CACHE_AT = 0;
-  let EXCHANGE_RATES_CACHE_AT = 0;
+  let CONFIG_READY_AT = 0;
+  let FX_READY_AT = 0;
+  let LATEST_CACHE = {};
+  let LATEST_CACHE_AT = 0;
 
   function localBust(url) {
     if (!url || !url.startsWith("/")) return url;
@@ -254,7 +242,6 @@
     if (CONFIG && !force) return CONFIG;
 
     CONFIG = {
-      latest: await optionalJson(API.latest, {}),
       exchanges: await json(API.exchanges),
       currencies: await json(API.currencies),
       exchangeRates: await json(API.exchangeRates),
@@ -264,21 +251,34 @@
       userValues: await optionalJson(API.userValues, { order: [], values: {} })
     };
 
-    EXCHANGE_RATES_CACHE_AT = Date.now();
+    CONFIG_READY_AT = Date.now();
+    FX_READY_AT = CONFIG_READY_AT;
     normalizeExchangeRates(CONFIG);
     return CONFIG;
   }
 
-  async function refreshExchangeRatesIfNeeded(config, force) {
+  async function refreshFxIfNeeded(config, force) {
     const now = Date.now();
-    if (!force && config.exchangeRates && now - EXCHANGE_RATES_CACHE_AT < FX_REFRESH_MS) {
-      return config.exchangeRates;
+    if (!force && config.exchangeRates && now - FX_READY_AT < FX_REFRESH_MS) {
+      normalizeExchangeRates(config);
+      return;
     }
 
     config.exchangeRates = await optionalJson(API.exchangeRates, config.exchangeRates || {});
-    EXCHANGE_RATES_CACHE_AT = now;
+    FX_READY_AT = now;
     normalizeExchangeRates(config);
-    return config.exchangeRates;
+  }
+
+  async function refreshLatest(config) {
+    const now = Date.now();
+    if (LATEST_CACHE && now - LATEST_CACHE_AT < BTC_REFRESH_MS) {
+      config.latest = LATEST_CACHE;
+      return;
+    }
+
+    LATEST_CACHE = await optionalJson(API.latest, LATEST_CACHE || {});
+    LATEST_CACHE_AT = now;
+    config.latest = LATEST_CACHE;
   }
 
   function normalizeExchangeRates(config) {
@@ -289,19 +289,7 @@
     if (!config.exchangeRates.user_values_usd) config.exchangeRates.user_values_usd = {};
 
     config.exchangeRates.rates.USD = 1;
-
-    if (!Number(config.exchangeRates.commodities_usd.WEED_LB)) {
-      config.exchangeRates.commodities_usd.WEED_LB = WEED_LB_USD;
-    }
-
-    if (!config.exchangeRates.intervals) {
-      config.exchangeRates.intervals = {};
-    }
-
-    config.exchangeRates.intervals.currency_ms = FX_REFRESH_MS;
-    config.exchangeRates.intervals.commodity_ms = FX_REFRESH_MS;
-    config.exchangeRates.intervals.oil_ms = OIL_REFRESH_MS;
-    config.exchangeRates.intervals.weed_static_usd_per_lb = WEED_LB_USD;
+    config.exchangeRates.commodities_usd.WEED_LB = WEED_LB_USD;
   }
 
   function fmt(n, digits) {
@@ -371,73 +359,7 @@
     throw new Error("missing exchange_rates value for " + unit);
   }
 
-  function validParsed(p) {
-    return p && Number.isFinite(Number(p.price_usd)) && Number(p.price_usd) > 0;
-  }
-
-  async function getLiveExchangeQuote(config, sourceKey) {
-    const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
-    if (!src) throw new Error("missing exchange source " + sourceKey);
-
-    const parser = PARSERS[src.parser];
-    if (!parser) throw new Error("missing parser " + src.parser);
-
-    try {
-      const raw = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
-      const parsed = parser(raw);
-
-      if (!validParsed(parsed)) throw new Error("bad live parse");
-
-      return {
-        price_usd: Number(parsed.price_usd),
-        volume_24h_btc: Number(parsed.volume_24h_btc || 0),
-        volume_24h_usd: Number(parsed.volume_24h_usd || 0),
-        high_24h: Number(parsed.high_24h || 0),
-        low_24h: Number(parsed.low_24h || 0),
-        label: src.label || sourceKey,
-        source_key: sourceKey,
-        mode: "live"
-      };
-    } catch (err) {
-      if (src.fallback === "coingecko" && config.exchanges.sources && config.exchanges.sources.coingecko_global) {
-        const cg = config.exchanges.sources.coingecko_global;
-        const cgParser = PARSERS[cg.parser];
-        const cgRaw = await json(cg.url, { allowCorsProxy: !!cg.cors_proxy });
-        const cgParsed = cgParser(cgRaw);
-
-        if (validParsed(cgParsed)) {
-          return {
-            price_usd: Number(cgParsed.price_usd),
-            volume_24h_btc: Number(cgParsed.volume_24h_btc || 0),
-            volume_24h_usd: Number(cgParsed.volume_24h_usd || 0),
-            high_24h: Number(cgParsed.high_24h || 0),
-            low_24h: Number(cgParsed.low_24h || 0),
-            label: (src.label || sourceKey) + " via CoinGecko",
-            source_key: sourceKey,
-            mode: "fallback"
-          };
-        }
-      }
-
-      const latestEx = config.latest && config.latest.exchanges && config.latest.exchanges[sourceKey];
-      if (latestEx && Number(latestEx.price_usd) > 0) {
-        return {
-          price_usd: Number(latestEx.price_usd),
-          volume_24h_btc: Number(latestEx.volume_24h_btc || 0),
-          volume_24h_usd: Number(latestEx.volume_24h_usd || 0),
-          high_24h: Number(latestEx.high_24h || 0),
-          low_24h: Number(latestEx.low_24h || 0),
-          label: latestEx.label || src.label || sourceKey,
-          source_key: sourceKey,
-          mode: "latest.json"
-        };
-      }
-
-      throw err;
-    }
-  }
-
-  function quoteFromLatestBPI(config) {
+  function latestBpiQuote(config) {
     const latest = config.latest || {};
     const price = Number(
       latest.price_usd ||
@@ -457,87 +379,77 @@
       high_24h: Number(latest.high_24h || 0),
       low_24h: Number(latest.low_24h || 0),
       label: "ZZX Global BPI",
-      source_key: "zzx",
       mode: latest.mode || "latest.json"
     };
   }
 
-  async function computeLiveBPI(config) {
-    const now = Date.now();
-    if (BPI_CACHE && now - BPI_CACHE_AT < BTC_REFRESH_MS) return BPI_CACHE;
+  function latestExchangeQuote(config, sourceKey) {
+    const latest = config.latest || {};
+    const ex = latest.exchanges && latest.exchanges[sourceKey];
 
-    const sources = config.exchanges && config.exchanges.sources ? config.exchanges.sources : {};
-    const order = config.exchanges && config.exchanges.order ? config.exchanges.order : Object.keys(sources);
-    const quotes = [];
+    if (!ex) return null;
 
-    for (const key of order) {
-      if (key === "zzx" || key === "coingecko_global") continue;
+    const price = Number(ex.price_usd);
+    if (!Number.isFinite(price) || price <= 0) return null;
 
-      try {
-        const q = await getLiveExchangeQuote(config, key);
-        if (q && q.price_usd > 0) quotes.push(q);
-      } catch (_) {}
-    }
-
-    const weighted = quotes.filter(q => q.volume_24h_btc > 0);
-    let price = 0;
-    let volume = 0;
-
-    if (weighted.length) {
-      volume = weighted.reduce((s, q) => s + q.volume_24h_btc, 0);
-      price = weighted.reduce((s, q) => s + (q.price_usd * q.volume_24h_btc), 0) / volume;
-    } else if (quotes.length) {
-      price = quotes.reduce((s, q) => s + q.price_usd, 0) / quotes.length;
-      volume = quotes.reduce((s, q) => s + q.volume_24h_btc, 0);
-    }
-
-    if (!Number.isFinite(price) || price <= 0) {
-      const latestBpi = quoteFromLatestBPI(config);
-      if (latestBpi) return latestBpi;
-      throw new Error("ZZX Global BPI could not compute live VWAP");
-    }
-
-    const high = quotes.reduce((m, q) => q.high_24h > 0 ? Math.max(m, q.high_24h) : m, 0);
-    const lowCandidates = quotes.map(q => q.low_24h).filter(v => v > 0);
-    const low = lowCandidates.length ? Math.min.apply(null, lowCandidates) : 0;
-
-    const q = {
+    return {
       price_usd: price,
-      volume_24h_btc: volume,
-      volume_24h_usd: quotes.reduce((s, q) => s + (q.volume_24h_usd || (q.volume_24h_btc * q.price_usd)), 0),
-      high_24h: high,
-      low_24h: low,
-      label: "ZZX Global BPI",
-      source_key: "zzx",
-      mode: "live-vwap",
-      exchange_count: quotes.length
+      volume_24h_btc: Number(ex.volume_24h_btc || 0),
+      volume_24h_usd: Number(ex.volume_24h_usd || 0),
+      high_24h: Number(ex.high_24h || 0),
+      low_24h: Number(ex.low_24h || 0),
+      label: ex.label || sourceKey,
+      mode: "latest.json"
     };
-
-    BPI_CACHE = q;
-    BPI_CACHE_AT = now;
-    return q;
   }
 
-  async function getUsdPrice(config, sourceKey) {
-    config.latest = await optionalJson(API.latest, config.latest || {});
+  function validParsed(p) {
+    return p && Number.isFinite(Number(p.price_usd)) && Number(p.price_usd) > 0;
+  }
+
+  async function liveExchangeQuote(config, sourceKey) {
+    const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
+    if (!src) throw new Error("missing exchange source " + sourceKey);
+
+    const parser = PARSERS[src.parser];
+    if (!parser) throw new Error("missing parser " + src.parser);
+
+    const raw = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
+    const parsed = parser(raw);
+
+    if (!validParsed(parsed)) throw new Error("bad live parse from " + (src.label || sourceKey));
+
+    return {
+      price_usd: Number(parsed.price_usd),
+      volume_24h_btc: Number(parsed.volume_24h_btc || 0),
+      volume_24h_usd: Number(parsed.volume_24h_usd || 0),
+      high_24h: Number(parsed.high_24h || 0),
+      low_24h: Number(parsed.low_24h || 0),
+      label: src.label || sourceKey,
+      mode: "live"
+    };
+  }
+
+  async function sourceQuote(config, sourceKey) {
+    await refreshLatest(config);
 
     if (sourceKey === "zzx") {
-      return await computeLiveBPI(config);
+      const bpi = latestBpiQuote(config);
+      if (bpi) return bpi;
     }
 
-    return await getLiveExchangeQuote(config, sourceKey);
-  }
+    const fromLatest = latestExchangeQuote(config, sourceKey);
+    if (fromLatest) return fromLatest;
 
-  function ensureStatus(root, text) {
-    let el = root.querySelector("[data-ticker-status]");
-    if (!el) {
-      el = document.createElement("div");
-      el.className = "ticker-status";
-      el.setAttribute("data-ticker-status", "");
-      (root.querySelector(".zzx-ticker") || root).appendChild(el);
+    try {
+      return await liveExchangeQuote(config, sourceKey);
+    } catch (_) {
+      const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
+      if (src && src.fallback === "coingecko" && config.exchanges.sources.coingecko_global) {
+        return await liveExchangeQuote(config, "coingecko_global");
+      }
+      throw _;
     }
-    if (text) el.textContent = text;
-    return el;
   }
 
   function ensureControls(root, config) {
@@ -546,17 +458,18 @@
 
     if (!controls) {
       controls = document.createElement("div");
-      controls.className = "ticker-controls";
+      controls.className = "ticker-controls ticker-controls-panel";
       host.insertBefore(controls, host.firstChild);
     }
 
-    controls.classList.add("ticker-controls-panel");
+    if (controls.__zzxBuilt) {
+      return {
+        sourceSelect: root.querySelector("[data-source-select]"),
+        unitSelect: root.querySelector("[data-currency-select]")
+      };
+    }
 
-    const oldSourceEl = root.querySelector("[data-source-select]");
-    const oldUnitEl = root.querySelector("[data-currency-select]");
-    const oldSource = oldSourceEl && oldSourceEl.value;
-    const oldUnit = oldUnitEl && oldUnitEl.value;
-
+    controls.className = "ticker-controls ticker-controls-panel";
     controls.innerHTML = "";
 
     const sourceWrap = document.createElement("div");
@@ -582,7 +495,7 @@
       sourceSelect.appendChild(opt);
     });
 
-    sourceSelect.value = sources[oldSource] ? oldSource : ((config.exchanges && config.exchanges.default) || sourceOrder[0] || "");
+    sourceSelect.value = (config.exchanges && config.exchanges.default) || sourceOrder[0] || "";
 
     sourceWrap.appendChild(sourceLabel);
     sourceWrap.appendChild(sourceSelect);
@@ -636,38 +549,66 @@
       added.add(code);
     });
 
-    const allUnits = Array.from(unitSelect.options).map(function (o) { return o.value; });
-    unitSelect.value = allUnits.includes(oldUnit) ? oldUnit : ((config.currencies && config.currencies.default) || "USD");
+    unitSelect.value = (config.currencies && config.currencies.default) || "USD";
 
     unitWrap.appendChild(unitLabel);
     unitWrap.appendChild(unitSelect);
     controls.appendChild(unitWrap);
 
+    controls.__zzxBuilt = true;
+
     return { sourceSelect: sourceSelect, unitSelect: unitSelect };
   }
 
-  function writeMarkup(root, config, unit) {
-    const sym = symbolOf(config, unit);
-    const label = labelOf(config, unit);
+  function setText(root, selector, value) {
+    const el = root.querySelector(selector);
+    if (el && el.textContent !== String(value)) el.textContent = String(value);
+  }
 
+  function ensureValueMarkup(root) {
     const btcLine = root.querySelector(".btc-line");
     const units = root.querySelectorAll(".unit");
 
-    if (btcLine) {
-      btcLine.innerHTML = `[BTC]: <span data-currency-symbol>${sym}</span><span data-btc>—</span> (<span data-currency-label>${label}</span>)`;
+    if (btcLine && !btcLine.querySelector("[data-btc]")) {
+      btcLine.innerHTML = '[BTC]: <span data-currency-symbol></span><span data-btc>—</span> (<span data-currency-label></span>)';
     }
 
-    if (units[0]) {
-      units[0].innerHTML = `[mBTC]: <span data-currency-symbol>${sym}</span><span data-mbtc>—</span> (<span data-currency-label>${label}</span>)`;
+    if (units[0] && !units[0].querySelector("[data-mbtc]")) {
+      units[0].innerHTML = '[mBTC]: <span data-currency-symbol></span><span data-mbtc>—</span> (<span data-currency-label></span>)';
     }
 
-    if (units[1]) {
-      units[1].innerHTML = `[μBTC]: <span data-currency-symbol>${sym}</span><span data-ubtc>—</span> (<span data-currency-label>${label}</span>)`;
+    if (units[1] && !units[1].querySelector("[data-ubtc]")) {
+      units[1].innerHTML = '[μBTC]: <span data-currency-symbol></span><span data-ubtc>—</span> (<span data-currency-label></span>)';
     }
 
-    if (units[2]) {
-      units[2].innerHTML = `[sat]: <span data-currency-symbol>${sym}</span><span data-sat>—</span> (<span data-currency-label>${label}</span>)`;
+    if (units[2] && !units[2].querySelector("[data-sat]")) {
+      units[2].innerHTML = '[sat]: <span data-currency-symbol></span><span data-sat>—</span> (<span data-currency-label></span>)';
     }
+  }
+
+  function updateUnitLabels(root, config, unit) {
+    const sym = symbolOf(config, unit);
+    const label = labelOf(config, unit);
+
+    root.querySelectorAll("[data-currency-symbol]").forEach(function (el) {
+      if (el.textContent !== sym) el.textContent = sym;
+    });
+
+    root.querySelectorAll("[data-currency-label]").forEach(function (el) {
+      if (el.textContent !== label) el.textContent = label;
+    });
+  }
+
+  function ensureStatus(root, text) {
+    let el = root.querySelector("[data-ticker-status]");
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "ticker-status";
+      el.setAttribute("data-ticker-status", "");
+      (root.querySelector(".zzx-ticker") || root).appendChild(el);
+    }
+    if (text && el.textContent !== text) el.textContent = text;
+    return el;
   }
 
   function formatValue(value, nonFiat, unit) {
@@ -678,35 +619,30 @@
   async function draw(root) {
     try {
       const config = CONFIG || await loadConfig(false);
-
-      await refreshExchangeRatesIfNeeded(config, false);
+      await refreshFxIfNeeded(config, false);
 
       const controls = ensureControls(root, config);
       const source = controls.sourceSelect.value;
       const unit = controls.unitSelect.value;
 
-      writeMarkup(root, config, unit);
+      ensureValueMarkup(root);
+      updateUnitLabels(root, config, unit);
 
-      const spot = await getUsdPrice(config, source);
+      const spot = await sourceQuote(config, source);
       const rate = conversionRate(config, unit);
       const value = spot.price_usd * rate;
       const nonFiat = isNonFiatUnit(config, unit);
 
-      const btc = root.querySelector("[data-btc]");
-      const mbtc = root.querySelector("[data-mbtc]");
-      const ubtc = root.querySelector("[data-ubtc]");
-      const sat = root.querySelector("[data-sat]");
-
-      if (btc) btc.textContent = formatValue(value, nonFiat, unit);
-      if (mbtc) mbtc.textContent = formatValue(value * 1e-3, nonFiat, unit);
-      if (ubtc) ubtc.textContent = formatValue(value * 1e-6, nonFiat, unit);
-      if (sat) sat.textContent = formatValue(value * 1e-8, nonFiat, unit);
+      setText(root, "[data-btc]", formatValue(value, nonFiat, unit));
+      setText(root, "[data-mbtc]", formatValue(value * 1e-3, nonFiat, unit));
+      setText(root, "[data-ubtc]", formatValue(value * 1e-6, nonFiat, unit));
+      setText(root, "[data-sat]", formatValue(value * 1e-8, nonFiat, unit));
 
       const vol = spot.volume_24h_btc > 0 ? " · Vol " + compact(spot.volume_24h_btc, 2) + " BTC" : "";
       const mode = spot.mode ? " · " + spot.mode : "";
-      const updated = config.exchangeRates && config.exchangeRates.updated_at ? " · FX " + config.exchangeRates.updated_at : "";
+      const fx = config.exchangeRates && config.exchangeRates.updated_at ? " · FX " + config.exchangeRates.updated_at : "";
 
-      ensureStatus(root, `${spot.label}${mode} · ${labelOf(config, unit)}${vol}${updated}`);
+      ensureStatus(root, `${spot.label}${mode} · ${labelOf(config, unit)}${vol}${fx}`);
 
       root.dataset.status = "ok";
       root.dataset.source = source;
@@ -723,14 +659,12 @@
 
     loadConfig(true).then(function (config) {
       normalizeExchangeRates(config);
+      ensureControls(root, config);
+      ensureValueMarkup(root);
 
-      const controls = ensureControls(root, config);
       const redraw = function () { draw(root); };
-
-      controls.sourceSelect.onchange = redraw;
-      controls.unitSelect.onchange = redraw;
-
       redraw();
+
       root.__zzxTickerTimer = setInterval(redraw, BTC_REFRESH_MS);
     }).catch(function (err) {
       ensureStatus(root, "ERROR loading /bitcoin/bpi/api JSON: " + err.message);
