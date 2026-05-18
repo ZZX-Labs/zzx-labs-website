@@ -256,37 +256,55 @@
     throw new Error("missing exchange_rates value for " + unit);
   }
 
-  async function getUsdPrice(config, sourceKey) {
-    const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
-    if (!src) throw new Error("missing exchange source " + sourceKey);
-    const parser = PARSERS[src.parser];
-    if (!parser) throw new Error("missing parser " + src.parser);
+    async function getUsdPrice(config, sourceKey) {
 
-    let parsed;
-    try {
-      const raw = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
-      parsed = parser(raw);
-    } catch (err) {
-      if (src.fallback === "coingecko" && config.exchanges.sources && config.exchanges.sources.coingecko_global) {
-        const cg = config.exchanges.sources.coingecko_global;
-        const cgParser = PARSERS[cg.parser];
-        const cgRaw = await json(cg.url, { allowCorsProxy: !!cg.cors_proxy });
-        parsed = cgParser(cgRaw);
-      } else {
-        throw err;
+    const latest = await json(API.latest);
+
+    if (sourceKey === "zzx") {
+
+      const price = Number(
+        latest.price_usd ||
+        latest.btc_usd ||
+        latest.vwap_usd ||
+        latest.bpi_usd ||
+        (latest.weighted_average && latest.weighted_average.price_usd) ||
+        (latest.global_bpi && latest.global_bpi.price_usd)
+      );
+
+      if (!Number.isFinite(price) || price <= 0) {
+        throw new Error("bad price from ZZX Global BPI");
       }
+
+      return {
+        price_usd: price,
+        volume_24h_btc: Number(latest.volume_24h_btc || 0),
+        volume_24h_usd: Number(latest.volume_24h_usd || 0),
+        high_24h: Number(latest.high_24h || 0),
+        low_24h: Number(latest.low_24h || 0),
+        label: "ZZX Global BPI"
+      };
     }
 
-    const price = Number(parsed && parsed.price_usd);
-    if (!Number.isFinite(price) || price <= 0) throw new Error("bad price from " + (src.label || sourceKey));
+    const exchanges = latest.exchanges || {};
+    const ex = exchanges[sourceKey];
+
+    if (!ex) {
+      throw new Error("missing latest.json exchange data for " + sourceKey);
+    }
+
+    const price = Number(ex.price_usd);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error("bad latest.json price for " + sourceKey);
+    }
 
     return {
       price_usd: price,
-      volume_24h_btc: Number((parsed && parsed.volume_24h_btc) || 0),
-      volume_24h_usd: Number((parsed && parsed.volume_24h_usd) || 0),
-      high_24h: Number((parsed && parsed.high_24h) || 0),
-      low_24h: Number((parsed && parsed.low_24h) || 0),
-      label: src.label || sourceKey
+      volume_24h_btc: Number(ex.volume_24h_btc || 0),
+      volume_24h_usd: Number(ex.volume_24h_usd || 0),
+      high_24h: Number(ex.high_24h || 0),
+      low_24h: Number(ex.low_24h || 0),
+      label: ex.label || sourceKey
     };
   }
 
