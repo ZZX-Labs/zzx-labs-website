@@ -417,6 +417,9 @@
   async function draw(root) {
     try {
       const config = CONFIG || await loadConfig(false);
+
+      config.latest = await json(API.latest);
+      config.exchangeRates = await json(API.exchangeRates);
       const controls = ensureControls(root, config);
       const source = controls.sourceSelect.value;
       const unit = controls.unitSelect.value;
