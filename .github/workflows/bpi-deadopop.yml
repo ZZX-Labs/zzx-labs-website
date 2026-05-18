@@ -1,0 +1,38 @@
+name: Update DeadOPop
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-deadopop
+  cancel-in-progress: true
+
+jobs:
+  update-deadopop:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update DeadOPop data
+        run: |
+          python tools/bpi/update_deadopop.py
+
+      - name: Commit DeadOPop data
+        run: |
+          git config user.name "zzx-bpi-bot"
+          git config user.email "actions@github.com"
+          git add bitcoin/bpi/api/deadopop.json
+          git diff --cached --quiet || git commit -m "Update DeadOPop data"
+          git push
