@@ -1,6 +1,6 @@
 // __partials/widgets/bitcoin-ticker/widget.js
 // ZZX-Labs Bitcoin Ticker
-// No-flicker build: controls are rendered once; only numeric text nodes update per tick.
+// No-flicker build v2: controls are rendered once; only numeric text nodes update per tick.
 // BTC/source updates: 1s from latest.json first, direct APIs as fallback.
 // FX/commodities cache: 30m. Oil metadata interval: 1h. Weed baseline: $2,000/lb.
 
@@ -586,34 +586,81 @@
     }
   }
 
-  function updateUnitLabels(root, config, unit) {
-    const sym = symbolOf(config, unit);
-    const label = labelOf(config, unit);
+  const TROY_OZ_TO_G = 31.1034768;
+  const LB_TO_OZ = 16;
+  const LB_TO_G = 453.59237;
+  const WEED_LB_TO_G = 448;
+  const OIL_BBL_TO_GAL = 42;
+  const OIL_GAL_TO_PT = 8;
+  const OIL_BBL_TO_ML = 158987.294928;
 
-    root.querySelectorAll("[data-currency-symbol]").forEach(function (el) {
-      if (el.textContent !== sym) el.textContent = sym;
-    });
-
-    root.querySelectorAll("[data-currency-label]").forEach(function (el) {
-      if (el.textContent !== label) el.textContent = label;
-    });
+  function pluralUnit(value, singular, plural) {
+    const x = Math.abs(Number(value));
+    return x === 1 ? singular : plural;
   }
 
-  function ensureStatus(root, text) {
-    let el = root.querySelector("[data-ticker-status]");
-    if (!el) {
-      el = document.createElement("div");
-      el.className = "ticker-status";
-      el.setAttribute("data-ticker-status", "");
-      (root.querySelector(".zzx-ticker") || root).appendChild(el);
+  function denomMeta(config, unit, denom, btcQuantity) {
+    const scale = denom === "BTC" ? 1 : denom === "mBTC" ? 1e-3 : denom === "μBTC" ? 1e-6 : 1e-8;
+    const q = btcQuantity * scale;
+
+    if (unit === "WEED_LB") {
+      if (denom === "BTC") return { value: q, symbol: "", label: pluralUnit(q, "lb weed", "lbs weed"), digits: q >= 1 ? 6 : 8 };
+      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: "oz weed", digits: 6 };
+      if (denom === "μBTC") return { value: q * WEED_LB_TO_G, symbol: "", label: "g weed", digits: 8 };
+      return { value: q * WEED_LB_TO_G * 1000, symbol: "", label: "mg weed", digits: 10 };
     }
-    if (text && el.textContent !== text) el.textContent = text;
-    return el;
+
+    if (unit === "OIL_BBL") {
+      if (denom === "BTC") return { value: q, symbol: "", label: pluralUnit(q, "barrel oil", "barrels oil"), digits: 6 };
+      if (denom === "mBTC") return { value: (q * OIL_BBL_TO_GAL) / 5, symbol: "", label: "5-gal buckets oil", digits: 6 };
+      if (denom === "μBTC") return { value: q * OIL_BBL_TO_GAL * OIL_GAL_TO_PT, symbol: "", label: "pints oil", digits: 8 };
+      return { value: q * OIL_BBL_TO_ML, symbol: "", label: "mL oil", digits: 10 };
+    }
+
+    if (unit === "XCU") {
+      if (denom === "BTC") return { value: q, symbol: "", label: pluralUnit(q, "lb copper", "lbs copper"), digits: 6 };
+      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: "oz copper", digits: 6 };
+      if (denom === "μBTC") return { value: q * LB_TO_G, symbol: "", label: "g copper", digits: 8 };
+      return { value: q * LB_TO_G * 1000, symbol: "", label: "mg copper", digits: 10 };
+    }
+
+    if (unit === "XAU" || unit === "XPT" || unit === "XPD") {
+      const metal = unit === "XAU" ? "gold" : unit === "XPT" ? "platinum" : "palladium";
+      if (denom === "BTC") return { value: q, symbol: "", label: "troy oz " + metal, digits: 6 };
+      if (denom === "sat") return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: "mg " + metal, digits: 10 };
+      return { value: q * TROY_OZ_TO_G, symbol: "", label: "g " + metal, digits: 8 };
+    }
+
+    if (unit === "XAG") {
+      if (denom === "BTC" || denom === "mBTC") return { value: q, symbol: "", label: "troy oz silver", digits: 6 };
+      if (denom === "μBTC") return { value: q * TROY_OZ_TO_G, symbol: "", label: "g silver", digits: 8 };
+      return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: "mg silver", digits: 10 };
+    }
+
+    return { value: q, symbol: symbolOf(config, unit), label: labelOf(config, unit), digits: isNonFiatUnit(config, unit) ? 8 : 2 };
   }
 
-  function formatValue(value, nonFiat, unit) {
-    if (unit === "WEED_LB" || unit === "OIL_BBL") return fmt(value, 6);
-    return fmt(value, nonFiat ? 8 : 2);
+  function updateDenomLabels(root, metas) {
+    const btcLine = root.querySelector(".btc-line");
+    const units = root.querySelectorAll(".unit");
+    const rows = [
+      { host: btcLine, meta: metas.btc },
+      { host: units[0], meta: metas.mbtc },
+      { host: units[1], meta: metas.ubtc },
+      { host: units[2], meta: metas.sat }
+    ];
+
+    rows.forEach(function(row) {
+      if (!row.host || !row.meta) return;
+      const sym = row.host.querySelector("[data-currency-symbol]");
+      const lab = row.host.querySelector("[data-currency-label]");
+      if (sym && sym.textContent !== row.meta.symbol) sym.textContent = row.meta.symbol;
+      if (lab && lab.textContent !== row.meta.label) lab.textContent = row.meta.label;
+    });
+  }
+
+  function formatDenom(meta) {
+    return fmt(meta.value, meta.digits);
   }
 
   async function draw(root) {
@@ -626,17 +673,24 @@
       const unit = controls.unitSelect.value;
 
       ensureValueMarkup(root);
-      updateUnitLabels(root, config, unit);
 
       const spot = await sourceQuote(config, source);
       const rate = conversionRate(config, unit);
-      const value = spot.price_usd * rate;
-      const nonFiat = isNonFiatUnit(config, unit);
+      const btcQuantity = spot.price_usd * rate;
 
-      setText(root, "[data-btc]", formatValue(value, nonFiat, unit));
-      setText(root, "[data-mbtc]", formatValue(value * 1e-3, nonFiat, unit));
-      setText(root, "[data-ubtc]", formatValue(value * 1e-6, nonFiat, unit));
-      setText(root, "[data-sat]", formatValue(value * 1e-8, nonFiat, unit));
+      const metas = {
+        btc: denomMeta(config, unit, "BTC", btcQuantity),
+        mbtc: denomMeta(config, unit, "mBTC", btcQuantity),
+        ubtc: denomMeta(config, unit, "μBTC", btcQuantity),
+        sat: denomMeta(config, unit, "sat", btcQuantity)
+      };
+
+      updateDenomLabels(root, metas);
+
+      setText(root, "[data-btc]", formatDenom(metas.btc));
+      setText(root, "[data-mbtc]", formatDenom(metas.mbtc));
+      setText(root, "[data-ubtc]", formatDenom(metas.ubtc));
+      setText(root, "[data-sat]", formatDenom(metas.sat));
 
       const vol = spot.volume_24h_btc > 0 ? " · Vol " + compact(spot.volume_24h_btc, 2) + " BTC" : "";
       const mode = spot.mode ? " · " + spot.mode : "";
@@ -644,28 +698,79 @@
 
       ensureStatus(root, `${spot.label}${mode} · ${labelOf(config, unit)}${vol}${fx}`);
 
-      root.dataset.status = "ok";
-      root.dataset.source = source;
-      root.dataset.currency = unit;
+      if (root.__zzxStatus !== "ok") {
+        root.dataset.status = "ok";
+        root.__zzxStatus = "ok";
+      }
     } catch (err) {
-      root.dataset.status = "error";
+      if (root.__zzxStatus !== "error") {
+        root.dataset.status = "error";
+        root.__zzxStatus = "error";
+      }
       ensureStatus(root, "ERROR: " + err.message);
     }
   }
 
   function boot(root) {
     if (!root) return;
-    if (root.__zzxTickerTimer) clearInterval(root.__zzxTickerTimer);
+
+    if (root.__zzxTickerTimer) {
+      clearTimeout(root.__zzxTickerTimer);
+      clearInterval(root.__zzxTickerTimer);
+      root.__zzxTickerTimer = null;
+    }
+
+    root.__zzxDrawing = false;
+    root.__zzxDrawQueued = false;
+
+    function queueDraw() {
+      if (root.__zzxDrawing) {
+        root.__zzxDrawQueued = true;
+        return;
+      }
+
+      root.__zzxDrawing = true;
+
+      Promise.resolve(draw(root))
+        .catch(function (_) {})
+        .finally(function () {
+          root.__zzxDrawing = false;
+
+          if (root.__zzxDrawQueued) {
+            root.__zzxDrawQueued = false;
+            queueDraw();
+          }
+        });
+    }
+
+    function tickLoop() {
+      queueDraw();
+      root.__zzxTickerTimer = setTimeout(tickLoop, BTC_REFRESH_MS);
+    }
 
     loadConfig(true).then(function (config) {
       normalizeExchangeRates(config);
       ensureControls(root, config);
       ensureValueMarkup(root);
 
-      const redraw = function () { draw(root); };
-      redraw();
+      const controls = ensureControls(root, config);
 
-      root.__zzxTickerTimer = setInterval(redraw, BTC_REFRESH_MS);
+      if (controls.sourceSelect) {
+        controls.sourceSelect.addEventListener("change", function () {
+          BPI_CACHE = null;
+          LATEST_CACHE_AT = 0;
+          queueDraw();
+        });
+      }
+
+      if (controls.unitSelect) {
+        controls.unitSelect.addEventListener("change", function () {
+          queueDraw();
+        });
+      }
+
+      queueDraw();
+      root.__zzxTickerTimer = setTimeout(tickLoop, BTC_REFRESH_MS);
     }).catch(function (err) {
       ensureStatus(root, "ERROR loading /bitcoin/bpi/api JSON: " + err.message);
     });
