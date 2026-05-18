@@ -1,6 +1,6 @@
 // __partials/widgets/bitcoin-ticker/widget.js
 // ZZX-Labs Bitcoin Ticker
-// No-flicker build v2: controls are rendered once; only numeric text nodes update per tick.
+// No-flicker build v3 commodity-unit display: controls are rendered once; only numeric text nodes update per tick.
 // BTC/source updates: 1s from latest.json first, direct APIs as fallback.
 // FX/commodities cache: 30m. Oil metadata interval: 1h. Weed baseline: $2,000/lb.
 
@@ -594,7 +594,7 @@
   const OIL_GAL_TO_PT = 8;
   const OIL_BBL_TO_ML = 158987.294928;
 
-  function pluralUnit(value, singular, plural) {
+  function unitLabel(value, singular, plural) {
     const x = Math.abs(Number(value));
     return x === 1 ? singular : plural;
   }
@@ -604,37 +604,37 @@
     const q = btcQuantity * scale;
 
     if (unit === "WEED_LB") {
-      if (denom === "BTC") return { value: q, symbol: "", label: pluralUnit(q, "lb weed", "lbs weed"), digits: q >= 1 ? 6 : 8 };
-      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: "oz weed", digits: 6 };
-      if (denom === "μBTC") return { value: q * WEED_LB_TO_G, symbol: "", label: "g weed", digits: 8 };
-      return { value: q * WEED_LB_TO_G * 1000, symbol: "", label: "mg weed", digits: 10 };
+      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "lB", "lBs"), digits: 6 };
+      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: unitLabel(q * LB_TO_OZ, "oz", "OZs"), digits: 6 };
+      if (denom === "μBTC") return { value: q * WEED_LB_TO_G, symbol: "", label: unitLabel(q * WEED_LB_TO_G, "g", "gs"), digits: 8 };
+      return { value: q * WEED_LB_TO_G * 1000, symbol: "", label: unitLabel(q * WEED_LB_TO_G * 1000, "mg", "mgs"), digits: 10 };
     }
 
     if (unit === "OIL_BBL") {
-      if (denom === "BTC") return { value: q, symbol: "", label: pluralUnit(q, "barrel oil", "barrels oil"), digits: 6 };
-      if (denom === "mBTC") return { value: (q * OIL_BBL_TO_GAL) / 5, symbol: "", label: "5-gal buckets oil", digits: 6 };
-      if (denom === "μBTC") return { value: q * OIL_BBL_TO_GAL * OIL_GAL_TO_PT, symbol: "", label: "pints oil", digits: 8 };
-      return { value: q * OIL_BBL_TO_ML, symbol: "", label: "mL oil", digits: 10 };
+      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "barrel", "barrels"), digits: 6 };
+      if (denom === "mBTC") return { value: (q * OIL_BBL_TO_GAL) / 5, symbol: "", label: unitLabel((q * OIL_BBL_TO_GAL) / 5, "5 gallon", "5 gallons"), digits: 6 };
+      if (denom === "μBTC") return { value: q * OIL_BBL_TO_GAL * OIL_GAL_TO_PT, symbol: "", label: unitLabel(q * OIL_BBL_TO_GAL * OIL_GAL_TO_PT, "pint", "pints"), digits: 8 };
+      return { value: q * OIL_BBL_TO_ML, symbol: "", label: "mL", digits: 10 };
     }
 
     if (unit === "XCU") {
-      if (denom === "BTC") return { value: q, symbol: "", label: pluralUnit(q, "lb copper", "lbs copper"), digits: 6 };
-      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: "oz copper", digits: 6 };
-      if (denom === "μBTC") return { value: q * LB_TO_G, symbol: "", label: "g copper", digits: 8 };
-      return { value: q * LB_TO_G * 1000, symbol: "", label: "mg copper", digits: 10 };
+      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "lB copper", "lBs copper"), digits: 6 };
+      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: unitLabel(q * LB_TO_OZ, "oz copper", "OZs copper"), digits: 6 };
+      if (denom === "μBTC") return { value: q * LB_TO_G, symbol: "", label: unitLabel(q * LB_TO_G, "g copper", "gs copper"), digits: 8 };
+      return { value: q * LB_TO_G * 1000, symbol: "", label: unitLabel(q * LB_TO_G * 1000, "mg copper", "mgs copper"), digits: 10 };
     }
 
     if (unit === "XAU" || unit === "XPT" || unit === "XPD") {
       const metal = unit === "XAU" ? "gold" : unit === "XPT" ? "platinum" : "palladium";
-      if (denom === "BTC") return { value: q, symbol: "", label: "troy oz " + metal, digits: 6 };
-      if (denom === "sat") return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: "mg " + metal, digits: 10 };
-      return { value: q * TROY_OZ_TO_G, symbol: "", label: "g " + metal, digits: 8 };
+      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "oz " + metal, "OZs " + metal), digits: 6 };
+      if (denom === "sat") return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: unitLabel(q * TROY_OZ_TO_G * 1000, "mg " + metal, "mgs " + metal), digits: 10 };
+      return { value: q * TROY_OZ_TO_G, symbol: "", label: unitLabel(q * TROY_OZ_TO_G, "g " + metal, "gs " + metal), digits: 8 };
     }
 
     if (unit === "XAG") {
-      if (denom === "BTC" || denom === "mBTC") return { value: q, symbol: "", label: "troy oz silver", digits: 6 };
-      if (denom === "μBTC") return { value: q * TROY_OZ_TO_G, symbol: "", label: "g silver", digits: 8 };
-      return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: "mg silver", digits: 10 };
+      if (denom === "BTC" || denom === "mBTC") return { value: q, symbol: "", label: unitLabel(q, "oz silver", "OZs silver"), digits: 6 };
+      if (denom === "μBTC") return { value: q * TROY_OZ_TO_G, symbol: "", label: unitLabel(q * TROY_OZ_TO_G, "g silver", "gs silver"), digits: 8 };
+      return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: unitLabel(q * TROY_OZ_TO_G * 1000, "mg silver", "mgs silver"), digits: 10 };
     }
 
     return { value: q, symbol: symbolOf(config, unit), label: labelOf(config, unit), digits: isNonFiatUnit(config, unit) ? 8 : 2 };
