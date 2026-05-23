@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: bitnodes-static-api-crawler
+  cancel-in-progress: false
+
 jobs:
   crawl-bitnodes:
     runs-on: ubuntu-latest
@@ -15,6 +19,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,13 +37,31 @@ jobs:
         run: |
           python tools/bitnodes/crawl.py \
             --output bitcoin/bitnodes/api \
+            --archive-dir bitcoin/bitnodes/archive \
+            --history-dir data/bitnodes/history \
             --timeout 3 \
-            --limit 500
+            --limit 500 \
+            --workers 128
 
       - name: Commit JSON snapshots
         run: |
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
-          git add bitcoin/bitnodes/api
-          git diff --cached --quiet || git commit -m "Update Bitnodes static API snapshots"
-          git push
+
+          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive data/bitnodes/history
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No Bitnodes JSON changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update Bitnodes static API snapshots"
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin main && exit 0
+            printf '%s\n' "Push attempt ${attempt} failed; retrying..."
+            sleep 5
+          done
+
+          printf '%s\n' "Failed to push after retries."
+          exit 1
