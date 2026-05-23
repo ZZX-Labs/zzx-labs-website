@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: bitnodes-static-api-crawler
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   crawl-bitnodes:
@@ -33,22 +33,28 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
+      - name: Sync with remote before crawling
+        run: |
+          git fetch origin main
+          git rebase origin/main
+
       - name: Run Bitnodes crawler export
         run: |
           python tools/bitnodes/crawl.py \
             --output bitcoin/bitnodes/api \
             --archive-dir bitcoin/bitnodes/archive \
-            --history-dir data/bitnodes/history \
+            --history-dir /tmp/bitnodes-history \
             --timeout 3 \
             --limit 500 \
-            --workers 128
+            --workers 128 \
+            --disable-geoip
 
       - name: Commit JSON snapshots
         run: |
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive data/bitnodes/history
+          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive
 
           if git diff --cached --quiet; then
             printf '%s\n' "No Bitnodes JSON changes to commit."
@@ -57,11 +63,22 @@ jobs:
 
           git commit -m "Update Bitnodes static API snapshots"
 
-          for attempt in 1 2 3; do
-            git pull --rebase origin main && git push origin main && exit 0
+      - name: Rebase and push JSON snapshots
+        run: |
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                printf '%s\n' "Bitnodes snapshots pushed."
+                exit 0
+              fi
+            fi
+
+            git rebase --abort || true
             printf '%s\n' "Push attempt ${attempt} failed; retrying..."
-            sleep 5
+            sleep 10
           done
 
-          printf '%s\n' "Failed to push after retries."
+          printf '%s\n' "Failed to push Bitnodes snapshots."
           exit 1
