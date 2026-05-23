@@ -1,0 +1,20 @@
+[Unit]
+Description=ZZX-Labs Bitnodes Crawler Daemon
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/zzx-labs
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodesd.py run
+ExecStop=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodesd.py stop
+Restart=always
+RestartSec=10
+User=zzx
+Group=zzx
+Environment=PYTHONUNBUFFERED=1
+Environment=REDIS_SOCKET=/tmp/redis.sock
+EnvironmentFile=-/etc/zzx-labs/bitnodes.env
+
+[Install]
+WantedBy=multi-user.target
