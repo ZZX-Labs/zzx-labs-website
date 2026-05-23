@@ -4,8 +4,12 @@ from __future__ import annotations
 import argparse
 import json
 import socket
+import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    as_completed
+)
 from pathlib import Path
 from typing import Any
 
@@ -37,9 +41,17 @@ DNS_SEEDS = [
 ]
 
 
-DEFAULT_OUTPUT = Path("bitcoin/bitnodes/api")
-DEFAULT_ARCHIVE = Path("bitcoin/bitnodes/archive")
-DEFAULT_HISTORY = Path("data/bitnodes/history")
+DEFAULT_OUTPUT = Path(
+    "bitcoin/bitnodes/api"
+)
+
+DEFAULT_ARCHIVE = Path(
+    "bitcoin/bitnodes/archive"
+)
+
+DEFAULT_HISTORY = Path(
+    "data/bitnodes/history"
+)
 
 DEFAULT_CITY_DB = Path(
     "data/geoip/GeoLite2-City.mmdb"
@@ -71,6 +83,15 @@ def mkdir(path: Path) -> None:
     )
 
 
+def load_json(path: Path) -> Any:
+    with path.open(
+        "r",
+        encoding="utf-8"
+    ) as handle:
+
+        return json.load(handle)
+
+
 def history_path(
     base_dir: Path,
     timestamp: int
@@ -86,11 +107,6 @@ def history_path(
         / f"{t.tm_hour:02d}"
         / f"{timestamp}.json"
     )
-
-
-def load_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
 
 
 def save_history_snapshot(
@@ -119,9 +135,13 @@ def resolve_seed(
 
     output = []
 
-    for record_type in ("A", "AAAA"):
+    for record_type in (
+        "A",
+        "AAAA"
+    ):
 
         try:
+
             answers = dns.resolver.resolve(
                 seed,
                 record_type,
@@ -139,7 +159,10 @@ def resolve_seed(
     return output
 
 
-def normalize_address(host: str) -> str:
+def normalize_address(
+    host: str
+) -> str:
+
     if ":" in host:
         return f"[{host}]:8333"
 
@@ -154,6 +177,7 @@ def discover(
     discovered = []
 
     for seed in DNS_SEEDS:
+
         discovered.extend(
             resolve_seed(
                 seed,
@@ -177,17 +201,35 @@ def crawl_address(
 ) -> tuple[str, list[Any]] | None:
 
     try:
+
+        started = time.time()
+
         info = handshake(
             address,
             timeout=timeout
         )
 
+        elapsed_ms = round(
+            (time.time() - started)
+            * 1000.0,
+            2
+        )
+
         if not info.connected:
             return None
 
+        row = version_info_to_bitnodes_array(
+            info
+        )
+
+        while len(row) < 15:
+            row.append(None)
+
+        row.append(elapsed_ms)
+
         return (
             info.address,
-            version_info_to_bitnodes_array(info)
+            row
         )
 
     except (
@@ -223,16 +265,23 @@ def crawl(
             for address in addresses
         ]
 
-        for future in as_completed(futures):
+        for future in as_completed(
+            futures
+        ):
 
-            result = future.result()
+            try:
 
-            if not result:
-                continue
+                result = future.result()
 
-            address, row = result
+                if not result:
+                    continue
 
-            nodes[address] = row
+                address, row = result
+
+                nodes[address] = row
+
+            except Exception:
+                pass
 
     return nodes
 
@@ -292,9 +341,12 @@ def build_uptime_map(
     previous_nodes = {}
 
     if previous_snapshot:
-        previous_nodes = previous_snapshot.get(
-            "nodes",
-            {}
+
+        previous_nodes = (
+            previous_snapshot.get(
+                "nodes",
+                {}
+            )
         )
 
     for address in current_nodes:
@@ -312,10 +364,23 @@ def build_latency_map(
     nodes: dict[str, list[Any]]
 ) -> dict[str, float]:
 
-    latencies = {}
+    latency = {}
 
-    for address in nodes:
-        latencies[address] = round(
+    for address, values in nodes.items():
+
+        if len(values) > 15:
+
+            try:
+                latency[address] = float(
+                    values[15]
+                )
+
+                continue
+
+            except Exception:
+                pass
+
+        latency[address] = round(
             (
                 (
                     abs(hash(address))
@@ -325,7 +390,7 @@ def build_latency_map(
             2
         )
 
-    return latencies
+    return latency
 
 
 def build_payload(
@@ -348,6 +413,43 @@ def build_payload(
         "latency": latency,
         "nodes": nodes
     }
+
+
+def git_commit_and_push(
+    repo_root: Path,
+    message: str
+) -> None:
+
+    commands = [
+        [
+            "git",
+            "add",
+            "."
+        ],
+        [
+            "git",
+            "commit",
+            "-m",
+            message
+        ],
+        [
+            "git",
+            "push"
+        ]
+    ]
+
+    for command in commands:
+
+        try:
+
+            subprocess.run(
+                command,
+                cwd=repo_root,
+                check=False
+            )
+
+        except Exception as exc:
+            print(exc)
 
 
 def crawl_once(
@@ -374,8 +476,10 @@ def crawl_once(
         workers=workers
     )
 
-    previous_snapshot = load_previous_snapshot(
-        history_dir
+    previous_snapshot = (
+        load_previous_snapshot(
+            history_dir
+        )
     )
 
     uptime = build_uptime_map(
@@ -402,6 +506,7 @@ def crawl_once(
     )
 
     if raw_output:
+
         write_json(
             raw_output,
             payload
@@ -412,7 +517,10 @@ def crawl_once(
         / "_native_latest_raw.json"
     )
 
-    write_json(temp, payload)
+    write_json(
+        temp,
+        payload
+    )
 
     export_all(
         input_path=temp,
@@ -425,6 +533,7 @@ def crawl_once(
 
     try:
         temp.unlink()
+
     except FileNotFoundError:
         pass
 
@@ -451,7 +560,8 @@ def daemon_loop(
     timeout: float,
     workers: int,
     interval: int,
-    geoip_enabled: bool
+    geoip_enabled: bool,
+    git_push_enabled: bool
 ) -> None:
 
     while True:
@@ -468,6 +578,20 @@ def daemon_loop(
                 workers=workers,
                 geoip_enabled=geoip_enabled
             )
+
+            if git_push_enabled:
+
+                try:
+
+                    git_commit_and_push(
+                        repo_root=Path.cwd(),
+                        message=(
+                            "Update Bitnodes API snapshots"
+                        )
+                    )
+
+                except Exception as exc:
+                    print(exc)
 
         except KeyboardInterrupt:
             raise
@@ -536,6 +660,11 @@ def main() -> int:
         action="store_true"
     )
 
+    parser.add_argument(
+        "--git-push",
+        action="store_true"
+    )
+
     args = parser.parse_args()
 
     output_dir = Path(args.output)
@@ -562,7 +691,8 @@ def main() -> int:
             timeout=args.timeout,
             workers=args.workers,
             interval=args.interval,
-            geoip_enabled=not args.disable_geoip
+            geoip_enabled=not args.disable_geoip,
+            git_push_enabled=args.git_push
         )
 
         return 0
