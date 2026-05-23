@@ -1,1 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
 
+    <title>Map | Bitnodes Mirror | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../../static/icons/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="./map.css">
+
+    <script src="../../../static/script.js" defer></script>
+    <script src="../script.js" defer></script>
+    <script src="./map.js" defer></script>
+</head>
+
+<body data-bn-depth="..">
+
+<header>
+    <div id="zzx-header"></div>
+    <div id="bn-header"></div>
+</header>
+
+<main class="bn-shell" data-bitnodes-view="map">
+    <br>
+    <div id="ticker-container"></div>
+    <br>
+
+    <section class="bn-hero container">
+        <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
+
+        <h2>Map</h2>
+
+        <p>
+            Geographic Bitcoin node distribution map generated from the latest
+            reachable-node snapshot, with country, city, ASN, and organization telemetry.
+        </p>
+
+        <div class="bn-sourcebar">
+            <label for="bn-source">Data Source</label>
+
+            <select id="bn-source">
+                <option value="local" selected>ZZX-Labs Local JSON</option>
+                <option value="external">External Compatible API</option>
+            </select>
+
+            <button id="bn-refresh" type="button">Refresh</button>
+        </div>
+    </section>
+
+    <br>
+
+    <section id="bn-status" class="bn-status container">
+        Loading map telemetry…
+    </section>
+
+    <br>
+
+    <section class="bn-grid" id="bn-summary"></section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div class="bn-toolbar">
+            <div class="bn-toolbar-group">
+                <label for="bn-search">Search</label>
+                <input id="bn-search" type="search" placeholder="Country, city, ASN, organization…">
+            </div>
+
+            <div class="bn-toolbar-group">
+                <label for="bn-group">Group By</label>
+                <select id="bn-group">
+                    <option value="country">Country</option>
+                    <option value="city">City</option>
+                    <option value="asn">ASN</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="bn-map" class="bn-map-canvas"></div>
+        <div id="bn-view"></div>
+    </section>
+
+    <br><br>
+</main>
+
+<footer>
+    <div id="bn-footer"></div>
+    <div id="zzx-footer"></div>
+</footer>
+
+</body>
+</html>
