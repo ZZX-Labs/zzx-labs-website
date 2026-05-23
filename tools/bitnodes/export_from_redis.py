@@ -22,17 +22,39 @@ def redis_client():
     try:
         import redis
     except ImportError as exc:
-        raise SystemExit("Missing dependency: redis. Install with: python -m pip install redis") from exc
+        raise SystemExit(
+            "Missing dependency: redis. Install with: python -m pip install redis"
+        ) from exc
 
-    socket_path = os.environ.get("REDIS_SOCKET", "/tmp/redis.sock")
-    password = os.environ.get("REDIS_PASSWORD")
+    password = os.environ.get("REDIS_PASSWORD") or None
+
+    redis_url = os.environ.get("REDIS_URL")
+    if redis_url:
+        return redis.Redis.from_url(
+            redis_url,
+            decode_responses=True
+        )
+
+    socket_path = os.environ.get("REDIS_SOCKET")
+
+    if socket_path and os.name != "nt":
+        return redis.Redis(
+            unix_socket_path=socket_path,
+            password=password,
+            decode_responses=True
+        )
+
+    host = os.environ.get("REDIS_HOST", "127.0.0.1")
+    port = int(os.environ.get("REDIS_PORT", "6379"))
+    db = int(os.environ.get("REDIS_DB", "0"))
 
     return redis.Redis(
-        unix_socket_path=socket_path,
+        host=host,
+        port=port,
+        db=db,
         password=password,
         decode_responses=True
     )
-
 
 def try_json(value: Any) -> Any:
     if value is None:
