@@ -1,1 +1,150 @@
+{
+  "crawler": {
+    "name": "zzx-labs-bitnodes-crawler",
+    "user_agent": "/ZZX-Labs-Bitnodes:0.1.0/",
+    "network": "mainnet",
+    "listen_port": 8333,
+    "connection_timeout": 3,
+    "handshake_timeout": 5,
+    "crawl_interval_seconds": 900,
+    "max_nodes_per_run": 5000,
+    "max_parallel_connections": 256,
+    "retry_attempts": 2,
+    "ipv4_enabled": true,
+    "ipv6_enabled": true,
+    "tor_enabled": true,
+    "onion_enabled": true,
+    "i2p_enabled": false,
+    "dns_seed_enabled": true,
+    "dns_seeds": [
+      "seed.bitcoin.sipa.be",
+      "dnsseed.bluematt.me",
+      "seed.bitcoinstats.com",
+      "seed.bitcoin.jonasschnelli.ch",
+      "seed.btc.petertodd.net",
+      "seed.bitcoin.sprovoost.nl",
+      "dnsseed.emzy.de"
+    ]
+  },
 
+  "network": {
+    "tor_proxy": "127.0.0.1:9050",
+    "i2p_proxy": "127.0.0.1:4447",
+    "proxychains_enabled": false,
+    "openvpn_enabled": false,
+    "user_agent_rotation": false,
+    "socket_recv_buffer": 65536,
+    "socket_send_buffer": 65536
+  },
+
+  "geoip": {
+    "enabled": true,
+    "provider": "maxmind",
+    "city_database": "data/geoip/GeoLite2-City.mmdb",
+    "asn_database": "data/geoip/GeoLite2-ASN.mmdb"
+  },
+
+  "export": {
+    "base_dir": "bitcoin/bitnodes/api",
+    "pretty_print": true,
+    "write_latest": true,
+    "write_nodes": true,
+    "write_snapshots": true,
+    "write_countries": true,
+    "write_cities": true,
+    "write_asns": true,
+    "write_agents": true,
+    "write_versions": true,
+    "write_ports": true,
+    "write_latency": true,
+    "write_dns_seeder": true,
+    "write_leaderboard": true,
+    "write_propagation": true,
+    "write_status": true,
+    "write_archive": true,
+    "archive_dir": "bitcoin/bitnodes/archive",
+    "archive_compression": "gzip"
+  },
+
+  "api": {
+    "enabled": true,
+    "api_base": "/bitcoin/bitnodes/api/",
+    "cors_enabled": true,
+    "cache_control": "public, max-age=300",
+    "gzip_enabled": true
+  },
+
+  "github": {
+    "actions_enabled": true,
+    "auto_commit": true,
+    "auto_push": true,
+    "commit_message": "Update Bitnodes API snapshots",
+    "branch": "main"
+  },
+
+  "latency": {
+    "enabled": true,
+    "daily_interval_minutes": 15,
+    "weekly_interval_hours": 1,
+    "monthly_interval_days": 1,
+    "max_latency_ms": 10000
+  },
+
+  "leaderboard": {
+    "enabled": true,
+    "calculate_peer_index": true,
+    "weights": {
+      "version_index": 1.0,
+      "services_index": 1.0,
+      "height_index": 1.0,
+      "availability_index": 1.0,
+      "performance_index": 1.0,
+      "daily_latency_index": 1.0,
+      "daily_uptime_index": 1.0,
+      "weekly_latency_index": 1.0,
+      "weekly_uptime_index": 1.0,
+      "monthly_latency_index": 1.0,
+      "monthly_uptime_index": 1.0,
+      "network_services_index": 0.9,
+      "node_index": 0.01,
+      "bandwidth_index": 1.0
+    }
+  },
+
+  "propagation": {
+    "enabled": true,
+    "track_blocks": true,
+    "track_transactions": true,
+    "max_inv_samples": 1000,
+    "retention_days": 30
+  },
+
+  "logging": {
+    "enabled": true,
+    "level": "INFO",
+    "log_to_console": true,
+    "log_to_file": true,
+    "log_dir": "log/bitnodes",
+    "rotate_logs": true,
+    "max_log_size_mb": 100,
+    "max_log_backups": 10
+  },
+
+  "security": {
+    "rate_limit_enabled": true,
+    "max_connections_per_host": 8,
+    "ban_failed_nodes": true,
+    "ban_duration_seconds": 86400,
+    "verify_protocol_messages": true
+  },
+
+  "experimental": {
+    "mempool_tracking": false,
+    "ln_node_detection": false,
+    "bitcoin_knots_detection": true,
+    "bitcoin_core_detection": true,
+    "btcd_detection": true,
+    "bcoin_detection": true,
+    "libbitcoin_detection": true
+  }
+}
