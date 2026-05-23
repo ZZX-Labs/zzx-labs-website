@@ -21,6 +21,7 @@ Install:
 from __future__ import annotations
 
 import ipaddress
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,26 @@ class GeoIPRecord:
             "asn": self.asn,
             "organization": self.organization
         }
+
+
+def load_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            payload,
+            handle,
+            indent=2,
+            ensure_ascii=False,
+            sort_keys=True
+        )
+
+        handle.write("\n")
 
 
 def is_ip_address(value: str) -> bool:
@@ -132,12 +153,13 @@ class GeoIPLookup:
         asn_db: str | Path | None = DEFAULT_ASN_DB,
         enabled: bool = True
     ) -> None:
+
         self.enabled = enabled
         self.city_db = Path(city_db) if city_db else None
         self.asn_db = Path(asn_db) if asn_db else None
+
         self.city_reader = None
         self.asn_reader = None
-        self._geoip2 = None
 
         if self.enabled:
             self.open()
@@ -149,13 +171,15 @@ class GeoIPLookup:
         try:
             import geoip2.database  # type: ignore
 
-            self._geoip2 = geoip2.database
-
             if self.city_db and self.city_db.exists():
-                self.city_reader = geoip2.database.Reader(str(self.city_db))
+                self.city_reader = geoip2.database.Reader(
+                    str(self.city_db)
+                )
 
             if self.asn_db and self.asn_db.exists():
-                self.asn_reader = geoip2.database.Reader(str(self.asn_db))
+                self.asn_reader = geoip2.database.Reader(
+                    str(self.asn_db)
+                )
 
         except Exception:
             self.city_reader = None
@@ -173,7 +197,9 @@ class GeoIPLookup:
         self.asn_reader = None
 
     def __enter__(self) -> "GeoIPLookup":
-        if self.enabled and not (self.city_reader or self.asn_reader):
+        if self.enabled and not (
+            self.city_reader or self.asn_reader
+        ):
             self.open()
 
         return self
@@ -207,7 +233,9 @@ class GeoIPLookup:
             response = self.asn_reader.asn(host)
 
             return {
-                "asn": normalize_asn(response.autonomous_system_number),
+                "asn": normalize_asn(
+                    response.autonomous_system_number
+                ),
                 "organization": response.autonomous_system_organization
             }
 
@@ -218,7 +246,13 @@ class GeoIPLookup:
         host = extract_host(address_or_host)
         host = strip_brackets(host)
 
-        if not host or ".onion" in host or not is_ip_address(host):
+        if not host:
+            return GeoIPRecord()
+
+        if ".onion" in host.lower():
+            return GeoIPRecord()
+
+        if not is_ip_address(host):
             return GeoIPRecord()
 
         city_data = self.lookup_city(host)
@@ -241,9 +275,7 @@ def enrich_node_array(
     geoip: GeoIPLookup
 ) -> list[Any]:
     """
-    Enrich a Bitnodes-compatible node array.
-
-    Input/output shape:
+    Bitnodes-compatible node array:
 
         [
             protocol_version,
@@ -262,7 +294,11 @@ def enrich_node_array(
         ]
     """
 
-    padded = list(values) + [None] * max(0, 13 - len(values))
+    padded = list(values)
+
+    while len(padded) < 13:
+        padded.append(None)
+
     record = geoip.lookup(address)
 
     if padded[6] in ("", None):
@@ -317,9 +353,28 @@ def enrich_nodes(
     return output
 
 
+def enrich_snapshot_payload(
+    payload: dict[str, Any],
+    city_db: str | Path | None = DEFAULT_CITY_DB,
+    asn_db: str | Path | None = DEFAULT_ASN_DB,
+    enabled: bool = True
+) -> dict[str, Any]:
+
+    if "nodes" not in payload:
+        return payload
+
+    payload["nodes"] = enrich_nodes(
+        payload["nodes"],
+        city_db=city_db,
+        asn_db=asn_db,
+        enabled=enabled
+    )
+
+    return payload
+
+
 def main() -> int:
     import argparse
-    import json
 
     parser = argparse.ArgumentParser(
         description="Enrich Bitnodes node JSON with GeoIP metadata."
@@ -328,7 +383,10 @@ def main() -> int:
     parser.add_argument(
         "--input",
         required=True,
-        help="Input JSON file containing either {'nodes': {...}} or a raw node dictionary."
+        help=(
+            "Input JSON file containing either "
+            "{'nodes': {...}} or a raw node dictionary."
+        )
     )
 
     parser.add_argument(
@@ -349,44 +407,47 @@ def main() -> int:
         help="Path to GeoLite2-ASN.mmdb."
     )
 
+    parser.add_argument(
+        "--disable",
+        action="store_true",
+        help="Disable GeoIP enrichment."
+    )
+
     args = parser.parse_args()
 
     input_path = Path(args.input)
     output_path = Path(args.output)
 
-    with input_path.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    payload = load_json(input_path)
+
+    enabled = not args.disable
 
     if isinstance(payload, dict) and "nodes" in payload:
-        nodes = payload["nodes"]
-        payload["nodes"] = enrich_nodes(
-            nodes,
+
+        payload = enrich_snapshot_payload(
+            payload,
             city_db=args.city_db,
             asn_db=args.asn_db,
-            enabled=True
+            enabled=enabled
         )
 
         output_payload = payload
 
     else:
+
         output_payload = enrich_nodes(
             payload,
             city_db=args.city_db,
             asn_db=args.asn_db,
-            enabled=True
+            enabled=enabled
         )
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(output_path, output_payload)
 
-    with output_path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            output_payload,
-            handle,
-            indent=2,
-            sort_keys=True
-        )
-
-        handle.write("\n")
+    print(
+        f"geoip enrichment complete: "
+        f"{output_path}"
+    )
 
     return 0
 
