@@ -1,1 +1,92 @@
+.bn-site-footer {
+    width: min(1380px, calc(100% - 32px));
+    margin: 42px auto 28px;
+    padding: 22px;
+    border: 1px solid rgba(192, 214, 116, 0.18);
+    border-radius: 20px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(10, 12, 8, 0.96),
+            rgba(5, 7, 4, 0.98)
+        );
+}
 
+.bn-footer-grid {
+    display: grid;
+    grid-template-columns:
+        1.5fr
+        1fr
+        1fr
+        1fr;
+    gap: 22px;
+}
+
+.bn-footer-section h3 {
+    margin-bottom: 14px;
+    color: var(--bn-green, #c0d674);
+    font-family: var(--bn-head, "IBM Plex Mono", monospace);
+    font-size: 0.96rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bn-footer-section p {
+    color: var(--bn-muted, #9ca58b);
+    line-height: 1.7;
+    font-size: 0.9rem;
+}
+
+.bn-footer-links {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bn-footer-links li {
+    margin-bottom: 10px;
+}
+
+.bn-footer-links a {
+    color: var(--bn-text, #e8f0d2);
+    text-decoration: none;
+    font-size: 0.88rem;
+}
+
+.bn-footer-links a:hover {
+    color: var(--bn-green, #c0d674);
+}
+
+.bn-footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(192, 214, 116, 0.12);
+    color: var(--bn-muted, #9ca58b);
+    font-size: 0.8rem;
+}
+
+@media (max-width: 1100px) {
+    .bn-footer-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+
+    .bn-site-footer {
+        width: min(100% - 18px, 1380px);
+        padding: 18px;
+    }
+
+    .bn-footer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bn-footer-bottom {
+        flex-direction: column;
+    }
+}
