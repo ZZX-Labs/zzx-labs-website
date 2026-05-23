@@ -27,10 +27,11 @@ Produces aggregate JSON structures for frontend pages and static API endpoints.
 
 from __future__ import annotations
 
-import math
+import json
 import statistics
 import time
-from collections import Counter, defaultdict
+from collections import Counter
+from pathlib import Path
 from typing import Any
 
 
@@ -65,6 +66,26 @@ def utc_iso(ts: int | None = None) -> str:
     )
 
 
+def load_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            payload,
+            handle,
+            indent=2,
+            ensure_ascii=False,
+            sort_keys=True
+        )
+
+        handle.write("\n")
+
+
 def fmt_percent(part: int | float, total: int | float) -> float:
     if not total:
         return 0.0
@@ -78,16 +99,22 @@ def safe_int(value: Any, default: int | None = None) -> int | None:
             return default
 
         return int(value)
+
     except (TypeError, ValueError):
         return default
 
 
-def safe_float(value: Any, default: float | None = None) -> float | None:
+def safe_float(
+    value: Any,
+    default: float | None = None
+) -> float | None:
+
     try:
         if value in ("", None):
             return default
 
         return float(value)
+
     except (TypeError, ValueError):
         return default
 
@@ -104,23 +131,6 @@ def top_counter_count(counter: Counter[Any]) -> int:
         return 0
 
     return counter.most_common(1)[0][1]
-
-
-def top_counter_rows(
-    counter: Counter[Any],
-    limit: int = 25
-) -> list[dict[str, Any]]:
-
-    total = sum(counter.values())
-
-    return [
-        {
-            "name": name,
-            "count": count,
-            "percent": fmt_percent(count, total)
-        }
-        for name, count in counter.most_common(limit)
-    ]
 
 
 def extract_port(address: str) -> str:
@@ -158,11 +168,16 @@ def extract_host(address: str) -> str:
     return address
 
 
-def is_tor_node(address: str, values: list[Any]) -> bool:
+def is_tor_node(
+    address: str,
+    values: list[Any]
+) -> bool:
+
     hostname = values[5] if len(values) > 5 else None
 
     return (
-        ".onion" in str(address).lower() or
+        ".onion" in str(address).lower()
+        or
         ".onion" in str(hostname or "").lower()
     )
 
@@ -172,10 +187,10 @@ def node_array_to_dict(
     values: list[Any]
 ) -> dict[str, Any]:
 
-    padded = list(values) + [None] * max(
-        0,
-        len(NODE_FIELD_NAMES) - len(values)
-    )
+    padded = list(values)
+
+    while len(padded) < len(NODE_FIELD_NAMES):
+        padded.append(None)
 
     item = {
         "address": address
@@ -324,6 +339,7 @@ def aggregate_by_key(
 ) -> list[dict[str, Any]]:
 
     rows = nodes_to_rows(nodes)
+
     groups: dict[str, dict[str, Any]] = {}
 
     for row in rows:
@@ -332,10 +348,7 @@ def aggregate_by_key(
         if key not in groups:
             groups[key] = make_group_shell(key)
 
-        add_row_to_group(
-            groups[key],
-            row
-        )
+        add_row_to_group(groups[key], row)
 
     total = len(rows)
 
@@ -504,7 +517,10 @@ def aggregate_tor(
     return {
         "count": len(tor_nodes),
         "total_nodes": len(nodes),
-        "percent": fmt_percent(len(tor_nodes), len(nodes)),
+        "percent": fmt_percent(
+            len(tor_nodes),
+            len(nodes)
+        ),
         "nodes": tor_nodes
     }
 
@@ -524,13 +540,17 @@ def aggregate_dns_seeder(
 
         if ".onion" in host:
             records["TXT"].append(host)
+
         elif ":" in host:
             records["AAAA"].append(host)
+
         else:
             records["A"].append(host)
 
     for key in records:
-        records[key] = sorted(set(records[key]))
+        records[key] = sorted(
+            set(records[key])
+        )
 
     return records
 
@@ -542,7 +562,11 @@ def aggregate_heights(
     heights = Counter()
 
     for _address, values in nodes.items():
-        row_height = safe_int(values[4] if len(values) > 4 else None)
+        row_height = safe_int(
+            values[4]
+            if len(values) > 4
+            else None
+        )
 
         if row_height is not None:
             heights[row_height] += 1
@@ -567,7 +591,8 @@ def aggregate_heights(
         "count": len(rows),
         "total_nodes": len(nodes),
         "results": rows,
-        "latest_height": rows[0]["height"] if rows else None
+        "latest_height": rows[0]["height"]
+        if rows else None
     }
 
 
@@ -576,13 +601,19 @@ def aggregate_coordinates(
 ) -> dict[str, Any]:
 
     seen = set()
+
     coordinates = []
 
     for address, values in nodes.items():
         row = node_array_to_dict(address, values)
 
-        latitude = safe_float(row.get("latitude"))
-        longitude = safe_float(row.get("longitude"))
+        latitude = safe_float(
+            row.get("latitude")
+        )
+
+        longitude = safe_float(
+            row.get("longitude")
+        )
 
         if latitude is None or longitude is None:
             continue
@@ -623,9 +654,13 @@ def aggregate_snapshot_summary(
     }
 
     cities = {
-        (row.get("city"), row.get("country_code"))
+        (
+            row.get("city"),
+            row.get("country_code")
+        )
         for row in rows
-        if row.get("city") or row.get("country_code")
+        if row.get("city")
+        or row.get("country_code")
     }
 
     asns = {
@@ -675,7 +710,10 @@ def aggregate_snapshot_summary(
         "ports_count": len(ports),
         "services_count": len(services),
         "tor_nodes": tor_count,
-        "tor_percent": fmt_percent(tor_count, len(nodes)),
+        "tor_percent": fmt_percent(
+            tor_count,
+            len(nodes)
+        ),
         "top_agent": top_counter_value(agents),
         "top_port": top_counter_value(ports),
         "top_service": top_counter_value(services)
@@ -709,3 +747,146 @@ def aggregate_all(
         "heights": aggregate_heights(nodes),
         "coordinates": aggregate_coordinates(nodes)
     }
+
+
+def export_aggregate_files(
+    payload: dict[str, Any],
+    output_dir: str | Path
+) -> dict[str, Any]:
+
+    output_dir = Path(output_dir)
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    nodes = payload.get("nodes", {})
+
+    timestamp = payload.get(
+        "timestamp",
+        utc_timestamp()
+    )
+
+    source = payload.get(
+        "source",
+        "zzx-labs-bitnodes-crawler"
+    )
+
+    aggregates = aggregate_all(
+        nodes,
+        timestamp=timestamp,
+        source=source
+    )
+
+    write_json(
+        output_dir / "summary.json",
+        aggregates["summary"]
+    )
+
+    write_json(
+        output_dir / "countries.json",
+        aggregates["countries"]
+    )
+
+    write_json(
+        output_dir / "cities.json",
+        aggregates["cities"]
+    )
+
+    write_json(
+        output_dir / "asns.json",
+        aggregates["asns"]
+    )
+
+    write_json(
+        output_dir / "agents.json",
+        aggregates["agents"]
+    )
+
+    write_json(
+        output_dir / "versions.json",
+        aggregates["versions"]
+    )
+
+    write_json(
+        output_dir / "ports.json",
+        aggregates["ports"]
+    )
+
+    write_json(
+        output_dir / "services.json",
+        aggregates["services"]
+    )
+
+    write_json(
+        output_dir / "organizations.json",
+        aggregates["organizations"]
+    )
+
+    write_json(
+        output_dir / "tor.json",
+        aggregates["tor"]
+    )
+
+    write_json(
+        output_dir / "dns-seeder.json",
+        aggregates["dns_seeder"]
+    )
+
+    write_json(
+        output_dir / "heights.json",
+        aggregates["heights"]
+    )
+
+    write_json(
+        output_dir / "coordinates.json",
+        aggregates["coordinates"]
+    )
+
+    write_json(
+        output_dir / "status.json",
+        aggregates["summary"]
+    )
+
+    return aggregates
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Generate Bitnodes aggregate JSON files."
+    )
+
+    parser.add_argument(
+        "--input",
+        required=True
+    )
+
+    parser.add_argument(
+        "--output",
+        required=True
+    )
+
+    args = parser.parse_args()
+
+    payload = load_json(
+        Path(args.input)
+    )
+
+    export_aggregate_files(
+        payload,
+        Path(args.output)
+    )
+
+    print(
+        f"aggregate export complete: "
+        f"{args.output}"
+    )
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
