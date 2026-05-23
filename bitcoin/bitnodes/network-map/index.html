@@ -1,1 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
 
+    <title>Network Map | Bitnodes Mirror | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../../static/icons/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="./network-map.css">
+
+    <script src="../../../static/script.js" defer></script>
+    <script src="../script.js" defer></script>
+    <script src="./network-map.js" defer></script>
+</head>
+
+<body data-bn-depth="..">
+
+<header>
+    <div id="zzx-header"></div>
+    <div id="bn-header"></div>
+</header>
+
+<main class="bn-shell" data-bitnodes-view="network-map">
+    <br>
+
+    <div id="ticker-container"></div>
+
+    <br>
+
+    <section class="bn-hero container">
+        <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
+
+        <h2>Network Map</h2>
+
+        <p>
+            High-level Bitcoin network topology view showing reachable-node distribution
+            across countries, ASNs, clients, Tor endpoints, and observed service groups.
+        </p>
+
+        <div class="bn-sourcebar">
+            <label for="bn-source">Data Source</label>
+
+            <select id="bn-source">
+                <option value="local" selected>ZZX-Labs Local JSON</option>
+                <option value="external">External Compatible API</option>
+            </select>
+
+            <button id="bn-refresh" type="button">Refresh</button>
+        </div>
+    </section>
+
+    <br>
+
+    <section id="bn-status" class="bn-status container">
+        Loading network topology…
+    </section>
+
+    <br>
+
+    <section class="bn-grid" id="bn-summary"></section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div class="bn-toolbar">
+            <div class="bn-toolbar-group">
+                <label for="bn-group">Topology Layer</label>
+                <select id="bn-group">
+                    <option value="country">Countries</option>
+                    <option value="asn">ASNs</option>
+                    <option value="agent">Agents</option>
+                    <option value="services">Services</option>
+                </select>
+            </div>
+
+            <div class="bn-toolbar-group">
+                <label for="bn-search">Search</label>
+                <input id="bn-search" type="search" placeholder="Country, ASN, agent, service…">
+            </div>
+        </div>
+
+        <div id="bn-map" class="bn-network-map"></div>
+        <div id="bn-view"></div>
+    </section>
+
+    <br><br>
+</main>
+
+<footer>
+    <div id="bn-footer"></div>
+    <div id="zzx-footer"></div>
+</footer>
+
+</body>
+</html>
