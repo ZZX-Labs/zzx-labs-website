@@ -176,6 +176,8 @@ Each server can pull the latest code from the GitHub repository automatically us
 
 3. **Verify live site**: Once synced, verify the live site is running correctly at your custom domain.
 
+---
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
