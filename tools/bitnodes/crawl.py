@@ -50,8 +50,28 @@ DNS_SEEDS = [
 DEFAULT_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api"
 DEFAULT_ARCHIVE = APP_ROOT / "bitcoin" / "bitnodes" / "archive"
 
-DEFAULT_CITY_DB = APP_ROOT / "data" / "geoip" / "GeoLite2-City.mmdb"
-DEFAULT_ASN_DB = APP_ROOT / "data" / "geoip" / "GeoLite2-ASN.mmdb"
+DEFAULT_GEOIP_DIR = (
+    APP_ROOT
+    / "bitcoin"
+    / "bitnodes"
+    / "data"
+    / "geoip"
+)
+
+DEFAULT_CITY_DB = (
+    DEFAULT_GEOIP_DIR
+    / "dbip-city-lite.mmdb"
+)
+
+DEFAULT_ASN_DB = (
+    DEFAULT_GEOIP_DIR
+    / "dbip-asn-lite.mmdb"
+)
+
+DEFAULT_COUNTRY_DB = (
+    DEFAULT_GEOIP_DIR
+    / "dbip-country-lite.mmdb"
+)
 
 
 def mkdir(path: Path) -> None:
