@@ -3,18 +3,13 @@ from __future__ import annotations
 
 import json
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
 
-APP_ROOT = Path(__file__).resolve().parents[2]
-
-DEFAULT_STATE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state"
-DEFAULT_SNAPSHOT_24H_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "snapshots" / "24h"
-
-STATE_NODES = "nodes.json"
-STATE_QUEUE = "queue.json"
-STATE_META = "meta.json"
+DEFAULT_STATE_DIR = Path("bitcoin/bitnodes/data/state")
+DEFAULT_SNAPSHOT_24H_DIR = Path("bitcoin/bitnodes/data/snapshots/24h")
 
 
 def utc_now() -> int:
@@ -22,6 +17,7 @@ def utc_now() -> int:
 
 
 def utc_iso(ts: int | None = None) -> str:
+
     if ts is None:
         ts = utc_now()
 
@@ -31,7 +27,7 @@ def utc_iso(ts: int | None = None) -> str:
     )
 
 
-def ensure_dir(path: Path) -> None:
+def mkdir(path: Path) -> None:
     path.mkdir(
         parents=True,
         exist_ok=True
@@ -47,7 +43,11 @@ def read_json(
         return default
 
     try:
-        with path.open("r", encoding="utf-8") as handle:
+        with path.open(
+            "r",
+            encoding="utf-8"
+        ) as handle:
+
             return json.load(handle)
 
     except Exception:
@@ -60,76 +60,25 @@ def write_json(
     pretty: bool = True
 ) -> None:
 
-    ensure_dir(path.parent)
+    mkdir(path.parent)
 
-    with path.open("w", encoding="utf-8") as handle:
+    with path.open(
+        "w",
+        encoding="utf-8"
+    ) as handle:
+
         json.dump(
             payload,
             handle,
             indent=2 if pretty else None,
-            ensure_ascii=False,
-            sort_keys=True
+            sort_keys=pretty
         )
 
         handle.write("\n")
 
 
-def extract_host(address: str) -> str:
-    value = str(address).strip()
-
-    if value.startswith("[") and "]:" in value:
-        return value.split("]:", 1)[0].lstrip("[")
-
-    if value.startswith("[") and value.endswith("]"):
-        return value[1:-1]
-
-    if ".onion:" in value:
-        return value.rsplit(":", 1)[0]
-
-    if value.count(":") == 1:
-        host, port = value.rsplit(":", 1)
-
-        if port.isdigit():
-            return host
-
-    return value
-
-
-def extract_port(address: str) -> int | None:
-    value = str(address).strip()
-
-    try:
-        if value.startswith("[") and "]:" in value:
-            return int(value.rsplit(":", 1)[1])
-
-        if ".onion:" in value:
-            return int(value.rsplit(":", 1)[1])
-
-        if value.count(":") == 1:
-            host, port = value.rsplit(":", 1)
-
-            if port.isdigit():
-                return int(port)
-
-    except Exception:
-        return None
-
-    return None
-
-
-def classify_network(address: str) -> str:
-    host = extract_host(address).lower()
-
-    if host.endswith(".onion"):
-        return "tor"
-
-    if ":" in host:
-        return "ipv6"
-
-    return "ipv4"
-
-
 def normalize_address(address: str) -> str:
+
     value = str(address).strip()
 
     if not value:
@@ -144,11 +93,14 @@ def normalize_address(address: str) -> str:
     if ".onion:" in value:
         return value
 
-    if value.endswith(".onion"):
+    if ".onion" in value:
         return f"{value}:8333"
 
-    if value.count(":") == 1 and value.rsplit(":", 1)[1].isdigit():
-        return value
+    if value.count(":") == 1:
+        host, port = value.rsplit(":", 1)
+
+        if port.isdigit():
+            return value
 
     if value.count(":") > 1:
         return f"[{value}]:8333"
@@ -156,342 +108,98 @@ def normalize_address(address: str) -> str:
     return f"{value}:8333"
 
 
-def bitnodes_array_to_record(
-    address: str,
-    values: list[Any],
-    now: int | None = None
-) -> dict[str, Any]:
+def split_address(address: str) -> tuple[str, int | None]:
 
-    if now is None:
-        now = utc_now()
+    address = normalize_address(address)
 
-    row = list(values)
+    if address.startswith("["):
 
-    while len(row) < 20:
-        row.append(None)
+        host = address.split("]:", 1)[0][1:]
 
-    return {
-        "address": address,
-        "host": extract_host(address),
-        "port": extract_port(address),
-        "network": classify_network(address),
+        try:
+            port = int(address.rsplit(":", 1)[1])
+        except Exception:
+            port = None
 
-        "reachable": True,
-        "first_seen": now,
-        "last_seen": now,
-        "last_checked": now,
-        "last_success": now,
-        "last_failure": None,
-        "failures": 0,
-        "successes": 1,
+        return host, port
 
-        "protocol": row[0],
-        "agent": row[1],
-        "connected_since": row[2],
-        "services": row[3],
-        "height": row[4],
-        "hostname": row[5],
+    if ":" in address:
 
-        "city": row[6],
-        "country": row[7],
-        "latitude": row[8],
-        "longitude": row[9],
-        "timezone": row[10],
-        "asn": row[11],
-        "organization": row[12],
-        "provider": row[13],
-        "county": row[14],
-        "zip": row[15],
-        "w3w": row[16],
-        "geohash": row[17],
-        "asn_location": row[18],
+        host, port_text = address.rsplit(":", 1)
 
-        "latency_ms": row[19],
-        "latency_samples": [
-            {
-                "t": now,
-                "v": row[19]
-            }
-        ] if row[19] is not None else [],
+        try:
+            port = int(port_text)
+        except Exception:
+            port = None
 
-        "height_samples": [
-            {
-                "t": now,
-                "v": row[4]
-            }
-        ] if row[4] is not None else [],
+        return host, port
 
-        "observations": [
-            {
-                "t": now,
-                "reachable": True,
-                "height": row[4],
-                "latency_ms": row[19]
-            }
-        ],
-
-        "uptime_24h_percent": 100.0,
-        "reachable_24h": True,
-        "new_24h": True,
-        "stale": False,
-        "tor": classify_network(address) == "tor"
-    }
+    return address, None
 
 
-def record_to_bitnodes_array(record: dict[str, Any]) -> list[Any]:
-    return [
-        record.get("protocol"),
-        record.get("agent"),
-        record.get("connected_since"),
-        record.get("services"),
-        record.get("height"),
-        record.get("hostname"),
-        record.get("city"),
-        record.get("country"),
-        record.get("latitude"),
-        record.get("longitude"),
-        record.get("timezone"),
-        record.get("asn"),
-        record.get("organization"),
-        record.get("provider"),
-        record.get("county"),
-        record.get("zip"),
-        record.get("w3w"),
-        record.get("geohash"),
-        record.get("asn_location"),
-        record.get("latency_ms")
-    ]
+def uptime_human(seconds: float | int | None) -> str:
 
+    if seconds is None:
+        return "0m"
 
-def prune_samples(
-    samples: list[dict[str, Any]],
-    cutoff: int
-) -> list[dict[str, Any]]:
+    seconds = int(seconds)
 
-    return [
-        sample
-        for sample in samples
-        if int(sample.get("t", 0)) >= cutoff
-    ]
+    if seconds < 60:
+        return f"{seconds}s"
 
+    minutes = seconds // 60
 
-def calculate_uptime_24h(
-    observations: list[dict[str, Any]],
-    now: int
-) -> float:
+    if minutes < 60:
+        return f"{minutes}m"
 
-    cutoff = now - 86400
+    hours = minutes // 60
 
-    recent = [
-        item
-        for item in observations
-        if int(item.get("t", 0)) >= cutoff
-    ]
+    if hours < 24:
+        return f"{hours}h"
 
-    if not recent:
-        return 0.0
+    days = hours // 24
 
-    successes = sum(
-        1
-        for item in recent
-        if bool(item.get("reachable"))
-    )
+    if days < 7:
+        return f"{days}d"
 
-    return round(
-        (successes / len(recent)) * 100.0,
-        4
-    )
+    weeks = days // 7
 
+    if weeks < 52:
+        return f"{weeks}w"
 
-def merge_success(
-    previous: dict[str, Any] | None,
-    address: str,
-    values: list[Any],
-    now: int
-) -> dict[str, Any]:
+    years = weeks // 52
 
-    fresh = bitnodes_array_to_record(
-        address,
-        values,
-        now=now
-    )
-
-    if not previous:
-        return fresh
-
-    record = dict(previous)
-
-    record["address"] = address
-    record["host"] = extract_host(address)
-    record["port"] = extract_port(address)
-    record["network"] = classify_network(address)
-    record["tor"] = classify_network(address) == "tor"
-
-    record["reachable"] = True
-    record["last_seen"] = now
-    record["last_checked"] = now
-    record["last_success"] = now
-    record["successes"] = int(record.get("successes", 0)) + 1
-
-    record["protocol"] = fresh.get("protocol")
-    record["agent"] = fresh.get("agent")
-    record["connected_since"] = fresh.get("connected_since")
-    record["services"] = fresh.get("services")
-    record["height"] = fresh.get("height")
-    record["hostname"] = fresh.get("hostname")
-    record["latency_ms"] = fresh.get("latency_ms")
-
-    for key in [
-        "city",
-        "country",
-        "latitude",
-        "longitude",
-        "timezone",
-        "asn",
-        "organization",
-        "provider",
-        "county",
-        "zip",
-        "w3w",
-        "geohash",
-        "asn_location"
-    ]:
-        if fresh.get(key) not in ("", None):
-            record[key] = fresh.get(key)
-
-    cutoff = now - 86400
-
-    latency_samples = list(record.get("latency_samples", []))
-    if fresh.get("latency_ms") is not None:
-        latency_samples.append({
-            "t": now,
-            "v": fresh.get("latency_ms")
-        })
-    record["latency_samples"] = prune_samples(latency_samples, cutoff)
-
-    height_samples = list(record.get("height_samples", []))
-    if fresh.get("height") is not None:
-        height_samples.append({
-            "t": now,
-            "v": fresh.get("height")
-        })
-    record["height_samples"] = prune_samples(height_samples, cutoff)
-
-    observations = list(record.get("observations", []))
-    observations.append({
-        "t": now,
-        "reachable": True,
-        "height": fresh.get("height"),
-        "latency_ms": fresh.get("latency_ms")
-    })
-    record["observations"] = prune_samples(observations, cutoff)
-
-    record["uptime_24h_percent"] = calculate_uptime_24h(
-        record["observations"],
-        now
-    )
-
-    record["reachable_24h"] = True
-    record["new_24h"] = int(record.get("first_seen", now)) >= cutoff
-    record["stale"] = False
-
-    return record
-
-
-def merge_failure(
-    previous: dict[str, Any] | None,
-    address: str,
-    now: int
-) -> dict[str, Any]:
-
-    if previous:
-        record = dict(previous)
-    else:
-        record = {
-            "address": address,
-            "host": extract_host(address),
-            "port": extract_port(address),
-            "network": classify_network(address),
-            "first_seen": now,
-            "successes": 0,
-            "failures": 0,
-            "observations": [],
-            "latency_samples": [],
-            "height_samples": [],
-            "tor": classify_network(address) == "tor"
-        }
-
-    record["reachable"] = False
-    record["last_checked"] = now
-    record["last_failure"] = now
-    record["failures"] = int(record.get("failures", 0)) + 1
-
-    cutoff = now - 86400
-
-    observations = list(record.get("observations", []))
-    observations.append({
-        "t": now,
-        "reachable": False,
-        "height": record.get("height"),
-        "latency_ms": None
-    })
-
-    record["observations"] = prune_samples(observations, cutoff)
-    record["latency_samples"] = prune_samples(
-        list(record.get("latency_samples", [])),
-        cutoff
-    )
-    record["height_samples"] = prune_samples(
-        list(record.get("height_samples", [])),
-        cutoff
-    )
-
-    record["uptime_24h_percent"] = calculate_uptime_24h(
-        record["observations"],
-        now
-    )
-
-    record["reachable_24h"] = any(
-        bool(item.get("reachable"))
-        for item in record["observations"]
-    )
-
-    record["new_24h"] = int(record.get("first_seen", now)) >= cutoff
-
-    last_success = record.get("last_success")
-    record["stale"] = (
-        last_success is None
-        or int(last_success) < cutoff
-    )
-
-    return record
+    return f"{years}y"
 
 
 class BitnodesState:
+
     def __init__(
         self,
-        state_dir: str | Path = DEFAULT_STATE_DIR,
-        snapshot_24h_dir: str | Path = DEFAULT_SNAPSHOT_24H_DIR
+        state_dir: Path = DEFAULT_STATE_DIR,
+        snapshot_24h_dir: Path = DEFAULT_SNAPSHOT_24H_DIR
     ) -> None:
 
         self.state_dir = Path(state_dir)
         self.snapshot_24h_dir = Path(snapshot_24h_dir)
 
-        ensure_dir(self.state_dir)
-        ensure_dir(self.snapshot_24h_dir)
+        mkdir(self.state_dir)
+        mkdir(self.snapshot_24h_dir)
 
-        self.nodes_path = self.state_dir / STATE_NODES
-        self.queue_path = self.state_dir / STATE_QUEUE
-        self.meta_path = self.state_dir / STATE_META
+        self.nodes_path = self.state_dir / "nodes.json"
+        self.queue_path = self.state_dir / "queue.json"
+        self.meta_path = self.state_dir / "meta.json"
 
         self.nodes: dict[str, dict[str, Any]] = read_json(
             self.nodes_path,
             {}
         )
 
-        self.queue: list[str] = read_json(
-            self.queue_path,
-            []
+        self.queue: deque[str] = deque(
+            read_json(
+                self.queue_path,
+                []
+            )
         )
 
         self.meta: dict[str, Any] = read_json(
@@ -499,7 +207,10 @@ class BitnodesState:
             {}
         )
 
+        self._queue_set = set(self.queue)
+
     def save(self) -> None:
+
         write_json(
             self.nodes_path,
             self.nodes
@@ -507,7 +218,7 @@ class BitnodesState:
 
         write_json(
             self.queue_path,
-            sorted(set(self.queue))
+            list(self.queue)
         )
 
         write_json(
@@ -520,43 +231,186 @@ class BitnodesState:
         addresses: list[str]
     ) -> None:
 
-        existing = set(self.queue)
-        known = set(self.nodes)
-
         for address in addresses:
+
             normalized = normalize_address(address)
 
             if not normalized:
                 continue
 
-            if normalized in existing:
-                continue
-
-            if normalized in known:
+            if normalized in self._queue_set:
                 continue
 
             self.queue.append(normalized)
-            existing.add(normalized)
+            self._queue_set.add(normalized)
 
     def pop_batch(
         self,
-        limit: int
+        size: int
     ) -> list[str]:
 
-        batch = []
+        batch: list[str] = []
 
-        while self.queue and len(batch) < limit:
-            address = self.queue.pop(0)
+        while self.queue and len(batch) < size:
 
-            if address in batch:
-                continue
+            address = self.queue.popleft()
+
+            self._queue_set.discard(address)
 
             batch.append(address)
 
         return batch
 
-    def known_addresses(self) -> list[str]:
-        return sorted(set(self.nodes.keys()))
+    def update_successes(
+        self,
+        nodes: dict[str, list[Any]],
+        now: int | None = None
+    ) -> None:
+
+        if now is None:
+            now = utc_now()
+
+        for address, row in nodes.items():
+
+            normalized = normalize_address(address)
+
+            host, port = split_address(normalized)
+
+            protocol = row[0] if len(row) > 0 else None
+            agent = row[1] if len(row) > 1 else None
+            connected_since = row[2] if len(row) > 2 else None
+            services = row[3] if len(row) > 3 else None
+            height = row[4] if len(row) > 4 else None
+            hostname = row[5] if len(row) > 5 else None
+
+            existing = self.nodes.get(normalized, {})
+
+            first_seen = existing.get(
+                "first_seen",
+                now
+            )
+
+            total_uptime = existing.get(
+                "total_uptime",
+                0
+            )
+
+            if existing.get("reachable"):
+                last_seen = existing.get(
+                    "last_seen",
+                    now
+                )
+
+                delta = max(
+                    0,
+                    now - last_seen
+                )
+
+                total_uptime += delta
+
+            latency_ms = existing.get(
+                "latency_ms",
+                0.0
+            )
+
+            peer_index = existing.get(
+                "peer_index",
+                0.0
+            )
+
+            self.nodes[normalized] = {
+                "address": normalized,
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "first_seen": first_seen,
+                "first_seen_iso": utc_iso(first_seen),
+                "last_seen": now,
+                "last_seen_iso": utc_iso(now),
+                "protocol": protocol,
+                "agent": agent,
+                "services": services,
+                "height": height,
+                "hostname": hostname,
+                "connected_since": connected_since,
+                "latency_ms": latency_ms,
+                "peer_index": peer_index,
+                "success_count": existing.get("success_count", 0) + 1,
+                "failure_count": existing.get("failure_count", 0),
+                "reachable_24h": True,
+                "total_uptime": total_uptime,
+                "uptime_human": uptime_human(total_uptime),
+                "tor": ".onion" in normalized,
+                "city": existing.get("city"),
+                "country": existing.get("country"),
+                "latitude": existing.get("latitude"),
+                "longitude": existing.get("longitude"),
+                "timezone": existing.get("timezone"),
+                "asn": existing.get("asn"),
+                "organization": existing.get("organization"),
+                "provider": existing.get("provider"),
+                "county": existing.get("county"),
+                "zip": existing.get("zip"),
+                "w3w": existing.get("w3w"),
+                "geohash": existing.get("geohash"),
+                "asn_location": existing.get("asn_location")
+            }
+
+    def update_failures(
+        self,
+        addresses: list[str],
+        now: int | None = None
+    ) -> None:
+
+        if now is None:
+            now = utc_now()
+
+        for address in addresses:
+
+            normalized = normalize_address(address)
+
+            existing = self.nodes.get(
+                normalized,
+                {}
+            )
+
+            if not existing:
+
+                host, port = split_address(normalized)
+
+                self.nodes[normalized] = {
+                    "address": normalized,
+                    "host": host,
+                    "port": port,
+                    "reachable": False,
+                    "reachable_24h": False,
+                    "first_seen": now,
+                    "first_seen_iso": utc_iso(now),
+                    "last_seen": None,
+                    "last_seen_iso": None,
+                    "protocol": None,
+                    "agent": None,
+                    "services": None,
+                    "height": None,
+                    "hostname": None,
+                    "connected_since": None,
+                    "latency_ms": 0.0,
+                    "peer_index": 0.0,
+                    "success_count": 0,
+                    "failure_count": 1,
+                    "total_uptime": 0,
+                    "uptime_human": "0m",
+                    "tor": ".onion" in normalized
+                }
+
+                continue
+
+            existing["reachable"] = False
+            existing["reachable_24h"] = False
+            existing["failure_count"] = existing.get(
+                "failure_count",
+                0
+            ) + 1
 
     def all_candidate_addresses(
         self,
@@ -564,310 +418,306 @@ class BitnodesState:
         limit: int
     ) -> list[str]:
 
-        candidates = []
+        combined = set(seed_addresses)
 
-        seen = set()
+        combined.update(self.nodes.keys())
+        combined.update(self.queue)
 
-        for source in [
-            seed_addresses,
-            self.queue,
-            self.known_addresses()
-        ]:
-            for address in source:
-                normalized = normalize_address(address)
+        addresses = sorted(combined)
 
-                if not normalized or normalized in seen:
-                    continue
+        return addresses[:limit]
 
-                candidates.append(normalized)
-                seen.add(normalized)
-
-                if len(candidates) >= limit:
-                    return candidates
-
-        return candidates
-
-    def update_successes(
+    def compute_peer_index(
         self,
-        successes: dict[str, list[Any]],
-        now: int
-    ) -> None:
+        node: dict[str, Any]
+    ) -> float:
 
-        for address, values in successes.items():
-            normalized = normalize_address(address)
+        uptime_bonus = min(
+            100,
+            node.get("total_uptime", 0) / 3600
+        )
 
-            previous = self.nodes.get(normalized)
+        success_bonus = min(
+            100,
+            node.get("success_count", 0)
+        )
 
-            self.nodes[normalized] = merge_success(
-                previous,
-                normalized,
-                values,
-                now
-            )
+        height_bonus = 0
 
-    def update_failures(
+        if node.get("height"):
+            height_bonus = 25
+
+        service_bonus = 0
+
+        if node.get("services"):
+            try:
+                service_bonus = min(
+                    25,
+                    int(node["services"]) / 1000
+                )
+            except Exception:
+                service_bonus = 0
+
+        latency_bonus = max(
+            0,
+            100 - float(node.get("latency_ms", 0.0))
+        )
+
+        return round(
+            uptime_bonus
+            + success_bonus
+            + height_bonus
+            + service_bonus
+            + latency_bonus,
+            2
+        )
+
+    def state_summary(self) -> dict[str, Any]:
+
+        reachable_now = 0
+        unreachable_now = 0
+        reachable_24h = 0
+        stale_nodes = 0
+
+        now = utc_now()
+
+        for node in self.nodes.values():
+
+            if node.get("reachable"):
+                reachable_now += 1
+            else:
+                unreachable_now += 1
+
+            if node.get("reachable_24h"):
+                reachable_24h += 1
+
+            last_seen = node.get("last_seen")
+
+            if last_seen:
+
+                if (now - int(last_seen)) > 86400:
+                    stale_nodes += 1
+
+        return {
+            "timestamp": now,
+            "updated_at": utc_iso(now),
+            "total_known_nodes": len(self.nodes),
+            "reachable_now": reachable_now,
+            "unreachable_now": unreachable_now,
+            "reachable_24h": reachable_24h,
+            "stale_nodes": stale_nodes,
+            "queue_size": len(self.queue)
+        }
+
+    def leaderboard(
         self,
-        failed_addresses: list[str],
-        now: int
-    ) -> None:
+        limit: int = 1000
+    ) -> list[dict[str, Any]]:
 
-        for address in failed_addresses:
-            normalized = normalize_address(address)
+        output = []
 
-            if not normalized:
+        for address, node in self.nodes.items():
+
+            peer_index = self.compute_peer_index(node)
+
+            node["peer_index"] = peer_index
+
+            output.append({
+                "address": address,
+                "peer_index": peer_index,
+                "height": node.get("height"),
+                "agent": node.get("agent"),
+                "country": node.get("country"),
+                "city": node.get("city"),
+                "asn": node.get("asn"),
+                "organization": node.get("organization"),
+                "latency_ms": node.get("latency_ms"),
+                "uptime_human": node.get("uptime_human"),
+                "reachable": node.get("reachable"),
+                "tor": node.get("tor")
+            })
+
+        output.sort(
+            key=lambda item: item["peer_index"],
+            reverse=True
+        )
+
+        return output[:limit]
+
+    def write_24h_snapshot(self) -> Path:
+
+        now = utc_now()
+
+        filename = (
+            f"{now}.json"
+        )
+
+        path = self.snapshot_24h_dir / filename
+
+        payload = self.build_export_payload(
+            mode="all"
+        )
+
+        write_json(
+            path,
+            payload
+        )
+
+        self.cleanup_old_snapshots()
+
+        return path
+
+    def cleanup_old_snapshots(self) -> None:
+
+        cutoff = utc_now() - 86400
+
+        for path in self.snapshot_24h_dir.glob("*.json"):
+
+            try:
+                timestamp = int(path.stem)
+            except Exception:
                 continue
 
-            previous = self.nodes.get(normalized)
+            if timestamp < cutoff:
 
-            self.nodes[normalized] = merge_failure(
-                previous,
-                normalized,
-                now
-            )
-
-    def latest_height(self) -> int | None:
-        heights = [
-            int(record["height"])
-            for record in self.nodes.values()
-            if isinstance(record.get("height"), int)
-        ]
-
-        return max(heights) if heights else None
-
-    def reachable_now(self) -> dict[str, dict[str, Any]]:
-        return {
-            address: record
-            for address, record in self.nodes.items()
-            if bool(record.get("reachable"))
-        }
-
-    def unreachable_now(self) -> dict[str, dict[str, Any]]:
-        return {
-            address: record
-            for address, record in self.nodes.items()
-            if not bool(record.get("reachable"))
-        }
-
-    def reachable_24h(self) -> dict[str, dict[str, Any]]:
-        cutoff = utc_now() - 86400
-
-        return {
-            address: record
-            for address, record in self.nodes.items()
-            if int(record.get("last_success") or 0) >= cutoff
-        }
-
-    def stale(self) -> dict[str, dict[str, Any]]:
-        cutoff = utc_now() - 86400
-
-        return {
-            address: record
-            for address, record in self.nodes.items()
-            if int(record.get("last_success") or 0) < cutoff
-        }
+                try:
+                    path.unlink()
+                except Exception:
+                    pass
 
     def to_bitnodes_nodes(
         self,
         mode: str = "all"
     ) -> dict[str, list[Any]]:
 
-        if mode == "reachable":
-            source = self.reachable_now()
-        elif mode == "unreachable":
-            source = self.unreachable_now()
-        elif mode == "reachable_24h":
-            source = self.reachable_24h()
-        elif mode == "stale":
-            source = self.stale()
-        else:
-            source = self.nodes
+        output: dict[str, list[Any]] = {}
 
-        return {
-            address: record_to_bitnodes_array(record)
-            for address, record in source.items()
-        }
-
-    def state_summary(self) -> dict[str, Any]:
         now = utc_now()
 
-        reachable_now = self.reachable_now()
-        unreachable_now = self.unreachable_now()
-        reachable_24h = self.reachable_24h()
-        stale = self.stale()
+        for address, node in self.nodes.items():
 
-        tor_nodes = {
-            address: record
-            for address, record in self.nodes.items()
-            if record.get("tor")
-        }
+            reachable = node.get("reachable", False)
 
-        ipv4_nodes = {
-            address: record
-            for address, record in self.nodes.items()
-            if record.get("network") == "ipv4"
-        }
+            if mode == "reachable" and not reachable:
+                continue
 
-        ipv6_nodes = {
-            address: record
-            for address, record in self.nodes.items()
-            if record.get("network") == "ipv6"
-        }
+            if mode == "unreachable" and reachable:
+                continue
 
-        countries = {
-            record.get("country")
-            for record in self.nodes.values()
-            if record.get("country")
-        }
+            if mode == "reachable_24h":
 
-        asns = {
-            record.get("asn")
-            for record in self.nodes.values()
-            if record.get("asn")
-        }
+                last_seen = node.get("last_seen")
 
-        return {
-            "timestamp": now,
-            "updated_at": utc_iso(now),
-            "total_known_nodes": len(self.nodes),
-            "reachable_now": len(reachable_now),
-            "unreachable_now": len(unreachable_now),
-            "reachable_24h": len(reachable_24h),
-            "stale_nodes": len(stale),
-            "tor_nodes": len(tor_nodes),
-            "ipv4_nodes": len(ipv4_nodes),
-            "ipv6_nodes": len(ipv6_nodes),
-            "countries_count": len(countries),
-            "asns_count": len(asns),
-            "latest_height": self.latest_height(),
-            "queue_size": len(self.queue)
-        }
+                if not last_seen:
+                    continue
 
-    def build_24h_snapshot(self) -> dict[str, Any]:
-        now = utc_now()
+                if (now - int(last_seen)) > 86400:
+                    continue
 
-        return {
-            "source": "zzx-labs-bitnodes-persistent-state",
-            "timestamp": now,
-            "updated_at": utc_iso(now),
-            "summary": self.state_summary(),
-            "nodes": self.to_bitnodes_nodes("reachable_24h"),
-            "records": self.reachable_24h()
-        }
+            if mode == "stale":
 
-    def write_24h_snapshot(self) -> Path:
-        snapshot = self.build_24h_snapshot()
-        now = int(snapshot["timestamp"])
+                last_seen = node.get("last_seen")
 
-        t = time.gmtime(now)
+                if not last_seen:
+                    continue
 
-        path = (
-            self.snapshot_24h_dir
-            / f"{t.tm_year:04d}"
-            / f"{t.tm_mon:02d}"
-            / f"{t.tm_mday:02d}"
-            / f"{t.tm_hour:02d}"
-            / f"{now}.json"
-        )
+                if (now - int(last_seen)) <= 86400:
+                    continue
 
-        write_json(path, snapshot)
+            output[address] = [
+                node.get("protocol"),
+                node.get("agent"),
+                node.get("connected_since"),
+                node.get("services"),
+                node.get("height"),
+                node.get("hostname"),
+                node.get("city"),
+                node.get("country"),
+                node.get("latitude"),
+                node.get("longitude"),
+                node.get("timezone"),
+                node.get("asn"),
+                node.get("organization"),
+                node.get("provider"),
+                node.get("county"),
+                node.get("zip"),
+                node.get("w3w"),
+                node.get("geohash"),
+                node.get("asn_location"),
+                {
+                    "latency_ms": node.get("latency_ms"),
+                    "uptime_human": node.get("uptime_human"),
+                    "reachable": node.get("reachable"),
+                    "peer_index": node.get("peer_index"),
+                    "tor": node.get("tor"),
+                    "success_count": node.get("success_count"),
+                    "failure_count": node.get("failure_count"),
+                    "first_seen": node.get("first_seen_iso"),
+                    "last_seen": node.get("last_seen_iso")
+                }
+            ]
 
-        write_json(
-            self.snapshot_24h_dir / "latest.json",
-            snapshot
-        )
-
-        return path
+        return output
 
     def build_export_payload(
         self,
-        mode: str = "reachable_24h"
+        mode: str = "all"
     ) -> dict[str, Any]:
-
-        now = utc_now()
-        nodes = self.to_bitnodes_nodes(mode)
 
         summary = self.state_summary()
 
+        nodes = self.to_bitnodes_nodes(mode)
+
+        latest_height = 0
+
+        for row in nodes.values():
+
+            if len(row) > 4:
+
+                height = row[4]
+
+                if isinstance(height, int):
+                    latest_height = max(
+                        latest_height,
+                        height
+                    )
+
+        countries = set()
+        cities = set()
+        asns = set()
+        tor_nodes = 0
+
+        for node in self.nodes.values():
+
+            if node.get("country"):
+                countries.add(node["country"])
+
+            if node.get("city"):
+                cities.add(node["city"])
+
+            if node.get("asn"):
+                asns.add(node["asn"])
+
+            if node.get("tor"):
+                tor_nodes += 1
+
+        leaderboard = self.leaderboard(1000)
+
         return {
-            "source": "zzx-labs-bitnodes-persistent-crawler",
-            "timestamp": now,
-            "updated_at": utc_iso(now),
+            "source": "zzx-labs-global-bitnodes-crawler",
+            "timestamp": utc_now(),
+            "updated_at": utc_iso(),
             "mode": mode,
+            "summary": summary,
             "total_nodes": len(nodes),
             "reachable_nodes": summary["reachable_now"],
-            "known_nodes": summary["total_known_nodes"],
+            "unreachable_nodes": summary["unreachable_now"],
             "reachable_24h": summary["reachable_24h"],
-            "unreachable_now": summary["unreachable_now"],
-            "stale_nodes": summary["stale_nodes"],
-            "latest_height": summary["latest_height"],
-            "summary": summary,
-            "nodes": nodes,
-            "records": {
-                address: self.nodes[address]
-                for address in nodes
-                if address in self.nodes
-            }
+            "latest_height": latest_height,
+            "countries_count": len(countries),
+            "cities_count": len(cities),
+            "asns_count": len(asns),
+            "tor_nodes": tor_nodes,
+            "leaderboard": leaderboard,
+            "nodes": nodes
         }
-
-
-def main() -> int:
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Inspect ZZX-Labs Bitnodes persistent crawler state."
-    )
-
-    parser.add_argument(
-        "--state-dir",
-        default=str(DEFAULT_STATE_DIR)
-    )
-
-    parser.add_argument(
-        "--snapshot-24h-dir",
-        default=str(DEFAULT_SNAPSHOT_24H_DIR)
-    )
-
-    parser.add_argument(
-        "command",
-        choices=[
-            "summary",
-            "write-24h",
-            "save"
-        ]
-    )
-
-    args = parser.parse_args()
-
-    state = BitnodesState(
-        state_dir=args.state_dir,
-        snapshot_24h_dir=args.snapshot_24h_dir
-    )
-
-    if args.command == "summary":
-        print(
-            json.dumps(
-                state.state_summary(),
-                indent=2,
-                ensure_ascii=False
-            )
-        )
-
-        return 0
-
-    if args.command == "write-24h":
-        path = state.write_24h_snapshot()
-
-        print(path)
-
-        return 0
-
-    if args.command == "save":
-        state.save()
-
-        return 0
-
-    return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
