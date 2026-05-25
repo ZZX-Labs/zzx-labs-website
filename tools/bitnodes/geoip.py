@@ -276,22 +276,45 @@ def enrich_node_array(
 ) -> list[Any]:
     """
     Bitnodes-compatible node array:
+[
+    protocol_version,        # 0
+    user_agent,              # 1
+    connected_since,         # 2
+    services,                # 3
+    height,                  # 4
+    hostname,                # 5
 
-        [
-            protocol_version,
-            user_agent,
-            connected_since,
-            services,
-            height,
-            hostname,
-            city,
-            country_code,
-            latitude,
-            longitude,
-            timezone,
-            asn,
-            organization
-        ]
+    city,                    # 6
+    country_code,            # 7
+    latitude,                # 8
+    longitude,               # 9
+    timezone,                # 10
+
+    asn,                     # 11
+    organization,            # 12
+    provider,                # 13
+
+    county,                  # 14
+    postal_code,             # 15
+
+    tor_status,              # 16
+    exit_node,               # 17
+
+    geohash,                 # 18
+    asn_region,              # 19
+
+    network_type,            # 20
+    hosting_type,            # 21
+
+    first_seen,              # 22
+    last_seen,               # 23
+
+    uptime_seconds,          # 24
+    latency_ms,              # 25
+
+    peer_index,              # 26
+    confidence_score         # 27
+]
     """
 
     padded = list(values)
