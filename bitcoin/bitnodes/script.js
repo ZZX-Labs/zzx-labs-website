@@ -18,9 +18,12 @@
                 ports: "./api/ports.json",
                 services: "./api/services.json",
                 organizations: "./api/organizations.json",
+                providers: "./api/providers.json",
                 tor: "./api/tor.json",
                 coordinates: "./api/coordinates.json",
-                propagation: "./api/propagation.json"
+                propagation: "./api/propagation.json",
+                dnsSeeder: "./api/dns-seeder.json",
+                status: "./api/status.json"
             },
             legacy: {
                 latest: "./api/latest.json",
@@ -41,25 +44,27 @@
         },
 
         apiRows: [
-            ["List snapshots", "./api/snapshots.json"],
-            ["List nodes", "./api/nodes.json"],
-            ["Latest snapshot", "./api/latest.json"],
-            ["Countries", "./api/countries.json"],
-            ["Cities", "./api/cities.json"],
-            ["ASNs", "./api/asns.json"],
-            ["Agents", "./api/agents.json"],
-            ["Versions", "./api/versions.json"],
-            ["Ports", "./api/ports.json"],
-            ["Services", "./api/services.json"],
-            ["Organizations", "./api/organizations.json"],
-            ["Tor nodes", "./api/tor.json"],
-            ["Coordinates", "./api/coordinates.json"],
-            ["Node latency", "./api/latency.json"],
-            ["Peer health", "./api/peer-health.json"],
-            ["Leaderboard", "./api/leaderboard.json"],
-            ["Data propagation", "./api/propagation.json"],
-            ["DNS seeder", "./api/dns-seeder.json"],
-            ["Status", "./api/status.json"]
+            ["Latest Snapshot", "./api/latest.json", "Full current export with rows, summary, and node map."],
+            ["Node Index", "./api/nodes.json", "All exported node records."],
+            ["Reachable Nodes", "./api/reachable.json", "Nodes reachable during the current rolling window."],
+            ["Unreachable Nodes", "./api/unreachable.json", "Known nodes currently failing checks."],
+            ["Countries", "./api/countries.json", "Country aggregate index."],
+            ["Cities", "./api/cities.json", "City aggregate index."],
+            ["ASNs", "./api/asns.json", "Autonomous system aggregate index."],
+            ["Organizations", "./api/organizations.json", "Network organization aggregate index."],
+            ["Providers", "./api/providers.json", "GeoIP provider / ISP aggregate index."],
+            ["Agents", "./api/agents.json", "Bitcoin client user-agent index."],
+            ["Versions", "./api/versions.json", "Protocol version index."],
+            ["Ports", "./api/ports.json", "Listening port index."],
+            ["Services", "./api/services.json", "Bitcoin service-bit index."],
+            ["Tor Nodes", "./api/tor.json", "Onion node index."],
+            ["Coordinates", "./api/coordinates.json", "Map-ready GeoIP coordinates."],
+            ["Latency", "./api/latency.json", "Latency samples per node."],
+            ["Peer Health", "./api/peer-health.json", "Health and peer index records."],
+            ["Leaderboard", "./api/leaderboard.json", "Ranked node health records."],
+            ["Propagation", "./api/propagation.json", "Height propagation and convergence."],
+            ["DNS Seeder", "./api/dns-seeder.json", "A / AAAA / TXT seed-style records."],
+            ["Status", "./api/status.json", "Crawler/API health status."]
         ]
     };
 
@@ -67,6 +72,15 @@
 
     function getDepth() {
         return document.body.dataset.bnDepth || ".";
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
     }
 
     async function injectHtml(selector, path) {
@@ -125,15 +139,21 @@
         return String(value);
     }
 
-    function fmtMs(value) {
-        if (value === null || value === undefined || value === "") {
-            return "—";
-        }
-
+    function num(value, fallback = null) {
         const n = Number(value);
 
         if (!Number.isFinite(n)) {
-            return fmt(value);
+            return fallback;
+        }
+
+        return n;
+    }
+
+    function fmtMs(value) {
+        const n = num(value);
+
+        if (n === null || n <= 0) {
+            return "—";
         }
 
         return `${n.toLocaleString(undefined, {
@@ -141,20 +161,85 @@
         })} ms`;
     }
 
-    function fmtPercent(value) {
-        if (value === null || value === undefined || value === "") {
+    function fmtPeer(value) {
+        const n = num(value);
+
+        if (n === null) {
             return "—";
         }
 
-        const n = Number(value);
+        return n.toLocaleString(undefined, {
+            maximumFractionDigits: 2
+        });
+    }
 
-        if (!Number.isFinite(n)) {
-            return fmt(value);
+    function fmtCoord(value) {
+        const n = num(value);
+
+        if (n === null) {
+            return "—";
         }
 
-        return `${n.toLocaleString(undefined, {
-            maximumFractionDigits: 2
-        })}%`;
+        return n.toFixed(5);
+    }
+
+    function fmtUptime(row) {
+        const direct = row.uptime_human || row.uptime;
+
+        if (direct && typeof direct === "string") {
+            return direct;
+        }
+
+        const seconds = num(row.uptime_seconds ?? row.total_uptime);
+
+        if (seconds === null) {
+            return "—";
+        }
+
+        if (seconds < 60) {
+            return `${Math.floor(seconds)}s`;
+        }
+
+        const minutes = Math.floor(seconds / 60);
+
+        if (minutes < 60) {
+            return `${minutes}m`;
+        }
+
+        const hours = Math.floor(minutes / 60);
+
+        if (hours < 24) {
+            return `${hours}h ${minutes % 60}m`;
+        }
+
+        const days = Math.floor(hours / 24);
+
+        if (days < 7) {
+            return `${days}d ${hours % 24}h`;
+        }
+
+        const weeks = Math.floor(days / 7);
+
+        if (weeks < 52) {
+            return `${weeks}w ${days % 7}d`;
+        }
+
+        const years = Math.floor(weeks / 52);
+
+        return `${years}y ${weeks % 52}w`;
+    }
+
+    function countryFlag(code) {
+        const cc = String(code || "").trim().toUpperCase();
+
+        if (!/^[A-Z]{2}$/.test(cc)) {
+            return "";
+        }
+
+        return cc
+            .split("")
+            .map(char => String.fromCodePoint(127397 + char.charCodeAt(0)))
+            .join("");
     }
 
     function setStatus(message, mode = "") {
@@ -192,31 +277,75 @@
         }
     }
 
+    function extractPort(address) {
+        const value = String(address || "");
+
+        if (value.startsWith("[") && value.includes("]:")) {
+            return value.rsplit ? value.rsplit(":", 1)[1] : value.split("]:").pop();
+        }
+
+        if (value.includes(":")) {
+            return value.split(":").pop();
+        }
+
+        return "—";
+    }
+
+    function extractHost(address) {
+        const value = String(address || "");
+
+        if (value.startsWith("[") && value.includes("]:")) {
+            return value.split("]:")[0].replace("[", "");
+        }
+
+        if (value.includes(".onion:")) {
+            return value.rsplit ? value.rsplit(":", 1)[0] : value.split(":")[0];
+        }
+
+        if ((value.match(/:/g) || []).length === 1) {
+            return value.split(":")[0];
+        }
+
+        return value;
+    }
+
+    function isTor(address, hostname, metadata = {}) {
+        return Boolean(metadata.tor) ||
+            String(address || "").toLowerCase().includes(".onion") ||
+            String(hostname || "").toLowerCase().includes(".onion");
+    }
+
     function normalizeLatest(data) {
         const nodesObject =
-            data.nodes && typeof data.nodes === "object"
+            data?.nodes && typeof data.nodes === "object"
                 ? data.nodes
                 : null;
 
-        const nodesCount =
-            nodesObject
-                ? Object.keys(nodesObject).length
+        const rows =
+            Array.isArray(data?.rows)
+                ? data.rows
                 : null;
 
+        const summary = data?.summary || {};
+        const nodesCount = rows?.length || (nodesObject ? Object.keys(nodesObject).length : 0);
+
         return {
-            source: data.source || "bitnodes-compatible",
-            updated_at: data.updated_at || data.timestamp || data.created_at || null,
-            total_nodes: data.total_nodes || data.reachable_nodes || nodesCount || 0,
-            latest_height: data.latest_height || data.height || 0,
-            tor_nodes: data.tor_nodes || data.onion_nodes || 0,
-            countries_count: data.countries_count || data.country_count || 0,
-            cities_count: data.cities_count || data.city_count || 0,
-            asns_count: data.asns_count || data.asn_count || 0,
-            top_agent: data.top_agent || data.user_agent || "—",
-            top_port: data.top_port || 8333,
+            source: data?.source || "bitnodes-compatible",
+            updated_at: data?.updated_at || data?.timestamp || data?.created_at || null,
+            total_nodes: data?.total_nodes || summary.total_known_nodes || summary.reachable_24h || nodesCount || 0,
+            reachable_nodes: data?.reachable_nodes || summary.reachable_now || 0,
+            unreachable_nodes: data?.unreachable_nodes || summary.unreachable_now || 0,
+            latest_height: data?.latest_height || summary.latest_height || data?.height || 0,
+            tor_nodes: data?.tor_nodes || summary.tor_nodes || data?.onion_nodes || 0,
+            countries_count: data?.countries_count || summary.countries_count || data?.country_count || 0,
+            cities_count: data?.cities_count || summary.cities_count || data?.city_count || 0,
+            asns_count: data?.asns_count || summary.asns_count || data?.asn_count || 0,
+            top_agent: data?.top_agent || data?.user_agent || "—",
+            top_port: data?.top_port || 8333,
+            rows,
             nodes: nodesObject,
-            latency: data.latency || {},
-            uptime: data.uptime || {}
+            latency: data?.latency || {},
+            uptime: data?.uptime || {}
         };
     }
 
@@ -228,20 +357,20 @@
         }
 
         const cards = [
-            ["Reachable Nodes", latest.total_nodes],
+            ["Known / 24h Nodes", latest.total_nodes],
+            ["Reachable Now", latest.reachable_nodes],
+            ["Unreachable Now", latest.unreachable_nodes],
             ["Latest Height", latest.latest_height],
             ["Tor Nodes", latest.tor_nodes],
             ["Countries", latest.countries_count],
             ["Cities", latest.cities_count],
-            ["ASNs", latest.asns_count],
-            ["Top Port", latest.top_port],
-            ["Top Agent", latest.top_agent]
+            ["ASNs", latest.asns_count]
         ];
 
         el.innerHTML = cards.map(([label, value]) => `
-            <article class="bn-card">
-                <span>${label}</span>
-                <strong>${fmt(value)}</strong>
+            <article class="bn-card bn-stat-card">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(fmt(value))}</strong>
             </article>
         `).join("");
     }
@@ -253,41 +382,32 @@
             return;
         }
 
-        el.innerHTML = BN.apiRows.map(([name, endpoint]) => `
-            <div class="bn-api-row">
-                <strong>${name}</strong>
-                <code>${endpoint}</code>
+        el.innerHTML = `
+            <div class="bn-api-grid">
+                ${BN.apiRows.map(([name, endpoint, description]) => `
+                    <a class="bn-api-tile" href="${escapeHtml(endpoint)}">
+                        <span class="bn-api-name">${escapeHtml(name)}</span>
+                        <code>${escapeHtml(endpoint)}</code>
+                        <small>${escapeHtml(description || "")}</small>
+                    </a>
+                `).join("")}
             </div>
-        `).join("");
+        `;
     }
 
-    function extractPort(address) {
-        if (!address) {
-            return "—";
-        }
+    function rowFromArray(address, arr) {
+        const metadata =
+            arr?.[19] && typeof arr[19] === "object"
+                ? arr[19]
+                : {};
 
-        if (address.startsWith("[") && address.includes("]:")) {
-            return address.split("]:").pop();
-        }
-
-        const parts = address.split(":");
-
-        if (parts.length > 1) {
-            return parts[parts.length - 1];
-        }
-
-        return "—";
-    }
-
-    function isTor(address, hostname) {
-        return String(address || "").toLowerCase().includes(".onion") ||
-            String(hostname || "").toLowerCase().includes(".onion");
-    }
-
-    function nodeArrayToObject(address, arr) {
         return {
+            address,
             node: address,
+            host: extractHost(address),
+            port: extractPort(address),
             protocol: arr?.[0],
+            agent: arr?.[1],
             user_agent: arr?.[1],
             connected_since: arr?.[2],
             services: arr?.[3],
@@ -295,23 +415,54 @@
             hostname: arr?.[5],
             city: arr?.[6],
             country: arr?.[7],
+            latitude: arr?.[8],
+            longitude: arr?.[9],
             lat: arr?.[8],
             lon: arr?.[9],
             timezone: arr?.[10],
             asn: arr?.[11],
+            organization: arr?.[12],
             org: arr?.[12],
-            port: extractPort(address),
-            tor: isTor(address, arr?.[5])
+            provider: arr?.[13],
+            county: arr?.[14],
+            zip: arr?.[15],
+            w3w: arr?.[16],
+            geohash: arr?.[17],
+            asn_location: arr?.[18],
+            latency_ms: metadata.latency_ms ?? (typeof arr?.[19] === "number" ? arr[19] : null),
+            uptime_human: metadata.uptime_human,
+            uptime_seconds: metadata.total_uptime,
+            reachable: metadata.reachable,
+            peer_index: metadata.peer_index,
+            success_count: metadata.success_count,
+            failure_count: metadata.failure_count,
+            first_seen: metadata.first_seen,
+            last_seen: metadata.last_seen,
+            tor: isTor(address, arr?.[5], metadata)
+        };
+    }
+
+    function rowFromObject(item) {
+        const address = item.address || item.node || "—";
+
+        return {
+            ...item,
+            address,
+            node: address,
+            user_agent: item.user_agent || item.agent,
+            agent: item.agent || item.user_agent,
+            org: item.organization || item.org,
+            lat: item.latitude ?? item.lat,
+            lon: item.longitude ?? item.lon,
+            port: item.port || extractPort(address),
+            host: item.host || extractHost(address),
+            tor: isTor(address, item.hostname, item)
         };
     }
 
     function buildPeerHealthMap(peerHealth) {
         const map = new Map();
-
-        const rows =
-            Array.isArray(peerHealth?.results)
-                ? peerHealth.results
-                : [];
+        const rows = Array.isArray(peerHealth?.results) ? peerHealth.results : [];
 
         rows.forEach(row => {
             const key = row.address || row.node;
@@ -326,14 +477,10 @@
 
     function buildLeaderboardMap(leaderboard) {
         const map = new Map();
-
-        const rows =
-            Array.isArray(leaderboard?.results)
-                ? leaderboard.results
-                : [];
+        const rows = Array.isArray(leaderboard?.results) ? leaderboard.results : [];
 
         rows.forEach(row => {
-            const key = row.node || row.address;
+            const key = row.address || row.node;
 
             if (key) {
                 map.set(key, row);
@@ -343,57 +490,96 @@
         return map;
     }
 
-    function getLatency(address, latest, latencyJson, peerRow) {
-        if (latest.latency && latest.latency[address] !== undefined) {
-            return latest.latency[address];
-        }
-
-        const nodeLatency = latencyJson?.nodes?.[address];
-
-        if (nodeLatency?.daily_latency?.length) {
-            return nodeLatency.daily_latency[nodeLatency.daily_latency.length - 1].v;
-        }
-
-        if (peerRow?.latency_ms !== undefined) {
-            return peerRow.latency_ms;
-        }
-
-        return null;
-    }
-
-    function getUptime(address, latest, peerRow) {
-        if (latest.uptime && latest.uptime[address] !== undefined) {
-            return latest.uptime[address];
-        }
-
-        if (peerRow?.uptime_percent !== undefined) {
-            return peerRow.uptime_percent;
-        }
-
-        return null;
-    }
-
     function buildPreviewRows(latest, latencyJson, peerHealth, leaderboard) {
         const peerMap = buildPeerHealthMap(peerHealth);
         const leaderboardMap = buildLeaderboardMap(leaderboard);
 
-        if (!latest.nodes) {
-            return [];
+        let rows = [];
+
+        if (latest.rows) {
+            rows = latest.rows.map(rowFromObject);
+        } else if (latest.nodes) {
+            rows = Object.entries(latest.nodes).map(([address, data]) => rowFromArray(address, data));
         }
 
-        return Object.entries(latest.nodes).map(([address, data]) => {
-            const row = nodeArrayToObject(address, data);
+        rows = rows.map(row => {
+            const address = row.address || row.node;
             const peerRow = peerMap.get(address);
             const rankRow = leaderboardMap.get(address);
+            const nodeLatency = latencyJson?.nodes?.[address];
+            const latestLatency =
+                nodeLatency?.latency_ms ??
+                nodeLatency?.daily_latency?.at?.(-1)?.v ??
+                null;
 
             return {
                 ...row,
-                latency_ms: getLatency(address, latest, latencyJson, peerRow),
-                uptime_percent: getUptime(address, latest, peerRow),
-                peer_index: peerRow?.peer_index ?? rankRow?.peer_index ?? null,
-                rank: rankRow?.rank ?? null
+                latency_ms: row.latency_ms ?? peerRow?.latency_ms ?? latestLatency,
+                peer_index: row.peer_index ?? peerRow?.peer_index ?? rankRow?.peer_index ?? null,
+                uptime_human: row.uptime_human ?? peerRow?.uptime_human,
+                uptime_seconds: row.uptime_seconds ?? peerRow?.uptime_seconds,
+                reachable: row.reachable ?? peerRow?.reachable
             };
         });
+
+        rows.sort((a, b) => {
+            const bp = num(b.peer_index, -1);
+            const ap = num(a.peer_index, -1);
+
+            if (bp !== ap) {
+                return bp - ap;
+            }
+
+            const bh = num(b.height, -1);
+            const ah = num(a.height, -1);
+
+            if (bh !== ah) {
+                return bh - ah;
+            }
+
+            return String(a.address).localeCompare(String(b.address));
+        });
+
+        rows.forEach((row, index) => {
+            row.rank = index + 1;
+        });
+
+        return rows;
+    }
+
+    function renderCountry(row) {
+        const cc = row.country || row.country_code;
+        const flag = countryFlag(cc);
+
+        if (!cc) {
+            return "—";
+        }
+
+        return `${flag ? `${flag} ` : ""}${cc}`;
+    }
+
+    function renderTor(row) {
+        if (!row.tor) {
+            return `<span class="bn-chip bn-chip-muted">n/a</span>`;
+        }
+
+        return `<span class="bn-chip bn-chip-tor">onion</span>`;
+    }
+
+    function renderReachable(row) {
+        if (row.reachable === true) {
+            return `<span class="bn-dot-ok"></span> up`;
+        }
+
+        if (row.reachable === false) {
+            return `<span class="bn-dot-bad"></span> down`;
+        }
+
+        return `<span class="bn-dot-warn"></span> unknown`;
+    }
+
+    function td(value, className = "") {
+        return `<td class="${escapeHtml(className)}">${escapeHtml(fmt(value))}</td>`;
     }
 
     function renderNodePreview(latest, latencyJson, peerHealth, leaderboard) {
@@ -403,88 +589,87 @@
             return;
         }
 
-        const rows = buildPreviewRows(
-            latest,
-            latencyJson,
-            peerHealth,
-            leaderboard
-        )
-            .sort((a, b) => {
-                const ap = Number(a.peer_index || 0);
-                const bp = Number(b.peer_index || 0);
-
-                return bp - ap;
-            });
+        const rows = buildPreviewRows(latest, latencyJson, peerHealth, leaderboard);
 
         if (!rows.length) {
             el.innerHTML = `
-                <p>
-                    No node preview found. Add
-                    <code>./api/latest.json</code>
-                    or
-                    <code>./api/nodes.json</code>.
-                </p>
+                <div class="bn-empty">
+                    No node preview found. Add <code>./api/latest.json</code> or <code>./api/nodes.json</code>.
+                </div>
             `;
             return;
         }
 
         el.innerHTML = `
-            <div class="bn-table-meta">
-                Showing ${fmt(rows.length)} reachable node records.
-            </div>
+            <section class="bn-node-panel">
+                <header class="bn-node-panel-head">
+                    <div>
+                        <span class="bn-kicker">Global Bitcoin Node Registry</span>
+                        <h2>Reachable / Known Node Preview</h2>
+                    </div>
+                    <div class="bn-node-count">
+                        <strong>${escapeHtml(fmt(rows.length))}</strong>
+                        <span>records loaded</span>
+                    </div>
+                </header>
 
-            <div class="bn-table-wrap">
-                <table class="bn-table bn-node-preview-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Node</th>
-                            <th>Country</th>
-                            <th>City</th>
-                            <th>ASN</th>
-                            <th>Organization</th>
-                            <th>Protocol</th>
-                            <th>Agent</th>
-                            <th>Services</th>
-                            <th>Port</th>
-                            <th>Height</th>
-                            <th>Latency</th>
-                            <th>Uptime</th>
-                            <th>Peer Index</th>
-                            <th>Tor</th>
-                            <th>Lat</th>
-                            <th>Lon</th>
-                            <th>Timezone</th>
-                            <th>Hostname</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows.map(row => `
+                <div class="bn-table-scroll">
+                    <table class="bn-table bn-node-preview-table">
+                        <thead>
                             <tr>
-                                <td>${fmt(row.rank)}</td>
-                                <td><span class="bn-pill">${fmt(row.node)}</span></td>
-                                <td>${fmt(row.country)}</td>
-                                <td>${fmt(row.city)}</td>
-                                <td>${fmt(row.asn)}</td>
-                                <td>${fmt(row.org)}</td>
-                                <td>${fmt(row.protocol)}</td>
-                                <td>${fmt(row.user_agent)}</td>
-                                <td>${fmt(row.services)}</td>
-                                <td>${fmt(row.port)}</td>
-                                <td>${fmt(row.height)}</td>
-                                <td>${fmtMs(row.latency_ms)}</td>
-                                <td>${fmtPercent(row.uptime_percent)}</td>
-                                <td>${fmt(row.peer_index)}</td>
-                                <td>${row.tor ? "yes" : "no"}</td>
-                                <td>${fmt(row.lat)}</td>
-                                <td>${fmt(row.lon)}</td>
-                                <td>${fmt(row.timezone)}</td>
-                                <td>${fmt(row.hostname)}</td>
+                                <th>№</th>
+                                <th>Status</th>
+                                <th>Node</th>
+                                <th>Country</th>
+                                <th>City</th>
+                                <th>ASN</th>
+                                <th>Provider / Org</th>
+                                <th>Protocol</th>
+                                <th>Agent</th>
+                                <th>Services</th>
+                                <th>Port</th>
+                                <th>Height</th>
+                                <th>Latency</th>
+                                <th>Uptime</th>
+                                <th>Peer Index</th>
+                                <th>Tor</th>
+                                <th>Lat</th>
+                                <th>Lon</th>
+                                <th>Timezone</th>
+                                <th>Hostname</th>
                             </tr>
-                        `).join("")}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            ${rows.map(row => `
+                                <tr>
+                                    <td class="bn-rank">${escapeHtml(fmt(row.rank))}</td>
+                                    <td class="bn-status-cell">${renderReachable(row)}</td>
+                                    <td class="bn-node-cell">
+                                        <span class="bn-pill">${escapeHtml(fmt(row.address || row.node))}</span>
+                                    </td>
+                                    <td>${escapeHtml(renderCountry(row))}</td>
+                                    ${td(row.city)}
+                                    ${td(row.asn)}
+                                    ${td(row.provider || row.organization || row.org)}
+                                    ${td(row.protocol)}
+                                    <td class="bn-agent-cell">${escapeHtml(fmt(row.agent || row.user_agent))}</td>
+                                    ${td(row.services)}
+                                    ${td(row.port)}
+                                    ${td(row.height)}
+                                    ${td(fmtMs(row.latency_ms))}
+                                    ${td(fmtUptime(row))}
+                                    ${td(fmtPeer(row.peer_index), "bn-peer-cell")}
+                                    <td>${renderTor(row)}</td>
+                                    ${td(fmtCoord(row.lat ?? row.latitude))}
+                                    ${td(fmtCoord(row.lon ?? row.longitude))}
+                                    ${td(row.timezone)}
+                                    ${td(row.hostname)}
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         `;
     }
 
@@ -503,12 +688,7 @@
         setStatus(`Loading ${source} Bitnodes mirror source…`);
 
         try {
-            const [
-                data,
-                latencyJson,
-                peerHealth,
-                leaderboard
-            ] = await Promise.all([
+            const [data, latencyJson, peerHealth, leaderboard] = await Promise.all([
                 fetchJson(url),
                 fetchJsonSafe(endpoints.latency),
                 fetchJsonSafe(endpoints.peerHealth),
@@ -519,26 +699,16 @@
 
             renderSummary(latest);
             renderApiRows();
-            renderNodePreview(
-                latest,
-                latencyJson,
-                peerHealth,
-                leaderboard
-            );
+            renderNodePreview(latest, latencyJson, peerHealth, leaderboard);
 
             setStatus(
-                `Loaded ${fmt(latest.total_nodes)} reachable nodes from ${latest.source}. Updated: ${fmt(latest.updated_at)}.`,
+                `Loaded ${fmt(latest.total_nodes)} node records from ${latest.source}. Updated: ${fmt(latest.updated_at)}.`,
                 "ok"
             );
         } catch (err) {
             renderApiRows();
             renderSummary(normalizeLatest({}));
-            renderNodePreview(
-                normalizeLatest({}),
-                null,
-                null,
-                null
-            );
+            renderNodePreview(normalizeLatest({}), null, null, null);
 
             setStatus(
                 `Could not load Bitnodes JSON yet: ${err.message}`,
