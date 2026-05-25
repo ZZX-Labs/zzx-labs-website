@@ -102,18 +102,18 @@ def cfg_get(
     path: list[str],
     default: Any
 ) -> Any:
-    cur: Any = config
+    current: Any = config
 
     for key in path:
-        if not isinstance(cur, dict):
+        if not isinstance(current, dict):
             return default
 
-        if key not in cur:
+        if key not in current:
             return default
 
-        cur = cur[key]
+        current = current[key]
 
-    return cur
+    return current
 
 
 def write_pid() -> None:
@@ -180,7 +180,10 @@ def build_crawl_command(
     timeout = float(
         crawler_cfg.get(
             "handshake_timeout",
-            crawler_cfg.get("connection_timeout", 5)
+            crawler_cfg.get(
+                "connection_timeout",
+                5
+            )
         )
     )
 
@@ -639,6 +642,9 @@ def main() -> int:
     sub.add_parser("stop")
     sub.add_parser("export-once")
     sub.add_parser("native-crawl")
+    sub.add_parser("redis-start")
+    sub.add_parser("redis-status")
+    sub.add_parser("clone")
 
     tail = sub.add_parser("tail")
     tail.add_argument(
@@ -663,6 +669,28 @@ def main() -> int:
 
     if args.command == "native-crawl":
         return export_once()
+
+    if args.command == "redis-start":
+        print("Redis is not used by the native persistent crawler.")
+        return 0
+
+    if args.command == "redis-status":
+        print(
+            json.dumps(
+                {
+                    "redis_required": False,
+                    "redis_running": False,
+                    "message": "Native persistent crawler does not use Redis."
+                },
+                indent=2
+            )
+        )
+
+        return 0
+
+    if args.command == "clone":
+        print("Original Bitnodes clone is not required by the native persistent crawler.")
+        return 0
 
     if args.command == "tail":
         return tail_log(args.lines)
