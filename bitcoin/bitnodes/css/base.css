@@ -1,1 +1,167 @@
+:root {
+    --bn-bg: #050704;
+    --bn-bg-2: #090d08;
+    --bn-bg-3: #0e140d;
+    --bn-panel: #10170f;
+    --bn-panel-2: #151d13;
+    --bn-panel-3: #1a2317;
 
+    --bn-text: #c0d674;
+    --bn-text-soft: #a9ba68;
+    --bn-text-muted: #74814d;
+    --bn-text-dim: #59613f;
+
+    --bn-accent: #c0d674;
+    --bn-accent-2: #e6a42b;
+    --bn-good: #9dcc5a;
+    --bn-warn: #e6a42b;
+    --bn-bad: #c95b4f;
+    --bn-tor: #b58cff;
+
+    --bn-border: rgba(192, 214, 116, 0.26);
+    --bn-border-strong: rgba(192, 214, 116, 0.48);
+    --bn-shadow: rgba(0, 0, 0, 0.72);
+
+    --bn-radius: 14px;
+    --bn-radius-sm: 8px;
+
+    --bn-font: "IBM Plex Mono", "Cascadia Mono", "Consolas", monospace;
+    --bn-heading: "Adult Swim", "IBM Plex Mono", "Cascadia Mono", monospace;
+
+    --bn-max: 1440px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background: var(--bn-bg);
+    color: var(--bn-text);
+    font-family: var(--bn-font);
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(192, 214, 116, 0.08), transparent 32rem),
+        radial-gradient(circle at bottom right, rgba(230, 164, 43, 0.06), transparent 34rem),
+        linear-gradient(180deg, var(--bn-bg), #020302);
+    color: var(--bn-text);
+    font-family: var(--bn-font);
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.018) 50%, rgba(0, 0, 0, 0.08) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.015), rgba(0, 255, 0, 0.008), rgba(0, 0, 255, 0.015));
+    background-size: 100% 4px, 6px 100%;
+    mix-blend-mode: overlay;
+    opacity: 0.28;
+}
+
+a {
+    color: var(--bn-accent);
+    text-decoration: none;
+}
+
+a:hover,
+a:focus {
+    color: #e4f29f;
+    text-decoration: none;
+}
+
+code,
+pre,
+kbd {
+    font-family: var(--bn-font);
+}
+
+code {
+    color: var(--bn-accent-2);
+    background: rgba(230, 164, 43, 0.08);
+    border: 1px solid rgba(230, 164, 43, 0.22);
+    border-radius: 6px;
+    padding: 0.12rem 0.35rem;
+}
+
+img,
+svg,
+canvas {
+    max-width: 100%;
+}
+
+::selection {
+    background: var(--bn-accent);
+    color: #071006;
+}
+
+.container {
+    width: min(var(--bn-max), calc(100% - 32px));
+    margin-inline: auto;
+}
+
+.bn-kicker {
+    display: inline-block;
+    color: var(--bn-accent-2);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.bn-muted {
+    color: var(--bn-text-muted);
+}
+
+.bn-divider {
+    height: 1px;
+    margin: 1.5rem 0;
+    background: linear-gradient(90deg, transparent, var(--bn-border), transparent);
+}
+
+.bn-empty {
+    border: 1px dashed var(--bn-border);
+    border-radius: var(--bn-radius);
+    background: rgba(192, 214, 116, 0.04);
+    padding: 1rem;
+    color: var(--bn-text-soft);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--bn-text);
+    font-family: var(--bn-heading);
+    letter-spacing: 0.04em;
+    line-height: 1.12;
+}
+
+h1 {
+    font-size: clamp(2rem, 4vw, 4rem);
+}
+
+h2 {
+    font-size: clamp(1.4rem, 2vw, 2.2rem);
+}
+
+p {
+    color: var(--bn-text-soft);
+}
+
+main {
+    position: relative;
+    z-index: 1;
+}
