@@ -1,0 +1,337 @@
+.bn-status {
+    position: relative;
+
+    width: min(var(--bn-max), calc(100% - 32px));
+    margin:
+        1rem auto
+        0;
+
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+
+    min-height: 58px;
+
+    padding:
+        0.95rem
+        1.15rem;
+
+    border:
+        1px solid rgba(192,214,116,0.12);
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(18,22,15,0.96),
+            rgba(10,12,9,0.98)
+        );
+
+    box-shadow:
+        0 12px 28px rgba(0,0,0,0.28),
+        inset 0 0 0 1px rgba(192,214,116,0.03);
+
+    overflow: hidden;
+
+    color: var(--bn-text-soft);
+
+    font-size: 0.86rem;
+    line-height: 1.6;
+}
+
+.bn-status::before {
+    content: "";
+
+    width: 10px;
+    height: 10px;
+
+    flex-shrink: 0;
+
+    border-radius: 999px;
+
+    background: var(--bn-accent);
+
+    box-shadow:
+        0 0 12px rgba(192,214,116,0.7);
+}
+
+.bn-status::after {
+    content: "";
+
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(192,214,116,0.45),
+            transparent
+        );
+}
+
+.bn-status.ok {
+    border-color:
+        rgba(192,214,116,0.22);
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(20,28,16,0.96),
+            rgba(10,14,8,0.98)
+        );
+}
+
+.bn-status.ok::before {
+    background: #c0d674;
+
+    box-shadow:
+        0 0 14px rgba(192,214,116,0.9);
+}
+
+.bn-status.warn {
+    border-color:
+        rgba(230,164,43,0.28);
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(28,22,10,0.96),
+            rgba(16,12,6,0.98)
+        );
+
+    color: #f4dfb3;
+}
+
+.bn-status.warn::before {
+    background: #e6a42b;
+
+    box-shadow:
+        0 0 14px rgba(230,164,43,0.7);
+}
+
+.bn-status.error {
+    border-color:
+        rgba(214,108,108,0.28);
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(30,14,14,0.96),
+            rgba(18,8,8,0.98)
+        );
+
+    color: #f0c2c2;
+}
+
+.bn-status.error::before {
+    background: #d66c6c;
+
+    box-shadow:
+        0 0 14px rgba(214,108,108,0.7);
+}
+
+.bn-status strong {
+    color: #edf7b9;
+}
+
+.bn-status code {
+    padding:
+        0.18rem
+        0.45rem;
+
+    border-radius: 6px;
+
+    background:
+        rgba(192,214,116,0.08);
+
+    color: var(--bn-accent);
+
+    font-size: 0.76rem;
+}
+
+.bn-status-grid {
+    width: min(var(--bn-max), calc(100% - 32px));
+    margin:
+        1rem auto
+        0;
+
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(220px, 1fr));
+
+    gap: 1rem;
+}
+
+.bn-status-card {
+    position: relative;
+
+    min-height: 92px;
+
+    padding:
+        1rem
+        1.1rem;
+
+    border:
+        1px solid rgba(192,214,116,0.12);
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(16,20,13,0.96),
+            rgba(9,11,8,0.98)
+        );
+
+    overflow: hidden;
+
+    box-shadow:
+        0 10px 24px rgba(0,0,0,0.26);
+}
+
+.bn-status-card::before {
+    content: "";
+
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(192,214,116,0.4),
+            transparent
+        );
+}
+
+.bn-status-card-label {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    margin-bottom: 0.8rem;
+
+    color: rgba(192,214,116,0.72);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.bn-status-card-label::before {
+    content: "";
+
+    width: 8px;
+    height: 8px;
+
+    border-radius: 999px;
+
+    background: rgba(192,214,116,0.85);
+
+    box-shadow:
+        0 0 10px rgba(192,214,116,0.5);
+}
+
+.bn-status-card-value {
+    color: #edf7b9;
+
+    font-size: 1.4rem;
+    font-weight: 800;
+
+    line-height: 1.1;
+
+    letter-spacing: -0.03em;
+}
+
+.bn-status-card-subtitle {
+    margin-top: 0.5rem;
+
+    color: var(--bn-text-muted);
+
+    font-size: 0.76rem;
+    line-height: 1.55;
+}
+
+.bn-live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    padding:
+        0.42rem
+        0.75rem;
+
+    border:
+        1px solid rgba(192,214,116,0.12);
+
+    border-radius: 999px;
+
+    background:
+        rgba(192,214,116,0.05);
+
+    color: var(--bn-accent);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.bn-live-indicator::before {
+    content: "";
+
+    width: 9px;
+    height: 9px;
+
+    border-radius: 999px;
+
+    background: var(--bn-accent);
+
+    box-shadow:
+        0 0 12px rgba(192,214,116,0.8);
+
+    animation:
+        bnLivePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes bnLivePulse {
+    0%,
+    100% {
+        opacity: 0.45;
+        transform: scale(0.9);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+@media (max-width: 768px) {
+    .bn-status {
+        padding:
+            0.9rem
+            1rem;
+
+        font-size: 0.8rem;
+    }
+
+    .bn-status-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bn-status-card-value {
+        font-size: 1.18rem;
+    }
+}
