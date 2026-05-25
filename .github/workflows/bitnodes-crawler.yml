@@ -33,12 +33,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
-      - name: Sync with remote
+      - name: Sync with remote before crawling
         run: |
           git fetch origin main
           git rebase origin/main
 
-      - name: Run crawler
+      - name: Run Bitnodes persistent crawler
         run: |
           python tools/bitnodes/crawl.py \
             --output bitcoin/bitnodes/api \
@@ -47,17 +47,18 @@ jobs:
             --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
             --timeout 3 \
             --limit 500000 \
+            --batch-size 5000 \
             --workers 128 \
             --getaddr-rounds 12 \
             --export-mode reachable_24h \
             --disable-geoip
 
-      - name: Commit snapshots
+      - name: Commit Bitnodes snapshots
         run: |
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive
+          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive bitcoin/bitnodes/data
 
           if git diff --cached --quiet; then
             printf '%s\n' "No Bitnodes JSON changes to commit."
@@ -66,7 +67,7 @@ jobs:
 
           git commit -m "Update Bitnodes static API snapshots"
 
-      - name: Push snapshots
+      - name: Push Bitnodes snapshots
         run: |
           for attempt in 1 2 3 4 5; do
             git fetch origin main
