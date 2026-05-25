@@ -8,11 +8,7 @@ from pathlib import Path
 
 
 TOOLS_DIR = Path(__file__).resolve().parent
-
-DAEMON = (
-    TOOLS_DIR
-    / "bitnodesd.py"
-)
+DAEMON = TOOLS_DIR / "bitnodesd.py"
 
 
 VALID_COMMANDS = [
@@ -20,17 +16,15 @@ VALID_COMMANDS = [
     "status",
     "stop",
     "export-once",
+    "native-crawl",
     "redis-start",
     "redis-status",
-    "native-crawl",
-    "clone"
+    "clone",
+    "tail"
 ]
 
 
-def call(
-    command: list[str]
-) -> int:
-
+def call(command: list[str]) -> int:
     cmd = [
         sys.executable,
         str(DAEMON),
@@ -41,11 +35,8 @@ def call(
 
 
 def build_parser() -> argparse.ArgumentParser:
-
     parser = argparse.ArgumentParser(
-        description=(
-            "ZZX-Labs Bitnodes CLI."
-        )
+        description="ZZX-Labs Bitnodes CLI."
     )
 
     sub = parser.add_subparsers(
@@ -54,29 +45,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     for name in VALID_COMMANDS:
+        child = sub.add_parser(name)
 
-        sub.add_parser(name)
+        if name == "tail":
+            child.add_argument(
+                "--lines",
+                type=int,
+                default=80
+            )
 
     return parser
 
 
 def main() -> int:
-
     parser = build_parser()
-
     args = parser.parse_args()
 
-    command = args.command
+    command = [args.command]
 
-    if command not in VALID_COMMANDS:
+    if args.command == "tail":
+        command.extend([
+            "--lines",
+            str(args.lines)
+        ])
 
-        print(
-            f"invalid command: {command}"
-        )
-
-        return 1
-
-    return call([command])
+    return call(command)
 
 
 if __name__ == "__main__":
