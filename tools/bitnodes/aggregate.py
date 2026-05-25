@@ -1,64 +1,27 @@
 #!/usr/bin/env python3
-"""
-ZZX-Labs Bitnodes aggregation helpers.
-
-Consumes canonical Bitnodes-compatible node dictionaries:
-
-{
-    "host:port": [
-        protocol_version,
-        user_agent,
-        connected_since,
-        services,
-        height,
-        hostname,
-        city,
-        country_code,
-        latitude,
-        longitude,
-        timezone,
-        asn,
-        organization
-    ]
-}
-
-Produces aggregate JSON structures for frontend pages and static API endpoints.
-"""
-
 from __future__ import annotations
 
+import argparse
 import json
+import math
 import statistics
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
 
-NODE_FIELD_NAMES = [
-    "protocol_version",
-    "user_agent",
-    "connected_since",
-    "services",
-    "height",
-    "hostname",
-    "city",
-    "country_code",
-    "latitude",
-    "longitude",
-    "timezone",
-    "asn",
-    "organization"
-]
+DEFAULT_INPUT = Path("bitcoin/bitnodes/api/latest.json")
+DEFAULT_OUTPUT = Path("bitcoin/bitnodes/api")
 
 
-def utc_timestamp() -> int:
+def utc_now() -> int:
     return int(time.time())
 
 
 def utc_iso(ts: int | None = None) -> str:
     if ts is None:
-        ts = utc_timestamp()
+        ts = utc_now()
 
     return time.strftime(
         "%Y-%m-%dT%H:%M:%SZ",
@@ -66,601 +29,548 @@ def utc_iso(ts: int | None = None) -> str:
     )
 
 
-def load_json(path: Path) -> Any:
+def mkdir(path: Path) -> None:
+    path.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+
+def read_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def write_json(
+    path: Path,
+    payload: Any,
+    pretty: bool = True,
+    sort_keys: bool = False
+) -> None:
+    mkdir(path.parent)
 
     with path.open("w", encoding="utf-8") as handle:
         json.dump(
             payload,
             handle,
-            indent=2,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
             ensure_ascii=False,
-            sort_keys=True
+            sort_keys=sort_keys
         )
 
         handle.write("\n")
 
 
-def fmt_percent(part: int | float, total: int | float) -> float:
-    if not total:
-        return 0.0
-
-    return round((part / total) * 100.0, 6)
-
-
-def safe_int(value: Any, default: int | None = None) -> int | None:
+def safe_number(value: Any) -> float | None:
     try:
         if value in ("", None):
-            return default
+            return None
+
+        number = float(value)
+
+        if math.isnan(number) or math.isinf(number):
+            return None
+
+        return number
+
+    except Exception:
+        return None
+
+
+def safe_int(value: Any) -> int | None:
+    try:
+        if value in ("", None):
+            return None
 
         return int(value)
 
-    except (TypeError, ValueError):
-        return default
+    except Exception:
+        return None
 
 
-def safe_float(
-    value: Any,
-    default: float | None = None
+def average(values) -> float | None:
+    numbers = [
+        safe_number(value)
+        for value in values
+    ]
+
+    numbers = [
+        value
+        for value in numbers
+        if value is not None
+    ]
+
+    if not numbers:
+        return None
+
+    return round(
+        statistics.mean(numbers),
+        6
+    )
+
+
+def median(values) -> float | None:
+    numbers = [
+        safe_number(value)
+        for value in values
+    ]
+
+    numbers = [
+        value
+        for value in numbers
+        if value is not None
+    ]
+
+    if not numbers:
+        return None
+
+    return round(
+        statistics.median(numbers),
+        6
+    )
+
+
+def percentile(
+    values,
+    pct: float
 ) -> float | None:
+    numbers = [
+        safe_number(value)
+        for value in values
+    ]
+
+    numbers = sorted(
+        value
+        for value in numbers
+        if value is not None
+    )
+
+    if not numbers:
+        return None
+
+    if len(numbers) == 1:
+        return round(numbers[0], 6)
+
+    k = (len(numbers) - 1) * (pct / 100.0)
+    floor = math.floor(k)
+    ceil = math.ceil(k)
+
+    if floor == ceil:
+        return round(numbers[int(k)], 6)
+
+    lower = numbers[floor] * (ceil - k)
+    upper = numbers[ceil] * (k - floor)
+
+    return round(lower + upper, 6)
+
+
+def max_or_none(values) -> Any:
+    items = [
+        value
+        for value in values
+        if value not in ("", None)
+    ]
+
+    if not items:
+        return None
 
     try:
-        if value in ("", None):
-            return default
-
-        return float(value)
-
-    except (TypeError, ValueError):
-        return default
+        return max(items)
+    except Exception:
+        return None
 
 
-def top_counter_value(counter: Counter[Any]) -> Any:
+def min_or_none(values) -> Any:
+    items = [
+        value
+        for value in values
+        if value not in ("", None)
+    ]
+
+    if not items:
+        return None
+
+    try:
+        return min(items)
+    except Exception:
+        return None
+
+
+def most_common(values) -> Any:
+    counter = Counter()
+
+    for value in values:
+        if value not in ("", None):
+            counter[str(value)] += 1
+
     if not counter:
         return None
 
     return counter.most_common(1)[0][0]
 
 
-def top_counter_count(counter: Counter[Any]) -> int:
-    if not counter:
-        return 0
-
-    return counter.most_common(1)[0][1]
-
-
-def extract_port(address: str) -> str:
-    if ".onion" in address:
-        parts = address.rsplit(":", 1)
-
-        if len(parts) == 2 and parts[1].isdigit():
-            return parts[1]
-
-        return "onion"
-
-    if address.startswith("[") and "]:" in address:
-        return address.rsplit("]:", 1)[1]
-
-    parts = address.rsplit(":", 1)
-
-    if len(parts) == 2 and parts[1].isdigit():
-        return parts[1]
-
-    return "unknown"
-
-
-def extract_host(address: str) -> str:
-    if address.startswith("[") and "]:" in address:
-        return address.split("]:", 1)[0].lstrip("[")
-
-    if ".onion" in address:
-        return address.rsplit(":", 1)[0]
-
-    parts = address.rsplit(":", 1)
-
-    if len(parts) == 2 and parts[1].isdigit():
-        return parts[0]
-
-    return address
-
-
-def is_tor_node(
-    address: str,
-    values: list[Any]
-) -> bool:
-
-    hostname = values[5] if len(values) > 5 else None
-
-    return (
-        ".onion" in str(address).lower()
-        or
-        ".onion" in str(hostname or "").lower()
-    )
-
-
-def node_array_to_dict(
-    address: str,
-    values: list[Any]
-) -> dict[str, Any]:
-
-    padded = list(values)
-
-    while len(padded) < len(NODE_FIELD_NAMES):
-        padded.append(None)
-
-    item = {
-        "address": address
-    }
-
-    for index, field_name in enumerate(NODE_FIELD_NAMES):
-        item[field_name] = padded[index]
-
-    item["port"] = extract_port(address)
-    item["host"] = extract_host(address)
-    item["is_tor"] = is_tor_node(address, padded)
-
-    return item
-
-
-def nodes_to_rows(
-    nodes: dict[str, list[Any]]
+def counter_rows(
+    values,
+    limit: int | None = None
 ) -> list[dict[str, Any]]:
+    counter = Counter()
 
-    return [
-        node_array_to_dict(address, values)
-        for address, values in nodes.items()
-    ]
+    for value in values:
+        if value in ("", None):
+            value = "UNKNOWN"
 
-
-def make_group_shell(name: str) -> dict[str, Any]:
-    return {
-        "name": name,
-        "nodes": 0,
-        "countries": set(),
-        "cities": set(),
-        "asns": set(),
-        "agents": Counter(),
-        "versions": Counter(),
-        "ports": Counter(),
-        "services": Counter(),
-        "organizations": Counter(),
-        "heights": [],
-        "latitudes": [],
-        "longitudes": [],
-        "tor_nodes": 0
-    }
-
-
-def finalize_group(
-    group: dict[str, Any],
-    total_nodes: int
-) -> dict[str, Any]:
-
-    heights = [
-        h for h in group["heights"]
-        if isinstance(h, int)
-    ]
-
-    latitudes = [
-        x for x in group["latitudes"]
-        if isinstance(x, (int, float))
-    ]
-
-    longitudes = [
-        x for x in group["longitudes"]
-        if isinstance(x, (int, float))
-    ]
-
-    return {
-        "name": group["name"],
-        "nodes": group["nodes"],
-        "percent": fmt_percent(group["nodes"], total_nodes),
-        "countries": len(group["countries"]),
-        "cities": len(group["cities"]),
-        "asns": len(group["asns"]),
-        "tor_nodes": group["tor_nodes"],
-        "top_agent": top_counter_value(group["agents"]),
-        "top_agent_count": top_counter_count(group["agents"]),
-        "top_port": top_counter_value(group["ports"]),
-        "top_port_count": top_counter_count(group["ports"]),
-        "top_service": top_counter_value(group["services"]),
-        "top_service_count": top_counter_count(group["services"]),
-        "top_organization": top_counter_value(group["organizations"]),
-        "top_organization_count": top_counter_count(group["organizations"]),
-        "min_height": min(heights) if heights else None,
-        "max_height": max(heights) if heights else None,
-        "avg_height": round(statistics.mean(heights), 2) if heights else None,
-        "avg_latitude": round(statistics.mean(latitudes), 6) if latitudes else None,
-        "avg_longitude": round(statistics.mean(longitudes), 6) if longitudes else None
-    }
-
-
-def add_row_to_group(
-    group: dict[str, Any],
-    row: dict[str, Any]
-) -> None:
-
-    group["nodes"] += 1
-
-    country = row.get("country_code")
-    city = row.get("city")
-    asn = row.get("asn")
-    agent = row.get("user_agent")
-    port = row.get("port")
-    services = row.get("services")
-    organization = row.get("organization")
-    height = safe_int(row.get("height"))
-    latitude = safe_float(row.get("latitude"))
-    longitude = safe_float(row.get("longitude"))
-
-    if country:
-        group["countries"].add(country)
-
-    if city:
-        group["cities"].add(city)
-
-    if asn:
-        group["asns"].add(asn)
-
-    if agent:
-        group["agents"][agent] += 1
-        group["versions"][agent] += 1
-
-    if port:
-        group["ports"][port] += 1
-
-    if services is not None:
-        group["services"][str(services)] += 1
-
-    if organization:
-        group["organizations"][organization] += 1
-
-    if height is not None:
-        group["heights"].append(height)
-
-    if latitude is not None:
-        group["latitudes"].append(latitude)
-
-    if longitude is not None:
-        group["longitudes"].append(longitude)
-
-    if row.get("is_tor"):
-        group["tor_nodes"] += 1
-
-
-def aggregate_by_key(
-    nodes: dict[str, list[Any]],
-    key_func,
-    unknown: str = "Unknown"
-) -> list[dict[str, Any]]:
-
-    rows = nodes_to_rows(nodes)
-
-    groups: dict[str, dict[str, Any]] = {}
-
-    for row in rows:
-        key = key_func(row) or unknown
-
-        if key not in groups:
-            groups[key] = make_group_shell(key)
-
-        add_row_to_group(groups[key], row)
-
-    total = len(rows)
-
-    results = [
-        finalize_group(group, total)
-        for group in groups.values()
-    ]
-
-    results.sort(
-        key=lambda item: item["nodes"],
-        reverse=True
-    )
-
-    return results
-
-
-def aggregate_countries(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    results = aggregate_by_key(
-        nodes,
-        lambda row: row.get("country_code")
-    )
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_cities(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    def key_func(row: dict[str, Any]) -> str:
-        city = row.get("city") or "Unknown"
-        country = row.get("country_code") or "Unknown"
-
-        return f"{city}, {country}"
-
-    results = aggregate_by_key(
-        nodes,
-        key_func
-    )
-
-    for result in results:
-        if ", " in result["name"]:
-            city, country = result["name"].rsplit(", ", 1)
-        else:
-            city, country = result["name"], "Unknown"
-
-        result["city"] = city
-        result["country_code"] = country
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_asns(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    results = aggregate_by_key(
-        nodes,
-        lambda row: row.get("asn")
-    )
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_agents(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    results = aggregate_by_key(
-        nodes,
-        lambda row: row.get("user_agent")
-    )
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_versions(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    return aggregate_agents(nodes)
-
-
-def aggregate_ports(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    results = aggregate_by_key(
-        nodes,
-        lambda row: row.get("port")
-    )
-
-    for result in results:
-        result["port"] = result["name"]
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_services(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    results = aggregate_by_key(
-        nodes,
-        lambda row: str(row.get("services"))
-        if row.get("services") is not None
-        else None
-    )
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_organizations(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    results = aggregate_by_key(
-        nodes,
-        lambda row: row.get("organization")
-    )
-
-    return {
-        "count": len(results),
-        "total_nodes": len(nodes),
-        "results": results
-    }
-
-
-def aggregate_tor(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    tor_nodes = {
-        address: values
-        for address, values in nodes.items()
-        if is_tor_node(address, values)
-    }
-
-    return {
-        "count": len(tor_nodes),
-        "total_nodes": len(nodes),
-        "percent": fmt_percent(
-            len(tor_nodes),
-            len(nodes)
-        ),
-        "nodes": tor_nodes
-    }
-
-
-def aggregate_dns_seeder(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    records = {
-        "A": [],
-        "AAAA": [],
-        "TXT": []
-    }
-
-    for address in nodes:
-        host = extract_host(address)
-
-        if ".onion" in host:
-            records["TXT"].append(host)
-
-        elif ":" in host:
-            records["AAAA"].append(host)
-
-        else:
-            records["A"].append(host)
-
-    for key in records:
-        records[key] = sorted(
-            set(records[key])
-        )
-
-    return records
-
-
-def aggregate_heights(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
-
-    heights = Counter()
-
-    for _address, values in nodes.items():
-        row_height = safe_int(
-            values[4]
-            if len(values) > 4
-            else None
-        )
-
-        if row_height is not None:
-            heights[row_height] += 1
-
-    total = sum(heights.values())
+        counter[str(value)] += 1
 
     rows = [
         {
-            "height": height,
-            "nodes": count,
-            "percent": fmt_percent(count, total)
+            "value": key,
+            "count": count
         }
-        for height, count in heights.most_common()
+        for key, count in counter.most_common(limit)
+    ]
+
+    return rows
+
+
+def split_address(address: str) -> tuple[str, int | None]:
+    value = str(address).strip()
+
+    if value.startswith("[") and "]:" in value:
+        host = value.split("]:", 1)[0].lstrip("[")
+
+        try:
+            port = int(value.rsplit(":", 1)[1])
+        except Exception:
+            port = None
+
+        return host, port
+
+    if ".onion:" in value:
+        host, port_text = value.rsplit(":", 1)
+
+        try:
+            port = int(port_text)
+        except Exception:
+            port = None
+
+        return host, port
+
+    if value.count(":") == 1:
+        host, port_text = value.rsplit(":", 1)
+
+        try:
+            port = int(port_text)
+        except Exception:
+            port = None
+
+        return host, port
+
+    return value, None
+
+
+def network_type(address: str) -> str:
+    host, _port = split_address(address)
+
+    if host.lower().endswith(".onion"):
+        return "tor"
+
+    if ":" in host:
+        return "ipv6"
+
+    return "ipv4"
+
+
+def row_metadata(row: list[Any]) -> dict[str, Any]:
+    if len(row) > 19 and isinstance(row[19], dict):
+        return row[19]
+
+    return {}
+
+
+def normalize_node(
+    address: str,
+    row: list[Any],
+    rank: int | None = None
+) -> dict[str, Any]:
+    values = list(row)
+
+    while len(values) < 20:
+        values.append(None)
+
+    metadata = row_metadata(values)
+    host, port = split_address(address)
+
+    latency_ms = metadata.get("latency_ms")
+
+    if latency_ms is None and not isinstance(values[19], dict):
+        latency_ms = values[19]
+
+    peer_index = metadata.get("peer_index")
+
+    if peer_index is None:
+        peer_index = calculate_peer_index(
+            latency_ms=latency_ms,
+            uptime_seconds=metadata.get("total_uptime"),
+            height=values[4],
+            services=values[3],
+            success_count=metadata.get("success_count"),
+            failure_count=metadata.get("failure_count")
+        )
+
+    return {
+        "rank": rank,
+        "address": address,
+        "host": host,
+        "port": port,
+        "network": network_type(address),
+        "protocol": values[0],
+        "agent": values[1],
+        "connected_since": values[2],
+        "services": values[3],
+        "height": values[4],
+        "hostname": values[5],
+        "city": values[6],
+        "country": values[7],
+        "latitude": values[8],
+        "longitude": values[9],
+        "timezone": values[10],
+        "asn": values[11],
+        "organization": values[12],
+        "provider": values[13],
+        "county": values[14],
+        "zip": values[15],
+        "w3w": values[16],
+        "geohash": values[17],
+        "asn_location": values[18],
+        "latency_ms": latency_ms,
+        "uptime_human": metadata.get("uptime_human"),
+        "uptime_seconds": metadata.get("total_uptime"),
+        "reachable": metadata.get("reachable"),
+        "peer_index": peer_index,
+        "tor": bool(metadata.get("tor")) or ".onion" in address.lower(),
+        "success_count": metadata.get("success_count"),
+        "failure_count": metadata.get("failure_count"),
+        "first_seen": metadata.get("first_seen"),
+        "last_seen": metadata.get("last_seen")
+    }
+
+
+def load_nodes(payload: dict[str, Any]) -> dict[str, list[Any]]:
+    if isinstance(payload.get("nodes"), dict):
+        raw_nodes = payload["nodes"]
+
+        cleaned = {}
+
+        for address, row in raw_nodes.items():
+            if isinstance(row, list):
+                cleaned[address] = row
+            elif isinstance(row, dict):
+                cleaned[address] = dict_node_to_row(row)
+
+        return cleaned
+
+    if isinstance(payload.get("results"), list):
+        cleaned = {}
+
+        for item in payload["results"]:
+            if not isinstance(item, dict):
+                continue
+
+            address = item.get("address") or item.get("node")
+
+            if not address:
+                continue
+
+            cleaned[address] = dict_node_to_row(item)
+
+        return cleaned
+
+    if isinstance(payload.get("rows"), list):
+        cleaned = {}
+
+        for item in payload["rows"]:
+            if not isinstance(item, dict):
+                continue
+
+            address = item.get("address") or item.get("node")
+
+            if not address:
+                continue
+
+            cleaned[address] = dict_node_to_row(item)
+
+        return cleaned
+
+    return {}
+
+
+def dict_node_to_row(item: dict[str, Any]) -> list[Any]:
+    metadata = {
+        "latency_ms": item.get("latency_ms"),
+        "uptime_human": item.get("uptime_human"),
+        "total_uptime": item.get("uptime_seconds"),
+        "reachable": item.get("reachable"),
+        "peer_index": item.get("peer_index"),
+        "tor": item.get("tor"),
+        "success_count": item.get("success_count"),
+        "failure_count": item.get("failure_count"),
+        "first_seen": item.get("first_seen"),
+        "last_seen": item.get("last_seen")
+    }
+
+    return [
+        item.get("protocol"),
+        item.get("agent"),
+        item.get("connected_since"),
+        item.get("services"),
+        item.get("height"),
+        item.get("hostname"),
+        item.get("city"),
+        item.get("country"),
+        item.get("latitude"),
+        item.get("longitude"),
+        item.get("timezone"),
+        item.get("asn"),
+        item.get("organization"),
+        item.get("provider"),
+        item.get("county"),
+        item.get("zip"),
+        item.get("w3w"),
+        item.get("geohash"),
+        item.get("asn_location"),
+        metadata
+    ]
+
+
+def normalize_rows(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
+    rows = [
+        normalize_node(address, row)
+        for address, row in nodes.items()
     ]
 
     rows.sort(
-        key=lambda item: item["height"],
+        key=lambda item: (
+            safe_number(item.get("peer_index")) or 0,
+            safe_int(item.get("height")) or 0,
+            item.get("address") or ""
+        ),
         reverse=True
     )
 
-    return {
-        "count": len(rows),
-        "total_nodes": len(nodes),
-        "results": rows,
-        "latest_height": rows[0]["height"]
-        if rows else None
-    }
+    for index, row in enumerate(rows, start=1):
+        row["rank"] = index
+
+    return rows
 
 
-def aggregate_coordinates(
-    nodes: dict[str, list[Any]]
-) -> dict[str, Any]:
+def calculate_peer_index(
+    latency_ms: Any,
+    uptime_seconds: Any,
+    height: Any,
+    services: Any,
+    success_count: Any,
+    failure_count: Any
+) -> float:
+    latency = safe_number(latency_ms)
+    uptime = safe_number(uptime_seconds) or 0.0
+    successes = safe_number(success_count) or 0.0
+    failures = safe_number(failure_count) or 0.0
 
-    seen = set()
+    latency_score = 0.0
 
-    coordinates = []
-
-    for address, values in nodes.items():
-        row = node_array_to_dict(address, values)
-
-        latitude = safe_float(
-            row.get("latitude")
+    if latency is not None:
+        latency_score = max(
+            0.0,
+            100.0 - min(100.0, latency / 5.0)
         )
 
-        longitude = safe_float(
-            row.get("longitude")
-        )
+    uptime_score = min(
+        100.0,
+        uptime / 3600.0
+    )
 
-        if latitude is None or longitude is None:
-            continue
+    total_attempts = successes + failures
+    reliability_score = 0.0
 
-        key = (latitude, longitude)
+    if total_attempts > 0:
+        reliability_score = (
+            successes / total_attempts
+        ) * 100.0
 
-        if key in seen:
-            continue
+    height_score = 50.0 if height not in ("", None, 0) else 0.0
+    services_score = 25.0 if services not in ("", None, 0) else 0.0
 
-        seen.add(key)
-
-        coordinates.append([
-            latitude,
-            longitude
-        ])
-
-    return {
-        "count": len(coordinates),
-        "coordinates": coordinates
-    }
+    return round(
+        latency_score
+        + uptime_score
+        + reliability_score
+        + height_score
+        + services_score,
+        6
+    )
 
 
-def aggregate_snapshot_summary(
-    nodes: dict[str, list[Any]],
-    timestamp: int | None = None,
-    source: str = "zzx-labs-bitnodes-crawler"
+def aggregate_summary(
+    payload: dict[str, Any],
+    rows: list[dict[str, Any]]
 ) -> dict[str, Any]:
+    reachable_rows = [
+        row for row in rows
+        if row.get("reachable") is True
+    ]
 
-    if timestamp is None:
-        timestamp = utc_timestamp()
+    unreachable_rows = [
+        row for row in rows
+        if row.get("reachable") is False
+    ]
 
-    rows = nodes_to_rows(nodes)
+    tor_rows = [
+        row for row in rows
+        if row.get("tor")
+    ]
+
+    ipv4_rows = [
+        row for row in rows
+        if row.get("network") == "ipv4"
+    ]
+
+    ipv6_rows = [
+        row for row in rows
+        if row.get("network") == "ipv6"
+    ]
+
+    heights = [
+        safe_int(row.get("height"))
+        for row in rows
+    ]
+
+    heights = [
+        height
+        for height in heights
+        if height is not None
+    ]
+
+    latest_height = max(heights) if heights else None
+
+    nodes_at_tip = 0
+
+    if latest_height is not None:
+        nodes_at_tip = sum(
+            1 for height in heights
+            if height == latest_height
+        )
 
     countries = {
-        row.get("country_code")
+        row.get("country")
         for row in rows
-        if row.get("country_code")
+        if row.get("country")
     }
 
     cities = {
-        (
-            row.get("city"),
-            row.get("country_code")
-        )
+        f"{row.get('city')}, {row.get('country')}"
         for row in rows
         if row.get("city")
-        or row.get("country_code")
     }
 
     asns = {
@@ -669,220 +579,645 @@ def aggregate_snapshot_summary(
         if row.get("asn")
     }
 
-    agents = Counter(
-        row.get("user_agent") or "unknown"
+    organizations = {
+        row.get("organization")
         for row in rows
-    )
+        if row.get("organization")
+    }
 
-    ports = Counter(
-        row.get("port") or "unknown"
+    providers = {
+        row.get("provider")
         for row in rows
-    )
-
-    services = Counter(
-        str(row.get("services"))
-        for row in rows
-        if row.get("services") is not None
-    )
-
-    heights = [
-        safe_int(row.get("height"))
-        for row in rows
-        if safe_int(row.get("height")) is not None
-    ]
-
-    tor_count = sum(
-        1 for row in rows
-        if row.get("is_tor")
-    )
+        if row.get("provider")
+    }
 
     return {
-        "source": source,
-        "timestamp": timestamp,
-        "updated_at": utc_iso(timestamp),
-        "total_nodes": len(nodes),
-        "reachable_nodes": len(nodes),
-        "latest_height": max(heights) if heights else None,
+        "source": payload.get("source", "zzx-labs-bitnodes-aggregate"),
+        "timestamp": payload.get("timestamp", utc_now()),
+        "updated_at": payload.get("updated_at", utc_iso()),
+        "total_nodes": len(rows),
+        "reachable_nodes": len(reachable_rows),
+        "unreachable_nodes": len(unreachable_rows),
+        "ipv4_nodes": len(ipv4_rows),
+        "ipv6_nodes": len(ipv6_rows),
+        "tor_nodes": len(tor_rows),
         "countries_count": len(countries),
         "cities_count": len(cities),
         "asns_count": len(asns),
-        "agents_count": len(agents),
-        "ports_count": len(ports),
-        "services_count": len(services),
-        "tor_nodes": tor_count,
-        "tor_percent": fmt_percent(
-            tor_count,
-            len(nodes)
+        "organizations_count": len(organizations),
+        "providers_count": len(providers),
+        "latest_height": latest_height,
+        "median_height": median(heights),
+        "nodes_at_tip": nodes_at_tip,
+        "tip_convergence_percent": round(
+            (nodes_at_tip / len(heights)) * 100.0,
+            6
+        ) if heights else 0.0,
+        "avg_latency_ms": average(
+            row.get("latency_ms")
+            for row in rows
         ),
-        "top_agent": top_counter_value(agents),
-        "top_port": top_counter_value(ports),
-        "top_service": top_counter_value(services)
+        "median_latency_ms": median(
+            row.get("latency_ms")
+            for row in rows
+        ),
+        "p90_latency_ms": percentile(
+            (row.get("latency_ms") for row in rows),
+            90
+        ),
+        "p95_latency_ms": percentile(
+            (row.get("latency_ms") for row in rows),
+            95
+        ),
+        "top_agent": most_common(
+            row.get("agent")
+            for row in rows
+        ),
+        "top_protocol": most_common(
+            row.get("protocol")
+            for row in rows
+        ),
+        "top_services": most_common(
+            row.get("services")
+            for row in rows
+        ),
+        "top_port": most_common(
+            row.get("port")
+            for row in rows
+        ),
+        "top_country": most_common(
+            row.get("country")
+            for row in rows
+        ),
+        "top_asn": most_common(
+            row.get("asn")
+            for row in rows
+        ),
+        "top_organization": most_common(
+            row.get("organization")
+            for row in rows
+        ),
+        "changes": payload.get("changes", {})
     }
 
 
-def aggregate_all(
-    nodes: dict[str, list[Any]],
-    timestamp: int | None = None,
-    source: str = "zzx-labs-bitnodes-crawler"
-) -> dict[str, Any]:
+def group_by(
+    rows: list[dict[str, Any]],
+    key: str,
+    unknown: str = "UNKNOWN"
+) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
-    summary = aggregate_snapshot_summary(
-        nodes,
-        timestamp=timestamp,
-        source=source
+    for row in rows:
+        name = row.get(key)
+
+        if name in ("", None):
+            name = unknown
+
+        grouped[str(name)].append(row)
+
+    output = []
+
+    for name, entries in grouped.items():
+        output.append({
+            "name": name,
+            key: name,
+            "total_nodes": len(entries),
+            "reachable_nodes": sum(
+                1 for item in entries
+                if item.get("reachable") is True
+            ),
+            "unreachable_nodes": sum(
+                1 for item in entries
+                if item.get("reachable") is False
+            ),
+            "tor_nodes": sum(
+                1 for item in entries
+                if item.get("tor")
+            ),
+            "ipv4_nodes": sum(
+                1 for item in entries
+                if item.get("network") == "ipv4"
+            ),
+            "ipv6_nodes": sum(
+                1 for item in entries
+                if item.get("network") == "ipv6"
+            ),
+            "latest_height": max_or_none(
+                item.get("height")
+                for item in entries
+            ),
+            "avg_latency_ms": average(
+                item.get("latency_ms")
+                for item in entries
+            ),
+            "median_latency_ms": median(
+                item.get("latency_ms")
+                for item in entries
+            ),
+            "top_agent": most_common(
+                item.get("agent")
+                for item in entries
+            ),
+            "top_asn": most_common(
+                item.get("asn")
+                for item in entries
+            ),
+            "top_organization": most_common(
+                item.get("organization")
+                for item in entries
+            ),
+            "top_port": most_common(
+                item.get("port")
+                for item in entries
+            ),
+            "nodes": entries
+        })
+
+    output.sort(
+        key=lambda item: item["total_nodes"],
+        reverse=True
+    )
+
+    return output
+
+
+def group_cities(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+
+    for row in rows:
+        city = row.get("city") or "Unknown"
+        country = row.get("country") or "??"
+        key = f"{city}, {country}"
+        grouped[key].append(row)
+
+    output = []
+
+    for key, entries in grouped.items():
+        city, country = key.rsplit(", ", 1)
+
+        output.append({
+            "name": key,
+            "city": city,
+            "country": country,
+            "total_nodes": len(entries),
+            "reachable_nodes": sum(
+                1 for item in entries
+                if item.get("reachable") is True
+            ),
+            "unreachable_nodes": sum(
+                1 for item in entries
+                if item.get("reachable") is False
+            ),
+            "tor_nodes": sum(
+                1 for item in entries
+                if item.get("tor")
+            ),
+            "latest_height": max_or_none(
+                item.get("height")
+                for item in entries
+            ),
+            "avg_latency_ms": average(
+                item.get("latency_ms")
+                for item in entries
+            ),
+            "top_agent": most_common(
+                item.get("agent")
+                for item in entries
+            ),
+            "top_asn": most_common(
+                item.get("asn")
+                for item in entries
+            ),
+            "top_organization": most_common(
+                item.get("organization")
+                for item in entries
+            ),
+            "nodes": entries
+        })
+
+    output.sort(
+        key=lambda item: item["total_nodes"],
+        reverse=True
+    )
+
+    return output
+
+
+def build_histogram(
+    rows: list[dict[str, Any]],
+    key: str
+) -> dict[str, Any]:
+    return {
+        "updated_at": utc_iso(),
+        "field": key,
+        "total_values": len(rows),
+        "results": counter_rows(
+            row.get(key)
+            for row in rows
+        )
+    }
+
+
+def build_height_distribution(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    counter = Counter()
+
+    for row in rows:
+        height = safe_int(row.get("height"))
+
+        if height is not None:
+            counter[height] += 1
+
+    results = [
+        {
+            "height": height,
+            "nodes": count
+        }
+        for height, count in counter.items()
+    ]
+
+    results.sort(
+        key=lambda item: item["height"],
+        reverse=True
     )
 
     return {
-        "summary": summary,
-        "countries": aggregate_countries(nodes),
-        "cities": aggregate_cities(nodes),
-        "asns": aggregate_asns(nodes),
-        "agents": aggregate_agents(nodes),
-        "versions": aggregate_versions(nodes),
-        "ports": aggregate_ports(nodes),
-        "services": aggregate_services(nodes),
-        "organizations": aggregate_organizations(nodes),
-        "tor": aggregate_tor(nodes),
-        "dns_seeder": aggregate_dns_seeder(nodes),
-        "heights": aggregate_heights(nodes),
-        "coordinates": aggregate_coordinates(nodes)
+        "updated_at": utc_iso(),
+        "latest_height": results[0]["height"] if results else None,
+        "total_heights": len(results),
+        "results": results
     }
 
 
-def export_aggregate_files(
+def build_latency_distribution(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    buckets = {
+        "0-25ms": 0,
+        "25-50ms": 0,
+        "50-100ms": 0,
+        "100-250ms": 0,
+        "250-500ms": 0,
+        "500-1000ms": 0,
+        "1000ms+": 0,
+        "unknown": 0
+    }
+
+    for row in rows:
+        latency = safe_number(row.get("latency_ms"))
+
+        if latency is None:
+            buckets["unknown"] += 1
+        elif latency < 25:
+            buckets["0-25ms"] += 1
+        elif latency < 50:
+            buckets["25-50ms"] += 1
+        elif latency < 100:
+            buckets["50-100ms"] += 1
+        elif latency < 250:
+            buckets["100-250ms"] += 1
+        elif latency < 500:
+            buckets["250-500ms"] += 1
+        elif latency < 1000:
+            buckets["500-1000ms"] += 1
+        else:
+            buckets["1000ms+"] += 1
+
+    return {
+        "updated_at": utc_iso(),
+        "results": [
+            {
+                "bucket": bucket,
+                "nodes": count
+            }
+            for bucket, count in buckets.items()
+        ]
+    }
+
+
+def build_coordinate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    output = []
+
+    for row in rows:
+        lat = safe_number(row.get("latitude"))
+        lon = safe_number(row.get("longitude"))
+
+        if lat is None or lon is None:
+            continue
+
+        output.append({
+            "address": row.get("address"),
+            "host": row.get("host"),
+            "port": row.get("port"),
+            "network": row.get("network"),
+            "country": row.get("country"),
+            "city": row.get("city"),
+            "latitude": lat,
+            "longitude": lon,
+            "timezone": row.get("timezone"),
+            "asn": row.get("asn"),
+            "organization": row.get("organization"),
+            "provider": row.get("provider"),
+            "geohash": row.get("geohash"),
+            "w3w": row.get("w3w"),
+            "tor": row.get("tor")
+        })
+
+    return output
+
+
+def build_aggregates(
     payload: dict[str, Any],
-    output_dir: str | Path
+    rows: list[dict[str, Any]]
 ) -> dict[str, Any]:
+    summary = aggregate_summary(payload, rows)
 
-    output_dir = Path(output_dir)
-
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True
+    leaderboard = sorted(
+        rows,
+        key=lambda item: (
+            safe_number(item.get("peer_index")) or 0
+        ),
+        reverse=True
     )
 
-    nodes = payload.get("nodes", {})
+    for index, row in enumerate(leaderboard, start=1):
+        row["rank"] = index
+        row["node"] = row.get("address")
 
-    timestamp = payload.get(
-        "timestamp",
-        utc_timestamp()
-    )
+    coordinates = build_coordinate_rows(rows)
 
-    source = payload.get(
-        "source",
-        "zzx-labs-bitnodes-crawler"
-    )
+    return {
+        "summary": summary,
+        "nodes": {
+            "updated_at": utc_iso(),
+            "total_nodes": len(rows),
+            "results": rows
+        },
+        "reachable": {
+            "updated_at": utc_iso(),
+            "total_nodes": sum(
+                1 for row in rows
+                if row.get("reachable") is True
+            ),
+            "results": [
+                row for row in rows
+                if row.get("reachable") is True
+            ]
+        },
+        "unreachable": {
+            "updated_at": utc_iso(),
+            "total_nodes": sum(
+                1 for row in rows
+                if row.get("reachable") is False
+            ),
+            "results": [
+                row for row in rows
+                if row.get("reachable") is False
+            ]
+        },
+        "countries": {
+            "updated_at": utc_iso(),
+            "total_countries": len({
+                row.get("country")
+                for row in rows
+                if row.get("country")
+            }),
+            "results": group_by(
+                rows,
+                "country",
+                unknown="??"
+            )
+        },
+        "cities": {
+            "updated_at": utc_iso(),
+            "total_cities": len({
+                f"{row.get('city')}, {row.get('country')}"
+                for row in rows
+                if row.get("city")
+            }),
+            "results": group_cities(rows)
+        },
+        "asns": {
+            "updated_at": utc_iso(),
+            "total_asns": len({
+                row.get("asn")
+                for row in rows
+                if row.get("asn")
+            }),
+            "results": group_by(
+                rows,
+                "asn",
+                unknown="UNKNOWN"
+            )
+        },
+        "organizations": {
+            "updated_at": utc_iso(),
+            "total_organizations": len({
+                row.get("organization")
+                for row in rows
+                if row.get("organization")
+            }),
+            "results": group_by(
+                rows,
+                "organization",
+                unknown="UNKNOWN"
+            )
+        },
+        "providers": {
+            "updated_at": utc_iso(),
+            "total_providers": len({
+                row.get("provider")
+                for row in rows
+                if row.get("provider")
+            }),
+            "results": group_by(
+                rows,
+                "provider",
+                unknown="UNKNOWN"
+            )
+        },
+        "agents": {
+            "updated_at": utc_iso(),
+            "total_agents": len({
+                row.get("agent")
+                for row in rows
+                if row.get("agent")
+            }),
+            "results": group_by(
+                rows,
+                "agent",
+                unknown="UNKNOWN"
+            )
+        },
+        "versions": {
+            "updated_at": utc_iso(),
+            "total_versions": len({
+                row.get("protocol")
+                for row in rows
+                if row.get("protocol")
+            }),
+            "results": group_by(
+                rows,
+                "protocol",
+                unknown="UNKNOWN"
+            )
+        },
+        "ports": {
+            "updated_at": utc_iso(),
+            "total_ports": len({
+                row.get("port")
+                for row in rows
+                if row.get("port")
+            }),
+            "results": group_by(
+                rows,
+                "port",
+                unknown="UNKNOWN"
+            )
+        },
+        "services": {
+            "updated_at": utc_iso(),
+            "total_service_sets": len({
+                row.get("services")
+                for row in rows
+                if row.get("services") is not None
+            }),
+            "results": group_by(
+                rows,
+                "services",
+                unknown="UNKNOWN"
+            )
+        },
+        "tor": {
+            "updated_at": utc_iso(),
+            "total_tor_nodes": sum(
+                1 for row in rows
+                if row.get("tor")
+            ),
+            "results": [
+                row for row in rows
+                if row.get("tor")
+            ]
+        },
+        "coordinates": {
+            "updated_at": utc_iso(),
+            "total_coordinates": len(coordinates),
+            "results": coordinates
+        },
+        "leaderboard": {
+            "updated_at": utc_iso(),
+            "count": len(leaderboard),
+            "results": leaderboard
+        },
+        "heights": build_height_distribution(rows),
+        "latency_distribution": build_latency_distribution(rows),
+        "histograms": {
+            "agents": build_histogram(rows, "agent"),
+            "versions": build_histogram(rows, "protocol"),
+            "ports": build_histogram(rows, "port"),
+            "services": build_histogram(rows, "services"),
+            "countries": build_histogram(rows, "country"),
+            "asns": build_histogram(rows, "asn"),
+            "organizations": build_histogram(rows, "organization"),
+            "providers": build_histogram(rows, "provider")
+        }
+    }
 
-    aggregates = aggregate_all(
-        nodes,
-        timestamp=timestamp,
-        source=source
-    )
+
+def write_aggregate_files(
+    aggregates: dict[str, Any],
+    output_dir: Path,
+    pretty: bool
+) -> None:
+    mapping = {
+        "summary": "aggregate-summary.json",
+        "nodes": "aggregate-nodes.json",
+        "reachable": "aggregate-reachable.json",
+        "unreachable": "aggregate-unreachable.json",
+        "countries": "aggregate-countries.json",
+        "cities": "aggregate-cities.json",
+        "asns": "aggregate-asns.json",
+        "organizations": "aggregate-organizations.json",
+        "providers": "aggregate-providers.json",
+        "agents": "aggregate-agents.json",
+        "versions": "aggregate-versions.json",
+        "ports": "aggregate-ports.json",
+        "services": "aggregate-services.json",
+        "tor": "aggregate-tor.json",
+        "coordinates": "aggregate-coordinates.json",
+        "leaderboard": "aggregate-leaderboard.json",
+        "heights": "aggregate-heights.json",
+        "latency_distribution": "aggregate-latency-distribution.json",
+        "histograms": "aggregate-histograms.json"
+    }
+
+    for key, filename in mapping.items():
+        write_json(
+            output_dir / filename,
+            aggregates[key],
+            pretty=pretty
+        )
 
     write_json(
-        output_dir / "summary.json",
-        aggregates["summary"]
+        output_dir / "aggregate.json",
+        aggregates,
+        pretty=pretty
     )
 
-    write_json(
-        output_dir / "countries.json",
-        aggregates["countries"]
-    )
 
-    write_json(
-        output_dir / "cities.json",
-        aggregates["cities"]
-    )
+def aggregate_file(
+    input_path: Path,
+    output_dir: Path,
+    pretty: bool = True
+) -> dict[str, Any]:
+    payload = read_json(input_path)
+    nodes = load_nodes(payload)
+    rows = normalize_rows(nodes)
+    aggregates = build_aggregates(payload, rows)
 
-    write_json(
-        output_dir / "asns.json",
-        aggregates["asns"]
-    )
-
-    write_json(
-        output_dir / "agents.json",
-        aggregates["agents"]
-    )
-
-    write_json(
-        output_dir / "versions.json",
-        aggregates["versions"]
-    )
-
-    write_json(
-        output_dir / "ports.json",
-        aggregates["ports"]
-    )
-
-    write_json(
-        output_dir / "services.json",
-        aggregates["services"]
-    )
-
-    write_json(
-        output_dir / "organizations.json",
-        aggregates["organizations"]
-    )
-
-    write_json(
-        output_dir / "tor.json",
-        aggregates["tor"]
-    )
-
-    write_json(
-        output_dir / "dns-seeder.json",
-        aggregates["dns_seeder"]
-    )
-
-    write_json(
-        output_dir / "heights.json",
-        aggregates["heights"]
-    )
-
-    write_json(
-        output_dir / "coordinates.json",
-        aggregates["coordinates"]
-    )
-
-    write_json(
-        output_dir / "status.json",
-        aggregates["summary"]
+    write_aggregate_files(
+        aggregates,
+        output_dir,
+        pretty=pretty
     )
 
     return aggregates
 
 
 def main() -> int:
-    import argparse
-
     parser = argparse.ArgumentParser(
-        description="Generate Bitnodes aggregate JSON files."
+        description="Build ZZX-Labs Bitnodes aggregate JSON indexes."
     )
 
     parser.add_argument(
         "--input",
-        required=True
+        default=str(DEFAULT_INPUT)
     )
 
     parser.add_argument(
         "--output",
-        required=True
+        default=str(DEFAULT_OUTPUT)
+    )
+
+    parser.add_argument(
+        "--compact",
+        action="store_true"
     )
 
     args = parser.parse_args()
 
-    payload = load_json(
-        Path(args.input)
+    aggregates = aggregate_file(
+        input_path=Path(args.input),
+        output_dir=Path(args.output),
+        pretty=not args.compact
     )
 
-    export_aggregate_files(
-        payload,
-        Path(args.output)
-    )
+    summary = aggregates["summary"]
 
     print(
-        f"aggregate export complete: "
-        f"{args.output}"
+        f"aggregated {summary['total_nodes']} nodes, "
+        f"{summary['reachable_nodes']} reachable, "
+        f"{summary['unreachable_nodes']} unreachable, "
+        f"{summary['countries_count']} countries, "
+        f"{summary['asns_count']} ASNs"
     )
 
     return 0
