@@ -1,4 +1,4 @@
-name: Bitnodes Static API Crawler
+name: ZZX-Labs Bitnodes Global Node Crawler
 
 on:
   workflow_dispatch:
@@ -33,6 +33,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
+      - name: Download DB-IP GeoIP databases
+        run: |
+          mkdir -p bitcoin/bitnodes/data/geoip
+
+          curl -L \
+            -o bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb.gz \
+            https://download.db-ip.com/free/dbip-city-lite-2026-05.mmdb.gz
+
+          curl -L \
+            -o bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb.gz \
+            https://download.db-ip.com/free/dbip-asn-lite-2026-05.mmdb.gz
+
+          curl -L \
+            -o bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb.gz \
+            https://download.db-ip.com/free/dbip-country-lite-2026-05.mmdb.gz
+
+          gunzip -f bitcoin/bitnodes/data/geoip/*.gz
+
       - name: Sync with remote before crawling
         run: |
           git fetch origin main
@@ -45,12 +63,18 @@ jobs:
             --archive-dir bitcoin/bitnodes/archive \
             --state-dir bitcoin/bitnodes/data/state \
             --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
+            --geoip-dir bitcoin/bitnodes/data/geoip \
             --timeout 3 \
             --limit 500000 \
             --batch-size 5000 \
             --workers 128 \
             --getaddr-rounds 12 \
             --export-mode reachable_24h
+
+      - name: Remove local GeoIP databases before commit
+        run: |
+          rm -f bitcoin/bitnodes/data/geoip/*.mmdb
+          rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
 
       - name: Commit Bitnodes snapshots
         run: |
