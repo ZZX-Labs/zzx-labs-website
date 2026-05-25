@@ -43,10 +43,13 @@ jobs:
           python tools/bitnodes/crawl.py \
             --output bitcoin/bitnodes/api \
             --archive-dir bitcoin/bitnodes/archive \
-            --history-dir /tmp/bitnodes-history \
+            --state-dir bitcoin/bitnodes/data/state \
+            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
             --timeout 3 \
             --limit 500000 \
             --workers 128 \
+            --getaddr-rounds 12 \
+            --export-mode reachable_24h \
             --disable-geoip
 
       - name: Commit snapshots
