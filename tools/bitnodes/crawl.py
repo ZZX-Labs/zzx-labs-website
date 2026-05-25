@@ -58,20 +58,9 @@ DEFAULT_GEOIP_DIR = (
     / "geoip"
 )
 
-DEFAULT_CITY_DB = (
-    DEFAULT_GEOIP_DIR
-    / "dbip-city-lite.mmdb"
-)
-
-DEFAULT_ASN_DB = (
-    DEFAULT_GEOIP_DIR
-    / "dbip-asn-lite.mmdb"
-)
-
-DEFAULT_COUNTRY_DB = (
-    DEFAULT_GEOIP_DIR
-    / "dbip-country-lite.mmdb"
-)
+DEFAULT_CITY_DB = DEFAULT_GEOIP_DIR / "dbip-city-lite.mmdb"
+DEFAULT_ASN_DB = DEFAULT_GEOIP_DIR / "dbip-asn-lite.mmdb"
+DEFAULT_COUNTRY_DB = DEFAULT_GEOIP_DIR / "dbip-country-lite.mmdb"
 
 
 def mkdir(path: Path) -> None:
@@ -85,7 +74,6 @@ def resolve_seed(
     seed: str,
     timeout: float = 5.0
 ) -> list[str]:
-
     output: list[str] = []
 
     for record_type in ("A", "AAAA"):
@@ -111,7 +99,6 @@ def discover_dns(
     limit: int,
     timeout: float = 5.0
 ) -> list[str]:
-
     discovered: list[str] = []
 
     for seed in DNS_SEEDS:
@@ -134,7 +121,6 @@ def getaddr_from_node(
     address: str,
     timeout: float
 ) -> list[str]:
-
     try:
         return [
             normalize_address(item)
@@ -157,13 +143,11 @@ def expand_getaddr(
     workers: int,
     rounds: int
 ) -> list[str]:
-
     state.add_to_queue(seed_addresses)
 
     discovered_total: list[str] = []
 
     for _round in range(rounds):
-
         if len(state.nodes) + len(state.queue) >= limit:
             break
 
@@ -179,7 +163,6 @@ def expand_getaddr(
         with ThreadPoolExecutor(
             max_workers=workers
         ) as executor:
-
             futures = [
                 executor.submit(
                     getaddr_from_node,
@@ -190,7 +173,6 @@ def expand_getaddr(
             ]
 
             for future in as_completed(futures):
-
                 try:
                     found = future.result()
                 except Exception:
@@ -223,19 +205,32 @@ def crawl_address(
     address: str,
     timeout: float
 ) -> tuple[str, list[Any]] | None:
-
     try:
+        start = time.perf_counter()
+
         info = handshake(
             address,
             timeout=timeout
         )
 
+        latency_ms = round(
+            (time.perf_counter() - start) * 1000.0,
+            2
+        )
+
         if not info.connected:
             return None
 
+        row = version_info_to_bitnodes_array(info)
+
+        while len(row) < 20:
+            row.append(None)
+
+        row[19] = latency_ms
+
         return (
             normalize_address(info.address),
-            version_info_to_bitnodes_array(info)
+            row
         )
 
     except (
@@ -255,14 +250,12 @@ def crawl_batch(
     timeout: float,
     workers: int
 ) -> tuple[dict[str, list[Any]], list[str]]:
-
     successes: dict[str, list[Any]] = {}
     failures: list[str] = []
 
     with ThreadPoolExecutor(
         max_workers=workers
     ) as executor:
-
         future_map = {
             executor.submit(
                 crawl_address,
@@ -273,7 +266,6 @@ def crawl_batch(
         }
 
         for future in as_completed(future_map):
-
             requested_address = future_map[future]
 
             try:
@@ -298,7 +290,6 @@ def build_changes(
     state_before: dict[str, dict[str, Any]],
     state_after: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
-
     before = set(state_before)
     after = set(state_after)
 
@@ -368,12 +359,54 @@ def build_changes(
     }
 
 
+def geoip_available(
+    geoip_enabled: bool,
+    city_db: Path,
+    asn_db: Path,
+    country_db: Path
+) -> bool:
+    if not geoip_enabled:
+        return False
+
+    if city_db.exists() and asn_db.exists():
+        return True
+
+    if country_db.exists() and asn_db.exists():
+        return True
+
+    missing = []
+
+    if not city_db.exists():
+        missing.append(str(city_db))
+
+    if not asn_db.exists():
+        missing.append(str(asn_db))
+
+    if not country_db.exists():
+        missing.append(str(country_db))
+
+    print(
+        "[geoip] GeoIP enabled, but local DB-IP mmdb files are incomplete. "
+        "Crawler will continue without full GeoIP enrichment. Missing: "
+        + ", ".join(missing)
+    )
+
+    return False
+
+
 def enrich_state_records(
     state: BitnodesState,
-    geoip_enabled: bool
+    geoip_enabled: bool,
+    city_db: Path,
+    asn_db: Path,
+    country_db: Path
 ) -> None:
-
-    if not geoip_enabled:
+    if not geoip_available(
+        geoip_enabled=geoip_enabled,
+        city_db=city_db,
+        asn_db=asn_db,
+        country_db=country_db
+    ):
         return
 
     payload = {
@@ -382,8 +415,8 @@ def enrich_state_records(
 
     payload = enrich_snapshot_payload(
         payload,
-        city_db=DEFAULT_CITY_DB,
-        asn_db=DEFAULT_ASN_DB,
+        city_db=city_db,
+        asn_db=asn_db,
         enabled=True
     )
 
@@ -391,7 +424,6 @@ def enrich_state_records(
     now = utc_now()
 
     for address, values in enriched_nodes.items():
-
         record = state.nodes.get(address)
 
         if not record:
@@ -426,7 +458,6 @@ def export_state(
     changes: dict[str, Any],
     pretty: bool = True
 ) -> dict[str, Any]:
-
     payload = state.build_export_payload(
         mode=mode
     )
@@ -463,7 +494,6 @@ def git_commit_and_push(
     message: str,
     branch: str = "main"
 ) -> None:
-
     commands = [
         [
             "git",
@@ -522,14 +552,17 @@ def crawl_once(
     workers: int,
     getaddr_rounds: int,
     geoip_enabled: bool,
+    city_db: Path,
+    asn_db: Path,
+    country_db: Path,
     export_mode: str,
     pretty: bool
 ) -> dict[str, Any]:
-
     mkdir(output_dir)
     mkdir(archive_dir)
     mkdir(state_dir)
     mkdir(snapshot_24h_dir)
+    mkdir(city_db.parent)
 
     state = BitnodesState(
         state_dir=state_dir,
@@ -589,7 +622,10 @@ def crawl_once(
 
     enrich_state_records(
         state,
-        geoip_enabled=geoip_enabled
+        geoip_enabled=geoip_enabled,
+        city_db=city_db,
+        asn_db=asn_db,
+        country_db=country_db
     )
 
     state.meta["last_crawl"] = now
@@ -603,6 +639,10 @@ def crawl_once(
     state.meta["last_batch_size"] = batch_size
     state.meta["last_workers"] = workers
     state.meta["last_timeout"] = timeout
+    state.meta["geoip_enabled"] = geoip_enabled
+    state.meta["geoip_city_db"] = str(city_db)
+    state.meta["geoip_asn_db"] = str(asn_db)
+    state.meta["geoip_country_db"] = str(country_db)
 
     state.write_24h_snapshot()
     state.save()
@@ -658,13 +698,14 @@ def daemon_loop(
     getaddr_rounds: int,
     interval: int,
     geoip_enabled: bool,
+    city_db: Path,
+    asn_db: Path,
+    country_db: Path,
     export_mode: str,
     pretty: bool,
     git_push: bool
 ) -> None:
-
     while True:
-
         try:
             crawl_once(
                 state_dir=state_dir,
@@ -678,6 +719,9 @@ def daemon_loop(
                 workers=workers,
                 getaddr_rounds=getaddr_rounds,
                 geoip_enabled=geoip_enabled,
+                city_db=city_db,
+                asn_db=asn_db,
+                country_db=country_db,
                 export_mode=export_mode,
                 pretty=pretty
             )
@@ -698,7 +742,6 @@ def daemon_loop(
 
 
 def main() -> int:
-
     parser = argparse.ArgumentParser(
         description="ZZX-Labs persistent Bitnodes global crawler."
     )
@@ -714,13 +757,22 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "--history-dir",
+        default="",
+        help=(
+            "Compatibility alias for old workflows. "
+            "This crawler uses --state-dir and --snapshot-24h-dir."
+        )
+    )
+
+    parser.add_argument(
         "--output",
-        default=str(APP_ROOT / "bitcoin" / "bitnodes" / "api")
+        default=str(DEFAULT_OUTPUT)
     )
 
     parser.add_argument(
         "--archive-dir",
-        default=str(APP_ROOT / "bitcoin" / "bitnodes" / "archive")
+        default=str(DEFAULT_ARCHIVE)
     )
 
     parser.add_argument(
@@ -775,6 +827,26 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "--geoip-dir",
+        default=str(DEFAULT_GEOIP_DIR)
+    )
+
+    parser.add_argument(
+        "--city-db",
+        default=""
+    )
+
+    parser.add_argument(
+        "--asn-db",
+        default=""
+    )
+
+    parser.add_argument(
+        "--country-db",
+        default=""
+    )
+
+    parser.add_argument(
         "--export-mode",
         choices=[
             "all",
@@ -798,16 +870,40 @@ def main() -> int:
 
     args = parser.parse_args()
 
+    geoip_dir = Path(args.geoip_dir)
+
+    city_db = (
+        Path(args.city_db)
+        if args.city_db
+        else geoip_dir / "dbip-city-lite.mmdb"
+    )
+
+    asn_db = (
+        Path(args.asn_db)
+        if args.asn_db
+        else geoip_dir / "dbip-asn-lite.mmdb"
+    )
+
+    country_db = (
+        Path(args.country_db)
+        if args.country_db
+        else geoip_dir / "dbip-country-lite.mmdb"
+    )
+
     raw_output = (
         Path(args.raw_output)
         if args.raw_output
         else None
     )
 
-    if args.daemon:
+    state_dir = Path(args.state_dir)
 
+    if args.history_dir and not args.state_dir:
+        state_dir = Path(args.history_dir)
+
+    if args.daemon:
         daemon_loop(
-            state_dir=Path(args.state_dir),
+            state_dir=state_dir,
             snapshot_24h_dir=Path(args.snapshot_24h_dir),
             output_dir=Path(args.output),
             archive_dir=Path(args.archive_dir),
@@ -819,6 +915,9 @@ def main() -> int:
             getaddr_rounds=args.getaddr_rounds,
             interval=args.interval,
             geoip_enabled=not args.disable_geoip,
+            city_db=city_db,
+            asn_db=asn_db,
+            country_db=country_db,
             export_mode=args.export_mode,
             pretty=not args.compact,
             git_push=args.git_push
@@ -827,7 +926,7 @@ def main() -> int:
         return 0
 
     crawl_once(
-        state_dir=Path(args.state_dir),
+        state_dir=state_dir,
         snapshot_24h_dir=Path(args.snapshot_24h_dir),
         output_dir=Path(args.output),
         archive_dir=Path(args.archive_dir),
@@ -838,6 +937,9 @@ def main() -> int:
         workers=args.workers,
         getaddr_rounds=args.getaddr_rounds,
         geoip_enabled=not args.disable_geoip,
+        city_db=city_db,
+        asn_db=asn_db,
+        country_db=country_db,
         export_mode=args.export_mode,
         pretty=not args.compact
     )
