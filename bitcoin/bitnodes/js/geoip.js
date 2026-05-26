@@ -13,12 +13,6 @@
         })}%`;
     }
 
-    function normalize(value) {
-        return String(value || "")
-            .trim()
-            .toLowerCase();
-    }
-
     function hasGeo(row) {
         return (
             BN.number(row.latitude ?? row.lat, null) !== null &&
@@ -95,9 +89,18 @@
         const total = rows.length;
         const geocoded = rows.filter(hasGeo).length;
         const tor = rows.filter(row => BN.isTor?.(row)).length;
-        const countries = buildCountryCounts(rows).filter(row => row.country !== "Unknown").length;
-        const cities = buildCityCounts(rows).filter(row => !row.location.startsWith("Unknown")).length;
-        const providers = buildProviderCounts(rows).filter(row => row.provider !== "Unknown").length;
+
+        const countries = buildCountryCounts(rows)
+            .filter(row => row.country !== "Unknown")
+            .length;
+
+        const cities = buildCityCounts(rows)
+            .filter(row => !row.location.startsWith("Unknown"))
+            .length;
+
+        const providers = buildProviderCounts(rows)
+            .filter(row => row.provider !== "Unknown")
+            .length;
 
         return {
             total,
@@ -196,6 +199,7 @@
                 <header class="bn-panel-head">
                     <span class="bn-kicker">GeoIP Intelligence</span>
                     <h2>Bitcoin Node Geographic and Provider Distribution</h2>
+
                     <p>
                         DB-IP enriched country, city, coordinate, provider, and hosting metadata
                         for the loaded Bitcoin node registry.
@@ -213,6 +217,7 @@
                         label: "Country",
                         render: row => {
                             const flag = BN.countryFlag(row.country);
+
                             return `${flag ? `${flag} ` : ""}${row.country}`;
                         }
                     },
@@ -301,6 +306,4 @@
         buildProviderCounts,
         hasGeo
     };
-
-    BN.ready(init);
-})(); 
+})();
