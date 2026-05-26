@@ -1,1 +1,244 @@
+.bn-searchbar-wrap {
+    width: 100%;
+    margin: 0 0 1rem;
+}
 
+.bn-searchbar {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+
+    width: 100%;
+}
+
+.bn-searchbar::before {
+    content: "⌕";
+
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: rgba(192, 214, 116, 0.52);
+
+    font-size: 1rem;
+    line-height: 1;
+
+    pointer-events: none;
+}
+
+.bn-search-input,
+.bn-table-search-input {
+    width: min(100%, 520px);
+
+    min-height: 46px;
+
+    padding:
+        0.72rem
+        1rem
+        0.72rem
+        2.8rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.14);
+
+    border-radius: 10px;
+
+    background: #080a08;
+
+    color: #edf7b9;
+
+    font-family: var(--bn-font);
+    font-size: 0.8rem;
+    font-weight: 500;
+
+    line-height: 1.5;
+
+    transition:
+        border-color 120ms ease,
+        background 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.bn-search-input::placeholder,
+.bn-table-search-input::placeholder {
+    color: rgba(188, 198, 176, 0.42);
+}
+
+.bn-search-input:hover,
+.bn-table-search-input:hover {
+    border-color: rgba(192, 214, 116, 0.24);
+}
+
+.bn-search-input:focus,
+.bn-table-search-input:focus {
+    outline: none;
+
+    border-color: rgba(192, 214, 116, 0.38);
+
+    background: #0b0f0a;
+
+    box-shadow:
+        0 0 0 3px rgba(192, 214, 116, 0.05);
+}
+
+.bn-search-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    min-height: 42px;
+
+    padding:
+        0.65rem
+        0.9rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.1);
+
+    border-radius: 10px;
+
+    background: rgba(0, 0, 0, 0.18);
+
+    color: rgba(192, 214, 116, 0.72);
+
+    font-family: var(--bn-font);
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    letter-spacing: 0.05em;
+}
+
+.bn-search-meta strong {
+    color: #edf7b9;
+    font-weight: 700;
+}
+
+.bn-search-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 42px;
+
+    padding:
+        0.65rem
+        0.9rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.14);
+
+    border-radius: 10px;
+
+    background: rgba(192, 214, 116, 0.04);
+
+    color: #c0d674;
+
+    font-family: var(--bn-font);
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    cursor: pointer;
+
+    transition:
+        border-color 120ms ease,
+        background 120ms ease,
+        color 120ms ease;
+}
+
+.bn-search-clear:hover {
+    border-color: rgba(192, 214, 116, 0.28);
+
+    background: rgba(192, 214, 116, 0.08);
+
+    color: #edf7b9;
+}
+
+.bn-search-hidden {
+    display: none !important;
+}
+
+.bn-search-highlight {
+    background: rgba(192, 214, 116, 0.14);
+    color: #f4ffd8;
+}
+
+.bn-search-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 180px;
+
+    padding: 2rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.1);
+
+    border-radius: 10px;
+
+    background: #080908;
+
+    color: rgba(192, 214, 116, 0.62);
+
+    font-family: var(--bn-font);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.bn-search-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    margin-bottom: 1rem;
+}
+
+.bn-search-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    color: rgba(192, 214, 116, 0.68);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.bn-search-stats strong {
+    color: #edf7b9;
+}
+
+@media (max-width: 768px) {
+
+    .bn-searchbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bn-search-input,
+    .bn-table-search-input {
+        width: 100%;
+    }
+
+    .bn-search-meta,
+    .bn-search-clear {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .bn-search-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
