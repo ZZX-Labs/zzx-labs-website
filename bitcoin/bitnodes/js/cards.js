@@ -1,25 +1,11 @@
 (() => {
     "use strict";
 
-    function ready(fn) {
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn);
-        } else {
-            fn();
-        }
-    }
-
-    function $(selector, scope = document) {
-        return scope.querySelector(selector);
-    }
-
-    function $all(selector, scope = document) {
-        return Array.from(scope.querySelectorAll(selector));
-    }
+    const BN = window.BN || {};
 
     function formatNumber(value) {
-        if (window.BNAPI && window.BNAPI.formatNumber) {
-            return window.BNAPI.formatNumber(value);
+        if (BN.formatNumber) {
+            return BN.formatNumber(value);
         }
 
         const n = Number(value);
@@ -31,14 +17,14 @@
         return n.toLocaleString();
     }
 
-    function formatMS(value) {
-        if (window.BNAPI && window.BNAPI.formatMS) {
-            return window.BNAPI.formatMS(value);
+    function formatMs(value) {
+        if (BN.formatMs) {
+            return BN.formatMs(value);
         }
 
         const n = Number(value);
 
-        if (!Number.isFinite(n)) {
+        if (!Number.isFinite(n) || n <= 0) {
             return "—";
         }
 
@@ -48,11 +34,11 @@
     }
 
     function percent(part, total) {
-        const p = Number(part);
-        const t = Number(total);
+        const p = BN.number ? BN.number(part, 0) : Number(part);
+        const t = BN.number ? BN.number(total, 0) : Number(total);
 
-        if (!Number.isFinite(p) || !Number.isFinite(t) || t <= 0) {
-            return "—";
+        if (!t) {
+            return "0%";
         }
 
         return `${((p / t) * 100).toLocaleString(undefined, {
@@ -60,84 +46,61 @@
         })}%`;
     }
 
-    function normalizeLatest(payload) {
-        if (window.BNAPI && window.BNAPI.normalizeLatest) {
-            return window.BNAPI.normalizeLatest(payload);
+    function escapeHtml(value) {
+        if (BN.escape) {
+            return BN.escape(value);
         }
 
-        const nodes =
-            payload && payload.nodes && typeof payload.nodes === "object"
-                ? payload.nodes
-                : {};
-
-        const total = Object.keys(nodes).length;
-
-        return {
-            source: payload?.source || "zzx-labs-bitnodes-crawler",
-            updated_at: payload?.updated_at || null,
-            total_nodes: payload?.total_nodes || total,
-            reachable_nodes: payload?.reachable_nodes || total,
-            known_nodes: payload?.known_nodes || payload?.total_known_nodes || total,
-            unreachable_nodes: payload?.unreachable_nodes || 0,
-            latest_height: payload?.latest_height || null,
-            countries_count: payload?.countries_count || 0,
-            cities_count: payload?.cities_count || 0,
-            asns_count: payload?.asns_count || 0,
-            tor_nodes: payload?.tor_nodes || 0,
-            top_agent: payload?.top_agent || null,
-            top_port: payload?.top_port || null,
-            nodes
-        };
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
     }
 
-    function countNodeField(nodes, index, predicate) {
-        if (!nodes || typeof nodes !== "object") {
-            return 0;
-        }
+    function cardHTML(label, value, subtitle = "") {
+        return `
+            <article class="bn-card">
+                <span class="bn-card-label">
+                    ${escapeHtml(label)}
+                </span>
 
-        return Object.values(nodes).reduce((count, row) => {
-            if (!Array.isArray(row)) {
-                return count;
-            }
+                <strong class="bn-card-value">
+                    ${escapeHtml(value)}
+                </strong>
 
-            return predicate(row[index], row) ? count + 1 : count;
+                ${
+                    subtitle
+                        ? `
+                            <span class="bn-card-subtitle">
+                                ${escapeHtml(subtitle)}
+                            </span>
+                        `
+                        : ""
+                }
+            </article>
+        `;
+    }
+
+    function countWhere(rows, predicate) {
+        return rows.reduce((count, row) => {
+            return predicate(row) ? count + 1 : count;
         }, 0);
     }
 
-    function avgNodeField(nodes, index) {
-        if (!nodes || typeof nodes !== "object") {
-            return null;
-        }
-
-        const values = Object.values(nodes)
-            .filter(Array.isArray)
-            .map(row => Number(row[index]))
-            .filter(Number.isFinite);
-
-        if (!values.length) {
-            return null;
-        }
-
-        const sum = values.reduce((a, b) => a + b, 0);
-
-        return sum / values.length;
-    }
-
-    function uniqueNodeField(nodes, index) {
-        if (!nodes || typeof nodes !== "object") {
-            return 0;
-        }
-
+    function uniqueCount(rows, getter) {
         const values = new Set();
 
-        Object.values(nodes).forEach(row => {
-            if (!Array.isArray(row)) {
-                return;
-            }
+        rows.forEach(row => {
+            const value = getter(row);
 
-            const value = row[index];
-
-            if (value !== null && value !== undefined && value !== "") {
+            if (
+                value !== null &&
+                value !== undefined &&
+                value !== "" &&
+                value !== "—"
+            ) {
                 values.add(String(value));
             }
         });
@@ -145,31 +108,111 @@
         return values.size;
     }
 
-    function inferMetrics(latest) {
-        const nodes = latest.nodes || {};
-        const total = latest.total_nodes || Object.keys(nodes).length;
-        const known = latest.known_nodes || total;
-        const reachable = latest.reachable_nodes || total;
-        const unreachable = latest.unreachable_nodes || Math.max(0, known - reachable);
+    function average(rows, getter) {
+        const values = rows
+            .map(getter)
+            .map(value => BN.number ? BN.number(value, null) : Number(value))
+            .filter(value => value !== null && Number.isFinite(value));
 
-        const ipv4 = countNodeField(nodes, null, (_value, row) => {
-            const address = String(row.__address || "");
-            return /^[0-9]+\./.test(address);
-        });
+        if (!values.length) {
+            return null;
+        }
 
-        const ipv6 = countNodeField(nodes, null, (_value, row) => {
-            const address = String(row.__address || "");
-            return address.startsWith("[") || address.split(":").length > 2;
-        });
+        return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    function getRows() {
+        return Array.isArray(BN.state?.rows)
+            ? BN.state.rows
+            : [];
+    }
+
+    function getLatest() {
+        return BN.state?.latest || {};
+    }
+
+    function inferMetrics(rows, latest) {
+        const total =
+            rows.length ||
+            latest.total_nodes ||
+            0;
+
+        const known =
+            latest.known_nodes ||
+            latest.total_known_nodes ||
+            latest.total_nodes ||
+            total;
+
+        const reachable =
+            latest.reachable_nodes ||
+            countWhere(rows, row => row.reachable !== false) ||
+            total;
+
+        const unreachable =
+            latest.unreachable_nodes ||
+            Math.max(0, known - reachable);
 
         const tor =
             latest.tor_nodes ||
-            countNodeField(nodes, 16, value => String(value || "").toLowerCase().includes("onion")) ||
-            countNodeField(nodes, null, (_value, row) => String(row.__address || "").toLowerCase().includes(".onion"));
+            countWhere(rows, row => BN.isTor ? BN.isTor(row) : false);
+
+        const countries =
+            latest.countries_count ||
+            uniqueCount(rows, row => row.country || row.country_code);
+
+        const cities =
+            latest.cities_count ||
+            uniqueCount(rows, row => {
+                const city = row.city || "";
+                const country = row.country || row.country_code || "";
+
+                return city && country
+                    ? `${city},${country}`
+                    : "";
+            });
+
+        const asns =
+            latest.asns_count ||
+            uniqueCount(rows, row => row.asn);
+
+        const providers =
+            uniqueCount(rows, row => row.provider || row.organization || row.org);
+
+        const agents =
+            uniqueCount(rows, row => row.agent || row.user_agent);
+
+        const versions =
+            uniqueCount(rows, row => row.protocol || row.version);
+
+        const ports =
+            uniqueCount(rows, row => row.port);
 
         const avgLatency =
-            avgNodeField(nodes, 25) ||
-            avgNodeField(nodes, 19);
+            average(rows, row => row.latency_ms);
+
+        const maxHeight =
+            Math.max(
+                ...rows.map(row => BN.number ? BN.number(row.height, 0) : Number(row.height || 0)),
+                0
+            );
+
+        const ipv4 =
+            countWhere(rows, row => {
+                const address = String(row.address || row.node || "");
+
+                return /^[0-9]+\./.test(address);
+            });
+
+        const ipv6 =
+            countWhere(rows, row => {
+                const address = String(row.address || row.node || "");
+
+                return address.startsWith("[") ||
+                    (
+                        address.includes(":") &&
+                        !address.includes(".onion")
+                    );
+            });
 
         return {
             total,
@@ -177,98 +220,142 @@
             reachable,
             unreachable,
             reachablePercent: percent(reachable, known),
-            latestHeight: latest.latest_height,
-            countries: latest.countries_count || uniqueNodeField(nodes, 7),
-            cities: latest.cities_count || uniqueNodeField(nodes, 6),
-            asns: latest.asns_count || uniqueNodeField(nodes, 11),
             tor,
+            countries,
+            cities,
+            asns,
+            providers,
+            agents,
+            versions,
+            ports,
+            avgLatency,
+            maxHeight,
             ipv4,
             ipv6,
-            avgLatency,
-            topAgent: latest.top_agent,
-            topPort: latest.top_port,
-            updatedAt: latest.updated_at,
-            source: latest.source
+            updatedAt: latest.updated_at || latest.timestamp || "—",
+            source: latest.source || "zzx-labs-bitnodes-crawler"
         };
     }
 
-    function attachAddressToRows(nodes) {
-        if (!nodes || typeof nodes !== "object") {
-            return nodes;
-        }
+    function render(target, rows = getRows(), latest = getLatest()) {
+        const metrics = inferMetrics(rows, latest);
 
-        Object.entries(nodes).forEach(([address, row]) => {
-            if (Array.isArray(row)) {
-                row.__address = address;
-            }
-        });
-
-        return nodes;
-    }
-
-    function cardHTML(label, value, subtitle = "") {
-        return `
-            <article class="bn-card">
-                <span class="bn-card-label">${label}</span>
-                <strong class="bn-card-value">${value}</strong>
-                ${subtitle ? `<span class="bn-card-subtitle">${subtitle}</span>` : ""}
-            </article>
-        `;
-    }
-
-    function renderCards(target, latestPayload) {
-        const latest = normalizeLatest(latestPayload);
-        latest.nodes = attachAddressToRows(latest.nodes);
-
-        const metrics = inferMetrics(latest);
+        target.classList.add("bn-card-grid");
 
         target.innerHTML = [
-            cardHTML("Node Records Loaded", formatNumber(metrics.total), "Reachable / known nodes in the crawler registry."),
-            cardHTML("Known Nodes", formatNumber(metrics.known), "Persistent registry count across crawler state."),
-            cardHTML("Reachable Nodes", formatNumber(metrics.reachable), `${metrics.reachablePercent} currently reachable.`),
-            cardHTML("Unreachable Nodes", formatNumber(metrics.unreachable), "Known nodes currently unreachable or stale."),
-            cardHTML("Latest Height", formatNumber(metrics.latestHeight), "Highest reported block height."),
-            cardHTML("Tor Nodes", formatNumber(metrics.tor), "Onion nodes in the registry."),
-            cardHTML("Countries", formatNumber(metrics.countries), "GeoIP country coverage."),
-            cardHTML("ASNs", formatNumber(metrics.asns), "Autonomous systems represented."),
-            cardHTML("Cities", formatNumber(metrics.cities), "GeoIP city coverage."),
-            cardHTML("IPv4 Nodes", formatNumber(metrics.ipv4), "Detected IPv4 node addresses."),
-            cardHTML("IPv6 Nodes", formatNumber(metrics.ipv6), "Detected IPv6 node addresses."),
-            cardHTML("Avg Latency", formatMS(metrics.avgLatency), "Average handshake latency where available.")
+            cardHTML(
+                "Node Records Loaded",
+                formatNumber(metrics.total),
+                "Rows currently loaded into the frontend registry."
+            ),
+
+            cardHTML(
+                "Known Nodes",
+                formatNumber(metrics.known),
+                "Persistent records retained by the crawler state."
+            ),
+
+            cardHTML(
+                "Reachable Nodes",
+                formatNumber(metrics.reachable),
+                `${metrics.reachablePercent} of known nodes.`
+            ),
+
+            cardHTML(
+                "Unreachable Nodes",
+                formatNumber(metrics.unreachable),
+                "Known nodes currently offline, stale, or failing checks."
+            ),
+
+            cardHTML(
+                "Tor Nodes",
+                formatNumber(metrics.tor),
+                "Onion nodes detected in the registry."
+            ),
+
+            cardHTML(
+                "Countries",
+                formatNumber(metrics.countries),
+                "Unique GeoIP country codes."
+            ),
+
+            cardHTML(
+                "Cities",
+                formatNumber(metrics.cities),
+                "Unique city/country pairs."
+            ),
+
+            cardHTML(
+                "ASNs",
+                formatNumber(metrics.asns),
+                "Autonomous systems represented."
+            ),
+
+            cardHTML(
+                "Providers",
+                formatNumber(metrics.providers),
+                "Provider / organization labels."
+            ),
+
+            cardHTML(
+                "Agents",
+                formatNumber(metrics.agents),
+                "Unique Bitcoin client agent strings."
+            ),
+
+            cardHTML(
+                "Versions",
+                formatNumber(metrics.versions),
+                "Unique protocol versions."
+            ),
+
+            cardHTML(
+                "Ports",
+                formatNumber(metrics.ports),
+                "Unique listening ports."
+            ),
+
+            cardHTML(
+                "IPv4 Nodes",
+                formatNumber(metrics.ipv4),
+                "Detected IPv4 node addresses."
+            ),
+
+            cardHTML(
+                "IPv6 Nodes",
+                formatNumber(metrics.ipv6),
+                "Detected IPv6 node addresses."
+            ),
+
+            cardHTML(
+                "Average Latency",
+                formatMs(metrics.avgLatency),
+                "Average handshake latency where available."
+            ),
+
+            cardHTML(
+                "Max Height",
+                formatNumber(metrics.maxHeight),
+                "Highest reported block height in loaded rows."
+            )
         ].join("");
     }
 
-    async function loadCards(target) {
-        if (!window.BNAPI || !window.BNAPI.fetchLatest) {
-            target.innerHTML = cardHTML("Cards Offline", "—", "BNAPI is not loaded.");
+    function init() {
+        const targets = BN.$$("[data-bn-cards], #bn-summary");
+
+        if (!targets.length) {
             return;
         }
 
-        try {
-            const latest = await window.BNAPI.fetchLatest({
-                cacheSeconds: 30
-            });
-
-            renderCards(target, latest);
-        } catch (err) {
-            target.innerHTML = cardHTML("Cards Error", "—", err.message || "Could not load latest snapshot.");
-        }
-    }
-
-    function initCards() {
-        const targets = $all("[data-bn-cards], #bn-summary");
-
         targets.forEach(target => {
-            target.classList.add("bn-card-grid");
-            loadCards(target);
+            render(target);
         });
     }
 
     window.BNCards = {
-        init: initCards,
-        render: renderCards,
-        load: loadCards
+        init,
+        render,
+        inferMetrics
     };
-
-    ready(initCards);
 })();
