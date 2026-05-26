@@ -17,9 +17,16 @@
         const counts = new Map();
 
         rows.forEach(row => {
-            const port = String(row.port || BN.extractPort?.(row.address) || "Unknown");
+            const port = String(
+                row.port ||
+                BN.extractPort?.(row.address || row.node) ||
+                "Unknown"
+            );
 
-            counts.set(port, (counts.get(port) || 0) + 1);
+            counts.set(
+                port,
+                (counts.get(port) || 0) + 1
+            );
         });
 
         return Array.from(counts.entries())
@@ -64,6 +71,7 @@
             </section>
         `;
 
+        window.BNSearchInit?.();
         window.BNTables?.init?.();
     }
 
@@ -94,6 +102,4 @@
         render,
         buildPortCounts
     };
-
-    BN.ready(init);
-})(); 
+})();
