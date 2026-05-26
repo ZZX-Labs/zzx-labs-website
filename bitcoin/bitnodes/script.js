@@ -5,15 +5,22 @@
         "js/base.js",
         "js/api.js",
         "js/core.js",
+
         "js/navbar.js",
         "js/search.js",
         "js/tables.js",
+
         "js/cards.js",
         "js/charts.js",
         "js/knotsvscore.js",
+
         "js/versions.js",
         "js/agents.js",
+        "js/services.js",
+        "js/ports.js",
+
         "js/tor.js",
+        "js/vpn.js",
         "js/geoip.js"
     ];
 
@@ -33,7 +40,10 @@
             script.defer = true;
 
             script.onload = resolve;
-            script.onerror = () => reject(new Error(`Failed to load ${path}`));
+
+            script.onerror = () => {
+                reject(new Error(`Failed to load ${path}`));
+            };
 
             document.head.appendChild(script);
         });
