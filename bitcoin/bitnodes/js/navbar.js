@@ -59,12 +59,18 @@
         document
             .querySelectorAll(".bn-site-header a[href], .bn-navbar a[href], .bn-main-nav a[href]")
             .forEach(link => {
+                if (link.dataset.bnResolved === "true") {
+                    return;
+                }
+
                 const raw = link.getAttribute("href");
 
                 link.setAttribute(
                     "href",
                     normalizeHref(raw, depth)
                 );
+
+                link.dataset.bnResolved = "true";
             });
     }
 
@@ -121,6 +127,10 @@
             return;
         }
 
+        if (button.dataset.bnMenuReady === "true") {
+            return;
+        }
+
         button.setAttribute("aria-expanded", "false");
 
         button.addEventListener("click", () => {
@@ -140,6 +150,8 @@
                 setOpen(false);
             }
         });
+
+        button.dataset.bnMenuReady = "true";
     }
 
     function initNavbar() {
@@ -150,6 +162,4 @@
 
     window.BNNavbarInit = initNavbar;
     window.BNHeaderInit = initNavbar;
-
-    document.addEventListener("DOMContentLoaded", initNavbar);
 })();
