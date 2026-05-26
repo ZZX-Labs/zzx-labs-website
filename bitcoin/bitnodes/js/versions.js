@@ -3,13 +3,30 @@
 
     const BN = window.BN || {};
 
+    function formatPercent(part, total) {
+        if (!total) {
+            return "—";
+        }
+
+        return `${((part / total) * 100).toLocaleString(undefined, {
+            maximumFractionDigits: 2
+        })}%`;
+    }
+
     function countVersions(rows) {
         const counts = new Map();
 
         rows.forEach(row => {
-            const key = String(row.protocol || row.version || "Unknown");
+            const key = String(
+                row.protocol ||
+                row.version ||
+                "Unknown"
+            );
 
-            counts.set(key, (counts.get(key) || 0) + 1);
+            counts.set(
+                key,
+                (counts.get(key) || 0) + 1
+            );
         });
 
         return Array.from(counts.entries())
@@ -58,16 +75,6 @@
         window.BNTables?.init?.();
     }
 
-    function formatPercent(part, total) {
-        if (!total) {
-            return "—";
-        }
-
-        return `${((part / total) * 100).toLocaleString(undefined, {
-            maximumFractionDigits: 2
-        })}%`;
-    }
-
     async function initVersions() {
         const targets = BN.$$("[data-bn-versions], #bn-versions");
 
@@ -95,6 +102,4 @@
         count: countVersions,
         render: renderVersionsTable
     };
-
-    BN.ready(initVersions);
-})(); 
+})();
