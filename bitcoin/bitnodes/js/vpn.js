@@ -133,6 +133,7 @@
     async function fetchOptionalJson(path) {
         try {
             const url = BN.path ? BN.path(path) : path;
+
             const response = await fetch(url, {
                 cache: "no-store"
             });
@@ -152,10 +153,27 @@
             return;
         }
 
-        const ips = payload.ips || payload.vpn_ips || payload.addresses || [];
-        const asns = payload.asns || payload.vpn_asns || payload.datacenter_asns || [];
-        const providers = payload.providers || payload.provider_terms || payload.terms || [];
-        const datacenterTerms = payload.datacenter_terms || [];
+        const ips =
+            payload.ips ||
+            payload.vpn_ips ||
+            payload.addresses ||
+            [];
+
+        const asns =
+            payload.asns ||
+            payload.vpn_asns ||
+            payload.datacenter_asns ||
+            [];
+
+        const providers =
+            payload.providers ||
+            payload.provider_terms ||
+            payload.terms ||
+            [];
+
+        const datacenterTerms =
+            payload.datacenter_terms ||
+            [];
 
         ips.forEach(ip => {
             const normalized = normalizeIP(ip);
@@ -197,6 +215,7 @@
 
         for (const path of VPN_DATA_PATHS) {
             const payload = await fetchOptionalJson(path);
+
             ingestList(payload);
         }
 
@@ -226,15 +245,34 @@
     }
 
     function classify(row) {
-        const host = normalizeIP(extractHost(row.address || row.node || ""));
+        const host = normalizeIP(
+            extractHost(row.address || row.node || "")
+        );
+
         const asn = normalizeASN(row.asn);
         const hostingType = normalizeText(row.hosting_type);
         const networkType = normalizeText(row.network_type);
+        const torStatus = normalizeText(row.tor_status);
 
-        const matchedIP = host && state.ipSet.has(host);
-        const matchedASN = asn && state.asnSet.has(asn);
-        const matchedProvider = hasProviderTerm(row, state.providerTerms);
-        const matchedDatacenter = hasProviderTerm(row, state.datacenterTerms);
+        const matchedIP =
+            host &&
+            state.ipSet.has(host);
+
+        const matchedASN =
+            asn &&
+            state.asnSet.has(asn);
+
+        const matchedProvider =
+            hasProviderTerm(
+                row,
+                state.providerTerms
+            );
+
+        const matchedDatacenter =
+            hasProviderTerm(
+                row,
+                state.datacenterTerms
+            );
 
         let classification = "unknown";
         let confidence = 0;
@@ -258,7 +296,10 @@
             reasons.push("provider_term_match");
         }
 
-        if (matchedDatacenter || hostingType.includes("datacenter")) {
+        if (
+            matchedDatacenter ||
+            hostingType.includes("datacenter")
+        ) {
             if (classification === "unknown") {
                 classification = "datacenter";
             }
@@ -273,7 +314,11 @@
             reasons.push("residential_hosting_type");
         }
 
-        if (networkType === "tor" || normalizeText(row.tor_status).includes("onion")) {
+        if (
+            networkType === "tor" ||
+            torStatus.includes("onion") ||
+            (BN.isTor && BN.isTor(row))
+        ) {
             classification = "tor";
             confidence = 1.0;
             reasons.push("tor_onion");
@@ -281,7 +326,10 @@
 
         return {
             classification,
-            confidence: Math.min(1, Number(confidence.toFixed(3))),
+            confidence: Math.min(
+                1,
+                Number(confidence.toFixed(3))
+            ),
             reasons
         };
     }
@@ -303,7 +351,9 @@
             <section class="bn-panel">
                 <header class="bn-panel-head">
                     <span class="bn-kicker">VPN / Datacenter Heuristics</span>
+
                     <h2>VPN, Proxy, Cloud, and Residential Classification</h2>
+
                     <p>
                         ${BN.formatNumber(vpnRows.length)}
                         classified records from
@@ -381,6 +431,4 @@
         buildVPNRows,
         render
     };
-
-    BN.ready(init);
-})(); 
+})();
