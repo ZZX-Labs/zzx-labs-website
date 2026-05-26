@@ -17,9 +17,16 @@
         const counts = new Map();
 
         rows.forEach(row => {
-            const key = String(row.agent || row.user_agent || "Unknown");
+            const key = String(
+                row.agent ||
+                row.user_agent ||
+                "Unknown"
+            );
 
-            counts.set(key, (counts.get(key) || 0) + 1);
+            counts.set(
+                key,
+                (counts.get(key) || 0) + 1
+            );
         });
 
         return Array.from(counts.entries())
@@ -95,6 +102,4 @@
         count: countAgents,
         render: renderAgentsTable
     };
-
-    BN.ready(initAgents);
-})(); 
+})();
