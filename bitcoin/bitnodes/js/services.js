@@ -25,7 +25,7 @@
     }
 
     function parseServices(value) {
-        const n = BN.number(value, 0);
+        const n = BN.number ? BN.number(value, 0) : Number(value || 0);
         const flags = [];
 
         Object.entries(SERVICE_FLAGS).forEach(([bit, name]) => {
@@ -42,12 +42,18 @@
 
         rows.forEach(row => {
             parseServices(row.services).forEach(flag => {
-                counts.set(flag, (counts.get(flag) || 0) + 1);
+                counts.set(
+                    flag,
+                    (counts.get(flag) || 0) + 1
+                );
             });
         });
 
         return Array.from(counts.entries())
-            .map(([service, count]) => ({ service, count }))
+            .map(([service, count]) => ({
+                service,
+                count
+            }))
             .sort((a, b) => b.count - a.count);
     }
 
@@ -117,6 +123,4 @@
         parseServices,
         buildServiceCounts
     };
-
-    BN.ready(init);
-})(); 
+})();
