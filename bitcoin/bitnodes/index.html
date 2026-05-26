@@ -23,7 +23,7 @@
 
 <header>
     <div id="zzx-header"></div>
-    
+
     <br>
 
     <div id="ticker-container"></div>
@@ -51,8 +51,6 @@
 
             <select id="bn-source">
                 <option value="local" selected>ZZX-Labs Local JSON</option>
-                <option value="legacy">Legacy Bitnodes API Shape</option>
-                <option value="external">External Compatible API</option>
             </select>
 
             <button id="bn-refresh" type="button">Refresh</button>
@@ -67,7 +65,7 @@
 
     <br>
 
-    <section class="bn-grid" id="bn-summary"></section>
+    <section class="bn-grid" id="bn-summary" data-bn-cards></section>
 
     <br>
 
@@ -79,8 +77,151 @@
     <br>
 
     <section class="bn-panel container">
-        <h2>Latest Snapshot Preview</h2>
+        <h2>Latest Snapshot</h2>
         <div id="bn-table"></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-knotsvscore" data-bn-knotsvscore></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <h2>Reachable / Known Node Charts</h2>
+
+        <div class="bn-chart-grid">
+            <canvas
+                data-bn-chart="known-vs-reachable"
+                data-chart-mode="donut"
+                data-title="Known vs Reachable Nodes"
+                data-center-label="NODES"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="countries"
+                data-chart-mode="bar"
+                data-title="Top Countries"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="asns"
+                data-chart-mode="bar"
+                data-title="Top ASNs"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="agents"
+                data-chart-mode="bar"
+                data-title="Top Agents"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="ports"
+                data-chart-mode="bar"
+                data-title="Top Ports"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="versions"
+                data-chart-mode="bar"
+                data-title="Protocol Versions"
+            ></canvas>
+        </div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-geoip" data-bn-geoip></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-vpn" data-bn-vpn></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-tor" data-bn-tor></div>
+    </section>
+
+    <br>
+    
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">Bitcoin Client Ecosystem</span>
+            <h2>Knots vs Bitcoin Core</h2>
+
+            <p>
+            Comparative telemetry between Bitcoin Knots and Bitcoin Core nodes
+            detected across the reachable-node registry.
+            </p>
+        </header>
+
+        <div class="bn-chart-grid">
+
+            <canvas
+                data-bn-chart="knots-vs-core"
+                data-chart-mode="donut"
+                data-title="Knots vs Core"
+                data-center-label="CLIENTS"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="knots-growth"
+                data-chart-mode="line"
+                data-title="Knots Adoption Trend"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="core-growth"
+                data-chart-mode="line"
+                data-title="Bitcoin Core Adoption Trend"
+            ></canvas>
+
+            <canvas
+                data-bn-chart="client-heights"
+                data-chart-mode="bar"
+                data-title="Client Height Distribution"
+            ></canvas>
+
+        </div>
+
+        <br>
+
+        <div
+            id="bn-knotsvscore"
+            data-bn-knotsvscore
+        ></div>
+    </section>
+
+    <section class="bn-panel container">
+        <div id="bn-agents" data-bn-agents></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-versions" data-bn-versions></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-ports" data-bn-ports></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <div id="bn-services" data-bn-services></div>
     </section>
 
     <br><br>
