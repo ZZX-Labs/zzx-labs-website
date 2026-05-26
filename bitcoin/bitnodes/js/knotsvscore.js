@@ -1,14 +1,6 @@
 (() => {
     "use strict";
 
-    function ready(fn) {
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn);
-        } else {
-            fn();
-        }
-    }
-
     function $all(selector, scope = document) {
         return Array.from(scope.querySelectorAll(selector));
     }
@@ -168,6 +160,10 @@
     }
 
     function getRows(payload, latest) {
+        if (window.BN && window.BN.state && Array.isArray(window.BN.state.rows) && window.BN.state.rows.length) {
+            return window.BN.state.rows;
+        }
+
         if (window.BN && window.BN.mapRows) {
             return window.BN.mapRows(latest || payload);
         }
@@ -276,55 +272,33 @@
             return;
         }
 
-        window.BNCharts.registerDataset(
-            "known-vs-reachable",
-            {
-                labels: [
-                    "Reachable",
-                    "Unreachable"
-                ],
-                values: [
-                    counts.reachable,
-                    counts.unreachable
-                ]
-            }
-        );
+        window.BNCharts.registerDataset("known-vs-reachable", {
+            labels: ["Reachable", "Unreachable"],
+            values: [counts.reachable, counts.unreachable]
+        });
 
-        window.BNCharts.registerDataset(
-            "knots-vs-core",
-            {
-                labels: [
-                    "Bitcoin Knots",
-                    "Bitcoin Core",
-                    "Other"
-                ],
-                values: [
-                    clientCounts.knotsCount,
-                    clientCounts.coreCount,
-                    clientCounts.otherCount
-                ]
-            }
-        );
+        window.BNCharts.registerDataset("knots-vs-core", {
+            labels: ["Bitcoin Knots", "Bitcoin Core", "Other"],
+            values: [
+                clientCounts.knotsCount,
+                clientCounts.coreCount,
+                clientCounts.otherCount
+            ]
+        });
 
-        window.BNCharts.registerDataset(
-            "client-heights",
-            {
-                labels: [
-                    "Knots Max Height",
-                    "Core Max Height"
-                ],
-                values: [
-                    Math.max(
-                        ...clientCounts.knots.map(row => number(row.height, 0)),
-                        0
-                    ),
-                    Math.max(
-                        ...clientCounts.core.map(row => number(row.height, 0)),
-                        0
-                    )
-                ]
-            }
-        );
+        window.BNCharts.registerDataset("client-heights", {
+            labels: ["Knots Max Height", "Core Max Height"],
+            values: [
+                Math.max(
+                    ...clientCounts.knots.map(row => number(row.height, 0)),
+                    0
+                ),
+                Math.max(
+                    ...clientCounts.core.map(row => number(row.height, 0)),
+                    0
+                )
+            ]
+        });
     }
 
     function buildKnownReachableMarkup(counts, latest) {
@@ -518,6 +492,4 @@
         inferCounts,
         inferClientCounts
     };
-
-    ready(init);
 })();
