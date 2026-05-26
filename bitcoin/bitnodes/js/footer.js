@@ -1,60 +1,63 @@
 (() => {
     "use strict";
 
+    function getDepth() {
+        return document.body.dataset.bnDepth || ".";
+    }
+
+    function isExternalHref(href) {
+        return (
+            href.startsWith("http://") ||
+            href.startsWith("https://") ||
+            href.startsWith("mailto:") ||
+            href.startsWith("tel:") ||
+            href.startsWith("#")
+        );
+    }
+
+    function normalizeRelativeHref(href, depth) {
+        if (!href || isExternalHref(href)) {
+            return href;
+        }
+
+        if (href.startsWith("./")) {
+            return `${depth}/${href.slice(2)}`;
+        }
+
+        if (href.startsWith("../")) {
+            return `${depth}/${href}`;
+        }
+
+        if (href.startsWith("/")) {
+            return href;
+        }
+
+        return `${depth}/${href}`;
+    }
+
     function resolveFooterLinks() {
-
-        const depth =
-            document.body.dataset.bnDepth || ".";
-
-        const footer =
-            document.querySelector(".bn-site-footer");
+        const depth = getDepth();
+        const footer = document.querySelector(".bn-site-footer");
 
         if (!footer) {
             return;
         }
 
-        footer.querySelectorAll("a").forEach(link => {
+        footer.querySelectorAll("a[href]").forEach(link => {
+            const raw = link.getAttribute("href");
 
-            const href =
-                link.getAttribute("href");
-
-            if (!href) {
-                return;
-            }
-
-            if (
-                href.startsWith("http") ||
-                href.startsWith("#")
-            ) {
-                return;
-            }
-
-            if (href.startsWith("./")) {
-
-                link.setAttribute(
-                    "href",
-                    href.replace("./", `${depth}/`)
-                );
-
-                return;
-            }
-
-            if (href.startsWith("../")) {
-
-                const clean =
-                    href.replace(/^\.\.\//, "");
-
-                link.setAttribute(
-                    "href",
-                    `${depth}/../${clean}`
-                );
-            }
+            link.setAttribute(
+                "href",
+                normalizeRelativeHref(raw, depth)
+            );
         });
     }
 
-    window.BNFooterInit =
-        function BNFooterInit() {
+    window.BNFooterInit = function BNFooterInit() {
+        resolveFooterLinks();
+    };
 
-            resolveFooterLinks();
-        };
+    document.addEventListener("DOMContentLoaded", () => {
+        window.BNFooterInit();
+    });
 })();
