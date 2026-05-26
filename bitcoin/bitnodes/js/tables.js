@@ -1,15 +1,10 @@
 (() => {
     "use strict";
 
+    const BN = window.BN || {};
     const PAGE_SIZE = 250;
 
-    function ready(fn) {
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn);
-        } else {
-            fn();
-        }
-    }
+    const STATES = new WeakMap();
 
     function $all(selector, scope = document) {
         return Array.from(scope.querySelectorAll(selector));
@@ -22,8 +17,8 @@
     }
 
     function number(value, fallback = 0) {
-        if (window.BNAPI && window.BNAPI.number) {
-            return window.BNAPI.number(value, fallback);
+        if (BN.number) {
+            return BN.number(value, fallback);
         }
 
         const n = Number(value);
@@ -32,8 +27,8 @@
     }
 
     function formatNumber(value) {
-        if (window.BNAPI && window.BNAPI.formatNumber) {
-            return window.BNAPI.formatNumber(value);
+        if (BN.formatNumber) {
+            return BN.formatNumber(value);
         }
 
         const n = Number(value);
@@ -48,6 +43,7 @@
             String(raw)
                 .replace(/,/g, "")
                 .replace(/ms$/i, "")
+                .replace(/%$/i, "")
                 .trim()
         );
 
@@ -58,244 +54,159 @@
         return normalize(raw);
     }
 
+    function isFiltered(row) {
+        return row.classList.contains("bn-search-filtered");
+    }
+
+    function isPagedOut(row) {
+        return row.classList.contains("bn-table-paged-out");
+    }
+
+    function isVisible(row) {
+        return !isFiltered(row) && !isPagedOut(row);
+    }
+
+    function getFilteredRows(state) {
+        return state.rows.filter(row => !isFiltered(row));
+    }
+
+    function updateRowVisibility(row) {
+        row.classList.toggle(
+            "bn-search-hidden",
+            isFiltered(row) || isPagedOut(row)
+        );
+    }
+
+    function updateAllVisibility(state) {
+        state.rows.forEach(updateRowVisibility);
+    }
+
     function createToolbar(table, state) {
-        const wrap =
-            table.closest(
-                ".bn-table-wrap, .bn-table-scroll"
-            );
+        const wrap = table.closest(".bn-table-wrap, .bn-table-scroll");
 
-        if (!wrap) {
+        if (!wrap || !wrap.parentElement) {
             return;
         }
 
-        const existing =
-            wrap.parentElement.querySelector(
-                ".bn-table-pagination"
-            );
+        let toolbar = wrap.parentElement.querySelector(":scope > .bn-table-pagination");
 
-        if (existing) {
+        if (!toolbar) {
+            toolbar = document.createElement("div");
+            toolbar.className = "bn-table-pagination";
+
+            toolbar.innerHTML = `
+                <button type="button" class="bn-page-first">« First</button>
+                <button type="button" class="bn-page-prev">‹ Prev</button>
+                <span class="bn-page-status">Page 1</span>
+                <button type="button" class="bn-page-next">Next ›</button>
+                <button type="button" class="bn-page-last">Last »</button>
+            `;
+
+            wrap.parentElement.appendChild(toolbar);
+        }
+
+        state.toolbar = toolbar;
+        state.first = toolbar.querySelector(".bn-page-first");
+        state.prev = toolbar.querySelector(".bn-page-prev");
+        state.next = toolbar.querySelector(".bn-page-next");
+        state.last = toolbar.querySelector(".bn-page-last");
+        state.status = toolbar.querySelector(".bn-page-status");
+
+        if (toolbar.dataset.bnPaginationReady === "true") {
             return;
         }
 
-        const toolbar =
-            document.createElement("div");
+        state.first?.addEventListener("click", () => {
+            state.page = 0;
+            renderPage(table, state);
+        });
 
-        toolbar.className =
-            "bn-table-pagination";
+        state.prev?.addEventListener("click", () => {
+            state.page = Math.max(0, state.page - 1);
+            renderPage(table, state);
+        });
 
-        toolbar.innerHTML = `
-            <button
-                type="button"
-                class="bn-page-first"
-            >
-                « First
-            </button>
+        state.next?.addEventListener("click", () => {
+            const totalPages = getTotalPages(state);
 
-            <button
-                type="button"
-                class="bn-page-prev"
-            >
-                ‹ Prev
-            </button>
+            state.page = Math.min(totalPages - 1, state.page + 1);
+            renderPage(table, state);
+        });
 
-            <span class="bn-page-status">
-                Page 1
-            </span>
+        state.last?.addEventListener("click", () => {
+            state.page = Math.max(0, getTotalPages(state) - 1);
+            renderPage(table, state);
+        });
 
-            <button
-                type="button"
-                class="bn-page-next"
-            >
-                Next ›
-            </button>
+        toolbar.dataset.bnPaginationReady = "true";
+    }
 
-            <button
-                type="button"
-                class="bn-page-last"
-            >
-                Last »
-            </button>
-        `;
-
-        wrap.parentElement.appendChild(
-            toolbar
+    function getTotalPages(state) {
+        return Math.max(
+            1,
+            Math.ceil(getFilteredRows(state).length / state.pageSize)
         );
+    }
 
-        const first =
-            toolbar.querySelector(
-                ".bn-page-first"
-            );
+    function updateButtons(state) {
+        const totalPages = getTotalPages(state);
 
-        const prev =
-            toolbar.querySelector(
-                ".bn-page-prev"
-            );
-
-        const next =
-            toolbar.querySelector(
-                ".bn-page-next"
-            );
-
-        const last =
-            toolbar.querySelector(
-                ".bn-page-last"
-            );
-
-        const status =
-            toolbar.querySelector(
-                ".bn-page-status"
-            );
-
-        function updateButtons() {
-
-            const totalPages =
-                Math.max(
-                    1,
-                    Math.ceil(
-                        state.rows.length /
-                        state.pageSize
-                    )
-                );
-
-            status.textContent =
-                `Page ${state.page + 1} of ${totalPages}`;
-
-            first.disabled =
-                state.page <= 0;
-
-            prev.disabled =
-                state.page <= 0;
-
-            next.disabled =
-                state.page >= totalPages - 1;
-
-            last.disabled =
-                state.page >= totalPages - 1;
+        if (state.page > totalPages - 1) {
+            state.page = Math.max(0, totalPages - 1);
         }
 
-        first.addEventListener(
-            "click",
-            () => {
-                state.page = 0;
-                renderPage(table, state);
-                updateButtons();
-            }
-        );
+        if (state.status) {
+            state.status.textContent = `Page ${state.page + 1} of ${totalPages}`;
+        }
 
-        prev.addEventListener(
-            "click",
-            () => {
-                state.page =
-                    Math.max(
-                        0,
-                        state.page - 1
-                    );
+        if (state.first) {
+            state.first.disabled = state.page <= 0;
+        }
 
-                renderPage(table, state);
-                updateButtons();
-            }
-        );
+        if (state.prev) {
+            state.prev.disabled = state.page <= 0;
+        }
 
-        next.addEventListener(
-            "click",
-            () => {
+        if (state.next) {
+            state.next.disabled = state.page >= totalPages - 1;
+        }
 
-                const totalPages =
-                    Math.ceil(
-                        state.rows.length /
-                        state.pageSize
-                    );
-
-                state.page =
-                    Math.min(
-                        totalPages - 1,
-                        state.page + 1
-                    );
-
-                renderPage(table, state);
-                updateButtons();
-            }
-        );
-
-        last.addEventListener(
-            "click",
-            () => {
-
-                const totalPages =
-                    Math.ceil(
-                        state.rows.length /
-                        state.pageSize
-                    );
-
-                state.page =
-                    Math.max(
-                        0,
-                        totalPages - 1
-                    );
-
-                renderPage(table, state);
-                updateButtons();
-            }
-        );
-
-        state.updateButtons =
-            updateButtons;
-
-        updateButtons();
+        if (state.last) {
+            state.last.disabled = state.page >= totalPages - 1;
+        }
     }
 
     function renderPage(table, state) {
+        const filteredRows = getFilteredRows(state);
+        const start = state.page * state.pageSize;
+        const end = start + state.pageSize;
 
-        const tbody =
-            table.tBodies[0];
+        state.rows.forEach(row => {
+            row.classList.add("bn-table-paged-out");
+        });
 
-        if (!tbody) {
-            return;
-        }
+        filteredRows.forEach((row, index) => {
+            row.classList.toggle(
+                "bn-table-paged-out",
+                index < start || index >= end
+            );
+        });
 
-        const start =
-            state.page *
-            state.pageSize;
-
-        const end =
-            start +
-            state.pageSize;
-
-        state.rows.forEach(
-            (row, index) => {
-
-                row.classList.toggle(
-                    "bn-search-hidden",
-                    index < start ||
-                    index >= end
-                );
-            }
-        );
-
+        updateAllVisibility(state);
         fixIndexes(table);
+        updateButtons(state);
     }
 
     function fixIndexes(table) {
-
-        const rows =
-            Array.from(
-                table.tBodies[0]?.rows || []
-            );
-
+        const rows = Array.from(table.tBodies[0]?.rows || []);
         let visibleIndex = 1;
 
         rows.forEach(row => {
-
-            if (
-                row.classList.contains(
-                    "bn-search-hidden"
-                )
-            ) {
+            if (!isVisible(row)) {
                 return;
             }
 
-            const first =
-                row.cells[0];
+            const first = row.cells[0];
 
             if (!first) {
                 return;
@@ -303,9 +214,7 @@
 
             first.innerHTML = `
                 <span class="bn-rank">
-                    ${formatNumber(
-                        visibleIndex
-                    )}
+                    ${formatNumber(visibleIndex)}
                 </span>
             `;
 
@@ -313,162 +222,93 @@
         });
     }
 
-    function sortTable(
-        table,
-        state,
-        column,
-        direction
-    ) {
-
-        const tbody =
-            table.tBodies[0];
+    function sortTable(table, state, column, direction) {
+        const tbody = table.tBodies[0];
 
         if (!tbody) {
             return;
         }
 
-        state.rows.sort(
-            (a, b) => {
+        state.rows.sort((a, b) => {
+            const aText = a.cells[column]?.textContent || "";
+            const bText = b.cells[column]?.textContent || "";
+            const aValue = inferValue(aText);
+            const bValue = inferValue(bText);
 
-                const aText =
-                    a.cells[column]
-                        ?.textContent || "";
-
-                const bText =
-                    b.cells[column]
-                        ?.textContent || "";
-
-                const aValue =
-                    inferValue(aText);
-
-                const bValue =
-                    inferValue(bText);
-
-                if (
-                    typeof aValue === "number" &&
-                    typeof bValue === "number"
-                ) {
-
-                    return direction === "asc"
-                        ? aValue - bValue
-                        : bValue - aValue;
-                }
-
+            if (
+                typeof aValue === "number" &&
+                typeof bValue === "number"
+            ) {
                 return direction === "asc"
-                    ? String(aValue)
-                        .localeCompare(
-                            String(bValue)
-                        )
-                    : String(bValue)
-                        .localeCompare(
-                            String(aValue)
-                        );
+                    ? aValue - bValue
+                    : bValue - aValue;
             }
-        );
+
+            return direction === "asc"
+                ? String(aValue).localeCompare(String(bValue))
+                : String(bValue).localeCompare(String(aValue));
+        });
 
         state.rows.forEach(row => {
             tbody.appendChild(row);
         });
 
         state.page = 0;
-
         renderPage(table, state);
-
-        if (state.updateButtons) {
-            state.updateButtons();
-        }
     }
 
-    function wireSorting(
-        table,
-        state
-    ) {
+    function wireSorting(table, state) {
+        if (table.dataset.bnSortingReady === "true") {
+            return;
+        }
 
-        const headers =
-            Array.from(
-                table.querySelectorAll(
-                    "thead th"
-                )
-            );
+        const headers = Array.from(
+            table.querySelectorAll("thead th")
+        );
 
-        headers.forEach(
-            (th, index) => {
+        headers.forEach((th, index) => {
+            th.classList.add("bn-sortable");
 
-                th.classList.add(
-                    "bn-sortable"
-                );
+            let indicator = th.querySelector(".bn-sort-indicator");
 
-                const indicator =
-                    document.createElement(
-                        "span"
-                    );
+            if (!indicator) {
+                indicator = document.createElement("span");
+                indicator.className = "bn-sort-indicator";
+                indicator.textContent = "↕";
+                th.appendChild(indicator);
+            }
 
-                indicator.className =
-                    "bn-sort-indicator";
+            let direction = "desc";
+
+            th.addEventListener("click", () => {
+                direction = direction === "asc" ? "desc" : "asc";
+
+                headers.forEach(h => {
+                    const icon = h.querySelector(".bn-sort-indicator");
+
+                    if (icon) {
+                        icon.textContent = "↕";
+                    }
+                });
 
                 indicator.textContent =
-                    "↕";
+                    direction === "asc"
+                        ? "↑"
+                        : "↓";
 
-                th.appendChild(
-                    indicator
-                );
+                sortTable(table, state, index, direction);
+            });
+        });
 
-                let direction =
-                    "desc";
-
-                th.addEventListener(
-                    "click",
-                    () => {
-
-                        direction =
-                            direction === "asc"
-                                ? "desc"
-                                : "asc";
-
-                        headers.forEach(h => {
-
-                            const icon =
-                                h.querySelector(
-                                    ".bn-sort-indicator"
-                                );
-
-                            if (icon) {
-                                icon.textContent =
-                                    "↕";
-                            }
-                        });
-
-                        indicator.textContent =
-                            direction === "asc"
-                                ? "↑"
-                                : "↓";
-
-                        sortTable(
-                            table,
-                            state,
-                            index,
-                            direction
-                        );
-                    }
-                );
-            }
-        );
+        table.dataset.bnSortingReady = "true";
     }
 
     function wireStickyColumns(table) {
-
-        const rows =
-            table.querySelectorAll(
-                "thead tr, tbody tr"
-            );
+        const rows = table.querySelectorAll("thead tr, tbody tr");
 
         rows.forEach(row => {
-
-            const first =
-                row.children[0];
-
-            const second =
-                row.children[1];
+            const first = row.children[0];
+            const second = row.children[1];
 
             if (first) {
                 first.style.left = "0px";
@@ -481,63 +321,69 @@
     }
 
     function buildState(table) {
+        const existing = STATES.get(table);
 
-        return {
+        if (existing) {
+            existing.rows = Array.from(table.tBodies[0]?.rows || []);
+            existing.pageSize = number(table.dataset.pageSize, PAGE_SIZE);
+            return existing;
+        }
+
+        const state = {
             table,
-            rows: Array.from(
-                table.tBodies[0]?.rows || []
-            ),
+            rows: Array.from(table.tBodies[0]?.rows || []),
             page: 0,
-            pageSize:
-                number(
-                    table.dataset.pageSize,
-                    PAGE_SIZE
-                ),
-            updateButtons: null
+            pageSize: number(table.dataset.pageSize, PAGE_SIZE),
+            toolbar: null,
+            first: null,
+            prev: null,
+            next: null,
+            last: null,
+            status: null
         };
+
+        STATES.set(table, state);
+
+        return state;
     }
 
     function initTable(table) {
-
-        const tbody =
-            table.tBodies[0];
+        const tbody = table.tBodies[0];
 
         if (!tbody) {
             return;
         }
 
-        const state =
-            buildState(table);
+        const state = buildState(table);
 
-        wireSorting(
-            table,
-            state
-        );
-
+        wireSorting(table, state);
         wireStickyColumns(table);
-
-        createToolbar(
-            table,
-            state
-        );
-
-        renderPage(
-            table,
-            state
-        );
+        createToolbar(table, state);
+        renderPage(table, state);
     }
 
     function initTables() {
+        $all(".bn-table").forEach(initTable);
+    }
 
-        $all(".bn-table")
-            .forEach(initTable);
+    function refresh() {
+        $all(".bn-table").forEach(table => {
+            const state = STATES.get(table);
+
+            if (!state) {
+                initTable(table);
+                return;
+            }
+
+            state.rows = Array.from(table.tBodies[0]?.rows || []);
+            renderPage(table, state);
+        });
     }
 
     window.BNTables = {
         init: initTables,
+        refresh,
         fixIndexes,
         sortTable
     };
-
-    ready(initTables);
 })();
