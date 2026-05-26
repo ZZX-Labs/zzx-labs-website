@@ -116,6 +116,4 @@
         buildTorRows,
         isTorRow
     };
-
-    BN.ready(init);
-})(); 
+})();
