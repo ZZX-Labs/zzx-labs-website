@@ -34,6 +34,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
+      - name: Validate registry index generator
+        run: |
+          python tools/bitnodes/update_daily_index.py --help
+
       - name: Download DB-IP GeoIP databases
         run: |
           mkdir -p bitcoin/bitnodes/data/geoip
@@ -57,17 +61,18 @@ jobs:
           git fetch origin main
           git rebase origin/main
 
-      - name: Run stable Bitnodes crawler daemon window
+      - name: Run ZZX Bitnodes crawler daemon window
         run: |
           python tools/bitnodes/crawl.py \
+            --crawler zzxbitnodes \
             --daemon \
-            --run-seconds 3000 \
+            --run-seconds 2400 \
             --interval 15 \
-            --output bitcoin/bitnodes/api \
-            --archive-dir bitcoin/bitnodes/archive \
-            --state-dir bitcoin/bitnodes/data/state \
-            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
-            --seeder-dir bitcoin/bitnodes/data/seeders \
+            --output bitcoin/bitnodes/api/zzxbitnodes \
+            --archive-dir bitcoin/bitnodes/archive/zzxbitnodes \
+            --state-dir bitcoin/bitnodes/data/state/zzxbitnodes \
+            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h/zzxbitnodes \
+            --seeder-dir bitcoin/bitnodes/data/seeders/zzxbitnodes \
             --geoip-dir bitcoin/bitnodes/data/geoip \
             --timeout 5 \
             --limit 5000000 \
@@ -76,7 +81,29 @@ jobs:
             --getaddr-rounds 32 \
             --dns-seed-limit 4096 \
             --archive-replay-files 1000 \
-            --export-mode reachable_24h
+            --export-mode reachable_24h \
+            --mirror-legacy-api
+
+      - name: Run Original Bitnodes-compatible fallback crawler
+        run: |
+          python tools/bitnodes/crawl.py \
+            --crawler originalbitnodes \
+            --run-seconds 0 \
+            --output bitcoin/bitnodes/api/originalbitnodes \
+            --archive-dir bitcoin/bitnodes/archive/originalbitnodes \
+            --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
+            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h/originalbitnodes \
+            --seeder-dir bitcoin/bitnodes/data/seeders/originalbitnodes \
+            --geoip-dir bitcoin/bitnodes/data/geoip \
+            --timeout 5 \
+            --limit 5000000 \
+            --batch-size 4096 \
+            --workers 256 \
+            --getaddr-rounds 16 \
+            --dns-seed-limit 4096 \
+            --archive-replay-files 0 \
+            --disable-archive-replay \
+            --export-mode reachable
 
       - name: Backup master node registry to private repo
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
