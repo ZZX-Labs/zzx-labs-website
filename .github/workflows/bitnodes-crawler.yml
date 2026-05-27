@@ -3,18 +3,19 @@ name: ZZX-Labs Bitnodes Global Node Crawler
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/1 * * * *"
+    - cron: "0 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: bitnodes-static-api-crawler
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   crawl-bitnodes:
     runs-on: ubuntu-latest
+    timeout-minutes: 58
 
     steps:
       - name: Checkout website repo
@@ -56,20 +57,44 @@ jobs:
           git fetch origin main
           git rebase origin/main
 
-      - name: Run Bitnodes persistent crawler
+      - name: Run near-continuous Bitnodes crawler loop
         run: |
-          python tools/bitnodes/crawl.py \
-            --output bitcoin/bitnodes/api \
-            --archive-dir bitcoin/bitnodes/archive \
-            --state-dir bitcoin/bitnodes/data/state \
-            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
-            --geoip-dir bitcoin/bitnodes/data/geoip \
-            --timeout 3 \
-            --limit 500000 \
-            --batch-size 5000 \
-            --workers 1024 \
-            --getaddr-rounds 32 \
-            --export-mode reachable_24h
+          set +e
+
+          END_AT=$(( $(date +%s) + 3000 ))
+          ITERATION=1
+
+          while [ "$(date +%s)" -lt "$END_AT" ]; do
+            printf '%s\n' "Starting Bitnodes crawler iteration ${ITERATION}..."
+
+            timeout 720s python tools/bitnodes/crawl.py \
+              --output bitcoin/bitnodes/api \
+              --archive-dir bitcoin/bitnodes/archive \
+              --state-dir bitcoin/bitnodes/data/state \
+              --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
+              --geoip-dir bitcoin/bitnodes/data/geoip \
+              --timeout 3 \
+              --limit 500000 \
+              --batch-size 5000 \
+              --workers 512 \
+              --getaddr-rounds 24 \
+              --export-mode reachable_24h
+
+            STATUS=$?
+
+            if [ "$STATUS" -eq 124 ]; then
+              printf '%s\n' "Crawler iteration ${ITERATION} reached loop timeout; continuing."
+            elif [ "$STATUS" -ne 0 ]; then
+              printf '%s\n' "Crawler iteration ${ITERATION} exited with status ${STATUS}; continuing."
+            else
+              printf '%s\n' "Crawler iteration ${ITERATION} completed."
+            fi
+
+            ITERATION=$((ITERATION + 1))
+            sleep 10
+          done
+
+          printf '%s\n' "Crawler loop complete."
 
       - name: Remove local GeoIP databases before commit
         run: |
