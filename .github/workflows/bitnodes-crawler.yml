@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: bitnodes-static-api-crawler
+  group: zzx-bitnodes-global-crawler
   cancel-in-progress: false
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
 
           gunzip -f bitcoin/bitnodes/data/geoip/*.gz
 
-      - name: Sync with remote before crawling
+      - name: Sync website repo before crawling
         run: |
           git fetch origin main
           git rebase origin/main
@@ -80,13 +80,21 @@ jobs:
 
       - name: Backup master node registry to private repo
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        shell: bash
         env:
           REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
+          REGISTRY_OWNER: ZZX-Labs
+          REGISTRY_REPO: zzxbitnodesglobalregistry
         run: |
           set -euo pipefail
 
-          if [ -z "${REGISTRY_PAT}" ]; then
-            printf '%s\n' "BITNODES_REGISTRY_PAT is not set."
+          if [ -z "${REGISTRY_PAT:-}" ]; then
+            printf '%s\n' "BITNODES_REGISTRY_PAT is missing or empty."
+            exit 1
+          fi
+
+          if [ "${#REGISTRY_PAT}" -lt 20 ]; then
+            printf '%s\n' "BITNODES_REGISTRY_PAT appears invalid or truncated."
             exit 1
           fi
 
@@ -96,7 +104,7 @@ jobs:
           rm -rf "${BACKUP_ROOT}"
 
           git clone \
-            "https://x-access-token:${REGISTRY_PAT}@github.com/ZZX-Labs/zzxbitnodesglobalregistry.git" \
+            "https://oauth2:${REGISTRY_PAT}@github.com/${REGISTRY_OWNER}/${REGISTRY_REPO}.git" \
             "${BACKUP_ROOT}"
 
           mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
@@ -128,12 +136,12 @@ jobs:
           git commit -m "Backup global Bitnodes registry ${TODAY}"
           git push origin HEAD:main
 
-      - name: Remove local GeoIP databases before commit
+      - name: Remove local GeoIP databases before public commit
         run: |
           rm -f bitcoin/bitnodes/data/geoip/*.mmdb
           rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
 
-      - name: Commit Bitnodes snapshots
+      - name: Commit Bitnodes public snapshots
         run: |
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
@@ -147,7 +155,7 @@ jobs:
 
           git commit -m "Update Bitnodes static API snapshots"
 
-      - name: Push Bitnodes snapshots
+      - name: Push Bitnodes public snapshots
         run: |
           for attempt in 1 2 3 4 5; do
             git fetch origin main
