@@ -4,6 +4,7 @@
     const BN_MODULES = [
         "js/base.js",
         "js/api.js",
+        "js/datasource.js",
         "js/core.js",
 
         "js/navbar.js",
@@ -28,16 +29,26 @@
         return document.body.dataset.bnDepth || ".";
     }
 
+    function cleanDepth(depth) {
+        return String(depth || ".").replace(/\/+$/, "") || ".";
+    }
+
     function src(path) {
-        return `${getDepth()}/${path}`;
+        return `${cleanDepth(getDepth())}/${path}`;
     }
 
     function loadScript(path) {
         return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[data-bn-module="${path}"]`)) {
+                resolve();
+                return;
+            }
+
             const script = document.createElement("script");
 
             script.src = src(path);
             script.defer = true;
+            script.dataset.bnModule = path;
 
             script.onload = resolve;
 
@@ -54,6 +65,7 @@
             await loadScript(modulePath);
         }
 
+        window.BNDataSource?.init?.();
         window.BNCore?.init?.();
     }
 
