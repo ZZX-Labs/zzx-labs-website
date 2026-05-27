@@ -29,7 +29,6 @@ def write_json(path: Path, payload: Any) -> None:
             indent=2,
             sort_keys=True
         )
-
         handle.write("\n")
 
 
@@ -63,6 +62,13 @@ def manifest_total_bytes(manifest: dict[str, Any]) -> int:
     return total
 
 
+def safe_int(value: Any, fallback: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def build_daily_entries(repo_root: Path) -> list[dict[str, Any]]:
     registry_dir = repo_root / "registry"
     entries: list[dict[str, Any]] = []
@@ -85,15 +91,16 @@ def build_daily_entries(repo_root: Path) -> list[dict[str, Any]]:
             continue
 
         chunks = manifest.get("chunks", [])
+        chunk_count = len(chunks) if isinstance(chunks, list) else 0
 
         entries.append({
             "date": day_dir.name,
             "path": manifest_path.relative_to(repo_root).as_posix(),
             "directory": day_dir.relative_to(repo_root).as_posix(),
             "generated_at": manifest.get("generated_at"),
-            "node_count": int(manifest.get("node_count", 0) or 0),
-            "chunk_count": int(manifest.get("chunk_count", len(chunks) if isinstance(chunks, list) else 0) or 0),
-            "max_bytes": int(manifest.get("max_bytes", 0) or 0),
+            "node_count": safe_int(manifest.get("node_count", 0)),
+            "chunk_count": safe_int(manifest.get("chunk_count", chunk_count)),
+            "max_bytes": safe_int(manifest.get("max_bytes", 0)),
             "total_bytes": manifest_total_bytes(manifest),
             "manifest_sha256": sha256_file(manifest_path)
         })
@@ -113,14 +120,15 @@ def build_latest_entry(repo_root: Path) -> dict[str, Any] | None:
         return None
 
     chunks = manifest.get("chunks", [])
+    chunk_count = len(chunks) if isinstance(chunks, list) else 0
 
     return {
         "path": manifest_path.relative_to(repo_root).as_posix(),
         "directory": "latest",
         "generated_at": manifest.get("generated_at"),
-        "node_count": int(manifest.get("node_count", 0) or 0),
-        "chunk_count": int(manifest.get("chunk_count", len(chunks) if isinstance(chunks, list) else 0) or 0),
-        "max_bytes": int(manifest.get("max_bytes", 0) or 0),
+        "node_count": safe_int(manifest.get("node_count", 0)),
+        "chunk_count": safe_int(manifest.get("chunk_count", chunk_count)),
+        "max_bytes": safe_int(manifest.get("max_bytes", 0)),
         "total_bytes": manifest_total_bytes(manifest),
         "manifest_sha256": sha256_file(manifest_path)
     }
@@ -128,12 +136,12 @@ def build_latest_entry(repo_root: Path) -> dict[str, Any] | None:
 
 def build_stats(entries: list[dict[str, Any]], latest: dict[str, Any] | None) -> dict[str, Any]:
     node_counts = [
-        int(entry.get("node_count", 0) or 0)
+        safe_int(entry.get("node_count", 0))
         for entry in entries
     ]
 
     total_bytes = [
-        int(entry.get("total_bytes", 0) or 0)
+        safe_int(entry.get("total_bytes", 0))
         for entry in entries
     ]
 
@@ -141,8 +149,8 @@ def build_stats(entries: list[dict[str, Any]], latest: dict[str, Any] | None) ->
         "schema": "zzx-bitnodes-global-registry-stats-v1",
         "generated_at": utc_now_iso(),
         "daily_backup_count": len(entries),
-        "latest_node_count": int((latest or {}).get("node_count", 0) or 0),
-        "latest_chunk_count": int((latest or {}).get("chunk_count", 0) or 0),
+        "latest_node_count": safe_int((latest or {}).get("node_count", 0)),
+        "latest_chunk_count": safe_int((latest or {}).get("chunk_count", 0)),
         "max_daily_node_count": max(node_counts) if node_counts else 0,
         "min_daily_node_count": min(node_counts) if node_counts else 0,
         "total_daily_bytes": sum(total_bytes),
@@ -150,7 +158,11 @@ def build_stats(entries: list[dict[str, Any]], latest: dict[str, Any] | None) ->
     }
 
 
-def build_health(repo_root: Path, entries: list[dict[str, Any]], latest: dict[str, Any] | None) -> dict[str, Any]:
+def build_health(
+    repo_root: Path,
+    entries: list[dict[str, Any]],
+    latest: dict[str, Any] | None
+) -> dict[str, Any]:
     registry_dir = repo_root / "registry"
     latest_manifest = repo_root / "latest" / "manifest.json"
 
@@ -162,7 +174,7 @@ def build_health(repo_root: Path, entries: list[dict[str, Any]], latest: dict[st
     if not latest_manifest.exists():
         status = "missing_latest_manifest"
 
-    if latest and int(latest.get("node_count", 0) or 0) <= 0:
+    if latest and safe_int(latest.get("node_count", 0)) <= 0:
         status = "empty_latest_registry"
 
     return {
@@ -172,8 +184,8 @@ def build_health(repo_root: Path, entries: list[dict[str, Any]], latest: dict[st
         "registry_dir_exists": registry_dir.exists(),
         "latest_manifest_exists": latest_manifest.exists(),
         "daily_backup_count": len(entries),
-        "latest_node_count": int((latest or {}).get("node_count", 0) or 0),
-        "latest_chunk_count": int((latest or {}).get("chunk_count", 0) or 0)
+        "latest_node_count": safe_int((latest or {}).get("node_count", 0)),
+        "latest_chunk_count": safe_int((latest or {}).get("chunk_count", 0))
     }
 
 
