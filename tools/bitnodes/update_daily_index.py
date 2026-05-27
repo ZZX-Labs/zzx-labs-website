@@ -1,7 +1,4 @@
-
-`tools/bitnodes/update_daily_index.py`
-
-```python
+# tools/bitnodes/update_daily_index.py
 #!/usr/bin/env python3
 from __future__ import annotations
 
