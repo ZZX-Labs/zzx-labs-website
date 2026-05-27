@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import socket
 import subprocess
@@ -44,7 +45,10 @@ DNS_SEEDS = [
     "seed.bitcoin.jonasschnelli.ch",
     "seed.btc.petertodd.net",
     "seed.bitcoin.sprovoost.nl",
-    "dnsseed.emzy.de"
+    "dnsseed.emzy.de",
+    "seed.bitcoin.wiz.biz",
+    "seed.bitcoin.sipa.be",
+    "seed.bitcoin.sprovoost.nl"
 ]
 
 DEFAULT_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api"
@@ -56,6 +60,14 @@ DEFAULT_GEOIP_DIR = (
     / "bitnodes"
     / "data"
     / "geoip"
+)
+
+DEFAULT_SEEDER_DIR = (
+    APP_ROOT
+    / "bitcoin"
+    / "bitnodes"
+    / "data"
+    / "seeders"
 )
 
 DEFAULT_CITY_DB = DEFAULT_GEOIP_DIR / "dbip-city-lite.mmdb"
@@ -70,18 +82,154 @@ def mkdir(path: Path) -> None:
     )
 
 
+def read_json_any(path: Path) -> Any:
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def extract_nodes_from_payload(payload: Any) -> list[str]:
+    found: list[str] = []
+
+    if isinstance(payload, dict):
+        nodes = payload.get("nodes")
+
+        if isinstance(nodes, dict):
+            found.extend(str(address) for address in nodes.keys())
+
+        for key in (
+            "addresses",
+            "peers",
+            "queue",
+            "known",
+            "reachable",
+            "unreachable"
+        ):
+            values = payload.get(key)
+
+            if isinstance(values, list):
+                found.extend(str(item) for item in values)
+
+            if isinstance(values, dict):
+                found.extend(str(item) for item in values.keys())
+
+        for value in payload.values():
+            if isinstance(value, dict):
+                found.extend(extract_nodes_from_payload(value))
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str) and (
+                        ":" in item or ".onion" in item.lower()
+                    ):
+                        found.append(item)
+
+    elif isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, str):
+                found.append(item)
+            elif isinstance(item, dict):
+                found.extend(extract_nodes_from_payload(item))
+
+    normalized: list[str] = []
+
+    for address in found:
+        item = normalize_address(address)
+
+        if item:
+            normalized.append(item)
+
+    return sorted(set(normalized))
+
+
+def collect_seed_files(
+    archive_dir: Path,
+    seeder_dir: Path,
+    state_dir: Path,
+    output_dir: Path,
+    max_files: int = 500
+) -> list[Path]:
+    files: list[Path] = []
+
+    roots = [
+        archive_dir,
+        seeder_dir,
+        state_dir,
+        output_dir
+    ]
+
+    for root in roots:
+        if not root.exists():
+            continue
+
+        files.extend(sorted(root.rglob("*.json")))
+        files.extend(sorted(root.rglob("*.json.gz")))
+
+    files = [
+        path
+        for path in files
+        if path.is_file()
+    ]
+
+    files.sort(
+        key=lambda path: path.stat().st_mtime,
+        reverse=True
+    )
+
+    return files[:max_files]
+
+
+def discover_from_existing_files(
+    archive_dir: Path,
+    seeder_dir: Path,
+    state_dir: Path,
+    output_dir: Path,
+    limit: int,
+    max_files: int
+) -> list[str]:
+    discovered: list[str] = []
+
+    files = collect_seed_files(
+        archive_dir=archive_dir,
+        seeder_dir=seeder_dir,
+        state_dir=state_dir,
+        output_dir=output_dir,
+        max_files=max_files
+    )
+
+    for path in files:
+        try:
+            payload = read_json_any(path)
+        except Exception:
+            continue
+
+        discovered.extend(
+            extract_nodes_from_payload(payload)
+        )
+
+        if len(discovered) >= limit:
+            break
+
+    return sorted(set(discovered))[:limit]
+
+
 def resolve_seed(
     seed: str,
     timeout: float = 5.0
 ) -> list[str]:
     output: list[str] = []
 
+    resolver = dns.resolver.Resolver()
+    resolver.lifetime = timeout
+    resolver.timeout = timeout
+
     for record_type in ("A", "AAAA"):
         try:
-            answers = dns.resolver.resolve(
+            answers = resolver.resolve(
                 seed,
-                record_type,
-                lifetime=timeout
+                record_type
             )
 
             output.extend(
@@ -114,6 +262,7 @@ def discover_dns(
     return [
         normalize_address(host)
         for host in unique[:limit]
+        if normalize_address(host)
     ]
 
 
@@ -128,7 +277,7 @@ def getaddr_from_node(
                 address,
                 timeout=timeout
             )
-            if item
+            if item and normalize_address(item)
         ]
 
     except Exception:
@@ -147,7 +296,7 @@ def expand_getaddr(
 
     discovered_total: list[str] = []
 
-    for _round in range(rounds):
+    for round_index in range(rounds):
         if len(state.nodes) + len(state.queue) >= limit:
             break
 
@@ -195,6 +344,16 @@ def expand_getaddr(
         state.add_to_queue(discovered_round)
         discovered_total.extend(discovered_round)
 
+        unique_round = len(set(discovered_round))
+
+        print(
+            f"[getaddr] round={round_index + 1} "
+            f"batch={len(batch)} "
+            f"discovered={unique_round} "
+            f"queue={len(state.queue)} "
+            f"known={len(state.nodes)}"
+        )
+
         if not discovered_round:
             break
 
@@ -223,10 +382,10 @@ def crawl_address(
 
         row = version_info_to_bitnodes_array(info)
 
-        while len(row) < 20:
+        while len(row) < 28:
             row.append(None)
 
-        row[19] = latency_ms
+        row[25] = latency_ms
 
         return (
             normalize_address(info.address),
@@ -281,7 +440,9 @@ def crawl_batch(
                 continue
 
             address, row = result
-            successes[address] = row
+
+            if address:
+                successes[address] = row
 
     return successes, failures
 
@@ -442,11 +603,11 @@ def enrich_state_records(
         record["asn"] = row[11]
         record["organization"] = row[12]
         record["provider"] = row[13]
-        record["county"] = row[14]
-        record["zip"] = row[15]
-        record["w3w"] = row[16]
-        record["geohash"] = row[17]
-        record["asn_location"] = row[18]
+        record["county"] = row[14] if len(row) > 14 else None
+        record["zip"] = row[15] if len(row) > 15 else None
+        record["w3w"] = row[16] if len(row) > 16 else None
+        record["geohash"] = row[17] if len(row) > 17 else None
+        record["asn_location"] = row[18] if len(row) > 18 else None
         record["last_geoip_update"] = now
 
 
@@ -540,17 +701,65 @@ def git_commit_and_push(
             print(result.stderr.strip())
 
 
+def seed_state_before_crawl(
+    state: BitnodesState,
+    seed_addresses: list[str],
+    archive_dir: Path,
+    seeder_dir: Path,
+    output_dir: Path,
+    state_dir: Path,
+    limit: int,
+    replay_archives: bool,
+    archive_replay_files: int
+) -> list[str]:
+    seeds = list(seed_addresses)
+
+    if replay_archives:
+        replay_limit = max(
+            limit,
+            len(seed_addresses)
+        )
+
+        replayed = discover_from_existing_files(
+            archive_dir=archive_dir,
+            seeder_dir=seeder_dir,
+            state_dir=state_dir,
+            output_dir=output_dir,
+            limit=replay_limit,
+            max_files=archive_replay_files
+        )
+
+        seeds.extend(replayed)
+
+    for address in state.nodes.keys():
+        seeds.append(address)
+
+    seeds = sorted(set(
+        normalize_address(address)
+        for address in seeds
+        if normalize_address(address)
+    ))
+
+    state.add_to_queue(seeds)
+
+    return seeds[:limit]
+
+
 def crawl_once(
     state_dir: Path,
     snapshot_24h_dir: Path,
     output_dir: Path,
     archive_dir: Path,
+    seeder_dir: Path,
     raw_output: Path | None,
     limit: int,
     batch_size: int,
     timeout: float,
     workers: int,
     getaddr_rounds: int,
+    dns_seed_limit: int,
+    replay_archives: bool,
+    archive_replay_files: int,
     geoip_enabled: bool,
     city_db: Path,
     asn_db: Path,
@@ -560,6 +769,7 @@ def crawl_once(
 ) -> dict[str, Any]:
     mkdir(output_dir)
     mkdir(archive_dir)
+    mkdir(seeder_dir)
     mkdir(state_dir)
     mkdir(snapshot_24h_dir)
     mkdir(city_db.parent)
@@ -577,7 +787,7 @@ def crawl_once(
 
     dns_limit = min(
         limit,
-        max(batch_size, workers * 4, 1000)
+        max(dns_seed_limit, batch_size, workers * 4, 1000)
     )
 
     seed_addresses = discover_dns(
@@ -585,11 +795,21 @@ def crawl_once(
         timeout=timeout
     )
 
-    state.add_to_queue(seed_addresses)
-
-    expand_getaddr(
+    expanded_seed_addresses = seed_state_before_crawl(
         state=state,
         seed_addresses=seed_addresses,
+        archive_dir=archive_dir,
+        seeder_dir=seeder_dir,
+        output_dir=output_dir,
+        state_dir=state_dir,
+        limit=limit,
+        replay_archives=replay_archives,
+        archive_replay_files=archive_replay_files
+    )
+
+    discovered = expand_getaddr(
+        state=state,
+        seed_addresses=expanded_seed_addresses,
         limit=limit,
         timeout=timeout,
         workers=workers,
@@ -597,7 +817,7 @@ def crawl_once(
     )
 
     candidates = state.all_candidate_addresses(
-        seed_addresses=seed_addresses,
+        seed_addresses=expanded_seed_addresses + discovered,
         limit=limit
     )
 
@@ -634,11 +854,15 @@ def crawl_once(
     state.meta["last_success_count"] = len(successes)
     state.meta["last_failure_count"] = len(failures)
     state.meta["last_dns_seed_count"] = len(seed_addresses)
+    state.meta["last_expanded_seed_count"] = len(expanded_seed_addresses)
+    state.meta["last_discovered_count"] = len(discovered)
     state.meta["last_getaddr_rounds"] = getaddr_rounds
     state.meta["last_limit"] = limit
     state.meta["last_batch_size"] = batch_size
     state.meta["last_workers"] = workers
     state.meta["last_timeout"] = timeout
+    state.meta["archive_replay_enabled"] = replay_archives
+    state.meta["archive_replay_files"] = archive_replay_files
     state.meta["geoip_enabled"] = geoip_enabled
     state.meta["geoip_city_db"] = str(city_db)
     state.meta["geoip_asn_db"] = str(asn_db)
@@ -678,6 +902,10 @@ def crawl_once(
         f"reachable_24h={summary['reachable_24h']} "
         f"stale={summary['stale_nodes']} "
         f"queue={summary['queue_size']} "
+        f"dns={len(seed_addresses)} "
+        f"seeds={len(expanded_seed_addresses)} "
+        f"discovered={len(discovered)} "
+        f"candidates={len(candidates)} "
         f"successes={len(successes)} "
         f"failures={len(failures)}"
     )
@@ -690,13 +918,18 @@ def daemon_loop(
     snapshot_24h_dir: Path,
     output_dir: Path,
     archive_dir: Path,
+    seeder_dir: Path,
     raw_output: Path | None,
     limit: int,
     batch_size: int,
     timeout: float,
     workers: int,
     getaddr_rounds: int,
+    dns_seed_limit: int,
+    replay_archives: bool,
+    archive_replay_files: int,
     interval: int,
+    run_seconds: int,
     geoip_enabled: bool,
     city_db: Path,
     asn_db: Path,
@@ -705,19 +938,32 @@ def daemon_loop(
     pretty: bool,
     git_push: bool
 ) -> None:
+    started = time.time()
+
     while True:
+        if run_seconds > 0 and time.time() - started >= run_seconds:
+            print(
+                f"[daemon] run_seconds reached: {run_seconds}"
+            )
+
+            return
+
         try:
             crawl_once(
                 state_dir=state_dir,
                 snapshot_24h_dir=snapshot_24h_dir,
                 output_dir=output_dir,
                 archive_dir=archive_dir,
+                seeder_dir=seeder_dir,
                 raw_output=raw_output,
                 limit=limit,
                 batch_size=batch_size,
                 timeout=timeout,
                 workers=workers,
                 getaddr_rounds=getaddr_rounds,
+                dns_seed_limit=dns_seed_limit,
+                replay_archives=replay_archives,
+                archive_replay_files=archive_replay_files,
                 geoip_enabled=geoip_enabled,
                 city_db=city_db,
                 asn_db=asn_db,
@@ -737,6 +983,9 @@ def daemon_loop(
 
         except Exception as exc:
             print(exc)
+
+        if run_seconds > 0 and time.time() - started >= run_seconds:
+            return
 
         time.sleep(interval)
 
@@ -776,6 +1025,11 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "--seeder-dir",
+        default=str(DEFAULT_SEEDER_DIR)
+    )
+
+    parser.add_argument(
         "--raw-output",
         default=""
     )
@@ -783,37 +1037,60 @@ def main() -> int:
     parser.add_argument(
         "--limit",
         type=int,
-        default=100000
+        default=5000000
     )
 
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=5000
+        default=20000
     )
 
     parser.add_argument(
         "--timeout",
         type=float,
-        default=5.0
+        default=8.0
     )
 
     parser.add_argument(
         "--workers",
         type=int,
-        default=512
+        default=2048
     )
 
     parser.add_argument(
         "--getaddr-rounds",
         type=int,
-        default=8
+        default=128
+    )
+
+    parser.add_argument(
+        "--dns-seed-limit",
+        type=int,
+        default=10000
+    )
+
+    parser.add_argument(
+        "--disable-archive-replay",
+        action="store_true"
+    )
+
+    parser.add_argument(
+        "--archive-replay-files",
+        type=int,
+        default=500
     )
 
     parser.add_argument(
         "--interval",
         type=int,
-        default=900
+        default=30
+    )
+
+    parser.add_argument(
+        "--run-seconds",
+        type=int,
+        default=0
     )
 
     parser.add_argument(
@@ -898,51 +1175,43 @@ def main() -> int:
 
     state_dir = Path(args.state_dir)
 
-    if args.history_dir and not args.state_dir:
+    if args.history_dir and args.state_dir == str(DEFAULT_STATE_DIR):
         state_dir = Path(args.history_dir)
+
+    common = {
+        "state_dir": state_dir,
+        "snapshot_24h_dir": Path(args.snapshot_24h_dir),
+        "output_dir": Path(args.output),
+        "archive_dir": Path(args.archive_dir),
+        "seeder_dir": Path(args.seeder_dir),
+        "raw_output": raw_output,
+        "limit": args.limit,
+        "batch_size": args.batch_size,
+        "timeout": args.timeout,
+        "workers": args.workers,
+        "getaddr_rounds": args.getaddr_rounds,
+        "dns_seed_limit": args.dns_seed_limit,
+        "replay_archives": not args.disable_archive_replay,
+        "archive_replay_files": args.archive_replay_files,
+        "geoip_enabled": not args.disable_geoip,
+        "city_db": city_db,
+        "asn_db": asn_db,
+        "country_db": country_db,
+        "export_mode": args.export_mode,
+        "pretty": not args.compact
+    }
 
     if args.daemon:
         daemon_loop(
-            state_dir=state_dir,
-            snapshot_24h_dir=Path(args.snapshot_24h_dir),
-            output_dir=Path(args.output),
-            archive_dir=Path(args.archive_dir),
-            raw_output=raw_output,
-            limit=args.limit,
-            batch_size=args.batch_size,
-            timeout=args.timeout,
-            workers=args.workers,
-            getaddr_rounds=args.getaddr_rounds,
+            **common,
             interval=args.interval,
-            geoip_enabled=not args.disable_geoip,
-            city_db=city_db,
-            asn_db=asn_db,
-            country_db=country_db,
-            export_mode=args.export_mode,
-            pretty=not args.compact,
+            run_seconds=args.run_seconds,
             git_push=args.git_push
         )
 
         return 0
 
-    crawl_once(
-        state_dir=state_dir,
-        snapshot_24h_dir=Path(args.snapshot_24h_dir),
-        output_dir=Path(args.output),
-        archive_dir=Path(args.archive_dir),
-        raw_output=raw_output,
-        limit=args.limit,
-        batch_size=args.batch_size,
-        timeout=args.timeout,
-        workers=args.workers,
-        getaddr_rounds=args.getaddr_rounds,
-        geoip_enabled=not args.disable_geoip,
-        city_db=city_db,
-        asn_db=asn_db,
-        country_db=country_db,
-        export_mode=args.export_mode,
-        pretty=not args.compact
-    )
+    crawl_once(**common)
 
     return 0
 
