@@ -3,7 +3,6 @@
 
     const BN = window.BN || {};
     const PAGE_SIZE = 250;
-
     const STATES = new WeakMap();
 
     function $all(selector, scope = document) {
@@ -22,7 +21,6 @@
         }
 
         const n = Number(value);
-
         return Number.isFinite(n) ? n : fallback;
     }
 
@@ -32,20 +30,17 @@
         }
 
         const n = Number(value);
-
-        return Number.isFinite(n)
-            ? n.toLocaleString()
-            : value;
+        return Number.isFinite(n) ? n.toLocaleString() : String(value ?? "—");
     }
 
     function inferValue(raw) {
-        const numeric = Number(
-            String(raw)
-                .replace(/,/g, "")
-                .replace(/ms$/i, "")
-                .replace(/%$/i, "")
-                .trim()
-        );
+        const text = String(raw || "")
+            .replace(/,/g, "")
+            .replace(/ms$/i, "")
+            .replace(/%$/i, "")
+            .trim();
+
+        const numeric = Number(text);
 
         if (Number.isFinite(numeric)) {
             return numeric;
@@ -81,14 +76,42 @@
         state.rows.forEach(updateRowVisibility);
     }
 
-    function createToolbar(table, state) {
-        const wrap = table.closest(".bn-table-wrap, .bn-table-scroll");
+    function getTableContainer(table) {
+        return (
+            table.closest(".bn-widget-table-section") ||
+            table.closest(".bn-node-panel") ||
+            table.closest(".bn-panel") ||
+            table.parentElement
+        );
+    }
 
-        if (!wrap || !wrap.parentElement) {
+    function getTableScroll(table) {
+        return table.closest(".bn-table-scroll, .bn-table-wrap");
+    }
+
+    function removeDuplicatePagination(container) {
+        if (!container) {
             return;
         }
 
-        let toolbar = wrap.parentElement.querySelector(":scope > .bn-table-pagination");
+        const pagers = Array.from(
+            container.querySelectorAll(":scope > .bn-table-pagination")
+        );
+
+        pagers.slice(1).forEach(pager => pager.remove());
+    }
+
+    function createToolbar(table, state) {
+        const container = getTableContainer(table);
+        const scroll = getTableScroll(table);
+
+        if (!container) {
+            return;
+        }
+
+        removeDuplicatePagination(container);
+
+        let toolbar = container.querySelector(":scope > .bn-table-pagination");
 
         if (!toolbar) {
             toolbar = document.createElement("div");
@@ -102,7 +125,11 @@
                 <button type="button" class="bn-page-last">Last »</button>
             `;
 
-            wrap.parentElement.appendChild(toolbar);
+            if (scroll && scroll.parentElement === container) {
+                container.appendChild(toolbar);
+            } else {
+                container.appendChild(toolbar);
+            }
         }
 
         state.toolbar = toolbar;
@@ -128,7 +155,6 @@
 
         state.next?.addEventListener("click", () => {
             const totalPages = getTotalPages(state);
-
             state.page = Math.min(totalPages - 1, state.page + 1);
             renderPage(table, state);
         });
@@ -174,6 +200,13 @@
         if (state.last) {
             state.last.disabled = state.page >= totalPages - 1;
         }
+
+        if (state.toolbar) {
+            state.toolbar.classList.toggle(
+                "is-hidden",
+                state.rows.length <= state.pageSize
+            );
+        }
     }
 
     function renderPage(table, state) {
@@ -208,7 +241,7 @@
 
             const first = row.cells[0];
 
-            if (!first) {
+            if (!first || first.dataset.noRank === "true") {
                 return;
             }
 
@@ -257,6 +290,24 @@
         renderPage(table, state);
     }
 
+    function resetHeaderIndicators(headers, activeIndex, direction) {
+        headers.forEach((header, index) => {
+            const icon = header.querySelector(".bn-sort-indicator");
+
+            header.classList.toggle("is-sorted", index === activeIndex);
+            header.classList.toggle("is-asc", index === activeIndex && direction === "asc");
+            header.classList.toggle("is-desc", index === activeIndex && direction === "desc");
+
+            if (icon) {
+                icon.textContent = index === activeIndex
+                    ? direction === "asc"
+                        ? "↑"
+                        : "↓"
+                    : "↕";
+            }
+        });
+    }
+
     function wireSorting(table, state) {
         if (table.dataset.bnSortingReady === "true") {
             return;
@@ -268,6 +319,8 @@
 
         headers.forEach((th, index) => {
             th.classList.add("bn-sortable");
+            th.setAttribute("role", "button");
+            th.setAttribute("tabindex", "0");
 
             let indicator = th.querySelector(".bn-sort-indicator");
 
@@ -278,25 +331,31 @@
                 th.appendChild(indicator);
             }
 
-            let direction = "desc";
+            function triggerSort() {
+                const currentDirection =
+                    state.sortColumn === index
+                        ? state.sortDirection
+                        : "desc";
 
-            th.addEventListener("click", () => {
-                direction = direction === "asc" ? "desc" : "asc";
+                const direction =
+                    currentDirection === "asc"
+                        ? "desc"
+                        : "asc";
 
-                headers.forEach(h => {
-                    const icon = h.querySelector(".bn-sort-indicator");
+                state.sortColumn = index;
+                state.sortDirection = direction;
 
-                    if (icon) {
-                        icon.textContent = "↕";
-                    }
-                });
-
-                indicator.textContent =
-                    direction === "asc"
-                        ? "↑"
-                        : "↓";
-
+                resetHeaderIndicators(headers, index, direction);
                 sortTable(table, state, index, direction);
+            }
+
+            th.addEventListener("click", triggerSort);
+
+            th.addEventListener("keydown", event => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    triggerSort();
+                }
             });
         });
 
@@ -334,6 +393,8 @@
             rows: Array.from(table.tBodies[0]?.rows || []),
             page: 0,
             pageSize: number(table.dataset.pageSize, PAGE_SIZE),
+            sortColumn: null,
+            sortDirection: "desc",
             toolbar: null,
             first: null,
             prev: null,
@@ -362,12 +423,12 @@
         renderPage(table, state);
     }
 
-    function initTables() {
-        $all(".bn-table").forEach(initTable);
+    function initTables(scope = document) {
+        $all(".bn-table", scope).forEach(initTable);
     }
 
-    function refresh() {
-        $all(".bn-table").forEach(table => {
+    function refresh(scope = document) {
+        $all(".bn-table", scope).forEach(table => {
             const state = STATES.get(table);
 
             if (!state) {
@@ -376,13 +437,31 @@
             }
 
             state.rows = Array.from(table.tBodies[0]?.rows || []);
+
+            if (state.page > getTotalPages(state) - 1) {
+                state.page = Math.max(0, getTotalPages(state) - 1);
+            }
+
             renderPage(table, state);
+        });
+    }
+
+    function destroy(scope = document) {
+        $all(".bn-table", scope).forEach(table => {
+            table.dataset.bnSortingReady = "false";
+            table.dataset.bnSearchReady = "false";
+            STATES.delete(table);
+        });
+
+        $all(".bn-table-pagination", scope).forEach(toolbar => {
+            toolbar.remove();
         });
     }
 
     window.BNTables = {
         init: initTables,
         refresh,
+        destroy,
         fixIndexes,
         sortTable
     };
