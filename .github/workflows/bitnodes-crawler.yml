@@ -61,23 +61,35 @@ jobs:
         run: |
           set +e
 
-          END_AT=$(( $(date +%s) + 3000 ))
+          END_AT=$(( $(date +%s) + 3300 ))
           ITERATION=1
 
           while [ "$(date +%s)" -lt "$END_AT" ]; do
             printf '%s\n' "Starting Bitnodes crawler iteration ${ITERATION}..."
 
-            timeout 720s python tools/bitnodes/crawl.py \
+            if [ -f tools/bitnodes/update_seed_queue.py ]; then
+              python tools/bitnodes/update_seed_queue.py \
+                --state bitcoin/bitnodes/data/state \
+                --seeders bitcoin/bitnodes/data/seeders \
+                --archives bitcoin/bitnodes/archive \
+                --inject-known \
+                --inject-dns \
+                --inject-archives
+            else
+              printf '%s\n' "tools/bitnodes/update_seed_queue.py not found; continuing without seed pre-injection."
+            fi
+
+            timeout 3000s python tools/bitnodes/crawl.py \
               --output bitcoin/bitnodes/api \
               --archive-dir bitcoin/bitnodes/archive \
               --state-dir bitcoin/bitnodes/data/state \
               --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
               --geoip-dir bitcoin/bitnodes/data/geoip \
-              --timeout 3 \
-              --limit 500000 \
-              --batch-size 5000 \
-              --workers 512 \
-              --getaddr-rounds 24 \
+              --timeout 8 \
+              --limit 5000000 \
+              --batch-size 20000 \
+              --workers 2048 \
+              --getaddr-rounds 128 \
               --export-mode reachable_24h
 
             STATUS=$?
@@ -91,7 +103,7 @@ jobs:
             fi
 
             ITERATION=$((ITERATION + 1))
-            sleep 10
+            sleep 5
           done
 
           printf '%s\n' "Crawler loop complete."
@@ -119,6 +131,7 @@ jobs:
 
           mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
           mkdir -p "${BACKUP_ROOT}/latest"
+          mkdir -p "${BACKUP_ROOT}/manifests"
 
           python tools/bitnodes/chunk_registry_backup.py \
             --input bitcoin/bitnodes/data/state \
