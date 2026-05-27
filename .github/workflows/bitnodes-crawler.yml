@@ -127,12 +127,15 @@ jobs:
             --latest-output "${BACKUP_ROOT}/latest" \
             --max-mb 24
 
+          python tools/bitnodes/update_daily_index.py \
+            --repo-root "${BACKUP_ROOT}"
+
           cd "${BACKUP_ROOT}"
 
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add registry latest
+          git add registry latest manifests README.md
 
           if git diff --cached --quiet; then
             printf '%s\n' "No private registry backup changes to commit."
