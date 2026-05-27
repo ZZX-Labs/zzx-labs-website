@@ -5,7 +5,6 @@
         "js/base.js",
         "js/api.js",
         "js/datasource.js",
-        "js/core.js",
 
         "js/navbar.js",
         "js/search.js",
@@ -13,6 +12,7 @@
 
         "js/cards.js",
         "js/charts.js",
+        "js/widgets.js",
         "js/knotsvscore.js",
 
         "js/versions.js",
@@ -22,11 +22,13 @@
 
         "js/tor.js",
         "js/vpn.js",
-        "js/geoip.js"
+        "js/geoip.js",
+
+        "js/core.js"
     ];
 
     function getDepth() {
-        return document.body.dataset.bnDepth || ".";
+        return document.body?.dataset?.bnDepth || ".";
     }
 
     function cleanDepth(depth) {
