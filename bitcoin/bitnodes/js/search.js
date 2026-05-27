@@ -25,20 +25,31 @@
             .trim();
     }
 
-    function getOrCreateToolbar(table) {
-        const wrap = table.closest(".bn-table-wrap, .bn-table-scroll");
+    function getToolbarContainer(table) {
+        return (
+            table.closest(".bn-widget-table-section") ||
+            table.closest(".bn-panel") ||
+            table.parentElement
+        );
+    }
 
-        if (!wrap || !wrap.parentElement) {
+    function getOrCreateToolbar(table) {
+        const container = getToolbarContainer(table);
+
+        if (!container) {
             return null;
         }
 
-        let toolbar = wrap.parentElement.querySelector(":scope > .bn-search-toolbar");
+        const existing = container.querySelector(
+            ":scope > .bn-search-toolbar"
+        );
 
-        if (toolbar) {
-            return toolbar;
+        if (existing) {
+            return existing;
         }
 
-        toolbar = document.createElement("div");
+        const toolbar = document.createElement("div");
+
         toolbar.className = "bn-search-toolbar";
 
         toolbar.innerHTML = `
@@ -47,7 +58,7 @@
                     <input
                         type="search"
                         class="bn-search-input bn-table-search-input"
-                        placeholder="Search any column..."
+                        placeholder="Search table records..."
                         autocomplete="off"
                         spellcheck="false"
                     >
@@ -72,21 +83,42 @@
             </div>
         `;
 
-        wrap.parentElement.insertBefore(toolbar, wrap);
+        const tableScroll =
+            table.closest(".bn-table-scroll");
+
+        if (tableScroll) {
+            container.insertBefore(toolbar, tableScroll);
+        } else {
+            container.prepend(toolbar);
+        }
 
         return toolbar;
     }
 
-    function getOrCreateEmptyState(wrap) {
-        let empty = wrap.querySelector(":scope > .bn-search-empty");
+    function getOrCreateEmptyState(table) {
+        const wrap =
+            table.closest(".bn-table-scroll");
+
+        if (!wrap) {
+            return null;
+        }
+
+        let empty =
+            wrap.querySelector(
+                ":scope > .bn-search-empty"
+            );
 
         if (empty) {
             return empty;
         }
 
         empty = document.createElement("div");
-        empty.className = "bn-search-empty bn-search-hidden";
-        empty.textContent = "No records match the current search query.";
+
+        empty.className =
+            "bn-search-empty bn-search-hidden";
+
+        empty.textContent =
+            "No records match the current search query.";
 
         wrap.appendChild(empty);
 
@@ -98,19 +130,26 @@
             return;
         }
 
+        const fmt =
+            BN.formatNumber
+                ? BN.formatNumber
+                : value => String(value);
+
         counter.innerHTML = `
             <span>
                 Showing
-                <strong>${BN.formatNumber ? BN.formatNumber(visible) : visible}</strong>
+                <strong>${fmt(visible)}</strong>
                 of
-                <strong>${BN.formatNumber ? BN.formatNumber(total) : total}</strong>
+                <strong>${fmt(total)}</strong>
                 records
             </span>
         `;
     }
 
     function applyFilter(state) {
-        const query = normalize(state.input.value);
+        const query =
+            normalize(state.input.value);
+
         let visible = 0;
 
         state.rows.forEach(row => {
@@ -118,17 +157,27 @@
                 !query ||
                 row.dataset.search.includes(query);
 
-            row.classList.toggle("bn-search-filtered", !match);
+            row.classList.toggle(
+                "bn-search-filtered",
+                !match
+            );
+
+            row.classList.toggle(
+                "bn-search-hidden",
+                !match
+            );
 
             if (match) {
                 visible += 1;
             }
         });
 
-        state.empty.classList.toggle(
-            "bn-search-hidden",
-            visible !== 0
-        );
+        if (state.empty) {
+            state.empty.classList.toggle(
+                "bn-search-hidden",
+                visible !== 0
+            );
+        }
 
         updateCounter(
             state.counter,
@@ -136,39 +185,62 @@
             state.rows.length
         );
 
-        window.BNTables?.refresh?.();
+        if (window.BNTables?.refresh) {
+            window.BNTables.refresh();
+        } else if (window.BNTables?.fixIndexes) {
+            state.tables?.forEach?.(table => {
+                window.BNTables.fixIndexes(table);
+            });
+        }
     }
 
     function attach(table) {
+        if (!table) {
+            return;
+        }
+
         if (table.dataset.bnSearchReady === "true") {
             return;
         }
 
-        const wrap = table.closest(".bn-table-wrap, .bn-table-scroll");
+        const rows = getRows(table);
 
-        if (!wrap) {
+        if (!rows.length) {
             return;
         }
 
-        const toolbar = getOrCreateToolbar(table);
+        const toolbar =
+            getOrCreateToolbar(table);
 
         if (!toolbar) {
             return;
         }
 
-        const input = toolbar.querySelector(".bn-search-input");
-        const clear = toolbar.querySelector(".bn-search-clear");
-        const counter = toolbar.querySelector(".bn-search-stats");
-        const empty = getOrCreateEmptyState(wrap);
-        const rows = getRows(table);
+        const input =
+            toolbar.querySelector(
+                ".bn-search-input"
+            );
+
+        const clear =
+            toolbar.querySelector(
+                ".bn-search-clear"
+            );
+
+        const counter =
+            toolbar.querySelector(
+                ".bn-search-stats"
+            );
+
+        const empty =
+            getOrCreateEmptyState(table);
 
         rows.forEach(row => {
-            row.dataset.search = buildSearchIndex(row);
+            row.dataset.search =
+                buildSearchIndex(row);
         });
 
         const state = {
             table,
-            wrap,
             toolbar,
             input,
             clear,
@@ -177,23 +249,87 @@
             rows
         };
 
-        input.addEventListener("input", () => {
-            applyFilter(state);
-        });
+        input.addEventListener(
+            "input",
+            () => {
+                applyFilter(state);
+            }
+        );
 
-        clear?.addEventListener("click", () => {
-            input.value = "";
-            applyFilter(state);
-            input.focus();
-        });
+        clear?.addEventListener(
+            "click",
+            () => {
+                input.value = "";
+                applyFilter(state);
+                input.focus();
+            }
+        );
 
         table.dataset.bnSearchReady = "true";
 
         applyFilter(state);
     }
 
-    function init() {
-        BN.$$(".bn-table").forEach(attach);
+    function init(scope = document) {
+        const tables =
+            BN.$$?.(".bn-table", scope) ||
+            Array.from(
+                scope.querySelectorAll(".bn-table")
+            );
+
+        tables.forEach(attach);
+    }
+
+    function refresh() {
+        document
+            .querySelectorAll(".bn-table")
+            .forEach(table => {
+                const toolbar =
+                    getToolbarContainer(table)
+                        ?.querySelector(
+                            ":scope > .bn-search-toolbar"
+                        );
+
+                if (!toolbar) {
+                    return;
+                }
+
+                const input =
+                    toolbar.querySelector(
+                        ".bn-search-input"
+                    );
+
+                if (!input) {
+                    return;
+                }
+
+                const rows =
+                    getRows(table);
+
+                const counter =
+                    toolbar.querySelector(
+                        ".bn-search-stats"
+                    );
+
+                const empty =
+                    getOrCreateEmptyState(table);
+
+                const state = {
+                    table,
+                    toolbar,
+                    input,
+                    counter,
+                    empty,
+                    rows
+                };
+
+                rows.forEach(row => {
+                    row.dataset.search =
+                        buildSearchIndex(row);
+                });
+
+                applyFilter(state);
+            });
     }
 
     window.BNSearchInit = init;
@@ -201,6 +337,7 @@
     window.BNSearch = {
         init,
         attach,
+        refresh,
         applyFilter
     };
 })();
