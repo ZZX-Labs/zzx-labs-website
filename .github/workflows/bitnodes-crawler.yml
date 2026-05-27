@@ -57,47 +57,26 @@ jobs:
           git fetch origin main
           git rebase origin/main
 
-      - name: Run near-continuous Bitnodes crawler loop
+      - name: Run stable Bitnodes crawler daemon window
         run: |
-          set +e
-
-          END_AT=$(( $(date +%s) + 3300 ))
-          ITERATION=1
-
-          while [ "$(date +%s)" -lt "$END_AT" ]; do
-            printf '%s\n' "Starting Bitnodes crawler iteration ${ITERATION}..."
-
-            timeout 3000s python tools/bitnodes/crawl.py \
-              --output bitcoin/bitnodes/api \
-              --archive-dir bitcoin/bitnodes/archive \
-              --state-dir bitcoin/bitnodes/data/state \
-              --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
-              --seeder-dir bitcoin/bitnodes/data/seeders \
-              --geoip-dir bitcoin/bitnodes/data/geoip \
-              --timeout 8 \
-              --limit 5000000 \
-              --batch-size 20000 \
-              --workers 2048 \
-              --getaddr-rounds 128 \
-              --dns-seed-limit 10000 \
-              --archive-replay-files 500 \
-              --export-mode reachable_24h
-
-            STATUS=$?
-
-            if [ "$STATUS" -eq 124 ]; then
-              printf '%s\n' "Crawler iteration ${ITERATION} reached loop timeout; continuing."
-            elif [ "$STATUS" -ne 0 ]; then
-              printf '%s\n' "Crawler iteration ${ITERATION} exited with status ${STATUS}; continuing."
-            else
-              printf '%s\n' "Crawler iteration ${ITERATION} completed."
-            fi
-
-            ITERATION=$((ITERATION + 1))
-            sleep 5
-          done
-
-          printf '%s\n' "Crawler loop complete."
+          python tools/bitnodes/crawl.py \
+            --daemon \
+            --run-seconds 3000 \
+            --interval 15 \
+            --output bitcoin/bitnodes/api \
+            --archive-dir bitcoin/bitnodes/archive \
+            --state-dir bitcoin/bitnodes/data/state \
+            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
+            --seeder-dir bitcoin/bitnodes/data/seeders \
+            --geoip-dir bitcoin/bitnodes/data/geoip \
+            --timeout 5 \
+            --limit 5000000 \
+            --batch-size 4096 \
+            --workers 256 \
+            --getaddr-rounds 32 \
+            --dns-seed-limit 4096 \
+            --archive-replay-files 1000 \
+            --export-mode reachable_24h
 
       - name: Backup master node registry to private repo
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
