@@ -96,6 +96,52 @@ jobs:
 
           printf '%s\n' "Crawler loop complete."
 
+      - name: Backup master node registry to private repo
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${REGISTRY_PAT}" ]; then
+            printf '%s\n' "BITNODES_REGISTRY_PAT is not set."
+            exit 1
+          fi
+
+          TODAY="$(date -u +%Y-%m-%d)"
+          BACKUP_ROOT="/tmp/zzxbitnodesglobalregistry"
+
+          rm -rf "${BACKUP_ROOT}"
+
+          git clone \
+            "https://x-access-token:${REGISTRY_PAT}@github.com/ZZX-Labs/zzxbitnodesglobalregistry.git" \
+            "${BACKUP_ROOT}"
+
+          mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
+          mkdir -p "${BACKUP_ROOT}/latest"
+
+          python tools/bitnodes/chunk_registry_backup.py \
+            --input bitcoin/bitnodes/data/state \
+            --api bitcoin/bitnodes/api \
+            --output "${BACKUP_ROOT}/registry/${TODAY}" \
+            --latest-output "${BACKUP_ROOT}/latest" \
+            --max-mb 24
+
+          cd "${BACKUP_ROOT}"
+
+          git config user.name "zzx-labs-bitnodes-bot"
+          git config user.email "actions@github.com"
+
+          git add registry latest
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No private registry backup changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Backup global Bitnodes registry ${TODAY}"
+          git push origin HEAD:main
+
       - name: Remove local GeoIP databases before commit
         run: |
           rm -f bitcoin/bitnodes/data/geoip/*.mmdb
