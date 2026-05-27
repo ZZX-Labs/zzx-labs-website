@@ -67,29 +67,20 @@ jobs:
           while [ "$(date +%s)" -lt "$END_AT" ]; do
             printf '%s\n' "Starting Bitnodes crawler iteration ${ITERATION}..."
 
-            if [ -f tools/bitnodes/update_seed_queue.py ]; then
-              python tools/bitnodes/update_seed_queue.py \
-                --state bitcoin/bitnodes/data/state \
-                --seeders bitcoin/bitnodes/data/seeders \
-                --archives bitcoin/bitnodes/archive \
-                --inject-known \
-                --inject-dns \
-                --inject-archives
-            else
-              printf '%s\n' "tools/bitnodes/update_seed_queue.py not found; continuing without seed pre-injection."
-            fi
-
             timeout 3000s python tools/bitnodes/crawl.py \
               --output bitcoin/bitnodes/api \
               --archive-dir bitcoin/bitnodes/archive \
               --state-dir bitcoin/bitnodes/data/state \
               --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h \
+              --seeder-dir bitcoin/bitnodes/data/seeders \
               --geoip-dir bitcoin/bitnodes/data/geoip \
               --timeout 8 \
               --limit 5000000 \
               --batch-size 20000 \
               --workers 2048 \
               --getaddr-rounds 128 \
+              --dns-seed-limit 10000 \
+              --archive-replay-files 500 \
               --export-mode reachable_24h
 
             STATUS=$?
