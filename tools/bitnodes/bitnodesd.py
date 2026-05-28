@@ -8,6 +8,7 @@ import signal
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,9 @@ APP_ROOT = Path(__file__).resolve().parents[2]
 TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 
 CRAWLER = TOOLS_DIR / "crawl.py"
+ENRICH = TOOLS_DIR / "enrich.py"
+MAPS = TOOLS_DIR / "maps.py"
+BUILD_GEO_INDEXES = TOOLS_DIR / "build_geo_indexes.py"
 
 CONFIG_PATH = TOOLS_DIR / "config.json"
 CONFIG_EXAMPLE_PATH = TOOLS_DIR / "config.example.json"
@@ -24,12 +28,21 @@ RUN_DIR = APP_ROOT / "run"
 LOG_DIR = APP_ROOT / "log" / "bitnodes"
 
 PID_PATH = RUN_DIR / "bitnodesd.pid"
+STATUS_PATH = RUN_DIR / "bitnodesd.status.json"
 LOG_PATH = LOG_DIR / "bitnodesd.log"
 
 DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
 DEFAULT_ARCHIVE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "archive"
 DEFAULT_STATE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state"
 DEFAULT_SNAPSHOT_24H_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "snapshots" / "24h"
+
+DEFAULT_ENRICHED_DIR = DEFAULT_API_DIR / "enriched"
+DEFAULT_ENRICHED_LATEST = DEFAULT_ENRICHED_DIR / "latest.json"
+DEFAULT_ENRICHMENT_REPORT = DEFAULT_ENRICHED_DIR / "enrichment-report.json"
+
+DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
+DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
+DEFAULT_MAP_REPORT = DEFAULT_MAP_DIR / "data" / "map-build-report.json"
 
 
 def utc_now() -> int:
@@ -40,25 +53,22 @@ def utc_iso(ts: int | None = None) -> str:
     if ts is None:
         ts = utc_now()
 
-    return time.strftime(
-        "%Y-%m-%dT%H:%M:%SZ",
-        time.gmtime(ts)
-    )
+    return datetime.fromtimestamp(ts, timezone.utc).replace(microsecond=0).isoformat()
 
 
 def ensure_dirs() -> None:
-    for path in [
+    for path in (
         RUN_DIR,
         LOG_DIR,
         DEFAULT_API_DIR,
         DEFAULT_ARCHIVE_DIR,
         DEFAULT_STATE_DIR,
-        DEFAULT_SNAPSHOT_24H_DIR
-    ]:
-        path.mkdir(
-            parents=True,
-            exist_ok=True
-        )
+        DEFAULT_SNAPSHOT_24H_DIR,
+        DEFAULT_ENRICHED_DIR,
+        DEFAULT_MAP_DIR,
+        DEFAULT_LIVE_MAP_DIR,
+    ):
+        path.mkdir(parents=True, exist_ok=True)
 
 
 def log(message: str) -> None:
@@ -72,10 +82,10 @@ def log(message: str) -> None:
         handle.write(line + "\n")
 
 
-def read_json(
-    path: Path,
-    default: Any
-) -> Any:
+def read_json(path: Path, default: Any = None) -> Any:
+    if default is None:
+        default = {}
+
     if not path.exists():
         return default
 
@@ -85,6 +95,14 @@ def read_json(
 
     except Exception:
         return default
+
+
+def write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+        handle.write("\n")
 
 
 def load_config() -> dict[str, Any]:
@@ -97,11 +115,7 @@ def load_config() -> dict[str, Any]:
     return {}
 
 
-def cfg_get(
-    config: dict[str, Any],
-    path: list[str],
-    default: Any
-) -> Any:
+def cfg_get(config: dict[str, Any], path: list[str], default: Any) -> Any:
     current: Any = config
 
     for key in path:
@@ -116,22 +130,31 @@ def cfg_get(
     return current
 
 
+def bool_cfg(config: dict[str, Any], path: list[str], default: bool = False) -> bool:
+    value = cfg_get(config, path, default)
+
+    if isinstance(value, bool):
+        return value
+
+    return str(value).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "y",
+        "on",
+        "enabled",
+        "enable",
+    }
+
+
 def write_pid() -> None:
     ensure_dirs()
-
-    PID_PATH.write_text(
-        str(os.getpid()),
-        encoding="utf-8"
-    )
+    PID_PATH.write_text(str(os.getpid()), encoding="utf-8")
 
 
 def read_pid() -> int | None:
     try:
-        return int(
-            PID_PATH.read_text(
-                encoding="utf-8"
-            ).strip()
-        )
+        return int(PID_PATH.read_text(encoding="utf-8").strip())
 
     except Exception:
         return None
@@ -154,87 +177,80 @@ def process_running(pid: int) -> bool:
         return False
 
 
-def build_crawl_command(
-    config: dict[str, Any],
-    daemon_cycle: bool = False
-) -> list[str]:
+def run_command(
+    command: list[str],
+    cwd: Path = APP_ROOT,
+    check: bool = False,
+    timeout: int | None = None,
+) -> subprocess.CompletedProcess[str]:
+    log("RUN " + " ".join(str(item) for item in command))
+
+    result = subprocess.run(
+        command,
+        cwd=str(cwd),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=timeout,
+    )
+
+    if result.stdout.strip():
+        log(result.stdout.strip())
+
+    if result.stderr.strip():
+        log(result.stderr.strip())
+
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"command failed with exit code {result.returncode}: {' '.join(command)}"
+        )
+
+    return result
+
+
+def latest_input(config: dict[str, Any]) -> Path:
+    api_dir = Path(cfg_get(config, ["export", "base_dir"], str(DEFAULT_API_DIR)))
+    state_dir = Path(cfg_get(config, ["export", "state_dir"], str(DEFAULT_STATE_DIR)))
+
+    candidates = [
+        api_dir / "zzxbitnodes" / "latest.json",
+        api_dir / "zzxbitnodes" / "nodes.json",
+        api_dir / "originalbitnodes" / "latest.json",
+        api_dir / "originalbitnodes" / "nodes.json",
+        api_dir / "latest.json",
+        api_dir / "nodes.json",
+        state_dir / "latest.json",
+        state_dir / "nodes.json",
+        state_dir / "registry.json",
+    ]
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    return api_dir / "zzxbitnodes" / "latest.json"
+
+
+def build_crawl_command(config: dict[str, Any], daemon_cycle: bool = False) -> list[str]:
     crawler_cfg = config.get("crawler", {})
     export_cfg = config.get("export", {})
     github_cfg = config.get("github", {})
     geoip_cfg = config.get("geoip", {})
 
-    limit = int(
-        crawler_cfg.get(
-            "max_nodes_per_run",
-            100000
-        )
-    )
+    limit = int(crawler_cfg.get("max_nodes_per_run", 100000))
+    batch_size = int(crawler_cfg.get("batch_size", 5000))
+    timeout = float(crawler_cfg.get("handshake_timeout", crawler_cfg.get("connection_timeout", 5)))
+    workers = int(crawler_cfg.get("max_parallel_connections", 512))
+    getaddr_rounds = int(crawler_cfg.get("getaddr_rounds", 8))
+    interval = int(crawler_cfg.get("crawl_interval_seconds", 900))
 
-    batch_size = int(
-        crawler_cfg.get(
-            "batch_size",
-            5000
-        )
-    )
+    export_mode = str(export_cfg.get("mode", "reachable_24h"))
 
-    timeout = float(
-        crawler_cfg.get(
-            "handshake_timeout",
-            crawler_cfg.get(
-                "connection_timeout",
-                5
-            )
-        )
-    )
-
-    workers = int(
-        crawler_cfg.get(
-            "max_parallel_connections",
-            512
-        )
-    )
-
-    getaddr_rounds = int(
-        crawler_cfg.get(
-            "getaddr_rounds",
-            8
-        )
-    )
-
-    export_mode = str(
-        export_cfg.get(
-            "mode",
-            "reachable_24h"
-        )
-    )
-
-    api_dir = Path(
-        export_cfg.get(
-            "base_dir",
-            str(DEFAULT_API_DIR)
-        )
-    )
-
-    archive_dir = Path(
-        export_cfg.get(
-            "archive_dir",
-            str(DEFAULT_ARCHIVE_DIR)
-        )
-    )
-
-    state_dir = Path(
-        export_cfg.get(
-            "state_dir",
-            str(DEFAULT_STATE_DIR)
-        )
-    )
-
-    snapshot_24h_dir = Path(
-        export_cfg.get(
-            "snapshot_24h_dir",
-            str(DEFAULT_SNAPSHOT_24H_DIR)
-        )
-    )
+    api_dir = Path(export_cfg.get("base_dir", str(DEFAULT_API_DIR)))
+    archive_dir = Path(export_cfg.get("archive_dir", str(DEFAULT_ARCHIVE_DIR)))
+    state_dir = Path(export_cfg.get("state_dir", str(DEFAULT_STATE_DIR)))
+    snapshot_24h_dir = Path(export_cfg.get("snapshot_24h_dir", str(DEFAULT_SNAPSHOT_24H_DIR)))
 
     cmd = [
         sys.executable,
@@ -258,7 +274,7 @@ def build_crawl_command(
         "--getaddr-rounds",
         str(getaddr_rounds),
         "--export-mode",
-        export_mode
+        export_mode,
     ]
 
     if not bool(geoip_cfg.get("enabled", True)):
@@ -267,202 +283,315 @@ def build_crawl_command(
     if bool(export_cfg.get("compact", False)):
         cmd.append("--compact")
 
+    if daemon_cycle:
+        cmd.extend(["--interval", str(interval)])
+
     if daemon_cycle and bool(github_cfg.get("auto_push_from_crawler", False)):
         cmd.append("--git-push")
 
     return cmd
 
 
-def run_command(
-    command: list[str],
-    cwd: Path = APP_ROOT,
-    check: bool = False
-) -> subprocess.CompletedProcess:
-    log("RUN " + " ".join(command))
+def build_enrich_command(config: dict[str, Any]) -> list[str]:
+    enrich_cfg = config.get("enrichment", {})
+    export_cfg = config.get("export", {})
 
-    result = subprocess.run(
-        command,
-        cwd=str(cwd),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False
+    api_dir = Path(export_cfg.get("base_dir", str(DEFAULT_API_DIR)))
+    state_dir = Path(export_cfg.get("state_dir", str(DEFAULT_STATE_DIR)))
+    input_path = Path(enrich_cfg.get("input", "")) if enrich_cfg.get("input") else latest_input(config)
+
+    output_path = Path(enrich_cfg.get("output", str(DEFAULT_ENRICHED_LATEST)))
+    report_path = Path(enrich_cfg.get("report", str(DEFAULT_ENRICHMENT_REPORT)))
+
+    modules = enrich_cfg.get("modules", "")
+
+    if isinstance(modules, list):
+        modules = ",".join(str(item) for item in modules)
+
+    cmd = [
+        sys.executable,
+        str(ENRICH),
+        "--input",
+        str(input_path),
+        "--output",
+        str(output_path),
+        "--report",
+        str(report_path),
+        "--source",
+        str(enrich_cfg.get("source", "zzxbitnodes")),
+        "--api-dir",
+        str(api_dir),
+        "--state-dir",
+        str(state_dir),
+    ]
+
+    option_map = {
+        "geo_root": "--geo-root",
+        "geoip_dir": "--geoip-dir",
+        "territory_dir": "--territory-dir",
+        "county_dir": "--county-dir",
+        "city_dir": "--city-dir",
+        "zip_dir": "--zip-dir",
+        "timezone_dir": "--timezone-dir",
+        "w3w_cache": "--w3w-cache",
+        "w3w_api_key": "--w3w-api-key",
+        "w3w_language": "--w3w-language",
+        "w3w_sleep": "--w3w-sleep",
+        "geohash_cache": "--geohash-cache",
+        "geohash_precision": "--geohash-precision",
+        "geohash_prefix": "--geohash-prefix",
+        "sanctions_policy": "--sanctions-policy",
+    }
+
+    for key, flag in option_map.items():
+        value = enrich_cfg.get(key)
+
+        if value not in (None, ""):
+            cmd.extend([flag, str(value)])
+
+    if modules:
+        cmd.extend(["--modules", str(modules)])
+
+    if bool(enrich_cfg.get("w3w_no_api", False)):
+        cmd.append("--w3w-no-api")
+
+    if bool(enrich_cfg.get("w3w_no_fallback", False)):
+        cmd.append("--w3w-no-fallback")
+
+    if bool(enrich_cfg.get("strict", False)):
+        cmd.append("--strict")
+
+    return cmd
+
+
+def build_maps_command(config: dict[str, Any]) -> list[str]:
+    maps_cfg = config.get("maps", {})
+    export_cfg = config.get("export", {})
+
+    api_dir = Path(export_cfg.get("base_dir", str(DEFAULT_API_DIR)))
+    state_dir = Path(export_cfg.get("state_dir", str(DEFAULT_STATE_DIR)))
+
+    input_path = Path(maps_cfg.get("input", "")) if maps_cfg.get("input") else (
+        DEFAULT_ENRICHED_LATEST if DEFAULT_ENRICHED_LATEST.exists() else latest_input(config)
     )
 
-    if result.stdout.strip():
-        log(result.stdout.strip())
+    cmd = [
+        sys.executable,
+        str(MAPS),
+        "--input",
+        str(input_path),
+        "--api-dir",
+        str(api_dir),
+        "--state-dir",
+        str(state_dir),
+        "--map-dir",
+        str(maps_cfg.get("map_dir", DEFAULT_MAP_DIR)),
+        "--live-map-dir",
+        str(maps_cfg.get("live_map_dir", DEFAULT_LIVE_MAP_DIR)),
+        "--source",
+        str(maps_cfg.get("source", "zzxbitnodes")),
+        "--theme",
+        str(maps_cfg.get("theme", "zzx_dark_olive")),
+        "--settings",
+        str(maps_cfg.get("settings", "default")),
+        "--tile-provider",
+        str(maps_cfg.get("tile_provider", "cartodb_dark")),
+    ]
 
-    if result.stderr.strip():
-        log(result.stderr.strip())
+    if maps_cfg.get("theme_dir"):
+        cmd.extend(["--theme-dir", str(maps_cfg["theme_dir"])])
 
-    if check and result.returncode != 0:
-        raise RuntimeError(
-            f"command failed with exit code {result.returncode}: {' '.join(command)}"
-        )
+    if maps_cfg.get("settings_dir"):
+        cmd.extend(["--settings-dir", str(maps_cfg["settings_dir"])])
 
-    return result
+    if bool(maps_cfg.get("strict", False)):
+        cmd.append("--strict")
+
+    if bool(maps_cfg.get("no_modules", False)):
+        cmd.append("--no-modules")
+
+    return cmd
 
 
-def git_commit_and_push(
-    config: dict[str, Any]
-) -> None:
+def git_commit_and_push(config: dict[str, Any]) -> None:
     github_cfg = config.get("github", {})
 
-    if not bool(
-        github_cfg.get(
-            "auto_push",
-            False
-        )
-    ):
+    if not bool(github_cfg.get("auto_push", False)):
         log("Git auto-push disabled.")
         return
 
-    branch = str(
-        github_cfg.get(
-            "branch",
-            "main"
-        )
-    )
-
-    message = str(
-        github_cfg.get(
-            "commit_message",
-            "Update Bitnodes global node snapshots"
-        )
-    )
+    branch = str(github_cfg.get("branch", "main"))
+    message = str(github_cfg.get("commit_message", "Update Bitnodes global node snapshots"))
 
     paths = github_cfg.get(
         "paths",
         [
             "bitcoin/bitnodes/api",
             "bitcoin/bitnodes/archive",
-            "bitcoin/bitnodes/data"
-        ]
+            "bitcoin/bitnodes/data",
+            "bitcoin/bitnodes/maps",
+            "bitcoin/bitnodes/live-map",
+        ],
     )
 
     if not isinstance(paths, list):
         paths = [
             "bitcoin/bitnodes/api",
             "bitcoin/bitnodes/archive",
-            "bitcoin/bitnodes/data"
+            "bitcoin/bitnodes/data",
+            "bitcoin/bitnodes/maps",
+            "bitcoin/bitnodes/live-map",
         ]
 
-    run_command(
-        [
-            "git",
-            "fetch",
-            "origin",
-            branch
-        ],
-        cwd=APP_ROOT,
-        check=False
-    )
+    run_command(["git", "fetch", "origin", branch], cwd=APP_ROOT, check=False)
+    run_command(["git", "pull", "--rebase", "origin", branch], cwd=APP_ROOT, check=False)
 
-    run_command(
-        [
-            "git",
-            "pull",
-            "--rebase",
-            "origin",
-            branch
-        ],
-        cwd=APP_ROOT,
-        check=False
-    )
-
-    run_command(
-        [
-            "git",
-            "add",
-            *[str(path) for path in paths]
-        ],
-        cwd=APP_ROOT,
-        check=False
-    )
+    run_command(["git", "add", *[str(path) for path in paths]], cwd=APP_ROOT, check=False)
 
     diff = subprocess.run(
-        [
-            "git",
-            "diff",
-            "--cached",
-            "--quiet"
-        ],
+        ["git", "diff", "--cached", "--quiet"],
         cwd=str(APP_ROOT),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        check=False
+        check=False,
     )
 
     if diff.returncode == 0:
-        log("No Bitnodes JSON changes to commit.")
+        log("No Bitnodes changes to commit.")
         return
 
-    run_command(
-        [
-            "git",
-            "commit",
-            "-m",
-            message
-        ],
-        cwd=APP_ROOT,
-        check=False
-    )
+    run_command(["git", "commit", "-m", message], cwd=APP_ROOT, check=False)
 
     for attempt in range(1, 6):
-        pull = run_command(
-            [
-                "git",
-                "pull",
-                "--rebase",
-                "origin",
-                branch
-            ],
-            cwd=APP_ROOT,
-            check=False
-        )
-
-        push = run_command(
-            [
-                "git",
-                "push",
-                "origin",
-                branch
-            ],
-            cwd=APP_ROOT,
-            check=False
-        )
+        pull = run_command(["git", "pull", "--rebase", "origin", branch], cwd=APP_ROOT, check=False)
+        push = run_command(["git", "push", "origin", branch], cwd=APP_ROOT, check=False)
 
         if pull.returncode == 0 and push.returncode == 0:
-            log("Bitnodes JSON snapshots pushed.")
+            log("Bitnodes outputs pushed.")
             return
 
         log(f"Git push attempt {attempt} failed; retrying.")
         time.sleep(10)
 
-    log("Failed to push Bitnodes JSON snapshots after retries.")
+    log("Failed to push Bitnodes outputs after retries.")
+
+
+def write_status(config: dict[str, Any], state: str, extra: dict[str, Any] | None = None) -> None:
+    pid = read_pid()
+    payload = {
+        "schema": "zzx-bitnodes-daemon-status-v1",
+        "updated_at": utc_iso(),
+        "state": state,
+        "daemon_running": bool(pid and process_running(pid)),
+        "pid": pid,
+        "app_root": str(APP_ROOT),
+        "tools_dir": str(TOOLS_DIR),
+        "crawler": str(CRAWLER),
+        "enrich": str(ENRICH),
+        "maps": str(MAPS),
+        "api_dir": str(cfg_get(config, ["export", "base_dir"], str(DEFAULT_API_DIR))),
+        "archive_dir": str(cfg_get(config, ["export", "archive_dir"], str(DEFAULT_ARCHIVE_DIR))),
+        "state_dir": str(cfg_get(config, ["export", "state_dir"], str(DEFAULT_STATE_DIR))),
+        "snapshot_24h_dir": str(cfg_get(config, ["export", "snapshot_24h_dir"], str(DEFAULT_SNAPSHOT_24H_DIR))),
+        "enriched_latest": str(DEFAULT_ENRICHED_LATEST),
+        "map_dir": str(DEFAULT_MAP_DIR),
+        "live_map_dir": str(DEFAULT_LIVE_MAP_DIR),
+        "log_path": str(LOG_PATH),
+        "config_path": str(CONFIG_PATH if CONFIG_PATH.exists() else CONFIG_EXAMPLE_PATH),
+        **(extra or {}),
+    }
+
+    write_json(STATUS_PATH, payload)
+
+
+def run_cycle(config: dict[str, Any], daemon_cycle: bool = False) -> int:
+    write_status(config, "crawl-started")
+
+    crawl = run_command(
+        build_crawl_command(config, daemon_cycle=daemon_cycle),
+        cwd=APP_ROOT,
+        check=False,
+    )
+
+    if crawl.returncode != 0:
+        write_status(config, "crawl-failed", {"last_exit_code": crawl.returncode})
+        return crawl.returncode
+
+    if bool_cfg(config, ["enrichment", "enabled"], True):
+        write_status(config, "enrichment-started")
+
+        enrich = run_command(
+            build_enrich_command(config),
+            cwd=APP_ROOT,
+            check=False,
+        )
+
+        if enrich.returncode != 0:
+            write_status(config, "enrichment-failed", {"last_exit_code": enrich.returncode})
+            return enrich.returncode
+    else:
+        log("Enrichment disabled.")
+
+    if bool_cfg(config, ["maps", "enabled"], True):
+        write_status(config, "maps-started")
+
+        maps = run_command(
+            build_maps_command(config),
+            cwd=APP_ROOT,
+            check=False,
+        )
+
+        if maps.returncode != 0:
+            write_status(config, "maps-failed", {"last_exit_code": maps.returncode})
+            return maps.returncode
+    else:
+        log("Map build disabled.")
+
+    git_commit_and_push(config)
+
+    write_status(config, "cycle-complete", {"last_exit_code": 0})
+
+    return 0
 
 
 def export_once() -> int:
     ensure_dirs()
+    config = load_config()
+    return run_cycle(config, daemon_cycle=False)
 
+
+def enrich_once() -> int:
+    ensure_dirs()
     config = load_config()
 
+    result = run_command(build_enrich_command(config), cwd=APP_ROOT, check=False)
+    write_status(config, "enrichment-once-complete", {"last_exit_code": result.returncode})
+
+    return result.returncode
+
+
+def maps_once() -> int:
+    ensure_dirs()
+    config = load_config()
+
+    result = run_command(build_maps_command(config), cwd=APP_ROOT, check=False)
+    write_status(config, "maps-once-complete", {"last_exit_code": result.returncode})
+
+    return result.returncode
+
+
+def geo_index_once() -> int:
+    ensure_dirs()
+
     result = run_command(
-        build_crawl_command(
-            config,
-            daemon_cycle=False
-        ),
+        [sys.executable, str(BUILD_GEO_INDEXES), "--download"],
         cwd=APP_ROOT,
-        check=False
+        check=False,
+        timeout=None,
     )
 
-    if result.returncode != 0:
-        return result.returncode
-
-    git_commit_and_push(config)
-
-    return 0
+    return result.returncode
 
 
 def daemon_loop() -> int:
@@ -470,15 +599,7 @@ def daemon_loop() -> int:
     write_pid()
 
     config = load_config()
-
-    crawler_cfg = config.get("crawler", {})
-
-    interval = int(
-        crawler_cfg.get(
-            "crawl_interval_seconds",
-            900
-        )
-    )
+    interval = int(cfg_get(config, ["crawler", "crawl_interval_seconds"], 900))
 
     stop_requested = False
 
@@ -491,24 +612,17 @@ def daemon_loop() -> int:
     signal.signal(signal.SIGINT, stop_handler)
 
     log("bitnodesd started.")
+    write_status(config, "started")
 
     try:
         while not stop_requested:
             config = load_config()
+            interval = int(cfg_get(config, ["crawler", "crawl_interval_seconds"], interval))
 
-            result = run_command(
-                build_crawl_command(
-                    config,
-                    daemon_cycle=True
-                ),
-                cwd=APP_ROOT,
-                check=False
-            )
+            result = run_cycle(config, daemon_cycle=True)
 
-            if result.returncode == 0:
-                git_commit_and_push(config)
-            else:
-                log(f"Crawl cycle failed with exit code {result.returncode}.")
+            if result != 0:
+                log(f"Daemon cycle failed with exit code {result}.")
 
             slept = 0
 
@@ -518,6 +632,7 @@ def daemon_loop() -> int:
 
     finally:
         remove_pid()
+        write_status(load_config(), "stopped")
         log("bitnodesd stopped.")
 
     return 0
@@ -527,62 +642,31 @@ def status() -> int:
     ensure_dirs()
 
     pid = read_pid()
-
-    running = bool(
-        pid
-        and process_running(pid)
-    )
-
+    running = bool(pid and process_running(pid))
     config = load_config()
 
-    payload = {
+    payload = read_json(STATUS_PATH, {})
+    payload.update({
         "daemon_running": running,
         "pid": pid,
         "app_root": str(APP_ROOT),
         "tools_dir": str(TOOLS_DIR),
         "crawler": str(CRAWLER),
-        "api_dir": str(
-            cfg_get(
-                config,
-                ["export", "base_dir"],
-                str(DEFAULT_API_DIR)
-            )
-        ),
-        "archive_dir": str(
-            cfg_get(
-                config,
-                ["export", "archive_dir"],
-                str(DEFAULT_ARCHIVE_DIR)
-            )
-        ),
-        "state_dir": str(
-            cfg_get(
-                config,
-                ["export", "state_dir"],
-                str(DEFAULT_STATE_DIR)
-            )
-        ),
-        "snapshot_24h_dir": str(
-            cfg_get(
-                config,
-                ["export", "snapshot_24h_dir"],
-                str(DEFAULT_SNAPSHOT_24H_DIR)
-            )
-        ),
+        "enrich": str(ENRICH),
+        "maps": str(MAPS),
+        "api_dir": str(cfg_get(config, ["export", "base_dir"], str(DEFAULT_API_DIR))),
+        "archive_dir": str(cfg_get(config, ["export", "archive_dir"], str(DEFAULT_ARCHIVE_DIR))),
+        "state_dir": str(cfg_get(config, ["export", "state_dir"], str(DEFAULT_STATE_DIR))),
+        "snapshot_24h_dir": str(cfg_get(config, ["export", "snapshot_24h_dir"], str(DEFAULT_SNAPSHOT_24H_DIR))),
+        "enriched_latest": str(DEFAULT_ENRICHED_LATEST),
+        "map_dir": str(DEFAULT_MAP_DIR),
+        "live_map_dir": str(DEFAULT_LIVE_MAP_DIR),
         "log_path": str(LOG_PATH),
-        "config_path": str(
-            CONFIG_PATH
-            if CONFIG_PATH.exists()
-            else CONFIG_EXAMPLE_PATH
-        )
-    }
+        "config_path": str(CONFIG_PATH if CONFIG_PATH.exists() else CONFIG_EXAMPLE_PATH),
+        "updated_at": utc_iso(),
+    })
 
-    print(
-        json.dumps(
-            payload,
-            indent=2
-        )
-    )
+    print(json.dumps(payload, indent=2, sort_keys=True))
 
     return 0 if running else 1
 
@@ -599,10 +683,7 @@ def stop_daemon() -> int:
         print("removed stale bitnodesd pid.")
         return 1
 
-    os.kill(
-        pid,
-        signal.SIGTERM
-    )
+    os.kill(pid, signal.SIGTERM)
 
     print(f"stop signal sent to {pid}")
 
@@ -616,10 +697,7 @@ def tail_log(lines: int = 80) -> int:
         print("No bitnodesd log yet.")
         return 1
 
-    content = LOG_PATH.read_text(
-        encoding="utf-8",
-        errors="replace"
-    ).splitlines()
+    content = LOG_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
 
     for line in content[-lines:]:
         print(line)
@@ -629,29 +707,25 @@ def tail_log(lines: int = 80) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="ZZX-Labs Bitnodes persistent crawler daemon."
+        description="ZZX-Labs Bitnodes persistent crawler/enrichment/map daemon."
     )
 
-    sub = parser.add_subparsers(
-        dest="command",
-        required=True
-    )
+    sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("run")
     sub.add_parser("status")
     sub.add_parser("stop")
     sub.add_parser("export-once")
     sub.add_parser("native-crawl")
+    sub.add_parser("enrich-once")
+    sub.add_parser("maps-once")
+    sub.add_parser("geo-index")
     sub.add_parser("redis-start")
     sub.add_parser("redis-status")
     sub.add_parser("clone")
 
     tail = sub.add_parser("tail")
-    tail.add_argument(
-        "--lines",
-        type=int,
-        default=80
-    )
+    tail.add_argument("--lines", type=int, default=80)
 
     args = parser.parse_args()
 
@@ -664,32 +738,32 @@ def main() -> int:
     if args.command == "stop":
         return stop_daemon()
 
-    if args.command == "export-once":
+    if args.command in {"export-once", "native-crawl"}:
         return export_once()
 
-    if args.command == "native-crawl":
-        return export_once()
+    if args.command == "enrich-once":
+        return enrich_once()
+
+    if args.command == "maps-once":
+        return maps_once()
+
+    if args.command == "geo-index":
+        return geo_index_once()
 
     if args.command == "redis-start":
         print("Redis is not used by the native persistent crawler.")
         return 0
 
     if args.command == "redis-status":
-        print(
-            json.dumps(
-                {
-                    "redis_required": False,
-                    "redis_running": False,
-                    "message": "Native persistent crawler does not use Redis."
-                },
-                indent=2
-            )
-        )
-
+        print(json.dumps({
+            "redis_required": False,
+            "redis_running": False,
+            "message": "Native persistent crawler does not use Redis.",
+        }, indent=2))
         return 0
 
     if args.command == "clone":
-        print("Original Bitnodes clone is not required by the native persistent crawler.")
+        print("Original Bitnodes clone is handled by the crawler/native source modules when configured.")
         return 0
 
     if args.command == "tail":
