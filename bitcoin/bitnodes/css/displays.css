@@ -1,1 +1,244 @@
+.bn-display-card {
+    width: 100%;
+    max-width: 100%;
 
+    display: flex;
+    flex-direction: column;
+
+    gap: 1.15rem;
+
+    padding:
+        1.15rem
+        1.2rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.13);
+
+    border-radius: 16px;
+
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(192, 214, 116, 0.055),
+            transparent 42%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(9, 12, 9, 0.98),
+            rgba(5, 7, 5, 0.99)
+        );
+
+    overflow: hidden;
+}
+
+.bn-display-head h2 {
+    margin:
+        0.25rem
+        0
+        0.45rem;
+
+    color: #edf7b9;
+
+    font-family: var(--bn-heading);
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+
+    line-height: 1.15;
+}
+
+.bn-display-head p {
+    margin: 0;
+
+    color:
+        rgba(204, 216, 182, 0.72);
+
+    font-family: var(--bn-font);
+    font-size: 0.82rem;
+
+    line-height: 1.6;
+}
+
+.bn-display-marquee {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 0.65rem;
+
+    padding:
+        0.78rem
+        0.85rem;
+
+    border:
+        1px solid rgba(230, 164, 43, 0.15);
+
+    border-radius: 13px;
+
+    background:
+        rgba(0, 0, 0, 0.24);
+}
+
+.bn-display-marquee span {
+    display: inline-flex;
+    align-items: center;
+
+    padding:
+        0.38rem
+        0.58rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.1);
+
+    border-radius: 999px;
+
+    color:
+        rgba(237, 247, 185, 0.82);
+
+    font-family: var(--bn-font);
+    font-size: 0.68rem;
+    font-weight: 800;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bn-display-grid {
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr);
+
+    gap: 1rem;
+}
+
+.bn-display-cell {
+    position: relative;
+
+    min-width: 0;
+    min-height: 118px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 0.65rem;
+
+    padding:
+        1rem
+        1.05rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.12);
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(16, 20, 14, 0.96),
+            rgba(8, 10, 8, 0.99)
+        );
+
+    overflow: hidden;
+}
+
+.bn-display-cell::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0 0 auto 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(192, 214, 116, 0.4),
+            transparent
+        );
+}
+
+.bn-display-cell span {
+    color:
+        rgba(192, 214, 116, 0.72);
+
+    font-family: var(--bn-font);
+    font-size: 0.68rem;
+    font-weight: 900;
+
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+
+    overflow-wrap: anywhere;
+}
+
+.bn-display-cell strong {
+    color: #edf7b9;
+
+    font-family: var(--bn-font);
+    font-size: clamp(1.25rem, 2.2vw, 1.8rem);
+    font-weight: 900;
+
+    line-height: 1;
+
+    letter-spacing: -0.035em;
+
+    font-variant-numeric: tabular-nums;
+
+    overflow-wrap: anywhere;
+}
+
+.bn-display-cell small {
+    margin-top: auto;
+
+    color:
+        rgba(204, 216, 182, 0.68);
+
+    font-family: var(--bn-font);
+    font-size: 0.75rem;
+
+    line-height: 1.55;
+
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+    .bn-display-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 960px) {
+    .bn-display-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .bn-display-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .bn-display-card {
+        padding:
+            1rem
+            0.95rem;
+    }
+
+    .bn-display-cell {
+        min-height: unset;
+    }
+
+    .bn-display-marquee {
+        flex-direction: column;
+    }
+
+    .bn-display-marquee span {
+        width: 100%;
+        justify-content: center;
+    }
+}
