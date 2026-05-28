@@ -6,6 +6,7 @@
     background: transparent;
     border: none;
     overflow: visible;
+    text-align: center;
 }
 
 .bn-header::before,
@@ -18,19 +19,30 @@
     width: min(var(--bn-max), calc(100% - 32px));
     margin: 0 auto;
     padding: 1.4rem 0 1rem;
+
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr;
+    justify-items: center;
     align-items: center;
+
     gap: 1.25rem;
+
+    text-align: center;
 }
 
 .bn-header-brand,
 .bn-brand {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+
     gap: 1rem;
+
     min-width: 0;
+
     text-decoration: none;
+    text-align: center;
 }
 
 .bn-header-brand:hover,
@@ -43,12 +55,16 @@
 .bn-logo {
     width: 68px;
     height: 68px;
+
     object-fit: contain;
     object-position: center;
+
     flex-shrink: 0;
 
     filter:
-        drop-shadow(0 0 10px rgba(230,164,43,0.18));
+        drop-shadow(
+            0 0 10px rgba(230,164,43,0.18)
+        );
 }
 
 .bn-header-hex,
@@ -66,8 +82,13 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
+
     gap: 0.2rem;
+
     min-width: 0;
+
+    text-align: center;
 }
 
 .bn-header-title,
@@ -86,6 +107,8 @@
 
     letter-spacing: 0.04em;
     text-transform: none;
+
+    text-align: center;
 
     text-shadow:
         0 0 12px rgba(192,214,116,0.12);
@@ -107,6 +130,8 @@
     line-height: 1.5;
 
     letter-spacing: 0.08em;
+
+    text-align: center;
 }
 
 .bn-header-right,
@@ -120,8 +145,12 @@
 .bn-header-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+    flex-wrap: wrap;
+
     gap: 0.7rem;
+
+    width: 100%;
 }
 
 .bn-header-button {
@@ -209,13 +238,16 @@
 @media (max-width: 900px) {
     .bn-header-inner {
         grid-template-columns: 1fr;
-        align-items: flex-start;
+
+        align-items: center;
+        justify-items: center;
+
         gap: 1rem;
     }
 
     .bn-header-actions {
         width: 100%;
-        justify-content: flex-start;
+        justify-content: center;
         flex-wrap: wrap;
     }
 }
@@ -235,7 +267,8 @@
     .bn-header-brand,
     .bn-brand {
         width: 100%;
-        align-items: flex-start;
+        align-items: center;
+        justify-content: center;
     }
 
     .bn-header-logo,
@@ -250,6 +283,8 @@
     .bn-page-title {
         font-size: 1.75rem;
         line-height: 1;
+
+        text-align: center;
     }
 
     .bn-header-subtitle,
@@ -257,10 +292,14 @@
     .bn-page-subtitle {
         font-size: 0.72rem;
         line-height: 1.45;
+
+        text-align: center;
     }
 
     .bn-header-button {
-        width: 100%;
+        width: auto;
+        min-width: 160px;
+
         justify-content: center;
     }
 }
