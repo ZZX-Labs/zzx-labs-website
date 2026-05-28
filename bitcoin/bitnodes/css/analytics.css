@@ -1,1 +1,199 @@
+.bn-analytics-suite {
+    width: 100%;
+    max-width: 100%;
 
+    display: flex;
+    flex-direction: column;
+
+    gap: 1.2rem;
+}
+
+.bn-analytics-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    gap: 1rem;
+
+    padding:
+        1.1rem
+        1.2rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.12);
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(10, 14, 10, 0.98),
+            rgba(5, 7, 5, 0.98)
+        );
+}
+
+.bn-analytics-head h2 {
+    margin: 0.25rem 0 0.45rem;
+
+    color: #edf7b9;
+
+    font-family: var(--bn-heading);
+    font-size: clamp(1.15rem, 2vw, 1.55rem);
+
+    line-height: 1.15;
+}
+
+.bn-analytics-head p {
+    margin: 0;
+
+    color: rgba(204, 216, 182, 0.72);
+
+    font-family: var(--bn-font);
+    font-size: 0.82rem;
+
+    line-height: 1.65;
+}
+
+.bn-analytics-grid {
+    width: 100%;
+    max-width: 100%;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+
+    gap: 1rem;
+}
+
+.bn-analytics-metric {
+    position: relative;
+
+    min-width: 0;
+    min-height: 118px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 0.65rem;
+
+    padding:
+        1rem
+        1.05rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.13);
+
+    border-radius: 15px;
+
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(192, 214, 116, 0.06),
+            transparent 46%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(16, 20, 14, 0.96),
+            rgba(8, 10, 8, 0.99)
+        );
+
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.24);
+
+    overflow: hidden;
+}
+
+.bn-analytics-metric::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0 0 auto 0;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(230, 164, 43, 0.45),
+            rgba(192, 214, 116, 0.45),
+            transparent
+        );
+}
+
+.bn-analytics-label {
+    color:
+        rgba(192, 214, 116, 0.74);
+
+    font-family: var(--bn-font);
+    font-size: 0.68rem;
+    font-weight: 800;
+
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+
+    overflow-wrap: anywhere;
+}
+
+.bn-analytics-value {
+    color: #edf7b9;
+
+    font-family: var(--bn-font);
+    font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+    font-weight: 900;
+
+    line-height: 1;
+
+    letter-spacing: -0.035em;
+
+    font-variant-numeric: tabular-nums;
+
+    overflow-wrap: anywhere;
+}
+
+.bn-analytics-metric small {
+    margin-top: auto;
+
+    color:
+        rgba(204, 216, 182, 0.68);
+
+    font-family: var(--bn-font);
+    font-size: 0.75rem;
+
+    line-height: 1.55;
+
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+    .bn-analytics-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 960px) {
+    .bn-analytics-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .bn-analytics-grid {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .bn-analytics-head {
+        padding:
+            1rem
+            0.95rem;
+    }
+
+    .bn-analytics-metric {
+        min-height: unset;
+    }
+}
