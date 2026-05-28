@@ -2,6 +2,7 @@
     "use strict";
 
     const STORAGE_KEY = "zzx.bitnodes.datasource";
+    const DEFAULT_SOURCE = "zzxbitnodes";
 
     const COMMON_ENDPOINTS = {
         latest: "latest.json",
@@ -138,14 +139,14 @@
         const raw = String(source || "").trim();
 
         if (!raw || !SOURCE_DEFINITIONS[raw]) {
-            return "zzxbitnodes";
+            return DEFAULT_SOURCE;
         }
 
         return SOURCE_DEFINITIONS[raw].aliasFor || raw;
     }
 
     function getSource(source) {
-        return SOURCE_DEFINITIONS[canonicalSourceId(source)] || SOURCE_DEFINITIONS.zzxbitnodes;
+        return SOURCE_DEFINITIONS[canonicalSourceId(source)] || SOURCE_DEFINITIONS[DEFAULT_SOURCE];
     }
 
     function resolveBasePath(basePath) {
@@ -234,7 +235,7 @@
             return canonicalSourceId(saved);
         }
 
-        return "zzxbitnodes";
+        return DEFAULT_SOURCE;
     }
 
     function setStatus(sourceId) {
@@ -274,11 +275,11 @@
             `;
         }).join("");
 
-        select.value = SOURCE_DEFINITIONS[current] ? current : "zzxbitnodes";
+        select.value = SOURCE_DEFINITIONS[current] ? current : DEFAULT_SOURCE;
     }
 
     function applySource(sourceId, options = {}) {
-        const definition = getSource(sourceId);
+        const definition = getSource(sourceId || DEFAULT_SOURCE);
         const endpoints = buildEndpointMap(definition.id);
         const select = document.querySelector("#bn-source");
 
@@ -363,6 +364,10 @@
     }
 
     function init() {
+        if (!document.body?.dataset?.bnSource) {
+            document.body.dataset.bnSource = DEFAULT_SOURCE;
+        }
+
         populateSelect();
         applySource(getCurrentSourceId(), { silent: true });
         wireControls();
@@ -371,9 +376,10 @@
     window.BNDataSource = {
         sources: SOURCE_DEFINITIONS,
         selectableSources: SELECTABLE_SOURCES,
-        current: "zzxbitnodes",
-        definition: SOURCE_DEFINITIONS.zzxbitnodes,
-        endpoints: buildEndpointMap("zzxbitnodes"),
+        defaultSource: DEFAULT_SOURCE,
+        current: DEFAULT_SOURCE,
+        definition: SOURCE_DEFINITIONS[DEFAULT_SOURCE],
+        endpoints: buildEndpointMap(DEFAULT_SOURCE),
         init,
         applySource,
         refreshCurrentSource,
