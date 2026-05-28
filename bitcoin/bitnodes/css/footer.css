@@ -4,6 +4,7 @@
     padding: 0;
     border-top: 1px solid rgba(192, 214, 116, 0.12);
     background: #060706;
+    text-align: center;
 }
 
 .bn-footer-grid {
@@ -13,18 +14,29 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 1.35rem;
+    justify-items: center;
+    text-align: center;
 }
 
 .bn-footer-section {
     min-width: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.bn-footer-brand {
+    align-items: center;
 }
 
 .bn-footer-brand-link {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.85rem;
     width: fit-content;
-    margin-bottom: 0.8rem;
+    margin: 0 auto 0.8rem;
     color: #c0d674;
     text-decoration: none;
 }
@@ -38,7 +50,9 @@
 .bn-footer-brand-text {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0.16rem;
+    text-align: center;
 }
 
 .bn-footer-brand-title,
@@ -51,6 +65,7 @@
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: 0.05em;
+    text-align: center;
 }
 
 .bn-footer-brand-subtitle {
@@ -59,21 +74,24 @@
     font-size: 0.68rem;
     line-height: 1.4;
     letter-spacing: 0.08em;
+    text-align: center;
 }
 
 .bn-footer-copy,
 .bn-footer-section p {
     max-width: 58ch;
-    margin: 0;
+    margin: 0 auto;
     color: rgba(204, 216, 182, 0.68);
     font-family: var(--bn-font);
     font-size: 0.76rem;
     line-height: 1.7;
+    text-align: center;
 }
 
 .bn-footer-links {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0.42rem;
     margin: 0;
     padding: 0;
@@ -92,11 +110,14 @@
     font-weight: 500;
     line-height: 1.45;
     text-decoration: none;
-    transition: color 120ms ease;
+    transition:
+        color 120ms ease,
+        opacity 120ms ease;
 }
 
 .bn-footer-links a:hover {
     color: #c0d674;
+    opacity: 1;
 }
 
 .bn-footer-bottom {
@@ -106,8 +127,10 @@
     border-top: 1px solid rgba(192, 214, 116, 0.08);
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
     gap: 0.45rem;
+    text-align: center;
 }
 
 .bn-footer-bottom span {
@@ -115,6 +138,7 @@
     font-family: var(--bn-font);
     font-size: 0.7rem;
     line-height: 1.45;
+    text-align: center;
 }
 
 @media (min-width: 768px) {
@@ -130,15 +154,20 @@
     .bn-footer-bottom {
         flex-direction: row;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         flex-wrap: wrap;
+        gap: 1.25rem;
     }
 }
 
 @media (min-width: 1200px) {
     .bn-footer-grid {
-        grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(150px, 1fr));
+        grid-template-columns:
+            minmax(0, 1.5fr)
+            repeat(4, minmax(150px, 1fr));
+
         gap: 2rem;
+        align-items: start;
     }
 
     .bn-footer-brand {
@@ -148,7 +177,9 @@
 
 @media (min-width: 1900px) {
     .bn-footer-grid {
-        grid-template-columns: minmax(0, 1.4fr) repeat(5, minmax(150px, 1fr));
+        grid-template-columns:
+            minmax(0, 1.4fr)
+            repeat(5, minmax(150px, 1fr));
     }
 }
 
