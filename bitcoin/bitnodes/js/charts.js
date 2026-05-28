@@ -9,7 +9,8 @@
         "js/labels.js",
         "js/3d.js",
         "js/displays.js",
-        "js/canvascharts.js"
+        "js/canvascharts.js",
+        "js/chart_type.js"
     ];
 
     const BN = window.BN || {};
@@ -40,9 +41,7 @@
     }
 
     function moduleLoaded(path) {
-        return document.querySelector(
-            `script[data-bn-chart-module="${path}"]`
-        );
+        return document.querySelector(`script[data-bn-chart-module="${path}"]`);
     }
 
     function loadScript(path) {
@@ -58,9 +57,7 @@
             script.defer = true;
             script.dataset.bnChartModule = path;
 
-            script.onload = () => {
-                resolve();
-            };
+            script.onload = resolve;
 
             script.onerror = () => {
                 reject(new Error(`Failed to load chart module ${path}`));
@@ -81,6 +78,7 @@
                 values: dataset.map(row => {
                     const value = row.value ?? row.count ?? row.nodes ?? row.reachable_nodes ?? 0;
                     const n = Number(value);
+
                     return Number.isFinite(n) ? n : 0;
                 })
             };
@@ -119,11 +117,16 @@
         window.BN3D?.renderAll?.(scope);
         window.BNDisplays?.renderAll?.(scope);
         window.BNCanvasCharts?.renderAll?.(scope);
+        window.BNChartType?.renderAll?.(scope);
     }
 
     function renderCanvas(canvas) {
         if (!canvas) {
             return null;
+        }
+
+        if (window.BNChartType?.renderChartElement) {
+            return window.BNChartType.renderChartElement(canvas);
         }
 
         if (window.BNCanvasCharts?.renderCanvas) {
@@ -152,6 +155,7 @@
         window.BN3D?.init?.();
         window.BNDisplays?.init?.();
         window.BNCanvasCharts?.init?.();
+        window.BNChartType?.init?.();
 
         renderAll();
     }
