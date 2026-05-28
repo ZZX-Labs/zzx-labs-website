@@ -5,9 +5,6 @@ import argparse
 import importlib.util
 import json
 import math
-import os
-import shutil
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -20,6 +17,12 @@ DEFAULT_STATE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state"
 DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
 DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
 DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
+
+DEFAULT_THEME_DIR = APP_ROOT / "tools" / "bitnodes" / "data" / "mapthemes"
+DEFAULT_SETTINGS_DIR = APP_ROOT / "tools" / "bitnodes" / "data" / "mapsettings"
+
+DEFAULT_THEME = "zzx_dark_olive"
+DEFAULT_SETTINGS = "default"
 
 MAP_MODULE_ORDER = [
     "openstreetmaps",
@@ -65,7 +68,17 @@ def write_text(path: Path, payload: str) -> None:
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
-    if text.lower() in {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}:
+    if text.lower() in {
+        "",
+        "unknown",
+        "none",
+        "null",
+        "undefined",
+        "—",
+        "-",
+        "n/a",
+        "na",
+    }:
         return ""
 
     return " ".join(text.split())
@@ -231,6 +244,11 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
                     "services": value[4] if len(value) > 4 else None,
                     "timestamp": value[5] if len(value) > 5 else None,
                 })
+            else:
+                output.append({
+                    "address": address,
+                    "value": value,
+                })
 
         return output
 
@@ -247,6 +265,8 @@ def find_input_file(api_dir: Path, state_dir: Path, explicit_input: str = "") ->
     candidates = [
         api_dir / "zzxbitnodes" / "nodes.json",
         api_dir / "zzxbitnodes" / "latest.json",
+        api_dir / "originalbitnodes" / "nodes.json",
+        api_dir / "originalbitnodes" / "latest.json",
         api_dir / "nodes.json",
         api_dir / "latest.json",
         state_dir / "nodes.json",
@@ -280,13 +300,13 @@ def is_i2p(row: dict[str, Any]) -> bool:
 def is_ipv4(row: dict[str, Any]) -> bool:
     address = node_address(row)
 
-    return bool(row.get("is_ipv4") or address.count(".") == 3 and ":" not in address)
+    return bool(row.get("is_ipv4") or (address.count(".") == 3 and ":" not in address))
 
 
 def is_ipv6(row: dict[str, Any]) -> bool:
-    address = node_address(row)
+    address = node_address(row).lower()
 
-    return bool(row.get("is_ipv6") or address.startswith("[") or (":" in address and ".onion" not in address.lower()))
+    return bool(row.get("is_ipv6") or address.startswith("[") or (":" in address and ".onion" not in address and ".i2p" not in address))
 
 
 def is_synced(row: dict[str, Any], max_height: int) -> bool:
@@ -412,6 +432,14 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         address = node_address(row)
         city = clean(row.get("city") or nested_dict(row, "city_data").get("city"))
         country = clean(row.get("country_code") or nested_dict(row, "country_data").get("country_code") or row.get("country"))
+        country_name = clean(nested_dict(row, "country_data").get("country_name"))
+        continent = clean(row.get("continent") or nested_dict(row, "continent_data").get("continent"))
+        region = clean(row.get("region") or nested_dict(row, "region_data").get("region"))
+        territory = clean(row.get("territory") or nested_dict(row, "territory_data").get("territory"))
+        county = clean(row.get("county") or nested_dict(row, "county_data").get("county"))
+        postal = clean(row.get("postal_code") or row.get("zip") or nested_dict(row, "postal_data").get("postal_code"))
+        timezone_name = clean(row.get("timezone") or nested_dict(row, "timezone_data").get("timezone"))
+
         agent = clean(row.get("agent") or row.get("user_agent"))
         provider = clean(row.get("provider") or row.get("organization") or row.get("org"))
         asn = clean(row.get("asn") or nested_dict(row, "isp").get("asn"))
@@ -433,7 +461,14 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "height": int(number(row.get("height"), 0) or 0),
             "uptime_seconds": status["uptime_seconds"],
             "city": city,
+            "county": county,
+            "territory": territory,
+            "region": region,
+            "continent": continent,
             "country": country,
+            "country_name": country_name,
+            "postal_code": postal,
+            "timezone": timezone_name,
             "agent": agent,
             "provider": provider,
             "asn": asn,
@@ -441,6 +476,8 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "services": row.get("services"),
             "w3w": clean(row.get("w3w") or row.get("what3words")),
             "geohashid": clean(row.get("geohashid")),
+            "jurisdiction_risk_level": clean(row.get("jurisdiction_risk_level")),
+            "jurisdiction_recommended_action": clean(row.get("jurisdiction_recommended_action")),
         })
 
     return sorted(
@@ -535,9 +572,10 @@ def default_settings() -> dict[str, Any]:
     return {
         "schema": "zzx-bitnodes-map-settings-v1",
         "generated_at": utc_now(),
-        "tile_provider": "openstreetmap",
-        "tile_url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "tile_attribution": "© OpenStreetMap contributors",
+        "tile_provider": "cartodb_dark",
+        "tile_url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        "tile_attribution": "© OpenStreetMap contributors © CARTO",
+        "tile_subdomains": ["a", "b", "c", "d"],
         "initial_view": {
             "latitude": 20.0,
             "longitude": 0.0,
@@ -548,22 +586,38 @@ def default_settings() -> dict[str, Any]:
         "interaction": {
             "scroll_wheel_zoom": True,
             "drag_pan": True,
+            "touch_zoom": True,
             "double_click_zoom": True,
             "box_zoom": True,
             "keyboard": True,
-            "middle_mouse_rotate_placeholder": True,
+            "middle_mouse_reserved_for_network_map": True,
         },
         "marker": {
             "radius_min": 4,
             "radius_max": 14,
             "opacity": 0.88,
+            "fill_opacity": 0.72,
             "stroke_weight": 1,
+            "cluster_enabled": True,
+            "heatmap_enabled": True,
         },
         "refresh": {
             "enabled": True,
             "interval_seconds": 60,
             "vectors_url": "./data/map-vectors.json",
             "geojson_url": "./data/map-points.geojson",
+            "settings_url": "./data/map-settings.json",
+            "theme_url": "./data/map-theme.json",
+            "layers_url": "./data/map-layers.json",
+            "overlays_url": "./data/map-overlays.json",
+            "polygons_url": "./data/map-polygons.geojson",
+        },
+        "theme": {
+            "selected": DEFAULT_THEME,
+            "manifest_url": "./data/map-themes.json",
+            "theme_url": f"./data/themes/{DEFAULT_THEME}.json",
+            "user_selectable": True,
+            "css_variables": {},
         },
     }
 
@@ -571,18 +625,55 @@ def default_settings() -> dict[str, Any]:
 def default_theme() -> dict[str, Any]:
     return {
         "schema": "zzx-bitnodes-map-theme-v1",
+        "id": DEFAULT_THEME,
         "generated_at": utc_now(),
-        "name": "zzx-dark-olive",
+        "name": "ZZX Dark Olive",
+        "description": "Default ZZX-Labs dark tactical olive/ochre map theme.",
+        "font_family": "IBM Plex Mono, monospace",
+        "heading_font_family": "var(--bn-heading, IBM Plex Mono, monospace)",
         "colors": {
             "background": "#050705",
             "panel": "#080b08",
+            "panel_alt": "#10140d",
             "text": "#edf7b9",
-            "muted": "rgba(204,216,182,0.72)",
+            "muted": "#ccd8b6",
             "accent": "#c0d674",
+            "accent_soft": "#617039",
             "ochre": "#e6a42b",
-            "duplicate": "#d95c5c",
-            "unsynced": "#9d67ad",
+            "danger": "#d95c5c",
+            "warning": "#e6a42b",
+            "purple": "#9d67ad",
+            "blue": "#70b7ff",
             "unknown": "#8c927e",
+        },
+        "markers": {
+            "duplicate_location": "#d95c5c",
+            "not_yet_synced": "#9d67ad",
+            "stable_48h_plus": "#c0d674",
+            "synced_10m_plus": "#e6a42b",
+            "synced": "#edf7b9",
+            "ipv4": "#c0d674",
+            "ipv6": "#70b7ff",
+            "tor": "#9d67ad",
+            "i2p": "#b889ff",
+            "unknown": "#8c927e",
+        },
+        "layout": {
+            "border_radius": "18px",
+            "panel_padding": "1.1rem",
+            "control_radius": "999px",
+            "shadow": "0 16px 34px rgba(0,0,0,0.32)",
+        },
+        "tiles": {
+            "provider": "cartodb_dark",
+        },
+        "css_variables": {
+            "--bn-map-background": "#050705",
+            "--bn-map-panel": "#080b08",
+            "--bn-map-text": "#edf7b9",
+            "--bn-map-muted": "#ccd8b6",
+            "--bn-map-accent": "#c0d674",
+            "--bn-map-ochre": "#e6a42b",
         },
     }
 
@@ -594,11 +685,14 @@ def render_index_html(title: str, depth: str = "..") -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} | ZZX-Labs R&D Bitnodes</title>
+
     <link rel="stylesheet" href="{depth}/styles.css">
     <link rel="stylesheet" href="./map.css">
+
     <script src="{depth}/script.js" defer></script>
     <script src="./map.js" defer></script>
 </head>
+
 <body data-bn-depth="{depth}" data-bn-view="map">
 <header>
     <div id="bn-header"></div>
@@ -607,10 +701,13 @@ def render_index_html(title: str, depth: str = "..") -> str:
 <main class="bn-shell">
     <section class="bn-hero container">
         <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
+
         <h2>{title}</h2>
+
         <p>
             OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, client,
-            synchronization, uptime, duplicate-location, Tor, I2P, IPv4, and IPv6 overlays.
+            synchronization, uptime, duplicate-location, Tor, I2P, IPv4, IPv6,
+            GeoHashID, what3words, postal, city, county, territory, and country overlays.
         </p>
     </section>
 
@@ -618,11 +715,23 @@ def render_index_html(title: str, depth: str = "..") -> str:
         <div class="bn-map-toolbar">
             <div>
                 <span class="bn-kicker">Map Mode</span>
-                <h2>Live Bitcoin Node Map</h2>
+                <h2>Bitcoin Node Map</h2>
+            </div>
+
+            <div class="bn-map-selectors">
+                <label>
+                    Theme
+                    <select id="bn-map-theme-select" data-map-theme-select></select>
+                </label>
+
+                <label>
+                    Settings
+                    <select id="bn-map-settings-select" data-map-settings-select></select>
+                </label>
             </div>
 
             <div class="bn-map-controls">
-                <button type="button" data-map-filter="all">All</button>
+                <button type="button" data-map-filter="all" class="is-active">All</button>
                 <button type="button" data-map-filter="ipv4">IPv4</button>
                 <button type="button" data-map-filter="ipv6">IPv6</button>
                 <button type="button" data-map-filter="tor">Tor</button>
@@ -631,8 +740,11 @@ def render_index_html(title: str, depth: str = "..") -> str:
             </div>
         </div>
 
+        <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
+
         <div id="bn-live-map" class="bn-live-map" data-map-root></div>
 
+        <div id="bn-map-hud" class="bn-map-hud"></div>
         <div id="bn-map-legend" class="bn-map-legend"></div>
     </section>
 </main>
@@ -646,37 +758,88 @@ def render_index_html(title: str, depth: str = "..") -> str:
 
 
 def render_map_css() -> str:
-    return """.bn-map-panel {
+    return """:root {
+    --bn-map-background: #050705;
+    --bn-map-panel: #080b08;
+    --bn-map-panel-alt: #10140d;
+    --bn-map-text: #edf7b9;
+    --bn-map-muted: #ccd8b6;
+    --bn-map-accent: #c0d674;
+    --bn-map-ochre: #e6a42b;
+    --bn-map-danger: #d95c5c;
+    --bn-map-purple: #9d67ad;
+    --bn-map-blue: #70b7ff;
+    --bn-map-unknown: #8c927e;
+    --bn-map-border-radius: 18px;
+    --bn-map-panel-padding: 1.1rem;
+    --bn-map-control-radius: 999px;
+    --bn-map-shadow: 0 16px 34px rgba(0,0,0,0.32);
+    --bn-map-font: var(--bn-font, IBM Plex Mono, monospace);
+    --bn-map-heading: var(--bn-heading, IBM Plex Mono, monospace);
+}
+
+.bn-map-panel {
     overflow: hidden;
 }
 
 .bn-map-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    align-items: end;
     gap: 1rem;
     margin-bottom: 1rem;
 }
 
 .bn-map-toolbar h2 {
     margin: 0.25rem 0 0;
-    color: #edf7b9;
-    font-family: var(--bn-heading);
+    color: var(--bn-map-text);
+    font-family: var(--bn-map-heading);
+}
+
+.bn-map-selectors {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.bn-map-selectors label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    color: rgba(204,216,182,0.72);
+    font-family: var(--bn-map-font);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bn-map-selectors select {
+    min-width: 190px;
+    border: 1px solid rgba(192,214,116,0.18);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.32);
+    color: var(--bn-map-text);
+    font-family: var(--bn-map-font);
+    font-size: 0.74rem;
+    padding: 0.55rem 0.7rem;
 }
 
 .bn-map-controls {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 0.5rem;
 }
 
 .bn-map-controls button {
-    border: 1px solid rgba(192, 214, 116, 0.18);
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.24);
-    color: #c0d674;
+    border: 1px solid rgba(192,214,116,0.18);
+    border-radius: var(--bn-map-control-radius);
+    background: rgba(0,0,0,0.24);
+    color: var(--bn-map-accent);
     cursor: pointer;
-    font-family: var(--bn-font);
+    font-family: var(--bn-map-font);
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -686,18 +849,63 @@ def render_map_css() -> str:
 
 .bn-map-controls button:hover,
 .bn-map-controls button.is-active {
-    background: rgba(192, 214, 116, 0.1);
-    border-color: rgba(192, 214, 116, 0.36);
-    color: #edf7b9;
+    background: rgba(192,214,116,0.1);
+    border-color: rgba(192,214,116,0.36);
+    color: var(--bn-map-text);
+}
+
+.bn-map-status {
+    margin: 0 0 0.85rem;
+    border: 1px solid rgba(192,214,116,0.12);
+    border-radius: 12px;
+    background: rgba(0,0,0,0.22);
+    color: rgba(204,216,182,0.72);
+    font-family: var(--bn-map-font);
+    font-size: 0.74rem;
+    line-height: 1.6;
+    padding: 0.7rem 0.85rem;
 }
 
 .bn-live-map {
     width: 100%;
     min-height: 72vh;
-    border: 1px solid rgba(192, 214, 116, 0.14);
-    border-radius: 18px;
-    background: #050705;
+    border: 1px solid rgba(192,214,116,0.14);
+    border-radius: var(--bn-map-border-radius);
+    background: var(--bn-map-background);
     overflow: hidden;
+    box-shadow: var(--bn-map-shadow);
+}
+
+.bn-map-hud {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+}
+
+.bn-map-hud article {
+    border: 1px solid rgba(192,214,116,0.12);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(16,20,13,0.9), rgba(5,7,5,0.96));
+    padding: 0.8rem;
+}
+
+.bn-map-hud span {
+    display: block;
+    color: rgba(204,216,182,0.64);
+    font-family: var(--bn-map-font);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bn-map-hud strong {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--bn-map-text);
+    font-family: var(--bn-map-font);
+    font-size: 1.05rem;
 }
 
 .bn-map-legend {
@@ -711,10 +919,10 @@ def render_map_css() -> str:
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    border: 1px solid rgba(192, 214, 116, 0.1);
+    border: 1px solid rgba(192,214,116,0.1);
     border-radius: 999px;
-    color: rgba(204, 216, 182, 0.78);
-    font-family: var(--bn-font);
+    color: rgba(204,216,182,0.78);
+    font-family: var(--bn-map-font);
     font-size: 0.72rem;
     padding: 0.45rem 0.62rem;
 }
@@ -737,14 +945,37 @@ def render_map_css() -> str:
     margin-bottom: 0.35rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
     .bn-map-toolbar {
-        align-items: flex-start;
-        flex-direction: column;
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .bn-map-controls {
+        justify-content: flex-start;
+    }
+
+    .bn-map-hud {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .bn-map-selectors {
+        width: 100%;
+    }
+
+    .bn-map-selectors label,
+    .bn-map-selectors select {
+        width: 100%;
     }
 
     .bn-live-map {
         min-height: 64vh;
+    }
+
+    .bn-map-hud {
+        grid-template-columns: 1fr;
     }
 }
 """
@@ -757,7 +988,12 @@ def render_map_js() -> str:
     const state = {
         map: null,
         layer: null,
+        polygonLayer: null,
         vectors: null,
+        settings: null,
+        theme: null,
+        themes: null,
+        settingsProfiles: null,
         filter: "all"
     };
 
@@ -776,6 +1012,14 @@ def render_map_js() -> str:
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
+    }
+
+    function setStatus(message) {
+        const target = qs("#bn-map-status");
+
+        if (target) {
+            target.textContent = message;
+        }
     }
 
     function loadLeaflet() {
@@ -808,9 +1052,42 @@ def render_map_js() -> str:
         return response.json();
     }
 
+    function applyTheme(theme) {
+        if (!theme) {
+            return;
+        }
+
+        state.theme = theme;
+
+        const vars = theme.css_variables || {};
+
+        Object.entries(vars).forEach(([key, value]) => {
+            document.documentElement.style.setProperty(key, value);
+        });
+    }
+
+    async function loadTheme(themeId) {
+        const id = themeId || state.settings?.theme?.selected || "zzx_dark_olive";
+        const theme = await readJson(`./data/themes/${id}.json`).catch(() => readJson("./data/map-theme.json"));
+
+        applyTheme(theme);
+
+        return theme;
+    }
+
+    async function loadSettingsProfile(settingsId) {
+        const id = settingsId || state.settings?.profile?.id || "default";
+        const profile = await readJson(`./data/settings/${id}.json`);
+
+        return profile;
+    }
+
     function radius(point) {
         const dup = Number(point.duplicate_count || 1);
-        return Math.max(4, Math.min(14, 4 + Math.log2(dup + 1) * 3));
+        const min = Number(state.settings?.marker?.radius_min || 4);
+        const max = Number(state.settings?.marker?.radius_max || 14);
+
+        return Math.max(min, Math.min(max, min + Math.log2(dup + 1) * 3));
     }
 
     function markerPopup(point) {
@@ -820,8 +1097,11 @@ def render_map_js() -> str:
                 <div>Status: ${escapeHtml(point.status_label || point.status || "Unknown")}</div>
                 <div>Network: ${escapeHtml(point.network || "unknown")}</div>
                 <div>Height: ${escapeHtml(point.height || "—")}</div>
+                <div>Uptime: ${escapeHtml(Math.round(Number(point.uptime_seconds || 0)).toLocaleString())}s</div>
                 <div>City: ${escapeHtml(point.city || "—")}</div>
-                <div>Country: ${escapeHtml(point.country || "—")}</div>
+                <div>County: ${escapeHtml(point.county || "—")}</div>
+                <div>Territory: ${escapeHtml(point.territory || "—")}</div>
+                <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
                 <div>Agent: ${escapeHtml(point.agent || "—")}</div>
@@ -838,7 +1118,31 @@ def render_map_js() -> str:
             return points;
         }
 
-        return points.filter(point => point.network === state.filter);
+        return points.filter(point => point.network === state.filter || point.status === state.filter);
+    }
+
+    function renderHud() {
+        const target = qs("#bn-map-hud");
+
+        if (!target || !state.vectors) {
+            return;
+        }
+
+        const networks = state.vectors.network_counts || {};
+        const statuses = state.vectors.status_counts || {};
+
+        target.innerHTML = `
+            <article><span>Total Points</span><strong>${Number(state.vectors.point_count || 0).toLocaleString()}</strong></article>
+            <article><span>IPv4</span><strong>${Number(networks.ipv4 || 0).toLocaleString()}</strong></article>
+            <article><span>IPv6</span><strong>${Number(networks.ipv6 || 0).toLocaleString()}</strong></article>
+            <article><span>Tor</span><strong>${Number(networks.tor || 0).toLocaleString()}</strong></article>
+            <article><span>I2P</span><strong>${Number(networks.i2p || 0).toLocaleString()}</strong></article>
+            <article><span>Duplicate</span><strong>${Number(statuses["duplicate-location"] || 0).toLocaleString()}</strong></article>
+            <article><span>Unsynced</span><strong>${Number(statuses["not-yet-synced"] || 0).toLocaleString()}</strong></article>
+            <article><span>Stable 48h+</span><strong>${Number(statuses["stable-48h-plus"] || 0).toLocaleString()}</strong></article>
+            <article><span>Synced 10m+</span><strong>${Number(statuses["synced-10m-plus"] || 0).toLocaleString()}</strong></article>
+            <article><span>Synced</span><strong>${Number(statuses.synced || 0).toLocaleString()}</strong></article>
+        `;
     }
 
     function renderLegend() {
@@ -879,9 +1183,12 @@ def render_map_js() -> str:
                 radius: radius(point),
                 color: point.color || "#c0d674",
                 fillColor: point.color || "#c0d674",
-                fillOpacity: 0.72,
-                opacity: 0.95,
-                weight: 1
+                fillOpacity: Number(state.settings?.marker?.fill_opacity || 0.72),
+                opacity: Number(state.settings?.marker?.opacity || 0.95),
+                weight: Number(state.settings?.marker?.stroke_weight || 1),
+                renderer: state.settings?.performance?.prefer_canvas_renderer && state.canvasRenderer
+                    ? state.canvasRenderer
+                    : undefined
             });
 
             marker.bindPopup(markerPopup(point));
@@ -889,48 +1196,86 @@ def render_map_js() -> str:
         });
 
         state.layer.addTo(state.map);
+        renderHud();
         renderLegend();
+
+        setStatus(`Loaded ${(filteredPoints().length).toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`);
     }
 
-    async function init() {
-        await loadLeaflet();
-
-        const settings = await readJson("./data/map-settings.json").catch(() => ({
-            tile_url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            tile_attribution: "© OpenStreetMap contributors",
-            initial_view: {
-                latitude: 20,
-                longitude: 0,
-                zoom: 2
-            }
-        }));
-
-        state.vectors = await readJson("./data/map-vectors.json");
-
-        const root = qs("[data-map-root]");
-
-        if (!root) {
+    async function renderPolygons() {
+        if (!state.map || !window.L) {
             return;
         }
 
-        const view = settings.initial_view || {};
+        const polygons = await readJson("./data/map-polygons.geojson").catch(() => null);
 
-        state.map = window.L.map(root, {
-            scrollWheelZoom: true,
-            doubleClickZoom: true,
-            boxZoom: true,
-            keyboard: true
-        }).setView(
-            [Number(view.latitude || 20), Number(view.longitude || 0)],
-            Number(view.zoom || 2)
-        );
+        if (!polygons || !Array.isArray(polygons.features)) {
+            return;
+        }
 
-        window.L.tileLayer(settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: settings.tile_attribution || "© OpenStreetMap contributors",
-            maxZoom: Number(view.max_zoom || 18),
-            minZoom: Number(view.min_zoom || 2)
-        }).addTo(state.map);
+        if (state.polygonLayer) {
+            state.polygonLayer.remove();
+        }
 
+        state.polygonLayer = window.L.geoJSON(polygons, {
+            style: feature => {
+                const props = feature.properties || {};
+
+                return {
+                    color: props.stroke || "#c0d674",
+                    fillColor: props.fill || "#c0d674",
+                    fillOpacity: Number(props.opacity || 0.08),
+                    opacity: Number(props.opacity || 0.22),
+                    weight: 1
+                };
+            },
+            interactive: false
+        });
+
+        if (state.settings?.polygons?.visible === true) {
+            state.polygonLayer.addTo(state.map);
+        }
+    }
+
+    function populateThemeSelect() {
+        const select = qs("[data-map-theme-select]");
+
+        if (!select || !state.themes?.themes) {
+            return;
+        }
+
+        select.innerHTML = state.themes.themes.map(theme => `
+            <option value="${escapeHtml(theme.id)}">${escapeHtml(theme.name)}</option>
+        `).join("");
+
+        select.value = state.theme?.id || state.themes.default_theme || "zzx_dark_olive";
+
+        select.addEventListener("change", async () => {
+            await loadTheme(select.value);
+        });
+    }
+
+    function populateSettingsSelect() {
+        const select = qs("[data-map-settings-select]");
+
+        if (!select || !state.settingsProfiles?.profiles) {
+            return;
+        }
+
+        select.innerHTML = state.settingsProfiles.profiles.map(profile => `
+            <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>
+        `).join("");
+
+        select.value = state.settings?.profile?.id || state.settingsProfiles.default_settings || "default";
+
+        select.addEventListener("change", async () => {
+            const profile = await loadSettingsProfile(select.value);
+
+            setStatus(`Settings profile "${profile.name || select.value}" loaded. Rebuild maps.py output to persist profile-derived normalized map settings.`);
+        });
+    }
+
+    function wireControls(view) {
         qsa("[data-map-filter]").forEach(button => {
             button.addEventListener("click", () => {
                 state.filter = button.dataset.mapFilter || "all";
@@ -949,7 +1294,52 @@ def render_map_js() -> str:
                 Number(view.zoom || 2)
             );
         });
+    }
 
+    async function init() {
+        await loadLeaflet();
+
+        state.settings = await readJson("./data/map-settings.json");
+        state.vectors = await readJson("./data/map-vectors.json");
+        state.themes = await readJson("./data/map-themes.json").catch(() => null);
+        state.settingsProfiles = await readJson("./data/map-settings-profiles.json").catch(() => null);
+
+        await loadTheme(state.settings?.theme?.selected || "zzx_dark_olive");
+
+        const root = qs("[data-map-root]");
+
+        if (!root) {
+            return;
+        }
+
+        const view = state.settings.initial_view || {};
+        const interaction = state.settings.interaction || {};
+
+        state.canvasRenderer = window.L.canvas({ padding: 0.35 });
+
+        state.map = window.L.map(root, {
+            scrollWheelZoom: interaction.scroll_wheel_zoom !== false,
+            doubleClickZoom: interaction.double_click_zoom !== false,
+            boxZoom: interaction.box_zoom !== false,
+            keyboard: interaction.keyboard !== false,
+            preferCanvas: state.settings?.performance?.prefer_canvas_renderer !== false
+        }).setView(
+            [Number(view.latitude || 20), Number(view.longitude || 0)],
+            Number(view.zoom || 2)
+        );
+
+        window.L.tileLayer(state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
+            subdomains: state.settings.tile_subdomains || undefined,
+            maxZoom: Number(view.max_zoom || 18),
+            minZoom: Number(view.min_zoom || 2)
+        }).addTo(state.map);
+
+        populateThemeSelect();
+        populateSettingsSelect();
+        wireControls(view);
+
+        await renderPolygons();
         renderPoints();
     }
 
@@ -962,6 +1352,8 @@ def render_map_js() -> str:
             if (root) {
                 root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
             }
+
+            setStatus(`Map load failure: ${error.message}`);
         });
     });
 })();
@@ -970,7 +1362,6 @@ def render_map_js() -> str:
 
 def run_component_modules(payload: dict[str, Any], context: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     report = []
-
     current = payload
 
     for name in MAP_MODULE_ORDER:
@@ -1015,6 +1406,83 @@ def run_component_modules(payload: dict[str, Any], context: dict[str, Any]) -> t
     return current, report
 
 
+def write_directory_output(
+    *,
+    out_dir: Path,
+    title: str,
+    map_payload: dict[str, Any],
+    vectors: dict[str, Any],
+    geojson: dict[str, Any],
+    settings: dict[str, Any],
+    theme: dict[str, Any],
+) -> None:
+    data_dir = out_dir / "data"
+
+    write_json(data_dir / "map-vectors.json", map_payload.get("vectors", vectors))
+    write_json(data_dir / "map-points.geojson", map_payload.get("geojson", geojson))
+    write_json(data_dir / "map-settings.json", map_payload.get("settings", settings))
+    write_json(data_dir / "map-theme.json", map_payload.get("theme", theme))
+
+    if "layers" in map_payload:
+        write_json(data_dir / "map-layers.json", map_payload["layers"])
+
+    if "overlays" in map_payload:
+        write_json(data_dir / "map-overlays.json", map_payload["overlays"])
+
+    if "polygons" in map_payload:
+        write_json(data_dir / "map-polygons.geojson", map_payload["polygons"])
+
+    if "themes" in map_payload:
+        write_json(data_dir / "map-themes.json", map_payload["themes"])
+
+    if "settings_profiles" in map_payload:
+        write_json(data_dir / "map-settings-profiles.json", map_payload["settings_profiles"])
+
+    selected_theme = map_payload.get("theme", theme)
+    selected_theme_id = selected_theme.get("id", DEFAULT_THEME) if isinstance(selected_theme, dict) else DEFAULT_THEME
+
+    themes_manifest = map_payload.get("themes", {})
+    themes = themes_manifest.get("themes", []) if isinstance(themes_manifest, dict) else []
+
+    if themes:
+        for item in themes:
+            theme_id = clean(item.get("id"))
+
+            if not theme_id:
+                continue
+
+            src = DEFAULT_THEME_DIR / f"{theme_id}.json"
+            dst = data_dir / "themes" / f"{theme_id}.json"
+            theme_payload = read_json(src, fallback={})
+
+            if theme_payload:
+                write_json(dst, theme_payload)
+
+    if selected_theme:
+        write_json(data_dir / "themes" / f"{selected_theme_id}.json", selected_theme)
+
+    settings_profiles = map_payload.get("settings_profiles", {})
+    profiles = settings_profiles.get("profiles", []) if isinstance(settings_profiles, dict) else []
+
+    if profiles:
+        for item in profiles:
+            settings_id = clean(item.get("id"))
+
+            if not settings_id:
+                continue
+
+            src = DEFAULT_SETTINGS_DIR / f"{settings_id}.json"
+            dst = data_dir / "settings" / f"{settings_id}.json"
+            settings_payload = read_json(src, fallback={})
+
+            if settings_payload:
+                write_json(dst, settings_payload)
+
+    write_text(out_dir / "index.html", render_index_html(title))
+    write_text(out_dir / "map.css", render_map_css())
+    write_text(out_dir / "map.js", render_map_js())
+
+
 def build_maps(
     *,
     input_path: Path | None,
@@ -1023,6 +1491,11 @@ def build_maps(
     map_dir: Path,
     live_map_dir: Path,
     source: str,
+    theme_dir: Path,
+    settings_dir: Path,
+    theme: str,
+    settings_profile: str,
+    tile_provider: str,
     strict: bool = False,
     run_modules: bool = True,
 ) -> dict[str, Any]:
@@ -1047,6 +1520,16 @@ def build_maps(
         "live_map_dir": str(live_map_dir),
         "source": source,
         "strict": strict,
+        "theme_dir": str(theme_dir),
+        "map_theme_dir": str(theme_dir),
+        "selected_theme": theme,
+        "theme": theme,
+        "settings_dir": str(settings_dir),
+        "map_settings_dir": str(settings_dir),
+        "selected_settings": settings_profile,
+        "settings": settings_profile,
+        "tile_provider": tile_provider,
+        "osm_tile_provider": tile_provider,
     }
 
     map_payload = {
@@ -1061,23 +1544,33 @@ def build_maps(
     if run_modules:
         map_payload, module_report = run_component_modules(map_payload, context)
 
-    for out_dir, title in (
-        (map_dir, "Bitcoin Node Map"),
-        (live_map_dir, "Live Bitcoin Node Map"),
-    ):
-        data_dir = out_dir / "data"
+    final_settings = map_payload.get("settings", default_settings())
+    final_theme = map_payload.get("theme", default_theme())
+    final_vectors = map_payload.get("vectors", vectors)
+    final_geojson = map_payload.get("geojson", geojson)
 
-        write_json(data_dir / "map-vectors.json", map_payload.get("vectors", vectors))
-        write_json(data_dir / "map-points.geojson", map_payload.get("geojson", geojson))
-        write_json(data_dir / "map-settings.json", map_payload.get("settings", default_settings()))
-        write_json(data_dir / "map-theme.json", map_payload.get("theme", default_theme()))
+    write_directory_output(
+        out_dir=map_dir,
+        title="Bitcoin Node Map",
+        map_payload=map_payload,
+        vectors=final_vectors,
+        geojson=final_geojson,
+        settings=final_settings,
+        theme=final_theme,
+    )
 
-        write_text(out_dir / "index.html", render_index_html(title))
-        write_text(out_dir / "map.css", render_map_css())
-        write_text(out_dir / "map.js", render_map_js())
+    write_directory_output(
+        out_dir=live_map_dir,
+        title="Live Bitcoin Node Map",
+        map_payload=map_payload,
+        vectors=final_vectors,
+        geojson=final_geojson,
+        settings=final_settings,
+        theme=final_theme,
+    )
 
     report = {
-        "schema": "zzx-bitnodes-maps-build-report-v1",
+        "schema": "zzx-bitnodes-maps-build-report-v2",
         "generated_at": utc_now(),
         "source": source,
         "input": str(selected_input),
@@ -1085,6 +1578,11 @@ def build_maps(
         "point_count": len(points),
         "map_dir": str(map_dir),
         "live_map_dir": str(live_map_dir),
+        "theme_dir": str(theme_dir),
+        "settings_dir": str(settings_dir),
+        "selected_theme": theme,
+        "selected_settings": settings_profile,
+        "tile_provider": tile_provider,
         "modules": module_report,
     }
 
@@ -1105,6 +1603,13 @@ def main() -> int:
     parser.add_argument("--map-dir", default=str(DEFAULT_MAP_DIR))
     parser.add_argument("--live-map-dir", default=str(DEFAULT_LIVE_MAP_DIR))
     parser.add_argument("--source", default="zzxbitnodes")
+
+    parser.add_argument("--theme-dir", default=str(DEFAULT_THEME_DIR))
+    parser.add_argument("--settings-dir", default=str(DEFAULT_SETTINGS_DIR))
+    parser.add_argument("--theme", default=DEFAULT_THEME)
+    parser.add_argument("--settings", default=DEFAULT_SETTINGS)
+    parser.add_argument("--tile-provider", default="cartodb_dark")
+
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--no-modules", action="store_true")
 
@@ -1117,6 +1622,11 @@ def main() -> int:
         map_dir=Path(args.map_dir).resolve(),
         live_map_dir=Path(args.live_map_dir).resolve(),
         source=args.source,
+        theme_dir=Path(args.theme_dir).resolve(),
+        settings_dir=Path(args.settings_dir).resolve(),
+        theme=args.theme,
+        settings_profile=args.settings,
+        tile_provider=args.tile_provider,
         strict=args.strict,
         run_modules=not args.no_modules,
     )
@@ -1124,6 +1634,8 @@ def main() -> int:
     print(
         "maps build complete: "
         f"{report['point_count']} points, "
+        f"theme={report['selected_theme']}, "
+        f"settings={report['selected_settings']}, "
         f"map_dir={report['map_dir']}, "
         f"live_map_dir={report['live_map_dir']}"
     )
