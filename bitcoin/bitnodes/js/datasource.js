@@ -32,9 +32,9 @@
     const SOURCE_DEFINITIONS = {
         zzxbitnodes: {
             id: "zzxbitnodes",
-            label: "ZZX Bitnodes Global Registry",
+            label: "ZZX Bitnodes Global Registry API",
             shortLabel: "ZZX Global Registry",
-            description: "Persistent ZZX-Labs crawler with rolling 24h reachable-state memory, archive replay, GeoIP enrichment, private registry backups, and static public JSON exports.",
+            description: "Default ZZX-Labs persistent global Bitnodes crawler registry with rolling 24h reachable-state memory, archive replay, GeoIP enrichment, private registry backups, and static public JSON exports.",
             basePath: "./api/zzxbitnodes",
             statusClass: "",
             endpoints: { ...COMMON_ENDPOINTS }
@@ -42,9 +42,9 @@
 
         originalbitnodes: {
             id: "originalbitnodes",
-            label: "Bitnodes Original Crawler",
-            shortLabel: "Bitnodes Original",
-            description: "Original Bitnodes-compatible crawler output preserved for attribution, comparison, and public API continuity.",
+            label: "Original Bitnodes API",
+            shortLabel: "Original Bitnodes",
+            description: "Original Bitnodes-compatible crawler output preserved for Addy Yeow attribution, comparison, public API continuity, and upstream-style crawler behavior.",
             basePath: "./api/originalbitnodes",
             statusClass: "is-warning",
             endpoints: { ...COMMON_ENDPOINTS }
@@ -73,9 +73,9 @@
 
         external: {
             id: "external",
-            label: "External Bitnodes Compatible API",
-            shortLabel: "External API",
-            description: "External Bitnodes-compatible network source. Local mirror analytics may be limited or unavailable depending on CORS and endpoint availability.",
+            label: "External Bitnodes Compatible URL API",
+            shortLabel: "External Compatible API",
+            description: "External Bitnodes-compatible network source for third-party crawlers using the same API URL formatting. Local mirror analytics may be limited depending on CORS and endpoint availability.",
             basePath: "https://bitnodes.io/api/v1",
             statusClass: "is-warning",
             endpoints: {
@@ -201,11 +201,19 @@
         return output;
     }
 
-    function getSavedSource() {
+    function clearLegacySavedDefault() {
         try {
-            return localStorage.getItem(STORAGE_KEY);
+            const saved = localStorage.getItem(STORAGE_KEY);
+
+            if (
+                saved === "local" ||
+                saved === "legacy" ||
+                saved === "external" ||
+                saved === "originalbitnodes"
+            ) {
+                localStorage.removeItem(STORAGE_KEY);
+            }
         } catch (_err) {
-            return null;
         }
     }
 
@@ -216,7 +224,15 @@
         }
     }
 
-    function getCurrentSourceId() {
+    function getCurrentSourceId(options = {}) {
+        const forceDefault =
+            options.forceDefault === true ||
+            document.body?.dataset?.bnForceDefaultSource === "true";
+
+        if (forceDefault) {
+            return DEFAULT_SOURCE;
+        }
+
         const select = document.querySelector("#bn-source");
 
         if (select?.value && SOURCE_DEFINITIONS[select.value]) {
@@ -227,12 +243,6 @@
 
         if (bodySource && SOURCE_DEFINITIONS[bodySource]) {
             return canonicalSourceId(bodySource);
-        }
-
-        const saved = getSavedSource();
-
-        if (saved && SOURCE_DEFINITIONS[saved]) {
-            return canonicalSourceId(saved);
         }
 
         return DEFAULT_SOURCE;
@@ -263,8 +273,6 @@
             return;
         }
 
-        const current = getCurrentSourceId();
-
         select.innerHTML = SELECTABLE_SOURCES.map(id => {
             const source = getSource(id);
 
@@ -275,7 +283,7 @@
             `;
         }).join("");
 
-        select.value = SOURCE_DEFINITIONS[current] ? current : DEFAULT_SOURCE;
+        select.value = DEFAULT_SOURCE;
     }
 
     function applySource(sourceId, options = {}) {
@@ -289,7 +297,10 @@
             select.value = definition.id;
         }
 
-        saveSource(definition.id);
+        if (options.persist !== false) {
+            saveSource(definition.id);
+        }
+
         setStatus(definition.id);
 
         window.BNDataSource.current = definition.id;
@@ -328,7 +339,10 @@
 
     function refreshCurrentSource() {
         const source = getCurrentSourceId();
-        const definition = applySource(source, { silent: true });
+        const definition = applySource(source, {
+            silent: true
+        });
+
         const endpoints = buildEndpointMap(definition.id);
 
         document.dispatchEvent(
@@ -350,7 +364,9 @@
             select.dataset.bnDatasourceWired = "1";
 
             select.addEventListener("change", () => {
-                applySource(select.value);
+                applySource(select.value, {
+                    persist: true
+                });
             });
         }
 
@@ -364,12 +380,17 @@
     }
 
     function init() {
-        if (!document.body?.dataset?.bnSource) {
-            document.body.dataset.bnSource = DEFAULT_SOURCE;
-        }
+        clearLegacySavedDefault();
+
+        document.body.dataset.bnSource = DEFAULT_SOURCE;
 
         populateSelect();
-        applySource(getCurrentSourceId(), { silent: true });
+
+        applySource(DEFAULT_SOURCE, {
+            silent: true,
+            persist: false
+        });
+
         wireControls();
     }
 
