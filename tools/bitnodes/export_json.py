@@ -5,13 +5,14 @@ import argparse
 import gzip
 import json
 import math
-import shutil
 import statistics
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+
+APP_ROOT = Path(__file__).resolve().parents[2]
 
 NODE_FIELDS = [
     "protocol",
@@ -33,7 +34,7 @@ NODE_FIELDS = [
     "w3w",
     "geohash",
     "asn_location",
-    "metadata"
+    "metadata",
 ]
 
 
@@ -42,20 +43,11 @@ def utc_now() -> int:
 
 
 def utc_iso(ts: int | None = None) -> str:
-    if ts is None:
-        ts = utc_now()
-
-    return time.strftime(
-        "%Y-%m-%dT%H:%M:%SZ",
-        time.gmtime(ts)
-    )
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts or utc_now()))
 
 
 def mkdir(path: Path) -> None:
-    path.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    path.mkdir(parents=True, exist_ok=True)
 
 
 def read_json(path: Path) -> Any:
@@ -63,13 +55,7 @@ def read_json(path: Path) -> Any:
         return json.load(handle)
 
 
-def write_json(
-    path: Path,
-    payload: Any,
-    pretty: bool = True,
-    sort_keys: bool = False
-) -> None:
-
+def write_json(path: Path, payload: Any, pretty: bool = True, sort_keys: bool = False) -> None:
     mkdir(path.parent)
 
     with path.open("w", encoding="utf-8") as handle:
@@ -79,19 +65,12 @@ def write_json(
             indent=2 if pretty else None,
             separators=None if pretty else (",", ":"),
             ensure_ascii=False,
-            sort_keys=sort_keys
+            sort_keys=sort_keys,
         )
-
         handle.write("\n")
 
 
-def write_gzip_json(
-    path: Path,
-    payload: Any,
-    pretty: bool = False,
-    sort_keys: bool = False
-) -> None:
-
+def write_gzip_json(path: Path, payload: Any, pretty: bool = False, sort_keys: bool = False) -> None:
     mkdir(path.parent)
 
     with gzip.open(path, "wt", encoding="utf-8") as handle:
@@ -101,23 +80,21 @@ def write_gzip_json(
             indent=2 if pretty else None,
             separators=None if pretty else (",", ":"),
             ensure_ascii=False,
-            sort_keys=sort_keys
+            sort_keys=sort_keys,
         )
-
         handle.write("\n")
 
 
 def safe_number(value: Any) -> float | None:
     try:
         n = float(value)
-
-        if math.isnan(n) or math.isinf(n):
-            return None
-
-        return n
-
     except Exception:
         return None
+
+    if math.isnan(n) or math.isinf(n):
+        return None
+
+    return n
 
 
 def safe_int(value: Any) -> int | None:
@@ -126,16 +103,12 @@ def safe_int(value: Any) -> int | None:
             return None
 
         return int(value)
-
     except Exception:
         return None
 
 
 def safe_name(value: Any) -> str:
-    text = str(value or "unknown").strip()
-
-    if not text:
-        text = "unknown"
+    text = str(value or "unknown").strip() or "unknown"
 
     for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|', ' ', '[', ']']:
         text = text.replace(char, "_")
@@ -147,7 +120,7 @@ def safe_name(value: Any) -> str:
 
 
 def split_address(address: str) -> tuple[str, int | None]:
-    value = str(address).strip()
+    value = str(address or "").strip()
 
     if value.startswith("[") and "]:" in value:
         host = value.split("]:", 1)[0].lstrip("[")
@@ -159,7 +132,10 @@ def split_address(address: str) -> tuple[str, int | None]:
 
         return host, port
 
-    if ".onion:" in value:
+    if value.startswith("[") and value.endswith("]"):
+        return value[1:-1], None
+
+    if ".onion:" in value or ".i2p:" in value:
         host, port_text = value.rsplit(":", 1)
 
         try:
@@ -184,14 +160,21 @@ def split_address(address: str) -> tuple[str, int | None]:
 
 def classify_network(address: str) -> str:
     host, _port = split_address(address)
+    host = str(host or "").lower()
 
     if host.endswith(".onion"):
         return "tor"
 
+    if host.endswith(".i2p"):
+        return "i2p"
+
     if ":" in host:
         return "ipv6"
 
-    return "ipv4"
+    if host.count(".") == 3:
+        return "ipv4"
+
+    return "dns"
 
 
 def metadata_from_row(row: list[Any]) -> dict[str, Any]:
@@ -201,19 +184,28 @@ def metadata_from_row(row: list[Any]) -> dict[str, Any]:
     return {}
 
 
-def normalize_node(
-    address: str,
-    values: list[Any],
-    rank: int | None = None
-) -> dict[str, Any]:
+def normalize_reachable(value: Any, metadata: dict[str, Any]) -> bool | None:
+    reachable = metadata.get("reachable")
 
+    if isinstance(reachable, bool):
+        return reachable
+
+    if value in {True, 1, "1", "ok", "reachable", "connected", "success"}:
+        return True
+
+    if value in {False, 0, "0", "fail", "failed", "unreachable", "timeout", "error"}:
+        return False
+
+    return None
+
+
+def normalize_node(address: str, values: list[Any], rank: int | None = None) -> dict[str, Any]:
     row = list(values)
 
     while len(row) < 20:
         row.append(None)
 
     metadata = metadata_from_row(row)
-
     host, port = split_address(address)
 
     latency_ms = metadata.get("latency_ms")
@@ -221,14 +213,18 @@ def normalize_node(
     if latency_ms is None and not isinstance(row[19], dict):
         latency_ms = row[19]
 
-    reachable = metadata.get("reachable")
+    reachable = normalize_reachable(metadata.get("reachable"), metadata)
+
+    is_tor = bool(metadata.get("tor")) or ".onion" in address.lower()
+    is_i2p = bool(metadata.get("i2p")) or ".i2p" in address.lower()
+    network = classify_network(address)
 
     return {
         "rank": rank,
         "address": address,
         "host": host,
         "port": port,
-        "network": classify_network(address),
+        "network": network,
         "reachable": reachable,
         "protocol": row[0],
         "agent": row[1],
@@ -246,19 +242,98 @@ def normalize_node(
         "provider": row[13],
         "county": row[14],
         "zip": row[15],
+        "postal_code": row[15],
         "w3w": row[16],
+        "what3words": row[16],
         "geohash": row[17],
+        "geohashid": row[17],
         "asn_location": row[18],
         "latency_ms": latency_ms,
         "uptime_human": metadata.get("uptime_human"),
-        "uptime_seconds": metadata.get("total_uptime"),
+        "uptime_seconds": metadata.get("total_uptime") or metadata.get("uptime_seconds"),
         "peer_index": metadata.get("peer_index"),
-        "tor": bool(metadata.get("tor")) or ".onion" in address.lower(),
+        "tor": is_tor,
+        "i2p": is_i2p,
+        "is_tor": is_tor,
+        "is_i2p": is_i2p,
+        "is_ipv4": network == "ipv4",
+        "is_ipv6": network == "ipv6",
+        "is_proxy": bool(metadata.get("proxy") or metadata.get("is_proxy")),
+        "is_vpn": bool(metadata.get("vpn") or metadata.get("is_vpn")),
         "success_count": metadata.get("success_count"),
         "failure_count": metadata.get("failure_count"),
         "first_seen": metadata.get("first_seen"),
-        "last_seen": metadata.get("last_seen")
+        "last_seen": metadata.get("last_seen"),
+        "metadata": metadata,
     }
+
+
+def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
+    nodes: dict[str, list[Any]] = {}
+
+    if isinstance(raw, dict):
+        for address, value in raw.items():
+            if isinstance(value, list):
+                nodes[str(address)] = value
+            elif isinstance(value, dict):
+                node_address = value.get("address") or value.get("node") or value.get("addr") or address
+                nodes[str(node_address)] = dict_to_node_array(value)
+
+    elif isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+
+            address = item.get("address") or item.get("node") or item.get("addr")
+
+            if address:
+                nodes[str(address)] = dict_to_node_array(item)
+
+    return nodes
+
+
+def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
+    metadata = dict(value.get("metadata", {})) if isinstance(value.get("metadata"), dict) else {}
+
+    for key in (
+        "reachable",
+        "latency_ms",
+        "uptime_seconds",
+        "success_count",
+        "failure_count",
+        "first_seen",
+        "last_seen",
+        "peer_index",
+        "is_proxy",
+        "is_vpn",
+        "is_tor",
+        "is_i2p",
+    ):
+        if key in value and key not in metadata:
+            metadata[key] = value.get(key)
+
+    return [
+        value.get("protocol_version") or value.get("protocol") or value.get("version"),
+        value.get("user_agent") or value.get("agent") or value.get("subver") or "unknown",
+        value.get("connected_since") or value.get("timestamp") or value.get("seen_at") or value.get("last_seen") or utc_now(),
+        value.get("services") or value.get("service_bits"),
+        value.get("height") or value.get("start_height") or value.get("latest_height"),
+        value.get("hostname") or value.get("host"),
+        value.get("city"),
+        value.get("country_code") or value.get("country"),
+        value.get("latitude") or value.get("lat"),
+        value.get("longitude") or value.get("lon") or value.get("lng"),
+        value.get("timezone") or value.get("tz"),
+        value.get("asn"),
+        value.get("organization") or value.get("org"),
+        value.get("provider"),
+        value.get("county"),
+        value.get("zip") or value.get("postal_code"),
+        value.get("w3w") or value.get("what3words"),
+        value.get("geohash") or value.get("geohashid"),
+        value.get("asn_location"),
+        metadata,
+    ]
 
 
 def load_snapshot(input_path: Path) -> dict[str, Any]:
@@ -267,11 +342,21 @@ def load_snapshot(input_path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("Bitnodes export input must be a JSON object.")
 
-    if "nodes" not in payload:
-        payload["nodes"] = {}
+    nodes = payload.get("nodes")
 
-    if not isinstance(payload["nodes"], dict):
-        payload["nodes"] = {}
+    if isinstance(nodes, list):
+        payload["nodes"] = normalize_nodes_object(nodes)
+
+    elif isinstance(nodes, dict):
+        payload["nodes"] = normalize_nodes_object(nodes)
+
+    else:
+        for key in ("rows", "results", "data", "node_records"):
+            if isinstance(payload.get(key), list):
+                payload["nodes"] = normalize_nodes_object(payload[key])
+                break
+        else:
+            payload["nodes"] = {}
 
     return payload
 
@@ -286,9 +371,9 @@ def node_rows(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
         key=lambda row: (
             row.get("peer_index") or 0,
             row.get("height") or 0,
-            row.get("address") or ""
+            row.get("address") or "",
         ),
-        reverse=True
+        reverse=True,
     )
 
     for index, row in enumerate(rows, start=1):
@@ -302,28 +387,16 @@ def average(values) -> float | None:
         safe_number(value)
         for value in values
     ]
-
-    numbers = [
-        value
-        for value in numbers
-        if value is not None
-    ]
+    numbers = [value for value in numbers if value is not None]
 
     if not numbers:
         return None
 
-    return round(
-        statistics.mean(numbers),
-        4
-    )
+    return round(statistics.mean(numbers), 4)
 
 
 def max_or_none(values) -> Any:
-    items = [
-        value
-        for value in values
-        if value not in ("", None)
-    ]
+    items = [value for value in values if value not in ("", None)]
 
     if not items:
         return None
@@ -347,11 +420,7 @@ def most_common(values) -> Any:
     return counter.most_common(1)[0][0]
 
 
-def counter_top(
-    values,
-    limit: int = 10
-) -> list[dict[str, Any]]:
-
+def counter_top(values, limit: int = 25) -> list[dict[str, Any]]:
     counter = Counter()
 
     for value in values:
@@ -361,18 +430,13 @@ def counter_top(
     return [
         {
             "value": key,
-            "count": count
+            "count": count,
         }
         for key, count in counter.most_common(limit)
     ]
 
 
-def group_rows(
-    rows: list[dict[str, Any]],
-    key_name: str,
-    unknown: str = "Unknown"
-) -> dict[str, list[dict[str, Any]]]:
-
+def group_rows(rows: list[dict[str, Any]], key_name: str, unknown: str = "Unknown") -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for row in rows:
@@ -382,103 +446,52 @@ def group_rows(
     return grouped
 
 
-def summarize_group(
-    name: str,
-    rows: list[dict[str, Any]]
-) -> dict[str, Any]:
-
+def summarize_group(name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "name": name,
         "total_nodes": len(rows),
-        "reachable_nodes": sum(
-            1 for row in rows
-            if row.get("reachable") is True
-        ),
-        "unreachable_nodes": sum(
-            1 for row in rows
-            if row.get("reachable") is False
-        ),
-        "tor_nodes": sum(
-            1 for row in rows
-            if row.get("tor")
-        ),
-        "ipv4_nodes": sum(
-            1 for row in rows
-            if row.get("network") == "ipv4"
-        ),
-        "ipv6_nodes": sum(
-            1 for row in rows
-            if row.get("network") == "ipv6"
-        ),
-        "avg_latency_ms": average(
-            row.get("latency_ms")
-            for row in rows
-        ),
-        "latest_height": max_or_none(
-            row.get("height")
-            for row in rows
-        ),
-        "top_agent": most_common(
-            row.get("agent")
-            for row in rows
-        ),
-        "top_asn": most_common(
-            row.get("asn")
-            for row in rows
-        ),
-        "top_organization": most_common(
-            row.get("organization")
-            for row in rows
-        ),
-        "top_port": most_common(
-            row.get("port")
-            for row in rows
-        )
+        "reachable_nodes": sum(1 for row in rows if row.get("reachable") is True),
+        "unreachable_nodes": sum(1 for row in rows if row.get("reachable") is False),
+        "known_nodes": len(rows),
+        "tor_nodes": sum(1 for row in rows if row.get("tor")),
+        "i2p_nodes": sum(1 for row in rows if row.get("i2p")),
+        "ipv4_nodes": sum(1 for row in rows if row.get("network") == "ipv4"),
+        "ipv6_nodes": sum(1 for row in rows if row.get("network") == "ipv6"),
+        "vpn_nodes": sum(1 for row in rows if row.get("is_vpn")),
+        "proxy_nodes": sum(1 for row in rows if row.get("is_proxy")),
+        "avg_latency_ms": average(row.get("latency_ms") for row in rows),
+        "latest_height": max_or_none(row.get("height") for row in rows),
+        "top_agent": most_common(row.get("agent") for row in rows),
+        "top_asn": most_common(row.get("asn") for row in rows),
+        "top_organization": most_common(row.get("organization") for row in rows),
+        "top_port": most_common(row.get("port") for row in rows),
     }
 
 
-def build_group_payload(
-    rows: list[dict[str, Any]],
-    key_name: str,
-    total_name: str,
-    unknown: str = "Unknown"
-) -> dict[str, Any]:
-
-    grouped = group_rows(
-        rows,
-        key_name,
-        unknown=unknown
-    )
+def build_group_payload(rows: list[dict[str, Any]], key_name: str, total_name: str, unknown: str = "Unknown") -> dict[str, Any]:
+    grouped = group_rows(rows, key_name, unknown=unknown)
 
     results = [
         {
             **summarize_group(name, entries),
             key_name: name,
-            "nodes": entries
+            "nodes": entries,
         }
         for name, entries in grouped.items()
     ]
 
-    results.sort(
-        key=lambda item: item["total_nodes"],
-        reverse=True
-    )
+    results.sort(key=lambda item: item["total_nodes"], reverse=True)
 
     return {
         "updated_at": utc_iso(),
         total_name: len(results),
         "total_nodes": len(rows),
-        "results": results
+        "results": results,
     }
 
 
 def build_country_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "country",
-        "total_countries",
-        unknown="??"
-    )
+    return build_group_payload(rows, "country", "total_countries", unknown="??")
 
 
 def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -487,8 +500,7 @@ def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     for row in rows:
         city = row.get("city") or "Unknown"
         country = row.get("country") or "??"
-        key = f"{city}, {country}"
-        grouped[key].append(row)
+        grouped[f"{city}, {country}"].append(row)
 
     results = []
 
@@ -499,125 +511,55 @@ def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
             **summarize_group(key, entries),
             "city": city,
             "country": country,
-            "nodes": entries
+            "nodes": entries,
         })
 
-    results.sort(
-        key=lambda item: item["total_nodes"],
-        reverse=True
-    )
+    results.sort(key=lambda item: item["total_nodes"], reverse=True)
 
     return {
         "updated_at": utc_iso(),
         "total_cities": len(results),
         "total_nodes": len(rows),
-        "results": results
+        "results": results,
     }
 
 
 def build_asn_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "asn",
-        "total_asns",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "asn", "total_asns", unknown="UNKNOWN")
 
 
 def build_agent_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "agent",
-        "total_agents",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "agent", "total_agents", unknown="UNKNOWN")
 
 
 def build_version_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "protocol",
-        "total_versions",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "protocol", "total_versions", unknown="UNKNOWN")
 
 
 def build_port_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "port",
-        "total_ports",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "port", "total_ports", unknown="UNKNOWN")
 
 
 def build_services_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "services",
-        "total_service_sets",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "services", "total_service_sets", unknown="UNKNOWN")
 
 
 def build_organization_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "organization",
-        "total_organizations",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "organization", "total_organizations", unknown="UNKNOWN")
 
 
 def build_provider_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(
-        rows,
-        "provider",
-        "total_providers",
-        unknown="UNKNOWN"
-    )
+    return build_group_payload(rows, "provider", "total_providers", unknown="UNKNOWN")
 
 
-def build_tor_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    tor_rows = [
-        row
-        for row in rows
-        if row.get("tor")
-    ]
+def build_subset_payload(rows: list[dict[str, Any]], predicate, total_key: str) -> dict[str, Any]:
+    selected = [row for row in rows if predicate(row)]
 
     return {
         "updated_at": utc_iso(),
-        "total_tor_nodes": len(tor_rows),
-        "total_nodes": len(rows),
-        "results": tor_rows
-    }
-
-
-def build_reachable_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    selected = [
-        row
-        for row in rows
-        if row.get("reachable") is True
-    ]
-
-    return {
-        "updated_at": utc_iso(),
+        total_key: len(selected),
         "total_nodes": len(selected),
-        "results": selected
-    }
-
-
-def build_unreachable_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    selected = [
-        row
-        for row in rows
-        if row.get("reachable") is False
-    ]
-
-    return {
-        "updated_at": utc_iso(),
-        "total_nodes": len(selected),
-        "results": selected
+        "results": selected,
     }
 
 
@@ -629,14 +571,18 @@ def build_coordinates_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "port": row.get("port"),
             "country": row.get("country"),
             "city": row.get("city"),
+            "county": row.get("county"),
+            "zip": row.get("zip"),
             "latitude": row.get("latitude"),
             "longitude": row.get("longitude"),
             "asn": row.get("asn"),
             "organization": row.get("organization"),
             "provider": row.get("provider"),
             "geohash": row.get("geohash"),
+            "geohashid": row.get("geohashid"),
             "w3w": row.get("w3w"),
-            "tor": row.get("tor")
+            "tor": row.get("tor"),
+            "i2p": row.get("i2p"),
         }
         for row in rows
         if row.get("latitude") is not None
@@ -646,7 +592,7 @@ def build_coordinates_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "updated_at": utc_iso(),
         "total_coordinates": len(selected),
-        "results": selected
+        "results": selected,
     }
 
 
@@ -658,14 +604,36 @@ def build_latency_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "daily_latency": [
                     {
                         "t": utc_iso(),
-                        "v": row.get("latency_ms")
+                        "v": row.get("latency_ms"),
                     }
                 ],
-                "latency_ms": row.get("latency_ms")
+                "latency_ms": row.get("latency_ms"),
             }
             for row in rows
-        }
+        },
     }
+
+
+def calculate_peer_index(row: dict[str, Any]) -> float:
+    latency = safe_number(row.get("latency_ms"))
+    success_count = safe_number(row.get("success_count")) or 0
+    failure_count = safe_number(row.get("failure_count")) or 0
+
+    latency_score = 0.0
+
+    if latency is not None:
+        latency_score = max(0.0, 100.0 - min(100.0, latency / 5.0))
+
+    reliability_total = success_count + failure_count
+    reliability_score = 0.0
+
+    if reliability_total > 0:
+        reliability_score = (success_count / reliability_total) * 100.0
+
+    height_score = 25.0 if row.get("height") else 0.0
+    services_score = 25.0 if row.get("services") else 0.0
+
+    return round(latency_score + reliability_score + height_score + services_score, 4)
 
 
 def build_peer_health_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -681,58 +649,18 @@ def build_peer_health_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         item["peer_index"] = peer_index
         results.append(item)
 
-    results.sort(
-        key=lambda item: item.get("peer_index") or 0,
-        reverse=True
-    )
+    results.sort(key=lambda item: item.get("peer_index") or 0, reverse=True)
 
     return {
         "updated_at": utc_iso(),
-        "results": results
+        "results": results,
     }
-
-
-def calculate_peer_index(row: dict[str, Any]) -> float:
-    latency = safe_number(row.get("latency_ms"))
-    success_count = safe_number(row.get("success_count")) or 0
-    failure_count = safe_number(row.get("failure_count")) or 0
-
-    latency_score = 0.0
-
-    if latency is not None:
-        latency_score = max(
-            0.0,
-            100.0 - min(100.0, latency / 5.0)
-        )
-
-    reliability_total = success_count + failure_count
-
-    reliability_score = 0.0
-
-    if reliability_total > 0:
-        reliability_score = (
-            success_count / reliability_total
-        ) * 100.0
-
-    height_score = 25.0 if row.get("height") else 0.0
-    services_score = 25.0 if row.get("services") else 0.0
-
-    return round(
-        latency_score
-        + reliability_score
-        + height_score
-        + services_score,
-        4
-    )
 
 
 def build_leaderboard_payload(peer_health: dict[str, Any]) -> dict[str, Any]:
     rows = []
 
-    for index, entry in enumerate(
-        peer_health.get("results", []),
-        start=1
-    ):
+    for index, entry in enumerate(peer_health.get("results", []), start=1):
         item = dict(entry)
         item["rank"] = index
         item["node"] = item.get("address")
@@ -741,7 +669,7 @@ def build_leaderboard_payload(peer_health: dict[str, Any]) -> dict[str, Any]:
     return {
         "updated_at": utc_iso(),
         "count": len(rows),
-        "results": rows
+        "results": rows,
     }
 
 
@@ -757,21 +685,18 @@ def build_heights_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     results = [
         {
             "height": safe_int(height),
-            "nodes": count
+            "nodes": count,
         }
         for height, count in counter.most_common()
     ]
 
-    results.sort(
-        key=lambda item: item["height"] or 0,
-        reverse=True
-    )
+    results.sort(key=lambda item: item["height"] or 0, reverse=True)
 
     return {
         "updated_at": utc_iso(),
         "count": len(results),
         "latest_height": results[0]["height"] if results else None,
-        "results": results
+        "results": results,
     }
 
 
@@ -779,7 +704,7 @@ def build_dns_seeder_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     records = {
         "A": [],
         "AAAA": [],
-        "TXT": []
+        "TXT": [],
     }
 
     for row in rows:
@@ -788,7 +713,7 @@ def build_dns_seeder_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if not host:
             continue
 
-        if row.get("tor"):
+        if row.get("tor") or row.get("i2p"):
             records["TXT"].append(host)
         elif ":" in host:
             records["AAAA"].append(host)
@@ -801,28 +726,13 @@ def build_dns_seeder_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "updated_at": utc_iso(),
         "records": records,
-        "counts": {
-            key: len(value)
-            for key, value in records.items()
-        }
+        "counts": {key: len(value) for key, value in records.items()},
     }
 
 
-def build_propagation_payload(
-    payload: dict[str, Any],
-    rows: list[dict[str, Any]]
-) -> dict[str, Any]:
-
-    heights = [
-        safe_int(row.get("height"))
-        for row in rows
-    ]
-
-    heights = [
-        height
-        for height in heights
-        if height is not None
-    ]
+def build_propagation_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    heights = [safe_int(row.get("height")) for row in rows]
+    heights = [height for height in heights if height is not None]
 
     latest_height = max(heights) if heights else None
     median_height = statistics.median(heights) if heights else None
@@ -830,11 +740,7 @@ def build_propagation_payload(
     at_tip = 0
 
     if latest_height is not None:
-        at_tip = sum(
-            1
-            for height in heights
-            if height == latest_height
-        )
+        at_tip = sum(1 for height in heights if height == latest_height)
 
     return {
         "updated_at": utc_iso(),
@@ -842,37 +748,65 @@ def build_propagation_payload(
         "median_height": median_height,
         "nodes_at_tip": at_tip,
         "total_height_samples": len(heights),
-        "tip_convergence_percent": round(
-            (at_tip / len(heights)) * 100.0,
-            6
-        ) if heights else 0.0,
-        "changes": payload.get("changes", {})
+        "tip_convergence_percent": round((at_tip / len(heights)) * 100.0, 6) if heights else 0.0,
+        "changes": payload.get("changes", {}),
     }
 
 
-def build_status_payload(
-    payload: dict[str, Any],
-    rows: list[dict[str, Any]]
-) -> dict[str, Any]:
+def build_counts(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    reachable = sum(1 for row in rows if row.get("reachable") is True)
+    unreachable = sum(1 for row in rows if row.get("reachable") is False)
 
     return {
+        "total": len(rows),
+        "known": len(rows),
+        "reachable": payload.get("reachable_nodes", reachable),
+        "unreachable": payload.get("unreachable_nodes", unreachable),
+        "ambiguous": max(0, len(rows) - reachable - unreachable),
+        "ipv4": sum(1 for row in rows if row.get("network") == "ipv4"),
+        "ipv6": sum(1 for row in rows if row.get("network") == "ipv6"),
+        "tor": sum(1 for row in rows if row.get("tor")),
+        "i2p": sum(1 for row in rows if row.get("i2p")),
+        "vpn": sum(1 for row in rows if row.get("is_vpn")),
+        "proxy": sum(1 for row in rows if row.get("is_proxy")),
+    }
+
+
+def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    counts = build_counts(rows, payload)
+
+    return {
+        "schema": "zzx-bitnodes-static-api-status-v2",
         "source": payload.get("source"),
         "timestamp": payload.get("timestamp"),
-        "updated_at": payload.get("updated_at"),
+        "updated_at": payload.get("updated_at") or utc_iso(),
         "mode": payload.get("mode"),
-        "total_nodes": payload.get("total_nodes"),
-        "known_nodes": payload.get("known_nodes"),
-        "reachable_nodes": payload.get("reachable_nodes"),
-        "unreachable_nodes": payload.get("unreachable_nodes"),
+        "total_nodes": payload.get("total_nodes", len(rows)),
+        "known_nodes": payload.get("known_nodes", counts["known"]),
+        "reachable_nodes": payload.get("reachable_nodes", counts["reachable"]),
+        "unreachable_nodes": payload.get("unreachable_nodes", counts["unreachable"]),
         "reachable_24h": payload.get("reachable_24h"),
         "stale_nodes": payload.get("stale_nodes"),
         "latest_height": payload.get("latest_height"),
         "countries_count": payload.get("countries_count"),
         "cities_count": payload.get("cities_count"),
         "asns_count": payload.get("asns_count"),
-        "tor_nodes": payload.get("tor_nodes"),
+        "tor_nodes": payload.get("tor_nodes", counts["tor"]),
+        "i2p_nodes": counts["i2p"],
+        "vpn_nodes": counts["vpn"],
+        "proxy_nodes": counts["proxy"],
         "rows_exported": len(rows),
         "summary": payload.get("summary", {}),
+        "counts": counts,
+        "top": {
+            "countries": counter_top(row.get("country") for row in rows),
+            "cities": counter_top(row.get("city") for row in rows),
+            "agents": counter_top(row.get("agent") for row in rows),
+            "asns": counter_top(row.get("asn") for row in rows),
+            "organizations": counter_top(row.get("organization") for row in rows),
+            "providers": counter_top(row.get("provider") for row in rows),
+            "ports": counter_top(row.get("port") for row in rows),
+        },
         "changes": payload.get("changes", {}),
         "api": {
             "latest": "./latest.json",
@@ -889,6 +823,9 @@ def build_status_payload(
             "organizations": "./organizations.json",
             "providers": "./providers.json",
             "tor": "./tor.json",
+            "i2p": "./i2p.json",
+            "vpn": "./vpn.json",
+            "proxy": "./proxy.json",
             "coordinates": "./coordinates.json",
             "latency": "./latency.json",
             "peer_health": "./peer-health.json",
@@ -896,30 +833,21 @@ def build_status_payload(
             "heights": "./heights.json",
             "dns_seeder": "./dns-seeder.json",
             "propagation": "./propagation.json",
-            "status": "./status.json"
-        }
+            "status": "./status.json",
+        },
     }
 
 
-def build_latest_payload(
-    payload: dict[str, Any],
-    rows: list[dict[str, Any]]
-) -> dict[str, Any]:
-
+def build_latest_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
     latest = dict(payload)
     latest["rows"] = rows
+    latest["counts"] = build_counts(rows, payload)
 
     return latest
 
 
-def write_node_files(
-    output_dir: Path,
-    rows: list[dict[str, Any]],
-    pretty: bool
-) -> None:
-
+def write_node_files(output_dir: Path, rows: list[dict[str, Any]], pretty: bool) -> None:
     node_dir = output_dir / "nodes"
-
     mkdir(node_dir)
 
     for row in rows:
@@ -929,19 +857,12 @@ def write_node_files(
         write_json(
             node_dir / f"{safe_name(host)}-{safe_name(port)}.json",
             row,
-            pretty=pretty
+            pretty=pretty,
         )
 
 
-def write_group_files(
-    output_dir: Path,
-    group_name: str,
-    group_payload: dict[str, Any],
-    pretty: bool
-) -> None:
-
+def write_group_files(output_dir: Path, group_name: str, group_payload: dict[str, Any], pretty: bool) -> None:
     group_dir = output_dir / group_name
-
     mkdir(group_dir)
 
     for item in group_payload.get("results", []):
@@ -963,7 +884,7 @@ def write_group_files(
         write_json(
             group_dir / f"{safe_name(name)}.json",
             item,
-            pretty=pretty
+            pretty=pretty,
         )
 
 
@@ -973,9 +894,8 @@ def export_all(
     source: str | None = None,
     pretty: bool = True,
     archive_dir: Path | None = None,
-    gzip_archive: bool = True
+    gzip_archive: bool = True,
 ) -> None:
-
     payload = load_snapshot(input_path)
 
     if source:
@@ -995,10 +915,10 @@ def export_all(
             "updated_at": utc_iso(),
             "total_nodes": len(rows),
             "results": rows,
-            "nodes": nodes
+            "nodes": nodes,
         },
-        "reachable.json": build_reachable_payload(rows),
-        "unreachable.json": build_unreachable_payload(rows),
+        "reachable.json": build_subset_payload(rows, lambda row: row.get("reachable") is True, "total_reachable_nodes"),
+        "unreachable.json": build_subset_payload(rows, lambda row: row.get("reachable") is False, "total_unreachable_nodes"),
         "countries.json": build_country_payload(rows),
         "cities.json": build_city_payload(rows),
         "asns.json": build_asn_payload(rows),
@@ -1008,24 +928,23 @@ def export_all(
         "services.json": build_services_payload(rows),
         "organizations.json": build_organization_payload(rows),
         "providers.json": build_provider_payload(rows),
-        "tor.json": build_tor_payload(rows),
+        "tor.json": build_subset_payload(rows, lambda row: row.get("tor"), "total_tor_nodes"),
+        "i2p.json": build_subset_payload(rows, lambda row: row.get("i2p"), "total_i2p_nodes"),
+        "vpn.json": build_subset_payload(rows, lambda row: row.get("is_vpn"), "total_vpn_nodes"),
+        "proxy.json": build_subset_payload(rows, lambda row: row.get("is_proxy"), "total_proxy_nodes"),
         "coordinates.json": build_coordinates_payload(rows),
         "latency.json": build_latency_payload(rows),
         "peer-health.json": peer_health,
         "leaderboard.json": leaderboard,
         "heights.json": build_heights_payload(rows),
         "dns-seeder.json": build_dns_seeder_payload(rows),
-        "propagation.json": build_propagation_payload(payload, rows)
+        "propagation.json": build_propagation_payload(payload, rows),
     }
 
-    exports["status.json"] = build_status_payload(
-        payload,
-        rows
-    )
-
+    exports["status.json"] = build_status_payload(payload, rows)
     exports["index.json"] = exports["status.json"]
 
-    snapshots_payload = {
+    exports["snapshots.json"] = {
         "source": payload.get("source"),
         "timestamp": payload.get("timestamp"),
         "updated_at": payload.get("updated_at"),
@@ -1036,28 +955,18 @@ def export_all(
                 "timestamp": payload.get("timestamp"),
                 "updated_at": payload.get("updated_at"),
                 "url": "./latest.json",
-                "total_nodes": payload.get("total_nodes"),
+                "total_nodes": payload.get("total_nodes", len(rows)),
                 "reachable_nodes": payload.get("reachable_nodes"),
                 "reachable_24h": payload.get("reachable_24h"),
-                "latest_height": payload.get("latest_height")
+                "latest_height": payload.get("latest_height"),
             }
-        ]
+        ],
     }
 
-    exports["snapshots.json"] = snapshots_payload
-
     for filename, export_payload in exports.items():
-        write_json(
-            output_dir / filename,
-            export_payload,
-            pretty=pretty
-        )
+        write_json(output_dir / filename, export_payload, pretty=pretty)
 
-    write_node_files(
-        output_dir,
-        rows,
-        pretty=pretty
-    )
+    write_node_files(output_dir, rows, pretty=pretty)
 
     for group_name in [
         "countries",
@@ -1068,37 +977,21 @@ def export_all(
         "ports",
         "services",
         "organizations",
-        "providers"
+        "providers",
     ]:
-        write_group_files(
-            output_dir,
-            group_name,
-            exports[f"{group_name}.json"],
-            pretty=pretty
-        )
+        write_group_files(output_dir, group_name, exports[f"{group_name}.json"], pretty=pretty)
 
     if archive_dir:
         mkdir(archive_dir)
 
-        timestamp = payload.get(
-            "timestamp",
-            utc_now()
-        )
-
+        timestamp = payload.get("timestamp", utc_now())
+        archive_payload = build_latest_payload(payload, rows)
         archive_path = archive_dir / f"{timestamp}.json"
 
-        write_json(
-            archive_path,
-            build_latest_payload(payload, rows),
-            pretty=pretty
-        )
+        write_json(archive_path, archive_payload, pretty=pretty)
 
         if gzip_archive:
-            write_gzip_json(
-                archive_path.with_suffix(".json.gz"),
-                build_latest_payload(payload, rows),
-                pretty=False
-            )
+            write_gzip_json(archive_path.with_suffix(".json.gz"), archive_payload, pretty=False)
 
 
 def main() -> int:
@@ -1106,40 +999,13 @@ def main() -> int:
         description="Export ZZX-Labs Bitnodes static API JSON files."
     )
 
-    parser.add_argument(
-        "--input",
-        required=True
-    )
-
-    parser.add_argument(
-        "--output",
-        default="bitcoin/bitnodes/api"
-    )
-
-    parser.add_argument(
-        "--source",
-        default=None
-    )
-
-    parser.add_argument(
-        "--compact",
-        action="store_true"
-    )
-
-    parser.add_argument(
-        "--archive-dir",
-        default="bitcoin/bitnodes/archive"
-    )
-
-    parser.add_argument(
-        "--no-archive",
-        action="store_true"
-    )
-
-    parser.add_argument(
-        "--no-gzip",
-        action="store_true"
-    )
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", default="bitcoin/bitnodes/api")
+    parser.add_argument("--source", default=None)
+    parser.add_argument("--compact", action="store_true")
+    parser.add_argument("--archive-dir", default="bitcoin/bitnodes/archive")
+    parser.add_argument("--no-archive", action="store_true")
+    parser.add_argument("--no-gzip", action="store_true")
 
     args = parser.parse_args()
 
@@ -1149,7 +1015,7 @@ def main() -> int:
         source=args.source,
         pretty=not args.compact,
         archive_dir=None if args.no_archive else Path(args.archive_dir),
-        gzip_archive=not args.no_gzip
+        gzip_archive=not args.no_gzip,
     )
 
     return 0
