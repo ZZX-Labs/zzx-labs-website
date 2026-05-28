@@ -6,7 +6,12 @@
         "js/api.js",
         "js/datasource.js",
 
+        "js/header.js",
         "js/navbar.js",
+        "js/footer.js",
+        "js/credits.js",
+
+        "js/panels.js",
         "js/search.js",
         "js/tables.js",
 
@@ -15,14 +20,15 @@
         "js/widgets.js",
         "js/knotsvscore.js",
 
-        "js/versions.js",
-        "js/agents.js",
-        "js/services.js",
-        "js/ports.js",
-
-        "js/tor.js",
-        "js/vpn.js",
+        "js/maps.js",
         "js/geoip.js",
+        "js/vpn.js",
+        "js/tor.js",
+
+        "js/agents.js",
+        "js/versions.js",
+        "js/ports.js",
+        "js/services.js",
 
         "js/core.js"
     ];
@@ -66,6 +72,10 @@
         for (const modulePath of BN_MODULES) {
             await loadScript(modulePath);
         }
+
+        window.BNHeader?.init?.();
+        window.BNNavbarInit?.();
+        window.BNFooter?.init?.();
 
         window.BNDataSource?.init?.();
         window.BNCore?.init?.();
