@@ -25,31 +25,68 @@
             .trim();
     }
 
+    function formatNumber(value) {
+        if (BN.formatNumber) {
+            return BN.formatNumber(value);
+        }
+
+        const n = Number(value);
+
+        return Number.isFinite(n)
+            ? n.toLocaleString()
+            : String(value ?? "0");
+    }
+
+    function getTableScroll(table) {
+        return table.closest(".bn-table-scroll, .bn-table-wrap");
+    }
+
     function getToolbarContainer(table) {
+        const scroll = getTableScroll(table);
+
+        if (scroll && scroll.parentElement) {
+            return scroll.parentElement;
+        }
+
         return (
             table.closest(".bn-widget-table-section") ||
+            table.closest(".bn-node-panel") ||
             table.closest(".bn-panel") ||
             table.parentElement
         );
     }
 
+    function removeDuplicateToolbars(container) {
+        if (!container) {
+            return;
+        }
+
+        const toolbars = Array.from(
+            container.querySelectorAll(":scope > .bn-search-toolbar")
+        );
+
+        toolbars.slice(1).forEach(toolbar => {
+            toolbar.remove();
+        });
+    }
+
     function getOrCreateToolbar(table) {
         const container = getToolbarContainer(table);
+        const scroll = getTableScroll(table);
 
         if (!container) {
             return null;
         }
 
-        const existing = container.querySelector(
-            ":scope > .bn-search-toolbar"
-        );
+        removeDuplicateToolbars(container);
 
-        if (existing) {
-            return existing;
+        let toolbar = container.querySelector(":scope > .bn-search-toolbar");
+
+        if (toolbar) {
+            return toolbar;
         }
 
-        const toolbar = document.createElement("div");
-
+        toolbar = document.createElement("div");
         toolbar.className = "bn-search-toolbar";
 
         toolbar.innerHTML = `
@@ -83,11 +120,8 @@
             </div>
         `;
 
-        const tableScroll =
-            table.closest(".bn-table-scroll");
-
-        if (tableScroll) {
-            container.insertBefore(toolbar, tableScroll);
+        if (scroll && scroll.parentElement === container) {
+            container.insertBefore(toolbar, scroll);
         } else {
             container.prepend(toolbar);
         }
@@ -96,31 +130,23 @@
     }
 
     function getOrCreateEmptyState(table) {
-        const wrap =
-            table.closest(".bn-table-scroll");
+        const scroll = getTableScroll(table);
 
-        if (!wrap) {
+        if (!scroll) {
             return null;
         }
 
-        let empty =
-            wrap.querySelector(
-                ":scope > .bn-search-empty"
-            );
+        let empty = scroll.querySelector(":scope > .bn-search-empty");
 
         if (empty) {
             return empty;
         }
 
         empty = document.createElement("div");
+        empty.className = "bn-search-empty bn-search-hidden";
+        empty.textContent = "No records match the current search query.";
 
-        empty.className =
-            "bn-search-empty bn-search-hidden";
-
-        empty.textContent =
-            "No records match the current search query.";
-
-        wrap.appendChild(empty);
+        scroll.appendChild(empty);
 
         return empty;
     }
@@ -130,26 +156,19 @@
             return;
         }
 
-        const fmt =
-            BN.formatNumber
-                ? BN.formatNumber
-                : value => String(value);
-
         counter.innerHTML = `
             <span>
                 Showing
-                <strong>${fmt(visible)}</strong>
+                <strong>${formatNumber(visible)}</strong>
                 of
-                <strong>${fmt(total)}</strong>
+                <strong>${formatNumber(total)}</strong>
                 records
             </span>
         `;
     }
 
     function applyFilter(state) {
-        const query =
-            normalize(state.input.value);
-
+        const query = normalize(state.input?.value || "");
         let visible = 0;
 
         state.rows.forEach(row => {
@@ -157,15 +176,7 @@
                 !query ||
                 row.dataset.search.includes(query);
 
-            row.classList.toggle(
-                "bn-search-filtered",
-                !match
-            );
-
-            row.classList.toggle(
-                "bn-search-hidden",
-                !match
-            );
+            row.classList.toggle("bn-search-filtered", !match);
 
             if (match) {
                 visible += 1;
@@ -186,20 +197,12 @@
         );
 
         if (window.BNTables?.refresh) {
-            window.BNTables.refresh();
-        } else if (window.BNTables?.fixIndexes) {
-            state.tables?.forEach?.(table => {
-                window.BNTables.fixIndexes(table);
-            });
+            window.BNTables.refresh(state.scope || document);
         }
     }
 
     function attach(table) {
-        if (!table) {
-            return;
-        }
-
-        if (table.dataset.bnSearchReady === "true") {
+        if (!table || table.dataset.bnSearchReady === "true") {
             return;
         }
 
@@ -209,38 +212,28 @@
             return;
         }
 
-        const toolbar =
-            getOrCreateToolbar(table);
+        const toolbar = getOrCreateToolbar(table);
 
         if (!toolbar) {
             return;
         }
 
-        const input =
-            toolbar.querySelector(
-                ".bn-search-input"
-            );
+        const input = toolbar.querySelector(".bn-search-input");
+        const clear = toolbar.querySelector(".bn-search-clear");
+        const counter = toolbar.querySelector(".bn-search-stats");
+        const empty = getOrCreateEmptyState(table);
 
-        const clear =
-            toolbar.querySelector(
-                ".bn-search-clear"
-            );
-
-        const counter =
-            toolbar.querySelector(
-                ".bn-search-stats"
-            );
-
-        const empty =
-            getOrCreateEmptyState(table);
+        if (!input) {
+            return;
+        }
 
         rows.forEach(row => {
-            row.dataset.search =
-                buildSearchIndex(row);
+            row.dataset.search = buildSearchIndex(row);
         });
 
         const state = {
             table,
+            scope: getToolbarContainer(table) || document,
             toolbar,
             input,
             clear,
@@ -249,21 +242,15 @@
             rows
         };
 
-        input.addEventListener(
-            "input",
-            () => {
-                applyFilter(state);
-            }
-        );
+        input.addEventListener("input", () => {
+            applyFilter(state);
+        });
 
-        clear?.addEventListener(
-            "click",
-            () => {
-                input.value = "";
-                applyFilter(state);
-                input.focus();
-            }
-        );
+        clear?.addEventListener("click", () => {
+            input.value = "";
+            applyFilter(state);
+            input.focus();
+        });
 
         table.dataset.bnSearchReady = "true";
 
@@ -271,65 +258,72 @@
     }
 
     function init(scope = document) {
-        const tables =
-            BN.$$?.(".bn-table", scope) ||
-            Array.from(
-                scope.querySelectorAll(".bn-table")
-            );
+        const tables = BN.$$ ?
+            BN.$$(".bn-table", scope) :
+            Array.from(scope.querySelectorAll(".bn-table"));
 
         tables.forEach(attach);
     }
 
-    function refresh() {
-        document
-            .querySelectorAll(".bn-table")
-            .forEach(table => {
-                const toolbar =
-                    getToolbarContainer(table)
-                        ?.querySelector(
-                            ":scope > .bn-search-toolbar"
-                        );
+    function refresh(scope = document) {
+        const tables = BN.$$ ?
+            BN.$$(".bn-table", scope) :
+            Array.from(scope.querySelectorAll(".bn-table"));
 
-                if (!toolbar) {
-                    return;
-                }
+        tables.forEach(table => {
+            const container = getToolbarContainer(table);
+            const toolbar = container?.querySelector(":scope > .bn-search-toolbar");
 
-                const input =
-                    toolbar.querySelector(
-                        ".bn-search-input"
-                    );
+            if (!toolbar) {
+                attach(table);
+                return;
+            }
 
-                if (!input) {
-                    return;
-                }
+            const input = toolbar.querySelector(".bn-search-input");
+            const counter = toolbar.querySelector(".bn-search-stats");
+            const empty = getOrCreateEmptyState(table);
+            const rows = getRows(table);
 
-                const rows =
-                    getRows(table);
-
-                const counter =
-                    toolbar.querySelector(
-                        ".bn-search-stats"
-                    );
-
-                const empty =
-                    getOrCreateEmptyState(table);
-
-                const state = {
-                    table,
-                    toolbar,
-                    input,
-                    counter,
-                    empty,
-                    rows
-                };
-
-                rows.forEach(row => {
-                    row.dataset.search =
-                        buildSearchIndex(row);
-                });
-
-                applyFilter(state);
+            rows.forEach(row => {
+                row.dataset.search = buildSearchIndex(row);
             });
+
+            applyFilter({
+                table,
+                scope: container || scope,
+                toolbar,
+                input,
+                counter,
+                empty,
+                rows
+            });
+        });
+    }
+
+    function destroy(scope = document) {
+        const tables = BN.$$ ?
+            BN.$$(".bn-table", scope) :
+            Array.from(scope.querySelectorAll(".bn-table"));
+
+        tables.forEach(table => {
+            table.dataset.bnSearchReady = "false";
+        });
+
+        const toolbars = BN.$$ ?
+            BN.$$(".bn-search-toolbar", scope) :
+            Array.from(scope.querySelectorAll(".bn-search-toolbar"));
+
+        toolbars.forEach(toolbar => {
+            toolbar.remove();
+        });
+
+        const empties = BN.$$ ?
+            BN.$$(".bn-search-empty", scope) :
+            Array.from(scope.querySelectorAll(".bn-search-empty"));
+
+        empties.forEach(empty => {
+            empty.remove();
+        });
     }
 
     window.BNSearchInit = init;
@@ -338,6 +332,7 @@
         init,
         attach,
         refresh,
+        destroy,
         applyFilter
     };
 })();
