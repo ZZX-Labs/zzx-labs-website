@@ -1,1 +1,234 @@
+.bn-graph-card {
+    width: 100%;
+    max-width: 100%;
 
+    display: flex;
+    flex-direction: column;
+
+    gap: 1.2rem;
+
+    padding:
+        1.15rem
+        1.2rem;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.13);
+
+    border-radius: 16px;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(192, 214, 116, 0.055),
+            transparent 46%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(9, 12, 9, 0.98),
+            rgba(5, 7, 5, 0.99)
+        );
+
+    overflow: hidden;
+}
+
+.bn-graph-head h2 {
+    margin:
+        0.25rem
+        0
+        0.45rem;
+
+    color: #edf7b9;
+
+    font-family: var(--bn-heading);
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+}
+
+.bn-graph-head p {
+    margin: 0;
+
+    color:
+        rgba(204, 216, 182, 0.72);
+
+    font-family: var(--bn-font);
+    font-size: 0.82rem;
+
+    line-height: 1.6;
+}
+
+.bn-graph-orbit {
+    position: relative;
+
+    width: 100%;
+    min-height: 520px;
+
+    border:
+        1px solid rgba(192, 214, 116, 0.08);
+
+    border-radius: 18px;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(230, 164, 43, 0.055),
+            transparent 22%
+        ),
+        radial-gradient(
+            circle at center,
+            transparent 0 34%,
+            rgba(192, 214, 116, 0.08) 34.25%,
+            transparent 34.75%,
+            transparent 55%,
+            rgba(192, 214, 116, 0.055) 55.25%,
+            transparent 55.75%
+        );
+
+    overflow: hidden;
+}
+
+.bn-graph-core {
+    position: absolute;
+    inset:
+        50% auto auto 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    width: 132px;
+    height: 132px;
+
+    border:
+        1px solid rgba(230, 164, 43, 0.28);
+
+    border-radius: 999px;
+
+    background:
+        rgba(4, 6, 4, 0.92);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    gap: 0.35rem;
+
+    text-align: center;
+
+    box-shadow:
+        0 0 26px rgba(230, 164, 43, 0.08);
+}
+
+.bn-graph-core strong {
+    color: #edf7b9;
+
+    font-family: var(--bn-font);
+    font-size: 1.15rem;
+    font-weight: 900;
+
+    font-variant-numeric: tabular-nums;
+}
+
+.bn-graph-core span {
+    color: rgba(230, 164, 43, 0.78);
+
+    font-family: var(--bn-font);
+    font-size: 0.68rem;
+    font-weight: 800;
+
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.bn-graph-node {
+    --angle:
+        calc(
+            360deg / var(--bn-graph-count) * var(--bn-graph-index)
+        );
+
+    --radius:
+        min(38vw, 215px);
+
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: var(--bn-graph-size);
+    height: var(--bn-graph-size);
+
+    transform:
+        translate(-50%, -50%)
+        rotate(var(--angle))
+        translate(var(--radius))
+        rotate(calc(var(--angle) * -1));
+
+    border:
+        1px solid rgba(192, 214, 116, 0.18);
+
+    border-radius: 999px;
+
+    background:
+        rgba(8, 12, 8, 0.94);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    gap: 0.18rem;
+
+    padding: 0.5rem;
+
+    text-align: center;
+
+    box-shadow:
+        0 0 18px rgba(192, 214, 116, 0.07);
+
+    overflow: hidden;
+}
+
+.bn-graph-node strong {
+    color: #edf7b9;
+
+    font-family: var(--bn-font);
+    font-size: 0.78rem;
+    font-weight: 900;
+
+    font-variant-numeric: tabular-nums;
+}
+
+.bn-graph-node span {
+    max-width: 100%;
+
+    color:
+        rgba(204, 216, 182, 0.74);
+
+    font-family: var(--bn-font);
+    font-size: 0.58rem;
+    font-weight: 700;
+
+    line-height: 1.15;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+    .bn-graph-card {
+        padding:
+            1rem
+            0.95rem;
+    }
+
+    .bn-graph-orbit {
+        min-height: 420px;
+    }
+
+    .bn-graph-node {
+        --radius: min(35vw, 150px);
+    }
+
+    .bn-graph-core {
+        width: 104px;
+        height: 104px;
+    }
+}
