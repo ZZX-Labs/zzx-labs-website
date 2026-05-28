@@ -38,16 +38,24 @@
     }
 
     function cleanDepth(depth) {
-        return String(depth || ".").replace(/\/+$/, "") || ".";
+        return String(depth || ".")
+            .replace(/\/+$/, "") || ".";
     }
 
     function src(path) {
         return `${cleanDepth(getDepth())}/${path}`;
     }
 
+    function moduleLoaded(path) {
+        return document.querySelector(
+            `script[data-bn-module="${path}"]`
+        );
+    }
+
     function loadScript(path) {
         return new Promise((resolve, reject) => {
-            if (document.querySelector(`script[data-bn-module="${path}"]`)) {
+
+            if (moduleLoaded(path)) {
                 resolve();
                 return;
             }
@@ -58,10 +66,16 @@
             script.defer = true;
             script.dataset.bnModule = path;
 
-            script.onload = resolve;
+            script.onload = () => {
+                resolve();
+            };
 
             script.onerror = () => {
-                reject(new Error(`Failed to load ${path}`));
+                reject(
+                    new Error(
+                        `Failed to load ${path}`
+                    )
+                );
             };
 
             document.head.appendChild(script);
@@ -72,18 +86,79 @@
         for (const modulePath of BN_MODULES) {
             await loadScript(modulePath);
         }
+    }
+
+    function initSubsystems() {
 
         window.BNHeader?.init?.();
         window.BNNavbarInit?.();
         window.BNFooter?.init?.();
 
+        window.BNCredits?.init?.();
+
+        window.BNPanels?.init?.();
+
+        window.BNSearch?.init?.();
+        window.BNTables?.init?.();
+
+        window.BNCards?.init?.();
+        window.BNCharts?.renderAll?.();
+        window.BNWidgets?.init?.();
+
+        window.BNKnotsVsCore?.init?.();
+
+        window.BNMaps?.init?.();
+
+        window.BNGeoIP?.init?.();
+        window.BNVPN?.init?.();
+        window.BNTor?.init?.();
+
+        window.BNAgents?.init?.();
+        window.BNVersions?.init?.();
+        window.BNPorts?.init?.();
+        window.BNServices?.init?.();
+
         window.BNDataSource?.init?.();
+
         window.BNCore?.init?.();
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-        loadModules().catch(err => {
-            console.error("Bitnodes module load failed:", err);
-        });
-    });
+    async function boot() {
+        try {
+            await loadModules();
+
+            initSubsystems();
+
+            document.documentElement.classList.add(
+                "bn-modules-loaded"
+            );
+
+            console.info(
+                "[Bitnodes] Modules initialized."
+            );
+
+        } catch (err) {
+
+            console.error(
+                "Bitnodes module load failed:",
+                err
+            );
+
+            const status =
+                document.querySelector(
+                    "#bn-status"
+                );
+
+            if (status) {
+                status.textContent =
+                    `Module load failure: ${err.message}`;
+            }
+        }
+    }
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        boot
+    );
+
 })();
