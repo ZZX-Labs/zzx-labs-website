@@ -41,6 +41,16 @@ jobs:
             --exclude "cyberchef/app" \
             ./ _site/
 
+      - name: Verify ZZX CyberChef wrapper files
+        run: |
+          test -f _site/cyberchef/index.html
+          test -f _site/cyberchef/styles.css
+          test -f _site/cyberchef/script.js
+          test -f _site/cyberchef/hook.js
+          test -f _site/cyberchef/container.js
+          test -f _site/cyberchef/upgrades.css
+          test -f _site/cyberchef/upgrades.js
+
       - name: Download CyberChef v11.0.0
         run: |
           mkdir -p _cyberchef-download
@@ -214,7 +224,13 @@ jobs:
               html = html.replace(old, new)
 
           if "__zzx_storage_test__" not in html:
-              html = re.sub(r"<head>", "<head>\n" + shim + "\n", html, count=1, flags=re.I)
+              html = re.sub(
+                  r"<head>",
+                  "<head>\n" + shim + "\n",
+                  html,
+                  count=1,
+                  flags=re.I
+              )
 
           html = re.sub(
               r'<link\s+href=["\']assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
@@ -231,7 +247,10 @@ jobs:
           )
 
           if 'href="styles.css"' not in html and "href='styles.css'" not in html:
-              html = html.replace("</head>", '<link rel="stylesheet" href="styles.css">\n</head>')
+              html = html.replace(
+                  "</head>",
+                  '<link rel="stylesheet" href="styles.css">\n</head>'
+              )
 
           if 'src="script.js"' not in html and "src='script.js'" not in html:
               html = re.sub(
@@ -244,383 +263,6 @@ jobs:
 
           index.write_text(html, encoding="utf-8")
           PY
-
-      - name: Generate ZZX CyberChef wrapper
-        run: |
-          cat > _site/cyberchef/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <meta name="robots" content="noindex, nofollow">
-
-              <title>CyberChefZZX | ZZX-Labs R&D</title>
-
-              <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
-              <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
-              <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
-              <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
-
-              <link rel="stylesheet" href="../static/styles.css">
-              <link rel="stylesheet" href="./style.css">
-
-              <script src="../static/script.js" defer></script>
-              <script src="./hook.js" defer></script>
-              <script src="./script.js" defer></script>
-          </head>
-
-          <body data-cz-depth=".">
-
-          <header>
-              <div id="zzx-header"></div>
-
-              <br>
-
-              <div id="ticker-container"></div>
-
-              <br>
-
-              <div id="cz-header"></div>
-          </header>
-
-          <main class="cz-shell" data-cyberchef-view="home">
-
-              <section class="cz-hero container">
-                  <p class="cz-kicker">ZZX-Labs / Browser-Side Cyber Toolkit</p>
-
-                  <h2>CyberChefZZX</h2>
-
-                  <p>
-                      A ZZX-Labs R&D container for CyberChef v11.0.0, providing
-                      local browser-side encoding, decoding, cryptography,
-                      compression, decompression, hashing, parsing, and data
-                      transformation workflows. The native CyberChef instance is
-                      preserved at <a href="./app/">/cyberchef/app/</a>.
-                  </p>
-
-                  <div class="cz-sourcebar">
-                      <label for="cz-source">CyberChef Engine</label>
-
-                      <select id="cz-source">
-                          <option value="local" selected>ZZX-Labs Local CyberChef</option>
-                          <option value="upstream">GCHQ GitHub Pages CyberChef</option>
-                      </select>
-
-                      <button id="cz-load" type="button">Load</button>
-                      <button id="cz-refresh" type="button">Refresh</button>
-
-                      <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">
-                          Open Native Local App
-                      </a>
-                  </div>
-              </section>
-
-              <br>
-
-              <section id="cz-status" class="cz-status container">
-                  Loading local CyberChef instance…
-              </section>
-
-              <br>
-
-              <section class="cz-grid container">
-                  <article class="cz-card">
-                      <span>Version</span>
-                      <strong>v11.0.0</strong>
-                  </article>
-
-                  <article class="cz-card">
-                      <span>Runtime</span>
-                      <strong>Browser Local</strong>
-                  </article>
-
-                  <article class="cz-card">
-                      <span>Native Path</span>
-                      <strong>/cyberchef/app/</strong>
-                  </article>
-
-                  <article class="cz-card">
-                      <span>Attribution</span>
-                      <strong>GCHQ / CyberChef</strong>
-                  </article>
-              </section>
-
-              <br>
-
-              <section class="cz-panel container">
-                  <header class="cz-panel-head">
-                      <span class="cz-kicker">Tool Engine</span>
-                      <h2>CyberChef Workspace</h2>
-                      <p>
-                          The embedded workspace below can use the local ZZX-hosted
-                          CyberChef build or the upstream GCHQ-hosted instance.
-                      </p>
-                  </header>
-
-                  <div class="cz-frame-wrap">
-                      <iframe
-                          id="cz-frame"
-                          title="CyberChef"
-                          src="./app/"
-                          loading="eager"
-                          referrerpolicy="no-referrer"
-                      ></iframe>
-                  </div>
-              </section>
-
-              <br>
-
-              <section class="cz-panel container">
-                  <header class="cz-panel-head">
-                      <span class="cz-kicker">Credits / License</span>
-                      <h2>Attribution</h2>
-                  </header>
-
-                  <div class="cz-credit-grid">
-                      <span>CyberChef v11.0.0</span>
-                      <span>GCHQ</span>
-                      <span>Apache License 2.0</span>
-                      <span>ZZX-Labs R&D</span>
-                      <span>0xdeadbeef</span>
-                      <span>0xdeadbeef Consulting</span>
-                  </div>
-              </section>
-
-              <br><br>
-          </main>
-
-          <footer>
-              <div id="cz-footer"></div>
-              <div id="zzx-footer"></div>
-          </footer>
-
-          </body>
-          </html>
-          EOF
-
-          cat > _site/cyberchef/style.css << 'EOF'
-          .cz-shell {
-              color: #d1d1d1;
-          }
-
-          .cz-hero,
-          .cz-panel,
-          .cz-status {
-              border: 1px solid #444;
-              background: linear-gradient(180deg, #333, #242424);
-              padding: 1rem;
-          }
-
-          .cz-kicker {
-              color: #c79c6e;
-              text-transform: uppercase;
-              letter-spacing: 0.12em;
-              font-size: 0.78rem;
-              margin: 0 0 0.5rem;
-          }
-
-          .cz-hero h2,
-          .cz-panel h2 {
-              color: #c0d674;
-              margin-top: 0;
-          }
-
-          .cz-hero p,
-          .cz-panel p,
-          .cz-status {
-              color: #d1d1d1;
-              line-height: 1.55;
-          }
-
-          .cz-sourcebar {
-              display: flex;
-              flex-wrap: wrap;
-              align-items: center;
-              gap: 0.65rem;
-              margin-top: 1rem;
-          }
-
-          .cz-sourcebar label {
-              color: #c79c6e;
-          }
-
-          .cz-sourcebar select,
-          .cz-sourcebar button,
-          .cz-link-button {
-              border: 1px solid #444;
-              background: #202020;
-              color: #d1d1d1;
-              padding: 0.55rem 0.75rem;
-              font: inherit;
-          }
-
-          .cz-sourcebar button:hover,
-          .cz-link-button:hover {
-              background: #c0d674;
-              color: #111;
-              border-color: #c0d674;
-          }
-
-          .cz-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-              gap: 1rem;
-          }
-
-          .cz-card {
-              border: 1px solid #444;
-              background: #202020;
-              padding: 1rem;
-          }
-
-          .cz-card span {
-              display: block;
-              color: #9a9a9a;
-              font-size: 0.78rem;
-              text-transform: uppercase;
-              letter-spacing: 0.08em;
-          }
-
-          .cz-card strong {
-              display: block;
-              color: #c0d674;
-              margin-top: 0.45rem;
-          }
-
-          .cz-panel-head {
-              margin-bottom: 1rem;
-          }
-
-          .cz-frame-wrap {
-              height: calc(100vh - 230px);
-              min-height: 720px;
-              border: 1px solid #444;
-              background: #111;
-          }
-
-          #cz-frame {
-              display: block;
-              width: 100%;
-              height: 100%;
-              border: 0;
-              background: #111;
-          }
-
-          .cz-credit-grid {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 0.5rem;
-          }
-
-          .cz-credit-grid span {
-              border: 1px solid #444;
-              background: #202020;
-              color: #d1d1d1;
-              padding: 0.45rem 0.65rem;
-              font-size: 0.85rem;
-          }
-
-          @media (max-width: 760px) {
-              .cz-frame-wrap {
-                  height: 75vh;
-                  min-height: 620px;
-              }
-
-              .cz-sourcebar {
-                  align-items: stretch;
-                  flex-direction: column;
-              }
-
-              .cz-sourcebar select,
-              .cz-sourcebar button,
-              .cz-link-button {
-                  width: 100%;
-              }
-          }
-          EOF
-
-          cat > _site/cyberchef/hook.js << 'EOF'
-          (() => {
-              "use strict";
-
-              window.ZZX = window.ZZX || {};
-
-              window.ZZX.CYBERCHEF = {
-                  version: "v11.0.0",
-                  localUrl: "./app/",
-                  upstreamUrl: "https://gchq.github.io/CyberChef/",
-                  defaultSource: "local"
-              };
-          })();
-          EOF
-
-          cat > _site/cyberchef/script.js << 'EOF'
-          (() => {
-              "use strict";
-
-              function ready(fn) {
-                  if (document.readyState === "loading") {
-                      document.addEventListener("DOMContentLoaded", fn);
-                  } else {
-                      fn();
-                  }
-              }
-
-              ready(() => {
-                  const frame = document.getElementById("cz-frame");
-                  const source = document.getElementById("cz-source");
-                  const load = document.getElementById("cz-load");
-                  const refresh = document.getElementById("cz-refresh");
-                  const status = document.getElementById("cz-status");
-
-                  const cfg = window.ZZX?.CYBERCHEF || {
-                      localUrl: "./app/",
-                      upstreamUrl: "https://gchq.github.io/CyberChef/",
-                      defaultSource: "local"
-                  };
-
-                  function urlFor(value) {
-                      return value === "upstream"
-                          ? cfg.upstreamUrl
-                          : cfg.localUrl;
-                  }
-
-                  function setStatus(value) {
-                      if (!status) return;
-
-                      status.textContent = value === "upstream"
-                          ? "Using upstream GCHQ CyberChef instance."
-                          : "Using local ZZX-Labs CyberChef v11.0.0 instance.";
-                  }
-
-                  function loadSource() {
-                      const value = source?.value || cfg.defaultSource;
-                      if (frame) frame.src = urlFor(value);
-                      setStatus(value);
-
-                      try {
-                          localStorage.setItem("zzxCyberChefSource", value);
-                      } catch (err) {}
-                  }
-
-                  try {
-                      const saved = localStorage.getItem("zzxCyberChefSource");
-                      if (saved && source) source.value = saved;
-                  } catch (err) {}
-
-                  load?.addEventListener("click", loadSource);
-
-                  refresh?.addEventListener("click", () => {
-                      if (frame) frame.src = frame.src;
-                  });
-
-                  loadSource();
-
-                  console.info("[CyberChefZZX] Wrapper initialized.");
-              });
-          })();
-          EOF
 
       - name: Add attribution and license notices
         run: |
@@ -677,9 +319,12 @@ jobs:
       - name: Verify CyberChef deployment artifact
         run: |
           test -f _site/cyberchef/index.html
-          test -f _site/cyberchef/style.css
+          test -f _site/cyberchef/styles.css
           test -f _site/cyberchef/script.js
           test -f _site/cyberchef/hook.js
+          test -f _site/cyberchef/container.js
+          test -f _site/cyberchef/upgrades.css
+          test -f _site/cyberchef/upgrades.js
 
           test -f _site/cyberchef/app/index.html
           test -f _site/cyberchef/app/native.html
@@ -693,7 +338,7 @@ jobs:
           grep -q 'src="script.js"' _site/cyberchef/app/index.html
           grep -q 'src="assets/main.js"' _site/cyberchef/app/index.html
 
-          printf '%s\n' 'CyberChef wrapper, bridge, and native app generated successfully.'
+          printf '%s\n' 'CyberChef wrapper files, bridge files, and native app verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
