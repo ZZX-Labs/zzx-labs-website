@@ -32,6 +32,8 @@ jobs:
             --exclude ".github" \
             --exclude "_site" \
             --exclude "tools" \
+            --exclude "_cyberchef-download" \
+            --exclude "_cyberchef-extract" \
             ./ _site/
 
       - name: Download CyberChef v11.0.0
@@ -47,10 +49,10 @@ jobs:
       - name: Install CyberChef into Pages artifact
         run: |
           mkdir -p _cyberchef-extract
+          rm -rf _site/cyberchef
           mkdir -p _site/cyberchef
 
           unzip -o _cyberchef-download/CyberChef_v11.0.0.zip -d _cyberchef-extract
-
           cp -a _cyberchef-extract/. _site/cyberchef/
 
           if [ -f "_site/cyberchef/CyberChef_v11.0.0.html" ]; then
@@ -80,6 +82,77 @@ jobs:
 
           grep -q 'assets/main.js' _site/cyberchef/index.html || \
             sed -i '/<\/body>/i\    <script src="assets/main.js"></script>' _site/cyberchef/index.html
+
+      - name: Add CyberChef browser storage quota guard
+        run: |
+          cat > _site/cyberchef/assets/zzx-storage-guard.js << 'EOF'
+          (function () {
+            function clearCyberChefStorage(storage) {
+              if (!storage) return;
+
+              var keys = [];
+
+              for (var i = 0; i < storage.length; i++) {
+                var key = storage.key(i);
+                if (!key) continue;
+
+                var lower = key.toLowerCase();
+
+                if (
+                  lower.indexOf("cyberchef") !== -1 ||
+                  lower.indexOf("chef") !== -1 ||
+                  lower.indexOf("recipe") !== -1 ||
+                  lower.indexOf("bake") !== -1 ||
+                  lower.indexOf("input") !== -1 ||
+                  lower.indexOf("output") !== -1
+                ) {
+                  keys.push(key);
+                }
+              }
+
+              for (var j = 0; j < keys.length; j++) {
+                try {
+                  storage.removeItem(keys[j]);
+                } catch (e) {}
+              }
+            }
+
+            try {
+              clearCyberChefStorage(window.localStorage);
+              clearCyberChefStorage(window.sessionStorage);
+            } catch (e) {}
+
+            try {
+              var originalSetItem = Storage.prototype.setItem;
+
+              Storage.prototype.setItem = function (key, value) {
+                try {
+                  return originalSetItem.call(this, key, value);
+                } catch (e) {
+                  if (
+                    e &&
+                    (
+                      e.name === "QuotaExceededError" ||
+                      e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                    )
+                  ) {
+                    try {
+                      clearCyberChefStorage(this);
+                      return originalSetItem.call(this, key, value);
+                    } catch (e2) {
+                      return null;
+                    }
+                  }
+
+                  throw e;
+                }
+              };
+            } catch (e) {}
+          })();
+          EOF
+
+          grep -q 'assets/zzx-storage-guard.js' _site/cyberchef/index.html || \
+            sed -i '/assets\/main.js/i\    <script src="assets/zzx-storage-guard.js"></script>' _site/cyberchef/index.html
 
       - name: Add CyberChef attribution and license notices
         run: |
@@ -128,6 +201,14 @@ jobs:
 
           https://cla-assistant.io/gchq/CyberChef
           EOF
+
+      - name: Verify CyberChef artifact
+        run: |
+          test -f _site/cyberchef/index.html
+          test -f _site/cyberchef/assets/main.css
+          test -f _site/cyberchef/assets/main.js
+          test -f _site/cyberchef/assets/zzx-storage-guard.js
+          printf '%s\n' 'CyberChef artifact verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
