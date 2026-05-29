@@ -27,7 +27,17 @@ def py(script: Path, *args: str) -> list[str]:
 
 
 def call(command: list[str]) -> int:
-    return subprocess.call(command)
+    print("$ " + " ".join(str(part) for part in command), flush=True)
+    return subprocess.call(command, cwd=str(APP_ROOT))
+
+
+def existing_input(path: str | Path) -> Path | None:
+    item = Path(path).resolve()
+
+    if item.exists() and item.is_file():
+        return item
+
+    return None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,119 +46,89 @@ def build_parser() -> argparse.ArgumentParser:
         description="ZZX-Labs Bitnodes export wrapper for Redis and static JSON exporters.",
     )
 
-    sub = parser.add_subparsers(
-        dest="mode",
-        required=True,
-    )
+    sub = parser.add_subparsers(dest="mode", required=True)
 
     redis_export = sub.add_parser(
         "redis",
         help="Export from original/compatible Redis-backed Bitnodes data.",
     )
 
-    redis_export.add_argument(
-        "--output",
-        default=str(DEFAULT_OUTPUT),
-    )
+    redis_export.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    redis_export.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    redis_export.add_argument("--scan-pattern", default="*")
+    redis_export.add_argument("--scan-limit", type=int, default=250000)
+    redis_export.add_argument("--compact", action="store_true")
+    redis_export.add_argument("--no-gzip", action="store_true")
+    redis_export.add_argument("--fail-empty", action="store_true")
 
     json_export = sub.add_parser(
         "json",
         help="Export from a local Bitnodes snapshot JSON file.",
     )
 
-    json_export.add_argument(
-        "--input",
-        default=str(DEFAULT_INPUT),
-    )
-
-    json_export.add_argument(
-        "--output",
-        default=str(DEFAULT_OUTPUT),
-    )
-
-    json_export.add_argument(
-        "--source",
-        default=None,
-    )
-
-    json_export.add_argument(
-        "--compact",
-        action="store_true",
-    )
-
-    json_export.add_argument(
-        "--archive-dir",
-        default=str(DEFAULT_ARCHIVE),
-    )
-
-    json_export.add_argument(
-        "--no-archive",
-        action="store_true",
-    )
-
-    json_export.add_argument(
-        "--no-gzip",
-        action="store_true",
-    )
+    json_export.add_argument("--input", default=str(DEFAULT_INPUT))
+    json_export.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    json_export.add_argument("--source", default=None)
+    json_export.add_argument("--compact", action="store_true")
+    json_export.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    json_export.add_argument("--no-archive", action="store_true")
+    json_export.add_argument("--no-gzip", action="store_true")
 
     auto = sub.add_parser(
         "auto",
         help="Prefer JSON export when input exists; otherwise fall back to Redis export.",
     )
 
-    auto.add_argument(
-        "--input",
-        default=str(DEFAULT_INPUT),
-    )
-
-    auto.add_argument(
-        "--output",
-        default=str(DEFAULT_OUTPUT),
-    )
-
-    auto.add_argument(
-        "--source",
-        default=None,
-    )
-
-    auto.add_argument(
-        "--compact",
-        action="store_true",
-    )
-
-    auto.add_argument(
-        "--archive-dir",
-        default=str(DEFAULT_ARCHIVE),
-    )
-
-    auto.add_argument(
-        "--no-archive",
-        action="store_true",
-    )
-
-    auto.add_argument(
-        "--no-gzip",
-        action="store_true",
-    )
+    auto.add_argument("--input", default=str(DEFAULT_INPUT))
+    auto.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    auto.add_argument("--source", default=None)
+    auto.add_argument("--compact", action="store_true")
+    auto.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    auto.add_argument("--no-archive", action="store_true")
+    auto.add_argument("--no-gzip", action="store_true")
+    auto.add_argument("--scan-pattern", default="*")
+    auto.add_argument("--scan-limit", type=int, default=250000)
+    auto.add_argument("--fail-empty", action="store_true")
 
     return parser
 
 
 def run_redis_export(args: argparse.Namespace) -> int:
-    return call(
-        py(
-            EXPORT_FROM_REDIS,
-            "--output",
-            str(Path(args.output).resolve()),
-        )
+    command = py(
+        EXPORT_FROM_REDIS,
+        "--output",
+        str(Path(args.output).resolve()),
+        "--archive-dir",
+        str(Path(args.archive_dir).resolve()),
+        "--scan-pattern",
+        str(args.scan_pattern),
+        "--scan-limit",
+        str(args.scan_limit),
     )
+
+    if args.compact:
+        command.append("--compact")
+
+    if args.no_gzip:
+        command.append("--no-gzip")
+
+    if args.fail_empty:
+        command.append("--fail-empty")
+
+    return call(command)
 
 
 def run_json_export(args: argparse.Namespace) -> int:
+    input_path = existing_input(args.input)
+
+    if input_path is None:
+        print(f"JSON input does not exist: {args.input}", file=sys.stderr)
+        return 1
+
     command = py(
         EXPORT_JSON,
         "--input",
-        str(Path(args.input).resolve()),
+        str(input_path),
         "--output",
         str(Path(args.output).resolve()),
         "--archive-dir",
@@ -156,10 +136,7 @@ def run_json_export(args: argparse.Namespace) -> int:
     )
 
     if args.source:
-        command.extend([
-            "--source",
-            str(args.source),
-        ])
+        command.extend(["--source", str(args.source)])
 
     if args.compact:
         command.append("--compact")
@@ -174,11 +151,12 @@ def run_json_export(args: argparse.Namespace) -> int:
 
 
 def run_auto_export(args: argparse.Namespace) -> int:
-    input_path = Path(args.input).resolve()
+    input_path = existing_input(args.input)
 
-    if input_path.exists():
+    if input_path is not None:
         return run_json_export(args)
 
+    print(f"JSON input missing; falling back to Redis export: {args.input}")
     return run_redis_export(args)
 
 
