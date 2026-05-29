@@ -1,32 +1,59 @@
 {
+  "schema": "zzx-bitnodes-config-v2",
+  "profile": "example",
+  "description": "Example configuration for the ZZX-Labs Bitnodes crawler, original Bitnodes compatibility runner, enrichment pipeline, aggregate API, registry backups, and map-host workflow.",
   "crawler": {
     "name": "zzx-labs-bitnodes-crawler",
-    "user_agent": "/ZZX-Labs-Bitnodes:0.1.0/",
+    "user_agent": "/ZZX-Labs-Bitnodes:0.2.0/",
     "network": "mainnet",
     "listen_port": 8333,
     "connection_timeout": 3,
     "handshake_timeout": 5,
-    "crawl_interval_seconds": 900,
-    "max_nodes_per_run": 5000,
-    "max_parallel_connections": 256,
+    "crawl_interval_seconds": 3600,
+    "max_nodes_per_run": 5000000,
+    "batch_size": 20000,
+    "max_parallel_connections": 2048,
+    "getaddr_rounds": 128,
+    "dns_seed_limit": 10000,
     "retry_attempts": 2,
+    "recrawl_reachable_seconds": 3600,
+    "recrawl_unreachable_seconds": 3600,
     "ipv4_enabled": true,
     "ipv6_enabled": true,
     "tor_enabled": true,
     "onion_enabled": true,
-    "i2p_enabled": false,
+    "i2p_enabled": true,
     "dns_seed_enabled": true,
+    "archive_replay_enabled": true,
+    "archive_replay_files": 500,
+    "export_mode": "reachable_24h",
     "dns_seeds": [
       "seed.bitcoin.sipa.be",
       "dnsseed.bluematt.me",
       "seed.bitcoinstats.com",
       "seed.bitcoin.jonasschnelli.ch",
-      "seed.btc.petertodd.net",
       "seed.bitcoin.sprovoost.nl",
-      "dnsseed.emzy.de"
+      "dnsseed.emzy.de",
+      "seed.bitcoin.wiz.biz",
+      "mainnet.achownodes.xyz"
     ]
   },
-
+  "original_bitnodes": {
+    "enabled": true,
+    "mode": "hybrid",
+    "repo": "https://github.com/ayeowch/bitnodes",
+    "branch": "master",
+    "run_back_to_back_with_zzx": true,
+    "crawl_interval_seconds": 3600,
+    "max_nodes_per_run": 500000,
+    "batch_size": 4096,
+    "max_parallel_connections": 256,
+    "getaddr_rounds": 16,
+    "dns_seed_limit": 4096,
+    "timeout": 5,
+    "redis_fallback": true,
+    "zzx_compatible_fallback": true
+  },
   "redis": {
     "enabled": true,
     "manage_process": true,
@@ -38,9 +65,10 @@
     "windows_exe": "redis-server",
     "linux_exe": "redis-server",
     "docker_name": "zzx-bitnodes-redis",
-    "config_file": ""
+    "config_file": "",
+    "scan_pattern": "*",
+    "scan_limit": 250000
   },
-  
   "network": {
     "tor_proxy": "127.0.0.1:9050",
     "i2p_proxy": "127.0.0.1:4447",
@@ -50,17 +78,71 @@
     "socket_recv_buffer": 65536,
     "socket_send_buffer": 65536
   },
-
   "geoip": {
     "enabled": true,
-    "provider": "maxmind",
-    "city_database": "data/geoip/GeoLite2-City.mmdb",
-    "asn_database": "data/geoip/GeoLite2-ASN.mmdb"
+    "provider": "dbip",
+    "geoip_dir": "bitcoin/bitnodes/data/geoip",
+    "city_database": "bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb",
+    "asn_database": "bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb",
+    "country_database": "bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb"
   },
-
+  "enrichment": {
+    "enabled": true,
+    "source": "zzxbitnodes",
+    "output": "bitcoin/bitnodes/api/enriched/latest.json",
+    "report": "bitcoin/bitnodes/api/enriched/enrichment-report.json",
+    "modules": [
+      "ip_db",
+      "ipv4",
+      "ipv6",
+      "tor",
+      "i2p",
+      "proxy",
+      "vpn",
+      "geoloc",
+      "continent",
+      "region",
+      "country",
+      "territory",
+      "county",
+      "city",
+      "zip",
+      "timezone",
+      "isp",
+      "w3w_lookup",
+      "geohashid_lookup",
+      "sanctioned_nodes",
+      "peers",
+      "peer_index",
+      "peer_health",
+      "dns_seeder_health"
+    ],
+    "geo_root": "tools/bitnodes/data/geo",
+    "geoip_dir": "bitcoin/bitnodes/data/geoip",
+    "territory_dir": "tools/bitnodes/data/geo/territories",
+    "county_dir": "tools/bitnodes/data/geo/counties",
+    "city_dir": "tools/bitnodes/data/geo/cities",
+    "zip_dir": "tools/bitnodes/data/geo/postal",
+    "timezone_dir": "tools/bitnodes/data/geo/timezones",
+    "w3w_cache": "tools/bitnodes/data/geo/w3w/w3w-cache.json",
+    "w3w_api_key": "",
+    "w3w_language": "en",
+    "w3w_no_api": true,
+    "w3w_no_fallback": false,
+    "geohash_cache": "tools/bitnodes/data/geo/geohash/geohash-cache.json",
+    "geohash_precision": 12,
+    "geohash_prefix": "gh",
+    "sanctions_policy": "tools/bitnodes/data/policy/sanctioned-jurisdictions.json",
+    "strict": false
+  },
   "export": {
     "base_dir": "bitcoin/bitnodes/api",
+    "state_dir": "bitcoin/bitnodes/data/state",
+    "archive_dir": "bitcoin/bitnodes/archive",
+    "snapshot_24h_dir": "bitcoin/bitnodes/data/snapshots/24h",
+    "mode": "reachable_24h",
     "pretty_print": true,
+    "compact": false,
     "write_latest": true,
     "write_nodes": true,
     "write_snapshots": true,
@@ -70,16 +152,43 @@
     "write_agents": true,
     "write_versions": true,
     "write_ports": true,
+    "write_services": true,
     "write_latency": true,
     "write_dns_seeder": true,
     "write_leaderboard": true,
     "write_propagation": true,
     "write_status": true,
     "write_archive": true,
-    "archive_dir": "bitcoin/bitnodes/archive",
     "archive_compression": "gzip"
   },
-
+  "aggregate": {
+    "enabled": true,
+    "output": "bitcoin/bitnodes/api/aggregate/latest.json",
+    "write_source_specific": true,
+    "write_global_merged": true,
+    "compare_zzx_vs_original": true
+  },
+  "registry": {
+    "enabled": true,
+    "backup_enabled": true,
+    "root": "bitcoin/bitnodes/registry",
+    "latest_output": "bitcoin/bitnodes/registry/latest",
+    "max_mb": 24.0,
+    "update_daily_index": true
+  },
+  "maps": {
+    "enabled": false,
+    "handled_by": "maphost.yml",
+    "map_dir": "bitcoin/bitnodes/maps",
+    "live_map_dir": "bitcoin/bitnodes/live-map",
+    "theme": "zzx_dark_olive",
+    "settings": "default",
+    "tile_provider": "cartodb_dark",
+    "theme_dir": "tools/bitnodes/data/mapthemes",
+    "settings_dir": "tools/bitnodes/data/mapsettings",
+    "strict": false,
+    "no_modules": false
+  },
   "api": {
     "enabled": true,
     "api_base": "/bitcoin/bitnodes/api/",
@@ -87,15 +196,20 @@
     "cache_control": "public, max-age=300",
     "gzip_enabled": true
   },
-
   "github": {
     "actions_enabled": true,
     "auto_commit": true,
     "auto_push": true,
+    "auto_push_from_crawler": false,
     "commit_message": "Update Bitnodes API snapshots",
-    "branch": "main"
+    "branch": "main",
+    "paths": [
+      "bitcoin/bitnodes/api",
+      "bitcoin/bitnodes/archive",
+      "bitcoin/bitnodes/data",
+      "bitcoin/bitnodes/registry"
+    ]
   },
-
   "latency": {
     "enabled": true,
     "daily_interval_minutes": 15,
@@ -103,7 +217,6 @@
     "monthly_interval_days": 1,
     "max_latency_ms": 10000
   },
-
   "leaderboard": {
     "enabled": true,
     "calculate_peer_index": true,
@@ -124,15 +237,13 @@
       "bandwidth_index": 1.0
     }
   },
-
   "propagation": {
     "enabled": true,
     "track_blocks": true,
-    "track_transactions": true,
+    "track_transactions": false,
     "max_inv_samples": 1000,
     "retention_days": 30
   },
-
   "logging": {
     "enabled": true,
     "level": "INFO",
@@ -143,7 +254,6 @@
     "max_log_size_mb": 100,
     "max_log_backups": 10
   },
-
   "security": {
     "rate_limit_enabled": true,
     "max_connections_per_host": 8,
@@ -151,7 +261,6 @@
     "ban_duration_seconds": 86400,
     "verify_protocol_messages": true
   },
-
   "experimental": {
     "mempool_tracking": false,
     "ln_node_detection": false,
