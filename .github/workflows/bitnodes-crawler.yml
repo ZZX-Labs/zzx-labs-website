@@ -34,25 +34,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
-      - name: Validate registry index generator
+      - name: Validate Bitnodes tools
         run: |
+          python tools/bitnodes/crawl.py --list-crawlers
+          python tools/bitnodes/enrich.py --help
+          python tools/bitnodes/aggregate.py --help
+          python tools/bitnodes/chunk_registry_backup.py --help
           python tools/bitnodes/update_daily_index.py --help
 
       - name: Download DB-IP GeoIP databases
         run: |
+          set -euo pipefail
+
           mkdir -p bitcoin/bitnodes/data/geoip
 
-          curl -L \
+          DBIP_MONTH="$(date -u +%Y-%m)"
+
+          curl -fL \
             -o bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb.gz \
-            https://download.db-ip.com/free/dbip-city-lite-2026-05.mmdb.gz
+            "https://download.db-ip.com/free/dbip-city-lite-${DBIP_MONTH}.mmdb.gz"
 
-          curl -L \
+          curl -fL \
             -o bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb.gz \
-            https://download.db-ip.com/free/dbip-asn-lite-2026-05.mmdb.gz
+            "https://download.db-ip.com/free/dbip-asn-lite-${DBIP_MONTH}.mmdb.gz"
 
-          curl -L \
+          curl -fL \
             -o bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb.gz \
-            https://download.db-ip.com/free/dbip-country-lite-2026-05.mmdb.gz
+            "https://download.db-ip.com/free/dbip-country-lite-${DBIP_MONTH}.mmdb.gz"
 
           gunzip -f bitcoin/bitnodes/data/geoip/*.gz
 
@@ -61,7 +69,7 @@ jobs:
           git fetch origin main
           git rebase origin/main
 
-      - name: Run ZZX Bitnodes crawler daemon window
+      - name: Run ZZX Bitnodes crawler window
         run: |
           python tools/bitnodes/crawl.py \
             --crawler zzxbitnodes \
@@ -76,18 +84,21 @@ jobs:
             --geoip-dir bitcoin/bitnodes/data/geoip \
             --timeout 5 \
             --limit 5000000 \
-            --batch-size 4096 \
-            --workers 256 \
-            --getaddr-rounds 32 \
-            --dns-seed-limit 4096 \
-            --archive-replay-files 1000 \
+            --batch-size 20000 \
+            --workers 2048 \
+            --getaddr-rounds 128 \
+            --dns-seed-limit 10000 \
+            --archive-replay-files 5000 \
             --export-mode reachable_24h \
-            --mirror-legacy-api
+            --mirror-legacy-api \
+            --registry-backup \
+            --compact
 
-      - name: Run Original Bitnodes-compatible fallback crawler
+      - name: Run Original Bitnodes-compatible crawler
         run: |
           python tools/bitnodes/crawl.py \
             --crawler originalbitnodes \
+            --original-mode hybrid \
             --run-seconds 0 \
             --output bitcoin/bitnodes/api/originalbitnodes \
             --archive-dir bitcoin/bitnodes/archive/originalbitnodes \
@@ -96,14 +107,55 @@ jobs:
             --seeder-dir bitcoin/bitnodes/data/seeders/originalbitnodes \
             --geoip-dir bitcoin/bitnodes/data/geoip \
             --timeout 5 \
-            --limit 5000000 \
+            --limit 500000 \
             --batch-size 4096 \
             --workers 256 \
             --getaddr-rounds 16 \
             --dns-seed-limit 4096 \
             --archive-replay-files 0 \
             --disable-archive-replay \
-            --export-mode reachable
+            --export-mode reachable \
+            --compact
+
+      - name: Enrich ZZX Bitnodes dataset
+        run: |
+          python tools/bitnodes/enrich.py \
+            --input bitcoin/bitnodes/api/zzxbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json \
+            --report bitcoin/bitnodes/api/enriched/zzxbitnodes/enrichment-report.json \
+            --source zzxbitnodes \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/state/zzxbitnodes \
+            --geoip-dir bitcoin/bitnodes/data/geoip
+
+      - name: Enrich Original Bitnodes dataset
+        run: |
+          python tools/bitnodes/enrich.py \
+            --input bitcoin/bitnodes/api/originalbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json \
+            --report bitcoin/bitnodes/api/enriched/originalbitnodes/enrichment-report.json \
+            --source originalbitnodes \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
+            --geoip-dir bitcoin/bitnodes/data/geoip
+
+      - name: Aggregate ZZX Bitnodes dataset
+        run: |
+          python tools/bitnodes/aggregate.py \
+            --input bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/state/zzxbitnodes \
+            --source zzxbitnodes
+
+      - name: Aggregate Original Bitnodes dataset
+        run: |
+          python tools/bitnodes/aggregate.py \
+            --input bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
+            --source originalbitnodes
 
       - name: Backup master node registry to private repo
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -153,7 +205,7 @@ jobs:
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add registry latest manifests README.md
+          git add registry latest manifests README.md || true
 
           if git diff --cached --quiet; then
             printf '%s\n' "No private registry backup changes to commit."
@@ -173,7 +225,10 @@ jobs:
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive bitcoin/bitnodes/data
+          git add \
+            bitcoin/bitnodes/api \
+            bitcoin/bitnodes/archive \
+            bitcoin/bitnodes/data
 
           if git diff --cached --quiet; then
             printf '%s\n' "No Bitnodes JSON changes to commit."
