@@ -77,9 +77,6 @@ jobs:
           cp "$CYBERCHEF_HTML" "_site/cyberchef/app/index.html"
           cp "$CYBERCHEF_HTML" "_site/cyberchef/app/native.html"
 
-          test -f _site/cyberchef/app/index.html
-          test -f _site/cyberchef/app/native.html
-
       - name: Generate CyberChef app bridge files
         run: |
           cat > _site/cyberchef/app/styles.css << 'EOF'
@@ -94,6 +91,7 @@ jobs:
             --zzx-text: #d1d1d1;
           }
 
+          body,
           body.classic,
           html.classic body {
             background: var(--zzx-bg);
@@ -106,9 +104,28 @@ jobs:
 
           cat > _site/cyberchef/app/script.js << 'EOF'
           (function () {
+            window.ZZX = window.ZZX || {};
+            window.ZZX.CYBERCHEF_APP = {
+              version: "v11.0.0",
+              bridge: true,
+              nativeAssets: "assets/"
+            };
+          })();
+          EOF
+
+      - name: Patch native CyberChef HTML safely
+        run: |
+          python3 - << 'PY'
+          from pathlib import Path
+          import re
+
+          index = Path("_site/cyberchef/app/index.html")
+          html = index.read_text(encoding="utf-8", errors="ignore")
+
+          shim = r'''<script>
+          (function () {
             function memoryStorage() {
               var mem = {};
-
               return {
                 getItem: function (k) {
                   return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
@@ -163,7 +180,6 @@ jobs:
 
             try {
               var originalSetItem = Storage.prototype.setItem;
-
               Storage.prototype.setItem = function (key, value) {
                 try {
                   return originalSetItem.call(this, key, value);
@@ -177,22 +193,12 @@ jobs:
                   ) {
                     return null;
                   }
-
                   throw e;
                 }
               };
             } catch (e) {}
           })();
-          EOF
-
-      - name: Patch native CyberChef HTML to use bridge files
-        run: |
-          python3 - << 'PY'
-          from pathlib import Path
-          import re
-
-          index = Path("_site/cyberchef/app/index.html")
-          html = index.read_text(encoding="utf-8", errors="ignore")
+          </script>'''
 
           replacements = {
               'href="/assets/': 'href="assets/',
@@ -206,6 +212,9 @@ jobs:
 
           for old, new in replacements.items():
               html = html.replace(old, new)
+
+          if "__zzx_storage_test__" not in html:
+              html = re.sub(r"<head>", "<head>\n" + shim + "\n", html, count=1, flags=re.I)
 
           html = re.sub(
               r'<link\s+href=["\']assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
@@ -222,10 +231,7 @@ jobs:
           )
 
           if 'href="styles.css"' not in html and "href='styles.css'" not in html:
-              html = html.replace(
-                  "</head>",
-                  '<link rel="stylesheet" href="styles.css">\n</head>'
-              )
+              html = html.replace("</head>", '<link rel="stylesheet" href="styles.css">\n</head>')
 
           if 'src="script.js"' not in html and "src='script.js'" not in html:
               html = re.sub(
@@ -236,388 +242,383 @@ jobs:
                   flags=re.I
               )
 
-          if 'src="script.js"' not in html and "src='script.js'" not in html:
-              html = html.replace(
-                  "</head>",
-                  '<script src="script.js"></script>\n</head>'
-              )
-
           index.write_text(html, encoding="utf-8")
           PY
 
       - name: Generate ZZX CyberChef wrapper
         run: |
           cat > _site/cyberchef/index.html << 'EOF'
-          <!doctype html>
+          <!DOCTYPE html>
           <html lang="en">
           <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>CyberChefZZX | ZZX-Labs R&D</title>
-            <meta name="description" content="CyberChefZZX - ZZX-Labs R&D browser-side data transformation, encoding, decoding, cryptography, compression, and analysis toolkit.">
-            <link rel="stylesheet" href="style.css">
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <meta name="robots" content="noindex, nofollow">
+
+              <title>CyberChefZZX | ZZX-Labs R&D</title>
+
+              <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
+              <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+              <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+              <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
+
+              <link rel="stylesheet" href="../static/styles.css">
+              <link rel="stylesheet" href="./style.css">
+
+              <script src="../static/script.js" defer></script>
+              <script src="./hook.js" defer></script>
+              <script src="./script.js" defer></script>
           </head>
 
-          <body>
-            <header class="zzx-header">
-              <div class="zzx-brand">
-                <div class="zzx-kicker">ZZX-Labs R&D / Tools</div>
-                <h1>CyberChefZZX</h1>
-                <p>
-                  Browser-side encoding, decoding, cryptography, compression,
-                  forensics, and data transformation toolkit.
-                </p>
-              </div>
+          <body data-cz-depth=".">
 
-              <nav class="zzx-nav">
-                <a href="/">Home</a>
-                <a href="/bitcoin/bitnodes/">BitNodesZZX</a>
-                <a href="/bitcoin/mempoolspace/">MempoolSpaceZZX</a>
-                <a href="/cyberchef/">CyberChefZZX</a>
-                <a href="/contact.html">Contact</a>
-              </nav>
-            </header>
+          <header>
+              <div id="zzx-header"></div>
 
-            <section class="zzx-panel zzx-control-panel">
-              <div>
-                <h2>CyberChef Engine Source</h2>
-                <p>
-                  Use the locally deployed ZZX instance or switch to the upstream
-                  GCHQ GitHub Pages instance.
-                </p>
-              </div>
+              <br>
 
-              <div class="zzx-button-row">
-                <button id="use-local" class="active" type="button">Local ZZX Instance</button>
-                <button id="use-upstream" type="button">GCHQ Online Instance</button>
-                <a class="zzx-button-link" href="app/" target="_blank" rel="noopener">Open Native Local App</a>
-              </div>
-            </section>
+              <div id="ticker-container"></div>
 
-            <section class="zzx-credits">
-              <span>CyberChef v11.0.0</span>
-              <span>GCHQ</span>
-              <span>CyberChef</span>
-              <span>ZZX-Labs R&D</span>
-              <span>0xdeadbeef</span>
-              <span>0xdeadbeef Consulting</span>
-            </section>
+              <br>
 
-            <main class="zzx-chef-shell">
-              <iframe
-                id="chef-frame"
-                src="app/"
-                title="CyberChef"
-                loading="eager"
-                referrerpolicy="no-referrer"
-              ></iframe>
-            </main>
+              <div id="cz-header"></div>
+          </header>
 
-            <footer class="zzx-footer">
-              <p>
-                CyberChef is developed by GCHQ and contributors. CyberChefZZX is
-                a ZZX-Labs R&D wrapper and deployment integration.
-              </p>
-            </footer>
+          <main class="cz-shell" data-cyberchef-view="home">
 
-            <script src="hook.js"></script>
-            <script src="script.js"></script>
+              <section class="cz-hero container">
+                  <p class="cz-kicker">ZZX-Labs / Browser-Side Cyber Toolkit</p>
+
+                  <h2>CyberChefZZX</h2>
+
+                  <p>
+                      A ZZX-Labs R&D container for CyberChef v11.0.0, providing
+                      local browser-side encoding, decoding, cryptography,
+                      compression, decompression, hashing, parsing, and data
+                      transformation workflows. The native CyberChef instance is
+                      preserved at <a href="./app/">/cyberchef/app/</a>.
+                  </p>
+
+                  <div class="cz-sourcebar">
+                      <label for="cz-source">CyberChef Engine</label>
+
+                      <select id="cz-source">
+                          <option value="local" selected>ZZX-Labs Local CyberChef</option>
+                          <option value="upstream">GCHQ GitHub Pages CyberChef</option>
+                      </select>
+
+                      <button id="cz-load" type="button">Load</button>
+                      <button id="cz-refresh" type="button">Refresh</button>
+
+                      <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">
+                          Open Native Local App
+                      </a>
+                  </div>
+              </section>
+
+              <br>
+
+              <section id="cz-status" class="cz-status container">
+                  Loading local CyberChef instance…
+              </section>
+
+              <br>
+
+              <section class="cz-grid container">
+                  <article class="cz-card">
+                      <span>Version</span>
+                      <strong>v11.0.0</strong>
+                  </article>
+
+                  <article class="cz-card">
+                      <span>Runtime</span>
+                      <strong>Browser Local</strong>
+                  </article>
+
+                  <article class="cz-card">
+                      <span>Native Path</span>
+                      <strong>/cyberchef/app/</strong>
+                  </article>
+
+                  <article class="cz-card">
+                      <span>Attribution</span>
+                      <strong>GCHQ / CyberChef</strong>
+                  </article>
+              </section>
+
+              <br>
+
+              <section class="cz-panel container">
+                  <header class="cz-panel-head">
+                      <span class="cz-kicker">Tool Engine</span>
+                      <h2>CyberChef Workspace</h2>
+                      <p>
+                          The embedded workspace below can use the local ZZX-hosted
+                          CyberChef build or the upstream GCHQ-hosted instance.
+                      </p>
+                  </header>
+
+                  <div class="cz-frame-wrap">
+                      <iframe
+                          id="cz-frame"
+                          title="CyberChef"
+                          src="./app/"
+                          loading="eager"
+                          referrerpolicy="no-referrer"
+                      ></iframe>
+                  </div>
+              </section>
+
+              <br>
+
+              <section class="cz-panel container">
+                  <header class="cz-panel-head">
+                      <span class="cz-kicker">Credits / License</span>
+                      <h2>Attribution</h2>
+                  </header>
+
+                  <div class="cz-credit-grid">
+                      <span>CyberChef v11.0.0</span>
+                      <span>GCHQ</span>
+                      <span>Apache License 2.0</span>
+                      <span>ZZX-Labs R&D</span>
+                      <span>0xdeadbeef</span>
+                      <span>0xdeadbeef Consulting</span>
+                  </div>
+              </section>
+
+              <br><br>
+          </main>
+
+          <footer>
+              <div id="cz-footer"></div>
+              <div id="zzx-footer"></div>
+          </footer>
+
           </body>
           </html>
           EOF
 
           cat > _site/cyberchef/style.css << 'EOF'
-          :root {
-            --zzx-bg: #282828;
-            --zzx-bg-dark: #1b1b1b;
-            --zzx-panel: #333333;
-            --zzx-panel-2: #242424;
-            --zzx-border: #444444;
-            --zzx-text: #d1d1d1;
-            --zzx-muted: #9a9a9a;
-            --zzx-accent: #c0d674;
-            --zzx-gold: #c79c6e;
+          .cz-shell {
+              color: #d1d1d1;
           }
 
-          * {
-            box-sizing: border-box;
+          .cz-hero,
+          .cz-panel,
+          .cz-status {
+              border: 1px solid #444;
+              background: linear-gradient(180deg, #333, #242424);
+              padding: 1rem;
           }
 
-          html,
-          body {
-            min-height: 100%;
+          .cz-kicker {
+              color: #c79c6e;
+              text-transform: uppercase;
+              letter-spacing: 0.12em;
+              font-size: 0.78rem;
+              margin: 0 0 0.5rem;
           }
 
-          body {
-            margin: 0;
-            background: var(--zzx-bg);
-            color: var(--zzx-text);
-            font-family: "IBM Plex Mono", Consolas, "Courier New", monospace;
+          .cz-hero h2,
+          .cz-panel h2 {
+              color: #c0d674;
+              margin-top: 0;
           }
 
-          a {
-            color: var(--zzx-accent);
-            text-decoration: none;
+          .cz-hero p,
+          .cz-panel p,
+          .cz-status {
+              color: #d1d1d1;
+              line-height: 1.55;
           }
 
-          a:hover {
-            color: var(--zzx-gold);
+          .cz-sourcebar {
+              display: flex;
+              flex-wrap: wrap;
+              align-items: center;
+              gap: 0.65rem;
+              margin-top: 1rem;
           }
 
-          .zzx-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: stretch;
-            gap: 16px;
-            padding: 18px;
-            border-bottom: 1px solid var(--zzx-border);
-            background:
-              linear-gradient(180deg, rgba(192, 214, 116, 0.08), transparent),
-              var(--zzx-bg-dark);
+          .cz-sourcebar label {
+              color: #c79c6e;
           }
 
-          .zzx-brand {
-            max-width: 920px;
+          .cz-sourcebar select,
+          .cz-sourcebar button,
+          .cz-link-button {
+              border: 1px solid #444;
+              background: #202020;
+              color: #d1d1d1;
+              padding: 0.55rem 0.75rem;
+              font: inherit;
           }
 
-          .zzx-kicker {
-            color: var(--zzx-gold);
-            font-size: 12px;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            margin-bottom: 6px;
+          .cz-sourcebar button:hover,
+          .cz-link-button:hover {
+              background: #c0d674;
+              color: #111;
+              border-color: #c0d674;
           }
 
-          h1,
-          h2 {
-            margin: 0;
-            color: var(--zzx-accent);
+          .cz-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+              gap: 1rem;
           }
 
-          h1 {
-            font-size: 32px;
-            line-height: 1.1;
+          .cz-card {
+              border: 1px solid #444;
+              background: #202020;
+              padding: 1rem;
           }
 
-          h2 {
-            font-size: 16px;
-            margin-bottom: 6px;
+          .cz-card span {
+              display: block;
+              color: #9a9a9a;
+              font-size: 0.78rem;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
           }
 
-          p {
-            color: var(--zzx-muted);
-            line-height: 1.5;
+          .cz-card strong {
+              display: block;
+              color: #c0d674;
+              margin-top: 0.45rem;
           }
 
-          .zzx-brand p,
-          .zzx-control-panel p,
-          .zzx-footer p {
-            margin: 8px 0 0;
+          .cz-panel-head {
+              margin-bottom: 1rem;
           }
 
-          .zzx-nav {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            align-content: center;
-            gap: 8px;
-            min-width: 280px;
+          .cz-frame-wrap {
+              height: calc(100vh - 230px);
+              min-height: 720px;
+              border: 1px solid #444;
+              background: #111;
           }
 
-          .zzx-nav a {
-            border: 1px solid var(--zzx-border);
-            background: #202020;
-            padding: 8px 10px;
-            color: var(--zzx-text);
-            font-size: 13px;
+          #cz-frame {
+              display: block;
+              width: 100%;
+              height: 100%;
+              border: 0;
+              background: #111;
           }
 
-          .zzx-nav a:hover {
-            border-color: var(--zzx-accent);
-            color: #111111;
-            background: var(--zzx-accent);
+          .cz-credit-grid {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 0.5rem;
           }
 
-          .zzx-panel {
-            margin: 12px 18px;
-            padding: 14px;
-            border: 1px solid var(--zzx-border);
-            background: linear-gradient(180deg, var(--zzx-panel), var(--zzx-panel-2));
+          .cz-credit-grid span {
+              border: 1px solid #444;
+              background: #202020;
+              color: #d1d1d1;
+              padding: 0.45rem 0.65rem;
+              font-size: 0.85rem;
           }
 
-          .zzx-control-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 14px;
-          }
+          @media (max-width: 760px) {
+              .cz-frame-wrap {
+                  height: 75vh;
+                  min-height: 620px;
+              }
 
-          .zzx-button-row {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            gap: 8px;
-          }
+              .cz-sourcebar {
+                  align-items: stretch;
+                  flex-direction: column;
+              }
 
-          button,
-          .zzx-button-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 40px;
-            border: 1px solid var(--zzx-border);
-            background: #202020;
-            color: var(--zzx-text);
-            padding: 9px 12px;
-            font: inherit;
-            cursor: pointer;
-          }
-
-          button:hover,
-          button.active,
-          .zzx-button-link:hover {
-            color: #111111;
-            border-color: var(--zzx-accent);
-            background: var(--zzx-accent);
-          }
-
-          .zzx-credits {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 0 18px 12px;
-          }
-
-          .zzx-credits span {
-            border: 1px solid var(--zzx-border);
-            background: #202020;
-            color: var(--zzx-muted);
-            padding: 6px 9px;
-            font-size: 12px;
-          }
-
-          .zzx-chef-shell {
-            margin: 0 18px 18px;
-            border: 1px solid var(--zzx-border);
-            background: #111111;
-            height: calc(100vh - 245px);
-            min-height: 720px;
-          }
-
-          #chef-frame {
-            width: 100%;
-            height: 100%;
-            border: 0;
-            display: block;
-            background: #111111;
-          }
-
-          .zzx-footer {
-            margin: 0 18px 18px;
-            padding: 12px 14px;
-            border: 1px solid var(--zzx-border);
-            background: #202020;
-            font-size: 12px;
-          }
-
-          @media (max-width: 960px) {
-            .zzx-header,
-            .zzx-control-panel {
-              flex-direction: column;
-              align-items: flex-start;
-            }
-
-            .zzx-nav,
-            .zzx-button-row {
-              justify-content: flex-start;
-            }
-
-            .zzx-chef-shell {
-              height: 78vh;
-              min-height: 620px;
-            }
+              .cz-sourcebar select,
+              .cz-sourcebar button,
+              .cz-link-button {
+                  width: 100%;
+              }
           }
           EOF
 
           cat > _site/cyberchef/hook.js << 'EOF'
-          (function () {
-            window.ZZX = window.ZZX || {};
+          (() => {
+              "use strict";
 
-            window.ZZX.CYBERCHEF = {
-              version: "v11.0.0",
-              wrapper: "/cyberchef/",
-              localUrl: "app/",
-              upstreamUrl: "https://gchq.github.io/CyberChef/",
-              source: "local"
-            };
+              window.ZZX = window.ZZX || {};
 
-            document.addEventListener("DOMContentLoaded", function () {
-              var saved = localStorage.getItem("zzxCyberChefSource") || "local";
-              window.ZZX.CYBERCHEF.source = saved;
-
-              document.dispatchEvent(
-                new CustomEvent("zzx-cyberchef-ready", {
-                  detail: window.ZZX.CYBERCHEF
-                })
-              );
-            });
+              window.ZZX.CYBERCHEF = {
+                  version: "v11.0.0",
+                  localUrl: "./app/",
+                  upstreamUrl: "https://gchq.github.io/CyberChef/",
+                  defaultSource: "local"
+              };
           })();
           EOF
 
           cat > _site/cyberchef/script.js << 'EOF'
-          (function () {
-            function ready(fn) {
-              if (document.readyState === "loading") {
-                document.addEventListener("DOMContentLoaded", fn);
-              } else {
-                fn();
-              }
-            }
+          (() => {
+              "use strict";
 
-            ready(function () {
-              var frame = document.getElementById("chef-frame");
-              var localButton = document.getElementById("use-local");
-              var upstreamButton = document.getElementById("use-upstream");
-
-              if (!frame || !localButton || !upstreamButton) {
-                return;
+              function ready(fn) {
+                  if (document.readyState === "loading") {
+                      document.addEventListener("DOMContentLoaded", fn);
+                  } else {
+                      fn();
+                  }
               }
 
-              var config = window.ZZX && window.ZZX.CYBERCHEF
-                ? window.ZZX.CYBERCHEF
-                : {
-                    localUrl: "app/",
-                    upstreamUrl: "https://gchq.github.io/CyberChef/",
-                    source: "local"
+              ready(() => {
+                  const frame = document.getElementById("cz-frame");
+                  const source = document.getElementById("cz-source");
+                  const load = document.getElementById("cz-load");
+                  const refresh = document.getElementById("cz-refresh");
+                  const status = document.getElementById("cz-status");
+
+                  const cfg = window.ZZX?.CYBERCHEF || {
+                      localUrl: "./app/",
+                      upstreamUrl: "https://gchq.github.io/CyberChef/",
+                      defaultSource: "local"
                   };
 
-              function setSource(source) {
-                if (source === "upstream") {
-                  frame.src = config.upstreamUrl;
-                  upstreamButton.classList.add("active");
-                  localButton.classList.remove("active");
-                  localStorage.setItem("zzxCyberChefSource", "upstream");
-                  config.source = "upstream";
-                  return;
-                }
+                  function urlFor(value) {
+                      return value === "upstream"
+                          ? cfg.upstreamUrl
+                          : cfg.localUrl;
+                  }
 
-                frame.src = config.localUrl;
-                localButton.classList.add("active");
-                upstreamButton.classList.remove("active");
-                localStorage.setItem("zzxCyberChefSource", "local");
-                config.source = "local";
-              }
+                  function setStatus(value) {
+                      if (!status) return;
 
-              localButton.addEventListener("click", function () {
-                setSource("local");
+                      status.textContent = value === "upstream"
+                          ? "Using upstream GCHQ CyberChef instance."
+                          : "Using local ZZX-Labs CyberChef v11.0.0 instance.";
+                  }
+
+                  function loadSource() {
+                      const value = source?.value || cfg.defaultSource;
+                      if (frame) frame.src = urlFor(value);
+                      setStatus(value);
+
+                      try {
+                          localStorage.setItem("zzxCyberChefSource", value);
+                      } catch (err) {}
+                  }
+
+                  try {
+                      const saved = localStorage.getItem("zzxCyberChefSource");
+                      if (saved && source) source.value = saved;
+                  } catch (err) {}
+
+                  load?.addEventListener("click", loadSource);
+
+                  refresh?.addEventListener("click", () => {
+                      if (frame) frame.src = frame.src;
+                  });
+
+                  loadSource();
+
+                  console.info("[CyberChefZZX] Wrapper initialized.");
               });
-
-              upstreamButton.addEventListener("click", function () {
-                setSource("upstream");
-              });
-
-              setSource(localStorage.getItem("zzxCyberChefSource") || "local");
-            });
           })();
           EOF
 
@@ -687,6 +688,7 @@ jobs:
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
 
+          grep -q '__zzx_storage_test__' _site/cyberchef/app/index.html
           grep -q 'href="styles.css"' _site/cyberchef/app/index.html
           grep -q 'src="script.js"' _site/cyberchef/app/index.html
           grep -q 'src="assets/main.js"' _site/cyberchef/app/index.html
