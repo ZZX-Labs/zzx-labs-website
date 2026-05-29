@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -93,42 +94,154 @@ def safe_int(value: Any, default: int | None = None) -> int | None:
         return default
 
 
+def safe_bool(value: Any, default: bool | None = None) -> bool | None:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    if value in (0, "0"):
+        return False
+
+    text = str(value or "").strip().lower()
+
+    if text in {"true", "yes", "y", "on", "ok", "up", "online", "reachable", "connected", "success"}:
+        return True
+
+    if text in {"false", "no", "n", "off", "down", "offline", "unreachable", "failed", "fail", "timeout", "error"}:
+        return False
+
+    return default
+
+
+def clean_address(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def address_network(address: str) -> str:
+    text = clean_address(address).lower()
+
+    if text.endswith(".onion") or ".onion:" in text:
+        return "tor"
+
+    if text.endswith(".i2p") or ".i2p:" in text:
+        return "i2p"
+
+    host = text
+
+    if text.startswith("[") and "]" in text:
+        host = text[1:text.index("]")]
+    elif text.count(":") == 1:
+        host = text.rsplit(":", 1)[0]
+
+    if host.count(".") == 3 and ":" not in host:
+        return "ipv4"
+
+    if ":" in host:
+        return "ipv6"
+
+    return "dns" if host else "unknown"
+
+
+def normalize_node_array(row: list[Any]) -> list[Any]:
+    output = list(row)
+
+    while len(output) < 20:
+        output.append(None)
+
+    if not isinstance(output[19], dict):
+        output[19] = {}
+
+    return output
+
+
+def pick(value: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    for key in keys:
+        if key in value and value[key] not in ("", None):
+            return value[key]
+
+    return default
+
+
 def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
     metadata = dict(value.get("metadata", {})) if isinstance(value.get("metadata"), dict) else {}
 
-    reachable = value.get("reachable")
+    address = clean_address(
+        pick(value, "address", "node", "addr", "host", default="")
+    )
 
-    if reachable is None:
-        reachable = value.get("connected")
+    reachable = pick(value, "reachable", "reachable_now", "connected", "success", default=None)
 
-    metadata.setdefault("reachable", reachable)
-    metadata.setdefault("latency_ms", value.get("latency_ms"))
-    metadata.setdefault("total_uptime", value.get("uptime_seconds") or value.get("uptime"))
+    metadata.setdefault("reachable", safe_bool(reachable, reachable))
+    metadata.setdefault("reachable_now", safe_bool(pick(value, "reachable_now", default=reachable), None))
+    metadata.setdefault("reachable_24h", safe_bool(pick(value, "reachable_24h", default=None), None))
+
+    metadata.setdefault("latency_ms", pick(value, "latency_ms", "latency", "ping_ms", "rtt_ms"))
+    metadata.setdefault("total_uptime", pick(value, "total_uptime", "uptime_seconds", "uptime"))
+    metadata.setdefault("uptime_seconds", pick(value, "uptime_seconds", "total_uptime", "uptime"))
     metadata.setdefault("success_count", value.get("success_count"))
     metadata.setdefault("failure_count", value.get("failure_count"))
     metadata.setdefault("first_seen", value.get("first_seen"))
     metadata.setdefault("last_seen", value.get("last_seen"))
-    metadata.setdefault("tor", bool(value.get("is_tor")))
+    metadata.setdefault("last_failure", value.get("last_failure"))
+
+    network = pick(value, "network", "network_type", default=address_network(address))
+    metadata.setdefault("network", network)
+
+    metadata.setdefault("is_tor", bool(value.get("is_tor") or value.get("tor") or network == "tor"))
+    metadata.setdefault("tor", bool(value.get("tor") or value.get("is_tor") or network == "tor"))
+
+    metadata.setdefault("is_i2p", bool(value.get("is_i2p") or value.get("i2p") or network == "i2p"))
+    metadata.setdefault("i2p", bool(value.get("i2p") or value.get("is_i2p") or network == "i2p"))
+
+    metadata.setdefault("is_ipv4", bool(value.get("is_ipv4") or network == "ipv4"))
+    metadata.setdefault("is_ipv6", bool(value.get("is_ipv6") or network == "ipv6"))
+    metadata.setdefault("is_vpn", bool(value.get("is_vpn") or value.get("vpn")))
+    metadata.setdefault("vpn", bool(value.get("vpn") or value.get("is_vpn")))
+    metadata.setdefault("is_proxy", bool(value.get("is_proxy") or value.get("proxy")))
+    metadata.setdefault("proxy", bool(value.get("proxy") or value.get("is_proxy")))
+
+    metadata.setdefault("is_sanctioned_node", value.get("is_sanctioned_node"))
+    metadata.setdefault("is_policy_restricted_node", value.get("is_policy_restricted_node"))
+    metadata.setdefault("jurisdiction_risk_level", value.get("jurisdiction_risk_level"))
+
+    metadata.setdefault("peer_health", value.get("peer_health"))
+    metadata.setdefault("peer_index", value.get("peer_index"))
+    metadata.setdefault("daily_latency_ms", value.get("daily_latency_ms"))
+    metadata.setdefault("weekly_latency_ms", value.get("weekly_latency_ms"))
+    metadata.setdefault("monthly_latency_ms", value.get("monthly_latency_ms"))
+    metadata.setdefault("daily_uptime_seconds", value.get("daily_uptime_seconds"))
+    metadata.setdefault("weekly_uptime_seconds", value.get("weekly_uptime_seconds"))
+    metadata.setdefault("monthly_uptime_seconds", value.get("monthly_uptime_seconds"))
+
+    metadata.setdefault("continent", value.get("continent"))
+    metadata.setdefault("region", value.get("region"))
+    metadata.setdefault("territory", value.get("territory"))
+    metadata.setdefault("county", value.get("county"))
+    metadata.setdefault("city", value.get("city"))
+    metadata.setdefault("zip", value.get("zip") or value.get("postal_code"))
+    metadata.setdefault("timezone", value.get("timezone"))
 
     return [
-        value.get("protocol_version") or value.get("protocol") or value.get("version"),
-        value.get("user_agent") or value.get("agent") or value.get("subver") or "unknown",
-        value.get("connected_since") or value.get("timestamp") or value.get("seen_at") or value.get("last_seen") or utc_now(),
-        value.get("services") or value.get("service_bits"),
-        value.get("height") or value.get("start_height") or value.get("latest_height"),
-        value.get("hostname") or value.get("host"),
-        value.get("city"),
-        value.get("country_code") or value.get("country"),
-        value.get("latitude") or value.get("lat"),
-        value.get("longitude") or value.get("lon") or value.get("lng"),
-        value.get("timezone") or value.get("tz"),
+        pick(value, "protocol_version", "protocol", "version"),
+        pick(value, "user_agent", "agent", "subver", default="unknown"),
+        pick(value, "connected_since", "timestamp", "seen_at", "last_seen", default=utc_now()),
+        pick(value, "services", "service_bits"),
+        pick(value, "height", "start_height", "latest_height"),
+        pick(value, "hostname", "host"),
+        pick(value, "city", default=metadata.get("city")),
+        pick(value, "country_code", "country"),
+        pick(value, "latitude", "lat"),
+        pick(value, "longitude", "lon", "lng"),
+        pick(value, "timezone", "tz", default=metadata.get("timezone")),
         value.get("asn"),
-        value.get("organization") or value.get("org"),
+        pick(value, "organization", "org"),
         value.get("provider"),
-        value.get("county"),
-        value.get("zip") or value.get("postal_code"),
-        value.get("w3w") or value.get("what3words"),
-        value.get("geohash") or value.get("geohashid"),
+        pick(value, "county", default=metadata.get("county")),
+        pick(value, "zip", "postal_code", default=metadata.get("zip")),
+        pick(value, "w3w", "what3words"),
+        pick(value, "geohash", "geohashid"),
         value.get("asn_location"),
         metadata,
     ]
@@ -138,6 +251,9 @@ def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
     nodes: dict[str, list[Any]] = {}
 
     if isinstance(raw, dict):
+        if isinstance(raw.get("nodes"), dict):
+            raw = raw["nodes"]
+
         for address, value in raw.items():
             if isinstance(value, list):
                 nodes[str(address)] = normalize_node_array(value)
@@ -150,38 +266,38 @@ def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
             if not isinstance(item, dict):
                 continue
 
-            address = item.get("address") or item.get("node") or item.get("addr")
+            address = item.get("address") or item.get("node") or item.get("addr") or item.get("host")
 
             if address:
                 nodes[str(address)] = dict_to_node_array(item)
 
-    return nodes
-
-
-def normalize_node_array(row: list[Any]) -> list[Any]:
-    output = list(row)
-
-    while len(output) < 20:
-        output.append(None)
-
-    if output[19] is None:
-        output[19] = {}
-
-    return output
+    return {
+        clean_address(address): normalize_node_array(row)
+        for address, row in nodes.items()
+        if clean_address(address)
+    }
 
 
 def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
     candidate_keys = [
         "nodes",
+        "nodes:latest",
+        "nodes:snapshot",
+        "bitnodes",
         "bitnodes:nodes",
+        "bitnodes:nodes:latest",
+        "bitnodes:latest",
+        "bitnodes:snapshot",
         "snapshot:nodes",
         "latest:nodes",
         "latest",
         "snapshot",
-        "bitnodes:latest",
-        "bitnodes:snapshot",
+        "crawler",
         "crawler:nodes",
         "crawler:latest",
+        "reachable",
+        "reachable_nodes",
+        "known_nodes",
     ]
 
     for key in candidate_keys:
@@ -222,13 +338,11 @@ def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
                     return nodes
 
         elif key_type in {"set", "zset", "list"}:
-            values = []
-
             if key_type == "set":
                 values = list(r.smembers(key))
             elif key_type == "zset":
                 values = list(r.zrange(key, 0, -1))
-            elif key_type == "list":
+            else:
                 values = list(r.lrange(key, 0, -1))
 
             nodes = normalize_nodes_object([try_json(item) for item in values])
@@ -239,7 +353,7 @@ def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
     return {}
 
 
-def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 250000) -> dict[str, list[Any]]:
+def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 1000000) -> dict[str, list[Any]]:
     nodes: dict[str, list[Any]] = {}
     scanned = 0
 
@@ -270,7 +384,7 @@ def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 250000) 
                 nodes.update(normalize_nodes_object(parsed["nodes"]))
 
             elif isinstance(parsed, dict):
-                address = parsed.get("address") or parsed.get("node") or parsed.get("addr")
+                address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or parsed.get("host")
 
                 if address:
                     nodes[str(address)] = dict_to_node_array(parsed)
@@ -285,10 +399,14 @@ def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 250000) 
 
             nodes.update(normalize_nodes_object([try_json(item) for item in values]))
 
-    return nodes
+    return {
+        clean_address(address): normalize_node_array(row)
+        for address, row in nodes.items()
+        if clean_address(address)
+    }
 
 
-def extract_nodes_from_redis(r, scan_pattern: str = "*", scan_limit: int = 250000) -> dict[str, list[Any]]:
+def extract_nodes_from_redis(r, scan_pattern: str = "*", scan_limit: int = 1000000) -> dict[str, list[Any]]:
     nodes = extract_nodes_from_known_keys(r)
 
     if nodes:
@@ -307,15 +425,27 @@ def latest_height(nodes: dict[str, list[Any]]) -> int | None:
     return max(heights) if heights else None
 
 
+def metadata_of(row: list[Any]) -> dict[str, Any]:
+    row = normalize_node_array(row)
+    return row[19] if isinstance(row[19], dict) else {}
+
+
 def reachable_count(nodes: dict[str, list[Any]]) -> int:
     total = 0
 
     for row in nodes.values():
-        row = normalize_node_array(row)
-        metadata = row[19] if isinstance(row[19], dict) else {}
-        reachable = metadata.get("reachable")
+        metadata = metadata_of(row)
+        reachable = safe_bool(metadata.get("reachable"))
 
         if reachable is False:
+            continue
+
+        if reachable is True:
+            total += 1
+            continue
+
+        if metadata.get("last_seen") or metadata.get("last_success"):
+            total += 1
             continue
 
         total += 1
@@ -323,28 +453,77 @@ def reachable_count(nodes: dict[str, list[Any]]) -> int:
     return total
 
 
+def flag_count(nodes: dict[str, list[Any]], key: str) -> int:
+    return sum(
+        1
+        for row in nodes.values()
+        if safe_bool(metadata_of(row).get(key)) is True
+    )
+
+
+def network_counts(nodes: dict[str, list[Any]]) -> Counter:
+    counter: Counter = Counter()
+
+    for address, row in nodes.items():
+        metadata = metadata_of(row)
+        network = metadata.get("network") or address_network(address)
+
+        if metadata.get("is_tor") or metadata.get("tor"):
+            network = "tor"
+        elif metadata.get("is_i2p") or metadata.get("i2p"):
+            network = "i2p"
+        elif metadata.get("is_ipv6"):
+            network = "ipv6"
+        elif metadata.get("is_ipv4"):
+            network = "ipv4"
+
+        counter[str(network or "unknown")] += 1
+
+    return counter
+
+
 def build_latest_payload(nodes: dict[str, list[Any]], source: str) -> dict[str, Any]:
     timestamp = utc_now()
+    reachable = reachable_count(nodes)
+    networks = network_counts(nodes)
+
+    statistics = {
+        "reachable": reachable,
+        "unreachable": max(0, len(nodes) - reachable),
+        "reachable_now": flag_count(nodes, "reachable_now"),
+        "reachable_24h": flag_count(nodes, "reachable_24h"),
+        "ipv4": networks.get("ipv4", 0),
+        "ipv6": networks.get("ipv6", 0),
+        "tor": networks.get("tor", 0),
+        "i2p": networks.get("i2p", 0),
+        "vpn": flag_count(nodes, "is_vpn"),
+        "proxy": flag_count(nodes, "is_proxy"),
+    }
 
     return {
-        "schema": "zzx-bitnodes-redis-export-v2",
+        "schema": "zzx-bitnodes-redis-export-v3",
         "source": source,
+        "crawler": {
+            "engine": source,
+            "generated_at": utc_iso(timestamp),
+            "generator": "export_from_redis.py",
+            "schema_version": 3,
+        },
         "timestamp": timestamp,
         "updated_at": utc_iso(timestamp),
         "total_nodes": len(nodes),
         "known_nodes": len(nodes),
-        "reachable_nodes": reachable_count(nodes),
-        "unreachable_nodes": max(0, len(nodes) - reachable_count(nodes)),
+        "reachable_nodes": reachable,
+        "unreachable_nodes": max(0, len(nodes) - reachable),
         "latest_height": latest_height(nodes),
+        "statistics": statistics,
+        "network_counts": dict(networks),
         "nodes": nodes,
     }
 
 
 def export_empty_api(output: Path, archive_dir: Path, *, compact: bool = False, no_gzip: bool = False) -> None:
-    latest = build_latest_payload(
-        {},
-        source="zzx-labs-bitnodes-redis-export-empty",
-    )
+    latest = build_latest_payload({}, source="zzx-labs-bitnodes-redis-export-empty")
 
     output.mkdir(parents=True, exist_ok=True)
 
@@ -373,7 +552,7 @@ def export_static_api(
     *,
     archive_dir: Path,
     scan_pattern: str = "*",
-    scan_limit: int = 250000,
+    scan_limit: int = 1000000,
     compact: bool = False,
     no_gzip: bool = False,
     empty_on_failure: bool = True,
@@ -396,10 +575,7 @@ def export_static_api(
         scan_limit=scan_limit,
     )
 
-    latest = build_latest_payload(
-        nodes,
-        source="zzx-labs-bitnodes-redis-export",
-    )
+    latest = build_latest_payload(nodes, source="zzx-labs-bitnodes-redis-export")
 
     output.mkdir(parents=True, exist_ok=True)
 
@@ -439,7 +615,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
     parser.add_argument("--scan-pattern", default="*")
-    parser.add_argument("--scan-limit", type=int, default=250000)
+    parser.add_argument("--scan-limit", type=int, default=1000000)
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--no-gzip", action="store_true")
     parser.add_argument("--fail-empty", action="store_true")
