@@ -38,6 +38,7 @@ jobs:
             --exclude "_site" \
             --exclude "_cyberchef-download" \
             --exclude "_cyberchef-extract" \
+            --exclude "cyberchef/app" \
             ./ _site/
 
       - name: Download CyberChef v11.0.0
@@ -54,30 +55,28 @@ jobs:
       - name: Install native CyberChef under cyberchef/app
         run: |
           mkdir -p _cyberchef-extract
-          rm -rf _site/cyberchef/app
+          rm -rf _site/cyberchef
           mkdir -p _site/cyberchef/app
 
           unzip -o _cyberchef-download/CyberChef_v11.0.0.zip -d _cyberchef-extract
 
-          cp -a _cyberchef-extract/. _site/cyberchef/app/
-
-          if [ -f "_site/cyberchef/app/CyberChef_v11.0.0.html" ]; then
-            cp "_site/cyberchef/app/CyberChef_v11.0.0.html" "_site/cyberchef/app/index.html"
+          if [ -d "_cyberchef-extract/CyberChef" ]; then
+            cp -a _cyberchef-extract/CyberChef/. _site/cyberchef/app/
           else
-            CYBERCHEF_HTML="$(find _site/cyberchef/app -maxdepth 2 -type f -name 'CyberChef*.html' | head -n 1)"
-
-            if [ -n "$CYBERCHEF_HTML" ]; then
-              cp "$CYBERCHEF_HTML" "_site/cyberchef/app/index.html"
-            else
-              printf '%s\n' 'ERROR: No CyberChef HTML entrypoint found.'
-              find _site/cyberchef/app -maxdepth 5 -type f
-              exit 1
-            fi
+            cp -a _cyberchef-extract/. _site/cyberchef/app/
           fi
 
+          CYBERCHEF_HTML="$(find _site/cyberchef/app -maxdepth 5 -type f \( -name 'CyberChef*.html' -o -name 'Cyberchef*.html' \) | head -n 1)"
+
+          if [ -z "$CYBERCHEF_HTML" ]; then
+            printf '%s\n' 'ERROR: No CyberChef HTML entrypoint found.'
+            find _site/cyberchef/app -maxdepth 6 -type f | sort
+            exit 1
+          fi
+
+          cp "$CYBERCHEF_HTML" "_site/cyberchef/app/index.html"
+
           test -f _site/cyberchef/app/index.html
-          test -f _site/cyberchef/app/assets/main.css
-          test -f _site/cyberchef/app/assets/main.js
 
       - name: Normalize native CyberChef asset paths
         run: |
@@ -103,18 +102,453 @@ jobs:
           index.write_text(html, encoding="utf-8")
           PY
 
-      - name: Verify ZZX CyberChef wrapper files
+      - name: Generate ZZX CyberChef wrapper
+        run: |
+          cat > _site/cyberchef/index.html << 'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>CyberChefZZX | ZZX-Labs R&D</title>
+            <meta name="description" content="CyberChefZZX - ZZX-Labs R&D browser-side data transformation, encoding, decoding, cryptography, compression, and analysis toolkit.">
+            <link rel="stylesheet" href="style.css">
+          </head>
+
+          <body>
+            <header class="zzx-header">
+              <div class="zzx-brand">
+                <div class="zzx-kicker">ZZX-Labs R&D / Tools</div>
+                <h1>CyberChefZZX</h1>
+                <p>
+                  Browser-side encoding, decoding, cryptography, compression,
+                  forensics, and data transformation toolkit.
+                </p>
+              </div>
+
+              <nav class="zzx-nav">
+                <a href="/">Home</a>
+                <a href="/bitcoin/bitnodes/">BitNodesZZX</a>
+                <a href="/bitcoin/mempoolspace/">MempoolSpaceZZX</a>
+                <a href="/cyberchef/">CyberChefZZX</a>
+                <a href="/contact.html">Contact</a>
+              </nav>
+            </header>
+
+            <section class="zzx-panel zzx-control-panel">
+              <div>
+                <h2>CyberChef Engine Source</h2>
+                <p>
+                  Use the locally deployed ZZX instance or switch to the upstream
+                  GCHQ GitHub Pages instance.
+                </p>
+              </div>
+
+              <div class="zzx-button-row">
+                <button id="use-local" class="active" type="button">Local ZZX Instance</button>
+                <button id="use-upstream" type="button">GCHQ Online Instance</button>
+                <a class="zzx-button-link" href="app/" target="_blank" rel="noopener">Open Native Local App</a>
+              </div>
+            </section>
+
+            <section class="zzx-credits">
+              <span>CyberChef v11.0.0</span>
+              <span>GCHQ</span>
+              <span>CyberChef</span>
+              <span>ZZX-Labs R&D</span>
+              <span>0xdeadbeef</span>
+              <span>0xdeadbeef Consulting</span>
+            </section>
+
+            <main class="zzx-chef-shell">
+              <iframe
+                id="chef-frame"
+                src="app/"
+                title="CyberChef"
+                loading="eager"
+                referrerpolicy="no-referrer"
+              ></iframe>
+            </main>
+
+            <footer class="zzx-footer">
+              <p>
+                CyberChef is developed by GCHQ and contributors. CyberChefZZX is
+                a ZZX-Labs R&D wrapper and deployment integration.
+              </p>
+            </footer>
+
+            <script src="hook.js"></script>
+            <script src="script.js"></script>
+          </body>
+          </html>
+          EOF
+
+          cat > _site/cyberchef/style.css << 'EOF'
+          :root {
+            --zzx-bg: #282828;
+            --zzx-bg-dark: #1b1b1b;
+            --zzx-panel: #333333;
+            --zzx-panel-2: #242424;
+            --zzx-border: #444444;
+            --zzx-text: #d1d1d1;
+            --zzx-muted: #9a9a9a;
+            --zzx-accent: #c0d674;
+            --zzx-gold: #c79c6e;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          html,
+          body {
+            min-height: 100%;
+          }
+
+          body {
+            margin: 0;
+            background: var(--zzx-bg);
+            color: var(--zzx-text);
+            font-family: "IBM Plex Mono", Consolas, "Courier New", monospace;
+          }
+
+          a {
+            color: var(--zzx-accent);
+            text-decoration: none;
+          }
+
+          a:hover {
+            color: var(--zzx-gold);
+          }
+
+          .zzx-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            gap: 16px;
+            padding: 18px;
+            border-bottom: 1px solid var(--zzx-border);
+            background:
+              linear-gradient(180deg, rgba(192, 214, 116, 0.08), transparent),
+              var(--zzx-bg-dark);
+          }
+
+          .zzx-brand {
+            max-width: 920px;
+          }
+
+          .zzx-kicker {
+            color: var(--zzx-gold);
+            font-size: 12px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+          }
+
+          h1,
+          h2 {
+            margin: 0;
+            color: var(--zzx-accent);
+          }
+
+          h1 {
+            font-size: 32px;
+            line-height: 1.1;
+          }
+
+          h2 {
+            font-size: 16px;
+            margin-bottom: 6px;
+          }
+
+          p {
+            color: var(--zzx-muted);
+            line-height: 1.5;
+          }
+
+          .zzx-brand p,
+          .zzx-control-panel p,
+          .zzx-footer p {
+            margin: 8px 0 0;
+          }
+
+          .zzx-nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-content: center;
+            gap: 8px;
+            min-width: 280px;
+          }
+
+          .zzx-nav a {
+            border: 1px solid var(--zzx-border);
+            background: #202020;
+            padding: 8px 10px;
+            color: var(--zzx-text);
+            font-size: 13px;
+          }
+
+          .zzx-nav a:hover {
+            border-color: var(--zzx-accent);
+            color: #111111;
+            background: var(--zzx-accent);
+          }
+
+          .zzx-panel {
+            margin: 12px 18px;
+            padding: 14px;
+            border: 1px solid var(--zzx-border);
+            background: linear-gradient(180deg, var(--zzx-panel), var(--zzx-panel-2));
+          }
+
+          .zzx-control-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+          }
+
+          .zzx-button-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+          }
+
+          button,
+          .zzx-button-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            border: 1px solid var(--zzx-border);
+            background: #202020;
+            color: var(--zzx-text);
+            padding: 9px 12px;
+            font: inherit;
+            cursor: pointer;
+          }
+
+          button:hover,
+          button.active,
+          .zzx-button-link:hover {
+            color: #111111;
+            border-color: var(--zzx-accent);
+            background: var(--zzx-accent);
+          }
+
+          .zzx-credits {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 18px 12px;
+          }
+
+          .zzx-credits span {
+            border: 1px solid var(--zzx-border);
+            background: #202020;
+            color: var(--zzx-muted);
+            padding: 6px 9px;
+            font-size: 12px;
+          }
+
+          .zzx-chef-shell {
+            margin: 0 18px 18px;
+            border: 1px solid var(--zzx-border);
+            background: #111111;
+            height: calc(100vh - 245px);
+            min-height: 720px;
+          }
+
+          #chef-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            background: #111111;
+          }
+
+          .zzx-footer {
+            margin: 0 18px 18px;
+            padding: 12px 14px;
+            border: 1px solid var(--zzx-border);
+            background: #202020;
+            font-size: 12px;
+          }
+
+          @media (max-width: 960px) {
+            .zzx-header,
+            .zzx-control-panel {
+              flex-direction: column;
+              align-items: flex-start;
+            }
+
+            .zzx-nav,
+            .zzx-button-row {
+              justify-content: flex-start;
+            }
+
+            .zzx-chef-shell {
+              height: 78vh;
+              min-height: 620px;
+            }
+          }
+          EOF
+
+          cat > _site/cyberchef/hook.js << 'EOF'
+          (function () {
+            window.ZZX = window.ZZX || {};
+
+            window.ZZX.CYBERCHEF = {
+              version: "v11.0.0",
+              wrapper: "/cyberchef/",
+              localUrl: "app/",
+              upstreamUrl: "https://gchq.github.io/CyberChef/",
+              source: "local"
+            };
+
+            document.addEventListener("DOMContentLoaded", function () {
+              var saved = localStorage.getItem("zzxCyberChefSource") || "local";
+              window.ZZX.CYBERCHEF.source = saved;
+
+              document.dispatchEvent(
+                new CustomEvent("zzx-cyberchef-ready", {
+                  detail: window.ZZX.CYBERCHEF
+                })
+              );
+            });
+          })();
+          EOF
+
+          cat > _site/cyberchef/script.js << 'EOF'
+          (function () {
+            function ready(fn) {
+              if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", fn);
+              } else {
+                fn();
+              }
+            }
+
+            ready(function () {
+              var frame = document.getElementById("chef-frame");
+              var localButton = document.getElementById("use-local");
+              var upstreamButton = document.getElementById("use-upstream");
+
+              if (!frame || !localButton || !upstreamButton) {
+                return;
+              }
+
+              var config = window.ZZX && window.ZZX.CYBERCHEF
+                ? window.ZZX.CYBERCHEF
+                : {
+                    localUrl: "app/",
+                    upstreamUrl: "https://gchq.github.io/CyberChef/",
+                    source: "local"
+                  };
+
+              function setSource(source) {
+                if (source === "upstream") {
+                  frame.src = config.upstreamUrl;
+                  upstreamButton.classList.add("active");
+                  localButton.classList.remove("active");
+                  localStorage.setItem("zzxCyberChefSource", "upstream");
+                  config.source = "upstream";
+                  return;
+                }
+
+                frame.src = config.localUrl;
+                localButton.classList.add("active");
+                upstreamButton.classList.remove("active");
+                localStorage.setItem("zzxCyberChefSource", "local");
+                config.source = "local";
+              }
+
+              localButton.addEventListener("click", function () {
+                setSource("local");
+              });
+
+              upstreamButton.addEventListener("click", function () {
+                setSource("upstream");
+              });
+
+              setSource(localStorage.getItem("zzxCyberChefSource") || "local");
+            });
+          })();
+          EOF
+
+      - name: Add attribution and license notices
+        run: |
+          cat > _site/cyberchef/ATTRIBUTION.md << 'EOF'
+          # ZZX CyberChef Instance Attribution
+
+          CyberChefZZX is a ZZX-Labs R&D wrapper page around CyberChef v11.0.0.
+
+          Local CyberChef application path:
+
+          https://zzx-labs.io/cyberchef/app/
+
+          ZZX wrapper path:
+
+          https://zzx-labs.io/cyberchef/
+
+          Upstream CyberChef project:
+
+          https://github.com/gchq/CyberChef
+
+          Official CyberChef hosted instance:
+
+          https://gchq.github.io/CyberChef/
+
+          CyberChef is developed by GCHQ and contributors.
+
+          ZZX-Labs R&D wrapper, presentation layer, deployment workflow, and integration credits:
+
+          ZZX-Labs R&D
+          0xdeadbeef
+          0xdeadbeef Consulting
+          EOF
+
+          cat > _site/cyberchef/LICENSE-NOTICE.md << 'EOF'
+          # License Notice
+
+          CyberChef is distributed under the Apache License 2.0.
+
+          https://www.apache.org/licenses/LICENSE-2.0
+
+          CyberChef repository:
+
+          https://github.com/gchq/CyberChef
+
+          Crown Copyright reference:
+
+          https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/
+
+          Contributor License Agreement reference:
+
+          https://cla-assistant.io/gchq/CyberChef
+          EOF
+
+      - name: Verify CyberChef deployment artifact
         run: |
           test -f _site/cyberchef/index.html
           test -f _site/cyberchef/style.css
           test -f _site/cyberchef/script.js
           test -f _site/cyberchef/hook.js
-
           test -f _site/cyberchef/app/index.html
-          test -f _site/cyberchef/app/assets/main.css
-          test -f _site/cyberchef/app/assets/main.js
 
-          printf '%s\n' 'ZZX CyberChef wrapper and native CyberChef app verified.'
+          if [ ! -f "_site/cyberchef/app/assets/main.css" ]; then
+            printf '%s\n' 'WARNING: Native CyberChef assets/main.css not found. Listing files:'
+            find _site/cyberchef/app -maxdepth 6 -type f | sort
+          fi
+
+          if [ ! -f "_site/cyberchef/app/assets/main.js" ]; then
+            printf '%s\n' 'WARNING: Native CyberChef assets/main.js not found. Listing files:'
+            find _site/cyberchef/app -maxdepth 6 -type f | sort
+          fi
+
+          printf '%s\n' 'CyberChef wrapper and native app generated successfully.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
