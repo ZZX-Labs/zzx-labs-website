@@ -5,6 +5,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -58,7 +59,7 @@ def py(script: Path, *args: str) -> list[str]:
 
 
 def run_command(command: list[str], *, cwd: Path = APP_ROOT, check: bool = False) -> subprocess.CompletedProcess[str]:
-    print("$ " + " ".join(str(part) for part in command))
+    print("$ " + " ".join(str(part) for part in command), flush=True)
 
     result = subprocess.run(
         command,
@@ -110,6 +111,31 @@ def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
         handle.write("\n")
 
 
+def latest_node_count(path: Path) -> int:
+    payload = read_json(path, fallback={})
+
+    if isinstance(payload, list):
+        return len(payload)
+
+    if not isinstance(payload, dict):
+        return 0
+
+    for key in ("nodes", "results", "rows", "data", "reachable", "node_records", "peers"):
+        value = payload.get(key)
+
+        if isinstance(value, dict):
+            return len(value)
+
+        if isinstance(value, list):
+            return len(value)
+
+    return 0
+
+
+def original_latest_has_nodes() -> bool:
+    return latest_node_count(ORIGINAL_OUTPUT / "latest.json") > 0
+
+
 def mirror_original_latest_to_legacy(pretty: bool = True) -> None:
     latest = ORIGINAL_OUTPUT / "latest.json"
 
@@ -142,16 +168,9 @@ def run_classic_original_crawler(args: argparse.Namespace) -> int:
 
     command = py(
         RUN_ORIGINAL,
-        "--output",
-        str(ORIGINAL_OUTPUT),
-        "--archive-dir",
-        str(ORIGINAL_ARCHIVE),
-        "--state-dir",
-        str(ORIGINAL_STATE),
-        "--snapshot-24h-dir",
-        str(ORIGINAL_SNAPSHOT_24H),
-        "--seeder-dir",
-        str(ORIGINAL_SEEDERS),
+        "pipeline",
+        "--mode",
+        "classic",
         "--limit",
         str(args.limit),
         "--batch-size",
@@ -164,21 +183,13 @@ def run_classic_original_crawler(args: argparse.Namespace) -> int:
         str(args.getaddr_rounds),
         "--dns-seed-limit",
         str(args.dns_seed_limit),
-        "--export-mode",
-        args.export_mode,
     )
 
     if args.compact:
         command.append("--compact")
 
-    if args.disable_geoip:
-        command.append("--disable-geoip")
-
-    if args.raw_output:
-        command.extend(["--raw-output", args.raw_output])
-
-    if args.mirror_legacy_api:
-        command.append("--mirror-legacy-api")
+    if getattr(args, "strict", False):
+        command.append("--strict")
 
     return run_command(command).returncode
 
@@ -224,7 +235,7 @@ def run_zzx_compatible_original(args: argparse.Namespace) -> int:
     args.disable_archive_replay = True
     args.archive_replay_files = 0
 
-    args.export_mode = "reachable" if not args.export_mode else args.export_mode
+    args.export_mode = "reachable"
     args.timeout = min(float(args.timeout), 5.0)
     args.workers = min(int(args.workers), 256)
     args.batch_size = min(int(args.batch_size), 4096)
@@ -360,18 +371,25 @@ def pipeline_once(args: argparse.Namespace) -> int:
 
     if args.original_mode == "classic":
         code = run_classic_original_crawler(args)
+
     elif args.original_mode == "redis":
         code = run_redis_export(args)
+
+        if code == 0 and not original_latest_has_nodes():
+            print("[originalbitnodes] Redis export produced 0 nodes.")
+            code = 1
+
     elif args.original_mode == "hybrid":
         code = run_classic_original_crawler(args)
 
-        if code != 0:
-            print("[originalbitnodes] classic path failed; attempting Redis export fallback.")
+        if code != 0 or not original_latest_has_nodes():
+            print("[originalbitnodes] classic path failed or produced 0 nodes; attempting Redis export fallback.")
             code = run_redis_export(args)
 
-        if code != 0:
-            print("[originalbitnodes] Redis path failed; attempting ZZX-compatible fallback.")
+        if code == 0 and not original_latest_has_nodes():
+            print("[originalbitnodes] Redis fallback produced 0 nodes; attempting ZZX-compatible fallback.")
             code = run_zzx_compatible_original(args)
+
     else:
         code = run_zzx_compatible_original(args)
 
@@ -398,8 +416,6 @@ def pipeline_once(args: argparse.Namespace) -> int:
 
 
 def daemon_loop(args: argparse.Namespace) -> int:
-    import time
-
     started = time.time()
 
     while True:
@@ -451,48 +467,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--original-mode",
         choices=["hybrid", "classic", "redis", "zzx-compatible"],
         default="hybrid",
-        help=(
-            "Original crawler path. hybrid tries run_original_bitnodes.py, then Redis export, "
-            "then the ZZX-compatible crawler with original-compatible settings."
-        ),
     )
 
-    parser.add_argument(
-        "--enrich-modules",
-        default="",
-        help="Optional comma-separated module list for enrich.py after original crawl/export.",
-    )
-
-    parser.add_argument(
-        "--redis-scan-pattern",
-        default="*",
-        help="Redis scan pattern for original Redis-backed export mode.",
-    )
-
-    parser.add_argument(
-        "--redis-scan-limit",
-        type=int,
-        default=250000,
-        help="Maximum Redis keys to scan in redis/hybrid fallback mode.",
-    )
-
-    parser.add_argument(
-        "--no-gzip",
-        action="store_true",
-        help="Disable gzip archive output when using Redis export mode.",
-    )
-
-    parser.add_argument(
-        "--fail-empty",
-        action="store_true",
-        help="Fail Redis export instead of emitting an empty API when Redis is unavailable.",
-    )
-
-    parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Fail immediately when post-processing fails.",
-    )
+    parser.add_argument("--enrich-modules", default="")
+    parser.add_argument("--redis-scan-pattern", default="*")
+    parser.add_argument("--redis-scan-limit", type=int, default=250000)
+    parser.add_argument("--no-gzip", action="store_true")
+    parser.add_argument("--fail-empty", action="store_true")
+    parser.add_argument("--strict", action="store_true")
 
     return parser
 
