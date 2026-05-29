@@ -1,0 +1,51 @@
+name: Bitnodes Map Host
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bitnodes-maphost
+  cancel-in-progress: false
+
+jobs:
+  maps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bitnodes requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/bitnodes/requirements.txt
+
+      - name: Build Bitnodes maps
+        run: |
+          python tools/bitnodes/maps.py \
+            --input bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/state \
+            --map-dir bitcoin/bitnodes/maps \
+            --live-map-dir bitcoin/bitnodes/live-map \
+            --source zzxbitnodes \
+            --theme zzx_dark_olive \
+            --settings default \
+            --tile-provider cartodb_dark
+
+      - name: Push map outputs
+        run: |
+          python tools/bitnodes/push_snapshots.py \
+            --message "Update Bitnodes map host outputs" \
+            --paths bitcoin/bitnodes/maps bitcoin/bitnodes/live-map bitcoin/bitnodes/data/mapsettings bitcoin/bitnodes/data/mapthemes
