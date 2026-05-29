@@ -39,28 +39,16 @@ jobs:
           python tools/bitnodes/crawl.py --list-crawlers
           python tools/bitnodes/enrich.py --help
           python tools/bitnodes/aggregate.py --help
-          python tools/bitnodes/chunk_registry_backup.py --help
-          python tools/bitnodes/update_daily_index.py --help
 
       - name: Download DB-IP GeoIP databases
         run: |
           set -euo pipefail
-
           mkdir -p bitcoin/bitnodes/data/geoip
-
           DBIP_MONTH="$(date -u +%Y-%m)"
 
-          curl -fL \
-            -o bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb.gz \
-            "https://download.db-ip.com/free/dbip-city-lite-${DBIP_MONTH}.mmdb.gz"
-
-          curl -fL \
-            -o bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb.gz \
-            "https://download.db-ip.com/free/dbip-asn-lite-${DBIP_MONTH}.mmdb.gz"
-
-          curl -fL \
-            -o bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb.gz \
-            "https://download.db-ip.com/free/dbip-country-lite-${DBIP_MONTH}.mmdb.gz"
+          curl -fL -o bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb.gz "https://download.db-ip.com/free/dbip-city-lite-${DBIP_MONTH}.mmdb.gz"
+          curl -fL -o bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb.gz "https://download.db-ip.com/free/dbip-asn-lite-${DBIP_MONTH}.mmdb.gz"
+          curl -fL -o bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb.gz "https://download.db-ip.com/free/dbip-country-lite-${DBIP_MONTH}.mmdb.gz"
 
           gunzip -f bitcoin/bitnodes/data/geoip/*.gz
 
@@ -91,7 +79,6 @@ jobs:
             --archive-replay-files 5000 \
             --export-mode reachable_24h \
             --mirror-legacy-api \
-            --registry-backup \
             --compact
 
       - name: Run Original Bitnodes-compatible crawler
@@ -100,12 +87,6 @@ jobs:
             --crawler originalbitnodes \
             --original-mode hybrid \
             --run-seconds 0 \
-            --output bitcoin/bitnodes/api/originalbitnodes \
-            --archive-dir bitcoin/bitnodes/archive/originalbitnodes \
-            --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
-            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h/originalbitnodes \
-            --seeder-dir bitcoin/bitnodes/data/seeders/originalbitnodes \
-            --geoip-dir bitcoin/bitnodes/data/geoip \
             --timeout 5 \
             --limit 500000 \
             --batch-size 4096 \
@@ -157,64 +138,6 @@ jobs:
             --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
             --source originalbitnodes
 
-      - name: Backup master node registry to private repo
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        shell: bash
-        env:
-          REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
-          REGISTRY_OWNER: ZZX-Labs
-          REGISTRY_REPO: zzxbitnodesglobalregistry
-        run: |
-          set -euo pipefail
-
-          if [ -z "${REGISTRY_PAT:-}" ]; then
-            printf '%s\n' "BITNODES_REGISTRY_PAT is missing or empty."
-            exit 1
-          fi
-
-          if [ "${#REGISTRY_PAT}" -lt 20 ]; then
-            printf '%s\n' "BITNODES_REGISTRY_PAT appears invalid or truncated."
-            exit 1
-          fi
-
-          TODAY="$(date -u +%Y-%m-%d)"
-          BACKUP_ROOT="/tmp/zzxbitnodesglobalregistry"
-
-          rm -rf "${BACKUP_ROOT}"
-
-          git clone \
-            "https://oauth2:${REGISTRY_PAT}@github.com/${REGISTRY_OWNER}/${REGISTRY_REPO}.git" \
-            "${BACKUP_ROOT}"
-
-          mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
-          mkdir -p "${BACKUP_ROOT}/latest"
-          mkdir -p "${BACKUP_ROOT}/manifests"
-
-          python tools/bitnodes/chunk_registry_backup.py \
-            --input bitcoin/bitnodes/data/state \
-            --api bitcoin/bitnodes/api \
-            --output "${BACKUP_ROOT}/registry/${TODAY}" \
-            --latest-output "${BACKUP_ROOT}/latest" \
-            --max-mb 24
-
-          python tools/bitnodes/update_daily_index.py \
-            --repo-root "${BACKUP_ROOT}"
-
-          cd "${BACKUP_ROOT}"
-
-          git config user.name "zzx-labs-bitnodes-bot"
-          git config user.email "actions@github.com"
-
-          git add registry latest manifests README.md || true
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "No private registry backup changes to commit."
-            exit 0
-          fi
-
-          git commit -m "Backup global Bitnodes registry ${TODAY}"
-          git push origin HEAD:main
-
       - name: Remove local GeoIP databases before public commit
         run: |
           rm -f bitcoin/bitnodes/data/geoip/*.mmdb
@@ -225,10 +148,7 @@ jobs:
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add \
-            bitcoin/bitnodes/api \
-            bitcoin/bitnodes/archive \
-            bitcoin/bitnodes/data
+          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive bitcoin/bitnodes/data
 
           if git diff --cached --quiet; then
             printf '%s\n' "No Bitnodes JSON changes to commit."
