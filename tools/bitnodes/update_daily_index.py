@@ -13,22 +13,22 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def read_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+def read_json(path: Path, fallback: Any = None) -> Any:
+    if fallback is None:
+        fallback = {}
+
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return fallback
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            payload,
-            handle,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True
-        )
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
         handle.write("\n")
 
 
@@ -42,31 +42,53 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def safe_int(value: Any, fallback: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def manifest_total_bytes(manifest: dict[str, Any]) -> int:
     chunks = manifest.get("chunks", [])
 
     if not isinstance(chunks, list):
         return 0
 
-    total = 0
-
-    for chunk in chunks:
-        if not isinstance(chunk, dict):
-            continue
-
-        try:
-            total += int(chunk.get("bytes", 0) or 0)
-        except (TypeError, ValueError):
-            continue
-
-    return total
+    return sum(
+        safe_int(chunk.get("bytes", 0))
+        for chunk in chunks
+        if isinstance(chunk, dict)
+    )
 
 
-def safe_int(value: Any, fallback: int = 0) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return fallback
+def manifest_entry(repo_root: Path, manifest_path: Path, date: str | None = None) -> dict[str, Any] | None:
+    if not manifest_path.exists():
+        return None
+
+    manifest = read_json(manifest_path, fallback={})
+
+    if not isinstance(manifest, dict) or not manifest:
+        return None
+
+    chunks = manifest.get("chunks", [])
+    chunk_count = len(chunks) if isinstance(chunks, list) else 0
+
+    entry = {
+        "path": manifest_path.relative_to(repo_root).as_posix(),
+        "directory": manifest_path.parent.relative_to(repo_root).as_posix(),
+        "generated_at": manifest.get("generated_at"),
+        "node_count": safe_int(manifest.get("node_count", 0)),
+        "chunk_count": safe_int(manifest.get("chunk_count", chunk_count)),
+        "max_bytes": safe_int(manifest.get("max_bytes", 0)),
+        "total_bytes": manifest_total_bytes(manifest),
+        "manifest_sha256": sha256_file(manifest_path),
+    }
+
+    if date:
+        entry["date"] = date
+
+    return entry
 
 
 def build_daily_entries(repo_root: Path) -> list[dict[str, Any]]:
@@ -80,145 +102,109 @@ def build_daily_entries(repo_root: Path) -> list[dict[str, Any]]:
         if not day_dir.is_dir():
             continue
 
-        manifest_path = day_dir / "manifest.json"
+        entry = manifest_entry(repo_root, day_dir / "manifest.json", date=day_dir.name)
 
-        if not manifest_path.exists():
-            continue
-
-        try:
-            manifest = read_json(manifest_path)
-        except Exception:
-            continue
-
-        chunks = manifest.get("chunks", [])
-        chunk_count = len(chunks) if isinstance(chunks, list) else 0
-
-        entries.append({
-            "date": day_dir.name,
-            "path": manifest_path.relative_to(repo_root).as_posix(),
-            "directory": day_dir.relative_to(repo_root).as_posix(),
-            "generated_at": manifest.get("generated_at"),
-            "node_count": safe_int(manifest.get("node_count", 0)),
-            "chunk_count": safe_int(manifest.get("chunk_count", chunk_count)),
-            "max_bytes": safe_int(manifest.get("max_bytes", 0)),
-            "total_bytes": manifest_total_bytes(manifest),
-            "manifest_sha256": sha256_file(manifest_path)
-        })
+        if entry:
+            entries.append(entry)
 
     return entries
 
 
 def build_latest_entry(repo_root: Path) -> dict[str, Any] | None:
-    manifest_path = repo_root / "latest" / "manifest.json"
-
-    if not manifest_path.exists():
-        return None
-
-    try:
-        manifest = read_json(manifest_path)
-    except Exception:
-        return None
-
-    chunks = manifest.get("chunks", [])
-    chunk_count = len(chunks) if isinstance(chunks, list) else 0
-
-    return {
-        "path": manifest_path.relative_to(repo_root).as_posix(),
-        "directory": "latest",
-        "generated_at": manifest.get("generated_at"),
-        "node_count": safe_int(manifest.get("node_count", 0)),
-        "chunk_count": safe_int(manifest.get("chunk_count", chunk_count)),
-        "max_bytes": safe_int(manifest.get("max_bytes", 0)),
-        "total_bytes": manifest_total_bytes(manifest),
-        "manifest_sha256": sha256_file(manifest_path)
-    }
+    return manifest_entry(repo_root, repo_root / "latest" / "manifest.json")
 
 
 def build_stats(entries: list[dict[str, Any]], latest: dict[str, Any] | None) -> dict[str, Any]:
-    node_counts = [
-        safe_int(entry.get("node_count", 0))
-        for entry in entries
-    ]
+    node_counts = [safe_int(entry.get("node_count", 0)) for entry in entries]
+    byte_counts = [safe_int(entry.get("total_bytes", 0)) for entry in entries]
+    chunk_counts = [safe_int(entry.get("chunk_count", 0)) for entry in entries]
 
-    total_bytes = [
-        safe_int(entry.get("total_bytes", 0))
-        for entry in entries
-    ]
+    latest_node_count = safe_int((latest or {}).get("node_count", 0))
+    latest_chunk_count = safe_int((latest or {}).get("chunk_count", 0))
+    latest_total_bytes = safe_int((latest or {}).get("total_bytes", 0))
 
     return {
-        "schema": "zzx-bitnodes-global-registry-stats-v1",
+        "schema": "zzx-bitnodes-global-registry-stats-v2",
         "generated_at": utc_now_iso(),
         "daily_backup_count": len(entries),
-        "latest_node_count": safe_int((latest or {}).get("node_count", 0)),
-        "latest_chunk_count": safe_int((latest or {}).get("chunk_count", 0)),
+        "latest_node_count": latest_node_count,
+        "latest_chunk_count": latest_chunk_count,
+        "latest_total_bytes": latest_total_bytes,
         "max_daily_node_count": max(node_counts) if node_counts else 0,
         "min_daily_node_count": min(node_counts) if node_counts else 0,
-        "total_daily_bytes": sum(total_bytes),
-        "latest": latest
+        "avg_daily_node_count": round(sum(node_counts) / len(node_counts), 4) if node_counts else 0,
+        "max_daily_chunk_count": max(chunk_counts) if chunk_counts else 0,
+        "total_daily_bytes": sum(byte_counts),
+        "latest": latest,
     }
 
 
-def build_health(
-    repo_root: Path,
-    entries: list[dict[str, Any]],
-    latest: dict[str, Any] | None
-) -> dict[str, Any]:
+def build_health(repo_root: Path, entries: list[dict[str, Any]], latest: dict[str, Any] | None) -> dict[str, Any]:
     registry_dir = repo_root / "registry"
     latest_manifest = repo_root / "latest" / "manifest.json"
 
-    status = "ok"
+    problems = []
 
     if not registry_dir.exists():
-        status = "missing_registry_dir"
+        problems.append("missing_registry_dir")
 
     if not latest_manifest.exists():
-        status = "missing_latest_manifest"
+        problems.append("missing_latest_manifest")
 
     if latest and safe_int(latest.get("node_count", 0)) <= 0:
-        status = "empty_latest_registry"
+        problems.append("empty_latest_registry")
+
+    if latest and safe_int(latest.get("chunk_count", 0)) <= 0:
+        problems.append("empty_latest_chunks")
+
+    if not entries:
+        problems.append("no_daily_backups")
+
+    status = "ok" if not problems else "warning"
+
+    if "missing_latest_manifest" in problems or "missing_registry_dir" in problems:
+        status = "error"
 
     return {
-        "schema": "zzx-bitnodes-global-registry-health-v1",
+        "schema": "zzx-bitnodes-global-registry-health-v2",
         "generated_at": utc_now_iso(),
         "status": status,
+        "problems": problems,
         "registry_dir_exists": registry_dir.exists(),
         "latest_manifest_exists": latest_manifest.exists(),
         "daily_backup_count": len(entries),
         "latest_node_count": safe_int((latest or {}).get("node_count", 0)),
-        "latest_chunk_count": safe_int((latest or {}).get("chunk_count", 0))
+        "latest_chunk_count": safe_int((latest or {}).get("chunk_count", 0)),
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build manifest indexes for private ZZX Bitnodes registry repo."
+        description="Build manifest indexes for the ZZX Bitnodes Global Registry repository."
     )
 
-    parser.add_argument(
-        "--repo-root",
-        default=".",
-        help="Private registry repo root."
-    )
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--output-dir", default="manifests")
 
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
-    manifests_dir = repo_root / "manifests"
+    manifests_dir = repo_root / args.output_dir
 
     entries = build_daily_entries(repo_root)
     latest = build_latest_entry(repo_root)
 
     daily_index = {
-        "schema": "zzx-bitnodes-global-registry-daily-index-v1",
+        "schema": "zzx-bitnodes-global-registry-daily-index-v2",
         "generated_at": utc_now_iso(),
         "entry_count": len(entries),
-        "entries": entries
+        "entries": entries,
     }
 
     latest_index = {
-        "schema": "zzx-bitnodes-global-registry-latest-index-v1",
+        "schema": "zzx-bitnodes-global-registry-latest-index-v2",
         "generated_at": utc_now_iso(),
-        "latest": latest
+        "latest": latest,
     }
 
     stats = build_stats(entries, latest)
