@@ -3,6 +3,9 @@ name: ZZX CyberChef Instance
 on:
   workflow_dispatch:
 
+  schedule:
+    - cron: '17 */12 * * *'
+
 permissions:
   contents: read
   pages: write
@@ -40,6 +43,7 @@ jobs:
       - name: Download CyberChef v11.0.0
         run: |
           mkdir -p _cyberchef-download
+
           curl -L \
             --fail \
             --retry 3 \
@@ -47,32 +51,43 @@ jobs:
             -o _cyberchef-download/CyberChef_v11.0.0.zip \
             https://github.com/gchq/CyberChef/releases/download/v11.0.0/CyberChef_v11.0.0.zip
 
-      - name: Install CyberChef app under cyberchef/app
+      - name: Install native CyberChef under cyberchef/app
         run: |
           mkdir -p _cyberchef-extract
           rm -rf _site/cyberchef/app
           mkdir -p _site/cyberchef/app
 
           unzip -o _cyberchef-download/CyberChef_v11.0.0.zip -d _cyberchef-extract
+
           cp -a _cyberchef-extract/. _site/cyberchef/app/
 
           if [ -f "_site/cyberchef/app/CyberChef_v11.0.0.html" ]; then
             cp "_site/cyberchef/app/CyberChef_v11.0.0.html" "_site/cyberchef/app/index.html"
-          elif [ -f "_site/cyberchef/app/index.html" ]; then
-            printf '%s\n' 'CyberChef app index.html already exists.'
           else
-            printf '%s\n' 'ERROR: No CyberChef app HTML entrypoint found.'
-            find _site/cyberchef/app -maxdepth 5 -type f
-            exit 1
+            CYBERCHEF_HTML="$(find _site/cyberchef/app -maxdepth 2 -type f -name 'CyberChef*.html' | head -n 1)"
+
+            if [ -n "$CYBERCHEF_HTML" ]; then
+              cp "$CYBERCHEF_HTML" "_site/cyberchef/app/index.html"
+            else
+              printf '%s\n' 'ERROR: No CyberChef HTML entrypoint found.'
+              find _site/cyberchef/app -maxdepth 5 -type f
+              exit 1
+            fi
           fi
 
+          test -f _site/cyberchef/app/index.html
+          test -f _site/cyberchef/app/assets/main.css
+          test -f _site/cyberchef/app/assets/main.js
+
+      - name: Normalize native CyberChef asset paths
+        run: |
           python3 - << 'PY'
           from pathlib import Path
 
           index = Path("_site/cyberchef/app/index.html")
           html = index.read_text(encoding="utf-8", errors="ignore")
 
-          for old, new in {
+          replacements = {
               'href="/assets/': 'href="assets/',
               "href='/assets/": "href='assets/",
               'src="/assets/': 'src="assets/',
@@ -80,296 +95,26 @@ jobs:
               'url("/assets/': 'url("assets/',
               "url('/assets/": "url('assets/",
               'url(/assets/': 'url(assets/',
-          }.items():
+          }
+
+          for old, new in replacements.items():
               html = html.replace(old, new)
 
           index.write_text(html, encoding="utf-8")
           PY
 
-      - name: Write ZZX CyberChef wrapper if missing
-        run: |
-          mkdir -p _site/cyberchef/assets
-
-          if [ ! -f "_site/cyberchef/index.html" ]; then
-            cat > _site/cyberchef/index.html << 'EOF'
-          <!doctype html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>ZZX CyberChef</title>
-            <link rel="stylesheet" href="assets/cyberchef-page.css">
-          </head>
-          <body>
-            <main class="zzx-cyberchef-shell">
-              <header class="zzx-cyberchef-header">
-                <div>
-                  <p class="eyebrow">ZZX-Labs R&D / Tools</p>
-                  <h1>CyberChefZZX</h1>
-                  <p class="subtitle">Browser-side data transformation, encoding, decoding, cryptography, compression, and analysis toolkit.</p>
-                </div>
-
-                <div class="source-switch">
-                  <button id="use-local" class="active" type="button">Local ZZX Instance</button>
-                  <button id="use-upstream" type="button">GCHQ Online Instance</button>
-                </div>
-              </header>
-
-              <section class="credits">
-                <span>Powered by CyberChef v11.0.0</span>
-                <span>GCHQ</span>
-                <span>ZZX-Labs R&D</span>
-                <span>0xdeadbeef / 0xdeadbeef Consulting</span>
-              </section>
-
-              <section class="chef-frame-wrap">
-                <iframe
-                  id="chef-frame"
-                  title="CyberChef"
-                  src="app/index.html"
-                  loading="eager"
-                  referrerpolicy="no-referrer"
-                ></iframe>
-              </section>
-            </main>
-
-            <script src="assets/cyberchef-page.js"></script>
-          </body>
-          </html>
-          EOF
-          fi
-
-          if [ ! -f "_site/cyberchef/assets/cyberchef-page.css" ]; then
-            cat > _site/cyberchef/assets/cyberchef-page.css << 'EOF'
-          :root {
-            --bg: #282828;
-            --panel: #333333;
-            --panel-2: #1f1f1f;
-            --text: #d1d1d1;
-            --muted: #9a9a9a;
-            --accent: #c0d674;
-            --gold: #c79c6e;
-            --border: #444444;
-          }
-
-          * {
-            box-sizing: border-box;
-          }
-
-          body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: "IBM Plex Mono", Consolas, monospace;
-          }
-
-          .zzx-cyberchef-shell {
-            min-height: 100vh;
-            padding: 18px;
-          }
-
-          .zzx-cyberchef-header {
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
-            align-items: center;
-            border: 1px solid var(--border);
-            background: linear-gradient(180deg, var(--panel), var(--panel-2));
-            padding: 18px;
-            margin-bottom: 10px;
-          }
-
-          .eyebrow {
-            margin: 0 0 4px;
-            color: var(--gold);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-          }
-
-          h1 {
-            margin: 0;
-            color: var(--accent);
-            font-size: 28px;
-          }
-
-          .subtitle {
-            margin: 8px 0 0;
-            color: var(--muted);
-            max-width: 900px;
-          }
-
-          .source-switch {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-          }
-
-          button {
-            background: #202020;
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 10px 12px;
-            cursor: pointer;
-            font: inherit;
-          }
-
-          button.active,
-          button:hover {
-            color: #111111;
-            background: var(--accent);
-            border-color: var(--accent);
-          }
-
-          .credits {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-          }
-
-          .credits span {
-            border: 1px solid var(--border);
-            background: #202020;
-            color: var(--muted);
-            padding: 6px 9px;
-            font-size: 12px;
-          }
-
-          .chef-frame-wrap {
-            height: calc(100vh - 170px);
-            min-height: 720px;
-            border: 1px solid var(--border);
-            background: #111111;
-          }
-
-          iframe {
-            width: 100%;
-            height: 100%;
-            border: 0;
-            display: block;
-            background: #111111;
-          }
-
-          @media (max-width: 900px) {
-            .zzx-cyberchef-header {
-              align-items: flex-start;
-              flex-direction: column;
-            }
-
-            .source-switch {
-              justify-content: flex-start;
-            }
-
-            .chef-frame-wrap {
-              height: 78vh;
-              min-height: 620px;
-            }
-          }
-          EOF
-          fi
-
-          if [ ! -f "_site/cyberchef/assets/cyberchef-page.js" ]; then
-            cat > _site/cyberchef/assets/cyberchef-page.js << 'EOF'
-          (function () {
-            var frame = document.getElementById("chef-frame");
-            var localButton = document.getElementById("use-local");
-            var upstreamButton = document.getElementById("use-upstream");
-
-            var localUrl = "app/index.html";
-            var upstreamUrl = "https://gchq.github.io/CyberChef/";
-
-            function setSource(source) {
-              if (source === "upstream") {
-                frame.src = upstreamUrl;
-                upstreamButton.classList.add("active");
-                localButton.classList.remove("active");
-                localStorage.setItem("zzxCyberChefSource", "upstream");
-                return;
-              }
-
-              frame.src = localUrl;
-              localButton.classList.add("active");
-              upstreamButton.classList.remove("active");
-              localStorage.setItem("zzxCyberChefSource", "local");
-            }
-
-            localButton.addEventListener("click", function () {
-              setSource("local");
-            });
-
-            upstreamButton.addEventListener("click", function () {
-              setSource("upstream");
-            });
-
-            var saved = localStorage.getItem("zzxCyberChefSource") || "local";
-            setSource(saved);
-          })();
-          EOF
-          fi
-
-      - name: Add attribution and license notices
-        run: |
-          cat > _site/cyberchef/ATTRIBUTION.md << 'EOF'
-          # ZZX CyberChef Instance Attribution
-
-          CyberChefZZX is a ZZX-Labs R&D wrapper page around CyberChef v11.0.0.
-
-          Local CyberChef application path:
-
-          https://zzx-labs.io/cyberchef/app/
-
-          ZZX wrapper path:
-
-          https://zzx-labs.io/cyberchef/
-
-          Upstream CyberChef project:
-
-          https://github.com/gchq/CyberChef
-
-          Official CyberChef hosted instance:
-
-          https://gchq.github.io/CyberChef/
-
-          CyberChef is developed by GCHQ and contributors.
-
-          ZZX-Labs R&D wrapper, presentation layer, deployment workflow, and integration credits:
-
-          ZZX-Labs R&D
-          0xdeadbeef
-          0xdeadbeef Consulting
-          EOF
-
-          cat > _site/cyberchef/LICENSE-NOTICE.md << 'EOF'
-          # License Notice
-
-          CyberChef is distributed under the Apache License 2.0.
-
-          https://www.apache.org/licenses/LICENSE-2.0
-
-          CyberChef repository:
-
-          https://github.com/gchq/CyberChef
-
-          Crown Copyright reference:
-
-          https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/
-
-          Contributor License Agreement reference:
-
-          https://cla-assistant.io/gchq/CyberChef
-          EOF
-
-      - name: Verify CyberChef deployment artifact
+      - name: Verify ZZX CyberChef wrapper files
         run: |
           test -f _site/cyberchef/index.html
-          test -f _site/cyberchef/assets/cyberchef-page.css
-          test -f _site/cyberchef/assets/cyberchef-page.js
+          test -f _site/cyberchef/style.css
+          test -f _site/cyberchef/script.js
+          test -f _site/cyberchef/hook.js
+
           test -f _site/cyberchef/app/index.html
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
-          printf '%s\n' 'CyberChef wrapper and local app verified.'
+
+          printf '%s\n' 'ZZX CyberChef wrapper and native CyberChef app verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
