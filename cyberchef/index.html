@@ -1,89 +1,160 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
 
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CyberChefZZX | ZZX-Labs R&D</title>
 
-<title>CyberChefZZX | ZZX-Labs R&D</title>
+    <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
 
-<meta
-    name="description"
-    content="CyberChefZZX - Browser-side encoding, decoding, cryptography, compression, forensics, and data analysis toolkit."
->
+    <link rel="stylesheet" href="../static/styles.css">
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./upgrades.css">
 
-<link rel="stylesheet" href="style.css">
-
+    <script src="../static/script.js" defer></script>
+    <script src="./hook.js" defer></script>
+    <script src="./container.js" defer></script>
+    <script src="./script.js" defer></script>
+    <script src="./upgrades.js" defer></script>
 </head>
 
-<body>
+<body data-cz-depth=".">
 
-<header class="zzx-cyberchef-header">
+<header>
+    <div id="zzx-header"></div>
 
-    <div class="zzx-branding">
-        <h1>CyberChefZZX</h1>
+    <br>
 
-        <p>
-            Browser-side data transformation,
-            cryptography,
-            compression,
-            decoding,
-            encoding,
-            and forensic analysis toolkit.
-        </p>
-    </div>
+    <div id="ticker-container"></div>
 
-    <div class="zzx-source-switch">
+    <br>
 
-        <button
-            id="use-local"
-            class="active"
-            type="button"
-        >
-            Local ZZX Instance
-        </button>
-
-        <button
-            id="use-upstream"
-            type="button"
-        >
-            GCHQ Instance
-        </button>
-
-    </div>
-
+    <div id="cz-header"></div>
 </header>
 
-<section class="zzx-credits">
+<main class="cz-shell" data-cyberchef-view="home">
 
-    <span>CyberChef v11.0.0</span>
+    <section class="cz-hero container">
+        <p class="cz-kicker">ZZX-Labs / Browser-Side Cyber Toolkit</p>
 
-    <span>GCHQ</span>
+        <h2>CyberChefZZX</h2>
 
-    <span>CyberChef</span>
+        <p>
+            A ZZX-Labs R&D container for CyberChef v11.0.0, providing local
+            browser-side encoding, decoding, cryptography, compression,
+            decompression, hashing, parsing, and data transformation workflows.
+            The native CyberChef instance remains available at
+            <a href="./app/">/cyberchef/app/</a>.
+        </p>
 
-    <span>ZZX-Labs R&D</span>
+        <div class="cz-sourcebar">
+            <label for="cz-source">CyberChef Engine</label>
 
-    <span>0xdeadbeef</span>
+            <select id="cz-source">
+                <option value="local" selected>ZZX-Labs Local CyberChef</option>
+                <option value="upstream">GCHQ GitHub Pages CyberChef</option>
+            </select>
 
-    <span>0xdeadbeef Consulting</span>
+            <button id="cz-load" type="button">Load</button>
+            <button id="cz-refresh" type="button">Refresh</button>
 
-</section>
+            <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">
+                Open Native Local App
+            </a>
+        </div>
+    </section>
 
-<main class="zzx-cyberchef-container">
+    <br>
 
-    <iframe
-        id="chef-frame"
-        src="app/index.html"
-        loading="eager"
-        referrerpolicy="no-referrer"
-        title="CyberChef"
-    ></iframe>
+    <section id="cz-status" class="cz-status container">
+        Loading local CyberChef instance…
+    </section>
 
+    <br>
+
+    <section class="cz-grid container">
+        <article class="cz-card">
+            <span>Version</span>
+            <strong>v11.0.0</strong>
+        </article>
+
+        <article class="cz-card">
+            <span>Runtime</span>
+            <strong>Browser Local</strong>
+        </article>
+
+        <article class="cz-card">
+            <span>Native Path</span>
+            <strong>/cyberchef/app/</strong>
+        </article>
+
+        <article class="cz-card">
+            <span>Attribution</span>
+            <strong>GCHQ / CyberChef</strong>
+        </article>
+    </section>
+
+    <br>
+
+    <section class="cz-panel container">
+        <header class="cz-panel-head">
+            <span class="cz-kicker">Tool Engine</span>
+            <h2>CyberChef Workspace</h2>
+            <p>
+                The embedded workspace below uses the local ZZX-hosted CyberChef
+                build by default, with optional upstream fallback.
+            </p>
+        </header>
+
+        <div id="cz-container" class="cz-container" data-cz-container>
+            <div class="cz-frame-toolbar">
+                <span id="cz-active-source">Local ZZX CyberChef</span>
+                <span id="cz-frame-state">Ready</span>
+            </div>
+
+            <div class="cz-frame-wrap">
+                <iframe
+                    id="cz-frame"
+                    title="CyberChef"
+                    src="./app/"
+                    loading="eager"
+                    referrerpolicy="no-referrer"
+                    allow="clipboard-read; clipboard-write"
+                ></iframe>
+            </div>
+        </div>
+    </section>
+
+    <br>
+
+    <section class="cz-panel container">
+        <header class="cz-panel-head">
+            <span class="cz-kicker">Credits / License</span>
+            <h2>Attribution</h2>
+        </header>
+
+        <div class="cz-credit-grid">
+            <span>CyberChef v11.0.0</span>
+            <span>GCHQ</span>
+            <span>Apache-2.0</span>
+            <span>ZZX-Labs R&D</span>
+            <span>0xdeadbeef</span>
+            <span>0xdeadbeef Consulting</span>
+        </div>
+    </section>
+
+    <br><br>
 </main>
 
-<script src="hook.js"></script>
-<script src="script.js"></script>
+<footer>
+    <div id="cz-footer"></div>
+    <div id="zzx-footer"></div>
+</footer>
 
 </body>
 </html>
