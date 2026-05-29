@@ -1,0 +1,119 @@
+name: ZZX-Labs Bitnodes Registry Backup
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - ZZX-Labs Bitnodes Global Node Crawler
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zzx-bitnodes-registry-backup
+  cancel-in-progress: false
+
+jobs:
+  backup-registry:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout website repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install registry tools dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/bitnodes/requirements.txt
+
+      - name: Validate registry tools
+        run: |
+          python tools/bitnodes/chunk_registry_backup.py --help
+          python tools/bitnodes/update_daily_index.py --help
+
+      - name: Backup master node registry to private repo
+        shell: bash
+        env:
+          REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
+          REGISTRY_OWNER: ZZX-Labs
+          REGISTRY_REPO: zzxbitnodesglobalregistry
+        run: |
+          set -euo pipefail
+
+          if [ -z "${REGISTRY_PAT:-}" ]; then
+            printf '%s\n' "BITNODES_REGISTRY_PAT is missing or empty."
+            exit 1
+          fi
+
+          if [ "${#REGISTRY_PAT}" -lt 20 ]; then
+            printf '%s\n' "BITNODES_REGISTRY_PAT appears invalid or truncated."
+            exit 1
+          fi
+
+          TODAY="$(date -u +%Y-%m-%d)"
+          BACKUP_ROOT="/tmp/zzxbitnodesglobalregistry"
+
+          rm -rf "${BACKUP_ROOT}"
+
+          git clone \
+            --depth 1 \
+            "https://oauth2:${REGISTRY_PAT}@github.com/${REGISTRY_OWNER}/${REGISTRY_REPO}.git" \
+            "${BACKUP_ROOT}"
+
+          mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
+          mkdir -p "${BACKUP_ROOT}/latest"
+          mkdir -p "${BACKUP_ROOT}/manifests"
+
+          python tools/bitnodes/chunk_registry_backup.py \
+            --input bitcoin/bitnodes/data/state \
+            --api bitcoin/bitnodes/api \
+            --output "${BACKUP_ROOT}/registry/${TODAY}" \
+            --latest-output "${BACKUP_ROOT}/latest" \
+            --max-mb 24
+
+          python tools/bitnodes/update_daily_index.py \
+            --repo-root "${BACKUP_ROOT}"
+
+          cd "${BACKUP_ROOT}"
+
+          git config user.name "zzx-labs-bitnodes-bot"
+          git config user.email "actions@github.com"
+
+          git add registry latest manifests README.md || true
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No private registry backup changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Backup global Bitnodes registry ${TODAY}"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                printf '%s\n' "Private Bitnodes registry backup pushed."
+                exit 0
+              fi
+            fi
+
+            git rebase --abort || true
+            printf '%s\n' "Private registry push attempt ${attempt} failed; retrying..."
+            sleep 10
+          done
+
+          printf '%s\n' "Failed to push private Bitnodes registry backup."
+          exit 1
