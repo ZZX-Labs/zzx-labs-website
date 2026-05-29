@@ -51,11 +51,7 @@ def mkdir(path: Path) -> None:
 
 
 def py(script: Path, *args: str) -> list[str]:
-    return [
-        sys.executable,
-        str(script),
-        *args,
-    ]
+    return [sys.executable, str(script), *args]
 
 
 def run_command(command: list[str], *, cwd: Path = APP_ROOT, check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -151,7 +147,7 @@ def mirror_original_latest_to_legacy(pretty: bool = True) -> None:
     payload["crawler"] = "originalbitnodes"
     payload["compatibility"] = {
         "mode": "original-bitnodes-compatible",
-        "note": "This data set is generated through the Original Bitnodes-compatible crawler/export path.",
+        "note": "Original Bitnodes-compatible data path with ZZX fallback safety.",
     }
 
     write_json(
