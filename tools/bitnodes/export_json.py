@@ -9,33 +9,10 @@ import statistics
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 APP_ROOT = Path(__file__).resolve().parents[2]
-
-NODE_FIELDS = [
-    "protocol",
-    "agent",
-    "connected_since",
-    "services",
-    "height",
-    "hostname",
-    "city",
-    "country",
-    "latitude",
-    "longitude",
-    "timezone",
-    "asn",
-    "organization",
-    "provider",
-    "county",
-    "zip",
-    "w3w",
-    "geohash",
-    "asn_location",
-    "metadata",
-]
 
 
 def utc_now() -> int:
@@ -101,10 +78,30 @@ def safe_int(value: Any) -> int | None:
     try:
         if value in ("", None):
             return None
-
         return int(value)
     except Exception:
         return None
+
+
+def boolish(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    if value in (0, "0"):
+        return False
+
+    text = str(value or "").strip().lower()
+
+    if text in {"true", "yes", "y", "on", "ok", "up", "online", "reachable", "connected", "success"}:
+        return True
+
+    if text in {"false", "no", "n", "off", "down", "offline", "unreachable", "failed", "fail", "timeout", "error"}:
+        return False
+
+    return None
 
 
 def safe_name(value: Any) -> str:
@@ -119,46 +116,69 @@ def safe_name(value: Any) -> str:
     return text.strip("_") or "unknown"
 
 
+def deep_get(row: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if "." not in key:
+            if key in row:
+                return row.get(key)
+            continue
+
+        current: Any = row
+        ok = True
+
+        for part in key.split("."):
+            if not isinstance(current, dict) or part not in current:
+                ok = False
+                break
+            current = current.get(part)
+
+        if ok:
+            return current
+
+    return None
+
+
 def split_address(address: str) -> tuple[str, int | None]:
     value = str(address or "").strip()
 
     if value.startswith("[") and "]:" in value:
         host = value.split("]:", 1)[0].lstrip("[")
-
-        try:
-            port = int(value.rsplit(":", 1)[1])
-        except Exception:
-            port = None
-
-        return host, port
+        return host, safe_int(value.rsplit(":", 1)[1])
 
     if value.startswith("[") and value.endswith("]"):
         return value[1:-1], None
 
-    if ".onion:" in value or ".i2p:" in value:
+    lower = value.lower()
+
+    if ".onion:" in lower or ".i2p:" in lower:
         host, port_text = value.rsplit(":", 1)
-
-        try:
-            port = int(port_text)
-        except Exception:
-            port = None
-
-        return host, port
+        return host, safe_int(port_text)
 
     if value.count(":") == 1:
         host, port_text = value.rsplit(":", 1)
-
-        try:
-            port = int(port_text)
-        except Exception:
-            port = None
-
-        return host, port
+        return host, safe_int(port_text)
 
     return value, None
 
 
-def classify_network(address: str) -> str:
+def classify_network(address: str, metadata: dict[str, Any] | None = None) -> str:
+    metadata = metadata or {}
+
+    if metadata.get("is_tor") or metadata.get("tor"):
+        return "tor"
+
+    if metadata.get("is_i2p") or metadata.get("i2p"):
+        return "i2p"
+
+    if metadata.get("is_ipv6"):
+        return "ipv6"
+
+    if metadata.get("is_ipv4"):
+        return "ipv4"
+
+    if metadata.get("network"):
+        return str(metadata.get("network"))
+
     host, _port = split_address(address)
     host = str(host or "").lower()
 
@@ -174,122 +194,54 @@ def classify_network(address: str) -> str:
     if host.count(".") == 3:
         return "ipv4"
 
-    return "dns"
+    return "dns" if host else "unknown"
 
 
 def metadata_from_row(row: list[Any]) -> dict[str, Any]:
     if len(row) > 19 and isinstance(row[19], dict):
-        return row[19]
+        return dict(row[19])
 
     return {}
 
 
-def normalize_reachable(value: Any, metadata: dict[str, Any]) -> bool | None:
-    reachable = metadata.get("reachable")
+def normalize_node_array(row: list[Any]) -> list[Any]:
+    output = list(row)
 
-    if isinstance(reachable, bool):
-        return reachable
+    while len(output) < 20:
+        output.append(None)
 
-    if value in {True, 1, "1", "ok", "reachable", "connected", "success"}:
+    if not isinstance(output[19], dict):
+        output[19] = {}
+
+    return output
+
+
+def normalize_reachable(row: dict[str, Any]) -> bool | None:
+    for key in ("reachable", "reachable_now", "connected", "online", "success"):
+        value = boolish(row.get(key))
+        if value is not None:
+            return value
+
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+
+    for key in ("reachable", "reachable_now", "connected", "success"):
+        value = boolish(metadata.get(key))
+        if value is not None:
+            return value
+
+    peer_health = row.get("peer_health") if isinstance(row.get("peer_health"), dict) else {}
+
+    value = boolish(peer_health.get("reachable"))
+    if value is not None:
+        return value
+
+    if row.get("last_seen") or metadata.get("last_seen"):
         return True
 
-    if value in {False, 0, "0", "fail", "failed", "unreachable", "timeout", "error"}:
-        return False
+    if row.get("height") is not None and row.get("agent"):
+        return True
 
     return None
-
-
-def normalize_node(address: str, values: list[Any], rank: int | None = None) -> dict[str, Any]:
-    row = list(values)
-
-    while len(row) < 20:
-        row.append(None)
-
-    metadata = metadata_from_row(row)
-    host, port = split_address(address)
-
-    latency_ms = metadata.get("latency_ms")
-
-    if latency_ms is None and not isinstance(row[19], dict):
-        latency_ms = row[19]
-
-    reachable = normalize_reachable(metadata.get("reachable"), metadata)
-
-    is_tor = bool(metadata.get("tor")) or ".onion" in address.lower()
-    is_i2p = bool(metadata.get("i2p")) or ".i2p" in address.lower()
-    network = classify_network(address)
-
-    return {
-        "rank": rank,
-        "address": address,
-        "host": host,
-        "port": port,
-        "network": network,
-        "reachable": reachable,
-        "protocol": row[0],
-        "agent": row[1],
-        "connected_since": row[2],
-        "services": row[3],
-        "height": row[4],
-        "hostname": row[5],
-        "city": row[6],
-        "country": row[7],
-        "latitude": row[8],
-        "longitude": row[9],
-        "timezone": row[10],
-        "asn": row[11],
-        "organization": row[12],
-        "provider": row[13],
-        "county": row[14],
-        "zip": row[15],
-        "postal_code": row[15],
-        "w3w": row[16],
-        "what3words": row[16],
-        "geohash": row[17],
-        "geohashid": row[17],
-        "asn_location": row[18],
-        "latency_ms": latency_ms,
-        "uptime_human": metadata.get("uptime_human"),
-        "uptime_seconds": metadata.get("total_uptime") or metadata.get("uptime_seconds"),
-        "peer_index": metadata.get("peer_index"),
-        "tor": is_tor,
-        "i2p": is_i2p,
-        "is_tor": is_tor,
-        "is_i2p": is_i2p,
-        "is_ipv4": network == "ipv4",
-        "is_ipv6": network == "ipv6",
-        "is_proxy": bool(metadata.get("proxy") or metadata.get("is_proxy")),
-        "is_vpn": bool(metadata.get("vpn") or metadata.get("is_vpn")),
-        "success_count": metadata.get("success_count"),
-        "failure_count": metadata.get("failure_count"),
-        "first_seen": metadata.get("first_seen"),
-        "last_seen": metadata.get("last_seen"),
-        "metadata": metadata,
-    }
-
-
-def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
-    nodes: dict[str, list[Any]] = {}
-
-    if isinstance(raw, dict):
-        for address, value in raw.items():
-            if isinstance(value, list):
-                nodes[str(address)] = value
-            elif isinstance(value, dict):
-                node_address = value.get("address") or value.get("node") or value.get("addr") or address
-                nodes[str(node_address)] = dict_to_node_array(value)
-
-    elif isinstance(raw, list):
-        for item in raw:
-            if not isinstance(item, dict):
-                continue
-
-            address = item.get("address") or item.get("node") or item.get("addr")
-
-            if address:
-                nodes[str(address)] = dict_to_node_array(item)
-
-    return nodes
 
 
 def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
@@ -297,17 +249,46 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
 
     for key in (
         "reachable",
+        "reachable_now",
+        "reachable_24h",
         "latency_ms",
         "uptime_seconds",
+        "total_uptime",
+        "daily_latency_ms",
+        "weekly_latency_ms",
+        "monthly_latency_ms",
+        "daily_uptime_seconds",
+        "weekly_uptime_seconds",
+        "monthly_uptime_seconds",
         "success_count",
         "failure_count",
         "first_seen",
         "last_seen",
+        "last_failure",
         "peer_index",
+        "peer_health",
         "is_proxy",
         "is_vpn",
         "is_tor",
         "is_i2p",
+        "is_ipv4",
+        "is_ipv6",
+        "proxy",
+        "vpn",
+        "tor",
+        "i2p",
+        "network",
+        "is_sanctioned_node",
+        "is_policy_restricted_node",
+        "jurisdiction_risk_level",
+        "continent",
+        "region",
+        "territory",
+        "county",
+        "city",
+        "zip",
+        "postal_code",
+        "timezone",
     ):
         if key in value and key not in metadata:
             metadata[key] = value.get(key)
@@ -319,21 +300,52 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
         value.get("services") or value.get("service_bits"),
         value.get("height") or value.get("start_height") or value.get("latest_height"),
         value.get("hostname") or value.get("host"),
-        value.get("city"),
+        value.get("city") or metadata.get("city"),
         value.get("country_code") or value.get("country"),
         value.get("latitude") or value.get("lat"),
         value.get("longitude") or value.get("lon") or value.get("lng"),
-        value.get("timezone") or value.get("tz"),
+        value.get("timezone") or value.get("tz") or metadata.get("timezone"),
         value.get("asn"),
         value.get("organization") or value.get("org"),
         value.get("provider"),
-        value.get("county"),
-        value.get("zip") or value.get("postal_code"),
+        value.get("county") or metadata.get("county"),
+        value.get("zip") or value.get("postal_code") or metadata.get("zip"),
         value.get("w3w") or value.get("what3words"),
         value.get("geohash") or value.get("geohashid"),
         value.get("asn_location"),
         metadata,
     ]
+
+
+def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
+    nodes: dict[str, list[Any]] = {}
+
+    if isinstance(raw, dict):
+        if isinstance(raw.get("nodes"), dict):
+            raw = raw["nodes"]
+
+        for address, value in raw.items():
+            if isinstance(value, list):
+                nodes[str(address)] = normalize_node_array(value)
+            elif isinstance(value, dict):
+                node_address = value.get("address") or value.get("node") or value.get("addr") or address
+                nodes[str(node_address)] = dict_to_node_array(value)
+
+    elif isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+
+            address = item.get("address") or item.get("node") or item.get("addr") or item.get("host")
+
+            if address:
+                nodes[str(address)] = dict_to_node_array(item)
+
+    return {
+        str(address).strip(): normalize_node_array(row)
+        for address, row in nodes.items()
+        if str(address).strip()
+    }
 
 
 def load_snapshot(input_path: Path) -> dict[str, Any]:
@@ -344,14 +356,10 @@ def load_snapshot(input_path: Path) -> dict[str, Any]:
 
     nodes = payload.get("nodes")
 
-    if isinstance(nodes, list):
+    if isinstance(nodes, (list, dict)):
         payload["nodes"] = normalize_nodes_object(nodes)
-
-    elif isinstance(nodes, dict):
-        payload["nodes"] = normalize_nodes_object(nodes)
-
     else:
-        for key in ("rows", "results", "data", "node_records"):
+        for key in ("rows", "results", "data", "node_records", "reachable", "unreachable", "peers"):
             if isinstance(payload.get(key), list):
                 payload["nodes"] = normalize_nodes_object(payload[key])
                 break
@@ -361,11 +369,86 @@ def load_snapshot(input_path: Path) -> dict[str, Any]:
     return payload
 
 
+def normalize_node(address: str, values: list[Any], rank: int | None = None) -> dict[str, Any]:
+    row = normalize_node_array(values)
+    metadata = metadata_from_row(row)
+    host, port = split_address(address)
+    network = classify_network(address, metadata)
+
+    item = {
+        "rank": rank,
+        "address": address,
+        "host": host,
+        "port": port,
+        "network": network,
+        "protocol": row[0],
+        "protocol_version": row[0],
+        "agent": row[1],
+        "user_agent": row[1],
+        "connected_since": row[2],
+        "services": row[3],
+        "height": row[4],
+        "hostname": row[5],
+        "city": row[6] or metadata.get("city"),
+        "country": row[7],
+        "country_code": row[7],
+        "latitude": row[8],
+        "longitude": row[9],
+        "timezone": row[10] or metadata.get("timezone"),
+        "asn": row[11],
+        "organization": row[12],
+        "provider": row[13],
+        "county": row[14] or metadata.get("county"),
+        "zip": row[15] or metadata.get("zip"),
+        "postal_code": row[15] or metadata.get("postal_code") or metadata.get("zip"),
+        "w3w": row[16],
+        "what3words": row[16],
+        "geohash": row[17],
+        "geohashid": row[17] or metadata.get("geohashid"),
+        "asn_location": row[18],
+        "latency_ms": metadata.get("latency_ms"),
+        "uptime_human": metadata.get("uptime_human"),
+        "uptime_seconds": metadata.get("total_uptime") or metadata.get("uptime_seconds"),
+        "total_uptime": metadata.get("total_uptime") or metadata.get("uptime_seconds"),
+        "daily_latency_ms": metadata.get("daily_latency_ms"),
+        "weekly_latency_ms": metadata.get("weekly_latency_ms"),
+        "monthly_latency_ms": metadata.get("monthly_latency_ms"),
+        "daily_uptime_seconds": metadata.get("daily_uptime_seconds"),
+        "weekly_uptime_seconds": metadata.get("weekly_uptime_seconds"),
+        "monthly_uptime_seconds": metadata.get("monthly_uptime_seconds"),
+        "peer_index": metadata.get("peer_index"),
+        "peer_health": metadata.get("peer_health"),
+        "reachable_now": boolish(metadata.get("reachable_now")),
+        "reachable_24h": boolish(metadata.get("reachable_24h")),
+        "tor": bool(metadata.get("tor") or metadata.get("is_tor") or network == "tor"),
+        "i2p": bool(metadata.get("i2p") or metadata.get("is_i2p") or network == "i2p"),
+        "is_tor": bool(metadata.get("is_tor") or metadata.get("tor") or network == "tor"),
+        "is_i2p": bool(metadata.get("is_i2p") or metadata.get("i2p") or network == "i2p"),
+        "is_ipv4": bool(metadata.get("is_ipv4") or network == "ipv4"),
+        "is_ipv6": bool(metadata.get("is_ipv6") or network == "ipv6"),
+        "is_proxy": bool(metadata.get("proxy") or metadata.get("is_proxy")),
+        "is_vpn": bool(metadata.get("vpn") or metadata.get("is_vpn")),
+        "is_sanctioned_node": bool(metadata.get("is_sanctioned_node")),
+        "is_policy_restricted_node": bool(metadata.get("is_policy_restricted_node")),
+        "jurisdiction_risk_level": metadata.get("jurisdiction_risk_level"),
+        "continent": metadata.get("continent"),
+        "region": metadata.get("region"),
+        "territory": metadata.get("territory"),
+        "success_count": metadata.get("success_count"),
+        "failure_count": metadata.get("failure_count"),
+        "first_seen": metadata.get("first_seen"),
+        "last_seen": metadata.get("last_seen"),
+        "last_failure": metadata.get("last_failure"),
+        "metadata": metadata,
+    }
+
+    item["reachable"] = normalize_reachable(item)
+
+    return item
+
+
 def node_rows(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
-    rows = [
-        normalize_node(address, values)
-        for address, values in nodes.items()
-    ]
+    rows = [normalize_node(address, values) for address, values in nodes.items()]
 
     rows.sort(
         key=lambda row: (
@@ -383,10 +466,7 @@ def node_rows(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
 
 
 def average(values) -> float | None:
-    numbers = [
-        safe_number(value)
-        for value in values
-    ]
+    numbers = [safe_number(value) for value in values]
     numbers = [value for value in numbers if value is not None]
 
     if not numbers:
@@ -427,13 +507,7 @@ def counter_top(values, limit: int = 25) -> list[dict[str, Any]]:
         if value not in ("", None):
             counter[str(value)] += 1
 
-    return [
-        {
-            "value": key,
-            "count": count,
-        }
-        for key, count in counter.most_common(limit)
-    ]
+    return [{"value": key, "count": count} for key, count in counter.most_common(limit)]
 
 
 def group_rows(rows: list[dict[str, Any]], key_name: str, unknown: str = "Unknown") -> dict[str, list[dict[str, Any]]]:
@@ -451,6 +525,8 @@ def summarize_group(name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "name": name,
         "total_nodes": len(rows),
         "reachable_nodes": sum(1 for row in rows if row.get("reachable") is True),
+        "reachable_now": sum(1 for row in rows if row.get("reachable_now") is True),
+        "reachable_24h": sum(1 for row in rows if row.get("reachable_24h") is True),
         "unreachable_nodes": sum(1 for row in rows if row.get("reachable") is False),
         "known_nodes": len(rows),
         "tor_nodes": sum(1 for row in rows if row.get("tor")),
@@ -459,6 +535,8 @@ def summarize_group(name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "ipv6_nodes": sum(1 for row in rows if row.get("network") == "ipv6"),
         "vpn_nodes": sum(1 for row in rows if row.get("is_vpn")),
         "proxy_nodes": sum(1 for row in rows if row.get("is_proxy")),
+        "sanctioned_nodes": sum(1 for row in rows if row.get("is_sanctioned_node")),
+        "policy_restricted_nodes": sum(1 for row in rows if row.get("is_policy_restricted_node")),
         "avg_latency_ms": average(row.get("latency_ms") for row in rows),
         "latest_height": max_or_none(row.get("height") for row in rows),
         "top_agent": most_common(row.get("agent") for row in rows),
@@ -488,10 +566,6 @@ def build_group_payload(rows: list[dict[str, Any]], key_name: str, total_name: s
         "total_nodes": len(rows),
         "results": results,
     }
-
-
-def build_country_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "country", "total_countries", unknown="??")
 
 
 def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -524,35 +598,7 @@ def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def build_asn_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "asn", "total_asns", unknown="UNKNOWN")
-
-
-def build_agent_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "agent", "total_agents", unknown="UNKNOWN")
-
-
-def build_version_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "protocol", "total_versions", unknown="UNKNOWN")
-
-
-def build_port_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "port", "total_ports", unknown="UNKNOWN")
-
-
-def build_services_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "services", "total_service_sets", unknown="UNKNOWN")
-
-
-def build_organization_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "organization", "total_organizations", unknown="UNKNOWN")
-
-
-def build_provider_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return build_group_payload(rows, "provider", "total_providers", unknown="UNKNOWN")
-
-
-def build_subset_payload(rows: list[dict[str, Any]], predicate, total_key: str) -> dict[str, Any]:
+def build_subset_payload(rows: list[dict[str, Any]], predicate: Callable[[dict[str, Any]], bool], total_key: str) -> dict[str, Any]:
     selected = [row for row in rows if predicate(row)]
 
     return {
@@ -564,17 +610,29 @@ def build_subset_payload(rows: list[dict[str, Any]], predicate, total_key: str) 
 
 
 def build_coordinates_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    selected = [
-        {
+    selected = []
+
+    for row in rows:
+        lat = safe_number(row.get("latitude"))
+        lon = safe_number(row.get("longitude"))
+
+        if lat is None or lon is None:
+            continue
+
+        selected.append({
             "address": row.get("address"),
             "host": row.get("host"),
             "port": row.get("port"),
+            "network": row.get("network"),
             "country": row.get("country"),
+            "continent": row.get("continent"),
+            "region": row.get("region"),
+            "territory": row.get("territory"),
             "city": row.get("city"),
             "county": row.get("county"),
             "zip": row.get("zip"),
-            "latitude": row.get("latitude"),
-            "longitude": row.get("longitude"),
+            "latitude": lat,
+            "longitude": lon,
             "asn": row.get("asn"),
             "organization": row.get("organization"),
             "provider": row.get("provider"),
@@ -583,11 +641,11 @@ def build_coordinates_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "w3w": row.get("w3w"),
             "tor": row.get("tor"),
             "i2p": row.get("i2p"),
-        }
-        for row in rows
-        if row.get("latitude") is not None
-        and row.get("longitude") is not None
-    ]
+            "reachable": row.get("reachable"),
+            "reachable_now": row.get("reachable_now"),
+            "reachable_24h": row.get("reachable_24h"),
+            "peer_index": row.get("peer_index"),
+        })
 
     return {
         "updated_at": utc_iso(),
@@ -596,18 +654,45 @@ def build_coordinates_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def build_geojson_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    features = []
+
+    for row in rows:
+        lat = safe_number(row.get("latitude"))
+        lon = safe_number(row.get("longitude"))
+
+        if lat is None or lon is None:
+            continue
+
+        properties = dict(row)
+        properties.pop("metadata", None)
+
+        features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [lon, lat],
+            },
+            "properties": properties,
+        })
+
+    return {
+        "type": "FeatureCollection",
+        "updated_at": utc_iso(),
+        "features": features,
+    }
+
+
 def build_latency_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "updated_at": utc_iso(),
         "nodes": {
             row["address"]: {
-                "daily_latency": [
-                    {
-                        "t": utc_iso(),
-                        "v": row.get("latency_ms"),
-                    }
-                ],
+                "daily_latency": [{"t": utc_iso(), "v": row.get("latency_ms")}],
                 "latency_ms": row.get("latency_ms"),
+                "daily_latency_ms": row.get("daily_latency_ms"),
+                "weekly_latency_ms": row.get("weekly_latency_ms"),
+                "monthly_latency_ms": row.get("monthly_latency_ms"),
             }
             for row in rows
         },
@@ -625,15 +710,12 @@ def calculate_peer_index(row: dict[str, Any]) -> float:
         latency_score = max(0.0, 100.0 - min(100.0, latency / 5.0))
 
     reliability_total = success_count + failure_count
-    reliability_score = 0.0
-
-    if reliability_total > 0:
-        reliability_score = (success_count / reliability_total) * 100.0
-
+    reliability_score = (success_count / reliability_total) * 100.0 if reliability_total > 0 else 0.0
     height_score = 25.0 if row.get("height") else 0.0
     services_score = 25.0 if row.get("services") else 0.0
+    reachable_score = 50.0 if row.get("reachable") is True else 0.0
 
-    return round(latency_score + reliability_score + height_score + services_score, 4)
+    return round(latency_score + reliability_score + height_score + services_score + reachable_score, 4)
 
 
 def build_peer_health_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -657,10 +739,15 @@ def build_peer_health_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def build_leaderboard_payload(peer_health: dict[str, Any]) -> dict[str, Any]:
+def build_leaderboard_payload(peer_health: dict[str, Any], limit: int | None = None) -> dict[str, Any]:
     rows = []
 
-    for index, entry in enumerate(peer_health.get("results", []), start=1):
+    source_rows = peer_health.get("results", [])
+
+    if limit:
+        source_rows = source_rows[:limit]
+
+    for index, entry in enumerate(source_rows, start=1):
         item = dict(entry)
         item["rank"] = index
         item["node"] = item.get("address")
@@ -682,14 +769,7 @@ def build_heights_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if height is not None:
             counter[str(height)] += 1
 
-    results = [
-        {
-            "height": safe_int(height),
-            "nodes": count,
-        }
-        for height, count in counter.most_common()
-    ]
-
+    results = [{"height": safe_int(height), "nodes": count} for height, count in counter.most_common()]
     results.sort(key=lambda item: item["height"] or 0, reverse=True)
 
     return {
@@ -701,11 +781,7 @@ def build_heights_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def build_dns_seeder_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    records = {
-        "A": [],
-        "AAAA": [],
-        "TXT": [],
-    }
+    records = {"A": [], "AAAA": [], "TXT": []}
 
     for row in rows:
         host = row.get("host")
@@ -736,11 +812,7 @@ def build_propagation_payload(payload: dict[str, Any], rows: list[dict[str, Any]
 
     latest_height = max(heights) if heights else None
     median_height = statistics.median(heights) if heights else None
-
-    at_tip = 0
-
-    if latest_height is not None:
-        at_tip = sum(1 for height in heights if height == latest_height)
+    at_tip = sum(1 for height in heights if height == latest_height) if latest_height is not None else 0
 
     return {
         "updated_at": utc_iso(),
@@ -756,11 +828,15 @@ def build_propagation_payload(payload: dict[str, Any], rows: list[dict[str, Any]
 def build_counts(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
     reachable = sum(1 for row in rows if row.get("reachable") is True)
     unreachable = sum(1 for row in rows if row.get("reachable") is False)
+    reachable_now = sum(1 for row in rows if row.get("reachable_now") is True)
+    reachable_24h = sum(1 for row in rows if row.get("reachable_24h") is True)
 
     return {
         "total": len(rows),
         "known": len(rows),
         "reachable": payload.get("reachable_nodes", reachable),
+        "reachable_now": payload.get("reachable_now", reachable_now),
+        "reachable_24h": payload.get("reachable_24h", reachable_24h),
         "unreachable": payload.get("unreachable_nodes", unreachable),
         "ambiguous": max(0, len(rows) - reachable - unreachable),
         "ipv4": sum(1 for row in rows if row.get("network") == "ipv4"),
@@ -769,14 +845,71 @@ def build_counts(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[st
         "i2p": sum(1 for row in rows if row.get("i2p")),
         "vpn": sum(1 for row in rows if row.get("is_vpn")),
         "proxy": sum(1 for row in rows if row.get("is_proxy")),
+        "sanctioned": sum(1 for row in rows if row.get("is_sanctioned_node")),
+        "policy_restricted": sum(1 for row in rows if row.get("is_policy_restricted_node")),
+        "countries": len({row.get("country") for row in rows if row.get("country")}),
+        "cities": len({row.get("city") for row in rows if row.get("city")}),
+        "asns": len({row.get("asn") for row in rows if row.get("asn")}),
+        "agents": len({row.get("agent") for row in rows if row.get("agent")}),
+        "organizations": len({row.get("organization") for row in rows if row.get("organization")}),
+    }
+
+
+def build_registry_statistics(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    counts = build_counts(rows, payload)
+
+    return {
+        "schema": "zzx-bitnodes-registry-statistics-v1",
+        "updated_at": utc_iso(),
+        "known_nodes": counts["known"],
+        "reachable_nodes": counts["reachable"],
+        "reachable_now": counts["reachable_now"],
+        "reachable_24h": counts["reachable_24h"],
+        "unreachable_nodes": counts["unreachable"],
+        "ipv4_nodes": counts["ipv4"],
+        "ipv6_nodes": counts["ipv6"],
+        "tor_nodes": counts["tor"],
+        "i2p_nodes": counts["i2p"],
+        "vpn_nodes": counts["vpn"],
+        "proxy_nodes": counts["proxy"],
+        "sanctioned_nodes": counts["sanctioned"],
+        "policy_restricted_nodes": counts["policy_restricted"],
+        "countries": counts["countries"],
+        "cities": counts["cities"],
+        "asns": counts["asns"],
+        "agents": counts["agents"],
+        "organizations": counts["organizations"],
+    }
+
+
+def build_networks_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    grouped = group_rows(rows, "network", unknown="unknown")
+
+    results = [
+        {
+            **summarize_group(network, entries),
+            "network": network,
+            "nodes": entries,
+        }
+        for network, entries in grouped.items()
+    ]
+
+    results.sort(key=lambda item: item["total_nodes"], reverse=True)
+
+    return {
+        "updated_at": utc_iso(),
+        "total_networks": len(results),
+        "total_nodes": len(rows),
+        "results": results,
     }
 
 
 def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
     counts = build_counts(rows, payload)
+    registry_statistics = build_registry_statistics(rows, payload)
 
     return {
-        "schema": "zzx-bitnodes-static-api-status-v2",
+        "schema": "zzx-bitnodes-static-api-status-v4",
         "source": payload.get("source"),
         "timestamp": payload.get("timestamp"),
         "updated_at": payload.get("updated_at") or utc_iso(),
@@ -785,19 +918,23 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
         "known_nodes": payload.get("known_nodes", counts["known"]),
         "reachable_nodes": payload.get("reachable_nodes", counts["reachable"]),
         "unreachable_nodes": payload.get("unreachable_nodes", counts["unreachable"]),
-        "reachable_24h": payload.get("reachable_24h"),
+        "reachable_now": counts["reachable_now"],
+        "reachable_24h": counts["reachable_24h"],
         "stale_nodes": payload.get("stale_nodes"),
         "latest_height": payload.get("latest_height"),
-        "countries_count": payload.get("countries_count"),
-        "cities_count": payload.get("cities_count"),
-        "asns_count": payload.get("asns_count"),
-        "tor_nodes": payload.get("tor_nodes", counts["tor"]),
+        "countries_count": counts["countries"],
+        "cities_count": counts["cities"],
+        "asns_count": counts["asns"],
+        "tor_nodes": counts["tor"],
         "i2p_nodes": counts["i2p"],
         "vpn_nodes": counts["vpn"],
         "proxy_nodes": counts["proxy"],
+        "sanctioned_nodes": counts["sanctioned"],
+        "policy_restricted_nodes": counts["policy_restricted"],
         "rows_exported": len(rows),
         "summary": payload.get("summary", {}),
         "counts": counts,
+        "registry_statistics": registry_statistics,
         "top": {
             "countries": counter_top(row.get("country") for row in rows),
             "cities": counter_top(row.get("city") for row in rows),
@@ -806,6 +943,7 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
             "organizations": counter_top(row.get("organization") for row in rows),
             "providers": counter_top(row.get("provider") for row in rows),
             "ports": counter_top(row.get("port") for row in rows),
+            "networks": counter_top(row.get("network") for row in rows),
         },
         "changes": payload.get("changes", {}),
         "api": {
@@ -813,8 +951,16 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
             "nodes": "./nodes.json",
             "reachable": "./reachable.json",
             "unreachable": "./unreachable.json",
+            "reachable_now": "./reachable-now.json",
+            "reachable_24h": "./reachable-24h.json",
             "countries": "./countries.json",
+            "continents": "./continents.json",
+            "regions": "./regions.json",
+            "territories": "./territories.json",
+            "counties": "./counties.json",
             "cities": "./cities.json",
+            "zipcodes": "./zipcodes.json",
+            "timezones": "./timezones.json",
             "asns": "./asns.json",
             "agents": "./agents.json",
             "versions": "./versions.json",
@@ -822,17 +968,24 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
             "services": "./services.json",
             "organizations": "./organizations.json",
             "providers": "./providers.json",
+            "networks": "./networks.json",
+            "ipv4": "./ipv4.json",
+            "ipv6": "./ipv6.json",
             "tor": "./tor.json",
             "i2p": "./i2p.json",
             "vpn": "./vpn.json",
             "proxy": "./proxy.json",
+            "sanctioned": "./sanctioned.json",
+            "policy_restricted": "./policy-restricted.json",
             "coordinates": "./coordinates.json",
+            "geojson": "./maps/nodes.geojson",
             "latency": "./latency.json",
             "peer_health": "./peer-health.json",
             "leaderboard": "./leaderboard.json",
             "heights": "./heights.json",
             "dns_seeder": "./dns-seeder.json",
             "propagation": "./propagation.json",
+            "registry_statistics": "./registry-statistics.json",
             "status": "./status.json",
         },
     }
@@ -842,7 +995,7 @@ def build_latest_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
     latest = dict(payload)
     latest["rows"] = rows
     latest["counts"] = build_counts(rows, payload)
-
+    latest["registry_statistics"] = build_registry_statistics(rows, payload)
     return latest
 
 
@@ -854,38 +1007,64 @@ def write_node_files(output_dir: Path, rows: list[dict[str, Any]], pretty: bool)
         host = row.get("host") or "unknown"
         port = row.get("port") or "unknown"
 
-        write_json(
-            node_dir / f"{safe_name(host)}-{safe_name(port)}.json",
-            row,
-            pretty=pretty,
-        )
+        write_json(node_dir / f"{safe_name(host)}-{safe_name(port)}.json", row, pretty=pretty)
 
 
 def write_group_files(output_dir: Path, group_name: str, group_payload: dict[str, Any], pretty: bool) -> None:
     group_dir = output_dir / group_name
     mkdir(group_dir)
 
-    for item in group_payload.get("results", []):
-        name = (
-            item.get(group_name[:-1])
-            or item.get("name")
-            or item.get("country")
-            or item.get("city")
-            or item.get("asn")
-            or item.get("agent")
-            or item.get("protocol")
-            or item.get("port")
-            or item.get("services")
-            or item.get("organization")
-            or item.get("provider")
-            or "unknown"
-        )
+    singular = {
+        "countries": "country",
+        "continents": "continent",
+        "regions": "region",
+        "territories": "territory",
+        "counties": "county",
+        "cities": "city",
+        "zipcodes": "zip",
+        "timezones": "timezone",
+        "asns": "asn",
+        "agents": "agent",
+        "versions": "protocol",
+        "ports": "port",
+        "services": "services",
+        "organizations": "organization",
+        "providers": "provider",
+        "networks": "network",
+        "geohashes": "geohash",
+        "what3words": "w3w",
+    }.get(group_name, "name")
 
-        write_json(
-            group_dir / f"{safe_name(name)}.json",
-            item,
-            pretty=pretty,
-        )
+    for item in group_payload.get("results", []):
+        name = item.get(singular) or item.get("name") or "unknown"
+        write_json(group_dir / f"{safe_name(name)}.json", item, pretty=pretty)
+
+
+def build_widget_payloads(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    counts = build_counts(rows, payload)
+
+    return {
+        "widget-node-counts.json": {
+            "updated_at": utc_iso(),
+            "known": counts["known"],
+            "reachable": counts["reachable"],
+            "reachable_now": counts["reachable_now"],
+            "reachable_24h": counts["reachable_24h"],
+            "unreachable": counts["unreachable"],
+        },
+        "widget-network-counts.json": {
+            "updated_at": utc_iso(),
+            "ipv4": counts["ipv4"],
+            "ipv6": counts["ipv6"],
+            "tor": counts["tor"],
+            "i2p": counts["i2p"],
+            "vpn": counts["vpn"],
+            "proxy": counts["proxy"],
+        },
+        "widget-heights.json": build_heights_payload(rows),
+        "widget-countries.json": build_group_payload(rows, "country", "total_countries", unknown="??"),
+        "widget-agents.json": build_group_payload(rows, "agent", "total_agents", unknown="UNKNOWN"),
+    }
 
 
 def export_all(
@@ -919,28 +1098,48 @@ def export_all(
         },
         "reachable.json": build_subset_payload(rows, lambda row: row.get("reachable") is True, "total_reachable_nodes"),
         "unreachable.json": build_subset_payload(rows, lambda row: row.get("reachable") is False, "total_unreachable_nodes"),
-        "countries.json": build_country_payload(rows),
+        "reachable-now.json": build_subset_payload(rows, lambda row: row.get("reachable_now") is True, "total_reachable_now_nodes"),
+        "reachable-24h.json": build_subset_payload(rows, lambda row: row.get("reachable_24h") is True, "total_reachable_24h_nodes"),
+        "countries.json": build_group_payload(rows, "country", "total_countries", unknown="??"),
+        "continents.json": build_group_payload(rows, "continent", "total_continents"),
+        "regions.json": build_group_payload(rows, "region", "total_regions"),
+        "territories.json": build_group_payload(rows, "territory", "total_territories"),
+        "counties.json": build_group_payload(rows, "county", "total_counties"),
         "cities.json": build_city_payload(rows),
-        "asns.json": build_asn_payload(rows),
-        "agents.json": build_agent_payload(rows),
-        "versions.json": build_version_payload(rows),
-        "ports.json": build_port_payload(rows),
-        "services.json": build_services_payload(rows),
-        "organizations.json": build_organization_payload(rows),
-        "providers.json": build_provider_payload(rows),
+        "zipcodes.json": build_group_payload(rows, "zip", "total_zipcodes"),
+        "timezones.json": build_group_payload(rows, "timezone", "total_timezones"),
+        "asns.json": build_group_payload(rows, "asn", "total_asns", unknown="UNKNOWN"),
+        "agents.json": build_group_payload(rows, "agent", "total_agents", unknown="UNKNOWN"),
+        "versions.json": build_group_payload(rows, "protocol", "total_versions", unknown="UNKNOWN"),
+        "ports.json": build_group_payload(rows, "port", "total_ports", unknown="UNKNOWN"),
+        "services.json": build_group_payload(rows, "services", "total_service_sets", unknown="UNKNOWN"),
+        "organizations.json": build_group_payload(rows, "organization", "total_organizations", unknown="UNKNOWN"),
+        "providers.json": build_group_payload(rows, "provider", "total_providers", unknown="UNKNOWN"),
+        "networks.json": build_networks_payload(rows),
+        "ipv4.json": build_subset_payload(rows, lambda row: row.get("network") == "ipv4", "total_ipv4_nodes"),
+        "ipv6.json": build_subset_payload(rows, lambda row: row.get("network") == "ipv6", "total_ipv6_nodes"),
         "tor.json": build_subset_payload(rows, lambda row: row.get("tor"), "total_tor_nodes"),
         "i2p.json": build_subset_payload(rows, lambda row: row.get("i2p"), "total_i2p_nodes"),
         "vpn.json": build_subset_payload(rows, lambda row: row.get("is_vpn"), "total_vpn_nodes"),
         "proxy.json": build_subset_payload(rows, lambda row: row.get("is_proxy"), "total_proxy_nodes"),
+        "sanctioned.json": build_subset_payload(rows, lambda row: row.get("is_sanctioned_node"), "total_sanctioned_nodes"),
+        "policy-restricted.json": build_subset_payload(rows, lambda row: row.get("is_policy_restricted_node"), "total_policy_restricted_nodes"),
+        "geohashes.json": build_group_payload(rows, "geohash", "total_geohashes"),
+        "what3words.json": build_group_payload(rows, "w3w", "total_what3words"),
         "coordinates.json": build_coordinates_payload(rows),
         "latency.json": build_latency_payload(rows),
         "peer-health.json": peer_health,
         "leaderboard.json": leaderboard,
+        "leaderboard-top-100.json": build_leaderboard_payload(peer_health, 100),
+        "leaderboard-top-1000.json": build_leaderboard_payload(peer_health, 1000),
+        "leaderboard-top-10000.json": build_leaderboard_payload(peer_health, 10000),
         "heights.json": build_heights_payload(rows),
         "dns-seeder.json": build_dns_seeder_payload(rows),
         "propagation.json": build_propagation_payload(payload, rows),
+        "registry-statistics.json": build_registry_statistics(rows, payload),
     }
 
+    exports.update(build_widget_payloads(rows, payload))
     exports["status.json"] = build_status_payload(payload, rows)
     exports["index.json"] = exports["status.json"]
 
@@ -957,6 +1156,7 @@ def export_all(
                 "url": "./latest.json",
                 "total_nodes": payload.get("total_nodes", len(rows)),
                 "reachable_nodes": payload.get("reachable_nodes"),
+                "reachable_now": payload.get("reachable_now"),
                 "reachable_24h": payload.get("reachable_24h"),
                 "latest_height": payload.get("latest_height"),
             }
@@ -966,11 +1166,23 @@ def export_all(
     for filename, export_payload in exports.items():
         write_json(output_dir / filename, export_payload, pretty=pretty)
 
+    maps_dir = output_dir / "maps"
+    mkdir(maps_dir)
+    write_json(maps_dir / "nodes.geojson", build_geojson_payload(rows), pretty=pretty)
+    write_json(maps_dir / "coordinates.json", build_coordinates_payload(rows), pretty=pretty)
+    write_json(maps_dir / "live-map.json", build_coordinates_payload(rows), pretty=pretty)
+
     write_node_files(output_dir, rows, pretty=pretty)
 
     for group_name in [
         "countries",
+        "continents",
+        "regions",
+        "territories",
+        "counties",
         "cities",
+        "zipcodes",
+        "timezones",
         "asns",
         "agents",
         "versions",
@@ -978,6 +1190,9 @@ def export_all(
         "services",
         "organizations",
         "providers",
+        "networks",
+        "geohashes",
+        "what3words",
     ]:
         write_group_files(output_dir, group_name, exports[f"{group_name}.json"], pretty=pretty)
 
@@ -995,9 +1210,7 @@ def export_all(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Export ZZX-Labs Bitnodes static API JSON files."
-    )
+    parser = argparse.ArgumentParser(description="Export ZZX-Labs Bitnodes static API JSON files.")
 
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", default="bitcoin/bitnodes/api")
