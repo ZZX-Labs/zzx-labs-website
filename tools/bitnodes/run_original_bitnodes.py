@@ -66,7 +66,6 @@ def date_slug() -> str:
 def ensure_dirs() -> None:
     for path in (
         BITNODES_ROOT,
-        SRC_DIR,
         DATA_DIR,
         API_DIR,
         ARCHIVE_DIR,
@@ -182,13 +181,28 @@ def clone(repo: str = DEFAULT_REPO, branch: str = DEFAULT_BRANCH) -> int:
     ensure_dirs()
 
     if is_git_repo(SRC_DIR):
+        printf("Existing original Bitnodes git repository detected. Updating source clone.")
         return run(["git", "pull", "--ff-only", "origin", branch], cwd=SRC_DIR)
 
     if SRC_DIR.exists() and any(SRC_DIR.iterdir()):
-        printf("bitcoin/bitnodes/src exists but is not a git repository. Refusing to overwrite.")
-        return 1
+        printf(
+            "bitcoin/bitnodes/src exists but is not a git repository. "
+            "Removing stale runtime directory before clone."
+        )
+        shutil.rmtree(SRC_DIR)
 
-    return run(["git", "clone", "--branch", branch, repo, str(SRC_DIR)])
+    SRC_DIR.parent.mkdir(parents=True, exist_ok=True)
+
+    return run([
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "--branch",
+        branch,
+        repo,
+        str(SRC_DIR),
+    ])
 
 
 def install_requirements() -> int:
@@ -282,15 +296,14 @@ def start_original(
         return run(["bash", str(target)], cwd=SRC_DIR, env=env)
 
     if target.suffix == ".py":
-        command = [
-            sys.executable,
-            str(target),
-        ]
-
-        return run(command, cwd=SRC_DIR, env=env)
+        return run([sys.executable, str(target)], cwd=SRC_DIR, env=env)
 
     if target.name in {"docker-compose.yml", "compose.yaml", "compose.yml"}:
-        return run(["docker", "compose", "-f", str(target), "up", "--abort-on-container-exit"], cwd=SRC_DIR, env=env)
+        return run(
+            ["docker", "compose", "-f", str(target), "up", "--abort-on-container-exit"],
+            cwd=SRC_DIR,
+            env=env,
+        )
 
     printf("Unsupported original Bitnodes startup target.")
     return 1
@@ -331,7 +344,6 @@ def export_redis(
 
 
 def enrich_original(
-    *,
     modules: str = "",
     strict: bool = False,
 ) -> int:
