@@ -1,23 +1,31 @@
 :root {
+    --zzx-cyberchef-scale: 0.72;
+
     --cz-theme-bg: #282828;
     --cz-theme-bg-soft: #333333;
     --cz-theme-bg-deep: #151515;
     --cz-theme-border: #444444;
-
     --cz-theme-text: #d1d1d1;
     --cz-theme-muted: #9a9a9a;
-
     --cz-theme-accent: #c0d674;
     --cz-theme-gold: #c79c6e;
 }
 
+.cz-frame-wrap {
+    overflow: hidden;
+}
+
+.cz-frame-wrap iframe {
+    width: calc(100% / var(--zzx-cyberchef-scale));
+    height: calc(100% / var(--zzx-cyberchef-scale));
+    transform: scale(var(--zzx-cyberchef-scale));
+    transform-origin: top left;
+    border: 0;
+}
+
 body.cz-theme-tactical {
     background:
-        radial-gradient(
-            circle at top left,
-            rgba(192, 214, 116, 0.08),
-            transparent 28rem
-        ),
+        radial-gradient(circle at top left, rgba(192, 214, 116, 0.08), transparent 28rem),
         var(--cz-theme-bg);
 }
 
@@ -27,16 +35,8 @@ body.cz-theme-tactical .cz-status,
 body.cz-theme-tactical .cz-card {
     border-color: var(--cz-theme-border);
     background:
-        linear-gradient(
-            180deg,
-            rgba(192, 214, 116, 0.055),
-            rgba(0, 0, 0, 0)
-        ),
-        linear-gradient(
-            180deg,
-            var(--cz-theme-bg-soft),
-            var(--cz-theme-bg-deep)
-        );
+        linear-gradient(180deg, rgba(192, 214, 116, 0.055), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, var(--cz-theme-bg-soft), var(--cz-theme-bg-deep));
 }
 
 body.cz-theme-tactical .cz-kicker,
@@ -114,4 +114,22 @@ body.cz-theme-tactical .cz-frame-wrap {
     border-left: 0;
     border-right: 0;
     border-bottom: 0;
+}
+
+@media (max-width: 1600px) {
+    :root {
+        --zzx-cyberchef-scale: 0.78;
+    }
+}
+
+@media (max-width: 1200px) {
+    :root {
+        --zzx-cyberchef-scale: 0.84;
+    }
+}
+
+@media (max-width: 900px) {
+    :root {
+        --zzx-cyberchef-scale: 1;
+    }
 }
