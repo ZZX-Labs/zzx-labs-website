@@ -55,7 +55,7 @@ jobs:
       - name: Install native CyberChef under cyberchef/app
         run: |
           mkdir -p _cyberchef-extract
-          rm -rf _site/cyberchef
+          rm -rf _site/cyberchef/app
           mkdir -p _site/cyberchef/app
 
           unzip -o _cyberchef-download/CyberChef_v11.0.0.zip -d _cyberchef-extract
@@ -75,13 +75,121 @@ jobs:
           fi
 
           cp "$CYBERCHEF_HTML" "_site/cyberchef/app/index.html"
+          cp "$CYBERCHEF_HTML" "_site/cyberchef/app/native.html"
 
           test -f _site/cyberchef/app/index.html
+          test -f _site/cyberchef/app/native.html
 
-      - name: Normalize native CyberChef asset paths
+      - name: Generate CyberChef app bridge files
+        run: |
+          cat > _site/cyberchef/app/styles.css << 'EOF'
+          @import url("assets/main.css");
+
+          :root {
+            --zzx-accent: #c0d674;
+            --zzx-gold: #c79c6e;
+            --zzx-bg: #282828;
+            --zzx-panel: #333333;
+            --zzx-border: #444444;
+            --zzx-text: #d1d1d1;
+          }
+
+          body.classic,
+          html.classic body {
+            background: var(--zzx-bg);
+          }
+
+          #banner {
+            border-bottom: 1px solid var(--zzx-border);
+          }
+          EOF
+
+          cat > _site/cyberchef/app/script.js << 'EOF'
+          (function () {
+            function memoryStorage() {
+              var mem = {};
+
+              return {
+                getItem: function (k) {
+                  return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+                },
+                setItem: function (k, v) {
+                  mem[k] = String(v);
+                },
+                removeItem: function (k) {
+                  delete mem[k];
+                },
+                clear: function () {
+                  mem = {};
+                },
+                key: function (i) {
+                  return Object.keys(mem)[i] || null;
+                },
+                get length() {
+                  return Object.keys(mem).length;
+                }
+              };
+            }
+
+            function storageWorks(name) {
+              try {
+                var s = window[name];
+                var k = "__zzx_storage_test__";
+                s.setItem(k, "1");
+                s.removeItem(k);
+                return true;
+              } catch (e) {
+                return false;
+              }
+            }
+
+            try {
+              if (!storageWorks("localStorage")) {
+                Object.defineProperty(window, "localStorage", {
+                  configurable: true,
+                  value: memoryStorage()
+                });
+              }
+            } catch (e) {}
+
+            try {
+              if (!storageWorks("sessionStorage")) {
+                Object.defineProperty(window, "sessionStorage", {
+                  configurable: true,
+                  value: memoryStorage()
+                });
+              }
+            } catch (e) {}
+
+            try {
+              var originalSetItem = Storage.prototype.setItem;
+
+              Storage.prototype.setItem = function (key, value) {
+                try {
+                  return originalSetItem.call(this, key, value);
+                } catch (e) {
+                  if (
+                    e &&
+                    (
+                      e.name === "QuotaExceededError" ||
+                      e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                    )
+                  ) {
+                    return null;
+                  }
+
+                  throw e;
+                }
+              };
+            } catch (e) {}
+          })();
+          EOF
+
+      - name: Patch native CyberChef HTML to use bridge files
         run: |
           python3 - << 'PY'
           from pathlib import Path
+          import re
 
           index = Path("_site/cyberchef/app/index.html")
           html = index.read_text(encoding="utf-8", errors="ignore")
@@ -98,6 +206,41 @@ jobs:
 
           for old, new in replacements.items():
               html = html.replace(old, new)
+
+          html = re.sub(
+              r'<link\s+href=["\']assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
+              '<link rel="stylesheet" href="styles.css">',
+              html,
+              flags=re.I
+          )
+
+          html = re.sub(
+              r'<link\s+rel=["\']stylesheet["\']\s+href=["\']assets/main\.css["\']\s*/?>',
+              '<link rel="stylesheet" href="styles.css">',
+              html,
+              flags=re.I
+          )
+
+          if 'href="styles.css"' not in html and "href='styles.css'" not in html:
+              html = html.replace(
+                  "</head>",
+                  '<link rel="stylesheet" href="styles.css">\n</head>'
+              )
+
+          if 'src="script.js"' not in html and "src='script.js'" not in html:
+              html = re.sub(
+                  r'(<script[^>]+src=["\']assets/main\.js["\'][^>]*></script>)',
+                  '<script src="script.js"></script>\n\\1',
+                  html,
+                  count=1,
+                  flags=re.I
+              )
+
+          if 'src="script.js"' not in html and "src='script.js'" not in html:
+              html = html.replace(
+                  "</head>",
+                  '<script src="script.js"></script>\n</head>'
+              )
 
           index.write_text(html, encoding="utf-8")
           PY
@@ -536,19 +679,19 @@ jobs:
           test -f _site/cyberchef/style.css
           test -f _site/cyberchef/script.js
           test -f _site/cyberchef/hook.js
+
           test -f _site/cyberchef/app/index.html
+          test -f _site/cyberchef/app/native.html
+          test -f _site/cyberchef/app/styles.css
+          test -f _site/cyberchef/app/script.js
+          test -f _site/cyberchef/app/assets/main.css
+          test -f _site/cyberchef/app/assets/main.js
 
-          if [ ! -f "_site/cyberchef/app/assets/main.css" ]; then
-            printf '%s\n' 'WARNING: Native CyberChef assets/main.css not found. Listing files:'
-            find _site/cyberchef/app -maxdepth 6 -type f | sort
-          fi
+          grep -q 'href="styles.css"' _site/cyberchef/app/index.html
+          grep -q 'src="script.js"' _site/cyberchef/app/index.html
+          grep -q 'src="assets/main.js"' _site/cyberchef/app/index.html
 
-          if [ ! -f "_site/cyberchef/app/assets/main.js" ]; then
-            printf '%s\n' 'WARNING: Native CyberChef assets/main.js not found. Listing files:'
-            find _site/cyberchef/app -maxdepth 6 -type f | sort
-          fi
-
-          printf '%s\n' 'CyberChef wrapper and native app generated successfully.'
+          printf '%s\n' 'CyberChef wrapper, bridge, and native app generated successfully.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
