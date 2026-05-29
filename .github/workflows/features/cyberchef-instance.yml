@@ -1,7 +1,13 @@
-name: Build ZZX CyberChef Instance
+name: Feature - ZZX CyberChef Instance
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/cyberchef/cyberchef.py"
+      - ".github/workflows/features/cyberchef-instance.yml"
 
 permissions:
   contents: write
@@ -12,79 +18,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout ZZX-Labs website
         uses: actions/checkout@v4
 
-      - name: Create CyberChef directory
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build CyberChef subpage
         run: |
-          mkdir -p cyberchef
+          python tools/cyberchef/cyberchef.py
 
-      - name: Download CyberChef v11.0.0
-        run: |
-          curl -L \
-            -o CyberChef_v11.0.0.zip \
-            https://github.com/gchq/CyberChef/releases/download/v11.0.0/CyberChef_v11.0.0.zip
-
-      - name: Extract release
-        run: |
-          unzip -o CyberChef_v11.0.0.zip
-
-      - name: Install CyberChef page
-        run: |
-          mv CyberChef_v11.0.0.html cyberchef/index.html
-
-      - name: Create attribution file
-        run: |
-          cat > cyberchef/ATTRIBUTION.md << 'EOF'
-          # CyberChef Attribution
-
-          CyberChef is developed and maintained by GCHQ.
-
-          Repository:
-          https://github.com/gchq/CyberChef
-
-          Official Site:
-          https://gchq.github.io/CyberChef/
-
-          Version:
-          v11.0.0
-
-          Licensed under Apache License 2.0.
-          EOF
-
-      - name: Create license notice
-        run: |
-          cat > cyberchef/LICENSE-NOTICE.md << 'EOF'
-          Apache License 2.0
-
-          https://www.apache.org/licenses/LICENSE-2.0
-
-          CyberChef:
-          https://github.com/gchq/CyberChef
-
-          Crown Copyright:
-          https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/
-          EOF
-
-      - name: Create README
-        run: |
-          cat > cyberchef/README.md << 'EOF'
-          # ZZX CyberChef Instance
-
-          Public URL:
-
-          https://zzx-labs.io/cyberchef/
-
-          Upstream:
-
-          https://github.com/gchq/CyberChef
-
-          Version:
-
-          v11.0.0
-          EOF
-
-      - name: Commit generated files
+      - name: Commit generated CyberChef page
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -92,8 +38,8 @@ jobs:
           git add cyberchef/
 
           if git diff --cached --quiet; then
-            printf '%s\n' 'No changes detected.'
+            printf '%s\n' 'No CyberChef changes detected.'
           else
-            git commit -m "Update CyberChef v11.0.0"
+            git commit -m "Build CyberChef v11.0.0 subpage"
             git push
           fi
