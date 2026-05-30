@@ -1,0 +1,41 @@
+name: Create Placeholder Index Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  touch-index-pages:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Generate missing index.html pages
+        run: |
+          python tools/touch_index_pages.py
+
+      - name: Commit generated placeholders
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add shop payments
+
+          if git diff --cached --quiet; then
+              printf '%s\n' "No placeholder pages needed."
+              exit 0
+          fi
+
+          git commit -m "Create missing placeholder index pages"
+          git push
