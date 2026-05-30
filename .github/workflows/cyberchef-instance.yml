@@ -39,6 +39,7 @@ jobs:
             --exclude "_cyberchef-download" \
             --exclude "_cyberchef-extract" \
             --exclude "cyberchef/app" \
+            --exclude "cyberchef/assets" \
             ./ _site/
 
       - name: Verify ZZX CyberChef wrapper files
@@ -69,7 +70,7 @@ jobs:
       - name: Extract CyberChef
         run: |
           mkdir -p _cyberchef-extract
-          rm -rf _site/cyberchef/app
+          rm -rf _site/cyberchef/app _site/cyberchef/assets
           mkdir -p _site/cyberchef/app
 
           unzip -o _cyberchef-download/CyberChef_v11.0.0.zip -d _cyberchef-extract
@@ -92,59 +93,7 @@ jobs:
           cp "$CYBERCHEF_HTML" _site/cyberchef/app/native.html
           cp "$CYBERCHEF_HTML" _site/cyberchef/cyberchef.html
 
-      - name: Patch only CyberChef asset paths
-        run: |
-          python3 - << 'PY'
-          from pathlib import Path
-
-          def patch_app(path):
-              html = path.read_text(encoding="utf-8", errors="ignore")
-
-              replacements = {
-                  'href="/assets/': 'href="assets/',
-                  "href='/assets/": "href='assets/",
-                  'src="/assets/': 'src="assets/',
-                  "src='/assets/": "src='assets/",
-                  'url("/assets/': 'url("assets/',
-                  "url('/assets/": "url('assets/",
-                  'url(/assets/': 'url(assets/',
-              }
-
-              for old, new in replacements.items():
-                  html = html.replace(old, new)
-
-              path.write_text(html, encoding="utf-8")
-
-          def patch_runtime(path):
-              html = path.read_text(encoding="utf-8", errors="ignore")
-
-              replacements = {
-                  'href="/assets/': 'href="app/assets/',
-                  "href='/assets/": "href='app/assets/",
-                  'src="/assets/': 'src="app/assets/',
-                  "src='/assets/": "src='app/assets/",
-                  'url("/assets/': 'url("app/assets/',
-                  "url('/assets/": "url('app/assets/",
-                  'url(/assets/': 'url(app/assets/',
-
-                  'href="assets/': 'href="app/assets/',
-                  "href='assets/": "href='app/assets/",
-                  'src="assets/': 'src="app/assets/',
-                  "src='assets/": "src='app/assets/",
-                  'url("assets/': 'url("app/assets/',
-                  "url('assets/": "url('app/assets/",
-                  'url(assets/': 'url(app/assets/',
-              }
-
-              for old, new in replacements.items():
-                  html = html.replace(old, new)
-
-              path.write_text(html, encoding="utf-8")
-
-          patch_app(Path("_site/cyberchef/app/index.html"))
-          patch_app(Path("_site/cyberchef/app/native.html"))
-          patch_runtime(Path("_site/cyberchef/cyberchef.html"))
-          PY
+          cp -a _site/cyberchef/app/assets _site/cyberchef/assets
 
       - name: Add attribution and license notices
         run: |
@@ -218,14 +167,17 @@ jobs:
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
 
+          test -f _site/cyberchef/assets/main.css
+          test -f _site/cyberchef/assets/main.js
+
           grep -q 'assets/main.css' _site/cyberchef/app/index.html
           grep -q 'assets/main.js' _site/cyberchef/app/index.html
-          grep -q 'app/assets/main.css' _site/cyberchef/cyberchef.html
-          grep -q 'app/assets/main.js' _site/cyberchef/cyberchef.html
+          grep -q 'assets/main.css' _site/cyberchef/cyberchef.html
+          grep -q 'assets/main.js' _site/cyberchef/cyberchef.html
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
 
-          printf '%s\n' 'CyberChef native app and runtime bridge verified.'
+          printf '%s\n' 'CyberChef native app, root runtime, and wrapper files verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
