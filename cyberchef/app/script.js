@@ -1,156 +1,157 @@
 (function () {
-    "use strict";
+"use strict";
 
-    function memoryStorage() {
-        var mem = {};
+function memoryStorage() {  
+    var mem = {};  
 
-        return {
-            getItem: function (k) {
-                return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
-            },
-            setItem: function (k, v) {
-                mem[k] = String(v);
-            },
-            removeItem: function (k) {
-                delete mem[k];
-            },
-            clear: function () {
-                mem = {};
-            },
-            key: function (i) {
-                return Object.keys(mem)[i] || null;
-            },
-            get length() {
-                return Object.keys(mem).length;
-            }
-        };
-    }
+    return {  
+        getItem: function (k) {  
+            return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;  
+        },  
+        setItem: function (k, v) {  
+            mem[k] = String(v);  
+        },  
+        removeItem: function (k) {  
+            delete mem[k];  
+        },  
+        clear: function () {  
+            mem = {};  
+        },  
+        key: function (i) {  
+            return Object.keys(mem)[i] || null;  
+        },  
+        get length() {  
+            return Object.keys(mem).length;  
+        }  
+    };  
+}  
 
-    function storageWorks(name) {
-        try {
-            var s = window[name];
-            var k = "__zzx_storage_test__";
-            s.setItem(k, "1");
-            s.removeItem(k);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
+function storageWorks(name) {  
+    try {  
+        var s = window[name];  
+        var k = "__zzx_storage_test__";  
+        s.setItem(k, "1");  
+        s.removeItem(k);  
+        return true;  
+    } catch (e) {  
+        return false;  
+    }  
+}  
 
-    function installStorageShim() {
-        try {
-            if (!storageWorks("localStorage")) {
-                Object.defineProperty(window, "localStorage", {
-                    configurable: true,
-                    value: memoryStorage()
-                });
-            }
-        } catch (e) {}
+function installStorageShim() {  
+    try {  
+        if (!storageWorks("localStorage")) {  
+            Object.defineProperty(window, "localStorage", {  
+                configurable: true,  
+                value: memoryStorage()  
+            });  
+        }  
+    } catch (e) {}  
 
-        try {
-            if (!storageWorks("sessionStorage")) {
-                Object.defineProperty(window, "sessionStorage", {
-                    configurable: true,
-                    value: memoryStorage()
-                });
-            }
-        } catch (e) {}
+    try {  
+        if (!storageWorks("sessionStorage")) {  
+            Object.defineProperty(window, "sessionStorage", {  
+                configurable: true,  
+                value: memoryStorage()  
+            });  
+        }  
+    } catch (e) {}  
 
-        try {
-            var originalSetItem = Storage.prototype.setItem;
+    try {  
+        var originalSetItem = Storage.prototype.setItem;  
 
-            Storage.prototype.setItem = function (key, value) {
-                try {
-                    return originalSetItem.call(this, key, value);
-                } catch (e) {
-                    if (
-                        e &&
-                        (
-                            e.name === "QuotaExceededError" ||
-                            e.name === "NS_ERROR_DOM_QUOTA_REACHED"
-                        )
-                    ) {
-                        return null;
-                    }
+        Storage.prototype.setItem = function (key, value) {  
+            try {  
+                return originalSetItem.call(this, key, value);  
+            } catch (e) {  
+                if (  
+                    e &&  
+                    (  
+                        e.name === "QuotaExceededError" ||  
+                        e.name === "NS_ERROR_DOM_QUOTA_REACHED"  
+                    )  
+                ) {  
+                    return null;  
+                }  
 
-                    throw e;
-                }
-            };
-        } catch (e) {}
-    }
+                throw e;  
+            }  
+        };  
+    } catch (e) {}  
+}  
 
-    function forceDark() {
-        try {
-            var options = {};
-            var existing = localStorage.getItem("options");
+function forceDark() {  
+    try {  
+        var options = {};  
+        var existing = localStorage.getItem("options");  
 
-            if (existing) {
-                options = JSON.parse(existing) || {};
-            }
+        if (existing) {  
+            options = JSON.parse(existing) || {};  
+        }  
 
-            options.theme = "dark";
-            options.themeName = "dark";
-            options.darkMode = true;
-            options.wordWrap = true;
-            options.showErrors = true;
-            options.updateUrl = true;
+        options.theme = "dark";  
+        options.themeName = "dark";  
+        options.darkMode = true;  
+        options.wordWrap = true;  
+        options.showErrors = true;  
+        options.updateUrl = true;  
 
-            localStorage.setItem("options", JSON.stringify(options));
-            localStorage.setItem("theme", "dark");
-            localStorage.setItem("cyberchef-theme", "dark");
-        } catch (e) {}
+        localStorage.setItem("options", JSON.stringify(options));  
+        localStorage.setItem("theme", "dark");  
+        localStorage.setItem("cyberchef-theme", "dark");  
+    } catch (e) {}  
 
-        try {
-            document.documentElement.classList.remove(
-                "classic",
-                "geocities",
-                "solarizedDark",
-                "solarizedLight"
-            );
+    try {  
+        document.documentElement.classList.remove(  
+            "classic",  
+            "geocities",  
+            "solarizedDark",  
+            "solarizedLight"  
+        );  
 
-            document.documentElement.classList.add("dark");
-        } catch (e) {}
+        document.documentElement.classList.add("dark");  
+    } catch (e) {}  
 
-        try {
-            var selects = document.querySelectorAll(
-                "#theme, select[name='theme'], select[id*='theme'], select[class*='theme']"
-            );
+    try {  
+        var selects = document.querySelectorAll(  
+            "#theme, select[name='theme'], select[id*='theme'], select[class*='theme']"  
+        );  
 
-            selects.forEach(function (select) {
-                var changed = false;
+        selects.forEach(function (select) {  
+            var changed = false;  
 
-                Array.prototype.forEach.call(select.options || [], function (option) {
-                    var value = String(option.value || "").toLowerCase();
-                    var text = String(option.textContent || "").toLowerCase();
+            Array.prototype.forEach.call(select.options || [], function (option) {  
+                var value = String(option.value || "").toLowerCase();  
+                var text = String(option.textContent || "").toLowerCase();  
 
-                    if (value === "dark" || text === "dark") {
-                        select.value = option.value;
-                        changed = true;
-                    }
-                });
+                if (value === "dark" || text === "dark") {  
+                    select.value = option.value;  
+                    changed = true;  
+                }  
+            });  
 
-                if (changed) {
-                    select.dispatchEvent(new Event("change", { bubbles: true }));
-                }
-            });
-        } catch (e) {}
-    }
+            if (changed) {  
+                select.dispatchEvent(new Event("change", { bubbles: true }));  
+            }  
+        });  
+    } catch (e) {}  
+}  
 
-    installStorageShim();
-    forceDark();
+installStorageShim();  
+forceDark();  
 
-    document.addEventListener("DOMContentLoaded", function () {
-        forceDark();
-        setTimeout(forceDark, 50);
-        setTimeout(forceDark, 250);
-        setTimeout(forceDark, 1000);
-    });
+document.addEventListener("DOMContentLoaded", function () {  
+    forceDark();  
+    setTimeout(forceDark, 50);  
+    setTimeout(forceDark, 250);  
+    setTimeout(forceDark, 1000);  
+});  
 
-    window.addEventListener("load", function () {
-        forceDark();
-        setTimeout(forceDark, 250);
-        setTimeout(forceDark, 1000);
-        setTimeout(forceDark, 2500);
-    });
+window.addEventListener("load", function () {  
+    forceDark();  
+    setTimeout(forceDark, 250);  
+    setTimeout(forceDark, 1000);  
+    setTimeout(forceDark, 2500);  
+});
+
 })();
