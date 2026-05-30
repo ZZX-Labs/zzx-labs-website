@@ -146,6 +146,28 @@ jobs:
               forceSafeStorage("sessionStorage");
 
               try {
+                  var originalSetItem = Storage.prototype.setItem;
+
+                  Storage.prototype.setItem = function (key, value) {
+                      try {
+                          return originalSetItem.call(this, key, value);
+                      } catch (e) {
+                          if (
+                              e &&
+                              (
+                                  e.name === "QuotaExceededError" ||
+                                  e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                              )
+                          ) {
+                              return null;
+                          }
+
+                          throw e;
+                      }
+                  };
+              } catch (e) {}
+
+              try {
                   localStorage.setItem(
                       "options",
                       JSON.stringify({
@@ -155,7 +177,9 @@ jobs:
                           updateUrl: true
                       })
                   );
+              } catch (e) {}
 
+              try {
                   document.documentElement.classList.remove(
                       "classic",
                       "geocities",
@@ -212,6 +236,7 @@ jobs:
               )
 
               html = insert_shim_before_main(html, "assets/main.js")
+
               path.write_text(html, encoding="utf-8")
 
           def patch_runtime(path):
@@ -254,6 +279,7 @@ jobs:
               )
 
               html = insert_shim_before_main(html, "app/assets/main.js")
+
               path.write_text(html, encoding="utf-8")
 
           patch_app(Path("_site/cyberchef/app/index.html"))
