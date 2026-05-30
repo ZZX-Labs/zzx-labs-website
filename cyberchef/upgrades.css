@@ -15,6 +15,12 @@
     --cz-native-panel-hi: #303030;
 }
 
+html,
+body {
+    overflow-x: hidden;
+    overflow-y: auto !important;
+}
+
 html.cz-loading {
     cursor: progress;
 }
@@ -64,73 +70,28 @@ body.cz-theme-tactical #cz-active-source {
 }
 
 .cz-runtime {
-    overflow: auto;
+    height: 78vh;
+    min-height: 720px;
+    max-height: none;
+
+    overflow: auto !important;
+
     background: var(--cz-native-bg);
 }
 
-.cz-runtime #loader-wrapper,
-.cz-runtime #content-wrapper,
-.cz-runtime #workspace-wrapper {
+.cz-frame,
+#cz-frame {
+    display: block;
+
+    width: calc(100% / var(--zzx-cyberchef-scale));
+    height: calc(100% / var(--zzx-cyberchef-scale));
+    min-height: calc(720px / var(--zzx-cyberchef-scale));
+
     transform: scale(var(--zzx-cyberchef-scale));
     transform-origin: top left;
 
-    width: calc(100% / var(--zzx-cyberchef-scale));
-}
-
-.cz-runtime #workspace-wrapper {
-    min-height: calc(var(--cz-runtime-height, 900px) / var(--zzx-cyberchef-scale));
-}
-
-body.cz-theme-tactical #banner,
-body.cz-theme-tactical .title,
-body.cz-theme-tactical .modal-header,
-body.cz-theme-tactical .modal-footer {
-    background: #181818 !important;
-    color: var(--cz-theme-accent) !important;
-    border-color: var(--cz-theme-border) !important;
-}
-
-body.cz-theme-tactical #operations,
-body.cz-theme-tactical #recipe,
-body.cz-theme-tactical #input,
-body.cz-theme-tactical #output,
-body.cz-theme-tactical #IO,
-body.cz-theme-tactical #workspace-wrapper,
-body.cz-theme-tactical .split,
-body.cz-theme-tactical .modal-content {
-    background: var(--cz-native-panel) !important;
-    color: var(--cz-theme-text) !important;
-    border-color: var(--cz-theme-border) !important;
-}
-
-body.cz-theme-tactical input,
-body.cz-theme-tactical textarea,
-body.cz-theme-tactical select,
-body.cz-theme-tactical .form-control {
-    background: #111111 !important;
-    color: var(--cz-theme-text) !important;
-    border-color: var(--cz-theme-border) !important;
-}
-
-body.cz-theme-tactical .CodeMirror,
-body.cz-theme-tactical .cm-editor,
-body.cz-theme-tactical #input-text,
-body.cz-theme-tactical #output-text {
-    background: #111111 !important;
-    color: var(--cz-theme-text) !important;
-}
-
-body.cz-theme-tactical a,
-body.cz-theme-tactical .title,
-body.cz-theme-tactical .op-name {
-    color: var(--cz-theme-accent) !important;
-}
-
-body.cz-theme-tactical #bake,
-body.cz-theme-tactical .btn-success {
-    background: var(--cz-theme-accent) !important;
-    color: #111111 !important;
-    border-color: var(--cz-theme-accent) !important;
+    border: 0;
+    background: var(--cz-native-bg);
 }
 
 body.cz-theme-amber {
@@ -182,14 +143,8 @@ body.cz-theme-monochrome {
     display: none;
 }
 
-.cz-fullscreen-tool header,
-.cz-fullscreen-tool footer,
-.cz-fullscreen-tool .cz-hero,
-.cz-fullscreen-tool .cz-status,
-.cz-fullscreen-tool .cz-grid,
-.cz-fullscreen-tool .cz-credit-grid,
-.cz-fullscreen-tool .cz-panel-head {
-    display: none;
+body.cz-fullscreen-tool {
+    overflow: auto !important;
 }
 
 .cz-fullscreen-tool .cz-shell {
@@ -198,22 +153,13 @@ body.cz-theme-monochrome {
 }
 
 .cz-fullscreen-tool .cz-panel {
-    border: 0;
-    padding: 0;
-    margin: 0;
-}
-
-.cz-fullscreen-tool .cz-frame-toolbar {
-    border-left: 0;
-    border-right: 0;
+    padding: 0.5rem;
 }
 
 .cz-fullscreen-tool .cz-runtime {
-    min-height: calc(100vh - 42px) !important;
-    height: calc(100vh - 42px) !important;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
+    height: 88vh !important;
+    min-height: 760px !important;
+    overflow: auto !important;
 }
 
 .cz-analyst-mode .cz-hero,
@@ -223,7 +169,7 @@ body.cz-theme-monochrome {
 }
 
 .cz-analyst-mode .cz-runtime {
-    min-height: calc(100vh - 90px) !important;
+    min-height: 760px !important;
 }
 
 @media (max-width: 1600px) {
@@ -243,10 +189,11 @@ body.cz-theme-monochrome {
         --zzx-cyberchef-scale: 1;
     }
 
-    .cz-runtime #loader-wrapper,
-    .cz-runtime #content-wrapper,
-    .cz-runtime #workspace-wrapper {
-        transform: none;
+    .cz-frame,
+    #cz-frame {
         width: 100%;
+        height: 100%;
+        min-height: 720px;
+        transform: none;
     }
 }
