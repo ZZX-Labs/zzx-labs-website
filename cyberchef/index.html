@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="classic zzx-cyberchef-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,7 +25,7 @@
     <script src="./modifications.js" defer></script>
 </head>
 
-<body data-cz-depth=".">
+<body data-cz-depth="." data-cyberchef-view="home">
 
 <header>
     <div id="zzx-header"></div>
@@ -39,7 +39,7 @@
     <div id="cz-header"></div>
 </header>
 
-<main class="cz-shell" data-cyberchef-view="home">
+<main class="cz-shell">
 
     <section class="cz-hero container">
         <p class="cz-kicker">ZZX-Labs / Browser-Side Cyber Toolkit</p>
@@ -47,18 +47,24 @@
         <h2>CyberChefZZX</h2>
 
         <p>
-            A ZZX-Labs R&D container for CyberChef v11.0.0, providing local
-            browser-side encoding, decoding, cryptography, compression,
-            decompression, hashing, parsing, and data transformation workflows.
-            The native CyberChef instance remains available at
-            <a href="./app/">/cyberchef/app/</a>.
+            A ZZX-Labs R&D enhanced CyberChef v11.0.0 instance for browser-side
+            encoding, decoding, cryptography, compression, decompression,
+            hashing, parsing, Bitcoin utilities, OSINT workflows, malware triage,
+            DFIR workflows, and data transformation research.
+        </p>
+
+        <p>
+            The native upstream-style CyberChef instance remains available at
+            <a href="./app/">/cyberchef/app/</a>. This page is the ZZX-modified,
+            themed, tooled, and expanded variant.
         </p>
 
         <div class="cz-sourcebar">
-            <label for="cz-source">CyberChef Engine</label>
+            <label for="cz-source">CyberChef Mode</label>
 
             <select id="cz-source">
-                <option value="local" selected>ZZX-Labs Local CyberChef</option>
+                <option value="modified" selected>CyberChefZZX Modified Instance</option>
+                <option value="native">Native Local CyberChef</option>
                 <option value="upstream">GCHQ GitHub Pages CyberChef</option>
             </select>
 
@@ -68,13 +74,17 @@
             <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">
                 Open Native Local App
             </a>
+
+            <a class="cz-link-button" href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener">
+                Open GCHQ CyberChef
+            </a>
         </div>
     </section>
 
     <br>
 
     <section id="cz-status" class="cz-status container">
-        Loading local CyberChef instance…
+        Loading CyberChefZZX modified instance…
     </section>
 
     <br>
@@ -86,8 +96,8 @@
         </article>
 
         <article class="cz-card">
-            <span>Runtime</span>
-            <strong>Browser Local</strong>
+            <span>Mode</span>
+            <strong>ZZX Modified</strong>
         </article>
 
         <article class="cz-card">
@@ -105,29 +115,52 @@
 
     <section class="cz-panel container">
         <header class="cz-panel-head">
-            <span class="cz-kicker">Tool Engine</span>
-            <h2>CyberChef Workspace</h2>
+            <span class="cz-kicker">Enhanced Tool Engine</span>
+
+            <h2>CyberChefZZX Workspace</h2>
+
             <p>
-                The embedded workspace below uses the local ZZX-hosted CyberChef
-                build by default, with optional upstream fallback.
+                This workspace loads the CyberChef engine directly into the page
+                and applies ZZX-Labs visual, workflow, recipe, theme, and analyst
+                augmentations without modifying the original upstream files.
             </p>
         </header>
 
         <div id="cz-container" class="cz-container" data-cz-container>
             <div class="cz-frame-toolbar">
-                <span id="cz-active-source">Local ZZX CyberChef</span>
-                <span id="cz-frame-state">Ready</span>
+                <span id="cz-active-source">CyberChefZZX Modified Instance</span>
+                <span id="cz-frame-state">Initializing</span>
             </div>
 
-            <div class="cz-frame-wrap">
-                <iframe
-                    id="cz-frame"
-                    title="CyberChef"
-                    src="./app/"
-                    loading="eager"
-                    referrerpolicy="no-referrer"
-                    allow="clipboard-read; clipboard-write"
-                ></iframe>
+            <div id="cz-runtime" class="cz-runtime" data-cz-runtime>
+                <div id="loader-wrapper">
+                    <div id="preloader" class="loader"></div>
+                    <div id="preloader-msg" class="loading-msg">Loading CyberChefZZX…</div>
+                    <div id="preloader-error" class="loading-error"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <br>
+
+    <section class="cz-panel container">
+        <header class="cz-panel-head">
+            <span class="cz-kicker">ZZX Additions</span>
+
+            <h2>Recipes, Tooling, Themes, and Analyst Workflows</h2>
+
+            <p>
+                CyberChefZZX adds wrapper-side recipe launchers, Bitcoin utilities,
+                OSINT helpers, malware-analysis presets, DFIR transforms, visual
+                themes, workspace scaling, compact layouts, and presentation-layer
+                enhancements for professional research use.
+            </p>
+        </header>
+
+        <div id="cz-modifications" class="cz-modifications" data-cz-modifications>
+            <div class="cz-widget-loading">
+                Loading ZZX CyberChef modifications…
             </div>
         </div>
     </section>
@@ -137,12 +170,14 @@
     <section class="cz-panel container">
         <header class="cz-panel-head">
             <span class="cz-kicker">Credits / License</span>
+
             <h2>Attribution</h2>
         </header>
 
         <div class="cz-credit-grid">
             <span>CyberChef v11.0.0</span>
             <span>GCHQ</span>
+            <span>Crown Copyright 2016-2026</span>
             <span>Apache-2.0</span>
             <span>ZZX-Labs R&D</span>
             <span>0xdeadbeef</span>
