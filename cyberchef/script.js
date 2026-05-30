@@ -360,12 +360,25 @@ async function loadCyberChef() {
         state("Executing");  
         status("Executing CyberChef runtime...");  
 
-        await executeScripts(scripts);  
+        await executeScripts(scripts);
 
-        setTimeout(forceDark, 250);  
-        setTimeout(forceDark, 1000);  
+        setTimeout(forceDark, 250);
+        setTimeout(forceDark, 1000);
+        setTimeout(forceDark, 2500);
 
-        releaseLoaderWhenReady();  
+        const runtime = $("cz-runtime");
+
+        if (runtime) {
+            runtime.classList.add("cz-runtime-ready");
+        }
+
+        document.documentElement.classList.add("cz-ready");
+        document.documentElement.classList.remove("cz-loading", "cz-error");
+
+        state("Ready");
+        status("CyberChefZZX workspace ready.");
+
+        releaseLoaderWhenReady();
 
     } catch (err) {  
         console.error(err);  
