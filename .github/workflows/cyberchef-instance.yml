@@ -88,162 +88,87 @@ jobs:
             exit 1
           fi
 
-          cp "$CYBERCHEF_HTML" _site/cyberchef/app/native.html
           cp "$CYBERCHEF_HTML" _site/cyberchef/app/index.html
+          cp "$CYBERCHEF_HTML" _site/cyberchef/app/native.html
           cp "$CYBERCHEF_HTML" _site/cyberchef/cyberchef.html
 
-      - name: Generate dark theme shim
+      - name: Patch app and runtime CyberChef HTML paths
         run: |
-          cat > _site/cyberchef/app/script.js << 'EOF'
-          (function () {
-              "use strict";
+          python3 - << 'PY'
+          from pathlib import Path
+          import re
 
-              function forceDark() {
-                  try {
-                      localStorage.setItem(
-                          "options",
-                          JSON.stringify({
-                              theme: "dark",
-                              wordWrap: true,
-                              showErrors: true,
-                              updateUrl: true
-                          })
-                      );
-                  } catch (e) {}
+          def patch_app(path):
+              html = path.read_text(encoding="utf-8", errors="ignore")
 
-                  try {
-                      document.documentElement.classList.remove(
-                          "classic",
-                          "geocities",
-                          "solarizedDark",
-                          "solarizedLight"
-                      );
-
-                      document.documentElement.classList.add("dark");
-                  } catch (e) {}
-
-                  try {
-                      var themeSelect = document.querySelector("#theme");
-
-                      if (themeSelect && themeSelect.value !== "dark") {
-                          themeSelect.value = "dark";
-                          themeSelect.dispatchEvent(
-                              new Event("change", {
-                                  bubbles: true
-                              })
-                          );
-                      }
-                  } catch (e) {}
+              replacements = {
+                  'href="/assets/': 'href="assets/',
+                  "href='/assets/": "href='assets/",
+                  'src="/assets/': 'src="assets/',
+                  "src='/assets/": "src='assets/",
+                  'url("/assets/': 'url("assets/',
+                  "url('/assets/": "url('assets/",
+                  'url(/assets/': 'url(assets/',
               }
 
-              forceDark();
+              for old, new in replacements.items():
+                  html = html.replace(old, new)
 
-              document.addEventListener("DOMContentLoaded", function () {
-                  forceDark();
-                  setTimeout(forceDark, 50);
-                  setTimeout(forceDark, 250);
-                  setTimeout(forceDark, 1000);
-              });
-
-              window.addEventListener("load", function () {
-                  forceDark();
-                  setTimeout(forceDark, 250);
-                  setTimeout(forceDark, 1000);
-                  setTimeout(forceDark, 2500);
-              });
-          })();
-          EOF
-
-      - name: Patch app native HTML with dark shim only
-        run: |
-          python3 - << 'PY'
-          from pathlib import Path
-          import re
-
-          path = Path("_site/cyberchef/app/index.html")
-          html = path.read_text(encoding="utf-8", errors="ignore")
-
-          replacements = {
-              'href="/assets/': 'href="assets/',
-              "href='/assets/": "href='assets/",
-              'src="/assets/': 'src="assets/',
-              "src='/assets/": "src='assets/",
-              'url("/assets/': 'url("assets/',
-              "url('/assets/": "url('assets/",
-              'url(/assets/': 'url(assets/',
-          }
-
-          for old, new in replacements.items():
-              html = html.replace(old, new)
-
-          html = re.sub(
-              r'<html([^>]*)class=["\']classic["\']',
-              r'<html\1class="dark"',
-              html,
-              count=1,
-              flags=re.I
-          )
-
-          if 'src="script.js"' not in html and "src='script.js'" not in html:
               html = re.sub(
-                  r'(<script[^>]+src=["\']assets/main\.js["\'][^>]*></script>)',
-                  '<script src="script.js"></script>\n\\1',
+                  r'<html([^>]*)class=["\']classic["\']',
+                  r'<html\1class="dark"',
                   html,
                   count=1,
                   flags=re.I
               )
 
-          path.write_text(html, encoding="utf-8")
-          PY
+              path.write_text(html, encoding="utf-8")
 
-      - name: Patch root CyberChef runtime bridge
-        run: |
-          python3 - << 'PY'
-          from pathlib import Path
-          import re
+          def patch_runtime(path):
+              html = path.read_text(encoding="utf-8", errors="ignore")
 
-          path = Path("_site/cyberchef/cyberchef.html")
-          html = path.read_text(encoding="utf-8", errors="ignore")
+              replacements = {
+                  'href="/assets/': 'href="app/assets/',
+                  "href='/assets/": "href='app/assets/",
+                  'src="/assets/': 'src="app/assets/',
+                  "src='/assets/": "src='app/assets/",
+                  'url("/assets/': 'url("app/assets/',
+                  "url('/assets/": "url('app/assets/",
+                  'url(/assets/': 'url(app/assets/',
 
-          replacements = {
-              'href="/assets/': 'href="app/assets/',
-              "href='/assets/": "href='app/assets/",
-              'src="/assets/': 'src="app/assets/',
-              "src='/assets/": "src='app/assets/",
-              'url("/assets/': 'url("app/assets/',
-              "url('/assets/": "url('app/assets/",
-              'url(/assets/': 'url(app/assets/',
+                  'href="assets/': 'href="app/assets/',
+                  "href='assets/": "href='app/assets/",
+                  'src="assets/': 'src="app/assets/',
+                  "src='assets/": "src='app/assets/",
+                  'url("assets/': 'url("app/assets/',
+                  "url('assets/": "url('app/assets/",
+                  'url(assets/': 'url(app/assets/',
+              }
 
-              'href="assets/': 'href="app/assets/',
-              "href='assets/": "href='app/assets/",
-              'src="assets/': 'src="app/assets/',
-              "src='assets/": "src='app/assets/",
-              'url("assets/': 'url("app/assets/',
-              "url('assets/": "url('app/assets/",
-              'url(assets/': 'url(app/assets/',
-          }
+              for old, new in replacements.items():
+                  html = html.replace(old, new)
 
-          for old, new in replacements.items():
-              html = html.replace(old, new)
-
-          html = re.sub(
-              r'<html([^>]*)class=["\']classic["\']',
-              r'<html\1class="dark"',
-              html,
-              count=1,
-              flags=re.I
-          )
-
-          if 'src="app/script.js"' not in html and "src='app/script.js'" not in html:
               html = re.sub(
-                  r'(<script[^>]+src=["\']app/assets/main\.js["\'][^>]*></script>)',
-                  '<script src="app/script.js"></script>\n\\1',
+                  r'<html([^>]*)class=["\']classic["\']',
+                  r'<html\1class="dark"',
                   html,
                   count=1,
                   flags=re.I
               )
 
-          path.write_text(html, encoding="utf-8")
+              html = re.sub(
+                  r'<title>.*?</title>',
+                  '<title>CyberChefZZX Runtime</title>',
+                  html,
+                  count=1,
+                  flags=re.I | re.S
+              )
+
+              path.write_text(html, encoding="utf-8")
+
+          patch_app(Path("_site/cyberchef/app/index.html"))
+          patch_app(Path("_site/cyberchef/app/native.html"))
+          patch_runtime(Path("_site/cyberchef/cyberchef.html"))
           PY
 
       - name: Add attribution and license notices
@@ -315,25 +240,13 @@ jobs:
 
           test -f _site/cyberchef/app/index.html
           test -f _site/cyberchef/app/native.html
-          test -f _site/cyberchef/app/script.js
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
 
-          printf '%s\n' '--- app/index.html script refs ---'
-          grep -nE 'script|main\.js|script\.js|main\.css' _site/cyberchef/app/index.html || true
-
-          printf '%s\n' '--- cyberchef.html script/style refs ---'
-          grep -nE 'main\.js|main\.css|script\.js|app/' _site/cyberchef/cyberchef.html || true
-
-          grep -q 'script.js' _site/cyberchef/app/index.html
-          grep -q 'assets/main.js' _site/cyberchef/app/index.html
           grep -q 'assets/main.css' _site/cyberchef/app/index.html
-          grep -q 'theme: "dark"' _site/cyberchef/app/script.js
-
-          grep -q 'app/assets/main.js' _site/cyberchef/cyberchef.html
+          grep -q 'assets/main.js' _site/cyberchef/app/index.html
           grep -q 'app/assets/main.css' _site/cyberchef/cyberchef.html
-          grep -q 'app/script.js' _site/cyberchef/cyberchef.html
-
+          grep -q 'app/assets/main.js' _site/cyberchef/cyberchef.html
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
 
