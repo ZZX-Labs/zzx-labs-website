@@ -5,6 +5,10 @@
         return document.querySelector(selector);
     }
 
+    function qsa(selector) {
+        return Array.from(document.querySelectorAll(selector));
+    }
+
     function px(value) {
         return `${Math.max(0, Math.floor(value))}px`;
     }
@@ -24,48 +28,145 @@
         );
     }
 
-    function resizeCyberChefCanvas() {
-        const frameWrap = qs(".cz-frame-wrap");
-        const header = qs("header");
-        const hero = qs(".cz-hero");
-        const status = qs(".cz-status");
-        const cards = qs(".cz-grid");
-        const panelHead = qs(".cz-panel-head");
-        const toolbar = qs(".cz-frame-toolbar");
-        const credits = qs(".cz-credit-grid");
-        const footer = qs("footer");
+    function isVisible(el) {
+        if (!el) {
+            return false;
+        }
 
-        if (!frameWrap) {
+        const style = window.getComputedStyle(el);
+
+        return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            el.getClientRects().length > 0
+        );
+    }
+
+    function getRuntime() {
+        return qs("#cz-runtime") ||
+            qs("[data-cz-runtime]");
+    }
+
+    function getWorkspace() {
+        return qs("#workspace-wrapper") ||
+            qs("#content-wrapper") ||
+            qs("#operations")?.parentElement ||
+            null;
+    }
+
+    function getReservedHeight() {
+        const selectors = [
+            "header",
+            ".cz-hero",
+            ".cz-status",
+            ".cz-grid",
+            ".cz-panel-head",
+            ".cz-frame-toolbar",
+            ".cz-credit-grid",
+            "footer"
+        ];
+
+        return selectors
+            .map(qs)
+            .filter(isVisible)
+            .reduce(
+                (total, el) => total + outerHeight(el),
+                0
+            );
+    }
+
+    function getMinimumHeight() {
+        if (window.innerWidth < 480) {
+            return 560;
+        }
+
+        if (window.innerWidth < 768) {
+            return 650;
+        }
+
+        if (window.innerWidth < 1100) {
+            return 760;
+        }
+
+        return 900;
+    }
+
+    function resizeCyberChefCanvas() {
+        const runtime = getRuntime();
+
+        if (!runtime) {
             return;
         }
 
         const reserved =
-            outerHeight(header) +
-            outerHeight(hero) +
-            outerHeight(status) +
-            outerHeight(cards) +
-            outerHeight(panelHead) +
-            outerHeight(toolbar) +
-            outerHeight(credits) +
-            outerHeight(footer) +
-            96;
+            getReservedHeight() + 96;
 
         const available =
             window.innerHeight - reserved;
 
-        const minHeight =
-            window.innerWidth < 640
-                ? 560
-                : window.innerWidth < 1100
-                    ? 700
-                    : 860;
+        runtime.style.minHeight =
+            px(Math.max(getMinimumHeight(), available));
 
-        frameWrap.style.height =
-            px(Math.max(minHeight, available));
+        runtime.style.height =
+            "auto";
+
+        const workspace = getWorkspace();
+
+        if (workspace && runtime.contains(workspace)) {
+            workspace.style.minHeight =
+                px(Math.max(getMinimumHeight() - 80, available - 80));
+        }
+
+        document.documentElement.style.setProperty(
+            "--cz-runtime-height",
+            runtime.style.minHeight
+        );
+    }
+
+    function markCyberChefRuntime() {
+        const runtime = getRuntime();
+
+        if (!runtime) {
+            return;
+        }
+
+        const nodes = qsa(
+            "#loader-wrapper, #content-wrapper, #workspace-wrapper, #operations, #recipe, #IO, #input, #output"
+        );
+
+        for (const node of nodes) {
+            if (!runtime.contains(node)) {
+                continue;
+            }
+
+            node.dataset.czNativeNode = "true";
+        }
+    }
+
+    function observeRuntime() {
+        const runtime = getRuntime();
+
+        if (!runtime || !window.MutationObserver) {
+            return;
+        }
+
+        const observer = new MutationObserver(() => {
+            markCyberChefRuntime();
+            resizeCyberChefCanvas();
+        });
+
+        observer.observe(runtime, {
+            childList: true,
+            subtree: true
+        });
+
+        window.ZZXCyberChefObserver = observer;
     }
 
     function bootContainer() {
         resizeCyberChefCanvas();
+        markCyberChefRuntime();
+        observeRuntime();
 
         window.addEventListener(
             "resize",
@@ -77,8 +178,19 @@
             "orientationchange",
             () => {
                 setTimeout(resizeCyberChefCanvas, 250);
+                setTimeout(resizeCyberChefCanvas, 1000);
             },
             { passive: true }
+        );
+
+        window.addEventListener(
+            "zzx-cyberchef-ready",
+            () => {
+                markCyberChefRuntime();
+                resizeCyberChefCanvas();
+                setTimeout(resizeCyberChefCanvas, 500);
+                setTimeout(resizeCyberChefCanvas, 1500);
+            }
         );
 
         document.documentElement.classList.add(
@@ -97,4 +209,7 @@
 
     window.ZZXCyberChefResize =
         resizeCyberChefCanvas;
+
+    window.ZZXCyberChefMarkRuntime =
+        markCyberChefRuntime;
 })();
