@@ -120,24 +120,28 @@
             <h2>CyberChefZZX Workspace</h2>
 
             <p>
-                This workspace loads the CyberChef engine directly into the page
-                and applies ZZX-Labs visual, workflow, recipe, theme, and analyst
-                augmentations without modifying the original upstream files.
+                This workspace loads CyberChef directly from the native application
+                build and applies ZZX-Labs visual, workflow, recipe, theme, and
+                analyst augmentations without modifying the original upstream files.
             </p>
         </header>
 
         <div id="cz-container" class="cz-container" data-cz-container>
             <div class="cz-frame-toolbar">
                 <span id="cz-active-source">CyberChefZZX Modified Instance</span>
-                <span id="cz-frame-state">Initializing</span>
+                <span id="cz-frame-state">Waiting</span>
             </div>
 
             <div id="cz-runtime" class="cz-runtime" data-cz-runtime>
-                <div id="loader-wrapper">
-                    <div id="preloader" class="loader"></div>
-                    <div id="preloader-msg" class="loading-msg">Loading CyberChefZZX…</div>
-                    <div id="preloader-error" class="loading-error"></div>
-                </div>
+                <iframe
+                    id="cz-frame"
+                    class="cz-frame"
+                    title="CyberChefZZX Runtime"
+                    src="./app/"
+                    loading="eager"
+                    referrerpolicy="same-origin"
+                    allow="clipboard-read; clipboard-write"
+                ></iframe>
             </div>
         </div>
     </section>
