@@ -4,49 +4,455 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="ZZX-Labs R&D shop payments page for Bitcoin-only checkout, digital delivery, physical fulfillment, invoices, receipts, confirmations, refunds, returns, payment security, on-chain payments, Lightning payments, and future BTCPay Server checkout.">
     <title>Shop Payments | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../static/icons/apple-touch-icon.png">
+
     <link rel="stylesheet" href="../../static/styles.css">
     <script src="../../static/script.js" defer></script>
 </head>
-<body>
+
+<body class="zzx-site-page zzx-page-shop zzx-page-shop-payments">
 <header>
     <div id="zzx-header"></div>
-</header>
-<main>
+
     <br>
-    <!-- Bitcoin Ticker Widget -->
+
     <div id="ticker-container"></div>
+
     <br>
+</header>
 
-    <section class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <h1>[:[ZZX-Labs]:]</h1>
-            <h4>| Shop Payments (Bitcoin Only) |</h4><br>
+<main class="zzx-page-shell">
 
-            <p>Thank you for your purchase!<br>
-            All transactions at ZZX-Labs are processed exclusively using Bitcoin (BTC).</p><br>
+    <section class="zzx-page-hero container">
+        <p class="zzx-kicker">ZZX-Labs / Shop / Payments</p>
+        <h1>Shop Payments</h1>
 
-            <h3>Payment Instructions:</h3>
-            <ul style="text-align: left;">
-                <li style="list-style-type: none;">Send the total amount (in BTC) to the address below.</li>
-                <li style="list-style-type: none;">Include your Order ID in the payment memo if available.</li>
-                <li style="list-style-type: none;">Payment is confirmed after 20 Bitcoin network confirmations (~200 minutes).</li>
-                <li style="list-style-type: none;">After payment confirmation, we will process and ship your order.</li>
-            </ul>
-            <br><br>
+        <p>
+            This page explains how Bitcoin payments are intended to work inside the ZZX-Labs Shop for digital downloads,
+            software, hardware kits, books, publications, datasets, apparel, stickers, custom work, licenses, memberships,
+            subscriptions, and future product releases.
+        </p>
 
-            <h3>Bitcoin Payment Address:</h3><br>
-            <code style="font-size: 1.2em;">3BLh9rCH2CNwcyEAiCdtYX4XV4qLvDfVAc</code><br><br>
-            <img src="../../static/images/3BLh9rCH2CNwcyEAiCdtYX4XV4qLvDfVAc.png" alt="Bitcoin QR Code" style="width:200px;height:200px;"><br><br>
+        <p>
+            The shop is Bitcoin-only by design. On-chain Bitcoin is intended for larger settlement and Lightning Network
+            payments are intended for smaller, faster, recurring, subscription, and API-style payments once fully deployed.
+        </p>
 
-            <p>Always verify the address before sending Bitcoin.</p><br><br>
-
-            <a href="../../shop" class="btn btn-primary">Return to Shop</a>
-            <a href="../../contact" class="btn btn-secondary">Contact Support</a>
+        <div class="zzx-action-row">
+            <a href="../../payments" class="btn">Payments Hub</a>
+            <a href="../" class="btn btn-outline">Return to Shop</a>
+            <a href="../../payments/security" class="btn btn-outline">Payment Security</a>
+            <a href="../../contact" class="btn btn-outline">Contact Support</a>
         </div>
-    </section><br><br>
+    </section>
+
+    <section class="zzx-card-grid container">
+        <article class="zzx-card">
+            <h3>Bitcoin Only</h3>
+            <p>Shop purchases are intended to use Bitcoin rails only. No fiat checkout, no credit cards, no PayPal, no altcoins.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Invoices Per Order</h3>
+            <p>Final shop checkout should generate a unique invoice, address, label, or Lightning invoice per order.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Verify Before Sending</h3>
+            <p>Always verify payment address, QR code, invoice amount, expiration, order ID, and official page URL.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Under Active Build</h3>
+            <p>Checkout automation, product delivery, inventory, receipts, shipping, and returns are still being designed.</p>
+        </article>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Accepted Rails</p>
+        <h2>Shop Payment Methods</h2>
+
+        <div class="zzx-card-grid">
+            <a class="zzx-card link-card" href="../../payments/onchain">
+                <h3>Bitcoin On-Chain</h3>
+                <p>
+                    Larger purchases, hardware, kits, publications, licenses, custom work, and physical goods may use
+                    standard Bitcoin L1 settlement.
+                </p>
+            </a>
+
+            <a class="zzx-card link-card" href="../../payments/ln">
+                <h3>Lightning Network</h3>
+                <p>
+                    Future low-fee payment rail for small digital downloads, subscriptions, memberships, API access,
+                    supporter products, and fast checkout.
+                </p>
+            </a>
+
+            <a class="zzx-card link-card" href="../../payments/invoices">
+                <h3>Invoices</h3>
+                <p>
+                    Formal shop payments should be attached to a specific invoice, order ID, checkout record, or signed
+                    payment instruction.
+                </p>
+            </a>
+
+            <a class="zzx-card link-card" href="../../payments/addresses">
+                <h3>Payment Addresses</h3>
+                <p>
+                    Centralized location for payment-address records, address rotation notes, category labels, and
+                    future address verification.
+                </p>
+            </a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Order Flow</p>
+        <h2>How Shop Payment Should Work</h2>
+
+        <ol class="zzx-timeline">
+            <li>
+                <time>01</time>
+                <span>
+                    <strong>Select Item:</strong><br>
+                    User selects a shop item such as software, hardware, publication, dataset, license, apparel, or custom work.
+                </span>
+            </li>
+
+            <li>
+                <time>02</time>
+                <span>
+                    <strong>Create Order:</strong><br>
+                    Checkout creates an order record with item list, BTC price, order ID, payment rail, expiration, and delivery type.
+                </span>
+            </li>
+
+            <li>
+                <time>03</time>
+                <span>
+                    <strong>Generate Invoice:</strong><br>
+                    A unique on-chain address or Lightning invoice is generated for that order.
+                </span>
+            </li>
+
+            <li>
+                <time>04</time>
+                <span>
+                    <strong>Verify Payment Details:</strong><br>
+                    User verifies address, QR code, invoice amount, expiry, official URL, and payment purpose before sending Bitcoin.
+                </span>
+            </li>
+
+            <li>
+                <time>05</time>
+                <span>
+                    <strong>Confirm Payment:</strong><br>
+                    Payment is detected and reaches the required confirmation threshold for that product class.
+                </span>
+            </li>
+
+            <li>
+                <time>06</time>
+                <span>
+                    <strong>Fulfill Order:</strong><br>
+                    Digital items unlock downloads. Physical items enter packing and shipping. Custom work moves into the work queue.
+                </span>
+            </li>
+
+            <li>
+                <time>07</time>
+                <span>
+                    <strong>Issue Receipt:</strong><br>
+                    A receipt or transaction record is generated for the user and for accounting records.
+                </span>
+            </li>
+        </ol>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Fulfillment</p>
+        <h2>Digital and Physical Delivery</h2>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <h3>Digital Downloads</h3>
+                <p>
+                    Software, PDFs, reports, datasets, media, templates, and digital assets should unlock after payment
+                    confirmation according to product-specific rules.
+                </p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Software Releases</h3>
+                <p>
+                    Software downloads should include checksums and, where appropriate, detached signatures or release
+                    verification instructions.
+                </p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Physical Goods</h3>
+                <p>
+                    Hardware kits, apparel, prints, stickers, accessories, and collectibles should move to packing after
+                    required confirmation thresholds are met.
+                </p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Custom Work</h3>
+                <p>
+                    Custom work, licenses, consulting bundles, and private deliverables may require manual review,
+                    quoted invoices, milestones, or signed terms before payment.
+                </p>
+            </article>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Confirmations</p>
+        <h2>Payment Confirmation Rules</h2>
+
+        <p>
+            Confirmation requirements may vary by item type, value, delivery risk, fraud risk, shipping status, service
+            type, and payment rail. The old rule of waiting for a fixed high number of confirmations for every shop
+            order is not ideal. The final system should use tiered confirmation rules.
+        </p>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <h3>Lightning</h3>
+                <p>Generally instant once invoice settlement succeeds, subject to invoice validity and fraud checks.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Small Digital Orders</h3>
+                <p>May require fewer confirmations depending on risk tolerance and delivery reversibility.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Physical Goods</h3>
+                <p>Should wait for stronger confirmation before packing, shipping, or releasing expensive items.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>High-Value Orders</h3>
+                <p>May require more confirmations, manual review, signed instructions, or multisig/escrow workflows.</p>
+            </article>
+        </div>
+
+        <p>
+            Final confirmation rules should be documented in <a href="../../payments/policies">Payment Policies</a> and
+            reflected on each invoice.
+        </p>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Security</p>
+        <h2>Payment Security Rules</h2>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <h3>Verify The Address</h3>
+                <p>Compare the complete address text before sending. Do not rely only on the first and last characters.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Verify The QR Code</h3>
+                <p>Scan the QR code and confirm it decodes to the exact expected address or invoice.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Verify The Order</h3>
+                <p>Confirm item list, amount, expiry, order ID, invoice ID, delivery method, and payment purpose.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Verify The Domain</h3>
+                <p>Do not pay from screenshots, reposts, unknown mirrors, unofficial messages, or third-party claims.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Check Alerts</h3>
+                <p>Review active alerts for phishing, fake shop pages, fraudulent addresses, or signing-key emergencies.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Ask Before Large Payments</h3>
+                <p>Contact ZZX-Labs before large, custom, restricted, investment, grant, or high-value shop payments.</p>
+            </article>
+        </div>
+
+        <div class="zzx-action-row">
+            <a href="../../payments/security" class="btn">Payment Security</a>
+            <a href="../../notice/alert" class="btn btn-outline">Active Alerts</a>
+            <a href="../../contact/key-history" class="btn btn-outline">Key History</a>
+            <a href="../../contact" class="btn btn-outline">Contact</a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Refunds / Returns</p>
+        <h2>Refunds, Returns, and Order Issues</h2>
+
+        <p>
+            Bitcoin payments are generally irreversible at the protocol level. Refunds, returns, duplicate-payment
+            handling, overpayments, underpayments, delivery failures, and damaged physical goods require explicit policy
+            rules.
+        </p>
+
+        <div class="zzx-card-grid">
+            <a class="zzx-card link-card" href="../../payments/refunds">
+                <h3>Refunds</h3>
+                <p>Site-wide refund logic for overpayments, duplicate payments, failed fulfillment, and special-case handling.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../returns">
+                <h3>Shop Returns</h3>
+                <p>Physical-goods return policy for defective items, shipping damage, wrong items, and exchange eligibility.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../../payments/receipts">
+                <h3>Receipts</h3>
+                <p>Payment receipt records, transaction references, invoice confirmations, and accounting references.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../../payments/policies">
+                <h3>Payment Policies</h3>
+                <p>Root policy page for confirmations, invoice expirations, underpayments, overpayments, and disputes.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Infrastructure</p>
+        <h2>Future Shop Payment Infrastructure</h2>
+
+        <p>
+            The final shop payment system should use Bitcoin-native infrastructure with minimal trust in intermediaries.
+            The target design may include Bitcoin Core, LND, BTCPay Server, watch-only accounting, multisig treasury
+            storage, signed invoices, cold storage, per-product labels, and per-order payment records.
+        </p>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <h3>BTCPay Server</h3>
+                <p>Self-hosted merchant checkout for invoices, shop orders, receipts, and payment monitoring.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Bitcoin Core</h3>
+                <p>Full-node verification for payment detection and Bitcoin network sovereignty.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>LND</h3>
+                <p>Lightning Network infrastructure for fast small-value checkout and subscriptions.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Watch-Only Accounting</h3>
+                <p>Monitoring addresses without exposing private keys to web or shop infrastructure.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Signed Invoices</h3>
+                <p>High-value payment instructions should support GPG signature verification.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Cold Storage</h3>
+                <p>Larger balances should be moved away from hot wallets into secure treasury workflows.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Related Shop Pages</p>
+        <h2>Shop Payment Links</h2>
+
+        <div class="zzx-card-grid">
+            <a class="zzx-card link-card" href="../">
+                <h3>Shop</h3>
+                <p>Return to the main ZZX-Labs Shop gateway.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../categories">
+                <h3>Categories</h3>
+                <p>Browse product categories across software, hardware, research, media, apparel, services, and more.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../brands">
+                <h3>Brands</h3>
+                <p>Browse shop collections by ZZX-Labs project family, subsidiary brand, or future incubation venture.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../faq">
+                <h3>Shop FAQ</h3>
+                <p>Future frequently asked questions about checkout, downloads, shipping, returns, and support.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../shipping">
+                <h3>Shipping</h3>
+                <p>Future shipping policy for physical products, kits, apparel, prints, stickers, and hardware.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../returns">
+                <h3>Returns</h3>
+                <p>Future shop-specific return and exchange rules.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Development Notice</p>
+        <h2>Checkout Is Under Active Development</h2>
+
+        <p>
+            This page describes the intended shop-payment architecture. Product checkout, address generation, Lightning
+            invoices, digital delivery, inventory status, order tracking, shipping, receipts, refunds, and returns are
+            still being built.
+        </p>
+
+        <p>
+            Until the final checkout system is deployed, contact ZZX-Labs before making large, custom, restricted,
+            business, licensing, grant, sponsorship, or high-value purchases.
+        </p>
+
+        <div class="zzx-action-row">
+            <a href="../../contact" class="btn">Contact Support</a>
+            <a href="../../payments" class="btn btn-outline">Payments Hub</a>
+            <a href="../../notice" class="btn btn-outline">Notice Hub</a>
+            <a href="../../legal" class="btn btn-outline">Legal Hub</a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel zzx-cta-panel">
+        <p class="zzx-kicker">Support</p>
+        <h2>Questions About A Shop Payment?</h2>
+
+        <p>
+            If a shop payment appears delayed, incorrect, underpaid, overpaid, expired, duplicated, or suspicious,
+            preserve the transaction ID, invoice ID, order ID, timestamp, amount, and wallet details, then contact
+            ZZX-Labs through the official Contact page.
+        </p>
+
+        <div class="zzx-action-row">
+            <a href="../../contact" class="btn">Contact Support</a>
+            <a href="../" class="btn btn-outline">Return to Shop</a>
+            <a href="../../payments/receipts" class="btn btn-outline">Receipts</a>
+            <a href="../../payments/refunds" class="btn btn-outline">Refunds</a>
+        </div>
+    </section>
+
 </main>
+
 <footer>
     <div id="zzx-footer"></div>
 </footer>
