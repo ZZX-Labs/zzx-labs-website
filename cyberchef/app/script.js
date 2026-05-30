@@ -106,26 +106,6 @@
         } catch (e) {}
     }
 
-    function loadCyberChefMain() {
-        if (document.querySelector("script[data-cyberchef-main='true']")) {
-            return;
-        }
-
-        var script = document.createElement("script");
-
-        script.src = "assets/main.js";
-        script.defer = true;
-        script.dataset.cyberchefMain = "true";
-
-        document.head.appendChild(script);
-    }
-
     installStorageShim();
     setDefaultCyberChefOptions();
-
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", loadCyberChefMain);
-    } else {
-        loadCyberChefMain();
-    }
 })();
