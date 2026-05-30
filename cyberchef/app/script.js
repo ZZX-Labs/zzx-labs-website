@@ -1,53 +1,53 @@
 (function () {
     "use strict";
 
-    function installStorageShim() {
-        function memoryStorage() {
-            var mem = {};
+    function memoryStorage() {
+        var mem = {};
 
-            return {
-                getItem: function (k) {
-                    return Object.prototype.hasOwnProperty.call(mem, k)
-                        ? mem[k]
-                        : null;
-                },
+        return {
+            getItem: function (k) {
+                return Object.prototype.hasOwnProperty.call(mem, k)
+                    ? mem[k]
+                    : null;
+            },
 
-                setItem: function (k, v) {
-                    mem[k] = String(v);
-                },
+            setItem: function (k, v) {
+                mem[k] = String(v);
+            },
 
-                removeItem: function (k) {
-                    delete mem[k];
-                },
+            removeItem: function (k) {
+                delete mem[k];
+            },
 
-                clear: function () {
-                    mem = {};
-                },
+            clear: function () {
+                mem = {};
+            },
 
-                key: function (i) {
-                    return Object.keys(mem)[i] || null;
-                },
+            key: function (i) {
+                return Object.keys(mem)[i] || null;
+            },
 
-                get length() {
-                    return Object.keys(mem).length;
-                }
-            };
-        }
-
-        function storageWorks(name) {
-            try {
-                var s = window[name];
-                var k = "__zzx_storage_test__";
-
-                s.setItem(k, "1");
-                s.removeItem(k);
-
-                return true;
-            } catch (e) {
-                return false;
+            get length() {
+                return Object.keys(mem).length;
             }
-        }
+        };
+    }
 
+    function storageWorks(name) {
+        try {
+            var s = window[name];
+            var k = "__zzx_storage_test__";
+
+            s.setItem(k, "1");
+            s.removeItem(k);
+
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function installStorageShim() {
         try {
             if (!storageWorks("localStorage")) {
                 Object.defineProperty(window, "localStorage", {
@@ -89,48 +89,58 @@
         } catch (e) {}
     }
 
-    function setDefaultCyberChefOptions() {
+    function forceDark() {
         try {
-            var existing = localStorage.getItem("options");
-            var options = existing ? JSON.parse(existing) : {};
-
-            /*
-                Force dark every load. This is intentional for the native
-                ZZX-hosted app path, while keeping the upstream CyberChef
-                source files untouched.
-            */
-            options.theme = "dark";
-            options.wordWrap = true;
-            options.showErrors = true;
-            options.updateUrl = true;
-
             localStorage.setItem(
                 "options",
-                JSON.stringify(options)
+                JSON.stringify({
+                    theme: "dark",
+                    wordWrap: true,
+                    showErrors: true,
+                    updateUrl: true
+                })
+            );
+        } catch (e) {}
+
+        try {
+            document.documentElement.classList.remove(
+                "classic",
+                "geocities",
+                "solarizedDark",
+                "solarizedLight"
             );
 
-            document.documentElement.className =
-                document.documentElement.className
-                    .replace(/\bclassic\b/g, "")
-                    .replace(/\bdark\b/g, "")
-                    .trim();
-
             document.documentElement.classList.add("dark");
+        } catch (e) {}
 
+        try {
+            var select = document.querySelector("#theme");
+
+            if (select && select.value !== "dark") {
+                select.value = "dark";
+                select.dispatchEvent(
+                    new Event("change", {
+                        bubbles: true
+                    })
+                );
+            }
         } catch (e) {}
     }
 
     installStorageShim();
-    setDefaultCyberChefOptions();
+    forceDark();
 
-    window.addEventListener("DOMContentLoaded", function () {
-        setDefaultCyberChefOptions();
+    document.addEventListener("DOMContentLoaded", function () {
+        forceDark();
+        setTimeout(forceDark, 50);
+        setTimeout(forceDark, 250);
+        setTimeout(forceDark, 1000);
     });
 
     window.addEventListener("load", function () {
-        setDefaultCyberChefOptions();
-
-        setTimeout(setDefaultCyberChefOptions, 250);
-        setTimeout(setDefaultCyberChefOptions, 1000);
+        forceDark();
+        setTimeout(forceDark, 250);
+        setTimeout(forceDark, 1000);
+        setTimeout(forceDark, 2500);
     });
 })();
