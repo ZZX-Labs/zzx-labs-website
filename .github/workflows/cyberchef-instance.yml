@@ -95,6 +95,199 @@ jobs:
 
           cp -a _site/cyberchef/app/assets _site/cyberchef/assets
 
+      - name: Generate CyberChef storage and dark shim
+        run: |
+          cat > _site/cyberchef/app/script.js << 'EOF'
+          (function () {
+              "use strict";
+
+              function memoryStorage() {
+                  var mem = {};
+
+                  return {
+                      getItem: function (k) {
+                          return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+                      },
+                      setItem: function (k, v) {
+                          mem[k] = String(v);
+                      },
+                      removeItem: function (k) {
+                          delete mem[k];
+                      },
+                      clear: function () {
+                          mem = {};
+                      },
+                      key: function (i) {
+                          return Object.keys(mem)[i] || null;
+                      },
+                      get length() {
+                          return Object.keys(mem).length;
+                      }
+                  };
+              }
+
+              function installStorage(name) {
+                  try {
+                      var s = window[name];
+                      var k = "__zzx_storage_test__";
+                      s.setItem(k, "1");
+                      s.removeItem(k);
+                  } catch (e) {
+                      try {
+                          Object.defineProperty(window, name, {
+                              configurable: true,
+                              value: memoryStorage()
+                          });
+                      } catch (ignored) {}
+                  }
+              }
+
+              installStorage("localStorage");
+              installStorage("sessionStorage");
+
+              try {
+                  var originalSetItem = Storage.prototype.setItem;
+
+                  Storage.prototype.setItem = function (key, value) {
+                      try {
+                          return originalSetItem.call(this, key, value);
+                      } catch (e) {
+                          if (
+                              e &&
+                              (
+                                  e.name === "QuotaExceededError" ||
+                                  e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                              )
+                          ) {
+                              return null;
+                          }
+
+                          throw e;
+                      }
+                  };
+              } catch (ignored) {}
+
+              function forceDark() {
+                  try {
+                      var existing = localStorage.getItem("options");
+                      var options = existing ? JSON.parse(existing) : {};
+
+                      options.theme = "dark";
+                      options.themeName = "dark";
+                      options.darkMode = true;
+                      options.wordWrap = true;
+                      options.showErrors = true;
+                      options.updateUrl = true;
+
+                      localStorage.setItem("options", JSON.stringify(options));
+                      localStorage.setItem("theme", "dark");
+                      localStorage.setItem("cyberchef-theme", "dark");
+                  } catch (ignored) {}
+
+                  try {
+                      document.documentElement.classList.remove(
+                          "classic",
+                          "geocities",
+                          "solarizedDark",
+                          "solarizedLight"
+                      );
+
+                      document.documentElement.classList.add("dark");
+                  } catch (ignored) {}
+
+                  try {
+                      var selects = document.querySelectorAll(
+                          "#theme, select[name='theme'], select[id*='theme'], select[class*='theme']"
+                      );
+
+                      selects.forEach(function (select) {
+                          var changed = false;
+
+                          Array.prototype.forEach.call(select.options || [], function (option) {
+                              var value = String(option.value || "").toLowerCase();
+                              var text = String(option.textContent || "").toLowerCase();
+
+                              if (value === "dark" || text === "dark") {
+                                  select.value = option.value;
+                                  changed = true;
+                              }
+                          });
+
+                          if (changed) {
+                              select.dispatchEvent(new Event("change", { bubbles: true }));
+                          }
+                      });
+                  } catch (ignored) {}
+              }
+
+              forceDark();
+
+              document.addEventListener("DOMContentLoaded", function () {
+                  forceDark();
+                  setTimeout(forceDark, 50);
+                  setTimeout(forceDark, 250);
+                  setTimeout(forceDark, 1000);
+              });
+
+              window.addEventListener("load", function () {
+                  forceDark();
+                  setTimeout(forceDark, 250);
+                  setTimeout(forceDark, 1000);
+                  setTimeout(forceDark, 2500);
+              });
+          })();
+          EOF
+
+      - name: Insert shim before CyberChef main.js
+        run: |
+          python3 - << 'PY'
+          from pathlib import Path
+          import re
+
+          def insert(path, main_src, shim_src):
+              html = path.read_text(encoding="utf-8", errors="ignore")
+
+              if shim_src in html:
+                  path.write_text(html, encoding="utf-8")
+                  return
+
+              pattern = rf'(<script[^>]+src=["\']{re.escape(main_src)}["\'][^>]*></script>)'
+
+              patched = re.sub(
+                  pattern,
+                  f'<script src="{shim_src}"></script>\n\\1',
+                  html,
+                  count=1,
+                  flags=re.I
+              )
+
+              if patched == html:
+                  patched = html.replace(
+                      "</head>",
+                      f'<script src="{shim_src}"></script>\n</head>'
+                  )
+
+              path.write_text(patched, encoding="utf-8")
+
+          insert(
+              Path("_site/cyberchef/app/index.html"),
+              "assets/main.js",
+              "script.js"
+          )
+
+          insert(
+              Path("_site/cyberchef/app/native.html"),
+              "assets/main.js",
+              "script.js"
+          )
+
+          insert(
+              Path("_site/cyberchef/cyberchef.html"),
+              "assets/main.js",
+              "app/script.js"
+          )
+          PY
+
       - name: Add attribution and license notices
         run: |
           cat > _site/cyberchef/ATTRIBUTION.md << 'EOF'
@@ -164,6 +357,7 @@ jobs:
 
           test -f _site/cyberchef/app/index.html
           test -f _site/cyberchef/app/native.html
+          test -f _site/cyberchef/app/script.js
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
 
@@ -172,12 +366,17 @@ jobs:
 
           grep -q 'assets/main.css' _site/cyberchef/app/index.html
           grep -q 'assets/main.js' _site/cyberchef/app/index.html
+          grep -q 'script.js' _site/cyberchef/app/index.html
+          grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
+
           grep -q 'assets/main.css' _site/cyberchef/cyberchef.html
           grep -q 'assets/main.js' _site/cyberchef/cyberchef.html
+          grep -q 'app/script.js' _site/cyberchef/cyberchef.html
+
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
 
-          printf '%s\n' 'CyberChef native app, root runtime, and wrapper files verified.'
+          printf '%s\n' 'CyberChef native app, root runtime, shim, and wrapper files verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
