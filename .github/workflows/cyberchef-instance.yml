@@ -52,7 +52,7 @@ jobs:
           test -f _site/cyberchef/upgrades.js
           test -f _site/cyberchef/modifications.css
           test -f _site/cyberchef/modifications.js
-          grep -q 'id="cz-frame"' _site/cyberchef/index.html
+          grep -q 'id="cz-runtime"' _site/cyberchef/index.html
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
 
       - name: Download CyberChef v11.0.0
@@ -90,6 +90,7 @@ jobs:
 
           cp "$CYBERCHEF_HTML" _site/cyberchef/app/native.html
           cp "$CYBERCHEF_HTML" _site/cyberchef/app/index.html
+          cp "$CYBERCHEF_HTML" _site/cyberchef/cyberchef.html
 
       - name: Generate app shim files
         run: |
@@ -260,6 +261,49 @@ jobs:
           path.write_text(html, encoding="utf-8")
           PY
 
+      - name: Patch root CyberChef runtime bridge
+        run: |
+          python3 - << 'PY'
+          from pathlib import Path
+
+          path = Path("_site/cyberchef/cyberchef.html")
+          html = path.read_text(encoding="utf-8", errors="ignore")
+
+          replacements = {
+              'href="/assets/': 'href="app/assets/',
+              "href='/assets/": "href='app/assets/",
+              'src="/assets/': 'src="app/assets/',
+              "src='/assets/": "src='app/assets/",
+              'url("/assets/': 'url("app/assets/',
+              "url('/assets/": "url('app/assets/",
+              'url(/assets/': 'url(app/assets/',
+
+              'href="assets/': 'href="app/assets/',
+              "href='assets/": "href='app/assets/",
+              'src="assets/': 'src="app/assets/',
+              "src='assets/": "src='app/assets/",
+              'url("assets/': 'url("app/assets/',
+              "url('assets/": "url('app/assets/",
+              'url(assets/': 'url(app/assets/',
+
+              'href="styles.css"': 'href="app/styles.css"',
+              "href='styles.css'": "href='app/styles.css'",
+              'src="script.js"': 'src="app/script.js"',
+              "src='script.js'": "src='app/script.js'",
+          }
+
+          for old, new in replacements.items():
+              html = html.replace(old, new)
+
+          if '<script src="app/script.js"></script>' not in html:
+              html = html.replace(
+                  '<script defer="defer" src="app/assets/main.js"></script>',
+                  '<script src="app/script.js"></script>\n<script defer="defer" src="app/assets/main.js"></script>'
+              )
+
+          path.write_text(html, encoding="utf-8")
+          PY
+
       - name: Add attribution and license notices
         run: |
           cat > _site/cyberchef/ATTRIBUTION.md << 'EOF'
@@ -270,6 +314,10 @@ jobs:
           Modified ZZX page:
 
           https://zzx-labs.io/cyberchef/
+
+          Root runtime bridge:
+
+          https://zzx-labs.io/cyberchef/cyberchef.html
 
           Native local CyberChef path:
 
@@ -311,6 +359,7 @@ jobs:
       - name: Verify CyberChef deployment artifact
         run: |
           test -f _site/cyberchef/index.html
+          test -f _site/cyberchef/cyberchef.html
           test -f _site/cyberchef/styles.css
           test -f _site/cyberchef/script.js
           test -f _site/cyberchef/hook.js
@@ -332,10 +381,15 @@ jobs:
           grep -q '@import url("assets/main.css")' _site/cyberchef/app/styles.css
           grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
           grep -q 'options.theme = "dark"' _site/cyberchef/app/script.js
-          grep -q 'CyberChefZZX' _site/cyberchef/index.html
-          grep -q 'id="cz-frame"' _site/cyberchef/index.html
 
-          printf '%s\n' 'CyberChefZZX wrapper and native CyberChef app verified.'
+          grep -q 'src="app/assets/main.js"' _site/cyberchef/cyberchef.html
+          grep -q 'href="app/styles.css"' _site/cyberchef/cyberchef.html
+          grep -q 'src="app/script.js"' _site/cyberchef/cyberchef.html
+
+          grep -q 'CyberChefZZX' _site/cyberchef/index.html
+          grep -q 'id="cz-runtime"' _site/cyberchef/index.html
+
+          printf '%s\n' 'CyberChefZZX wrapper, runtime bridge, and native CyberChef app verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
