@@ -21,15 +21,12 @@
     function save(key, value) {
         try {
             localStorage.setItem(key, value);
-        } catch (err) {
-            console.warn(err);
-        }
+        } catch (err) {}
     }
 
     function load(key, fallback = null) {
         try {
-            const value = localStorage.getItem(key);
-            return value ?? fallback;
+            return localStorage.getItem(key) ?? fallback;
         } catch (err) {
             return fallback;
         }
@@ -134,6 +131,9 @@
             options.updateUrl = true;
 
             localStorage.setItem("options", JSON.stringify(options));
+
+            document.documentElement.classList.remove("classic");
+            document.documentElement.classList.add("dark");
         } catch (err) {}
     }
 
@@ -149,23 +149,8 @@
         return "CyberChefZZX Modified Instance";
     }
 
-    function getSourceURL(source) {
-        const c = cfg();
-
-        if (source === "upstream") {
-            return c.upstreamUrl || "https://gchq.github.io/CyberChef/";
-        }
-
-        if (source === "native") {
-            return c.nativeUrl || "./app/";
-        }
-
-        return c.modifiedUrl || "./";
-    }
-
     function updateStatus(text) {
-        const c = cfg();
-        const el = $(c.statusId || "cz-status");
+        const el = $("cz-status");
 
         if (el) {
             el.textContent = text;
@@ -173,8 +158,7 @@
     }
 
     function updateSourceLabel(source) {
-        const c = cfg();
-        const el = $(c.activeSourceId || "cz-active-source");
+        const el = $("cz-active-source");
 
         if (el) {
             el.textContent = getSourceLabel(source);
@@ -182,164 +166,207 @@
     }
 
     function updateRuntimeState(text) {
-        const c = cfg();
-        const el = $(c.frameStateId || "cz-frame-state");
+        const el = $("cz-frame-state");
 
         if (el) {
             el.textContent = text;
         }
     }
 
+    function getSourceValue() {
+        return $("cz-source")?.value || cfg().defaultSource || "modified";
+    }
+
     function setSourceValue(value) {
-        const c = cfg();
-        const source = $(c.sourceId || "cz-source");
+        const source = $("cz-source");
 
         if (source) {
             source.value = value;
         }
     }
 
-    function getSourceValue() {
-        const c = cfg();
-        const source = $(c.sourceId || "cz-source");
-
-        return source?.value || c.defaultSource || "modified";
-    }
-
     function loadExternalSource(source) {
-        const url = getSourceURL(source);
-
-        updateStatus(`Opening ${getSourceLabel(source)}...`);
-        updateRuntimeState("Redirecting");
-
         if (source === "upstream") {
-            window.open(url, "_blank", "noopener");
+            updateStatus("Opening GCHQ CyberChef...");
+            updateRuntimeState("Opening Upstream");
+
+            window.open(
+                cfg().upstreamUrl || "https://gchq.github.io/CyberChef/",
+                "_blank",
+                "noopener"
+            );
+
             return;
         }
 
-        window.location.href = url;
+        updateStatus("Opening native local CyberChef...");
+        updateRuntimeState("Opening Native");
+
+        window.location.href =
+            cfg().nativeUrl || "./app/";
     }
 
-    function hideStuckLoader() {
-        const preloader = document.getElementById("preloader");
-        const preloaderMsg = document.getElementById("preloader-msg");
+    function rewriteNodeURLs(root) {
+        const attrs = ["src", "href", "data"];
 
-        if (preloader) {
-            preloader.style.display = "none";
-            preloader.setAttribute("aria-hidden", "true");
-        }
+        root.querySelectorAll("*").forEach((node) => {
+            for (const attr of attrs) {
+                const value = node.getAttribute(attr);
 
-        if (preloaderMsg) {
-            preloaderMsg.style.display = "none";
-            preloaderMsg.setAttribute("aria-hidden", "true");
-        }
+                if (!value) {
+                    continue;
+                }
 
-        const loaderWrapper = document.getElementById("loader-wrapper");
+                if (
+                    value.startsWith("assets/") ||
+                    value.startsWith("./assets/")
+                ) {
+                    node.setAttribute(
+                        attr,
+                        value.replace(/^\.?\/?assets\//, "app/assets/")
+                    );
+                }
 
-        if (loaderWrapper) {
-            loaderWrapper.classList.add("cz-loader-released");
-            loaderWrapper.style.pointerEvents = "none";
-        }
+                if (
+                    value === "styles.css" ||
+                    value === "./styles.css"
+                ) {
+                    node.setAttribute(attr, "app/styles.css");
+                }
+
+                if (
+                    value === "script.js" ||
+                    value === "./script.js"
+                ) {
+                    node.setAttribute(attr, "app/script.js");
+                }
+            }
+        });
     }
 
-    function loadCyberChefMain() {
-        if (document.querySelector("script[data-cz-main='true']")) {
-            return;
-        }
+    function collectExecutableScripts(doc) {
+        const scripts = [];
 
-        const script = document.createElement("script");
+        doc.querySelectorAll("script").forEach((script) => {
+            scripts.push({
+                src: script.getAttribute("src"),
+                text: script.textContent || "",
+                type: script.getAttribute("type") || ""
+            });
 
-        script.src = "app/assets/main.js";
-        script.defer = true;
-        script.dataset.czMain = "true";
+            script.remove();
+        });
 
-        script.onload = () => {
-            updateRuntimeState("Engine Loaded");
-            updateStatus("CyberChefZZX engine loaded. Initializing workspace...");
-
-            setTimeout(() => {
-                window.ZZXCyberChefAfterNativeLoad?.();
-            }, 300);
-        };
-
-        script.onerror = () => {
-            updateRuntimeState("Error");
-            updateStatus("Failed to load app/assets/main.js.");
-
-            document.documentElement.classList.add("cz-error");
-            document.documentElement.classList.remove("cz-loading");
-
-            hideStuckLoader();
-        };
-
-        document.head.appendChild(script);
+        return scripts;
     }
 
-    function findCyberChefReadyNode() {
-        return (
-            document.querySelector("#workspace-wrapper") ||
-            document.querySelector("#content-wrapper") ||
-            document.querySelector("#operations") ||
-            document.querySelector("#recipe") ||
-            document.querySelector("#input") ||
-            document.querySelector("#output") ||
-            document.querySelector("#loader-wrapper")
-        );
-    }
+    function executeScript(entry) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement("script");
 
-    function waitForCyberChef() {
-        let attempts = 0;
+            if (entry.type) {
+                script.type = entry.type;
+            }
 
-        const timer = setInterval(() => {
-            attempts += 1;
+            if (entry.src) {
+                let src = entry.src;
 
-            const readyNode = findCyberChefReadyNode();
+                if (
+                    src.startsWith("assets/") ||
+                    src.startsWith("./assets/")
+                ) {
+                    src = src.replace(/^\.?\/?assets\//, "app/assets/");
+                }
 
-            if (readyNode) {
-                clearInterval(timer);
+                if (
+                    src === "script.js" ||
+                    src === "./script.js"
+                ) {
+                    src = "app/script.js";
+                }
 
-                hideStuckLoader();
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
 
-                document.documentElement.classList.add("cz-ready");
-                document.documentElement.classList.remove("cz-loading");
-                document.documentElement.classList.remove("cz-error");
-
-                updateRuntimeState("Ready");
-                updateStatus("CyberChefZZX workspace ready.");
-
-                window.dispatchEvent(
-                    new CustomEvent("zzx-cyberchef-ready", {
-                        detail: {
-                            source: "modified",
-                            version: cfg().version || "v11.0.0"
-                        }
-                    })
-                );
-
+                document.body.appendChild(script);
                 return;
             }
 
-            if (attempts === 40) {
-                hideStuckLoader();
-                updateRuntimeState("Still Initializing");
-                updateStatus("CyberChefZZX engine loaded; waiting for workspace DOM...");
-            }
-
-            if (attempts > 300) {
-                clearInterval(timer);
-
-                hideStuckLoader();
-
-                updateRuntimeState("Timeout");
-                updateStatus("CyberChefZZX did not finish initializing.");
-
-                document.documentElement.classList.add("cz-error");
-                document.documentElement.classList.remove("cz-loading");
-            }
-        }, 250);
+            script.textContent = entry.text;
+            document.body.appendChild(script);
+            resolve();
+        });
     }
 
-    function loadCyberChef() {
+    async function runScriptsSequentially(scripts) {
+        for (const script of scripts) {
+            await executeScript(script);
+        }
+    }
+
+    async function loadCyberChefFragment() {
+        const runtime = $("cz-runtime");
+
+        if (!runtime) {
+            updateRuntimeState("Error");
+            updateStatus("Missing #cz-runtime container.");
+            return;
+        }
+
+        updateRuntimeState("Fetching");
+        updateStatus("Fetching CyberChefZZX runtime...");
+
+        const response = await fetch("./cyberchef.html", {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Failed to fetch cyberchef.html: HTTP ${response.status}`
+            );
+        }
+
+        const html = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        rewriteNodeURLs(doc);
+
+        const scripts = collectExecutableScripts(doc);
+
+        runtime.innerHTML = "";
+
+        Array.from(doc.body.childNodes).forEach((node) => {
+            runtime.appendChild(
+                document.importNode(node, true)
+            );
+        });
+
+        updateRuntimeState("Executing");
+        updateStatus("Executing CyberChef runtime scripts...");
+
+        await runScriptsSequentially(scripts);
+
+        updateRuntimeState("Ready");
+        updateStatus("CyberChefZZX workspace ready.");
+
+        document.documentElement.classList.add("cz-ready");
+        document.documentElement.classList.remove("cz-loading");
+        document.documentElement.classList.remove("cz-error");
+
+        window.dispatchEvent(
+            new CustomEvent("zzx-cyberchef-ready", {
+                detail: {
+                    source: "modified",
+                    version: cfg().version || "v11.0.0"
+                }
+            })
+        );
+    }
+
+    async function loadCyberChef() {
         const source = getSourceValue();
 
         updateSourceLabel(source);
@@ -359,80 +386,65 @@
             return;
         }
 
-        updateStatus("Loading CyberChefZZX modified instance...");
-        updateRuntimeState("Loading");
+        try {
+            document.documentElement.classList.add("cz-loading");
+            document.documentElement.classList.remove("cz-ready");
+            document.documentElement.classList.remove("cz-error");
 
-        installStorageShim();
-        setDefaultOptions();
+            installStorageShim();
+            setDefaultOptions();
 
-        ready(() => {
-            loadCyberChefMain();
-            waitForCyberChef();
-        });
+            await loadCyberChefFragment();
+        } catch (err) {
+            console.error(err);
+
+            updateRuntimeState("Error");
+            updateStatus(err.message || "CyberChefZZX failed to load.");
+
+            document.documentElement.classList.add("cz-error");
+            document.documentElement.classList.remove("cz-loading");
+        }
     }
 
     function refreshCyberChef() {
-        const source = getSourceValue();
+        const runtime = $("cz-runtime");
 
-        updateRuntimeState("Refreshing");
-
-        if (source === "native" || source === "upstream") {
-            loadExternalSource(source);
-            return;
+        if (runtime) {
+            runtime.innerHTML = `
+                <div class="cz-runtime-loading">
+                    <strong>Reloading CyberChefZZX Runtime...</strong>
+                    <br>
+                    Fetching native CyberChef workspace...
+                </div>
+            `;
         }
 
-        const existing = document.querySelector("script[data-cz-main='true']");
-
-        if (existing) {
-            existing.remove();
-        }
-
-        const loaderWrapper = document.getElementById("loader-wrapper");
-
-        if (loaderWrapper) {
-            loaderWrapper.style.pointerEvents = "none";
-        }
-
-        updateStatus("Reloading CyberChefZZX engine...");
-        loadCyberChefMain();
-        waitForCyberChef();
+        loadCyberChef();
     }
 
     ready(() => {
-        const c = cfg();
-
-        const source = $(c.sourceId || "cz-source");
-        const loadButton = $(c.loadButtonId || "cz-load");
-        const refreshButton = $(c.refreshButtonId || "cz-refresh");
-
         const savedSource = load(
-            c.storageKeys?.source || "zzxCyberChefSource",
-            c.defaultSource || "modified"
+            cfg().storageKeys?.source || "zzxCyberChefSource",
+            cfg().defaultSource || "modified"
         );
 
-        if (source) {
-            source.value = savedSource;
-        }
+        const cleanSource =
+            savedSource === "modified" ||
+            savedSource === "native" ||
+            savedSource === "upstream"
+                ? savedSource
+                : "modified";
 
-        loadButton?.addEventListener("click", loadCyberChef);
-        refreshButton?.addEventListener("click", refreshCyberChef);
+        setSourceValue(cleanSource);
 
-        document.documentElement.classList.add("cz-loading");
+        $("cz-load")?.addEventListener("click", loadCyberChef);
+        $("cz-refresh")?.addEventListener("click", refreshCyberChef);
 
         installStorageShim();
         setDefaultOptions();
 
-        setSourceValue(savedSource);
+        loadCyberChef();
 
-        if (savedSource === "modified") {
-            loadCyberChef();
-        } else {
-            updateSourceLabel(savedSource);
-            updateStatus(`${getSourceLabel(savedSource)} selected. Click Load to open.`);
-            updateRuntimeState("Waiting");
-            hideStuckLoader();
-        }
-
-        console.info("[CyberChefZZX] Initialized.");
+        console.info("[CyberChefZZX] Fragment runtime loader initialized.");
     });
 })();
