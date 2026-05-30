@@ -10,26 +10,19 @@
     function ready(fn) {
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", fn);
-            return;
+        } else {
+            fn();
         }
-
-        fn();
     }
 
     function status(text) {
         const el = $("cz-status");
-
-        if (el) {
-            el.textContent = text;
-        }
+        if (el) el.textContent = text;
     }
 
     function state(text) {
         const el = $("cz-frame-state");
-
-        if (el) {
-            el.textContent = text;
-        }
+        if (el) el.textContent = text;
     }
 
     function memoryStorage() {
@@ -39,23 +32,18 @@
             getItem(k) {
                 return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
             },
-
             setItem(k, v) {
                 mem[k] = String(v);
             },
-
             removeItem(k) {
                 delete mem[k];
             },
-
             clear() {
                 mem = {};
             },
-
             key(i) {
                 return Object.keys(mem)[i] || null;
             },
-
             get length() {
                 return Object.keys(mem).length;
             }
@@ -66,7 +54,6 @@
         try {
             const s = window[name];
             const k = "__zzx_storage_test__";
-
             s.setItem(k, "1");
             s.removeItem(k);
         } catch (err) {
@@ -108,19 +95,15 @@
 
     function forceDark() {
         try {
-            const existing = localStorage.getItem("options");
-            const options = existing ? JSON.parse(existing) : {};
-
-            options.theme = "dark";
-            options.themeName = "dark";
-            options.darkMode = true;
-            options.wordWrap = true;
-            options.showErrors = true;
-            options.updateUrl = true;
-
-            localStorage.setItem("options", JSON.stringify(options));
-            localStorage.setItem("theme", "dark");
-            localStorage.setItem("cyberchef-theme", "dark");
+            localStorage.setItem(
+                "options",
+                JSON.stringify({
+                    theme: "dark",
+                    wordWrap: true,
+                    showErrors: true,
+                    updateUrl: true
+                })
+            );
         } catch (ignored) {}
 
         try {
@@ -136,27 +119,21 @@
     }
 
     function normalizeUrl(value) {
-        if (!value) {
-            return value;
+        if (!value) return value;
+
+        if (value.startsWith("assets/")) {
+            return `app/${value}`;
         }
 
         if (value.startsWith("./assets/")) {
-            return value.replace("./assets/", "assets/");
+            return value.replace("./assets/", "app/assets/");
         }
 
-        if (value === "./script.js") {
+        if (value === "script.js" || value === "./script.js") {
             return "app/script.js";
         }
 
-        if (value === "script.js") {
-            return "app/script.js";
-        }
-
-        if (value === "./styles.css") {
-            return "app/styles.css";
-        }
-
-        if (value === "styles.css") {
+        if (value === "styles.css" || value === "./styles.css") {
             return "app/styles.css";
         }
 
@@ -177,9 +154,7 @@
         style.textContent = `
             #cz-runtime {
                 position: relative !important;
-                width: 100% !important;
-                min-height: 1250px !important;
-                height: 1250px !important;
+                min-height: 960px !important;
                 overflow: auto !important;
                 background: #111 !important;
                 isolation: isolate !important;
@@ -201,23 +176,8 @@
             }
 
             #cz-runtime #content-wrapper,
-            #cz-runtime #workspace-wrapper,
-            #cz-runtime #loader-wrapper {
-                width: 1600px !important;
-                min-width: 1600px !important;
-                max-width: none !important;
-            }
-
-            #cz-runtime #content-wrapper {
-                min-height: 1160px !important;
-                transform: scale(var(--zzx-cyberchef-scale, 0.72));
-                transform-origin: top left;
-            }
-
             #cz-runtime #workspace-wrapper {
-                height: 960px !important;
-                min-height: 960px !important;
-                overflow: hidden !important;
+                max-width: none !important;
             }
         `;
 
@@ -233,32 +193,22 @@
     function installStyles(doc) {
         doc.querySelectorAll("link[rel='stylesheet']").forEach((link) => {
             const href = normalizeUrl(link.getAttribute("href"));
-
-            if (!href) {
-                return;
-            }
+            if (!href) return;
 
             const out = document.createElement("link");
-
             out.rel = "stylesheet";
             out.href = href;
             out.dataset.czRuntimeAsset = "true";
-
             document.head.appendChild(out);
         });
 
         installContainmentCss();
 
-        [
-            "./upgrades.css",
-            "./modifications.css"
-        ].forEach((href) => {
+        ["./upgrades.css", "./modifications.css"].forEach((href) => {
             const out = document.createElement("link");
-
             out.rel = "stylesheet";
             out.href = href;
             out.dataset.czRuntimeAsset = "true";
-
             document.head.appendChild(out);
         });
     }
@@ -272,7 +222,6 @@
                 type: script.getAttribute("type") || "",
                 text: script.textContent || ""
             });
-
             script.remove();
         });
 
@@ -283,11 +232,7 @@
         root.querySelectorAll("*").forEach((node) => {
             ["src", "href", "data"].forEach((attr) => {
                 const value = node.getAttribute(attr);
-
-                if (!value) {
-                    return;
-                }
-
+                if (!value) return;
                 node.setAttribute(attr, normalizeUrl(value));
             });
         });
@@ -296,7 +241,6 @@
     function executeScript(entry) {
         return new Promise((resolve, reject) => {
             const script = document.createElement("script");
-
             script.dataset.czRuntimeAsset = "true";
 
             if (entry.type) {
@@ -307,7 +251,6 @@
                 script.src = entry.src;
                 script.onload = resolve;
                 script.onerror = reject;
-
                 document.body.appendChild(script);
                 return;
             }
