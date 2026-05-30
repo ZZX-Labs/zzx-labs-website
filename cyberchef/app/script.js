@@ -6,27 +6,20 @@
 
         return {
             getItem: function (k) {
-                return Object.prototype.hasOwnProperty.call(mem, k)
-                    ? mem[k]
-                    : null;
+                return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
             },
-
             setItem: function (k, v) {
                 mem[k] = String(v);
             },
-
             removeItem: function (k) {
                 delete mem[k];
             },
-
             clear: function () {
                 mem = {};
             },
-
             key: function (i) {
                 return Object.keys(mem)[i] || null;
             },
-
             get length() {
                 return Object.keys(mem).length;
             }
@@ -37,10 +30,8 @@
         try {
             var s = window[name];
             var k = "__zzx_storage_test__";
-
             s.setItem(k, "1");
             s.removeItem(k);
-
             return true;
         } catch (e) {
             return false;
@@ -91,15 +82,23 @@
 
     function forceDark() {
         try {
-            localStorage.setItem(
-                "options",
-                JSON.stringify({
-                    theme: "dark",
-                    wordWrap: true,
-                    showErrors: true,
-                    updateUrl: true
-                })
-            );
+            var options = {};
+            var existing = localStorage.getItem("options");
+
+            if (existing) {
+                options = JSON.parse(existing) || {};
+            }
+
+            options.theme = "dark";
+            options.themeName = "dark";
+            options.darkMode = true;
+            options.wordWrap = true;
+            options.showErrors = true;
+            options.updateUrl = true;
+
+            localStorage.setItem("options", JSON.stringify(options));
+            localStorage.setItem("theme", "dark");
+            localStorage.setItem("cyberchef-theme", "dark");
         } catch (e) {}
 
         try {
@@ -114,16 +113,27 @@
         } catch (e) {}
 
         try {
-            var select = document.querySelector("#theme");
+            var selects = document.querySelectorAll(
+                "#theme, select[name='theme'], select[id*='theme'], select[class*='theme']"
+            );
 
-            if (select && select.value !== "dark") {
-                select.value = "dark";
-                select.dispatchEvent(
-                    new Event("change", {
-                        bubbles: true
-                    })
-                );
-            }
+            selects.forEach(function (select) {
+                var changed = false;
+
+                Array.prototype.forEach.call(select.options || [], function (option) {
+                    var value = String(option.value || "").toLowerCase();
+                    var text = String(option.textContent || "").toLowerCase();
+
+                    if (value === "dark" || text === "dark") {
+                        select.value = option.value;
+                        changed = true;
+                    }
+                });
+
+                if (changed) {
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+            });
         } catch (e) {}
     }
 
