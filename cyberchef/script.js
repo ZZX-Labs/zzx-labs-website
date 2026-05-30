@@ -179,17 +179,11 @@
             #cz-runtime {
                 position: relative !important;
                 width: 100% !important;
-                height: 980px !important;
-                min-height: 980px !important;
-                max-height: none !important;
+                height: 1250px !important;
+                min-height: 1250px !important;
                 overflow: auto !important;
                 background: #111111 !important;
                 isolation: isolate !important;
-                contain: layout paint !important;
-            }
-
-            #cz-runtime * {
-                box-sizing: border-box !important;
             }
 
             #cz-runtime #loader-wrapper {
@@ -208,71 +202,24 @@
                 pointer-events: none !important;
             }
 
-            #cz-runtime #content-wrapper {
-                position: relative !important;
-                width: 1500px !important;
-                min-width: 1500px !important;
+            #cz-runtime #loader-wrapper,
+            #cz-runtime #content-wrapper,
+            #cz-runtime #workspace-wrapper {
+                width: 1600px !important;
+                min-width: 1600px !important;
                 max-width: none !important;
-                height: 1180px !important;
-                min-height: 1180px !important;
+            }
 
-                transform: scale(var(--zzx-cyberchef-scale, 0.65)) !important;
-                transform-origin: top left !important;
+            #cz-runtime #content-wrapper {
+                min-height: 1160px !important;
+                transform: scale(var(--zzx-cyberchef-scale, 0.72));
+                transform-origin: top left;
             }
 
             #cz-runtime #workspace-wrapper {
-                position: relative !important;
-                width: 1500px !important;
-                min-width: 1500px !important;
-                max-width: none !important;
-                height: 980px !important;
-                min-height: 980px !important;
+                height: 960px !important;
+                min-height: 960px !important;
                 overflow: hidden !important;
-            }
-
-            #cz-runtime #banner,
-            #cz-runtime #content-wrapper,
-            #cz-runtime #workspace-wrapper,
-            #cz-runtime #operations,
-            #cz-runtime #recipe,
-            #cz-runtime #input,
-            #cz-runtime #output,
-            #cz-runtime #IO,
-            #cz-runtime .split {
-                max-width: none !important;
-            }
-
-            #cz-runtime .modal,
-            #cz-runtime .modal-backdrop {
-                position: absolute !important;
-            }
-
-            body > #loader-wrapper {
-                display: none !important;
-                visibility: hidden !important;
-                pointer-events: none !important;
-            }
-
-            @media (max-width: 1200px) {
-                #cz-runtime {
-                    height: 860px !important;
-                    min-height: 860px !important;
-                }
-
-                #cz-runtime #content-wrapper {
-                    transform: scale(0.56) !important;
-                }
-            }
-
-            @media (max-width: 760px) {
-                #cz-runtime {
-                    height: 760px !important;
-                    min-height: 760px !important;
-                }
-
-                #cz-runtime #content-wrapper {
-                    transform: scale(0.44) !important;
-                }
             }
         `;
 
@@ -296,10 +243,7 @@
             document.head.appendChild(out);
         });
 
-        [
-            "./upgrades.css",
-            "./modifications.css"
-        ].forEach((href) => {
+        ["./upgrades.css", "./modifications.css"].forEach((href) => {
             const out = document.createElement("link");
 
             out.rel = "stylesheet";
