@@ -92,124 +92,10 @@ jobs:
           cp "$CYBERCHEF_HTML" _site/cyberchef/app/native.html
           cp "$CYBERCHEF_HTML" _site/cyberchef/cyberchef.html
 
-      - name: Patch app and runtime CyberChef HTML paths
+      - name: Patch only CyberChef asset paths
         run: |
           python3 - << 'PY'
           from pathlib import Path
-          import re
-
-          STORAGE_SHIM = r'''<script>
-          (function () {
-              "use strict";
-
-              function memoryStorage() {
-                  var mem = {};
-                  return {
-                      getItem: function (k) {
-                          return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
-                      },
-                      setItem: function (k, v) {
-                          mem[k] = String(v);
-                      },
-                      removeItem: function (k) {
-                          delete mem[k];
-                      },
-                      clear: function () {
-                          mem = {};
-                      },
-                      key: function (i) {
-                          return Object.keys(mem)[i] || null;
-                      },
-                      get length() {
-                          return Object.keys(mem).length;
-                      }
-                  };
-              }
-
-              function forceSafeStorage(name) {
-                  try {
-                      var real = window[name];
-                      var key = "__zzx_storage_test__";
-                      real.setItem(key, "1");
-                      real.removeItem(key);
-                  } catch (e) {
-                      try {
-                          Object.defineProperty(window, name, {
-                              configurable: true,
-                              value: memoryStorage()
-                          });
-                      } catch (ignored) {}
-                  }
-              }
-
-              forceSafeStorage("localStorage");
-              forceSafeStorage("sessionStorage");
-
-              try {
-                  var originalSetItem = Storage.prototype.setItem;
-
-                  Storage.prototype.setItem = function (key, value) {
-                      try {
-                          return originalSetItem.call(this, key, value);
-                      } catch (e) {
-                          if (
-                              e &&
-                              (
-                                  e.name === "QuotaExceededError" ||
-                                  e.name === "NS_ERROR_DOM_QUOTA_REACHED"
-                              )
-                          ) {
-                              return null;
-                          }
-
-                          throw e;
-                      }
-                  };
-              } catch (e) {}
-
-              try {
-                  localStorage.setItem(
-                      "options",
-                      JSON.stringify({
-                          theme: "dark",
-                          wordWrap: true,
-                          showErrors: true,
-                          updateUrl: true
-                      })
-                  );
-              } catch (e) {}
-
-              try {
-                  document.documentElement.classList.remove(
-                      "classic",
-                      "geocities",
-                      "solarizedDark",
-                      "solarizedLight"
-                  );
-
-                  document.documentElement.classList.add("dark");
-              } catch (e) {}
-          })();
-          </script>'''
-
-          def insert_shim_before_main(html, main_src):
-              if "__zzx_storage_test__" in html:
-                  return html
-
-              pattern = rf'(<script[^>]+src=["\']{re.escape(main_src)}["\'][^>]*></script>)'
-
-              patched = re.sub(
-                  pattern,
-                  STORAGE_SHIM + "\n\\1",
-                  html,
-                  count=1,
-                  flags=re.I
-              )
-
-              if patched == html:
-                  patched = html.replace("</head>", STORAGE_SHIM + "\n</head>")
-
-              return patched
 
           def patch_app(path):
               html = path.read_text(encoding="utf-8", errors="ignore")
@@ -227,16 +113,6 @@ jobs:
               for old, new in replacements.items():
                   html = html.replace(old, new)
 
-              html = re.sub(
-                  r'<html([^>]*)class=["\']classic["\']',
-                  r'<html\1class="dark"',
-                  html,
-                  count=1,
-                  flags=re.I
-              )
-
-              html = insert_shim_before_main(html, "assets/main.js")
-
               path.write_text(html, encoding="utf-8")
 
           def patch_runtime(path):
@@ -250,6 +126,7 @@ jobs:
                   'url("/assets/': 'url("app/assets/',
                   "url('/assets/": "url('app/assets/",
                   'url(/assets/': 'url(app/assets/',
+
                   'href="assets/': 'href="app/assets/',
                   "href='assets/": "href='app/assets/",
                   'src="assets/': 'src="app/assets/',
@@ -261,24 +138,6 @@ jobs:
 
               for old, new in replacements.items():
                   html = html.replace(old, new)
-
-              html = re.sub(
-                  r'<html([^>]*)class=["\']classic["\']',
-                  r'<html\1class="dark"',
-                  html,
-                  count=1,
-                  flags=re.I
-              )
-
-              html = re.sub(
-                  r'<title>.*?</title>',
-                  '<title>CyberChefZZX Runtime</title>',
-                  html,
-                  count=1,
-                  flags=re.I | re.S
-              )
-
-              html = insert_shim_before_main(html, "app/assets/main.js")
 
               path.write_text(html, encoding="utf-8")
 
@@ -292,7 +151,7 @@ jobs:
           cat > _site/cyberchef/ATTRIBUTION.md << 'EOF'
           # ZZX CyberChef Instance Attribution
 
-          CyberChefZZX is a ZZX-Labs R&D subpage and modified presentation layer for CyberChef v11.0.0.
+          CyberChefZZX is a ZZX-Labs R&D subpage and presentation layer for CyberChef v11.0.0.
 
           Modified ZZX page:
 
@@ -361,16 +220,12 @@ jobs:
 
           grep -q 'assets/main.css' _site/cyberchef/app/index.html
           grep -q 'assets/main.js' _site/cyberchef/app/index.html
-          grep -q '__zzx_storage_test__' _site/cyberchef/app/index.html
-
           grep -q 'app/assets/main.css' _site/cyberchef/cyberchef.html
           grep -q 'app/assets/main.js' _site/cyberchef/cyberchef.html
-          grep -q '__zzx_storage_test__' _site/cyberchef/cyberchef.html
-
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
 
-          printf '%s\n' 'CyberChefZZX wrapper, runtime bridge, and native CyberChef app verified.'
+          printf '%s\n' 'CyberChef native app and runtime bridge verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
