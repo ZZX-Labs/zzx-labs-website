@@ -10,40 +10,54 @@
     function ready(fn) {
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", fn);
-        } else {
-            fn();
+            return;
         }
+
+        fn();
     }
 
     function status(text) {
         const el = $("cz-status");
-        if (el) el.textContent = text;
+
+        if (el) {
+            el.textContent = text;
+        }
     }
 
     function state(text) {
         const el = $("cz-frame-state");
-        if (el) el.textContent = text;
+
+        if (el) {
+            el.textContent = text;
+        }
     }
 
     function memoryStorage() {
         let mem = {};
 
         return {
-            getItem(k) {
-                return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+            getItem(key) {
+                return Object.prototype.hasOwnProperty.call(mem, key)
+                    ? mem[key]
+                    : null;
             },
-            setItem(k, v) {
-                mem[k] = String(v);
+
+            setItem(key, value) {
+                mem[key] = String(value);
             },
-            removeItem(k) {
-                delete mem[k];
+
+            removeItem(key) {
+                delete mem[key];
             },
+
             clear() {
                 mem = {};
             },
-            key(i) {
-                return Object.keys(mem)[i] || null;
+
+            key(index) {
+                return Object.keys(mem)[index] || null;
             },
+
             get length() {
                 return Object.keys(mem).length;
             }
@@ -52,10 +66,11 @@
 
     function safeStorage(name) {
         try {
-            const s = window[name];
-            const k = "__zzx_storage_test__";
-            s.setItem(k, "1");
-            s.removeItem(k);
+            const storage = window[name];
+            const key = "__zzx_storage_test__";
+
+            storage.setItem(key, "1");
+            storage.removeItem(key);
         } catch (err) {
             try {
                 Object.defineProperty(window, name, {
@@ -71,11 +86,11 @@
         safeStorage("sessionStorage");
 
         try {
-            const original = Storage.prototype.setItem;
+            const originalSetItem = Storage.prototype.setItem;
 
             Storage.prototype.setItem = function (key, value) {
                 try {
-                    return original.call(this, key, value);
+                    return originalSetItem.call(this, key, value);
                 } catch (err) {
                     if (
                         err &&
@@ -95,15 +110,19 @@
 
     function forceDark() {
         try {
-            localStorage.setItem(
-                "options",
-                JSON.stringify({
-                    theme: "dark",
-                    wordWrap: true,
-                    showErrors: true,
-                    updateUrl: true
-                })
-            );
+            const existing = localStorage.getItem("options");
+            const options = existing ? JSON.parse(existing) : {};
+
+            options.theme = "dark";
+            options.themeName = "dark";
+            options.darkMode = true;
+            options.wordWrap = true;
+            options.showErrors = true;
+            options.updateUrl = true;
+
+            localStorage.setItem("options", JSON.stringify(options));
+            localStorage.setItem("theme", "dark");
+            localStorage.setItem("cyberchef-theme", "dark");
         } catch (ignored) {}
 
         try {
@@ -119,44 +138,51 @@
     }
 
     function normalizeUrl(value) {
-        if (!value) return value;
-
-        if (value.startsWith("assets/")) {
-            return `app/${value}`;
+        if (!value) {
+            return value;
         }
 
         if (value.startsWith("./assets/")) {
-            return value.replace("./assets/", "app/assets/");
+            return value.replace("./assets/", "assets/");
         }
 
-        if (value === "script.js" || value === "./script.js") {
+        if (value === "./script.js" || value === "script.js") {
             return "app/script.js";
         }
 
-        if (value === "styles.css" || value === "./styles.css") {
+        if (value === "./styles.css" || value === "styles.css") {
             return "app/styles.css";
         }
 
         return value;
     }
 
-    function installContainmentCss() {
-        let style = document.getElementById("cz-runtime-containment-css");
+    function removeRuntimeAssets() {
+        document
+            .querySelectorAll("[data-cz-runtime-asset='true']")
+            .forEach((node) => node.remove());
+    }
 
-        if (style) {
-            style.remove();
+    function installContainmentCss() {
+        const existing = document.getElementById("cz-runtime-containment-css");
+
+        if (existing) {
+            existing.remove();
         }
 
-        style = document.createElement("style");
+        const style = document.createElement("style");
+
         style.id = "cz-runtime-containment-css";
         style.dataset.czRuntimeAsset = "true";
 
         style.textContent = `
             #cz-runtime {
                 position: relative !important;
-                min-height: 960px !important;
+                width: 100% !important;
+                height: 1250px !important;
+                min-height: 1250px !important;
                 overflow: auto !important;
-                background: #111 !important;
+                background: #111111 !important;
                 isolation: isolate !important;
             }
 
@@ -165,6 +191,7 @@
                 inset: 0 !important;
                 width: 100% !important;
                 height: 100% !important;
+                min-height: 100% !important;
                 z-index: 10 !important;
             }
 
@@ -175,42 +202,58 @@
                 pointer-events: none !important;
             }
 
+            #cz-runtime #loader-wrapper,
             #cz-runtime #content-wrapper,
             #cz-runtime #workspace-wrapper {
+                width: 1600px !important;
+                min-width: 1600px !important;
                 max-width: none !important;
+            }
+
+            #cz-runtime #content-wrapper {
+                min-height: 1160px !important;
+                transform: scale(var(--zzx-cyberchef-scale, 0.72));
+                transform-origin: top left;
+            }
+
+            #cz-runtime #workspace-wrapper {
+                height: 960px !important;
+                min-height: 960px !important;
+                overflow: hidden !important;
             }
         `;
 
         document.head.appendChild(style);
     }
 
-    function removeRuntimeAssets() {
-        document
-            .querySelectorAll("[data-cz-runtime-asset='true']")
-            .forEach((node) => node.remove());
-    }
-
     function installStyles(doc) {
         doc.querySelectorAll("link[rel='stylesheet']").forEach((link) => {
             const href = normalizeUrl(link.getAttribute("href"));
-            if (!href) return;
+
+            if (!href) {
+                return;
+            }
 
             const out = document.createElement("link");
+
             out.rel = "stylesheet";
             out.href = href;
             out.dataset.czRuntimeAsset = "true";
+
+            document.head.appendChild(out);
+        });
+
+        ["./upgrades.css", "./modifications.css"].forEach((href) => {
+            const out = document.createElement("link");
+
+            out.rel = "stylesheet";
+            out.href = href;
+            out.dataset.czRuntimeAsset = "true";
+
             document.head.appendChild(out);
         });
 
         installContainmentCss();
-
-        ["./upgrades.css", "./modifications.css"].forEach((href) => {
-            const out = document.createElement("link");
-            out.rel = "stylesheet";
-            out.href = href;
-            out.dataset.czRuntimeAsset = "true";
-            document.head.appendChild(out);
-        });
     }
 
     function collectScripts(doc) {
@@ -222,6 +265,7 @@
                 type: script.getAttribute("type") || "",
                 text: script.textContent || ""
             });
+
             script.remove();
         });
 
@@ -232,7 +276,11 @@
         root.querySelectorAll("*").forEach((node) => {
             ["src", "href", "data"].forEach((attr) => {
                 const value = node.getAttribute(attr);
-                if (!value) return;
+
+                if (!value) {
+                    return;
+                }
+
                 node.setAttribute(attr, normalizeUrl(value));
             });
         });
@@ -241,6 +289,7 @@
     function executeScript(entry) {
         return new Promise((resolve, reject) => {
             const script = document.createElement("script");
+
             script.dataset.czRuntimeAsset = "true";
 
             if (entry.type) {
@@ -249,15 +298,28 @@
 
             if (entry.src) {
                 script.src = entry.src;
+
                 script.onload = resolve;
-                script.onerror = reject;
+
+                script.onerror = () => {
+                    reject(
+                        new Error(
+                            `Failed to load runtime script: ${entry.src}`
+                        )
+                    );
+                };
+
                 document.body.appendChild(script);
                 return;
             }
 
-            script.textContent = entry.text;
-            document.body.appendChild(script);
-            resolve();
+            try {
+                script.textContent = entry.text;
+                document.body.appendChild(script);
+                resolve();
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 
@@ -311,7 +373,11 @@
         }
 
         if (source === "upstream") {
-            window.open("https://gchq.github.io/CyberChef/", "_blank", "noopener");
+            window.open(
+                "https://gchq.github.io/CyberChef/",
+                "_blank",
+                "noopener"
+            );
             return;
         }
 
@@ -342,10 +408,14 @@
             state("Fetching");
             status("Fetching CyberChef runtime...");
 
-            const response = await fetch(RUNTIME_HTML, { cache: "no-store" });
+            const response = await fetch(RUNTIME_HTML, {
+                cache: "no-store"
+            });
 
             if (!response.ok) {
-                throw new Error(`Failed to fetch ${RUNTIME_HTML}: HTTP ${response.status}`);
+                throw new Error(
+                    `Failed to fetch ${RUNTIME_HTML}: HTTP ${response.status}`
+                );
             }
 
             const html = await response.text();
@@ -359,7 +429,9 @@
             runtime.innerHTML = "";
 
             Array.from(doc.body.childNodes).forEach((node) => {
-                runtime.appendChild(document.importNode(node, true));
+                runtime.appendChild(
+                    document.importNode(node, true)
+                );
             });
 
             state("Executing");
@@ -381,7 +453,12 @@
             document.documentElement.classList.remove("cz-loading");
 
             state("Error");
-            status(err.message || "CyberChefZZX failed to load.");
+
+            status(
+                err && err.message
+                    ? err.message
+                    : "CyberChefZZX failed to load."
+            );
         }
     }
 
