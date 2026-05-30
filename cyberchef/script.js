@@ -163,6 +163,66 @@
             .forEach((node) => node.remove());
     }
 
+    function scopeCss(css, scope) {
+        return css.replace(
+            /(^|})\s*([^@{}][^{]+)\s*\{/g,
+            function (match, close, selector) {
+                const scoped = selector
+                    .split(",")
+                    .map((part) => {
+                        const s = part.trim();
+
+                        if (!s) {
+                            return s;
+                        }
+
+                        if (s.startsWith(scope)) {
+                            return s;
+                        }
+
+                        if (s === "html" || s === "body") {
+                            return scope;
+                        }
+
+                        if (s.startsWith("html ") || s.startsWith("body ")) {
+                            return `${scope} ${s.replace(/^(html|body)\s+/, "")}`;
+                        }
+
+                        return `${scope} ${s}`;
+                    })
+                    .join(", ");
+
+                return `${close} ${scoped} {`;
+            }
+        );
+    }
+
+    async function installScopedStylesheet(href, id) {
+        const existing = document.getElementById(id);
+
+        if (existing) {
+            existing.remove();
+        }
+
+        const response = await fetch(href, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load stylesheet: ${href}`);
+        }
+
+        const css = await response.text();
+
+        const style = document.createElement("style");
+
+        style.id = id;
+        style.dataset.czRuntimeAsset = "true";
+        style.textContent = scopeCss(css, "#cz-runtime");
+
+        document.head.appendChild(style);
+    }
+
     function installContainmentCss() {
         const existing = document.getElementById("cz-runtime-containment-css");
 
@@ -179,11 +239,17 @@
             #cz-runtime {
                 position: relative !important;
                 width: 100% !important;
-                height: 1250px !important;
-                min-height: 1250px !important;
+                height: 980px !important;
+                min-height: 980px !important;
+                max-height: none !important;
                 overflow: auto !important;
                 background: #111111 !important;
                 isolation: isolate !important;
+                contain: layout paint !important;
+            }
+
+            #cz-runtime * {
+                box-sizing: border-box !important;
             }
 
             #cz-runtime #loader-wrapper {
@@ -202,48 +268,99 @@
                 pointer-events: none !important;
             }
 
-            #cz-runtime #loader-wrapper,
-            #cz-runtime #content-wrapper,
+            #cz-runtime #content-wrapper {
+                position: relative !important;
+                width: 1500px !important;
+                min-width: 1500px !important;
+                max-width: none !important;
+                height: 1180px !important;
+                min-height: 1180px !important;
+
+                transform: scale(var(--zzx-cyberchef-scale, 0.65)) !important;
+                transform-origin: top left !important;
+            }
+
             #cz-runtime #workspace-wrapper {
-                width: 1600px !important;
-                min-width: 1600px !important;
+                position: relative !important;
+                width: 1500px !important;
+                min-width: 1500px !important;
+                max-width: none !important;
+                height: 980px !important;
+                min-height: 980px !important;
+                overflow: hidden !important;
+            }
+
+            #cz-runtime #banner,
+            #cz-runtime #content-wrapper,
+            #cz-runtime #workspace-wrapper,
+            #cz-runtime #operations,
+            #cz-runtime #recipe,
+            #cz-runtime #input,
+            #cz-runtime #output,
+            #cz-runtime #IO,
+            #cz-runtime .split {
                 max-width: none !important;
             }
 
-            #cz-runtime #content-wrapper {
-                min-height: 1160px !important;
-                transform: scale(var(--zzx-cyberchef-scale, 0.72));
-                transform-origin: top left;
+            #cz-runtime .modal,
+            #cz-runtime .modal-backdrop {
+                position: absolute !important;
             }
 
-            #cz-runtime #workspace-wrapper {
-                height: 960px !important;
-                min-height: 960px !important;
-                overflow: hidden !important;
+            body > #loader-wrapper {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+
+            @media (max-width: 1200px) {
+                #cz-runtime {
+                    height: 860px !important;
+                    min-height: 860px !important;
+                }
+
+                #cz-runtime #content-wrapper {
+                    transform: scale(0.56) !important;
+                }
+            }
+
+            @media (max-width: 760px) {
+                #cz-runtime {
+                    height: 760px !important;
+                    min-height: 760px !important;
+                }
+
+                #cz-runtime #content-wrapper {
+                    transform: scale(0.44) !important;
+                }
             }
         `;
 
         document.head.appendChild(style);
     }
 
-    function installStyles(doc) {
+    async function installStyles(doc) {
+        const stylesheets = [];
+
         doc.querySelectorAll("link[rel='stylesheet']").forEach((link) => {
             const href = normalizeUrl(link.getAttribute("href"));
 
-            if (!href) {
-                return;
+            if (href) {
+                stylesheets.push(href);
             }
-
-            const out = document.createElement("link");
-
-            out.rel = "stylesheet";
-            out.href = href;
-            out.dataset.czRuntimeAsset = "true";
-
-            document.head.appendChild(out);
         });
 
-        ["./upgrades.css", "./modifications.css"].forEach((href) => {
+        for (const href of stylesheets) {
+            await installScopedStylesheet(
+                href,
+                `cz-runtime-css-${href.replace(/[^a-z0-9]/gi, "-")}`
+            );
+        }
+
+        [
+            "./upgrades.css",
+            "./modifications.css"
+        ].forEach((href) => {
             const out = document.createElement("link");
 
             out.rel = "stylesheet";
@@ -422,7 +539,7 @@
             const doc = new DOMParser().parseFromString(html, "text/html");
 
             rewriteInlineUrls(doc);
-            installStyles(doc);
+            await installStyles(doc);
 
             const scripts = collectScripts(doc);
 
