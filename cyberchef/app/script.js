@@ -94,7 +94,12 @@
             var existing = localStorage.getItem("options");
             var options = existing ? JSON.parse(existing) : {};
 
-            options.theme = options.theme || "dark";
+            /*
+                Force dark every load. This is intentional for the native
+                ZZX-hosted app path, while keeping the upstream CyberChef
+                source files untouched.
+            */
+            options.theme = "dark";
             options.wordWrap = true;
             options.showErrors = true;
             options.updateUrl = true;
@@ -103,9 +108,29 @@
                 "options",
                 JSON.stringify(options)
             );
+
+            document.documentElement.className =
+                document.documentElement.className
+                    .replace(/\bclassic\b/g, "")
+                    .replace(/\bdark\b/g, "")
+                    .trim();
+
+            document.documentElement.classList.add("dark");
+
         } catch (e) {}
     }
 
     installStorageShim();
     setDefaultCyberChefOptions();
+
+    window.addEventListener("DOMContentLoaded", function () {
+        setDefaultCyberChefOptions();
+    });
+
+    window.addEventListener("load", function () {
+        setDefaultCyberChefOptions();
+
+        setTimeout(setDefaultCyberChefOptions, 250);
+        setTimeout(setDefaultCyberChefOptions, 1000);
+    });
 })();
