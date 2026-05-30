@@ -32,6 +32,54 @@
         }
     }
 
+    function updateStatus(text) {
+        const el = $("cz-status");
+
+        if (el) {
+            el.textContent = text;
+        }
+    }
+
+    function updateRuntimeState(text) {
+        const el = $("cz-frame-state");
+
+        if (el) {
+            el.textContent = text;
+        }
+    }
+
+    function updateSourceLabel(source) {
+        const el = $("cz-active-source");
+
+        if (!el) {
+            return;
+        }
+
+        if (source === "upstream") {
+            el.textContent = "GCHQ CyberChef";
+            return;
+        }
+
+        if (source === "native") {
+            el.textContent = "Native Local CyberChef";
+            return;
+        }
+
+        el.textContent = "CyberChefZZX Modified Instance";
+    }
+
+    function getSourceValue() {
+        return $("cz-source")?.value || cfg().defaultSource || "modified";
+    }
+
+    function setSourceValue(value) {
+        const source = $("cz-source");
+
+        if (source) {
+            source.value = value;
+        }
+    }
+
     function memoryStorage() {
         let mem = {};
 
@@ -120,68 +168,184 @@
         } catch (err) {}
     }
 
-    function setDefaultOptions() {
+    function forceDarkOptions() {
         try {
-            const existing = localStorage.getItem("options");
-            const options = existing ? JSON.parse(existing) : {};
+            localStorage.setItem(
+                "options",
+                JSON.stringify({
+                    theme: "dark",
+                    wordWrap: true,
+                    showErrors: true,
+                    updateUrl: true
+                })
+            );
+        } catch (err) {}
 
-            options.theme = "dark";
-            options.wordWrap = true;
-            options.showErrors = true;
-            options.updateUrl = true;
+        try {
+            document.documentElement.classList.remove(
+                "classic",
+                "geocities",
+                "solarizedDark",
+                "solarizedLight"
+            );
 
-            localStorage.setItem("options", JSON.stringify(options));
-
-            document.documentElement.classList.remove("classic");
             document.documentElement.classList.add("dark");
+        } catch (err) {}
+
+        try {
+            const themeSelect = document.querySelector("#theme");
+
+            if (themeSelect && themeSelect.value !== "dark") {
+                themeSelect.value = "dark";
+                themeSelect.dispatchEvent(
+                    new Event("change", {
+                        bubbles: true
+                    })
+                );
+            }
         } catch (err) {}
     }
 
-    function getSourceLabel(source) {
-        if (source === "upstream") {
-            return "GCHQ CyberChef";
+    function normalizeURL(value) {
+        if (!value) {
+            return value;
         }
 
-        if (source === "native") {
-            return "Native Local CyberChef";
+        if (
+            value.startsWith("assets/") ||
+            value.startsWith("./assets/")
+        ) {
+            return value.replace(/^\.?\/?assets\//, "app/assets/");
         }
 
-        return "CyberChefZZX Modified Instance";
-    }
-
-    function updateStatus(text) {
-        const el = $("cz-status");
-
-        if (el) {
-            el.textContent = text;
+        if (
+            value === "styles.css" ||
+            value === "./styles.css"
+        ) {
+            return "app/styles.css";
         }
-    }
 
-    function updateSourceLabel(source) {
-        const el = $("cz-active-source");
-
-        if (el) {
-            el.textContent = getSourceLabel(source);
+        if (
+            value === "script.js" ||
+            value === "./script.js"
+        ) {
+            return "app/script.js";
         }
+
+        return value;
     }
 
-    function updateRuntimeState(text) {
-        const el = $("cz-frame-state");
+    function rewriteNodeURLs(root) {
+        const attrs = ["src", "href", "data"];
 
-        if (el) {
-            el.textContent = text;
+        root.querySelectorAll("*").forEach((node) => {
+            for (const attr of attrs) {
+                const value = node.getAttribute(attr);
+
+                if (!value) {
+                    continue;
+                }
+
+                node.setAttribute(
+                    attr,
+                    normalizeURL(value)
+                );
+            }
+        });
+    }
+
+    function removeRuntimeAssets() {
+        document
+            .querySelectorAll("[data-cz-runtime-asset='true']")
+            .forEach((node) => node.remove());
+    }
+
+    function installStylesheet(href, id) {
+        const existing = document.getElementById(id);
+
+        if (existing) {
+            existing.remove();
         }
+
+        const link = document.createElement("link");
+
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = href;
+        link.dataset.czRuntimeAsset = "true";
+
+        document.head.appendChild(link);
     }
 
-    function getSourceValue() {
-        return $("cz-source")?.value || cfg().defaultSource || "modified";
+    function installRuntimeStyles(doc) {
+        doc.querySelectorAll("link[rel='stylesheet']").forEach((link) => {
+            const href = normalizeURL(link.getAttribute("href"));
+
+            if (!href) {
+                return;
+            }
+
+            if (
+                href.includes("main.css") ||
+                href.includes("styles.css")
+            ) {
+                installStylesheet(
+                    href,
+                    `cz-runtime-css-${href.replace(/[^a-z0-9]/gi, "-")}`
+                );
+            }
+        });
+
+        installStylesheet("app/styles.css", "cz-runtime-app-styles");
+        installStylesheet("./upgrades.css", "cz-runtime-upgrades");
+        installStylesheet("./modifications.css", "cz-runtime-modifications");
     }
 
-    function setSourceValue(value) {
-        const source = $("cz-source");
+    function collectScripts(doc) {
+        const scripts = [];
 
-        if (source) {
-            source.value = value;
+        doc.querySelectorAll("script").forEach((script) => {
+            scripts.push({
+                src: normalizeURL(script.getAttribute("src")),
+                text: script.textContent || "",
+                type: script.getAttribute("type") || "",
+                defer: script.hasAttribute("defer")
+            });
+
+            script.remove();
+        });
+
+        return scripts;
+    }
+
+    function executeScript(entry) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+
+            script.dataset.czRuntimeAsset = "true";
+
+            if (entry.type) {
+                script.type = entry.type;
+            }
+
+            if (entry.src) {
+                script.src = entry.src;
+                script.onload = resolve;
+                script.onerror = reject;
+
+                document.body.appendChild(script);
+                return;
+            }
+
+            script.textContent = entry.text;
+            document.body.appendChild(script);
+            resolve();
+        });
+    }
+
+    async function runScriptsSequentially(scripts) {
+        for (const entry of scripts) {
+            await executeScript(entry);
         }
     }
 
@@ -206,116 +370,19 @@
             cfg().nativeUrl || "./app/";
     }
 
-    function rewriteNodeURLs(root) {
-        const attrs = ["src", "href", "data"];
-
-        root.querySelectorAll("*").forEach((node) => {
-            for (const attr of attrs) {
-                const value = node.getAttribute(attr);
-
-                if (!value) {
-                    continue;
-                }
-
-                if (
-                    value.startsWith("assets/") ||
-                    value.startsWith("./assets/")
-                ) {
-                    node.setAttribute(
-                        attr,
-                        value.replace(/^\.?\/?assets\//, "app/assets/")
-                    );
-                }
-
-                if (
-                    value === "styles.css" ||
-                    value === "./styles.css"
-                ) {
-                    node.setAttribute(attr, "app/styles.css");
-                }
-
-                if (
-                    value === "script.js" ||
-                    value === "./script.js"
-                ) {
-                    node.setAttribute(attr, "app/script.js");
-                }
-            }
-        });
-    }
-
-    function collectExecutableScripts(doc) {
-        const scripts = [];
-
-        doc.querySelectorAll("script").forEach((script) => {
-            scripts.push({
-                src: script.getAttribute("src"),
-                text: script.textContent || "",
-                type: script.getAttribute("type") || ""
-            });
-
-            script.remove();
-        });
-
-        return scripts;
-    }
-
-    function executeScript(entry) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement("script");
-
-            if (entry.type) {
-                script.type = entry.type;
-            }
-
-            if (entry.src) {
-                let src = entry.src;
-
-                if (
-                    src.startsWith("assets/") ||
-                    src.startsWith("./assets/")
-                ) {
-                    src = src.replace(/^\.?\/?assets\//, "app/assets/");
-                }
-
-                if (
-                    src === "script.js" ||
-                    src === "./script.js"
-                ) {
-                    src = "app/script.js";
-                }
-
-                script.src = src;
-                script.onload = resolve;
-                script.onerror = reject;
-
-                document.body.appendChild(script);
-                return;
-            }
-
-            script.textContent = entry.text;
-            document.body.appendChild(script);
-            resolve();
-        });
-    }
-
-    async function runScriptsSequentially(scripts) {
-        for (const script of scripts) {
-            await executeScript(script);
-        }
-    }
-
     async function loadCyberChefFragment() {
         const runtime = $("cz-runtime");
 
         if (!runtime) {
-            updateRuntimeState("Error");
-            updateStatus("Missing #cz-runtime container.");
-            return;
+            throw new Error("Missing #cz-runtime container.");
         }
 
         updateRuntimeState("Fetching");
         updateStatus("Fetching CyberChefZZX runtime...");
+
+        removeRuntimeAssets();
+        installStorageShim();
+        forceDarkOptions();
 
         const response = await fetch("./cyberchef.html", {
             cache: "no-store"
@@ -329,12 +396,13 @@
 
         const html = await response.text();
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
+        const doc = new DOMParser()
+            .parseFromString(html, "text/html");
 
         rewriteNodeURLs(doc);
+        installRuntimeStyles(doc);
 
-        const scripts = collectExecutableScripts(doc);
+        const scripts = collectScripts(doc);
 
         runtime.innerHTML = "";
 
@@ -348,6 +416,10 @@
         updateStatus("Executing CyberChef runtime scripts...");
 
         await runScriptsSequentially(scripts);
+
+        setTimeout(forceDarkOptions, 100);
+        setTimeout(forceDarkOptions, 500);
+        setTimeout(forceDarkOptions, 1500);
 
         updateRuntimeState("Ready");
         updateStatus("CyberChefZZX workspace ready.");
@@ -390,9 +462,6 @@
             document.documentElement.classList.add("cz-loading");
             document.documentElement.classList.remove("cz-ready");
             document.documentElement.classList.remove("cz-error");
-
-            installStorageShim();
-            setDefaultOptions();
 
             await loadCyberChefFragment();
         } catch (err) {
@@ -441,10 +510,10 @@
         $("cz-refresh")?.addEventListener("click", refreshCyberChef);
 
         installStorageShim();
-        setDefaultOptions();
+        forceDarkOptions();
 
         loadCyberChef();
 
-        console.info("[CyberChefZZX] Fragment runtime loader initialized.");
+        console.info("[CyberChefZZX] Runtime bridge initialized.");
     });
 })();
