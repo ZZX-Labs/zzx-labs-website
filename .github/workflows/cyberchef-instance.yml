@@ -92,123 +92,69 @@ jobs:
           cp "$CYBERCHEF_HTML" _site/cyberchef/app/index.html
           cp "$CYBERCHEF_HTML" _site/cyberchef/cyberchef.html
 
-      - name: Generate app shim files
+      - name: Generate dark theme shim
         run: |
-          cat > _site/cyberchef/app/styles.css << 'EOF'
-          @import url("assets/main.css");
-          EOF
-
           cat > _site/cyberchef/app/script.js << 'EOF'
           (function () {
               "use strict";
 
-              function memoryStorage() {
-                  var mem = {};
-
-                  return {
-                      getItem: function (k) {
-                          return Object.prototype.hasOwnProperty.call(mem, k)
-                              ? mem[k]
-                              : null;
-                      },
-                      setItem: function (k, v) {
-                          mem[k] = String(v);
-                      },
-                      removeItem: function (k) {
-                          delete mem[k];
-                      },
-                      clear: function () {
-                          mem = {};
-                      },
-                      key: function (i) {
-                          return Object.keys(mem)[i] || null;
-                      },
-                      get length() {
-                          return Object.keys(mem).length;
-                      }
-                  };
-              }
-
-              function storageWorks(name) {
+              function forceDark() {
                   try {
-                      var s = window[name];
-                      var k = "__zzx_storage_test__";
+                      localStorage.setItem(
+                          "options",
+                          JSON.stringify({
+                              theme: "dark",
+                              wordWrap: true,
+                              showErrors: true,
+                              updateUrl: true
+                          })
+                      );
+                  } catch (e) {}
 
-                      s.setItem(k, "1");
-                      s.removeItem(k);
+                  try {
+                      document.documentElement.classList.remove(
+                          "classic",
+                          "geocities",
+                          "solarizedDark",
+                          "solarizedLight"
+                      );
 
-                      return true;
-                  } catch (e) {
-                      return false;
-                  }
+                      document.documentElement.classList.add("dark");
+                  } catch (e) {}
+
+                  try {
+                      var themeSelect = document.querySelector("#theme");
+
+                      if (themeSelect && themeSelect.value !== "dark") {
+                          themeSelect.value = "dark";
+                          themeSelect.dispatchEvent(
+                              new Event("change", {
+                                  bubbles: true
+                              })
+                          );
+                      }
+                  } catch (e) {}
               }
 
-              try {
-                  if (!storageWorks("localStorage")) {
-                      Object.defineProperty(window, "localStorage", {
-                          configurable: true,
-                          value: memoryStorage()
-                      });
-                  }
-              } catch (e) {}
+              forceDark();
 
-              try {
-                  if (!storageWorks("sessionStorage")) {
-                      Object.defineProperty(window, "sessionStorage", {
-                          configurable: true,
-                          value: memoryStorage()
-                      });
-                  }
-              } catch (e) {}
+              document.addEventListener("DOMContentLoaded", function () {
+                  forceDark();
+                  setTimeout(forceDark, 50);
+                  setTimeout(forceDark, 250);
+                  setTimeout(forceDark, 1000);
+              });
 
-              try {
-                  var originalSetItem = Storage.prototype.setItem;
-
-                  Storage.prototype.setItem = function (key, value) {
-                      try {
-                          return originalSetItem.call(this, key, value);
-                      } catch (e) {
-                          if (
-                              e &&
-                              (
-                                  e.name === "QuotaExceededError" ||
-                                  e.name === "NS_ERROR_DOM_QUOTA_REACHED"
-                              )
-                          ) {
-                              return null;
-                          }
-
-                          throw e;
-                      }
-                  };
-              } catch (e) {}
-
-              try {
-                  var existing = localStorage.getItem("options");
-                  var options = existing ? JSON.parse(existing) : {};
-
-                  options.theme = "dark";
-                  options.wordWrap = true;
-                  options.showErrors = true;
-                  options.updateUrl = true;
-
-                  localStorage.setItem(
-                      "options",
-                      JSON.stringify(options)
-                  );
-
-                  document.documentElement.className =
-                      document.documentElement.className
-                          .replace(/\bclassic\b/g, "")
-                          .replace(/\bdark\b/g, "")
-                          .trim();
-
-                  document.documentElement.classList.add("dark");
-              } catch (e) {}
+              window.addEventListener("load", function () {
+                  forceDark();
+                  setTimeout(forceDark, 250);
+                  setTimeout(forceDark, 1000);
+                  setTimeout(forceDark, 2500);
+              });
           })();
           EOF
 
-      - name: Patch app native HTML to use shim files
+      - name: Patch app native HTML with dark shim only
         run: |
           python3 - << 'PY'
           from pathlib import Path
@@ -231,20 +177,14 @@ jobs:
               html = html.replace(old, new)
 
           html = re.sub(
-              r'<link\s+href=["\']assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
-              '<link rel="stylesheet" href="styles.css">',
+              r'<html([^>]*)class=["\']classic["\']',
+              r'<html\1class="dark"',
               html,
+              count=1,
               flags=re.I
           )
 
-          html = re.sub(
-              r'<link\s+rel=["\']stylesheet["\']\s+href=["\']assets/main\.css["\']\s*/?>',
-              '<link rel="stylesheet" href="styles.css">',
-              html,
-              flags=re.I
-          )
-
-          if "script.js" not in html:
+          if 'src="script.js"' not in html and "src='script.js'" not in html:
               html = re.sub(
                   r'(<script[^>]+src=["\']assets/main\.js["\'][^>]*></script>)',
                   '<script src="script.js"></script>\n\\1',
@@ -281,31 +221,20 @@ jobs:
               'url("assets/': 'url("app/assets/',
               "url('assets/": "url('app/assets/",
               'url(assets/': 'url(app/assets/',
-
-              'href="styles.css"': 'href="app/styles.css"',
-              "href='styles.css'": "href='app/styles.css'",
-              'src="script.js"': 'src="app/script.js"',
-              "src='script.js'": "src='app/script.js'",
           }
 
           for old, new in replacements.items():
               html = html.replace(old, new)
 
           html = re.sub(
-              r'<link\s+href=["\']app/assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
-              '<link rel="stylesheet" href="app/styles.css">',
+              r'<html([^>]*)class=["\']classic["\']',
+              r'<html\1class="dark"',
               html,
+              count=1,
               flags=re.I
           )
 
-          html = re.sub(
-              r'<link\s+rel=["\']stylesheet["\']\s+href=["\']app/assets/main\.css["\']\s*/?>',
-              '<link rel="stylesheet" href="app/styles.css">',
-              html,
-              flags=re.I
-          )
-
-          if "app/script.js" not in html:
+          if 'src="app/script.js"' not in html and "src='app/script.js'" not in html:
               html = re.sub(
                   r'(<script[^>]+src=["\']app/assets/main\.js["\'][^>]*></script>)',
                   '<script src="app/script.js"></script>\n\\1',
@@ -386,25 +315,23 @@ jobs:
 
           test -f _site/cyberchef/app/index.html
           test -f _site/cyberchef/app/native.html
-          test -f _site/cyberchef/app/styles.css
           test -f _site/cyberchef/app/script.js
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
 
           printf '%s\n' '--- app/index.html script refs ---'
-          grep -nE 'script|main\.js|script\.js' _site/cyberchef/app/index.html || true
+          grep -nE 'script|main\.js|script\.js|main\.css' _site/cyberchef/app/index.html || true
 
           printf '%s\n' '--- cyberchef.html script/style refs ---'
-          grep -nE 'main\.js|main\.css|styles\.css|script\.js|app/' _site/cyberchef/cyberchef.html || true
+          grep -nE 'main\.js|main\.css|script\.js|app/' _site/cyberchef/cyberchef.html || true
 
           grep -q 'script.js' _site/cyberchef/app/index.html
           grep -q 'assets/main.js' _site/cyberchef/app/index.html
-          grep -q 'assets/main.css' _site/cyberchef/app/styles.css
-          grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
-          grep -q 'theme = "dark"' _site/cyberchef/app/script.js
+          grep -q 'assets/main.css' _site/cyberchef/app/index.html
+          grep -q 'theme: "dark"' _site/cyberchef/app/script.js
 
           grep -q 'app/assets/main.js' _site/cyberchef/cyberchef.html
-          grep -q 'app/styles.css' _site/cyberchef/cyberchef.html
+          grep -q 'app/assets/main.css' _site/cyberchef/cyberchef.html
           grep -q 'app/script.js' _site/cyberchef/cyberchef.html
 
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
