@@ -69,30 +69,85 @@ body.cz-theme-tactical #cz-active-source {
     color: var(--cz-theme-accent);
 }
 
+/* CyberChef embedded runtime canvas */
+
+#cz-runtime,
 .cz-runtime {
-    height: 78vh;
-    min-height: 720px;
-    max-height: none;
+    position: relative !important;
+
+    width: 100% !important;
+    height: 1250px !important;
+    min-height: 1250px !important;
+    max-height: none !important;
 
     overflow: auto !important;
 
-    background: var(--cz-native-bg);
+    background: var(--cz-native-bg) !important;
+
+    isolation: isolate !important;
 }
+
+/* CyberChef expects a wide application viewport. */
+
+#cz-runtime #loader-wrapper,
+#cz-runtime #content-wrapper,
+#cz-runtime #workspace-wrapper {
+    width: 1600px !important;
+    min-width: 1600px !important;
+    max-width: none !important;
+}
+
+/* Scale the native CyberChef application into the ZZX panel. */
+
+#cz-runtime #content-wrapper {
+    height: 1160px !important;
+    min-height: 1160px !important;
+
+    transform: scale(var(--zzx-cyberchef-scale));
+    transform-origin: top left;
+}
+
+#cz-runtime #workspace-wrapper {
+    height: 960px !important;
+    min-height: 960px !important;
+
+    overflow: hidden !important;
+}
+
+/* Keep CyberChef loader inside the runtime instead of covering the ZZX page. */
+
+#cz-runtime #loader-wrapper {
+    position: absolute !important;
+    inset: 0 !important;
+
+    height: 100% !important;
+    min-height: 100% !important;
+
+    z-index: 10 !important;
+}
+
+html.cz-ready #cz-runtime #loader-wrapper,
+#cz-runtime.cz-runtime-ready #loader-wrapper {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Prevent old iframe rules from affecting injected CyberChef DOM. */
 
 .cz-frame,
 #cz-frame {
     display: block;
 
-    width: calc(100% / var(--zzx-cyberchef-scale));
-    height: calc(100% / var(--zzx-cyberchef-scale));
-    min-height: calc(720px / var(--zzx-cyberchef-scale));
-
-    transform: scale(var(--zzx-cyberchef-scale));
-    transform-origin: top left;
+    width: 100%;
+    height: 100%;
+    min-height: 720px;
 
     border: 0;
     background: var(--cz-native-bg);
 }
+
+/* Theme variants */
 
 body.cz-theme-amber {
     --cz-theme-accent: #c79c6e;
@@ -121,6 +176,8 @@ body.cz-theme-monochrome {
     --cz-theme-accent: #d1d1d1;
     --cz-theme-gold: #9a9a9a;
 }
+
+/* Compact / fullscreen controls */
 
 .cz-compact .cz-grid,
 .cz-compact .cz-credit-grid {
@@ -156,9 +213,10 @@ body.cz-fullscreen-tool {
     padding: 0.5rem;
 }
 
+.cz-fullscreen-tool #cz-runtime,
 .cz-fullscreen-tool .cz-runtime {
-    height: 88vh !important;
-    min-height: 760px !important;
+    height: 1450px !important;
+    min-height: 1450px !important;
     overflow: auto !important;
 }
 
@@ -168,32 +226,64 @@ body.cz-fullscreen-tool {
     display: none;
 }
 
+.cz-analyst-mode #cz-runtime,
 .cz-analyst-mode .cz-runtime {
-    min-height: 760px !important;
+    min-height: 1250px !important;
 }
+
+/* Responsive scaling */
 
 @media (max-width: 1600px) {
     :root {
-        --zzx-cyberchef-scale: 0.78;
+        --zzx-cyberchef-scale: 0.68;
+    }
+
+    #cz-runtime,
+    .cz-runtime {
+        height: 1120px !important;
+        min-height: 1120px !important;
     }
 }
 
 @media (max-width: 1200px) {
     :root {
-        --zzx-cyberchef-scale: 0.84;
+        --zzx-cyberchef-scale: 0.58;
+    }
+
+    #cz-runtime,
+    .cz-runtime {
+        height: 1020px !important;
+        min-height: 1020px !important;
     }
 }
 
 @media (max-width: 900px) {
     :root {
-        --zzx-cyberchef-scale: 1;
+        --zzx-cyberchef-scale: 0.48;
     }
 
-    .cz-frame,
-    #cz-frame {
-        width: 100%;
-        height: 100%;
-        min-height: 720px;
-        transform: none;
+    #cz-runtime,
+    .cz-runtime {
+        height: 900px !important;
+        min-height: 900px !important;
+    }
+
+    #cz-runtime #loader-wrapper,
+    #cz-runtime #content-wrapper,
+    #cz-runtime #workspace-wrapper {
+        width: 1500px !important;
+        min-width: 1500px !important;
+    }
+}
+
+@media (max-width: 520px) {
+    :root {
+        --zzx-cyberchef-scale: 0.42;
+    }
+
+    #cz-runtime,
+    .cz-runtime {
+        height: 820px !important;
+        min-height: 820px !important;
     }
 }
