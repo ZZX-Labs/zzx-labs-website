@@ -98,6 +98,95 @@ jobs:
           from pathlib import Path
           import re
 
+          STORAGE_SHIM = r'''<script>
+          (function () {
+              "use strict";
+
+              function memoryStorage() {
+                  var mem = {};
+                  return {
+                      getItem: function (k) {
+                          return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+                      },
+                      setItem: function (k, v) {
+                          mem[k] = String(v);
+                      },
+                      removeItem: function (k) {
+                          delete mem[k];
+                      },
+                      clear: function () {
+                          mem = {};
+                      },
+                      key: function (i) {
+                          return Object.keys(mem)[i] || null;
+                      },
+                      get length() {
+                          return Object.keys(mem).length;
+                      }
+                  };
+              }
+
+              function forceSafeStorage(name) {
+                  try {
+                      var real = window[name];
+                      var key = "__zzx_storage_test__";
+                      real.setItem(key, "1");
+                      real.removeItem(key);
+                  } catch (e) {
+                      try {
+                          Object.defineProperty(window, name, {
+                              configurable: true,
+                              value: memoryStorage()
+                          });
+                      } catch (ignored) {}
+                  }
+              }
+
+              forceSafeStorage("localStorage");
+              forceSafeStorage("sessionStorage");
+
+              try {
+                  localStorage.setItem(
+                      "options",
+                      JSON.stringify({
+                          theme: "dark",
+                          wordWrap: true,
+                          showErrors: true,
+                          updateUrl: true
+                      })
+                  );
+
+                  document.documentElement.classList.remove(
+                      "classic",
+                      "geocities",
+                      "solarizedDark",
+                      "solarizedLight"
+                  );
+
+                  document.documentElement.classList.add("dark");
+              } catch (e) {}
+          })();
+          </script>'''
+
+          def insert_shim_before_main(html, main_src):
+              if "__zzx_storage_test__" in html:
+                  return html
+
+              pattern = rf'(<script[^>]+src=["\']{re.escape(main_src)}["\'][^>]*></script>)'
+
+              patched = re.sub(
+                  pattern,
+                  STORAGE_SHIM + "\n\\1",
+                  html,
+                  count=1,
+                  flags=re.I
+              )
+
+              if patched == html:
+                  patched = html.replace("</head>", STORAGE_SHIM + "\n</head>")
+
+              return patched
+
           def patch_app(path):
               html = path.read_text(encoding="utf-8", errors="ignore")
 
@@ -122,6 +211,7 @@ jobs:
                   flags=re.I
               )
 
+              html = insert_shim_before_main(html, "assets/main.js")
               path.write_text(html, encoding="utf-8")
 
           def patch_runtime(path):
@@ -135,7 +225,6 @@ jobs:
                   'url("/assets/': 'url("app/assets/',
                   "url('/assets/": "url('app/assets/",
                   'url(/assets/': 'url(app/assets/',
-
                   'href="assets/': 'href="app/assets/',
                   "href='assets/": "href='app/assets/",
                   'src="assets/': 'src="app/assets/',
@@ -164,6 +253,7 @@ jobs:
                   flags=re.I | re.S
               )
 
+              html = insert_shim_before_main(html, "app/assets/main.js")
               path.write_text(html, encoding="utf-8")
 
           patch_app(Path("_site/cyberchef/app/index.html"))
@@ -245,8 +335,12 @@ jobs:
 
           grep -q 'assets/main.css' _site/cyberchef/app/index.html
           grep -q 'assets/main.js' _site/cyberchef/app/index.html
+          grep -q '__zzx_storage_test__' _site/cyberchef/app/index.html
+
           grep -q 'app/assets/main.css' _site/cyberchef/cyberchef.html
           grep -q 'app/assets/main.js' _site/cyberchef/cyberchef.html
+          grep -q '__zzx_storage_test__' _site/cyberchef/cyberchef.html
+
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
 
