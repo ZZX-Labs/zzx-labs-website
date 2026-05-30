@@ -50,6 +50,8 @@ jobs:
           test -f _site/cyberchef/container.js
           test -f _site/cyberchef/upgrades.css
           test -f _site/cyberchef/upgrades.js
+          test -f _site/cyberchef/modifications.css
+          test -f _site/cyberchef/modifications.js
 
       - name: Download CyberChef v11.0.0
         run: |
@@ -84,185 +86,141 @@ jobs:
             exit 1
           fi
 
-          cp "$CYBERCHEF_HTML" "_site/cyberchef/app/index.html"
           cp "$CYBERCHEF_HTML" "_site/cyberchef/app/native.html"
 
-      - name: Generate CyberChef app bridge files
+      - name: Generate CyberChef app shim files
         run: |
+          cat > _site/cyberchef/app/index.html << 'EOF'
+          <link rel="stylesheet" href="styles.css">
+          <script src="script.js"></script>
+          EOF
+
           cat > _site/cyberchef/app/styles.css << 'EOF'
           @import url("assets/main.css");
-
-          :root {
-            --zzx-accent: #c0d674;
-            --zzx-gold: #c79c6e;
-            --zzx-bg: #282828;
-            --zzx-panel: #333333;
-            --zzx-border: #444444;
-            --zzx-text: #d1d1d1;
-          }
-
-          body,
-          body.classic,
-          html.classic body {
-            background: var(--zzx-bg);
-          }
-
-          #banner {
-            border-bottom: 1px solid var(--zzx-border);
-          }
           EOF
 
           cat > _site/cyberchef/app/script.js << 'EOF'
           (function () {
-            window.ZZX = window.ZZX || {};
-            window.ZZX.CYBERCHEF_APP = {
-              version: "v11.0.0",
-              bridge: true,
-              nativeAssets: "assets/"
-            };
+              "use strict";
+
+              function installStorageShim() {
+                  function memoryStorage() {
+                      var mem = {};
+
+                      return {
+                          getItem: function (k) {
+                              return Object.prototype.hasOwnProperty.call(mem, k)
+                                  ? mem[k]
+                                  : null;
+                          },
+
+                          setItem: function (k, v) {
+                              mem[k] = String(v);
+                          },
+
+                          removeItem: function (k) {
+                              delete mem[k];
+                          },
+
+                          clear: function () {
+                              mem = {};
+                          },
+
+                          key: function (i) {
+                              return Object.keys(mem)[i] || null;
+                          },
+
+                          get length() {
+                              return Object.keys(mem).length;
+                          }
+                      };
+                  }
+
+                  function storageWorks(name) {
+                      try {
+                          var s = window[name];
+                          var k = "__zzx_storage_test__";
+
+                          s.setItem(k, "1");
+                          s.removeItem(k);
+
+                          return true;
+                      } catch (e) {
+                          return false;
+                      }
+                  }
+
+                  try {
+                      if (!storageWorks("localStorage")) {
+                          Object.defineProperty(window, "localStorage", {
+                              configurable: true,
+                              value: memoryStorage()
+                          });
+                      }
+                  } catch (e) {}
+
+                  try {
+                      if (!storageWorks("sessionStorage")) {
+                          Object.defineProperty(window, "sessionStorage", {
+                              configurable: true,
+                              value: memoryStorage()
+                          });
+                      }
+                  } catch (e) {}
+
+                  try {
+                      var originalSetItem = Storage.prototype.setItem;
+
+                      Storage.prototype.setItem = function (key, value) {
+                          try {
+                              return originalSetItem.call(this, key, value);
+                          } catch (e) {
+                              if (
+                                  e &&
+                                  (
+                                      e.name === "QuotaExceededError" ||
+                                      e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                                  )
+                              ) {
+                                  return null;
+                              }
+
+                              throw e;
+                          }
+                      };
+                  } catch (e) {}
+              }
+
+              function setDefaultCyberChefOptions() {
+                  try {
+                      var existing = localStorage.getItem("options");
+                      var options = existing ? JSON.parse(existing) : {};
+
+                      options.theme = options.theme || "dark";
+                      options.wordWrap = true;
+                      options.showErrors = true;
+
+                      localStorage.setItem(
+                          "options",
+                          JSON.stringify(options)
+                      );
+                  } catch (e) {}
+              }
+
+              function loadCyberChefMain() {
+                  var script = document.createElement("script");
+
+                  script.src = "assets/main.js";
+                  script.defer = false;
+
+                  document.head.appendChild(script);
+              }
+
+              installStorageShim();
+              setDefaultCyberChefOptions();
+              loadCyberChefMain();
           })();
           EOF
-
-      - name: Patch native CyberChef HTML safely
-        run: |
-          python3 - << 'PY'
-          from pathlib import Path
-          import re
-
-          index = Path("_site/cyberchef/app/index.html")
-          html = index.read_text(encoding="utf-8", errors="ignore")
-
-          shim = r'''<script>
-          (function () {
-            function memoryStorage() {
-              var mem = {};
-              return {
-                getItem: function (k) {
-                  return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
-                },
-                setItem: function (k, v) {
-                  mem[k] = String(v);
-                },
-                removeItem: function (k) {
-                  delete mem[k];
-                },
-                clear: function () {
-                  mem = {};
-                },
-                key: function (i) {
-                  return Object.keys(mem)[i] || null;
-                },
-                get length() {
-                  return Object.keys(mem).length;
-                }
-              };
-            }
-
-            function storageWorks(name) {
-              try {
-                var s = window[name];
-                var k = "__zzx_storage_test__";
-                s.setItem(k, "1");
-                s.removeItem(k);
-                return true;
-              } catch (e) {
-                return false;
-              }
-            }
-
-            try {
-              if (!storageWorks("localStorage")) {
-                Object.defineProperty(window, "localStorage", {
-                  configurable: true,
-                  value: memoryStorage()
-                });
-              }
-            } catch (e) {}
-
-            try {
-              if (!storageWorks("sessionStorage")) {
-                Object.defineProperty(window, "sessionStorage", {
-                  configurable: true,
-                  value: memoryStorage()
-                });
-              }
-            } catch (e) {}
-
-            try {
-              var originalSetItem = Storage.prototype.setItem;
-              Storage.prototype.setItem = function (key, value) {
-                try {
-                  return originalSetItem.call(this, key, value);
-                } catch (e) {
-                  if (
-                    e &&
-                    (
-                      e.name === "QuotaExceededError" ||
-                      e.name === "NS_ERROR_DOM_QUOTA_REACHED"
-                    )
-                  ) {
-                    return null;
-                  }
-                  throw e;
-                }
-              };
-            } catch (e) {}
-          })();
-          </script>'''
-
-          replacements = {
-              'href="/assets/': 'href="assets/',
-              "href='/assets/": "href='assets/",
-              'src="/assets/': 'src="assets/',
-              "src='/assets/": "src='assets/",
-              'url("/assets/': 'url("assets/',
-              "url('/assets/": "url('assets/",
-              'url(/assets/': 'url(assets/',
-          }
-
-          for old, new in replacements.items():
-              html = html.replace(old, new)
-
-          if "__zzx_storage_test__" not in html:
-              html = re.sub(
-                  r"<head>",
-                  "<head>\n" + shim + "\n",
-                  html,
-                  count=1,
-                  flags=re.I
-              )
-
-          html = re.sub(
-              r'<link\s+href=["\']assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
-              '<link rel="stylesheet" href="styles.css">',
-              html,
-              flags=re.I
-          )
-
-          html = re.sub(
-              r'<link\s+rel=["\']stylesheet["\']\s+href=["\']assets/main\.css["\']\s*/?>',
-              '<link rel="stylesheet" href="styles.css">',
-              html,
-              flags=re.I
-          )
-
-          if 'href="styles.css"' not in html and "href='styles.css'" not in html:
-              html = html.replace(
-                  "</head>",
-                  '<link rel="stylesheet" href="styles.css">\n</head>'
-              )
-
-          if 'src="script.js"' not in html and "src='script.js'" not in html:
-              html = re.sub(
-                  r'(<script[^>]+src=["\']assets/main\.js["\'][^>]*></script>)',
-                  '<script src="script.js"></script>\n\\1',
-                  html,
-                  count=1,
-                  flags=re.I
-              )
-
-          index.write_text(html, encoding="utf-8")
-          PY
 
       - name: Add attribution and license notices
         run: |
@@ -325,6 +283,8 @@ jobs:
           test -f _site/cyberchef/container.js
           test -f _site/cyberchef/upgrades.css
           test -f _site/cyberchef/upgrades.js
+          test -f _site/cyberchef/modifications.css
+          test -f _site/cyberchef/modifications.js
 
           test -f _site/cyberchef/app/index.html
           test -f _site/cyberchef/app/native.html
@@ -333,12 +293,13 @@ jobs:
           test -f _site/cyberchef/app/assets/main.css
           test -f _site/cyberchef/app/assets/main.js
 
-          grep -q '__zzx_storage_test__' _site/cyberchef/app/index.html
           grep -q 'href="styles.css"' _site/cyberchef/app/index.html
           grep -q 'src="script.js"' _site/cyberchef/app/index.html
-          grep -q 'src="assets/main.js"' _site/cyberchef/app/index.html
+          grep -q '@import url("assets/main.css")' _site/cyberchef/app/styles.css
+          grep -q 'assets/main.js' _site/cyberchef/app/script.js
+          grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
 
-          printf '%s\n' 'CyberChef wrapper files, bridge files, and native app verified.'
+          printf '%s\n' 'CyberChef wrapper files, app shim files, and native assets verified.'
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
