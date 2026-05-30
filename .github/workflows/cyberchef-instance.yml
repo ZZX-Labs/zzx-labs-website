@@ -41,7 +41,7 @@ jobs:
             --exclude "cyberchef/app" \
             ./ _site/
 
-      - name: Verify ZZX CyberChef files
+      - name: Verify ZZX CyberChef wrapper files
         run: |
           test -f _site/cyberchef/index.html
           test -f _site/cyberchef/styles.css
@@ -52,6 +52,8 @@ jobs:
           test -f _site/cyberchef/upgrades.js
           test -f _site/cyberchef/modifications.css
           test -f _site/cyberchef/modifications.js
+          grep -q 'id="cz-frame"' _site/cyberchef/index.html
+          grep -q 'CyberChefZZX' _site/cyberchef/index.html
 
       - name: Download CyberChef v11.0.0
         run: |
@@ -99,113 +101,114 @@ jobs:
           (function () {
               "use strict";
 
-              function installStorageShim() {
-                  function memoryStorage() {
-                      var mem = {};
+              function memoryStorage() {
+                  var mem = {};
 
-                      return {
-                          getItem: function (k) {
-                              return Object.prototype.hasOwnProperty.call(mem, k)
-                                  ? mem[k]
-                                  : null;
-                          },
+                  return {
+                      getItem: function (k) {
+                          return Object.prototype.hasOwnProperty.call(mem, k)
+                              ? mem[k]
+                              : null;
+                      },
 
-                          setItem: function (k, v) {
-                              mem[k] = String(v);
-                          },
+                      setItem: function (k, v) {
+                          mem[k] = String(v);
+                      },
 
-                          removeItem: function (k) {
-                              delete mem[k];
-                          },
+                      removeItem: function (k) {
+                          delete mem[k];
+                      },
 
-                          clear: function () {
-                              mem = {};
-                          },
+                      clear: function () {
+                          mem = {};
+                      },
 
-                          key: function (i) {
-                              return Object.keys(mem)[i] || null;
-                          },
+                      key: function (i) {
+                          return Object.keys(mem)[i] || null;
+                      },
 
-                          get length() {
-                              return Object.keys(mem).length;
-                          }
-                      };
+                      get length() {
+                          return Object.keys(mem).length;
+                      }
+                  };
+              }
+
+              function storageWorks(name) {
+                  try {
+                      var s = window[name];
+                      var k = "__zzx_storage_test__";
+
+                      s.setItem(k, "1");
+                      s.removeItem(k);
+
+                      return true;
+                  } catch (e) {
+                      return false;
                   }
+              }
 
-                  function storageWorks(name) {
+              try {
+                  if (!storageWorks("localStorage")) {
+                      Object.defineProperty(window, "localStorage", {
+                          configurable: true,
+                          value: memoryStorage()
+                      });
+                  }
+              } catch (e) {}
+
+              try {
+                  if (!storageWorks("sessionStorage")) {
+                      Object.defineProperty(window, "sessionStorage", {
+                          configurable: true,
+                          value: memoryStorage()
+                      });
+                  }
+              } catch (e) {}
+
+              try {
+                  var originalSetItem = Storage.prototype.setItem;
+
+                  Storage.prototype.setItem = function (key, value) {
                       try {
-                          var s = window[name];
-                          var k = "__zzx_storage_test__";
-
-                          s.setItem(k, "1");
-                          s.removeItem(k);
-
-                          return true;
+                          return originalSetItem.call(this, key, value);
                       } catch (e) {
-                          return false;
-                      }
-                  }
-
-                  try {
-                      if (!storageWorks("localStorage")) {
-                          Object.defineProperty(window, "localStorage", {
-                              configurable: true,
-                              value: memoryStorage()
-                          });
-                      }
-                  } catch (e) {}
-
-                  try {
-                      if (!storageWorks("sessionStorage")) {
-                          Object.defineProperty(window, "sessionStorage", {
-                              configurable: true,
-                              value: memoryStorage()
-                          });
-                      }
-                  } catch (e) {}
-
-                  try {
-                      var originalSetItem = Storage.prototype.setItem;
-
-                      Storage.prototype.setItem = function (key, value) {
-                          try {
-                              return originalSetItem.call(this, key, value);
-                          } catch (e) {
-                              if (
-                                  e &&
-                                  (
-                                      e.name === "QuotaExceededError" ||
-                                      e.name === "NS_ERROR_DOM_QUOTA_REACHED"
-                                  )
-                              ) {
-                                  return null;
-                              }
-
-                              throw e;
+                          if (
+                              e &&
+                              (
+                                  e.name === "QuotaExceededError" ||
+                                  e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                              )
+                          ) {
+                              return null;
                           }
-                      };
-                  } catch (e) {}
-              }
 
-              function setDefaultCyberChefOptions() {
-                  try {
-                      var existing = localStorage.getItem("options");
-                      var options = existing ? JSON.parse(existing) : {};
+                          throw e;
+                      }
+                  };
+              } catch (e) {}
 
-                      options.theme = options.theme || "dark";
-                      options.wordWrap = true;
-                      options.showErrors = true;
-                      options.updateUrl = true;
+              try {
+                  var existing = localStorage.getItem("options");
+                  var options = existing ? JSON.parse(existing) : {};
 
-                      localStorage.setItem(
-                          "options",
-                          JSON.stringify(options)
-                      );
-                  } catch (e) {}
-              }
+                  options.theme = "dark";
+                  options.wordWrap = true;
+                  options.showErrors = true;
+                  options.updateUrl = true;
 
-              installStorageShim();
-              setDefaultCyberChefOptions();
+                  localStorage.setItem(
+                      "options",
+                      JSON.stringify(options)
+                  );
+
+                  document.documentElement.className =
+                      document.documentElement.className
+                          .replace(/\bclassic\b/g, "")
+                          .replace(/\bdark\b/g, "")
+                          .trim();
+
+                  document.documentElement.classList.add("dark");
+              } catch (e) {}
           })();
           EOF
 
@@ -218,10 +221,18 @@ jobs:
           path = Path("_site/cyberchef/app/index.html")
           html = path.read_text(encoding="utf-8", errors="ignore")
 
-          html = html.replace('href="/assets/', 'href="assets/')
-          html = html.replace("href='/assets/", "href='assets/")
-          html = html.replace('src="/assets/', 'src="assets/')
-          html = html.replace("src='/assets/", "src='assets/")
+          replacements = {
+              'href="/assets/': 'href="assets/',
+              "href='/assets/": "href='assets/",
+              'src="/assets/': 'src="assets/',
+              "src='/assets/": "src='assets/",
+              'url("/assets/': 'url("assets/',
+              "url('/assets/": "url('assets/",
+              'url(/assets/': 'url(assets/',
+          }
+
+          for old, new in replacements.items():
+              html = html.replace(old, new)
 
           html = re.sub(
               r'<link\s+href=["\']assets/main\.css["\']\s+rel=["\']stylesheet["\']\s*/?>',
@@ -237,13 +248,14 @@ jobs:
               flags=re.I
           )
 
-          html = re.sub(
-              r'(<script[^>]+src=["\']assets/main\.js["\'][^>]*></script>)',
-              '<script src="script.js"></script>\n\\1',
-              html,
-              count=1,
-              flags=re.I
-          )
+          if '<script src="script.js"></script>' not in html:
+              html = re.sub(
+                  r'(<script[^>]+src=["\']assets/main\.js["\'][^>]*></script>)',
+                  '<script src="script.js"></script>\n\\1',
+                  html,
+                  count=1,
+                  flags=re.I
+              )
 
           path.write_text(html, encoding="utf-8")
           PY
@@ -319,6 +331,7 @@ jobs:
           grep -q 'src="assets/main.js"' _site/cyberchef/app/index.html
           grep -q '@import url("assets/main.css")' _site/cyberchef/app/styles.css
           grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
+          grep -q 'options.theme = "dark"' _site/cyberchef/app/script.js
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-frame"' _site/cyberchef/index.html
 
