@@ -167,33 +167,27 @@
         const c = cfg();
         const el = $(c.statusId || "cz-status");
 
-        if (!el) {
-            return;
+        if (el) {
+            el.textContent = text;
         }
-
-        el.textContent = text;
     }
 
     function updateSourceLabel(source) {
         const c = cfg();
         const el = $(c.activeSourceId || "cz-active-source");
 
-        if (!el) {
-            return;
+        if (el) {
+            el.textContent = getSourceLabel(source);
         }
-
-        el.textContent = getSourceLabel(source);
     }
 
     function updateRuntimeState(text) {
         const c = cfg();
         const el = $(c.frameStateId || "cz-frame-state");
 
-        if (!el) {
-            return;
+        if (el) {
+            el.textContent = text;
         }
-
-        el.textContent = text;
     }
 
     function setSourceValue(value) {
@@ -229,21 +223,45 @@
         const script = document.createElement("script");
 
         script.src = "app/assets/main.js";
-        script.defer = false;
+        script.defer = true;
         script.dataset.czMain = "true";
 
         script.onload = () => {
-            updateRuntimeState("Ready");
-            updateStatus("CyberChefZZX modified instance loaded.");
+            updateRuntimeState("Engine Loaded");
+            updateStatus("CyberChefZZX engine loaded. Initializing workspace...");
         };
 
         script.onerror = () => {
             updateRuntimeState("Error");
             updateStatus("Failed to load app/assets/main.js.");
             document.documentElement.classList.add("cz-error");
+            document.documentElement.classList.remove("cz-loading");
+            hideStuckLoader();
         };
 
         document.head.appendChild(script);
+    }
+
+    function hideStuckLoader() {
+        const preloader = document.getElementById("preloader");
+        const preloaderMsg = document.getElementById("preloader-msg");
+
+        if (preloader) {
+            preloader.style.display = "none";
+            preloader.setAttribute("aria-hidden", "true");
+        }
+
+        if (preloaderMsg) {
+            preloaderMsg.style.display = "none";
+            preloaderMsg.setAttribute("aria-hidden", "true");
+        }
+
+        const loaderWrapper = document.getElementById("loader-wrapper");
+
+        if (loaderWrapper) {
+            loaderWrapper.classList.add("cz-loader-released");
+            loaderWrapper.style.pointerEvents = "none";
+        }
     }
 
     function loadCyberChef() {
@@ -271,7 +289,11 @@
 
         installStorageShim();
         setDefaultOptions();
-        loadCyberChefMain();
+
+        ready(() => {
+            loadCyberChefMain();
+            waitForCyberChef();
+        });
     }
 
     function refreshCyberChef() {
@@ -304,8 +326,11 @@
             if (readyNode) {
                 clearInterval(timer);
 
+                hideStuckLoader();
+
                 document.documentElement.classList.add("cz-ready");
                 document.documentElement.classList.remove("cz-loading");
+                document.documentElement.classList.remove("cz-error");
 
                 updateRuntimeState("Ready");
                 updateStatus("CyberChefZZX workspace ready.");
@@ -322,12 +347,21 @@
                 return;
             }
 
+            if (attempts === 40) {
+                hideStuckLoader();
+                updateRuntimeState("Still Initializing");
+                updateStatus("CyberChefZZX engine loaded; waiting for workspace DOM...");
+            }
+
             if (attempts > 300) {
                 clearInterval(timer);
+
+                hideStuckLoader();
 
                 updateRuntimeState("Timeout");
                 updateStatus("CyberChefZZX did not finish initializing.");
                 document.documentElement.classList.add("cz-error");
+                document.documentElement.classList.remove("cz-loading");
             }
         }, 250);
     }
@@ -360,11 +394,11 @@
 
         if (savedSource === "modified") {
             loadCyberChef();
-            waitForCyberChef();
         } else {
             updateSourceLabel(savedSource);
             updateStatus(`${getSourceLabel(savedSource)} selected. Click Load to open.`);
             updateRuntimeState("Waiting");
+            hideStuckLoader();
         }
 
         console.info("[CyberChefZZX] Initialized.");
