@@ -55,7 +55,7 @@ jobs:
       - name: Sync website repo before crawling
         run: |
           git fetch origin main
-          git rebase origin/main
+          git rebase --autostash origin/main
 
       - name: Run ZZX Bitnodes crawler window
         run: |
@@ -138,39 +138,68 @@ jobs:
             --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
             --source originalbitnodes
 
-      - name: Remove local GeoIP databases before public commit
+      - name: Commit and push Bitnodes public snapshots
         run: |
-          rm -f bitcoin/bitnodes/data/geoip/*.mmdb
-          rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
+          set -euo pipefail
 
-      - name: Commit Bitnodes public snapshots
-        run: |
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add bitcoin/bitnodes/api bitcoin/bitnodes/archive bitcoin/bitnodes/data
+          rm -f bitcoin/bitnodes/data/geoip/*.mmdb
+          rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
+          rm -rf bitcoin/bitnodes/src
+
+          git add -A \
+            bitcoin/bitnodes/api \
+            bitcoin/bitnodes/archive \
+            bitcoin/bitnodes/data
 
           if git diff --cached --quiet; then
             printf '%s\n' "No Bitnodes JSON changes to commit."
             exit 0
           fi
 
+          git stash push --include-untracked --message "bitnodes-generated-before-rebase"
+
+          git fetch origin main
+          git rebase --autostash origin/main
+
+          if git stash list | grep -q "bitnodes-generated-before-rebase"; then
+            git stash pop || true
+          fi
+
+          rm -f bitcoin/bitnodes/data/geoip/*.mmdb
+          rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
+          rm -rf bitcoin/bitnodes/src
+
+          git add -A \
+            bitcoin/bitnodes/api \
+            bitcoin/bitnodes/archive \
+            bitcoin/bitnodes/data
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No Bitnodes JSON changes to commit after rebase."
+            exit 0
+          fi
+
           git commit -m "Update Bitnodes static API snapshots"
 
-      - name: Push Bitnodes public snapshots
-        run: |
           for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              printf '%s\n' "Bitnodes snapshots pushed."
+              exit 0
+            fi
+
+            printf '%s\n' "Push attempt ${attempt} failed; rebasing with autostash..."
+
             git fetch origin main
 
-            if git rebase origin/main; then
-              if git push origin HEAD:main; then
-                printf '%s\n' "Bitnodes snapshots pushed."
-                exit 0
-              fi
+            if git rebase --autostash origin/main; then
+              sleep 10
+              continue
             fi
 
             git rebase --abort || true
-            printf '%s\n' "Push attempt ${attempt} failed; retrying..."
             sleep 10
           done
 
