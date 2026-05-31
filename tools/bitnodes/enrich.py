@@ -4,11 +4,11 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
-import sys
 
 
 APP_ROOT = Path(__file__).resolve().parents[2]
@@ -88,7 +88,35 @@ def clean_address(value: Any) -> str:
 
 def normalize_metadata(record: dict[str, Any]) -> dict[str, Any]:
     metadata = record.get("metadata")
-    return metadata if isinstance(metadata, dict) else {}
+
+    if isinstance(metadata, dict):
+        return metadata
+
+    record["metadata"] = {}
+
+    return record["metadata"]
+
+
+def normalize_enrichment(record: dict[str, Any]) -> dict[str, Any]:
+    enrichment = record.get("enrichment")
+
+    if isinstance(enrichment, dict):
+        return enrichment
+
+    record["enrichment"] = {}
+
+    return record["enrichment"]
+
+
+def normalize_peer_health(record: dict[str, Any]) -> dict[str, Any]:
+    peer_health = record.get("peer_health")
+
+    if isinstance(peer_health, dict):
+        return peer_health
+
+    record["peer_health"] = {}
+
+    return record["peer_health"]
 
 
 def normalize_node_record(node: Any) -> dict[str, Any]:
@@ -107,7 +135,9 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
 
     record["address"] = clean_address(address)
 
-    if "enrichment" not in record or not isinstance(record["enrichment"], dict):
+    enrichment = record.get("enrichment")
+
+    if not isinstance(enrichment, dict):
         record["enrichment"] = {}
 
     metadata = normalize_metadata(record)
@@ -120,6 +150,7 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
         "uptime_seconds",
         "total_uptime",
         "peer_index",
+        "peer_health",
         "is_tor",
         "is_i2p",
         "is_ipv4",
@@ -135,6 +166,9 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
     ):
         if key not in record and key in metadata:
             record[key] = metadata.get(key)
+
+    if record.get("peer_health") is not None and not isinstance(record.get("peer_health"), dict):
+        record["peer_health"] = {}
 
     return record
 
@@ -191,7 +225,15 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if not isinstance(payload, dict):
         return []
 
-    for key in ("rows", "results", "data", "reachable", "unreachable", "node_records", "peers"):
+    for key in (
+        "rows",
+        "results",
+        "data",
+        "reachable",
+        "unreachable",
+        "node_records",
+        "peers",
+    ):
         value = payload.get(key)
 
         if isinstance(value, list):
@@ -227,12 +269,21 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
 
     output = dict(payload)
 
-    for key in ("rows", "results", "data", "reachable", "unreachable", "node_records", "peers"):
+    for key in (
+        "rows",
+        "results",
+        "data",
+        "reachable",
+        "unreachable",
+        "node_records",
+        "peers",
+    ):
         if isinstance(output.get(key), list):
             output[key] = nodes
             return output
 
     output["nodes"] = nodes
+
     return output
 
 
@@ -263,7 +314,13 @@ def load_module(module_name: str) -> Any | None:
 
 
 def find_enricher(module: Any) -> Callable[..., Any] | None:
-    for name in ("enrich_nodes", "enrich", "process_nodes", "process", "run"):
+    for name in (
+        "enrich_nodes",
+        "enrich",
+        "process_nodes",
+        "process",
+        "run",
+    ):
         fn = getattr(module, name, None)
 
         if callable(fn):
@@ -318,14 +375,23 @@ def call_enricher(
 
 def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for node in nodes:
-        node.setdefault("enrichment", {})
+        if not isinstance(node, dict):
+            continue
+
+        normalize_enrichment(node)
+        normalize_metadata(node)
+
         address = str(node.get("address", "")).lower()
 
         if name == "ipv4":
             node["is_ipv4"] = address.count(".") == 3 and ":" not in address
 
         elif name == "ipv6":
-            node["is_ipv6"] = ":" in address and ".onion" not in address and ".i2p" not in address
+            node["is_ipv6"] = (
+                ":" in address
+                and ".onion" not in address
+                and ".i2p" not in address
+            )
 
         elif name == "tor":
             node["is_tor"] = ".onion" in address
@@ -381,8 +447,26 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
             node.setdefault("jurisdiction_risk_level", "unknown")
 
         elif name == "peer_health":
-            node.setdefault("peer_health", {})
-            node["peer_health"].setdefault("reachable", node.get("reachable") or node.get("reachable_now"))
+            peer_health = node.get("peer_health")
+
+            if not isinstance(peer_health, dict):
+                peer_health = {}
+
+            reachable = node.get("reachable")
+
+            if reachable is None:
+                reachable = node.get("reachable_now")
+
+            peer_health.setdefault("reachable", reachable)
+            peer_health.setdefault("reachable_now", node.get("reachable_now"))
+            peer_health.setdefault("reachable_24h", node.get("reachable_24h"))
+            peer_health.setdefault("latency_ms", node.get("latency_ms"))
+            peer_health.setdefault("success_count", node.get("success_count"))
+            peer_health.setdefault("failure_count", node.get("failure_count"))
+            peer_health.setdefault("first_seen", node.get("first_seen"))
+            peer_health.setdefault("last_seen", node.get("last_seen"))
+
+            node["peer_health"] = peer_health
 
         node["enrichment"][name] = {
             "status": "fallback",
@@ -403,7 +487,7 @@ def enrich_nodes(
     context = context or {}
 
     report = {
-        "schema": "zzx-bitnodes-enrichment-report-v3",
+        "schema": "zzx-bitnodes-enrichment-report-v4",
         "generated_at": utc_now(),
         "node_count": len(nodes),
         "selected_modules": selected_modules,
@@ -429,7 +513,21 @@ def enrich_nodes(
             "updated_at": utc_now(),
         }
 
-        module = load_module(name)
+        try:
+            module = load_module(name)
+        except Exception as err:
+            module = None
+            module_report["status"] = "error"
+            module_report["message"] = f"{name}.py failed to load: {err}"
+            module_report["traceback"] = traceback.format_exc(limit=5)
+
+            if strict:
+                report["modules"].append(module_report)
+                raise
+
+            enriched = fallback_enrich(name, enriched)
+            report["modules"].append(module_report)
+            continue
 
         if module is None:
             enriched = fallback_enrich(name, enriched)
@@ -451,7 +549,10 @@ def enrich_nodes(
             enriched = call_enricher(name, fn, enriched, context)
 
             for node in enriched:
-                node.setdefault("enrichment", {})
+                if not isinstance(node, dict):
+                    continue
+
+                normalize_enrichment(node)
                 node["enrichment"][name] = {
                     "status": "ok",
                     "updated_at": utc_now(),
@@ -499,9 +600,16 @@ def enrich_payload(
 
     if isinstance(output, dict):
         output.setdefault("metadata", {})
+
+        if not isinstance(output["metadata"], dict):
+            output["metadata"] = {}
+
         output["metadata"]["enriched_at"] = report["generated_at"]
         output["metadata"]["enrichment_schema"] = report["schema"]
-        output["metadata"]["enrichment_modules"] = [item["name"] for item in report["modules"]]
+        output["metadata"]["enrichment_modules"] = [
+            item["name"]
+            for item in report["modules"]
+        ]
         output["metadata"]["enrichment_module_status"] = {
             item["name"]: item["status"]
             for item in report["modules"]
@@ -514,7 +622,12 @@ def parse_modules(value: str | None) -> list[str] | None:
     if not value:
         return None
 
-    output = [item.strip() for item in value.split(",") if item.strip()]
+    output = [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
+
     return output or None
 
 
