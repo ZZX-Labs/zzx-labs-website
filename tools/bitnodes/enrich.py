@@ -8,6 +8,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+import sys
 
 
 APP_ROOT = Path(__file__).resolve().parents[2]
@@ -241,16 +242,22 @@ def load_module(module_name: str) -> Any | None:
     if not path.exists():
         return None
 
-    spec = importlib.util.spec_from_file_location(
-        f"zzx_bitnodes_enrichment_{module_name}",
-        path,
-    )
+    import_name = f"zzx_bitnodes_enrichment_{module_name}"
+
+    spec = importlib.util.spec_from_file_location(import_name, path)
 
     if spec is None or spec.loader is None:
         return None
 
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+
+    sys.modules[import_name] = module
+
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(import_name, None)
+        raise
 
     return module
 
