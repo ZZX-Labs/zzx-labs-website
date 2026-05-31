@@ -1,89 +1,94 @@
-.bn-api-grid {
+.bn-agent-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
 }
 
-.bn-api-card {
+.bn-agent-card {
     border: 1px solid rgba(192, 214, 116, 0.16);
     border-radius: 18px;
-    padding: 18px;
-    background:
-        linear-gradient(
-            180deg,
-            rgba(12, 18, 10, 0.94),
-            rgba(5, 7, 4, 0.96)
-        );
+    background: linear-gradient(180deg, rgba(14, 20, 12, 0.94), rgba(6, 8, 5, 0.96));
+    padding: 20px;
 }
 
-.bn-api-top {
+.bn-agent-header {
     display: flex;
     justify-content: space-between;
-    gap: 18px;
-    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
 }
 
-.bn-api-name {
+.bn-agent-name {
     color: var(--bn-green, #c0d674);
     font-size: 1rem;
     font-weight: 700;
+    overflow-wrap: anywhere;
 }
 
-.bn-api-category {
+.bn-agent-count {
     color: var(--bn-ochre, #e6a42b);
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: right;
 }
 
-.bn-api-description {
-    margin-top: 12px;
+.bn-agent-share {
     color: var(--bn-muted, #a8b58a);
-    line-height: 1.7;
+    font-size: 0.82rem;
+    text-align: right;
 }
 
-.bn-api-path {
-    margin-top: 14px;
-    padding: 12px;
-    border-radius: 12px;
-    overflow-x: auto;
+.bn-agent-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.bn-agent-stat {
     border: 1px solid rgba(192, 214, 116, 0.12);
-    background: rgba(0, 0, 0, 0.18);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.16);
 }
 
-.bn-api-path code {
+.bn-agent-stat span {
+    display: block;
+    color: var(--bn-muted, #a8b58a);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.bn-agent-stat strong {
+    display: block;
+    margin-top: 6px;
     color: var(--bn-green, #c0d674);
-    font-family: var(--bn-font, "IBM Plex Mono", monospace);
-    font-size: 0.84rem;
+    overflow-wrap: anywhere;
 }
 
-.bn-api-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 16px;
+.bn-agent-warning {
+    margin-top: 12px;
+    color: #e6a42b;
+    font-size: 0.78rem;
 }
 
-.bn-api-links a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 38px;
-    padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(192, 214, 116, 0.18);
-    background: rgba(0, 0, 0, 0.18);
-    color: var(--bn-text, #e8f0d2);
-    text-decoration: none;
-}
-
-.bn-api-links a:hover {
-    background: var(--bn-green, #c0d674);
-    border-color: var(--bn-green, #c0d674);
-    color: #050704;
+@media (max-width: 1100px) {
+    .bn-agent-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 720px) {
-    .bn-api-top {
-        flex-direction: column;
+    .bn-agent-header {
+        display: block;
+    }
+
+    .bn-agent-count,
+    .bn-agent-share {
+        text-align: left;
+    }
+
+    .bn-agent-stats {
+        grid-template-columns: 1fr;
     }
 }
