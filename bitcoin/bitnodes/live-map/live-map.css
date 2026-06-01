@@ -13,7 +13,7 @@
     --bn-map-border-radius: 18px;
     --bn-map-panel-padding: 1.1rem;
     --bn-map-control-radius: 999px;
-    --bn-map-shadow: 0 16px 34px rgba(0,0,0,0.32);
+    --bn-map-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
     --bn-map-font: var(--bn-font, IBM Plex Mono, monospace);
     --bn-map-heading: var(--bn-heading, IBM Plex Mono, monospace);
 }
@@ -47,7 +47,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    color: rgba(204,216,182,0.72);
+    color: rgba(204, 216, 182, 0.72);
     font-family: var(--bn-map-font);
     font-size: 0.66rem;
     font-weight: 800;
@@ -57,9 +57,9 @@
 
 .bn-map-selectors select {
     min-width: 190px;
-    border: 1px solid rgba(192,214,116,0.18);
+    border: 1px solid rgba(192, 214, 116, 0.18);
     border-radius: 10px;
-    background: rgba(0,0,0,0.32);
+    background: rgba(0, 0, 0, 0.32);
     color: var(--bn-map-text);
     font-family: var(--bn-map-font);
     font-size: 0.74rem;
@@ -74,9 +74,9 @@
 }
 
 .bn-map-controls button {
-    border: 1px solid rgba(192,214,116,0.18);
+    border: 1px solid rgba(192, 214, 116, 0.18);
     border-radius: var(--bn-map-control-radius);
-    background: rgba(0,0,0,0.24);
+    background: rgba(0, 0, 0, 0.24);
     color: var(--bn-map-accent);
     cursor: pointer;
     font-family: var(--bn-map-font);
@@ -89,17 +89,17 @@
 
 .bn-map-controls button:hover,
 .bn-map-controls button.is-active {
-    background: rgba(192,214,116,0.1);
-    border-color: rgba(192,214,116,0.36);
+    background: rgba(192, 214, 116, 0.1);
+    border-color: rgba(192, 214, 116, 0.36);
     color: var(--bn-map-text);
 }
 
 .bn-map-status {
     margin: 0 0 0.85rem;
-    border: 1px solid rgba(192,214,116,0.12);
+    border: 1px solid rgba(192, 214, 116, 0.12);
     border-radius: 12px;
-    background: rgba(0,0,0,0.22);
-    color: rgba(204,216,182,0.72);
+    background: rgba(0, 0, 0, 0.22);
+    color: rgba(204, 216, 182, 0.72);
     font-family: var(--bn-map-font);
     font-size: 0.74rem;
     line-height: 1.6;
@@ -109,11 +109,60 @@
 .bn-live-map {
     width: 100%;
     min-height: 72vh;
-    border: 1px solid rgba(192,214,116,0.14);
+    border: 1px solid rgba(192, 214, 116, 0.14);
     border-radius: var(--bn-map-border-radius);
-    background: var(--bn-map-background);
+    background:
+        radial-gradient(circle at 20% 30%, rgba(192, 214, 116, 0.12), transparent 4rem),
+        radial-gradient(circle at 70% 55%, rgba(230, 164, 43, 0.12), transparent 5rem),
+        linear-gradient(180deg, rgba(6, 10, 5, 0.98), rgba(2, 4, 2, 0.98));
     overflow: hidden;
     box-shadow: var(--bn-map-shadow);
+}
+
+.bn-live-map .leaflet-container,
+.leaflet-container {
+    background: var(--bn-map-background);
+    font-family: var(--bn-map-font);
+}
+
+.leaflet-control-container {
+    font-family: var(--bn-map-font);
+}
+
+.leaflet-control-zoom a {
+    background: rgba(0, 0, 0, 0.78) !important;
+    border-color: rgba(192, 214, 116, 0.2) !important;
+    color: var(--bn-map-accent) !important;
+}
+
+.leaflet-control-attribution {
+    background: rgba(0, 0, 0, 0.68) !important;
+    color: rgba(204, 216, 182, 0.72) !important;
+    font-family: var(--bn-map-font);
+    font-size: 0.64rem;
+}
+
+.leaflet-control-attribution a {
+    color: var(--bn-map-accent) !important;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+    background: #f5f6e8;
+    color: #101410;
+}
+
+.bn-map-popup {
+    color: #101410;
+    font-family: IBM Plex Mono, monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.bn-map-popup strong {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #101410;
 }
 
 .bn-map-hud {
@@ -124,15 +173,15 @@
 }
 
 .bn-map-hud article {
-    border: 1px solid rgba(192,214,116,0.12);
+    border: 1px solid rgba(192, 214, 116, 0.12);
     border-radius: 14px;
-    background: linear-gradient(180deg, rgba(16,20,13,0.9), rgba(5,7,5,0.96));
+    background: linear-gradient(180deg, rgba(16, 20, 13, 0.9), rgba(5, 7, 5, 0.96));
     padding: 0.8rem;
 }
 
 .bn-map-hud span {
     display: block;
-    color: rgba(204,216,182,0.64);
+    color: rgba(204, 216, 182, 0.64);
     font-family: var(--bn-map-font);
     font-size: 0.65rem;
     font-weight: 800;
@@ -159,9 +208,9 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    border: 1px solid rgba(192,214,116,0.1);
+    border: 1px solid rgba(192, 214, 116, 0.1);
     border-radius: 999px;
-    color: rgba(204,216,182,0.78);
+    color: rgba(204, 216, 182, 0.78);
     font-family: var(--bn-map-font);
     font-size: 0.72rem;
     padding: 0.45rem 0.62rem;
@@ -173,16 +222,50 @@
     border-radius: 999px;
 }
 
-.bn-map-popup {
-    color: #101410;
-    font-family: IBM Plex Mono, monospace;
-    font-size: 0.78rem;
-    line-height: 1.45;
+.bn-map-point {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    background: var(--bn-map-accent);
+    box-shadow: 0 0 10px rgba(192, 214, 116, 0.75);
 }
 
-.bn-map-popup strong {
-    display: block;
-    margin-bottom: 0.35rem;
+.bn-map-point.is-tor {
+    background: var(--bn-map-ochre);
+    box-shadow: 0 0 10px rgba(230, 164, 43, 0.75);
+}
+
+.bn-map-table-wrap {
+    overflow-x: auto;
+    margin-top: 18px;
+}
+
+.bn-map-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+}
+
+.bn-map-table th,
+.bn-map-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid rgba(192, 214, 116, 0.12);
+    text-align: left;
+}
+
+.bn-map-table th {
+    color: var(--bn-map-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.74rem;
+}
+
+.bn-map-node {
+    color: var(--bn-map-accent);
+    font-weight: 700;
+    overflow-wrap: anywhere;
 }
 
 @media (max-width: 1100px) {
