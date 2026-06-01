@@ -1,1 +1,208 @@
+.bn-archive-family-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
 
+.bn-archive-family-card {
+    border: 1px solid rgba(192, 214, 116, 0.16);
+    border-radius: 18px;
+    padding: 20px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(12, 18, 10, 0.94),
+            rgba(5, 7, 4, 0.96)
+        );
+}
+
+.bn-archive-family-card h3 {
+    margin: 0;
+    color: var(--bn-green, #c0d674);
+}
+
+.bn-archive-family-card p {
+    margin-top: 12px;
+    color: var(--bn-muted, #a8b58a);
+    line-height: 1.7;
+}
+
+.bn-archive-family-stat {
+    margin-top: 16px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--bn-ochre, #e6a42b);
+}
+
+.bn-archive-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+.bn-archive-card {
+    border: 1px solid rgba(192, 214, 116, 0.16);
+    border-radius: 18px;
+    padding: 18px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(12, 18, 10, 0.94),
+            rgba(5, 7, 4, 0.96)
+        );
+}
+
+.bn-archive-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.bn-archive-name {
+    color: var(--bn-green, #c0d674);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.bn-archive-category {
+    color: var(--bn-ochre, #e6a42b);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.bn-archive-description {
+    margin-top: 12px;
+    color: var(--bn-muted, #a8b58a);
+    line-height: 1.7;
+}
+
+.bn-archive-path {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid rgba(192, 214, 116, 0.12);
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.bn-archive-path code {
+    color: var(--bn-green, #c0d674);
+    font-family: var(--bn-font, "IBM Plex Mono", monospace);
+    font-size: 0.84rem;
+}
+
+.bn-archive-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.bn-archive-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(192, 214, 116, 0.18);
+    background: rgba(0, 0, 0, 0.18);
+    color: var(--bn-text, #e8f0d2);
+    text-decoration: none;
+}
+
+.bn-archive-links a:hover {
+    background: var(--bn-green, #c0d674);
+    border-color: var(--bn-green, #c0d674);
+    color: #050704;
+}
+
+.bn-archive-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.bn-archive-stat-card {
+    border: 1px solid rgba(192, 214, 116, 0.16);
+    border-radius: 18px;
+    padding: 18px;
+    text-align: center;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(12, 18, 10, 0.94),
+            rgba(5, 7, 4, 0.96)
+        );
+}
+
+.bn-archive-stat-card span {
+    display: block;
+    color: var(--bn-muted, #a8b58a);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.bn-archive-stat-card strong {
+    display: block;
+    margin-top: 10px;
+    color: var(--bn-green, #c0d674);
+    font-size: 2rem;
+}
+
+.bn-archive-backups {
+    min-height: 180px;
+}
+
+.bn-archive-preview {
+    min-height: 240px;
+    padding: 18px;
+    border-radius: 18px;
+    overflow: auto;
+    border: 1px solid rgba(192, 214, 116, 0.14);
+    background: rgba(0, 0, 0, 0.22);
+
+    color: var(--bn-green, #c0d674);
+    font-family: var(--bn-font, "IBM Plex Mono", monospace);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.bn-archive-preview pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+
+    .bn-archive-family-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bn-archive-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+
+    .bn-archive-top {
+        flex-direction: column;
+    }
+
+    .bn-archive-links {
+        flex-direction: column;
+    }
+
+    .bn-archive-links a {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .bn-archive-stats {
+        grid-template-columns: 1fr;
+    }
+}
