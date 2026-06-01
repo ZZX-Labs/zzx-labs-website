@@ -1,1 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
 
+    <title>I2P | Bitnodes Mirror | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../../static/icons/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="./i2p.css">
+
+    <script src="../../../static/script.js" defer></script>
+    <script src="../script.js" defer></script>
+    <script src="./i2p.js" defer></script>
+</head>
+
+<body data-bn-depth="..">
+
+<header>
+    <div id="zzx-header"></div>
+
+    <br>
+
+    <div id="ticker-container"></div>
+
+    <br>
+
+    <div id="bn-header"></div>
+</header>
+
+<main class="bn-shell" data-bitnodes-view="i2p">
+
+    <section class="bn-hero container">
+        <p class="bn-kicker">ZZX-Labs / Bitcoin Network Intelligence</p>
+
+        <h2>I2P</h2>
+
+        <p>
+            Reachable Bitcoin I2P nodes and privacy-network telemetry, including
+            I2P destination addresses, protocol versions, user agents, service bits,
+            block heights, ports, and observable peer distribution.
+        </p>
+
+        <div class="bn-sourcebar">
+            <label for="bn-source">Data Source</label>
+
+            <select id="bn-source">
+                <option value="zzxbitnodes" selected>ZZX Bitnodes</option>
+                <option value="originalbitnodes">Original Bitnodes-Compatible</option>
+                <option value="aggregate">Aggregate</option>
+                <option value="enriched">Enriched</option>
+                <option value="local">Root Local JSON</option>
+            </select>
+
+            <button id="bn-refresh" type="button">Refresh</button>
+        </div>
+    </section>
+
+    <br>
+
+    <section id="bn-status" class="bn-status container">
+        Loading I2P reachable-node telemetry…
+    </section>
+
+    <br>
+
+    <section class="bn-grid" id="bn-summary"></section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">I2P Network</span>
+
+            <h2>I2P Bitcoin Nodes</h2>
+
+            <p>
+                I2P support depends on crawler enrichment and source data. Empty
+                results usually mean no I2P nodes were detected in the selected snapshot.
+            </p>
+        </header>
+
+        <div class="bn-toolbar">
+            <div class="bn-toolbar-group">
+                <label for="bn-search">Search</label>
+                <input id="bn-search" type="search" placeholder=".i2p, b32.i2p, agent, protocol, services…">
+            </div>
+
+            <div class="bn-toolbar-group">
+                <label for="bn-sort">Sort</label>
+                <select id="bn-sort">
+                    <option value="height" selected>Highest Height</option>
+                    <option value="protocol">Highest Protocol</option>
+                    <option value="agent">User Agent A-Z</option>
+                    <option value="port">Port A-Z</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="bn-view"></div>
+    </section>
+
+    <br><br>
+
+</main>
+
+<footer>
+    <div id="bn-footer"></div>
+    <div id="zzx-footer"></div>
+</footer>
+
+</body>
+</html>
