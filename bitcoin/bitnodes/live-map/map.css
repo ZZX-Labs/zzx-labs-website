@@ -15,7 +15,6 @@
     --bn-map-carbon: #1b1f1b;
     --bn-map-gold: #ffd36a;
     --bn-map-yellow: #f1e26b;
-    --bn-map-orange: #e6a42b;
     --bn-map-green: #c0d674;
     --bn-map-red: #d95c5c;
     --bn-map-grey: #8c927e;
@@ -29,7 +28,6 @@
 .bn-map-panel {
     position: relative;
     overflow: hidden;
-    padding-top: 0;
 }
 
 .bn-live-map,
@@ -72,11 +70,16 @@
     font-family: var(--bn-map-heading);
 }
 
-.bn-map-selectors {
+.bn-map-selectors,
+.bn-map-controls {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.65rem;
+}
+
+.bn-map-controls {
+    justify-content: flex-end;
 }
 
 .bn-map-selectors label {
@@ -100,13 +103,6 @@
     font-family: var(--bn-map-font);
     font-size: 0.74rem;
     padding: 0.55rem 0.7rem;
-}
-
-.bn-map-controls {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.5rem;
 }
 
 .bn-map-controls button {
@@ -268,14 +264,6 @@
     box-shadow: 0 0 10px currentColor;
 }
 
-.bn-map-refresh-note {
-    margin-top: 0.75rem;
-    color: var(--bn-map-muted);
-    font-family: var(--bn-map-font);
-    font-size: 0.74rem;
-    line-height: 1.6;
-}
-
 @media (max-width: 1100px) {
     .bn-map-toolbar {
         grid-template-columns: 1fr;
@@ -301,12 +289,6 @@
         min-height: 70vh;
     }
 
-    .bn-map-selectors,
-    .bn-map-selectors label,
-    .bn-map-selectors select {
-        width: 100%;
-    }
-
     .bn-map-toolbar {
         position: relative;
         inset: auto;
@@ -317,6 +299,12 @@
         position: relative;
         inset: auto;
         margin-bottom: 0.85rem;
+    }
+
+    .bn-map-selectors,
+    .bn-map-selectors label,
+    .bn-map-selectors select {
+        width: 100%;
     }
 
     .leaflet-control-zoom {
