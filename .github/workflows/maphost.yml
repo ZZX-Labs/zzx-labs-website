@@ -109,30 +109,19 @@ jobs:
           git config user.name "zzx-labs-maphost-bot"
           git config user.email "actions@github.com"
 
+          git fetch origin main
+          git rebase --autostash origin/main || {
+            git rebase --abort || true
+            printf '%s\n' "Initial rebase failed."
+            exit 1
+          }
+
           git add -A \
             bitcoin/bitnodes/maps \
             bitcoin/bitnodes/live-map
 
           if git diff --cached --quiet; then
             printf '%s\n' "No map changes."
-            exit 0
-          fi
-
-          git stash push --include-untracked --message "bitnodes-maphost-before-rebase"
-
-          git fetch origin main
-          git rebase --autostash origin/main
-
-          if git stash list | grep -q "bitnodes-maphost-before-rebase"; then
-            git stash pop || true
-          fi
-
-          git add -A \
-            bitcoin/bitnodes/maps \
-            bitcoin/bitnodes/live-map
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "No map changes after rebase."
             exit 0
           fi
 
