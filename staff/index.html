@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="description" content="ZZX-Labs R&D staff, public profiles, pseudonymous operators, researchers, engineers, analysts, designers, consultants, advisors, collaborators, and strategic technical contributors.">
-    <title>Our Staff | ZZX-Labs R&D</title>
+    <meta name="description" content="ZZX-Labs R&D staff directory powered by JSON department records for executives, department heads, core staff, researchers, engineers, analysts, operators, technicians, consultants, administrators, and strategic personnel.">
+    <title>Staff | ZZX-Labs R&D</title>
 
     <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
     <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -13,642 +13,76 @@
     <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
 
     <link rel="stylesheet" href="../static/styles.css">
+    <link rel="stylesheet" href="./staff.css">
     <script src="../static/script.js" defer></script>
+    <script src="./staff.js" defer></script>
 </head>
 
 <body class="zzx-site-page zzx-page-staff">
 <header>
     <div id="zzx-header"></div>
-
     <br>
-
     <div id="ticker-container"></div>
-
     <br>
 </header>
 
 <main class="zzx-page-shell">
-
     <section class="zzx-page-hero container">
         <p class="zzx-kicker">ZZX-Labs / Staff</p>
-        <h1>Our Staff, Operators, Researchers & Collaborators</h1>
-
+        <h1>Staff Directory</h1>
         <p>
-            ZZX-Labs R&D operates as a pseudonymous, privacy-preserving, research-driven technology laboratory supported
-            by a developing network of researchers, engineers, analysts, developers, designers, Bitcoin operators,
-            security specialists, infrastructure builders, advisors, consultants, collaborators, and strategic allies.
+            ZZX-Labs R&D uses a JSON-driven staff directory for public profiles, pseudonymous operators,
+            executive leadership, department heads, core staff, researchers, engineers, analysts, technicians,
+            administrators, consultants, and future personnel across all company departments.
         </p>
-
         <p>
-            Public staff records may use handles, codenames, role profiles, or placeholder identities. Sensitive work
-            involving Bitcoin infrastructure, cybersecurity, OSINT, private R&D, defense-adjacent research, infrastructure
-            operations, or strategic advisory activity may remain pseudonymous, private, restricted, or redacted.
+            Public staff records may use handles, codenames, role profiles, placeholder identities, or avatar
+            shields. Sensitive work may remain pseudonymous, private, restricted, or redacted.
         </p>
-
         <div class="zzx-action-row">
-            <a href="../contact" class="btn">Contact ZZX-Labs</a>
-            <a href="../consultants" class="btn btn-outline">Consultants</a>
+            <a href="../contact" class="btn">Contact</a>
             <a href="../partners" class="btn btn-outline">Partners</a>
+            <a href="../consultants" class="btn btn-outline">Consultants</a>
             <a href="../research" class="btn btn-outline">Research</a>
         </div>
     </section>
 
     <section class="container zzx-panel">
-        <p class="zzx-kicker">Operating Principle</p>
-        <h2>Pseudonymity, Privacy, and Operational Security</h2>
-
+        <p class="zzx-kicker">Directory Controls</p>
+        <h2>Departments</h2>
         <p>
-            This directory is designed to show organizational capability without exposing unnecessary personal
-            information. ZZX-Labs can publish role-based public profiles for staff, advisors, fellows, operators, and
-            collaborators while preserving personal safety, operational security, and privacy.
+            Select a department to view its public staff records. Each department is stored in a separate JSON
+            file under <code>staff/data/</code>.
         </p>
-
-        <p>
-            Avatar art is intended to use a consistent black balaclava and hoodie motif, with each figure uniquely
-            differentiated by posture, lighting, accent color, patch, division marker, and expression. These avatars are
-            stylized identity shields, not claims of criminality, militancy, or unlawful activity.
-        </p>
+        <div id="staff-department-nav" class="staff-department-nav"></div>
     </section>
 
     <section class="container zzx-panel">
-        <p class="zzx-kicker">Divisions</p>
-        <h2>Public Capability Map</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card" href="#executive-command"><h3>Executive Command</h3><p>Leadership, strategy, governance, operations, security, research direction, and program management.</p></a>
-            <a class="zzx-card link-card" href="#bitcoin-division"><h3>Bitcoin Division</h3><p>Bitcoin infrastructure, nodes, Lightning, mining, payments, market data, wallets, and protocol research.</p></a>
-            <a class="zzx-card link-card" href="#research-division"><h3>Research Division</h3><p>Papers, reports, publications, datasets, documentation, scientific review, libraries, and research operations.</p></a>
-            <a class="zzx-card link-card" href="#ai-ml-division"><h3>AI / ML Division</h3><p>AI systems, machine learning, local models, automation, language, vision, datasets, and model evaluation.</p></a>
-            <a class="zzx-card link-card" href="#cybersecurity-division"><h3>Cybersecurity Division</h3><p>Defensive security, OSINT, malware analysis, forensics, threat intelligence, hardening, and disclosure work.</p></a>
-            <a class="zzx-card link-card" href="#engineering-division"><h3>Engineering Division</h3><p>Hardware, firmware, embedded systems, robotics, UAVs, infrastructure, networks, and systems engineering.</p></a>
-            <a class="zzx-card link-card" href="#intelligence-division"><h3>Intelligence Division</h3><p>OSINT, geospatial analysis, investigations, counterintelligence, information operations, and regional analysis.</p></a>
-            <a class="zzx-card link-card" href="#alliances-division"><h3>Strategic Alliances</h3><p>Academic, industry, government, defense, open-source, community, and research partnership coordination.</p></a>
-        </div>
+        <p class="zzx-kicker">Public Profiles</p>
+        <h2 id="staff-active-heading">Loading Staff Directory</h2>
+        <p id="staff-active-description" class="staff-active-description"></p>
+        <div id="staff-grid" class="zzx-card-grid staff-grid"></div>
     </section>
 
     <section class="container zzx-panel">
-        <p class="zzx-kicker">Avatar System</p>
-        <h2>Public Profile Avatar Standard</h2>
-
-        <p>
-            Each public staff profile may use a unique two-hole black balaclava avatar with hoodie or full-zip hoodie
-            styling. Division identity can be shown through accent markers rather than exposing real faces. The visual
-            language should communicate elite technical discipline, privacy, professionalism, and cyber-lab identity.
-        </p>
-
-        <div class="zzx-card-grid">
-            <article class="zzx-card"><h3>Executive Command</h3><p>Gold accent marker for leadership, direction, command, and operational authority.</p></article>
-            <article class="zzx-card"><h3>Bitcoin Division</h3><p>Orange accent marker for Bitcoin infrastructure, payments, mining, market data, and protocol work.</p></article>
-            <article class="zzx-card"><h3>Research Division</h3><p>Blue accent marker for papers, reports, datasets, documentation, and publication systems.</p></article>
-            <article class="zzx-card"><h3>AI / ML Division</h3><p>Purple accent marker for AI, ML, model systems, automation, language, vision, and dataset work.</p></article>
-            <article class="zzx-card"><h3>Cybersecurity Division</h3><p>Green accent marker for defensive security, hardening, threat intelligence, and disclosure coordination.</p></article>
-            <article class="zzx-card"><h3>Engineering Division</h3><p>Amber accent marker for hardware, firmware, embedded systems, robotics, networks, and infrastructure.</p></article>
-            <article class="zzx-card"><h3>Intelligence Division</h3><p>Red accent marker for OSINT, investigations, geospatial analysis, counterintelligence, and risk assessment.</p></article>
-            <article class="zzx-card"><h3>Strategic Alliances</h3><p>Silver accent marker for partnerships, liaison work, institutional relationships, and community coordination.</p></article>
-        </div>
-    </section>
-
-    <section id="executive-command" class="container zzx-panel">
-        <p class="zzx-kicker">Division 01</p>
-        <h2>Executive Command</h2>
-
-        <div class="zzx-card-grid">
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./0xdeadbeef/">
-                <div class="staff-shadow-avatar staff-avatar-01" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Founder / Principal</p>
-                <h3>0xdeadbeef</h3>
-                <p>Founder, architect, principal researcher, and operational lead behind ZZX-Labs R&D, focused on Bitcoin, cybersecurity, AI/ML, software, infrastructure, research, and design systems.</p>
-                <p class="staff-meta">Status: Public pseudonym · Division: Executive Command · Clearance: Public profile</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./deputy-director/">
-                <div class="staff-shadow-avatar staff-avatar-02" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Deputy Director</h3>
-                <p>Future deputy leadership role for operational continuity, program oversight, staff coordination, research prioritization, and executive command support.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-02</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./chief-operations-officer/">
-                <div class="staff-shadow-avatar staff-avatar-03" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Chief Operations Officer</h3>
-                <p>Future operations lead for internal systems, process discipline, project scheduling, execution tempo, documentation flow, logistics, and delivery management.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-03</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./chief-technology-officer/">
-                <div class="staff-shadow-avatar staff-avatar-04" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Chief Technology Officer</h3>
-                <p>Future technical architecture lead for software, infrastructure, systems design, platform engineering, public tools, internal tools, and technology governance.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-04</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./chief-research-officer/">
-                <div class="staff-shadow-avatar staff-avatar-05" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Chief Research Officer</h3>
-                <p>Future research governance lead for papers, reports, citations, publication standards, dataset discipline, methodology, and research quality control.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-05</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./chief-security-officer/">
-                <div class="staff-shadow-avatar staff-avatar-06" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Chief Security Officer</h3>
-                <p>Future security lead for operational security, defensive posture, responsible disclosure, infrastructure hardening, staff safety, and secure communications.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-06</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./program-director/">
-                <div class="staff-shadow-avatar staff-avatar-07" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Program Director</h3>
-                <p>Future director for program lanes, milestone planning, staff coordination, delivery schedules, client programs, internal roadmaps, and reporting cadence.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-07</p>
-            </a>
-
-            <a class="zzx-card link-card staff-profile-card staff-executive" href="./strategic-initiatives-director/">
-                <div class="staff-shadow-avatar staff-avatar-08" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div>
-                <p class="zzx-kicker">Executive Command</p>
-                <h3>Strategic Initiatives Director</h3>
-                <p>Future strategic initiative lead for major research arcs, partnership campaigns, institutional outreach, technical proposals, and special programs.</p>
-                <p class="staff-meta">Status: Placeholder · Division: Executive Command · Codename: Command-08</p>
-            </a>
-
-        </div>
-    </section>
-
-    <section id="bitcoin-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 02</p>
-        <h2>Bitcoin Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./bitcoin-engineer/"><div class="staff-shadow-avatar staff-avatar-09" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Bitcoin Engineer</h3><p>Future Bitcoin infrastructure staff handling full nodes, payments, market data, wallets, analytics, and protocol-adjacent tools.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./lightning-engineer/"><div class="staff-shadow-avatar staff-avatar-10" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Lightning Engineer</h3><p>Future Lightning Network specialist for LND, channels, routing, payment flows, liquidity, micropayments, and LN-backed services.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./mining-engineer/"><div class="staff-shadow-avatar staff-avatar-11" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Mining Engineer</h3><p>Future mining systems engineer for ASIC infrastructure, pool data, thermal planning, facility design, power monitoring, and miner telemetry.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./mining-operations-analyst/"><div class="staff-shadow-avatar staff-avatar-12" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Mining Operations Analyst</h3><p>Future analyst for hashrate, block discovery, mining pool history, fee revenue, market cycles, power cost modeling, and regional mining intelligence.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./node-infrastructure-engineer/"><div class="staff-shadow-avatar staff-avatar-13" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Node Infrastructure Engineer</h3><p>Future engineer for Bitcoin Core nodes, Knots tracking, Bitnodes mirrors, RPC services, node telemetry, Tor, I2P, and network health tooling.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./market-data-engineer/"><div class="staff-shadow-avatar staff-avatar-14" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Market Data Engineer</h3><p>Future engineer for exchange APIs, weighted global BTC price, ticker widgets, market archives, conversion feeds, and commodity reference data.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./wallet-security-researcher/"><div class="staff-shadow-avatar staff-avatar-15" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Wallet Security Researcher</h3><p>Future researcher for self-custody, wallet UX, key storage, signing flows, backup models, recovery risks, and Bitcoin operational security.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-bitcoin" href="./protocol-researcher/"><div class="staff-shadow-avatar staff-avatar-16" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Bitcoin</p><h3>Protocol Researcher</h3><p>Future protocol researcher for Bitcoin mechanics, mempool policy, fee markets, scripts, standards, protocol-adjacent design, and technical papers.</p><p class="staff-meta">Status: Placeholder · Codename: Satoshi-08</p></a>
-        </div>
-    </section>
-
-    <section id="research-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 03</p>
-        <h2>Research Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./research-operator/"><div class="staff-shadow-avatar staff-avatar-17" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Research Operator</h3><p>Future research staff handling papers, reports, datasets, technical reviews, dossiers, documentation, and publication workflows.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./senior-research-analyst/"><div class="staff-shadow-avatar staff-avatar-18" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Senior Research Analyst</h3><p>Future analyst for structured research synthesis, evidence review, methods discipline, research memos, analytic judgment, and report development.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./technical-editor/"><div class="staff-shadow-avatar staff-avatar-19" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Technical Editor</h3><p>Future editor for technical clarity, publication structure, language quality, citation consistency, formatting, and version release polish.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./publication-coordinator/"><div class="staff-shadow-avatar staff-avatar-20" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Publication Coordinator</h3><p>Future coordinator for release schedules, publication metadata, PDF bundles, signed manifests, archive records, and publication status tracking.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./dataset-curator/"><div class="staff-shadow-avatar staff-avatar-21" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Dataset Curator</h3><p>Future curator for dataset provenance, schemas, manifests, hashes, licensing, cleaning, versioning, and reproducibility records.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./research-librarian/"><div class="staff-shadow-avatar staff-avatar-22" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Research Librarian</h3><p>Future librarian for research archives, source catalogs, document collections, bibliography systems, citation records, and knowledge organization.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./scientific-advisor/"><div class="staff-shadow-avatar staff-avatar-23" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Scientific Advisor</h3><p>Future advisor for scientific method, experimental design, technical rigor, model evaluation, citation discipline, and institutional-quality review.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-research" href="./research-fellow/"><div class="staff-shadow-avatar staff-avatar-24" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Research</p><h3>Research Fellow</h3><p>Future fellow profile for external collaborators, visiting researchers, invited specialists, independent scholars, and temporary research contributors.</p><p class="staff-meta">Status: Placeholder · Codename: Archive-08</p></a>
-        </div>
-    </section>
-
-    <section id="ai-ml-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 04</p>
-        <h2>AI / ML Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./ai-ml-researcher/"><div class="staff-shadow-avatar staff-avatar-25" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>AI/ML Researcher</h3><p>Future AI, ML, local model, automation, language, vision, dataset, and research-assistant contributor.</p><p class="staff-meta">Status: Placeholder · Codename: Model-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./machine-learning-engineer/"><div class="staff-shadow-avatar staff-avatar-26" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>Machine Learning Engineer</h3><p>Future engineer for training workflows, data pipelines, classifiers, evaluation, embeddings, fine-tuning, and applied ML systems.</p><p class="staff-meta">Status: Placeholder · Codename: Model-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./local-model-engineer/"><div class="staff-shadow-avatar staff-avatar-27" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>Local Model Engineer</h3><p>Future engineer for offline/local inference, workstation deployment, model packaging, GPU acceleration, and private model operations.</p><p class="staff-meta">Status: Placeholder · Codename: Model-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./computer-vision-researcher/"><div class="staff-shadow-avatar staff-avatar-28" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>Computer Vision Researcher</h3><p>Future researcher for image analysis, object detection, visual datasets, OCR, frame extraction, image tagging, and media intelligence.</p><p class="staff-meta">Status: Placeholder · Codename: Model-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./language-systems-researcher/"><div class="staff-shadow-avatar staff-avatar-29" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>Language Systems Researcher</h3><p>Future researcher for LLMs, NLP, STT/TTS, multilingual systems, grammar tooling, documentation assistants, and knowledge interfaces.</p><p class="staff-meta">Status: Placeholder · Codename: Model-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./automation-engineer/"><div class="staff-shadow-avatar staff-avatar-30" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>Automation Engineer</h3><p>Future engineer for task automation, data jobs, agent workflows, CLI tools, site generation, report automation, and staff productivity systems.</p><p class="staff-meta">Status: Placeholder · Codename: Model-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./dataset-engineer/"><div class="staff-shadow-avatar staff-avatar-31" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>Dataset Engineer</h3><p>Future engineer for dataset construction, labeling, validation, cleaning, storage, compression, metadata, and benchmark packaging.</p><p class="staff-meta">Status: Placeholder · Codename: Model-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-ai" href="./ai-safety-analyst/"><div class="staff-shadow-avatar staff-avatar-32" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">AI / ML</p><h3>AI Safety Analyst</h3><p>Future analyst for model risk, misuse resistance, evaluation, safety reviews, red-team results, privacy, and responsible deployment practices.</p><p class="staff-meta">Status: Placeholder · Codename: Model-08</p></a>
-        </div>
-    </section>
-
-    <section id="cybersecurity-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 05</p>
-        <h2>Cybersecurity Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./security-analyst/"><div class="staff-shadow-avatar staff-avatar-33" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Security Analyst</h3><p>Future defensive security, OSINT, malware analysis, threat intelligence, vulnerability coordination, and infrastructure hardening staff.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./threat-intelligence-analyst/"><div class="staff-shadow-avatar staff-avatar-34" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Threat Intelligence Analyst</h3><p>Future analyst for threat tracking, infrastructure monitoring, indicators, campaigns, adversary behavior, and defensive intelligence products.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./osint-researcher/"><div class="staff-shadow-avatar staff-avatar-35" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>OSINT Researcher</h3><p>Future researcher for public-source intelligence, source validation, entity mapping, investigative support, timeline reconstruction, and evidence discipline.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./malware-analyst/"><div class="staff-shadow-avatar staff-avatar-36" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Malware Analyst</h3><p>Future analyst for defensive malware triage, static review, behavioral notes, indicators, sandbox results, and protective reporting.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./digital-forensics-examiner/"><div class="staff-shadow-avatar staff-avatar-37" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Digital Forensics Examiner</h3><p>Future examiner for log review, timeline analysis, file artifacts, evidence handling, system state review, and incident reconstruction.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./penetration-tester/"><div class="staff-shadow-avatar staff-avatar-38" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Penetration Tester</h3><p>Future authorized testing specialist for scoped assessments, validation, defensive findings, remediation notes, and security review deliverables.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./incident-response-specialist/"><div class="staff-shadow-avatar staff-avatar-39" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Incident Response Specialist</h3><p>Future responder for containment planning, incident notes, evidence preservation, communication discipline, remediation tracking, and lessons learned.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-cyber" href="./security-architect/"><div class="staff-shadow-avatar staff-avatar-40" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Cybersecurity</p><h3>Security Architect</h3><p>Future architect for secure systems, identity, access control, network segmentation, secrets, deployment safety, and defense-in-depth design.</p><p class="staff-meta">Status: Placeholder · Codename: Shield-08</p></a>
-        </div>
-    </section>
-
-    <section id="engineering-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 06</p>
-        <h2>Engineering Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./hardware-engineer/"><div class="staff-shadow-avatar staff-avatar-41" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Hardware Engineer</h3><p>Future engineer for boards, sensors, displays, controls, enclosures, wiring, prototypes, component selection, and physical systems.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./firmware-engineer/"><div class="staff-shadow-avatar staff-avatar-42" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Firmware Engineer</h3><p>Future engineer for embedded code, flashing, board support, microcontrollers, device behavior, hardware interfaces, and firmware releases.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./embedded-systems-engineer/"><div class="staff-shadow-avatar staff-avatar-43" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Embedded Systems Engineer</h3><p>Future engineer for ESP32, Arduino, Raspberry Pi, SD storage, displays, switches, sensors, control panels, and small-device systems.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./robotics-engineer/"><div class="staff-shadow-avatar staff-avatar-44" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Robotics Engineer</h3><p>Future robotics engineer for autonomous systems, movement models, sensor integration, control loops, simulation data, and robot platforms.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./uav-systems-engineer/"><div class="staff-shadow-avatar staff-avatar-45" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>UAV Systems Engineer</h3><p>Future engineer for UAV, UMV, UGV, ROV, telemetry, simulation, detection, control, safety, and lawful engineering research.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./systems-engineer/"><div class="staff-shadow-avatar staff-avatar-46" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Systems Engineer</h3><p>Future systems engineer for architecture, service integration, reliability, monitoring, release plans, operating environments, and technical standards.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./network-engineer/"><div class="staff-shadow-avatar staff-avatar-47" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Network Engineer</h3><p>Future engineer for routing, VPNs, Tor, I2P, proxychains, local networks, secure tunnels, public services, and monitoring systems.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-engineering" href="./infrastructure-engineer/"><div class="staff-shadow-avatar staff-avatar-48" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Engineering</p><h3>Infrastructure Engineer</h3><p>Future engineer for servers, storage, backups, static site pipelines, data exports, monitoring, deployments, and lab infrastructure.</p><p class="staff-meta">Status: Placeholder · Codename: Forge-08</p></a>
-        </div>
-    </section>
-
-    <section id="intelligence-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 07</p>
-        <h2>Intelligence Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./osint-analyst/"><div class="staff-shadow-avatar staff-avatar-49" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>OSINT Analyst</h3><p>Future analyst for public-source collection, source validation, entity mapping, open records, timelines, and structured intelligence products.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./geospatial-analyst/"><div class="staff-shadow-avatar staff-avatar-50" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Geospatial Analyst</h3><p>Future analyst for maps, satellite context, infrastructure geography, regional data, site analysis, and location-based research.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./investigations-specialist/"><div class="staff-shadow-avatar staff-avatar-51" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Investigations Specialist</h3><p>Future specialist for lawful investigations, evidence organization, chronology, documentation, report drafting, and case support.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./counterintelligence-analyst/"><div class="staff-shadow-avatar staff-avatar-52" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Counterintelligence Analyst</h3><p>Future analyst for insider-risk thinking, deception awareness, operational security review, source reliability, and adversarial context.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./information-operations-analyst/"><div class="staff-shadow-avatar staff-avatar-53" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Information Operations Analyst</h3><p>Future analyst for influence patterns, narrative tracking, public-source media review, platform behavior, and defensive information literacy.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./strategic-risk-analyst/"><div class="staff-shadow-avatar staff-avatar-54" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Strategic Risk Analyst</h3><p>Future analyst for institutional risk, geopolitical risk, technology risk, infrastructure risk, market exposure, and strategic decision support.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./regional-analyst/"><div class="staff-shadow-avatar staff-avatar-55" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Regional Analyst</h3><p>Future analyst for country profiles, regional technology posture, infrastructure conditions, policy landscape, and research geography.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-intel" href="./collection-manager/"><div class="staff-shadow-avatar staff-avatar-56" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Intelligence</p><h3>Collection Manager</h3><p>Future manager for collection plans, source registers, data requirements, tasking discipline, research queues, and evidence intake.</p><p class="staff-meta">Status: Placeholder · Codename: Signal-08</p></a>
-        </div>
-    </section>
-
-    <section id="alliances-division" class="container zzx-panel">
-        <p class="zzx-kicker">Division 08</p>
-        <h2>Strategic Alliances Division</h2>
-
-        <div class="zzx-card-grid">
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./alliance-coordinator/"><div class="staff-shadow-avatar staff-avatar-57" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Alliance Coordinator</h3><p>Future coordinator for partner relationships, institutional outreach, partner records, collaboration pipelines, and external coordination.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-01</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./academic-liaison/"><div class="staff-shadow-avatar staff-avatar-58" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Academic Liaison</h3><p>Future liaison for universities, researchers, labs, scientific advisors, student groups, publications, and academic partnership development.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-02</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./industry-liaison/"><div class="staff-shadow-avatar staff-avatar-59" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Industry Liaison</h3><p>Future liaison for technology companies, vendors, contractors, open-source firms, hardware suppliers, software groups, and commercial partners.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-03</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./government-liaison/"><div class="staff-shadow-avatar staff-avatar-60" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Government Liaison</h3><p>Future liaison for lawful public-sector coordination, research alignment, technology policy, institutional contact, and compliance-aware outreach.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-04</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./defense-liaison/"><div class="staff-shadow-avatar staff-avatar-61" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Defense Liaison</h3><p>Future liaison for defense-adjacent research relationships, defensive technology channels, institutional requirements, and responsible engagement.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-05</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./research-partnership-lead/"><div class="staff-shadow-avatar staff-avatar-62" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Research Partnership Lead</h3><p>Future lead for joint research, co-authored papers, datasets, institutional pilots, lab collaborations, and sponsored research programs.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-06</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./open-source-coordinator/"><div class="staff-shadow-avatar staff-avatar-63" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Open Source Coordinator</h3><p>Future coordinator for repositories, contributors, licensing, public releases, community review, issue triage, and open-source publication cadence.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-07</p></a>
-            <a class="zzx-card link-card staff-profile-card staff-alliances" href="./community-relations-lead/"><div class="staff-shadow-avatar staff-avatar-64" aria-hidden="true"><span class="staff-shadow-head"></span><span class="staff-shadow-eyes"></span><span class="staff-shadow-body"></span><span class="staff-division-mark"></span></div><p class="zzx-kicker">Strategic Alliances</p><h3>Community Relations Lead</h3><p>Future lead for public communication, community support, partner routing, contributor onboarding, announcement discipline, and public trust.</p><p class="staff-meta">Status: Placeholder · Codename: Bridge-08</p></a>
-        </div>
-    </section>
-
-    <section class="container zzx-panel">
-        <p class="zzx-kicker">Strategic Alliances</p>
-        <h2>Core Alliances</h2>
-
-        <div class="zzx-panel-grid">
-            <article class="zzx-panel">
-                <h3>0xdeadbeef</h3>
-                <p>
-                    The cryptonym <strong>0xdeadbeef</strong> represents the founder, architect, and operational lead
-                    behind ZZX-Labs R&D and related technical efforts. Public use of pseudonymity helps preserve personal
-                    privacy while allowing consistent attribution of technical work.
-                </p>
-            </article>
-
-            <article class="zzx-panel">
-                <h3>0xdeadbeef Consulting</h3>
-                <p>
-                    A private R&D and technology strategy effort focused on open-source systems, decentralized
-                    infrastructure, applied security, malware analytics, firmware and hardware engineering, AI/ML
-                    systems, OSINT tools, and Bitcoin security.
-                </p>
-                <a href="https://0xdeadbeefconsulting.io" target="_blank" rel="noopener" class="zzx-text-link">
-                    https://0xdeadbeefconsulting.io
-                </a>
-            </article>
-        </div>
-
-        <p>
-            Our alliances are critical to scaling research objectives. ZZX-Labs is continually seeking like-minded
-            individuals, institutions, and organizations aligned with resilient, decentralized, open, secure, and
-            Bitcoin-native systems.
-        </p>
-    </section>
-
-    <section class="container zzx-panel">
-        <p class="zzx-kicker">Future Profile Format</p>
-        <h2>Staff Subpage Structure</h2>
-
+        <p class="zzx-kicker">Data Model</p>
+        <h2>JSON Staff System</h2>
         <pre class="zzx-code-block">staff/
 ├── index.html
-├── _template/
-│   └── index.html
-├── 0xdeadbeef/
-│   └── index.html
-├── deputy-director/
-│   └── index.html
-├── bitcoin-engineer/
-│   └── index.html
-├── research-operator/
-│   └── index.html
-├── ai-ml-researcher/
-│   └── index.html
-├── security-analyst/
-│   └── index.html
-├── hardware-engineer/
-│   └── index.html
-├── osint-analyst/
-│   └── index.html
-└── alliance-coordinator/
-    └── index.html</pre>
-
-        <p>
-            Each profile can be copied from a future <code>staff/_template/index.html</code> and customized with role,
-            division, codename, public work, projects, publications, responsibilities, disclosure level, and contact routing.
-        </p>
+├── staff.css
+├── staff.js
+└── data/
+    ├── index.json
+    ├── executive.json
+    ├── technology.json
+    ├── bitcoin.json
+    ├── cyber-security.json
+    └── ...</pre>
     </section>
-
-    <section class="container zzx-panel">
-        <p class="zzx-kicker">Disclosure Levels</p>
-        <h2>Profile Visibility Model</h2>
-
-        <div class="zzx-card-grid">
-            <article class="zzx-card">
-                <h3>Public</h3>
-                <p>Full public profile approved for attribution, project credits, publications, and contact routing.</p>
-            </article>
-
-            <article class="zzx-card">
-                <h3>Pseudonymous</h3>
-                <p>Role and work may be listed under a handle or codename without personal identification.</p>
-            </article>
-
-            <article class="zzx-card">
-                <h3>Private</h3>
-                <p>Internal staff or collaborator known to ZZX-Labs but not publicly listed beyond a placeholder role.</p>
-            </article>
-
-            <article class="zzx-card">
-                <h3>Restricted</h3>
-                <p>Profile omitted or heavily redacted due to operational security, legal, contractual, or safety needs.</p>
-            </article>
-        </div>
-    </section>
-
-    <section class="container zzx-panel zzx-cta-panel">
-        <p class="zzx-kicker">Collaborate</p>
-        <h2>Work With ZZX-Labs</h2>
-
-        <p>
-            ZZX-Labs welcomes serious researchers, engineers, analysts, designers, consultants, advisors, institutions,
-            labs, open-source contributors, policy organizations, and technical operators aligned with Bitcoin-native,
-            secure, resilient, open, and privacy-preserving technology.
-        </p>
-
-        <div class="zzx-action-row">
-            <a href="../contact" class="btn">Get in Touch</a>
-            <a href="../partners" class="btn btn-outline">Partners</a>
-            <a href="../consultants" class="btn btn-outline">Consultants</a>
-            <a href="../research" class="btn btn-outline">Research</a>
-        </div>
-    </section>
-
-    <section class="container zzx-panel zzx-cta-panel">
-        <p class="zzx-kicker">Support the Mission</p>
-        <h2>Fund Research, Tools, and Infrastructure</h2>
-
-        <p>
-            ZZX-Labs is powered by open-source ideals, Bitcoin-native infrastructure, research discipline, and community
-            backing. Donations support development, documentation, research publication, public tools, and resilient
-            technology infrastructure.
-        </p>
-
-        <div class="zzx-action-row">
-            <a href="../donate" class="btn">Make a Donation</a>
-            <a href="../projects" class="btn btn-outline">Projects</a>
-            <a href="../research" class="btn btn-outline">Research</a>
-            <a href="../tools" class="btn btn-outline">Tools</a>
-        </div>
-    </section>
-
 </main>
 
 <footer>
     <div id="zzx-footer"></div>
 </footer>
-
-<style>
-.staff-profile-card {
-    position: relative;
-}
-
-.staff-meta {
-    margin-top: 0.9rem;
-    font-size: 0.78rem;
-    opacity: 0.72;
-}
-
-.staff-shadow-avatar {
-    --staff-accent: #c0d674;
-    --staff-eye: #c0d674;
-    position: relative;
-    width: 100%;
-    max-width: 184px;
-    height: 184px;
-    margin: 0 auto 1rem;
-    border: 1px solid rgba(209, 209, 209, 0.16);
-    border-radius: 16px;
-    background:
-        radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--staff-accent) 20%, transparent), transparent 36%),
-        radial-gradient(circle at 50% 100%, rgba(0, 0, 0, 0.78), transparent 62%),
-        linear-gradient(180deg, #151515, #050505);
-    overflow: hidden;
-    box-shadow:
-        inset 0 0 28px rgba(0, 0, 0, 0.64),
-        0 0 22px rgba(0, 0, 0, 0.28);
-}
-
-.staff-shadow-head {
-    position: absolute;
-    left: 50%;
-    top: 26px;
-    width: 78px;
-    height: 94px;
-    transform: translateX(-50%);
-    border-radius: 44% 44% 38% 38%;
-    background:
-        radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.05), transparent 20%),
-        linear-gradient(180deg, #171717, #050505);
-    box-shadow:
-        0 0 40px rgba(0, 0, 0, 0.92),
-        inset 0 -10px 18px rgba(0, 0, 0, 0.65);
-}
-
-.staff-shadow-eyes {
-    position: absolute;
-    left: 50%;
-    top: 67px;
-    width: 48px;
-    height: 11px;
-    transform: translateX(-50%);
-    border-radius: 999px;
-    background:
-        radial-gradient(circle at 28% 50%, var(--staff-eye) 0 11%, transparent 19%),
-        radial-gradient(circle at 72% 50%, var(--staff-eye) 0 11%, transparent 19%),
-        rgba(0, 0, 0, 0.94);
-    box-shadow: 0 0 18px color-mix(in srgb, var(--staff-eye) 35%, transparent);
-}
-
-.staff-shadow-body {
-    position: absolute;
-    left: 50%;
-    bottom: -38px;
-    width: 136px;
-    height: 106px;
-    transform: translateX(-50%);
-    border-radius: 48% 48% 0 0;
-    background:
-        radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.04), transparent 20%),
-        linear-gradient(180deg, #111, #030303);
-}
-
-.staff-division-mark {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--staff-accent);
-    box-shadow: 0 0 18px color-mix(in srgb, var(--staff-accent) 42%, transparent);
-    opacity: 0.88;
-}
-
-.staff-executive .staff-shadow-avatar {
-    --staff-accent: #e6a42b;
-    --staff-eye: #e6a42b;
-}
-
-.staff-bitcoin .staff-shadow-avatar {
-    --staff-accent: #f7931a;
-    --staff-eye: #f7931a;
-}
-
-.staff-research .staff-shadow-avatar {
-    --staff-accent: #5aa9e6;
-    --staff-eye: #5aa9e6;
-}
-
-.staff-ai .staff-shadow-avatar {
-    --staff-accent: #b07cff;
-    --staff-eye: #b07cff;
-}
-
-.staff-cyber .staff-shadow-avatar {
-    --staff-accent: #c0d674;
-    --staff-eye: #c0d674;
-}
-
-.staff-engineering .staff-shadow-avatar {
-    --staff-accent: #c79c6e;
-    --staff-eye: #c79c6e;
-}
-
-.staff-intel .staff-shadow-avatar {
-    --staff-accent: #d66060;
-    --staff-eye: #d66060;
-}
-
-.staff-alliances .staff-shadow-avatar {
-    --staff-accent: #d1d1d1;
-    --staff-eye: #d1d1d1;
-}
-
-.staff-avatar-02 .staff-shadow-head,
-.staff-avatar-10 .staff-shadow-head,
-.staff-avatar-18 .staff-shadow-head,
-.staff-avatar-26 .staff-shadow-head,
-.staff-avatar-34 .staff-shadow-head,
-.staff-avatar-42 .staff-shadow-head,
-.staff-avatar-50 .staff-shadow-head,
-.staff-avatar-58 .staff-shadow-head {
-    width: 84px;
-    height: 90px;
-    top: 30px;
-}
-
-.staff-avatar-03 .staff-shadow-head,
-.staff-avatar-11 .staff-shadow-head,
-.staff-avatar-19 .staff-shadow-head,
-.staff-avatar-27 .staff-shadow-head,
-.staff-avatar-35 .staff-shadow-head,
-.staff-avatar-43 .staff-shadow-head,
-.staff-avatar-51 .staff-shadow-head,
-.staff-avatar-59 .staff-shadow-head {
-    transform: translateX(-54%) rotate(-3deg);
-}
-
-.staff-avatar-04 .staff-shadow-head,
-.staff-avatar-12 .staff-shadow-head,
-.staff-avatar-20 .staff-shadow-head,
-.staff-avatar-28 .staff-shadow-head,
-.staff-avatar-36 .staff-shadow-head,
-.staff-avatar-44 .staff-shadow-head,
-.staff-avatar-52 .staff-shadow-head,
-.staff-avatar-60 .staff-shadow-head {
-    transform: translateX(-46%) rotate(3deg);
-}
-
-.staff-avatar-05 .staff-shadow-eyes,
-.staff-avatar-13 .staff-shadow-eyes,
-.staff-avatar-21 .staff-shadow-eyes,
-.staff-avatar-29 .staff-shadow-eyes,
-.staff-avatar-37 .staff-shadow-eyes,
-.staff-avatar-45 .staff-shadow-eyes,
-.staff-avatar-53 .staff-shadow-eyes,
-.staff-avatar-61 .staff-shadow-eyes {
-    width: 54px;
-    height: 9px;
-}
-
-.staff-avatar-06 .staff-shadow-body,
-.staff-avatar-14 .staff-shadow-body,
-.staff-avatar-22 .staff-shadow-body,
-.staff-avatar-30 .staff-shadow-body,
-.staff-avatar-38 .staff-shadow-body,
-.staff-avatar-46 .staff-shadow-body,
-.staff-avatar-54 .staff-shadow-body,
-.staff-avatar-62 .staff-shadow-body {
-    width: 150px;
-}
-
-.staff-avatar-07 .staff-division-mark,
-.staff-avatar-15 .staff-division-mark,
-.staff-avatar-23 .staff-division-mark,
-.staff-avatar-31 .staff-division-mark,
-.staff-avatar-39 .staff-division-mark,
-.staff-avatar-47 .staff-division-mark,
-.staff-avatar-55 .staff-division-mark,
-.staff-avatar-63 .staff-division-mark {
-    border-radius: 4px;
-    transform: rotate(45deg);
-}
-
-.staff-avatar-08 .staff-shadow-avatar,
-.staff-avatar-16 .staff-shadow-avatar,
-.staff-avatar-24 .staff-shadow-avatar,
-.staff-avatar-32 .staff-shadow-avatar,
-.staff-avatar-40 .staff-shadow-avatar,
-.staff-avatar-48 .staff-shadow-avatar,
-.staff-avatar-56 .staff-shadow-avatar,
-.staff-avatar-64 .staff-shadow-avatar {
-    background:
-        radial-gradient(circle at 42% 35%, color-mix(in srgb, var(--staff-accent) 18%, transparent), transparent 34%),
-        radial-gradient(circle at 72% 88%, rgba(0, 0, 0, 0.82), transparent 58%),
-        linear-gradient(180deg, #151515, #050505);
-}
-
-@supports not (background: color-mix(in srgb, #fff 20%, transparent)) {
-    .staff-shadow-avatar {
-        background:
-            radial-gradient(circle at 50% 35%, rgba(192, 214, 116, 0.12), transparent 36%),
-            radial-gradient(circle at 50% 100%, rgba(0, 0, 0, 0.78), transparent 62%),
-            linear-gradient(180deg, #151515, #050505);
-    }
-}
-</style>
-
 </body>
 </html>
