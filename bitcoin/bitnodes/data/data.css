@@ -1,1 +1,117 @@
+.bn-data-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
 
+.bn-data-card {
+    border: 1px solid rgba(192, 214, 116, 0.16);
+    border-radius: 18px;
+    padding: 18px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(12, 18, 10, 0.94),
+            rgba(5, 7, 4, 0.96)
+        );
+}
+
+.bn-data-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.bn-data-name {
+    color: var(--bn-green, #c0d674);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.bn-data-category {
+    color: var(--bn-ochre, #e6a42b);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.bn-data-description {
+    margin-top: 12px;
+    color: var(--bn-muted, #a8b58a);
+    line-height: 1.7;
+}
+
+.bn-data-path {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid rgba(192, 214, 116, 0.12);
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.bn-data-path code {
+    color: var(--bn-green, #c0d674);
+    font-family: var(--bn-font, "IBM Plex Mono", monospace);
+    font-size: 0.84rem;
+}
+
+.bn-data-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.bn-data-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(192, 214, 116, 0.18);
+    background: rgba(0, 0, 0, 0.18);
+    color: var(--bn-text, #e8f0d2);
+    text-decoration: none;
+}
+
+.bn-data-links a:hover {
+    background: var(--bn-green, #c0d674);
+    border-color: var(--bn-green, #c0d674);
+    color: #050704;
+}
+
+.bn-data-preview {
+    min-height: 240px;
+    padding: 18px;
+    border-radius: 18px;
+    overflow: auto;
+    border: 1px solid rgba(192, 214, 116, 0.14);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--bn-green, #c0d674);
+    font-family: var(--bn-font, "IBM Plex Mono", monospace);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.bn-data-preview pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+    .bn-data-top {
+        flex-direction: column;
+    }
+
+    .bn-data-links {
+        flex-direction: column;
+    }
+
+    .bn-data-links a {
+        width: 100%;
+        justify-content: center;
+    }
+}
