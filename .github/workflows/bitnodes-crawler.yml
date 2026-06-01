@@ -40,7 +40,7 @@ jobs:
       - name: Checkout website repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: true
 
       - name: Set crawl profile
@@ -49,10 +49,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          PROFILE="${{ github.event.inputs.crawl_profile || '' }}"
+          PROFILE="${{ inputs.crawl_profile || '' }}"
 
           if [ -z "${PROFILE}" ]; then
             HOUR="$(date -u +%H)"
+
             if [ "${HOUR}" = "03" ]; then
               PROFILE="deep"
             else
@@ -95,6 +96,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
@@ -102,6 +104,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/crawl.py --list-crawlers
           python tools/bitnodes/enrich.py --help
           python tools/bitnodes/aggregate.py --help
@@ -112,14 +115,48 @@ jobs:
           set -euo pipefail
 
           mkdir -p "${BITNODES_GEOIP}"
-          DBIP_MONTH="$(date -u +%Y-%m)"
+
+          MONTHS="$(
+            python - <<'PY'
+          from datetime import datetime, timezone
+
+          now = datetime.now(timezone.utc)
+          year = now.year
+          month = now.month
+
+          for _ in range(6):
+              print(f"{year:04d}-{month:02d}")
+
+              month -= 1
+
+              if month == 0:
+                  month = 12
+                  year -= 1
+          PY
+          )"
 
           for DB in city asn country; do
-            URL="https://download.db-ip.com/free/dbip-${DB}-lite-${DBIP_MONTH}.mmdb.gz"
-            OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb.gz"
+            OK="0"
 
-            printf '%s\n' "Downloading ${URL}"
-            curl -fL --retry 3 --retry-delay 5 -o "${OUT}" "${URL}"
+            for DBIP_MONTH in ${MONTHS}; do
+              URL="https://download.db-ip.com/free/dbip-${DB}-lite-${DBIP_MONTH}.mmdb.gz"
+              OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb.gz"
+
+              printf '%s\n' "Trying ${URL}"
+
+              if curl -fL --retry 3 --retry-delay 5 -o "${OUT}" "${URL}"; then
+                printf '%s\n' "Downloaded ${DB} GeoIP database for ${DBIP_MONTH}"
+                OK="1"
+                break
+              fi
+
+              rm -f "${OUT}"
+            done
+
+            if [ "${OK}" != "1" ]; then
+              printf '%s\n' "Failed to download DB-IP ${DB} Lite database from current or previous months."
+              exit 1
+            fi
           done
 
           gunzip -f "${BITNODES_GEOIP}"/*.gz
@@ -141,6 +178,14 @@ jobs:
             "${BITNODES_DATA}/snapshots/24h/zzxbitnodes" \
             "${BITNODES_DATA}/seeders/zzxbitnodes" \
             "${BITNODES_ARCHIVE}/zzxbitnodes"
+
+      - name: Sync repo before crawl
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin main
+          git rebase --autostash origin/main
 
       - name: Run ZZX Bitnodes crawler window
         shell: bash
@@ -255,10 +300,8 @@ jobs:
           import time
           from pathlib import Path
 
-          root = Path(os.environ["BITNODES_ROOT"])
           api = Path(os.environ["BITNODES_API"])
           data = Path(os.environ["BITNODES_DATA"])
-          archive = Path(os.environ["BITNODES_ARCHIVE"])
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
           shard_target = 18000000
 
@@ -336,63 +379,25 @@ jobs:
               }
 
               if isinstance(nodes, dict):
+                  items = nodes.items()
                   current = {}
-                  shard_no = 0
-
-                  for key, val in nodes.items():
-                      current[key] = val
-
-                      if encoded_size({node_key: current}) >= shard_target:
-                          shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
-                          write_json(shard_path, {
-                              "schema_version": "0.1.0",
-                              "node_key": node_key,
-                              node_key: current,
-                          })
-                          index["shards"].append({
-                              "path": f"nodes/{shard_path.name}",
-                              "count": len(current),
-                              "size_bytes": shard_path.stat().st_size,
-                          })
-                          shard_no += 1
-                          current = {}
-
-                  if current:
-                      shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
-                      write_json(shard_path, {
-                          "schema_version": "0.1.0",
-                          "node_key": node_key,
-                          node_key: current,
-                      })
-                      index["shards"].append({
-                          "path": f"nodes/{shard_path.name}",
-                          "count": len(current),
-                          "size_bytes": shard_path.stat().st_size,
-                      })
-
               else:
+                  items = enumerate(nodes)
                   current = []
-                  shard_no = 0
 
-                  for item in nodes:
-                      current.append(item)
+              shard_no = 0
 
-                      if encoded_size({node_key: current}) >= shard_target:
-                          shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
-                          write_json(shard_path, {
-                              "schema_version": "0.1.0",
-                              "node_key": node_key,
-                              node_key: current,
-                          })
-                          index["shards"].append({
-                              "path": f"nodes/{shard_path.name}",
-                              "count": len(current),
-                              "size_bytes": shard_path.stat().st_size,
-                          })
-                          shard_no += 1
-                          current = []
+              for key, val in items:
+                  if isinstance(nodes, dict):
+                      current[key] = val
+                      candidate = {node_key: current}
+                      count = len(current)
+                  else:
+                      current.append(val)
+                      candidate = {node_key: current}
+                      count = len(current)
 
-                  if current:
+                  if encoded_size(candidate) >= shard_target:
                       shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
                       write_json(shard_path, {
                           "schema_version": "0.1.0",
@@ -401,9 +406,24 @@ jobs:
                       })
                       index["shards"].append({
                           "path": f"nodes/{shard_path.name}",
-                          "count": len(current),
+                          "count": count,
                           "size_bytes": shard_path.stat().st_size,
                       })
+                      shard_no += 1
+                      current = {} if isinstance(nodes, dict) else []
+
+              if len(current) > 0:
+                  shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                  write_json(shard_path, {
+                      "schema_version": "0.1.0",
+                      "node_key": node_key,
+                      node_key: current,
+                  })
+                  index["shards"].append({
+                      "path": f"nodes/{shard_path.name}",
+                      "count": len(current),
+                      "size_bytes": shard_path.stat().st_size,
+                  })
 
               index_path = shard_dir / "index.json"
               write_json(index_path, index)
@@ -473,18 +493,19 @@ jobs:
                   "enriched_zzxbitnodes": "enriched/zzxbitnodes/latest.json",
                   "enriched_originalbitnodes": "enriched/originalbitnodes/latest.json",
                   "aggregate_zzxbitnodes": "aggregate/zzxbitnodes/latest.json",
-                  "aggregate_originalbitnodes": "aggregate/originalbitnodes/latest.json",
+                  "aggregate_originalbitnodes": "aggregate/originalbitnodes/latest.json"
               },
               "manifest": "manifest.json",
               "file_size_policy": {
                   "max_public_json_bytes": max_bytes,
-                  "shard_large_node_lists": True,
-              },
+                  "shard_large_node_lists": True
+              }
           }
 
           write_json(api / "index.json", latest_index)
 
           oversized = []
+
           for base in [api, data]:
               if not base.exists():
                   continue
@@ -492,13 +513,16 @@ jobs:
               for path in base.rglob("*"):
                   if path.is_file() and path.suffix.lower() in {".json", ".txt", ".csv"}:
                       size = path.stat().st_size
+
                       if size > max_bytes:
                           oversized.append((str(path), size))
 
           if oversized:
               print("Oversized public files remain:")
+
               for path, size in oversized:
                   print(f"{size} {path}")
+
               raise SystemExit(1)
 
           print("Lean API build completed.")
@@ -536,14 +560,17 @@ jobs:
           root = Path(os.environ["BITNODES_ROOT"])
 
           bad = []
+
           for path in root.rglob("*"):
               if path.is_file() and path.stat().st_size > max_bytes:
                   bad.append((path.stat().st_size, path))
 
           if bad:
               print("Files still exceed max public size:")
+
               for size, path in bad:
                   print(f"{size} {path}")
+
               raise SystemExit(1)
 
           print("All tracked Bitnodes files are under max public size.")
