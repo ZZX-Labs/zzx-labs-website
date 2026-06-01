@@ -1,52 +1,212 @@
+/* ========================================================= */
+/* LATENCY DASHBOARD */
+/* ========================================================= */
+
+.bn-status {
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(192,214,116,0.18);
+    background: rgba(192,214,116,0.04);
+    color: var(--bn-text, #e8f0d2);
+}
+
+.bn-status.ok {
+    border-color: rgba(192,214,116,0.30);
+}
+
+.bn-status.warn {
+    border-color: rgba(214,90,74,0.35);
+    color: #ffb0a4;
+}
+
+/* ========================================================= */
+/* SUMMARY */
+/* ========================================================= */
+
+#bn-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+    gap: 16px;
+}
+
+.bn-card {
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(192,214,116,0.10);
+    background: rgba(255,255,255,0.02);
+}
+
+.bn-card span {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bn-muted,#a8b58a);
+}
+
+.bn-card strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 1.45rem;
+    color: var(--bn-green,#c0d674);
+}
+
+/* ========================================================= */
+/* CONTROLS */
+/* ========================================================= */
+
+.bn-control {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(192,214,116,0.15);
+    background: rgba(0,0,0,0.25);
+    color: var(--bn-text,#e8f0d2);
+}
+
+/* ========================================================= */
+/* TABLE */
+/* ========================================================= */
+
 .bn-latency-table-wrap {
     overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(192,214,116,0.10);
 }
 
 .bn-latency-table {
     width: 100%;
-    min-width: 980px;
+    min-width: 1300px;
     border-collapse: collapse;
+}
+
+.bn-latency-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.bn-latency-table th {
+    background: #1c1f1a;
+    color: var(--bn-green,#c0d674);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 .bn-latency-table th,
 .bn-latency-table td {
     padding: 12px 10px;
-    border-bottom: 1px solid rgba(192, 214, 116, 0.12);
+    border-bottom: 1px solid rgba(192,214,116,0.08);
     text-align: left;
     vertical-align: top;
 }
 
-.bn-latency-table th {
-    color: var(--bn-green, #c0d674);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.74rem;
-}
-
 .bn-latency-table td {
-    color: var(--bn-text, #e8f0d2);
+    color: var(--bn-text,#e8f0d2);
     font-size: 0.84rem;
 }
 
+.bn-latency-table tbody tr:hover {
+    background: rgba(192,214,116,0.04);
+}
+
+/* ========================================================= */
+/* COLUMNS */
+/* ========================================================= */
+
 .bn-latency-node {
-    color: var(--bn-green, #c0d674);
+    color: var(--bn-green,#c0d674);
     font-weight: 700;
     overflow-wrap: anywhere;
+    max-width: 260px;
 }
 
 .bn-latency-period {
-    color: var(--bn-ochre, #e6a42b);
+    color: var(--bn-ochre,#e6a42b);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.bn-latency-agent {
+    max-width: 240px;
+    overflow-wrap: anywhere;
+}
+
+.bn-latency-org {
+    max-width: 220px;
+    overflow-wrap: anywhere;
+}
+
+.bn-latency-asn {
+    white-space: nowrap;
+}
+
+/* ========================================================= */
+/* LATENCY STATES */
+/* ========================================================= */
+
+.bn-latency-good {
+    color: #c0d674;
     font-weight: 700;
 }
 
-.bn-latency-good {
-    color: var(--bn-green, #c0d674);
+.bn-latency-warn {
+    color: #e6a42b;
+    font-weight: 700;
+}
+
+.bn-latency-slow {
+    color: #ff944d;
+    font-weight: 700;
 }
 
 .bn-latency-down {
-    color: var(--bn-red, #d65a4a);
+    color: #d65a4a;
+    font-weight: 700;
 }
 
 .bn-latency-empty {
-    color: var(--bn-muted, #a8b58a);
+    color: #a8b58a;
+}
+
+/* ========================================================= */
+/* EMPTY STATE */
+/* ========================================================= */
+
+.bn-empty {
+    padding: 40px 20px;
+    text-align: center;
+    border-radius: 10px;
+    border: 1px dashed rgba(192,214,116,0.15);
+    color: var(--bn-muted,#a8b58a);
+}
+
+/* ========================================================= */
+/* TABLE META */
+/* ========================================================= */
+
+.bn-table-meta {
+    margin-bottom: 12px;
+    color: var(--bn-muted,#a8b58a);
+    font-size: 0.85rem;
+}
+
+/* ========================================================= */
+/* MOBILE */
+/* ========================================================= */
+
+@media (max-width: 900px) {
+
+    .bn-card strong {
+        font-size: 1.15rem;
+    }
+
+    .bn-latency-table {
+        min-width: 1100px;
+    }
 }
