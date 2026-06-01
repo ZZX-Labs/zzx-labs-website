@@ -1,1 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
 
+    <title>Data | Bitnodes Mirror | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../../static/icons/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="./data.css">
+
+    <script src="../../../static/script.js" defer></script>
+    <script src="../script.js" defer></script>
+    <script src="./data.js" defer></script>
+</head>
+
+<body data-bn-depth="..">
+
+<header>
+    <div id="zzx-header"></div>
+
+    <br>
+
+    <div id="ticker-container"></div>
+
+    <br>
+
+    <div id="bn-header"></div>
+</header>
+
+<main class="bn-shell" data-bitnodes-view="data">
+
+    <section class="bn-hero container">
+        <p class="bn-kicker">ZZX-Labs / Bitcoin Network Intelligence</p>
+
+        <h2>Data</h2>
+
+        <p>
+            Searchable index of crawler state, snapshots, seed data, map data,
+            enriched exports, aggregate exports, registry datasets, and stored
+            Bitnodes telemetry used by the ZZX-Labs Bitcoin network mirror.
+        </p>
+
+        <div class="bn-sourcebar">
+            <label for="bn-source">Data Scope</label>
+
+            <select id="bn-source">
+                <option value="all" selected>All Data</option>
+                <option value="state">Crawler State</option>
+                <option value="snapshots">Snapshots</option>
+                <option value="seeders">Seeders</option>
+                <option value="geoip">GeoIP</option>
+                <option value="maps">Maps</option>
+                <option value="api">API Exports</option>
+            </select>
+
+            <button id="bn-refresh" type="button">Refresh</button>
+        </div>
+    </section>
+
+    <br>
+
+    <section id="bn-status" class="bn-status container">
+        Loading Bitnodes data index...
+    </section>
+
+    <br>
+
+    <section id="bn-summary" class="bn-grid"></section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">Data Index</span>
+
+            <h2>Stored Crawl Data</h2>
+
+            <p>
+                Browse internal data families used by the crawler, exporter,
+                enrichment chain, map host, API generator, and archive system.
+            </p>
+        </header>
+
+        <div class="bn-toolbar">
+            <div class="bn-toolbar-group">
+                <label for="bn-search">Search</label>
+                <input id="bn-search" type="search" placeholder="state, snapshots, seeders, geoip, maps...">
+            </div>
+
+            <div class="bn-toolbar-group">
+                <label for="bn-sort">Sort</label>
+                <select id="bn-sort">
+                    <option value="name" selected>Name</option>
+                    <option value="category">Category</option>
+                    <option value="path">Path</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="bn-view"></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">Preview</span>
+            <h2>Selected Data Preview</h2>
+        </header>
+
+        <div id="bn-data-preview" class="bn-data-preview">
+            Select a data item to preview.
+        </div>
+    </section>
+
+    <br><br>
+
+</main>
+
+<footer>
+    <div id="bn-footer"></div>
+    <div id="zzx-footer"></div>
+</footer>
+
+</body>
+</html>
