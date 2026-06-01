@@ -2,8 +2,18 @@ name: ZZX-Labs Bitnodes Global Node Crawler
 
 on:
   workflow_dispatch:
+    inputs:
+      crawl_profile:
+        description: "Crawl profile"
+        required: false
+        default: "hourly"
+        type: choice
+        options:
+          - hourly
+          - deep
   schedule:
-    - cron: "0 * * * *"
+    - cron: "7 * * * *"
+    - cron: "23 3 * * *"
 
 permissions:
   contents: write
@@ -11,6 +21,15 @@ permissions:
 concurrency:
   group: zzx-bitnodes-global-crawler
   cancel-in-progress: false
+
+env:
+  BITNODES_ROOT: bitcoin/bitnodes
+  BITNODES_API: bitcoin/bitnodes/api
+  BITNODES_DATA: bitcoin/bitnodes/data
+  BITNODES_ARCHIVE: bitcoin/bitnodes/archive
+  BITNODES_GEOIP: bitcoin/bitnodes/data/geoip
+  MAX_PUBLIC_JSON_BYTES: "24000000"
+  PYTHONUNBUFFERED: "1"
 
 jobs:
   crawl-bitnodes:
@@ -21,76 +40,151 @@ jobs:
       - name: Checkout website repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: true
+
+      - name: Set crawl profile
+        id: profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PROFILE="${{ github.event.inputs.crawl_profile || '' }}"
+
+          if [ -z "${PROFILE}" ]; then
+            HOUR="$(date -u +%H)"
+            if [ "${HOUR}" = "03" ]; then
+              PROFILE="deep"
+            else
+              PROFILE="hourly"
+            fi
+          fi
+
+          if [ "${PROFILE}" = "deep" ]; then
+            printf '%s\n' "profile=deep" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "run_seconds=3000" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "workers=768" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "batch_size=8192" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "getaddr_rounds=64" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "dns_seed_limit=12000" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "archive_replay_files=1500" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "original_workers=192" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "original_batch_size=4096" >> "${GITHUB_OUTPUT}"
+          else
+            printf '%s\n' "profile=hourly" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "run_seconds=1500" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "workers=384" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "batch_size=4096" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "getaddr_rounds=24" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "dns_seed_limit=8192" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "archive_replay_files=500" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "original_workers=96" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "original_batch_size=2048" >> "${GITHUB_OUTPUT}"
+          fi
+
+          printf '%s\n' "Using crawl profile: ${PROFILE}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/bitnodes/requirements.txt
 
       - name: Install crawler dependencies
+        shell: bash
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
       - name: Validate Bitnodes tools
+        shell: bash
         run: |
+          set -euo pipefail
           python tools/bitnodes/crawl.py --list-crawlers
           python tools/bitnodes/enrich.py --help
           python tools/bitnodes/aggregate.py --help
 
       - name: Download DB-IP GeoIP databases
+        shell: bash
         run: |
           set -euo pipefail
-          mkdir -p bitcoin/bitnodes/data/geoip
+
+          mkdir -p "${BITNODES_GEOIP}"
           DBIP_MONTH="$(date -u +%Y-%m)"
 
-          curl -fL -o bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb.gz "https://download.db-ip.com/free/dbip-city-lite-${DBIP_MONTH}.mmdb.gz"
-          curl -fL -o bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb.gz "https://download.db-ip.com/free/dbip-asn-lite-${DBIP_MONTH}.mmdb.gz"
-          curl -fL -o bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb.gz "https://download.db-ip.com/free/dbip-country-lite-${DBIP_MONTH}.mmdb.gz"
+          for DB in city asn country; do
+            URL="https://download.db-ip.com/free/dbip-${DB}-lite-${DBIP_MONTH}.mmdb.gz"
+            OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb.gz"
 
-          gunzip -f bitcoin/bitnodes/data/geoip/*.gz
+            printf '%s\n' "Downloading ${URL}"
+            curl -fL --retry 3 --retry-delay 5 -o "${OUT}" "${URL}"
+          done
 
-      - name: Sync website repo before crawling
+          gunzip -f "${BITNODES_GEOIP}"/*.gz
+
+      - name: Prepare Bitnodes directories
+        shell: bash
         run: |
-          git fetch origin main
-          git rebase --autostash origin/main
+          set -euo pipefail
+
+          mkdir -p \
+            "${BITNODES_API}/zzxbitnodes" \
+            "${BITNODES_API}/originalbitnodes" \
+            "${BITNODES_API}/enriched/zzxbitnodes" \
+            "${BITNODES_API}/enriched/originalbitnodes" \
+            "${BITNODES_API}/aggregate/zzxbitnodes" \
+            "${BITNODES_API}/aggregate/originalbitnodes" \
+            "${BITNODES_DATA}/state/zzxbitnodes" \
+            "${BITNODES_DATA}/state/originalbitnodes" \
+            "${BITNODES_DATA}/snapshots/24h/zzxbitnodes" \
+            "${BITNODES_DATA}/seeders/zzxbitnodes" \
+            "${BITNODES_ARCHIVE}/zzxbitnodes"
 
       - name: Run ZZX Bitnodes crawler window
+        shell: bash
         run: |
+          set -euo pipefail
+
           python tools/bitnodes/crawl.py \
             --crawler zzxbitnodes \
             --daemon \
-            --run-seconds 2400 \
-            --interval 15 \
-            --output bitcoin/bitnodes/api/zzxbitnodes \
-            --archive-dir bitcoin/bitnodes/archive/zzxbitnodes \
-            --state-dir bitcoin/bitnodes/data/state/zzxbitnodes \
-            --snapshot-24h-dir bitcoin/bitnodes/data/snapshots/24h/zzxbitnodes \
-            --seeder-dir bitcoin/bitnodes/data/seeders/zzxbitnodes \
-            --geoip-dir bitcoin/bitnodes/data/geoip \
+            --run-seconds "${{ steps.profile.outputs.run_seconds }}" \
+            --interval 20 \
+            --output "${BITNODES_API}/zzxbitnodes" \
+            --archive-dir "${BITNODES_ARCHIVE}/zzxbitnodes" \
+            --state-dir "${BITNODES_DATA}/state/zzxbitnodes" \
+            --snapshot-24h-dir "${BITNODES_DATA}/snapshots/24h/zzxbitnodes" \
+            --seeder-dir "${BITNODES_DATA}/seeders/zzxbitnodes" \
+            --geoip-dir "${BITNODES_GEOIP}" \
             --timeout 5 \
-            --limit 5000000 \
-            --batch-size 20000 \
-            --workers 2048 \
-            --getaddr-rounds 128 \
-            --dns-seed-limit 10000 \
-            --archive-replay-files 5000 \
+            --limit 750000 \
+            --batch-size "${{ steps.profile.outputs.batch_size }}" \
+            --workers "${{ steps.profile.outputs.workers }}" \
+            --getaddr-rounds "${{ steps.profile.outputs.getaddr_rounds }}" \
+            --dns-seed-limit "${{ steps.profile.outputs.dns_seed_limit }}" \
+            --archive-replay-files "${{ steps.profile.outputs.archive_replay_files }}" \
             --export-mode reachable_24h \
             --mirror-legacy-api \
             --compact
 
       - name: Run Original Bitnodes-compatible crawler
+        shell: bash
         run: |
+          set -euo pipefail
+
           python tools/bitnodes/crawl.py \
             --crawler originalbitnodes \
             --original-mode hybrid \
             --run-seconds 0 \
+            --output "${BITNODES_API}/originalbitnodes" \
+            --state-dir "${BITNODES_DATA}/state/originalbitnodes" \
+            --geoip-dir "${BITNODES_GEOIP}" \
             --timeout 5 \
-            --limit 500000 \
-            --batch-size 4096 \
-            --workers 256 \
+            --limit 250000 \
+            --batch-size "${{ steps.profile.outputs.original_batch_size }}" \
+            --workers "${{ steps.profile.outputs.original_workers }}" \
             --getaddr-rounds 16 \
             --dns-seed-limit 4096 \
             --archive-replay-files 0 \
@@ -99,107 +193,391 @@ jobs:
             --compact
 
       - name: Enrich ZZX Bitnodes dataset
+        shell: bash
         run: |
+          set -euo pipefail
+
           python tools/bitnodes/enrich.py \
-            --input bitcoin/bitnodes/api/zzxbitnodes/latest.json \
-            --output bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json \
-            --report bitcoin/bitnodes/api/enriched/zzxbitnodes/enrichment-report.json \
+            --input "${BITNODES_API}/zzxbitnodes/latest.json" \
+            --output "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            --report "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
             --source zzxbitnodes \
-            --api-dir bitcoin/bitnodes/api \
-            --state-dir bitcoin/bitnodes/data/state/zzxbitnodes \
-            --geoip-dir bitcoin/bitnodes/data/geoip
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/state/zzxbitnodes" \
+            --geoip-dir "${BITNODES_GEOIP}"
 
       - name: Enrich Original Bitnodes dataset
+        shell: bash
         run: |
+          set -euo pipefail
+
           python tools/bitnodes/enrich.py \
-            --input bitcoin/bitnodes/api/originalbitnodes/latest.json \
-            --output bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json \
-            --report bitcoin/bitnodes/api/enriched/originalbitnodes/enrichment-report.json \
+            --input "${BITNODES_API}/originalbitnodes/latest.json" \
+            --output "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
+            --report "${BITNODES_API}/enriched/originalbitnodes/enrichment-report.json" \
             --source originalbitnodes \
-            --api-dir bitcoin/bitnodes/api \
-            --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
-            --geoip-dir bitcoin/bitnodes/data/geoip
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/state/originalbitnodes" \
+            --geoip-dir "${BITNODES_GEOIP}"
 
       - name: Aggregate ZZX Bitnodes dataset
+        shell: bash
         run: |
+          set -euo pipefail
+
           python tools/bitnodes/aggregate.py \
-            --input bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json \
-            --output bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json \
-            --api-dir bitcoin/bitnodes/api \
-            --state-dir bitcoin/bitnodes/data/state/zzxbitnodes \
+            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            --output "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/state/zzxbitnodes" \
             --source zzxbitnodes
 
       - name: Aggregate Original Bitnodes dataset
+        shell: bash
         run: |
+          set -euo pipefail
+
           python tools/bitnodes/aggregate.py \
-            --input bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json \
-            --output bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json \
-            --api-dir bitcoin/bitnodes/api \
-            --state-dir bitcoin/bitnodes/data/state/originalbitnodes \
+            --input "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
+            --output "${BITNODES_API}/aggregate/originalbitnodes/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/state/originalbitnodes" \
             --source originalbitnodes
 
+      - name: Build lean public Bitnodes API and enforce file-size limits
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          import time
+          from pathlib import Path
+
+          root = Path(os.environ["BITNODES_ROOT"])
+          api = Path(os.environ["BITNODES_API"])
+          data = Path(os.environ["BITNODES_DATA"])
+          archive = Path(os.environ["BITNODES_ARCHIVE"])
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          shard_target = 18000000
+
+          def read_json(path):
+              with path.open("r", encoding="utf-8") as f:
+                  return json.load(f)
+
+          def write_json(path, obj):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              tmp = path.with_suffix(path.suffix + ".tmp")
+              with tmp.open("w", encoding="utf-8") as f:
+                  json.dump(obj, f, ensure_ascii=False, separators=(",", ":"), sort_keys=False)
+              tmp.replace(path)
+
+          def encoded_size(obj):
+              return len(json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+          def find_node_key(obj):
+              if not isinstance(obj, dict):
+                  return None
+
+              candidates = [
+                  "nodes",
+                  "reachable_nodes",
+                  "unreachable_nodes",
+                  "addresses",
+                  "peers",
+              ]
+
+              for key in candidates:
+                  val = obj.get(key)
+                  if isinstance(val, (dict, list)) and len(val) > 0:
+                      return key
+
+              for key, val in obj.items():
+                  if isinstance(val, dict) and len(val) > 1000:
+                      return key
+                  if isinstance(val, list) and len(val) > 1000:
+                      return key
+
+              return None
+
+          def shard_nodes_file(path):
+              if not path.exists():
+                  return None
+
+              if path.stat().st_size <= max_bytes:
+                  return None
+
+              obj = read_json(path)
+              node_key = find_node_key(obj)
+
+              if node_key is None:
+                  return {
+                      "path": str(path),
+                      "status": "too_large_no_node_key",
+                      "size_bytes": path.stat().st_size,
+                  }
+
+              nodes = obj.get(node_key)
+              shard_dir = path.parent / "nodes"
+              shard_dir.mkdir(parents=True, exist_ok=True)
+
+              for old in shard_dir.glob("*.json"):
+                  old.unlink()
+
+              index = {
+                  "schema_version": "0.1.0",
+                  "generated_at": int(time.time()),
+                  "source_file": path.name,
+                  "node_key": node_key,
+                  "node_container": "dict" if isinstance(nodes, dict) else "list",
+                  "count": len(nodes),
+                  "shards": [],
+              }
+
+              if isinstance(nodes, dict):
+                  current = {}
+                  shard_no = 0
+
+                  for key, val in nodes.items():
+                      current[key] = val
+
+                      if encoded_size({node_key: current}) >= shard_target:
+                          shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                          write_json(shard_path, {
+                              "schema_version": "0.1.0",
+                              "node_key": node_key,
+                              node_key: current,
+                          })
+                          index["shards"].append({
+                              "path": f"nodes/{shard_path.name}",
+                              "count": len(current),
+                              "size_bytes": shard_path.stat().st_size,
+                          })
+                          shard_no += 1
+                          current = {}
+
+                  if current:
+                      shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                      write_json(shard_path, {
+                          "schema_version": "0.1.0",
+                          "node_key": node_key,
+                          node_key: current,
+                      })
+                      index["shards"].append({
+                          "path": f"nodes/{shard_path.name}",
+                          "count": len(current),
+                          "size_bytes": shard_path.stat().st_size,
+                      })
+
+              else:
+                  current = []
+                  shard_no = 0
+
+                  for item in nodes:
+                      current.append(item)
+
+                      if encoded_size({node_key: current}) >= shard_target:
+                          shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                          write_json(shard_path, {
+                              "schema_version": "0.1.0",
+                              "node_key": node_key,
+                              node_key: current,
+                          })
+                          index["shards"].append({
+                              "path": f"nodes/{shard_path.name}",
+                              "count": len(current),
+                              "size_bytes": shard_path.stat().st_size,
+                          })
+                          shard_no += 1
+                          current = []
+
+                  if current:
+                      shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                      write_json(shard_path, {
+                          "schema_version": "0.1.0",
+                          "node_key": node_key,
+                          node_key: current,
+                      })
+                      index["shards"].append({
+                          "path": f"nodes/{shard_path.name}",
+                          "count": len(current),
+                          "size_bytes": shard_path.stat().st_size,
+                      })
+
+              index_path = shard_dir / "index.json"
+              write_json(index_path, index)
+
+              lite = dict(obj)
+              lite[node_key] = {
+                  "sharded": True,
+                  "node_key": node_key,
+                  "count": len(nodes),
+                  "index": "nodes/index.json",
+                  "shards": index["shards"],
+              }
+
+              lite.setdefault("zzx_static_api", {})
+              lite["zzx_static_api"].update({
+                  "nodes_sharded": True,
+                  "max_public_json_bytes": max_bytes,
+                  "original_size_bytes": path.stat().st_size,
+                  "shard_index": "nodes/index.json",
+              })
+
+              write_json(path, lite)
+
+              return {
+                  "path": str(path),
+                  "status": "sharded",
+                  "node_key": node_key,
+                  "count": len(nodes),
+                  "size_bytes_after": path.stat().st_size,
+                  "shards": len(index["shards"]),
+              }
+
+          sharded = []
+
+          for rel in [
+              "zzxbitnodes/latest.json",
+              "originalbitnodes/latest.json",
+              "enriched/zzxbitnodes/latest.json",
+              "enriched/originalbitnodes/latest.json",
+          ]:
+              result = shard_nodes_file(api / rel)
+              if result:
+                  sharded.append(result)
+
+          manifest = {
+              "schema_version": "0.1.0",
+              "generated_at": int(time.time()),
+              "max_public_json_bytes": max_bytes,
+              "sharded_files": sharded,
+              "public_files": [],
+          }
+
+          for path in sorted(api.rglob("*.json")):
+              manifest["public_files"].append({
+                  "path": str(path.relative_to(api)),
+                  "size_bytes": path.stat().st_size,
+              })
+
+          write_json(api / "manifest.json", manifest)
+
+          latest_index = {
+              "schema_version": "0.1.0",
+              "generated_at": int(time.time()),
+              "sources": {
+                  "zzxbitnodes": "zzxbitnodes/latest.json",
+                  "originalbitnodes": "originalbitnodes/latest.json",
+                  "enriched_zzxbitnodes": "enriched/zzxbitnodes/latest.json",
+                  "enriched_originalbitnodes": "enriched/originalbitnodes/latest.json",
+                  "aggregate_zzxbitnodes": "aggregate/zzxbitnodes/latest.json",
+                  "aggregate_originalbitnodes": "aggregate/originalbitnodes/latest.json",
+              },
+              "manifest": "manifest.json",
+              "file_size_policy": {
+                  "max_public_json_bytes": max_bytes,
+                  "shard_large_node_lists": True,
+              },
+          }
+
+          write_json(api / "index.json", latest_index)
+
+          oversized = []
+          for base in [api, data]:
+              if not base.exists():
+                  continue
+
+              for path in base.rglob("*"):
+                  if path.is_file() and path.suffix.lower() in {".json", ".txt", ".csv"}:
+                      size = path.stat().st_size
+                      if size > max_bytes:
+                          oversized.append((str(path), size))
+
+          if oversized:
+              print("Oversized public files remain:")
+              for path, size in oversized:
+                  print(f"{size} {path}")
+              raise SystemExit(1)
+
+          print("Lean API build completed.")
+          PY
+
+      - name: Prune private or oversized crawler artifacts before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -f "${BITNODES_GEOIP}"/*.mmdb
+          rm -f "${BITNODES_GEOIP}"/*.mmdb.gz
+          rm -rf "${BITNODES_ROOT}/src"
+
+          find "${BITNODES_ARCHIVE}" -type f -name '*.json' -mtime +2 -delete || true
+          find "${BITNODES_DATA}/snapshots/24h" -type f -name '*.json' -mtime +2 -delete || true
+
+          find "${BITNODES_ROOT}" -type f -size +24M -print | while read -r FILE; do
+            case "${FILE}" in
+              */api/*/nodes/nodes-*.json)
+                printf '%s\n' "Keeping allowed node shard under policy check: ${FILE}"
+                ;;
+              *)
+                printf '%s\n' "Removing oversized non-public artifact: ${FILE}"
+                rm -f "${FILE}"
+                ;;
+            esac
+          done
+
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          root = Path(os.environ["BITNODES_ROOT"])
+
+          bad = []
+          for path in root.rglob("*"):
+              if path.is_file() and path.stat().st_size > max_bytes:
+                  bad.append((path.stat().st_size, path))
+
+          if bad:
+              print("Files still exceed max public size:")
+              for size, path in bad:
+                  print(f"{size} {path}")
+              raise SystemExit(1)
+
+          print("All tracked Bitnodes files are under max public size.")
+          PY
+
       - name: Commit and push Bitnodes public snapshots
+        shell: bash
         run: |
           set -euo pipefail
 
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          rm -f bitcoin/bitnodes/data/geoip/*.mmdb
-          rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
-          rm -rf bitcoin/bitnodes/src
-
           git add -A \
-            bitcoin/bitnodes/api \
-            bitcoin/bitnodes/archive \
-            bitcoin/bitnodes/data
+            "${BITNODES_API}" \
+            "${BITNODES_DATA}/state" \
+            "${BITNODES_DATA}/snapshots/24h" \
+            "${BITNODES_DATA}/seeders" \
+            "${BITNODES_ARCHIVE}"
 
           if git diff --cached --quiet; then
             printf '%s\n' "No Bitnodes JSON changes to commit."
             exit 0
           fi
 
-          git stash push --include-untracked --message "bitnodes-generated-before-rebase"
-
-          git fetch origin main
-          git rebase --autostash origin/main
-
-          if git stash list | grep -q "bitnodes-generated-before-rebase"; then
-            git stash pop || true
-          fi
-
-          rm -f bitcoin/bitnodes/data/geoip/*.mmdb
-          rm -f bitcoin/bitnodes/data/geoip/*.mmdb.gz
-          rm -rf bitcoin/bitnodes/src
-
-          git add -A \
-            bitcoin/bitnodes/api \
-            bitcoin/bitnodes/archive \
-            bitcoin/bitnodes/data
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "No Bitnodes JSON changes to commit after rebase."
-            exit 0
-          fi
-
           git commit -m "Update Bitnodes static API snapshots"
 
           for attempt in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
+            if git pull --rebase origin main && git push origin HEAD:main; then
               printf '%s\n' "Bitnodes snapshots pushed."
               exit 0
             fi
 
-            printf '%s\n' "Push attempt ${attempt} failed; rebasing with autostash..."
-
-            git fetch origin main
-
-            if git rebase --autostash origin/main; then
-              sleep 10
-              continue
-            fi
-
-            git rebase --abort || true
+            printf '%s\n' "Push attempt ${attempt} failed; retrying after rebase."
             sleep 10
           done
 
