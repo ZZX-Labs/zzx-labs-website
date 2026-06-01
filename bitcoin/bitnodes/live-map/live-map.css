@@ -20,3 +20,44 @@
     font-size: 0.74rem;
     line-height: 1.6;
 }
+
+.bn-live-map-page .bn-map-point {
+    transition:
+        left 0.8s ease,
+        top 0.8s ease,
+        transform 0.4s ease,
+        opacity 0.4s ease;
+}
+
+.bn-live-map-page .bn-map-point.updated {
+    animation: bnPulse 1.25s ease;
+}
+
+@keyframes bnPulse {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(2.2);
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.bn-live-map-page .bn-map-status.live {
+    border-color: rgba(192, 214, 116, 0.30);
+    color: var(--bn-map-accent);
+}
+
+.bn-live-map-page .bn-map-status.warn {
+    border-color: rgba(230, 164, 43, 0.30);
+    color: var(--bn-map-ochre);
+}
+
+.bn-live-map-page .bn-map-status.error {
+    border-color: rgba(217, 92, 92, 0.30);
+    color: var(--bn-map-danger);
+}
