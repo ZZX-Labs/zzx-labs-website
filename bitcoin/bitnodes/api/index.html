@@ -25,60 +25,166 @@
 
 <header>
     <div id="zzx-header"></div>
-    <div id="bn-header"></div>
-</header>
 
-<main class="bn-shell" data-bitnodes-view="api">
     <br>
 
     <div id="ticker-container"></div>
 
     <br>
 
-    <section class="bn-hero container">
-        <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
+    <div id="bn-header"></div>
+</header>
 
-        <h2>API</h2>
+<main class="bn-shell" data-bitnodes-view="api">
+
+    <section class="bn-hero container">
+        <p class="bn-kicker">ZZX-Labs / Bitcoin Network Intelligence</p>
+
+        <h2>Bitnodes API Portal</h2>
 
         <p>
-            Public static JSON endpoints powering the ZZX-Labs sovereign Bitnodes
-            mirror infrastructure and Bitcoin network telemetry platform.
+            Static JSON API documentation for the ZZX Bitnodes Global Registry and
+            Original Bitnodes-compatible datasets. These endpoints power the Bitnodes
+            mirror, maps, charts, widgets, crawlers, rankings, node-health views, and
+            external integrations.
         </p>
+
+        <div class="bn-sourcebar">
+            <label for="bn-source">API Source</label>
+
+            <select id="bn-source">
+                <option value="zzxbitnodes" selected>ZZX Bitnodes Global Registry API</option>
+                <option value="originalbitnodes">Original Bitnodes-Compatible API</option>
+                <option value="root">Root Compatibility API</option>
+            </select>
+
+            <button id="bn-refresh" type="button">Refresh</button>
+        </div>
     </section>
 
     <br>
 
     <section id="bn-status" class="bn-status container">
-        Loading API index…
+        Loading Bitnodes API portal…
     </section>
 
     <br>
 
-    <section class="bn-grid" id="bn-summary"></section>
+    <section class="bn-grid" id="bn-summary" data-bn-cards></section>
 
     <br>
 
     <section class="bn-panel container">
-        <h2>API Endpoints</h2>
+        <header class="bn-panel-head">
+            <span class="bn-kicker">API Contract</span>
+            <h2>Primary Endpoint Families</h2>
+
+            <p>
+                Use source-scoped endpoints for stable integrations. Root-level JSON
+                files remain available for compatibility, but new software should prefer
+                <code>api/zzxbitnodes/*.json</code> or
+                <code>api/originalbitnodes/*.json</code>.
+            </p>
+        </header>
+
+        <div id="bn-api-families" class="bn-api-family-grid"></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">Endpoint Index</span>
+            <h2>Available JSON Endpoints</h2>
+
+            <p>
+                These files are static GitHub Pages-compatible API documents. They can be
+                fetched directly by browser widgets, CLI tools, daemon monitors, mobile
+                applications, and hardware tickers without a live backend.
+            </p>
+        </header>
 
         <div class="bn-toolbar">
             <div class="bn-toolbar-group">
                 <label for="bn-search">Search</label>
-                <input id="bn-search" type="search" placeholder="snapshots, nodes, latency, dns…">
+                <input id="bn-search" type="search" placeholder="nodes, countries, peer-health, propagation…">
             </div>
 
             <div class="bn-toolbar-group">
-                <label for="bn-sort">Sort</label>
-
-                <select id="bn-sort">
-                    <option value="name">Endpoint Name</option>
-                    <option value="path">Path</option>
-                    <option value="category">Category</option>
+                <label for="bn-kind">Type</label>
+                <select id="bn-kind">
+                    <option value="all" selected>All</option>
+                    <option value="core">Core</option>
+                    <option value="network">Network</option>
+                    <option value="geo">Geo</option>
+                    <option value="health">Health</option>
+                    <option value="software">Software</option>
+                    <option value="map">Map</option>
+                    <option value="archive">Archive</option>
                 </select>
             </div>
         </div>
 
-        <div id="bn-view"></div>
+        <div id="bn-api-endpoints"></div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">Recommended Usage</span>
+            <h2>Integration Notes</h2>
+        </header>
+
+        <div class="bn-api-notes">
+            <article>
+                <h3>Use source-scoped APIs</h3>
+                <p>
+                    Prefer <code>api/zzxbitnodes/latest.json</code>,
+                    <code>api/zzxbitnodes/nodes.json</code>, and
+                    <code>api/aggregate/zzxbitnodes/latest.json</code> for new tools.
+                </p>
+            </article>
+
+            <article>
+                <h3>Avoid tiny per-item directories</h3>
+                <p>
+                    High-cardinality directories such as providers, organizations, nodes,
+                    and ASNs should consolidate into larger indexed JSON files instead of
+                    thousands of small files.
+                </p>
+            </article>
+
+            <article>
+                <h3>Use map-ready files for maps</h3>
+                <p>
+                    Map pages should consume <code>maps/*/points.json</code>,
+                    <code>maps/*/nodes.geojson</code>, and
+                    <code>live-map/*/live-map.json</code> instead of parsing full snapshots.
+                </p>
+            </article>
+
+            <article>
+                <h3>Registry backups stay separate</h3>
+                <p>
+                    Large global registry chunks belong in the registry backup workflow,
+                    not in the public API page directories.
+                </p>
+            </article>
+        </div>
+    </section>
+
+    <br>
+
+    <section class="bn-panel container">
+        <header class="bn-panel-head">
+            <span class="bn-kicker">Live Preview</span>
+            <h2>Selected API Response Preview</h2>
+        </header>
+
+        <div id="bn-api-preview" class="bn-api-preview">
+            Select an endpoint to preview its metadata.
+        </div>
     </section>
 
     <br><br>
