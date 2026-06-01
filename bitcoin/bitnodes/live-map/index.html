@@ -3,21 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Bitcoin Node Map | ZZX-Labs R&D Bitnodes</title>
+    <meta name="robots" content="noindex, nofollow">
 
+    <title>Live Map | Bitnodes Mirror | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../../static/icons/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../static/styles.css">
     <link rel="stylesheet" href="../styles.css">
-    <link rel="stylesheet" href="./map.css">
+    <link rel="stylesheet" href="./live-map.css">
 
+    <script src="../../../static/script.js" defer></script>
     <script src="../script.js" defer></script>
-    <script src="./map.js" defer></script>
+    <script src="./live-map.js" defer></script>
 </head>
 
-<body data-bn-depth=".." data-bn-view="map">
+<body data-bn-depth="..">
+
 <header>
+    <div id="zzx-header"></div>
     <div id="bn-header"></div>
 </header>
 
-<main class="bn-shell">
+<main class="bn-shell" data-bitnodes-view="live-map">
+    <br>
+
+    <div id="ticker-container"></div>
+
+    <br>
+
     <section class="bn-hero container">
         <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
 
@@ -29,6 +46,8 @@
             GeoHashID, what3words, postal, city, county, territory, and country overlays.
         </p>
     </section>
+
+    <br>
 
     <section class="bn-panel container bn-map-panel">
         <div class="bn-map-toolbar">
@@ -59,17 +78,23 @@
             </div>
         </div>
 
-        <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
+        <div id="bn-map-status" class="bn-map-status">
+            Loading map telemetry…
+        </div>
 
         <div id="bn-live-map" class="bn-live-map" data-map-root></div>
 
         <div id="bn-map-hud" class="bn-map-hud"></div>
         <div id="bn-map-legend" class="bn-map-legend"></div>
     </section>
+
+    <br><br>
 </main>
 
 <footer>
     <div id="bn-footer"></div>
+    <div id="zzx-footer"></div>
 </footer>
+
 </body>
 </html>
