@@ -2,7 +2,11 @@
     "use strict";
 
     const SOURCES = {
-        local: "../api/nodes.json",
+        zzxbitnodes: "../api/ports.json",
+        originalbitnodes: "../api/originalbitnodes/ports.json",
+        aggregate: "../api/aggregate/zzxbitnodes/latest.json",
+        enriched: "../api/enriched/zzxbitnodes/latest.json",
+        local: "../api/ports.json",
         external: "https://bitnodes.io/api/v1/snapshots/latest/"
     };
 
@@ -16,26 +20,121 @@
         return String(value);
     }
 
+    function esc(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
     function setStatus(message, mode = "") {
         const el = $("#bn-status");
-        if (!el) return;
+
+        if (!el) {
+            return;
+        }
+
         el.className = `bn-status container ${mode}`.trim();
         el.textContent = message;
     }
 
     async function getJson(url) {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-        return await response.json();
+        const response = await fetch(`${url}?t=${Date.now()}`, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
     }
 
-    function extractPort(address) {
-        if (!address) return "Unknown";
+    function extractNodes(data) {
+        if (!data || typeof data !== "object") {
+            return {};
+        }
 
-        if (address.endsWith(".onion")) return "onion";
+        if (data.nodes && typeof data.nodes === "object") {
+            return data.nodes;
+        }
 
-        const match = String(address).match(/:(\d+)$/);
-        return match ? match[1] : "Unknown";
+        if (data.reachable_nodes && typeof data.reachable_nodes === "object") {
+            return data.reachable_nodes;
+        }
+
+        if (data.data && data.data.nodes && typeof data.data.nodes === "object") {
+            return data.data.nodes;
+        }
+
+        if (Array.isArray(data.results)) {
+            const out = {};
+
+            for (const row of data.results) {
+                const address = row.address || row.node || row.addr || row.host || row.port;
+
+                if (address) {
+                    out[address] = row;
+                }
+            }
+
+            return out;
+        }
+
+        if (Array.isArray(data.rows)) {
+            const out = {};
+
+            for (const row of data.rows) {
+                const address = row.address || row.node || row.addr || row.host || row.port;
+
+                if (address) {
+                    out[address] = row;
+                }
+            }
+
+            return out;
+        }
+
+        return {};
+    }
+
+    function extractPort(address, row = {}) {
+        if (row.port) {
+            return String(row.port);
+        }
+
+        const text = String(address || row.address || row.node || row.host || "").trim();
+
+        if (!text) {
+            return "Unknown";
+        }
+
+        if (text.includes(".onion") && !text.includes(":")) {
+            return "onion";
+        }
+
+        if (text.startsWith("[") && text.includes("]:")) {
+            const match = text.match(/\]:(\d+)$/);
+            return match ? match[1] : "Unknown";
+        }
+
+        if (text.includes(".onion:") || text.includes(".i2p:")) {
+            const match = text.match(/:(\d+)$/);
+            return match ? match[1] : "onion";
+        }
+
+        if (text.split(":").length === 2) {
+            const match = text.match(/:(\d+)$/);
+            return match ? match[1] : "Unknown";
+        }
+
+        if (text.includes(":") && !text.includes(".")) {
+            return "8333";
+        }
+
+        return "Unknown";
     }
 
     function topValue(map) {
@@ -43,14 +142,35 @@
     }
 
     function aggregate(nodes) {
-        const total = Object.keys(nodes).length;
+        const total = Object.keys(nodes || {}).length;
         const map = new Map();
 
-        for (const [address, row] of Object.entries(nodes)) {
-            const port = extractPort(address);
-            const country = row?.[7] || "Unknown";
-            const agent = row?.[1] || "Unknown";
-            const services = row?.[3] || "Unknown";
+        for (const [address, row] of Object.entries(nodes || {})) {
+            const isArray = Array.isArray(row);
+
+            const port = isArray
+                ? extractPort(address, {})
+                : extractPort(address, row);
+
+            const country = isArray
+                ? row?.[7] || "Unknown"
+                : row?.country || row?.country_code || "Unknown";
+
+            const agent = isArray
+                ? row?.[1] || "Unknown"
+                : row?.agent || row?.user_agent || "Unknown";
+
+            const services = isArray
+                ? row?.[3] || "Unknown"
+                : row?.services || row?.service_bits || "Unknown";
+
+            const network = String(address).includes(".onion")
+                ? "Tor"
+                : String(address).includes(".i2p")
+                    ? "I2P"
+                    : String(address).includes(":")
+                        ? "IPv6"
+                        : "IPv4";
 
             if (!map.has(port)) {
                 map.set(port, {
@@ -58,15 +178,18 @@
                     nodes: 0,
                     countries: new Set(),
                     agents: new Map(),
-                    services: new Map()
+                    services: new Map(),
+                    networks: new Map()
                 });
             }
 
             const item = map.get(port);
+
             item.nodes += 1;
             item.countries.add(country);
             item.agents.set(agent, (item.agents.get(agent) || 0) + 1);
             item.services.set(services, (item.services.get(services) || 0) + 1);
+            item.networks.set(network, (item.networks.get(network) || 0) + 1);
         }
 
         return [...map.values()].map(item => ({
@@ -75,15 +198,22 @@
             percent: total ? ((item.nodes / total) * 100).toFixed(2) : "0.00",
             countries: item.countries.size,
             topAgent: topValue(item.agents),
-            topService: topValue(item.services)
+            topService: topValue(item.services),
+            topNetwork: topValue(item.networks)
         }));
     }
 
     function renderSummary(rows) {
+        const target = $("#bn-summary");
+
+        if (!target) {
+            return;
+        }
+
         const totalNodes = rows.reduce((sum, row) => sum + row.nodes, 0);
         const default8333 = rows.find(row => row.port === "8333");
 
-        $("#bn-summary").innerHTML = `
+        target.innerHTML = `
             <article class="bn-card"><span>Observed Ports</span><strong>${fmt(rows.length)}</strong></article>
             <article class="bn-card"><span>Reachable Nodes</span><strong>${fmt(totalNodes)}</strong></article>
             <article class="bn-card"><span>Default 8333</span><strong>${fmt(default8333?.nodes || 0)}</strong></article>
@@ -97,14 +227,26 @@
 
         let rows = ROWS.filter(row => {
             if (!search) return true;
-            return [row.port, row.topAgent, row.topService]
-                .join(" ")
-                .toLowerCase()
-                .includes(search);
+
+            return [
+                row.port,
+                row.topAgent,
+                row.topService,
+                row.topNetwork
+            ].join(" ").toLowerCase().includes(search);
         });
 
         if (sort === "port") {
-            rows.sort((a, b) => Number(a.port) - Number(b.port));
+            rows.sort((a, b) => {
+                const an = Number(a.port);
+                const bn = Number(b.port);
+
+                if (Number.isFinite(an) && Number.isFinite(bn)) {
+                    return an - bn;
+                }
+
+                return String(a.port).localeCompare(String(b.port));
+            });
         } else if (sort === "countries") {
             rows.sort((a, b) => b.countries - a.countries);
         } else {
@@ -117,6 +259,10 @@
     function renderRows(rows) {
         const view = $("#bn-view");
 
+        if (!view) {
+            return;
+        }
+
         if (!rows.length) {
             view.innerHTML = `<div class="bn-empty">No port telemetry matched current filters.</div>`;
             return;
@@ -128,7 +274,7 @@
                     <article class="bn-port-card">
                         <div class="bn-port-header">
                             <div>
-                                <div class="bn-port-number">${fmt(row.port)}</div>
+                                <div class="bn-port-number">${esc(fmt(row.port))}</div>
                                 <div class="bn-port-label">${row.port === "8333" ? "Default Bitcoin Port" : "Observed Node Port"}</div>
                             </div>
 
@@ -145,13 +291,18 @@
                             </div>
 
                             <div class="bn-port-stat">
+                                <span>Dominant Network</span>
+                                <strong>${esc(fmt(row.topNetwork))}</strong>
+                            </div>
+
+                            <div class="bn-port-stat">
                                 <span>Dominant Agent</span>
-                                <strong>${fmt(row.topAgent)}</strong>
+                                <strong>${esc(fmt(row.topAgent))}</strong>
                             </div>
 
                             <div class="bn-port-stat">
                                 <span>Dominant Services</span>
-                                <strong>${fmt(row.topService)}</strong>
+                                <strong>${esc(fmt(row.topService))}</strong>
                             </div>
 
                             <div class="bn-port-stat">
@@ -170,15 +321,15 @@
     }
 
     async function loadPorts() {
-        const source = $("#bn-source")?.value || "local";
-        const url = SOURCES[source] || SOURCES.local;
+        const source = $("#bn-source")?.value || "zzxbitnodes";
+        const url = SOURCES[source] || SOURCES.zzxbitnodes;
 
-        setStatus(`Loading Bitcoin port telemetry from ${source} source…`);
+        setStatus(`Loading Bitcoin port telemetry from ${source}...`);
 
         try {
             const data = await getJson(url);
 
-            ROWS = aggregate(data.nodes || {});
+            ROWS = aggregate(extractNodes(data));
             ROWS.sort((a, b) => b.nodes - a.nodes);
 
             renderSummary(ROWS);
@@ -187,6 +338,7 @@
             setStatus(`Loaded ${fmt(ROWS.length)} observed port groups.`, "ok");
         } catch (err) {
             ROWS = [];
+
             renderSummary([]);
             renderRows([]);
 
