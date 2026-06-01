@@ -1,159 +1,392 @@
-(() => {
-    "use strict";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Latency metrics for the ZZX-Labs R&D Bitnodes mirror, including Bitcoin node response timing, peer reachability, crawl timing, regional latency, network health, and crawler performance notes.">
 
-    const SOURCES = {
-        local: "../api/dns-seeder.json",
-        external: "../api/dns-seeder.json"
-    };
+    <title>Latency | Bitnodes Mirror | ZZX-Labs R&D</title>
 
-    let RECORDS = [];
+    <link rel="icon" href="../../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../../static/icons/apple-touch-icon.png">
 
-    const $ = q => document.querySelector(q);
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <link rel="stylesheet" href="../styles.css">
 
-    function fmt(value) {
-        if (value === null || value === undefined || value === "") return "—";
-        if (typeof value === "number") return value.toLocaleString();
-        return String(value);
+    <script src="../../../static/script.js" defer></script>
+    <script src="../script.js" defer></script>
+    <script src="./latency.js" defer></script>
+</head>
+
+<body class="zzx-site-page zzx-bitnodes-page zzx-bitnodes-latency-page" data-bn-depth="../..">
+<header>
+    <div id="zzx-header"></div>
+
+    <br>
+
+    <div id="ticker-container"></div>
+
+    <br>
+</header>
+
+<main class="zzx-page-shell">
+
+    <section class="zzx-page-hero container">
+        <p class="zzx-kicker">ZZX-Labs / Bitcoin / Bitnodes / Latency</p>
+        <h1>Bitcoin Node Latency</h1>
+
+        <p>
+            This page tracks latency and timing behavior across the ZZX-Labs Bitnodes mirror. Latency records help
+            estimate how quickly reachable Bitcoin nodes respond during crawler checks, how regional networks behave,
+            how peer responsiveness changes over time, and how efficiently the crawler is gathering public node data.
+        </p>
+
+        <p>
+            Latency should be interpreted as crawler-observed response timing, not as a universal measure of the Bitcoin
+            network. Results depend on crawler location, network path, timeout settings, public node behavior, Tor/I2P
+            routing, DNS seed quality, peer availability, and the specific snapshot window.
+        </p>
+
+        <div class="zzx-action-row">
+            <a href="../" class="btn">Bitnodes Hub</a>
+            <a href="../nodes" class="btn btn-outline">Nodes</a>
+            <a href="../peer-health" class="btn btn-outline">Peer Health</a>
+            <a href="../uptime" class="btn btn-outline">Uptime</a>
+            <a href="../map" class="btn btn-outline">Map</a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Controls</p>
+        <h2>Latency Telemetry Browser</h2>
+
+        <p>
+            Select a data source, filter by node, country, city, ASN, organization, agent, or period, and sort the
+            visible latency records. The table is intentionally limited in the browser so the page remains responsive.
+        </p>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <label for="bn-source"><strong>Source</strong></label>
+                <select id="bn-source" class="bn-control">
+                    <option value="zzxbitnodes" selected>ZZX Bitnodes Latency</option>
+                    <option value="originalbitnodes">Original Bitnodes Latency</option>
+                    <option value="aggregate">ZZX Aggregate</option>
+                    <option value="enriched">ZZX Enriched</option>
+                    <option value="local">Local Latency</option>
+                    <option value="external">External Latency</option>
+                </select>
+            </article>
+
+            <article class="zzx-card">
+                <label for="bn-period"><strong>Period</strong></label>
+                <select id="bn-period" class="bn-control">
+                    <option value="all" selected>All Periods</option>
+                    <option value="snapshot_latency">Snapshot</option>
+                    <option value="daily_latency">Daily</option>
+                    <option value="weekly_latency">Weekly</option>
+                    <option value="monthly_latency">Monthly</option>
+                    <option value="latency">Generic Latency</option>
+                </select>
+            </article>
+
+            <article class="zzx-card">
+                <label for="bn-sort"><strong>Sort</strong></label>
+                <select id="bn-sort" class="bn-control">
+                    <option value="time" selected>Newest First</option>
+                    <option value="latency">Lowest Latency</option>
+                    <option value="node">Node Address</option>
+                </select>
+            </article>
+
+            <article class="zzx-card">
+                <label for="bn-search"><strong>Search</strong></label>
+                <input id="bn-search" class="bn-control" type="search" placeholder="node, country, ASN, organization, agent">
+            </article>
+        </div>
+
+        <div class="zzx-action-row">
+            <button id="bn-refresh" class="btn" type="button">Refresh Latency Data</button>
+            <a href="../api/manifest.json" class="btn btn-outline">API Manifest</a>
+            <a href="../api/aggregate/zzxbitnodes/latest.json" class="btn btn-outline">Aggregate JSON</a>
+            <a href="../api/enriched/zzxbitnodes/latest.json" class="btn btn-outline">Enriched JSON</a>
+        </div>
+    </section>
+
+    <div id="bn-status" class="bn-status container">Latency telemetry is loading...</div>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Live Snapshot</p>
+        <h2>Latency Summary</h2>
+
+        <p>
+            This summary is populated by <code>latency.js</code> from the selected source. It counts normalized latency
+            points, reachable points, down points, and average latency.
+        </p>
+
+        <div id="bn-summary" class="zzx-card-grid">
+            <article class="zzx-card">
+                <span>Latency Points</span>
+                <strong>—</strong>
+            </article>
+
+            <article class="zzx-card">
+                <span>Reachable Points</span>
+                <strong>—</strong>
+            </article>
+
+            <article class="zzx-card">
+                <span>Down Points</span>
+                <strong>—</strong>
+            </article>
+
+            <article class="zzx-card">
+                <span>Average Latency</span>
+                <strong>—</strong>
+            </article>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Telemetry Table</p>
+        <h2>Latency Records</h2>
+
+        <p>
+            The table below is rendered from normalized node latency records. Future versions can add pagination,
+            CSV export, country grouping, ASN grouping, charts, and percentile summaries.
+        </p>
+
+        <div id="bn-view">
+            <div class="bn-empty">Latency telemetry has not loaded yet.</div>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Latency Bands</p>
+        <h2>Response Timing Buckets</h2>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <h3>&lt; 100 ms</h3>
+                <p>Very fast response timing. Often local, regional, well-peered, or hosted on strong infrastructure near the crawler path.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>100–250 ms</h3>
+                <p>Healthy response timing for many public internet paths, especially across regions or cloud networks.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>250–500 ms</h3>
+                <p>Moderate latency. May reflect distance, routing, node load, home internet, Tor paths, or temporary network congestion.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>500–1000 ms</h3>
+                <p>Slow but still responsive. These nodes may be reachable yet degraded, distant, filtered, overloaded, or routed through poor paths.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>&gt; 1000 ms</h3>
+                <p>High latency. Treat as degraded unless explained by Tor, satellite, mobile, experimental routing, or crawler-side network limits.</p>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Timeout</h3>
+                <p>No usable response before the crawler timeout. This does not always mean the node is permanently offline.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Dimensions</p>
+        <h2>Latency Views</h2>
+
+        <div class="zzx-card-grid">
+            <a class="zzx-card link-card" href="../countries">
+                <h3>By Nation</h3>
+                <p>Compare latency behavior by country when GeoIP enrichment is available.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../cities">
+                <h3>By City</h3>
+                <p>Compare node response timing across city-level clusters where city metadata exists.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../asns">
+                <h3>By ASN</h3>
+                <p>Review hosting, ISP, and network-provider latency patterns by autonomous system.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../tor">
+                <h3>Tor Nodes</h3>
+                <p>Separate Tor latency behavior from clearnet response timing for cleaner interpretation.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../versions">
+                <h3>By Version</h3>
+                <p>Compare timing across Bitcoin Core, Knots, and other public client/version groups.</p>
+            </a>
+
+            <a class="zzx-card link-card" href="../ports">
+                <h3>By Port</h3>
+                <p>Review whether default and non-default listening ports show different response characteristics.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Crawler Timing</p>
+        <h2>What Latency Means Here</h2>
+
+        <p>
+            The Bitnodes crawler measures timing from the crawler’s perspective. This is useful for trend monitoring,
+            identifying unusually slow peers, comparing regions, and improving crawler efficiency, but it is not a
+            universal truth about every user’s network path to a node.
+        </p>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card"><h3>Connect Timing</h3><p>Time needed to establish a connection to a public peer, subject to timeout settings and route quality.</p></article>
+            <article class="zzx-card"><h3>Handshake Timing</h3><p>Time required to complete enough Bitcoin protocol interaction to classify the peer as responsive.</p></article>
+            <article class="zzx-card"><h3>Round-Trip Behavior</h3><p>Observed response behavior during crawler checks, influenced by distance, congestion, routing, node load, and filtering.</p></article>
+            <article class="zzx-card"><h3>Timeout Rate</h3><p>Percentage of candidate nodes that fail to respond within the crawler window or configured timeout.</p></article>
+            <article class="zzx-card"><h3>Retry Behavior</h3><p>Repeated attempts may turn failed candidates into reachable nodes, especially during temporary congestion or peer churn.</p></article>
+            <article class="zzx-card"><h3>Window Bias</h3><p>Latency can vary by crawl window, time of day, crawler runner location, DNS seed results, and network conditions.</p></article>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Public API</p>
+        <h2>Expected Data Sources</h2>
+
+        <p>
+            The page should eventually load latency metrics from lean public JSON files under the Bitnodes static API.
+            Large raw snapshots should remain outside the public page payload, while compact aggregate files should feed
+            this dashboard.
+        </p>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card">
+                <h3>Latency Source</h3>
+                <pre class="zzx-code-block">../api/latency/latest.json</pre>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Aggregate Source</h3>
+                <pre class="zzx-code-block">../api/aggregate/zzxbitnodes/latest.json</pre>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Enriched Source</h3>
+                <pre class="zzx-code-block">../api/enriched/zzxbitnodes/latest.json</pre>
+            </article>
+
+            <article class="zzx-card">
+                <h3>Raw Public Source</h3>
+                <pre class="zzx-code-block">../api/zzxbitnodes/latest.json</pre>
+            </article>
+        </div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Future Schema</p>
+        <h2>Recommended Latency JSON</h2>
+
+        <pre class="zzx-code-block">bitcoin/bitnodes/api/latency/latest.json</pre>
+
+        <pre class="zzx-code-block">{
+    "schema_version": "0.1.0",
+    "source": "zzxbitnodes",
+    "updated_at": "2026-06-01T00:00:00Z",
+    "crawl_profile": "hourly",
+    "crawler_timeout_seconds": 5,
+    "summary": {
+        "measured_nodes": 0,
+        "median_ms": null,
+        "average_ms": null,
+        "p10_ms": null,
+        "p25_ms": null,
+        "p75_ms": null,
+        "p90_ms": null,
+        "p95_ms": null,
+        "p99_ms": null,
+        "fastest_ms": null,
+        "slowest_ms": null,
+        "timeout_count": 0,
+        "timeout_rate": null
+    },
+    "buckets": {
+        "lt_100ms": 0,
+        "100_250ms": 0,
+        "250_500ms": 0,
+        "500_1000ms": 0,
+        "gt_1000ms": 0,
+        "timeout": 0
+    },
+    "by_country": [],
+    "by_asn": [],
+    "by_client": [],
+    "by_network": {
+        "clearnet": {},
+        "tor": {},
+        "i2p": {}
     }
+}</pre>
+    </section>
 
-    function setStatus(message, mode = "") {
-        const el = $("#bn-status");
-        if (!el) return;
-        el.className = `bn-status container ${mode}`.trim();
-        el.textContent = message;
-    }
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Optimization</p>
+        <h2>Why Latency Helps The Crawler</h2>
 
-    async function getJson(url) {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-        return await response.json();
-    }
+        <div class="zzx-card-grid">
+            <article class="zzx-card"><h3>Better Timeouts</h3><p>Latency history helps tune timeout values without losing too many slow but reachable peers.</p></article>
+            <article class="zzx-card"><h3>Smarter Rechecks</h3><p>Slow or unstable nodes can be rechecked less aggressively than consistently responsive peers.</p></article>
+            <article class="zzx-card"><h3>Regional Awareness</h3><p>Regional latency differences help distinguish real node problems from distance or route effects.</p></article>
+            <article class="zzx-card"><h3>Cleaner Public API</h3><p>Aggregated latency files keep the website fast while raw crawler snapshots stay out of normal page loads.</p></article>
+            <article class="zzx-card"><h3>Peer Quality</h3><p>Latency can become one component of peer health alongside uptime, recency, services, version, and reachability.</p></article>
+            <article class="zzx-card"><h3>Research Value</h3><p>Longitudinal timing data can support reports on Bitcoin network geography, hosting concentration, and public node resilience.</p></article>
+        </div>
+    </section>
 
-    function normalize(data) {
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data.records)) return data.records;
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Related Pages</p>
+        <h2>Continue Exploring Bitnodes</h2>
 
-        const rows = [];
+        <div class="zzx-card-grid">
+            <a class="zzx-card link-card" href="../nodes"><h3>Nodes</h3><p>Public reachable Bitcoin nodes and node record views.</p></a>
+            <a class="zzx-card link-card" href="../peer-health"><h3>Peer Health</h3><p>Reachability, response behavior, and health indicators.</p></a>
+            <a class="zzx-card link-card" href="../uptime"><h3>Uptime</h3><p>Availability history and node persistence over time.</p></a>
+            <a class="zzx-card link-card" href="../rankings"><h3>Rankings</h3><p>Ranked node, country, city, ASN, version, and service views.</p></a>
+            <a class="zzx-card link-card" href="../network-map"><h3>Network Map</h3><p>Graph-style Bitcoin network visualization and topology views.</p></a>
+            <a class="zzx-card link-card" href="../"><h3>Bitnodes Hub</h3><p>Main Bitnodes mirror dashboard and navigation index.</p></a>
+        </div>
+    </section>
 
-        for (const type of ["A", "AAAA", "TXT"]) {
-            const values = data?.[type] || [];
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Development Notice</p>
+        <h2>Latency Dashboard Under Active Development</h2>
 
-            for (const value of values) {
-                rows.push({ type, value });
-            }
-        }
+        <p>
+            Live latency metrics, charts, country tables, ASN tables, Tor separation, historical deltas, percentile
+            views, and crawler optimization panels are not yet fully connected. This page is ready for static API
+            integration once the latency export is added to the Bitnodes workflow.
+        </p>
 
-        return rows;
-    }
+        <div class="zzx-action-row">
+            <a href="../" class="btn">Bitnodes Hub</a>
+            <a href="../api" class="btn btn-outline">API</a>
+            <a href="../../../research/reports" class="btn btn-outline">Reports</a>
+            <a href="../../../contact" class="btn btn-outline">Report Issue</a>
+        </div>
+    </section>
 
-    function renderSummary(rows) {
-        const ipv4 = rows.filter(row => row.type === "A").length;
-        const ipv6 = rows.filter(row => row.type === "AAAA").length;
-        const tor = rows.filter(row => row.type === "TXT").length;
+</main>
 
-        $("#bn-summary").innerHTML = `
-            <article class="bn-card"><span>Total Records</span><strong>${fmt(rows.length)}</strong></article>
-            <article class="bn-card"><span>IPv4 A</span><strong>${fmt(ipv4)}</strong></article>
-            <article class="bn-card"><span>IPv6 AAAA</span><strong>${fmt(ipv6)}</strong></article>
-            <article class="bn-card"><span>Tor TXT</span><strong>${fmt(tor)}</strong></article>
-        `;
-    }
-
-    function filteredRows() {
-        const search = ($("#bn-search")?.value || "").trim().toLowerCase();
-        const type = $("#bn-record-type")?.value || "all";
-
-        return RECORDS.filter(row => {
-            if (type !== "all" && row.type !== type) return false;
-            if (!search) return true;
-            return String(row.value).toLowerCase().includes(search);
-        });
-    }
-
-    function renderRows(rows) {
-        const view = $("#bn-view");
-
-        if (!rows.length) {
-            view.innerHTML = `<div class="bn-empty">No DNS seed records matched current filters.</div>`;
-            return;
-        }
-
-        const groups = {
-            A: [],
-            AAAA: [],
-            TXT: []
-        };
-
-        for (const row of rows) {
-            if (!groups[row.type]) groups[row.type] = [];
-            groups[row.type].push(row);
-        }
-
-        view.innerHTML = `
-            <div class="bn-dns-grid">
-                ${["A", "AAAA", "TXT"].map(type => {
-                    const label = {
-                        A: "IPv4 A Records",
-                        AAAA: "IPv6 AAAA Records",
-                        TXT: "Tor Onion TXT Records"
-                    }[type];
-
-                    return `
-                        <article class="bn-dns-card">
-                            <div class="bn-dns-header">
-                                <div class="bn-dns-type">${label}</div>
-                                <div class="bn-dns-count">${fmt(groups[type].length)}</div>
-                            </div>
-
-                            <div class="bn-dns-body">
-                                ${groups[type].map(row => `
-                                    <div class="bn-dns-row">
-                                        <div class="bn-dns-badge">${type}</div>
-                                        <div class="bn-dns-address">${fmt(row.value)}</div>
-                                    </div>
-                                `).join("")}
-                            </div>
-                        </article>
-                    `;
-                }).join("")}
-            </div>
-        `;
-    }
-
-    function rerender() {
-        renderRows(filteredRows());
-    }
-
-    async function loadDnsSeeder() {
-        const source = $("#bn-source")?.value || "local";
-        const url = SOURCES[source] || SOURCES.local;
-
-        setStatus(`Loading DNS seeder telemetry from ${source} source…`);
-
-        try {
-            const data = await getJson(url);
-
-            RECORDS = normalize(data);
-
-            renderSummary(RECORDS);
-            renderRows(RECORDS);
-
-            setStatus(`Loaded ${fmt(RECORDS.length)} DNS seed records.`, "ok");
-        } catch (err) {
-            RECORDS = [];
-            renderSummary([]);
-            renderRows([]);
-
-            setStatus(`DNS seeder telemetry unavailable: ${err.message}`, "warn");
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-        $("#bn-refresh")?.addEventListener("click", loadDnsSeeder);
-        $("#bn-source")?.addEventListener("change", loadDnsSeeder);
-        $("#bn-search")?.addEventListener("input", rerender);
-        $("#bn-record-type")?.addEventListener("change", rerender);
-
-        loadDnsSeeder();
-    });
-})();
+<footer>
+    <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
