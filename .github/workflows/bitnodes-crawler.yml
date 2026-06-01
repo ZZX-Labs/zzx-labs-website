@@ -301,7 +301,6 @@ jobs:
           from pathlib import Path
 
           api = Path(os.environ["BITNODES_API"])
-          data = Path(os.environ["BITNODES_DATA"])
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
           shard_target = 18000000
 
@@ -333,12 +332,14 @@ jobs:
 
               for key in candidates:
                   val = obj.get(key)
+
                   if isinstance(val, (dict, list)) and len(val) > 0:
                       return key
 
               for key, val in obj.items():
                   if isinstance(val, dict) and len(val) > 1000:
                       return key
+
                   if isinstance(val, list) and len(val) > 1000:
                       return key
 
@@ -379,25 +380,28 @@ jobs:
               }
 
               if isinstance(nodes, dict):
-                  items = nodes.items()
                   current = {}
-              else:
-                  items = enumerate(nodes)
-                  current = []
+                  shard_no = 0
 
-              shard_no = 0
-
-              for key, val in items:
-                  if isinstance(nodes, dict):
+                  for key, val in nodes.items():
                       current[key] = val
-                      candidate = {node_key: current}
-                      count = len(current)
-                  else:
-                      current.append(val)
-                      candidate = {node_key: current}
-                      count = len(current)
 
-                  if encoded_size(candidate) >= shard_target:
+                      if encoded_size({node_key: current}) >= shard_target:
+                          shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                          write_json(shard_path, {
+                              "schema_version": "0.1.0",
+                              "node_key": node_key,
+                              node_key: current,
+                          })
+                          index["shards"].append({
+                              "path": f"nodes/{shard_path.name}",
+                              "count": len(current),
+                              "size_bytes": shard_path.stat().st_size,
+                          })
+                          shard_no += 1
+                          current = {}
+
+                  if current:
                       shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
                       write_json(shard_path, {
                           "schema_version": "0.1.0",
@@ -406,27 +410,46 @@ jobs:
                       })
                       index["shards"].append({
                           "path": f"nodes/{shard_path.name}",
-                          "count": count,
+                          "count": len(current),
                           "size_bytes": shard_path.stat().st_size,
                       })
-                      shard_no += 1
-                      current = {} if isinstance(nodes, dict) else []
 
-              if len(current) > 0:
-                  shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
-                  write_json(shard_path, {
-                      "schema_version": "0.1.0",
-                      "node_key": node_key,
-                      node_key: current,
-                  })
-                  index["shards"].append({
-                      "path": f"nodes/{shard_path.name}",
-                      "count": len(current),
-                      "size_bytes": shard_path.stat().st_size,
-                  })
+              else:
+                  current = []
+                  shard_no = 0
 
-              index_path = shard_dir / "index.json"
-              write_json(index_path, index)
+                  for val in nodes:
+                      current.append(val)
+
+                      if encoded_size({node_key: current}) >= shard_target:
+                          shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                          write_json(shard_path, {
+                              "schema_version": "0.1.0",
+                              "node_key": node_key,
+                              node_key: current,
+                          })
+                          index["shards"].append({
+                              "path": f"nodes/{shard_path.name}",
+                              "count": len(current),
+                              "size_bytes": shard_path.stat().st_size,
+                          })
+                          shard_no += 1
+                          current = []
+
+                  if current:
+                      shard_path = shard_dir / f"nodes-{shard_no:04d}.json"
+                      write_json(shard_path, {
+                          "schema_version": "0.1.0",
+                          "node_key": node_key,
+                          node_key: current,
+                      })
+                      index["shards"].append({
+                          "path": f"nodes/{shard_path.name}",
+                          "count": len(current),
+                          "size_bytes": shard_path.stat().st_size,
+                      })
+
+              write_json(shard_dir / "index.json", index)
 
               lite = dict(obj)
               lite[node_key] = {
@@ -465,6 +488,7 @@ jobs:
               "enriched/originalbitnodes/latest.json",
           ]:
               result = shard_nodes_file(api / rel)
+
               if result:
                   sharded.append(result)
 
@@ -498,7 +522,8 @@ jobs:
               "manifest": "manifest.json",
               "file_size_policy": {
                   "max_public_json_bytes": max_bytes,
-                  "shard_large_node_lists": True
+                  "shard_large_node_lists": True,
+                  "scope": "api-only"
               }
           }
 
@@ -506,29 +531,30 @@ jobs:
 
           oversized = []
 
-          for base in [api, data]:
-              if not base.exists():
+          for path in api.rglob("*"):
+              if not path.is_file():
                   continue
 
-              for path in base.rglob("*"):
-                  if path.is_file() and path.suffix.lower() in {".json", ".txt", ".csv"}:
-                      size = path.stat().st_size
+              if path.suffix.lower() not in {".json", ".txt", ".csv"}:
+                  continue
 
-                      if size > max_bytes:
-                          oversized.append((str(path), size))
+              size = path.stat().st_size
+
+              if size > max_bytes:
+                  oversized.append((str(path), size))
 
           if oversized:
-              print("Oversized public files remain:")
+              print("Oversized public API files remain:")
 
               for path, size in oversized:
                   print(f"{size} {path}")
 
               raise SystemExit(1)
 
-          print("Lean API build completed.")
+          print("Lean public API build completed.")
           PY
 
-      - name: Prune private or oversized crawler artifacts before commit
+      - name: Prune private or oversized public API artifacts before commit
         shell: bash
         run: |
           set -euo pipefail
@@ -540,13 +566,13 @@ jobs:
           find "${BITNODES_ARCHIVE}" -type f -name '*.json' -mtime +2 -delete || true
           find "${BITNODES_DATA}/snapshots/24h" -type f -name '*.json' -mtime +2 -delete || true
 
-          find "${BITNODES_ROOT}" -type f -size +24M -print | while read -r FILE; do
+          find "${BITNODES_API}" -type f -size +24M -print | while read -r FILE; do
             case "${FILE}" in
               */api/*/nodes/nodes-*.json)
-                printf '%s\n' "Keeping allowed node shard under policy check: ${FILE}"
+                printf '%s\n' "Keeping allowed API node shard: ${FILE}"
                 ;;
               *)
-                printf '%s\n' "Removing oversized non-public artifact: ${FILE}"
+                printf '%s\n' "Removing oversized public API artifact: ${FILE}"
                 rm -f "${FILE}"
                 ;;
             esac
@@ -557,23 +583,23 @@ jobs:
           from pathlib import Path
 
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
-          root = Path(os.environ["BITNODES_ROOT"])
+          api_root = Path(os.environ["BITNODES_API"])
 
           bad = []
 
-          for path in root.rglob("*"):
+          for path in api_root.rglob("*"):
               if path.is_file() and path.stat().st_size > max_bytes:
                   bad.append((path.stat().st_size, path))
 
           if bad:
-              print("Files still exceed max public size:")
+              print("Files still exceed max public API size:")
 
               for size, path in bad:
                   print(f"{size} {path}")
 
               raise SystemExit(1)
 
-          print("All tracked Bitnodes files are under max public size.")
+          print("All public API files are under max public size.")
           PY
 
       - name: Commit and push Bitnodes public snapshots
