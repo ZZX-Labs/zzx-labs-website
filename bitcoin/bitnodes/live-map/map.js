@@ -25,6 +25,7 @@
         statusSelector: "#bn-map-status",
         hudSelector: "#bn-map-hud",
         legendSelector: "#bn-map-legend",
+        nodePanelSelector: "#bn-map-node-panel",
         themeSelectSelector: "[data-map-theme-select]",
         settingsSelectSelector: "[data-map-settings-select]",
         resetSelector: "[data-map-reset]",
@@ -170,17 +171,6 @@
     function cacheBust(path) {
         const sep = String(path).includes("?") ? "&" : "?";
         return `${path}${sep}t=${Date.now()}`;
-    }
-
-    function mergeOptions(userOptions = {}) {
-        return {
-            ...DEFAULT_OPTIONS,
-            ...userOptions,
-            paths: {
-                ...DEFAULT_OPTIONS.paths,
-                ...(userOptions.paths || {})
-            }
-        };
     }
 
     function loadLeaflet() {
@@ -333,10 +323,16 @@
             postal: raw.postal || raw.zip || raw.zipcode || raw.geoip?.postal || raw.geo?.postal,
             timezone: raw.timezone || raw.tz || raw.geoip?.timezone || raw.geo?.timezone,
             asn: raw.asn || raw.geoip?.asn || raw.geo?.asn,
-            provider: raw.provider || raw.isp || raw.geoip?.provider || raw.geo?.provider,
+            provider: raw.provider || raw.geoip?.provider || raw.geo?.provider,
             isp: raw.isp || raw.provider || raw.geoip?.isp || raw.geo?.isp,
             organization: raw.organization || raw.org || raw.geoip?.organization || raw.geo?.organization,
             agent: raw.agent || raw.user_agent || raw.subver,
+            version: raw.version || raw.client_version,
+            protocol: raw.protocol || raw.protocol_version,
+            services: raw.services || raw.service_bits,
+            height: raw.height || raw.block_height,
+            latency: raw.latency || raw.latency_ms,
+            uptime_seconds: raw.uptime_seconds ?? raw.uptime,
             w3w: raw.w3w || raw.what3words || raw.geoip?.w3w,
             geohashid: raw.geohashid || raw.geohash || raw.geoip?.geohashid
         };
@@ -361,7 +357,8 @@
             timezone: row?.[10],
             asn: row?.[11],
             organization: row?.[12],
-            provider: row?.[13]
+            provider: row?.[13],
+            isp: row?.[13]
         }, address);
     }
 
@@ -490,7 +487,6 @@
 
     function pointColor(point) {
         const cls = pointClass(point);
-
         return point.color || BLIP_LEGEND[cls]?.color || BLIP_LEGEND.unknown.color;
     }
 
@@ -502,32 +498,28 @@
         return Math.max(min, Math.min(max, min + Math.log2(dup + 1) * 3));
     }
 
-    function markerPopup(point) {
-        return `
-            <div class="bn-map-popup">
-                <strong>${escapeHtml(pointAddress(point) || "Unknown node")}</strong>
-                <div>Status: ${escapeHtml(point.status_label || point.status || "Unknown")}</div>
-                <div>Class: ${escapeHtml(pointClass(point))}</div>
-                <div>Network: ${escapeHtml(pointNetwork(point))}</div>
-                <div>Height: ${escapeHtml(point.height || point.block_height || "—")}</div>
-                <div>Uptime: ${escapeHtml(Math.round(number(point.uptime_seconds, 0)).toLocaleString())}s</div>
-                <div>Continent: ${escapeHtml(point.continent || "—")}</div>
-                <div>Region: ${escapeHtml(point.region || "—")}</div>
-                <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
-                <div>Territory: ${escapeHtml(point.territory || "—")}</div>
-                <div>County: ${escapeHtml(point.county || "—")}</div>
-                <div>City: ${escapeHtml(point.city || "—")}</div>
-                <div>ZIP: ${escapeHtml(point.postal || "—")}</div>
-                <div>Timezone: ${escapeHtml(point.timezone || "—")}</div>
-                <div>ASN: ${escapeHtml(point.asn || "—")}</div>
-                <div>Provider: ${escapeHtml(point.provider || "—")}</div>
-                <div>ISP: ${escapeHtml(point.isp || "—")}</div>
-                <div>Organization: ${escapeHtml(point.organization || point.org || "—")}</div>
-                <div>Agent: ${escapeHtml(point.agent || point.user_agent || "—")}</div>
-                <div>W3W: ${escapeHtml(point.w3w || point.what3words || "—")}</div>
-                <div>GeohashID: ${escapeHtml(point.geohashid || point.geohash || "—")}</div>
-            </div>
-        `;
+    function filterHasField(point, field) {
+        const map = {
+            isp: point.isp,
+            agent: point.agent || point.user_agent,
+            version: point.version,
+            protocol: point.protocol,
+            height: point.height || point.block_height,
+            services: point.services,
+            asn: point.asn,
+            country: point.country || point.country_name,
+            city: point.city,
+            county: point.county,
+            region: point.region,
+            continent: point.continent,
+            territory: point.territory,
+            postal: point.postal || point.zip || point.zipcode,
+            timezone: point.timezone,
+            w3w: point.w3w || point.what3words,
+            geohashid: point.geohashid || point.geohash
+        };
+
+        return Boolean(map[field]);
     }
 
     function filteredPoints() {
@@ -538,8 +530,49 @@
         }
 
         return points.filter(point => {
-            return pointNetwork(point) === state.filter || pointClass(point) === state.filter;
+            return (
+                pointNetwork(point) === state.filter ||
+                pointClass(point) === state.filter ||
+                filterHasField(point, state.filter)
+            );
         });
+    }
+
+    function renderNodePanel(point) {
+        const panel = qs(state.options.nodePanelSelector || "#bn-map-node-panel");
+
+        if (!panel) {
+            return;
+        }
+
+        panel.innerHTML = `
+            <strong>${escapeHtml(pointAddress(point) || "Unknown node")}</strong>
+            <div>Status: ${escapeHtml(point.status_label || point.status || "Unknown")}</div>
+            <div>Class: ${escapeHtml(pointClass(point))}</div>
+            <div>Network: ${escapeHtml(pointNetwork(point))}</div>
+            <div>Height: ${escapeHtml(point.height || point.block_height || "—")}</div>
+            <div>Protocol: ${escapeHtml(point.protocol || "—")}</div>
+            <div>Services: ${escapeHtml(point.services || "—")}</div>
+            <div>Agent: ${escapeHtml(point.agent || point.user_agent || "—")}</div>
+            <div>Version: ${escapeHtml(point.version || "—")}</div>
+            <div>Latency: ${escapeHtml(point.latency || point.latency_ms || "—")}</div>
+            <div>Uptime: ${escapeHtml(Math.round(number(point.uptime_seconds, 0)).toLocaleString())}s</div>
+            <div>Continent: ${escapeHtml(point.continent || "—")}</div>
+            <div>Region: ${escapeHtml(point.region || "—")}</div>
+            <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
+            <div>Territory: ${escapeHtml(point.territory || "—")}</div>
+            <div>County: ${escapeHtml(point.county || "—")}</div>
+            <div>City: ${escapeHtml(point.city || "—")}</div>
+            <div>ZIP: ${escapeHtml(point.postal || "—")}</div>
+            <div>Timezone: ${escapeHtml(point.timezone || "—")}</div>
+            <div>ASN: ${escapeHtml(point.asn || "—")}</div>
+            <div>Provider: ${escapeHtml(point.provider || "—")}</div>
+            <div>ISP: ${escapeHtml(point.isp || "—")}</div>
+            <div>Organization: ${escapeHtml(point.organization || point.org || "—")}</div>
+            <div>W3W: ${escapeHtml(point.w3w || point.what3words || "—")}</div>
+            <div>GeohashID: ${escapeHtml(point.geohashid || point.geohash || "—")}</div>
+            <div>Lat/Lon: ${escapeHtml(point.latitude || point.lat || "—")}, ${escapeHtml(point.longitude || point.lon || point.lng || "—")}</div>
+        `;
     }
 
     function renderHud() {
@@ -655,7 +688,10 @@
                         : undefined
             });
 
-            marker.bindPopup(markerPopup(point));
+            marker.on("click", () => {
+                renderNodePanel(point);
+            });
+
             marker.addTo(state.layers.points);
         }
 
@@ -848,8 +884,12 @@
             return;
         }
 
-        if (root._leaflet_id && state.map) {
+        if (state.map) {
             state.map.remove();
+            state.map = null;
+        }
+
+        if (root._leaflet_id) {
             root._leaflet_id = null;
         }
 
@@ -859,6 +899,7 @@
         state.canvasRenderer = window.L.canvas({ padding: 0.35 });
 
         state.map = window.L.map(root, {
+            zoomControl: false,
             scrollWheelZoom: interaction.scroll_wheel_zoom !== false,
             doubleClickZoom: interaction.double_click_zoom !== false,
             boxZoom: interaction.box_zoom !== false,
@@ -868,6 +909,10 @@
             [number(view.latitude, 20), number(view.longitude, 0)],
             number(view.zoom, 2)
         );
+
+        window.L.control.zoom({
+            position: "bottomleft"
+        }).addTo(state.map);
 
         window.L.tileLayer(
             state.settings.tile_url ||
