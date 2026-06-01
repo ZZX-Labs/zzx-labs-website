@@ -625,13 +625,28 @@ jobs:
           git commit -m "Update Bitnodes static API snapshots"
 
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              printf '%s\n' "Bitnodes snapshots pushed."
-              exit 0
+
+            git fetch origin main
+
+            git add -A
+
+            if ! git diff --cached --quiet; then
+              git commit -m "Auto-sync generated Bitnodes files" || true
             fi
 
-            printf '%s\n' "Push attempt ${attempt} failed; retrying after rebase."
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                printf '%s\n' "Bitnodes snapshots pushed."
+                exit 0
+              fi
+            fi
+
+            git rebase --abort || true
+            git reset --hard HEAD
+
+            printf '%s\n' "Push attempt ${attempt} failed. Retrying."
             sleep 10
+
           done
 
           printf '%s\n' "Failed to push Bitnodes snapshots."
