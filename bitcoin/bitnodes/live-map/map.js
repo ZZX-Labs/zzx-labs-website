@@ -4,26 +4,11 @@
     const DEFAULT_REFRESH_MS = 30000;
 
     const DEFAULT_LEGEND = {
-        ipv4: {
-            color: "#c0d674",
-            label: "IPv4"
-        },
-        ipv6: {
-            color: "#70b7ff",
-            label: "IPv6"
-        },
-        tor: {
-            color: "#9d67ad",
-            label: "Tor"
-        },
-        i2p: {
-            color: "#e6a42b",
-            label: "I2P"
-        },
-        unknown: {
-            color: "#8c927e",
-            label: "Unknown"
-        }
+        ipv4: { color: "#c0d674", label: "IPv4" },
+        ipv6: { color: "#70b7ff", label: "IPv6" },
+        tor: { color: "#9d67ad", label: "Tor" },
+        i2p: { color: "#e6a42b", label: "I2P" },
+        unknown: { color: "#8c927e", label: "Unknown" }
     };
 
     const DEFAULT_OPTIONS = {
@@ -34,10 +19,8 @@
         statusSelector: "#bn-map-status",
         hudSelector: "#bn-map-hud",
         legendSelector: "#bn-map-legend",
-
         themeSelectSelector: "[data-map-theme-select]",
         settingsSelectSelector: "[data-map-settings-select]",
-
         resetSelector: "[data-map-reset]",
         filterSelector: "[data-map-filter]",
 
@@ -47,29 +30,71 @@
                 "./zzxbitnodes/data/map-settings.json",
                 "./global/data/map-settings.json",
                 "./originalbitnodes/data/map-settings.json",
-                "./global/live-map.json",
-                "./zzxbitnodes/live-map.json",
-                "./originalbitnodes/live-map.json"
+                "../live-map/data/map-settings.json",
+                "../live-map/zzxbitnodes/data/map-settings.json",
+                "../live-map/global/data/map-settings.json",
+                "../live-map/originalbitnodes/data/map-settings.json",
+                "../maps/data/map-settings.json",
+                "../maps/zzxbitnodes/data/map-settings.json",
+                "../maps/global/data/map-settings.json",
+                "../maps/originalbitnodes/data/map-settings.json",
+                "../map/data/map-settings.json"
             ],
 
             vectors: [
                 "./data/map-vectors.json",
+                "./data/map-points.geojson",
                 "./global/points.json",
-                "./zzxbitnodes/points.json",
-                "./originalbitnodes/points.json",
                 "./global/live-map.json",
-                "./zzxbitnodes/live-map.json",
-                "./originalbitnodes/live-map.json",
                 "./global/nodes.geojson",
+                "./global/index.json",
+                "./zzxbitnodes/points.json",
+                "./zzxbitnodes/live-map.json",
                 "./zzxbitnodes/nodes.geojson",
-                "./originalbitnodes/nodes.geojson"
+                "./zzxbitnodes/index.json",
+                "./originalbitnodes/points.json",
+                "./originalbitnodes/live-map.json",
+                "./originalbitnodes/nodes.geojson",
+                "./originalbitnodes/index.json",
+                "../live-map/data/map-vectors.json",
+                "../live-map/data/map-points.geojson",
+                "../live-map/global/points.json",
+                "../live-map/global/live-map.json",
+                "../live-map/global/nodes.geojson",
+                "../live-map/zzxbitnodes/points.json",
+                "../live-map/zzxbitnodes/live-map.json",
+                "../live-map/zzxbitnodes/nodes.geojson",
+                "../live-map/originalbitnodes/points.json",
+                "../live-map/originalbitnodes/live-map.json",
+                "../live-map/originalbitnodes/nodes.geojson",
+                "../maps/data/map-vectors.json",
+                "../maps/data/map-points.geojson",
+                "../maps/global/points.json",
+                "../maps/global/live-map.json",
+                "../maps/global/nodes.geojson",
+                "../maps/zzxbitnodes/points.json",
+                "../maps/zzxbitnodes/live-map.json",
+                "../maps/zzxbitnodes/nodes.geojson",
+                "../maps/originalbitnodes/points.json",
+                "../maps/originalbitnodes/live-map.json",
+                "../maps/originalbitnodes/nodes.geojson",
+                "../map/data/map-vectors.json"
             ],
 
             themes: [
                 "./data/map-themes.json",
                 "./zzxbitnodes/data/map-themes.json",
                 "./global/data/map-themes.json",
-                "./originalbitnodes/data/map-themes.json"
+                "./originalbitnodes/data/map-themes.json",
+                "../live-map/data/map-themes.json",
+                "../live-map/zzxbitnodes/data/map-themes.json",
+                "../live-map/global/data/map-themes.json",
+                "../live-map/originalbitnodes/data/map-themes.json",
+                "../maps/data/map-themes.json",
+                "../maps/zzxbitnodes/data/map-themes.json",
+                "../maps/global/data/map-themes.json",
+                "../maps/originalbitnodes/data/map-themes.json",
+                "../map/data/map-themes.json"
             ],
 
             theme: id => [
@@ -77,53 +102,120 @@
                 `./zzxbitnodes/data/themes/${id}.json`,
                 `./global/data/themes/${id}.json`,
                 `./originalbitnodes/data/themes/${id}.json`,
+                `../live-map/data/themes/${id}.json`,
+                `../live-map/zzxbitnodes/data/themes/${id}.json`,
+                `../live-map/global/data/themes/${id}.json`,
+                `../live-map/originalbitnodes/data/themes/${id}.json`,
+                `../maps/data/themes/${id}.json`,
+                `../maps/zzxbitnodes/data/themes/${id}.json`,
+                `../maps/global/data/themes/${id}.json`,
+                `../maps/originalbitnodes/data/themes/${id}.json`,
                 "./data/map-theme.json",
                 "./zzxbitnodes/data/map-theme.json",
                 "./global/data/map-theme.json",
-                "./originalbitnodes/data/map-theme.json"
+                "./originalbitnodes/data/map-theme.json",
+                "../live-map/data/map-theme.json",
+                "../live-map/zzxbitnodes/data/map-theme.json",
+                "../live-map/global/data/map-theme.json",
+                "../live-map/originalbitnodes/data/map-theme.json",
+                "../maps/data/map-theme.json",
+                "../maps/zzxbitnodes/data/map-theme.json",
+                "../maps/global/data/map-theme.json",
+                "../maps/originalbitnodes/data/map-theme.json",
+                "../map/data/map-theme.json"
             ],
 
             settingsProfiles: [
                 "./data/map-settings-profiles.json",
                 "./zzxbitnodes/data/map-settings-profiles.json",
                 "./global/data/map-settings-profiles.json",
-                "./originalbitnodes/data/map-settings-profiles.json"
+                "./originalbitnodes/data/map-settings-profiles.json",
+                "../live-map/data/map-settings-profiles.json",
+                "../live-map/zzxbitnodes/data/map-settings-profiles.json",
+                "../live-map/global/data/map-settings-profiles.json",
+                "../live-map/originalbitnodes/data/map-settings-profiles.json",
+                "../maps/data/map-settings-profiles.json",
+                "../maps/zzxbitnodes/data/map-settings-profiles.json",
+                "../maps/global/data/map-settings-profiles.json",
+                "../maps/originalbitnodes/data/map-settings-profiles.json",
+                "../map/data/map-settings-profiles.json"
             ],
 
             settingsProfile: id => [
                 `./data/settings/${id}.json`,
                 `./zzxbitnodes/data/settings/${id}.json`,
                 `./global/data/settings/${id}.json`,
-                `./originalbitnodes/data/settings/${id}.json`
+                `./originalbitnodes/data/settings/${id}.json`,
+                `../live-map/data/settings/${id}.json`,
+                `../live-map/zzxbitnodes/data/settings/${id}.json`,
+                `../live-map/global/data/settings/${id}.json`,
+                `../live-map/originalbitnodes/data/settings/${id}.json`,
+                `../maps/data/settings/${id}.json`,
+                `../maps/zzxbitnodes/data/settings/${id}.json`,
+                `../maps/global/data/settings/${id}.json`,
+                `../maps/originalbitnodes/data/settings/${id}.json`,
+                `../map/data/settings/${id}.json`
             ],
 
             polygons: [
                 "./data/map-polygons.geojson",
                 "./zzxbitnodes/data/map-polygons.geojson",
                 "./global/data/map-polygons.geojson",
-                "./originalbitnodes/data/map-polygons.geojson"
+                "./originalbitnodes/data/map-polygons.geojson",
+                "../live-map/data/map-polygons.geojson",
+                "../live-map/zzxbitnodes/data/map-polygons.geojson",
+                "../live-map/global/data/map-polygons.geojson",
+                "../live-map/originalbitnodes/data/map-polygons.geojson",
+                "../maps/data/map-polygons.geojson",
+                "../maps/zzxbitnodes/data/map-polygons.geojson",
+                "../maps/global/data/map-polygons.geojson",
+                "../maps/originalbitnodes/data/map-polygons.geojson",
+                "../map/data/map-polygons.geojson"
+            ],
+
+            overlays: [
+                "./data/map-overlays.json",
+                "./zzxbitnodes/data/map-overlays.json",
+                "./global/data/map-overlays.json",
+                "./originalbitnodes/data/map-overlays.json",
+                "../live-map/data/map-overlays.json",
+                "../maps/data/map-overlays.json",
+                "../map/data/map-overlays.json"
+            ],
+
+            layers: [
+                "./data/map-layers.json",
+                "./zzxbitnodes/data/map-layers.json",
+                "./global/data/map-layers.json",
+                "./originalbitnodes/data/map-layers.json",
+                "../live-map/data/map-layers.json",
+                "../maps/data/map-layers.json",
+                "../map/data/map-layers.json"
             ]
         }
     };
 
     const state = {
         options: null,
-
         map: null,
-        layer: null,
-        polygonLayer: null,
+        layers: {
+            points: null,
+            polygons: null,
+            overlays: null
+        },
         canvasRenderer: null,
-
         vectors: null,
         settings: null,
         theme: null,
         themes: null,
         settingsProfiles: null,
-
+        overlays: null,
+        layerConfig: null,
         filter: "all",
         timer: null,
         lastPointIds: new Set(),
-        latestSource: "unknown"
+        latestSource: "unknown",
+        initialized: false
     };
 
     function qs(selector, scope = document) {
@@ -154,7 +246,8 @@
     }
 
     function setStatus(message) {
-        const target = qs(state.options.statusSelector);
+        const selector = state.options?.statusSelector || "#bn-map-status";
+        const target = qs(selector);
 
         if (target) {
             target.textContent = message;
@@ -220,6 +313,17 @@
         throw lastError || new Error("No JSON source paths provided.");
     }
 
+    function countBy(rows, fn) {
+        const out = {};
+
+        for (const row of rows || []) {
+            const key = String(fn(row) || "unknown").toLowerCase();
+            out[key] = (out[key] || 0) + 1;
+        }
+
+        return out;
+    }
+
     function applyTheme(theme) {
         if (!theme || typeof theme !== "object") {
             return;
@@ -241,12 +345,12 @@
             state.themes?.default_theme ||
             "zzx_dark_olive";
 
-        const themePaths =
+        const paths =
             typeof state.options.paths.theme === "function"
                 ? state.options.paths.theme(id)
                 : state.options.paths.theme;
 
-        const theme = await readFirst(themePaths);
+        const theme = await readFirst(paths);
 
         applyTheme(theme);
 
@@ -260,99 +364,39 @@
             state.settingsProfiles?.default_settings ||
             "default";
 
-        const profilePaths =
+        const paths =
             typeof state.options.paths.settingsProfile === "function"
                 ? state.options.paths.settingsProfile(id)
                 : state.options.paths.settingsProfile;
 
-        return readFirst(profilePaths);
+        return readFirst(paths);
     }
 
-    function normalizeGeoJson(data) {
-        const features = Array.isArray(data?.features) ? data.features : [];
+    function pointNetwork(point) {
+        const address = String(point.address || point.node || point.id || point.addr || "").toLowerCase();
+        const network = String(point.network || point.network_type || "").toLowerCase();
 
-        const points = features.map(feature => {
-            const props = feature.properties || {};
-            const coords = feature.geometry?.coordinates || [];
-
-            return {
-                ...props,
-                longitude: coords[0],
-                latitude: coords[1],
-                id: props.id || props.address || props.node,
-                address: props.address || props.node || props.id
-            };
-        });
-
-        return {
-            source: data.source || state.latestSource,
-            point_count: points.length,
-            points,
-            network_counts: countBy(points, point => point.network || "unknown"),
-            status_counts: countBy(points, point => point.status || "unknown"),
-            legend: DEFAULT_LEGEND
-        };
-    }
-
-    function normalizePointsJson(data) {
-        if (Array.isArray(data)) {
-            return {
-                source: state.latestSource,
-                point_count: data.length,
-                points: data,
-                network_counts: countBy(data, point => point.network || "unknown"),
-                status_counts: countBy(data, point => point.status || "unknown"),
-                legend: DEFAULT_LEGEND
-            };
+        if (network) {
+            return network;
         }
 
-        if (Array.isArray(data?.points)) {
-            return {
-                source: data.source || state.latestSource,
-                point_count: data.point_count || data.points.length,
-                points: data.points,
-                network_counts: data.network_counts || countBy(data.points, point => point.network || "unknown"),
-                status_counts: data.status_counts || countBy(data.points, point => point.status || "unknown"),
-                legend: data.legend || DEFAULT_LEGEND,
-                build: data.build || data.meta || null
-            };
+        if (point.is_tor || point.tor || address.includes(".onion")) {
+            return "tor";
         }
 
-        if (Array.isArray(data?.nodes)) {
-            return {
-                source: data.source || state.latestSource,
-                point_count: data.nodes.length,
-                points: data.nodes,
-                network_counts: data.network_counts || countBy(data.nodes, point => point.network || "unknown"),
-                status_counts: data.status_counts || countBy(data.nodes, point => point.status || "unknown"),
-                legend: data.legend || DEFAULT_LEGEND,
-                build: data.build || data.meta || null
-            };
+        if (point.is_i2p || point.i2p || address.includes(".i2p")) {
+            return "i2p";
         }
 
-        if (data?.type === "FeatureCollection") {
-            return normalizeGeoJson(data);
+        if (point.is_ipv6 || address.includes(":")) {
+            return "ipv6";
         }
 
-        return {
-            source: state.latestSource,
-            point_count: 0,
-            points: [],
-            network_counts: {},
-            status_counts: {},
-            legend: DEFAULT_LEGEND
-        };
-    }
-
-    function countBy(rows, fn) {
-        const out = {};
-
-        for (const row of rows || []) {
-            const key = String(fn(row) || "unknown").toLowerCase();
-            out[key] = (out[key] || 0) + 1;
+        if (point.is_ipv4) {
+            return "ipv4";
         }
 
-        return out;
+        return "ipv4";
     }
 
     function pointId(point) {
@@ -361,31 +405,9 @@
             point.address ||
             point.node ||
             point.addr ||
-            `${point.latitude},${point.longitude}`
+            point.ip ||
+            `${point.latitude ?? point.lat},${point.longitude ?? point.lon ?? point.lng}`
         );
-    }
-
-    function pointNetwork(point) {
-        const address = String(point.address || point.node || point.id || "").toLowerCase();
-        const network = String(point.network || "").toLowerCase();
-
-        if (network) {
-            return network;
-        }
-
-        if (address.includes(".onion")) {
-            return "tor";
-        }
-
-        if (address.includes(".i2p")) {
-            return "i2p";
-        }
-
-        if (address.includes(":")) {
-            return "ipv6";
-        }
-
-        return "ipv4";
     }
 
     function pointColor(point) {
@@ -399,7 +421,121 @@
         return legend[network]?.color || legend.unknown?.color || "#8c927e";
     }
 
-    function radius(point) {
+    function normalizePoint(raw = {}) {
+        const latitude =
+            raw.latitude ??
+            raw.lat ??
+            raw.geoip?.latitude ??
+            raw.geo?.latitude ??
+            raw.location?.latitude;
+
+        const longitude =
+            raw.longitude ??
+            raw.lon ??
+            raw.lng ??
+            raw.geoip?.longitude ??
+            raw.geo?.longitude ??
+            raw.location?.longitude;
+
+        return {
+            ...raw,
+            id: raw.id || raw.address || raw.node || raw.addr,
+            address: raw.address || raw.node || raw.addr || raw.id,
+            latitude,
+            longitude,
+            network: pointNetwork(raw),
+            country: raw.country || raw.country_code || raw.geoip?.country || raw.geo?.country,
+            country_name: raw.country_name || raw.geoip?.country_name || raw.geo?.country_name,
+            city: raw.city || raw.geoip?.city || raw.geo?.city,
+            county: raw.county || raw.geoip?.county || raw.geo?.county,
+            territory: raw.territory || raw.region || raw.geoip?.territory || raw.geo?.territory,
+            postal: raw.postal || raw.zip || raw.geoip?.postal || raw.geo?.postal,
+            asn: raw.asn || raw.geoip?.asn || raw.geo?.asn,
+            provider: raw.provider || raw.isp || raw.geoip?.provider || raw.geo?.provider,
+            organization: raw.organization || raw.org || raw.geoip?.organization || raw.geo?.organization,
+            agent: raw.agent || raw.user_agent || raw.subver,
+            w3w: raw.w3w || raw.what3words || raw.geoip?.w3w,
+            geohashid: raw.geohashid || raw.geohash || raw.geoip?.geohashid
+        };
+    }
+
+    function normalizeGeoJson(data) {
+        const features = Array.isArray(data?.features) ? data.features : [];
+
+        const points = features.map(feature => {
+            const props = feature.properties || {};
+            const coords = feature.geometry?.coordinates || [];
+
+            return normalizePoint({
+                ...props,
+                longitude: coords[0],
+                latitude: coords[1]
+            });
+        });
+
+        return {
+            source: data.source || state.latestSource,
+            point_count: points.length,
+            points,
+            network_counts: countBy(points, pointNetwork),
+            status_counts: countBy(points, point => point.status || "unknown"),
+            legend: data.legend || DEFAULT_LEGEND,
+            build: data.build || data.meta || null
+        };
+    }
+
+    function normalizePointsJson(data) {
+        if (data?.type === "FeatureCollection") {
+            return normalizeGeoJson(data);
+        }
+
+        let points = [];
+
+        if (Array.isArray(data)) {
+            points = data;
+        } else if (Array.isArray(data?.points)) {
+            points = data.points;
+        } else if (Array.isArray(data?.nodes)) {
+            points = data.nodes;
+        } else if (Array.isArray(data?.features)) {
+            return normalizeGeoJson({
+                type: "FeatureCollection",
+                features: data.features,
+                source: data.source,
+                legend: data.legend,
+                build: data.build || data.meta
+            });
+        }
+
+        points = points.map(normalizePoint);
+
+        return {
+            source: data?.source || state.latestSource,
+            point_count: data?.point_count || points.length,
+            points,
+            network_counts: data?.network_counts || countBy(points, pointNetwork),
+            status_counts: data?.status_counts || countBy(points, point => point.status || "unknown"),
+            legend: data?.legend || DEFAULT_LEGEND,
+            build: data?.build || data?.meta || null
+        };
+    }
+
+    function filteredPoints() {
+        const points = state.vectors?.points || [];
+
+        if (state.filter === "all") {
+            return points;
+        }
+
+        return points.filter(point => {
+            const network = pointNetwork(point);
+            const status = String(point.status || "").toLowerCase();
+
+            return network === state.filter || status === state.filter;
+        });
+    }
+
+    function markerRadius(point) {
         const dup = number(point.duplicate_count || point.count || point.weight || 1, 1);
         const min = number(state.settings?.marker?.radius_min, 4);
         const max = number(state.settings?.marker?.radius_max, 14);
@@ -424,30 +560,16 @@
                 <div>City: ${escapeHtml(point.city || "—")}</div>
                 <div>County: ${escapeHtml(point.county || "—")}</div>
                 <div>Territory: ${escapeHtml(point.territory || "—")}</div>
+                <div>Postal: ${escapeHtml(point.postal || "—")}</div>
                 <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
                 <div>Organization: ${escapeHtml(point.organization || point.org || "—")}</div>
                 <div>Agent: ${escapeHtml(point.agent || point.user_agent || "—")}</div>
-                <div>W3W: ${escapeHtml(point.w3w || "—")}</div>
+                <div>W3W: ${escapeHtml(point.w3w || point.what3words || "—")}</div>
                 <div>GeohashID: ${escapeHtml(point.geohashid || point.geohash || "—")}</div>
             </div>
         `;
-    }
-
-    function filteredPoints() {
-        const points = state.vectors?.points || [];
-
-        if (state.filter === "all") {
-            return points;
-        }
-
-        return points.filter(point => {
-            const network = pointNetwork(point);
-            const status = String(point.status || "").toLowerCase();
-
-            return network === state.filter || status === state.filter;
-        });
     }
 
     function renderHud() {
@@ -511,11 +633,11 @@
             return;
         }
 
-        if (state.layer) {
-            state.layer.remove();
+        if (state.layers.points) {
+            state.layers.points.remove();
         }
 
-        state.layer = window.L.layerGroup();
+        state.layers.points = window.L.layerGroup();
 
         const points = filteredPoints();
 
@@ -530,7 +652,7 @@
             const color = pointColor(point);
 
             const marker = window.L.circleMarker([lat, lon], {
-                radius: radius(point),
+                radius: markerRadius(point),
                 color,
                 fillColor: color,
                 fillOpacity: number(state.settings?.marker?.fill_opacity, 0.72),
@@ -544,10 +666,10 @@
             });
 
             marker.bindPopup(markerPopup(point));
-            marker.addTo(state.layer);
+            marker.addTo(state.layers.points);
         });
 
-        state.layer.addTo(state.map);
+        state.layers.points.addTo(state.map);
 
         renderHud();
         renderLegend();
@@ -568,11 +690,11 @@
             return;
         }
 
-        if (state.polygonLayer) {
-            state.polygonLayer.remove();
+        if (state.layers.polygons) {
+            state.layers.polygons.remove();
         }
 
-        state.polygonLayer = window.L.geoJSON(polygons, {
+        state.layers.polygons = window.L.geoJSON(polygons, {
             style: feature => {
                 const props = feature.properties || {};
 
@@ -588,8 +710,13 @@
         });
 
         if (state.settings?.polygons?.visible === true) {
-            state.polygonLayer.addTo(state.map);
+            state.layers.polygons.addTo(state.map);
         }
+    }
+
+    async function renderOverlays() {
+        state.overlays = await readFirst(state.options.paths.overlays).catch(() => null);
+        state.layerConfig = await readFirst(state.options.paths.layers).catch(() => null);
     }
 
     function populateThemeSelect() {
@@ -766,6 +893,7 @@
         wireControls(view);
 
         await renderPolygons();
+        await renderOverlays();
 
         renderPoints();
 
@@ -779,12 +907,48 @@
                 });
             }, number(state.options.refreshMs, DEFAULT_REFRESH_MS));
         }
+
+        state.initialized = true;
+    }
+
+    function destroy() {
+        if (state.timer) {
+            clearInterval(state.timer);
+            state.timer = null;
+        }
+
+        if (state.map) {
+            state.map.remove();
+            state.map = null;
+        }
+
+        state.initialized = false;
     }
 
     window.ZZXBitnodesMap = {
         init,
+        destroy,
         refresh: refreshData,
         renderPoints,
         state
     };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        if (window.ZZX_BITNODES_MAP_DISABLE_AUTO_INIT === true) {
+            return;
+        }
+
+        init().catch(error => {
+            console.error(error);
+
+            const root = qs(DEFAULT_OPTIONS.rootSelector);
+
+            if (root) {
+                root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
+            }
+
+            state.options = state.options || DEFAULT_OPTIONS;
+            setStatus(`Map load failure: ${error.message}`);
+        });
+    });
 })();
