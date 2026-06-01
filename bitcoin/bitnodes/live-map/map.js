@@ -5,6 +5,7 @@
         map: null,
         layer: null,
         polygonLayer: null,
+        canvasRenderer: null,
         vectors: null,
         settings: null,
         theme: null,
@@ -38,6 +39,10 @@
         }
     }
 
+    function cacheBust(path) {
+        return `${path}?t=${Date.now()}`;
+    }
+
     function loadLeaflet() {
         return new Promise((resolve, reject) => {
             if (window.L) {
@@ -59,13 +64,29 @@
     }
 
     async function readJson(path) {
-        const response = await fetch(path, { cache: "no-store" });
+        const response = await fetch(cacheBust(path), {
+            cache: "no-store"
+        });
 
         if (!response.ok) {
             throw new Error(`Failed to load ${path}: ${response.status}`);
         }
 
         return response.json();
+    }
+
+    async function readFirst(paths) {
+        let lastError = null;
+
+        for (const path of paths) {
+            try {
+                return await readJson(path);
+            } catch (err) {
+                lastError = err;
+            }
+        }
+
+        throw lastError || new Error("No JSON source paths provided.");
     }
 
     function applyTheme(theme) {
@@ -84,7 +105,15 @@
 
     async function loadTheme(themeId) {
         const id = themeId || state.settings?.theme?.selected || "zzx_dark_olive";
-        const theme = await readJson(`./data/themes/${id}.json`).catch(() => readJson("./data/map-theme.json"));
+
+        const theme = await readFirst([
+            `./data/themes/${id}.json`,
+            `../maps/data/themes/${id}.json`,
+            `../data/mapthemes/${id}.json`,
+            "./data/map-theme.json",
+            "../maps/zzxbitnodes/data/map-theme.json",
+            "../maps/global/data/map-theme.json"
+        ]);
 
         applyTheme(theme);
 
@@ -93,23 +122,32 @@
 
     async function loadSettingsProfile(settingsId) {
         const id = settingsId || state.settings?.profile?.id || "default";
-        const profile = await readJson(`./data/settings/${id}.json`);
 
-        return profile;
+        return readFirst([
+            `./data/settings/${id}.json`,
+            `../maps/data/settings/${id}.json`,
+            `../data/mapsettings/${id}.json`
+        ]);
     }
 
     function radius(point) {
-        const dup = Number(point.duplicate_count || 1);
+        const dup = Number(point.duplicate_count || point.count || 1);
         const min = Number(state.settings?.marker?.radius_min || 4);
         const max = Number(state.settings?.marker?.radius_max || 14);
 
-        return Math.max(min, Math.min(max, min + Math.log2(dup + 1) * 3));
+        return Math.max(
+            min,
+            Math.min(
+                max,
+                min + Math.log2(dup + 1) * 3
+            )
+        );
     }
 
     function markerPopup(point) {
         return `
             <div class="bn-map-popup">
-                <strong>${escapeHtml(point.address || point.id || "Unknown node")}</strong>
+                <strong>${escapeHtml(point.address || point.node || point.id || "Unknown node")}</strong>
                 <div>Status: ${escapeHtml(point.status_label || point.status || "Unknown")}</div>
                 <div>Network: ${escapeHtml(point.network || "unknown")}</div>
                 <div>Height: ${escapeHtml(point.height || "—")}</div>
@@ -120,9 +158,9 @@
                 <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
-                <div>Agent: ${escapeHtml(point.agent || "—")}</div>
+                <div>Agent: ${escapeHtml(point.agent || point.user_agent || "—")}</div>
                 <div>W3W: ${escapeHtml(point.w3w || "—")}</div>
-                <div>GeohashID: ${escapeHtml(point.geohashid || "—")}</div>
+                <div>GeohashID: ${escapeHtml(point.geohashid || point.geohash || "—")}</div>
             </div>
         `;
     }
@@ -134,7 +172,12 @@
             return points;
         }
 
-        return points.filter(point => point.network === state.filter || point.status === state.filter);
+        return points.filter(point => {
+            const network = String(point.network || "").toLowerCase();
+            const status = String(point.status || "").toLowerCase();
+
+            return network === state.filter || status === state.filter;
+        });
     }
 
     function renderHud() {
@@ -144,11 +187,15 @@
             return;
         }
 
+        const points = state.vectors.points || [];
+        const visible = filteredPoints();
+
         const networks = state.vectors.network_counts || {};
         const statuses = state.vectors.status_counts || {};
 
         target.innerHTML = `
-            <article><span>Total Points</span><strong>${Number(state.vectors.point_count || 0).toLocaleString()}</strong></article>
+            <article><span>Total Points</span><strong>${Number(state.vectors.point_count || points.length || 0).toLocaleString()}</strong></article>
+            <article><span>Visible</span><strong>${Number(visible.length || 0).toLocaleString()}</strong></article>
             <article><span>IPv4</span><strong>${Number(networks.ipv4 || 0).toLocaleString()}</strong></article>
             <article><span>IPv6</span><strong>${Number(networks.ipv6 || 0).toLocaleString()}</strong></article>
             <article><span>Tor</span><strong>${Number(networks.tor || 0).toLocaleString()}</strong></article>
@@ -156,7 +203,6 @@
             <article><span>Duplicate</span><strong>${Number(statuses["duplicate-location"] || 0).toLocaleString()}</strong></article>
             <article><span>Unsynced</span><strong>${Number(statuses["not-yet-synced"] || 0).toLocaleString()}</strong></article>
             <article><span>Stable 48h+</span><strong>${Number(statuses["stable-48h-plus"] || 0).toLocaleString()}</strong></article>
-            <article><span>Synced 10m+</span><strong>${Number(statuses["synced-10m-plus"] || 0).toLocaleString()}</strong></article>
             <article><span>Synced</span><strong>${Number(statuses.synced || 0).toLocaleString()}</strong></article>
         `;
     }
@@ -164,11 +210,34 @@
     function renderLegend() {
         const target = qs("#bn-map-legend");
 
-        if (!target || !state.vectors?.legend) {
+        if (!target) {
             return;
         }
 
-        target.innerHTML = Object.entries(state.vectors.legend).map(([key, item]) => `
+        const legend = state.vectors?.legend || {
+            ipv4: {
+                color: "#c0d674",
+                label: "IPv4"
+            },
+            ipv6: {
+                color: "#70b7ff",
+                label: "IPv6"
+            },
+            tor: {
+                color: "#9d67ad",
+                label: "Tor"
+            },
+            i2p: {
+                color: "#e6a42b",
+                label: "I2P"
+            },
+            unknown: {
+                color: "#8c927e",
+                label: "Unknown"
+            }
+        };
+
+        target.innerHTML = Object.entries(legend).map(([, item]) => `
             <span>
                 <i style="background:${escapeHtml(item.color)}"></i>
                 ${escapeHtml(item.label)}
@@ -187,9 +256,11 @@
 
         state.layer = window.L.layerGroup();
 
-        filteredPoints().forEach(point => {
+        const points = filteredPoints();
+
+        points.forEach(point => {
             const lat = Number(point.latitude ?? point.lat);
-            const lon = Number(point.longitude ?? point.lon);
+            const lon = Number(point.longitude ?? point.lon ?? point.lng);
 
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
                 return;
@@ -202,9 +273,11 @@
                 fillOpacity: Number(state.settings?.marker?.fill_opacity || 0.72),
                 opacity: Number(state.settings?.marker?.opacity || 0.95),
                 weight: Number(state.settings?.marker?.stroke_weight || 1),
-                renderer: state.settings?.performance?.prefer_canvas_renderer && state.canvasRenderer
-                    ? state.canvasRenderer
-                    : undefined
+                renderer:
+                    state.settings?.performance?.prefer_canvas_renderer !== false &&
+                    state.canvasRenderer
+                        ? state.canvasRenderer
+                        : undefined
             });
 
             marker.bindPopup(markerPopup(point));
@@ -212,10 +285,13 @@
         });
 
         state.layer.addTo(state.map);
+
         renderHud();
         renderLegend();
 
-        setStatus(`Loaded ${(filteredPoints().length).toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`);
+        setStatus(
+            `Loaded ${points.length.toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`
+        );
     }
 
     async function renderPolygons() {
@@ -223,7 +299,11 @@
             return;
         }
 
-        const polygons = await readJson("./data/map-polygons.geojson").catch(() => null);
+        const polygons = await readFirst([
+            "./data/map-polygons.geojson",
+            "../maps/zzxbitnodes/data/map-polygons.geojson",
+            "../maps/global/data/map-polygons.geojson"
+        ]).catch(() => null);
 
         if (!polygons || !Array.isArray(polygons.features)) {
             return;
@@ -256,38 +336,64 @@
     function populateThemeSelect() {
         const select = qs("[data-map-theme-select]");
 
-        if (!select || !state.themes?.themes) {
+        if (!select) {
             return;
         }
 
-        select.innerHTML = state.themes.themes.map(theme => `
+        const themes = state.themes?.themes || [
+            {
+                id: "zzx_dark_olive",
+                name: "ZZX Dark Olive"
+            }
+        ];
+
+        select.innerHTML = themes.map(theme => `
             <option value="${escapeHtml(theme.id)}">${escapeHtml(theme.name)}</option>
         `).join("");
 
-        select.value = state.theme?.id || state.themes.default_theme || "zzx_dark_olive";
+        select.value =
+            state.theme?.id ||
+            state.themes?.default_theme ||
+            state.settings?.theme?.selected ||
+            "zzx_dark_olive";
 
         select.addEventListener("change", async () => {
             await loadTheme(select.value);
+            renderPoints();
         });
     }
 
     function populateSettingsSelect() {
         const select = qs("[data-map-settings-select]");
 
-        if (!select || !state.settingsProfiles?.profiles) {
+        if (!select) {
             return;
         }
 
-        select.innerHTML = state.settingsProfiles.profiles.map(profile => `
+        const profiles = state.settingsProfiles?.profiles || [
+            {
+                id: "default",
+                name: "Default"
+            }
+        ];
+
+        select.innerHTML = profiles.map(profile => `
             <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>
         `).join("");
 
-        select.value = state.settings?.profile?.id || state.settingsProfiles.default_settings || "default";
+        select.value =
+            state.settings?.profile?.id ||
+            state.settingsProfiles?.default_settings ||
+            "default";
 
         select.addEventListener("change", async () => {
-            const profile = await loadSettingsProfile(select.value);
+            const profile = await loadSettingsProfile(select.value).catch(() => null);
 
-            setStatus(`Settings profile "${profile.name || select.value}" loaded. Rebuild maps.py output to persist profile-derived normalized map settings.`);
+            if (profile) {
+                setStatus(`Settings profile "${profile.name || select.value}" loaded.`);
+            } else {
+                setStatus(`Settings profile "${select.value}" unavailable.`);
+            }
         });
     }
 
@@ -306,21 +412,51 @@
 
         qs("[data-map-reset]")?.addEventListener("click", () => {
             state.map.setView(
-                [Number(view.latitude || 20), Number(view.longitude || 0)],
+                [
+                    Number(view.latitude || 20),
+                    Number(view.longitude || 0)
+                ],
                 Number(view.zoom || 2)
             );
         });
     }
 
+    async function loadMapData() {
+        state.settings = await readFirst([
+            "./data/map-settings.json",
+            "../maps/zzxbitnodes/data/map-settings.json",
+            "../maps/global/data/map-settings.json"
+        ]);
+
+        state.vectors = await readFirst([
+            "./data/map-vectors.json",
+            "../maps/zzxbitnodes/data/map-vectors.json",
+            "../maps/global/data/map-vectors.json",
+            "../live-map/zzxbitnodes/data/map-vectors.json",
+            "../live-map/global/data/map-vectors.json"
+        ]);
+
+        state.themes = await readFirst([
+            "./data/map-themes.json",
+            "../maps/zzxbitnodes/data/map-themes.json",
+            "../maps/global/data/map-themes.json"
+        ]).catch(() => null);
+
+        state.settingsProfiles = await readFirst([
+            "./data/map-settings-profiles.json",
+            "../maps/zzxbitnodes/data/map-settings-profiles.json",
+            "../maps/global/data/map-settings-profiles.json"
+        ]).catch(() => null);
+    }
+
     async function init() {
         await loadLeaflet();
 
-        state.settings = await readJson("./data/map-settings.json");
-        state.vectors = await readJson("./data/map-vectors.json");
-        state.themes = await readJson("./data/map-themes.json").catch(() => null);
-        state.settingsProfiles = await readJson("./data/map-settings-profiles.json").catch(() => null);
+        await loadMapData();
 
-        await loadTheme(state.settings?.theme?.selected || "zzx_dark_olive");
+        await loadTheme(
+            state.settings?.theme?.selected || "zzx_dark_olive"
+        );
 
         const root = qs("[data-map-root]");
 
@@ -331,7 +467,9 @@
         const view = state.settings.initial_view || {};
         const interaction = state.settings.interaction || {};
 
-        state.canvasRenderer = window.L.canvas({ padding: 0.35 });
+        state.canvasRenderer = window.L.canvas({
+            padding: 0.35
+        });
 
         state.map = window.L.map(root, {
             scrollWheelZoom: interaction.scroll_wheel_zoom !== false,
@@ -340,22 +478,34 @@
             keyboard: interaction.keyboard !== false,
             preferCanvas: state.settings?.performance?.prefer_canvas_renderer !== false
         }).setView(
-            [Number(view.latitude || 20), Number(view.longitude || 0)],
+            [
+                Number(view.latitude || 20),
+                Number(view.longitude || 0)
+            ],
             Number(view.zoom || 2)
         );
 
-        window.L.tileLayer(state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
-            subdomains: state.settings.tile_subdomains || undefined,
-            maxZoom: Number(view.max_zoom || 18),
-            minZoom: Number(view.min_zoom || 2)
-        }).addTo(state.map);
+        window.L.tileLayer(
+            state.settings.tile_url ||
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                attribution:
+                    state.settings.tile_attribution ||
+                    "© OpenStreetMap contributors",
+                subdomains:
+                    state.settings.tile_subdomains ||
+                    undefined,
+                maxZoom: Number(view.max_zoom || 18),
+                minZoom: Number(view.min_zoom || 2)
+            }
+        ).addTo(state.map);
 
         populateThemeSelect();
         populateSettingsSelect();
         wireControls(view);
 
         await renderPolygons();
+
         renderPoints();
     }
 
@@ -366,7 +516,11 @@
             const root = qs("[data-map-root]");
 
             if (root) {
-                root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
+                root.innerHTML = `
+                    <div class="bn-chart-empty">
+                        ${escapeHtml(error.message)}
+                    </div>
+                `;
             }
 
             setStatus(`Map load failure: ${error.message}`);
