@@ -1,6 +1,8 @@
 (() => {
     "use strict";
 
+    window.ZZX_BITNODES_MAP_DISABLE_AUTO_INIT = true;
+
     const LIVE_REFRESH_MS = 30000;
 
     function bootLiveMap() {
@@ -21,21 +23,22 @@
 
         document.body.classList.add("bn-live-map-page");
 
+        if (window.ZZXBitnodesMap.state?.initialized) {
+            window.ZZXBitnodesMap.destroy();
+        }
+
         window.ZZXBitnodesMap.init({
             mode: "live-map",
+            refreshMs: LIVE_REFRESH_MS,
 
             rootSelector: "[data-map-root]",
             statusSelector: "#bn-map-status",
             hudSelector: "#bn-map-hud",
             legendSelector: "#bn-map-legend",
-
             themeSelectSelector: "[data-map-theme-select]",
             settingsSelectSelector: "[data-map-settings-select]",
-
             resetSelector: "[data-map-reset]",
             filterSelector: "[data-map-filter]",
-
-            refreshMs: LIVE_REFRESH_MS,
 
             paths: {
                 settings: [
