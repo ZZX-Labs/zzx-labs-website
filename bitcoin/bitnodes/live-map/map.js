@@ -3,19 +3,100 @@
 
     const DEFAULT_REFRESH_MS = 30000;
 
+    const TILE_PROVIDERS = {
+        cartodb_dark: {
+            url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            attribution: "© OpenStreetMap contributors © CARTO",
+            subdomains: "abcd",
+            minZoom: 2,
+            maxZoom: 20
+        },
+        cartodb_dark_nolabels: {
+            url: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+            attribution: "© OpenStreetMap contributors © CARTO",
+            subdomains: "abcd",
+            minZoom: 2,
+            maxZoom: 20
+        },
+        cartodb_light: {
+            url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+            attribution: "© OpenStreetMap contributors © CARTO",
+            subdomains: "abcd",
+            minZoom: 2,
+            maxZoom: 20
+        },
+        cartodb_voyager: {
+            url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+            attribution: "© OpenStreetMap contributors © CARTO",
+            subdomains: "abcd",
+            minZoom: 2,
+            maxZoom: 20
+        },
+        osm_standard: {
+            url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            attribution: "© OpenStreetMap contributors",
+            subdomains: "abc",
+            minZoom: 2,
+            maxZoom: 19
+        },
+        esri_satellite: {
+            url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            attribution: "Tiles © Esri",
+            subdomains: "",
+            minZoom: 2,
+            maxZoom: 19
+        }
+    };
+
     const BLIP_LEGEND = {
-        duplicate: { color: "#d95c5c", label: "Duplicate IP / Multiple Nodes at Location" },
-        unsynced: { color: "#8b5a2b", label: "Not Yet Synced" },
-        synced_lt_10m: { color: "#e6a42b", label: "Synced / Uptime Less Than 10m" },
-        synced_gt_10m: { color: "#f1e26b", label: "Synced / Uptime Over 10m" },
-        synced_gt_48h: { color: "#c0d674", label: "Synced / Uptime Over 48h" },
-        synced_gt_1w: { color: "#ffd36a", label: "Synced / Uptime Over 1 Week" },
-        i2p: { color: "#6fffe9", label: "I2P Node" },
-        tor: { color: "#9d67ad", label: "Tor Node" },
-        vpn: { color: "#70b7ff", label: "Suspected VPN Node" },
-        proxy: { color: "#ff77c8", label: "Suspected Proxy Node" },
-        unreachable: { color: "#1b1f1b", label: "Node Became Unreachable" },
-        unknown: { color: "#8c927e", label: "Unknown / Unclassified" }
+        duplicate: {
+            color: "#d95c5c",
+            label: "Duplicate IP / Multiple Nodes at Location"
+        },
+        unsynced: {
+            color: "#8b5a2b",
+            label: "Not Yet Synced"
+        },
+        synced_lt_10m: {
+            color: "#e6a42b",
+            label: "Synced / Uptime Less Than 10m"
+        },
+        synced_gt_10m: {
+            color: "#f1e26b",
+            label: "Synced / Uptime Over 10m"
+        },
+        synced_gt_48h: {
+            color: "#c0d674",
+            label: "Synced / Uptime Over 48h"
+        },
+        synced_gt_1w: {
+            color: "#ffd36a",
+            label: "Synced / Uptime Over 1 Week"
+        },
+        i2p: {
+            color: "#6fffe9",
+            label: "I2P Node"
+        },
+        tor: {
+            color: "#9d67ad",
+            label: "Tor Node"
+        },
+        vpn: {
+            color: "#70b7ff",
+            label: "Suspected VPN Node"
+        },
+        proxy: {
+            color: "#ff77c8",
+            label: "Suspected Proxy Node"
+        },
+        unreachable: {
+            color: "#1b1f1b",
+            label: "Node Became Unreachable"
+        },
+        unknown: {
+            color: "#8c927e",
+            label: "Unknown / Unclassified"
+        }
     };
 
     const DEFAULT_OPTIONS = {
@@ -30,6 +111,7 @@
         settingsSelectSelector: "[data-map-settings-select]",
         resetSelector: "[data-map-reset]",
         filterSelector: "[data-map-filter]",
+        autoInitViews: ["map"],
         paths: {
             settings: [
                 "./data/map-settings.json",
@@ -42,24 +124,29 @@
                 "../maps/originalbitnodes/data/map-settings.json"
             ],
             vectors: [
+                "./zzxbitnodes/nodes.geojson",
+                "./global/nodes.geojson",
+                "./originalbitnodes/nodes.geojson",
                 "./zzxbitnodes/points.json",
                 "./global/points.json",
                 "./originalbitnodes/points.json",
                 "./zzxbitnodes/live-map.json",
                 "./global/live-map.json",
                 "./originalbitnodes/live-map.json",
-                "./zzxbitnodes/nodes.geojson",
-                "./global/nodes.geojson",
-                "./originalbitnodes/nodes.geojson",
                 "./data/map-points.geojson",
-                "./data/map-vectors.json",
-                "../maps/zzxbitnodes/points.json",
-                "../maps/global/points.json",
-                "../maps/originalbitnodes/points.json",
                 "../maps/zzxbitnodes/nodes.geojson",
                 "../maps/global/nodes.geojson",
                 "../maps/originalbitnodes/nodes.geojson",
-                "../maps/data/map-points.geojson",
+                "../maps/zzxbitnodes/points.json",
+                "../maps/global/points.json",
+                "../maps/originalbitnodes/points.json",
+                "../maps/data/map-points.geojson"
+            ],
+            vectorManifest: [
+                "./data/map-vectors.json",
+                "./zzxbitnodes/data/map-vectors.json",
+                "./global/data/map-vectors.json",
+                "./originalbitnodes/data/map-vectors.json",
                 "../maps/data/map-vectors.json"
             ],
             themes: [
@@ -74,6 +161,7 @@
                 `./zzxbitnodes/data/themes/${id}.json`,
                 `./global/data/themes/${id}.json`,
                 `./originalbitnodes/data/themes/${id}.json`,
+                `../maps/data/themes/${id}.json`,
                 "./data/map-theme.json",
                 "../maps/data/map-theme.json"
             ],
@@ -98,19 +186,12 @@
                 "./originalbitnodes/data/map-polygons.geojson",
                 "../maps/data/map-polygons.geojson"
             ],
-            overlays: [
-                "./data/map-overlays.json",
-                "./zzxbitnodes/data/map-overlays.json",
-                "./global/data/map-overlays.json",
-                "./originalbitnodes/data/map-overlays.json",
-                "../maps/data/map-overlays.json"
-            ],
-            layers: [
-                "./data/map-layers.json",
-                "./zzxbitnodes/data/map-layers.json",
-                "./global/data/map-layers.json",
-                "./originalbitnodes/data/map-layers.json",
-                "../maps/data/map-layers.json"
+            tileProviders: [
+                "./data/map-tile-providers.json",
+                "./zzxbitnodes/data/map-tile-providers.json",
+                "./global/data/map-tile-providers.json",
+                "./originalbitnodes/data/map-tile-providers.json",
+                "../maps/data/map-tile-providers.json"
             ]
         }
     };
@@ -118,6 +199,7 @@
     const state = {
         options: null,
         map: null,
+        tileLayer: null,
         canvasRenderer: null,
         layers: {
             points: null,
@@ -128,6 +210,7 @@
         theme: null,
         themes: null,
         settingsProfiles: null,
+        tileProviders: null,
         filter: "all",
         timer: null,
         lastPointIds: new Set(),
@@ -180,10 +263,16 @@
                 return;
             }
 
-            const css = document.createElement("link");
-            css.rel = "stylesheet";
-            css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-            document.head.appendChild(css);
+            const cssExists = qsa("link").some(link => {
+                return String(link.href || "").includes("leaflet");
+            });
+
+            if (!cssExists) {
+                const css = document.createElement("link");
+                css.rel = "stylesheet";
+                css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+                document.head.appendChild(css);
+            }
 
             const script = document.createElement("script");
             script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
@@ -223,6 +312,28 @@
         }
 
         throw lastError || new Error("No usable JSON source paths found.");
+    }
+
+    function deepMerge(base, patch) {
+        const output = { ...(base || {}) };
+
+        Object.entries(patch || {}).forEach(([key, value]) => {
+            if (
+                value &&
+                typeof value === "object" &&
+                !Array.isArray(value) &&
+                output[key] &&
+                typeof output[key] === "object" &&
+                !Array.isArray(output[key])
+            ) {
+                output[key] = deepMerge(output[key], value);
+                return;
+            }
+
+            output[key] = value;
+        });
+
+        return output;
     }
 
     function countBy(rows, fn) {
@@ -333,6 +444,8 @@
             height: raw.height || raw.block_height,
             latency: raw.latency || raw.latency_ms,
             uptime_seconds: raw.uptime_seconds ?? raw.uptime,
+            status: raw.status,
+            duplicate_count: raw.duplicate_count || raw.count || raw.nodes_at_location,
             w3w: raw.w3w || raw.what3words || raw.geoip?.w3w,
             geohashid: raw.geohashid || raw.geohash || raw.geoip?.geohashid
         };
@@ -392,6 +505,8 @@
             points = data.points.map(row => normalizePoint(row));
         } else if (Array.isArray(data?.nodes)) {
             points = data.nodes.map(row => normalizePoint(row));
+        } else if (Array.isArray(data?.features)) {
+            points = normalizeGeoJson(data).points;
         } else if (data?.nodes && typeof data.nodes === "object") {
             points = Object.entries(data.nodes).map(([address, row]) => {
                 return Array.isArray(row)
@@ -418,13 +533,14 @@
         });
 
         return {
-            source: data?.source || state.latestSource,
-            point_count: data?.point_count || points.length,
+            source: data?.source || data?.metadata?.source || state.latestSource,
+            point_count: data?.point_count || data?.feature_count || points.length,
+            node_count: data?.node_count || points.length,
             points,
             network_counts: data?.network_counts || countBy(points, pointNetwork),
             status_counts: data?.status_counts || countBy(points, point => point.status || "unknown"),
             legend: data?.legend || BLIP_LEGEND,
-            build: data?.build || data?.meta || null
+            build: data?.build || data?.meta || data?.metadata || null
         };
     }
 
@@ -436,7 +552,7 @@
         const network = pointNetwork(point);
         const status = String(point.status || "").toLowerCase();
         const uptime = number(point.uptime_seconds ?? point.uptime, 0);
-        const duplicate = number(point.duplicate_count || point.count, 1) > 1;
+        const duplicate = number(point.duplicate_count || point.count || point.nodes_at_location, 1) > 1;
 
         if (status.includes("unreachable") || point.unreachable) {
             return "unreachable";
@@ -485,15 +601,30 @@
         return "unknown";
     }
 
+    function themeMarkerColor(name, fallback) {
+        return (
+            state.theme?.markers?.[name] ||
+            state.theme?.css_variables?.[`--bn-map-marker-${name.replaceAll("_", "-")}`] ||
+            fallback
+        );
+    }
+
     function pointColor(point) {
         const cls = pointClass(point);
-        return point.color || BLIP_LEGEND[cls]?.color || BLIP_LEGEND.unknown.color;
+
+        return (
+            point.color ||
+            themeMarkerColor(cls, null) ||
+            BLIP_LEGEND[cls]?.color ||
+            BLIP_LEGEND.unknown.color
+        );
     }
 
     function markerRadius(point) {
         const dup = number(point.duplicate_count || point.count || point.weight || 1, 1);
-        const min = number(state.settings?.marker?.radius_min, 4);
-        const max = number(state.settings?.marker?.radius_max, 14);
+        const markerSettings = state.settings?.marker || state.settings?.markers || {};
+        const min = number(markerSettings.radius_min, 4);
+        const max = number(markerSettings.radius_max, 14);
 
         return Math.max(min, Math.min(max, min + Math.log2(dup + 1) * 3));
     }
@@ -501,6 +632,8 @@
     function filterHasField(point, field) {
         const map = {
             isp: point.isp,
+            provider: point.provider,
+            organization: point.organization || point.org,
             agent: point.agent || point.user_agent,
             version: point.version,
             protocol: point.protocol,
@@ -643,12 +776,19 @@
             return;
         }
 
-        target.innerHTML = Object.entries(BLIP_LEGEND).map(([, item]) => `
-            <span>
-                <i style="background:${escapeHtml(item.color)};color:${escapeHtml(item.color)}"></i>
-                ${escapeHtml(item.label)}
-            </span>
-        `).join("");
+        target.innerHTML = `
+            <div class="bn-map-legend-title">Map Key</div>
+            ${Object.entries(BLIP_LEGEND).map(([key, item]) => {
+                const color = themeMarkerColor(key, item.color);
+
+                return `
+                    <span>
+                        <i style="background:${escapeHtml(color)};color:${escapeHtml(color)}"></i>
+                        ${escapeHtml(item.label)}
+                    </span>
+                `;
+            }).join("")}
+        `;
     }
 
     function renderPoints() {
@@ -663,6 +803,7 @@
         state.layers.points = window.L.layerGroup();
 
         const points = filteredPoints();
+        const markerSettings = state.settings?.marker || state.settings?.markers || {};
 
         for (const point of points) {
             const lat = number(point.latitude ?? point.lat, NaN);
@@ -678,9 +819,9 @@
                 radius: markerRadius(point),
                 color,
                 fillColor: color,
-                fillOpacity: number(state.settings?.marker?.fill_opacity, 0.78),
-                opacity: number(state.settings?.marker?.opacity, 0.98),
-                weight: number(state.settings?.marker?.stroke_weight, 1),
+                fillOpacity: number(markerSettings.fill_opacity, 0.78),
+                opacity: number(markerSettings.opacity, 0.98),
+                weight: number(markerSettings.stroke_weight, 1),
                 renderer:
                     state.settings?.performance?.prefer_canvas_renderer !== false &&
                     state.canvasRenderer
@@ -722,10 +863,10 @@
                 const props = feature.properties || {};
 
                 return {
-                    color: props.stroke || "#c0d674",
-                    fillColor: props.fill || "#c0d674",
-                    fillOpacity: number(props.fill_opacity ?? props.opacity, 0.08),
-                    opacity: number(props.opacity, 0.22),
+                    color: props.stroke || "rgba(192,214,116,0.45)",
+                    fillColor: props.fill || "rgba(192,214,116,0.08)",
+                    fillOpacity: number(props.fill_opacity ?? props.opacity, 0.05),
+                    opacity: number(props.opacity, 0.28),
                     weight: number(props.weight, 1)
                 };
             },
@@ -749,10 +890,25 @@
         Object.entries(vars).forEach(([key, value]) => {
             document.documentElement.style.setProperty(key, value);
         });
+
+        if (theme.font_family) {
+            document.documentElement.style.setProperty("--bn-map-font", theme.font_family);
+        }
+
+        if (theme.heading_font_family) {
+            document.documentElement.style.setProperty("--bn-map-heading", theme.heading_font_family);
+        }
+
+        updateTileLayer();
     }
 
     async function loadTheme(themeId) {
-        const id = themeId || state.settings?.theme?.selected || "zzx_dark_olive";
+        const id =
+            themeId ||
+            state.settings?.theme?.selected ||
+            state.themes?.default_theme ||
+            "zzx_dark_olive";
+
         const paths = typeof state.options.paths.theme === "function"
             ? state.options.paths.theme(id)
             : state.options.paths.theme;
@@ -760,10 +916,12 @@
         const theme = await readFirst(paths).catch(() => null);
 
         applyTheme(theme);
+
+        return theme;
     }
 
     async function loadSettingsProfile(settingsId) {
-        const id = settingsId || state.settings?.profile?.id || "default";
+        const id = settingsId || state.settings?.id || "default";
         const paths = typeof state.options.paths.settingsProfile === "function"
             ? state.options.paths.settingsProfile(id)
             : state.options.paths.settingsProfile;
@@ -786,10 +944,10 @@
 
         select.value = state.theme?.id || state.themes?.default_theme || "zzx_dark_olive";
 
-        select.addEventListener("change", async () => {
+        select.onchange = async () => {
             await loadTheme(select.value);
             renderPoints();
-        });
+        };
     }
 
     function populateSettingsSelect() {
@@ -805,24 +963,25 @@
             <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>
         `).join("");
 
-        select.value = state.settings?.profile?.id || state.settingsProfiles?.default_settings || "default";
+        select.value = state.settings?.id || state.settingsProfiles?.default_settings || "default";
 
-        select.addEventListener("change", async () => {
+        select.onchange = async () => {
             const profile = await loadSettingsProfile(select.value).catch(() => null);
 
             if (profile) {
-                state.settings = { ...state.settings, ...profile };
+                state.settings = deepMerge(state.settings || {}, profile);
+                updateTileLayer();
                 setStatus(`Settings profile "${profile.name || select.value}" loaded.`, "live");
                 renderPoints();
             } else {
                 setStatus(`Settings profile "${select.value}" unavailable.`, "warn");
             }
-        });
+        };
     }
 
     function wireControls(view) {
         qsa(state.options.filterSelector).forEach(button => {
-            button.addEventListener("click", () => {
+            button.onclick = () => {
                 state.filter = button.dataset.mapFilter || "all";
 
                 qsa(state.options.filterSelector).forEach(item => {
@@ -830,7 +989,7 @@
                 });
 
                 renderPoints();
-            });
+            };
         });
 
         qs(state.options.resetSelector)?.addEventListener("click", () => {
@@ -841,8 +1000,93 @@
         });
     }
 
+    function resolveTileConfig() {
+        const providerId =
+            state.settings?.tiles?.provider ||
+            state.settings?.tile?.provider ||
+            state.theme?.tiles?.provider ||
+            state.tileProviders?.default_provider ||
+            "cartodb_dark";
+
+        const externalProvider =
+            (state.tileProviders?.providers || []).find(provider => provider.id === providerId);
+
+        const provider =
+            externalProvider ||
+            TILE_PROVIDERS[providerId] ||
+            TILE_PROVIDERS.cartodb_dark;
+
+        const tileObject = state.settings?.tile || {};
+
+        return {
+            providerId,
+            url:
+                tileObject.url ||
+                provider.url ||
+                TILE_PROVIDERS.cartodb_dark.url,
+            attribution:
+                tileObject.attribution ||
+                provider.attribution ||
+                "© OpenStreetMap contributors © CARTO",
+            subdomains:
+                tileObject.subdomains ||
+                provider.subdomains ||
+                "abcd",
+            minZoom:
+                tileObject.min_zoom ||
+                tileObject.minZoom ||
+                provider.min_zoom ||
+                provider.minZoom ||
+                2,
+            maxZoom:
+                tileObject.max_zoom ||
+                tileObject.maxZoom ||
+                provider.max_zoom ||
+                provider.maxZoom ||
+                20
+        };
+    }
+
+    function updateTileLayer() {
+        if (!state.map || !window.L) {
+            return;
+        }
+
+        const tile = resolveTileConfig();
+
+        if (state.tileLayer) {
+            state.tileLayer.remove();
+        }
+
+        state.tileLayer = window.L.tileLayer(tile.url, {
+            attribution: tile.attribution,
+            subdomains: tile.subdomains,
+            minZoom: number(tile.minZoom, 2),
+            maxZoom: number(tile.maxZoom, 20)
+        });
+
+        state.tileLayer.addTo(state.map);
+    }
+
     async function loadMapData() {
-        state.settings = await readFirst(state.options.paths.settings).catch(() => ({}));
+        const baseSettings = await readFirst(state.options.paths.settings).catch(() => ({}));
+
+        state.settings = baseSettings || {};
+
+        state.tileProviders = await readFirst(state.options.paths.tileProviders).catch(() => null);
+        state.themes = await readFirst(state.options.paths.themes).catch(() => null);
+        state.settingsProfiles = await readFirst(state.options.paths.settingsProfiles).catch(() => null);
+
+        const defaultProfileId =
+            state.settings?.id ||
+            state.settingsProfiles?.default_settings ||
+            "default";
+
+        const profile = await loadSettingsProfile(defaultProfileId).catch(() => null);
+
+        if (profile) {
+            state.settings = deepMerge(state.settings, profile);
+        }
 
         const rawVectors = await readFirst(
             state.options.paths.vectors,
@@ -850,18 +1094,37 @@
         );
 
         state.vectors = normalizePointsJson(rawVectors);
-        state.themes = await readFirst(state.options.paths.themes).catch(() => null);
-        state.settingsProfiles = await readFirst(state.options.paths.settingsProfiles).catch(() => null);
     }
 
     async function refreshData() {
         const previousIds = new Set((state.vectors?.points || []).map(pointId));
 
-        await loadMapData();
+        const rawVectors = await readFirst(
+            state.options.paths.vectors,
+            isUsefulVectorData
+        );
 
+        state.vectors = normalizePointsJson(rawVectors);
         state.lastPointIds = previousIds;
 
         renderPoints();
+    }
+
+    function prepareRoot(root) {
+        if (!root) {
+            return;
+        }
+
+        if (state.map) {
+            state.map.remove();
+            state.map = null;
+        }
+
+        if (root._leaflet_id) {
+            root._leaflet_id = null;
+        }
+
+        root.innerHTML = "";
     }
 
     async function init(userOptions = {}) {
@@ -881,19 +1144,16 @@
         const root = qs(state.options.rootSelector);
 
         if (!root) {
-            return;
+            throw new Error(`Map root not found: ${state.options.rootSelector}`);
         }
 
-        if (state.map) {
-            state.map.remove();
-            state.map = null;
-        }
+        prepareRoot(root);
 
-        if (root._leaflet_id) {
-            root._leaflet_id = null;
-        }
+        const view =
+            state.settings.initial_view ||
+            state.settings.view ||
+            {};
 
-        const view = state.settings.initial_view || {};
         const interaction = state.settings.interaction || {};
 
         state.canvasRenderer = window.L.canvas({ padding: 0.35 });
@@ -911,19 +1171,18 @@
         );
 
         window.L.control.zoom({
-            position: "bottomleft"
+            position: state.settings?.controls?.zoom_position || "bottomleft"
         }).addTo(state.map);
 
-        window.L.tileLayer(
-            state.settings.tile_url ||
-                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
-                subdomains: state.settings.tile_subdomains || undefined,
-                maxZoom: number(view.max_zoom, 18),
-                minZoom: number(view.min_zoom, 2)
-            }
-        ).addTo(state.map);
+        if (state.settings?.controls?.scale !== false) {
+            window.L.control.scale({
+                position: state.settings?.controls?.scale_position || "bottomleft",
+                metric: true,
+                imperial: true
+            }).addTo(state.map);
+        }
+
+        updateTileLayer();
 
         populateThemeSelect();
         populateSettingsSelect();
@@ -933,7 +1192,12 @@
 
         renderPoints();
 
-        if (number(state.options.refreshMs, 0) > 0) {
+        const refreshMs =
+            number(state.options.refreshMs, 0) ||
+            number(state.settings?.refresh?.interval_ms, 0) ||
+            number(state.settings?.refresh?.interval_seconds, 0) * 1000;
+
+        if (refreshMs > 0 && state.settings?.refresh?.enabled !== false) {
             clearInterval(state.timer);
 
             state.timer = setInterval(() => {
@@ -941,7 +1205,7 @@
                     console.error(err);
                     setStatus(`Live refresh failure: ${err.message}`, "error");
                 });
-            }, number(state.options.refreshMs, DEFAULT_REFRESH_MS));
+            }, Math.max(250, refreshMs));
         }
 
         state.initialized = true;
@@ -956,6 +1220,9 @@
             state.map = null;
         }
 
+        state.tileLayer = null;
+        state.layers.points = null;
+        state.layers.polygons = null;
         state.initialized = false;
     }
 
@@ -972,6 +1239,17 @@
             return;
         }
 
+        const viewName =
+            document.body?.dataset?.bnView ||
+            qs("main")?.dataset?.bitnodesView ||
+            "";
+
+        const shouldAutoInit = DEFAULT_OPTIONS.autoInitViews.includes(viewName);
+
+        if (!shouldAutoInit) {
+            return;
+        }
+
         init().catch(error => {
             console.error(error);
 
@@ -981,6 +1259,7 @@
                 root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
             }
 
+            state.options = state.options || DEFAULT_OPTIONS;
             setStatus(`Map load failure: ${error.message}`, "error");
         });
     });
