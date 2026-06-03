@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import os
 import shutil
@@ -25,21 +26,27 @@ ARCHIVE_DIR = BITNODES_ROOT / "archive"
 LOG_DIR = BITNODES_ROOT / "log"
 GEOIP_DIR = DATA_DIR / "geoip"
 
-ORIGINAL_API_DIR = API_DIR / "originalbitnodes"
-ORIGINAL_ARCHIVE_DIR = ARCHIVE_DIR / "originalbitnodes"
-ORIGINAL_STATE_DIR = DATA_DIR / "state" / "originalbitnodes"
-ORIGINAL_SNAPSHOT_24H_DIR = DATA_DIR / "snapshots" / "24h" / "originalbitnodes"
-ORIGINAL_SEEDER_DIR = DATA_DIR / "seeders" / "originalbitnodes"
-ORIGINAL_REGISTRY_DIR = BITNODES_ROOT / "registry" / "originalbitnodes"
+SNAPSHOTS_ROOT = DATA_DIR / "snapshots"
+SNAPSHOT_BUCKETS = ("24h", "week", "monthly", "quarterly", "yearly", "all-time")
+
+SOURCE = "originalbitnodes"
+
+ORIGINAL_API_DIR = API_DIR / SOURCE
+ORIGINAL_ARCHIVE_DIR = ARCHIVE_DIR / SOURCE
+ORIGINAL_STATE_DIR = DATA_DIR / "state" / SOURCE
+ORIGINAL_SNAPSHOT_24H_DIR = SNAPSHOTS_ROOT / "24h" / SOURCE
+ORIGINAL_SEEDER_DIR = DATA_DIR / "seeders" / SOURCE
+ORIGINAL_REGISTRY_DIR = DATA_DIR / "registry" / SOURCE
 ORIGINAL_REGISTRY_LATEST_DIR = ORIGINAL_REGISTRY_DIR / "latest"
 
-ORIGINAL_ENRICHED_DIR = API_DIR / "enriched" / "originalbitnodes"
+ORIGINAL_ENRICHED_DIR = API_DIR / "enriched" / SOURCE
 ORIGINAL_ENRICHED_LATEST = ORIGINAL_ENRICHED_DIR / "latest.json"
 ORIGINAL_ENRICHMENT_REPORT = ORIGINAL_ENRICHED_DIR / "enrichment-report.json"
 
-ORIGINAL_AGGREGATE_DIR = API_DIR / "aggregate" / "originalbitnodes"
+ORIGINAL_AGGREGATE_DIR = API_DIR / "aggregate" / SOURCE
 ORIGINAL_AGGREGATE_LATEST = ORIGINAL_AGGREGATE_DIR / "latest.json"
 
+EXPORT = TOOLS_DIR / "export.py"
 EXPORT_FROM_REDIS = TOOLS_DIR / "export_from_redis.py"
 ENRICH = TOOLS_DIR / "enrich.py"
 AGGREGATE = TOOLS_DIR / "aggregate.py"
@@ -59,13 +66,39 @@ def utc_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def utc_ts() -> int:
+    return int(time.time())
+
+
 def date_slug() -> str:
     return time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def month_slug() -> str:
+    return time.strftime("%Y-%m", time.gmtime())
+
+
+def year_slug() -> str:
+    return time.strftime("%Y", time.gmtime())
+
+
+def quarter_slug() -> str:
+    now = datetime.now(timezone.utc)
+    quarter = ((now.month - 1) // 3) + 1
+    return f"{now.year}-Q{quarter}"
+
+
+def snapshot_name(timestamp: int | None = None) -> str:
+    if timestamp is None:
+        timestamp = utc_ts()
+
+    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(timestamp)) + ".json"
 
 
 def ensure_dirs() -> None:
     for path in (
         BITNODES_ROOT,
+        SRC_DIR.parent,
         DATA_DIR,
         API_DIR,
         ARCHIVE_DIR,
@@ -83,6 +116,9 @@ def ensure_dirs() -> None:
     ):
         path.mkdir(parents=True, exist_ok=True)
 
+    for bucket in SNAPSHOT_BUCKETS:
+        (SNAPSHOTS_ROOT / bucket / SOURCE).mkdir(parents=True, exist_ok=True)
+
 
 def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
@@ -92,6 +128,10 @@ def read_json(path: Path, fallback: Any = None) -> Any:
         return fallback
 
     try:
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
     except Exception:
@@ -165,10 +205,11 @@ def runtime_env() -> dict[str, str]:
         "ZZX_BITNODES_GEOIP_DIR": str(GEOIP_DIR),
         "ZZX_BITNODES_STATE_DIR": str(ORIGINAL_STATE_DIR),
         "ZZX_BITNODES_SNAPSHOT_24H_DIR": str(ORIGINAL_SNAPSHOT_24H_DIR),
+        "ZZX_BITNODES_SNAPSHOTS_ROOT": str(SNAPSHOTS_ROOT),
         "ZZX_BITNODES_SEEDER_DIR": str(ORIGINAL_SEEDER_DIR),
         "ZZX_BITNODES_REGISTRY_DIR": str(ORIGINAL_REGISTRY_DIR),
         "ZZX_BITNODES_LOG_DIR": str(LOG_DIR),
-        "ZZX_BITNODES_SOURCE": "originalbitnodes",
+        "ZZX_BITNODES_SOURCE": SOURCE,
         "PYTHONUNBUFFERED": "1",
     }
 
@@ -346,6 +387,7 @@ def export_redis(
 def enrich_original(
     modules: str = "",
     strict: bool = False,
+    compact: bool = False,
 ) -> int:
     latest = ORIGINAL_API_DIR / "latest.json"
 
@@ -362,7 +404,7 @@ def enrich_original(
         "--report",
         str(ORIGINAL_ENRICHMENT_REPORT),
         "--source",
-        "originalbitnodes",
+        SOURCE,
         "--api-dir",
         str(API_DIR),
         "--state-dir",
@@ -374,6 +416,9 @@ def enrich_original(
 
     if strict:
         command.append("--strict")
+
+    if compact:
+        command.append("--compact")
 
     return run(command, cwd=APP_ROOT)
 
@@ -396,10 +441,154 @@ def aggregate_original() -> int:
         "--state-dir",
         str(ORIGINAL_STATE_DIR),
         "--source",
-        "originalbitnodes",
+        SOURCE,
     )
 
     return run(command, cwd=APP_ROOT)
+
+
+def export_all_formats(compact: bool = False) -> int:
+    if not EXPORT.exists():
+        return 0
+
+    input_path = ORIGINAL_AGGREGATE_LATEST if ORIGINAL_AGGREGATE_LATEST.exists() else ORIGINAL_ENRICHED_LATEST
+
+    if not input_path.exists():
+        input_path = ORIGINAL_API_DIR / "latest.json"
+
+    if not input_path.exists():
+        printf(f"Original all-format export skipped; missing {input_path}")
+        return 0
+
+    command = py(
+        EXPORT,
+        "all",
+        "--input",
+        str(input_path),
+        "--output",
+        str(ORIGINAL_API_DIR),
+        "--archive-dir",
+        str(ORIGINAL_ARCHIVE_DIR),
+        "--source",
+        SOURCE,
+        "--keep-going",
+    )
+
+    if compact:
+        command.append("--compact")
+
+    return run(command, cwd=APP_ROOT)
+
+
+def latest_payload() -> dict[str, Any]:
+    payload = read_json(ORIGINAL_API_DIR / "latest.json", fallback={})
+
+    if not isinstance(payload, dict):
+        return {}
+
+    payload["source"] = SOURCE
+    payload["crawler"] = SOURCE
+    payload["updated_by"] = "run_original_bitnodes.py"
+    payload["compatibility"] = {
+        "mode": "original-bitnodes-compatible",
+        "upstream": DEFAULT_REPO,
+        "note": "Generated from the original Bitnodes-compatible runner/export path.",
+    }
+
+    return payload
+
+
+def prune_bucket(path: Path, max_files: int) -> None:
+    if max_files <= 0 or not path.exists():
+        return
+
+    files = sorted(
+        [item for item in path.glob("*.json") if item.name != "index.json"],
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+
+    for old in files[max_files:]:
+        try:
+            old.unlink()
+        except Exception:
+            pass
+
+
+def write_snapshot_indexes(pretty: bool = True) -> None:
+    for bucket in SNAPSHOT_BUCKETS:
+        directory = SNAPSHOTS_ROOT / bucket / SOURCE
+        directory.mkdir(parents=True, exist_ok=True)
+
+        files = sorted(
+            [item for item in directory.glob("*.json") if item.name != "index.json"],
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+
+        entries = []
+
+        for item in files:
+            payload = read_json(item, fallback={})
+
+            entries.append({
+                "file": item.name,
+                "path": item.relative_to(BITNODES_ROOT).as_posix(),
+                "updated_at": payload.get("updated_at") if isinstance(payload, dict) else None,
+                "timestamp": payload.get("timestamp") if isinstance(payload, dict) else None,
+                "total_nodes": payload.get("total_nodes") if isinstance(payload, dict) else None,
+                "reachable_nodes": payload.get("reachable_nodes") if isinstance(payload, dict) else None,
+                "latest_height": payload.get("latest_height") if isinstance(payload, dict) else None,
+                "bytes": item.stat().st_size,
+            })
+
+        write_json(
+            directory / "index.json",
+            {
+                "schema": "zzx-bitnodes-snapshot-bucket-index-v1",
+                "source": SOURCE,
+                "bucket": bucket,
+                "generated_at": utc_iso(),
+                "count": len(entries),
+                "latest": entries[0] if entries else None,
+                "entries": entries,
+            },
+            pretty=pretty,
+        )
+
+
+def write_snapshot_buckets(pretty: bool = True) -> None:
+    payload = latest_payload()
+
+    if not payload:
+        return
+
+    timestamp = int(payload.get("timestamp") or utc_ts())
+    name = snapshot_name(timestamp)
+
+    bucket_dirs = {
+        bucket: SNAPSHOTS_ROOT / bucket / SOURCE
+        for bucket in SNAPSHOT_BUCKETS
+    }
+
+    for directory in bucket_dirs.values():
+        directory.mkdir(parents=True, exist_ok=True)
+
+    write_json(bucket_dirs["24h"] / name, payload, pretty=pretty)
+    write_json(bucket_dirs["week"] / f"{date_slug()}.json", payload, pretty=pretty)
+    write_json(bucket_dirs["monthly"] / f"{month_slug()}.json", payload, pretty=pretty)
+    write_json(bucket_dirs["quarterly"] / f"{quarter_slug()}.json", payload, pretty=pretty)
+    write_json(bucket_dirs["yearly"] / f"{year_slug()}.json", payload, pretty=pretty)
+    write_json(bucket_dirs["all-time"] / name, payload, pretty=pretty)
+
+    prune_bucket(bucket_dirs["24h"], 288)
+    prune_bucket(bucket_dirs["week"], 14)
+    prune_bucket(bucket_dirs["monthly"], 24)
+    prune_bucket(bucket_dirs["quarterly"], 24)
+    prune_bucket(bucket_dirs["yearly"], 10)
+    prune_bucket(bucket_dirs["all-time"], 0)
+
+    write_snapshot_indexes(pretty=pretty)
 
 
 def registry_backup_original(enabled: bool = True) -> int:
@@ -418,6 +607,8 @@ def registry_backup_original(enabled: bool = True) -> int:
         str(dated),
         "--latest-output",
         str(ORIGINAL_REGISTRY_LATEST_DIR),
+        "--max-mb",
+        "24",
     )
 
     code = run(command, cwd=APP_ROOT)
@@ -449,44 +640,36 @@ def push_original(enabled: bool = False) -> int:
         "bitcoin/bitnodes/archive/originalbitnodes",
         "bitcoin/bitnodes/data/state/originalbitnodes",
         "bitcoin/bitnodes/data/snapshots/24h/originalbitnodes",
-        "bitcoin/bitnodes/registry/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/week/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/monthly/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/quarterly/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/yearly/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/all-time/originalbitnodes",
+        "bitcoin/bitnodes/data/registry/originalbitnodes",
     )
 
     return run(command, cwd=APP_ROOT)
 
 
 def mirror_original_latest(pretty: bool = True) -> None:
-    latest = ORIGINAL_API_DIR / "latest.json"
+    payload = latest_payload()
 
-    if not latest.exists():
+    if not payload:
         return
-
-    payload = read_json(latest, fallback={})
-
-    if not isinstance(payload, dict) or not payload:
-        return
-
-    payload["source"] = "originalbitnodes"
-    payload["crawler"] = "originalbitnodes"
-    payload["updated_by"] = "run_original_bitnodes.py"
-    payload["compatibility"] = {
-        "mode": "original-bitnodes-compatible",
-        "upstream": DEFAULT_REPO,
-        "note": "Generated from the original Bitnodes-compatible runner/export path.",
-    }
 
     write_json(API_DIR / "original-latest.json", payload, pretty=pretty)
 
 
 def write_status(stage: str, extra: dict[str, Any] | None = None) -> None:
     payload = {
-        "schema": "zzx-original-bitnodes-runner-status-v1",
+        "schema": "zzx-original-bitnodes-runner-status-v2",
         "updated_at": utc_iso(),
         "stage": stage,
         "src_dir": str(SRC_DIR),
         "api_dir": str(ORIGINAL_API_DIR),
         "archive_dir": str(ORIGINAL_ARCHIVE_DIR),
         "state_dir": str(ORIGINAL_STATE_DIR),
+        "snapshots_root": str(SNAPSHOTS_ROOT),
         "registry_dir": str(ORIGINAL_REGISTRY_DIR),
         **(extra or {}),
     }
@@ -552,6 +735,7 @@ def pipeline_once(args: argparse.Namespace) -> int:
         code = enrich_original(
             modules=args.enrich_modules,
             strict=args.strict,
+            compact=args.compact,
         )
 
         if code and args.strict:
@@ -564,6 +748,16 @@ def pipeline_once(args: argparse.Namespace) -> int:
         if code and args.strict:
             write_status("aggregate-failed", {"exit_code": code})
             return code
+
+    if not args.no_export_all:
+        code = export_all_formats(compact=args.compact)
+
+        if code and args.strict:
+            write_status("all-export-failed", {"exit_code": code})
+            return code
+
+    mirror_original_latest(pretty=not args.compact)
+    write_snapshot_buckets(pretty=not args.compact)
 
     if args.registry_backup:
         code = registry_backup_original(enabled=True)
@@ -676,6 +870,7 @@ def build_parser() -> argparse.ArgumentParser:
         child.add_argument("--enrich-modules", default="")
         child.add_argument("--no-enrich", action="store_true")
         child.add_argument("--no-aggregate", action="store_true")
+        child.add_argument("--no-export-all", action="store_true")
         child.add_argument("--registry-backup", action="store_true")
         child.add_argument("--git-push", action="store_true")
         child.add_argument("--strict", action="store_true")
@@ -729,10 +924,17 @@ def main() -> int:
         code = 0
 
         if not args.no_enrich:
-            code = enrich_original(args.enrich_modules, args.strict)
+            code = enrich_original(args.enrich_modules, args.strict, args.compact)
 
         if code == 0 and not args.no_aggregate:
             code = aggregate_original()
+
+        if code == 0 and not args.no_export_all:
+            code = export_all_formats(compact=args.compact)
+
+        if code == 0:
+            mirror_original_latest(pretty=not args.compact)
+            write_snapshot_buckets(pretty=not args.compact)
 
         if code == 0 and args.registry_backup:
             code = registry_backup_original(enabled=True)
