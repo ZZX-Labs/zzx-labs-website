@@ -18,6 +18,7 @@
     --bn-map-green: #c0d674;
     --bn-map-red: #d95c5c;
     --bn-map-grey: #8c927e;
+
     --bn-map-border-radius: 18px;
     --bn-map-control-radius: 999px;
     --bn-map-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
@@ -295,11 +296,28 @@
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 0.65rem;
     margin-top: 1rem;
+    align-items: start;
+}
+
+.bn-map-legend-title {
+    grid-column: 1 / -1;
+    display: block;
+    width: 100%;
+    margin: 0 0 0.35rem;
+    padding: 0 0 0.15rem;
+    color: var(--bn-map-accent);
+    font-family: var(--bn-map-heading);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+    text-transform: uppercase;
 }
 
 .bn-map-legend span {
     display: inline-flex;
     align-items: center;
+    align-self: start;
     gap: 0.45rem;
     padding: 0.45rem 0.62rem;
     border: 1px solid rgba(192, 214, 116, 0.1);
@@ -354,21 +372,6 @@
     }
 }
 
-.bn-map-legend-title {
-    grid-column: 1 / -1;
-    display: block;
-    width: 100%;
-    margin-bottom: 0.25rem;
-}
-
-.bn-map-legend {
-    align-items: start;
-}
-
-.bn-map-legend span {
-    align-self: start;
-}
-
 @media (max-width: 720px) {
     .bn-map-selectors {
         grid-template-columns: 1fr;
@@ -378,36 +381,7 @@
     .bn-map-canvas {
         min-height: 64vh;
     }
-}
 
-.bn-map-legend {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 0.65rem;
-    margin-top: 1rem;
-    align-items: start;
-}
-
-.bn-map-legend-title {
-    grid-column: 1 / -1;
-    display: block;
-    width: 100%;
-    margin: 0 0 0.35rem;
-    padding: 0 0 0.15rem;
-    color: var(--bn-map-accent, #c0d674);
-    font-family: var(--bn-map-heading, "IBM Plex Mono", monospace);
-    font-size: 0.78rem;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    line-height: 1.2;
-    text-transform: uppercase;
-}
-
-.bn-map-legend span {
-    align-self: start;
-}
-
-@media (max-width: 720px) {
     .bn-map-legend {
         grid-template-columns: 1fr;
     }
