@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 
-SCHEMA = "zzx-bitnodes-military-v1"
+SCHEMA = "zzx-bitnodes-datacenter-v1"
 
 UNKNOWN_VALUES = {
     "",
@@ -23,80 +23,101 @@ UNKNOWN_VALUES = {
     "—",
 }
 
-MILITARY_HINTS = (
-    "military",
-    "defense",
-    "defence",
-    "department of defense",
-    "department of defence",
-    "ministry of defense",
-    "ministry of defence",
-    "armed forces",
-    "army",
-    "navy",
-    "air force",
-    "marine corps",
-    "marines",
-    "coast guard",
-    "space force",
-    "national guard",
-    "dod",
-    "mod",
-    "nato",
-    "warfighting",
-    "war fighting",
-    "battlefield",
-    "command",
-    "cyber command",
-    "uscybercom",
-    "stratcom",
-    "centcom",
-    "eucom",
-    "indopacom",
-    "socom",
-    "africom",
-    "northcom",
-    "southcom",
-    "combatant command",
-    ".mil",
-    ".mil.",
-    ".mil/",
+DATACENTER_HINTS = (
+    "datacenter",
+    "data center",
+    "colo",
+    "colocation",
+    "carrier hotel",
+    "internet exchange",
+    "ixp",
+    "hosting",
+    "cloud",
+    "compute",
+    "bare metal",
+    "dedicated server",
+    "dedicated servers",
+    "vps",
+    "virtual private server",
+    "server",
+    "servers",
+    "infrastructure",
+    "instance",
+    "rack",
+    "rackspace",
 )
 
-DEFENSE_INDUSTRY_HINTS = (
-    "lockheed",
-    "lockheed martin",
-    "raytheon",
-    "rtx",
-    "northrop",
-    "northrop grumman",
-    "boeing defense",
-    "boeing defence",
-    "general dynamics",
-    "l3harris",
-    "leidos",
-    "bae systems",
-    "thales",
-    "saab",
-    "rheinmetall",
-    "anduril",
-    "palantir",
-    "kratos",
-    "huntington ingalls",
-    "hii",
+MAJOR_DATACENTER_PROVIDERS = (
+    "amazon",
+    "aws",
+    "google cloud",
+    "google llc",
+    "microsoft",
+    "azure",
+    "oracle cloud",
+    "oracle",
+    "digitalocean",
+    "linode",
+    "akamai",
+    "ovh",
+    "ovhcloud",
+    "hetzner",
+    "leaseweb",
+    "vultr",
+    "contabo",
+    "scaleway",
+    "cloudflare",
+    "equinix",
+    "rackspace",
+    "hivelocity",
+    "psychz",
+    "quadranet",
+    "netcup",
+    "ionos",
+    "choopa",
+    "m247",
+    "cogent",
+    "heficed",
+    "servermania",
 )
 
-EXCLUSION_HINTS = (
-    "game",
-    "gaming",
-    "movie",
-    "film",
-    "sports",
-    "military surplus",
-    "civilian",
-    "private hosting",
+RESIDENTIAL_HINTS = (
+    "residential",
+    "broadband",
+    "cable",
+    "dsl",
+    "fiber",
+    "fibre",
+    "telecom",
+    "communications",
+    "mobile",
+    "cellular",
+    "wireless",
+    "lte",
+    "5g",
+    "4g",
+)
+
+CDN_EDGE_HINTS = (
+    "cdn",
+    "edge",
+    "cache",
+    "cloudfront",
+    "fastly",
+    "akamai",
+    "cloudflare",
+)
+
+VPN_PROXY_HINTS = (
     "vpn",
     "proxy",
+    "proxies",
+    "socks",
+    "anonymizer",
+    "relay",
+    "gateway",
+    "tunnel",
+    "warp",
 )
 
 
@@ -177,6 +198,11 @@ def text_blob(row: Mapping[str, Any]) -> str:
         "hostname",
         "reverse_dns",
         "rdns",
+        "network_classification",
+        "provider_kind",
+        "hosting_type",
+        "network_type",
+        "connection_type",
         "provider_data.provider",
         "provider_data.organization",
         "provider_data.provider_kind",
@@ -184,21 +210,29 @@ def text_blob(row: Mapping[str, Any]) -> str:
         "organization_data.organization_type",
         "isp.provider",
         "isp.organization",
+        "isp.network_classification",
         "asn_data.organization",
         "geoip.organization",
         "geoip.org",
-        "government.organization",
-        "government.provider",
-        "country",
-        "country_code",
-        "region",
-        "city",
+        "geoip.provider",
     )
 
-    return " ".join(clean(deep_get(row, key)) for key in keys if clean(deep_get(row, key))).lower()
+    return " ".join(
+        clean(deep_get(row, key))
+        for key in keys
+        if clean(deep_get(row, key))
+    ).lower()
 
 
-def military_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
+def datacenter_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
+    provider = first(
+        row,
+        "provider_data.provider",
+        "provider",
+        "isp.provider",
+        "geoip.provider",
+    )
+
     organization = first(
         row,
         "organization_data.organization",
@@ -211,12 +245,13 @@ def military_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
         "geoip.org",
     )
 
-    provider = first(
+    asn = first(
         row,
-        "provider_data.provider",
-        "provider",
-        "isp.provider",
-        "geoip.provider",
+        "asn",
+        "asn_data.asn",
+        "provider_data.asn",
+        "isp.asn",
+        "geoip.asn",
     )
 
     hostname = first(
@@ -236,62 +271,55 @@ def military_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
         "geoip.country",
     )
 
-    region = first(
-        row,
-        "region",
-        "territory",
-        "state",
-        "province",
-        "geoip.region",
-    )
-
     city = first(
-        row,
-        "city",
-        "geoip.city",
+        row, "city", "geoip.city"
     )
 
     blob = text_blob(row)
 
-    military_hits = keyword_hits(blob, MILITARY_HINTS)
-    defense_industry_hits = keyword_hits(blob, DEFENSE_INDUSTRY_HINTS)
-    exclusion_hits = keyword_hits(blob, EXCLUSION_HINTS)
+    datacenter_hits = keyword_hits(blob, DATACENTER_HINTS)
+    major_provider_hits = keyword_hits(blob, MAJOR_DATACENTER_PROVIDERS)
+    residential_hits = keyword_hits(blob, RESIDENTIAL_HINTS)
+    cdn_edge_hits = keyword_hits(blob, CDN_EDGE_HINTS)
+    vpn_proxy_hits = keyword_hits(blob, VPN_PROXY_HINTS)
 
-    org_type = clean(deep_get(row, "organization_data.organization_type")).lower()
-    provider_kind = clean(deep_get(row, "provider_data.provider_kind")).lower()
-
-    inherited_military = bool(
-        row.get("is_military")
-        or row.get("is_military_provider")
-        or row.get("is_military_organization")
-        or org_type == "military"
-        or provider_kind == "military"
+    inherited_hosting = bool(
+        row.get("is_hosting")
+        or row.get("is_hosting_provider")
+        or row.get("is_hosting_organization")
+        or clean(deep_get(row, "provider_data.provider_kind")).lower() == "hosting"
+        or clean(deep_get(row, "isp.network_classification")).lower() in {"hosting", "major-hosting"}
+        or clean(deep_get(row, "organization_data.organization_type")).lower() == "hosting"
     )
 
-    inherited_government = bool(
-        row.get("is_government")
-        or row.get("is_government_provider")
-        or row.get("is_government_organization")
-        or clean(deep_get(row, "government.suspected_government")).lower() == "true"
-        or bool(deep_get(row, "government.suspected_government"))
+    inherited_residential = bool(
+        row.get("is_residential")
+        or row.get("is_residential_provider")
+        or clean(deep_get(row, "isp.network_classification")).lower() == "residential"
     )
 
     score = 0.0
 
-    if inherited_military:
-        score += 0.60
+    if inherited_hosting:
+        score += 0.45
 
-    if military_hits:
-        score += min(0.50, 0.20 + 0.05 * len(military_hits))
+    if datacenter_hits:
+        score += min(0.45, 0.18 + 0.04 * len(datacenter_hits))
 
-    if defense_industry_hits:
-        score += min(0.35, 0.15 + 0.04 * len(defense_industry_hits))
+    if major_provider_hits:
+        score += min(0.45, 0.20 + 0.05 * len(major_provider_hits))
 
-    if inherited_government and military_hits:
-        score += 0.15
+    if cdn_edge_hits:
+        score += min(0.20, 0.08 + 0.03 * len(cdn_edge_hits))
 
-    if exclusion_hits and not inherited_military:
-        score -= min(0.25, 0.05 * len(exclusion_hits))
+    if vpn_proxy_hits:
+        score += min(0.15, 0.05 + 0.02 * len(vpn_proxy_hits))
+
+    if inherited_residential and not major_provider_hits:
+        score -= 0.25
+
+    if residential_hits and not major_provider_hits:
+        score -= min(0.25, 0.06 * len(residential_hits))
 
     score = max(0.0, min(1.0, score))
 
@@ -306,53 +334,55 @@ def military_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
 
     suspected = score >= 0.35
 
-    if military_hits:
-        category = "military"
-    elif defense_industry_hits:
-        category = "defense_industry"
+    if major_provider_hits:
+        category = "major_cloud_or_datacenter"
+    elif cdn_edge_hits and suspected:
+        category = "cdn_or_edge_datacenter"
+    elif vpn_proxy_hits and suspected:
+        category = "privacy_proxy_datacenter"
     elif suspected:
-        category = "suspected_military_related"
+        category = "datacenter_or_hosting"
     else:
         category = "not_suspected"
 
     return {
         "schema": SCHEMA,
-        "suspected_military": suspected,
-        "is_military": suspected,
-        "military_score": round(score, 4),
-        "military_confidence": confidence,
-        "military_category": category,
-        "organization": organization,
+        "suspected_datacenter": suspected,
+        "is_datacenter": suspected,
+        "datacenter_score": round(score, 4),
+        "datacenter_confidence": confidence,
+        "datacenter_category": category,
         "provider": provider,
+        "organization": organization,
+        "asn": asn,
         "hostname": hostname,
         "country": country.upper() if len(country) == 2 else country,
-        "region": region,
         "city": city,
         "evidence": {
-            "military_hits": military_hits,
-            "defense_industry_hits": defense_industry_hits,
-            "exclusion_hits": exclusion_hits,
-            "inherited_military": inherited_military,
-            "inherited_government": inherited_government,
-            "organization_type": org_type,
-            "provider_kind": provider_kind,
+            "datacenter_hits": datacenter_hits,
+            "major_provider_hits": major_provider_hits,
+            "cdn_edge_hits": cdn_edge_hits,
+            "vpn_proxy_hits": vpn_proxy_hits,
+            "residential_hits": residential_hits,
+            "inherited_hosting": inherited_hosting,
+            "inherited_residential": inherited_residential,
         },
         "updated_at": utc_now(),
     }
 
 
 def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
-    meta = military_metadata(node)
+    meta = datacenter_metadata(node)
 
-    node["military"] = meta
-    node["suspected_military"] = meta["suspected_military"]
-    node["is_military"] = meta["is_military"]
-    node["military_score"] = meta["military_score"]
-    node["military_confidence"] = meta["military_confidence"]
-    node["military_category"] = meta["military_category"]
+    node["datacenter"] = meta
+    node["suspected_datacenter"] = meta["suspected_datacenter"]
+    node["is_datacenter"] = meta["is_datacenter"]
+    node["datacenter_score"] = meta["datacenter_score"]
+    node["datacenter_confidence"] = meta["datacenter_confidence"]
+    node["datacenter_category"] = meta["datacenter_category"]
 
     node.setdefault("enrichment", {})
-    node["enrichment"]["military"] = {
+    node["enrichment"]["datacenter"] = {
         "schema": SCHEMA,
         "status": "ok",
         "updated_at": utc_now(),
@@ -396,7 +426,7 @@ def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
     payload.setdefault("metadata", {})
 
     if isinstance(payload["metadata"], MutableMapping):
-        payload["metadata"]["military_enriched_at"] = utc_now()
+        payload["metadata"]["datacenter_enriched_at"] = utc_now()
 
     return payload
 
@@ -428,24 +458,27 @@ def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
 def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
     confidence_counts: dict[str, int] = {}
     category_counts: dict[str, int] = {}
+    provider_counts: dict[str, int] = {}
     country_counts: dict[str, int] = {}
     suspected = 0
 
     for node in nodes:
-        meta = node.get("military", {})
+        meta = node.get("datacenter", {})
 
         if not isinstance(meta, Mapping):
             meta = {}
 
-        if meta.get("suspected_military") or node.get("suspected_military"):
+        if meta.get("suspected_datacenter") or node.get("suspected_datacenter"):
             suspected += 1
 
-        confidence = clean(meta.get("military_confidence")) or "none"
-        category = clean(meta.get("military_category")) or "not_suspected"
+        confidence = clean(meta.get("datacenter_confidence")) or "none"
+        category = clean(meta.get("datacenter_category")) or "not_suspected"
+        provider = clean(meta.get("provider")) or clean(node.get("provider")) or "Unknown"
         country = clean(meta.get("country")) or clean(node.get("country_code")) or clean(node.get("country")) or "Unknown"
 
         confidence_counts[confidence] = confidence_counts.get(confidence, 0) + 1
         category_counts[category] = category_counts.get(category, 0) + 1
+        provider_counts[provider] = provider_counts.get(provider, 0) + 1
         country_counts[country] = country_counts.get(country, 0) + 1
 
     def top(counter: dict[str, int], limit: int = 100) -> list[dict[str, Any]]:
@@ -455,13 +488,14 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
         ]
 
     return {
-        "schema": "zzx-bitnodes-military-summary-v1",
+        "schema": "zzx-bitnodes-datacenter-summary-v1",
         "generated_at": utc_now(),
         "total_nodes": len(nodes),
-        "suspected_military_nodes": suspected,
+        "suspected_datacenter_nodes": suspected,
         "confidence_counts": confidence_counts,
         "category_counts": category_counts,
         "top": {
+            "providers": top(provider_counts),
             "countries": top(country_counts),
         },
     }
@@ -469,7 +503,7 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Enrich Bitnodes records with military and defense-network suspicion metadata."
+        description="Enrich Bitnodes records with datacenter/cloud/hosting suspicion metadata."
     )
 
     parser.add_argument("--input", required=True)
@@ -487,7 +521,7 @@ def main() -> int:
     if args.summary:
         write_json(Path(args.summary), summarize(iter_nodes(enriched)), compact=args.compact)
 
-    print(f"military enrichment complete: {len(iter_nodes(enriched))} nodes")
+    print(f"datacenter enrichment complete: {len(iter_nodes(enriched))} nodes")
 
     return 0
 
