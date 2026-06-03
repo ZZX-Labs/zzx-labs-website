@@ -3,49 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="description" content="ZZX-Labs R&D administrator control panel.">
     <title>Admin Control Panel | ZZX-Labs R&D</title>
 
     <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
     <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
-	
+
     <link rel="stylesheet" href="../static/styles.css">
+    <link rel="stylesheet" href="./_admin.css">
+
     <script src="../static/script.js" defer></script>
+    <script src="./_admin.js" defer></script>
 </head>
-<body>
+<body data-admin-page="portal">
 <header>
     <div id="zzx-header"></div>
 </header>
-<main>
-    <br>
-    <!-- Bitcoin Ticker Widget -->
+
+<main class="admin-main">
     <div id="ticker-container"></div>
-    <br>
 
-    <section class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <h1>[:[ZZX-Labs]:]</h1>
-            <h4>| Admin Control Panel |</h4><br>
+    <section class="admin-hero" aria-labelledby="admin-title">
+        <div class="admin-hero-overlay"></div>
 
-            <p>Administrator Access to ZZX-Labs Systems.<br> Select a management portal below.</p><br><br>
+        <div class="admin-hero-content">
+            <p class="admin-kicker">ZZX-Labs R&D</p>
+            <h1 id="admin-title">Admin Control Panel</h1>
+            <p class="admin-subtitle">
+                Static administrative portal for ZZX-Labs systems, crawler controls,
+                site operations, analytics, security review, and server-facing resources.
+            </p>
 
-            <div class="button-group">
-                <a href="../_dashboard" class="btn btn-primary">System Dashboard</a>
-                <a href="../_analytics" class="btn btn-primary">Analytics Panel</a>
-                <a href="../_security" class="btn btn-primary">Security Panel</a>
-                <a href="../users" class="btn btn-secondary">User Management</a>
-                <a href="../blog" class="btn btn-secondary">Blog Management</a>
-                <a href="../downloads" class="btn btn-secondary">Downloads Management</a>
-                <a href="../research" class="btn btn-secondary">Research Management</a>
+            <div class="admin-warning">
+                <strong>Operator Notice:</strong>
+                This page is frontend-only. Do not expose secrets, tokens, keys, credentials,
+                private logs, private API responses, or operationally sensitive data in this repository.
+            </div>
+
+            <div class="admin-status-strip" aria-label="Admin status summary">
+                <div class="admin-status-card">
+                    <span class="admin-status-label">Portal</span>
+                    <strong id="admin-portal-state">Loaded</strong>
+                </div>
+                <div class="admin-status-card">
+                    <span class="admin-status-label">Mode</span>
+                    <strong>Static</strong>
+                </div>
+                <div class="admin-status-card">
+                    <span class="admin-status-label">Indexing</span>
+                    <strong>Noindex</strong>
+                </div>
+                <div class="admin-status-card">
+                    <span class="admin-status-label">Updated</span>
+                    <strong id="admin-updated-at">—</strong>
+                </div>
             </div>
         </div>
-    </section><br><br>
+    </section>
+
+    <section class="admin-section" aria-labelledby="admin-core-title">
+        <div class="admin-section-heading">
+            <h2 id="admin-core-title">Primary Control Panels</h2>
+            <p>Top-level operator pages for site state, analytics, security, and future authenticated controls.</p>
+        </div>
+
+        <div class="admin-grid">
+            <a class="admin-card admin-card-primary" href="../_dashboard/">
+                <span class="admin-card-tag">System</span>
+                <h3>System Dashboard</h3>
+                <p>Global site status, release state, deployment notes, crawler health, and operational overview.</p>
+            </a>
+
+            <a class="admin-card admin-card-primary" href="../_analytics/">
+                <span class="admin-card-tag">Analytics</span>
+                <h3>Analytics Panel</h3>
+                <p>Frontend analytics, public traffic summaries, widget telemetry, and non-sensitive observability.</p>
+            </a>
+
+            <a class="admin-card admin-card-primary" href="../_security/">
+                <span class="admin-card-tag">Security</span>
+                <h3>Security Panel</h3>
+                <p>Security notes, known issues, blocked hosts, abuse reports, and frontend defensive posture.</p>
+            </a>
+
+            <a class="admin-card admin-card-primary" href="../__server/">
+                <span class="admin-card-tag">Server</span>
+                <h3>Server Portal</h3>
+                <p>Frontend index for nginx, Flask, SFTP, private email, data storage, ZIRA, and service docs.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="admin-section" aria-labelledby="admin-management-title">
+        <div class="admin-section-heading">
+            <h2 id="admin-management-title">Site Management</h2>
+            <p>Management portals for publishing, research, downloads, projects, services, and public content.</p>
+        </div>
+
+        <div class="admin-grid admin-grid-compact">
+            <a class="admin-card" href="../users/">
+                <span class="admin-card-tag">Users</span>
+                <h3>User Management</h3>
+                <p>User-facing account pages, profiles, access concepts, and future login workflows.</p>
+            </a>
+
+            <a class="admin-card" href="../blog/">
+                <span class="admin-card-tag">Publishing</span>
+                <h3>Blog Management</h3>
+                <p>Blog index, post structure, RSS planning, editorial workflow, and publication queue.</p>
+            </a>
+
+            <a class="admin-card" href="../downloads/">
+                <span class="admin-card-tag">Files</span>
+                <h3>Downloads Management</h3>
+                <p>Software, papers, charts, publications, tools, public resources, and release artifacts.</p>
+            </a>
+
+            <a class="admin-card" href="../research/">
+                <span class="admin-card-tag">Research</span>
+                <h3>Research Management</h3>
+                <p>Research areas, papers, investigations, reports, development notes, and lab outputs.</p>
+            </a>
+
+            <a class="admin-card" href="../projects/">
+                <span class="admin-card-tag">Projects</span>
+                <h3>Project Management</h3>
+                <p>Project pages, incubated systems, active prototypes, archived builds, and roadmaps.</p>
+            </a>
+
+            <a class="admin-card" href="../services/">
+                <span class="admin-card-tag">Services</span>
+                <h3>Services Management</h3>
+                <p>Consulting, contracting, payments, private email, storage, retainers, and client-facing pages.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="admin-section" aria-labelledby="admin-bitnodes-title">
+        <div class="admin-section-heading">
+            <h2 id="admin-bitnodes-title">Bitnodes / Bitcoin Operations</h2>
+            <p>Public API and crawler-output surfaces used by the Bitnodes mirror and later Flask API integration.</p>
+        </div>
+
+        <div class="admin-grid admin-grid-compact">
+            <a class="admin-card" href="../bitcoin/bitnodes/">
+                <span class="admin-card-tag">Bitnodes</span>
+                <h3>Bitnodes Frontend</h3>
+                <p>Public node intelligence frontend, maps, rankings, source views, and mirrored network data.</p>
+            </a>
+
+            <a class="admin-card" href="../bitcoin/bitnodes/api/">
+                <span class="admin-card-tag">API</span>
+                <h3>Bitnodes API Directory</h3>
+                <p>Static JSON output directory for crawler, enrichment, mapping, and public API consumers.</p>
+            </a>
+
+            <a class="admin-card" href="../bitcoin/mempoolspace/">
+                <span class="admin-card-tag">Mempool</span>
+                <h3>MempoolspaceZZX</h3>
+                <p>Local mempool.space mirror, block data widgets, fee panels, and Bitcoin network visualizations.</p>
+            </a>
+
+            <a class="admin-card" href="../bitcoin/bpi/">
+                <span class="admin-card-tag">BPI</span>
+                <h3>ZZXBPI</h3>
+                <p>Bitcoin ticker, weighted price feeds, exchange snapshots, converters, and market widgets.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="admin-section" aria-labelledby="admin-server-title">
+        <div class="admin-section-heading">
+            <h2 id="admin-server-title">Server Resource Index</h2>
+            <p>Frontend links for current and planned `__server/` service directories.</p>
+        </div>
+
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Path</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-server-table">
+                    <tr>
+                        <td>Data Storage</td>
+                        <td><a href="../__server/_data-storage/">__server/_data-storage/</a></td>
+                        <td>Private/public data storage service planning.</td>
+                    </tr>
+                    <tr>
+                        <td>Email</td>
+                        <td><a href="../__server/_email/">__server/_email/</a></td>
+                        <td>Private email service planning and service documentation.</td>
+                    </tr>
+                    <tr>
+                        <td>SFTP</td>
+                        <td><a href="../__server/_sftp/">__server/_sftp/</a></td>
+                        <td>SFTP portal and private file-transfer service planning.</td>
+                    </tr>
+                    <tr>
+                        <td>ZIRA AI</td>
+                        <td><a href="../__server/_zira-ai/">__server/_zira-ai/</a></td>
+                        <td>ZIRA assistant service planning and interface documentation.</td>
+                    </tr>
+                    <tr>
+                        <td>Flask</td>
+                        <td><a href="../__server/flask/">__server/flask/</a></td>
+                        <td>Future Flask API backend documentation and frontend bridge.</td>
+                    </tr>
+                    <tr>
+                        <td>nginx</td>
+                        <td><a href="../__server/nginx/">__server/nginx/</a></td>
+                        <td>nginx routing, mirror hosting, reverse proxy, and deployment notes.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </main>
+
 <footer>
-	<div id="zzx-footer"></div>
+    <div id="zzx-footer"></div>
 </footer>
 </body>
 </html>
