@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import base64
 import hashlib
 import ipaddress
 import random
@@ -32,7 +33,17 @@ ADDRV2_TORV3 = 4
 ADDRV2_I2P = 5
 ADDRV2_CJDNS = 6
 
-DEFAULT_USER_AGENT = "/ZZX-Labs-Bitnodes:0.2.0/"
+DEFAULT_PORTS = {
+    "mainnet": 8333,
+    "testnet": 18333,
+    "signet": 38333,
+    "regtest": 18444,
+}
+
+DEFAULT_USER_AGENT = "/ZZX-Labs-Bitnodes:0.3.0/"
+
+MAX_HEADER_PAYLOAD = 32_000_000
+MAX_ADDR_ITEMS = 1000
 
 
 @dataclass
@@ -53,6 +64,10 @@ class VersionInfo:
     host: str | None = None
     port: int | None = None
     magic: str = "mainnet"
+
+
+def default_port(network: str = "mainnet") -> int:
+    return DEFAULT_PORTS.get(str(network or "mainnet").lower(), 8333)
 
 
 def magic_bytes(network: str = "mainnet") -> bytes:
@@ -129,7 +144,7 @@ def require_len(payload: bytes, offset: int, size: int) -> None:
 
 
 def make_message(command: str, payload: bytes = b"", *, network: str = "mainnet") -> bytes:
-    cmd = command.encode("ascii")[:12].ljust(12, b"\x00")
+    cmd = command.encode("ascii", errors="ignore")[:12].ljust(12, b"\x00")
     return magic_bytes(network) + cmd + struct.pack("<I", len(payload)) + checksum(payload) + payload
 
 
@@ -147,7 +162,12 @@ def recv_exact(sock: socket.socket, size: int) -> bytes:
     return data
 
 
-def read_message(sock: socket.socket, *, network: str = "mainnet", max_payload: int = 32_000_000) -> tuple[str, bytes]:
+def read_message(
+    sock: socket.socket,
+    *,
+    network: str = "mainnet",
+    max_payload: int = MAX_HEADER_PAYLOAD,
+) -> tuple[str, bytes]:
     header = recv_exact(sock, 24)
     magic, command_raw, length, msg_checksum = struct.unpack("<4s12sI4s", header)
 
@@ -169,7 +189,7 @@ def read_message(sock: socket.socket, *, network: str = "mainnet", max_payload: 
     return command, payload
 
 
-def split_host_port(address: str, default_port: int = 8333) -> tuple[str, int]:
+def split_host_port(address: str, default_port_value: int = 8333) -> tuple[str, int]:
     value = str(address or "").strip()
 
     if not value:
@@ -177,11 +197,17 @@ def split_host_port(address: str, default_port: int = 8333) -> tuple[str, int]:
 
     if value.startswith("[") and "]:" in value:
         host = value.split("]:", 1)[0][1:]
-        port = int(value.rsplit(":", 1)[1])
-        return host, port
+        port_text = value.rsplit(":", 1)[1]
+        return host, int(port_text) if port_text.isdigit() else default_port_value
 
     if value.startswith("[") and value.endswith("]"):
-        return value[1:-1], default_port
+        return value[1:-1], default_port_value
+
+    lower = value.lower()
+
+    if ".onion:" in lower or ".i2p:" in lower:
+        host, port_text = value.rsplit(":", 1)
+        return host, int(port_text) if port_text.isdigit() else default_port_value
 
     if value.count(":") == 1:
         host, port_text = value.rsplit(":", 1)
@@ -190,9 +216,9 @@ def split_host_port(address: str, default_port: int = 8333) -> tuple[str, int]:
             return host, int(port_text)
 
     if value.count(":") > 1:
-        return value, default_port
+        return value, default_port_value
 
-    return value, default_port
+    return value, default_port_value
 
 
 def format_address(host: str, port: int = 8333) -> str:
@@ -204,8 +230,15 @@ def format_address(host: str, port: int = 8333) -> str:
     return f"{host}:{port}"
 
 
+def parse_ip(host: str) -> ipaddress._BaseAddress | None:
+    try:
+        return ipaddress.ip_address(str(host or "").strip().strip("[]"))
+    except ValueError:
+        return None
+
+
 def address_network(host: str) -> str:
-    value = str(host or "").strip().lower()
+    value = str(host or "").strip().lower().strip("[]")
 
     if value.endswith(".onion"):
         return "tor"
@@ -213,26 +246,31 @@ def address_network(host: str) -> str:
     if value.endswith(".i2p"):
         return "i2p"
 
-    try:
-        ip = ipaddress.ip_address(value.strip("[]"))
+    ip = parse_ip(value)
 
-        if ip.version == 4:
-            return "ipv4"
+    if ip is None:
+        return "dns"
 
-        if ip.version == 6:
-            if ip in ipaddress.ip_network("fc00::/8"):
-                return "cjdns"
+    if ip.version == 4:
+        return "ipv4"
 
-            return "ipv6"
+    if ip.version == 6:
+        if ip in ipaddress.ip_network("fc00::/8"):
+            return "cjdns"
 
-    except ValueError:
-        pass
+        return "ipv6"
 
-    return "dns"
+    return "unknown"
+
+
+def supports_direct_socket(host: str) -> bool:
+    network = address_network(host)
+
+    return network in {"ipv4", "ipv6", "dns", "cjdns"}
 
 
 def ip_to_16(host: str) -> bytes:
-    ip = ipaddress.ip_address(host)
+    ip = ipaddress.ip_address(str(host).strip("[]"))
 
     if ip.version == 4:
         return b"\x00" * 10 + b"\xff\xff" + ip.packed
@@ -240,7 +278,11 @@ def ip_to_16(host: str) -> bytes:
     return ip.packed
 
 
-def encode_netaddr(host: str, port: int, services: int = NODE_NETWORK | NODE_WITNESS | NODE_NETWORK_LIMITED) -> bytes:
+def encode_netaddr(
+    host: str,
+    port: int,
+    services: int = NODE_NETWORK | NODE_WITNESS | NODE_NETWORK_LIMITED,
+) -> bytes:
     return struct.pack("<Q", services) + ip_to_16(host) + struct.pack(">H", port)
 
 
@@ -301,6 +343,8 @@ def parse_version_payload(payload: bytes) -> dict[str, Any]:
     nonce = struct.unpack_from("<Q", payload, offset)[0]
     offset += 8
 
+    user_agent = None
+
     try:
         user_agent_len, offset = read_varint(payload, offset)
         require_len(payload, offset, user_agent_len)
@@ -352,7 +396,7 @@ def handshake(
     user_agent: str = DEFAULT_USER_AGENT,
     network: str = "mainnet",
 ) -> VersionInfo:
-    host, port = split_host_port(address)
+    host, port = split_host_port(address, default_port(network))
     formatted = format_address(host, port)
 
     started = time.time()
@@ -364,6 +408,10 @@ def handshake(
         network=address_network(host),
         magic=network,
     )
+
+    if not supports_direct_socket(host):
+        info.error = f"direct socket unsupported for {info.network}; use Tor/I2P proxy transport"
+        return info
 
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
@@ -404,9 +452,6 @@ def handshake(
 
                 elif command == "ping" and len(payload) == 8:
                     sock.sendall(make_message("pong", payload, network=network))
-
-                elif command == "sendheaders":
-                    pass
 
                 if got_version:
                     break
@@ -450,8 +495,8 @@ def parse_netaddr(payload: bytes, offset: int, has_time: bool = True) -> tuple[s
     return host, port, offset
 
 
-def parse_addr_payload(payload: bytes, *, limit: int = 1000) -> list[str]:
-    addresses = []
+def parse_addr_payload(payload: bytes, *, limit: int = MAX_ADDR_ITEMS) -> list[str]:
+    addresses: list[str] = []
 
     try:
         count, offset = read_varint(payload, 0)
@@ -469,31 +514,19 @@ def parse_addr_payload(payload: bytes, *, limit: int = 1000) -> list[str]:
 
 
 def onion_v2_from_bytes(raw: bytes) -> str:
-    return raw.hex() + ".onion"
+    return base64.b32encode(raw).decode("ascii").lower().rstrip("=") + ".onion"
 
 
 def onion_v3_from_bytes(raw: bytes) -> str:
-    try:
-        import base64
-
-        return base64.b32encode(raw).decode("ascii").lower().rstrip("=") + ".onion"
-
-    except Exception:
-        return raw.hex() + ".onion"
+    return base64.b32encode(raw).decode("ascii").lower().rstrip("=") + ".onion"
 
 
 def i2p_from_bytes(raw: bytes) -> str:
-    try:
-        import base64
-
-        return base64.b32encode(raw).decode("ascii").lower().rstrip("=") + ".b32.i2p"
-
-    except Exception:
-        return raw.hex() + ".i2p"
+    return base64.b32encode(raw).decode("ascii").lower().rstrip("=") + ".b32.i2p"
 
 
-def parse_addrv2_payload(payload: bytes, *, limit: int = 1000) -> list[str]:
-    addresses = []
+def parse_addrv2_payload(payload: bytes, *, limit: int = MAX_ADDR_ITEMS) -> list[str]:
+    addresses: list[str] = []
 
     try:
         count, offset = read_varint(payload, 0)
@@ -552,9 +585,13 @@ def getaddr(
     timeout: float = 8.0,
     user_agent: str = DEFAULT_USER_AGENT,
     network: str = "mainnet",
-    max_addresses: int = 1000,
+    max_addresses: int = MAX_ADDR_ITEMS,
 ) -> list[str]:
-    host, port = split_host_port(address)
+    host, port = split_host_port(address, default_port(network))
+
+    if not supports_direct_socket(host):
+        return []
+
     discovered: list[str] = []
 
     try:
@@ -607,6 +644,11 @@ def version_info_to_record(info: VersionInfo) -> dict[str, Any]:
     payload = asdict(info)
     payload["services_flags"] = service_flags(info.services)
     payload["updated_at"] = int(time.time())
+    payload["is_ipv4"] = info.network == "ipv4"
+    payload["is_ipv6"] = info.network == "ipv6"
+    payload["is_tor"] = info.network == "tor"
+    payload["is_i2p"] = info.network == "i2p"
+    payload["is_cjdns"] = info.network == "cjdns"
 
     return payload
 
