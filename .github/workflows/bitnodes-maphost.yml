@@ -1,0 +1,217 @@
+name: Bitnodes Map Host
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "15 * * * *"
+
+  workflow_run:
+    workflows:
+      - ZZX-Labs Bitnodes Global Node Crawler
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-bitnodes-maphost
+  cancel-in-progress: false
+
+env:
+  BITNODES_ROOT: bitcoin/bitnodes
+  BITNODES_API: bitcoin/bitnodes/api
+  BITNODES_DATA: bitcoin/bitnodes/data
+  BITNODES_MAPS: bitcoin/bitnodes/maps
+  BITNODES_LIVE_MAP: bitcoin/bitnodes/live-map
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  maps:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Sync repo before map build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git rebase --autostash origin/main
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/bitnodes/requirements.txt
+
+      - name: Install requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/bitnodes/requirements.txt
+
+      - name: Verify map tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bitnodes/maps.py --help
+
+      - name: Prepare map directories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p \
+            "${BITNODES_MAPS}/zzxbitnodes" \
+            "${BITNODES_MAPS}/originalbitnodes" \
+            "${BITNODES_MAPS}/global" \
+            "${BITNODES_MAPS}/data" \
+            "${BITNODES_LIVE_MAP}/zzxbitnodes" \
+            "${BITNODES_LIVE_MAP}/originalbitnodes" \
+            "${BITNODES_LIVE_MAP}/global" \
+            "${BITNODES_LIVE_MAP}/data"
+
+      - name: Build ZZX Bitnodes maps
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json"
+
+          python tools/bitnodes/maps.py \
+            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/state/zzxbitnodes" \
+            --map-dir "${BITNODES_MAPS}/zzxbitnodes" \
+            --live-map-dir "${BITNODES_LIVE_MAP}/zzxbitnodes" \
+            --source zzxbitnodes \
+            --theme zzx_dark_olive \
+            --settings default \
+            --tile-provider cartodb_dark
+
+      - name: Build Original Bitnodes maps
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f "${BITNODES_API}/enriched/originalbitnodes/latest.json"
+
+          python tools/bitnodes/maps.py \
+            --input "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/state/originalbitnodes" \
+            --map-dir "${BITNODES_MAPS}/originalbitnodes" \
+            --live-map-dir "${BITNODES_LIVE_MAP}/originalbitnodes" \
+            --source originalbitnodes \
+            --theme zzx_dark_olive \
+            --settings default \
+            --tile-provider cartodb_dark
+
+      - name: Build canonical live-map data
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f "${BITNODES_LIVE_MAP}/zzxbitnodes/data/map-points.geojson" ]; then
+            cp "${BITNODES_LIVE_MAP}/zzxbitnodes/data/map-points.geojson" \
+               "${BITNODES_LIVE_MAP}/data/map-points.geojson"
+          elif [ -f "${BITNODES_LIVE_MAP}/zzxbitnodes/map-points.geojson" ]; then
+            cp "${BITNODES_LIVE_MAP}/zzxbitnodes/map-points.geojson" \
+               "${BITNODES_LIVE_MAP}/data/map-points.geojson"
+          else
+            printf '%s\n' "Missing ZZX map-points.geojson."
+            exit 1
+          fi
+
+          for FILE in \
+            map-settings.json \
+            map-settings-profiles.json \
+            map-theme.json \
+            map-themes.json \
+            map-tile-providers.json \
+            map-fonts.json \
+            map-layers.json \
+            map-overlays.json \
+            map-vectors.json \
+            map-polygons.geojson \
+            map-build-report.json
+          do
+            if [ -f "${BITNODES_LIVE_MAP}/zzxbitnodes/data/${FILE}" ]; then
+              cp "${BITNODES_LIVE_MAP}/zzxbitnodes/data/${FILE}" "${BITNODES_LIVE_MAP}/data/${FILE}"
+            elif [ -f "${BITNODES_LIVE_MAP}/zzxbitnodes/${FILE}" ]; then
+              cp "${BITNODES_LIVE_MAP}/zzxbitnodes/${FILE}" "${BITNODES_LIVE_MAP}/data/${FILE}"
+            fi
+          done
+
+      - name: Validate canonical live-map output
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("bitcoin/bitnodes/live-map/data/map-points.geojson")
+
+          if not path.exists():
+              raise SystemExit("missing live-map/data/map-points.geojson")
+
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          if data.get("type") != "FeatureCollection":
+              raise SystemExit("map-points.geojson is not a GeoJSON FeatureCollection")
+
+          features = data.get("features")
+
+          if not isinstance(features, list):
+              raise SystemExit("map-points.geojson features is not a list")
+
+          print(f"live-map canonical feature count: {len(features)}")
+          PY
+
+      - name: Commit and push map outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "zzx-labs-maphost-bot"
+          git config user.email "actions@github.com"
+
+          git add -A \
+            "${BITNODES_MAPS}" \
+            "${BITNODES_LIVE_MAP}"
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No map changes."
+            exit 0
+          fi
+
+          git commit -m "Update Bitnodes map host outputs"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase --autostash origin/main && git push origin HEAD:main; then
+              printf '%s\n' "Map outputs pushed."
+              exit 0
+            fi
+
+            git rebase --abort || true
+            printf '%s\n' "Map push attempt ${attempt} failed; retrying."
+            sleep 10
+          done
+
+          printf '%s\n' "Failed to push map outputs."
+          exit 1
