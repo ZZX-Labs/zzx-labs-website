@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import math
 import re
@@ -30,6 +31,32 @@ UNKNOWN_VALUES = {
     "na",
 }
 
+POLICY_RESTRICTED_COUNTRIES = {
+    "CU", "CUBA",
+    "IR", "IRAN",
+    "KP", "NORTH KOREA", "KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF",
+    "SY", "SYRIA",
+}
+
+POLICY_WATCH_COUNTRIES = {
+    "RU", "RUSSIA", "RUSSIAN FEDERATION",
+    "BY", "BELARUS",
+    "CN", "CHINA",
+    "HK", "HONG KONG",
+    "MO", "MACAO", "MACAU",
+    "VE", "VENEZUELA",
+}
+
+POLICY_RESTRICTED_REGIONS = {
+    "CRIMEA",
+    "DONETSK",
+    "LUHANSK",
+    "SEVASTOPOL",
+}
+
+VPN_SCORE_THRESHOLD = 35.0
+PROXY_SCORE_THRESHOLD = 0.35
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -46,6 +73,10 @@ def clean(value: Any) -> str:
         return ""
 
     return re.sub(r"\s+", " ", text)
+
+
+def clean_upper(value: Any) -> str:
+    return clean(value).upper()
 
 
 def boolish(value: Any) -> bool | None:
@@ -89,23 +120,17 @@ def read_json(path: Path, fallback: Any = None) -> Any:
         return fallback
 
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
-
-
-def nested_dict(row: dict[str, Any], key: str) -> dict[str, Any]:
-    value = row.get(key)
-    return value if isinstance(value, dict) else {}
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def deep_get(row: dict[str, Any], *keys: str) -> Any:
@@ -141,14 +166,14 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
         or record.get("node")
         or record.get("addr")
         or record.get("host")
+        or record.get("hostname")
         or ""
     )
 
     record["address"] = str(address)
 
-    if "metadata" in record and isinstance(record["metadata"], dict):
-        metadata = record["metadata"]
-
+    metadata = record.get("metadata")
+    if isinstance(metadata, dict):
         for key in (
             "reachable",
             "reachable_now",
@@ -162,12 +187,21 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
             "is_ipv4",
             "is_ipv6",
             "is_vpn",
+            "suspected_vpn",
             "is_proxy",
+            "suspected_proxy",
             "network",
             "first_seen",
             "last_seen",
             "success_count",
             "failure_count",
+            "country",
+            "country_code",
+            "region",
+            "territory",
+            "city",
+            "latitude",
+            "longitude",
         ):
             if key not in record and key in metadata:
                 record[key] = metadata.get(key)
@@ -271,8 +305,12 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
 def split_host_port(address: str, default_port: int = 8333) -> tuple[str, int]:
     value = str(address or "").strip()
 
+    if not value:
+        return "", default_port
+
     if value.startswith("[") and "]:" in value:
-        return value.split("]:", 1)[0][1:], int(value.rsplit(":", 1)[1])
+        host, port = value.split("]:", 1)
+        return host[1:], int(port) if port.isdigit() else default_port
 
     if value.startswith("[") and value.endswith("]"):
         return value[1:-1], default_port
@@ -292,14 +330,11 @@ def split_host_port(address: str, default_port: int = 8333) -> tuple[str, int]:
     if value.count(":") > 1:
         return value, default_port
 
-    if ":" not in value and value:
-        return value, default_port
-
     return value, default_port
 
 
 def node_address(row: dict[str, Any]) -> str:
-    return clean(row.get("address") or row.get("node") or row.get("addr") or row.get("host"))
+    return clean(row.get("address") or row.get("node") or row.get("addr") or row.get("host") or row.get("hostname"))
 
 
 def node_host(row: dict[str, Any]) -> str:
@@ -307,9 +342,9 @@ def node_host(row: dict[str, Any]) -> str:
 
     try:
         host, _port = split_host_port(address)
-        return host.lower()
+        return host.lower().strip()
     except Exception:
-        return address.lower()
+        return address.lower().strip()
 
 
 def node_port(row: dict[str, Any]) -> int:
@@ -320,67 +355,251 @@ def node_port(row: dict[str, Any]) -> int:
         return int(number(row.get("port"), 8333) or 8333)
 
 
+def parsed_ip(row: dict[str, Any]) -> ipaddress._BaseAddress | None:
+    host = node_host(row)
+
+    if not host or ".onion" in host or ".i2p" in host:
+        return None
+
+    try:
+        return ipaddress.ip_address(host)
+    except ValueError:
+        return None
+
+
+def nested_bool(row: dict[str, Any], *keys: str) -> bool:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+        parsed = boolish(value)
+
+        if parsed is True:
+            return True
+
+    return False
+
+
+def nested_score(row: dict[str, Any], *keys: str) -> float:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+        parsed = number(value)
+
+        if parsed is not None:
+            return float(parsed)
+
+    return 0.0
+
+
 def is_tor(row: dict[str, Any]) -> bool:
     address = node_address(row).lower()
+    host = node_host(row)
+
     return bool(
-        row.get("is_tor")
-        or row.get("tor") is True
-        or deep_get(row, "tor.is_tor", "metadata.is_tor", "metadata.tor", "enrichment.tor.is_tor")
-        or ".onion" in address
+        ".onion" in address
+        or host.endswith(".onion")
+        or nested_bool(
+            row,
+            "is_tor",
+            "tor.is_tor",
+            "tor.suspected_tor",
+            "metadata.is_tor",
+            "metadata.tor",
+            "enrichment.tor.is_tor",
+            "enrichment.tor.suspected_tor",
+        )
     )
 
 
 def is_i2p(row: dict[str, Any]) -> bool:
     address = node_address(row).lower()
-    return bool(
-        row.get("is_i2p")
-        or row.get("i2p") is True
-        or deep_get(row, "i2p.is_i2p", "metadata.is_i2p", "metadata.i2p", "enrichment.i2p.is_i2p")
-        or ".i2p" in address
-    )
-
-
-def is_ipv6(row: dict[str, Any]) -> bool:
-    address = node_address(row).lower()
     host = node_host(row)
+
     return bool(
-        row.get("is_ipv6")
-        or deep_get(row, "metadata.is_ipv6", "ipv6.is_ipv6", "enrichment.ipv6.is_ipv6")
-        or (":" in host and ".onion" not in address and ".i2p" not in address)
+        ".i2p" in address
+        or host.endswith(".i2p")
+        or nested_bool(
+            row,
+            "is_i2p",
+            "i2p.is_i2p",
+            "i2p.suspected_i2p",
+            "metadata.is_i2p",
+            "metadata.i2p",
+            "enrichment.i2p.is_i2p",
+            "enrichment.i2p.suspected_i2p",
+        )
     )
 
 
 def is_ipv4(row: dict[str, Any]) -> bool:
-    host = node_host(row)
-    return bool(
-        row.get("is_ipv4")
-        or deep_get(row, "metadata.is_ipv4", "ipv4.is_ipv4", "enrichment.ipv4.is_ipv4")
-        or (host.count(".") == 3 and ":" not in host)
-    )
+    if is_tor(row) or is_i2p(row):
+        return False
+
+    ip = parsed_ip(row)
+
+    if ip is not None:
+        return ip.version == 4
+
+    explicit = nested_bool(row, "is_ipv4", "ipv4.is_ipv4", "metadata.is_ipv4", "enrichment.ipv4.is_ipv4")
+
+    if explicit and not nested_bool(row, "is_ipv6", "ipv6.is_ipv6", "metadata.is_ipv6", "enrichment.ipv6.is_ipv6"):
+        return True
+
+    return False
+
+
+def is_ipv6(row: dict[str, Any]) -> bool:
+    if is_tor(row) or is_i2p(row):
+        return False
+
+    ip = parsed_ip(row)
+
+    if ip is not None:
+        return ip.version == 6
+
+    explicit = nested_bool(row, "is_ipv6", "ipv6.is_ipv6", "metadata.is_ipv6", "enrichment.ipv6.is_ipv6")
+
+    if explicit and not nested_bool(row, "is_ipv4", "ipv4.is_ipv4", "metadata.is_ipv4", "enrichment.ipv4.is_ipv4"):
+        return True
+
+    return False
+
+
+def network_class(row: dict[str, Any]) -> str:
+    if is_tor(row):
+        return "tor"
+    if is_i2p(row):
+        return "i2p"
+    if is_ipv6(row):
+        return "ipv6"
+    if is_ipv4(row):
+        return "ipv4"
+
+    value = clean(row.get("network") or deep_get(row, "metadata.network", "network.type")).lower()
+
+    if value in {"ipv4", "ipv6", "tor", "i2p"}:
+        return value
+
+    return "unknown"
 
 
 def is_proxy(row: dict[str, Any]) -> bool:
-    return bool(
-        row.get("is_proxy")
-        or row.get("proxy") is True
-        or deep_get(row, "proxy.is_proxy", "metadata.is_proxy", "metadata.proxy", "enrichment.proxy.is_proxy")
-    )
+    if nested_bool(
+        row,
+        "suspected_proxy",
+        "is_proxy",
+        "proxy.suspected_proxy",
+        "proxy.is_proxy",
+        "metadata.suspected_proxy",
+        "metadata.is_proxy",
+        "metadata.proxy",
+        "enrichment.proxy.suspected_proxy",
+        "enrichment.proxy.is_proxy",
+    ):
+        return True
+
+    score = nested_score(row, "proxy_score", "proxy.proxy_score", "metadata.proxy_score")
+
+    return score >= PROXY_SCORE_THRESHOLD
 
 
 def is_vpn(row: dict[str, Any]) -> bool:
-    return bool(
-        row.get("is_vpn")
-        or row.get("vpn") is True
-        or deep_get(row, "vpn.is_vpn", "metadata.is_vpn", "metadata.vpn", "enrichment.vpn.is_vpn")
-    )
+    if nested_bool(
+        row,
+        "suspected_vpn",
+        "is_vpn",
+        "vpn.suspected_vpn",
+        "vpn.is_vpn",
+        "metadata.suspected_vpn",
+        "metadata.is_vpn",
+        "metadata.vpn",
+        "enrichment.vpn.suspected_vpn",
+        "enrichment.vpn.is_vpn",
+    ):
+        return True
+
+    score = nested_score(row, "vpn_score", "vpn.vpn_score", "metadata.vpn_score")
+
+    return score >= VPN_SCORE_THRESHOLD
+
+
+def country_values(row: dict[str, Any]) -> set[str]:
+    values = {
+        clean_upper(row.get("country")),
+        clean_upper(row.get("country_code")),
+        clean_upper(row.get("country_name")),
+        clean_upper(deep_get(row, "geoip.country")),
+        clean_upper(deep_get(row, "geoip.country_code")),
+        clean_upper(deep_get(row, "geoip.country_name")),
+        clean_upper(deep_get(row, "geo.country")),
+        clean_upper(deep_get(row, "geo.country_code")),
+        clean_upper(deep_get(row, "country_data.country")),
+        clean_upper(deep_get(row, "country_data.country_code")),
+        clean_upper(deep_get(row, "geoip_data.country")),
+        clean_upper(deep_get(row, "geoip_data.country_code")),
+    }
+
+    return {value for value in values if value}
+
+
+def region_values(row: dict[str, Any]) -> set[str]:
+    values = {
+        clean_upper(row.get("region")),
+        clean_upper(row.get("territory")),
+        clean_upper(row.get("admin1")),
+        clean_upper(row.get("state")),
+        clean_upper(row.get("province")),
+        clean_upper(deep_get(row, "geoip.region")),
+        clean_upper(deep_get(row, "geoip.territory")),
+        clean_upper(deep_get(row, "geo.region")),
+        clean_upper(deep_get(row, "territory_data.territory")),
+        clean_upper(deep_get(row, "territory_data.admin1")),
+        clean_upper(deep_get(row, "sanctions_data.region")),
+    }
+
+    return {value for value in values if value}
 
 
 def is_policy_restricted(row: dict[str, Any]) -> bool:
-    return bool(
-        row.get("is_policy_restricted_node")
-        or row.get("policy_restricted")
-        or deep_get(row, "sanctions_data.is_policy_restricted", "metadata.is_policy_restricted", "enrichment.sanctioned_nodes.is_policy_restricted")
-    )
+    if nested_bool(
+        row,
+        "is_policy_restricted_node",
+        "policy_restricted",
+        "sanctioned",
+        "sanctions_data.is_policy_restricted",
+        "sanctions_data.sanctioned",
+        "metadata.is_policy_restricted",
+        "metadata.policy_restricted",
+        "enrichment.sanctioned_nodes.is_policy_restricted",
+        "enrichment.sanctioned_nodes.policy_restricted",
+    ):
+        return True
+
+    countries = country_values(row)
+    regions = region_values(row)
+
+    if countries & POLICY_RESTRICTED_COUNTRIES:
+        return True
+
+    if regions & POLICY_RESTRICTED_REGIONS:
+        return True
+
+    return False
+
+
+def is_policy_watch(row: dict[str, Any]) -> bool:
+    if is_policy_restricted(row):
+        return False
+
+    if nested_bool(
+        row,
+        "policy_watch",
+        "is_policy_watch_node",
+        "sanctions_data.is_policy_watch",
+        "metadata.policy_watch",
+        "enrichment.sanctioned_nodes.is_policy_watch",
+    ):
+        return True
+
+    return bool(country_values(row) & POLICY_WATCH_COUNTRIES)
 
 
 def is_reachable(row: dict[str, Any]) -> bool:
@@ -619,13 +838,16 @@ def aggregate(nodes: list[dict[str, Any]], *, source: str = "zzxbitnodes") -> di
     reachable_now = count_flag(nodes, "reachable_now", "metadata.reachable_now")
     reachable_24h = count_flag(nodes, "reachable_24h", "metadata.reachable_24h")
 
-    ipv4 = sum(1 for row in nodes if is_ipv4(row))
-    ipv6 = sum(1 for row in nodes if is_ipv6(row))
-    tor = sum(1 for row in nodes if is_tor(row))
-    i2p = sum(1 for row in nodes if is_i2p(row))
+    ipv4 = sum(1 for row in nodes if network_class(row) == "ipv4")
+    ipv6 = sum(1 for row in nodes if network_class(row) == "ipv6")
+    tor = sum(1 for row in nodes if network_class(row) == "tor")
+    i2p = sum(1 for row in nodes if network_class(row) == "i2p")
+    unknown_network = sum(1 for row in nodes if network_class(row) == "unknown")
+
     proxy = sum(1 for row in nodes if is_proxy(row))
     vpn = sum(1 for row in nodes if is_vpn(row))
     policy_restricted = sum(1 for row in nodes if is_policy_restricted(row))
+    policy_watch = sum(1 for row in nodes if is_policy_watch(row))
 
     heights = [height_value(row) for row in nodes if height_value(row) > 0]
     latencies = [latency_value(row) for row in nodes if latency_value(row) is not None]
@@ -651,36 +873,48 @@ def aggregate(nodes: list[dict[str, Any]], *, source: str = "zzxbitnodes") -> di
     provider_counts = Counter()
     timezone_counts = Counter()
     network_counts = Counter()
+    vpn_confidence_counts = Counter()
+    proxy_confidence_counts = Counter()
+    policy_counts = Counter()
 
     for row in nodes:
-        network = (
-            "tor" if is_tor(row)
-            else "i2p" if is_i2p(row)
-            else "ipv6" if is_ipv6(row)
-            else "ipv4" if is_ipv4(row)
-            else clean(row.get("network") or deep_get(row, "metadata.network")) or "unknown"
-        )
-
+        network = network_class(row)
         network_counts[network] += 1
 
-        country_counts[field(row, "country_code", "country", "country_data.country_code", "geoip_data.country_code") or "Unknown"] += 1
-        city_counts[field(row, "city", "city_data.city", "geoip_data.city") or "Unknown"] += 1
-        territory_counts[field(row, "territory", "admin1", "territory_data.territory") or "Unknown"] += 1
+        if is_vpn(row):
+            vpn_confidence_counts[field(row, "vpn_confidence", "vpn.vpn_confidence") or "unknown"] += 1
+
+        if is_proxy(row):
+            proxy_confidence_counts[field(row, "proxy_confidence", "proxy.proxy_confidence") or "unknown"] += 1
+
+        if is_policy_restricted(row):
+            policy_counts["restricted"] += 1
+        elif is_policy_watch(row):
+            policy_counts["watch"] += 1
+        else:
+            policy_counts["clear"] += 1
+
+        country_counts[field(row, "country_code", "country", "country_data.country_code", "geoip_data.country_code", "geoip.country_code") or "Unknown"] += 1
+        city_counts[field(row, "city", "city_data.city", "geoip_data.city", "geoip.city") or "Unknown"] += 1
+        territory_counts[field(row, "territory", "admin1", "state", "province", "territory_data.territory", "geoip.region") or "Unknown"] += 1
         county_counts[field(row, "county", "admin2", "county_data.county") or "Unknown"] += 1
-        continent_counts[field(row, "continent", "continent_data.continent") or "Unknown"] += 1
-        region_counts[field(row, "region", "region_data.region") or "Unknown"] += 1
+        continent_counts[field(row, "continent", "continent_data.continent", "geoip.continent") or "Unknown"] += 1
+        region_counts[field(row, "region", "region_data.region", "geoip.region") or "Unknown"] += 1
         agent_counts[field(row, "agent", "user_agent") or "Unknown"] += 1
         version_counts[str(row.get("protocol_version") or row.get("protocol") or row.get("version") or "Unknown")] += 1
         service_counts[str(service_value(row))] += 1
         port_counts[str(node_port(row))] += 1
-        asn_counts[field(row, "asn", "isp.asn", "isp_data.asn", "geoip_data.asn") or "Unknown"] += 1
-        provider_counts[field(row, "provider", "org", "organization", "isp.provider", "isp_data.provider", "geoip_data.provider") or "Unknown"] += 1
-        timezone_counts[field(row, "timezone", "timezone_data.timezone", "geoip_data.timezone") or "Unknown"] += 1
+        asn_counts[field(row, "asn", "isp.asn", "isp_data.asn", "geoip_data.asn", "geoip.asn") or "Unknown"] += 1
+        provider_counts[field(row, "provider", "org", "organization", "isp.provider", "isp_data.provider", "geoip_data.provider", "geoip.provider") or "Unknown"] += 1
+        timezone_counts[field(row, "timezone", "timezone_data.timezone", "geoip_data.timezone", "geoip.timezone") or "Unknown"] += 1
 
     duplicates = duplicate_groups(nodes)
 
+    def ratio(value: int) -> float:
+        return round(value / total, 8) if total else 0
+
     return {
-        "schema": "zzx-bitnodes-aggregate-v2",
+        "schema": "zzx-bitnodes-aggregate-v3",
         "generated_at": utc_now(),
         "generated_unix": unix_now(),
         "source": source,
@@ -696,24 +930,33 @@ def aggregate(nodes: list[dict[str, Any]], *, source: str = "zzxbitnodes") -> di
             "ipv6": ipv6,
             "tor": tor,
             "i2p": i2p,
+            "unknown_network": unknown_network,
             "proxy": proxy,
+            "suspected_proxy": proxy,
             "vpn": vpn,
+            "suspected_vpn": vpn,
             "policy_restricted": policy_restricted,
+            "policy_watch": policy_watch,
             "synced": synced,
             "not_synced": not_synced,
             "duplicates": len(duplicates),
         },
         "ratios": {
-            "reachable": round(reachable / total, 8) if total else 0,
-            "reachable_now": round(reachable_now / total, 8) if total else 0,
-            "reachable_24h": round(reachable_24h / total, 8) if total else 0,
-            "unreachable": round(unreachable / total, 8) if total else 0,
-            "ipv4": round(ipv4 / total, 8) if total else 0,
-            "ipv6": round(ipv6 / total, 8) if total else 0,
-            "tor": round(tor / total, 8) if total else 0,
-            "i2p": round(i2p / total, 8) if total else 0,
-            "vpn": round(vpn / total, 8) if total else 0,
-            "proxy": round(proxy / total, 8) if total else 0,
+            "reachable": ratio(reachable),
+            "reachable_now": ratio(reachable_now),
+            "reachable_24h": ratio(reachable_24h),
+            "unreachable": ratio(unreachable),
+            "ipv4": ratio(ipv4),
+            "ipv6": ratio(ipv6),
+            "tor": ratio(tor),
+            "i2p": ratio(i2p),
+            "unknown_network": ratio(unknown_network),
+            "vpn": ratio(vpn),
+            "suspected_vpn": ratio(vpn),
+            "proxy": ratio(proxy),
+            "suspected_proxy": ratio(proxy),
+            "policy_restricted": ratio(policy_restricted),
+            "policy_watch": ratio(policy_watch),
         },
         "height": {
             "min": min_height,
@@ -738,6 +981,9 @@ def aggregate(nodes: list[dict[str, Any]], *, source: str = "zzxbitnodes") -> di
             "asns": top_counter(asn_counts),
             "providers": top_counter(provider_counts),
             "timezones": top_counter(timezone_counts),
+            "vpn_confidence": top_counter(vpn_confidence_counts),
+            "proxy_confidence": top_counter(proxy_confidence_counts),
+            "policy": top_counter(policy_counts),
         },
         "duplicates": duplicates[:500],
     }
@@ -805,6 +1051,13 @@ def main() -> int:
         f"reachable={summary['counts']['reachable']}, "
         f"reachable_now={summary['counts']['reachable_now']}, "
         f"reachable_24h={summary['counts']['reachable_24h']}, "
+        f"ipv4={summary['counts']['ipv4']}, "
+        f"ipv6={summary['counts']['ipv6']}, "
+        f"tor={summary['counts']['tor']}, "
+        f"i2p={summary['counts']['i2p']}, "
+        f"vpn={summary['counts']['suspected_vpn']}, "
+        f"proxy={summary['counts']['suspected_proxy']}, "
+        f"policy_restricted={summary['counts']['policy_restricted']}, "
         f"known={summary['counts']['known']}, "
         f"output={output_path}"
     )
