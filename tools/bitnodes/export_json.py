@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import ipaddress
 import json
 import math
 import statistics
@@ -104,6 +105,10 @@ def boolish(value: Any) -> bool | None:
     return None
 
 
+def truthy(value: Any) -> bool:
+    return boolish(value) is True
+
+
 def safe_name(value: Any) -> str:
     text = str(value or "unknown").strip() or "unknown"
 
@@ -138,6 +143,14 @@ def deep_get(row: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def first_value(row: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = deep_get(row, key)
+        if value not in ("", None, [], {}):
+            return value
+    return None
+
+
 def split_address(address: str) -> tuple[str, int | None]:
     value = str(address or "").strip()
 
@@ -154,47 +167,56 @@ def split_address(address: str) -> tuple[str, int | None]:
         host, port_text = value.rsplit(":", 1)
         return host, safe_int(port_text)
 
-    if value.count(":") == 1:
+    if value.count(":") == 1 and "." in value:
         host, port_text = value.rsplit(":", 1)
         return host, safe_int(port_text)
 
-    return value, None
+    if value.count(":") > 1:
+        possible_host, possible_port = value.rsplit(":", 1)
+
+        if possible_port.isdigit():
+            try:
+                ipaddress.ip_address(possible_host.strip("[]"))
+                return possible_host.strip("[]"), int(possible_port)
+            except ValueError:
+                pass
+
+    return value.strip("[]"), None
 
 
 def classify_network(address: str, metadata: dict[str, Any] | None = None) -> str:
     metadata = metadata or {}
-
-    if metadata.get("is_tor") or metadata.get("tor"):
-        return "tor"
-
-    if metadata.get("is_i2p") or metadata.get("i2p"):
-        return "i2p"
-
-    if metadata.get("is_ipv6"):
-        return "ipv6"
-
-    if metadata.get("is_ipv4"):
-        return "ipv4"
-
-    if metadata.get("network"):
-        return str(metadata.get("network"))
-
     host, _port = split_address(address)
-    host = str(host or "").lower()
+    host = str(host or "").strip().lower()
 
-    if host.endswith(".onion"):
+    network = metadata.get("network")
+    if network in {"ipv4", "ipv6", "tor", "i2p", "cjdns", "dns"}:
+        return str(network)
+
+    if metadata.get("is_tor") or metadata.get("tor") or host.endswith(".onion"):
         return "tor"
 
-    if host.endswith(".i2p"):
+    if metadata.get("is_i2p") or metadata.get("i2p") or host.endswith(".i2p"):
         return "i2p"
 
-    if ":" in host:
-        return "ipv6"
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        if metadata.get("is_ipv6"):
+            return "ipv6"
+        if metadata.get("is_ipv4"):
+            return "ipv4"
+        return "dns" if host else "unknown"
 
-    if host.count(".") == 3:
+    if ip.version == 4:
         return "ipv4"
 
-    return "dns" if host else "unknown"
+    if ip.version == 6:
+        if ip in ipaddress.ip_network("fc00::/8"):
+            return "cjdns"
+        return "ipv6"
+
+    return "unknown"
 
 
 def metadata_from_row(row: list[Any]) -> dict[str, Any]:
@@ -268,11 +290,16 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
         "peer_index",
         "peer_health",
         "is_proxy",
+        "suspected_proxy",
         "is_vpn",
+        "suspected_vpn",
         "is_tor",
+        "suspected_tor",
         "is_i2p",
+        "suspected_i2p",
         "is_ipv4",
         "is_ipv6",
+        "is_cjdns",
         "proxy",
         "vpn",
         "tor",
@@ -280,6 +307,8 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
         "network",
         "is_sanctioned_node",
         "is_policy_restricted_node",
+        "policy_restricted",
+        "policy_watch",
         "jurisdiction_risk_level",
         "continent",
         "region",
@@ -289,9 +318,40 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
         "zip",
         "postal_code",
         "timezone",
+        "provider_kind",
+        "network_classification",
+        "organization_type",
+        "suspected_government",
+        "suspected_military",
+        "suspected_datacenter",
+        "suspected_apt_related",
+        "suspected_threat_actor_group_related",
+        "suspected_known_malicious_actor",
     ):
         if key in value and key not in metadata:
             metadata[key] = value.get(key)
+
+    for nested_key in (
+        "ip",
+        "ipv4",
+        "ipv6",
+        "tor",
+        "i2p",
+        "proxy",
+        "vpn",
+        "isp",
+        "provider_data",
+        "asn_data",
+        "organization_data",
+        "government",
+        "military",
+        "datacenter",
+        "apt_attribution",
+        "tag_attribution",
+        "known_malactor",
+    ):
+        if nested_key in value and nested_key not in metadata:
+            metadata[nested_key] = value.get(nested_key)
 
     return [
         value.get("protocol_version") or value.get("protocol") or value.get("version"),
@@ -420,16 +480,21 @@ def normalize_node(address: str, values: list[Any], rank: int | None = None) -> 
         "peer_health": metadata.get("peer_health"),
         "reachable_now": boolish(metadata.get("reachable_now")),
         "reachable_24h": boolish(metadata.get("reachable_24h")),
-        "tor": bool(metadata.get("tor") or metadata.get("is_tor") or network == "tor"),
-        "i2p": bool(metadata.get("i2p") or metadata.get("is_i2p") or network == "i2p"),
-        "is_tor": bool(metadata.get("is_tor") or metadata.get("tor") or network == "tor"),
-        "is_i2p": bool(metadata.get("is_i2p") or metadata.get("i2p") or network == "i2p"),
-        "is_ipv4": bool(metadata.get("is_ipv4") or network == "ipv4"),
-        "is_ipv6": bool(metadata.get("is_ipv6") or network == "ipv6"),
-        "is_proxy": bool(metadata.get("proxy") or metadata.get("is_proxy")),
-        "is_vpn": bool(metadata.get("vpn") or metadata.get("is_vpn")),
-        "is_sanctioned_node": bool(metadata.get("is_sanctioned_node")),
-        "is_policy_restricted_node": bool(metadata.get("is_policy_restricted_node")),
+        "tor": truthy(metadata.get("tor")) or truthy(metadata.get("is_tor")) or network == "tor",
+        "i2p": truthy(metadata.get("i2p")) or truthy(metadata.get("is_i2p")) or network == "i2p",
+        "is_tor": truthy(metadata.get("is_tor")) or truthy(metadata.get("tor")) or network == "tor",
+        "is_i2p": truthy(metadata.get("is_i2p")) or truthy(metadata.get("i2p")) or network == "i2p",
+        "is_ipv4": truthy(metadata.get("is_ipv4")) or network == "ipv4",
+        "is_ipv6": truthy(metadata.get("is_ipv6")) or network == "ipv6",
+        "is_cjdns": truthy(metadata.get("is_cjdns")) or network == "cjdns",
+        "is_proxy": truthy(metadata.get("proxy")) or truthy(metadata.get("is_proxy")) or truthy(metadata.get("suspected_proxy")),
+        "suspected_proxy": truthy(metadata.get("proxy")) or truthy(metadata.get("is_proxy")) or truthy(metadata.get("suspected_proxy")),
+        "is_vpn": truthy(metadata.get("vpn")) or truthy(metadata.get("is_vpn")) or truthy(metadata.get("suspected_vpn")),
+        "suspected_vpn": truthy(metadata.get("vpn")) or truthy(metadata.get("is_vpn")) or truthy(metadata.get("suspected_vpn")),
+        "is_sanctioned_node": truthy(metadata.get("is_sanctioned_node")),
+        "is_policy_restricted_node": truthy(metadata.get("is_policy_restricted_node")) or truthy(metadata.get("policy_restricted")),
+        "policy_restricted": truthy(metadata.get("policy_restricted")) or truthy(metadata.get("is_policy_restricted_node")),
+        "policy_watch": truthy(metadata.get("policy_watch")),
         "jurisdiction_risk_level": metadata.get("jurisdiction_risk_level"),
         "continent": metadata.get("continent"),
         "region": metadata.get("region"),
@@ -439,6 +504,21 @@ def normalize_node(address: str, values: list[Any], rank: int | None = None) -> 
         "first_seen": metadata.get("first_seen"),
         "last_seen": metadata.get("last_seen"),
         "last_failure": metadata.get("last_failure"),
+        "provider_kind": metadata.get("provider_kind") or deep_get(metadata, "provider_data.provider_kind"),
+        "network_classification": metadata.get("network_classification") or deep_get(metadata, "isp.network_classification"),
+        "organization_type": metadata.get("organization_type") or deep_get(metadata, "organization_data.organization_type"),
+        "suspected_government": truthy(metadata.get("suspected_government")) or truthy(deep_get(metadata, "government.suspected_government")),
+        "suspected_military": truthy(metadata.get("suspected_military")) or truthy(deep_get(metadata, "military.suspected_military")),
+        "suspected_datacenter": truthy(metadata.get("suspected_datacenter")) or truthy(deep_get(metadata, "datacenter.suspected_datacenter")),
+        "suspected_apt_related": truthy(metadata.get("suspected_apt_related")) or truthy(deep_get(metadata, "apt_attribution.suspected_apt_related")),
+        "apt_attribution_score": metadata.get("apt_attribution_score") or deep_get(metadata, "apt_attribution.apt_attribution_score"),
+        "apt_attribution_confidence": metadata.get("apt_attribution_confidence") or deep_get(metadata, "apt_attribution.apt_attribution_confidence"),
+        "suspected_threat_actor_group_related": truthy(metadata.get("suspected_threat_actor_group_related")) or truthy(deep_get(metadata, "tag_attribution.suspected_threat_actor_group_related")),
+        "tag_attribution_score": metadata.get("tag_attribution_score") or deep_get(metadata, "tag_attribution.tag_attribution_score"),
+        "tag_attribution_confidence": metadata.get("tag_attribution_confidence") or deep_get(metadata, "tag_attribution.tag_attribution_confidence"),
+        "suspected_known_malicious_actor": truthy(metadata.get("suspected_known_malicious_actor")) or truthy(deep_get(metadata, "known_malactor.suspected_known_malicious_actor")),
+        "known_malactor_score": metadata.get("known_malactor_score") or deep_get(metadata, "known_malactor.known_malactor_score"),
+        "known_malactor_confidence": metadata.get("known_malactor_confidence") or deep_get(metadata, "known_malactor.known_malactor_confidence"),
         "metadata": metadata,
     }
 
@@ -533,15 +613,23 @@ def summarize_group(name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "i2p_nodes": sum(1 for row in rows if row.get("i2p")),
         "ipv4_nodes": sum(1 for row in rows if row.get("network") == "ipv4"),
         "ipv6_nodes": sum(1 for row in rows if row.get("network") == "ipv6"),
+        "cjdns_nodes": sum(1 for row in rows if row.get("network") == "cjdns"),
         "vpn_nodes": sum(1 for row in rows if row.get("is_vpn")),
         "proxy_nodes": sum(1 for row in rows if row.get("is_proxy")),
         "sanctioned_nodes": sum(1 for row in rows if row.get("is_sanctioned_node")),
         "policy_restricted_nodes": sum(1 for row in rows if row.get("is_policy_restricted_node")),
+        "government_nodes": sum(1 for row in rows if row.get("suspected_government")),
+        "military_nodes": sum(1 for row in rows if row.get("suspected_military")),
+        "datacenter_nodes": sum(1 for row in rows if row.get("suspected_datacenter")),
+        "apt_related_nodes": sum(1 for row in rows if row.get("suspected_apt_related")),
+        "threat_actor_group_related_nodes": sum(1 for row in rows if row.get("suspected_threat_actor_group_related")),
+        "known_malactor_nodes": sum(1 for row in rows if row.get("suspected_known_malicious_actor")),
         "avg_latency_ms": average(row.get("latency_ms") for row in rows),
         "latest_height": max_or_none(row.get("height") for row in rows),
         "top_agent": most_common(row.get("agent") for row in rows),
         "top_asn": most_common(row.get("asn") for row in rows),
         "top_organization": most_common(row.get("organization") for row in rows),
+        "top_provider": most_common(row.get("provider") for row in rows),
         "top_port": most_common(row.get("port") for row in rows),
     }
 
@@ -678,7 +766,11 @@ def build_geojson_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "type": "FeatureCollection",
-        "updated_at": utc_iso(),
+        "schema": "zzx-bitnodes-map-points-v1",
+        "generated_at": utc_iso(),
+        "source": "zzxbitnodes",
+        "node_count": len(rows),
+        "feature_count": len(features),
         "features": features,
     }
 
@@ -791,9 +883,9 @@ def build_dns_seeder_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
         if row.get("tor") or row.get("i2p"):
             records["TXT"].append(host)
-        elif ":" in host:
+        elif row.get("network") in {"ipv6", "cjdns"}:
             records["AAAA"].append(host)
-        else:
+        elif row.get("network") == "ipv4":
             records["A"].append(host)
 
     for key in records:
@@ -841,17 +933,25 @@ def build_counts(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[st
         "ambiguous": max(0, len(rows) - reachable - unreachable),
         "ipv4": sum(1 for row in rows if row.get("network") == "ipv4"),
         "ipv6": sum(1 for row in rows if row.get("network") == "ipv6"),
+        "cjdns": sum(1 for row in rows if row.get("network") == "cjdns"),
         "tor": sum(1 for row in rows if row.get("tor")),
         "i2p": sum(1 for row in rows if row.get("i2p")),
         "vpn": sum(1 for row in rows if row.get("is_vpn")),
         "proxy": sum(1 for row in rows if row.get("is_proxy")),
         "sanctioned": sum(1 for row in rows if row.get("is_sanctioned_node")),
         "policy_restricted": sum(1 for row in rows if row.get("is_policy_restricted_node")),
+        "government": sum(1 for row in rows if row.get("suspected_government")),
+        "military": sum(1 for row in rows if row.get("suspected_military")),
+        "datacenter": sum(1 for row in rows if row.get("suspected_datacenter")),
+        "apt_related": sum(1 for row in rows if row.get("suspected_apt_related")),
+        "threat_actor_group_related": sum(1 for row in rows if row.get("suspected_threat_actor_group_related")),
+        "known_malactor": sum(1 for row in rows if row.get("suspected_known_malicious_actor")),
         "countries": len({row.get("country") for row in rows if row.get("country")}),
         "cities": len({row.get("city") for row in rows if row.get("city")}),
         "asns": len({row.get("asn") for row in rows if row.get("asn")}),
         "agents": len({row.get("agent") for row in rows if row.get("agent")}),
         "organizations": len({row.get("organization") for row in rows if row.get("organization")}),
+        "providers": len({row.get("provider") for row in rows if row.get("provider")}),
     }
 
 
@@ -859,7 +959,7 @@ def build_registry_statistics(rows: list[dict[str, Any]], payload: dict[str, Any
     counts = build_counts(rows, payload)
 
     return {
-        "schema": "zzx-bitnodes-registry-statistics-v1",
+        "schema": "zzx-bitnodes-registry-statistics-v2",
         "updated_at": utc_iso(),
         "known_nodes": counts["known"],
         "reachable_nodes": counts["reachable"],
@@ -868,17 +968,25 @@ def build_registry_statistics(rows: list[dict[str, Any]], payload: dict[str, Any
         "unreachable_nodes": counts["unreachable"],
         "ipv4_nodes": counts["ipv4"],
         "ipv6_nodes": counts["ipv6"],
+        "cjdns_nodes": counts["cjdns"],
         "tor_nodes": counts["tor"],
         "i2p_nodes": counts["i2p"],
         "vpn_nodes": counts["vpn"],
         "proxy_nodes": counts["proxy"],
         "sanctioned_nodes": counts["sanctioned"],
         "policy_restricted_nodes": counts["policy_restricted"],
+        "government_nodes": counts["government"],
+        "military_nodes": counts["military"],
+        "datacenter_nodes": counts["datacenter"],
+        "apt_related_nodes": counts["apt_related"],
+        "threat_actor_group_related_nodes": counts["threat_actor_group_related"],
+        "known_malactor_nodes": counts["known_malactor"],
         "countries": counts["countries"],
         "cities": counts["cities"],
         "asns": counts["asns"],
         "agents": counts["agents"],
         "organizations": counts["organizations"],
+        "providers": counts["providers"],
     }
 
 
@@ -909,7 +1017,7 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
     registry_statistics = build_registry_statistics(rows, payload)
 
     return {
-        "schema": "zzx-bitnodes-static-api-status-v4",
+        "schema": "zzx-bitnodes-static-api-status-v5",
         "source": payload.get("source"),
         "timestamp": payload.get("timestamp"),
         "updated_at": payload.get("updated_at") or utc_iso(),
@@ -931,6 +1039,12 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
         "proxy_nodes": counts["proxy"],
         "sanctioned_nodes": counts["sanctioned"],
         "policy_restricted_nodes": counts["policy_restricted"],
+        "government_nodes": counts["government"],
+        "military_nodes": counts["military"],
+        "datacenter_nodes": counts["datacenter"],
+        "apt_related_nodes": counts["apt_related"],
+        "threat_actor_group_related_nodes": counts["threat_actor_group_related"],
+        "known_malactor_nodes": counts["known_malactor"],
         "rows_exported": len(rows),
         "summary": payload.get("summary", {}),
         "counts": counts,
@@ -944,6 +1058,9 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
             "providers": counter_top(row.get("provider") for row in rows),
             "ports": counter_top(row.get("port") for row in rows),
             "networks": counter_top(row.get("network") for row in rows),
+            "provider_kinds": counter_top(row.get("provider_kind") for row in rows),
+            "organization_types": counter_top(row.get("organization_type") for row in rows),
+            "network_classifications": counter_top(row.get("network_classification") for row in rows),
         },
         "changes": payload.get("changes", {}),
         "api": {
@@ -968,15 +1085,25 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
             "services": "./services.json",
             "organizations": "./organizations.json",
             "providers": "./providers.json",
+            "provider_kinds": "./provider-kinds.json",
+            "organization_types": "./organization-types.json",
+            "network_classifications": "./network-classifications.json",
             "networks": "./networks.json",
             "ipv4": "./ipv4.json",
             "ipv6": "./ipv6.json",
+            "cjdns": "./cjdns.json",
             "tor": "./tor.json",
             "i2p": "./i2p.json",
             "vpn": "./vpn.json",
             "proxy": "./proxy.json",
             "sanctioned": "./sanctioned.json",
             "policy_restricted": "./policy-restricted.json",
+            "government": "./government.json",
+            "military": "./military.json",
+            "datacenter": "./datacenter.json",
+            "apt_attribution": "./apt-attribution.json",
+            "tag_attribution": "./tag-attribution.json",
+            "known_malactor": "./known-malactor.json",
             "coordinates": "./coordinates.json",
             "geojson": "./maps/nodes.geojson",
             "latency": "./latency.json",
@@ -1006,7 +1133,6 @@ def write_node_files(output_dir: Path, rows: list[dict[str, Any]], pretty: bool)
     for row in rows:
         host = row.get("host") or "unknown"
         port = row.get("port") or "unknown"
-
         write_json(node_dir / f"{safe_name(host)}-{safe_name(port)}.json", row, pretty=pretty)
 
 
@@ -1030,6 +1156,9 @@ def write_group_files(output_dir: Path, group_name: str, group_payload: dict[str
         "services": "services",
         "organizations": "organization",
         "providers": "provider",
+        "provider-kinds": "provider_kind",
+        "organization-types": "organization_type",
+        "network-classifications": "network_classification",
         "networks": "network",
         "geohashes": "geohash",
         "what3words": "w3w",
@@ -1056,10 +1185,21 @@ def build_widget_payloads(rows: list[dict[str, Any]], payload: dict[str, Any]) -
             "updated_at": utc_iso(),
             "ipv4": counts["ipv4"],
             "ipv6": counts["ipv6"],
+            "cjdns": counts["cjdns"],
             "tor": counts["tor"],
             "i2p": counts["i2p"],
             "vpn": counts["vpn"],
             "proxy": counts["proxy"],
+        },
+        "widget-risk-counts.json": {
+            "updated_at": utc_iso(),
+            "government": counts["government"],
+            "military": counts["military"],
+            "datacenter": counts["datacenter"],
+            "apt_related": counts["apt_related"],
+            "threat_actor_group_related": counts["threat_actor_group_related"],
+            "known_malactor": counts["known_malactor"],
+            "policy_restricted": counts["policy_restricted"],
         },
         "widget-heights.json": build_heights_payload(rows),
         "widget-countries.json": build_group_payload(rows, "country", "total_countries", unknown="??"),
@@ -1115,15 +1255,25 @@ def export_all(
         "services.json": build_group_payload(rows, "services", "total_service_sets", unknown="UNKNOWN"),
         "organizations.json": build_group_payload(rows, "organization", "total_organizations", unknown="UNKNOWN"),
         "providers.json": build_group_payload(rows, "provider", "total_providers", unknown="UNKNOWN"),
+        "provider-kinds.json": build_group_payload(rows, "provider_kind", "total_provider_kinds", unknown="unknown"),
+        "organization-types.json": build_group_payload(rows, "organization_type", "total_organization_types", unknown="unknown"),
+        "network-classifications.json": build_group_payload(rows, "network_classification", "total_network_classifications", unknown="unknown"),
         "networks.json": build_networks_payload(rows),
         "ipv4.json": build_subset_payload(rows, lambda row: row.get("network") == "ipv4", "total_ipv4_nodes"),
         "ipv6.json": build_subset_payload(rows, lambda row: row.get("network") == "ipv6", "total_ipv6_nodes"),
+        "cjdns.json": build_subset_payload(rows, lambda row: row.get("network") == "cjdns", "total_cjdns_nodes"),
         "tor.json": build_subset_payload(rows, lambda row: row.get("tor"), "total_tor_nodes"),
         "i2p.json": build_subset_payload(rows, lambda row: row.get("i2p"), "total_i2p_nodes"),
         "vpn.json": build_subset_payload(rows, lambda row: row.get("is_vpn"), "total_vpn_nodes"),
         "proxy.json": build_subset_payload(rows, lambda row: row.get("is_proxy"), "total_proxy_nodes"),
         "sanctioned.json": build_subset_payload(rows, lambda row: row.get("is_sanctioned_node"), "total_sanctioned_nodes"),
         "policy-restricted.json": build_subset_payload(rows, lambda row: row.get("is_policy_restricted_node"), "total_policy_restricted_nodes"),
+        "government.json": build_subset_payload(rows, lambda row: row.get("suspected_government"), "total_government_nodes"),
+        "military.json": build_subset_payload(rows, lambda row: row.get("suspected_military"), "total_military_nodes"),
+        "datacenter.json": build_subset_payload(rows, lambda row: row.get("suspected_datacenter"), "total_datacenter_nodes"),
+        "apt-attribution.json": build_subset_payload(rows, lambda row: row.get("suspected_apt_related"), "total_apt_related_nodes"),
+        "tag-attribution.json": build_subset_payload(rows, lambda row: row.get("suspected_threat_actor_group_related"), "total_threat_actor_group_related_nodes"),
+        "known-malactor.json": build_subset_payload(rows, lambda row: row.get("suspected_known_malicious_actor"), "total_known_malactor_nodes"),
         "geohashes.json": build_group_payload(rows, "geohash", "total_geohashes"),
         "what3words.json": build_group_payload(rows, "w3w", "total_what3words"),
         "coordinates.json": build_coordinates_payload(rows),
@@ -1190,6 +1340,9 @@ def export_all(
         "services",
         "organizations",
         "providers",
+        "provider-kinds",
+        "organization-types",
+        "network-classifications",
         "networks",
         "geohashes",
         "what3words",
