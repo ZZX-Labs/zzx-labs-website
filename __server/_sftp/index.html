@@ -1,1 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="description" content="ZZX-Labs R&D SFTP service portal.">
 
+    <title>SFTP Portal | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../static/icons/favicon.ico">
+
+    <link rel="stylesheet" href="../../static/styles.css">
+    <link rel="stylesheet" href="../__server.css">
+    <link rel="stylesheet" href="./_sftp.css">
+
+    <script src="../../static/script.js" defer></script>
+    <script src="../__server.js" defer></script>
+    <script src="./_sftp.js" defer></script>
+</head>
+<body data-sftp-page="home">
+<header>
+    <div id="zzx-header"></div>
+</header>
+
+<main class="server-main">
+    <div id="ticker-container"></div>
+
+    <section class="server-hero">
+        <div class="server-overlay"></div>
+
+        <div class="server-content">
+            <p class="server-kicker">ZZX-Labs R&D</p>
+            <h1>SFTP Portal</h1>
+
+            <p class="server-subtitle">
+                Static planning and operations portal for secure file transfer,
+                controlled uploads, private client delivery, research exchange,
+                encrypted staging, and future authenticated SFTP workflows.
+            </p>
+
+            <div class="sftp-warning">
+                <strong>SFTP Notice:</strong>
+                Do not publish real usernames, hostnames, IP addresses, SSH private keys,
+                authorized keys, passwords, client paths, production mount points,
+                upload logs, or access records in this static repository.
+            </div>
+
+            <div class="sftp-status-grid">
+                <div class="sftp-status-card">
+                    <span>Service</span>
+                    <strong>SFTP</strong>
+                </div>
+
+                <div class="sftp-status-card">
+                    <span>Mode</span>
+                    <strong>Planning</strong>
+                </div>
+
+                <div class="sftp-status-card">
+                    <span>Access</span>
+                    <strong>SSH Key Based</strong>
+                </div>
+
+                <div class="sftp-status-card">
+                    <span>Updated</span>
+                    <strong id="sftp-updated">—</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>SFTP Service Areas</h2>
+            <p>Secure transfer zones for clients, partners, research, releases, uploads, and internal staging.</p>
+        </div>
+
+        <div class="server-grid">
+            <a href="./client-dropboxes/" class="server-card">
+                <span>Clients</span>
+                <h3>Client Dropboxes</h3>
+                <p>Private inbound and outbound folders for consulting, contracting, deliverables, and review files.</p>
+            </a>
+
+            <a href="./research-exchange/" class="server-card">
+                <span>Research</span>
+                <h3>Research Exchange</h3>
+                <p>Controlled transfer area for papers, datasets, tools, reports, and collaboration material.</p>
+            </a>
+
+            <a href="./release-staging/" class="server-card">
+                <span>Releases</span>
+                <h3>Release Staging</h3>
+                <p>Staging area for software, charts, public downloads, documents, and publication artifacts.</p>
+            </a>
+
+            <a href="./upload-quarantine/" class="server-card">
+                <span>Quarantine</span>
+                <h3>Upload Quarantine</h3>
+                <p>Future inspection area for uploaded files before publishing, mirroring, or internal distribution.</p>
+            </a>
+
+            <a href="./ssh-keys/" class="server-card">
+                <span>Keys</span>
+                <h3>SSH Key Policy</h3>
+                <p>Public-safe key policy documentation, rotation process, user isolation, and revocation rules.</p>
+            </a>
+
+            <a href="./audit-logs/" class="server-card">
+                <span>Audit</span>
+                <h3>Audit Logs</h3>
+                <p>Sanitized transfer event summaries, upload records, access review, and incident references.</p>
+            </a>
+
+            <a href="./storage-bridge/" class="server-card">
+                <span>Storage</span>
+                <h3>Storage Bridge</h3>
+                <p>Integration with encrypted storage, client vaults, public downloads, and research archives.</p>
+            </a>
+
+            <a href="../" class="server-card server-card-primary">
+                <span>Server</span>
+                <h3>Server Portal</h3>
+                <p>Return to the parent `__server/` operations portal.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>Recommended SFTP Layout</h2>
+            <p>Suggested host-side structure for clean isolation between users, staging, public releases, and logs.</p>
+        </div>
+
+        <pre class="sftp-code"><code>/srv/zzx-labs-sftp/
+├── users/
+│   ├── client_alpha/
+│   │   ├── inbound/
+│   │   ├── outbound/
+│   │   └── archive/
+│   └── research_partner/
+│       ├── inbound/
+│       ├── outbound/
+│       └── archive/
+├── staging/
+│   ├── uploads/
+│   ├── quarantine/
+│   └── review/
+├── releases/
+│   ├── downloads/
+│   ├── papers/
+│   ├── software/
+│   └── charts/
+└── logs/
+    ├── sftp-access.log
+    ├── sftp-auth.log
+    └── transfer-audit.json</code></pre>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>SFTP Policy</h2>
+            <p>Operational rules for safe future deployment and public repository documentation.</p>
+        </div>
+
+        <div class="sftp-policy-grid">
+            <div class="sftp-policy-card">
+                <h3>SSH Keys Only</h3>
+                <p>Prefer SSH key authentication with passphrases, rotation, expiration, and revocation records.</p>
+            </div>
+
+            <div class="sftp-policy-card">
+                <h3>Chroot Users</h3>
+                <p>Restrict users to isolated directories and prevent lateral access between clients or partners.</p>
+            </div>
+
+            <div class="sftp-policy-card">
+                <h3>Quarantine Uploads</h3>
+                <p>Stage inbound uploads before publication, scanning, review, archival, or production use.</p>
+            </div>
+
+            <div class="sftp-policy-card">
+                <h3>No Secrets in Git</h3>
+                <p>Never commit usernames, private hostnames, SSH material, access logs, tokens, or client paths.</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
