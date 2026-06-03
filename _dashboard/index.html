@@ -3,41 +3,227 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="description" content="ZZX-Labs R&D system dashboard and operations portal.">
+
     <title>System Dashboard | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
+
     <link rel="stylesheet" href="../static/styles.css">
+    <link rel="stylesheet" href="./_dashboard.css">
+
     <script src="../static/script.js" defer></script>
+    <script src="./_dashboard.js" defer></script>
 </head>
-<body>
+<body data-dashboard-page="home">
 <header>
     <div id="zzx-header"></div>
 </header>
-<main>
-    <br>
-    <!-- Bitcoin Ticker Widget -->
+
+<main class="dashboard-main">
     <div id="ticker-container"></div>
-    <br>
 
-    <section class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <h1>[:[ZZX-Labs]:]</h1>
-            <h4>| System Dashboard |</h4><br>
+    <section class="dashboard-hero" aria-labelledby="dashboard-title">
+        <div class="dashboard-overlay"></div>
 
-            <p>Access real-time system metrics, uptime monitoring, server status, and operational overviews here.</p><br><br>
+        <div class="dashboard-content">
+            <p class="dashboard-kicker">ZZX-Labs R&D</p>
+            <h1 id="dashboard-title">System Dashboard</h1>
 
-            <div class="button-group">
-                <a href="../_dashboard/system-status" class="btn btn-primary">System Status</a>
-                <a href="../_dashboard/server-health" class="btn btn-primary">Server Health</a>
-                <a href="../_dashboard/uptime-monitoring" class="btn btn-primary">Uptime Monitoring</a>
-                <a href="../_dashboard/traffic-overview" class="btn btn-primary">Traffic Overview</a>
-                <a href="../_dashboard/service-logs" class="btn btn-primary">Service Logs</a>
+            <p class="dashboard-subtitle">
+                Network operations dashboard for public site health, crawler status,
+                server-facing resources, API outputs, uptime monitoring, release state,
+                and operational visibility.
+            </p>
+
+            <div class="dashboard-status-grid">
+                <div class="dashboard-status-card">
+                    <span>Portal</span>
+                    <strong id="dashboard-state">Ready</strong>
+                </div>
+
+                <div class="dashboard-status-card">
+                    <span>Mode</span>
+                    <strong>Static NOC</strong>
+                </div>
+
+                <div class="dashboard-status-card">
+                    <span>Indexing</span>
+                    <strong>Noindex</strong>
+                </div>
+
+                <div class="dashboard-status-card">
+                    <span>Updated</span>
+                    <strong id="dashboard-updated">—</strong>
+                </div>
             </div>
         </div>
-    </section><br><br>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Operations Panels</h2>
+            <p>Core views for system state, uptime, service logs, traffic, and server health.</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <a href="./system-status/" class="dashboard-card dashboard-card-primary">
+                <span>System</span>
+                <h3>System Status</h3>
+                <p>Overall site state, deployment condition, operational mode, and current public-service status.</p>
+            </a>
+
+            <a href="./server-health/" class="dashboard-card dashboard-card-primary">
+                <span>Server</span>
+                <h3>Server Health</h3>
+                <p>Future host telemetry for nginx, Flask, crawler daemon, storage, and local mirrors.</p>
+            </a>
+
+            <a href="./uptime-monitoring/" class="dashboard-card dashboard-card-primary">
+                <span>Uptime</span>
+                <h3>Uptime Monitoring</h3>
+                <p>Availability checks for site pages, APIs, widgets, mirrors, and public service endpoints.</p>
+            </a>
+
+            <a href="./traffic-overview/" class="dashboard-card dashboard-card-primary">
+                <span>Traffic</span>
+                <h3>Traffic Overview</h3>
+                <p>High-level traffic visibility across public pages, tools, research, downloads, and widgets.</p>
+            </a>
+
+            <a href="./service-logs/" class="dashboard-card dashboard-card-primary">
+                <span>Logs</span>
+                <h3>Service Logs</h3>
+                <p>Frontend-safe log summaries, public incident notes, release events, and operational records.</p>
+            </a>
+
+            <a href="../_admin/" class="dashboard-card dashboard-card-primary">
+                <span>Admin</span>
+                <h3>Admin Portal</h3>
+                <p>Return to the parent administrative control panel for all operator-facing sections.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Bitcoin Infrastructure</h2>
+            <p>Operational links for ZZXBPI, BitnodesZZX, MempoolspaceZZX, and crawler/API status outputs.</p>
+        </div>
+
+        <div class="dashboard-grid dashboard-grid-compact">
+            <a href="../bitcoin/bpi/" class="dashboard-card">
+                <span>BPI</span>
+                <h3>ZZXBPI</h3>
+                <p>Bitcoin price index, exchange feeds, ticker widgets, market snapshots, and converter data.</p>
+            </a>
+
+            <a href="../bitcoin/bitnodes/" class="dashboard-card">
+                <span>Nodes</span>
+                <h3>BitnodesZZX</h3>
+                <p>Bitcoin node crawler frontend, maps, rankings, reachability, latency, and network distribution.</p>
+            </a>
+
+            <a href="../bitcoin/bitnodes/api/" class="dashboard-card">
+                <span>API</span>
+                <h3>Bitnodes API</h3>
+                <p>Static JSON API outputs produced by crawler, enrichment, attribution, and map systems.</p>
+            </a>
+
+            <a href="../bitcoin/mempoolspace/" class="dashboard-card">
+                <span>Mempool</span>
+                <h3>MempoolspaceZZX</h3>
+                <p>Local mempool.space mirror, blockspace metrics, fees, blocks, and transaction-state widgets.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Server Resource Index</h2>
+            <p>Static frontend links for current and planned server-related directories.</p>
+        </div>
+
+        <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Path</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Server Portal</td>
+                        <td><a href="../__server/">__server/</a></td>
+                        <td>Frontend index for server-facing resources, docs, and deployment files.</td>
+                    </tr>
+                    <tr>
+                        <td>nginx</td>
+                        <td><a href="../__server/nginx/">__server/nginx/</a></td>
+                        <td>Routing, reverse proxy, mirror hosting, and deployment notes.</td>
+                    </tr>
+                    <tr>
+                        <td>Flask</td>
+                        <td><a href="../__server/flask/">__server/flask/</a></td>
+                        <td>Future Flask API instance documentation and service bridge.</td>
+                    </tr>
+                    <tr>
+                        <td>SFTP</td>
+                        <td><a href="../__server/_sftp/">__server/_sftp/</a></td>
+                        <td>Private file transfer service planning and documentation.</td>
+                    </tr>
+                    <tr>
+                        <td>Private Email</td>
+                        <td><a href="../__server/_email/">__server/_email/</a></td>
+                        <td>Private email service planning and operational notes.</td>
+                    </tr>
+                    <tr>
+                        <td>ZIRA AI</td>
+                        <td><a href="../__server/_zira-ai/">__server/_zira-ai/</a></td>
+                        <td>Adaptive AI assistant service documentation and future interface.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="dashboard-section dashboard-service-unit">
+        <div class="dashboard-section-heading">
+            <h2>Bitnodes Daemon Service</h2>
+            <p>Reference target for the host-side crawler daemon service.</p>
+        </div>
+
+        <pre class="dashboard-code"><code>[Unit]
+Description=ZZX-Labs Bitnodes Crawler Daemon
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/zzx-labs
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodesd.py run
+ExecStop=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodesd.py stop
+Restart=always
+RestartSec=10
+User=zzx
+Group=zzx
+Environment=PYTHONUNBUFFERED=1
+Environment=REDIS_SOCKET=/tmp/redis.sock
+EnvironmentFile=-/etc/zzx-labs/bitnodes.env
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+    </section>
 </main>
+
 <footer>
-	<div id="zzx-footer"></div>
+    <div id="zzx-footer"></div>
 </footer>
 </body>
 </html>
