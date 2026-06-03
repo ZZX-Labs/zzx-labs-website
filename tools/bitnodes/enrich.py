@@ -4,18 +4,22 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 
-DEFAULT_GEO_ROOT = TOOLS_DIR / "data" / "geo"
-DEFAULT_GEOIP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geoip"
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
+BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")))
+
+DEFAULT_GEO_ROOT = BITNODES_DATA / "geo"
+DEFAULT_GEOIP_DIR = BITNODES_DATA / "geoip"
 
 DEFAULT_TERRITORY_DIR = DEFAULT_GEO_ROOT / "territories"
 DEFAULT_COUNTY_DIR = DEFAULT_GEO_ROOT / "counties"
@@ -25,6 +29,7 @@ DEFAULT_TIMEZONE_DIR = DEFAULT_GEO_ROOT / "timezones"
 
 DEFAULT_W3W_CACHE = DEFAULT_GEO_ROOT / "w3w" / "w3w-cache.json"
 DEFAULT_GEOHASH_CACHE = DEFAULT_GEO_ROOT / "geohash" / "geohash-cache.json"
+
 DEFAULT_SANCTIONS_POLICY = TOOLS_DIR / "data" / "policy" / "sanctioned-jurisdictions.json"
 
 ENRICHMENT_ORDER = [
@@ -68,18 +73,20 @@ def read_json(path: Path, fallback: Any = None) -> Any:
         return fallback
 
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    if compact:
+        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    else:
+        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def clean_address(value: Any) -> str:
@@ -93,7 +100,6 @@ def normalize_metadata(record: dict[str, Any]) -> dict[str, Any]:
         return metadata
 
     record["metadata"] = {}
-
     return record["metadata"]
 
 
@@ -104,7 +110,6 @@ def normalize_enrichment(record: dict[str, Any]) -> dict[str, Any]:
         return enrichment
 
     record["enrichment"] = {}
-
     return record["enrichment"]
 
 
@@ -115,12 +120,11 @@ def normalize_peer_health(record: dict[str, Any]) -> dict[str, Any]:
         return peer_health
 
     record["peer_health"] = {}
-
     return record["peer_health"]
 
 
 def normalize_node_record(node: Any) -> dict[str, Any]:
-    if isinstance(node, dict):
+    if isinstance(node, Mapping):
         record = dict(node)
     else:
         record = {"address": str(node)}
@@ -130,13 +134,15 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
         or record.get("node")
         or record.get("addr")
         or record.get("host")
+        or record.get("hostname")
+        or record.get("ip")
+        or record.get("id")
         or ""
     )
 
     record["address"] = clean_address(address)
 
     enrichment = record.get("enrichment")
-
     if not isinstance(enrichment, dict):
         record["enrichment"] = {}
 
@@ -156,13 +162,35 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
         "is_ipv4",
         "is_ipv6",
         "is_vpn",
+        "suspected_vpn",
         "is_proxy",
+        "suspected_proxy",
         "network",
         "first_seen",
         "last_seen",
         "last_failure",
         "success_count",
         "failure_count",
+        "country",
+        "country_code",
+        "country_name",
+        "region",
+        "territory",
+        "city",
+        "county",
+        "postal",
+        "postal_code",
+        "zip",
+        "timezone",
+        "latitude",
+        "longitude",
+        "lat",
+        "lon",
+        "asn",
+        "provider",
+        "organization",
+        "org",
+        "isp",
     ):
         if key not in record and key in metadata:
             record[key] = metadata.get(key)
@@ -179,7 +207,7 @@ def bitnodes_array_to_record(address: str, data: list[Any]) -> dict[str, Any]:
     while len(row) < 20:
         row.append(None)
 
-    metadata = row[19] if isinstance(row[19], dict) else {}
+    metadata = row[19] if isinstance(row[19], Mapping) else {}
 
     record = {
         "address": address,
@@ -202,18 +230,18 @@ def bitnodes_array_to_record(address: str, data: list[Any]) -> dict[str, Any]:
         "provider": row[13],
         "county": row[14],
         "zip": row[15],
+        "postal": row[15],
         "postal_code": row[15],
         "w3w": row[16],
         "what3words": row[16],
         "geohash": row[17],
         "geohashid": row[17],
         "asn_location": row[18],
-        "metadata": metadata,
+        "metadata": dict(metadata),
     }
 
-    if isinstance(metadata, dict):
-        for key, value in metadata.items():
-            record.setdefault(key, value)
+    for key, value in dict(metadata).items():
+        record.setdefault(key, value)
 
     return normalize_node_record(record)
 
@@ -222,8 +250,26 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
         return [normalize_node_record(item) for item in payload]
 
-    if not isinstance(payload, dict):
+    if not isinstance(payload, Mapping):
         return []
+
+    nodes = payload.get("nodes")
+
+    if isinstance(nodes, list):
+        return [normalize_node_record(item) for item in nodes]
+
+    if isinstance(nodes, Mapping):
+        output: list[dict[str, Any]] = []
+
+        for address, data in nodes.items():
+            if isinstance(data, list):
+                output.append(bitnodes_array_to_record(str(address), data))
+            elif isinstance(data, Mapping):
+                output.append(normalize_node_record({"address": address, **dict(data)}))
+            else:
+                output.append(normalize_node_record({"address": address, "value": data}))
+
+        return output
 
     for key in (
         "rows",
@@ -239,23 +285,16 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
         if isinstance(value, list):
             return [normalize_node_record(item) for item in value]
 
-    nodes = payload.get("nodes")
+        if isinstance(value, Mapping):
+            extracted = extract_nodes({"nodes": value})
+            if extracted:
+                return extracted
 
-    if isinstance(nodes, list):
-        return [normalize_node_record(item) for item in nodes]
-
-    if isinstance(nodes, dict):
-        output: list[dict[str, Any]] = []
-
-        for address, data in nodes.items():
-            if isinstance(data, list):
-                output.append(bitnodes_array_to_record(str(address), data))
-            elif isinstance(data, dict):
-                output.append(normalize_node_record({"address": address, **data}))
-            else:
-                output.append(normalize_node_record({"address": address, "value": data}))
-
-        return output
+    for key in ("latest", "snapshot", "payload"):
+        value = payload.get(key)
+        extracted = extract_nodes(value)
+        if extracted:
+            return extracted
 
     return []
 
@@ -264,10 +303,20 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
     if isinstance(payload, list):
         return nodes
 
-    if not isinstance(payload, dict):
+    if not isinstance(payload, Mapping):
         return {"nodes": nodes}
 
     output = dict(payload)
+
+    original_nodes = output.get("nodes")
+
+    if isinstance(original_nodes, Mapping):
+        output["nodes"] = {node.get("address", str(index)): node for index, node in enumerate(nodes)}
+        return output
+
+    if isinstance(original_nodes, list):
+        output["nodes"] = nodes
+        return output
 
     for key in (
         "rows",
@@ -283,7 +332,6 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
             return output
 
     output["nodes"] = nodes
-
     return output
 
 
@@ -294,14 +342,12 @@ def load_module(module_name: str) -> Any | None:
         return None
 
     import_name = f"zzx_bitnodes_enrichment_{module_name}"
-
     spec = importlib.util.spec_from_file_location(import_name, path)
 
     if spec is None or spec.loader is None:
         return None
 
     module = importlib.util.module_from_spec(spec)
-
     sys.modules[import_name] = module
 
     try:
@@ -316,6 +362,7 @@ def load_module(module_name: str) -> Any | None:
 def find_enricher(module: Any) -> Callable[..., Any] | None:
     for name in (
         "enrich_nodes",
+        "enrich_payload",
         "enrich",
         "process_nodes",
         "process",
@@ -339,6 +386,8 @@ def call_enricher(
         lambda: fn(nodes, context),
         lambda: fn(nodes=nodes, context=context),
         lambda: fn(nodes),
+        lambda: fn({"nodes": nodes}, context),
+        lambda: fn(payload={"nodes": nodes}, context=context),
     )
 
     last_type_error: Exception | None = None
@@ -353,7 +402,7 @@ def call_enricher(
             if isinstance(result, list):
                 return [normalize_node_record(item) for item in result]
 
-            if isinstance(result, dict):
+            if isinstance(result, Mapping):
                 extracted = extract_nodes(result)
 
                 if extracted:
@@ -384,14 +433,10 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
         address = str(node.get("address", "")).lower()
 
         if name == "ipv4":
-            node["is_ipv4"] = address.count(".") == 3 and ":" not in address
+            node["is_ipv4"] = address.count(".") == 3 and ":" not in address and ".onion" not in address and ".i2p" not in address
 
         elif name == "ipv6":
-            node["is_ipv6"] = (
-                ":" in address
-                and ".onion" not in address
-                and ".i2p" not in address
-            )
+            node["is_ipv6"] = ":" in address and ".onion" not in address and ".i2p" not in address
 
         elif name == "tor":
             node["is_tor"] = ".onion" in address
@@ -400,6 +445,7 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
             node["is_i2p"] = ".i2p" in address
 
         elif name == "proxy":
+            node.setdefault("suspected_proxy", False)
             node.setdefault("is_proxy", False)
 
         elif name == "vpn":
@@ -416,7 +462,7 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
                 )
             ).lower()
 
-            node["is_vpn"] = any(
+            suspected = any(
                 token in text
                 for token in (
                     "vpn",
@@ -431,6 +477,9 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
                 )
             )
 
+            node["suspected_vpn"] = suspected
+            node["is_vpn"] = suspected
+
         elif name == "timezone":
             node.setdefault("timezone", "Unknown")
 
@@ -444,6 +493,7 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
         elif name == "sanctioned_nodes":
             node.setdefault("is_sanctioned_node", False)
             node.setdefault("is_policy_restricted_node", False)
+            node.setdefault("is_policy_watch_node", False)
             node.setdefault("jurisdiction_risk_level", "unknown")
 
         elif name == "peer_health":
@@ -487,7 +537,7 @@ def enrich_nodes(
     context = context or {}
 
     report = {
-        "schema": "zzx-bitnodes-enrichment-report-v4",
+        "schema": "zzx-bitnodes-enrichment-report-v5",
         "generated_at": utc_now(),
         "node_count": len(nodes),
         "selected_modules": selected_modules,
@@ -606,10 +656,7 @@ def enrich_payload(
 
         output["metadata"]["enriched_at"] = report["generated_at"]
         output["metadata"]["enrichment_schema"] = report["schema"]
-        output["metadata"]["enrichment_modules"] = [
-            item["name"]
-            for item in report["modules"]
-        ]
+        output["metadata"]["enrichment_modules"] = [item["name"] for item in report["modules"]]
         output["metadata"]["enrichment_module_status"] = {
             item["name"]: item["status"]
             for item in report["modules"]
@@ -622,12 +669,7 @@ def parse_modules(value: str | None) -> list[str] | None:
     if not value:
         return None
 
-    output = [
-        item.strip()
-        for item in value.split(",")
-        if item.strip()
-    ]
-
+    output = [item.strip() for item in value.split(",") if item.strip()]
     return output or None
 
 
@@ -665,6 +707,7 @@ def main() -> int:
 
     parser.add_argument("--sanctions-policy", default=str(DEFAULT_SANCTIONS_POLICY))
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
 
@@ -688,12 +731,15 @@ def main() -> int:
     context = {
         "app_root": str(APP_ROOT),
         "tools_dir": str(TOOLS_DIR),
+        "bitnodes_root": str(BITNODES_ROOT),
+        "bitnodes_data": str(BITNODES_DATA),
         "source": args.source,
         "api_dir": args.api_dir,
         "state_dir": args.state_dir,
         "input": str(input_path),
         "output": str(output_path),
         "geo_root": str(geo_root),
+        "geo_dir": str(geo_root),
         "geoip_dir": str(geoip_dir),
         "territory_dir": str(territory_dir),
         "territories_dir": str(territory_dir),
@@ -732,10 +778,10 @@ def main() -> int:
         strict=args.strict,
     )
 
-    write_json(output_path, output)
+    write_json(output_path, output, compact=args.compact)
 
     if report_path:
-        write_json(report_path, report)
+        write_json(report_path, report, compact=args.compact)
 
     print(
         "enrichment complete: "
