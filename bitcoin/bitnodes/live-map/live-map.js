@@ -5,20 +5,20 @@
 
     const LIVE_REFRESH_MS = 30000;
 
-    function setHardFailure(message) {
-        const status = document.querySelector("#bn-map-status");
+    function status(message, mode = "live") {
+        const el = document.querySelector("#bn-map-status");
 
-        if (status) {
-            status.className = "bn-map-status error";
-            status.textContent = message;
+        if (el) {
+            el.className = `bn-map-status ${mode}`.trim();
+            el.textContent = message;
         }
+
+        console.log(`[live-map] ${message}`);
     }
 
     function bootLiveMap() {
         if (!window.ZZXBitnodesMap) {
-            const message = "Live map failed: core map engine missing. Load ./map.js before ./live-map.js.";
-            console.error(message);
-            setHardFailure(message);
+            status("Live map failed: core map engine missing. Load ./map.js before ./live-map.js.", "error");
             return;
         }
 
@@ -73,12 +73,12 @@
 
                 theme: id => [
                     `./data/themes/${id}.json`,
-                    `./zzxbitnodes/data/themes/${id}.json`,
-                    `./global/data/themes/${id}.json`,
-                    `./originalbitnodes/data/themes/${id}.json`,
                     "./data/map-theme.json",
+                    `./zzxbitnodes/data/themes/${id}.json`,
                     "./zzxbitnodes/data/map-theme.json",
+                    `./global/data/themes/${id}.json`,
                     "./global/data/map-theme.json",
+                    `./originalbitnodes/data/themes/${id}.json`,
                     "./originalbitnodes/data/map-theme.json"
                 ],
 
@@ -91,27 +91,9 @@
 
                 vectors: [
                     "./data/map-points.geojson",
-                    
                     "./zzxbitnodes/data/map-points.geojson",
                     "./global/data/map-points.geojson",
-                    "./originalbitnodes/data/map-points.geojson",
-                    
-                    "./zzxbitnodes/points.json",
-                    "./global/points.json",
-                    "./originalbitnodes/points.json",
-                    
-                    "./zzxbitnodes/live-map.json",
-                    "./global/live-map.json",
-                    "./originalbitnodes/live-map.json",
-                    
-                    "./zzxbitnodes/nodes.geojson",
-                    "./global/nodes.geojson",
-                    "./originalbitnodes/nodes.geojson",
-                    
-                    "../maps/zzxbitnodes/data/map-points.geojson",
-                    "../maps/global/data/map-points.geojson",
-                    "../maps/originalbitnodes/data/map-points.geojson",
-                    "../maps/data/map-points.geojson"
+                    "./originalbitnodes/data/map-points.geojson"
                 ],
 
                 vectorManifest: [
@@ -142,9 +124,19 @@
                     "./originalbitnodes/data/map-layers.json"
                 ]
             }
+        }).then(() => {
+            const s = window.ZZXBitnodesMap.state;
+            const count = s?.vectors?.points?.length || 0;
+
+            status(`Live map initialized. Loaded ${count.toLocaleString()} point records from ${s?.latestSource || "unknown source"}.`, count ? "live" : "warn");
+
+            setTimeout(() => {
+                s?.map?.invalidateSize?.();
+                window.ZZXBitnodesMap.renderPoints?.();
+            }, 300);
         }).catch(error => {
             console.error(error);
-            setHardFailure(`Live map failed: ${error.message}`);
+            status(`Live map failed: ${error.message}`, "error");
         });
     }
 
