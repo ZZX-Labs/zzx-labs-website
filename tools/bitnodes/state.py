@@ -4,14 +4,21 @@ from __future__ import annotations
 import ipaddress
 import json
 import math
+import os
 import time
 from collections import deque
 from pathlib import Path
 from typing import Any
 
 
-DEFAULT_STATE_DIR = Path("bitcoin/bitnodes/data/state")
-DEFAULT_SNAPSHOT_24H_DIR = Path("bitcoin/bitnodes/data/snapshots/24h")
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", "bitcoin/bitnodes"))
+BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")))
+
+DEFAULT_STATE_DIR = BITNODES_DATA / "state"
+DEFAULT_SNAPSHOT_24H_DIR = BITNODES_DATA / "snapshot" / "24h"
+
+LEGACY_SNAPSHOT_24H_DIR = BITNODES_DATA / "snapshots" / "24h"
+
 DEFAULT_PORT = 8333
 
 
@@ -32,8 +39,7 @@ def read_json(path: Path, default: Any) -> Any:
         return default
 
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return default
 
@@ -41,16 +47,12 @@ def read_json(path: Path, default: Any) -> Any:
 def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
     mkdir(path.parent)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            payload,
-            handle,
-            indent=2 if pretty else None,
-            separators=None if pretty else (",", ":"),
-            ensure_ascii=False,
-            sort_keys=pretty,
-        )
-        handle.write("\n")
+    if pretty:
+        text = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True)
+    else:
+        text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False, sort_keys=True)
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def safe_int(value: Any, default: int | None = None) -> int | None:
@@ -66,9 +68,12 @@ def safe_float(value: Any, default: float | None = None) -> float | None:
     try:
         if value in ("", None):
             return default
+
         n = float(value)
+
         if math.isnan(n) or math.isinf(n):
             return default
+
         return n
     except Exception:
         return default
@@ -83,11 +88,15 @@ def strip_ipv6_brackets(host: str) -> str:
     return value
 
 
-def is_ipv6_literal(host: str) -> bool:
+def parse_ip(host: str) -> ipaddress._BaseAddress | None:
     try:
-        return isinstance(ipaddress.ip_address(strip_ipv6_brackets(host)), ipaddress.IPv6Address)
+        return ipaddress.ip_address(strip_ipv6_brackets(host))
     except Exception:
-        return False
+        return None
+
+
+def is_ipv6_literal(host: str) -> bool:
+    return isinstance(parse_ip(host), ipaddress.IPv6Address)
 
 
 def parse_address(address: str, default_port: int = DEFAULT_PORT) -> tuple[str | None, int]:
@@ -147,7 +156,7 @@ def normalize_address(address: str, default_port: int = DEFAULT_PORT) -> str:
 def split_address(address: str) -> tuple[str, int | None]:
     normalized = normalize_address(address)
 
-    if normalized.startswith("["):
+    if normalized.startswith("[") and "]:" in normalized:
         host = normalized.split("]:", 1)[0][1:]
         return host, safe_int(normalized.rsplit(":", 1)[1])
 
@@ -168,21 +177,20 @@ def classify_network(address: str) -> str:
     if host.endswith(".i2p"):
         return "i2p"
 
-    try:
-        ip = ipaddress.ip_address(host)
+    ip = parse_ip(host)
 
-        if ip.version == 4:
-            return "ipv4"
+    if ip is None:
+        return "dns" if host else "unknown"
 
-        if ip.version == 6:
-            if ip in ipaddress.ip_network("fc00::/8"):
-                return "cjdns"
-            return "ipv6"
+    if ip.version == 4:
+        return "ipv4"
 
-    except Exception:
-        pass
+    if ip.version == 6:
+        if ip in ipaddress.ip_network("fc00::/8"):
+            return "cjdns"
+        return "ipv6"
 
-    return "dns" if host else "unknown"
+    return "unknown"
 
 
 def uptime_human(seconds: float | int | None) -> str:
@@ -223,13 +231,35 @@ def row_metadata(row: list[Any]) -> dict[str, Any]:
     return dict(value)
 
 
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    text = str(value or "").strip().lower()
+
+    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
+
+
 class BitnodesState:
+    """
+    Persistent crawler runtime state.
+
+    This is NOT geographic/political state. It stores node state:
+    reachability, queue, uptime, failures, peer index, and export payloads.
+    """
 
     def __init__(
         self,
         state_dir: Path = DEFAULT_STATE_DIR,
         snapshot_24h_dir: Path = DEFAULT_SNAPSHOT_24H_DIR,
+        *,
+        source: str = "",
     ) -> None:
+        self.source = str(source or "").strip()
+
         self.state_dir = Path(state_dir)
         self.snapshot_24h_dir = Path(snapshot_24h_dir)
 
@@ -248,6 +278,7 @@ class BitnodesState:
 
     def save(self) -> None:
         self.meta["saved_at"] = utc_iso()
+        self.meta["source"] = self.source or self.meta.get("source", "")
 
         write_json(self.nodes_path, self.nodes)
         write_json(self.queue_path, list(self.queue))
@@ -290,6 +321,7 @@ class BitnodesState:
 
         for address, row in nodes.items():
             normalized = normalize_address(address)
+
             if not normalized:
                 continue
 
@@ -304,13 +336,15 @@ class BitnodesState:
                 total_uptime += max(0, now - previous_last_seen)
 
             metadata = row_metadata(row)
+            network = classify_network(normalized)
 
             latency_ms = safe_float(
                 metadata.get("latency_ms"),
                 safe_float(existing.get("latency_ms"), 0.0),
             )
 
-            network = classify_network(normalized)
+            suspected_vpn = boolish(metadata.get("suspected_vpn") or metadata.get("is_vpn") or existing.get("suspected_vpn") or existing.get("is_vpn"))
+            suspected_proxy = boolish(metadata.get("suspected_proxy") or metadata.get("is_proxy") or existing.get("suspected_proxy") or existing.get("is_proxy"))
 
             self.nodes[normalized] = {
                 **existing,
@@ -319,19 +353,22 @@ class BitnodesState:
                 "port": port,
                 "network": network,
                 "reachable": True,
+                "reachable_now": True,
                 "reachable_24h": True,
                 "first_seen": first_seen,
                 "first_seen_iso": utc_iso(first_seen),
                 "last_seen": now,
                 "last_seen_iso": utc_iso(now),
-                "protocol": row_value(row, 0),
-                "agent": row_value(row, 1),
-                "connected_since": row_value(row, 2),
-                "services": row_value(row, 3),
-                "height": row_value(row, 4),
-                "hostname": row_value(row, 5),
+                "protocol": row_value(row, 0, existing.get("protocol")),
+                "agent": row_value(row, 1, existing.get("agent")),
+                "user_agent": row_value(row, 1, existing.get("user_agent")),
+                "connected_since": row_value(row, 2, existing.get("connected_since")),
+                "services": row_value(row, 3, existing.get("services")),
+                "height": row_value(row, 4, existing.get("height")),
+                "hostname": row_value(row, 5, existing.get("hostname")),
                 "city": row_value(row, 6, existing.get("city")),
                 "country": row_value(row, 7, existing.get("country")),
+                "country_code": row_value(row, 7, existing.get("country_code")),
                 "latitude": row_value(row, 8, existing.get("latitude")),
                 "longitude": row_value(row, 9, existing.get("longitude")),
                 "timezone": row_value(row, 10, existing.get("timezone")),
@@ -340,8 +377,11 @@ class BitnodesState:
                 "provider": row_value(row, 13, existing.get("provider")),
                 "county": row_value(row, 14, existing.get("county")),
                 "zip": row_value(row, 15, existing.get("zip")),
+                "postal_code": row_value(row, 15, existing.get("postal_code")),
                 "w3w": row_value(row, 16, existing.get("w3w")),
+                "what3words": row_value(row, 16, existing.get("what3words")),
                 "geohash": row_value(row, 17, existing.get("geohash")),
+                "geohashid": row_value(row, 17, existing.get("geohashid")),
                 "asn_location": row_value(row, 18, existing.get("asn_location")),
                 "metadata": metadata,
                 "latency_ms": latency_ms,
@@ -349,6 +389,7 @@ class BitnodesState:
                 "success_count": safe_int(existing.get("success_count"), 0) + 1,
                 "failure_count": safe_int(existing.get("failure_count"), 0) or 0,
                 "total_uptime": total_uptime,
+                "uptime_seconds": total_uptime,
                 "uptime_human": uptime_human(total_uptime),
                 "tor": network == "tor",
                 "i2p": network == "i2p",
@@ -356,8 +397,11 @@ class BitnodesState:
                 "is_i2p": network == "i2p",
                 "is_ipv4": network == "ipv4",
                 "is_ipv6": network == "ipv6",
-                "is_vpn": bool(metadata.get("is_vpn") or metadata.get("vpn") or existing.get("is_vpn")),
-                "is_proxy": bool(metadata.get("is_proxy") or metadata.get("proxy") or existing.get("is_proxy")),
+                "is_cjdns": network == "cjdns",
+                "suspected_vpn": suspected_vpn,
+                "is_vpn": suspected_vpn,
+                "suspected_proxy": suspected_proxy,
+                "is_proxy": suspected_proxy,
             }
 
     def update_failures(self, addresses: list[str], now: int | None = None) -> None:
@@ -365,6 +409,7 @@ class BitnodesState:
 
         for address in addresses:
             normalized = normalize_address(address)
+
             if not normalized:
                 continue
 
@@ -373,6 +418,8 @@ class BitnodesState:
             network = classify_network(normalized)
 
             first_seen = safe_int(existing.get("first_seen"), now) or now
+            last_seen = safe_int(existing.get("last_seen"))
+            reachable_24h = bool(last_seen and now - last_seen <= 86400)
 
             self.nodes[normalized] = {
                 **existing,
@@ -381,7 +428,8 @@ class BitnodesState:
                 "port": port,
                 "network": network,
                 "reachable": False,
-                "reachable_24h": bool(existing.get("last_seen") and now - int(existing["last_seen"]) <= 86400),
+                "reachable_now": False,
+                "reachable_24h": reachable_24h,
                 "first_seen": first_seen,
                 "first_seen_iso": utc_iso(first_seen),
                 "last_failure": now,
@@ -390,6 +438,7 @@ class BitnodesState:
                 "last_seen_iso": existing.get("last_seen_iso"),
                 "protocol": existing.get("protocol"),
                 "agent": existing.get("agent"),
+                "user_agent": existing.get("user_agent"),
                 "services": existing.get("services"),
                 "height": existing.get("height"),
                 "hostname": existing.get("hostname"),
@@ -399,6 +448,7 @@ class BitnodesState:
                 "success_count": safe_int(existing.get("success_count"), 0) or 0,
                 "failure_count": safe_int(existing.get("failure_count"), 0) + 1,
                 "total_uptime": safe_float(existing.get("total_uptime"), 0.0) or 0.0,
+                "uptime_seconds": safe_float(existing.get("uptime_seconds"), existing.get("total_uptime")) or 0.0,
                 "uptime_human": uptime_human(existing.get("total_uptime")),
                 "tor": network == "tor",
                 "i2p": network == "i2p",
@@ -406,6 +456,11 @@ class BitnodesState:
                 "is_i2p": network == "i2p",
                 "is_ipv4": network == "ipv4",
                 "is_ipv6": network == "ipv6",
+                "is_cjdns": network == "cjdns",
+                "suspected_vpn": boolish(existing.get("suspected_vpn") or existing.get("is_vpn")),
+                "is_vpn": boolish(existing.get("suspected_vpn") or existing.get("is_vpn")),
+                "suspected_proxy": boolish(existing.get("suspected_proxy") or existing.get("is_proxy")),
+                "is_proxy": boolish(existing.get("suspected_proxy") or existing.get("is_proxy")),
             }
 
     def all_candidate_addresses(self, seed_addresses: list[str], limit: int) -> list[str]:
@@ -413,6 +468,7 @@ class BitnodesState:
 
         for address in seed_addresses:
             normalized = normalize_address(address)
+
             if normalized:
                 combined.add(normalized)
 
@@ -435,6 +491,7 @@ class BitnodesState:
         services_score = 25.0 if node.get("services") else 0.0
 
         latency_score = 0.0
+
         if latency_ms is not None:
             latency_score = max(0.0, 100.0 - min(100.0, latency_ms / 5.0))
 
@@ -459,6 +516,7 @@ class BitnodesState:
         i2p_nodes = 0
         ipv4_nodes = 0
         ipv6_nodes = 0
+        cjdns_nodes = 0
         vpn_nodes = 0
         proxy_nodes = 0
 
@@ -471,18 +529,22 @@ class BitnodesState:
                 unreachable_now += 1
 
             last_seen = safe_int(node.get("last_seen"))
+
             if last_seen and now - last_seen <= 86400:
                 reachable_24h += 1
 
             if last_seen and now - last_seen > 86400:
                 stale_nodes += 1
 
-            tor_nodes += int(bool(node.get("is_tor") or node.get("tor")))
-            i2p_nodes += int(bool(node.get("is_i2p") or node.get("i2p")))
-            ipv4_nodes += int(bool(node.get("is_ipv4") or node.get("network") == "ipv4"))
-            ipv6_nodes += int(bool(node.get("is_ipv6") or node.get("network") == "ipv6"))
-            vpn_nodes += int(bool(node.get("is_vpn")))
-            proxy_nodes += int(bool(node.get("is_proxy")))
+            network = node.get("network") or classify_network(node.get("address", ""))
+
+            tor_nodes += int(network == "tor")
+            i2p_nodes += int(network == "i2p")
+            ipv4_nodes += int(network == "ipv4")
+            ipv6_nodes += int(network == "ipv6")
+            cjdns_nodes += int(network == "cjdns")
+            vpn_nodes += int(boolish(node.get("suspected_vpn") or node.get("is_vpn")))
+            proxy_nodes += int(boolish(node.get("suspected_proxy") or node.get("is_proxy")))
 
         return {
             "timestamp": now,
@@ -494,10 +556,13 @@ class BitnodesState:
             "stale_nodes": stale_nodes,
             "ipv4_nodes": ipv4_nodes,
             "ipv6_nodes": ipv6_nodes,
+            "cjdns_nodes": cjdns_nodes,
             "tor_nodes": tor_nodes,
             "i2p_nodes": i2p_nodes,
             "vpn_nodes": vpn_nodes,
+            "suspected_vpn_nodes": vpn_nodes,
             "proxy_nodes": proxy_nodes,
+            "suspected_proxy_nodes": proxy_nodes,
             "queue_size": len(self.queue),
         }
 
@@ -520,10 +585,14 @@ class BitnodesState:
                 "latency_ms": node.get("latency_ms"),
                 "uptime_human": node.get("uptime_human"),
                 "reachable": node.get("reachable"),
+                "reachable_now": node.get("reachable_now"),
+                "reachable_24h": node.get("reachable_24h"),
                 "network": node.get("network"),
                 "tor": node.get("tor"),
                 "i2p": node.get("i2p"),
+                "suspected_vpn": node.get("suspected_vpn"),
                 "is_vpn": node.get("is_vpn"),
+                "suspected_proxy": node.get("suspected_proxy"),
                 "is_proxy": node.get("is_proxy"),
             })
 
@@ -543,17 +612,21 @@ class BitnodesState:
     def cleanup_old_snapshots(self) -> None:
         cutoff = utc_now() - 86400
 
-        for path in self.snapshot_24h_dir.glob("*.json"):
-            try:
-                timestamp = int(path.stem)
-            except Exception:
+        for base in (self.snapshot_24h_dir, LEGACY_SNAPSHOT_24H_DIR):
+            if not base.exists():
                 continue
 
-            if timestamp < cutoff:
+            for path in base.glob("*.json"):
                 try:
-                    path.unlink()
+                    timestamp = int(path.stem)
                 except Exception:
-                    pass
+                    continue
+
+                if timestamp < cutoff:
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
 
     def to_bitnodes_nodes(self, mode: str = "all") -> dict[str, list[Any]]:
         output: dict[str, list[Any]] = {}
@@ -600,8 +673,11 @@ class BitnodesState:
                 {
                     "latency_ms": node.get("latency_ms"),
                     "uptime_human": node.get("uptime_human"),
+                    "uptime_seconds": node.get("uptime_seconds"),
                     "total_uptime": node.get("total_uptime"),
                     "reachable": node.get("reachable"),
+                    "reachable_now": node.get("reachable_now"),
+                    "reachable_24h": node.get("reachable_24h"),
                     "peer_index": node.get("peer_index"),
                     "tor": node.get("tor"),
                     "i2p": node.get("i2p"),
@@ -609,7 +685,10 @@ class BitnodesState:
                     "is_i2p": node.get("is_i2p"),
                     "is_ipv4": node.get("is_ipv4"),
                     "is_ipv6": node.get("is_ipv6"),
+                    "is_cjdns": node.get("is_cjdns"),
+                    "suspected_vpn": node.get("suspected_vpn"),
                     "is_vpn": node.get("is_vpn"),
+                    "suspected_proxy": node.get("suspected_proxy"),
                     "is_proxy": node.get("is_proxy"),
                     "success_count": node.get("success_count"),
                     "failure_count": node.get("failure_count"),
@@ -634,9 +713,10 @@ class BitnodesState:
         cities = set()
         asns = set()
 
-        for address, row in nodes.items():
+        for _address, row in nodes.items():
             if len(row) > 4:
                 height = row[4]
+
                 if isinstance(height, int):
                     latest_height = max(latest_height, height)
 
@@ -652,8 +732,8 @@ class BitnodesState:
         leaderboard = self.leaderboard(1000)
 
         return {
-            "schema": "zzx-bitnodes-state-export-v2",
-            "source": "zzx-labs-global-bitnodes-crawler",
+            "schema": "zzx-bitnodes-state-export-v3",
+            "source": self.source or "zzx-labs-global-bitnodes-crawler",
             "timestamp": utc_now(),
             "updated_at": utc_iso(),
             "mode": mode,
@@ -672,8 +752,11 @@ class BitnodesState:
             "i2p_nodes": summary["i2p_nodes"],
             "ipv4_nodes": summary["ipv4_nodes"],
             "ipv6_nodes": summary["ipv6_nodes"],
+            "cjdns_nodes": summary["cjdns_nodes"],
             "vpn_nodes": summary["vpn_nodes"],
+            "suspected_vpn_nodes": summary["suspected_vpn_nodes"],
             "proxy_nodes": summary["proxy_nodes"],
+            "suspected_proxy_nodes": summary["suspected_proxy_nodes"],
             "leaderboard": leaderboard,
             "nodes": nodes,
         }
