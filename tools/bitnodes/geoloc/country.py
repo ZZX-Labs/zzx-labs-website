@@ -5,7 +5,22 @@ import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, MutableMapping
+
+
+SCHEMA = "zzx-bitnodes-country-v2"
+
+UNKNOWN_VALUES = {
+    "",
+    "unknown",
+    "none",
+    "null",
+    "undefined",
+    "—",
+    "-",
+    "n/a",
+    "na",
+}
 
 
 COUNTRY_NAMES = {
@@ -259,7 +274,71 @@ COUNTRY_NAMES = {
     "ZA": "South Africa",
     "ZM": "Zambia",
     "ZW": "Zimbabwe",
+    "TOR": "Tor",
+    "I2P": "I2P",
 }
+
+
+COUNTRY_NAME_TO_CODE = {
+    value.upper(): key
+    for key, value in COUNTRY_NAMES.items()
+    if key not in {"TOR", "I2P"}
+}
+
+COUNTRY_NAME_TO_CODE.update({
+    "UNITED STATES OF AMERICA": "US",
+    "USA": "US",
+    "U.S.A.": "US",
+    "U.S.": "US",
+    "AMERICA": "US",
+    "UK": "GB",
+    "GREAT BRITAIN": "GB",
+    "BRITAIN": "GB",
+    "ENGLAND": "GB",
+    "SCOTLAND": "GB",
+    "WALES": "GB",
+    "NORTHERN IRELAND": "GB",
+    "RUSSIA": "RU",
+    "RUSSIAN FEDERATION": "RU",
+    "KOREA, REPUBLIC OF": "KR",
+    "REPUBLIC OF KOREA": "KR",
+    "KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF": "KP",
+    "DEMOCRATIC PEOPLE'S REPUBLIC OF KOREA": "KP",
+    "NORTH KOREA": "KP",
+    "SOUTH KOREA": "KR",
+    "IRAN, ISLAMIC REPUBLIC OF": "IR",
+    "SYRIAN ARAB REPUBLIC": "SY",
+    "VENEZUELA, BOLIVARIAN REPUBLIC OF": "VE",
+    "BOLIVIA, PLURINATIONAL STATE OF": "BO",
+    "TANZANIA, UNITED REPUBLIC OF": "TZ",
+    "VIET NAM": "VN",
+    "LAO PEOPLE'S DEMOCRATIC REPUBLIC": "LA",
+    "MOLDOVA, REPUBLIC OF": "MD",
+    "PALESTINE, STATE OF": "PS",
+    "MACAU": "MO",
+    "MACAO": "MO",
+    "CZECH REPUBLIC": "CZ",
+    "TURKEY": "TR",
+    "TÜRKIYE": "TR",
+    "CAPE VERDE": "CV",
+    "CABO VERDE": "CV",
+    "COTE D'IVOIRE": "CI",
+    "CÔTE D’IVOIRE": "CI",
+    "CÔTE D'IVOIRE": "CI",
+    "IVORY COAST": "CI",
+    "DEMOCRATIC REPUBLIC OF CONGO": "CD",
+    "DEMOCRATIC REPUBLIC OF THE CONGO": "CD",
+    "CONGO, DEMOCRATIC REPUBLIC OF THE": "CD",
+    "REPUBLIC OF THE CONGO": "CG",
+    "CONGO": "CG",
+    "UAE": "AE",
+    "UNITED ARAB EMIRATES": "AE",
+    "TOR": "TOR",
+    "ONION": "TOR",
+    "ONION ROUTING": "TOR",
+    "I2P": "I2P",
+    "GARLIC ROUTING": "I2P",
+})
 
 
 def utc_now() -> str:
@@ -273,154 +352,304 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if not path.exists():
         return fallback
 
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    if compact:
+        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    else:
+        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
-    if text.lower() in {
-        "",
-        "unknown",
-        "none",
-        "null",
-        "undefined",
-        "—",
-    }:
+    if text.lower() in UNKNOWN_VALUES:
         return ""
 
     return text
 
 
-def country_code(row: dict[str, Any]) -> str:
-    for key in (
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    if "." not in key:
+        return row.get(key)
+
+    current: Any = row
+
+    for part in key.split("."):
+        if not isinstance(current, Mapping):
+            return None
+
+        current = current.get(part)
+
+    return current
+
+
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1"}
+
+
+def normalize_code(value: Any) -> str:
+    text = clean(value).upper()
+
+    if len(text) == 2:
+        return text
+
+    if text in {"TOR", "I2P"}:
+        return text
+
+    return COUNTRY_NAME_TO_CODE.get(text, "")
+
+
+def country_code(row: Mapping[str, Any]) -> str:
+    keys = (
         "country_code",
         "cc",
         "iso_country",
         "iso_country_code",
-    ):
-        value = clean(row.get(key)).upper()
-
-        if len(value) == 2:
-            return value
-
-    value = clean(row.get("country")).upper()
-
-    if len(value) == 2:
-        return value
-
-    geo = row.get("geo") if isinstance(row.get("geo"), dict) else {}
-
-    for key in (
-        "country_code",
         "country",
-        "iso_code",
-    ):
-        value = clean(geo.get(key)).upper()
+        "country_name",
+        "country_full",
+        "country_full_name",
+        "geo.country_code",
+        "geo.country",
+        "geo.country_name",
+        "geo.iso_code",
+        "geoip.country_code",
+        "geoip.country",
+        "geoip.country_name",
+        "geoip_data.country_code",
+        "geoip_data.country",
+        "geoip_data.country_name",
+        "country_data.country_code",
+        "country_data.country_name",
+        "location.country_code",
+        "location.country",
+        "location.country_name",
+        "metadata.country_code",
+        "metadata.country",
+        "metadata.country_name",
+    )
 
-        if len(value) == 2:
-            return value
+    for key in keys:
+        code = normalize_code(deep_get(row, key))
+
+        if code:
+            return code
+
+    if (
+        boolish(row.get("is_tor"))
+        or boolish(row.get("tor"))
+        or boolish(deep_get(row, "tor.is_tor"))
+        or boolish(deep_get(row, "metadata.is_tor"))
+        or boolish(deep_get(row, "metadata.tor"))
+    ):
+        return "TOR"
+
+    if (
+        boolish(row.get("is_i2p"))
+        or boolish(row.get("i2p"))
+        or boolish(deep_get(row, "i2p.is_i2p"))
+        or boolish(deep_get(row, "metadata.is_i2p"))
+        or boolish(deep_get(row, "metadata.i2p"))
+    ):
+        return "I2P"
+
+    network = clean(row.get("network") or deep_get(row, "metadata.network")).lower()
+
+    if network == "tor":
+        return "TOR"
+
+    if network == "i2p":
+        return "I2P"
 
     return ""
 
 
-def country_name(row: dict[str, Any], code: str) -> str:
-    for key in (
+def country_name_from_row(row: Mapping[str, Any], code: str) -> str:
+    keys = (
         "country_name",
         "country_full",
         "country_full_name",
-    ):
-        value = clean(row.get(key))
+        "geo.country_name",
+        "geo.country_full",
+        "geo.name",
+        "geoip.country_name",
+        "geoip.country",
+        "geoip_data.country_name",
+        "geoip_data.country",
+        "country_data.country_name",
+        "location.country_name",
+        "location.country",
+        "metadata.country_name",
+        "metadata.country",
+    )
 
-        if value:
+    for key in keys:
+        value = clean(deep_get(row, key))
+
+        if value and len(value) != 2:
             return value
-
-    geo = row.get("geo") if isinstance(row.get("geo"), dict) else {}
-
-    for key in (
-        "country_name",
-        "country_full",
-        "name",
-    ):
-        value = clean(geo.get(key))
-
-        if value:
-            return value
-
-    if code in COUNTRY_NAMES:
-        return COUNTRY_NAMES[code]
 
     value = clean(row.get("country"))
 
     if value and len(value) != 2:
         return value
 
-    if row.get("is_tor") or row.get("tor", {}).get("is_tor"):
-        return "Tor"
-
-    if row.get("is_i2p") or row.get("i2p", {}).get("is_i2p"):
-        return "I2P"
+    if code in COUNTRY_NAMES:
+        return COUNTRY_NAMES[code]
 
     return "Unknown"
 
 
-def country_metadata(row: dict[str, Any]) -> dict[str, Any]:
+def country_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
     code = country_code(row)
-    name = country_name(row, code)
+    name = country_name_from_row(row, code)
 
-    if not code and name == "Tor":
-        code = "TOR"
+    source = "explicit" if code and code not in {"TOR", "I2P"} else "fallback"
 
-    if not code and name == "I2P":
-        code = "I2P"
+    if code == "TOR":
+        name = "Tor"
+        source = "overlay"
+
+    if code == "I2P":
+        name = "I2P"
+        source = "overlay"
+
+    if not code and name.upper() in COUNTRY_NAME_TO_CODE:
+        code = COUNTRY_NAME_TO_CODE[name.upper()]
+        source = "name-map"
+
+    if not code:
+        code = "Unknown"
+
+    if name == "Unknown" and code in COUNTRY_NAMES:
+        name = COUNTRY_NAMES[code]
 
     return {
-        "country_code": code or "Unknown",
+        "schema": SCHEMA,
+        "country_code": code,
         "country_name": name,
-        "country_source": "explicit" if code else "overlay" if name in {"Tor", "I2P"} else "fallback",
+        "country_source": source,
+        "updated_at": utc_now(),
     }
 
 
-def enrich_nodes(
-    nodes: list[dict[str, Any]],
-    context: dict[str, Any] | None = None,
-) -> list[dict[str, Any]]:
-    for node in nodes:
-        meta = country_metadata(node)
+def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+    meta = country_metadata(node)
 
-        node["country_data"] = meta
-        node["country_code"] = meta["country_code"]
-        node["country_name"] = meta["country_name"]
+    node["country_data"] = meta
+    node["country_code"] = meta["country_code"]
+    node["country_name"] = meta["country_name"]
 
-        if meta["country_code"] not in {"Unknown", "TOR", "I2P"}:
-            node["country"] = meta["country_code"]
-        else:
-            node["country"] = meta["country_name"]
+    if meta["country_code"] not in {"Unknown", "TOR", "I2P"}:
+        node["country"] = meta["country_code"]
+    else:
+        node["country"] = meta["country_name"]
 
-        node.setdefault("enrichment", {})
-        node["enrichment"]["country"] = {
-            "status": "ok",
-            "updated_at": utc_now(),
+    node.setdefault("enrichment", {})
+    node["enrichment"]["country"] = {
+        "schema": SCHEMA,
+        "status": "ok",
+        "updated_at": utc_now(),
+    }
+
+    return node
+
+
+def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
+    if isinstance(nodes, list):
+        return [
+            enrich_node(dict(node)) if isinstance(node, Mapping) else node
+            for node in nodes
+        ]
+
+    if isinstance(nodes, Mapping):
+        return {
+            key: enrich_node(dict(value)) if isinstance(value, Mapping) else value
+            for key, value in nodes.items()
         }
 
     return nodes
 
 
-def summarize(nodes: list[dict[str, Any]]) -> dict[str, Any]:
+def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    if isinstance(payload, list):
+        return enrich_nodes(payload, context)
+
+    if not isinstance(payload, MutableMapping):
+        return payload
+
+    if isinstance(payload.get("nodes"), (list, dict)):
+        payload["nodes"] = enrich_nodes(payload["nodes"], context)
+
+    if isinstance(payload.get("results"), list):
+        payload["results"] = enrich_nodes(payload["results"], context)
+
+    if isinstance(payload.get("data"), list):
+        payload["data"] = enrich_nodes(payload["data"], context)
+
+    payload.setdefault("metadata", {})
+
+    if isinstance(payload["metadata"], MutableMapping):
+        payload["metadata"]["country_enriched_at"] = utc_now()
+
+    return payload
+
+
+def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
+    if isinstance(payload, list):
+        return [node for node in payload if isinstance(node, Mapping)]
+
+    if not isinstance(payload, Mapping):
+        return []
+
+    nodes = payload.get("nodes")
+
+    if isinstance(nodes, list):
+        return [node for node in nodes if isinstance(node, Mapping)]
+
+    if isinstance(nodes, Mapping):
+        return [node for node in nodes.values() if isinstance(node, Mapping)]
+
+    for key in ("results", "data"):
+        value = payload.get(key)
+
+        if isinstance(value, list):
+            return [node for node in value if isinstance(node, Mapping)]
+
+    return []
+
+
+def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
     counts: dict[str, int] = {}
+    names: dict[str, str] = {}
+    source_counts: dict[str, int] = {}
 
     for node in nodes:
-        code = clean(node.get("country_code")) or clean(node.get("country_data", {}).get("country_code")) or "Unknown"
+        data = node.get("country_data", {})
+
+        if not isinstance(data, Mapping):
+            data = {}
+
+        code = clean(data.get("country_code")) or clean(node.get("country_code")) or "Unknown"
+        name = clean(data.get("country_name")) or COUNTRY_NAMES.get(code, code)
+        source = clean(data.get("country_source")) or "unknown"
+
         counts[code] = counts.get(code, 0) + 1
+        names[code] = name
+        source_counts[source] = source_counts.get(source, 0) + 1
 
     top_country = max(
         counts.items(),
@@ -429,14 +658,22 @@ def summarize(nodes: list[dict[str, Any]]) -> dict[str, Any]:
     )
 
     return {
-        "schema": "zzx-bitnodes-country-summary-v1",
+        "schema": "zzx-bitnodes-country-summary-v2",
         "generated_at": utc_now(),
         "total_nodes": len(nodes),
         "country_count": len(counts),
-        "countries": counts,
+        "countries": {
+            code: {
+                "country_code": code,
+                "country_name": names.get(code, COUNTRY_NAMES.get(code, code)),
+                "count": count,
+            }
+            for code, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        },
+        "country_sources": dict(sorted(source_counts.items(), key=lambda item: (-item[1], item[0]))),
         "top_country": {
             "country_code": top_country[0],
-            "country_name": COUNTRY_NAMES.get(top_country[0], top_country[0]),
+            "country_name": names.get(top_country[0], COUNTRY_NAMES.get(top_country[0], top_country[0])),
             "count": top_country[1],
         },
     }
@@ -450,31 +687,19 @@ def main() -> int:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--summary", default="")
+    parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
 
     payload = read_json(Path(args.input), fallback={})
-    nodes = payload.get("nodes", payload if isinstance(payload, list) else [])
+    enriched = enrich_payload(payload)
 
-    if not isinstance(nodes, list):
-        nodes = []
-
-    enriched = enrich_nodes(nodes)
-
-    if isinstance(payload, dict):
-        payload["nodes"] = enriched
-        payload.setdefault("metadata", {})
-        payload["metadata"]["country_enriched_at"] = utc_now()
-        output = payload
-    else:
-        output = enriched
-
-    write_json(Path(args.output), output)
+    write_json(Path(args.output), enriched, compact=args.compact)
 
     if args.summary:
-        write_json(Path(args.summary), summarize(enriched))
+        write_json(Path(args.summary), summarize(iter_nodes(enriched)), compact=args.compact)
 
-    print(f"country enrichment complete: {len(enriched)} nodes")
+    print(f"country enrichment complete: {len(iter_nodes(enriched))} nodes")
 
     return 0
 
