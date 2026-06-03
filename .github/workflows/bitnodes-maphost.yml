@@ -178,6 +178,9 @@ jobs:
           if not isinstance(features, list):
               raise SystemExit("map-points.geojson features is not a list")
 
+          if len(features) < 1:
+              raise SystemExit("map-points.geojson has zero plotted features")
+
           print(f"live-map canonical feature count: {len(features)}")
           PY
 
