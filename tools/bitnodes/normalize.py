@@ -5,7 +5,7 @@ import ipaddress
 import re
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 
 DEFAULT_PORT = 8333
@@ -40,20 +40,53 @@ FIELD_ALIASES = {
     "services": ["services", "service_bits", "n_services"],
     "height": ["height", "latest_height", "start_height", "block_height", "blocks"],
     "hostname": ["hostname", "host", "dns", "name"],
-    "city": ["city", "city_name"],
-    "country_code": ["country_code", "country", "cc", "country_iso", "iso_code"],
-    "latitude": ["latitude", "lat"],
-    "longitude": ["longitude", "lon", "lng"],
-    "timezone": ["timezone", "time_zone", "tz"],
-    "asn": ["asn", "as", "autonomous_system", "autonomous_system_number"],
-    "organization": ["organization", "org", "as_org", "autonomous_system_organization", "isp"],
-    "provider": ["provider", "isp_provider", "hosting_provider"],
-    "county": ["county", "county_name", "admin2"],
-    "zip": ["zip", "postal", "postal_code", "postcode"],
-    "w3w": ["w3w", "what3words"],
-    "geohash": ["geohash", "geohashid"],
+    "city": ["city", "city_name", "city_data.city", "geoip.city"],
+    "country_code": ["country_code", "country", "cc", "country_iso", "iso_code", "geoip.country_code"],
+    "latitude": ["latitude", "lat", "geoloc.latitude", "geoip.latitude"],
+    "longitude": ["longitude", "lon", "lng", "geoloc.longitude", "geoip.longitude"],
+    "timezone": ["timezone", "time_zone", "tz", "timezone_data.timezone", "geoip.timezone"],
+    "asn": ["asn", "as", "autonomous_system", "autonomous_system_number", "isp.asn", "geoip.asn"],
+    "organization": ["organization", "org", "as_org", "autonomous_system_organization", "isp", "isp.organization"],
+    "provider": ["provider", "isp_provider", "hosting_provider", "isp.provider", "geoip.provider"],
+    "county": ["county", "county_name", "admin2", "county_data.county"],
+    "zip": ["zip", "postal", "postal_code", "postcode", "postal_data.postal_code"],
+    "w3w": ["w3w", "what3words", "w3w_data.words"],
+    "geohash": ["geohash", "geohashid", "geohashid_data.geohashid"],
     "asn_location": ["asn_location", "as_location"],
 }
+
+METADATA_KEYS = (
+    "reachable",
+    "reachable_now",
+    "reachable_24h",
+    "latency_ms",
+    "uptime_seconds",
+    "total_uptime",
+    "success_count",
+    "failure_count",
+    "first_seen",
+    "last_seen",
+    "last_failure",
+    "peer_index",
+    "network",
+    "is_tor",
+    "is_i2p",
+    "is_ipv4",
+    "is_ipv6",
+    "is_cjdns",
+    "is_vpn",
+    "suspected_vpn",
+    "vpn_score",
+    "vpn_confidence",
+    "is_proxy",
+    "suspected_proxy",
+    "proxy_score",
+    "proxy_confidence",
+    "policy_restricted",
+    "is_policy_restricted_node",
+    "policy_watch",
+    "is_policy_watch_node",
+)
 
 
 @dataclass(frozen=True)
@@ -69,10 +102,25 @@ def now_ts() -> int:
     return int(time.time())
 
 
-def first_present(data: dict[str, Any], aliases: list[str], default: Any = None) -> Any:
+def deep_get(data: Mapping[str, Any], key: str) -> Any:
+    if "." not in key:
+        return data.get(key)
+
+    current: Any = data
+
+    for part in key.split("."):
+        if not isinstance(current, Mapping) or part not in current:
+            return None
+        current = current.get(part)
+
+    return current
+
+
+def first_present(data: Mapping[str, Any], aliases: list[str], default: Any = None) -> Any:
     for key in aliases:
-        if key in data and data[key] not in ("", None):
-            return data[key]
+        value = deep_get(data, key)
+        if value not in ("", None):
+            return value
     return default
 
 
@@ -92,6 +140,18 @@ def to_float(value: Any, default: float | None = None) -> float | None:
         return float(value)
     except Exception:
         return default
+
+
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    text = str(value or "").strip().lower()
+
+    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
 
 
 def normalize_country(value: Any) -> str | None:
@@ -119,11 +179,15 @@ def strip_ipv6_brackets(host: str) -> str:
     return host
 
 
-def is_ipv6_literal(host: str) -> bool:
+def parse_ip(host: str) -> ipaddress._BaseAddress | None:
     try:
-        return isinstance(ipaddress.ip_address(strip_ipv6_brackets(host)), ipaddress.IPv6Address)
+        return ipaddress.ip_address(strip_ipv6_brackets(host))
     except ValueError:
-        return False
+        return None
+
+
+def is_ipv6_literal(host: str) -> bool:
+    return isinstance(parse_ip(host), ipaddress.IPv6Address)
 
 
 def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[str | None, int]:
@@ -196,23 +260,46 @@ def classify_network(address: str) -> str:
 
     if host.endswith(".onion"):
         return "tor"
+
     if host.endswith(".i2p"):
         return "i2p"
 
-    try:
-        ip = ipaddress.ip_address(host)
-        if ip.version == 4:
-            return "ipv4"
-        if ip.version == 6:
-            return "ipv6"
-    except ValueError:
-        pass
+    ip = parse_ip(host)
 
-    return "dns" if host else "unknown"
+    if ip is None:
+        return "dns" if host else "unknown"
+
+    if ip.version == 4:
+        return "ipv4"
+
+    if ip.version == 6:
+        if ip in ipaddress.ip_network("fc00::/8"):
+            return "cjdns"
+        return "ipv6"
+
+    return "unknown"
 
 
 def normalize_metadata(value: Any) -> dict[str, Any]:
-    return dict(value) if isinstance(value, dict) else {}
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def metadata_from_dict(data: Mapping[str, Any]) -> dict[str, Any]:
+    metadata = normalize_metadata(data.get("metadata"))
+
+    for key in METADATA_KEYS:
+        value = deep_get(data, key)
+        if value is not None and key not in metadata:
+            metadata[key] = value
+
+    network = metadata.get("network")
+    if not network:
+        candidate_address = data.get("address") or data.get("node") or data.get("addr") or data.get("host") or data.get("hostname")
+        normalized_address = normalize_address(address=candidate_address, host=data.get("host") or data.get("hostname"), port=data.get("port"))
+        if normalized_address:
+            metadata["network"] = classify_network(normalized_address)
+
+    return metadata
 
 
 def normalize_node_array(values: list[Any], timestamp: int | None = None) -> list[Any]:
@@ -243,25 +330,8 @@ def normalize_node_array(values: list[Any], timestamp: int | None = None) -> lis
     ]
 
 
-def normalize_node_dict(data: dict[str, Any], timestamp: int | None = None) -> list[Any]:
-    metadata = normalize_metadata(data.get("metadata"))
-
-    for key in (
-        "reachable",
-        "latency_ms",
-        "uptime_seconds",
-        "success_count",
-        "failure_count",
-        "first_seen",
-        "last_seen",
-        "peer_index",
-        "is_tor",
-        "is_i2p",
-        "is_vpn",
-        "is_proxy",
-    ):
-        if key in data and key not in metadata:
-            metadata[key] = data.get(key)
+def normalize_node_dict(data: Mapping[str, Any], timestamp: int | None = None) -> list[Any]:
+    metadata = metadata_from_dict(data)
 
     return [
         to_int(first_present(data, FIELD_ALIASES["protocol_version"])),
@@ -299,7 +369,7 @@ def normalize_node_item(
             return None
         return NormalizedNode(normalized_address, normalize_node_array(value, timestamp))
 
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         candidate_address = address or value.get("address") or value.get("node") or value.get("addr")
         candidate_host = value.get("host") or value.get("hostname") or value.get("ip")
         candidate_port = value.get("port") or value.get("listen_port")
@@ -314,7 +384,10 @@ def normalize_node_item(
         if not normalized_address:
             return None
 
-        return NormalizedNode(normalized_address, normalize_node_dict(value, timestamp))
+        values = normalize_node_dict(value, timestamp)
+        values[19]["network"] = classify_network(normalized_address)
+
+        return NormalizedNode(normalized_address, values)
 
     return None
 
@@ -326,14 +399,14 @@ def normalize_nodes(
 ) -> dict[str, list[Any]]:
     timestamp = timestamp or now_ts()
 
-    if isinstance(raw, dict) and "nodes" in raw:
+    if isinstance(raw, Mapping) and "nodes" in raw:
         raw = raw["nodes"]
 
     output: dict[str, list[Any]] = {}
 
-    if isinstance(raw, dict):
+    if isinstance(raw, Mapping):
         for address, value in raw.items():
-            item = normalize_node_item(address, value, timestamp, default_port)
+            item = normalize_node_item(str(address), value, timestamp, default_port)
             if item:
                 output[item.address] = item.values
         return output
@@ -350,22 +423,42 @@ def normalize_nodes(
 
 def node_array_to_dict(address: str, values: list[Any]) -> dict[str, Any]:
     padded = normalize_node_array(values)
-    item = {"address": address, "network": classify_network(address)}
+    network = classify_network(address)
+    item = {"address": address, "network": network}
 
     for index, name in enumerate(NODE_FIELD_NAMES):
         item[name] = padded[index]
 
     metadata = normalize_metadata(item.get("metadata"))
+    item["metadata"] = metadata
+
     item["reachable"] = metadata.get("reachable")
+    item["reachable_now"] = metadata.get("reachable_now")
+    item["reachable_24h"] = metadata.get("reachable_24h")
     item["latency_ms"] = metadata.get("latency_ms")
     item["uptime_seconds"] = metadata.get("uptime_seconds") or metadata.get("total_uptime")
+    item["total_uptime"] = metadata.get("total_uptime")
     item["peer_index"] = metadata.get("peer_index")
-    item["is_tor"] = item["network"] == "tor" or bool(metadata.get("is_tor") or metadata.get("tor"))
-    item["is_i2p"] = item["network"] == "i2p" or bool(metadata.get("is_i2p") or metadata.get("i2p"))
-    item["is_ipv4"] = item["network"] == "ipv4"
-    item["is_ipv6"] = item["network"] == "ipv6"
-    item["is_vpn"] = bool(metadata.get("is_vpn") or metadata.get("vpn"))
-    item["is_proxy"] = bool(metadata.get("is_proxy") or metadata.get("proxy"))
+
+    item["is_tor"] = network == "tor" or boolish(metadata.get("is_tor") or metadata.get("tor"))
+    item["is_i2p"] = network == "i2p" or boolish(metadata.get("is_i2p") or metadata.get("i2p"))
+    item["is_ipv4"] = network == "ipv4"
+    item["is_ipv6"] = network == "ipv6"
+    item["is_cjdns"] = network == "cjdns"
+
+    item["suspected_vpn"] = boolish(metadata.get("suspected_vpn") or metadata.get("is_vpn") or metadata.get("vpn"))
+    item["is_vpn"] = item["suspected_vpn"]
+    item["vpn_score"] = metadata.get("vpn_score")
+    item["vpn_confidence"] = metadata.get("vpn_confidence")
+
+    item["suspected_proxy"] = boolish(metadata.get("suspected_proxy") or metadata.get("is_proxy") or metadata.get("proxy"))
+    item["is_proxy"] = item["suspected_proxy"]
+    item["proxy_score"] = metadata.get("proxy_score")
+    item["proxy_confidence"] = metadata.get("proxy_confidence")
+
+    item["policy_restricted"] = boolish(metadata.get("policy_restricted") or metadata.get("is_policy_restricted_node"))
+    item["is_policy_restricted_node"] = item["policy_restricted"]
+    item["policy_watch"] = boolish(metadata.get("policy_watch") or metadata.get("is_policy_watch_node"))
 
     return item
 
@@ -395,6 +488,7 @@ def split_nodes_by_network(nodes: dict[str, list[Any]]) -> dict[str, dict[str, l
         "ipv6": {},
         "tor": {},
         "i2p": {},
+        "cjdns": {},
         "dns": {},
         "unknown": {},
     }
