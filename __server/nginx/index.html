@@ -1,1 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="description" content="ZZX-Labs nginx server portal.">
 
+    <title>nginx Portal | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../static/icons/favicon.ico">
+
+    <link rel="stylesheet" href="../../static/styles.css">
+    <link rel="stylesheet" href="../__server.css">
+    <link rel="stylesheet" href="./nginx.css">
+
+    <script src="../../static/script.js" defer></script>
+    <script src="../__server.js" defer></script>
+    <script src="./nginx.js" defer></script>
+</head>
+<body data-nginx-page="home">
+<header>
+    <div id="zzx-header"></div>
+</header>
+
+<main class="server-main">
+    <div id="ticker-container"></div>
+
+    <section class="server-hero">
+        <div class="server-overlay"></div>
+
+        <div class="server-content">
+            <p class="server-kicker">ZZX-Labs R&D</p>
+            <h1>nginx Portal</h1>
+
+            <p class="server-subtitle">
+                Static frontend reference for nginx routing, reverse proxy design,
+                static-site hosting, Flask API forwarding, Bitcoin API directories,
+                cache policy, security headers, and local mirror deployment.
+            </p>
+
+            <div class="nginx-status-grid">
+                <div class="nginx-status-card">
+                    <span>Proxy</span>
+                    <strong>nginx</strong>
+                </div>
+
+                <div class="nginx-status-card">
+                    <span>Mode</span>
+                    <strong>Static + API</strong>
+                </div>
+
+                <div class="nginx-status-card">
+                    <span>Config</span>
+                    <strong>__server/nginx.conf</strong>
+                </div>
+
+                <div class="nginx-status-card">
+                    <span>Updated</span>
+                    <strong id="nginx-updated">—</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>Routing Areas</h2>
+            <p>Primary nginx route groups for the ZZX-Labs public site and local server mirrors.</p>
+        </div>
+
+        <div class="server-grid">
+            <a href="../../" class="server-card">
+                <span>Root</span>
+                <h3>Main Static Site</h3>
+                <p>Serves the public ZZX-Labs website from the repository root with directory index support.</p>
+            </a>
+
+            <a href="/api/health" class="server-card">
+                <span>API</span>
+                <h3>Flask API Proxy</h3>
+                <p>Routes `/api/` requests to the Flask backend running behind nginx.</p>
+            </a>
+
+            <a href="../../bitcoin/bitnodes/api/" class="server-card">
+                <span>Nodes</span>
+                <h3>Bitnodes API</h3>
+                <p>Serves crawler snapshots, enriched node data, maps, countries, cities, ASN data, and rankings.</p>
+            </a>
+
+            <a href="../../bitcoin/bpi/api/" class="server-card">
+                <span>BPI</span>
+                <h3>ZZXBPI API</h3>
+                <p>Serves Bitcoin price, exchange, volume, history, currency, and market JSON files.</p>
+            </a>
+
+            <a href="../../bitcoin/mempoolspace/" class="server-card">
+                <span>Mempool</span>
+                <h3>MempoolspaceZZX</h3>
+                <p>Serves local mempool.space mirror pages, fee widgets, blocks, and network data panels.</p>
+            </a>
+
+            <a href="../../cyberchef/" class="server-card">
+                <span>Tools</span>
+                <h3>CyberChefZZX</h3>
+                <p>Serves the wrapped CyberChef frontend and local runtime under the ZZX-Labs theme.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>nginx Config Files</h2>
+            <p>Server configuration files and future modular nginx structure.</p>
+        </div>
+
+        <div class="nginx-table-wrap">
+            <table class="nginx-table">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Path</th>
+                        <th>Use</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Main Config</td>
+                        <td><a href="../nginx.conf">__server/nginx.conf</a></td>
+                        <td>Current all-in-one nginx configuration for static site and Flask proxy.</td>
+                    </tr>
+                    <tr>
+                        <td>Docker Compose</td>
+                        <td><a href="../docker-compose.yml">__server/docker-compose.yml</a></td>
+                        <td>Container launch configuration for nginx, Flask, and Bitnodes daemon.</td>
+                    </tr>
+                    <tr>
+                        <td>Flask Portal</td>
+                        <td><a href="../flask/">__server/flask/</a></td>
+                        <td>Flask API documentation and backend service portal.</td>
+                    </tr>
+                    <tr>
+                        <td>Server Portal</td>
+                        <td><a href="../">__server/</a></td>
+                        <td>Parent server operations portal.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>Recommended Future Layout</h2>
+            <p>Once the deployment grows, split the monolithic nginx config into smaller reusable files.</p>
+        </div>
+
+        <pre class="nginx-code"><code>__server/nginx/
+├── index.html
+├── nginx.css
+├── nginx.js
+├── nginx.conf
+├── sites-enabled/
+│   ├── zzx-labs.conf
+│   ├── api.conf
+│   ├── bitnodes.conf
+│   ├── bpi.conf
+│   ├── mempoolspace.conf
+│   └── cyberchef.conf
+└── snippets/
+    ├── headers.conf
+    ├── cache.conf
+    ├── cors.conf
+    ├── security.conf
+    └── gzip.conf</code></pre>
+    </section>
+
+    <section class="server-section">
+        <div class="server-section-heading">
+            <h2>Operational Notes</h2>
+            <p>Deployment rules for keeping nginx useful, safe, and mirror-friendly.</p>
+        </div>
+
+        <div class="nginx-policy-grid">
+            <div class="nginx-policy-card">
+                <h3>Static First</h3>
+                <p>Serve the GitHub Pages-compatible site directly from the repo root whenever possible.</p>
+            </div>
+
+            <div class="nginx-policy-card">
+                <h3>Proxy APIs Only</h3>
+                <p>Keep Flask behind nginx and expose it through `/api/` instead of direct public backend ports.</p>
+            </div>
+
+            <div class="nginx-policy-card">
+                <h3>Cache Public Assets</h3>
+                <p>Cache fonts, CSS, JavaScript, images, and stable JSON while avoiding stale live API outputs.</p>
+            </div>
+
+            <div class="nginx-policy-card">
+                <h3>Deny Secrets</h3>
+                <p>Block dotfiles, `.env`, database files, backups, private logs, and generated secrets.</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
