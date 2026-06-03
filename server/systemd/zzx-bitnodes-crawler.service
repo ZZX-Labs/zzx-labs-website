@@ -1,20 +1,38 @@
 [Unit]
-Description=ZZX-Labs Bitnodes Crawler Daemon
-After=network-online.target redis-server.service
+Description=ZZX-Labs Bitnodes Daemon
+Documentation=https://zzx-labs.io/
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/srv/zzx-labs
-ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodesd.py run
-ExecStop=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodesd.py stop
-Restart=always
-RestartSec=10
+
 User=zzx
 Group=zzx
+
+WorkingDirectory=/srv/zzx-labs
+
 Environment=PYTHONUNBUFFERED=1
-Environment=REDIS_SOCKET=/tmp/redis.sock
+Environment=ZZX_LABS_ROOT=/srv/zzx-labs
+Environment=ZZX_LABS_RUN_DIR=/srv/zzx-labs/run
+Environment=ZZX_LABS_LOG_DIR=/srv/zzx-labs/log
+Environment=ZZX_LABS_API_DIR=/srv/zzx-labs/bitcoin/bitnodes/api
+
 EnvironmentFile=-/etc/zzx-labs/bitnodes.env
+
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py daemon
+ExecReload=/bin/kill -HUP $MAINPID
+
+Restart=always
+RestartSec=15
+
+TimeoutStopSec=120
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+StandardOutput=append:/srv/zzx-labs/log/bitnodesd.log
+StandardError=append:/srv/zzx-labs/log/bitnodesd.error.log
 
 [Install]
 WantedBy=multi-user.target
