@@ -3,41 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="description" content="ZZX-Labs R&D security operations panel.">
+
     <title>Security Panel | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
+
     <link rel="stylesheet" href="../static/styles.css">
+    <link rel="stylesheet" href="./_security.css">
+
     <script src="../static/script.js" defer></script>
+    <script src="./_security.js" defer></script>
 </head>
-<body>
+<body data-security-page="home">
 <header>
     <div id="zzx-header"></div>
 </header>
-<main>
-    <br>
-    <!-- Bitcoin Ticker Widget -->
+
+<main class="security-main">
     <div id="ticker-container"></div>
-    <br>
 
-    <section class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <h1>[:[ZZX-Labs]:]</h1>
-            <h4>| Security Panel |</h4><br>
+    <section class="security-hero" aria-labelledby="security-title">
+        <div class="security-overlay"></div>
 
-            <p>Manage security operations, monitor threats, and configure defensive systems here.</p><br><br>
+        <div class="security-content">
+            <p class="security-kicker">ZZX-Labs R&D</p>
+            <h1 id="security-title">Security Operations Center</h1>
 
-            <div class="button-group">
-                <a href="../_security/firewall-status" class="btn btn-primary">Firewall Status</a>
-                <a href="../_security/intrusion-detection" class="btn btn-primary">Intrusion Detection</a>
-                <a href="../_security/access-logs" class="btn btn-primary">Access Logs</a>
-                <a href="../_security/user-auth-monitoring" class="btn btn-primary">User Auth Monitoring</a>
-                <a href="../_security/incident-reports" class="btn btn-primary">Incident Reports</a>
+            <p class="security-subtitle">
+                Frontend security command portal for firewall posture, intrusion monitoring,
+                access logs, authentication review, incident reporting, abuse tracking,
+                threat attribution, and Bitcoin-node risk intelligence.
+            </p>
+
+            <div class="security-warning">
+                <strong>Security Notice:</strong>
+                This public repository page must never expose credentials, private logs,
+                API tokens, secret keys, raw access logs, private user records, active
+                defensive rules, or investigative case data.
+            </div>
+
+            <div class="security-status-grid">
+                <div class="security-status-card">
+                    <span>Portal</span>
+                    <strong id="security-state">Ready</strong>
+                </div>
+
+                <div class="security-status-card">
+                    <span>Mode</span>
+                    <strong>Static SOC</strong>
+                </div>
+
+                <div class="security-status-card">
+                    <span>Indexing</span>
+                    <strong>Noindex</strong>
+                </div>
+
+                <div class="security-status-card">
+                    <span>Updated</span>
+                    <strong id="security-updated">—</strong>
+                </div>
             </div>
         </div>
-    </section><br><br>
+    </section>
+
+    <section class="security-section">
+        <div class="security-section-heading">
+            <h2>Core Security Panels</h2>
+            <p>Primary operational surfaces for defensive posture, access monitoring, and incident review.</p>
+        </div>
+
+        <div class="security-grid">
+            <a href="./firewall-status/" class="security-card security-card-primary">
+                <span>Firewall</span>
+                <h3>Firewall Status</h3>
+                <p>Firewall state, blocklist summaries, exposed-service review, and frontend-safe policy notes.</p>
+            </a>
+
+            <a href="./intrusion-detection/" class="security-card security-card-primary">
+                <span>IDS</span>
+                <h3>Intrusion Detection</h3>
+                <p>Intrusion monitoring, suspicious activity summaries, anomaly notes, and alert triage.</p>
+            </a>
+
+            <a href="./access-logs/" class="security-card security-card-primary">
+                <span>Logs</span>
+                <h3>Access Logs</h3>
+                <p>Sanitized public summaries of access patterns, crawlers, abuse attempts, and routing issues.</p>
+            </a>
+
+            <a href="./user-auth-monitoring/" class="security-card security-card-primary">
+                <span>Auth</span>
+                <h3>User Auth Monitoring</h3>
+                <p>Future authentication status, login telemetry, user session policy, and account-safety review.</p>
+            </a>
+
+            <a href="./incident-reports/" class="security-card security-card-primary">
+                <span>Incidents</span>
+                <h3>Incident Reports</h3>
+                <p>Incident summaries, timeline notes, remediation records, postmortems, and public advisories.</p>
+            </a>
+
+            <a href="../_admin/" class="security-card security-card-primary">
+                <span>Admin</span>
+                <h3>Admin Portal</h3>
+                <p>Return to the parent administrative control panel for all operator-facing sections.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="security-section">
+        <div class="security-section-heading">
+            <h2>Threat Intelligence</h2>
+            <p>High-level OSINT and attribution views tied into BitnodesZZX and site defense research.</p>
+        </div>
+
+        <div class="security-grid security-grid-compact">
+            <a href="./attackers/" class="security-card">
+                <span>Attackers</span>
+                <h3>Attackers</h3>
+                <p>Banned IP summaries, abuse sources, malicious infrastructure notes, and public incident markers.</p>
+            </a>
+
+            <a href="./blocked-hosts/" class="security-card">
+                <span>Blocks</span>
+                <h3>Blocked Hosts</h3>
+                <p>Sanitized blocklist notes by IP, ASN, provider, hosting type, geography, and abuse category.</p>
+            </a>
+
+            <a href="./threat-actors/" class="security-card">
+                <span>Actors</span>
+                <h3>Threat Actors</h3>
+                <p>Threat actor group references, tag attribution, APT notes, and research classification.</p>
+            </a>
+
+            <a href="./apt-attribution/" class="security-card">
+                <span>APT</span>
+                <h3>APT Attribution</h3>
+                <p>Advanced persistent threat classification summaries and public-safe attribution records.</p>
+            </a>
+
+            <a href="./asn-monitoring/" class="security-card">
+                <span>ASN</span>
+                <h3>ASN Monitoring</h3>
+                <p>ASN, ISP, provider, organization, datacenter, government, and military network tracking.</p>
+            </a>
+
+            <a href="./bitcoin-node-risk/" class="security-card">
+                <span>Bitcoin</span>
+                <h3>Bitcoin Node Risk</h3>
+                <p>Bitnodes policy restrictions, suspicious nodes, proxy/VPN/Tor/I2P distribution, and node intelligence.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="security-section">
+        <div class="security-section-heading">
+            <h2>Security Resource Index</h2>
+            <p>Frontend-safe navigation for security, analytics, dashboard, Bitnodes, and incident resources.</p>
+        </div>
+
+        <div class="security-table-wrap">
+            <table class="security-table">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Path</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Security Panel</td>
+                        <td><a href="../_security/">_security/</a></td>
+                        <td>Security operations landing portal.</td>
+                    </tr>
+                    <tr>
+                        <td>Analytics Panel</td>
+                        <td><a href="../_analytics/">_analytics/</a></td>
+                        <td>Security analytics, traffic analysis, and abuse telemetry summaries.</td>
+                    </tr>
+                    <tr>
+                        <td>System Dashboard</td>
+                        <td><a href="../_dashboard/">_dashboard/</a></td>
+                        <td>Operational status, uptime, service logs, and host-facing overview.</td>
+                    </tr>
+                    <tr>
+                        <td>Bitnodes API</td>
+                        <td><a href="../bitcoin/bitnodes/api/">bitcoin/bitnodes/api/</a></td>
+                        <td>Static crawler output for node-risk intelligence and public network data.</td>
+                    </tr>
+                    <tr>
+                        <td>Bitnodes Frontend</td>
+                        <td><a href="../bitcoin/bitnodes/">bitcoin/bitnodes/</a></td>
+                        <td>Bitcoin-node maps, sources, node distribution, rankings, and network analysis.</td>
+                    </tr>
+                    <tr>
+                        <td>Legal Notice</td>
+                        <td><a href="../legal/legal-notice.html">legal/legal-notice.html</a></td>
+                        <td>Public legal notice and security-adjacent site disclaimer references.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="security-section">
+        <div class="security-section-heading">
+            <h2>Defensive Policy Notes</h2>
+            <p>Static rules for keeping this security portal useful without leaking operational secrets.</p>
+        </div>
+
+        <div class="security-policy-grid">
+            <div class="security-policy-card">
+                <h3>Publish Only Sanitized Summaries</h3>
+                <p>Use this page for public-safe summaries, indexes, and operator navigation. Raw logs belong off-repo.</p>
+            </div>
+
+            <div class="security-policy-card">
+                <h3>No Secrets in Static Pages</h3>
+                <p>Never commit tokens, private endpoints, credentials, passphrases, keys, cookies, or auth records.</p>
+            </div>
+
+            <div class="security-policy-card">
+                <h3>Separate Public and Private Telemetry</h3>
+                <p>Expose public metrics only. Keep private SOC data behind authenticated infrastructure later.</p>
+            </div>
+
+            <div class="security-policy-card">
+                <h3>Document Incidents Carefully</h3>
+                <p>Use plain timelines, impact, remediation, and lessons learned. Avoid publishing exploitable detail.</p>
+            </div>
+        </div>
+    </section>
 </main>
+
 <footer>
-	<div id="zzx-footer"></div>
+    <div id="zzx-footer"></div>
 </footer>
 </body>
 </html>
