@@ -111,7 +111,11 @@
         settingsSelectSelector: "[data-map-settings-select]",
         resetSelector: "[data-map-reset]",
         filterSelector: "[data-map-filter]",
-        autoInitViews: ["map"],
+        autoInitViews: [
+            "map",
+            "maps",
+            "live-map"
+        ],
         paths: {
             settings: [
                 "./data/map-settings.json",
