@@ -124,22 +124,27 @@
                 "../maps/originalbitnodes/data/map-settings.json"
             ],
             vectors: [
-                "./zzxbitnodes/nodes.geojson",
-                "./global/nodes.geojson",
-                "./originalbitnodes/nodes.geojson",
+                "./data/map-points.geojson",
+            
+                "./zzxbitnodes/data/map-points.geojson",
+                "./global/data/map-points.geojson",
+                "./originalbitnodes/data/map-points.geojson",
+            
                 "./zzxbitnodes/points.json",
                 "./global/points.json",
                 "./originalbitnodes/points.json",
+            
                 "./zzxbitnodes/live-map.json",
                 "./global/live-map.json",
                 "./originalbitnodes/live-map.json",
-                "./data/map-points.geojson",
-                "../maps/zzxbitnodes/nodes.geojson",
-                "../maps/global/nodes.geojson",
-                "../maps/originalbitnodes/nodes.geojson",
-                "../maps/zzxbitnodes/points.json",
-                "../maps/global/points.json",
-                "../maps/originalbitnodes/points.json",
+            
+                "./zzxbitnodes/nodes.geojson",
+                "./global/nodes.geojson",
+                "./originalbitnodes/nodes.geojson",
+            
+                "../maps/zzxbitnodes/data/map-points.geojson",
+                "../maps/global/data/map-points.geojson",
+                "../maps/originalbitnodes/data/map-points.geojson",
                 "../maps/data/map-points.geojson"
             ],
             vectorManifest: [
