@@ -20,6 +20,7 @@ import zzxbitnodes
 
 
 RUN_ORIGINAL = TOOLS_DIR / "run_original_bitnodes.py"
+EXPORT = TOOLS_DIR / "export.py"
 EXPORT_FROM_REDIS = TOOLS_DIR / "export_from_redis.py"
 ENRICH = TOOLS_DIR / "enrich.py"
 AGGREGATE = TOOLS_DIR / "aggregate.py"
@@ -29,21 +30,34 @@ PUSH_SNAPSHOTS = TOOLS_DIR / "push_snapshots.py"
 
 BITNODES_ROOT = APP_ROOT / "bitcoin" / "bitnodes"
 
-ORIGINAL_OUTPUT = BITNODES_ROOT / "api" / "originalbitnodes"
-ORIGINAL_ARCHIVE = BITNODES_ROOT / "archive" / "originalbitnodes"
-ORIGINAL_STATE = BITNODES_ROOT / "data" / "state" / "originalbitnodes"
-ORIGINAL_SNAPSHOT_24H = BITNODES_ROOT / "data" / "snapshots" / "24h" / "originalbitnodes"
-ORIGINAL_SEEDERS = BITNODES_ROOT / "data" / "seeders" / "originalbitnodes"
+DATA_DIR = BITNODES_ROOT / "data"
+API_DIR = BITNODES_ROOT / "api"
+ARCHIVE_DIR = BITNODES_ROOT / "archive"
 
-ORIGINAL_ENRICHED_DIR = BITNODES_ROOT / "api" / "enriched" / "originalbitnodes"
+SNAPSHOTS_ROOT = DATA_DIR / "snapshots"
+SNAPSHOT_BUCKETS = ("24h", "week", "monthly", "quarterly", "yearly", "all-time")
+
+SOURCE = "originalbitnodes"
+
+ORIGINAL_OUTPUT = API_DIR / SOURCE
+ORIGINAL_ARCHIVE = ARCHIVE_DIR / SOURCE
+ORIGINAL_STATE = DATA_DIR / "state" / SOURCE
+ORIGINAL_SNAPSHOT_24H = SNAPSHOTS_ROOT / "24h" / SOURCE
+ORIGINAL_SEEDERS = DATA_DIR / "seeders" / SOURCE
+
+ORIGINAL_ENRICHED_DIR = API_DIR / "enriched" / SOURCE
 ORIGINAL_ENRICHED_LATEST = ORIGINAL_ENRICHED_DIR / "latest.json"
 ORIGINAL_ENRICHMENT_REPORT = ORIGINAL_ENRICHED_DIR / "enrichment-report.json"
 
-ORIGINAL_AGGREGATE_DIR = BITNODES_ROOT / "api" / "aggregate" / "originalbitnodes"
+ORIGINAL_AGGREGATE_DIR = API_DIR / "aggregate" / SOURCE
 ORIGINAL_AGGREGATE_LATEST = ORIGINAL_AGGREGATE_DIR / "latest.json"
 
-ORIGINAL_REGISTRY_DIR = BITNODES_ROOT / "registry" / "originalbitnodes"
+ORIGINAL_REGISTRY_DIR = DATA_DIR / "registry" / SOURCE
 ORIGINAL_REGISTRY_LATEST_DIR = ORIGINAL_REGISTRY_DIR / "latest"
+
+
+def printf(message: str) -> None:
+    print(message, flush=True)
 
 
 def mkdir(path: Path) -> None:
@@ -54,8 +68,13 @@ def py(script: Path, *args: str) -> list[str]:
     return [sys.executable, str(script), *args]
 
 
-def run_command(command: list[str], *, cwd: Path = APP_ROOT, check: bool = False) -> subprocess.CompletedProcess[str]:
-    print("$ " + " ".join(str(part) for part in command), flush=True)
+def run_command(
+    command: list[str],
+    *,
+    cwd: Path = APP_ROOT,
+    check: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    printf("$ " + " ".join(str(part) for part in command))
 
     result = subprocess.run(
         command,
@@ -67,10 +86,10 @@ def run_command(command: list[str], *, cwd: Path = APP_ROOT, check: bool = False
     )
 
     if result.stdout.strip():
-        print(result.stdout.strip())
+        printf(result.stdout.strip())
 
     if result.stderr.strip():
-        print(result.stderr.strip())
+        printf(result.stderr.strip())
 
     if check and result.returncode != 0:
         raise RuntimeError(f"command failed: {' '.join(command)}")
@@ -105,6 +124,27 @@ def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
             sort_keys=pretty,
         )
         handle.write("\n")
+
+
+def ensure_layout() -> None:
+    for path in (
+        DATA_DIR,
+        API_DIR,
+        ARCHIVE_DIR,
+        ORIGINAL_OUTPUT,
+        ORIGINAL_ARCHIVE,
+        ORIGINAL_STATE,
+        ORIGINAL_SNAPSHOT_24H,
+        ORIGINAL_SEEDERS,
+        ORIGINAL_ENRICHED_DIR,
+        ORIGINAL_AGGREGATE_DIR,
+        ORIGINAL_REGISTRY_DIR,
+        ORIGINAL_REGISTRY_LATEST_DIR,
+    ):
+        mkdir(path)
+
+    for bucket in SNAPSHOT_BUCKETS:
+        mkdir(SNAPSHOTS_ROOT / bucket / SOURCE)
 
 
 def latest_node_count(path: Path) -> int:
@@ -143,23 +183,33 @@ def mirror_original_latest_to_legacy(pretty: bool = True) -> None:
     if not isinstance(payload, dict) or not payload:
         return
 
-    payload["source"] = "originalbitnodes"
-    payload["crawler"] = "originalbitnodes"
+    payload["source"] = SOURCE
+    payload["crawler"] = SOURCE
     payload["compatibility"] = {
         "mode": "original-bitnodes-compatible",
         "note": "Original Bitnodes-compatible data path with ZZX fallback safety.",
     }
 
-    write_json(
-        BITNODES_ROOT / "api" / "original-latest.json",
-        payload,
-        pretty=pretty,
-    )
+    write_json(API_DIR / "original-latest.json", payload, pretty=pretty)
+
+
+def copy_latest_to_snapshot_buckets(pretty: bool = True) -> None:
+    latest = ORIGINAL_OUTPUT / "latest.json"
+
+    if not latest.exists():
+        return
+
+    payload = read_json(latest, fallback={})
+
+    if not isinstance(payload, dict) or not payload:
+        return
+
+    zzxbitnodes.write_bucket_snapshots(SOURCE, payload, pretty=pretty)
 
 
 def run_classic_original_crawler(args: argparse.Namespace) -> int:
     if not RUN_ORIGINAL.exists():
-        print(f"[originalbitnodes] missing classic runner: {RUN_ORIGINAL}")
+        printf(f"[originalbitnodes] missing classic runner: {RUN_ORIGINAL}")
         return 1
 
     command = py(
@@ -197,7 +247,7 @@ def run_classic_original_crawler(args: argparse.Namespace) -> int:
 
 def run_redis_export(args: argparse.Namespace) -> int:
     if not EXPORT_FROM_REDIS.exists():
-        print(f"[originalbitnodes] missing Redis exporter: {EXPORT_FROM_REDIS}")
+        printf(f"[originalbitnodes] missing Redis exporter: {EXPORT_FROM_REDIS}")
         return 1
 
     command = py(
@@ -246,6 +296,10 @@ def run_zzx_compatible_original(args: argparse.Namespace) -> int:
     args.registry_root = str(ORIGINAL_REGISTRY_DIR)
     args.registry_latest_dir = str(ORIGINAL_REGISTRY_LATEST_DIR)
 
+    args.no_export_all_after = getattr(args, "no_export_all_after", False)
+    args.build_maps = getattr(args, "build_maps", False)
+    args.enrich_modules = getattr(args, "enrich_modules", "")
+
     return zzxbitnodes.run_from_args(args)
 
 
@@ -253,7 +307,7 @@ def run_enrichment(args: argparse.Namespace) -> int:
     input_path = ORIGINAL_OUTPUT / "latest.json"
 
     if not input_path.exists():
-        print(f"[originalbitnodes] enrichment skipped; missing {input_path}")
+        printf(f"[originalbitnodes] enrichment skipped; missing {input_path}")
         return 0
 
     command = py(
@@ -265,15 +319,18 @@ def run_enrichment(args: argparse.Namespace) -> int:
         "--report",
         str(ORIGINAL_ENRICHMENT_REPORT),
         "--source",
-        "originalbitnodes",
+        SOURCE,
         "--api-dir",
-        str(BITNODES_ROOT / "api"),
+        str(API_DIR),
         "--state-dir",
         str(ORIGINAL_STATE),
     )
 
     if args.enrich_modules:
         command.extend(["--modules", args.enrich_modules])
+
+    if args.compact:
+        command.append("--compact")
 
     if args.strict:
         command.append("--strict")
@@ -285,7 +342,7 @@ def run_aggregate(args: argparse.Namespace) -> int:
     input_path = ORIGINAL_ENRICHED_LATEST if ORIGINAL_ENRICHED_LATEST.exists() else ORIGINAL_OUTPUT / "latest.json"
 
     if not input_path.exists():
-        print(f"[originalbitnodes] aggregate skipped; missing {input_path}")
+        printf(f"[originalbitnodes] aggregate skipped; missing {input_path}")
         return 0
 
     command = py(
@@ -295,12 +352,45 @@ def run_aggregate(args: argparse.Namespace) -> int:
         "--output",
         str(ORIGINAL_AGGREGATE_LATEST),
         "--api-dir",
-        str(BITNODES_ROOT / "api"),
+        str(API_DIR),
         "--state-dir",
         str(ORIGINAL_STATE),
         "--source",
-        "originalbitnodes",
+        SOURCE,
     )
+
+    return run_command(command).returncode
+
+
+def run_all_exports(args: argparse.Namespace) -> int:
+    if not EXPORT.exists():
+        return 0
+
+    input_path = ORIGINAL_AGGREGATE_LATEST if ORIGINAL_AGGREGATE_LATEST.exists() else ORIGINAL_ENRICHED_LATEST
+
+    if not input_path.exists():
+        input_path = ORIGINAL_OUTPUT / "latest.json"
+
+    if not input_path.exists():
+        printf(f"[originalbitnodes] all export skipped; missing {input_path}")
+        return 0
+
+    command = py(
+        EXPORT,
+        "all",
+        "--input",
+        str(input_path),
+        "--output",
+        str(ORIGINAL_OUTPUT),
+        "--archive-dir",
+        str(ORIGINAL_ARCHIVE),
+        "--source",
+        SOURCE,
+        "--keep-going",
+    )
+
+    if args.compact:
+        command.append("--compact")
 
     return run_command(command).returncode
 
@@ -309,18 +399,20 @@ def run_registry_backup(args: argparse.Namespace) -> int:
     if not args.registry_backup:
         return 0
 
-    dated = ORIGINAL_REGISTRY_DIR / zzxbitnodes.datetime_date_slug()
+    dated = ORIGINAL_REGISTRY_DIR / zzxbitnodes.date_slug()
 
     command = py(
         CHUNK_REGISTRY_BACKUP,
         "--input",
         str(ORIGINAL_ARCHIVE),
         "--api",
-        str(BITNODES_ROOT / "api"),
+        str(API_DIR),
         "--output",
         str(dated),
         "--latest-output",
         str(ORIGINAL_REGISTRY_LATEST_DIR),
+        "--max-mb",
+        "24",
     )
 
     code = run_command(command).returncode
@@ -352,23 +444,19 @@ def push_snapshots(args: argparse.Namespace) -> int:
         "bitcoin/bitnodes/archive/originalbitnodes",
         "bitcoin/bitnodes/data/state/originalbitnodes",
         "bitcoin/bitnodes/data/snapshots/24h/originalbitnodes",
-        "bitcoin/bitnodes/registry/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/week/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/monthly/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/quarterly/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/yearly/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots/all-time/originalbitnodes",
+        "bitcoin/bitnodes/data/registry/originalbitnodes",
     )
 
     return run_command(command).returncode
 
 
 def pipeline_once(args: argparse.Namespace) -> int:
-    for path in (
-        ORIGINAL_OUTPUT,
-        ORIGINAL_ARCHIVE,
-        ORIGINAL_STATE,
-        ORIGINAL_SNAPSHOT_24H,
-        ORIGINAL_SEEDERS,
-        ORIGINAL_ENRICHED_DIR,
-        ORIGINAL_AGGREGATE_DIR,
-    ):
-        mkdir(path)
+    ensure_layout()
 
     if args.original_mode == "classic":
         code = run_classic_original_crawler(args)
@@ -377,18 +465,18 @@ def pipeline_once(args: argparse.Namespace) -> int:
         code = run_redis_export(args)
 
         if code == 0 and not original_latest_has_nodes():
-            print("[originalbitnodes] Redis export produced 0 nodes.")
+            printf("[originalbitnodes] Redis export produced 0 nodes.")
             code = 1
 
     elif args.original_mode == "hybrid":
         code = run_classic_original_crawler(args)
 
         if code != 0 or not original_latest_has_nodes():
-            print("[originalbitnodes] classic path failed or produced 0 nodes; attempting Redis export fallback.")
+            printf("[originalbitnodes] classic path failed or produced 0 nodes; attempting Redis export fallback.")
             code = run_redis_export(args)
 
         if code == 0 and not original_latest_has_nodes():
-            print("[originalbitnodes] Redis fallback produced 0 nodes; attempting ZZX-compatible fallback.")
+            printf("[originalbitnodes] Redis fallback produced 0 nodes; attempting ZZX-compatible fallback.")
             code = run_zzx_compatible_original(args)
 
     else:
@@ -398,6 +486,7 @@ def pipeline_once(args: argparse.Namespace) -> int:
         return code
 
     mirror_original_latest_to_legacy(pretty=not args.compact)
+    copy_latest_to_snapshot_buckets(pretty=not args.compact)
 
     if not args.no_enrich_after:
         code = run_enrichment(args)
@@ -406,6 +495,11 @@ def pipeline_once(args: argparse.Namespace) -> int:
 
     if not args.no_aggregate_after:
         code = run_aggregate(args)
+        if code != 0 and args.strict:
+            return code
+
+    if not args.no_export_all_after:
+        code = run_all_exports(args)
         if code != 0 and args.strict:
             return code
 
@@ -421,14 +515,14 @@ def daemon_loop(args: argparse.Namespace) -> int:
 
     while True:
         if args.run_seconds > 0 and time.time() - started >= args.run_seconds:
-            print(f"[originalbitnodes] run_seconds reached: {args.run_seconds}")
+            printf(f"[originalbitnodes] run_seconds reached: {args.run_seconds}")
             return 0
 
         try:
             code = pipeline_once(args)
 
             if code != 0:
-                print(f"[originalbitnodes] cycle failed with code {code}")
+                printf(f"[originalbitnodes] cycle failed with code {code}")
 
                 if args.strict:
                     return code
@@ -436,7 +530,7 @@ def daemon_loop(args: argparse.Namespace) -> int:
         except KeyboardInterrupt:
             raise
         except Exception as exc:
-            print(f"[originalbitnodes] cycle error: {exc}")
+            printf(f"[originalbitnodes] cycle error: {exc}")
 
             if args.strict:
                 return 1
@@ -462,6 +556,8 @@ def build_parser() -> argparse.ArgumentParser:
         state_dir=str(ORIGINAL_STATE),
         snapshot_24h_dir=str(ORIGINAL_SNAPSHOT_24H),
         seeder_dir=str(ORIGINAL_SEEDERS),
+        registry_root=str(ORIGINAL_REGISTRY_DIR),
+        registry_latest_dir=str(ORIGINAL_REGISTRY_LATEST_DIR),
     )
 
     parser.add_argument(
@@ -499,6 +595,12 @@ def normalize_original_args(args: argparse.Namespace) -> argparse.Namespace:
 
     args.registry_root = str(ORIGINAL_REGISTRY_DIR)
     args.registry_latest_dir = str(ORIGINAL_REGISTRY_LATEST_DIR)
+
+    if not hasattr(args, "no_export_all_after"):
+        args.no_export_all_after = False
+
+    if not hasattr(args, "build_maps"):
+        args.build_maps = False
 
     return args
 
