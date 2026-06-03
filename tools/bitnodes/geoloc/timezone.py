@@ -7,24 +7,16 @@ import math
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, MutableMapping
 
 
-APP_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_GEO_ROOT = APP_ROOT / "tools" / "bitnodes" / "data" / "geo"
+APP_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_GEO_ROOT = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geo"
 DEFAULT_TIMEZONE_DIR = DEFAULT_GEO_ROOT / "timezones"
 
-UNKNOWN_VALUES = {
-    "",
-    "unknown",
-    "none",
-    "null",
-    "undefined",
-    "—",
-    "-",
-    "n/a",
-    "na",
-}
+SCHEMA = "zzx-bitnodes-timezone-v2"
+
+UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 
 def utc_now() -> str:
@@ -38,16 +30,21 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if not path.exists():
         return fallback
 
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=None if compact else 2,
+        separators=(",", ":") if compact else None,
+        sort_keys=not compact,
+    )
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def clean(value: Any) -> str:
@@ -75,80 +72,109 @@ def number(value: Any, fallback: float | None = None) -> float | None:
     return n
 
 
-def nested_dict(row: dict[str, Any], key: str) -> dict[str, Any]:
-    value = row.get(key)
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    if "." not in key:
+        return row.get(key)
 
-    return value if isinstance(value, dict) else {}
+    current: Any = row
+
+    for part in key.split("."):
+        if not isinstance(current, Mapping):
+            return None
+
+        current = current.get(part)
+
+    return current
 
 
-def country_code(row: dict[str, Any]) -> str:
-    for key in (
-        "country_code",
-        "cc",
-        "iso_country",
-        "iso_country_code",
-    ):
-        value = normalize_code(row.get(key))
+def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> str:
+    for key in keys:
+        value = clean(deep_get(row, key))
 
-        if len(value) == 2:
+        if value:
             return value
-
-    country_data = nested_dict(row, "country_data")
-
-    for key in (
-        "country_code",
-        "cc",
-        "iso_country",
-        "iso_country_code",
-    ):
-        value = normalize_code(country_data.get(key))
-
-        if len(value) == 2:
-            return value
-
-    geo = nested_dict(row, "geo")
-
-    for key in (
-        "country_code",
-        "country",
-        "iso_code",
-        "iso_country",
-        "iso_country_code",
-    ):
-        value = normalize_code(geo.get(key))
-
-        if len(value) == 2:
-            return value
-
-    value = normalize_code(row.get("country"))
-
-    if len(value) == 2:
-        return value
 
     return ""
 
 
-def row_lat_lon(row: dict[str, Any]) -> tuple[float | None, float | None]:
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1"}
+
+
+def country_code(row: Mapping[str, Any]) -> str:
+    for key in (
+        "country_code",
+        "country",
+        "cc",
+        "iso_country",
+        "iso_country_code",
+        "country_data.country_code",
+        "geo.country_code",
+        "geo.country",
+        "geo.iso_code",
+        "geoip.country_code",
+        "geoip.country",
+        "geoip_data.country_code",
+        "geoip_data.country",
+        "location.country_code",
+        "location.country",
+        "metadata.country_code",
+        "metadata.country",
+    ):
+        value = normalize_code(deep_get(row, key))
+
+        if len(value) == 2:
+            return value
+
+    network = clean(row.get("network") or deep_get(row, "metadata.network")).lower()
+
+    if boolish(row.get("is_tor")) or boolish(deep_get(row, "tor.is_tor")) or network == "tor":
+        return "TOR"
+
+    if boolish(row.get("is_i2p")) or boolish(deep_get(row, "i2p.is_i2p")) or network == "i2p":
+        return "I2P"
+
+    return ""
+
+
+def row_lat_lon(row: Mapping[str, Any]) -> tuple[float | None, float | None]:
     lat = number(
         row.get("latitude")
         or row.get("lat")
-        or nested_dict(row, "geoloc").get("latitude")
-        or nested_dict(row, "city_data").get("latitude")
+        or deep_get(row, "geoloc.latitude")
+        or deep_get(row, "city_data.latitude")
+        or deep_get(row, "postal_data.latitude")
+        or deep_get(row, "geo.latitude")
+        or deep_get(row, "geo.lat")
+        or deep_get(row, "geoip.latitude")
+        or deep_get(row, "geoip.lat")
+        or deep_get(row, "geoip_data.latitude")
+        or deep_get(row, "location.latitude")
+        or deep_get(row, "metadata.latitude")
     )
 
     lon = number(
         row.get("longitude")
         or row.get("lon")
         or row.get("lng")
-        or nested_dict(row, "geoloc").get("longitude")
-        or nested_dict(row, "city_data").get("longitude")
+        or deep_get(row, "geoloc.longitude")
+        or deep_get(row, "city_data.longitude")
+        or deep_get(row, "postal_data.longitude")
+        or deep_get(row, "geo.longitude")
+        or deep_get(row, "geo.lon")
+        or deep_get(row, "geo.lng")
+        or deep_get(row, "geoip.longitude")
+        or deep_get(row, "geoip.lon")
+        or deep_get(row, "geoip_data.longitude")
+        or deep_get(row, "location.longitude")
+        or deep_get(row, "metadata.longitude")
     )
-
-    if lat is None or lon is None:
-        geo = nested_dict(row, "geo")
-
-        lat = number(geo.get("latitude") or geo.get("lat"))
-        lon = number(geo.get("longitude") or geo.get("lon") or geo.get("lng"))
 
     if lat is None or lon is None:
         return None, None
@@ -159,44 +185,44 @@ def row_lat_lon(row: dict[str, Any]) -> tuple[float | None, float | None]:
     return lat, lon
 
 
-def raw_timezone(row: dict[str, Any]) -> str:
-    for key in (
+def raw_timezone(row: Mapping[str, Any]) -> str:
+    keys = (
         "timezone",
         "time_zone",
         "tz",
         "iana_timezone",
         "iana_tz",
-    ):
-        value = clean(row.get(key))
+        "city_data.timezone",
+        "city_data.time_zone",
+        "city_data.tz",
+        "postal_data.timezone",
+        "postal_data.time_zone",
+        "postal_data.tz",
+        "geoloc.timezone",
+        "geoloc.time_zone",
+        "geoloc.tz",
+        "geo.timezone",
+        "geo.time_zone",
+        "geo.tz",
+        "geoip.timezone",
+        "geoip.time_zone",
+        "geoip.tz",
+        "geoip_data.timezone",
+        "geoip_data.time_zone",
+        "geoip_data.tz",
+        "location.timezone",
+        "location.time_zone",
+        "location.tz",
+        "metadata.timezone",
+        "metadata.time_zone",
+        "metadata.tz",
+    )
 
-        if value:
-            return value
-
-    for source_key in (
-        "city_data",
-        "postal_data",
-        "geoloc",
-        "geo",
-    ):
-        source = nested_dict(row, source_key)
-
-        for key in (
-            "timezone",
-            "time_zone",
-            "tz",
-            "iana_timezone",
-            "iana_tz",
-        ):
-            value = clean(source.get(key))
-
-            if value:
-                return value
-
-    return ""
+    return first(row, keys)
 
 
 def load_timezone_index(country: str, timezone_dir: Path) -> dict[str, Any]:
-    candidates = []
+    candidates: list[Path] = []
 
     if country:
         candidates.extend([
@@ -218,26 +244,17 @@ def load_timezone_index(country: str, timezone_dir: Path) -> dict[str, Any]:
     return {}
 
 
-def timezone_rows(index: dict[str, Any]) -> list[dict[str, Any]]:
-    rows = index.get("timezones", [])
+def timezone_rows(index: Mapping[str, Any]) -> list[dict[str, Any]]:
+    for key in ("timezones", "zones", "iana_timezones", "tz"):
+        rows = index.get(key)
 
-    if isinstance(rows, list):
-        return rows
-
-    rows = index.get("zones", [])
-
-    if isinstance(rows, list):
-        return rows
+        if isinstance(rows, list):
+            return [row for row in rows if isinstance(row, dict)]
 
     return []
 
 
-def haversine_km(
-    lat1: float,
-    lon1: float,
-    lat2: float,
-    lon2: float,
-) -> float:
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     radius = 6371.0088
 
     phi1 = math.radians(lat1)
@@ -255,11 +272,7 @@ def haversine_km(
     return radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def nearest_timezone(
-    rows: list[dict[str, Any]],
-    lat: float,
-    lon: float,
-) -> tuple[dict[str, Any] | None, float | None]:
+def nearest_timezone(rows: list[dict[str, Any]], lat: float, lon: float) -> tuple[dict[str, Any] | None, float | None]:
     best: dict[str, Any] | None = None
     best_distance: float | None = None
 
@@ -305,6 +318,7 @@ def timezone_payload(
     distance_km: float | None = None,
 ) -> dict[str, Any]:
     return {
+        "schema": SCHEMA,
         "timezone": tz or "Unknown",
         "iana_timezone": tz or "Unknown",
         "country_code": country or "Unknown",
@@ -312,14 +326,14 @@ def timezone_payload(
         "timezone_source": source,
         "timezone_confidence": confidence,
         "nearest_distance_km": distance_km,
+        "updated_at": utc_now(),
     }
 
 
-def resolve_timezone(
-    row: dict[str, Any],
-    timezone_dir: Path,
-) -> dict[str, Any]:
-    if row.get("is_tor") or nested_dict(row, "tor").get("is_tor"):
+def resolve_timezone(row: Mapping[str, Any], timezone_dir: Path) -> dict[str, Any]:
+    country = country_code(row)
+
+    if country == "TOR":
         return timezone_payload(
             "UTC",
             source="tor-overlay",
@@ -329,7 +343,7 @@ def resolve_timezone(
             distance_km=0.0,
         )
 
-    if row.get("is_i2p") or nested_dict(row, "i2p").get("is_i2p"):
+    if country == "I2P":
         return timezone_payload(
             "UTC",
             source="i2p-overlay",
@@ -339,7 +353,6 @@ def resolve_timezone(
             distance_km=0.0,
         )
 
-    country = country_code(row)
     tz = raw_timezone(row)
 
     if tz:
@@ -399,12 +412,26 @@ def resolve_timezone(
     )
 
 
-def enrich_nodes(
-    nodes: list[dict[str, Any]],
-    context: dict[str, Any] | None = None,
-) -> list[dict[str, Any]]:
-    context = context or {}
+def enrich_node(node: MutableMapping[str, Any], timezone_dir: Path) -> MutableMapping[str, Any]:
+    meta = resolve_timezone(node, timezone_dir)
 
+    node["timezone_data"] = meta
+    node["timezone"] = meta["timezone"]
+    node["iana_timezone"] = meta["iana_timezone"]
+
+    node.setdefault("enrichment", {})
+    node["enrichment"]["timezone"] = {
+        "schema": SCHEMA,
+        "status": "ok",
+        "updated_at": utc_now(),
+        "timezone_dir": str(timezone_dir),
+    }
+
+    return node
+
+
+def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
+    context = context or {}
     timezone_dir = Path(
         context.get("timezone_dir")
         or context.get("timezones_dir")
@@ -412,30 +439,82 @@ def enrich_nodes(
         or DEFAULT_TIMEZONE_DIR
     )
 
-    for node in nodes:
-        meta = resolve_timezone(node, timezone_dir)
+    if isinstance(nodes, list):
+        return [
+            enrich_node(dict(node), timezone_dir) if isinstance(node, Mapping) else node
+            for node in nodes
+        ]
 
-        node["timezone_data"] = meta
-        node["timezone"] = meta["timezone"]
-        node["iana_timezone"] = meta["iana_timezone"]
-
-        node.setdefault("enrichment", {})
-        node["enrichment"]["timezone"] = {
-            "status": "ok",
-            "updated_at": utc_now(),
-            "timezone_dir": str(timezone_dir),
+    if isinstance(nodes, Mapping):
+        return {
+            key: enrich_node(dict(value), timezone_dir) if isinstance(value, Mapping) else value
+            for key, value in nodes.items()
         }
 
     return nodes
 
 
-def summarize(nodes: list[dict[str, Any]]) -> dict[str, Any]:
+def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    if isinstance(payload, list):
+        return enrich_nodes(payload, context)
+
+    if not isinstance(payload, MutableMapping):
+        return payload
+
+    if isinstance(payload.get("nodes"), (list, dict)):
+        payload["nodes"] = enrich_nodes(payload["nodes"], context)
+
+    if isinstance(payload.get("results"), list):
+        payload["results"] = enrich_nodes(payload["results"], context)
+
+    if isinstance(payload.get("data"), list):
+        payload["data"] = enrich_nodes(payload["data"], context)
+
+    payload.setdefault("metadata", {})
+
+    if isinstance(payload["metadata"], MutableMapping):
+        payload["metadata"]["timezone_enriched_at"] = utc_now()
+        payload["metadata"]["timezone_dir"] = str(
+            context.get("timezone_dir") if context else DEFAULT_TIMEZONE_DIR
+        )
+
+    return payload
+
+
+def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
+    if isinstance(payload, list):
+        return [node for node in payload if isinstance(node, Mapping)]
+
+    if not isinstance(payload, Mapping):
+        return []
+
+    nodes = payload.get("nodes")
+
+    if isinstance(nodes, list):
+        return [node for node in nodes if isinstance(node, Mapping)]
+
+    if isinstance(nodes, Mapping):
+        return [node for node in nodes.values() if isinstance(node, Mapping)]
+
+    for key in ("results", "data"):
+        value = payload.get(key)
+
+        if isinstance(value, list):
+            return [node for node in value if isinstance(node, Mapping)]
+
+    return []
+
+
+def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
     counts: dict[str, int] = {}
     countries: dict[str, int] = {}
     sources: dict[str, int] = {}
 
     for node in nodes:
-        timezone_data = nested_dict(node, "timezone_data")
+        timezone_data = node.get("timezone_data", {})
+
+        if not isinstance(timezone_data, Mapping):
+            timezone_data = {}
 
         tz = (
             clean(node.get("timezone"))
@@ -462,14 +541,14 @@ def summarize(nodes: list[dict[str, Any]]) -> dict[str, Any]:
     )
 
     return {
-        "schema": "zzx-bitnodes-timezone-summary-v1",
+        "schema": "zzx-bitnodes-timezone-summary-v2",
         "generated_at": utc_now(),
         "total_nodes": len(nodes),
         "timezone_count": len(counts),
         "country_count": len(countries),
-        "timezones": counts,
-        "countries": countries,
-        "sources": sources,
+        "timezones": dict(sorted(counts.items(), key=lambda item: (-item[1], item[0]))),
+        "countries": dict(sorted(countries.items(), key=lambda item: (-item[1], item[0]))),
+        "sources": dict(sorted(sources.items(), key=lambda item: (-item[1], item[0]))),
         "top_timezone": {
             "timezone": top_timezone[0],
             "count": top_timezone[1],
@@ -485,42 +564,20 @@ def main() -> int:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--summary", default="")
-    parser.add_argument(
-        "--timezone-dir",
-        default=str(DEFAULT_TIMEZONE_DIR),
-        help="Directory containing timezone JSON indexes.",
-    )
+    parser.add_argument("--timezone-dir", default=str(DEFAULT_TIMEZONE_DIR))
+    parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
 
     payload = read_json(Path(args.input), fallback={})
-    nodes = payload.get("nodes", payload if isinstance(payload, list) else [])
+    enriched = enrich_payload(payload, {"timezone_dir": args.timezone_dir})
 
-    if not isinstance(nodes, list):
-        nodes = []
-
-    enriched = enrich_nodes(
-        nodes,
-        {
-            "timezone_dir": args.timezone_dir,
-        },
-    )
-
-    if isinstance(payload, dict):
-        payload["nodes"] = enriched
-        payload.setdefault("metadata", {})
-        payload["metadata"]["timezone_enriched_at"] = utc_now()
-        payload["metadata"]["timezone_dir"] = args.timezone_dir
-        output = payload
-    else:
-        output = enriched
-
-    write_json(Path(args.output), output)
+    write_json(Path(args.output), enriched, compact=args.compact)
 
     if args.summary:
-        write_json(Path(args.summary), summarize(enriched))
+        write_json(Path(args.summary), summarize(iter_nodes(enriched)), compact=args.compact)
 
-    print(f"timezone enrichment complete: {len(enriched)} nodes")
+    print(f"timezone enrichment complete: {len(iter_nodes(enriched))} nodes")
 
     return 0
 
