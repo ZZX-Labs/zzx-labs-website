@@ -1,137 +1,59 @@
 {
-  "schema": "zzx-bitnodes-maps-build-report-v3",
-  "generated_at": "2026-05-29T01:55:26+00:00",
-
-  "source": "zzxbitnodes",
-
-  "input": "bitcoin/bitnodes/api/zzxbitnodes/nodes.json",
-
-  "output": {
-    "map_dir": "bitcoin/bitnodes/maps",
-    "live_map_dir": "bitcoin/bitnodes/live-map",
-    "global_dir": "bitcoin/bitnodes/live-map/global",
-    "source_dir": "bitcoin/bitnodes/live-map/zzxbitnodes",
-    "data_dir": "bitcoin/bitnodes/live-map/data"
-  },
-
-  "counts": {
-    "node_count": 2503,
-    "point_count": 2503,
-    "geojson_feature_count": 2503,
-    "invalid_point_count": 0,
-    "missing_lat_lon_count": 0
-  },
-
-  "selected": {
-    "settings": "default",
-    "theme": "zzx_dark_olive",
-    "tile_provider": "cartodb_dark",
-    "font": "ibm_plex_mono_regular"
-  },
-
-  "manifests": {
-    "settings": "bitcoin/bitnodes/live-map/data/map-settings.json",
-    "settings_profiles": "bitcoin/bitnodes/live-map/data/map-settings-profiles.json",
-    "themes": "bitcoin/bitnodes/live-map/data/map-themes.json",
-    "theme_selector": "bitcoin/bitnodes/live-map/data/map-theme.json",
-    "tile_providers": "bitcoin/bitnodes/live-map/data/map-tile-providers.json",
-    "fonts": "bitcoin/bitnodes/live-map/data/map-fonts.json",
-    "layers": "bitcoin/bitnodes/live-map/data/map-layers.json",
-    "overlays": "bitcoin/bitnodes/live-map/data/map-overlays.json",
-    "vectors": "bitcoin/bitnodes/live-map/data/map-vectors.json",
-    "polygons": "bitcoin/bitnodes/live-map/data/map-polygons.geojson",
-    "points": "bitcoin/bitnodes/live-map/data/map-points.geojson"
-  },
-
-  "tools": {
-    "settings_dir": "tools/bitnodes/data/mapsettings",
-    "theme_dir": "tools/bitnodes/data/mapthemes",
-    "python_modules": [
-      "openstreetmaps.py",
-      "mapsettings.py",
-      "mapthemes.py",
-      "mapvectors.py",
-      "maplayers.py",
-      "mapoverlays.py",
-      "mappolygons.py",
-      "mapplotter.py",
-      "maps.py"
-    ]
-  },
-
+  "generated_at": "2026-06-03T02:57:01+00:00",
+  "input": "/home/runner/work/zzx-labs-website/zzx-labs-website/bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json",
+  "live_map_dir": "/home/runner/work/zzx-labs-website/zzx-labs-website/bitcoin/bitnodes/live-map/zzxbitnodes",
+  "map_dir": "/home/runner/work/zzx-labs-website/zzx-labs-website/bitcoin/bitnodes/maps/zzxbitnodes",
   "modules": [
     {
+      "message": "openstreetmaps.py completed.",
       "name": "openstreetmaps",
-      "module": "openstreetmaps.py",
       "status": "ok",
-      "message": "OpenStreetMap tile/provider metadata completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     },
     {
+      "message": "mapsettings.py completed.",
       "name": "mapsettings",
-      "module": "mapsettings.py",
       "status": "ok",
-      "message": "Map settings and settings-profile manifests completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     },
     {
+      "message": "mapthemes.py completed.",
       "name": "mapthemes",
-      "module": "mapthemes.py",
       "status": "ok",
-      "message": "Map theme selector, theme manifest, and theme files completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     },
     {
+      "message": "mapvectors.py completed.",
       "name": "mapvectors",
-      "module": "mapvectors.py",
       "status": "ok",
-      "message": "Vector metadata and node vector layer completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     },
     {
+      "message": "maplayers.py completed.",
       "name": "maplayers",
-      "module": "maplayers.py",
       "status": "ok",
-      "message": "Map layers manifest completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     },
     {
+      "message": "mapoverlays.py completed.",
       "name": "mapoverlays",
-      "module": "mapoverlays.py",
       "status": "ok",
-      "message": "Map overlays manifest completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     },
     {
+      "message": "mappolygons.py completed.",
       "name": "mappolygons",
-      "module": "mappolygons.py",
       "status": "ok",
-      "message": "Polygon GeoJSON completed.",
-      "updated_at": "2026-05-29T01:55:25+00:00"
-    },
-    {
-      "name": "mapplotter",
-      "module": "mapplotter.py",
-      "status": "ok",
-      "message": "Point JSON, live-map JSON, and node GeoJSON completed.",
-      "updated_at": "2026-05-29T01:55:26+00:00"
+      "updated_at": "2026-06-03T02:57:01+00:00"
     }
   ],
-
-  "runtime_expectations": {
-    "frontend_engine": "bitcoin/bitnodes/live-map/map.js",
-    "frontend_bootstrap": "bitcoin/bitnodes/live-map/live-map.js",
-    "default_root_selector": "[data-map-root]",
-    "requires_leaflet": true,
-    "preferred_renderer": "canvas",
-    "default_refresh_interval_ms": 30000
-  },
-
-  "diagnostics": {
-    "absolute_runner_paths_removed": true,
-    "settings_payload_is_lightweight": true,
-    "theme_selector_is_lightweight": true,
-    "large_point_arrays_stored_outside_settings": true,
-    "map_settings_should_not_embed_points": true
-  }
+  "node_count": 163,
+  "point_count": 163,
+  "schema": "zzx-bitnodes-maps-build-report-v2",
+  "selected_settings": "default",
+  "selected_theme": "zzx_dark_olive",
+  "settings_dir": "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bitnodes/data/mapsettings",
+  "source": "zzxbitnodes",
+  "theme_dir": "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bitnodes/data/mapthemes",
+  "tile_provider": "cartodb_dark"
 }

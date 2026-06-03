@@ -1,167 +1,32 @@
 {
   "default_settings": "default",
-  "generated_at": "2026-05-29T01:55:25+00:00",
-  "schema": "zzx-bitnodes-map-settings-manifest-v1",
-  "settings_count": 10,
-  "base_path": "./data/settings/",
+  "generated_at": "2026-06-03T02:57:01+00:00",
   "profiles": [
     {
+      "description": "Balanced OpenStreetMap configuration for maps/ and live-map/.",
       "id": "default",
       "name": "Default Live Map",
-      "path": "settings/default.json",
-      "description": "Balanced dark tactical OpenStreetMap configuration for map/, maps/, and live-map/.",
-      "refresh_interval_seconds": 30,
-      "refresh_interval_ms": 30000,
-      "tile_provider": "cartodb_dark",
-      "theme": "zzx_dark_olive",
-      "recommended_for": [
-        "default",
-        "general",
-        "stable"
-      ]
+      "path": "default.json",
+      "refresh_interval_seconds": 60,
+      "tile_provider": "cartodb_dark"
     },
     {
-      "id": "realtime_fractional",
-      "name": "Realtime Fractional",
-      "path": "settings/realtime_fractional.json",
-      "description": "Fastest frontend polling mode for local testing and active crawler diagnostics.",
-      "refresh_interval_seconds": 0.25,
-      "refresh_interval_ms": 250,
-      "tile_provider": "cartodb_dark",
-      "theme": "terminal_green",
-      "recommended_for": [
-        "local",
-        "debug",
-        "crawler-watch",
-        "high-frequency"
-      ]
-    },
-    {
-      "id": "realtime_1s",
-      "name": "Realtime 1 Second",
-      "path": "settings/realtime_1s.json",
-      "description": "One-second refresh profile for active crawler monitoring without fractional polling.",
-      "refresh_interval_seconds": 1,
-      "refresh_interval_ms": 1000,
-      "tile_provider": "cartodb_dark",
-      "theme": "terminal_green",
-      "recommended_for": [
-        "live",
-        "crawler-watch",
-        "operations"
-      ]
-    },
-    {
+      "description": "Faster refresh profile for active crawler watching.",
       "id": "live",
       "name": "Live Monitoring",
-      "path": "settings/live.json",
-      "description": "Fast live operations profile for normal public-facing node-map updates.",
-      "refresh_interval_seconds": 5,
-      "refresh_interval_ms": 5000,
-      "tile_provider": "cartodb_dark",
-      "theme": "zzx_dark_olive",
-      "recommended_for": [
-        "live-map",
-        "public-live",
-        "ops"
-      ]
+      "path": "live.json",
+      "refresh_interval_seconds": 15,
+      "tile_provider": "cartodb_dark"
     },
     {
-      "id": "rapid_ops",
-      "name": "Rapid Operations",
-      "path": "settings/rapid_ops.json",
-      "description": "Ten-second tactical monitoring profile for high-activity crawling windows.",
-      "refresh_interval_seconds": 10,
-      "refresh_interval_ms": 10000,
-      "tile_provider": "cartodb_dark",
-      "theme": "amber_ops",
-      "recommended_for": [
-        "ops",
-        "active-watch",
-        "node-churn"
-      ]
-    },
-    {
-      "id": "quiet_ops",
-      "name": "Quiet Operations",
-      "path": "settings/quiet_ops.json",
-      "description": "Low-noise dark tactical profile for stable dashboards and wall displays.",
-      "refresh_interval_seconds": 60,
-      "refresh_interval_ms": 60000,
-      "tile_provider": "cartodb_dark_nolabels",
-      "theme": "minimal_black",
-      "recommended_for": [
-        "wallboard",
-        "noc",
-        "soc",
-        "low-noise"
-      ]
-    },
-    {
+      "description": "Slower, richer map profile for deep review and dense overlays.",
       "id": "analysis",
       "name": "Analysis",
-      "path": "settings/analysis.json",
-      "description": "Slower, richer review profile for dense overlays, investigation, reports, and comparison work.",
+      "path": "analysis.json",
       "refresh_interval_seconds": 300,
-      "refresh_interval_ms": 300000,
-      "tile_provider": "cartodb_voyager",
-      "theme": "paper_light",
-      "recommended_for": [
-        "analysis",
-        "reports",
-        "timeline",
-        "deep-review"
-      ]
-    },
-    {
-      "id": "timeline_24h",
-      "name": "Timeline 24H",
-      "path": "settings/timeline_24h.json",
-      "description": "Timeline playback profile for 24-hour map scrubbing and node appearance/disappearance replay.",
-      "refresh_interval_seconds": 15,
-      "refresh_interval_ms": 15000,
-      "tile_provider": "cartodb_dark",
-      "theme": "zzx_dark_olive",
-      "timeline_window": "24h",
-      "recommended_for": [
-        "maps",
-        "timeline",
-        "24h",
-        "playback"
-      ]
-    },
-    {
-      "id": "timeline_weekly",
-      "name": "Timeline Weekly",
-      "path": "settings/timeline_weekly.json",
-      "description": "Timeline playback profile for weekly network evolution and regional churn review.",
-      "refresh_interval_seconds": 30,
-      "refresh_interval_ms": 30000,
-      "tile_provider": "cartodb_dark",
-      "theme": "midnight_blue",
-      "timeline_window": "7d",
-      "recommended_for": [
-        "maps",
-        "timeline",
-        "weekly",
-        "playback"
-      ]
-    },
-    {
-      "id": "offline_archive",
-      "name": "Offline Archive",
-      "path": "settings/offline_archive.json",
-      "description": "No-polling static archive mode for historical snapshots, GitHub Pages review, and exported reports.",
-      "refresh_interval_seconds": 0,
-      "refresh_interval_ms": 0,
-      "tile_provider": "cartodb_voyager",
-      "theme": "paper_light",
-      "recommended_for": [
-        "archive",
-        "static",
-        "offline",
-        "reports"
-      ]
+      "tile_provider": "cartodb_voyager"
     }
-  ]
+  ],
+  "schema": "zzx-bitnodes-map-settings-manifest-v1",
+  "settings_count": 3
 }
