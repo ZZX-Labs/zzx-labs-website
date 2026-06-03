@@ -1,0 +1,13 @@
+[Unit]
+Description=ZZX-Labs Bitnodes Snapshot Generator
+
+[Service]
+Type=oneshot
+
+User=zzx
+Group=zzx
+
+WorkingDirectory=/srv/zzx-labs
+
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py enrich
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py maps
