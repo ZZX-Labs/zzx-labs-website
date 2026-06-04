@@ -7,19 +7,20 @@ import json
 import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 
-APP_ROOT = Path(__file__).resolve().parents[2]
+APP_ROOT = Path(__file__).resolve().parents[3]
 TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
+MAP_TOOLS_DIR = TOOLS_DIR / "map"
 
 DEFAULT_STATE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state"
 DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
 DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
 DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
 
-DEFAULT_THEME_DIR = APP_ROOT / "tools" / "bitnodes" / "data" / "mapthemes"
-DEFAULT_SETTINGS_DIR = APP_ROOT / "tools" / "bitnodes" / "data" / "mapsettings"
+DEFAULT_THEME_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "mapthemes"
+DEFAULT_SETTINGS_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "mapsettings"
 
 DEFAULT_THEME = "zzx_dark_olive"
 DEFAULT_SETTINGS = "default"
@@ -28,6 +29,7 @@ MAP_MODULE_ORDER = [
     "openstreetmaps",
     "mapsettings",
     "mapthemes",
+    "vector_types",
     "mapvectors",
     "maplayers",
     "mapoverlays",
@@ -46,39 +48,35 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if not path.exists():
         return fallback
 
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=None if compact else 2,
+        separators=(",", ":") if compact else None,
+        sort_keys=not compact,
+    )
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def write_text(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    with path.open("w", encoding="utf-8") as handle:
-        handle.write(payload)
+    path.write_text(payload, encoding="utf-8")
 
 
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
-    if text.lower() in {
-        "",
-        "unknown",
-        "none",
-        "null",
-        "undefined",
-        "—",
-        "-",
-        "n/a",
-        "na",
-    }:
+    if text.lower() in {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}:
         return ""
 
     return " ".join(text.split())
@@ -96,39 +94,96 @@ def number(value: Any, fallback: float | None = None) -> float | None:
     return n
 
 
-def nested_dict(row: dict[str, Any], key: str) -> dict[str, Any]:
-    value = row.get(key)
+def boolish(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
 
+    if value in (1, "1"):
+        return True
+
+    if value in (0, "0"):
+        return False
+
+    text = str(value or "").strip().lower()
+
+    if text in {"true", "yes", "y", "ok", "1", "reachable", "online", "success"}:
+        return True
+
+    if text in {"false", "no", "n", "0", "unreachable", "offline", "failed", "timeout", "error"}:
+        return False
+
+    return None
+
+
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    if "." not in key:
+        return row.get(key)
+
+    current: Any = row
+
+    for part in key.split("."):
+        if not isinstance(current, Mapping):
+            return None
+
+        current = current.get(part)
+
+    return current
+
+
+def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        value = deep_get(row, key)
+
+        if value not in ("", None):
+            return value
+
+    return None
+
+
+def nested_dict(row: Mapping[str, Any], key: str) -> dict[str, Any]:
+    value = row.get(key)
     return value if isinstance(value, dict) else {}
 
 
-def row_lat_lon(row: dict[str, Any]) -> tuple[float | None, float | None]:
-    lat = number(
-        row.get("latitude")
-        or row.get("lat")
-        or nested_dict(row, "geoloc").get("latitude")
-        or nested_dict(row, "city_data").get("latitude")
-        or nested_dict(row, "postal_data").get("latitude")
-        or nested_dict(row, "w3w_data").get("center_latitude")
-        or nested_dict(row, "geohashid_data").get("center_latitude")
-    )
+def row_lat_lon(row: Mapping[str, Any]) -> tuple[float | None, float | None]:
+    lat = number(first(row, (
+        "latitude",
+        "lat",
+        "geoloc.latitude",
+        "city_data.latitude",
+        "postal_data.latitude",
+        "w3w_data.center_latitude",
+        "zzxgcs_data.center_latitude",
+        "geohashid_data.center_latitude",
+        "geo.latitude",
+        "geo.lat",
+        "geoip.latitude",
+        "geoip.lat",
+        "geoip_data.latitude",
+        "location.latitude",
+        "metadata.latitude",
+    )))
 
-    lon = number(
-        row.get("longitude")
-        or row.get("lon")
-        or row.get("lng")
-        or nested_dict(row, "geoloc").get("longitude")
-        or nested_dict(row, "city_data").get("longitude")
-        or nested_dict(row, "postal_data").get("longitude")
-        or nested_dict(row, "w3w_data").get("center_longitude")
-        or nested_dict(row, "geohashid_data").get("center_longitude")
-    )
-
-    if lat is None or lon is None:
-        geo = nested_dict(row, "geo")
-
-        lat = number(geo.get("latitude") or geo.get("lat"))
-        lon = number(geo.get("longitude") or geo.get("lon") or geo.get("lng"))
+    lon = number(first(row, (
+        "longitude",
+        "lon",
+        "lng",
+        "geoloc.longitude",
+        "geoloc.lon",
+        "city_data.longitude",
+        "postal_data.longitude",
+        "w3w_data.center_longitude",
+        "zzxgcs_data.center_longitude",
+        "geohashid_data.center_longitude",
+        "geo.longitude",
+        "geo.lon",
+        "geo.lng",
+        "geoip.longitude",
+        "geoip.lon",
+        "geoip_data.longitude",
+        "location.longitude",
+        "metadata.longitude",
+    )))
 
     if lat is None or lon is None:
         return None, None
@@ -140,13 +195,13 @@ def row_lat_lon(row: dict[str, Any]) -> tuple[float | None, float | None]:
 
 
 def load_module(module_name: str) -> Any | None:
-    path = TOOLS_DIR / f"{module_name}.py"
+    path = MAP_TOOLS_DIR / f"{module_name}.py"
 
     if not path.exists():
         return None
 
     spec = importlib.util.spec_from_file_location(
-        f"zzx_bitnodes_maps_{module_name}",
+        f"zzx_bitnodes_map_{module_name}",
         path,
     )
 
@@ -160,15 +215,7 @@ def load_module(module_name: str) -> Any | None:
 
 
 def find_callable(module: Any) -> Callable[..., Any] | None:
-    for name in (
-        "build",
-        "build_map",
-        "build_maps",
-        "render",
-        "render_map",
-        "process",
-        "run",
-    ):
+    for name in ("build", "build_map", "build_maps", "render", "render_map", "process", "run"):
         fn = getattr(module, name, None)
 
         if callable(fn):
@@ -213,6 +260,39 @@ def call_module(
     return payload
 
 
+def array_node_to_dict(address: str, row: list[Any]) -> dict[str, Any]:
+    metadata = row[19] if len(row) > 19 and isinstance(row[19], dict) else {}
+
+    return {
+        "address": address,
+        "protocol": row[0] if len(row) > 0 else None,
+        "agent": row[1] if len(row) > 1 else None,
+        "connected_since": row[2] if len(row) > 2 else None,
+        "services": row[3] if len(row) > 3 else None,
+        "height": row[4] if len(row) > 4 else None,
+        "hostname": row[5] if len(row) > 5 else None,
+        "city": row[6] if len(row) > 6 else None,
+        "country": row[7] if len(row) > 7 else None,
+        "country_code": row[7] if len(row) > 7 else None,
+        "latitude": row[8] if len(row) > 8 else None,
+        "longitude": row[9] if len(row) > 9 else None,
+        "timezone": row[10] if len(row) > 10 else None,
+        "asn": row[11] if len(row) > 11 else None,
+        "organization": row[12] if len(row) > 12 else None,
+        "provider": row[13] if len(row) > 13 else None,
+        "county": row[14] if len(row) > 14 else None,
+        "zip": row[15] if len(row) > 15 else None,
+        "postal_code": row[15] if len(row) > 15 else None,
+        "w3w": row[16] if len(row) > 16 else None,
+        "what3words": row[16] if len(row) > 16 else None,
+        "geohash": row[17] if len(row) > 17 else None,
+        "geohashid": row[17] if len(row) > 17 else None,
+        "asn_location": row[18] if len(row) > 18 else None,
+        "metadata": metadata,
+        **metadata,
+    }
+
+
 def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, dict)]
@@ -220,7 +300,7 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if not isinstance(payload, dict):
         return []
 
-    for key in ("nodes", "rows", "data", "results", "reachable", "node_records"):
+    for key in ("rows", "data", "results", "reachable", "unreachable", "node_records", "peers"):
         value = payload.get(key)
 
         if isinstance(value, list):
@@ -228,29 +308,31 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
 
     nodes = payload.get("nodes")
 
+    if isinstance(nodes, list):
+        return [item for item in nodes if isinstance(item, dict)]
+
     if isinstance(nodes, dict):
-        output = []
+        output: list[dict[str, Any]] = []
 
         for address, value in nodes.items():
             if isinstance(value, dict):
-                output.append({"address": address, **value})
+                record = dict(value)
+                record.setdefault("address", address)
+                output.append(record)
             elif isinstance(value, list):
-                output.append({
-                    "address": address,
-                    "status": value[0] if len(value) > 0 else None,
-                    "protocol": value[1] if len(value) > 1 else None,
-                    "agent": value[2] if len(value) > 2 else None,
-                    "height": value[3] if len(value) > 3 else None,
-                    "services": value[4] if len(value) > 4 else None,
-                    "timestamp": value[5] if len(value) > 5 else None,
-                })
+                output.append(array_node_to_dict(str(address), value))
             else:
-                output.append({
-                    "address": address,
-                    "value": value,
-                })
+                output.append({"address": address, "value": value})
 
         return output
+
+    vectors = payload.get("vectors")
+
+    if isinstance(vectors, dict):
+        value = vectors.get("points")
+
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
 
     return []
 
@@ -272,6 +354,8 @@ def find_input_file(api_dir: Path, state_dir: Path, explicit_input: str = "") ->
         state_dir / "nodes.json",
         state_dir / "latest.json",
         state_dir / "registry.json",
+        DEFAULT_LIVE_MAP_DIR / "data" / "live-map.json",
+        DEFAULT_LIVE_MAP_DIR / "data" / "map-vectors.json",
     ]
 
     for path in candidates:
@@ -281,36 +365,56 @@ def find_input_file(api_dir: Path, state_dir: Path, explicit_input: str = "") ->
     return None
 
 
-def node_address(row: dict[str, Any]) -> str:
-    return clean(row.get("address") or row.get("node") or row.get("addr") or row.get("host"))
+def node_address(row: Mapping[str, Any]) -> str:
+    return clean(first(row, ("address", "node", "addr", "host", "hostname")))
 
 
-def is_tor(row: dict[str, Any]) -> bool:
+def is_tor(row: Mapping[str, Any]) -> bool:
     address = node_address(row).lower()
+    return boolish(first(row, ("is_tor", "tor.is_tor", "metadata.is_tor"))) is True or ".onion" in address
 
-    return bool(row.get("is_tor") or nested_dict(row, "tor").get("is_tor") or ".onion" in address)
 
-
-def is_i2p(row: dict[str, Any]) -> bool:
+def is_i2p(row: Mapping[str, Any]) -> bool:
     address = node_address(row).lower()
+    return boolish(first(row, ("is_i2p", "i2p.is_i2p", "metadata.is_i2p"))) is True or ".i2p" in address
 
-    return bool(row.get("is_i2p") or nested_dict(row, "i2p").get("is_i2p") or ".i2p" in address)
 
-
-def is_ipv4(row: dict[str, Any]) -> bool:
+def is_ipv4(row: Mapping[str, Any]) -> bool:
     address = node_address(row)
+    host = address.rsplit(":", 1)[0] if address.count(":") == 1 else address
+    return boolish(first(row, ("is_ipv4", "metadata.is_ipv4"))) is True or host.count(".") == 3
 
-    return bool(row.get("is_ipv4") or (address.count(".") == 3 and ":" not in address))
 
-
-def is_ipv6(row: dict[str, Any]) -> bool:
+def is_ipv6(row: Mapping[str, Any]) -> bool:
     address = node_address(row).lower()
+    return boolish(first(row, ("is_ipv6", "metadata.is_ipv6"))) is True or address.startswith("[") or (
+        ":" in address and ".onion" not in address and ".i2p" not in address
+    )
 
-    return bool(row.get("is_ipv6") or address.startswith("[") or (":" in address and ".onion" not in address and ".i2p" not in address))
+
+def classify_node(row: Mapping[str, Any]) -> str:
+    network = clean(first(row, ("network", "metadata.network"))).lower()
+
+    if network:
+        return network
+
+    if is_tor(row):
+        return "tor"
+
+    if is_i2p(row):
+        return "i2p"
+
+    if is_ipv6(row):
+        return "ipv6"
+
+    if is_ipv4(row):
+        return "ipv4"
+
+    return "unknown"
 
 
-def is_synced(row: dict[str, Any], max_height: int) -> bool:
-    height = int(number(row.get("height"), 0) or 0)
+def is_synced(row: Mapping[str, Any], max_height: int) -> bool:
+    height = int(number(first(row, ("height",)), 0) or 0)
 
     if max_height <= 0:
         return False
@@ -318,15 +422,15 @@ def is_synced(row: dict[str, Any], max_height: int) -> bool:
     return height >= max_height - 2
 
 
-def uptime_seconds(row: dict[str, Any]) -> float:
-    for key in ("uptime_seconds", "uptime", "age_seconds", "last_seen_duration"):
-        value = number(row.get(key))
+def uptime_seconds(row: Mapping[str, Any]) -> float:
+    for key in ("uptime_seconds", "uptime", "age_seconds", "last_seen_duration", "metadata.uptime_seconds"):
+        value = number(first(row, (key,)))
 
         if value is not None:
             return float(value)
 
-    first_seen = number(row.get("first_seen"))
-    last_seen = number(row.get("last_seen") or row.get("timestamp"))
+    first_seen = number(first(row, ("first_seen", "metadata.first_seen")))
+    last_seen = number(first(row, ("last_seen", "timestamp", "metadata.last_seen")))
 
     if first_seen is not None and last_seen is not None and last_seen >= first_seen:
         return last_seen - first_seen
@@ -334,21 +438,33 @@ def uptime_seconds(row: dict[str, Any]) -> float:
     return 0.0
 
 
-def marker_status(row: dict[str, Any], duplicate_count: int, max_height: int) -> dict[str, Any]:
+def marker_status(row: Mapping[str, Any], duplicate_count: int, max_height: int) -> dict[str, Any]:
+    reachable = boolish(first(row, ("reachable", "metadata.reachable")))
+    reachable_now = boolish(first(row, ("reachable_now", "metadata.reachable_now")))
     synced = is_synced(row, max_height)
     uptime = uptime_seconds(row)
-    height = int(number(row.get("height"), 0) or 0)
+    height = int(number(first(row, ("height",)), 0) or 0)
 
     if duplicate_count > 1:
         color = "#d95c5c"
         status = "duplicate-location"
         label = "Duplicate Location"
-        priority = 90
+        priority = 95
+    elif reachable is False or reachable_now is False:
+        color = "#d95c5c"
+        status = "unreachable"
+        label = "Node Became Unreachable"
+        priority = 85
     elif not synced and height > 0:
         color = "#9d67ad"
         status = "not-yet-synced"
         label = "Not Yet Synced"
         priority = 75
+    elif synced and uptime >= 604800:
+        color = "#9fdb6d"
+        status = "stable-1w-plus"
+        label = "Stable 1w+"
+        priority = 70
     elif synced and uptime >= 172800:
         color = "#c0d674"
         status = "stable-48h-plus"
@@ -361,8 +477,8 @@ def marker_status(row: dict[str, Any], duplicate_count: int, max_height: int) ->
         priority = 55
     elif synced:
         color = "#edf7b9"
-        status = "synced"
-        label = "Synced"
+        status = "synced-under-10m"
+        label = "Synced <10m"
         priority = 45
     else:
         color = "#8c927e"
@@ -380,28 +496,14 @@ def marker_status(row: dict[str, Any], duplicate_count: int, max_height: int) ->
     }
 
 
-def classify_node(row: dict[str, Any]) -> str:
-    if is_tor(row):
-        return "tor"
-
-    if is_i2p(row):
-        return "i2p"
-
-    if is_ipv6(row):
-        return "ipv6"
-
-    if is_ipv4(row):
-        return "ipv4"
-
-    return "unknown"
+def flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
+    return any(boolish(first(row, (key,))) is True for key in keys)
 
 
 def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     geocoded: list[tuple[dict[str, Any], float, float]] = []
 
-    max_height = max(
-        [int(number(row.get("height"), 0) or 0) for row in nodes] or [0]
-    )
+    max_height = max([int(number(first(row, ("height",)), 0) or 0) for row in nodes] or [0])
 
     for row in nodes:
         lat, lon = row_lat_lon(row)
@@ -430,23 +532,11 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         status = marker_status(row, duplicate_count, max_height)
 
         address = node_address(row)
-        city = clean(row.get("city") or nested_dict(row, "city_data").get("city"))
-        country = clean(row.get("country_code") or nested_dict(row, "country_data").get("country_code") or row.get("country"))
-        country_name = clean(nested_dict(row, "country_data").get("country_name"))
-        continent = clean(row.get("continent") or nested_dict(row, "continent_data").get("continent"))
-        region = clean(row.get("region") or nested_dict(row, "region_data").get("region"))
-        territory = clean(row.get("territory") or nested_dict(row, "territory_data").get("territory"))
-        county = clean(row.get("county") or nested_dict(row, "county_data").get("county"))
-        postal = clean(row.get("postal_code") or row.get("zip") or nested_dict(row, "postal_data").get("postal_code"))
-        timezone_name = clean(row.get("timezone") or nested_dict(row, "timezone_data").get("timezone"))
-
-        agent = clean(row.get("agent") or row.get("user_agent"))
-        provider = clean(row.get("provider") or row.get("organization") or row.get("org"))
-        asn = clean(row.get("asn") or nested_dict(row, "isp").get("asn"))
 
         points.append({
             "id": address or f"{lat:.6f},{lon:.6f}",
             "address": address,
+            "host": clean(first(row, ("host", "hostname"))) or address,
             "latitude": lat,
             "longitude": lon,
             "lat": lat,
@@ -458,85 +548,78 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "priority": status["priority"],
             "duplicate_count": duplicate_count,
             "synced": status["synced"],
-            "height": int(number(row.get("height"), 0) or 0),
+            "reachable": boolish(first(row, ("reachable", "metadata.reachable"))),
+            "reachable_now": boolish(first(row, ("reachable_now", "metadata.reachable_now"))),
+            "reachable_24h": boolish(first(row, ("reachable_24h", "metadata.reachable_24h"))),
+            "height": int(number(first(row, ("height",)), 0) or 0),
             "uptime_seconds": status["uptime_seconds"],
-            "city": city,
-            "county": county,
-            "territory": territory,
-            "region": region,
-            "continent": continent,
-            "country": country,
-            "country_name": country_name,
-            "postal_code": postal,
-            "timezone": timezone_name,
-            "agent": agent,
-            "provider": provider,
-            "asn": asn,
-            "port": clean(row.get("port")),
-            "services": row.get("services"),
-            "w3w": clean(row.get("w3w") or row.get("what3words")),
-            "geohashid": clean(row.get("geohashid")),
-            "jurisdiction_risk_level": clean(row.get("jurisdiction_risk_level")),
-            "jurisdiction_recommended_action": clean(row.get("jurisdiction_recommended_action")),
+            "city": clean(first(row, ("city", "city_data.city"))),
+            "county": clean(first(row, ("county", "county_data.county"))),
+            "territory": clean(first(row, ("territory", "territory_data.territory"))),
+            "region": clean(first(row, ("region", "region_data.region"))),
+            "continent": clean(first(row, ("continent", "continent_data.continent"))),
+            "country": clean(first(row, ("country_code", "country_data.country_code", "country"))) or "Unknown",
+            "country_name": clean(first(row, ("country_name", "country_data.country_name"))),
+            "postal_code": clean(first(row, ("postal_code", "zip", "postal_data.postal_code"))),
+            "zip": clean(first(row, ("zip", "postal_code", "postal_data.postal_code"))),
+            "timezone": clean(first(row, ("timezone", "iana_timezone", "timezone_data.timezone"))),
+            "agent": clean(first(row, ("agent", "user_agent"))),
+            "provider": clean(first(row, ("provider", "provider_data.provider", "organization", "org"))),
+            "organization": clean(first(row, ("organization", "org", "organization_data.organization"))),
+            "asn": clean(first(row, ("asn", "asn_data.asn", "isp.asn"))),
+            "port": clean(first(row, ("port",))),
+            "services": first(row, ("services",)),
+            "latency_ms": first(row, ("latency_ms", "metadata.latency_ms")),
+            "peer_index": first(row, ("peer_index", "metadata.peer_index")),
+            "w3w": clean(first(row, ("w3w", "what3words", "w3w_data.w3w"))),
+            "what3words": clean(first(row, ("what3words", "w3w", "w3w_data.words"))),
+            "geohash": clean(first(row, ("geohash", "geohashid_data.geohash"))),
+            "geohashid": clean(first(row, ("geohashid", "geohashid_data.geohashid"))),
+            "zzxgcs": clean(first(row, ("zzxgcs", "zzxgcs_data.zzxgcs"))),
+            "jurisdiction_risk_level": clean(first(row, ("jurisdiction_risk_level", "sanctions_data.risk_level"))),
+            "jurisdiction_recommended_action": clean(first(row, ("jurisdiction_recommended_action", "sanctions_data.recommended_action"))),
+            "is_vpn": flag(row, ("is_vpn", "suspected_vpn", "vpn_data.is_vpn", "metadata.is_vpn")),
+            "is_proxy": flag(row, ("is_proxy", "suspected_proxy", "proxy_data.is_proxy", "metadata.is_proxy")),
+            "is_datacenter": flag(row, ("is_datacenter", "datacenter_data.is_datacenter", "provider_data.is_datacenter")),
+            "is_government": flag(row, ("is_government", "government_data.is_government", "organization_data.is_government")),
+            "is_military": flag(row, ("is_military", "military_data.is_military", "organization_data.is_military")),
+            "is_university": flag(row, ("is_university", "is_academic", "is_institute", "organization_data.is_university")),
+            "is_private": flag(row, ("is_private", "is_commercial", "organization_data.is_private")),
+            "is_public": flag(row, ("is_public", "is_residential", "organization_data.is_public")),
+            "is_sanctioned": flag(row, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned")),
+            "is_apt": flag(row, ("is_apt", "apt_data.is_apt", "aptattribution.is_apt")),
+            "is_threat_actor": flag(row, ("is_threat_actor", "threat_actor_data.is_threat_actor", "tagattribution.is_threat_actor")),
+            "is_known_malactor": flag(row, ("is_known_malactor", "known_malactor_data.is_known_malactor", "knownmalactor.is_known_malactor")),
         })
 
     return sorted(
         points,
-        key=lambda item: (
-            -int(item["priority"]),
-            item["country"],
-            item["city"],
-            item["address"],
-        ),
+        key=lambda item: (-int(item["priority"]), item["country"], item["city"], item["address"]),
     )
 
 
-def build_vector_payload(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
+def count_by(points: list[dict[str, Any]], key: str) -> dict[str, int]:
     counts: dict[str, int] = {}
-    statuses: dict[str, int] = {}
-    countries: dict[str, int] = {}
 
     for point in points:
-        counts[point["network"]] = counts.get(point["network"], 0) + 1
-        statuses[point["status"]] = statuses.get(point["status"], 0) + 1
+        value = clean(point.get(key)) or "Unknown"
+        counts[value] = counts.get(value, 0) + 1
 
-        country = point["country"] or "Unknown"
-        countries[country] = countries.get(country, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
 
+
+def build_vector_payload(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-vectors-v1",
+        "schema": "zzx-bitnodes-map-vectors-v2",
         "generated_at": utc_now(),
         "source": source,
         "point_count": len(points),
-        "network_counts": counts,
-        "status_counts": statuses,
-        "country_counts": countries,
-        "legend": {
-            "duplicate-location": {
-                "color": "#d95c5c",
-                "label": "Duplicate IP / Multiple Nodes at Location",
-            },
-            "not-yet-synced": {
-                "color": "#9d67ad",
-                "label": "Not Yet Synced",
-            },
-            "stable-48h-plus": {
-                "color": "#c0d674",
-                "label": "Synced / Uptime Over 48h",
-            },
-            "synced-10m-plus": {
-                "color": "#e6a42b",
-                "label": "Synced / Uptime Over 10m",
-            },
-            "synced": {
-                "color": "#edf7b9",
-                "label": "Synced",
-            },
-            "unknown": {
-                "color": "#8c927e",
-                "label": "Unknown / Unclassified",
-            },
-        },
+        "network_counts": count_by(points, "network"),
+        "status_counts": count_by(points, "status"),
+        "country_counts": count_by(points, "country"),
+        "agent_counts": count_by(points, "agent"),
+        "provider_counts": count_by(points, "provider"),
+        "asn_counts": count_by(points, "asn"),
         "points": points,
     }
 
@@ -544,6 +627,7 @@ def build_vector_payload(points: list[dict[str, Any]], source: str) -> dict[str,
 def build_geojson(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
     return {
         "type": "FeatureCollection",
+        "schema": "zzx-bitnodes-map-points-geojson-v2",
         "name": "ZZX Bitnodes Live Map",
         "generated_at": utc_now(),
         "source": source,
@@ -552,10 +636,7 @@ def build_geojson(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
                 "type": "Feature",
                 "geometry": {
                     "type": "Point",
-                    "coordinates": [
-                        point["longitude"],
-                        point["latitude"],
-                    ],
+                    "coordinates": [point["longitude"], point["latitude"]],
                 },
                 "properties": {
                     key: value
@@ -570,37 +651,13 @@ def build_geojson(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
 
 def default_settings() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-settings-v1",
+        "schema": "zzx-bitnodes-map-settings-fallback-v2",
         "generated_at": utc_now(),
         "tile_provider": "cartodb_dark",
         "tile_url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
         "tile_attribution": "© OpenStreetMap contributors © CARTO",
         "tile_subdomains": ["a", "b", "c", "d"],
-        "initial_view": {
-            "latitude": 20.0,
-            "longitude": 0.0,
-            "zoom": 2,
-            "min_zoom": 2,
-            "max_zoom": 18,
-        },
-        "interaction": {
-            "scroll_wheel_zoom": True,
-            "drag_pan": True,
-            "touch_zoom": True,
-            "double_click_zoom": True,
-            "box_zoom": True,
-            "keyboard": True,
-            "middle_mouse_reserved_for_network_map": True,
-        },
-        "marker": {
-            "radius_min": 4,
-            "radius_max": 14,
-            "opacity": 0.88,
-            "fill_opacity": 0.72,
-            "stroke_weight": 1,
-            "cluster_enabled": True,
-            "heatmap_enabled": True,
-        },
+        "initial_view": {"latitude": 20.0, "longitude": 0.0, "zoom": 2, "min_zoom": 2, "max_zoom": 20},
         "refresh": {
             "enabled": True,
             "interval_seconds": 60,
@@ -611,67 +668,21 @@ def default_settings() -> dict[str, Any]:
             "layers_url": "./data/map-layers.json",
             "overlays_url": "./data/map-overlays.json",
             "polygons_url": "./data/map-polygons.geojson",
-        },
-        "theme": {
-            "selected": DEFAULT_THEME,
-            "manifest_url": "./data/map-themes.json",
-            "theme_url": f"./data/themes/{DEFAULT_THEME}.json",
-            "user_selectable": True,
-            "css_variables": {},
+            "vector_types_url": "./data/vector-types.json",
         },
     }
 
 
 def default_theme() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-theme-v1",
+        "schema": "zzx-bitnodes-map-theme-fallback-v2",
         "id": DEFAULT_THEME,
         "generated_at": utc_now(),
         "name": "ZZX Dark Olive",
-        "description": "Default ZZX-Labs dark tactical olive/ochre map theme.",
-        "font_family": "IBM Plex Mono, monospace",
-        "heading_font_family": "var(--bn-heading, IBM Plex Mono, monospace)",
-        "colors": {
-            "background": "#050705",
-            "panel": "#080b08",
-            "panel_alt": "#10140d",
-            "text": "#edf7b9",
-            "muted": "#ccd8b6",
-            "accent": "#c0d674",
-            "accent_soft": "#617039",
-            "ochre": "#e6a42b",
-            "danger": "#d95c5c",
-            "warning": "#e6a42b",
-            "purple": "#9d67ad",
-            "blue": "#70b7ff",
-            "unknown": "#8c927e",
-        },
-        "markers": {
-            "duplicate_location": "#d95c5c",
-            "not_yet_synced": "#9d67ad",
-            "stable_48h_plus": "#c0d674",
-            "synced_10m_plus": "#e6a42b",
-            "synced": "#edf7b9",
-            "ipv4": "#c0d674",
-            "ipv6": "#70b7ff",
-            "tor": "#9d67ad",
-            "i2p": "#b889ff",
-            "unknown": "#8c927e",
-        },
-        "layout": {
-            "border_radius": "18px",
-            "panel_padding": "1.1rem",
-            "control_radius": "999px",
-            "shadow": "0 16px 34px rgba(0,0,0,0.32)",
-        },
-        "tiles": {
-            "provider": "cartodb_dark",
-        },
         "css_variables": {
             "--bn-map-background": "#050705",
             "--bn-map-panel": "#080b08",
             "--bn-map-text": "#edf7b9",
-            "--bn-map-muted": "#ccd8b6",
             "--bn-map-accent": "#c0d674",
             "--bn-map-ochre": "#e6a42b",
         },
@@ -685,73 +696,44 @@ def render_index_html(title: str, depth: str = "..") -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} | ZZX-Labs R&D Bitnodes</title>
-
     <link rel="stylesheet" href="{depth}/styles.css">
     <link rel="stylesheet" href="./map.css">
-
     <script src="{depth}/script.js" defer></script>
     <script src="./map.js" defer></script>
 </head>
-
 <body data-bn-depth="{depth}" data-bn-view="map">
-<header>
-    <div id="bn-header"></div>
-</header>
-
+<header><div id="bn-header"></div></header>
 <main class="bn-shell">
     <section class="bn-hero container">
         <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
-
         <h2>{title}</h2>
-
-        <p>
-            OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, client,
-            synchronization, uptime, duplicate-location, Tor, I2P, IPv4, IPv6,
-            GeoHashID, what3words, postal, city, county, territory, and country overlays.
-        </p>
+        <p>OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization, uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, and policy overlays.</p>
     </section>
-
     <section class="bn-panel container bn-map-panel">
         <div class="bn-map-toolbar">
-            <div>
-                <span class="bn-kicker">Map Mode</span>
-                <h2>Bitcoin Node Map</h2>
-            </div>
-
+            <div><span class="bn-kicker">Map Mode</span><h2>Bitcoin Node Map</h2></div>
             <div class="bn-map-selectors">
-                <label>
-                    Theme
-                    <select id="bn-map-theme-select" data-map-theme-select></select>
-                </label>
-
-                <label>
-                    Settings
-                    <select id="bn-map-settings-select" data-map-settings-select></select>
-                </label>
+                <label>Theme<select id="bn-map-theme-select" data-map-theme-select></select></label>
+                <label>Settings<select id="bn-map-settings-select" data-map-settings-select></select></label>
             </div>
-
             <div class="bn-map-controls">
                 <button type="button" data-map-filter="all" class="is-active">All</button>
                 <button type="button" data-map-filter="ipv4">IPv4</button>
                 <button type="button" data-map-filter="ipv6">IPv6</button>
                 <button type="button" data-map-filter="tor">Tor</button>
                 <button type="button" data-map-filter="i2p">I2P</button>
+                <button type="button" data-map-filter="vpn">VPN</button>
+                <button type="button" data-map-filter="proxy">Proxy</button>
                 <button type="button" data-map-reset>Reset View</button>
             </div>
         </div>
-
         <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
-
         <div id="bn-live-map" class="bn-live-map" data-map-root></div>
-
         <div id="bn-map-hud" class="bn-map-hud"></div>
         <div id="bn-map-legend" class="bn-map-legend"></div>
     </section>
 </main>
-
-<footer>
-    <div id="bn-footer"></div>
-</footer>
+<footer><div id="bn-footer"></div></footer>
 </body>
 </html>
 """
@@ -771,15 +753,8 @@ def render_map_css() -> str:
     --bn-map-blue: #70b7ff;
     --bn-map-unknown: #8c927e;
     --bn-map-border-radius: 18px;
-    --bn-map-panel-padding: 1.1rem;
     --bn-map-control-radius: 999px;
     --bn-map-shadow: 0 16px 34px rgba(0,0,0,0.32);
-    --bn-map-font: var(--bn-font, IBM Plex Mono, monospace);
-    --bn-map-heading: var(--bn-heading, IBM Plex Mono, monospace);
-}
-
-.bn-map-panel {
-    overflow: hidden;
 }
 
 .bn-map-toolbar {
@@ -790,15 +765,8 @@ def render_map_css() -> str:
     margin-bottom: 1rem;
 }
 
-.bn-map-toolbar h2 {
-    margin: 0.25rem 0 0;
-    color: var(--bn-map-text);
-    font-family: var(--bn-map-heading);
-}
-
 .bn-map-selectors {
     display: flex;
-    align-items: center;
     gap: 0.65rem;
     flex-wrap: wrap;
 }
@@ -808,7 +776,6 @@ def render_map_css() -> str:
     flex-direction: column;
     gap: 0.3rem;
     color: rgba(204,216,182,0.72);
-    font-family: var(--bn-map-font);
     font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -821,7 +788,7 @@ def render_map_css() -> str:
     border-radius: 10px;
     background: rgba(0,0,0,0.32);
     color: var(--bn-map-text);
-    font-family: var(--bn-map-font);
+    font-family: inherit;
     font-size: 0.74rem;
     padding: 0.55rem 0.7rem;
 }
@@ -839,7 +806,7 @@ def render_map_css() -> str:
     background: rgba(0,0,0,0.24);
     color: var(--bn-map-accent);
     cursor: pointer;
-    font-family: var(--bn-map-font);
+    font-family: inherit;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -860,7 +827,6 @@ def render_map_css() -> str:
     border-radius: 12px;
     background: rgba(0,0,0,0.22);
     color: rgba(204,216,182,0.72);
-    font-family: var(--bn-map-font);
     font-size: 0.74rem;
     line-height: 1.6;
     padding: 0.7rem 0.85rem;
@@ -893,7 +859,6 @@ def render_map_css() -> str:
 .bn-map-hud span {
     display: block;
     color: rgba(204,216,182,0.64);
-    font-family: var(--bn-map-font);
     font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -904,7 +869,6 @@ def render_map_css() -> str:
     display: block;
     margin-top: 0.35rem;
     color: var(--bn-map-text);
-    font-family: var(--bn-map-font);
     font-size: 1.05rem;
 }
 
@@ -922,7 +886,6 @@ def render_map_css() -> str:
     border: 1px solid rgba(192,214,116,0.1);
     border-radius: 999px;
     color: rgba(204,216,182,0.78);
-    font-family: var(--bn-map-font);
     font-size: 0.72rem;
     padding: 0.45rem 0.62rem;
 }
@@ -946,37 +909,17 @@ def render_map_css() -> str:
 }
 
 @media (max-width: 1100px) {
-    .bn-map-toolbar {
-        grid-template-columns: 1fr;
-        align-items: start;
-    }
-
-    .bn-map-controls {
-        justify-content: flex-start;
-    }
-
-    .bn-map-hud {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    .bn-map-toolbar { grid-template-columns: 1fr; align-items: start; }
+    .bn-map-controls { justify-content: flex-start; }
+    .bn-map-hud { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
-    .bn-map-selectors {
-        width: 100%;
-    }
-
+    .bn-map-selectors,
     .bn-map-selectors label,
-    .bn-map-selectors select {
-        width: 100%;
-    }
-
-    .bn-live-map {
-        min-height: 64vh;
-    }
-
-    .bn-map-hud {
-        grid-template-columns: 1fr;
-    }
+    .bn-map-selectors select { width: 100%; }
+    .bn-live-map { min-height: 64vh; }
+    .bn-map-hud { grid-template-columns: 1fr; }
 }
 """
 
@@ -989,7 +932,9 @@ def render_map_js() -> str:
         map: null,
         layer: null,
         polygonLayer: null,
+        canvasRenderer: null,
         vectors: null,
+        vectorTypes: null,
         settings: null,
         theme: null,
         themes: null,
@@ -1016,10 +961,7 @@ def render_map_js() -> str:
 
     function setStatus(message) {
         const target = qs("#bn-map-status");
-
-        if (target) {
-            target.textContent = message;
-        }
+        if (target) target.textContent = message;
     }
 
     function loadLeaflet() {
@@ -1044,23 +986,14 @@ def render_map_js() -> str:
 
     async function readJson(path) {
         const response = await fetch(path, { cache: "no-store" });
-
-        if (!response.ok) {
-            throw new Error(`Failed to load ${path}: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
         return response.json();
     }
 
     function applyTheme(theme) {
-        if (!theme) {
-            return;
-        }
-
+        if (!theme) return;
         state.theme = theme;
-
         const vars = theme.css_variables || {};
-
         Object.entries(vars).forEach(([key, value]) => {
             document.documentElement.style.setProperty(key, value);
         });
@@ -1069,24 +1002,26 @@ def render_map_js() -> str:
     async function loadTheme(themeId) {
         const id = themeId || state.settings?.theme?.selected || "zzx_dark_olive";
         const theme = await readJson(`./data/themes/${id}.json`).catch(() => readJson("./data/map-theme.json"));
-
         applyTheme(theme);
-
         return theme;
     }
 
-    async function loadSettingsProfile(settingsId) {
-        const id = settingsId || state.settings?.profile?.id || "default";
-        const profile = await readJson(`./data/settings/${id}.json`);
+    function pointVisible(point) {
+        if (state.filter === "all") return true;
+        if (point.network === state.filter || point.status === state.filter) return true;
+        if (state.filter === "vpn") return point.is_vpn === true;
+        if (state.filter === "proxy") return point.is_proxy === true;
+        return false;
+    }
 
-        return profile;
+    function filteredPoints() {
+        return (state.vectors?.points || []).filter(pointVisible);
     }
 
     function radius(point) {
         const dup = Number(point.duplicate_count || 1);
         const min = Number(state.settings?.marker?.radius_min || 4);
         const max = Number(state.settings?.marker?.radius_max || 14);
-
         return Math.max(min, Math.min(max, min + Math.log2(dup + 1) * 3));
     }
 
@@ -1105,31 +1040,22 @@ def render_map_js() -> str:
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
                 <div>Agent: ${escapeHtml(point.agent || "—")}</div>
+                <div>VPN: ${point.is_vpn ? "yes" : "no"}</div>
+                <div>Proxy: ${point.is_proxy ? "yes" : "no"}</div>
                 <div>W3W: ${escapeHtml(point.w3w || "—")}</div>
+                <div>ZZX-GCS: ${escapeHtml(point.zzxgcs || "—")}</div>
                 <div>GeohashID: ${escapeHtml(point.geohashid || "—")}</div>
             </div>
         `;
     }
 
-    function filteredPoints() {
-        const points = state.vectors?.points || [];
-
-        if (state.filter === "all") {
-            return points;
-        }
-
-        return points.filter(point => point.network === state.filter || point.status === state.filter);
-    }
-
     function renderHud() {
         const target = qs("#bn-map-hud");
-
-        if (!target || !state.vectors) {
-            return;
-        }
+        if (!target || !state.vectors) return;
 
         const networks = state.vectors.network_counts || {};
         const statuses = state.vectors.status_counts || {};
+        const intel = state.vectors.intelligence_counts || {};
 
         target.innerHTML = `
             <article><span>Total Points</span><strong>${Number(state.vectors.point_count || 0).toLocaleString()}</strong></article>
@@ -1138,36 +1064,26 @@ def render_map_js() -> str:
             <article><span>Tor</span><strong>${Number(networks.tor || 0).toLocaleString()}</strong></article>
             <article><span>I2P</span><strong>${Number(networks.i2p || 0).toLocaleString()}</strong></article>
             <article><span>Duplicate</span><strong>${Number(statuses["duplicate-location"] || 0).toLocaleString()}</strong></article>
-            <article><span>Unsynced</span><strong>${Number(statuses["not-yet-synced"] || 0).toLocaleString()}</strong></article>
-            <article><span>Stable 48h+</span><strong>${Number(statuses["stable-48h-plus"] || 0).toLocaleString()}</strong></article>
-            <article><span>Synced 10m+</span><strong>${Number(statuses["synced-10m-plus"] || 0).toLocaleString()}</strong></article>
-            <article><span>Synced</span><strong>${Number(statuses.synced || 0).toLocaleString()}</strong></article>
+            <article><span>Unreachable</span><strong>${Number(statuses.unreachable || 0).toLocaleString()}</strong></article>
+            <article><span>VPN</span><strong>${Number(intel.vpn_nodes || 0).toLocaleString()}</strong></article>
+            <article><span>Proxy</span><strong>${Number(intel.proxy_nodes || 0).toLocaleString()}</strong></article>
+            <article><span>Datacenter</span><strong>${Number(intel.datacenter_nodes || 0).toLocaleString()}</strong></article>
         `;
     }
 
     function renderLegend() {
         const target = qs("#bn-map-legend");
+        if (!target || !state.vectors?.legend) return;
 
-        if (!target || !state.vectors?.legend) {
-            return;
-        }
-
-        target.innerHTML = Object.entries(state.vectors.legend).map(([key, item]) => `
-            <span>
-                <i style="background:${escapeHtml(item.color)}"></i>
-                ${escapeHtml(item.label)}
-            </span>
+        target.innerHTML = Object.entries(state.vectors.legend).map(([_key, item]) => `
+            <span><i style="background:${escapeHtml(item.color)}"></i>${escapeHtml(item.label)}</span>
         `).join("");
     }
 
     function renderPoints() {
-        if (!state.map || !window.L) {
-            return;
-        }
+        if (!state.map || !window.L) return;
 
-        if (state.layer) {
-            state.layer.remove();
-        }
+        if (state.layer) state.layer.remove();
 
         state.layer = window.L.layerGroup();
 
@@ -1175,9 +1091,7 @@ def render_map_js() -> str:
             const lat = Number(point.latitude ?? point.lat);
             const lon = Number(point.longitude ?? point.lon);
 
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                return;
-            }
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
             const marker = window.L.circleMarker([lat, lon], {
                 radius: radius(point),
@@ -1198,29 +1112,20 @@ def render_map_js() -> str:
         state.layer.addTo(state.map);
         renderHud();
         renderLegend();
-
-        setStatus(`Loaded ${(filteredPoints().length).toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`);
+        setStatus(`Loaded ${filteredPoints().length.toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`);
     }
 
     async function renderPolygons() {
-        if (!state.map || !window.L) {
-            return;
-        }
+        if (!state.map || !window.L) return;
 
         const polygons = await readJson("./data/map-polygons.geojson").catch(() => null);
+        if (!polygons || !Array.isArray(polygons.features)) return;
 
-        if (!polygons || !Array.isArray(polygons.features)) {
-            return;
-        }
-
-        if (state.polygonLayer) {
-            state.polygonLayer.remove();
-        }
+        if (state.polygonLayer) state.polygonLayer.remove();
 
         state.polygonLayer = window.L.geoJSON(polygons, {
             style: feature => {
                 const props = feature.properties || {};
-
                 return {
                     color: props.stroke || "#c0d674",
                     fillColor: props.fill || "#c0d674",
@@ -1239,10 +1144,7 @@ def render_map_js() -> str:
 
     function populateThemeSelect() {
         const select = qs("[data-map-theme-select]");
-
-        if (!select || !state.themes?.themes) {
-            return;
-        }
+        if (!select || !state.themes?.themes) return;
 
         select.innerHTML = state.themes.themes.map(theme => `
             <option value="${escapeHtml(theme.id)}">${escapeHtml(theme.name)}</option>
@@ -1257,22 +1159,13 @@ def render_map_js() -> str:
 
     function populateSettingsSelect() {
         const select = qs("[data-map-settings-select]");
-
-        if (!select || !state.settingsProfiles?.profiles) {
-            return;
-        }
+        if (!select || !state.settingsProfiles?.profiles) return;
 
         select.innerHTML = state.settingsProfiles.profiles.map(profile => `
             <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>
         `).join("");
 
         select.value = state.settings?.profile?.id || state.settingsProfiles.default_settings || "default";
-
-        select.addEventListener("change", async () => {
-            const profile = await loadSettingsProfile(select.value);
-
-            setStatus(`Settings profile "${profile.name || select.value}" loaded. Rebuild maps.py output to persist profile-derived normalized map settings.`);
-        });
     }
 
     function wireControls(view) {
@@ -1301,16 +1194,14 @@ def render_map_js() -> str:
 
         state.settings = await readJson("./data/map-settings.json");
         state.vectors = await readJson("./data/map-vectors.json");
+        state.vectorTypes = await readJson("./data/vector-types.json").catch(() => null);
         state.themes = await readJson("./data/map-themes.json").catch(() => null);
         state.settingsProfiles = await readJson("./data/map-settings-profiles.json").catch(() => null);
 
         await loadTheme(state.settings?.theme?.selected || "zzx_dark_olive");
 
         const root = qs("[data-map-root]");
-
-        if (!root) {
-            return;
-        }
+        if (!root) return;
 
         const view = state.settings.initial_view || {};
         const interaction = state.settings.interaction || {};
@@ -1323,15 +1214,12 @@ def render_map_js() -> str:
             boxZoom: interaction.box_zoom !== false,
             keyboard: interaction.keyboard !== false,
             preferCanvas: state.settings?.performance?.prefer_canvas_renderer !== false
-        }).setView(
-            [Number(view.latitude || 20), Number(view.longitude || 0)],
-            Number(view.zoom || 2)
-        );
+        }).setView([Number(view.latitude || 20), Number(view.longitude || 0)], Number(view.zoom || 2));
 
         window.L.tileLayer(state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
             subdomains: state.settings.tile_subdomains || undefined,
-            maxZoom: Number(view.max_zoom || 18),
+            maxZoom: Number(view.max_zoom || 20),
             minZoom: Number(view.min_zoom || 2)
         }).addTo(state.map);
 
@@ -1341,18 +1229,15 @@ def render_map_js() -> str:
 
         await renderPolygons();
         renderPoints();
+
+        window.ZZXBitnodesMap = state;
     }
 
     document.addEventListener("DOMContentLoaded", () => {
         init().catch(error => {
             console.error(error);
-
             const root = qs("[data-map-root]");
-
-            if (root) {
-                root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
-            }
-
+            if (root) root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
             setStatus(`Map load failure: ${error.message}`);
         });
     });
@@ -1392,7 +1277,6 @@ def run_component_modules(payload: dict[str, Any], context: dict[str, Any]) -> t
             current = call_module(name, fn, current, context)
             module_report["status"] = "ok"
             module_report["message"] = f"{name}.py completed."
-
         except Exception as err:
             module_report["status"] = "error"
             module_report["message"] = str(err)
@@ -1415,68 +1299,31 @@ def write_directory_output(
     geojson: dict[str, Any],
     settings: dict[str, Any],
     theme: dict[str, Any],
+    compact: bool = False,
 ) -> None:
     data_dir = out_dir / "data"
 
-    write_json(data_dir / "map-vectors.json", map_payload.get("vectors", vectors))
-    write_json(data_dir / "map-points.geojson", map_payload.get("geojson", geojson))
-    write_json(data_dir / "map-settings.json", map_payload.get("settings", settings))
-    write_json(data_dir / "map-theme.json", map_payload.get("theme", theme))
+    write_json(data_dir / "map-vectors.json", map_payload.get("vectors", vectors), compact=compact)
+    write_json(data_dir / "map-points.geojson", map_payload.get("geojson", geojson), compact=compact)
+    write_json(data_dir / "map-settings.json", map_payload.get("settings", settings), compact=compact)
+    write_json(data_dir / "map-theme.json", map_payload.get("theme", theme), compact=compact)
 
-    if "layers" in map_payload:
-        write_json(data_dir / "map-layers.json", map_payload["layers"])
-
-    if "overlays" in map_payload:
-        write_json(data_dir / "map-overlays.json", map_payload["overlays"])
-
-    if "polygons" in map_payload:
-        write_json(data_dir / "map-polygons.geojson", map_payload["polygons"])
-
-    if "themes" in map_payload:
-        write_json(data_dir / "map-themes.json", map_payload["themes"])
-
-    if "settings_profiles" in map_payload:
-        write_json(data_dir / "map-settings-profiles.json", map_payload["settings_profiles"])
+    for key, filename in (
+        ("layers", "map-layers.json"),
+        ("overlays", "map-overlays.json"),
+        ("polygons", "map-polygons.geojson"),
+        ("themes", "map-themes.json"),
+        ("settings_profiles", "map-settings-profiles.json"),
+        ("vector_types", "vector-types.json"),
+    ):
+        if key in map_payload:
+            write_json(data_dir / filename, map_payload[key], compact=compact)
 
     selected_theme = map_payload.get("theme", theme)
     selected_theme_id = selected_theme.get("id", DEFAULT_THEME) if isinstance(selected_theme, dict) else DEFAULT_THEME
 
-    themes_manifest = map_payload.get("themes", {})
-    themes = themes_manifest.get("themes", []) if isinstance(themes_manifest, dict) else []
-
-    if themes:
-        for item in themes:
-            theme_id = clean(item.get("id"))
-
-            if not theme_id:
-                continue
-
-            src = DEFAULT_THEME_DIR / f"{theme_id}.json"
-            dst = data_dir / "themes" / f"{theme_id}.json"
-            theme_payload = read_json(src, fallback={})
-
-            if theme_payload:
-                write_json(dst, theme_payload)
-
     if selected_theme:
-        write_json(data_dir / "themes" / f"{selected_theme_id}.json", selected_theme)
-
-    settings_profiles = map_payload.get("settings_profiles", {})
-    profiles = settings_profiles.get("profiles", []) if isinstance(settings_profiles, dict) else []
-
-    if profiles:
-        for item in profiles:
-            settings_id = clean(item.get("id"))
-
-            if not settings_id:
-                continue
-
-            src = DEFAULT_SETTINGS_DIR / f"{settings_id}.json"
-            dst = data_dir / "settings" / f"{settings_id}.json"
-            settings_payload = read_json(src, fallback={})
-
-            if settings_payload:
-                write_json(dst, settings_payload)
+        write_json(data_dir / "themes" / f"{selected_theme_id}.json", selected_theme, compact=compact)
 
     write_text(out_dir / "index.html", render_index_html(title))
     write_text(out_dir / "map.css", render_map_css())
@@ -1498,6 +1345,7 @@ def build_maps(
     tile_provider: str,
     strict: bool = False,
     run_modules: bool = True,
+    compact: bool = False,
 ) -> dict[str, Any]:
     selected_input = find_input_file(api_dir, state_dir, str(input_path) if input_path else "")
 
@@ -1513,6 +1361,7 @@ def build_maps(
     context = {
         "app_root": str(APP_ROOT),
         "tools_dir": str(TOOLS_DIR),
+        "map_tools_dir": str(MAP_TOOLS_DIR),
         "input_path": str(selected_input),
         "api_dir": str(api_dir),
         "state_dir": str(state_dir),
@@ -1520,6 +1369,7 @@ def build_maps(
         "live_map_dir": str(live_map_dir),
         "source": source,
         "strict": strict,
+        "compact": compact,
         "theme_dir": str(theme_dir),
         "map_theme_dir": str(theme_dir),
         "selected_theme": theme,
@@ -1557,6 +1407,7 @@ def build_maps(
         geojson=final_geojson,
         settings=final_settings,
         theme=final_theme,
+        compact=compact,
     )
 
     write_directory_output(
@@ -1567,10 +1418,11 @@ def build_maps(
         geojson=final_geojson,
         settings=final_settings,
         theme=final_theme,
+        compact=compact,
     )
 
     report = {
-        "schema": "zzx-bitnodes-maps-build-report-v2",
+        "schema": "zzx-bitnodes-maps-build-report-v3",
         "generated_at": utc_now(),
         "source": source,
         "input": str(selected_input),
@@ -1586,8 +1438,8 @@ def build_maps(
         "modules": module_report,
     }
 
-    write_json(map_dir / "data" / "map-build-report.json", report)
-    write_json(live_map_dir / "data" / "map-build-report.json", report)
+    write_json(map_dir / "data" / "map-build-report.json", report, compact=compact)
+    write_json(live_map_dir / "data" / "map-build-report.json", report, compact=compact)
 
     return report
 
@@ -1612,6 +1464,7 @@ def main() -> int:
 
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--no-modules", action="store_true")
+    parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
 
@@ -1629,6 +1482,7 @@ def main() -> int:
         tile_provider=args.tile_provider,
         strict=args.strict,
         run_modules=not args.no_modules,
+        compact=args.compact,
     )
 
     print(
