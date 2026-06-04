@@ -6,13 +6,14 @@ import json
 import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 
-APP_ROOT = Path(__file__).resolve().parents[2]
+APP_ROOT = Path(__file__).resolve().parents[3]
+
 DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
 DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
-DEFAULT_POLYGON_DIR = APP_ROOT / "tools" / "bitnodes" / "data" / "geo" / "polygons"
+DEFAULT_POLYGON_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geo" / "polygons"
 
 
 POLYGON_ORDER = [
@@ -26,6 +27,19 @@ POLYGON_ORDER = [
 ]
 
 
+UNKNOWN_VALUES = {
+    "",
+    "unknown",
+    "none",
+    "null",
+    "undefined",
+    "—",
+    "-",
+    "n/a",
+    "na",
+}
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -33,17 +47,7 @@ def utc_now() -> str:
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
-    if text.lower() in {
-        "",
-        "unknown",
-        "none",
-        "null",
-        "undefined",
-        "—",
-        "-",
-        "n/a",
-        "na",
-    }:
+    if text.lower() in UNKNOWN_VALUES:
         return ""
 
     return " ".join(text.split())
@@ -68,47 +72,146 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if not path.exists():
         return fallback
 
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=None if compact else 2,
+        separators=(",", ":") if compact else None,
+        sort_keys=not compact,
+    )
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
-def vectors(payload: dict[str, Any]) -> dict[str, Any]:
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    if "." not in key:
+        return row.get(key)
+
+    current: Any = row
+
+    for part in key.split("."):
+        if not isinstance(current, Mapping):
+            return None
+
+        current = current.get(part)
+
+    return current
+
+
+def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        value = deep_get(row, key)
+
+        if value not in ("", None):
+            return value
+
+    return None
+
+
+def vectors(payload: Mapping[str, Any]) -> dict[str, Any]:
     value = payload.get("vectors", {})
-
     return value if isinstance(value, dict) else {}
 
 
-def points(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    value = vectors(payload).get("points", [])
+def points(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    vectors_payload = vectors(payload)
 
-    return value if isinstance(value, list) else []
+    for key in ("points", "results", "data"):
+        value = vectors_payload.get(key)
+
+        if isinstance(value, list):
+            return [row for row in value if isinstance(row, dict)]
+
+    for key in ("points", "results", "data"):
+        value = payload.get(key)
+
+        if isinstance(value, list):
+            return [row for row in value if isinstance(row, dict)]
+
+    return []
 
 
-def valid_point(point: dict[str, Any]) -> bool:
-    lat = number(point.get("latitude") or point.get("lat"))
-    lon = number(point.get("longitude") or point.get("lon") or point.get("lng"))
+def point_lat_lon(point: Mapping[str, Any]) -> tuple[float | None, float | None]:
+    lat = number(first(point, (
+        "latitude",
+        "lat",
+        "geoloc.latitude",
+        "geo.latitude",
+        "geo.lat",
+        "geoip.latitude",
+        "geoip.lat",
+        "geoip_data.latitude",
+        "location.latitude",
+        "metadata.latitude",
+    )))
 
-    return (
-        lat is not None
-        and lon is not None
-        and -90 <= lat <= 90
-        and -180 <= lon <= 180
-    )
+    lon = number(first(point, (
+        "longitude",
+        "lon",
+        "lng",
+        "geoloc.longitude",
+        "geoloc.lon",
+        "geo.longitude",
+        "geo.lon",
+        "geo.lng",
+        "geoip.longitude",
+        "geoip.lon",
+        "geoip_data.longitude",
+        "location.longitude",
+        "metadata.longitude",
+    )))
+
+    if lat is None or lon is None:
+        return None, None
+
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None, None
+
+    return lat, lon
 
 
-def point_lat_lon(point: dict[str, Any]) -> tuple[float, float]:
-    return (
-        float(number(point.get("latitude") or point.get("lat"), 0.0) or 0.0),
-        float(number(point.get("longitude") or point.get("lon") or point.get("lng"), 0.0) or 0.0),
-    )
+def valid_point(point: Mapping[str, Any]) -> bool:
+    lat, lon = point_lat_lon(point)
+    return lat is not None and lon is not None
+
+
+def point_country(point: Mapping[str, Any]) -> str:
+    return clean(first(point, (
+        "country",
+        "country_code",
+        "country_data.country_code",
+        "geoip.country_code",
+        "geoip_data.country_code",
+        "location.country_code",
+        "metadata.country_code",
+    ))) or "Unknown"
+
+
+def point_network(point: Mapping[str, Any]) -> str:
+    network = clean(first(point, (
+        "network",
+        "metadata.network",
+        "network_type",
+        "geoip.network_type",
+    ))).lower()
+
+    return network or "unknown"
+
+
+def point_status(point: Mapping[str, Any]) -> str:
+    return clean(first(point, (
+        "status",
+        "metadata.status",
+    ))).lower() or "unknown"
 
 
 def polygon_feature(
@@ -171,7 +274,6 @@ def world_bounds_feature() -> dict[str, Any]:
 def bucket_key(lat: float, lon: float, size: int) -> tuple[int, int]:
     lat_bucket = math.floor(lat / size) * size
     lon_bucket = math.floor(lon / size) * size
-
     return lat_bucket, lon_bucket
 
 
@@ -184,12 +286,12 @@ def build_density_grid_features(
     buckets: dict[tuple[int, int], list[dict[str, Any]]] = {}
 
     for point in rows:
-        if not valid_point(point):
+        lat, lon = point_lat_lon(point)
+
+        if lat is None or lon is None:
             continue
 
-        lat, lon = point_lat_lon(point)
         key = bucket_key(lat, lon, size)
-
         buckets.setdefault(key, []).append(point)
 
     if not buckets:
@@ -213,9 +315,9 @@ def build_density_grid_features(
         countries: dict[str, int] = {}
 
         for row in bucket_rows:
-            network = clean(row.get("network")) or "unknown"
-            status = clean(row.get("status")) or "unknown"
-            country = clean(row.get("country")) or "Unknown"
+            network = point_network(row)
+            status = point_status(row)
+            country = point_country(row)
 
             networks[network] = networks.get(network, 0) + 1
             statuses[status] = statuses.get(status, 0) + 1
@@ -236,9 +338,9 @@ def build_density_grid_features(
                     "grid_size_degrees": size,
                     "point_count": count,
                     "intensity": round(intensity, 6),
-                    "networks": networks,
-                    "statuses": statuses,
-                    "countries": countries,
+                    "networks": dict(sorted(networks.items())),
+                    "statuses": dict(sorted(statuses.items())),
+                    "countries": dict(sorted(countries.items(), key=lambda item: (-item[1], item[0]))),
                     "stroke": "#c0d674",
                     "fill": "#c0d674",
                     "opacity": round(max(0.08, min(0.55, intensity * 0.55)), 4),
@@ -256,7 +358,7 @@ def country_centroid_features(rows: list[dict[str, Any]]) -> list[dict[str, Any]
         if not valid_point(point):
             continue
 
-        country = clean(point.get("country")) or "Unknown"
+        country = point_country(point)
         grouped.setdefault(country, []).append(point)
 
     features = []
@@ -273,6 +375,10 @@ def country_centroid_features(rows: list[dict[str, Any]]) -> list[dict[str, Any]
 
         for row in country_rows:
             lat, lon = point_lat_lon(row)
+
+            if lat is None or lon is None:
+                continue
+
             latitudes.append(lat)
             longitudes.append(lon)
 
@@ -355,29 +461,48 @@ def i2p_overlay_zone() -> dict[str, Any]:
     )
 
 
-def build_polygon_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def load_external_polygon_features(polygon_dir: Path) -> list[dict[str, Any]]:
+    features: list[dict[str, Any]] = []
+
+    if not polygon_dir.exists():
+        return features
+
+    for path in sorted(polygon_dir.glob("*.geojson")) + sorted(polygon_dir.glob("*.json")):
+        payload = read_json(path, fallback={})
+
+        if not isinstance(payload, dict):
+            continue
+
+        if payload.get("type") == "FeatureCollection" and isinstance(payload.get("features"), list):
+            for feature in payload["features"]:
+                if isinstance(feature, dict):
+                    feature.setdefault("properties", {})
+                    if isinstance(feature["properties"], dict):
+                        feature["properties"].setdefault("source_file", path.name)
+                    features.append(feature)
+
+        elif payload.get("type") == "Feature":
+            payload.setdefault("properties", {})
+            if isinstance(payload["properties"], dict):
+                payload["properties"].setdefault("source_file", path.name)
+            features.append(payload)
+
+    return features
+
+
+def build_polygon_payload(payload: dict[str, Any], polygon_dir: Path = DEFAULT_POLYGON_DIR) -> dict[str, Any]:
     rows = points(payload)
+    external_features = load_external_polygon_features(polygon_dir)
 
     features = [
         world_bounds_feature(),
-        *build_density_grid_features(
-            rows,
-            size=10,
-            feature_prefix="node-density-grid-10",
-        ),
-        *build_density_grid_features(
-            rows,
-            size=5,
-            feature_prefix="node-density-grid-5",
-        ),
-        *build_density_grid_features(
-            rows,
-            size=2,
-            feature_prefix="node-density-grid-2",
-        ),
+        *build_density_grid_features(rows, size=10, feature_prefix="node-density-grid-10"),
+        *build_density_grid_features(rows, size=5, feature_prefix="node-density-grid-5"),
+        *build_density_grid_features(rows, size=2, feature_prefix="node-density-grid-2"),
         *country_centroid_features(rows),
         tor_overlay_zone(),
         i2p_overlay_zone(),
+        *external_features,
     ]
 
     density_features = [
@@ -390,22 +515,33 @@ def build_polygon_payload(payload: dict[str, Any]) -> dict[str, Any]:
         if feature.get("properties", {}).get("kind") == "country-centroid-footprint"
     ]
 
+    overlay_features = [
+        feature for feature in features
+        if feature.get("properties", {}).get("kind") == "overlay-zone"
+    ]
+
     return {
         "type": "FeatureCollection",
-        "schema": "zzx-bitnodes-map-polygons-v1",
+        "schema": "zzx-bitnodes-map-polygons-v2",
         "name": "ZZX Bitnodes Map Polygons",
         "generated_at": utc_now(),
         "polygon_order": POLYGON_ORDER,
+        "polygon_dir": str(polygon_dir),
         "feature_count": len(features),
         "density_feature_count": len(density_features),
         "country_footprint_count": len(country_features),
+        "overlay_feature_count": len(overlay_features),
+        "external_feature_count": len(external_features),
         "features": features,
     }
 
 
-def merge_polygons(payload: dict[str, Any]) -> dict[str, Any]:
+def merge_polygons(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    context = context or {}
+    polygon_dir = Path(context.get("polygon_dir") or DEFAULT_POLYGON_DIR)
+
     output = dict(payload)
-    polygons = build_polygon_payload(output)
+    polygons = build_polygon_payload(output, polygon_dir=polygon_dir)
 
     output["polygons"] = polygons
 
@@ -415,17 +551,19 @@ def merge_polygons(payload: dict[str, Any]) -> dict[str, Any]:
         "enabled": True,
         "visible": False,
         "feature_count": polygons["feature_count"],
+        "density_feature_count": polygons["density_feature_count"],
+        "country_footprint_count": polygons["country_footprint_count"],
+        "overlay_feature_count": polygons["overlay_feature_count"],
+        "external_feature_count": polygons["external_feature_count"],
+        "polygon_dir": str(polygon_dir),
     }
     output["settings"] = settings
 
     return output
 
 
-def build(
-    payload: dict[str, Any],
-    context: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    return merge_polygons(payload)
+def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return merge_polygons(payload, context)
 
 
 def build_standalone(
@@ -433,34 +571,46 @@ def build_standalone(
     vectors_path: Path,
     map_dir: Path,
     live_map_dir: Path,
+    polygon_dir: Path = DEFAULT_POLYGON_DIR,
+    compact: bool = False,
 ) -> dict[str, Any]:
-    vectors = read_json(vectors_path, fallback={})
+    vectors_payload = read_json(vectors_path, fallback={})
+
+    if not isinstance(vectors_payload, dict):
+        vectors_payload = {}
 
     payload = {
-        "vectors": vectors,
+        "vectors": vectors_payload,
         "settings": read_json(map_dir / "data" / "map-settings.json", fallback={}),
     }
 
-    merged = merge_polygons(payload)
+    merged = merge_polygons(payload, {"polygon_dir": str(polygon_dir)})
     polygons = merged["polygons"]
 
     for directory in (map_dir, live_map_dir):
-        write_json(directory / "data" / "map-polygons.geojson", polygons)
+        write_json(directory / "data" / "map-polygons.geojson", polygons, compact=compact)
 
         settings_path = directory / "data" / "map-settings.json"
         settings = read_json(settings_path, fallback={})
+
+        if not isinstance(settings, dict):
+            settings = {}
+
         settings["polygons"] = merged["settings"]["polygons"]
-        write_json(settings_path, settings)
+        write_json(settings_path, settings, compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-mappolygons-build-report-v1",
+        "schema": "zzx-bitnodes-mappolygons-build-report-v2",
         "generated_at": utc_now(),
         "vectors": str(vectors_path),
         "map_dir": str(map_dir),
         "live_map_dir": str(live_map_dir),
+        "polygon_dir": str(polygon_dir),
         "feature_count": polygons["feature_count"],
         "density_feature_count": polygons["density_feature_count"],
         "country_footprint_count": polygons["country_footprint_count"],
+        "overlay_feature_count": polygons["overlay_feature_count"],
+        "external_feature_count": polygons["external_feature_count"],
     }
 
 
@@ -472,7 +622,9 @@ def main() -> int:
     parser.add_argument("--vectors", required=True)
     parser.add_argument("--map-dir", default=str(DEFAULT_MAP_DIR))
     parser.add_argument("--live-map-dir", default=str(DEFAULT_LIVE_MAP_DIR))
+    parser.add_argument("--polygon-dir", default=str(DEFAULT_POLYGON_DIR))
     parser.add_argument("--report", default="")
+    parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
 
@@ -480,10 +632,12 @@ def main() -> int:
         vectors_path=Path(args.vectors).resolve(),
         map_dir=Path(args.map_dir).resolve(),
         live_map_dir=Path(args.live_map_dir).resolve(),
+        polygon_dir=Path(args.polygon_dir).resolve(),
+        compact=args.compact,
     )
 
     if args.report:
-        write_json(Path(args.report), report)
+        write_json(Path(args.report), report, compact=args.compact)
 
     print(
         "map polygons complete: "
