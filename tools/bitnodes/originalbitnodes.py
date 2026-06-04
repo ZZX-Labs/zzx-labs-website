@@ -215,25 +215,16 @@ def run_classic_original_crawler(args: argparse.Namespace) -> int:
     command = py(
         RUN_ORIGINAL,
         "pipeline",
-        "--mode",
-        "classic",
+        "--mode", "classic",
         "--ensure-source",
-        "--repo",
-        "https://github.com/ayeowch/bitnodes",
-        "--branch",
-        "master",
-        "--limit",
-        str(args.limit),
-        "--batch-size",
-        str(args.batch_size),
-        "--timeout",
-        str(args.timeout),
-        "--workers",
-        str(args.workers),
-        "--getaddr-rounds",
-        str(args.getaddr_rounds),
-        "--dns-seed-limit",
-        str(args.dns_seed_limit),
+        "--repo", "https://github.com/ayeowch/bitnodes",
+        "--branch", "master",
+        "--limit", str(args.limit),
+        "--batch-size", str(args.batch_size),
+        "--timeout", str(args.timeout),
+        "--workers", str(args.workers),
+        "--getaddr-rounds", str(args.getaddr_rounds),
+        "--dns-seed-limit", str(args.dns_seed_limit),
     )
 
     if args.compact:
@@ -252,25 +243,23 @@ def run_redis_export(args: argparse.Namespace) -> int:
 
     command = py(
         EXPORT_FROM_REDIS,
-        "--output",
-        str(ORIGINAL_OUTPUT),
-        "--archive-dir",
-        str(ORIGINAL_ARCHIVE),
+        "--output", str(ORIGINAL_OUTPUT),
+        "--archive-dir", str(ORIGINAL_ARCHIVE),
     )
 
     if args.compact:
         command.append("--compact")
 
-    if args.no_gzip:
+    if getattr(args, "no_gzip", False):
         command.append("--no-gzip")
 
-    if args.fail_empty:
+    if getattr(args, "fail_empty", False):
         command.append("--fail-empty")
 
-    if args.redis_scan_pattern:
+    if getattr(args, "redis_scan_pattern", ""):
         command.extend(["--scan-pattern", args.redis_scan_pattern])
 
-    if args.redis_scan_limit:
+    if getattr(args, "redis_scan_limit", 0):
         command.extend(["--scan-limit", str(args.redis_scan_limit)])
 
     return run_command(command).returncode
@@ -296,9 +285,14 @@ def run_zzx_compatible_original(args: argparse.Namespace) -> int:
     args.registry_root = str(ORIGINAL_REGISTRY_DIR)
     args.registry_latest_dir = str(ORIGINAL_REGISTRY_LATEST_DIR)
 
-    args.no_export_all_after = getattr(args, "no_export_all_after", False)
-    args.build_maps = getattr(args, "build_maps", False)
-    args.enrich_modules = getattr(args, "enrich_modules", "")
+    if not hasattr(args, "no_export_all_after"):
+        args.no_export_all_after = False
+
+    if not hasattr(args, "build_maps"):
+        args.build_maps = False
+
+    if not hasattr(args, "enrich_modules"):
+        args.enrich_modules = ""
 
     return zzxbitnodes.run_from_args(args)
 
@@ -312,21 +306,15 @@ def run_enrichment(args: argparse.Namespace) -> int:
 
     command = py(
         ENRICH,
-        "--input",
-        str(input_path),
-        "--output",
-        str(ORIGINAL_ENRICHED_LATEST),
-        "--report",
-        str(ORIGINAL_ENRICHMENT_REPORT),
-        "--source",
-        SOURCE,
-        "--api-dir",
-        str(API_DIR),
-        "--state-dir",
-        str(ORIGINAL_STATE),
+        "--input", str(input_path),
+        "--output", str(ORIGINAL_ENRICHED_LATEST),
+        "--report", str(ORIGINAL_ENRICHMENT_REPORT),
+        "--source", SOURCE,
+        "--api-dir", str(API_DIR),
+        "--state-dir", str(ORIGINAL_STATE),
     )
 
-    if args.enrich_modules:
+    if getattr(args, "enrich_modules", ""):
         command.extend(["--modules", args.enrich_modules])
 
     if args.compact:
@@ -347,16 +335,11 @@ def run_aggregate(args: argparse.Namespace) -> int:
 
     command = py(
         AGGREGATE,
-        "--input",
-        str(input_path),
-        "--output",
-        str(ORIGINAL_AGGREGATE_LATEST),
-        "--api-dir",
-        str(API_DIR),
-        "--state-dir",
-        str(ORIGINAL_STATE),
-        "--source",
-        SOURCE,
+        "--input", str(input_path),
+        "--output", str(ORIGINAL_AGGREGATE_LATEST),
+        "--api-dir", str(API_DIR),
+        "--state-dir", str(ORIGINAL_STATE),
+        "--source", SOURCE,
     )
 
     return run_command(command).returncode
@@ -378,14 +361,10 @@ def run_all_exports(args: argparse.Namespace) -> int:
     command = py(
         EXPORT,
         "all",
-        "--input",
-        str(input_path),
-        "--output",
-        str(ORIGINAL_OUTPUT),
-        "--archive-dir",
-        str(ORIGINAL_ARCHIVE),
-        "--source",
-        SOURCE,
+        "--input", str(input_path),
+        "--output", str(ORIGINAL_OUTPUT),
+        "--archive-dir", str(ORIGINAL_ARCHIVE),
+        "--source", SOURCE,
         "--keep-going",
     )
 
@@ -396,23 +375,18 @@ def run_all_exports(args: argparse.Namespace) -> int:
 
 
 def run_registry_backup(args: argparse.Namespace) -> int:
-    if not args.registry_backup:
+    if not getattr(args, "registry_backup", False):
         return 0
 
     dated = ORIGINAL_REGISTRY_DIR / zzxbitnodes.date_slug()
 
     command = py(
         CHUNK_REGISTRY_BACKUP,
-        "--input",
-        str(ORIGINAL_ARCHIVE),
-        "--api",
-        str(API_DIR),
-        "--output",
-        str(dated),
-        "--latest-output",
-        str(ORIGINAL_REGISTRY_LATEST_DIR),
-        "--max-mb",
-        "24",
+        "--input", str(ORIGINAL_ARCHIVE),
+        "--api", str(API_DIR),
+        "--output", str(dated),
+        "--latest-output", str(ORIGINAL_REGISTRY_LATEST_DIR),
+        "--max-mb", "24",
     )
 
     code = run_command(command).returncode
@@ -422,21 +396,19 @@ def run_registry_backup(args: argparse.Namespace) -> int:
 
     command = py(
         UPDATE_DAILY_INDEX,
-        "--repo-root",
-        str(ORIGINAL_REGISTRY_DIR),
+        "--repo-root", str(ORIGINAL_REGISTRY_DIR),
     )
 
     return run_command(command).returncode
 
 
 def push_snapshots(args: argparse.Namespace) -> int:
-    if not args.git_push:
+    if not getattr(args, "git_push", False):
         return 0
 
     command = py(
         PUSH_SNAPSHOTS,
-        "--message",
-        "Update Original Bitnodes-compatible snapshots",
+        "--message", "Update Original Bitnodes-compatible snapshots",
         "--paths",
         "bitcoin/bitnodes/api/originalbitnodes",
         "bitcoin/bitnodes/api/enriched/originalbitnodes",
@@ -504,6 +476,7 @@ def pipeline_once(args: argparse.Namespace) -> int:
             return code
 
     code = run_registry_backup(args)
+
     if code != 0 and args.strict:
         return code
 
@@ -541,6 +514,21 @@ def daemon_loop(args: argparse.Namespace) -> int:
         time.sleep(args.interval)
 
 
+def parser_has_option(parser: argparse.ArgumentParser, option: str) -> bool:
+    return option in parser._option_string_actions
+
+
+def add_argument_if_missing(
+    parser: argparse.ArgumentParser,
+    *flags: str,
+    **kwargs: Any,
+) -> None:
+    if any(parser_has_option(parser, flag) for flag in flags):
+        return
+
+    parser.add_argument(*flags, **kwargs)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = zzxbitnodes.build_parser(
         description=(
@@ -560,18 +548,18 @@ def build_parser() -> argparse.ArgumentParser:
         registry_latest_dir=str(ORIGINAL_REGISTRY_LATEST_DIR),
     )
 
-    parser.add_argument(
+    add_argument_if_missing(
+        parser,
         "--original-mode",
         choices=["hybrid", "classic", "redis", "zzx-compatible"],
         default="hybrid",
     )
 
-    parser.add_argument("--enrich-modules", default="")
-    parser.add_argument("--redis-scan-pattern", default="*")
-    parser.add_argument("--redis-scan-limit", type=int, default=250000)
-    parser.add_argument("--no-gzip", action="store_true")
-    parser.add_argument("--fail-empty", action="store_true")
-    parser.add_argument("--strict", action="store_true")
+    add_argument_if_missing(parser, "--redis-scan-pattern", default="*")
+    add_argument_if_missing(parser, "--redis-scan-limit", type=int, default=250000)
+    add_argument_if_missing(parser, "--no-gzip", action="store_true")
+    add_argument_if_missing(parser, "--fail-empty", action="store_true")
+    add_argument_if_missing(parser, "--strict", action="store_true")
 
     return parser
 
@@ -596,11 +584,44 @@ def normalize_original_args(args: argparse.Namespace) -> argparse.Namespace:
     args.registry_root = str(ORIGINAL_REGISTRY_DIR)
     args.registry_latest_dir = str(ORIGINAL_REGISTRY_LATEST_DIR)
 
+    if not hasattr(args, "original_mode"):
+        args.original_mode = "hybrid"
+
+    if not hasattr(args, "redis_scan_pattern"):
+        args.redis_scan_pattern = "*"
+
+    if not hasattr(args, "redis_scan_limit"):
+        args.redis_scan_limit = 250000
+
+    if not hasattr(args, "no_gzip"):
+        args.no_gzip = False
+
+    if not hasattr(args, "fail_empty"):
+        args.fail_empty = False
+
+    if not hasattr(args, "strict"):
+        args.strict = False
+
     if not hasattr(args, "no_export_all_after"):
         args.no_export_all_after = False
 
     if not hasattr(args, "build_maps"):
         args.build_maps = False
+
+    if not hasattr(args, "enrich_modules"):
+        args.enrich_modules = ""
+
+    if not hasattr(args, "no_enrich_after"):
+        args.no_enrich_after = False
+
+    if not hasattr(args, "no_aggregate_after"):
+        args.no_aggregate_after = False
+
+    if not hasattr(args, "registry_backup"):
+        args.registry_backup = False
+
+    if not hasattr(args, "git_push"):
+        args.git_push = False
 
     return args
 
