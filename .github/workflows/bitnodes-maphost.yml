@@ -65,7 +65,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/maps.py --help
           python tools/bitnodes/map/live-map.py --help
@@ -76,7 +75,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           mkdir -p \
             "${BITNODES_MAPS}/zzxbitnodes/data" \
             "${BITNODES_MAPS}/originalbitnodes/data" \
@@ -131,9 +129,6 @@ jobs:
 
           printf '%s\n' "zzx_input=${ZZX_INPUT}" >> "${GITHUB_OUTPUT}"
           printf '%s\n' "original_input=${ORIGINAL_INPUT}" >> "${GITHUB_OUTPUT}"
-
-          printf '%s\n' "ZZX input: ${ZZX_INPUT}"
-          printf '%s\n' "Original input: ${ORIGINAL_INPUT}"
 
       - name: Build ZZX Bitnodes maps
         shell: bash
@@ -212,16 +207,178 @@ jobs:
             fi
           done
 
+      - name: Repair empty canonical map outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import time
+          from pathlib import Path
+
+          live = Path("bitcoin/bitnodes/live-map/data")
+          maps = Path("bitcoin/bitnodes/maps/data")
+          source = Path("${{ steps.sources.outputs.zzx_input }}")
+
+          def read(path, fallback):
+              try:
+                  return json.loads(path.read_text(encoding="utf-8"))
+              except Exception:
+                  return fallback
+
+          def write(path, payload):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+
+          def node_items(payload):
+              if isinstance(payload, dict):
+                  nodes = payload.get("nodes")
+                  if isinstance(nodes, dict):
+                      return list(nodes.items())
+                  if isinstance(nodes, list):
+                      out = []
+                      for i, item in enumerate(nodes):
+                          if isinstance(item, dict):
+                              out.append((item.get("address") or item.get("node") or item.get("addr") or str(i), item))
+                          elif isinstance(item, list):
+                              out.append((str(i), item))
+                      return out
+
+                  for key in ("reachable_nodes", "data", "results", "rows", "peers"):
+                      value = payload.get(key)
+                      if isinstance(value, dict):
+                          return list(value.items())
+                      if isinstance(value, list):
+                          return [(str(i), item) for i, item in enumerate(value)]
+              return []
+
+          def getval(item, keys):
+              if isinstance(item, dict):
+                  for key in keys:
+                      cur = item
+                      ok = True
+                      for part in key.split("."):
+                          if not isinstance(cur, dict) or part not in cur:
+                              ok = False
+                              break
+                          cur = cur[part]
+                      if ok and cur not in ("", None):
+                          return cur
+              if isinstance(item, list):
+                  indexes = {
+                      "city": 6,
+                      "country": 7,
+                      "latitude": 8,
+                      "longitude": 9,
+                      "timezone": 10,
+                      "asn": 11,
+                      "organization": 12,
+                  }
+                  for key in keys:
+                      idx = indexes.get(key)
+                      if idx is not None and len(item) > idx and item[idx] not in ("", None):
+                          return item[idx]
+              return None
+
+          def fnum(value):
+              try:
+                  value = float(value)
+              except Exception:
+                  return None
+              if -999999 <= value <= 999999:
+                  return value
+              return None
+
+          vectors_path = live / "map-vectors.json"
+          points_path = live / "map-points.geojson"
+
+          vectors = read(vectors_path, {})
+          geojson = read(points_path, {})
+
+          points = vectors.get("points") if isinstance(vectors, dict) else None
+          features = geojson.get("features") if isinstance(geojson, dict) else None
+
+          if isinstance(points, list) and len(points) > 0 and isinstance(features, list) and len(features) > 0:
+              print("canonical map outputs already populated")
+              raise SystemExit(0)
+
+          payload = read(source, {})
+          rebuilt_points = []
+          rebuilt_features = []
+
+          for address, item in node_items(payload):
+              lat = fnum(getval(item, ("latitude", "lat", "geo.latitude", "geoip.latitude", "metadata.latitude")))
+              lon = fnum(getval(item, ("longitude", "lon", "lng", "geo.longitude", "geoip.longitude", "metadata.longitude")))
+
+              if lat is None or lon is None:
+                  continue
+
+              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                  continue
+
+              city = getval(item, ("city", "city_name", "geoip.city", "metadata.city")) or ""
+              country = getval(item, ("country", "country_code", "geoip.country_code", "metadata.country_code")) or ""
+              asn = getval(item, ("asn", "geoip.asn", "metadata.asn")) or ""
+              org = getval(item, ("organization", "org", "geoip.organization", "metadata.organization")) or ""
+              tz = getval(item, ("timezone", "tz", "geoip.timezone", "metadata.timezone")) or ""
+
+              point = {
+                  "address": str(address),
+                  "latitude": lat,
+                  "longitude": lon,
+                  "city": city,
+                  "country": country,
+                  "asn": asn,
+                  "organization": org,
+                  "timezone": tz,
+                  "source": "repair-from-selected-map-source"
+              }
+
+              rebuilt_points.append(point)
+
+              rebuilt_features.append({
+                  "type": "Feature",
+                  "geometry": {
+                      "type": "Point",
+                      "coordinates": [lon, lat]
+                  },
+                  "properties": point
+              })
+
+          if not rebuilt_points:
+              raise SystemExit("could not repair map output: selected source has no coordinates")
+
+          vector_payload = {
+              "schema": "zzx-bitnodes-map-vectors-repaired-v1",
+              "generated_at": int(time.time()),
+              "source": str(source),
+              "points": rebuilt_points
+          }
+
+          geojson_payload = {
+              "type": "FeatureCollection",
+              "schema": "zzx-bitnodes-map-points-repaired-v1",
+              "generated_at": int(time.time()),
+              "source": str(source),
+              "features": rebuilt_features
+          }
+
+          write(vectors_path, vector_payload)
+          write(points_path, geojson_payload)
+          write(maps / "map-vectors.json", vector_payload)
+          write(maps / "map-points.geojson", geojson_payload)
+
+          print(f"repaired canonical map points: {len(rebuilt_points)}")
+          PY
+
       - name: Mirror canonical live-map files from ZZX source if needed
         shell: bash
         run: |
           set -euo pipefail
 
-          if [ ! -f "${BITNODES_LIVE_MAP}/data/map-points.geojson" ] && [ -f "${BITNODES_LIVE_MAP}/zzxbitnodes/data/map-points.geojson" ]; then
-            cp "${BITNODES_LIVE_MAP}/zzxbitnodes/data/map-points.geojson" "${BITNODES_LIVE_MAP}/data/map-points.geojson"
-          fi
-
           for FILE in \
+            map-points.geojson \
             map-settings.json \
             map-settings-profiles.json \
             map-theme.json \
@@ -288,11 +445,10 @@ jobs:
                   raise SystemExit(f"missing {path}")
 
           geojson = json.loads(required[0].read_text(encoding="utf-8"))
+          features = geojson.get("features")
 
           if geojson.get("type") != "FeatureCollection":
               raise SystemExit("map-points.geojson is not a GeoJSON FeatureCollection")
-
-          features = geojson.get("features")
 
           if not isinstance(features, list):
               raise SystemExit("map-points.geojson features is not a list")
@@ -347,13 +503,10 @@ jobs:
           def find_big_key(payload):
               if not isinstance(payload, dict):
                   return None
-
               for key in ("features", "points", "nodes", "addresses", "layers"):
                   value = payload.get(key)
-
                   if isinstance(value, (list, dict)) and len(value) > 0:
                       return key
-
               return None
 
           sharded = []
@@ -398,10 +551,7 @@ jobs:
 
                       if encoded_size({key: current}) >= shard_target:
                           shard_path = shard_dir / f"{key}-{shard_no:04d}.json"
-                          write_json(shard_path, {
-                              "schema_version": "0.2.0",
-                              key: current,
-                          })
+                          write_json(shard_path, {"schema_version": "0.2.0", key: current})
                           index["shards"].append({
                               "path": f"{key}-shards/{shard_path.name}",
                               "count": len(current),
@@ -412,10 +562,7 @@ jobs:
 
                   if current:
                       shard_path = shard_dir / f"{key}-{shard_no:04d}.json"
-                      write_json(shard_path, {
-                          "schema_version": "0.2.0",
-                          key: current,
-                      })
+                      write_json(shard_path, {"schema_version": "0.2.0", key: current})
                       index["shards"].append({
                           "path": f"{key}-shards/{shard_path.name}",
                           "count": len(current),
@@ -441,7 +588,6 @@ jobs:
                   })
 
                   write_json(path, lite)
-
                   sharded.append({
                       "path": str(path),
                       "key": key,
