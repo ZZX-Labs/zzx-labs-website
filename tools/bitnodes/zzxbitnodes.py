@@ -4,8 +4,6 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
-import os
-import shutil
 import socket
 import subprocess
 import sys
@@ -27,13 +25,14 @@ TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 MAP_TOOLS_DIR = TOOLS_DIR / "map"
 GEOLOC_TOOLS_DIR = TOOLS_DIR / "geoloc"
 
-for path in (TOOLS_DIR, MAP_TOOLS_DIR, GEOLOC_TOOLS_DIR):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
+for import_path in (TOOLS_DIR, MAP_TOOLS_DIR, GEOLOC_TOOLS_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
+
 
 from bitcoin_p2p import getaddr, handshake, version_info_to_bitnodes_array
-from export_json import export_all, write_json
 from state import BitnodesState, normalize_address, utc_iso, utc_now
+
 
 try:
     from geoip import enrich_snapshot_payload
@@ -52,38 +51,47 @@ LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
 SNAPSHOTS_ROOT = DATA_DIR / "snapshots"
 SNAPSHOT_BUCKETS = ("24h", "week", "monthly", "quarterly", "yearly", "all-time")
 
-DEFAULT_OUTPUT = API_DIR / "zzxbitnodes"
-DEFAULT_ARCHIVE = ARCHIVE_DIR / "zzxbitnodes"
+SOURCE = "zzxbitnodes"
+
+DEFAULT_OUTPUT = API_DIR / SOURCE
+DEFAULT_ARCHIVE = ARCHIVE_DIR / SOURCE
 DEFAULT_LEGACY_API = API_DIR
 
 DEFAULT_GEOIP_DIR = DATA_DIR / "geoip"
-DEFAULT_SEEDER_DIR = DATA_DIR / "seeders" / "zzxbitnodes"
-DEFAULT_STATE_DIR = DATA_DIR / "state" / "zzxbitnodes"
-DEFAULT_SNAPSHOT_24H_DIR = SNAPSHOTS_ROOT / "24h" / "zzxbitnodes"
+DEFAULT_GEO_ROOT = DATA_DIR / "geo"
+DEFAULT_SEEDER_DIR = DATA_DIR / "seeders" / SOURCE
+DEFAULT_STATE_DIR = DATA_DIR / "state" / SOURCE
+DEFAULT_SNAPSHOT_24H_DIR = SNAPSHOTS_ROOT / "24h" / SOURCE
 
-DEFAULT_ENRICHED_DIR = API_DIR / "enriched" / "zzxbitnodes"
+DEFAULT_ENRICHED_DIR = API_DIR / "enriched" / SOURCE
 DEFAULT_ENRICHED_LATEST = DEFAULT_ENRICHED_DIR / "latest.json"
 DEFAULT_ENRICHMENT_REPORT = DEFAULT_ENRICHED_DIR / "enrichment-report.json"
 
-DEFAULT_AGGREGATE_DIR = API_DIR / "aggregate" / "zzxbitnodes"
+DEFAULT_AGGREGATE_DIR = API_DIR / "aggregate" / SOURCE
 DEFAULT_AGGREGATE_LATEST = DEFAULT_AGGREGATE_DIR / "latest.json"
 
-DEFAULT_REGISTRY_DIR = DATA_DIR / "registry" / "zzxbitnodes"
+DEFAULT_EXPORT_DIR = API_DIR / "export" / SOURCE
+
+DEFAULT_REGISTRY_DIR = DATA_DIR / "registry" / SOURCE
 DEFAULT_REGISTRY_LATEST_DIR = DEFAULT_REGISTRY_DIR / "latest"
 
 DEFAULT_CITY_DB = DEFAULT_GEOIP_DIR / "dbip-city-lite.mmdb"
 DEFAULT_ASN_DB = DEFAULT_GEOIP_DIR / "dbip-asn-lite.mmdb"
 DEFAULT_COUNTRY_DB = DEFAULT_GEOIP_DIR / "dbip-country-lite.mmdb"
 
+DEFAULT_MAX_PUBLIC_JSON_BYTES = 24_000_000
+
 ENRICH = TOOLS_DIR / "enrich.py"
 AGGREGATE = TOOLS_DIR / "aggregate.py"
 EXPORT = TOOLS_DIR / "export.py"
+EXPORT_JSON = TOOLS_DIR / "export_json.py"
+IP_DB = TOOLS_DIR / "ip_db.py"
+PUSH_IPDB = TOOLS_DIR / "push_ipdb.py"
 CHUNK_REGISTRY_BACKUP = TOOLS_DIR / "chunk_registry_backup.py"
 UPDATE_DAILY_INDEX = TOOLS_DIR / "update_daily_index.py"
 PUSH_SNAPSHOTS = TOOLS_DIR / "push_snapshots.py"
-
+MAP_WRAPPER = MAP_TOOLS_DIR / "map.py"
 MAPS = MAP_TOOLS_DIR / "maps.py"
-MAPPLOTTER = MAP_TOOLS_DIR / "mapplotter.py"
 
 DNS_SEEDS = [
     "seed.bitcoin.sipa.be",
@@ -121,10 +129,6 @@ def date_slug() -> str:
     return time.strftime("%Y-%m-%d", time.gmtime())
 
 
-def hour_slug() -> str:
-    return time.strftime("%Y-%m-%dT%H", time.gmtime())
-
-
 def month_slug() -> str:
     return time.strftime("%Y-%m", time.gmtime())
 
@@ -137,6 +141,13 @@ def quarter_slug() -> str:
     dt = now_dt()
     quarter = ((dt.month - 1) // 3) + 1
     return f"{dt.year}-Q{quarter}"
+
+
+def snapshot_name(timestamp: int | None = None) -> str:
+    if timestamp is None:
+        timestamp = utc_now()
+
+    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(timestamp)) + ".json"
 
 
 def read_json_any(path: Path, fallback: Any = None) -> Any:
@@ -201,24 +212,28 @@ def run_command(
     return result
 
 
-def ensure_layout(source: str = "zzxbitnodes") -> None:
-    for path in (
+def ensure_layout(source: str = SOURCE) -> None:
+    base_paths = (
         BITNODES_ROOT,
         DATA_DIR,
         API_DIR,
         ARCHIVE_DIR,
         MAPS_DIR,
         LIVE_MAP_DIR,
+        DEFAULT_GEOIP_DIR,
+        DEFAULT_GEO_ROOT,
         DEFAULT_OUTPUT,
         DEFAULT_ARCHIVE,
-        DEFAULT_GEOIP_DIR,
         DEFAULT_SEEDER_DIR,
         DEFAULT_STATE_DIR,
         DEFAULT_ENRICHED_DIR,
         DEFAULT_AGGREGATE_DIR,
+        DEFAULT_EXPORT_DIR,
         DEFAULT_REGISTRY_DIR,
         DEFAULT_REGISTRY_LATEST_DIR,
-    ):
+    )
+
+    for path in base_paths:
         mkdir(path)
 
     for bucket in SNAPSHOT_BUCKETS:
@@ -232,18 +247,15 @@ def snapshot_bucket_dirs(source: str) -> dict[str, Path]:
     }
 
 
-def snapshot_name(timestamp: int | None = None) -> str:
-    if timestamp is None:
-        timestamp = utc_now()
-
-    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(timestamp)) + ".json"
-
-
 def prune_bucket(path: Path, max_files: int) -> None:
     if max_files <= 0 or not path.exists():
         return
 
-    files = sorted(path.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    files = sorted(
+        [item for item in path.glob("*.json") if item.name != "index.json"],
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
 
     for old in files[max_files:]:
         try:
@@ -254,16 +266,22 @@ def prune_bucket(path: Path, max_files: int) -> None:
 
 def write_snapshot_indexes(source: str, pretty: bool = True) -> None:
     for bucket, path in snapshot_bucket_dirs(source).items():
-        files = sorted(path.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        files = sorted(
+            [item for item in path.glob("*.json") if item.name != "index.json"],
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
 
         entries = []
 
         for item in files:
             payload = read_json_any(item, fallback={})
+
             entries.append({
                 "file": item.name,
                 "path": item.relative_to(BITNODES_ROOT).as_posix(),
                 "updated_at": payload.get("updated_at") if isinstance(payload, dict) else None,
+                "generated_at": payload.get("generated_at") if isinstance(payload, dict) else None,
                 "timestamp": payload.get("timestamp") if isinstance(payload, dict) else None,
                 "total_nodes": payload.get("total_nodes") if isinstance(payload, dict) else None,
                 "reachable_nodes": payload.get("reachable_nodes") if isinstance(payload, dict) else None,
@@ -272,7 +290,7 @@ def write_snapshot_indexes(source: str, pretty: bool = True) -> None:
             })
 
         index = {
-            "schema": "zzx-bitnodes-snapshot-bucket-index-v1",
+            "schema": "zzx-bitnodes-snapshot-bucket-index-v2",
             "source": source,
             "bucket": bucket,
             "generated_at": iso_now(),
@@ -289,11 +307,10 @@ def write_bucket_snapshots(source: str, payload: dict[str, Any], pretty: bool = 
     name = snapshot_name(timestamp)
     dirs = snapshot_bucket_dirs(source)
 
-    for bucket, directory in dirs.items():
+    for directory in dirs.values():
         mkdir(directory)
 
     write_json_file(dirs["24h"] / name, payload, pretty=pretty)
-
     write_json_file(dirs["week"] / f"{date_slug()}.json", payload, pretty=pretty)
     write_json_file(dirs["monthly"] / f"{month_slug()}.json", payload, pretty=pretty)
     write_json_file(dirs["quarterly"] / f"{quarter_slug()}.json", payload, pretty=pretty)
@@ -319,7 +336,18 @@ def extract_nodes_from_payload(payload: Any) -> list[str]:
         if isinstance(nodes, dict):
             found.extend(str(address) for address in nodes.keys())
 
-        for key in ("addresses", "peers", "queue", "known", "reachable", "unreachable", "results", "rows"):
+        for key in (
+            "addresses",
+            "peers",
+            "queue",
+            "known",
+            "reachable",
+            "unreachable",
+            "results",
+            "rows",
+            "data",
+            "node_records",
+        ):
             values = payload.get(key)
 
             if isinstance(values, list):
@@ -502,6 +530,7 @@ def expand_getaddr(
 
                 for address in found:
                     normalized = normalize_address(address)
+
                     if not normalized:
                         continue
 
@@ -557,7 +586,12 @@ def crawl_address(address: str, timeout: float) -> tuple[str, list[Any]] | None:
 
         row[19] = metadata
 
-        return normalize_address(info.address), row
+        normalized = normalize_address(info.address)
+
+        if not normalized:
+            return None
+
+        return normalized, row
 
     except (socket.timeout, TimeoutError, OSError, ValueError):
         return None
@@ -565,7 +599,11 @@ def crawl_address(address: str, timeout: float) -> tuple[str, list[Any]] | None:
         return None
 
 
-def crawl_batch(addresses: list[str], timeout: float, workers: int) -> tuple[dict[str, list[Any]], list[str]]:
+def crawl_batch(
+    addresses: list[str],
+    timeout: float,
+    workers: int,
+) -> tuple[dict[str, list[Any]], list[str]]:
     successes: dict[str, list[Any]] = {}
     failures: list[str] = []
 
@@ -585,8 +623,10 @@ def crawl_batch(addresses: list[str], timeout: float, workers: int) -> tuple[dic
 
             if not result:
                 normalized_failure = normalize_address(requested_address)
+
                 if normalized_failure:
                     failures.append(normalized_failure)
+
                 continue
 
             address, row = result
@@ -626,18 +666,32 @@ def build_changes(
             became_unreachable.append(address)
 
         if old.get("height") != new.get("height"):
-            height_changes[address] = {"previous": old.get("height"), "current": new.get("height")}
+            height_changes[address] = {
+                "previous": old.get("height"),
+                "current": new.get("height"),
+            }
 
         if old.get("agent") != new.get("agent"):
-            agent_changes[address] = {"previous": old.get("agent"), "current": new.get("agent")}
+            agent_changes[address] = {
+                "previous": old.get("agent"),
+                "current": new.get("agent"),
+            }
 
         if old.get("services") != new.get("services"):
-            services_changes[address] = {"previous": old.get("services"), "current": new.get("services")}
+            services_changes[address] = {
+                "previous": old.get("services"),
+                "current": new.get("services"),
+            }
 
         if old.get("port") != new.get("port"):
-            port_changes[address] = {"previous": old.get("port"), "current": new.get("port")}
+            port_changes[address] = {
+                "previous": old.get("port"),
+                "current": new.get("port"),
+            }
 
     return {
+        "schema": "zzx-bitnodes-change-set-v2",
+        "generated_at": iso_now(),
         "added_count": len(added),
         "removed_count": len(removed),
         "retained_count": len(retained),
@@ -658,7 +712,12 @@ def build_changes(
     }
 
 
-def geoip_available(geoip_enabled: bool, city_db: Path, asn_db: Path, country_db: Path) -> bool:
+def geoip_available(
+    geoip_enabled: bool,
+    city_db: Path,
+    asn_db: Path,
+    country_db: Path,
+) -> bool:
     if not geoip_enabled or enrich_snapshot_payload is None:
         return False
 
@@ -702,13 +761,16 @@ def enrich_state_records(
     enriched_nodes = payload.get("nodes", {})
     now = utc_now()
 
+    if not isinstance(enriched_nodes, dict):
+        return
+
     for address, values in enriched_nodes.items():
         record = state.nodes.get(address)
 
         if not record:
             continue
 
-        row = list(values)
+        row = list(values) if isinstance(values, list) else []
 
         while len(row) < 20:
             row.append(None)
@@ -729,7 +791,7 @@ def enrich_state_records(
         record["last_geoip_update"] = now
 
 
-def export_state(
+def export_state_direct(
     state: BitnodesState,
     output_dir: Path,
     archive_dir: Path,
@@ -738,31 +800,39 @@ def export_state(
     pretty: bool = True,
 ) -> dict[str, Any]:
     payload = state.build_export_payload(mode=mode)
-    payload["source"] = "zzxbitnodes"
-    payload["crawler"] = "zzxbitnodes"
+    payload["source"] = SOURCE
+    payload["crawler"] = SOURCE
     payload["changes"] = changes
     payload["generated_at"] = iso_now()
 
-    temp = output_dir / "_state_latest_raw.json"
-    write_json(temp, payload, pretty=pretty)
+    mkdir(output_dir)
+    mkdir(archive_dir)
 
-    export_all(
-        input_path=temp,
-        output_dir=output_dir,
-        source=payload["source"],
-        pretty=pretty,
-        archive_dir=archive_dir,
-        gzip_archive=True,
-    )
+    latest_path = output_dir / "latest.json"
+    write_json_file(latest_path, payload, pretty=pretty)
+
+    timestamp = int(payload.get("timestamp") or utc_now())
+    archive_name = snapshot_name(timestamp)
+
+    write_json_file(archive_dir / archive_name, payload, pretty=pretty)
+
+    gzip_path = archive_dir / f"{archive_name}.gz"
 
     try:
-        temp.unlink()
-    except FileNotFoundError:
+        with gzip.open(gzip_path, "wt", encoding="utf-8") as handle:
+            json.dump(
+                payload,
+                handle,
+                ensure_ascii=False,
+                indent=None if not pretty else 2,
+                separators=(",", ":") if not pretty else None,
+                sort_keys=pretty,
+            )
+            handle.write("\n")
+    except Exception:
         pass
 
-    latest = read_json_any(output_dir / "latest.json", fallback=payload)
-    if isinstance(latest, dict):
-        write_bucket_snapshots("zzxbitnodes", latest, pretty=pretty)
+    write_bucket_snapshots(SOURCE, payload, pretty=pretty)
 
     return payload
 
@@ -778,8 +848,8 @@ def mirror_latest_to_legacy_api(source_dir: Path, legacy_dir: Path, pretty: bool
     if not isinstance(payload, dict) or not payload:
         return
 
-    payload["source"] = "zzxbitnodes"
-    payload["crawler"] = "zzxbitnodes"
+    payload["source"] = SOURCE
+    payload["crawler"] = SOURCE
 
     mkdir(legacy_dir)
     write_json_file(legacy_dir / "latest.json", payload, pretty=pretty)
@@ -793,36 +863,49 @@ def run_enrichment(
     source: str,
     api_dir: Path,
     state_dir: Path,
+    geoip_dir: Path,
+    geo_root: Path,
     compact: bool,
     modules: str = "",
+    strict: bool = False,
 ) -> int:
     if not ENRICH.exists():
         printf(f"[enrich] missing {ENRICH}")
         return 1
 
-    command = py(
+    base_command = py(
         ENRICH,
-        "--input",
-        str(input_path),
-        "--output",
-        str(output_path),
-        "--report",
-        str(report_path),
-        "--source",
-        source,
-        "--api-dir",
-        str(api_dir.parent),
-        "--state-dir",
-        str(state_dir),
+        "--input", str(input_path),
+        "--output", str(output_path),
+        "--report", str(report_path),
+        "--source", source,
+        "--api-dir", str(api_dir),
+        "--state-dir", str(state_dir),
+        "--geoip-dir", str(geoip_dir),
+        "--geo-root", str(geo_root),
     )
 
     if modules:
-        command.extend(["--modules", modules])
+        base_command.extend(["--modules", modules])
 
     if compact:
-        command.append("--compact")
+        base_command.append("--compact")
 
-    return run_command(command).returncode
+    if strict:
+        base_command.append("--strict")
+
+    code = run_command(base_command).returncode
+
+    if code == 0:
+        return 0
+
+    fallback_command = [
+        part
+        for part in base_command
+        if part not in {"--geo-root", str(geo_root)}
+    ]
+
+    return run_command(fallback_command).returncode
 
 
 def run_aggregate(
@@ -839,42 +922,111 @@ def run_aggregate(
 
     command = py(
         AGGREGATE,
-        "--input",
-        str(input_path),
-        "--output",
-        str(output_path),
-        "--api-dir",
-        str(api_dir.parent),
-        "--state-dir",
-        str(state_dir),
-        "--source",
-        source,
+        "--input", str(input_path),
+        "--output", str(output_path),
+        "--api-dir", str(api_dir),
+        "--state-dir", str(state_dir),
+        "--source", source,
     )
 
     return run_command(command).returncode
 
 
-def run_all_exports(*, input_path: Path, output_dir: Path, archive_dir: Path, source: str, compact: bool) -> int:
+def run_export_wrapper(
+    *,
+    input_path: Path,
+    output_dir: Path,
+    archive_dir: Path,
+    source: str,
+    compact: bool,
+) -> int:
     if not EXPORT.exists():
         return 0
 
-    command = py(
+    modern_command = py(
+        EXPORT,
+        "--mode", "all",
+        "--input", str(input_path),
+        "--output-dir", str(output_dir),
+        "--source", source,
+    )
+
+    if compact:
+        modern_command.append("--compact")
+
+    result = run_command(modern_command)
+
+    if result.returncode == 0:
+        return 0
+
+    legacy_command = py(
         EXPORT,
         "all",
-        "--input",
-        str(input_path),
-        "--output",
-        str(output_dir),
-        "--archive-dir",
-        str(archive_dir),
-        "--source",
-        source,
+        "--input", str(input_path),
+        "--output", str(output_dir),
+        "--archive-dir", str(archive_dir),
+        "--source", source,
+        "--keep-going",
+    )
+
+    if compact:
+        legacy_command.append("--compact")
+
+    return run_command(legacy_command).returncode
+
+
+def run_ipdb(
+    *,
+    input_path: Path,
+    output_path: Path,
+    log_dir: Path,
+    max_segment_bytes: int,
+    compact: bool,
+) -> int:
+    if not IP_DB.exists():
+        return 0
+
+    command = py(
+        IP_DB,
+        "--input", str(input_path),
+        "--output", str(output_path),
+        "--log-dir", str(log_dir),
+        "--max-segment-bytes", str(max_segment_bytes),
     )
 
     if compact:
         command.append("--compact")
 
-    command.append("--keep-going")
+    result = run_command(command)
+
+    if result.returncode == 0:
+        return 0
+
+    fallback = py(
+        IP_DB,
+        "--input", str(input_path),
+        "--output", str(output_path),
+    )
+
+    return run_command(fallback).returncode
+
+
+def run_push_ipdb(
+    *,
+    source_dir: Path,
+    compact: bool,
+) -> int:
+    if not PUSH_IPDB.exists():
+        return 0
+
+    command = py(
+        PUSH_IPDB,
+        "--source-dir", str(source_dir),
+        "--manifest", str(source_dir / "ip_db.manifest.json"),
+    )
+
+    if compact:
+        command.append("--compact")
 
     return run_command(command).returncode
 
@@ -898,16 +1050,11 @@ def run_registry_backup(
 
     command = py(
         CHUNK_REGISTRY_BACKUP,
-        "--input",
-        str(input_dir),
-        "--api",
-        str(api_dir.parent),
-        "--output",
-        str(dated),
-        "--latest-output",
-        str(latest_dir),
-        "--max-mb",
-        "24",
+        "--input", str(input_dir),
+        "--api", str(api_dir),
+        "--output", str(dated),
+        "--latest-output", str(latest_dir),
+        "--max-mb", "24",
     )
 
     return run_command(command).returncode
@@ -923,8 +1070,7 @@ def run_registry_index(*, registry_root: Path, enabled: bool) -> int:
 
     command = py(
         UPDATE_DAILY_INDEX,
-        "--repo-root",
-        str(registry_root),
+        "--repo-root", str(registry_root),
     )
 
     return run_command(command).returncode
@@ -933,7 +1079,6 @@ def run_registry_index(*, registry_root: Path, enabled: bool) -> int:
 def run_maps_after(
     *,
     latest_input: Path,
-    aggregate_input: Path,
     api_dir: Path,
     state_dir: Path,
     enabled: bool,
@@ -942,51 +1087,47 @@ def run_maps_after(
     if not enabled:
         return 0
 
-    code = 0
+    if MAP_WRAPPER.exists():
+        command = py(
+            MAP_WRAPPER,
+            "both",
+            "--input", str(latest_input),
+            "--api-dir", str(api_dir),
+            "--state-dir", str(state_dir),
+            "--map-dir", str(MAPS_DIR / SOURCE),
+            "--live-map-dir", str(LIVE_MAP_DIR / SOURCE),
+            "--source", SOURCE,
+            "--theme", "zzx_dark_olive",
+            "--settings", "default",
+            "--tile-provider", "cartodb_dark",
+        )
+
+        if compact:
+            command.append("--compact")
+
+        return run_command(command).returncode
 
     if MAPS.exists():
         command = py(
             MAPS,
-            "--input",
-            str(latest_input),
-            "--api-dir",
-            str(api_dir.parent),
-            "--state-dir",
-            str(state_dir.parent),
-            "--map-dir",
-            str(MAPS_DIR / "zzxbitnodes"),
-            "--live-map-dir",
-            str(LIVE_MAP_DIR / "zzxbitnodes"),
-            "--source",
-            "zzxbitnodes",
-            "--theme",
-            "zzx_dark_olive",
-            "--settings",
-            "default",
-            "--tile-provider",
-            "cartodb_dark",
+            "--input", str(latest_input),
+            "--api-dir", str(api_dir),
+            "--state-dir", str(state_dir),
+            "--map-dir", str(MAPS_DIR / SOURCE),
+            "--live-map-dir", str(LIVE_MAP_DIR / SOURCE),
+            "--source", SOURCE,
+            "--theme", "zzx_dark_olive",
+            "--settings", "default",
+            "--tile-provider", "cartodb_dark",
         )
 
-        code = run_command(command).returncode
+        if compact:
+            command.append("--compact")
 
-    if code == 0 and MAPPLOTTER.exists():
-        command = py(
-            MAPPLOTTER,
-            "--input",
-            str(latest_input),
-            "--aggregate",
-            str(aggregate_input),
-            "--output-dir",
-            str(MAPS_DIR / "zzxbitnodes"),
-            "--live-output-dir",
-            str(LIVE_MAP_DIR / "zzxbitnodes"),
-            "--source",
-            "zzxbitnodes",
-        )
+        return run_command(command).returncode
 
-        code = run_command(command).returncode
-
-    return code
+    printf("[maps] no map wrapper found")
+    return 1
 
 
 def push_snapshots(enabled: bool, message: str) -> int:
@@ -999,8 +1140,7 @@ def push_snapshots(enabled: bool, message: str) -> int:
 
     command = py(
         PUSH_SNAPSHOTS,
-        "--message",
-        message,
+        "--message", message,
         "--paths",
         "bitcoin/bitnodes/api",
         "bitcoin/bitnodes/archive",
@@ -1054,6 +1194,7 @@ def seed_state_before_crawl(
 
 
 def crawl_once(
+    *,
     state_dir: Path,
     snapshot_24h_dir: Path,
     output_dir: Path,
@@ -1069,6 +1210,8 @@ def crawl_once(
     replay_archives: bool,
     archive_replay_files: int,
     geoip_enabled: bool,
+    geoip_dir: Path,
+    geo_root: Path,
     city_db: Path,
     asn_db: Path,
     country_db: Path,
@@ -1078,16 +1221,28 @@ def crawl_once(
     run_enrich_after: bool,
     run_aggregate_after: bool,
     run_exports_after: bool,
+    run_ipdb_after: bool,
     run_maps: bool,
     enrich_modules: str,
     registry_backup: bool,
     registry_root: Path,
     registry_latest_dir: Path,
+    max_segment_bytes: int,
     git_push: bool,
+    strict: bool = False,
 ) -> dict[str, Any]:
-    ensure_layout("zzxbitnodes")
+    ensure_layout(SOURCE)
 
-    for path in (output_dir, archive_dir, seeder_dir, state_dir, snapshot_24h_dir, city_db.parent):
+    for path in (
+        output_dir,
+        archive_dir,
+        seeder_dir,
+        state_dir,
+        snapshot_24h_dir,
+        geoip_dir,
+        geo_root,
+        city_db.parent,
+    ):
         mkdir(path)
 
     state = BitnodesState(state_dir=state_dir, snapshot_24h_dir=snapshot_24h_dir)
@@ -1146,8 +1301,8 @@ def crawl_once(
     )
 
     state.meta.update({
-        "crawler": "zzxbitnodes",
-        "source": "zzxbitnodes",
+        "crawler": SOURCE,
+        "source": SOURCE,
         "last_crawl": now,
         "last_crawl_iso": utc_iso(now),
         "last_candidate_count": len(candidates),
@@ -1164,6 +1319,8 @@ def crawl_once(
         "archive_replay_enabled": replay_archives,
         "archive_replay_files": archive_replay_files,
         "geoip_enabled": geoip_enabled,
+        "geoip_dir": str(geoip_dir),
+        "geo_root": str(geo_root),
         "geoip_city_db": str(city_db),
         "geoip_asn_db": str(asn_db),
         "geoip_country_db": str(country_db),
@@ -1176,7 +1333,7 @@ def crawl_once(
 
     changes = build_changes(state_before=before, state_after=state.nodes)
 
-    payload = export_state(
+    payload = export_state_direct(
         state=state,
         output_dir=output_dir,
         archive_dir=archive_dir,
@@ -1202,14 +1359,21 @@ def crawl_once(
             input_path=latest_path,
             output_path=DEFAULT_ENRICHED_LATEST,
             report_path=DEFAULT_ENRICHMENT_REPORT,
-            source="zzxbitnodes",
-            api_dir=output_dir,
+            source=SOURCE,
+            api_dir=API_DIR,
             state_dir=state_dir,
+            geoip_dir=geoip_dir,
+            geo_root=geo_root,
             compact=not pretty,
             modules=enrich_modules,
+            strict=strict,
         )
+
         if code != 0:
             printf(f"[enrich] exited with code {code}")
+
+            if strict:
+                raise RuntimeError("enrichment failed")
 
     aggregate_input = DEFAULT_ENRICHED_LATEST if DEFAULT_ENRICHED_LATEST.exists() else latest_path
 
@@ -1217,67 +1381,106 @@ def crawl_once(
         code = run_aggregate(
             input_path=aggregate_input,
             output_path=DEFAULT_AGGREGATE_LATEST,
-            api_dir=output_dir,
+            api_dir=API_DIR,
             state_dir=state_dir,
-            source="zzxbitnodes",
+            source=SOURCE,
         )
+
         if code != 0:
             printf(f"[aggregate] exited with code {code}")
 
-    if run_exports_after:
-        code = run_all_exports(
+            if strict:
+                raise RuntimeError("aggregate failed")
+
+    export_input = DEFAULT_AGGREGATE_LATEST if DEFAULT_AGGREGATE_LATEST.exists() else aggregate_input
+
+    if run_ipdb_after:
+        ipdb_output = DEFAULT_ENRICHED_DIR / "latest.ipdb-enriched.json"
+
+        code = run_ipdb(
             input_path=aggregate_input if aggregate_input.exists() else latest_path,
-            output_dir=output_dir,
-            archive_dir=archive_dir,
-            source="zzxbitnodes",
+            output_path=ipdb_output,
+            log_dir=geoip_dir,
+            max_segment_bytes=max_segment_bytes,
             compact=not pretty,
         )
+
+        if code != 0:
+            printf(f"[ip_db] exited with code {code}")
+
+            if strict:
+                raise RuntimeError("ip_db failed")
+
+        run_push_ipdb(source_dir=geoip_dir, compact=not pretty)
+
+    if run_exports_after:
+        code = run_export_wrapper(
+            input_path=export_input if export_input.exists() else latest_path,
+            output_dir=DEFAULT_EXPORT_DIR,
+            archive_dir=archive_dir,
+            source=SOURCE,
+            compact=not pretty,
+        )
+
         if code != 0:
             printf(f"[exports] exited with code {code}")
 
-    aggregate_for_maps = DEFAULT_AGGREGATE_LATEST if DEFAULT_AGGREGATE_LATEST.exists() else aggregate_input
+            if strict:
+                raise RuntimeError("exports failed")
 
-    run_maps_after(
-        latest_input=aggregate_input if aggregate_input.exists() else latest_path,
-        aggregate_input=aggregate_for_maps,
-        api_dir=output_dir,
-        state_dir=state_dir,
-        enabled=run_maps,
-        compact=not pretty,
-    )
+    if run_maps:
+        code = run_maps_after(
+            latest_input=export_input if export_input.exists() else latest_path,
+            api_dir=API_DIR,
+            state_dir=state_dir,
+            enabled=run_maps,
+            compact=not pretty,
+        )
+
+        if code != 0:
+            printf(f"[maps] exited with code {code}")
+
+            if strict:
+                raise RuntimeError("maps failed")
 
     code = run_registry_backup(
         input_dir=archive_dir,
-        api_dir=output_dir,
+        api_dir=API_DIR,
         output_dir=registry_root,
         latest_dir=registry_latest_dir,
         enabled=registry_backup,
     )
+
     if code == 0:
         run_registry_index(registry_root=registry_root, enabled=registry_backup)
+    elif strict:
+        raise RuntimeError("registry backup failed")
 
-    push_snapshots(
+    code = push_snapshots(
         enabled=git_push,
         message="Update ZZX Bitnodes global node snapshots",
     )
+
+    if code != 0 and strict:
+        raise RuntimeError("git push failed")
 
     summary = state.state_summary()
 
     printf(
         f"[{utc_iso()}] "
-        f"crawler=zzxbitnodes "
-        f"known={summary['total_known_nodes']} "
-        f"reachable_now={summary['reachable_now']} "
-        f"unreachable_now={summary['unreachable_now']} "
-        f"reachable_24h={summary['reachable_24h']} "
-        f"stale={summary['stale_nodes']} "
+        f"crawler={SOURCE} "
+        f"known={summary.get('total_known_nodes', 0)} "
+        f"reachable_now={summary.get('reachable_now', 0)} "
+        f"unreachable_now={summary.get('unreachable_now', 0)} "
+        f"reachable_24h={summary.get('reachable_24h', 0)} "
+        f"stale={summary.get('stale_nodes', 0)} "
         f"ipv4={summary.get('ipv4_nodes', 0)} "
         f"ipv6={summary.get('ipv6_nodes', 0)} "
         f"tor={summary.get('tor_nodes', 0)} "
         f"i2p={summary.get('i2p_nodes', 0)} "
         f"vpn={summary.get('vpn_nodes', 0)} "
         f"proxy={summary.get('proxy_nodes', 0)} "
-        f"queue={summary['queue_size']} "
+        f"queue={summary.get('queue_size', 0)} "
         f"dns={len(seed_addresses)} "
         f"seeds={len(expanded_seed_addresses)} "
         f"discovered={len(discovered)} "
@@ -1307,65 +1510,102 @@ def daemon_loop(**kwargs: Any) -> None:
         except Exception as exc:
             printf(f"[daemon] cycle error: {exc}")
 
+            if kwargs.get("strict"):
+                raise
+
         if run_seconds > 0 and time.time() - started >= run_seconds:
             return
 
         time.sleep(interval)
 
 
+def parser_has_option(parser: argparse.ArgumentParser, option: str) -> bool:
+    return option in parser._option_string_actions
+
+
+def add_argument_if_missing(
+    parser: argparse.ArgumentParser,
+    *flags: str,
+    **kwargs: Any,
+) -> None:
+    if any(parser_has_option(parser, flag) for flag in flags):
+        return
+
+    parser.add_argument(*flags, **kwargs)
+
+
 def build_parser(description: str = "ZZX-Labs persistent Bitnodes global crawler.") -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=description)
+    parser = argparse.ArgumentParser(
+        description=description,
+        conflict_handler="resolve",
+    )
 
-    parser.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
-    parser.add_argument("--snapshot-24h-dir", default=str(DEFAULT_SNAPSHOT_24H_DIR))
-    parser.add_argument("--history-dir", default="")
-    parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
-    parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
-    parser.add_argument("--seeder-dir", default=str(DEFAULT_SEEDER_DIR))
-    parser.add_argument("--raw-output", default="")
+    add_argument_if_missing(parser, "--state-dir", default=str(DEFAULT_STATE_DIR))
+    add_argument_if_missing(parser, "--snapshot-24h-dir", default=str(DEFAULT_SNAPSHOT_24H_DIR))
+    add_argument_if_missing(parser, "--history-dir", default="")
+    add_argument_if_missing(parser, "--output", default=str(DEFAULT_OUTPUT))
+    add_argument_if_missing(parser, "--archive-dir", default=str(DEFAULT_ARCHIVE))
+    add_argument_if_missing(parser, "--seeder-dir", default=str(DEFAULT_SEEDER_DIR))
+    add_argument_if_missing(parser, "--raw-output", default="")
 
-    parser.add_argument("--profile", choices=["github", "local", "aggressive"], default="github")
+    add_argument_if_missing(
+        parser,
+        "--profile",
+        choices=["github", "local", "aggressive"],
+        default="github",
+    )
 
-    parser.add_argument("--limit", type=int, default=500_000)
-    parser.add_argument("--batch-size", type=int, default=4096)
-    parser.add_argument("--timeout", type=float, default=5.0)
-    parser.add_argument("--workers", type=int, default=256)
-    parser.add_argument("--getaddr-rounds", type=int, default=16)
-    parser.add_argument("--dns-seed-limit", type=int, default=4096)
+    add_argument_if_missing(parser, "--limit", type=int, default=500_000)
+    add_argument_if_missing(parser, "--batch-size", type=int, default=4096)
+    add_argument_if_missing(parser, "--timeout", type=float, default=5.0)
+    add_argument_if_missing(parser, "--workers", type=int, default=256)
+    add_argument_if_missing(parser, "--getaddr-rounds", type=int, default=16)
+    add_argument_if_missing(parser, "--dns-seed-limit", type=int, default=4096)
 
-    parser.add_argument("--disable-archive-replay", action="store_true")
-    parser.add_argument("--archive-replay-files", type=int, default=250)
+    add_argument_if_missing(parser, "--disable-archive-replay", action="store_true")
+    add_argument_if_missing(parser, "--archive-replay-files", type=int, default=250)
 
-    parser.add_argument("--interval", type=int, default=3600)
-    parser.add_argument("--run-seconds", type=int, default=0)
-    parser.add_argument("--daemon", action="store_true")
+    add_argument_if_missing(parser, "--interval", type=int, default=3600)
+    add_argument_if_missing(parser, "--run-seconds", type=int, default=0)
+    add_argument_if_missing(parser, "--daemon", action="store_true")
 
-    parser.add_argument("--disable-geoip", action="store_true")
-    parser.add_argument("--geoip-dir", default=str(DEFAULT_GEOIP_DIR))
-    parser.add_argument("--city-db", default="")
-    parser.add_argument("--asn-db", default="")
-    parser.add_argument("--country-db", default="")
+    add_argument_if_missing(parser, "--disable-geoip", action="store_true")
+    add_argument_if_missing(parser, "--geoip-dir", default=str(DEFAULT_GEOIP_DIR))
+    add_argument_if_missing(parser, "--geo-root", default=str(DEFAULT_GEO_ROOT))
+    add_argument_if_missing(parser, "--city-db", default="")
+    add_argument_if_missing(parser, "--asn-db", default="")
+    add_argument_if_missing(parser, "--country-db", default="")
 
-    parser.add_argument(
+    add_argument_if_missing(
+        parser,
         "--export-mode",
         choices=["all", "reachable", "unreachable", "reachable_24h", "stale"],
         default="reachable_24h",
     )
 
-    parser.add_argument("--compact", action="store_true")
-    parser.add_argument("--git-push", action="store_true")
-    parser.add_argument("--mirror-legacy-api", action="store_true")
+    add_argument_if_missing(parser, "--compact", action="store_true")
+    add_argument_if_missing(parser, "--strict", action="store_true")
+    add_argument_if_missing(parser, "--git-push", action="store_true")
+    add_argument_if_missing(parser, "--mirror-legacy-api", action="store_true")
 
-    parser.add_argument("--no-enrich-after", action="store_true")
-    parser.add_argument("--no-aggregate-after", action="store_true")
-    parser.add_argument("--no-export-all-after", action="store_true")
-    parser.add_argument("--enrich-modules", default="")
+    add_argument_if_missing(parser, "--no-enrich-after", action="store_true")
+    add_argument_if_missing(parser, "--no-aggregate-after", action="store_true")
+    add_argument_if_missing(parser, "--no-export-all-after", action="store_true")
+    add_argument_if_missing(parser, "--no-ipdb-after", action="store_true")
+    add_argument_if_missing(parser, "--enrich-modules", default="")
 
-    parser.add_argument("--build-maps", action="store_true")
+    add_argument_if_missing(parser, "--build-maps", action="store_true")
 
-    parser.add_argument("--registry-backup", action="store_true")
-    parser.add_argument("--registry-root", default=str(DEFAULT_REGISTRY_DIR))
-    parser.add_argument("--registry-latest-dir", default=str(DEFAULT_REGISTRY_LATEST_DIR))
+    add_argument_if_missing(parser, "--registry-backup", action="store_true")
+    add_argument_if_missing(parser, "--registry-root", default=str(DEFAULT_REGISTRY_DIR))
+    add_argument_if_missing(parser, "--registry-latest-dir", default=str(DEFAULT_REGISTRY_LATEST_DIR))
+
+    add_argument_if_missing(
+        parser,
+        "--max-segment-bytes",
+        type=int,
+        default=DEFAULT_MAX_PUBLIC_JSON_BYTES,
+    )
 
     return parser
 
@@ -1396,11 +1636,65 @@ def apply_profile(args: argparse.Namespace) -> argparse.Namespace:
     return args
 
 
+def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
+    defaults = {
+        "state_dir": str(DEFAULT_STATE_DIR),
+        "snapshot_24h_dir": str(DEFAULT_SNAPSHOT_24H_DIR),
+        "history_dir": "",
+        "output": str(DEFAULT_OUTPUT),
+        "archive_dir": str(DEFAULT_ARCHIVE),
+        "seeder_dir": str(DEFAULT_SEEDER_DIR),
+        "raw_output": "",
+        "profile": "github",
+        "limit": 500_000,
+        "batch_size": 4096,
+        "timeout": 5.0,
+        "workers": 256,
+        "getaddr_rounds": 16,
+        "dns_seed_limit": 4096,
+        "disable_archive_replay": False,
+        "archive_replay_files": 250,
+        "interval": 3600,
+        "run_seconds": 0,
+        "daemon": False,
+        "disable_geoip": False,
+        "geoip_dir": str(DEFAULT_GEOIP_DIR),
+        "geo_root": str(DEFAULT_GEO_ROOT),
+        "city_db": "",
+        "asn_db": "",
+        "country_db": "",
+        "export_mode": "reachable_24h",
+        "compact": False,
+        "strict": False,
+        "git_push": False,
+        "mirror_legacy_api": False,
+        "no_enrich_after": False,
+        "no_aggregate_after": False,
+        "no_export_all_after": False,
+        "no_ipdb_after": False,
+        "enrich_modules": "",
+        "build_maps": False,
+        "registry_backup": False,
+        "registry_root": str(DEFAULT_REGISTRY_DIR),
+        "registry_latest_dir": str(DEFAULT_REGISTRY_LATEST_DIR),
+        "max_segment_bytes": DEFAULT_MAX_PUBLIC_JSON_BYTES,
+    }
+
+    for key, value in defaults.items():
+        if not hasattr(args, key):
+            setattr(args, key, value)
+
+    return args
+
+
 def run_from_args(args: argparse.Namespace) -> int:
-    ensure_layout("zzxbitnodes")
+    ensure_layout(SOURCE)
+
+    args = normalize_args(args)
     args = apply_profile(args)
 
     geoip_dir = Path(args.geoip_dir)
+    geo_root = Path(args.geo_root)
 
     city_db = Path(args.city_db) if args.city_db else geoip_dir / "dbip-city-lite.mmdb"
     asn_db = Path(args.asn_db) if args.asn_db else geoip_dir / "dbip-asn-lite.mmdb"
@@ -1420,37 +1714,42 @@ def run_from_args(args: argparse.Namespace) -> int:
         "archive_dir": Path(args.archive_dir),
         "seeder_dir": Path(args.seeder_dir),
         "raw_output": raw_output,
-        "limit": args.limit,
-        "batch_size": args.batch_size,
-        "timeout": args.timeout,
-        "workers": args.workers,
-        "getaddr_rounds": args.getaddr_rounds,
-        "dns_seed_limit": args.dns_seed_limit,
-        "replay_archives": not args.disable_archive_replay,
-        "archive_replay_files": args.archive_replay_files,
-        "geoip_enabled": not args.disable_geoip,
+        "limit": int(args.limit),
+        "batch_size": int(args.batch_size),
+        "timeout": float(args.timeout),
+        "workers": int(args.workers),
+        "getaddr_rounds": int(args.getaddr_rounds),
+        "dns_seed_limit": int(args.dns_seed_limit),
+        "replay_archives": not bool(args.disable_archive_replay),
+        "archive_replay_files": int(args.archive_replay_files),
+        "geoip_enabled": not bool(args.disable_geoip),
+        "geoip_dir": geoip_dir,
+        "geo_root": geo_root,
         "city_db": city_db,
         "asn_db": asn_db,
         "country_db": country_db,
         "export_mode": args.export_mode,
-        "pretty": not args.compact,
-        "mirror_legacy": args.mirror_legacy_api,
-        "run_enrich_after": not args.no_enrich_after,
-        "run_aggregate_after": not args.no_aggregate_after,
-        "run_exports_after": not args.no_export_all_after,
-        "run_maps": args.build_maps,
+        "pretty": not bool(args.compact),
+        "mirror_legacy": bool(args.mirror_legacy_api),
+        "run_enrich_after": not bool(args.no_enrich_after),
+        "run_aggregate_after": not bool(args.no_aggregate_after),
+        "run_exports_after": not bool(args.no_export_all_after),
+        "run_ipdb_after": not bool(args.no_ipdb_after),
+        "run_maps": bool(args.build_maps),
         "enrich_modules": args.enrich_modules,
-        "registry_backup": args.registry_backup,
+        "registry_backup": bool(args.registry_backup),
         "registry_root": Path(args.registry_root),
         "registry_latest_dir": Path(args.registry_latest_dir),
-        "git_push": args.git_push,
+        "max_segment_bytes": int(args.max_segment_bytes),
+        "git_push": bool(args.git_push),
+        "strict": bool(args.strict),
     }
 
     if args.daemon:
         daemon_loop(
             **common,
-            interval=args.interval,
-            run_seconds=args.run_seconds,
+            interval=int(args.interval),
+            run_seconds=int(args.run_seconds),
         )
         return 0
 
