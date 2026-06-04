@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 
-APP_ROOT = Path(__file__).resolve().parents[2]
+APP_ROOT = Path(__file__).resolve().parents[3]
+
 DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
 DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
 
@@ -64,23 +65,31 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if not path.exists():
         return fallback
 
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=None if compact else 2,
+        separators=(",", ":") if compact else None,
+        sort_keys=not compact,
+    )
+
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[str, Any]:
     selected = OPENSTREETMAP_TILESETS.get(tile_provider, OPENSTREETMAP_TILESETS["cartodb_dark"])
 
     return {
-        "schema": "zzx-bitnodes-openstreetmaps-v1",
+        "schema": "zzx-bitnodes-openstreetmaps-v2",
         "generated_at": utc_now(),
         "engine": "leaflet",
         "provider": selected["id"],
@@ -89,7 +98,9 @@ def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[
         "library": {
             "leaflet_css": "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
             "leaflet_js": "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-            "integrity_note": "For production hardening, vendor Leaflet locally under bitcoin/bitnodes/vendor/leaflet/ and update map.js to load local files.",
+            "local_leaflet_css": "../../vendor/leaflet/leaflet.css",
+            "local_leaflet_js": "../../vendor/leaflet/leaflet.js",
+            "integrity_note": "For production hardening, vendor Leaflet locally under bitcoin/bitnodes/vendor/leaflet/ and update map.js/live-map.js to load local files.",
         },
         "controls": {
             "zoom": True,
@@ -120,7 +131,6 @@ def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[
 
 def merge_settings(payload: dict[str, Any], osm: dict[str, Any]) -> dict[str, Any]:
     output = dict(payload)
-
     settings = dict(output.get("settings", {}))
     selected = osm["selected_tileset"]
 
@@ -128,6 +138,8 @@ def merge_settings(payload: dict[str, Any], osm: dict[str, Any]) -> dict[str, An
     settings["tile_url"] = selected["url"]
     settings["tile_attribution"] = selected["attribution"]
     settings["tile_subdomains"] = selected.get("subdomains", [])
+    settings["tile_min_zoom"] = selected.get("min_zoom", 2)
+    settings["tile_max_zoom"] = selected.get("max_zoom", 19)
     settings["openstreetmaps"] = osm
 
     initial_view = dict(settings.get("initial_view", {}))
@@ -148,10 +160,7 @@ def merge_settings(payload: dict[str, Any], osm: dict[str, Any]) -> dict[str, An
     return output
 
 
-def build(
-    payload: dict[str, Any],
-    context: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     context = context or {}
 
     tile_provider = str(
@@ -161,7 +170,6 @@ def build(
     )
 
     osm = default_openstreetmaps_payload(tile_provider)
-
     return merge_settings(payload, osm)
 
 
@@ -170,19 +178,24 @@ def build_standalone(
     output_dir: Path,
     live_map_dir: Path,
     tile_provider: str,
+    compact: bool = False,
 ) -> dict[str, Any]:
     osm = default_openstreetmaps_payload(tile_provider)
 
     for directory in (output_dir, live_map_dir):
-        write_json(directory / "data" / "openstreetmaps.json", osm)
+        write_json(directory / "data" / "openstreetmaps.json", osm, compact=compact)
 
         settings_path = directory / "data" / "map-settings.json"
         settings = read_json(settings_path, fallback={})
+
+        if not isinstance(settings, dict):
+            settings = {}
+
         merged = merge_settings({"settings": settings}, osm)
-        write_json(settings_path, merged["settings"])
+        write_json(settings_path, merged["settings"], compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-openstreetmaps-build-report-v1",
+        "schema": "zzx-bitnodes-openstreetmaps-build-report-v2",
         "generated_at": utc_now(),
         "map_dir": str(output_dir),
         "live_map_dir": str(live_map_dir),
@@ -204,6 +217,7 @@ def main() -> int:
         choices=sorted(OPENSTREETMAP_TILESETS.keys()),
     )
     parser.add_argument("--report", default="")
+    parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
 
@@ -211,10 +225,11 @@ def main() -> int:
         output_dir=Path(args.map_dir).resolve(),
         live_map_dir=Path(args.live_map_dir).resolve(),
         tile_provider=args.tile_provider,
+        compact=args.compact,
     )
 
     if args.report:
-        write_json(Path(args.report), report)
+        write_json(Path(args.report), report, compact=args.compact)
 
     print(
         "openstreetmaps config complete: "
