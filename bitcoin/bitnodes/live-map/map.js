@@ -5,6 +5,7 @@
         initialized: false,
         options: {},
         map: null,
+        tileLayer: null,
         layer: null,
         polygonLayer: null,
         canvasRenderer: null,
@@ -59,18 +60,6 @@
         if (Array.isArray(value)) return value;
         if (!value) return [];
         return [value];
-    }
-
-    function mapById(items) {
-        const out = {};
-
-        normalizeList(items).forEach(item => {
-            if (item && typeof item === "object" && item.id) {
-                out[item.id] = item;
-            }
-        });
-
-        return out;
     }
 
     async function loadLeaflet() {
@@ -199,7 +188,6 @@
 
             state.settings.profile = state.settings.profile || {};
             state.settings.profile.id = id;
-
             state.latestSettingsSource = result.source;
         }
 
@@ -338,6 +326,52 @@
         `;
     }
 
+    function renderNodeInfo(point) {
+        const panel = qs(option("nodeInfoSelector", "#bn-map-node-info"));
+
+        if (!panel) {
+            return;
+        }
+
+        panel.innerHTML = `
+            <h3>${escapeHtml(point.address || point.id || "Unknown Node")}</h3>
+
+            <div class="bn-node-grid">
+                <div><strong>Status</strong><span>${escapeHtml(point.status_label || point.status || "Unknown")}</span></div>
+                <div><strong>Network</strong><span>${escapeHtml(point.network || point.network_type || "Unknown")}</span></div>
+                <div><strong>Block Height</strong><span>${escapeHtml(point.height || "—")}</span></div>
+                <div><strong>Uptime</strong><span>${escapeHtml(Math.round(Number(point.uptime_seconds || 0)).toLocaleString())}s</span></div>
+                <div><strong>ASN</strong><span>${escapeHtml(point.asn || "—")}</span></div>
+                <div><strong>Provider</strong><span>${escapeHtml(point.provider || "—")}</span></div>
+                <div><strong>Country</strong><span>${escapeHtml(point.country_name || point.country || point.country_code || "—")}</span></div>
+                <div><strong>Territory</strong><span>${escapeHtml(point.territory || "—")}</span></div>
+                <div><strong>County</strong><span>${escapeHtml(point.county || "—")}</span></div>
+                <div><strong>City</strong><span>${escapeHtml(point.city || "—")}</span></div>
+                <div><strong>Latitude</strong><span>${escapeHtml(point.latitude ?? point.lat ?? "—")}</span></div>
+                <div><strong>Longitude</strong><span>${escapeHtml(point.longitude ?? point.lon ?? point.lng ?? "—")}</span></div>
+                <div><strong>Agent</strong><span>${escapeHtml(point.agent || point.user_agent || "—")}</span></div>
+                <div><strong>VPN</strong><span>${point.is_vpn || point.suspected_vpn ? "Yes" : "No"}</span></div>
+                <div><strong>Proxy</strong><span>${point.is_proxy || point.suspected_proxy ? "Yes" : "No"}</span></div>
+                <div><strong>what3words</strong><span>${escapeHtml(point.w3w || point.what3words || "—")}</span></div>
+                <div><strong>ZZX-GCS</strong><span>${escapeHtml(point.zzxgcs || "—")}</span></div>
+                <div><strong>GeohashID</strong><span>${escapeHtml(point.geohashid || point.geohash || "—")}</span></div>
+            </div>
+        `;
+
+        panel.classList.add("is-active");
+    }
+
+    function clearNodeInfo() {
+        const panel = qs(option("nodeInfoSelector", "#bn-map-node-info"));
+
+        if (!panel) {
+            return;
+        }
+
+        panel.classList.remove("is-active");
+        panel.innerHTML = `<p>Select a node to inspect telemetry.</p>`;
+    }
+
     function countBy(points, getter) {
         const counts = {};
 
@@ -417,6 +451,15 @@
             });
 
             marker.bindPopup(markerPopup(point));
+
+            marker.on("click", event => {
+                if (window.L?.DomEvent) {
+                    window.L.DomEvent.stopPropagation(event);
+                }
+
+                renderNodeInfo(point);
+            });
+
             marker.addTo(state.layer);
         });
 
@@ -531,6 +574,31 @@
         });
     }
 
+    function wireLegendToggle() {
+        const legend = qs(option("legendSelector", "#bn-map-legend"));
+        const toggle = qs(option("legendToggleSelector", "#bn-map-legend-toggle"));
+
+        if (!legend || !toggle || toggle.dataset.bnMapLegendWired === "true") {
+            return;
+        }
+
+        toggle.dataset.bnMapLegendWired = "true";
+
+        toggle.addEventListener("click", () => {
+            const collapsed = legend.classList.toggle("is-collapsed");
+
+            legend.classList.toggle("is-open", !collapsed);
+            document.body.classList.toggle("bn-map-key-collapsed", collapsed);
+
+            toggle.textContent = collapsed ? "Show Key" : "Hide Key";
+            toggle.setAttribute("aria-expanded", String(!collapsed));
+
+            if (state.map) {
+                window.setTimeout(() => state.map.invalidateSize(), 190);
+            }
+        });
+    }
+
     function applyMapSettings() {
         if (!state.map || !state.settings) return;
 
@@ -620,11 +688,16 @@
             Number(view.zoom || 2)
         );
 
+        state.map.on("click", () => {
+            clearNodeInfo();
+        });
+
         applyMapSettings();
 
         populateThemeSelect();
         populateSettingsSelect();
         wireControls(view);
+        wireLegendToggle();
 
         await renderPolygons();
         renderPoints();
@@ -656,6 +729,7 @@
         await loadData();
         await renderPolygons();
         renderPoints();
+        wireLegendToggle();
 
         return state;
     }
@@ -666,6 +740,8 @@
         destroy,
         renderPoints,
         renderPolygons,
+        renderNodeInfo,
+        clearNodeInfo,
         loadTheme,
         loadSettingsProfile,
         reload
