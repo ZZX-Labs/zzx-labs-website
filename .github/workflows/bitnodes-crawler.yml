@@ -832,6 +832,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" || true
+          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json" || true
+
           python - <<'PY'
           import os
           from pathlib import Path
@@ -864,6 +867,7 @@ jobs:
               "map-points.geojson",
               "map-polygons.geojson",
               "map-build-report.json",
+              "live-map-build-report.json",
               "vector-types.json",
               "ip_db.latest.json",
               "ip_db.index.json",
@@ -889,6 +893,10 @@ jobs:
                       continue
 
                   if path.suffix in {".json", ".geojson"}:
+                      if path.name.endswith(".map-ready.json"):
+                          bad.append((path.stat().st_size, path, "transient map-ready json was not pruned"))
+                          continue
+
                       if path.name not in allow_names:
                           if "/data/" not in rel and "/maps/data/" not in rel and "/live-map/data/" not in rel:
                               bad.append((path.stat().st_size, path, "unexpected json"))
