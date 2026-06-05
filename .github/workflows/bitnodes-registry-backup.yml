@@ -15,10 +15,19 @@ concurrency:
   group: zzx-bitnodes-registry-backup
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  BITNODES_ROOT: bitcoin/bitnodes
+  BITNODES_API: bitcoin/bitnodes/api
+  BITNODES_DATA: bitcoin/bitnodes/data
+  BITNODES_REGISTRY_OWNER: ZZX-Labs
+  BITNODES_REGISTRY_REPO: zzxbitnodesglobalregistry
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   backup-registry:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -28,27 +37,69 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Sync website repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/bitnodes/requirements.txt
 
       - name: Install registry tools dependencies
+        shell: bash
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
       - name: Validate registry tools
+        shell: bash
         run: |
+          set -euo pipefail
           python tools/bitnodes/chunk_registry_backup.py --help
           python tools/bitnodes/update_daily_index.py --help
+
+      - name: Select registry backup source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SOURCE=""
+
+          for CANDIDATE in \
+            "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
+            "${BITNODES_DATA}/state/zzxbitnodes" \
+            "${BITNODES_DATA}/state" \
+            "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            "${BITNODES_API}/zzxbitnodes/latest.json"
+          do
+            if [ -d "${CANDIDATE}" ] || [ -s "${CANDIDATE}" ]; then
+              SOURCE="${CANDIDATE}"
+              break
+            fi
+          done
+
+          if [ -z "${SOURCE}" ]; then
+            printf '%s\n' "No registry source exists."
+            printf '%s\n' "Available Bitnodes files:"
+            find "${BITNODES_ROOT}" -maxdepth 6 -type f | sort | sed -n '1,240p'
+            exit 1
+          fi
+
+          printf '%s\n' "registry_source=${SOURCE}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "Selected registry source: ${SOURCE}"
 
       - name: Backup master node registry to private repo
         shell: bash
         env:
           REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
-          REGISTRY_OWNER: ZZX-Labs
-          REGISTRY_REPO: zzxbitnodesglobalregistry
         run: |
           set -euo pipefail
 
@@ -64,12 +115,13 @@ jobs:
 
           TODAY="$(date -u +%Y-%m-%d)"
           BACKUP_ROOT="/tmp/zzxbitnodesglobalregistry"
+          REGISTRY_URL="https://oauth2:${REGISTRY_PAT}@github.com/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git"
 
           rm -rf "${BACKUP_ROOT}"
 
           git clone \
             --depth 1 \
-            "https://oauth2:${REGISTRY_PAT}@github.com/${REGISTRY_OWNER}/${REGISTRY_REPO}.git" \
+            "${REGISTRY_URL}" \
             "${BACKUP_ROOT}"
 
           mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
@@ -77,8 +129,8 @@ jobs:
           mkdir -p "${BACKUP_ROOT}/manifests"
 
           python tools/bitnodes/chunk_registry_backup.py \
-            --input bitcoin/bitnodes/data/state \
-            --api bitcoin/bitnodes/api \
+            --input "${{ steps.source.outputs.registry_source }}" \
+            --api "${BITNODES_API}" \
             --output "${BACKUP_ROOT}/registry/${TODAY}" \
             --latest-output "${BACKUP_ROOT}/latest" \
             --max-mb 24
@@ -91,7 +143,7 @@ jobs:
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add registry latest manifests README.md || true
+          git add -A registry latest manifests README.md || true
 
           if git diff --cached --quiet; then
             printf '%s\n' "No private registry backup changes to commit."
@@ -103,11 +155,9 @@ jobs:
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase origin/main; then
-              if git push origin HEAD:main; then
-                printf '%s\n' "Private Bitnodes registry backup pushed."
-                exit 0
-              fi
+            if git rebase origin/main && git push origin HEAD:main; then
+              printf '%s\n' "Private Bitnodes registry backup pushed."
+              exit 0
             fi
 
             git rebase --abort || true
