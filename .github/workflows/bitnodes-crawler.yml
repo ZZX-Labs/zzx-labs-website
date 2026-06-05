@@ -23,6 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  ACTIONS_STEP_DEBUG: "false"
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
   BITNODES_DATA: bitcoin/bitnodes/data
@@ -38,7 +40,7 @@ env:
 
 jobs:
   crawl-bitnodes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 58
 
     steps:
@@ -110,6 +112,7 @@ jobs:
           python tools/bitnodes/enrich.py --help
           python tools/bitnodes/aggregate.py --help
           python tools/bitnodes/ip_db.py --help
+          python tools/bitnodes/push_ipdb.py --help
           python tools/bitnodes/export_db.py --help
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/build_geo_indexes.py --help
@@ -137,8 +140,11 @@ jobs:
             "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
             "${BITNODES_DATA}/runtime/state/originalbitnodes" \
             "${BITNODES_DATA}/runtime/seeders/zzxbitnodes" \
-            "${BITNODES_DATA}/geo" \
-            "${BITNODES_DATA}/geoip" \
+            "${BITNODES_DATA}/runtime/snapshots/24h/zzxbitnodes" \
+            "${BITNODES_DATA}/geo/manifests" \
+            "${BITNODES_GEOIP}/current" \
+            "${BITNODES_GEOIP}/archive" \
+            "${BITNODES_GEOIP}/published" \
             "${BITNODES_ARCHIVE}/runtime/zzxbitnodes" \
             "${BITNODES_ARCHIVE}/runtime/originalbitnodes" \
             "${BITNODES_MAPS}/data" \
@@ -233,6 +239,30 @@ jobs:
             --no-export-all-after \
             --compact
 
+      - name: Validate ZZX crawler output
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f "${BITNODES_API}/zzxbitnodes/latest.json"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["BITNODES_API"]) / "zzxbitnodes" / "latest.json"
+          payload = json.loads(path.read_text(encoding="utf-8"))
+
+          nodes = payload.get("nodes") if isinstance(payload, dict) else None
+          count = len(nodes) if isinstance(nodes, (dict, list)) else 0
+
+          print(f"ZZX latest node count: {count}")
+
+          if count <= 0:
+              raise SystemExit("ZZX crawler produced zero nodes")
+          PY
+
       - name: Run Original Bitnodes-compatible crawler
         shell: bash
         run: |
@@ -256,6 +286,13 @@ jobs:
             --export-mode reachable \
             --no-export-all-after \
             --compact
+
+      - name: Validate Original crawler output
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f "${BITNODES_API}/originalbitnodes/latest.json"
 
       - name: Enrich node datasets
         shell: bash
@@ -284,6 +321,32 @@ jobs:
             --geo-root "${BITNODES_GEO}" \
             --compact
 
+      - name: Validate enriched datasets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json"
+          test -f "${BITNODES_API}/enriched/originalbitnodes/latest.json"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          for rel in [
+              "enriched/zzxbitnodes/latest.json",
+              "enriched/originalbitnodes/latest.json",
+          ]:
+              path = Path(os.environ["BITNODES_API"]) / rel
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              nodes = payload.get("nodes") if isinstance(payload, dict) else None
+              count = len(nodes) if isinstance(nodes, (dict, list)) else 0
+              print(f"{rel}: {count} nodes")
+              if count <= 0:
+                  raise SystemExit(f"{rel} has zero nodes")
+          PY
+
       - name: Aggregate public summaries
         shell: bash
         run: |
@@ -308,6 +371,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          mkdir -p "${BITNODES_GEOIP}/current" "${BITNODES_GEOIP}/archive" "${BITNODES_GEOIP}/published"
+
           python tools/bitnodes/ip_db.py \
             --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
             --output "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
@@ -322,18 +387,64 @@ jobs:
             --compact \
             --report "${BITNODES_GEOIP}/ip_db.run-report.json"
 
+          printf '%s\n' "==== IPDB current ===="
+          ls -lah "${BITNODES_GEOIP}/current"
+
+          printf '%s\n' "==== IPDB archive ===="
+          ls -lah "${BITNODES_GEOIP}/archive" | sed -n '1,80p'
+
+          test -f "${BITNODES_GEOIP}/current/ip_db.latest.json"
+          test -f "${BITNODES_GEOIP}/current/ip_db.index.json"
+          test -f "${BITNODES_GEOIP}/current/ip_db.stats.json"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["BITNODES_GEOIP"])
+          index = json.loads((root / "current" / "ip_db.index.json").read_text(encoding="utf-8"))
+          latest = json.loads((root / "current" / "ip_db.latest.json").read_text(encoding="utf-8"))
+          stats = json.loads((root / "current" / "ip_db.stats.json").read_text(encoding="utf-8"))
+
+          segment_count = int(index.get("segment_count") or 0)
+          host_count = int(index.get("total_unique_hosts") or 0)
+          latest_count = int(latest.get("record_count") or 0)
+          stats_count = int(stats.get("total_unique_hosts") or 0)
+
+          print(f"IPDB segment_count={segment_count}")
+          print(f"IPDB index hosts={host_count}")
+          print(f"IPDB latest records={latest_count}")
+          print(f"IPDB stats hosts={stats_count}")
+
+          if segment_count <= 0:
+              raise SystemExit("IPDB index has zero segments")
+
+          if host_count <= 0 or latest_count <= 0 or stats_count <= 0:
+              raise SystemExit("IPDB generated zero hosts")
+
+          for item in index.get("segments", []):
+              filename = item.get("filename")
+              if not filename:
+                  raise SystemExit("IPDB segment missing filename")
+              path = root / "archive" / filename
+              if not path.exists():
+                  raise SystemExit(f"IPDB segment missing from archive: {path}")
+          PY
+
           python tools/bitnodes/push_ipdb.py \
             --ipdb-dir "${BITNODES_GEOIP}" \
             --latest "${BITNODES_GEOIP}/current/ip_db.latest.json" \
             --index "${BITNODES_GEOIP}/current/ip_db.index.json" \
             --stats "${BITNODES_GEOIP}/current/ip_db.stats.json" \
             --archive-dir "${BITNODES_GEOIP}/archive" \
+            --output-dir "${BITNODES_GEOIP}/published" \
             --report "${BITNODES_GEOIP}/ip_db.push-report.json" \
             --include-latest \
             --copy-only \
-            --no-pull \
-            --no-push \
-            --compact || true
+            --compact
+
+          test -f "${BITNODES_GEOIP}/ip_db.push-report.json"
 
       - name: Export MariaDB gzip shards
         shell: bash
@@ -413,7 +524,6 @@ jobs:
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
 
-
       - name: Build public API index
         shell: bash
         run: |
@@ -426,7 +536,6 @@ jobs:
           from pathlib import Path
 
           api = Path(os.environ["BITNODES_API"])
-          data = api / "data"
 
           index = {
               "schema": "zzx-bitnodes-public-api-index-v1",
@@ -441,12 +550,17 @@ jobs:
                   "database_latest": "data/latest.json",
                   "database_index": "data/index.json",
                   "database_manifest": "data/mariadb_manifest.json",
+                  "ipdb_latest": "../data/geoip/current/ip_db.latest.json",
+                  "ipdb_index": "../data/geoip/current/ip_db.index.json",
+                  "ipdb_stats": "../data/geoip/current/ip_db.stats.json",
+                  "ipdb_push_report": "../data/geoip/ip_db.push-report.json",
                   "maps": "../maps/data/",
                   "live_map": "../live-map/data/"
               },
               "policy": {
                   "json": "rolling latest files only",
                   "database": "24MB-safe gzipped MariaDB SQL shards",
+                  "ipdb": "current index/latest/stats only; segmented archive remains generated but not staged publicly unless explicitly added",
                   "no_credentials": True
               }
           }
@@ -490,11 +604,42 @@ jobs:
               Path(os.environ["BITNODES_API"]),
               Path(os.environ["BITNODES_MAPS"]) / "data",
               Path(os.environ["BITNODES_LIVE_MAP"]) / "data",
+              Path(os.environ["BITNODES_GEOIP"]) / "current",
           ]
 
           bad = []
 
+          allow_names = {
+              "latest.json",
+              "index.json",
+              "manifest.json",
+              "mariadb_manifest.json",
+              "sqlite_manifest.json",
+              "enrichment-report.json",
+              "map-settings.json",
+              "map-theme.json",
+              "map-themes.json",
+              "map-tile-providers.json",
+              "map-fonts.json",
+              "map-layers.json",
+              "map-overlays.json",
+              "map-vectors.json",
+              "map-points.geojson",
+              "map-polygons.geojson",
+              "map-build-report.json",
+              "vector-types.json",
+              "ip_db.latest.json",
+              "ip_db.index.json",
+              "ip_db.stats.json",
+              "ip_db.push-report.json",
+              "ip_db.run-report.json",
+          }
+
           for root in roots:
+              if not root.exists():
+                  bad.append((0, root, "missing artifact root"))
+                  continue
+
               for path in root.rglob("*"):
                   if not path.is_file():
                       continue
@@ -507,29 +652,7 @@ jobs:
                       continue
 
                   if path.suffix in {".json", ".geojson"}:
-                      if path.name != "latest.json" and path.name not in {
-                          "index.json",
-                          "manifest.json",
-                          "mariadb_manifest.json",
-                          "sqlite_manifest.json",
-                          "enrichment-report.json",
-                          "map-settings.json",
-                          "map-theme.json",
-                          "map-themes.json",
-                          "map-tile-providers.json",
-                          "map-fonts.json",
-                          "map-layers.json",
-                          "map-overlays.json",
-                          "map-vectors.json",
-                          "map-points.geojson",
-                          "map-polygons.geojson",
-                          "map-build-report.json",
-                          "vector-types.json",
-                          "ip_db.latest.json",
-                          "ip_db.index.json",
-                          "ip_db.stats.json",
-                          "ip_db.push-report.json",
-                      }:
+                      if path.name not in allow_names:
                           if "/data/" not in rel and "/maps/data/" not in rel and "/live-map/data/" not in rel:
                               bad.append((path.stat().st_size, path, "unexpected json"))
 
@@ -564,10 +687,13 @@ jobs:
             "${BITNODES_API}/aggregate/originalbitnodes/latest.json" \
             "${BITNODES_API}/data" \
             "${BITNODES_DATA}/geo/manifests" \
-            "${BITNODES_GEOIP}/current" \
+            "${BITNODES_GEOIP}/current/ip_db.latest.json" \
+            "${BITNODES_GEOIP}/current/ip_db.index.json" \
+            "${BITNODES_GEOIP}/current/ip_db.stats.json" \
+            "${BITNODES_GEOIP}/ip_db.run-report.json" \
             "${BITNODES_GEOIP}/ip_db.push-report.json" \
             "${BITNODES_MAPS}/data" \
-            "${BITNODES_LIVE_MAP}/data" || true
+            "${BITNODES_LIVE_MAP}/data"
 
       - name: Guard against destructive or bloated commit
         shell: bash
@@ -592,6 +718,11 @@ jobs:
 
           if git diff --cached --name-only | grep -E '/(cities|asns|countries|agents|geohashes|providers|organizations|versions)/.+\.json$'; then
             printf '%s\n' "Refusing exploded JSON fanout."
+            exit 1
+          fi
+
+          if git diff --cached --name-only | grep -E '^bitcoin/bitnodes/data/geoip/archive/ip_db\.[0-9]+\.json$'; then
+            printf '%s\n' "Refusing to publish segmented IPDB archive into public website repo."
             exit 1
           fi
 
