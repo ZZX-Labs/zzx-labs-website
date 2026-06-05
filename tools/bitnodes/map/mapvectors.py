@@ -799,13 +799,60 @@ def build_standalone(
     if not isinstance(payload, dict):
         payload = {}
 
-    vectors_payload = payload.get("vectors", payload)
+vectors_payload = payload.get("vectors", payload)
 
-    if not isinstance(vectors_payload, dict):
-        vectors_payload = {
-            "source": source,
-            "points": [],
-        }
+if not isinstance(vectors_payload, dict):
+    vectors_payload = {}
+
+#
+# auto-convert aggregate/latest.json
+#
+if "points" not in vectors_payload:
+    nodes = vectors_payload.get("nodes", {})
+
+    generated_points = []
+
+    if isinstance(nodes, dict):
+        for address, row in nodes.items():
+
+            lat = first(row, (
+                "latitude",
+                "geo.latitude",
+                "geoip.latitude",
+                "metadata.latitude",
+            ))
+
+            lon = first(row, (
+                "longitude",
+                "geo.longitude",
+                "geoip.longitude",
+                "metadata.longitude",
+            ))
+
+            try:
+                lat = float(lat)
+                lon = float(lon)
+            except Exception:
+                continue
+
+            if not (-90 <= lat <= 90):
+                continue
+
+            if not (-180 <= lon <= 180):
+                continue
+
+            point = dict(row)
+
+            point["address"] = address
+            point["latitude"] = lat
+            point["longitude"] = lon
+
+            generated_points.append(point)
+
+    vectors_payload = {
+        "source": source,
+        "points": generated_points,
+    }
 
     vectors_payload.setdefault("source", source)
 
