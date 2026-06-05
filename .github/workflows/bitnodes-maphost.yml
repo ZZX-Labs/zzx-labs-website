@@ -469,8 +469,148 @@ jobs:
         run: |
           set -euo pipefail
 
+          MAP_INPUT="${{ steps.sources.outputs.zzx_input }}"
+          MAP_READY_INPUT="${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          src = Path(os.environ["MAP_INPUT"])
+          dst = Path(os.environ["MAP_READY_INPUT"])
+
+          payload = json.loads(src.read_text(encoding="utf-8"))
+
+          def valid_coord(lat, lon):
+              try:
+                  lat = float(lat)
+                  lon = float(lon)
+              except Exception:
+                  return False
+
+              return (
+                  math.isfinite(lat)
+                  and math.isfinite(lon)
+                  and -90 <= lat <= 90
+                  and -180 <= lon <= 180
+              )
+
+          def synthetic_point(seed):
+              digest = hashlib.sha256(str(seed).encode("utf-8", errors="ignore")).digest()
+              a = int.from_bytes(digest[:8], "big") / float(2**64 - 1)
+              b = int.from_bytes(digest[8:16], "big") / float(2**64 - 1)
+
+              lat = -62.0 + (134.0 * a)
+              lon = -170.0 + (340.0 * b)
+
+              return round(lat, 6), round(lon, 6)
+
+          nodes = payload.get("nodes", {})
+
+          if not isinstance(nodes, dict):
+              raise SystemExit("map source payload has no nodes dict")
+
+          total = 0
+          real = 0
+          synthetic = 0
+
+          for address, node in nodes.items():
+              total += 1
+
+              if isinstance(node, list):
+                  while len(node) < 20:
+                      node.append(None)
+
+                  lat = node[8]
+                  lon = node[9]
+
+                  if not valid_coord(lat, lon):
+                      meta = node[19] if isinstance(node[19], dict) else {}
+                      geo = meta.get("geoip") or meta.get("geoip_data") or {}
+
+                      if isinstance(geo, dict):
+                          lat = geo.get("latitude")
+                          lon = geo.get("longitude")
+
+                      if not valid_coord(lat, lon):
+                          lat, lon = synthetic_point(address)
+                          meta["geoip_confidence"] = "synthetic"
+                          meta["geoip_source"] = "workflow-map-ready-fallback"
+                          synthetic += 1
+                      else:
+                          real += 1
+
+                      node[8] = float(lat)
+                      node[9] = float(lon)
+                      meta["latitude"] = float(lat)
+                      meta["longitude"] = float(lon)
+                      node[19] = meta
+                  else:
+                      real += 1
+
+              elif isinstance(node, dict):
+                  lat = node.get("latitude") or node.get("lat")
+                  lon = node.get("longitude") or node.get("lon") or node.get("lng")
+
+                  if not valid_coord(lat, lon):
+                      geo = node.get("geoip") or node.get("geoip_data") or {}
+
+                      if isinstance(geo, dict):
+                          lat = geo.get("latitude")
+                          lon = geo.get("longitude")
+
+                      if not valid_coord(lat, lon):
+                          lat, lon = synthetic_point(address)
+                          node["geoip_confidence"] = "synthetic"
+                          node["geoip_source"] = "workflow-map-ready-fallback"
+                          synthetic += 1
+                      else:
+                          real += 1
+
+                      node["address"] = node.get("address") or address
+                      node["latitude"] = float(lat)
+                      node["longitude"] = float(lon)
+                      node["lat"] = float(lat)
+                      node["lon"] = float(lon)
+                  else:
+                      real += 1
+
+          payload.setdefault("metadata", {})
+          payload["metadata"]["map_ready"] = True
+          payload["metadata"]["map_ready_total_nodes"] = total
+          payload["metadata"]["map_ready_real_coordinates"] = real
+          payload["metadata"]["map_ready_synthetic_coordinates"] = synthetic
+
+          dst.parent.mkdir(parents=True, exist_ok=True)
+          dst.write_text(
+              json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+
+          print(f"map-ready input written: {dst}")
+          print(f"map-ready total={total} real={real} synthetic={synthetic}")
+
+          if total < 1:
+              raise SystemExit("map-ready source has zero nodes")
+
+          if real + synthetic < 1:
+              raise SystemExit("map-ready source has zero coordinates")
+          PY
+        env:
+          MAP_INPUT: ${{ steps.sources.outputs.zzx_input }}
+          MAP_READY_INPUT: ${{ env.BITNODES_API }}/enriched/zzxbitnodes/latest.map-ready.json
+
+      - name: Build canonical live-map data from map-ready input
+        if: steps.sources.outputs.map_ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
           python tools/bitnodes/map/map.py both \
-            --input "${{ steps.sources.outputs.zzx_input }}" \
+            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
             --api-dir "${BITNODES_API}" \
             --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
             --map-dir "${BITNODES_MAPS}" \
@@ -487,6 +627,8 @@ jobs:
           test -f "${BITNODES_LIVE_MAP}/data/map-settings.json"
           test -f "${BITNODES_LIVE_MAP}/data/map-theme.json"
           test -f "${BITNODES_LIVE_MAP}/data/vector-types.json"
+
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json"
 
       - name: Validate canonical live-map output
         if: steps.sources.outputs.map_ready == 'true'
