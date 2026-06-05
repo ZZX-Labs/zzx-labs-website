@@ -29,18 +29,31 @@
         <p>OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization, uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, and policy overlays.</p>
     </section>
     
-    <section class="bn-map-status container">
-        <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
-        <br>
-        <div id="bn-map-legend" class="bn-map-legend"></div>
-    </section>
-    <section class="bn-map-controls container">
+<section class="bn-map-status container">
+    <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
+</section>
+
+<section class="bn-panel container bn-map-panel">
+    <div class="bn-live-map-wrap">
+
         <div class="bn-map-toolbar">
-            <div><span class="bn-kicker">Live Map Mode</span><h2>Bitcoin Node Live Map</h2></div>
-            <div class="bn-map-selectors">
-                <label>Theme<select id="bn-map-theme-select" data-map-theme-select></select></label>
-                <label>Settings<select id="bn-map-settings-select" data-map-settings-select></select></label>
+            <div>
+                <span class="bn-kicker">Live Map Mode</span>
+                <h2>Bitcoin Node Live Map</h2>
             </div>
+
+            <div class="bn-map-selectors">
+                <label>
+                    Theme
+                    <select id="bn-map-theme-select" data-map-theme-select></select>
+                </label>
+
+                <label>
+                    Settings
+                    <select id="bn-map-settings-select" data-map-settings-select></select>
+                </label>
+            </div>
+
             <div class="bn-map-controls">
                 <button type="button" data-map-filter="all" class="is-active">All</button>
                 <button type="button" data-map-filter="ipv4">IPv4</button>
@@ -52,13 +65,19 @@
                 <button type="button" data-map-reset>Reset View</button>
             </div>
         </div>
-    </section>
-    <br>
-    <section class="bn-panel container bn-map-panel">
+
+        <div id="bn-map-legend" class="bn-map-legend"></div>
+
+        <aside id="bn-map-node-info" class="bn-map-node-info">
+            <p>Select a node to inspect telemetry.</p>
+        </aside>
+
         <div id="bn-live-map" class="bn-live-map" data-map-root></div>
-        <br>
-        <div id="bn-map-hud" class="bn-map-hud"></div>
-    </section>
+
+    </div>
+
+    <div id="bn-map-hud" class="bn-map-hud"></div>
+</section>
 </main>
 <footer>
     <div id="bn-footer"></div>
