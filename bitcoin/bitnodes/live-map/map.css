@@ -16,7 +16,6 @@
     --bn-map-font: "IBM Plex Mono", monospace;
 }
 
-/* page-level sections should not fight the overlay */
 section.bn-map-status.container,
 section.bn-map-controls.container {
     margin: 0 auto;
@@ -25,9 +24,11 @@ section.bn-map-controls.container {
     background: transparent;
 }
 
-/* map frame: all controls float over this */
 .bn-live-map-wrap,
-.bn-map-stage,
+.bn-map-stage {
+    position: relative;
+}
+
 [data-map-root] {
     position: relative;
 }
@@ -44,7 +45,6 @@ section.bn-map-controls.container {
     box-shadow: var(--bn-map-shadow);
 }
 
-/* status: centered above/over map, depending on DOM placement */
 .bn-map-status {
     position: relative;
     z-index: 30;
@@ -62,7 +62,6 @@ section.bn-map-controls.container {
     backdrop-filter: blur(10px);
 }
 
-/* toolbar: fixed top-left overlay */
 .bn-map-toolbar {
     position: absolute;
     z-index: 40;
@@ -123,7 +122,8 @@ section.bn-map-controls.container {
     gap: 0.5rem;
 }
 
-.bn-map-controls button {
+.bn-map-controls button,
+.bn-map-legend-toggle {
     border: 1px solid rgba(192, 214, 116, 0.18);
     border-radius: var(--bn-map-control-radius);
     background: rgba(0, 0, 0, 0.24);
@@ -138,34 +138,65 @@ section.bn-map-controls.container {
 }
 
 .bn-map-controls button:hover,
-.bn-map-controls button.is-active {
+.bn-map-controls button.is-active,
+.bn-map-legend-toggle:hover {
     background: rgba(192, 214, 116, 0.1);
     border-color: rgba(192, 214, 116, 0.36);
     color: var(--bn-map-text);
 }
 
-/* legend/key: centered in the void space */
-.bn-map-legend {
+.bn-map-left-stack {
     position: absolute;
-    z-index: 35;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
+    z-index: 45;
+    left: 1rem;
+    bottom: 1rem;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+    width: min(360px, calc(100% - 2rem));
+}
+
+.bn-map-legend {
+    position: relative;
+    z-index: 35;
+    display: flex;
+    justify-content: flex-start;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.55rem;
-    width: fit-content;
-    max-width: min(520px, calc(100% - 34rem));
+    width: 100%;
+    max-width: 100%;
+    max-height: 260px;
+    overflow: hidden;
     margin: 0;
     padding: 0.7rem;
     border: 1px solid rgba(192, 214, 116, 0.12);
     border-radius: var(--bn-map-border-radius);
     background: rgba(5, 7, 5, 0.76);
     box-shadow: var(--bn-map-shadow);
-    text-align: center;
+    text-align: left;
     backdrop-filter: blur(12px);
+    transition:
+        max-height 180ms ease,
+        opacity 180ms ease,
+        padding 180ms ease,
+        border-width 180ms ease;
+}
+
+.bn-map-left-stack .bn-map-legend {
+    position: relative;
+    inset: auto;
+    transform: none;
+}
+
+.bn-map-legend.is-collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    pointer-events: none;
 }
 
 .bn-map-legend span {
@@ -186,7 +217,11 @@ section.bn-map-controls.container {
     border-radius: 999px;
 }
 
-/* node info pane: top-right, expands when populated/active */
+.bn-map-legend-toggle {
+    background: rgba(5, 7, 5, 0.92);
+    box-shadow: var(--bn-map-shadow);
+}
+
 .bn-map-node-info,
 .bn-node-info,
 #bn-node-info,
@@ -220,7 +255,6 @@ section.bn-map-controls.container {
     transform: translateX(0);
 }
 
-/* Leaflet underneath overlays */
 .leaflet-container {
     z-index: 1;
     background: var(--bn-map-background);
@@ -233,11 +267,15 @@ section.bn-map-controls.container {
     z-index: 10;
 }
 
-/* zoom controls bottom-left */
 .leaflet-top.leaflet-left {
     top: auto;
-    bottom: 1rem;
     left: 1rem;
+    bottom: calc(1rem + 330px);
+    transition: bottom 180ms ease;
+}
+
+body.bn-map-key-collapsed .leaflet-top.leaflet-left {
+    bottom: calc(1rem + 52px);
 }
 
 .leaflet-control-zoom {
@@ -280,7 +318,6 @@ section.bn-map-controls.container {
     margin-bottom: 0.35rem;
 }
 
-/* HUD stays below map */
 .bn-map-hud {
     display: grid;
     grid-template-columns: repeat(5, minmax(120px, 1fr));
@@ -319,19 +356,6 @@ section.bn-map-controls.container {
     padding: 2rem;
 }
 
-/* responsive: stack overlays cleanly */
-@media (max-width: 1180px) {
-    .bn-map-legend {
-        top: auto;
-        bottom: 1rem;
-        max-width: calc(100% - 8rem);
-    }
-
-    .leaflet-top.leaflet-left {
-        bottom: 1rem;
-    }
-}
-
 @media (max-width: 900px) {
     .bn-map-toolbar,
     .bn-map-node-info,
@@ -364,15 +388,17 @@ section.bn-map-controls.container {
         display: block;
     }
 
-    .bn-map-legend {
+    .bn-map-left-stack {
         position: relative;
-        top: auto;
-        bottom: auto;
         left: auto;
-        transform: none;
+        bottom: auto;
         width: 100%;
-        max-width: 100%;
-        margin: 1rem 0;
+        margin-top: 1rem;
+    }
+
+    .leaflet-top.leaflet-left,
+    body.bn-map-key-collapsed .leaflet-top.leaflet-left {
+        bottom: 1rem;
     }
 
     .bn-live-map {
