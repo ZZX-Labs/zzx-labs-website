@@ -11,15 +11,8 @@
     --bn-map-blue: #70b7ff;
     --bn-map-unknown: #8c927e;
     --bn-map-border-radius: 18px;
-    --bn-map-panel-padding: 1.1rem;
     --bn-map-control-radius: 999px;
     --bn-map-shadow: 0 16px 34px rgba(0,0,0,0.32);
-    --bn-map-font: var(--bn-font, IBM Plex Mono, monospace);
-    --bn-map-heading: var(--bn-heading, IBM Plex Mono, monospace);
-}
-
-.bn-map-panel {
-    overflow: hidden;
 }
 
 .bn-map-toolbar {
@@ -30,15 +23,8 @@
     margin-bottom: 1rem;
 }
 
-.bn-map-toolbar h2 {
-    margin: 0.25rem 0 0;
-    color: var(--bn-map-text);
-    font-family: var(--bn-map-heading);
-}
-
 .bn-map-selectors {
     display: flex;
-    align-items: center;
     gap: 0.65rem;
     flex-wrap: wrap;
 }
@@ -48,7 +34,6 @@
     flex-direction: column;
     gap: 0.3rem;
     color: rgba(204,216,182,0.72);
-    font-family: var(--bn-map-font);
     font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -61,7 +46,7 @@
     border-radius: 10px;
     background: rgba(0,0,0,0.32);
     color: var(--bn-map-text);
-    font-family: var(--bn-map-font);
+    font-family: inherit;
     font-size: 0.74rem;
     padding: 0.55rem 0.7rem;
 }
@@ -79,7 +64,7 @@
     background: rgba(0,0,0,0.24);
     color: var(--bn-map-accent);
     cursor: pointer;
-    font-family: var(--bn-map-font);
+    font-family: inherit;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -100,7 +85,6 @@
     border-radius: 12px;
     background: rgba(0,0,0,0.22);
     color: rgba(204,216,182,0.72);
-    font-family: var(--bn-map-font);
     font-size: 0.74rem;
     line-height: 1.6;
     padding: 0.7rem 0.85rem;
@@ -133,7 +117,6 @@
 .bn-map-hud span {
     display: block;
     color: rgba(204,216,182,0.64);
-    font-family: var(--bn-map-font);
     font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -144,7 +127,6 @@
     display: block;
     margin-top: 0.35rem;
     color: var(--bn-map-text);
-    font-family: var(--bn-map-font);
     font-size: 1.05rem;
 }
 
@@ -162,7 +144,6 @@
     border: 1px solid rgba(192,214,116,0.1);
     border-radius: 999px;
     color: rgba(204,216,182,0.78);
-    font-family: var(--bn-map-font);
     font-size: 0.72rem;
     padding: 0.45rem 0.62rem;
 }
@@ -185,36 +166,24 @@
     margin-bottom: 0.35rem;
 }
 
+.bn-chart-empty {
+    display: grid;
+    place-items: center;
+    min-height: 160px;
+    color: var(--bn-map-muted);
+    padding: 2rem;
+}
+
 @media (max-width: 1100px) {
-    .bn-map-toolbar {
-        grid-template-columns: 1fr;
-        align-items: start;
-    }
-
-    .bn-map-controls {
-        justify-content: flex-start;
-    }
-
-    .bn-map-hud {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    .bn-map-toolbar { grid-template-columns: 1fr; align-items: start; }
+    .bn-map-controls { justify-content: flex-start; }
+    .bn-map-hud { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
-    .bn-map-selectors {
-        width: 100%;
-    }
-
+    .bn-map-selectors,
     .bn-map-selectors label,
-    .bn-map-selectors select {
-        width: 100%;
-    }
-
-    .bn-live-map {
-        min-height: 64vh;
-    }
-
-    .bn-map-hud {
-        grid-template-columns: 1fr;
-    }
+    .bn-map-selectors select { width: 100%; }
+    .bn-live-map { min-height: 64vh; }
+    .bn-map-hud { grid-template-columns: 1fr; }
 }
