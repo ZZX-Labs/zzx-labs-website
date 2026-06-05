@@ -5,6 +5,8 @@
 
     const LIVE_REFRESH_MS = 30000;
 
+    let refreshTimer = null;
+
     function status(message, mode = "live") {
         const el = document.querySelector("#bn-map-status");
 
@@ -16,16 +18,56 @@
         console.log(`[live-map] ${message}`);
     }
 
+    function visiblePointCount(state) {
+        return (
+            state?.vectors?.points?.length ||
+            state?.geojson?.features?.length ||
+            0
+        );
+    }
+
+    function scheduleRefresh() {
+        if (refreshTimer) {
+            window.clearInterval(refreshTimer);
+        }
+
+        refreshTimer = window.setInterval(async () => {
+            if (!window.ZZXBitnodesMap?.reload) {
+                return;
+            }
+
+            try {
+                await window.ZZXBitnodesMap.reload();
+
+                const s = window.ZZXBitnodesMap.state;
+                const count = visiblePointCount(s);
+
+                status(
+                    `Live map refreshed. Loaded ${count.toLocaleString()} point records from ${s?.latestSource || "selected source"}.`,
+                    count ? "live" : "warn"
+                );
+            } catch (error) {
+                console.error(error);
+                status(`Live refresh failed: ${error.message}`, "warn");
+            }
+        }, LIVE_REFRESH_MS);
+    }
+
     function bootLiveMap() {
         if (!window.ZZXBitnodesMap) {
             status("Live map failed: core map engine missing. Load ./map.js before ./live-map.js.", "error");
             return;
         }
 
+        if (typeof window.ZZXBitnodesMap.init !== "function") {
+            status("Live map failed: core map engine has no init() API. Replace ./map.js with the API-enabled engine.", "error");
+            return;
+        }
+
         document.body.classList.add("bn-live-map-page");
 
         if (window.ZZXBitnodesMap.state?.initialized) {
-            window.ZZXBitnodesMap.destroy();
+            window.ZZXBitnodesMap.destroy?.();
         }
 
         window.ZZXBitnodesMap.init({
@@ -126,22 +168,30 @@
             }
         }).then(() => {
             const s = window.ZZXBitnodesMap.state;
-            const count = s?.vectors?.points?.length || s?.geojson?.features?.length || 0;
+            const count = visiblePointCount(s);
 
             status(
                 `Live map initialized. Loaded ${count.toLocaleString()} point records from ${s?.latestSource || "unknown source"}.`,
                 count ? "live" : "warn"
             );
 
-            setTimeout(() => {
+            window.setTimeout(() => {
                 s?.map?.invalidateSize?.();
                 window.ZZXBitnodesMap.renderPoints?.();
             }, 300);
+
+            scheduleRefresh();
         }).catch(error => {
             console.error(error);
             status(`Live map failed: ${error.message}`, "error");
         });
     }
+
+    window.addEventListener("beforeunload", () => {
+        if (refreshTimer) {
+            window.clearInterval(refreshTimer);
+        }
+    });
 
     document.addEventListener("DOMContentLoaded", bootLiveMap);
 })();
