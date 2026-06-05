@@ -380,7 +380,7 @@ jobs:
             fi
           done
 
-      - name: Prune private runtime and oversized artifacts
+      - name: Prune private runtime, legacy fanout, and oversized artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -390,11 +390,16 @@ jobs:
           rm -rf "${BITNODES_DATA}/runtime" || true
           rm -rf "${BITNODES_ARCHIVE}/runtime" || true
 
+          rm -f "${BITNODES_API}/original-latest.json" || true
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" || true
+
           for SOURCE in zzxbitnodes originalbitnodes; do
+            find "${BITNODES_API}/${SOURCE}" -mindepth 1 -maxdepth 1 -type f -name '*.json' ! -name 'latest.json' -delete || true
+
             for DIR in \
               agents apt-attribution asns cities cjdns continents counties countries \
               datacenter geohashes government i2p ipv4 ipv6 known-malactor military \
-              organizations providers regions sanctioned tag-attribution territories \
+              maps organizations providers regions sanctioned tag-attribution territories \
               timezones tor versions w3w zip
             do
               rm -rf "${BITNODES_API}/${SOURCE}/${DIR}" || true
@@ -404,6 +409,7 @@ jobs:
           find "${BITNODES_ROOT}" -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
+
 
       - name: Build public API index
         shell: bash
@@ -548,7 +554,6 @@ jobs:
             "${BITNODES_API}/zzxbitnodes/latest.json" \
             "${BITNODES_API}/originalbitnodes/latest.json" \
             "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
             "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
             "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
             "${BITNODES_API}/enriched/originalbitnodes/enrichment-report.json" \
