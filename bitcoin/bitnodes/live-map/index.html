@@ -5,16 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Bitcoin Node Live Map | ZZX-Labs R&D Bitnodes</title>
+
     <link rel="stylesheet" href="../../../static/styles.css">
     <link rel="stylesheet" href="../styles.css">
     <link rel="stylesheet" href="./map.css">
     <link rel="stylesheet" href="./live-map.css">
+
     <script src="../../../static/script.js" defer></script>
     <script src="../script.js" defer></script>
     <script src="./map.js" defer></script>
     <script src="./live-map.js" defer></script>
 </head>
-<body data-bn-depth=".." data-bn-view="map">
+
+<body data-bn-depth=".." data-bn-view="live-map">
 <header>
     <div id="zzx-header"></div>
     <br>
@@ -27,7 +30,11 @@
     <section class="bn-hero container">
         <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
         <h2>Bitcoin Node Live Map</h2>
-        <p>OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization, uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, and policy overlays.</p>
+        <p>
+            OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization,
+            uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, VPN,
+            proxy, provider, ASN, city, county, territory, timezone, and policy overlays.
+        </p>
     </section>
 
     <section class="bn-map-status container">
@@ -37,8 +44,8 @@
     <section class="bn-panel container bn-map-panel">
         <div class="bn-live-map-wrap">
 
-            <div class="bn-map-toolbar">
-                <div>
+            <div class="bn-map-toolbar" aria-label="Live map controls">
+                <div class="bn-map-toolbar-title">
                     <span class="bn-kicker">Live Map Mode</span>
                     <h2>Bitcoin Node Live Map</h2>
                 </div>
@@ -55,7 +62,21 @@
                     </label>
                 </div>
 
-                <div class="bn-map-controls">
+                <div class="bn-map-search">
+                    <label>
+                        Search
+                        <input
+                            id="bn-map-search"
+                            type="search"
+                            autocomplete="off"
+                            placeholder="IP, node, agent, ASN, country, city, Tor, I2P, VPN…"
+                            data-map-search>
+                    </label>
+
+                    <button type="button" data-map-search-clear>Clear</button>
+                </div>
+
+                <div class="bn-map-controls" aria-label="Network filters">
                     <button type="button" data-map-filter="all" class="is-active">All</button>
                     <button type="button" data-map-filter="ipv4">IPv4</button>
                     <button type="button" data-map-filter="ipv6">IPv6</button>
@@ -63,6 +84,9 @@
                     <button type="button" data-map-filter="i2p">I2P</button>
                     <button type="button" data-map-filter="vpn">VPN</button>
                     <button type="button" data-map-filter="proxy">Proxy</button>
+                    <button type="button" data-map-filter="synced">Synced</button>
+                    <button type="button" data-map-filter="unsynced">Unsynced</button>
+                    <button type="button" data-map-filter="unreachable">Unreachable</button>
                     <button type="button" data-map-reset>Reset View</button>
                 </div>
             </div>
@@ -71,8 +95,15 @@
                 <p>Select a node to inspect telemetry.</p>
             </aside>
 
-            <div class="bn-map-left-stack">
-                <div id="bn-map-legend" class="bn-map-legend is-open"></div>
+            <div class="bn-map-left-stack" aria-label="Map key and view controls">
+                <div class="bn-map-mini-toggles">
+                    <button type="button" data-map-tone-toggle aria-pressed="true">Dark</button>
+                    <button type="button" data-map-tile-toggle aria-pressed="false">Basic</button>
+                    <button type="button" data-map-measure-toggle aria-pressed="false">Measure</button>
+                    <button type="button" data-map-select-toggle aria-pressed="false">Select</button>
+                </div>
+
+                <div id="bn-map-legend" class="bn-map-legend is-open" aria-label="Map key"></div>
 
                 <button
                     id="bn-map-legend-toggle"
@@ -84,7 +115,12 @@
                 </button>
             </div>
 
-            <div id="bn-live-map" class="bn-live-map" data-map-root></div>
+            <div
+                id="bn-live-map"
+                class="bn-live-map"
+                data-map-root
+                aria-label="Bitcoin node live map">
+            </div>
 
         </div>
 
