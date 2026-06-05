@@ -1,7 +1,7 @@
 :root {
     --bn-map-background: #050705;
-    --bn-map-panel: #080b08;
-    --bn-map-panel-alt: #10140d;
+    --bn-map-panel: rgba(8, 11, 8, 0.92);
+    --bn-map-panel-alt: rgba(16, 20, 13, 0.94);
     --bn-map-text: #edf7b9;
     --bn-map-muted: #ccd8b6;
     --bn-map-accent: #c0d674;
@@ -12,70 +12,78 @@
     --bn-map-unknown: #8c927e;
     --bn-map-border-radius: 18px;
     --bn-map-control-radius: 999px;
-    --bn-map-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+    --bn-map-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
     --bn-map-font: "IBM Plex Mono", monospace;
 }
 
-/* ==========================================================
-   Status + Legend Section
-   ========================================================== */
-
-section.bn-map-status.container {
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+/* page-level sections should not fight the overlay */
+section.bn-map-status.container,
+section.bn-map-controls.container {
+    margin: 0 auto;
     padding: 0;
     border: 0;
     background: transparent;
 }
 
-section.bn-map-status.container > #bn-map-status,
-section.bn-map-status.container .bn-map-status {
-    margin: 0;
+/* map frame: all controls float over this */
+.bn-live-map-wrap,
+.bn-map-stage,
+[data-map-root] {
+    position: relative;
 }
 
-section.bn-map-status.container .bn-map-legend {
-    margin-top: 0.75rem;
-}
-
-/* ==========================================================
-   Live Map Control Container
-   ========================================================== */
-
-section.bn-map-controls.container {
-    margin-top: 1rem;
-    margin-bottom: 1rem;
-}
-
-section.bn-map-controls.container .bn-map-toolbar {
+.bn-live-map {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    min-height: 72vh;
     border: 1px solid rgba(192, 214, 116, 0.14);
     border-radius: var(--bn-map-border-radius);
-    background: linear-gradient(
-        180deg,
-        rgba(16, 20, 13, 0.92),
-        rgba(5, 7, 5, 0.96)
-    );
+    background: var(--bn-map-background);
+    overflow: hidden;
+    box-shadow: var(--bn-map-shadow);
+}
+
+/* status: centered above/over map, depending on DOM placement */
+.bn-map-status {
+    position: relative;
+    z-index: 30;
+    width: fit-content;
+    max-width: min(760px, calc(100% - 2rem));
+    margin: 1rem auto;
+    border: 1px solid rgba(192, 214, 116, 0.12);
+    border-radius: 999px;
+    background: rgba(5, 7, 5, 0.82);
+    color: rgba(204, 216, 182, 0.78);
+    font-size: 0.74rem;
+    line-height: 1.5;
+    padding: 0.62rem 0.95rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+/* toolbar: fixed top-left overlay */
+.bn-map-toolbar {
+    position: absolute;
+    z-index: 40;
+    top: 1rem;
+    left: 1rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    width: min(390px, calc(100% - 2rem));
+    border: 1px solid rgba(192, 214, 116, 0.14);
+    border-radius: var(--bn-map-border-radius);
+    background: linear-gradient(180deg, var(--bn-map-panel-alt), rgba(5, 7, 5, 0.96));
     box-shadow: var(--bn-map-shadow);
     padding: 1rem;
+    text-align: left;
+    backdrop-filter: blur(12px);
 }
 
-section.bn-map-controls.container .bn-kicker {
-    display: block;
-    margin-bottom: 0.25rem;
-}
-
-section.bn-map-controls.container h2 {
+.bn-map-toolbar .bn-kicker,
+.bn-map-toolbar h2 {
     margin: 0;
-}
-
-/* ==========================================================
-   Toolbar
-   ========================================================== */
-
-.bn-map-toolbar {
-    display: grid;
-    grid-template-columns: minmax(260px, 1fr) auto auto;
-    align-items: end;
-    gap: 1rem;
 }
 
 .bn-map-selectors {
@@ -86,6 +94,7 @@ section.bn-map-controls.container h2 {
 
 .bn-map-selectors label {
     display: flex;
+    flex: 1 1 150px;
     flex-direction: column;
     gap: 0.3rem;
     color: rgba(204, 216, 182, 0.72);
@@ -96,7 +105,8 @@ section.bn-map-controls.container h2 {
 }
 
 .bn-map-selectors select {
-    min-width: 190px;
+    width: 100%;
+    min-width: 0;
     border: 1px solid rgba(192, 214, 116, 0.18);
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.32);
@@ -109,11 +119,8 @@ section.bn-map-controls.container h2 {
 .bn-map-controls {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-start;
     gap: 0.5rem;
-}
-
-.bn-map-toolbar .bn-map-controls {
-    justify-content: flex-end;
 }
 
 .bn-map-controls button {
@@ -137,43 +144,108 @@ section.bn-map-controls.container h2 {
     color: var(--bn-map-text);
 }
 
-/* ==========================================================
-   Status Box
-   ========================================================== */
-
-.bn-map-status {
-    margin: 0 0 0.85rem;
+/* legend/key: centered in the void space */
+.bn-map-legend {
+    position: absolute;
+    z-index: 35;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    width: fit-content;
+    max-width: min(520px, calc(100% - 34rem));
+    margin: 0;
+    padding: 0.7rem;
     border: 1px solid rgba(192, 214, 116, 0.12);
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.22);
-    color: rgba(204, 216, 182, 0.72);
-    font-size: 0.74rem;
-    line-height: 1.6;
-    padding: 0.7rem 0.85rem;
+    border-radius: var(--bn-map-border-radius);
+    background: rgba(5, 7, 5, 0.76);
+    box-shadow: var(--bn-map-shadow);
+    text-align: center;
+    backdrop-filter: blur(12px);
 }
 
-/* ==========================================================
-   Leaflet Map
-   ========================================================== */
+.bn-map-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(192, 214, 116, 0.1);
+    border-radius: 999px;
+    color: rgba(204, 216, 182, 0.78);
+    font-size: 0.72rem;
+    padding: 0.45rem 0.62rem;
+    white-space: nowrap;
+}
 
-.bn-live-map {
-    width: 100%;
-    min-height: 72vh;
+.bn-map-legend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+}
+
+/* node info pane: top-right, expands when populated/active */
+.bn-map-node-info,
+.bn-node-info,
+#bn-node-info,
+#bn-map-node-info {
+    position: absolute;
+    z-index: 45;
+    top: 1rem;
+    right: 1rem;
+    width: min(420px, calc(100% - 2rem));
+    max-height: calc(72vh - 2rem);
+    overflow: auto;
     border: 1px solid rgba(192, 214, 116, 0.14);
     border-radius: var(--bn-map-border-radius);
-    background: var(--bn-map-background);
-    overflow: hidden;
+    background: linear-gradient(180deg, var(--bn-map-panel-alt), rgba(5, 7, 5, 0.96));
     box-shadow: var(--bn-map-shadow);
+    color: var(--bn-map-text);
+    padding: 1rem;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(0.75rem);
+    transition: opacity 160ms ease, transform 160ms ease;
+    backdrop-filter: blur(12px);
 }
 
+.bn-map-node-info.is-active,
+.bn-node-info.is-active,
+#bn-node-info.is-active,
+#bn-map-node-info.is-active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
+
+/* Leaflet underneath overlays */
 .leaflet-container {
+    z-index: 1;
     background: var(--bn-map-background);
     font-family: var(--bn-map-font);
 }
 
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
-    background: #edf7b9;
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+    z-index: 10;
+}
+
+/* zoom controls bottom-left */
+.leaflet-top.leaflet-left {
+    top: auto;
+    bottom: 1rem;
+    left: 1rem;
+}
+
+.leaflet-control-zoom {
+    margin: 0 !important;
+    border: 1px solid rgba(192, 214, 116, 0.18) !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+    box-shadow: var(--bn-map-shadow);
 }
 
 .leaflet-control-zoom a {
@@ -191,10 +263,24 @@ section.bn-map-controls.container h2 {
     color: var(--bn-map-accent);
 }
 
-/* ==========================================================
-   HUD
-   ========================================================== */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+    background: #edf7b9;
+}
 
+.bn-map-popup {
+    color: #101410;
+    font-family: var(--bn-map-font);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.bn-map-popup strong {
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+/* HUD stays below map */
 .bn-map-hud {
     display: grid;
     grid-template-columns: repeat(5, minmax(120px, 1fr));
@@ -225,50 +311,6 @@ section.bn-map-controls.container h2 {
     font-size: 1.05rem;
 }
 
-/* ==========================================================
-   Legend
-   ========================================================== */
-
-.bn-map-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    margin-top: 1rem;
-}
-
-.bn-map-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    border: 1px solid rgba(192, 214, 116, 0.1);
-    border-radius: 999px;
-    color: rgba(204, 216, 182, 0.78);
-    font-size: 0.72rem;
-    padding: 0.45rem 0.62rem;
-}
-
-.bn-map-legend i {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-}
-
-/* ==========================================================
-   Popup + Empty
-   ========================================================== */
-
-.bn-map-popup {
-    color: #101410;
-    font-family: var(--bn-map-font);
-    font-size: 0.78rem;
-    line-height: 1.45;
-}
-
-.bn-map-popup strong {
-    display: block;
-    margin-bottom: 0.35rem;
-}
-
 .bn-chart-empty {
     display: grid;
     place-items: center;
@@ -277,18 +319,64 @@ section.bn-map-controls.container h2 {
     padding: 2rem;
 }
 
-/* ==========================================================
-   Responsive
-   ========================================================== */
-
-@media (max-width: 1100px) {
-    .bn-map-toolbar {
-        grid-template-columns: 1fr;
-        align-items: start;
+/* responsive: stack overlays cleanly */
+@media (max-width: 1180px) {
+    .bn-map-legend {
+        top: auto;
+        bottom: 1rem;
+        max-width: calc(100% - 8rem);
     }
 
-    .bn-map-toolbar .bn-map-controls {
-        justify-content: flex-start;
+    .leaflet-top.leaflet-left {
+        bottom: 1rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .bn-map-toolbar,
+    .bn-map-node-info,
+    .bn-node-info,
+    #bn-node-info,
+    #bn-map-node-info {
+        position: relative;
+        top: auto;
+        right: auto;
+        left: auto;
+        width: 100%;
+        max-height: none;
+        margin: 1rem 0;
+        transform: none;
+    }
+
+    .bn-map-node-info,
+    .bn-node-info,
+    #bn-node-info,
+    #bn-map-node-info {
+        display: none;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .bn-map-node-info.is-active,
+    .bn-node-info.is-active,
+    #bn-node-info.is-active,
+    #bn-map-node-info.is-active {
+        display: block;
+    }
+
+    .bn-map-legend {
+        position: relative;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        transform: none;
+        width: 100%;
+        max-width: 100%;
+        margin: 1rem 0;
+    }
+
+    .bn-live-map {
+        min-height: 64vh;
     }
 
     .bn-map-hud {
@@ -296,15 +384,11 @@ section.bn-map-controls.container h2 {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
     .bn-map-selectors,
     .bn-map-selectors label,
     .bn-map-selectors select {
         width: 100%;
-    }
-
-    .bn-live-map {
-        min-height: 64vh;
     }
 
     .bn-map-hud {
