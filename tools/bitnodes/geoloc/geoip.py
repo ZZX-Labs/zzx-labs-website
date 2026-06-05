@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ipaddress
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -19,8 +21,7 @@ DEFAULT_CITY_DB = DEFAULT_GEOIP_DIR / "dbip-city-lite.mmdb"
 DEFAULT_ASN_DB = DEFAULT_GEOIP_DIR / "dbip-asn-lite.mmdb"
 DEFAULT_COUNTRY_DB = DEFAULT_GEOIP_DIR / "dbip-country-lite.mmdb"
 
-SCHEMA = "zzx-bitnodes-geoip-v2"
-
+SCHEMA = "zzx-bitnodes-geoip-v3"
 UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 
@@ -66,54 +67,40 @@ def utc_now() -> str:
 
 def clean(value: Any) -> str:
     text = str(value or "").strip()
-
     if text.lower() in UNKNOWN_VALUES:
         return ""
-
     return re.sub(r"\s+", " ", text)
 
 
 def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
-
     if not path.exists():
         return fallback
-
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if compact:
-        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-    else:
-        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=None if compact else 2,
+        separators=(",", ":") if compact else None,
+        sort_keys=True,
+    )
     path.write_text(text + "\n", encoding="utf-8")
-
-
-def is_ip_address(value: str) -> bool:
-    try:
-        ipaddress.ip_address(value.strip("[]"))
-        return True
-    except ValueError:
-        return False
 
 
 def strip_brackets(value: str) -> str:
     value = str(value or "").strip()
-
     if value.startswith("[") and "]" in value:
         return value[1:value.index("]")]
-
     return value.strip("[]")
 
 
 def extract_host(address: str) -> str:
     value = str(address or "").strip()
-
     if not value:
         return ""
 
@@ -130,7 +117,6 @@ def extract_host(address: str) -> str:
 
     if value.count(":") == 1 and "." in value:
         host, port = value.rsplit(":", 1)
-
         if port.isdigit():
             return host.strip("[]")
 
@@ -140,30 +126,31 @@ def extract_host(address: str) -> str:
             return value.strip("[]")
         except ValueError:
             host, maybe_port = value.rsplit(":", 1)
-
             if maybe_port.isdigit():
                 return host.strip("[]")
 
     return value.strip("[]")
 
 
+def is_ip_address(value: str) -> bool:
+    try:
+        ipaddress.ip_address(value.strip("[]"))
+        return True
+    except ValueError:
+        return False
+
+
 def normalize_asn(value: Any) -> str | None:
     text = clean(value).upper()
-
     if not text:
         return None
-
     if text.startswith("AS") and text[2:].strip().isdigit():
         return "AS" + text[2:].strip()
-
     if text.isdigit():
         return f"AS{text}"
-
     match = re.search(r"\bAS\s*(\d{1,10})\b", text, re.IGNORECASE)
-
     if match:
         return f"AS{match.group(1)}"
-
     return text
 
 
@@ -178,16 +165,12 @@ def address_network(host: str) -> str:
 
     try:
         ip = ipaddress.ip_address(value.strip("[]"))
-
         if ip.version == 4:
             return "ipv4"
-
         if ip.version == 6:
             if ip in ipaddress.ip_network("fc00::/8"):
                 return "cjdns"
-
             return "ipv6"
-
     except ValueError:
         pass
 
@@ -202,26 +185,78 @@ def ip_scope(host: str) -> str:
 
     if ip.is_loopback:
         return "loopback"
-
     if ip.is_link_local:
         return "link-local"
-
     if ip.is_private:
         return "private"
-
     if ip.is_multicast:
         return "multicast"
-
     if ip.is_reserved:
         return "reserved"
-
     if ip.is_unspecified:
         return "unspecified"
-
     if ip.is_global:
         return "public"
 
     return "non-public"
+
+
+def deterministic_point(seed: str, band: str = "public") -> tuple[float, float]:
+    digest = hashlib.sha256(seed.encode("utf-8", errors="ignore")).digest()
+    a = int.from_bytes(digest[:8], "big") / float(2**64 - 1)
+    b = int.from_bytes(digest[8:16], "big") / float(2**64 - 1)
+
+    if band == "tor":
+        lat_min, lat_max = -58.0, 58.0
+        lon_min, lon_max = -42.0, -18.0
+    elif band == "i2p":
+        lat_min, lat_max = -58.0, 58.0
+        lon_min, lon_max = 18.0, 42.0
+    elif band == "dns":
+        lat_min, lat_max = -62.0, 62.0
+        lon_min, lon_max = 55.0, 165.0
+    else:
+        lat_min, lat_max = -62.0, 72.0
+        lon_min, lon_max = -170.0, 170.0
+
+    lat = lat_min + (lat_max - lat_min) * a
+    lon = lon_min + (lon_max - lon_min) * b
+
+    return round(lat, 6), round(lon, 6)
+
+
+def has_valid_coordinates(record: GeoIPRecord) -> bool:
+    if record.latitude is None or record.longitude is None:
+        return False
+
+    try:
+        lat = float(record.latitude)
+        lon = float(record.longitude)
+    except Exception:
+        return False
+
+    return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
+
+
+def fallback_record(host: str, network_type: str, scope: str, reason: str) -> GeoIPRecord:
+    band = network_type if network_type in {"tor", "i2p", "dns"} else "public"
+    lat, lon = deterministic_point(host or reason, band=band)
+
+    return GeoIPRecord(
+        city=None,
+        country_code="ZZ",
+        country_name="Synthetic Map Fallback",
+        latitude=lat,
+        longitude=lon,
+        timezone="Etc/UTC",
+        asn=None,
+        organization=None,
+        provider=None,
+        network_type=network_type,
+        ip_scope=scope,
+        confidence="synthetic",
+        source=f"deterministic-fallback:{reason}",
+    )
 
 
 class GeoIPLookup:
@@ -236,10 +271,10 @@ class GeoIPLookup:
         self.city_db = Path(city_db) if city_db else None
         self.asn_db = Path(asn_db) if asn_db else None
         self.country_db = Path(country_db) if country_db else None
-
         self.city_reader = None
         self.asn_reader = None
         self.country_reader = None
+        self.open_error = ""
 
         if self.enabled:
             self.open()
@@ -260,10 +295,20 @@ class GeoIPLookup:
             if self.country_db and self.country_db.exists():
                 self.country_reader = geoip2.database.Reader(str(self.country_db))
 
-        except Exception:
+        except Exception as exc:
+            self.open_error = str(exc)
             self.city_reader = None
             self.asn_reader = None
             self.country_reader = None
+
+        print(
+            "[geoip] readers "
+            f"city={bool(self.city_reader)} "
+            f"asn={bool(self.asn_reader)} "
+            f"country={bool(self.country_reader)} "
+            f"error={self.open_error or 'none'}",
+            flush=True,
+        )
 
     def close(self) -> None:
         for reader in (self.city_reader, self.asn_reader, self.country_reader):
@@ -280,7 +325,6 @@ class GeoIPLookup:
     def __enter__(self) -> GeoIPLookup:
         if self.enabled and not (self.city_reader or self.asn_reader or self.country_reader):
             self.open()
-
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -292,7 +336,6 @@ class GeoIPLookup:
 
         try:
             response = self.city_reader.city(host)
-
             return {
                 "city": response.city.name,
                 "country_code": response.country.iso_code,
@@ -301,7 +344,6 @@ class GeoIPLookup:
                 "longitude": response.location.longitude,
                 "timezone": response.location.time_zone,
             }
-
         except Exception:
             return {}
 
@@ -311,12 +353,10 @@ class GeoIPLookup:
 
         try:
             response = self.country_reader.country(host)
-
             return {
                 "country_code": response.country.iso_code,
                 "country_name": response.country.name,
             }
-
         except Exception:
             return {}
 
@@ -327,13 +367,11 @@ class GeoIPLookup:
         try:
             response = self.asn_reader.asn(host)
             org = clean(response.autonomous_system_organization)
-
             return {
                 "asn": normalize_asn(response.autonomous_system_number),
                 "organization": org or None,
                 "provider": org or None,
             }
-
         except Exception:
             return {}
 
@@ -341,20 +379,20 @@ class GeoIPLookup:
         host = strip_brackets(extract_host(address_or_host))
 
         if not host:
-            return GeoIPRecord(network_type="unknown", ip_scope="empty", source="empty", confidence="none")
+            return fallback_record("empty", "unknown", "empty", "empty-host")
 
         network_type = address_network(host)
 
         if network_type in {"tor", "i2p"}:
-            return GeoIPRecord(network_type=network_type, ip_scope="overlay", source=network_type, confidence="overlay")
+            return fallback_record(host, network_type, "overlay", network_type)
 
         if not is_ip_address(host):
-            return GeoIPRecord(network_type=network_type, ip_scope="non-ip", source="dns-unresolved", confidence="none")
+            return fallback_record(host, network_type, "non-ip", "dns-unresolved")
 
         scope = ip_scope(host)
 
         if scope != "public":
-            return GeoIPRecord(network_type=network_type, ip_scope=scope, source=f"ip-{scope}", confidence="none")
+            return fallback_record(host, network_type, scope, f"ip-{scope}")
 
         city_data = self.lookup_city(host)
         country_data = self.lookup_country(host)
@@ -364,14 +402,12 @@ class GeoIPLookup:
 
         if city_data:
             source_parts.append("city")
-
         if country_data:
             source_parts.append("country")
-
         if asn_data:
             source_parts.append("asn")
 
-        return GeoIPRecord(
+        record = GeoIPRecord(
             city=city_data.get("city"),
             country_code=city_data.get("country_code") or country_data.get("country_code"),
             country_name=city_data.get("country_name") or country_data.get("country_name"),
@@ -386,6 +422,19 @@ class GeoIPLookup:
             confidence="high" if city_data else "medium" if country_data or asn_data else "none",
             source="+".join(source_parts) if source_parts else "none",
         )
+
+        if has_valid_coordinates(record):
+            return record
+
+        fallback = fallback_record(host, network_type, scope, "missing-city-coordinate")
+        fallback.asn = record.asn
+        fallback.organization = record.organization
+        fallback.provider = record.provider
+        fallback.country_code = record.country_code or fallback.country_code
+        fallback.country_name = record.country_name or fallback.country_name
+        fallback.source = f"{record.source}+{fallback.source}" if record.source != "none" else fallback.source
+
+        return fallback
 
 
 def node_address(node: Mapping[str, Any]) -> str:
@@ -403,14 +452,32 @@ def enrich_node_dict(node: Mapping[str, Any], geoip: GeoIPLookup) -> dict[str, A
     output = dict(node)
     address = node_address(output)
     record = geoip.lookup(address)
-
     data = record.as_dict()
+
     output["geoip"] = data
     output["geoip_data"] = data
 
-    for key in ("city", "country_code", "latitude", "longitude", "timezone", "asn", "organization", "provider"):
+    for key in (
+        "city",
+        "country_code",
+        "latitude",
+        "longitude",
+        "timezone",
+        "asn",
+        "organization",
+        "provider",
+    ):
         if output.get(key) in ("", None):
             output[key] = data.get(key)
+
+    if output.get("lat") in ("", None):
+        output["lat"] = data.get("latitude")
+
+    if output.get("lon") in ("", None):
+        output["lon"] = data.get("longitude")
+
+    if output.get("lng") in ("", None):
+        output["lng"] = data.get("longitude")
 
     if output.get("country") in ("", None):
         output["country"] = data.get("country_code")
@@ -492,7 +559,6 @@ def enrich_nodes(
     enabled: bool = True,
 ) -> Any:
     context = context or {}
-
     city_db = city_db or context.get("city_db") or context.get("geoip_city_db") or DEFAULT_CITY_DB
     asn_db = asn_db or context.get("asn_db") or context.get("geoip_asn_db") or DEFAULT_ASN_DB
     country_db = country_db or context.get("country_db") or context.get("geoip_country_db") or DEFAULT_COUNTRY_DB
@@ -559,12 +625,10 @@ def summarize_payload(payload: Any) -> dict[str, Any]:
 
     if isinstance(payload, Mapping):
         raw_nodes = payload.get("nodes", payload.get("results", []))
-
         if isinstance(raw_nodes, Mapping):
             nodes = list(raw_nodes.values())
         elif isinstance(raw_nodes, list):
             nodes = raw_nodes
-
     elif isinstance(payload, list):
         nodes = payload
 
@@ -572,6 +636,7 @@ def summarize_payload(payload: Any) -> dict[str, Any]:
     high = 0
     medium = 0
     overlay = 0
+    synthetic = 0
     none = 0
     geocoded = 0
 
@@ -595,6 +660,8 @@ def summarize_payload(payload: Any) -> dict[str, Any]:
             medium += 1
         elif confidence == "overlay":
             overlay += 1
+        elif confidence == "synthetic":
+            synthetic += 1
         else:
             none += 1
 
@@ -602,7 +669,7 @@ def summarize_payload(payload: Any) -> dict[str, Any]:
             geocoded += 1
 
     return {
-        "schema": "zzx-bitnodes-geoip-summary-v2",
+        "schema": "zzx-bitnodes-geoip-summary-v3",
         "generated_at": utc_now(),
         "total_nodes": total,
         "geocoded_nodes": geocoded,
@@ -610,6 +677,7 @@ def summarize_payload(payload: Any) -> dict[str, Any]:
             "high": high,
             "medium": medium,
             "overlay": overlay,
+            "synthetic": synthetic,
             "none": none,
         },
     }
@@ -634,7 +702,6 @@ def main() -> int:
     input_path = Path(args.input)
     output_path = Path(args.output)
     payload = read_json(input_path)
-
     enabled = not args.disable
 
     if isinstance(payload, dict) and "nodes" in payload:
@@ -656,10 +723,19 @@ def main() -> int:
 
     write_json(output_path, output_payload, compact=args.compact)
 
-    if args.summary:
-        write_json(Path(args.summary), summarize_payload(output_payload), compact=args.compact)
+    summary = summarize_payload(output_payload)
 
-    print(f"geoip enrichment complete: {output_path}")
+    if args.summary:
+        write_json(Path(args.summary), summary, compact=args.compact)
+
+    print(
+        "geoip enrichment complete: "
+        f"{output_path} "
+        f"nodes={summary['total_nodes']} "
+        f"geocoded={summary['geocoded_nodes']} "
+        f"confidence={summary['confidence_counts']}",
+        flush=True,
+    )
 
     return 0
 
