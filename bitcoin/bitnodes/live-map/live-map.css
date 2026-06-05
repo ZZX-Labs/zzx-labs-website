@@ -122,3 +122,180 @@
     border-color: rgba(192, 214, 116, 0.25);
     background: rgba(192, 214, 116, 0.04);
 }
+
+/* ==========================================================
+   Node Selection
+   ========================================================== */
+
+.bn-live-map-page .bn-map-point.is-selected {
+    z-index: 5000;
+    box-shadow:
+        0 0 0 2px rgba(255,255,255,0.75),
+        0 0 18px currentColor,
+        0 0 32px currentColor;
+    transform: translate(-50%, -50%) scale(1.35);
+}
+
+.bn-live-map-page .bn-map-point.is-highlighted {
+    z-index: 4500;
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.bn-live-map-page .bn-map-point.is-dimmed {
+    opacity: 0.25;
+}
+
+/* ==========================================================
+   Multi Select Box
+   ========================================================== */
+
+.bn-map-selection-box {
+    position: absolute;
+    z-index: 9999;
+    border: 1px dashed rgba(192,214,116,0.9);
+    background: rgba(192,214,116,0.10);
+    pointer-events: none;
+}
+
+/* ==========================================================
+   Search Control
+   ========================================================== */
+
+.bn-map-search {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.bn-map-search input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid rgba(192,214,116,0.18);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.32);
+    color: var(--bn-map-text);
+    font-family: inherit;
+    padding: 0.55rem 0.7rem;
+}
+
+.bn-map-search button {
+    white-space: nowrap;
+}
+
+/* ==========================================================
+   Node Info Panel
+   ========================================================== */
+
+.bn-map-node-info table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bn-map-node-info th {
+    text-align: left;
+    color: var(--bn-map-muted);
+    width: 42%;
+    padding: 0.35rem 0;
+    vertical-align: top;
+}
+
+.bn-map-node-info td {
+    color: var(--bn-map-text);
+    padding: 0.35rem 0;
+    overflow-wrap: anywhere;
+}
+
+.bn-map-node-info h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+/* ==========================================================
+   Future Layer Controls
+   ========================================================== */
+
+.bn-map-layer-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.bn-map-layer-controls button.is-enabled {
+    background: rgba(192,214,116,0.12);
+    border-color: rgba(192,214,116,0.40);
+}
+
+/* ==========================================================
+   Theme Synchronization
+   ========================================================== */
+
+body[data-map-theme="dark"] .leaflet-container {
+    filter: brightness(0.95) contrast(1.08);
+}
+
+body[data-map-theme="light"] .leaflet-container {
+    filter: brightness(1.05) contrast(0.96);
+}
+
+body[data-map-theme="satellite"] .leaflet-container {
+    filter: saturate(1.12) contrast(1.04);
+}
+
+body[data-map-theme="tactical"] .leaflet-container {
+    filter:
+        grayscale(0.20)
+        contrast(1.15)
+        brightness(0.82);
+}
+
+/* ==========================================================
+   Permanent ZZX Legend Colors
+   ========================================================== */
+
+.bn-legend-duplicate i {
+    background: #d95c5c;
+}
+
+.bn-legend-unsynced i {
+    background: #8d5a2b;
+}
+
+.bn-legend-uptime-10m i {
+    background: #e67e22;
+}
+
+.bn-legend-uptime-day i {
+    background: #f1c40f;
+}
+
+.bn-legend-uptime-48h i {
+    background: #27ae60;
+}
+
+.bn-legend-uptime-week i {
+    background: #d4af37;
+}
+
+.bn-legend-unknown i {
+    background: #8c927e;
+}
+
+.bn-legend-i2p i {
+    background: #00d5ff;
+}
+
+.bn-legend-tor i {
+    background: #9d67ad;
+}
+
+.bn-legend-vpn i {
+    background: #70b7ff;
+}
+
+.bn-legend-proxy i {
+    background: #ff7edb;
+}
+
+.bn-legend-unreachable i {
+    background: #2b2b2b;
+}
