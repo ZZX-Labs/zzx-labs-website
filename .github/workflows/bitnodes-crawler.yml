@@ -118,7 +118,8 @@ jobs:
           REQUIRED=(
             tools/bitnodes/crawl.py
             tools/bitnodes/enrich.py
-            tools/bitnodes/geoloc.py
+            tools/bitnodes/geoloc/geoloc.py
+            tools/bitnodes/geoloc/geoip.py
             tools/bitnodes/aggregate.py
             tools/bitnodes/ip_db.py
             tools/bitnodes/push_ipdb.py
@@ -157,19 +158,34 @@ jobs:
             tools/bitnodes/geoclass/asn_footprint.py
           )
 
+          echo "Validating required Bitnodes files..."
+
           for FILE in "${REQUIRED[@]}" "${MOVED_MODULES[@]}"; do
-            test -f "${FILE}"
+            if [ ! -f "${FILE}" ]; then
+              echo "MISSING REQUIRED FILE: ${FILE}"
+              echo "Repository tree near tools/bitnodes:"
+              find tools/bitnodes -maxdepth 3 -type f | sort
+              exit 1
+            fi
+
+            echo "py_compile ${FILE}"
             python -m py_compile "${FILE}"
           done
 
+          echo "Validating optional geoclass modules..."
+
           for FILE in "${OPTIONAL_NEW_MODULES[@]}"; do
             if [ -f "${FILE}" ]; then
+              echo "py_compile ${FILE}"
               python -m py_compile "${FILE}"
+            else
+              echo "optional missing: ${FILE}"
             fi
           done
 
           python tools/bitnodes/crawl.py --help
           python tools/bitnodes/enrich.py --help
+          python tools/bitnodes/geoloc/geoip.py --help
           python tools/bitnodes/aggregate.py --help
           python tools/bitnodes/ip_db.py --help
           python tools/bitnodes/push_ipdb.py --help
