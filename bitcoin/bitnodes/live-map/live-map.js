@@ -19,6 +19,14 @@
     }
 
     function visiblePointCount(state) {
+        if (!state) {
+            return 0;
+        }
+
+        if (typeof window.ZZXBitnodesMap?.filteredPoints === "function") {
+            return window.ZZXBitnodesMap.filteredPoints().length;
+        }
+
         return (
             state?.vectors?.points?.length ||
             state?.geojson?.features?.length ||
@@ -43,9 +51,13 @@
                 const count = visiblePointCount(s);
 
                 status(
-                    `Live map refreshed. Loaded ${count.toLocaleString()} point records from ${s?.latestSource || "selected source"}.`,
+                    `Live map refreshed. Loaded ${count.toLocaleString()} visible point records from ${s?.latestSource || "selected source"}.`,
                     count ? "live" : "warn"
                 );
+
+                window.setTimeout(() => {
+                    s?.map?.invalidateSize?.();
+                }, 250);
             } catch (error) {
                 console.error(error);
                 status(`Live refresh failed: ${error.message}`, "warn");
@@ -55,12 +67,12 @@
 
     function bootLiveMap() {
         if (!window.ZZXBitnodesMap) {
-            status("Live map failed: core map engine missing. Load ./map.js before ./live-map.js.", "error");
+            status("Live map failed: map engine missing. Load ./map.js before ./live-map.js.", "error");
             return;
         }
 
         if (typeof window.ZZXBitnodesMap.init !== "function") {
-            status("Live map failed: core map engine has no init() API. Replace ./map.js with the API-enabled engine.", "error");
+            status("Live map failed: map engine has no init() API. Replace ./map.js with the API-enabled engine.", "error");
             return;
         }
 
@@ -78,11 +90,14 @@
             statusSelector: "#bn-map-status",
             hudSelector: "#bn-map-hud",
             legendSelector: "#bn-map-legend",
-            nodePanelSelector: "#bn-map-node-panel",
+            legendToggleSelector: "#bn-map-legend-toggle",
+            nodeInfoSelector: "#bn-map-node-info",
             themeSelectSelector: "[data-map-theme-select]",
             settingsSelectSelector: "[data-map-settings-select]",
             resetSelector: "[data-map-reset]",
             filterSelector: "[data-map-filter]",
+            searchSelector: "[data-map-search]",
+            searchClearSelector: "[data-map-search-clear]",
 
             paths: {
                 settings: [
@@ -145,6 +160,13 @@
                     "./originalbitnodes/data/map-vectors.json"
                 ],
 
+                vectorTypes: [
+                    "./data/vector-types.json",
+                    "./zzxbitnodes/data/vector-types.json",
+                    "./global/data/vector-types.json",
+                    "./originalbitnodes/data/vector-types.json"
+                ],
+
                 polygons: [
                     "./data/map-polygons.geojson",
                     "./zzxbitnodes/data/map-polygons.geojson",
@@ -171,7 +193,7 @@
             const count = visiblePointCount(s);
 
             status(
-                `Live map initialized. Loaded ${count.toLocaleString()} point records from ${s?.latestSource || "unknown source"}.`,
+                `Live map initialized. Loaded ${count.toLocaleString()} visible point records from ${s?.latestSource || "unknown source"}.`,
                 count ? "live" : "warn"
             );
 
