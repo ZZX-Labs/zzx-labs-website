@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ipaddress
+import math
 import re
 import time
 from dataclasses import dataclass
@@ -33,26 +34,36 @@ NODE_FIELD_NAMES = [
     "metadata",
 ]
 
+NODE_CONTAINER_KEYS = (
+    "nodes",
+    "reachable_nodes",
+    "data",
+    "results",
+    "rows",
+    "peers",
+    "node_records",
+)
+
 FIELD_ALIASES = {
     "protocol_version": ["protocol_version", "protocol", "version", "version_protocol"],
     "user_agent": ["user_agent", "agent", "subver", "client", "client_user_agent"],
     "connected_since": ["connected_since", "seen_at", "first_seen", "last_seen", "timestamp", "connected"],
     "services": ["services", "service_bits", "n_services"],
     "height": ["height", "latest_height", "start_height", "block_height", "blocks"],
-    "hostname": ["hostname", "host", "dns", "name"],
-    "city": ["city", "city_name", "city_data.city", "geoip.city"],
-    "country_code": ["country_code", "country", "cc", "country_iso", "iso_code", "geoip.country_code"],
-    "latitude": ["latitude", "lat", "geoloc.latitude", "geoip.latitude"],
-    "longitude": ["longitude", "lon", "lng", "geoloc.longitude", "geoip.longitude"],
-    "timezone": ["timezone", "time_zone", "tz", "timezone_data.timezone", "geoip.timezone"],
-    "asn": ["asn", "as", "autonomous_system", "autonomous_system_number", "isp.asn", "geoip.asn"],
-    "organization": ["organization", "org", "as_org", "autonomous_system_organization", "isp", "isp.organization"],
-    "provider": ["provider", "isp_provider", "hosting_provider", "isp.provider", "geoip.provider"],
-    "county": ["county", "county_name", "admin2", "county_data.county"],
-    "zip": ["zip", "postal", "postal_code", "postcode", "postal_data.postal_code"],
-    "w3w": ["w3w", "what3words", "w3w_data.words"],
-    "geohash": ["geohash", "geohashid", "geohashid_data.geohashid"],
-    "asn_location": ["asn_location", "as_location"],
+    "hostname": ["hostname", "host", "dns", "name", "ip"],
+    "city": ["city", "city_name", "city_data.city", "geoip.city", "metadata.city"],
+    "country_code": ["country_code", "country", "cc", "country_iso", "iso_code", "geoip.country_code", "metadata.country"],
+    "latitude": ["latitude", "lat", "geoloc.latitude", "geo.latitude", "geoip.latitude", "geoip.lat", "location.latitude", "metadata.latitude"],
+    "longitude": ["longitude", "lon", "lng", "geoloc.longitude", "geo.longitude", "geoip.longitude", "geoip.lon", "geoip.lng", "location.longitude", "metadata.longitude"],
+    "timezone": ["timezone", "time_zone", "tz", "timezone_data.timezone", "geoip.timezone", "metadata.timezone"],
+    "asn": ["asn", "as", "autonomous_system", "autonomous_system_number", "isp.asn", "geoip.asn", "metadata.asn"],
+    "organization": ["organization", "org", "as_org", "autonomous_system_organization", "isp", "isp.organization", "geoip.organization", "metadata.organization"],
+    "provider": ["provider", "isp_provider", "hosting_provider", "isp.provider", "geoip.provider", "metadata.provider"],
+    "county": ["county", "county_name", "admin2", "county_data.county", "metadata.county"],
+    "zip": ["zip", "postal", "postal_code", "postcode", "zip_code", "postal_data.postal_code", "metadata.zip"],
+    "w3w": ["w3w", "what3words", "w3w_data.words", "w3w_data.w3w", "metadata.w3w"],
+    "geohash": ["geohash", "geohashid", "geohashid_data.geohash", "geohashid_data.geohashid", "metadata.geohash"],
+    "asn_location": ["asn_location", "as_location", "metadata.asn_location"],
 }
 
 METADATA_KEYS = (
@@ -66,20 +77,25 @@ METADATA_KEYS = (
     "failure_count",
     "first_seen",
     "last_seen",
+    "last_success",
     "last_failure",
     "peer_index",
     "network",
     "is_tor",
+    "tor",
     "is_i2p",
+    "i2p",
     "is_ipv4",
     "is_ipv6",
     "is_cjdns",
     "is_vpn",
     "suspected_vpn",
+    "vpn",
     "vpn_score",
     "vpn_confidence",
     "is_proxy",
     "suspected_proxy",
+    "proxy",
     "proxy_score",
     "proxy_confidence",
     "policy_restricted",
@@ -106,14 +122,14 @@ def deep_get(data: Mapping[str, Any], key: str) -> Any:
     if "." not in key:
         return data.get(key)
 
-    current: Any = data
+    cur: Any = data
 
     for part in key.split("."):
-        if not isinstance(current, Mapping) or part not in current:
+        if not isinstance(cur, Mapping):
             return None
-        current = current.get(part)
+        cur = cur.get(part)
 
-    return current
+    return cur
 
 
 def first_present(data: Mapping[str, Any], aliases: list[str], default: Any = None) -> Any:
@@ -128,18 +144,25 @@ def to_int(value: Any, default: int | None = None) -> int | None:
     try:
         if value in ("", None):
             return default
-        return int(value)
+        parsed = int(float(value))
     except Exception:
         return default
+
+    return parsed
 
 
 def to_float(value: Any, default: float | None = None) -> float | None:
     try:
         if value in ("", None):
             return default
-        return float(value)
+        parsed = float(value)
     except Exception:
         return default
+
+    if not math.isfinite(parsed):
+        return default
+
+    return parsed
 
 
 def boolish(value: Any) -> bool:
@@ -149,6 +172,9 @@ def boolish(value: Any) -> bool:
     if value in (1, "1"):
         return True
 
+    if value in (0, "0"):
+        return False
+
     text = str(value or "").strip().lower()
 
     return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
@@ -156,27 +182,59 @@ def boolish(value: Any) -> bool:
 
 def normalize_country(value: Any) -> str | None:
     text = str(value or "").strip()
+
     if not text:
         return None
+
     return text.upper() if len(text) == 2 else text
 
 
 def normalize_asn(value: Any) -> str | None:
     text = str(value or "").strip().upper()
+
     if not text:
         return None
+
     if text.startswith("AS"):
         return text
+
     if text.isdigit():
         return f"AS{text}"
+
     return text
+
+
+def valid_lat(value: Any) -> float | None:
+    lat = to_float(value)
+
+    if lat is None:
+        return None
+
+    if -90 <= lat <= 90:
+        return lat
+
+    return None
+
+
+def valid_lon(value: Any) -> float | None:
+    lon = to_float(value)
+
+    if lon is None:
+        return None
+
+    if -180 <= lon <= 180:
+        return lon
+
+    return None
 
 
 def strip_ipv6_brackets(host: str) -> str:
     host = str(host or "").strip()
+
     if host.startswith("[") and "]" in host:
         return host[1:host.index("]")]
-    return host
+
+    return host.strip("[]")
 
 
 def parse_ip(host: str) -> ipaddress._BaseAddress | None:
@@ -192,13 +250,14 @@ def is_ipv6_literal(host: str) -> bool:
 
 def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[str | None, int]:
     raw = str(value or "").strip()
+
     if not raw:
         return None, default_port
 
     if raw.startswith("["):
         match = re.match(r"^\[([^\]]+)\](?::(\d+))?$", raw)
         if match:
-            return match.group(1), int(match.group(2) or default_port)
+            return match.group(1), to_int(match.group(2), default_port) or default_port
 
     lower = raw.lower()
 
@@ -217,16 +276,22 @@ def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[st
         return host, to_int(port_text, default_port) or default_port
 
     possible_host, possible_port = raw.rsplit(":", 1)
+
     if possible_port.isdigit():
-        return possible_host, int(possible_port)
+        return possible_host, to_int(possible_port, default_port) or default_port
 
     return raw, default_port
 
 
 def format_address(host: str, port: int = DEFAULT_PORT) -> str:
-    host = strip_ipv6_brackets(host)
+    host = strip_ipv6_brackets(host).strip().lower()
+
+    if not host:
+        return ""
+
     if is_ipv6_literal(host):
         return f"[{host}]:{port}"
+
     return f"{host}:{port}"
 
 
@@ -251,7 +316,12 @@ def normalize_address(
     if not parsed_host:
         return None
 
-    return format_address(parsed_host, parsed_port)
+    if parsed_port <= 0 or parsed_port > 65535:
+        parsed_port = default_port
+
+    normalized = format_address(parsed_host, parsed_port)
+
+    return normalized or None
 
 
 def classify_network(address: str) -> str:
@@ -292,12 +362,24 @@ def metadata_from_dict(data: Mapping[str, Any]) -> dict[str, Any]:
         if value is not None and key not in metadata:
             metadata[key] = value
 
-    network = metadata.get("network")
-    if not network:
-        candidate_address = data.get("address") or data.get("node") or data.get("addr") or data.get("host") or data.get("hostname")
-        normalized_address = normalize_address(address=candidate_address, host=data.get("host") or data.get("hostname"), port=data.get("port"))
-        if normalized_address:
-            metadata["network"] = classify_network(normalized_address)
+    candidate_address = data.get("address") or data.get("node") or data.get("addr") or data.get("host") or data.get("hostname")
+    normalized_address = normalize_address(
+        address=candidate_address,
+        host=data.get("host") or data.get("hostname") or data.get("ip"),
+        port=data.get("port") or data.get("listen_port"),
+    )
+
+    if normalized_address:
+        metadata["network"] = metadata.get("network") or classify_network(normalized_address)
+
+    lat = valid_lat(first_present(data, FIELD_ALIASES["latitude"]))
+    lon = valid_lon(first_present(data, FIELD_ALIASES["longitude"]))
+
+    if lat is not None and "latitude" not in metadata:
+        metadata["latitude"] = lat
+
+    if lon is not None and "longitude" not in metadata:
+        metadata["longitude"] = lon
 
     return metadata
 
@@ -305,6 +387,15 @@ def metadata_from_dict(data: Mapping[str, Any]) -> dict[str, Any]:
 def normalize_node_array(values: list[Any], timestamp: int | None = None) -> list[Any]:
     padded = list(values) + [None] * max(0, len(NODE_FIELD_NAMES) - len(values))
     metadata = normalize_metadata(padded[19])
+
+    lat = valid_lat(padded[8])
+    lon = valid_lon(padded[9])
+
+    if lat is not None:
+        metadata.setdefault("latitude", lat)
+
+    if lon is not None:
+        metadata.setdefault("longitude", lon)
 
     return [
         to_int(padded[0]),
@@ -315,8 +406,8 @@ def normalize_node_array(values: list[Any], timestamp: int | None = None) -> lis
         padded[5] if padded[5] not in ("", None) else None,
         padded[6] if padded[6] not in ("", None) else None,
         normalize_country(padded[7]),
-        to_float(padded[8]),
-        to_float(padded[9]),
+        lat,
+        lon,
         padded[10] if padded[10] not in ("", None) else None,
         normalize_asn(padded[11]),
         padded[12] if padded[12] not in ("", None) else None,
@@ -333,6 +424,9 @@ def normalize_node_array(values: list[Any], timestamp: int | None = None) -> lis
 def normalize_node_dict(data: Mapping[str, Any], timestamp: int | None = None) -> list[Any]:
     metadata = metadata_from_dict(data)
 
+    lat = valid_lat(first_present(data, FIELD_ALIASES["latitude"]))
+    lon = valid_lon(first_present(data, FIELD_ALIASES["longitude"]))
+
     return [
         to_int(first_present(data, FIELD_ALIASES["protocol_version"])),
         first_present(data, FIELD_ALIASES["user_agent"], "unknown"),
@@ -342,8 +436,8 @@ def normalize_node_dict(data: Mapping[str, Any], timestamp: int | None = None) -
         first_present(data, FIELD_ALIASES["hostname"]),
         first_present(data, FIELD_ALIASES["city"]),
         normalize_country(first_present(data, FIELD_ALIASES["country_code"])),
-        to_float(first_present(data, FIELD_ALIASES["latitude"])),
-        to_float(first_present(data, FIELD_ALIASES["longitude"])),
+        lat,
+        lon,
         first_present(data, FIELD_ALIASES["timezone"]),
         normalize_asn(first_present(data, FIELD_ALIASES["asn"])),
         first_present(data, FIELD_ALIASES["organization"]),
@@ -365,9 +459,14 @@ def normalize_node_item(
 ) -> NormalizedNode | None:
     if isinstance(value, list):
         normalized_address = normalize_address(address=address, default_port=default_port)
+
         if not normalized_address:
             return None
-        return NormalizedNode(normalized_address, normalize_node_array(value, timestamp))
+
+        row = normalize_node_array(value, timestamp)
+        row[19]["network"] = row[19].get("network") or classify_network(normalized_address)
+
+        return NormalizedNode(normalized_address, row)
 
     if isinstance(value, Mapping):
         candidate_address = address or value.get("address") or value.get("node") or value.get("addr")
@@ -385,11 +484,24 @@ def normalize_node_item(
             return None
 
         values = normalize_node_dict(value, timestamp)
-        values[19]["network"] = classify_network(normalized_address)
+        values[19]["network"] = values[19].get("network") or classify_network(normalized_address)
 
         return NormalizedNode(normalized_address, values)
 
     return None
+
+
+def unwrap_node_payload(raw: Any) -> Any:
+    if not isinstance(raw, Mapping):
+        return raw
+
+    for key in NODE_CONTAINER_KEYS:
+        value = raw.get(key)
+
+        if isinstance(value, (Mapping, list)):
+            return value
+
+    return raw
 
 
 def normalize_nodes(
@@ -398,9 +510,7 @@ def normalize_nodes(
     default_port: int = DEFAULT_PORT,
 ) -> dict[str, list[Any]]:
     timestamp = timestamp or now_ts()
-
-    if isinstance(raw, Mapping) and "nodes" in raw:
-        raw = raw["nodes"]
+    raw = unwrap_node_payload(raw)
 
     output: dict[str, list[Any]] = {}
 
@@ -412,10 +522,15 @@ def normalize_nodes(
         return output
 
     if isinstance(raw, list):
-        for value in raw:
+        for index, value in enumerate(raw):
             item = normalize_node_item(None, value, timestamp, default_port)
+
+            if item is None and isinstance(value, Mapping):
+                item = normalize_node_item(str(index), value, timestamp, default_port)
+
             if item:
                 output[item.address] = item.values
+
         return output
 
     return output
@@ -424,7 +539,11 @@ def normalize_nodes(
 def node_array_to_dict(address: str, values: list[Any]) -> dict[str, Any]:
     padded = normalize_node_array(values)
     network = classify_network(address)
-    item = {"address": address, "network": network}
+
+    item: dict[str, Any] = {
+        "address": address,
+        "network": network,
+    }
 
     for index, name in enumerate(NODE_FIELD_NAMES):
         item[name] = padded[index]
@@ -471,19 +590,37 @@ def nodes_to_dicts(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
 
 
 def filter_reachable(nodes: dict[str, list[Any]]) -> dict[str, list[Any]]:
-    output = {}
+    output: dict[str, list[Any]] = {}
 
     for address, values in nodes.items():
-        metadata = normalize_metadata((values + [None] * 20)[19] if isinstance(values, list) else {})
-        if metadata.get("reachable") is False:
+        row = normalize_node_array(values)
+        metadata = normalize_metadata(row[19])
+        reachable = boolish(metadata.get("reachable"))
+
+        if reachable is False:
             continue
-        output[address] = normalize_node_array(values)
+
+        output[address] = row
+
+    return output
+
+
+def filter_plottable(nodes: dict[str, list[Any]]) -> dict[str, list[Any]]:
+    output: dict[str, list[Any]] = {}
+
+    for address, values in nodes.items():
+        row = normalize_node_array(values)
+
+        if row[8] is None or row[9] is None:
+            continue
+
+        output[address] = row
 
     return output
 
 
 def split_nodes_by_network(nodes: dict[str, list[Any]]) -> dict[str, dict[str, list[Any]]]:
-    groups = {
+    groups: dict[str, dict[str, list[Any]]] = {
         "ipv4": {},
         "ipv6": {},
         "tor": {},
@@ -495,9 +632,39 @@ def split_nodes_by_network(nodes: dict[str, list[Any]]) -> dict[str, dict[str, l
 
     for address, values in nodes.items():
         network = classify_network(address)
-        groups.setdefault(network, {})[address] = values
+        groups.setdefault(network, {})[address] = normalize_node_array(values)
 
     return groups
+
+
+def node_quality(row: list[Any]) -> int:
+    row = normalize_node_array(row)
+    metadata = normalize_metadata(row[19])
+
+    score = sum(1 for value in row[:19] if value not in ("", None))
+
+    if row[4]:
+        score += 10
+
+    if row[8] is not None and row[9] is not None:
+        score += 30
+
+    if boolish(metadata.get("reachable")) is True:
+        score += 20
+
+    if boolish(metadata.get("reachable_now")) is True:
+        score += 20
+
+    if boolish(metadata.get("reachable_24h")) is True:
+        score += 10
+
+    if metadata.get("last_seen") or metadata.get("last_success"):
+        score += 10
+
+    if metadata.get("peer_index"):
+        score += 5
+
+    return score
 
 
 def merge_node_sets(*sets: dict[str, list[Any]]) -> dict[str, list[Any]]:
@@ -506,19 +673,37 @@ def merge_node_sets(*sets: dict[str, list[Any]]) -> dict[str, list[Any]]:
     for node_set in sets:
         for address, values in node_set.items():
             normalized_address = normalize_address(address=address)
-            if normalized_address:
-                merged[normalized_address] = normalize_node_array(values)
+
+            if not normalized_address:
+                continue
+
+            candidate = normalize_node_array(values)
+            existing = merged.get(normalized_address)
+
+            if existing is None or node_quality(candidate) >= node_quality(existing):
+                merged[normalized_address] = candidate
 
     return merged
 
 
 def validate_node_array(values: list[Any]) -> bool:
-    return isinstance(values, list) and len(values) >= 2
+    if not isinstance(values, list):
+        return False
+
+    if len(values) < len(NODE_FIELD_NAMES):
+        return False
+
+    row = normalize_node_array(values)
+
+    if not isinstance(row[19], dict):
+        return False
+
+    return True
 
 
 def validate_nodes(nodes: dict[str, list[Any]]) -> tuple[dict[str, list[Any]], list[str]]:
-    valid = {}
-    errors = []
+    valid: dict[str, list[Any]] = {}
+    errors: list[str] = []
 
     for address, values in nodes.items():
         normalized_address = normalize_address(address=address)
