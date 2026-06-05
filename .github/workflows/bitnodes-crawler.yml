@@ -104,6 +104,11 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
+          python - <<'PY'
+          import geoip2.database
+          import maxminddb
+          print("geoip2/maxminddb imports OK")
+          PY
 
       - name: Validate Bitnodes tools
         shell: bash
@@ -112,6 +117,8 @@ jobs:
 
           python -m py_compile tools/bitnodes/crawl.py
           python -m py_compile tools/bitnodes/enrich.py
+          python -m py_compile tools/bitnodes/geoip.py
+          python -m py_compile tools/bitnodes/geoloc.py
           python -m py_compile tools/bitnodes/aggregate.py
           python -m py_compile tools/bitnodes/ip_db.py
           python -m py_compile tools/bitnodes/push_ipdb.py
@@ -126,6 +133,7 @@ jobs:
 
           python tools/bitnodes/crawl.py --help
           python tools/bitnodes/enrich.py --help
+          python tools/bitnodes/geoip.py --help
           python tools/bitnodes/aggregate.py --help
           python tools/bitnodes/ip_db.py --help
           python tools/bitnodes/push_ipdb.py --help
@@ -224,6 +232,39 @@ jobs:
             ls -lh "${DB}"
           done
 
+      - name: Verify DB-IP GeoIP databases
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import geoip2.database
+          from pathlib import Path
+
+          paths = [
+              Path("bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb"),
+              Path("bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb"),
+              Path("bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb"),
+          ]
+
+          for path in paths:
+              if not path.exists() or path.stat().st_size <= 0:
+                  raise SystemExit(f"missing or empty MMDB: {path}")
+              print(f"MMDB OK: {path} {path.stat().st_size} bytes")
+
+          with geoip2.database.Reader(str(paths[0])) as reader:
+              result = reader.city("8.8.8.8")
+              print("city smoke:", result.country.iso_code, result.location.latitude, result.location.longitude)
+
+          with geoip2.database.Reader(str(paths[1])) as reader:
+              result = reader.asn("8.8.8.8")
+              print("asn smoke:", result.autonomous_system_number, result.autonomous_system_organization)
+
+          with geoip2.database.Reader(str(paths[2])) as reader:
+              result = reader.country("8.8.8.8")
+              print("country smoke:", result.country.iso_code)
+          PY
+
       - name: Build local GeoNames indexes
         shell: bash
         run: |
@@ -286,6 +327,10 @@ jobs:
 
           if count <= 0:
               raise SystemExit("ZZX crawler produced zero nodes")
+
+          sample = next(iter(nodes.items())) if isinstance(nodes, dict) else nodes[0]
+          print("ZZX sample node:")
+          print(json.dumps(sample, ensure_ascii=False, indent=2)[:3000])
           PY
 
       - name: Run Original Bitnodes-compatible crawler
@@ -323,6 +368,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          MODULES="geoip,geoloc,continent,region,country,territory,county,city,zip,timezone,isp,w3w_lookup,geohashid_lookup,sanctioned_nodes,peers,peer_index,peer_health,dns_seeder_health"
+
           for SOURCE in zzxbitnodes originalbitnodes; do
             python tools/bitnodes/enrich.py \
               --input "${BITNODES_API}/${SOURCE}/latest.json" \
@@ -336,7 +383,31 @@ jobs:
               --asn-db "${BITNODES_GEOIP}/dbip-asn-lite.mmdb" \
               --country-db "${BITNODES_GEOIP}/dbip-country-lite.mmdb" \
               --geo-root "${BITNODES_GEO}" \
+              --modules "${MODULES}" \
               --compact
+
+            python - <<PY
+          import json
+          from pathlib import Path
+
+          report_path = Path("${BITNODES_API}/enriched/${SOURCE}/enrichment-report.json")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+
+          print("${SOURCE} enrichment coordinate report:")
+          for module in report.get("modules", []):
+              print(
+                  f"  {module.get('name')}: "
+                  f"{module.get('coordinate_count_before')} -> "
+                  f"{module.get('coordinate_count_after')} "
+                  f"{module.get('status')} "
+                  f"{module.get('message', '')}"
+              )
+
+          print("final coordinates:", report.get("final_coordinate_count"))
+
+          if int(report.get("final_coordinate_count") or 0) == 0:
+              raise SystemExit("${SOURCE} enrichment produced zero coordinates")
+          PY
           done
 
       - name: Validate enriched datasets
@@ -351,25 +422,76 @@ jobs:
 
           require_coordinates = os.environ.get(
               "BITNODES_REQUIRE_GEO_COORDINATES",
-              "false",
+              "true",
           ).strip().lower() in {"1", "true", "yes", "y"}
 
+          def deep_get(obj, path):
+              cur = obj
+              for part in path.split("."):
+                  if not isinstance(cur, dict):
+                      return None
+                  cur = cur.get(part)
+              return cur
+
+          def first(obj, keys):
+              for key in keys:
+                  value = deep_get(obj, key) if "." in key else obj.get(key)
+                  if value not in ("", None):
+                      return value
+              return None
+
           def node_items(payload):
-              nodes = payload.get("nodes")
+              nodes = payload.get("nodes") if isinstance(payload, dict) else None
               if isinstance(nodes, dict):
-                  return nodes.values()
+                  return list(nodes.values())
               if isinstance(nodes, list):
                   return nodes
               return []
 
           def coord_pair(item):
               if isinstance(item, dict):
-                  geo = item.get("geo") if isinstance(item.get("geo"), dict) else {}
-                  geoip = item.get("geoip") if isinstance(item.get("geoip"), dict) else {}
-                  return (
-                      item.get("latitude") or item.get("lat") or geo.get("latitude") or geoip.get("latitude"),
-                      item.get("longitude") or item.get("lon") or item.get("lng") or geo.get("longitude") or geoip.get("longitude"),
-                  )
+                  lat = first(item, (
+                      "latitude",
+                      "lat",
+                      "geo.latitude",
+                      "geo.lat",
+                      "geoip.latitude",
+                      "geoip.lat",
+                      "geoip_data.latitude",
+                      "geoip_data.lat",
+                      "geoloc.latitude",
+                      "geoloc.lat",
+                      "location.latitude",
+                      "location.lat",
+                      "metadata.latitude",
+                      "metadata.lat",
+                  ))
+
+                  lon = first(item, (
+                      "longitude",
+                      "lon",
+                      "lng",
+                      "geo.longitude",
+                      "geo.lon",
+                      "geo.lng",
+                      "geoip.longitude",
+                      "geoip.lon",
+                      "geoip.lng",
+                      "geoip_data.longitude",
+                      "geoip_data.lon",
+                      "geoip_data.lng",
+                      "geoloc.longitude",
+                      "geoloc.lon",
+                      "geoloc.lng",
+                      "location.longitude",
+                      "location.lon",
+                      "location.lng",
+                      "metadata.longitude",
+                      "metadata.lon",
+                      "metadata.lng",
+                  ))
+
+                  return lat, lon
 
               if isinstance(item, list):
                   return (
@@ -391,7 +513,7 @@ jobs:
                   raise SystemExit(f"{rel} is missing")
 
               payload = json.loads(path.read_text(encoding="utf-8"))
-              nodes = list(node_items(payload))
+              nodes = node_items(payload)
 
               if not nodes:
                   raise SystemExit(f"{rel} contains zero nodes")
@@ -413,12 +535,24 @@ jobs:
               print(f"{rel}: nodes={len(nodes)} coordinates={coords}")
 
               if coords == 0:
-                  msg = f"{rel} has zero coordinate-bearing nodes"
+                  print("sample node:")
+                  print(json.dumps(nodes[0], ensure_ascii=False, indent=2)[:5000])
+
+                  report_path = path.parent / "enrichment-report.json"
+                  if report_path.exists():
+                      report = json.loads(report_path.read_text(encoding="utf-8"))
+                      print("module coordinate report:")
+                      for module in report.get("modules", []):
+                          print(
+                              f"  {module.get('name')}: "
+                              f"{module.get('coordinate_count_before')} -> "
+                              f"{module.get('coordinate_count_after')} "
+                              f"{module.get('status')} "
+                              f"{module.get('message', '')}"
+                          )
 
                   if require_coordinates:
-                      raise SystemExit(msg)
-
-                  print(f"WARNING: {msg}; continuing because BITNODES_REQUIRE_GEO_COORDINATES=false")
+                      raise SystemExit(f"{rel} has zero coordinate-bearing nodes")
 
               total_coordinate_count += coords
 
@@ -506,8 +640,7 @@ jobs:
             --settings live \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty \
-            --vectors-fallback
+            --fail-empty
 
       - name: Validate generated maps
         shell: bash
@@ -621,7 +754,7 @@ jobs:
                   "database": "24MB-safe gzipped MariaDB SQL shards",
                   "ipdb": "current index/latest/stats only",
                   "no_credentials": True,
-                  "map_coordinates": "real GeoIP/enriched coordinates only; no synthetic fallback"
+                  "map_coordinates": "real GeoIP/enriched coordinates required"
               }
           }
 
