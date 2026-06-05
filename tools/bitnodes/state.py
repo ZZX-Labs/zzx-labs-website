@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-APP_ROOT = Path(__file__).resolve().parents[3]
+APP_ROOT = Path(__file__).resolve().parents[2]
 BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")))
 
@@ -26,7 +26,7 @@ def utc_now() -> int:
 
 
 def utc_iso(ts: int | None = None) -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts or utc_now()))
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts if ts is not None else utc_now()))
 
 
 def mkdir(path: Path) -> None:
@@ -34,9 +34,9 @@ def mkdir(path: Path) -> None:
 
 
 def read_json(path: Path, default: Any) -> Any:
-    if not path.exists():
-        return default
     try:
+        if not path.exists():
+            return default
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return default
@@ -44,21 +44,25 @@ def read_json(path: Path, default: Any) -> Any:
 
 def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
     mkdir(path.parent)
-    text = json.dumps(
-        payload,
-        indent=2 if pretty else None,
-        separators=None if pretty else (",", ":"),
-        ensure_ascii=False,
-        sort_keys=True,
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(
+            payload,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            ensure_ascii=False,
+            sort_keys=pretty,
+        ) + "\n",
+        encoding="utf-8",
     )
-    path.write_text(text + "\n", encoding="utf-8")
+    tmp.replace(path)
 
 
 def safe_int(value: Any, default: int | None = None) -> int | None:
     try:
         if value in ("", None):
             return default
-        return int(value)
+        return int(float(value))
     except Exception:
         return default
 
@@ -73,6 +77,16 @@ def safe_float(value: Any, default: float | None = None) -> float | None:
         return n
     except Exception:
         return default
+
+
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (1, "1"):
+        return True
+    return str(value or "").strip().lower() in {
+        "true", "yes", "y", "ok", "up", "online", "reachable", "success"
+    }
 
 
 def strip_ipv6_brackets(host: str) -> str:
@@ -139,7 +153,10 @@ def normalize_address(address: str, default_port: int = DEFAULT_PORT) -> str:
     if not host:
         return ""
 
-    host = strip_ipv6_brackets(host)
+    host = strip_ipv6_brackets(host).strip().lower()
+
+    if not host:
+        return ""
 
     if is_ipv6_literal(host):
         return f"[{host}]:{port}"
@@ -217,7 +234,7 @@ def uptime_human(seconds: float | int | None) -> str:
 
 
 def row_value(row: list[Any], index: int, default: Any = None) -> Any:
-    return row[index] if len(row) > index else default
+    return row[index] if len(row) > index and row[index] not in ("", None) else default
 
 
 def row_metadata(row: list[Any]) -> dict[str, Any]:
@@ -225,33 +242,7 @@ def row_metadata(row: list[Any]) -> dict[str, Any]:
     return dict(value)
 
 
-def boolish(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-
-    if value in (1, "1"):
-        return True
-
-    return str(value or "").strip().lower() in {
-        "true",
-        "yes",
-        "y",
-        "ok",
-        "up",
-        "online",
-        "reachable",
-        "success",
-    }
-
-
 class BitnodesState:
-    """
-    Persistent crawler runtime state.
-
-    This is not a geography module. It stores node runtime state:
-    reachability, queue, uptime, failures, peer index, and export payloads.
-    """
-
     def __init__(
         self,
         state_dir: Path = DEFAULT_STATE_DIR,
@@ -270,9 +261,13 @@ class BitnodesState:
         self.queue_path = self.state_dir / "queue.json"
         self.meta_path = self.state_dir / "meta.json"
 
-        self.nodes: dict[str, dict[str, Any]] = read_json(self.nodes_path, {})
-        self.queue: deque[str] = deque(read_json(self.queue_path, []))
-        self.meta: dict[str, Any] = read_json(self.meta_path, {})
+        loaded_nodes = read_json(self.nodes_path, {})
+        loaded_queue = read_json(self.queue_path, [])
+        loaded_meta = read_json(self.meta_path, {})
+
+        self.nodes: dict[str, dict[str, Any]] = loaded_nodes if isinstance(loaded_nodes, dict) else {}
+        self.queue: deque[str] = deque(loaded_queue if isinstance(loaded_queue, list) else [])
+        self.meta: dict[str, Any] = loaded_meta if isinstance(loaded_meta, dict) else {}
 
         self._queue_set = set(self.queue)
 
@@ -281,6 +276,8 @@ class BitnodesState:
         self.meta["source"] = self.source or self.meta.get("source", "")
         self.meta["state_dir"] = str(self.state_dir)
         self.meta["snapshot_24h_dir"] = str(self.snapshot_24h_dir)
+        self.meta["known_nodes"] = len(self.nodes)
+        self.meta["queue_size"] = len(self.queue)
 
         write_json(self.nodes_path, self.nodes)
         write_json(self.queue_path, list(self.queue))
@@ -305,7 +302,7 @@ class BitnodesState:
     def pop_batch(self, size: int) -> list[str]:
         batch: list[str] = []
 
-        while self.queue and len(batch) < size:
+        while self.queue and len(batch) < max(0, size):
             address = self.queue.popleft()
             self._queue_set.discard(address)
             batch.append(address)
@@ -334,6 +331,9 @@ class BitnodesState:
             if existing.get("reachable") and previous_last_seen:
                 total_uptime += max(0, now - previous_last_seen)
 
+            if not isinstance(row, list):
+                row = []
+
             metadata = row_metadata(row)
             network = classify_network(normalized)
 
@@ -356,7 +356,7 @@ class BitnodesState:
                 or existing.get("is_proxy")
             )
 
-            self.nodes[normalized] = {
+            node = {
                 **existing,
                 "address": normalized,
                 "host": host,
@@ -395,7 +395,6 @@ class BitnodesState:
                 "asn_location": row_value(row, 18, existing.get("asn_location")),
                 "metadata": metadata,
                 "latency_ms": latency_ms,
-                "peer_index": safe_float(metadata.get("peer_index"), safe_float(existing.get("peer_index"), 0.0)) or 0.0,
                 "success_count": (safe_int(existing.get("success_count"), 0) or 0) + 1,
                 "failure_count": safe_int(existing.get("failure_count"), 0) or 0,
                 "total_uptime": total_uptime,
@@ -413,6 +412,9 @@ class BitnodesState:
                 "suspected_proxy": suspected_proxy,
                 "is_proxy": suspected_proxy,
             }
+
+            node["peer_index"] = self.compute_peer_index(node)
+            self.nodes[normalized] = node
 
     def update_failures(self, addresses: list[str], now: int | None = None) -> None:
         now = now or utc_now()
@@ -444,19 +446,8 @@ class BitnodesState:
                 "first_seen_iso": utc_iso(first_seen),
                 "last_failure": now,
                 "last_failure_iso": utc_iso(now),
-                "last_seen": existing.get("last_seen"),
-                "last_seen_iso": existing.get("last_seen_iso"),
-                "protocol": existing.get("protocol"),
-                "agent": existing.get("agent"),
-                "user_agent": existing.get("user_agent"),
-                "services": existing.get("services"),
-                "height": existing.get("height"),
-                "hostname": existing.get("hostname"),
-                "connected_since": existing.get("connected_since"),
-                "latency_ms": safe_float(existing.get("latency_ms"), 0.0) or 0.0,
-                "peer_index": safe_float(existing.get("peer_index"), 0.0) or 0.0,
-                "success_count": safe_int(existing.get("success_count"), 0) or 0,
                 "failure_count": (safe_int(existing.get("failure_count"), 0) or 0) + 1,
+                "success_count": safe_int(existing.get("success_count"), 0) or 0,
                 "total_uptime": safe_float(existing.get("total_uptime"), 0.0) or 0.0,
                 "uptime_seconds": safe_float(existing.get("uptime_seconds"), existing.get("total_uptime")) or 0.0,
                 "uptime_human": uptime_human(existing.get("total_uptime")),
@@ -719,8 +710,9 @@ class BitnodesState:
 
         for _address, row in nodes.items():
             height = row[4] if len(row) > 4 else None
-            if isinstance(height, int):
-                latest_height = max(latest_height, height)
+            parsed_height = safe_int(height)
+            if parsed_height:
+                latest_height = max(latest_height, parsed_height)
 
             if len(row) > 7 and row[7]:
                 countries.add(row[7])
@@ -734,7 +726,7 @@ class BitnodesState:
         leaderboard = self.leaderboard(1000)
 
         return {
-            "schema": "zzx-bitnodes-state-export-v4",
+            "schema": "zzx-bitnodes-state-export-v5",
             "source": self.source or "zzx-labs-global-bitnodes-crawler",
             "timestamp": utc_now(),
             "updated_at": utc_iso(),
