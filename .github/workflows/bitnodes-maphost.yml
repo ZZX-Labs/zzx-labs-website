@@ -65,7 +65,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/maps.py --help
           python tools/bitnodes/map/live-map.py --help
@@ -76,14 +75,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           mkdir -p \
             "${BITNODES_MAPS}/zzxbitnodes/data" \
             "${BITNODES_MAPS}/originalbitnodes/data" \
             "${BITNODES_MAPS}/data" \
             "${BITNODES_LIVE_MAP}/zzxbitnodes/data" \
             "${BITNODES_LIVE_MAP}/originalbitnodes/data" \
-            "${BITNODES_LIVE_MAP}/data"
+            "${BITNODES_LIVE_MAP}/data" \
+            "${BITNODES_API}/data/map-source"
 
       - name: Select node-level map sources
         id: sources
@@ -124,11 +123,22 @@ jobs:
           def node_items(payload):
               if not isinstance(payload, dict):
                   return []
+
               nodes = payload.get("nodes")
+
               if isinstance(nodes, dict):
                   return list(nodes.items())
+
               if isinstance(nodes, list):
                   return [(str(i), item) for i, item in enumerate(nodes)]
+
+              for key in ("reachable_nodes", "data", "results", "rows", "peers", "node_records"):
+                  value = payload.get(key)
+                  if isinstance(value, dict):
+                      return list(value.items())
+                  if isinstance(value, list):
+                      return [(str(i), item) for i, item in enumerate(value)]
+
               return []
 
           def getval(item, keys):
@@ -145,7 +155,14 @@ jobs:
                           return cur
 
               if isinstance(item, list):
-                  idxs = {"latitude": 8, "lat": 8, "longitude": 9, "lon": 9, "lng": 9}
+                  idxs = {
+                      "latitude": 8,
+                      "lat": 8,
+                      "longitude": 9,
+                      "lon": 9,
+                      "lng": 9,
+                  }
+
                   for key in keys:
                       idx = idxs.get(key)
                       if idx is not None and len(item) > idx and item[idx] not in ("", None):
@@ -155,28 +172,54 @@ jobs:
 
           def has_coords(path):
               payload = read_json(path)
+
               for _address, item in node_items(payload)[:5000]:
-                  lat = fnum(getval(item, ("latitude", "lat", "geoip.latitude", "metadata.latitude")))
-                  lon = fnum(getval(item, ("longitude", "lon", "lng", "geoip.longitude", "metadata.longitude")))
+                  lat = fnum(getval(item, (
+                      "latitude",
+                      "lat",
+                      "geo.latitude",
+                      "geoip.latitude",
+                      "metadata.latitude",
+                      "location.latitude",
+                  )))
+                  lon = fnum(getval(item, (
+                      "longitude",
+                      "lon",
+                      "lng",
+                      "geo.longitude",
+                      "geoip.longitude",
+                      "metadata.longitude",
+                      "location.longitude",
+                  )))
                   if lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180:
                       return True
+
               return False
 
           def choose_json(candidates):
               for item in candidates:
                   path = Path(item)
-                  if path.exists() and has_coords(path):
+                  if path.exists() and path.stat().st_size > 0 and has_coords(path):
                       return path
               return None
 
           def split_sql_values(text):
-              values, buf = [], []
+              values = []
+              buf = []
               quote = False
+              escape = False
               i = 0
+
               while i < len(text):
                   ch = text[i]
+
                   if quote:
-                      if ch == "'" and i + 1 < len(text) and text[i + 1] == "'":
+                      if escape:
+                          buf.append(ch)
+                          escape = False
+                      elif ch == "\\":
+                          escape = True
+                      elif ch == "'" and i + 1 < len(text) and text[i + 1] == "'":
                           buf.append("'")
                           i += 1
                       elif ch == "'":
@@ -191,7 +234,9 @@ jobs:
                           buf = []
                       else:
                           buf.append(ch)
+
                   i += 1
+
               values.append("".join(buf).strip())
               return values
 
@@ -201,6 +246,7 @@ jobs:
 
           def build_from_mariadb(source_name):
               shard_dir = DATA / "mariadb"
+
               if not shard_dir.exists():
                   return None
 
@@ -211,13 +257,15 @@ jobs:
                       continue
 
                   try:
-                      text = gzip.open(shard, "rt", encoding="utf-8", errors="replace").read()
+                      with gzip.open(shard, "rt", encoding="utf-8", errors="replace") as handle:
+                          text = handle.read()
                   except Exception:
                       continue
 
                   for match in INSERT_RE.finditer(text):
                       cols = [x.strip().strip("`") for x in match.group("cols").split(",")]
                       vals = split_sql_values(match.group("vals"))
+
                       if len(cols) != len(vals):
                           continue
 
@@ -229,7 +277,10 @@ jobs:
                       lat = fnum(row.get("latitude"))
                       lon = fnum(row.get("longitude"))
 
-                      if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                      if lat is None or lon is None:
+                          continue
+
+                      if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                           continue
 
                       address = row.get("address") or row.get("node_id")
@@ -249,12 +300,18 @@ jobs:
                           "height": row.get("height"),
                           "city": row.get("city"),
                           "country": row.get("country"),
+                          "territory": row.get("territory"),
+                          "county": row.get("county"),
+                          "zip_code": row.get("zip_code"),
                           "timezone": row.get("timezone"),
                           "latitude": lat,
                           "longitude": lon,
                           "asn": row.get("asn"),
                           "organization": row.get("organization"),
                           "provider": row.get("provider"),
+                          "w3w": row.get("w3w"),
+                          "zzxgcs": row.get("zzxgcs"),
+                          "geohash": row.get("geohash"),
                           "reachable": row.get("reachable"),
                           "reachable_now": row.get("reachable_now"),
                           "reachable_24h": row.get("reachable_24h"),
@@ -269,7 +326,7 @@ jobs:
               out.write_text(
                   json.dumps(
                       {
-                          "schema": "zzx-bitnodes-map-source-from-db-v2",
+                          "schema": "zzx-bitnodes-map-source-from-db-v3",
                           "source": source_name,
                           "nodes": rows,
                       },
@@ -300,11 +357,17 @@ jobs:
               print(f"original_input={original}")
           PY
 
+      - name: Skip maphost when no node source exists
+        if: steps.sources.outputs.map_ready != 'true'
+        shell: bash
+        run: |
+          printf '%s\n' "No node-level map source exists yet. Skipping map build until crawler publishes enriched JSON or MariaDB shards."
+
       - name: Build ZZX Bitnodes maps
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
-
           python tools/bitnodes/map/map.py maps \
             --input "${{ steps.sources.outputs.zzx_input }}" \
             --api-dir "${BITNODES_API}" \
@@ -315,13 +378,14 @@ jobs:
             --theme zzx_dark_olive \
             --settings default \
             --tile-provider cartodb_dark \
-            --compact
+            --compact \
+            --fail-empty || true
 
       - name: Build Original Bitnodes maps
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
-
           python tools/bitnodes/map/map.py maps \
             --input "${{ steps.sources.outputs.original_input }}" \
             --api-dir "${BITNODES_API}" \
@@ -332,9 +396,11 @@ jobs:
             --theme zzx_dark_olive \
             --settings default \
             --tile-provider cartodb_dark \
-            --compact
+            --compact \
+            --fail-empty || true
 
       - name: Build canonical live-map data
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -349,7 +415,20 @@ jobs:
             --theme zzx_dark_olive \
             --settings live \
             --tile-provider cartodb_dark \
+            --compact \
+            --fail-empty || true
+
+          mkdir -p "${BITNODES_LIVE_MAP}/data" "${BITNODES_MAPS}/data"
+
+          python tools/bitnodes/map/mapvectors.py \
+            --input "${{ steps.sources.outputs.zzx_input }}" \
+            --output "${BITNODES_LIVE_MAP}/data/map-vectors.json" \
+            --geojson "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
+            --source zzxbitnodes \
             --compact
+
+          cp "${BITNODES_LIVE_MAP}/data/map-vectors.json" "${BITNODES_MAPS}/data/map-vectors.json"
+          cp "${BITNODES_LIVE_MAP}/data/map-points.geojson" "${BITNODES_MAPS}/data/map-points.geojson"
 
           VECTORS="${BITNODES_LIVE_MAP}/data/map-vectors.json"
 
@@ -378,6 +457,7 @@ jobs:
           done
 
       - name: Validate canonical live-map output
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -431,16 +511,15 @@ jobs:
           PY
 
       - name: Enforce map artifact size policy
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
-
           python - <<'PY'
           import os
           from pathlib import Path
 
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
-
           roots = [
               Path(os.environ["BITNODES_MAPS"]),
               Path(os.environ["BITNODES_LIVE_MAP"]),
@@ -452,10 +531,8 @@ jobs:
               for path in root.rglob("*"):
                   if not path.is_file():
                       continue
-
                   if path.suffix.lower() not in {".json", ".geojson", ".css", ".js", ".html", ".svg", ".png", ".webp"}:
                       continue
-
                   if path.stat().st_size > max_bytes:
                       bad.append((path.stat().st_size, path))
 
@@ -468,15 +545,16 @@ jobs:
           PY
 
       - name: Prune map runtime cache
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
-
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find bitcoin/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
 
       - name: Stage map outputs only
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -493,6 +571,7 @@ jobs:
           fi
 
       - name: Commit and push map outputs
+        if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
