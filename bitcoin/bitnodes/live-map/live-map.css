@@ -124,178 +124,136 @@
 }
 
 /* ==========================================================
-   Node Selection
+   Search + Mini Toggle Live Styling
    ========================================================== */
 
-.bn-live-map-page .bn-map-point.is-selected {
-    z-index: 5000;
-    box-shadow:
-        0 0 0 2px rgba(255,255,255,0.75),
-        0 0 18px currentColor,
-        0 0 32px currentColor;
-    transform: translate(-50%, -50%) scale(1.35);
+.bn-live-map-page .bn-map-search input:focus,
+.bn-live-map-page .bn-map-selectors select:focus {
+    outline: none;
+    border-color: rgba(192, 214, 116, 0.46);
+    box-shadow: 0 0 0 2px rgba(192, 214, 116, 0.08);
 }
 
-.bn-live-map-page .bn-map-point.is-highlighted {
-    z-index: 4500;
-    transform: translate(-50%, -50%) scale(1.15);
+.bn-live-map-page .bn-map-search input::placeholder {
+    color: rgba(204, 216, 182, 0.44);
 }
 
-.bn-live-map-page .bn-map-point.is-dimmed {
-    opacity: 0.25;
+.bn-live-map-page .bn-map-mini-toggles button.is-active,
+.bn-live-map-page .bn-map-mini-toggles button[aria-pressed="true"] {
+    background: rgba(192, 214, 116, 0.12);
+    border-color: rgba(192, 214, 116, 0.38);
+    color: var(--bn-map-text, #edf7b9);
 }
 
 /* ==========================================================
-   Multi Select Box
+   Node Info Live Styling
    ========================================================== */
 
-.bn-map-selection-box {
-    position: absolute;
-    z-index: 9999;
-    border: 1px dashed rgba(192,214,116,0.9);
-    background: rgba(192,214,116,0.10);
-    pointer-events: none;
-}
-
-/* ==========================================================
-   Search Control
-   ========================================================== */
-
-.bn-map-search {
-    display: flex;
-    gap: 0.5rem;
-    width: 100%;
-}
-
-.bn-map-search input {
-    flex: 1;
-    min-width: 0;
-    border: 1px solid rgba(192,214,116,0.18);
-    border-radius: 10px;
-    background: rgba(0,0,0,0.32);
-    color: var(--bn-map-text);
-    font-family: inherit;
-    padding: 0.55rem 0.7rem;
-}
-
-.bn-map-search button {
-    white-space: nowrap;
-}
-
-/* ==========================================================
-   Node Info Panel
-   ========================================================== */
-
-.bn-map-node-info table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.bn-map-node-info th {
-    text-align: left;
-    color: var(--bn-map-muted);
-    width: 42%;
-    padding: 0.35rem 0;
-    vertical-align: top;
-}
-
-.bn-map-node-info td {
-    color: var(--bn-map-text);
-    padding: 0.35rem 0;
+.bn-live-map-page .bn-map-node-info h3 {
+    margin: 0 0 0.9rem;
+    color: var(--bn-map-accent, #c0d674);
+    font-size: 0.95rem;
     overflow-wrap: anywhere;
 }
 
-.bn-map-node-info h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
+.bn-live-map-page .bn-node-grid {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.bn-live-map-page .bn-node-grid div {
+    border-bottom: 1px solid rgba(192, 214, 116, 0.08);
+    padding-bottom: 0.45rem;
+}
+
+.bn-live-map-page .bn-node-grid strong,
+.bn-live-map-page .bn-node-grid span {
+    display: block;
+}
+
+.bn-live-map-page .bn-node-grid strong {
+    color: rgba(204, 216, 182, 0.62);
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bn-live-map-page .bn-node-grid span {
+    color: var(--bn-map-text, #edf7b9);
+    font-size: 0.76rem;
+    overflow-wrap: anywhere;
 }
 
 /* ==========================================================
-   Future Layer Controls
+   Leaflet Marker Interaction Accents
    ========================================================== */
 
-.bn-map-layer-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+.bn-live-map-page .leaflet-interactive {
+    transition:
+        stroke-width 0.2s ease,
+        opacity 0.2s ease,
+        fill-opacity 0.2s ease;
 }
 
-.bn-map-layer-controls button.is-enabled {
-    background: rgba(192,214,116,0.12);
-    border-color: rgba(192,214,116,0.40);
+.bn-live-map-page .leaflet-interactive:hover {
+    filter: drop-shadow(0 0 8px rgba(192, 214, 116, 0.45));
 }
 
 /* ==========================================================
-   Theme Synchronization
+   Measurement / Selection Layer
    ========================================================== */
 
-body[data-map-theme="dark"] .leaflet-container {
-    filter: brightness(0.95) contrast(1.08);
+.bn-live-map-page .bn-map-selection-box {
+    position: absolute;
+    z-index: 9999;
+    border: 1px dashed rgba(192, 214, 116, 0.9);
+    background: rgba(192, 214, 116, 0.10);
+    pointer-events: none;
 }
 
-body[data-map-theme="light"] .leaflet-container {
-    filter: brightness(1.05) contrast(0.96);
+.bn-live-map-page .leaflet-overlay-pane path {
+    vector-effect: non-scaling-stroke;
 }
 
-body[data-map-theme="satellite"] .leaflet-container {
-    filter: saturate(1.12) contrast(1.04);
-}
+/* ==========================================================
+   Tile Tone Modes
+   ========================================================== */
 
-body[data-map-theme="tactical"] .leaflet-container {
+body.bn-map-tone-dark .bn-live-map-page .leaflet-tile,
+body.bn-map-tone-dark .leaflet-tile {
     filter:
-        grayscale(0.20)
-        contrast(1.15)
-        brightness(0.82);
+        brightness(0.72)
+        contrast(1.16)
+        saturate(0.82);
+}
+
+body.bn-map-tone-light .bn-live-map-page .leaflet-tile,
+body.bn-map-tone-light .leaflet-tile {
+    filter:
+        brightness(1.05)
+        contrast(0.96)
+        saturate(0.94);
+}
+
+body.bn-map-satellite .bn-live-map-page .leaflet-tile,
+body.bn-map-satellite .leaflet-tile {
+    filter:
+        brightness(0.86)
+        contrast(1.08)
+        saturate(1.12);
 }
 
 /* ==========================================================
-   Permanent ZZX Legend Colors
+   Live Refresh Pulse Support
    ========================================================== */
 
-.bn-legend-duplicate i {
-    background: #d95c5c;
+.bn-live-map-page .bn-map-hud article strong {
+    transition:
+        color 0.25s ease,
+        text-shadow 0.25s ease;
 }
 
-.bn-legend-unsynced i {
-    background: #8d5a2b;
-}
-
-.bn-legend-uptime-10m i {
-    background: #e67e22;
-}
-
-.bn-legend-uptime-day i {
-    background: #f1c40f;
-}
-
-.bn-legend-uptime-48h i {
-    background: #27ae60;
-}
-
-.bn-legend-uptime-week i {
-    background: #d4af37;
-}
-
-.bn-legend-unknown i {
-    background: #8c927e;
-}
-
-.bn-legend-i2p i {
-    background: #00d5ff;
-}
-
-.bn-legend-tor i {
-    background: #9d67ad;
-}
-
-.bn-legend-vpn i {
-    background: #70b7ff;
-}
-
-.bn-legend-proxy i {
-    background: #ff7edb;
-}
-
-.bn-legend-unreachable i {
-    background: #2b2b2b;
+.bn-live-map-page .bn-map-hud article:hover strong {
+    color: var(--bn-map-accent, #c0d674);
+    text-shadow: 0 0 12px rgba(192, 214, 116, 0.18);
 }
