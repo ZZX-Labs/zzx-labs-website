@@ -92,8 +92,72 @@ jobs:
           set -euo pipefail
 
           python - <<'PY' >> "${GITHUB_OUTPUT}"
+          import gzip
           import json
+          import re
           from pathlib import Path
+
+          API = Path("bitcoin/bitnodes/api")
+          DATA = API / "data"
+          TMP = Path("bitcoin/bitnodes/api/data/map-source")
+          TMP.mkdir(parents=True, exist_ok=True)
+
+          INSERT_RE = re.compile(
+              r"INSERT INTO bitnodes_nodes \((?P<cols>.*?)\) VALUES \((?P<vals>.*?)\) ON DUPLICATE KEY UPDATE",
+              re.S,
+          )
+
+          def split_sql_values(text):
+              values = []
+              buf = []
+              quote = False
+              escape = False
+              i = 0
+
+              while i < len(text):
+                  ch = text[i]
+
+                  if quote:
+                      if escape:
+                          buf.append(ch)
+                          escape = False
+                      elif ch == "\\":
+                          escape = True
+                      elif ch == "'":
+                          if i + 1 < len(text) and text[i + 1] == "'":
+                              buf.append("'")
+                              i += 1
+                          else:
+                              quote = False
+                      else:
+                          buf.append(ch)
+                  else:
+                      if ch == "'":
+                          quote = True
+                      elif ch == ",":
+                          values.append("".join(buf).strip())
+                          buf = []
+                      else:
+                          buf.append(ch)
+
+                  i += 1
+
+              values.append("".join(buf).strip())
+              return values
+
+          def sql_clean(value):
+              value = value.strip()
+              if value.upper() == "NULL":
+                  return None
+              return value
+
+          def fnum(value):
+              try:
+                  if value in ("", None):
+                      return None
+                  return float(value)
+              except Exception:
+                  return None
 
           def read_json(path):
               try:
@@ -141,11 +205,16 @@ jobs:
 
               if isinstance(item, list):
                   indexes = {
+                      "city": 6,
+                      "country": 7,
                       "latitude": 8,
                       "lat": 8,
                       "longitude": 9,
                       "lon": 9,
                       "lng": 9,
+                      "timezone": 10,
+                      "asn": 11,
+                      "organization": 12,
                   }
 
                   for key in keys:
@@ -167,11 +236,7 @@ jobs:
               if not rows:
                   return False
 
-              checked = 0
-
               for _address, item in rows[:5000]:
-                  checked += 1
-
                   lat = getval(item, (
                       "latitude",
                       "lat",
@@ -191,41 +256,142 @@ jobs:
                       "location.longitude",
                   ))
 
-                  try:
-                      lat = float(lat)
-                      lon = float(lon)
-                  except Exception:
-                      continue
+                  lat = fnum(lat)
+                  lon = fnum(lon)
 
-                  if -90 <= lat <= 90 and -180 <= lon <= 180:
+                  if lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180:
                       return True
 
               return False
 
-          def choose(name, candidates):
+          def choose_json(name, candidates):
               existing = [Path(item) for item in candidates if Path(item).exists()]
 
               for path in existing:
                   if has_coords(path):
                       return path
 
-              if existing:
-                  raise SystemExit(
-                      f"{name} source files exist, but none contain node-level coordinates: "
-                      + ", ".join(str(path) for path in existing)
-                  )
+              return None
 
-              raise SystemExit(f"missing {name} node source")
+          def build_from_mariadb(source_name):
+              shard_dir = DATA / "mariadb"
 
-          zzx = choose("ZZX", [
-              "bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json",
-              "bitcoin/bitnodes/api/zzxbitnodes/latest.json",
+              if not shard_dir.exists():
+                  return None
+
+              rows = {}
+
+              for shard in sorted(shard_dir.glob("*.sql.gz")):
+                  if "control" in shard.name:
+                      continue
+
+                  with gzip.open(shard, "rt", encoding="utf-8", errors="replace") as handle:
+                      text = handle.read()
+
+                  for match in INSERT_RE.finditer(text):
+                      cols = [
+                          item.strip().strip("`")
+                          for item in match.group("cols").split(",")
+                      ]
+
+                      vals = split_sql_values(match.group("vals"))
+
+                      if len(cols) != len(vals):
+                          continue
+
+                      row = dict(zip(cols, [sql_clean(v) for v in vals]))
+
+                      if row.get("source_name") != source_name:
+                          continue
+
+                      lat = fnum(row.get("latitude"))
+                      lon = fnum(row.get("longitude"))
+
+                      if lat is None or lon is None:
+                          continue
+
+                      if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                          continue
+
+                      address = row.get("address") or row.get("node_id")
+
+                      if not address:
+                          continue
+
+                      rows[address] = {
+                          "address": address,
+                          "node_id": row.get("node_id"),
+                          "source": row.get("source_name"),
+                          "host": row.get("host"),
+                          "port": row.get("port"),
+                          "network": row.get("network"),
+                          "agent": row.get("agent"),
+                          "protocol": row.get("protocol"),
+                          "services": row.get("services"),
+                          "height": row.get("height"),
+                          "city": row.get("city"),
+                          "country": row.get("country"),
+                          "territory": row.get("territory"),
+                          "county": row.get("county"),
+                          "zip_code": row.get("zip_code"),
+                          "timezone": row.get("timezone"),
+                          "latitude": lat,
+                          "longitude": lon,
+                          "asn": row.get("asn"),
+                          "organization": row.get("organization"),
+                          "provider": row.get("provider"),
+                          "w3w": row.get("w3w"),
+                          "zzxgcs": row.get("zzxgcs"),
+                          "geohash": row.get("geohash"),
+                          "reachable": row.get("reachable"),
+                          "reachable_now": row.get("reachable_now"),
+                          "reachable_24h": row.get("reachable_24h"),
+                          "latency_ms": row.get("latency_ms"),
+                          "last_seen": row.get("last_seen"),
+                      }
+
+              if not rows:
+                  return None
+
+              out = TMP / f"{source_name}.latest.json"
+              payload = {
+                  "schema": "zzx-bitnodes-map-source-from-db-v1",
+                  "source": source_name,
+                  "nodes": rows,
+              }
+
+              out.write_text(
+                  json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
+                  encoding="utf-8",
+              )
+
+              return out
+
+          zzx = choose_json("ZZX", [
+              API / "enriched" / "zzxbitnodes" / "latest.json",
+              API / "zzxbitnodes" / "latest.json",
           ])
 
-          original = choose("Original", [
-              "bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json",
-              "bitcoin/bitnodes/api/originalbitnodes/latest.json",
+          original = choose_json("Original", [
+              API / "enriched" / "originalbitnodes" / "latest.json",
+              API / "originalbitnodes" / "latest.json",
           ])
+
+          if zzx is None:
+              zzx = build_from_mariadb("zzxbitnodes")
+
+          if original is None:
+              original = build_from_mariadb("originalbitnodes")
+
+          if zzx is None:
+              raise SystemExit(
+                  "missing ZZX node source: no coordinate JSON and no usable MariaDB shard export"
+              )
+
+          if original is None:
+              raise SystemExit(
+                  "missing Original node source: no coordinate JSON and no usable MariaDB shard export"
+              )
 
           print(f"zzx_input={zzx}")
           print(f"original_input={original}")
