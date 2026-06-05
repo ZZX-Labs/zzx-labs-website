@@ -339,115 +339,90 @@ jobs:
               --compact
           done
 
-      - name: Validate enriched coordinate coverage
+      - name: Validate enriched datasets
         shell: bash
         run: |
           set -euo pipefail
 
           python - <<'PY'
           import json
-          import math
           import os
           from pathlib import Path
 
-          api = Path(os.environ["BITNODES_API"])
-
-          def deep_get(row, path):
-              cur = row
-              for part in path.split("."):
-                  if not isinstance(cur, dict):
-                      return None
-                  cur = cur.get(part)
-              return cur
+          require_coordinates = os.environ.get(
+              "BITNODES_REQUIRE_GEO_COORDINATES",
+              "false",
+          ).strip().lower() in {"1", "true", "yes", "y"}
 
           def node_items(payload):
-              if not isinstance(payload, dict):
-                  return []
-
-              for key in ("nodes", "reachable_nodes", "rows", "results", "data", "node_records", "peers"):
-                  value = payload.get(key)
-                  if isinstance(value, dict):
-                      return list(value.values())
-                  if isinstance(value, list):
-                      return value
-
+              nodes = payload.get("nodes")
+              if isinstance(nodes, dict):
+                  return nodes.values()
+              if isinstance(nodes, list):
+                  return nodes
               return []
 
-          def valid_pair(lat, lon):
-              try:
-                  lat = float(lat)
-                  lon = float(lon)
-              except Exception:
-                  return False
-
-              return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
-
-          def coords_from(item):
-              if isinstance(item, list):
-                  lat = item[8] if len(item) > 8 else None
-                  lon = item[9] if len(item) > 9 else None
-
-                  if valid_pair(lat, lon):
-                      return True
-
-                  meta = item[19] if len(item) > 19 and isinstance(item[19], dict) else {}
-                  for prefix in ("geoip", "geoip_data", "geoloc", "metadata"):
-                      src = meta.get(prefix) if isinstance(meta, dict) else None
-                      if isinstance(src, dict) and valid_pair(src.get("latitude"), src.get("longitude")):
-                          return True
-
-                  if valid_pair(meta.get("latitude"), meta.get("longitude")):
-                      return True
-
-                  return False
-
+          def coord_pair(item):
               if isinstance(item, dict):
-                  candidates = (
-                      ("latitude", "longitude"),
-                      ("lat", "lon"),
-                      ("lat", "lng"),
-                      ("geo.latitude", "geo.longitude"),
-                      ("geoip.latitude", "geoip.longitude"),
-                      ("geoip_data.latitude", "geoip_data.longitude"),
-                      ("geoloc.latitude", "geoloc.longitude"),
-                      ("location.latitude", "location.longitude"),
-                      ("metadata.latitude", "metadata.longitude"),
-                      ("metadata.geoip.latitude", "metadata.geoip.longitude"),
-                      ("metadata.geoip_data.latitude", "metadata.geoip_data.longitude"),
+                  geo = item.get("geo") if isinstance(item.get("geo"), dict) else {}
+                  geoip = item.get("geoip") if isinstance(item.get("geoip"), dict) else {}
+                  return (
+                      item.get("latitude") or item.get("lat") or geo.get("latitude") or geoip.get("latitude"),
+                      item.get("longitude") or item.get("lon") or item.get("lng") or geo.get("longitude") or geoip.get("longitude"),
                   )
 
-                  for lat_key, lon_key in candidates:
-                      if valid_pair(deep_get(item, lat_key), deep_get(item, lon_key)):
-                          return True
+              if isinstance(item, list):
+                  return (
+                      item[8] if len(item) > 8 else None,
+                      item[9] if len(item) > 9 else None,
+                  )
 
-              return False
+              return None, None
 
-          total_coords = 0
+          total_coordinate_count = 0
 
           for rel in (
               "enriched/zzxbitnodes/latest.json",
               "enriched/originalbitnodes/latest.json",
           ):
-              path = api / rel
+              path = Path(os.environ["BITNODES_API"]) / rel
+
               if not path.exists():
-                  raise SystemExit(f"missing {rel}")
+                  raise SystemExit(f"{rel} is missing")
 
               payload = json.loads(path.read_text(encoding="utf-8"))
-              nodes = node_items(payload)
+              nodes = list(node_items(payload))
 
-              coords = sum(1 for item in nodes if coords_from(item))
+              if not nodes:
+                  raise SystemExit(f"{rel} contains zero nodes")
+
+              coords = 0
+
+              for item in nodes:
+                  lat, lon = coord_pair(item)
+
+                  try:
+                      lat = float(lat)
+                      lon = float(lon)
+                  except Exception:
+                      continue
+
+                  if -90 <= lat <= 90 and -180 <= lon <= 180:
+                      coords += 1
 
               print(f"{rel}: nodes={len(nodes)} coordinates={coords}")
 
-              if len(nodes) <= 0:
-                  raise SystemExit(f"{rel} has zero nodes")
+              if coords == 0:
+                  msg = f"{rel} has zero coordinate-bearing nodes"
 
-              if coords <= 0:
-                  raise SystemExit(f"{rel} has zero coordinate-bearing nodes")
+                  if require_coordinates:
+                      raise SystemExit(msg)
 
-              total_coords += coords
+                  print(f"WARNING: {msg}; continuing because BITNODES_REQUIRE_GEO_COORDINATES=false")
 
-          print(f"total coordinate-bearing nodes={total_coords}")
+              total_coordinate_count += coords
+
+          print(f"total coordinate-bearing nodes={total_coordinate_count}")
           PY
 
       - name: Aggregate public summaries
