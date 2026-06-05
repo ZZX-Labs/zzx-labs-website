@@ -2,13 +2,19 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
 import time
+from collections import deque
 from dataclasses import dataclass
-from typing import Any, Mapping
+from pathlib import Path
+from typing import Any, Iterable, Mapping
 
 
 DEFAULT_PORT = 8333
+
+DEFAULT_STATE_DIR = Path("bitcoin/bitnodes/data/state")
+DEFAULT_SNAPSHOT_24H_DIR = Path("bitcoin/bitnodes/data/snapshots/24h")
 
 NODE_FIELD_NAMES = [
     "protocol_version",
@@ -107,6 +113,53 @@ def now_ts() -> int:
     return int(time.time())
 
 
+def utc_now() -> int:
+    return now_ts()
+
+
+def utc_iso(ts: int | None = None) -> str:
+    if ts is None:
+        ts = utc_now()
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+
+
+def mkdir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def read_json(path: Path, default: Any = None, fallback: Any = None) -> Any:
+    if fallback is not None:
+        default = fallback
+
+    if default is None:
+        default = {}
+
+    if not Path(path).exists():
+        return default
+
+    try:
+        with Path(path).open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return default
+
+
+def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
+    path = Path(path)
+    mkdir(path.parent)
+
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            payload,
+            handle,
+            ensure_ascii=False,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            sort_keys=pretty,
+        )
+        handle.write("\n")
+
+
 def deep_get(data: Mapping[str, Any], key: str) -> Any:
     if "." not in key:
         return data.get(key)
@@ -155,13 +208,15 @@ def to_float(value: Any, default: float | None = None) -> float | None:
 def boolish(value: Any) -> bool:
     if isinstance(value, bool):
         return value
+
     if value in (1, "1"):
         return True
+
     if value in (0, "0"):
         return False
 
     text = str(value or "").strip().lower()
-    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
+    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success", "connected"}
 
 
 def normalize_country(value: Any) -> str | None:
@@ -202,6 +257,7 @@ def is_ipv6_literal(host: str) -> bool:
 
 def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[str | None, int]:
     raw = str(value or "").strip()
+
     if not raw:
         return None, default_port
 
@@ -227,6 +283,7 @@ def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[st
         return host, to_int(port_text, default_port) or default_port
 
     possible_host, possible_port = raw.rsplit(":", 1)
+
     if possible_port.isdigit():
         return possible_host, int(possible_port)
 
@@ -235,8 +292,10 @@ def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[st
 
 def format_address(host: str, port: int = DEFAULT_PORT) -> str:
     host = strip_ipv6_brackets(host).strip().lower()
+
     if is_ipv6_literal(host):
         return f"[{host}]:{port}"
+
     return f"{host}:{port}"
 
 
@@ -306,6 +365,7 @@ def metadata_from_dict(data: Mapping[str, Any]) -> dict[str, Any]:
             metadata[key] = value
 
     candidate_address = data.get("address") or data.get("node") or data.get("addr") or data.get("host") or data.get("hostname")
+
     normalized_address = normalize_address(
         address=candidate_address,
         host=data.get("host") or data.get("hostname") or data.get("ip"),
@@ -408,6 +468,7 @@ def normalize_node_item(
 ) -> NormalizedNode | None:
     if isinstance(value, list):
         normalized_address = normalize_address(address=address, default_port=default_port)
+
         if not normalized_address:
             return None
 
@@ -472,8 +533,6 @@ def normalize_nodes(
             if item:
                 output[item.address] = item.values
 
-        return output
-
     return output
 
 
@@ -487,6 +546,11 @@ def node_array_to_dict(address: str, values: list[Any]) -> dict[str, Any]:
 
     metadata = normalize_metadata(item.get("metadata"))
     item["metadata"] = metadata
+
+    item["protocol"] = item["protocol_version"]
+    item["agent"] = item["user_agent"]
+    item["country"] = item["country_code"]
+    item["postal_code"] = item["zip"]
 
     item["reachable"] = metadata.get("reachable")
     item["reachable_now"] = metadata.get("reachable_now")
@@ -515,15 +579,13 @@ def node_array_to_dict(address: str, values: list[Any]) -> dict[str, Any]:
     item["policy_restricted"] = boolish(metadata.get("policy_restricted") or metadata.get("is_policy_restricted_node"))
     item["is_policy_restricted_node"] = item["policy_restricted"]
     item["policy_watch"] = boolish(metadata.get("policy_watch") or metadata.get("is_policy_watch_node"))
+    item["is_policy_watch_node"] = item["policy_watch"]
 
     return item
 
 
 def nodes_to_dicts(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
-    return [
-        node_array_to_dict(address, values)
-        for address, values in nodes.items()
-    ]
+    return [node_array_to_dict(address, values) for address, values in nodes.items()]
 
 
 def filter_reachable(nodes: dict[str, list[Any]]) -> dict[str, list[Any]]:
@@ -615,10 +677,7 @@ def validate_node_array(values: list[Any]) -> bool:
 
     normalized = normalize_node_array(values)
 
-    if not isinstance(normalized[19], dict):
-        return False
-
-    return True
+    return isinstance(normalized[19], dict)
 
 
 def validate_nodes(nodes: dict[str, list[Any]]) -> tuple[dict[str, list[Any]], list[str]]:
@@ -640,50 +699,6 @@ def validate_nodes(nodes: dict[str, list[Any]]) -> tuple[dict[str, list[Any]], l
 
     return valid, errors
 
-from collections import deque
-from pathlib import Path
-
-DEFAULT_STATE_DIR = Path("bitcoin/bitnodes/data/state")
-DEFAULT_SNAPSHOT_24H_DIR = Path("bitcoin/bitnodes/data/snapshots/24h")
-
-
-def utc_now() -> int:
-    return now_ts()
-
-
-def utc_iso(ts: int | None = None) -> str:
-    if ts is None:
-        ts = utc_now()
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
-
-
-def mkdir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def read_json(path: Path, default: Any) -> Any:
-    if not path.exists():
-        return default
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except Exception:
-        return default
-
-
-def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
-    mkdir(path.parent)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            payload,
-            handle,
-            ensure_ascii=False,
-            indent=2 if pretty else None,
-            separators=None if pretty else (",", ":"),
-            sort_keys=pretty,
-        )
-        handle.write("\n")
-
 
 class BitnodesState:
     def __init__(
@@ -704,28 +719,174 @@ class BitnodesState:
         self.queue_path = self.state_dir / "queue.json"
         self.meta_path = self.state_dir / "meta.json"
 
-        self.nodes: dict[str, dict[str, Any]] = read_json(self.nodes_path, {})
-        self.queue: deque[str] = deque(read_json(self.queue_path, []))
+        self.nodes: dict[str, dict[str, Any]] = self._load_nodes(read_json(self.nodes_path, {}))
+        self.queue: deque[str] = deque(self._normalize_addresses(read_json(self.queue_path, [])))
         self.meta: dict[str, Any] = read_json(self.meta_path, {})
         self._queue_set = set(self.queue)
+
+    def _load_nodes(self, payload: Any) -> dict[str, dict[str, Any]]:
+        output: dict[str, dict[str, Any]] = {}
+
+        if isinstance(payload, Mapping):
+            source = payload.get("nodes", payload)
+
+            if isinstance(source, Mapping):
+                for address, value in source.items():
+                    normalized = normalize_address(address=address)
+
+                    if not normalized:
+                        continue
+
+                    output[normalized] = self._record_from_any(normalized, value)
+
+        return output
+
+    def _normalize_addresses(self, values: Any) -> list[str]:
+        addresses: list[str] = []
+
+        if isinstance(values, Mapping):
+            values = values.keys()
+
+        if not isinstance(values, Iterable) or isinstance(values, (str, bytes)):
+            values = []
+
+        for value in values:
+            normalized = normalize_address(address=value)
+
+            if normalized:
+                addresses.append(normalized)
+
+        return sorted(set(addresses))
+
+    def _record_from_any(self, address: str, value: Any) -> dict[str, Any]:
+        if isinstance(value, Mapping):
+            record = dict(value)
+            record["address"] = normalize_address(address=record.get("address") or address) or address
+            record.setdefault("network", classify_network(record["address"]))
+
+            if "row" not in record:
+                record["row"] = normalize_node_dict(record)
+
+            record["row"] = normalize_node_array(record.get("row") or record)
+            return self._record_from_row(record["address"], record["row"], extra=record)
+
+        if isinstance(value, list):
+            return self._record_from_row(address, value)
+
+        return self._record_from_row(address, [])
+
+    def _record_from_row(self, address: str, row: list[Any], extra: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        normalized = normalize_address(address=address) or address
+        values = normalize_node_array(row)
+        metadata = normalize_metadata(values[19])
+        network = metadata.get("network") or classify_network(normalized)
+        metadata["network"] = network
+        values[19] = metadata
+
+        host, port = parse_address_port(normalized)
+
+        record = {
+            "address": normalized,
+            "host": host,
+            "port": port,
+            "network": network,
+            "row": values,
+            "protocol_version": values[0],
+            "protocol": values[0],
+            "user_agent": values[1],
+            "agent": values[1],
+            "connected_since": values[2],
+            "services": values[3],
+            "height": values[4],
+            "hostname": values[5],
+            "city": values[6],
+            "country": values[7],
+            "country_code": values[7],
+            "latitude": values[8],
+            "longitude": values[9],
+            "timezone": values[10],
+            "asn": values[11],
+            "organization": values[12],
+            "provider": values[13],
+            "county": values[14],
+            "zip": values[15],
+            "postal_code": values[15],
+            "w3w": values[16],
+            "geohash": values[17],
+            "asn_location": values[18],
+            "metadata": metadata,
+            "reachable": metadata.get("reachable"),
+            "reachable_now": metadata.get("reachable_now"),
+            "reachable_24h": metadata.get("reachable_24h"),
+            "latency_ms": metadata.get("latency_ms"),
+            "first_seen": metadata.get("first_seen"),
+            "last_seen": metadata.get("last_seen"),
+            "last_success": metadata.get("last_success"),
+            "last_failure": metadata.get("last_failure"),
+            "success_count": int(metadata.get("success_count") or 0),
+            "failure_count": int(metadata.get("failure_count") or 0),
+        }
+
+        if extra:
+            for key, value in extra.items():
+                if key not in {"row", "metadata"} and value is not None:
+                    record[key] = value
+
+        return record
+
+    def _row_from_record(self, record: Mapping[str, Any]) -> list[Any]:
+        row = record.get("row")
+
+        if isinstance(row, list):
+            values = normalize_node_array(row)
+        else:
+            values = normalize_node_dict(record)
+
+        metadata = normalize_metadata(values[19])
+
+        for key in METADATA_KEYS:
+            if key in record and record.get(key) is not None:
+                metadata.setdefault(key, record.get(key))
+
+        metadata.setdefault("network", record.get("network") or classify_network(str(record.get("address") or "")))
+        values[19] = metadata
+
+        return values
 
     def save(self) -> None:
         self.meta["saved_at"] = utc_iso()
         self.meta["source"] = self.source or self.meta.get("source", "")
         self.meta["state_dir"] = str(self.state_dir)
         self.meta["snapshot_24h_dir"] = str(self.snapshot_24h_dir)
+        self.meta["node_count"] = len(self.nodes)
+        self.meta["queue_count"] = len(self.queue)
 
         write_json(self.nodes_path, self.nodes)
         write_json(self.queue_path, list(self.queue))
         write_json(self.meta_path, self.meta)
 
-    def add_to_queue(self, addresses: list[str]) -> None:
+    def save_runtime_state(self) -> None:
+        self.save()
+
+    def load(self) -> None:
+        self.nodes = self._load_nodes(read_json(self.nodes_path, {}))
+        self.queue = deque(self._normalize_addresses(read_json(self.queue_path, [])))
+        self.meta = read_json(self.meta_path, {})
+        self._queue_set = set(self.queue)
+
+    def add_to_queue(self, addresses: Iterable[Any]) -> None:
         added = 0
 
         for address in addresses:
             normalized = normalize_address(address=address)
 
-            if not normalized or normalized in self._queue_set:
+            if not normalized:
+                continue
+
+            if normalized in self._queue_set:
+                continue
+
+            if normalized in self.nodes and self.nodes[normalized].get("reachable_now") is True:
                 continue
 
             self.queue.append(normalized)
@@ -741,9 +902,315 @@ class BitnodesState:
         while self.queue and len(batch) < size:
             address = self.queue.popleft()
             self._queue_set.discard(address)
-            batch.append(address)
+
+            normalized = normalize_address(address=address)
+
+            if normalized:
+                batch.append(normalized)
 
         self.meta["queue_last_popped"] = len(batch)
         self.meta["queue_last_popped_at"] = utc_iso()
 
         return batch
+
+    def all_candidate_addresses(
+        self,
+        limit: int = 0,
+        *,
+        include_queue: bool = True,
+        include_known: bool = True,
+        include_unreachable: bool = True,
+        include_reachable: bool = True,
+        include_recent_failures: bool = True,
+        **_kwargs: Any,
+    ) -> list[str]:
+        candidates: list[str] = []
+
+        if include_queue:
+            candidates.extend(list(self.queue))
+
+        if include_known:
+            for address, record in self.nodes.items():
+                reachable = record.get("reachable")
+
+                if reachable is True and not include_reachable:
+                    continue
+
+                if reachable is False and not include_unreachable:
+                    continue
+
+                if record.get("last_failure") and not include_recent_failures:
+                    continue
+
+                candidates.append(address)
+
+        normalized = self._normalize_addresses(candidates)
+
+        if limit and limit > 0:
+            return normalized[:limit]
+
+        return normalized
+
+    def merge_node(self, address: str, values: Any, *, reachable: bool | None = None) -> None:
+        normalized = normalize_address(address=address)
+
+        if not normalized:
+            return
+
+        incoming = self._record_from_any(normalized, values)
+        previous = self.nodes.get(normalized)
+
+        if previous is None:
+            self.nodes[normalized] = incoming
+        else:
+            previous_row = self._row_from_record(previous)
+            incoming_row = self._row_from_record(incoming)
+
+            if node_quality(incoming_row) >= node_quality(previous_row):
+                merged = dict(previous)
+                merged.update(incoming)
+                self.nodes[normalized] = merged
+
+        if reachable is not None:
+            if reachable:
+                self.mark_reachable(normalized)
+            else:
+                self.mark_unreachable(normalized)
+
+    def update_successes(self, successes: Mapping[str, Any]) -> None:
+        now = utc_now()
+
+        for address, row in successes.items():
+            normalized = normalize_address(address=address)
+
+            if not normalized:
+                continue
+
+            if isinstance(row, tuple) and len(row) == 2:
+                normalized = normalize_address(address=row[0]) or normalized
+                row = row[1]
+
+            record = self._record_from_any(normalized, row)
+            metadata = normalize_metadata(record.get("metadata"))
+
+            metadata["reachable"] = True
+            metadata["reachable_now"] = True
+            metadata["reachable_24h"] = True
+            metadata["last_seen"] = now
+            metadata["last_success"] = now
+            metadata["success_count"] = int(metadata.get("success_count") or record.get("success_count") or 0) + 1
+
+            first_seen = metadata.get("first_seen") or record.get("first_seen")
+            metadata["first_seen"] = first_seen or now
+
+            record["metadata"] = metadata
+            record["row"] = self._row_from_record(record)
+            record.update({
+                "reachable": True,
+                "reachable_now": True,
+                "reachable_24h": True,
+                "last_seen": now,
+                "last_success": now,
+                "first_seen": metadata["first_seen"],
+                "success_count": metadata["success_count"],
+            })
+
+            self.nodes[normalized] = record
+
+            if normalized in self._queue_set:
+                try:
+                    self.queue.remove(normalized)
+                except ValueError:
+                    pass
+                self._queue_set.discard(normalized)
+
+        self.meta["last_success_update_at"] = utc_iso(now)
+        self.meta["last_success_count"] = len(successes)
+
+    def update_failures(self, failures: Iterable[Any]) -> None:
+        now = utc_now()
+        count = 0
+
+        for address in failures:
+            normalized = normalize_address(address=address)
+
+            if not normalized:
+                continue
+
+            record = self.nodes.get(normalized)
+
+            if record is None:
+                record = self._record_from_row(normalized, [])
+
+            metadata = normalize_metadata(record.get("metadata"))
+            metadata["reachable"] = False
+            metadata["reachable_now"] = False
+            metadata["last_failure"] = now
+            metadata["failure_count"] = int(metadata.get("failure_count") or record.get("failure_count") or 0) + 1
+            metadata.setdefault("network", classify_network(normalized))
+
+            if not metadata.get("first_seen"):
+                metadata["first_seen"] = now
+
+            record["metadata"] = metadata
+            record["row"] = self._row_from_record(record)
+            record.update({
+                "reachable": False,
+                "reachable_now": False,
+                "last_failure": now,
+                "failure_count": metadata["failure_count"],
+                "network": metadata["network"],
+            })
+
+            self.nodes[normalized] = record
+            count += 1
+
+        self.meta["last_failure_update_at"] = utc_iso(now)
+        self.meta["last_failure_count"] = count
+
+    def mark_reachable(self, address: str, row: Any | None = None) -> None:
+        normalized = normalize_address(address=address)
+
+        if not normalized:
+            return
+
+        if row is not None:
+            self.update_successes({normalized: row})
+            return
+
+        record = self.nodes.get(normalized) or self._record_from_row(normalized, [])
+        metadata = normalize_metadata(record.get("metadata"))
+        now = utc_now()
+
+        metadata["reachable"] = True
+        metadata["reachable_now"] = True
+        metadata["reachable_24h"] = True
+        metadata["last_seen"] = now
+        metadata["last_success"] = now
+
+        record["metadata"] = metadata
+        record.update({
+            "reachable": True,
+            "reachable_now": True,
+            "reachable_24h": True,
+            "last_seen": now,
+            "last_success": now,
+        })
+        record["row"] = self._row_from_record(record)
+
+        self.nodes[normalized] = record
+
+    def mark_unreachable(self, address: str) -> None:
+        self.update_failures([address])
+
+    def record_latency(self, address: str, latency_ms: float | int | None) -> None:
+        normalized = normalize_address(address=address)
+
+        if not normalized or normalized not in self.nodes:
+            return
+
+        record = self.nodes[normalized]
+        metadata = normalize_metadata(record.get("metadata"))
+        metadata["latency_ms"] = latency_ms
+        record["latency_ms"] = latency_ms
+        record["metadata"] = metadata
+        record["row"] = self._row_from_record(record)
+
+    def record_peer(self, address: str, peer_index: Any = None) -> None:
+        normalized = normalize_address(address=address)
+
+        if not normalized or normalized not in self.nodes:
+            return
+
+        record = self.nodes[normalized]
+        metadata = normalize_metadata(record.get("metadata"))
+        metadata["peer_index"] = peer_index
+        record["peer_index"] = peer_index
+        record["metadata"] = metadata
+        record["row"] = self._row_from_record(record)
+
+    def to_bitnodes_nodes(self, mode: str = "all") -> dict[str, list[Any]]:
+        mode = str(mode or "all").lower().replace("-", "_")
+        output: dict[str, list[Any]] = {}
+
+        for address, record in self.nodes.items():
+            row = self._row_from_record(record)
+            metadata = normalize_metadata(row[19])
+
+            if mode in {"reachable", "reachable_now"}:
+                if boolish(metadata.get("reachable_now") or record.get("reachable_now")) is not True:
+                    continue
+
+            elif mode in {"reachable_24h", "24h"}:
+                if boolish(metadata.get("reachable_24h") or record.get("reachable_24h") or metadata.get("reachable_now")) is not True:
+                    continue
+
+            elif mode in {"unreachable", "failed"}:
+                if boolish(metadata.get("reachable") or record.get("reachable")) is not False:
+                    continue
+
+            output[address] = row
+
+        return output
+
+    def reachable_nodes(self) -> dict[str, list[Any]]:
+        return self.to_bitnodes_nodes("reachable")
+
+    def build_export_payload(self, mode: str = "all") -> dict[str, Any]:
+        timestamp = utc_now()
+        nodes = self.to_bitnodes_nodes(mode)
+
+        dicts = nodes_to_dicts(nodes)
+        latest_height = 0
+
+        for item in dicts:
+            height = to_int(item.get("height"), 0) or 0
+            latest_height = max(latest_height, height)
+
+        network_counts: dict[str, int] = {}
+        reachable_count = 0
+
+        for item in dicts:
+            network = str(item.get("network") or "unknown")
+            network_counts[network] = network_counts.get(network, 0) + 1
+
+            if boolish(item.get("reachable") or item.get("reachable_now")):
+                reachable_count += 1
+
+        return {
+            "schema": "zzx-bitnodes-snapshot-v3",
+            "source": self.source or "zzxbitnodes",
+            "crawler": self.source or "zzxbitnodes",
+            "mode": mode,
+            "timestamp": timestamp,
+            "updated_at": utc_iso(timestamp),
+            "generated_at": utc_iso(timestamp),
+            "total_nodes": len(nodes),
+            "reachable_nodes": reachable_count,
+            "latest_height": latest_height,
+            "network_counts": network_counts,
+            "nodes": nodes,
+        }
+
+    def snapshot_24h(self, payload: dict[str, Any] | None = None) -> Path:
+        payload = payload or self.build_export_payload("reachable_24h")
+        timestamp = int(payload.get("timestamp") or utc_now())
+        path = self.snapshot_24h_dir / (time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(timestamp)) + ".json")
+        write_json(path, payload)
+        return path
+
+    def export_nodes(self, mode: str = "all") -> dict[str, list[Any]]:
+        return self.to_bitnodes_nodes(mode)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "zzx-bitnodes-state-v2",
+            "source": self.source,
+            "saved_at": utc_iso(),
+            "nodes": self.nodes,
+            "queue": list(self.queue),
+            "meta": self.meta,
+        }
+
+    def __len__(self) -> int:
+        return len(self.nodes)
