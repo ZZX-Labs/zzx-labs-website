@@ -6,6 +6,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import sys
 import traceback
 from datetime import datetime, timezone
@@ -47,6 +48,7 @@ ENRICHMENT_ORDER = [
     "vpn",
     "geoip",
     "geoloc",
+    "boundary_zone",
     "continent",
     "region",
     "country",
@@ -55,15 +57,51 @@ ENRICHMENT_ORDER = [
     "city",
     "zip",
     "timezone",
+    "land_parcel",
+    "building_perimeter",
+    "asn_footprint",
     "isp",
+    "organization",
+    "provider",
+    "datacenter",
+    "government",
+    "military",
+    "sanctioned_nodes",
+    "knownmalactor",
+    "tagattribution",
     "w3w_lookup",
     "geohashid_lookup",
-    "sanctioned_nodes",
     "peers",
     "peer_index",
     "peer_health",
     "dns_seeder_health",
 ]
+
+MODULE_PATHS = {
+    "geoip": "geoloc/geoip.py",
+
+    "ipv4": "network/ipv4.py",
+    "ipv6": "network/ipv6.py",
+    "tor": "network/tor.py",
+    "i2p": "network/i2p.py",
+    "proxy": "network/proxy.py",
+    "vpn": "network/vpn.py",
+
+    "isp": "geoclass/isp.py",
+    "organization": "geoclass/organization.py",
+    "provider": "geoclass/provider.py",
+    "datacenter": "geoclass/datacenter.py",
+    "government": "geoclass/government.py",
+    "military": "geoclass/military.py",
+    "sanctioned_nodes": "geoclass/sanctioned_nodes.py",
+    "boundary_zone": "geoclass/boundary_zone.py",
+    "land_parcel": "geoclass/land_parcel.py",
+    "building_perimeter": "geoclass/building_perimeter.py",
+    "asn_footprint": "geoclass/asn_footprint.py",
+
+    "knownmalactor": "threat-detection/knownmalactor.py",
+    "tagattribution": "threat-detection/tagattribution.py",
+}
 
 
 def utc_now() -> str:
@@ -114,24 +152,71 @@ def number(value: Any) -> float | None:
     return parsed
 
 
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    cur: Any = row
+
+    for part in key.split("."):
+        if not isinstance(cur, Mapping):
+            return None
+        cur = cur.get(part)
+
+    return cur
+
+
+def first_present(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+        if value not in ("", None):
+            return value
+    return None
+
+
 def has_valid_coordinates(node: Mapping[str, Any]) -> bool:
-    lat = (
-        node.get("latitude")
-        or node.get("lat")
-        or deep_get(node, "geoip.latitude")
-        or deep_get(node, "geoip_data.latitude")
-        or deep_get(node, "geoloc.latitude")
-        or deep_get(node, "metadata.latitude")
+    lat = first_present(
+        node,
+        (
+            "latitude",
+            "lat",
+            "geo.latitude",
+            "geo.lat",
+            "geoip.latitude",
+            "geoip.lat",
+            "geoip_data.latitude",
+            "geoip_data.lat",
+            "geoloc.latitude",
+            "geoloc.lat",
+            "location.latitude",
+            "location.lat",
+            "metadata.latitude",
+            "metadata.lat",
+        ),
     )
 
-    lon = (
-        node.get("longitude")
-        or node.get("lon")
-        or node.get("lng")
-        or deep_get(node, "geoip.longitude")
-        or deep_get(node, "geoip_data.longitude")
-        or deep_get(node, "geoloc.longitude")
-        or deep_get(node, "metadata.longitude")
+    lon = first_present(
+        node,
+        (
+            "longitude",
+            "lon",
+            "lng",
+            "geo.longitude",
+            "geo.lon",
+            "geo.lng",
+            "geoip.longitude",
+            "geoip.lon",
+            "geoip.lng",
+            "geoip_data.longitude",
+            "geoip_data.lon",
+            "geoip_data.lng",
+            "geoloc.longitude",
+            "geoloc.lon",
+            "geoloc.lng",
+            "location.longitude",
+            "location.lon",
+            "location.lng",
+            "metadata.longitude",
+            "metadata.lon",
+            "metadata.lng",
+        ),
     )
 
     lat_f = number(lat)
@@ -147,17 +232,6 @@ def has_valid_coordinates(node: Mapping[str, Any]) -> bool:
 
 def coordinate_count(nodes: list[dict[str, Any]]) -> int:
     return sum(1 for node in nodes if isinstance(node, Mapping) and has_valid_coordinates(node))
-
-
-def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    cur: Any = row
-
-    for part in key.split("."):
-        if not isinstance(cur, Mapping):
-            return None
-        cur = cur.get(part)
-
-    return cur
 
 
 def normalize_metadata(record: dict[str, Any]) -> dict[str, Any]:
@@ -178,6 +252,82 @@ def normalize_enrichment(record: dict[str, Any]) -> dict[str, Any]:
 
     record["enrichment"] = {}
     return record["enrichment"]
+
+
+def preserve_coordinate_mirrors(record: dict[str, Any]) -> None:
+    lat = first_present(
+        record,
+        (
+            "latitude",
+            "lat",
+            "geo.latitude",
+            "geo.lat",
+            "geoip.latitude",
+            "geoip.lat",
+            "geoip_data.latitude",
+            "geoip_data.lat",
+            "geoloc.latitude",
+            "geoloc.lat",
+            "location.latitude",
+            "location.lat",
+            "metadata.latitude",
+            "metadata.lat",
+        ),
+    )
+
+    lon = first_present(
+        record,
+        (
+            "longitude",
+            "lon",
+            "lng",
+            "geo.longitude",
+            "geo.lon",
+            "geo.lng",
+            "geoip.longitude",
+            "geoip.lon",
+            "geoip.lng",
+            "geoip_data.longitude",
+            "geoip_data.lon",
+            "geoip_data.lng",
+            "geoloc.longitude",
+            "geoloc.lon",
+            "geoloc.lng",
+            "location.longitude",
+            "location.lon",
+            "location.lng",
+            "metadata.longitude",
+            "metadata.lon",
+            "metadata.lng",
+        ),
+    )
+
+    lat_f = number(lat)
+    lon_f = number(lon)
+
+    if lat_f is None or lon_f is None:
+        return
+
+    if not (-90 <= lat_f <= 90 and -180 <= lon_f <= 180):
+        return
+
+    record["latitude"] = lat_f
+    record["longitude"] = lon_f
+    record["lat"] = lat_f
+    record["lon"] = lon_f
+    record["lng"] = lon_f
+
+    for key in ("metadata", "geo", "geoip", "geoip_data", "geoloc", "location"):
+        block = record.get(key)
+        if not isinstance(block, dict):
+            block = {}
+            record[key] = block
+
+        block["latitude"] = lat_f
+        block["longitude"] = lon_f
+        block["lat"] = lat_f
+        block["lon"] = lon_f
+        block["lng"] = lon_f
 
 
 def normalize_node_record(node: Any) -> dict[str, Any]:
@@ -230,6 +380,7 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
         "country",
         "country_code",
         "country_name",
+        "continent",
         "region",
         "territory",
         "city",
@@ -242,11 +393,18 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
         "longitude",
         "lat",
         "lon",
+        "lng",
         "asn",
         "provider",
         "organization",
         "org",
         "isp",
+        "datacenter",
+        "government",
+        "military",
+        "land_parcel",
+        "building_perimeter",
+        "asn_footprint",
     ):
         if key not in record and key in metadata:
             record[key] = metadata.get(key)
@@ -254,6 +412,7 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
     if record.get("peer_health") is not None and not isinstance(record.get("peer_health"), dict):
         record["peer_health"] = {}
 
+    preserve_coordinate_mirrors(record)
     return record
 
 
@@ -395,13 +554,20 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
     return output
 
 
+def module_path(module_name: str) -> Path:
+    rel = MODULE_PATHS.get(module_name, f"{module_name}.py")
+    return TOOLS_DIR / rel
+
+
 def load_module(module_name: str) -> Any | None:
-    path = TOOLS_DIR / f"{module_name}.py"
+    path = module_path(module_name)
 
     if not path.exists():
         return None
 
-    import_name = f"zzx_bitnodes_enrichment_{module_name}"
+    safe_name = re.sub(r"[^a-zA-Z0-9_]", "_", module_name)
+    import_name = f"zzx_bitnodes_enrichment_{safe_name}"
+
     spec = importlib.util.spec_from_file_location(import_name, path)
 
     if spec is None or spec.loader is None:
@@ -581,7 +747,10 @@ def fallback_enrich(name: str, nodes: list[dict[str, Any]]) -> list[dict[str, An
         node["enrichment"][name] = {
             "status": "fallback",
             "updated_at": utc_now(),
+            "module_path": str(module_path(name)),
         }
+
+        preserve_coordinate_mirrors(node)
 
     return nodes
 
@@ -597,7 +766,7 @@ def enrich_nodes(
     context = context or {}
 
     report = {
-        "schema": "zzx-bitnodes-enrichment-report-v6",
+        "schema": "zzx-bitnodes-enrichment-report-v7",
         "generated_at": utc_now(),
         "node_count": len(nodes),
         "initial_coordinate_count": coordinate_count(nodes),
@@ -624,6 +793,7 @@ def enrich_nodes(
 
         module_report = {
             "name": name,
+            "module_path": str(module_path(name)),
             "status": "skipped",
             "message": "",
             "updated_at": utc_now(),
@@ -636,7 +806,7 @@ def enrich_nodes(
         except Exception as err:
             module = None
             module_report["status"] = "error"
-            module_report["message"] = f"{name}.py failed to load: {err}"
+            module_report["message"] = f"{name} failed to load: {err}"
             module_report["traceback"] = traceback.format_exc(limit=5)
 
             if strict:
@@ -651,7 +821,7 @@ def enrich_nodes(
         if module is None:
             enriched = fallback_enrich(name, enriched)
             module_report["status"] = "fallback"
-            module_report["message"] = f"{name}.py not found; fallback enrichment applied."
+            module_report["message"] = f"{name} module not found at {module_path(name)}; fallback enrichment applied."
             module_report["coordinate_count_after"] = coordinate_count(enriched)
             report["modules"].append(module_report)
             continue
@@ -661,7 +831,7 @@ def enrich_nodes(
         if fn is None:
             enriched = fallback_enrich(name, enriched)
             module_report["status"] = "fallback"
-            module_report["message"] = f"{name}.py has no supported enrichment function; fallback enrichment applied."
+            module_report["message"] = f"{name} has no supported enrichment function; fallback enrichment applied."
             module_report["coordinate_count_after"] = coordinate_count(enriched)
             report["modules"].append(module_report)
             continue
@@ -674,13 +844,15 @@ def enrich_nodes(
                     continue
 
                 normalize_enrichment(node)
+                preserve_coordinate_mirrors(node)
                 node["enrichment"][name] = {
                     "status": "ok",
                     "updated_at": utc_now(),
+                    "module_path": str(module_path(name)),
                 }
 
             module_report["status"] = "ok"
-            module_report["message"] = f"{name}.py enrichment completed."
+            module_report["message"] = f"{name} enrichment completed."
 
         except Exception as err:
             module_report["status"] = "error"
@@ -781,6 +953,11 @@ def main() -> int:
     parser.add_argument("--zip-dir", default=str(DEFAULT_ZIP_DIR))
     parser.add_argument("--timezone-dir", default=str(DEFAULT_TIMEZONE_DIR))
 
+    parser.add_argument("--land-parcel-dir", default=str(DEFAULT_GEO_ROOT / "parcels"))
+    parser.add_argument("--building-perimeter-dir", default=str(DEFAULT_GEO_ROOT / "buildings"))
+    parser.add_argument("--asn-footprint-dir", default=str(DEFAULT_GEO_ROOT / "asn-footprints"))
+    parser.add_argument("--boundary-dir", default=str(DEFAULT_GEO_ROOT / "boundaries"))
+
     parser.add_argument("--w3w-cache", default=str(DEFAULT_W3W_CACHE))
     parser.add_argument("--w3w-api-key", default="")
     parser.add_argument("--w3w-language", default="en")
@@ -820,6 +997,11 @@ def main() -> int:
     geohash_cache = Path(args.geohash_cache).resolve()
     sanctions_policy = Path(args.sanctions_policy).resolve()
 
+    land_parcel_dir = Path(args.land_parcel_dir).resolve()
+    building_perimeter_dir = Path(args.building_perimeter_dir).resolve()
+    asn_footprint_dir = Path(args.asn_footprint_dir).resolve()
+    boundary_dir = Path(args.boundary_dir).resolve()
+
     context = {
         "app_root": str(APP_ROOT),
         "tools_dir": str(TOOLS_DIR),
@@ -857,6 +1039,16 @@ def main() -> int:
         "postal_dir": str(zip_dir),
         "timezone_dir": str(timezone_dir),
         "timezones_dir": str(timezone_dir),
+
+        "boundary_dir": str(boundary_dir),
+        "boundaries_dir": str(boundary_dir),
+        "land_parcel_dir": str(land_parcel_dir),
+        "parcels_dir": str(land_parcel_dir),
+        "building_perimeter_dir": str(building_perimeter_dir),
+        "buildings_dir": str(building_perimeter_dir),
+        "asn_footprint_dir": str(asn_footprint_dir),
+        "asn_footprints_dir": str(asn_footprint_dir),
+
         "w3w_cache": str(w3w_cache),
         "w3w_cache_path": str(w3w_cache),
         "w3w_api_key": args.w3w_api_key,
