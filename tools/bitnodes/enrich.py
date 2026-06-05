@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import math
 import os
 import sys
 import traceback
@@ -20,6 +21,10 @@ BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")
 
 DEFAULT_GEO_ROOT = BITNODES_DATA / "geo"
 DEFAULT_GEOIP_DIR = BITNODES_DATA / "geoip"
+
+DEFAULT_GEOIP_CITY_DB = DEFAULT_GEOIP_DIR / "dbip-city-lite.mmdb"
+DEFAULT_GEOIP_ASN_DB = DEFAULT_GEOIP_DIR / "dbip-asn-lite.mmdb"
+DEFAULT_GEOIP_COUNTRY_DB = DEFAULT_GEOIP_DIR / "dbip-country-lite.mmdb"
 
 DEFAULT_TERRITORY_DIR = DEFAULT_GEO_ROOT / "territories"
 DEFAULT_COUNTY_DIR = DEFAULT_GEO_ROOT / "counties"
@@ -69,10 +74,9 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -81,16 +85,79 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    if compact:
-        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-    else:
-        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=None if compact else 2,
+        separators=(",", ":") if compact else None,
+        sort_keys=not compact,
+    )
 
     path.write_text(text + "\n", encoding="utf-8")
 
 
 def clean_address(value: Any) -> str:
     return str(value or "").strip()
+
+
+def number(value: Any) -> float | None:
+    try:
+        if value in ("", None):
+            return None
+        parsed = float(value)
+    except Exception:
+        return None
+
+    if not math.isfinite(parsed):
+        return None
+
+    return parsed
+
+
+def has_valid_coordinates(node: Mapping[str, Any]) -> bool:
+    lat = (
+        node.get("latitude")
+        or node.get("lat")
+        or deep_get(node, "geoip.latitude")
+        or deep_get(node, "geoip_data.latitude")
+        or deep_get(node, "geoloc.latitude")
+        or deep_get(node, "metadata.latitude")
+    )
+
+    lon = (
+        node.get("longitude")
+        or node.get("lon")
+        or node.get("lng")
+        or deep_get(node, "geoip.longitude")
+        or deep_get(node, "geoip_data.longitude")
+        or deep_get(node, "geoloc.longitude")
+        or deep_get(node, "metadata.longitude")
+    )
+
+    lat_f = number(lat)
+    lon_f = number(lon)
+
+    return (
+        lat_f is not None
+        and lon_f is not None
+        and -90 <= lat_f <= 90
+        and -180 <= lon_f <= 180
+    )
+
+
+def coordinate_count(nodes: list[dict[str, Any]]) -> int:
+    return sum(1 for node in nodes if isinstance(node, Mapping) and has_valid_coordinates(node))
+
+
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    cur: Any = row
+
+    for part in key.split("."):
+        if not isinstance(cur, Mapping):
+            return None
+        cur = cur.get(part)
+
+    return cur
 
 
 def normalize_metadata(record: dict[str, Any]) -> dict[str, Any]:
@@ -113,16 +180,6 @@ def normalize_enrichment(record: dict[str, Any]) -> dict[str, Any]:
     return record["enrichment"]
 
 
-def normalize_peer_health(record: dict[str, Any]) -> dict[str, Any]:
-    peer_health = record.get("peer_health")
-
-    if isinstance(peer_health, dict):
-        return peer_health
-
-    record["peer_health"] = {}
-    return record["peer_health"]
-
-
 def normalize_node_record(node: Any) -> dict[str, Any]:
     if isinstance(node, Mapping):
         record = dict(node)
@@ -142,8 +199,7 @@ def normalize_node_record(node: Any) -> dict[str, Any]:
 
     record["address"] = clean_address(address)
 
-    enrichment = record.get("enrichment")
-    if not isinstance(enrichment, dict):
+    if not isinstance(record.get("enrichment"), dict):
         record["enrichment"] = {}
 
     metadata = normalize_metadata(record)
@@ -279,6 +335,7 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
         "unreachable",
         "node_records",
         "peers",
+        "reachable_nodes",
     ):
         value = payload.get(key)
 
@@ -307,11 +364,13 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
         return {"nodes": nodes}
 
     output = dict(payload)
-
     original_nodes = output.get("nodes")
 
     if isinstance(original_nodes, Mapping):
-        output["nodes"] = {node.get("address", str(index)): node for index, node in enumerate(nodes)}
+        output["nodes"] = {
+            str(node.get("address") or index): node
+            for index, node in enumerate(nodes)
+        }
         return output
 
     if isinstance(original_nodes, list):
@@ -326,6 +385,7 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
         "unreachable",
         "node_records",
         "peers",
+        "reachable_nodes",
     ):
         if isinstance(output.get(key), list):
             output[key] = nodes
@@ -537,9 +597,10 @@ def enrich_nodes(
     context = context or {}
 
     report = {
-        "schema": "zzx-bitnodes-enrichment-report-v5",
+        "schema": "zzx-bitnodes-enrichment-report-v6",
         "generated_at": utc_now(),
         "node_count": len(nodes),
+        "initial_coordinate_count": coordinate_count(nodes),
         "selected_modules": selected_modules,
         "modules": [],
         "context": {
@@ -550,17 +611,24 @@ def enrich_nodes(
             "state_dir": context.get("state_dir", ""),
             "geo_root": context.get("geo_root", ""),
             "geoip_dir": context.get("geoip_dir", ""),
+            "city_db": context.get("city_db", ""),
+            "asn_db": context.get("asn_db", ""),
+            "country_db": context.get("country_db", ""),
         },
     }
 
     enriched = [normalize_node_record(node) for node in nodes]
 
     for name in selected_modules:
+        before_coords = coordinate_count(enriched)
+
         module_report = {
             "name": name,
             "status": "skipped",
             "message": "",
             "updated_at": utc_now(),
+            "coordinate_count_before": before_coords,
+            "coordinate_count_after": before_coords,
         }
 
         try:
@@ -576,6 +644,7 @@ def enrich_nodes(
                 raise
 
             enriched = fallback_enrich(name, enriched)
+            module_report["coordinate_count_after"] = coordinate_count(enriched)
             report["modules"].append(module_report)
             continue
 
@@ -583,6 +652,7 @@ def enrich_nodes(
             enriched = fallback_enrich(name, enriched)
             module_report["status"] = "fallback"
             module_report["message"] = f"{name}.py not found; fallback enrichment applied."
+            module_report["coordinate_count_after"] = coordinate_count(enriched)
             report["modules"].append(module_report)
             continue
 
@@ -592,6 +662,7 @@ def enrich_nodes(
             enriched = fallback_enrich(name, enriched)
             module_report["status"] = "fallback"
             module_report["message"] = f"{name}.py has no supported enrichment function; fallback enrichment applied."
+            module_report["coordinate_count_after"] = coordinate_count(enriched)
             report["modules"].append(module_report)
             continue
 
@@ -622,9 +693,11 @@ def enrich_nodes(
 
             enriched = fallback_enrich(name, enriched)
 
+        module_report["coordinate_count_after"] = coordinate_count(enriched)
         report["modules"].append(module_report)
 
     report["node_count"] = len(enriched)
+    report["final_coordinate_count"] = coordinate_count(enriched)
     report["completed_at"] = utc_now()
 
     return enriched, report
@@ -661,6 +734,7 @@ def enrich_payload(
             item["name"]: item["status"]
             for item in report["modules"]
         }
+        output["metadata"]["coordinate_count"] = report["final_coordinate_count"]
 
     return output, report
 
@@ -673,9 +747,18 @@ def parse_modules(value: str | None) -> list[str] | None:
     return output or None
 
 
+def db_status(path: Path) -> dict[str, Any]:
+    return {
+        "path": str(path),
+        "exists": path.exists(),
+        "size_bytes": path.stat().st_size if path.exists() else 0,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run ZZX Bitnodes enrichment modules over crawler JSON output."
+        description="Run ZZX Bitnodes enrichment modules over crawler JSON output.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--input", required=True)
@@ -687,6 +770,10 @@ def main() -> int:
     parser.add_argument("--state-dir", default="")
     parser.add_argument("--geo-root", default=str(DEFAULT_GEO_ROOT))
     parser.add_argument("--geoip-dir", default=str(DEFAULT_GEOIP_DIR))
+
+    parser.add_argument("--city-db", default="")
+    parser.add_argument("--asn-db", default="")
+    parser.add_argument("--country-db", default="")
 
     parser.add_argument("--territory-dir", default=str(DEFAULT_TERRITORY_DIR))
     parser.add_argument("--county-dir", default=str(DEFAULT_COUNTY_DIR))
@@ -719,6 +806,11 @@ def main() -> int:
 
     geo_root = Path(args.geo_root).resolve()
     geoip_dir = Path(args.geoip_dir).resolve()
+
+    city_db = Path(args.city_db).resolve() if args.city_db else geoip_dir / "dbip-city-lite.mmdb"
+    asn_db = Path(args.asn_db).resolve() if args.asn_db else geoip_dir / "dbip-asn-lite.mmdb"
+    country_db = Path(args.country_db).resolve() if args.country_db else geoip_dir / "dbip-country-lite.mmdb"
+
     territory_dir = Path(args.territory_dir).resolve()
     county_dir = Path(args.county_dir).resolve()
     city_dir = Path(args.city_dir).resolve()
@@ -741,6 +833,20 @@ def main() -> int:
         "geo_root": str(geo_root),
         "geo_dir": str(geo_root),
         "geoip_dir": str(geoip_dir),
+
+        "city_db": str(city_db),
+        "geoip_city_db": str(city_db),
+        "asn_db": str(asn_db),
+        "geoip_asn_db": str(asn_db),
+        "country_db": str(country_db),
+        "geoip_country_db": str(country_db),
+
+        "geoip_db_status": {
+            "city": db_status(city_db),
+            "asn": db_status(asn_db),
+            "country": db_status(country_db),
+        },
+
         "territory_dir": str(territory_dir),
         "territories_dir": str(territory_dir),
         "county_dir": str(county_dir),
@@ -778,6 +884,8 @@ def main() -> int:
         strict=args.strict,
     )
 
+    report["geoip_db_status"] = context["geoip_db_status"]
+
     write_json(output_path, output, compact=args.compact)
 
     if report_path:
@@ -786,6 +894,7 @@ def main() -> int:
     print(
         "enrichment complete: "
         f"{report['node_count']} nodes, "
+        f"coordinates={report['final_coordinate_count']}, "
         f"{len(report['modules'])} modules, "
         f"output={output_path}"
     )
