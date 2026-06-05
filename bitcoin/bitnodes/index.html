@@ -14,80 +14,54 @@
     <script src="../../static/script.js" defer></script>
     <script src="./script.js" defer></script>
 </head>
-
 <body data-bn-depth=".">
-
 <header>
     <div id="zzx-header"></div>
-
     <br>
-
     <div id="ticker-container"></div>
-
     <br>
-
     <div id="bn-header"></div>
 </header>
-
 <main class="bn-shell" data-bitnodes-view="home">
-
     <section class="bn-hero container">
         <p class="bn-kicker">ZZX-Labs / Bitcoin Network Intelligence</p>
-
         <h2>Bitnodes Mirror</h2>
-
         <p>
             A local frontend mirror for Bitcoin reachable-node snapshots, network maps,
             node rankings, propagation stats, DNS seeder views, agents, ports, nations,
             cities, ASNs, Tor nodes, uptime, and peer-health telemetry.
         </p>
-
         <div class="bn-sourcebar">
             <label for="bn-source">Data Source</label>
-
             <select id="bn-source">
                 <option value="local" selected>ZZX-Labs Local JSON</option>
             </select>
-
             <button id="bn-refresh" type="button">Refresh</button>
         </div>
     </section>
-
     <br>
-
     <section id="bn-status" class="bn-status container">
         Loading local Bitnodes mirror data…
     </section>
-
     <br>
-
     <section class="bn-grid" id="bn-summary" data-bn-cards></section>
-
     <br>
-
     <section class="bn-panel container">
         <h2>Mirrored API Shape</h2>
         <div id="bn-api-list" class="bn-api-list"></div>
     </section>
-
     <br>
-
     <section class="bn-panel container">
         <h2>Latest Snapshot</h2>
         <div id="bn-table"></div>
     </section>
-
     <br>
-
     <section class="bn-panel container">
         <div id="bn-knotsvscore" data-bn-knotsvscore></div>
     </section>
-
     <br>
-
     <section class="bn-panel container">
         <h2>Reachable / Known Node Charts</h2>
-
         <div class="bn-chart-grid">
             <canvas
                 data-bn-chart="known-vs-reachable"
@@ -95,31 +69,26 @@
                 data-title="Known vs Reachable Nodes"
                 data-center-label="NODES"
             ></canvas>
-
             <canvas
                 data-bn-chart="countries"
                 data-chart-mode="bar"
                 data-title="Top Countries"
             ></canvas>
-
             <canvas
                 data-bn-chart="asns"
                 data-chart-mode="bar"
                 data-title="Top ASNs"
             ></canvas>
-
             <canvas
                 data-bn-chart="agents"
                 data-chart-mode="bar"
                 data-title="Top Agents"
             ></canvas>
-
             <canvas
                 data-bn-chart="ports"
                 data-chart-mode="bar"
                 data-title="Top Ports"
             ></canvas>
-
             <canvas
                 data-bn-chart="versions"
                 data-chart-mode="bar"
@@ -127,9 +96,7 @@
             ></canvas>
         </div>
     </section>
-
     <br>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">GeoIP Intelligence</span>
@@ -139,7 +106,6 @@
             from the selected Bitnodes crawler source.
         </p>
     </header>
-
     <div
         id="bn-geoip"
         class="bn-widget-mount"
@@ -150,9 +116,7 @@
         </div>
     </div>
 </section>
-
 <br>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">VPN / Hosting Intelligence</span>
@@ -162,7 +126,6 @@
             ASN, provider, hostname, and optional curated VPN/provider lists.
         </p>
     </header>
-
     <div
         id="bn-vpn"
         class="bn-widget-mount"
@@ -173,9 +136,7 @@
         </div>
     </div>
 </section>
-
 <br>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">Tor Intelligence</span>
@@ -184,7 +145,6 @@
             Tor / onion node analysis across the selected reachable-node registry.
         </p>
     </header>
-
     <div
         id="bn-tor"
         class="bn-widget-mount"
@@ -195,11 +155,8 @@
         </div>
     </div>
 </section>
-
     <br>
-    
     <br>
-
     <section class="bn-panel container">
         <header class="bn-panel-head">
             <span class="bn-kicker">Bitcoin Client Ecosystem</span>
@@ -210,44 +167,35 @@
             detected across the reachable-node registry.
             </p>
         </header>
-
         <div class="bn-chart-grid">
-
             <canvas
                 data-bn-chart="knots-vs-core"
                 data-chart-mode="donut"
                 data-title="Knots vs Core"
                 data-center-label="CLIENTS"
             ></canvas>
-
             <canvas
                 data-bn-chart="knots-growth"
                 data-chart-mode="line"
                 data-title="Knots Adoption Trend"
             ></canvas>
-
             <canvas
                 data-bn-chart="core-growth"
                 data-chart-mode="line"
                 data-title="Bitcoin Core Adoption Trend"
             ></canvas>
-
             <canvas
                 data-bn-chart="client-heights"
                 data-chart-mode="bar"
                 data-title="Client Height Distribution"
             ></canvas>
-
         </div>
-
         <br>
-
         <div
             id="bn-knotsvscore"
             data-bn-knotsvscore
         ></div>
     </section>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">Bitcoin Clients</span>
@@ -257,7 +205,6 @@
             reachable node implementations.
         </p>
     </header>
-
     <div
         id="bn-agents"
         class="bn-widget-mount"
@@ -268,9 +215,7 @@
         </div>
     </div>
 </section>
-
 <br>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">Protocol Intelligence</span>
@@ -279,7 +224,6 @@
             Distribution of Bitcoin protocol versions reported by reachable nodes.
         </p>
     </header>
-
     <div
         id="bn-versions"
         class="bn-widget-mount"
@@ -290,9 +234,7 @@
         </div>
     </div>
 </section>
-
 <br>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">Network Ports</span>
@@ -302,7 +244,6 @@
             and non-standard ports.
         </p>
     </header>
-
     <div
         id="bn-ports"
         class="bn-widget-mount"
@@ -313,9 +254,7 @@
         </div>
     </div>
 </section>
-
 <br>
-
 <section class="bn-panel container">
     <header class="bn-panel-head">
         <span class="bn-kicker">Service Bits</span>
@@ -325,7 +264,6 @@
             related service-bit support across the selected crawler registry.
         </p>
     </header>
-
     <div
         id="bn-services"
         class="bn-widget-mount"
@@ -336,14 +274,11 @@
         </div>
     </div>
 </section>
-
-    <br><br>
+<br><br>
 </main>
-
 <footer>
     <div id="bn-footer"></div>
     <div id="zzx-footer"></div>
 </footer>
-
 </body>
 </html>
