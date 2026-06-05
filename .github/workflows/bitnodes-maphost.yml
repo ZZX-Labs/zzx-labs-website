@@ -18,6 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
   BITNODES_DATA: bitcoin/bitnodes/data
@@ -30,7 +31,7 @@ env:
 jobs:
   maps:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     steps:
@@ -44,8 +45,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           git fetch origin main
-          git rebase --autostash origin/main
+          git reset --hard origin/main
+
+          printf '%s\n' "Available Bitnodes latest/index/map files:"
+          find bitcoin/bitnodes -maxdepth 6 -type f \
+            \( -name 'latest.json' -o -name 'index.json' -o -name '*.geojson' -o -name 'map-vectors.json' \) \
+            | sort \
+            | sed -n '1,240p'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -58,6 +66,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
@@ -65,6 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/maps.py --help
           python tools/bitnodes/map/live-map.py --help
@@ -75,6 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           mkdir -p \
             "${BITNODES_MAPS}/zzxbitnodes/data" \
             "${BITNODES_MAPS}/originalbitnodes/data" \
@@ -106,11 +117,49 @@ jobs:
               re.S,
           )
 
-          def read_json(path):
+          def read_json(path: Path):
               try:
                   return json.loads(path.read_text(encoding="utf-8"))
               except Exception:
                   return None
+
+          def count_nodes(path: Path) -> int:
+              payload = read_json(path)
+
+              if isinstance(payload, dict):
+                  nodes = payload.get("nodes")
+                  if isinstance(nodes, dict):
+                      return len(nodes)
+                  if isinstance(nodes, list):
+                      return len(nodes)
+
+                  for key in ("reachable_nodes", "data", "results", "rows", "peers", "node_records"):
+                      value = payload.get(key)
+                      if isinstance(value, dict):
+                          return len(value)
+                      if isinstance(value, list):
+                          return len(value)
+
+              if isinstance(payload, list):
+                  return len(payload)
+
+              return 0
+
+          def choose_existing_json(candidates):
+              for item in candidates:
+                  path = Path(item)
+                  if not path.exists():
+                      continue
+                  if path.stat().st_size <= 0:
+                      continue
+
+                  n = count_nodes(path)
+                  print(f"{path}_node_count={n}")
+
+                  if n > 0:
+                      return path
+
+              return None
 
           def fnum(value):
               try:
@@ -119,89 +168,6 @@ jobs:
                   return float(value)
               except Exception:
                   return None
-
-          def node_items(payload):
-              if not isinstance(payload, dict):
-                  return []
-
-              nodes = payload.get("nodes")
-
-              if isinstance(nodes, dict):
-                  return list(nodes.items())
-
-              if isinstance(nodes, list):
-                  return [(str(i), item) for i, item in enumerate(nodes)]
-
-              for key in ("reachable_nodes", "data", "results", "rows", "peers", "node_records"):
-                  value = payload.get(key)
-                  if isinstance(value, dict):
-                      return list(value.items())
-                  if isinstance(value, list):
-                      return [(str(i), item) for i, item in enumerate(value)]
-
-              return []
-
-          def getval(item, keys):
-              if isinstance(item, dict):
-                  for key in keys:
-                      cur = item
-                      ok = True
-                      for part in key.split("."):
-                          if not isinstance(cur, dict) or part not in cur:
-                              ok = False
-                              break
-                          cur = cur[part]
-                      if ok and cur not in ("", None):
-                          return cur
-
-              if isinstance(item, list):
-                  idxs = {
-                      "latitude": 8,
-                      "lat": 8,
-                      "longitude": 9,
-                      "lon": 9,
-                      "lng": 9,
-                  }
-
-                  for key in keys:
-                      idx = idxs.get(key)
-                      if idx is not None and len(item) > idx and item[idx] not in ("", None):
-                          return item[idx]
-
-              return None
-
-          def has_coords(path):
-              payload = read_json(path)
-
-              for _address, item in node_items(payload)[:5000]:
-                  lat = fnum(getval(item, (
-                      "latitude",
-                      "lat",
-                      "geo.latitude",
-                      "geoip.latitude",
-                      "metadata.latitude",
-                      "location.latitude",
-                  )))
-                  lon = fnum(getval(item, (
-                      "longitude",
-                      "lon",
-                      "lng",
-                      "geo.longitude",
-                      "geoip.longitude",
-                      "metadata.longitude",
-                      "location.longitude",
-                  )))
-                  if lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180:
-                      return True
-
-              return False
-
-          def choose_json(candidates):
-              for item in candidates:
-                  path = Path(item)
-                  if path.exists() and path.stat().st_size > 0 and has_coords(path):
-                      return path
-              return None
 
           def split_sql_values(text):
               values = []
@@ -245,79 +211,83 @@ jobs:
               return None if value.upper() == "NULL" else value
 
           def build_from_mariadb(source_name):
-              shard_dir = DATA / "mariadb"
-
-              if not shard_dir.exists():
-                  return None
+              shard_dirs = [
+                  DATA / "mariadb",
+                  DATA,
+              ]
 
               rows = {}
 
-              for shard in sorted(shard_dir.glob("*.sql.gz")):
-                  if "control" in shard.name:
+              for shard_dir in shard_dirs:
+                  if not shard_dir.exists():
                       continue
 
-                  try:
-                      with gzip.open(shard, "rt", encoding="utf-8", errors="replace") as handle:
-                          text = handle.read()
-                  except Exception:
-                      continue
-
-                  for match in INSERT_RE.finditer(text):
-                      cols = [x.strip().strip("`") for x in match.group("cols").split(",")]
-                      vals = split_sql_values(match.group("vals"))
-
-                      if len(cols) != len(vals):
+                  for shard in sorted(shard_dir.glob("*.sql.gz")):
+                      if "control" in shard.name:
                           continue
 
-                      row = dict(zip(cols, [sql_clean(v) for v in vals]))
-
-                      if row.get("source_name") != source_name:
+                      try:
+                          with gzip.open(shard, "rt", encoding="utf-8", errors="replace") as handle:
+                              text = handle.read()
+                      except Exception:
                           continue
 
-                      lat = fnum(row.get("latitude"))
-                      lon = fnum(row.get("longitude"))
+                      for match in INSERT_RE.finditer(text):
+                          cols = [x.strip().strip("`") for x in match.group("cols").split(",")]
+                          vals = split_sql_values(match.group("vals"))
 
-                      if lat is None or lon is None:
-                          continue
+                          if len(cols) != len(vals):
+                              continue
 
-                      if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                          continue
+                          row = dict(zip(cols, [sql_clean(v) for v in vals]))
 
-                      address = row.get("address") or row.get("node_id")
-                      if not address:
-                          continue
+                          if row.get("source_name") != source_name:
+                              continue
 
-                      rows[address] = {
-                          "address": address,
-                          "node_id": row.get("node_id"),
-                          "source": row.get("source_name"),
-                          "host": row.get("host"),
-                          "port": row.get("port"),
-                          "network": row.get("network"),
-                          "agent": row.get("agent"),
-                          "protocol": row.get("protocol"),
-                          "services": row.get("services"),
-                          "height": row.get("height"),
-                          "city": row.get("city"),
-                          "country": row.get("country"),
-                          "territory": row.get("territory"),
-                          "county": row.get("county"),
-                          "zip_code": row.get("zip_code"),
-                          "timezone": row.get("timezone"),
-                          "latitude": lat,
-                          "longitude": lon,
-                          "asn": row.get("asn"),
-                          "organization": row.get("organization"),
-                          "provider": row.get("provider"),
-                          "w3w": row.get("w3w"),
-                          "zzxgcs": row.get("zzxgcs"),
-                          "geohash": row.get("geohash"),
-                          "reachable": row.get("reachable"),
-                          "reachable_now": row.get("reachable_now"),
-                          "reachable_24h": row.get("reachable_24h"),
-                          "latency_ms": row.get("latency_ms"),
-                          "last_seen": row.get("last_seen"),
-                      }
+                          lat = fnum(row.get("latitude"))
+                          lon = fnum(row.get("longitude"))
+
+                          if lat is None or lon is None:
+                              continue
+
+                          if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                              continue
+
+                          address = row.get("address") or row.get("node_id")
+                          if not address:
+                              continue
+
+                          rows[address] = {
+                              "address": address,
+                              "node_id": row.get("node_id"),
+                              "source": row.get("source_name"),
+                              "host": row.get("host"),
+                              "port": row.get("port"),
+                              "network": row.get("network"),
+                              "agent": row.get("agent"),
+                              "protocol": row.get("protocol"),
+                              "services": row.get("services"),
+                              "height": row.get("height"),
+                              "city": row.get("city"),
+                              "country": row.get("country"),
+                              "territory": row.get("territory"),
+                              "county": row.get("county"),
+                              "zip_code": row.get("zip_code"),
+                              "timezone": row.get("timezone"),
+                              "latitude": lat,
+                              "longitude": lon,
+                              "asn": row.get("asn"),
+                              "organization": row.get("organization"),
+                              "provider": row.get("provider"),
+                              "w3w": row.get("w3w"),
+                              "zzxgcs": row.get("zzxgcs"),
+                              "geohash": row.get("geohash"),
+                              "reachable": row.get("reachable"),
+                              "reachable_now": row.get("reachable_now"),
+                              "reachable_24h": row.get("reachable_24h"),
+                              "latency_ms": row.get("latency_ms"),
+                              "last_seen": row.get("last_seen"),
+                          }
 
               if not rows:
                   return None
@@ -326,7 +296,7 @@ jobs:
               out.write_text(
                   json.dumps(
                       {
-                          "schema": "zzx-bitnodes-map-source-from-db-v3",
+                          "schema": "zzx-bitnodes-map-source-from-db-v4",
                           "source": source_name,
                           "nodes": rows,
                       },
@@ -335,39 +305,45 @@ jobs:
                   ) + "\n",
                   encoding="utf-8",
               )
+
+              print(f"{out}_node_count={len(rows)}")
               return out
 
-          zzx = choose_json([
+          zzx = choose_existing_json([
               API / "enriched" / "zzxbitnodes" / "latest.json",
               API / "zzxbitnodes" / "latest.json",
+              API / "data" / "latest.json",
           ]) or build_from_mariadb("zzxbitnodes")
 
-          original = choose_json([
+          original = choose_existing_json([
               API / "enriched" / "originalbitnodes" / "latest.json",
               API / "originalbitnodes" / "latest.json",
           ]) or build_from_mariadb("originalbitnodes")
 
-          if zzx is None or original is None:
+          if zzx is None:
               print("map_ready=false")
               print("zzx_input=")
               print("original_input=")
           else:
               print("map_ready=true")
               print(f"zzx_input={zzx}")
-              print(f"original_input={original}")
+              print(f"original_input={original or ''}")
           PY
 
       - name: Skip maphost when no node source exists
         if: steps.sources.outputs.map_ready != 'true'
         shell: bash
         run: |
-          printf '%s\n' "No node-level map source exists yet. Skipping map build until crawler publishes enriched JSON or MariaDB shards."
+          set -euo pipefail
+
+          printf '%s\n' "No node-level ZZX map source exists yet. Skipping map build."
 
       - name: Build ZZX Bitnodes maps
         if: steps.sources.outputs.map_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py maps \
             --input "${{ steps.sources.outputs.zzx_input }}" \
             --api-dir "${BITNODES_API}" \
@@ -379,13 +355,14 @@ jobs:
             --settings default \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty || true
+            --fail-empty
 
       - name: Build Original Bitnodes maps
-        if: steps.sources.outputs.map_ready == 'true'
+        if: steps.sources.outputs.map_ready == 'true' && steps.sources.outputs.original_input != ''
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py maps \
             --input "${{ steps.sources.outputs.original_input }}" \
             --api-dir "${BITNODES_API}" \
@@ -397,7 +374,7 @@ jobs:
             --settings default \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty || true
+            --fail-empty
 
       - name: Build canonical live-map data
         if: steps.sources.outputs.map_ready == 'true'
@@ -416,7 +393,7 @@ jobs:
             --settings live \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty || true
+            --fail-empty
 
           mkdir -p "${BITNODES_LIVE_MAP}/data" "${BITNODES_MAPS}/data"
 
@@ -426,6 +403,9 @@ jobs:
             --geojson "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
             --source zzxbitnodes \
             --compact
+
+          test -f "${BITNODES_LIVE_MAP}/data/map-vectors.json"
+          test -f "${BITNODES_LIVE_MAP}/data/map-points.geojson"
 
           cp "${BITNODES_LIVE_MAP}/data/map-vectors.json" "${BITNODES_MAPS}/data/map-vectors.json"
           cp "${BITNODES_LIVE_MAP}/data/map-points.geojson" "${BITNODES_MAPS}/data/map-points.geojson"
@@ -515,6 +495,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python - <<'PY'
           import os
           from pathlib import Path
@@ -549,6 +530,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          rm -rf "${BITNODES_API}/data/map-source" || true
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find bitcoin/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
