@@ -13,7 +13,6 @@ from typing import Any, Mapping
 
 
 APP_ROOT = Path(__file__).resolve().parents[2]
-
 BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")))
 
@@ -37,11 +36,9 @@ def utc_now() -> str:
 def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
-
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -49,28 +46,20 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 
 def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if pretty:
-        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-    else:
-        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=2 if pretty else None,
+        separators=None if pretty else (",", ":"),
+        sort_keys=pretty,
+    )
     path.write_text(text + "\n", encoding="utf-8")
 
 
-def run(
-    cmd: list[str],
-    *,
-    cwd: Path,
-    check: bool = True,
-    dry_run: bool = False,
-) -> subprocess.CompletedProcess[str] | None:
-    printable = " ".join(cmd)
-    print(f"[push_ipdb.py] {cwd} $ {printable}", flush=True)
-
+def run(cmd: list[str], *, cwd: Path, check: bool = True, dry_run: bool = False):
+    print(f"[push_ipdb.py] {cwd} $ {' '.join(cmd)}", flush=True)
     if dry_run:
         return None
-
     return subprocess.run(
         cmd,
         cwd=str(cwd),
@@ -81,30 +70,19 @@ def run(
     )
 
 
-def require_git_repo(path: Path) -> None:
-    if not path.exists():
-        raise SystemExit(f"archive repo directory does not exist: {path}")
-
-    if not (path / ".git").exists():
-        raise SystemExit(f"archive repo directory is not a git repository: {path}")
-
-
 def file_sha256(path: Path) -> str:
     import hashlib
 
     digest = hashlib.sha256()
-
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
-
     return digest.hexdigest()
 
 
 def copy_file(src: Path, dst: Path) -> dict[str, Any]:
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
-
     return {
         "source": str(src),
         "destination": str(dst),
@@ -116,7 +94,6 @@ def copy_file(src: Path, dst: Path) -> dict[str, Any]:
 
 def index_segment_paths(index: Mapping[str, Any], archive_dir: Path) -> list[Path]:
     paths: list[Path] = []
-
     segments = index.get("segments", [])
 
     if not isinstance(segments, list):
@@ -127,12 +104,10 @@ def index_segment_paths(index: Mapping[str, Any], archive_dir: Path) -> list[Pat
             continue
 
         filename = str(item.get("filename") or "").strip()
-
         if not filename:
             continue
 
         path = archive_dir / filename
-
         if path.exists():
             paths.append(path)
 
@@ -141,13 +116,9 @@ def index_segment_paths(index: Mapping[str, Any], archive_dir: Path) -> list[Pat
 
 def existing_archive_manifest(path: Path) -> dict[str, Any]:
     manifest = read_json(path, fallback={})
+    out = dict(manifest) if isinstance(manifest, Mapping) else {}
 
-    if isinstance(manifest, Mapping):
-        out = dict(manifest)
-    else:
-        out = {}
-
-    out.setdefault("schema", "zzx-bitnodes-ipdb-private-archive-manifest-v1")
+    out.setdefault("schema", "zzx-bitnodes-ipdb-archive-manifest-v2")
     out.setdefault("created_at", utc_now())
     out.setdefault("updated_at", utc_now())
     out.setdefault("segments", {})
@@ -168,8 +139,7 @@ def copy_ipdb_archive(
     source_stats_path: Path,
     source_latest_path: Path,
     source_archive_dir: Path,
-    private_repo_dir: Path,
-    destination_subdir: str,
+    destination_root: Path,
     include_latest: bool,
     include_stats: bool,
     include_index: bool,
@@ -180,35 +150,29 @@ def copy_ipdb_archive(
     if not isinstance(index, Mapping):
         raise SystemExit(f"invalid IP DB index: {source_index_path}")
 
-    destination_root = private_repo_dir / destination_subdir
     destination_archive_dir = destination_root / "archive"
     destination_current_dir = destination_root / "current"
     manifest_path = destination_root / "ip_db.archive-manifest.json"
 
     manifest = existing_archive_manifest(manifest_path)
-
     copied: list[dict[str, Any]] = []
     skipped: list[str] = []
 
-    segment_paths = index_segment_paths(index, source_archive_dir)
-
-    for src in segment_paths:
+    for src in index_segment_paths(index, source_archive_dir):
         dst = destination_archive_dir / src.name
-
         src_sha = file_sha256(src)
-        manifest_item = manifest["segments"].get(src.name)
+        old = manifest["segments"].get(src.name)
 
-        if only_new and dst.exists() and isinstance(manifest_item, Mapping):
-            if manifest_item.get("sha256") == src_sha:
-                skipped.append(src.name)
-                continue
+        if only_new and dst.exists() and isinstance(old, Mapping) and old.get("sha256") == src_sha:
+            skipped.append(src.name)
+            continue
 
         info = copy_file(src, dst)
         copied.append(info)
 
         manifest["segments"][src.name] = {
             "filename": src.name,
-            "path": str(dst.relative_to(private_repo_dir)),
+            "path": str(dst.relative_to(destination_root)),
             "size_bytes": info["size_bytes"],
             "sha256": info["sha256"],
             "copied_at": utc_now(),
@@ -228,7 +192,7 @@ def copy_ipdb_archive(
     manifest["updated_at"] = utc_now()
     manifest["source_index"] = str(source_index_path)
     manifest["source_archive_dir"] = str(source_archive_dir)
-    manifest["destination_subdir"] = destination_subdir
+    manifest["destination_root"] = str(destination_root)
     manifest["segment_count"] = len(manifest["segments"])
     manifest["last_run"] = {
         "updated_at": utc_now(),
@@ -241,11 +205,10 @@ def copy_ipdb_archive(
     write_json(manifest_path, manifest, pretty=True)
 
     return {
-        "schema": "zzx-bitnodes-ipdb-push-report-v1",
+        "schema": "zzx-bitnodes-ipdb-push-report-v2",
         "updated_at": utc_now(),
         "source_index_path": str(source_index_path),
         "source_archive_dir": str(source_archive_dir),
-        "private_repo_dir": str(private_repo_dir),
         "destination_root": str(destination_root),
         "copied_segments": copied,
         "skipped_segments": skipped,
@@ -263,8 +226,14 @@ def git_has_changes(repo_dir: Path) -> bool:
         stderr=subprocess.PIPE,
         check=False,
     )
-
     return bool(result.stdout.strip())
+
+
+def require_git_repo(path: Path) -> None:
+    if not path.exists():
+        raise SystemExit(f"archive repo directory does not exist: {path}")
+    if not (path / ".git").exists():
+        raise SystemExit(f"archive repo directory is not a git repository: {path}")
 
 
 def git_sync_and_push(
@@ -277,6 +246,8 @@ def git_sync_and_push(
     no_pull: bool,
     no_push: bool,
 ) -> None:
+    require_git_repo(repo_dir)
+
     run(["git", "config", "user.name", "zzx-labs-ipdb-archive-bot"], cwd=repo_dir, dry_run=dry_run)
     run(["git", "config", "user.email", "actions@github.com"], cwd=repo_dir, dry_run=dry_run)
 
@@ -287,7 +258,6 @@ def git_sync_and_push(
     run(["git", "add", "-A"], cwd=repo_dir, dry_run=dry_run)
 
     if dry_run:
-        print("[push_ipdb.py] dry-run: skipping git status/commit/push final mutations", flush=True)
         return
 
     if not git_has_changes(repo_dir):
@@ -300,12 +270,13 @@ def git_sync_and_push(
         run(["git", "push", remote, f"HEAD:{branch}"], cwd=repo_dir)
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Copy segmented Bitnodes IP DB archive files into a private archive repository and optionally git-push them."
+        description="Copy segmented Bitnodes IP DB archive files into a local/public dir or private archive repo.",
+        allow_abbrev=False,
     )
 
-    parser.add_argument("--ipdb-dir", default=str(DEFAULT_IPDB_DIR))
+    parser.add_argument("--ipdb-dir", "--source-dir", dest="ipdb_dir", default=str(DEFAULT_IPDB_DIR))
     parser.add_argument("--index", default=str(DEFAULT_INDEX_PATH))
     parser.add_argument("--stats", default=str(DEFAULT_STATS_PATH))
     parser.add_argument("--latest", default=str(DEFAULT_LATEST_PATH))
@@ -313,6 +284,7 @@ def main() -> int:
 
     parser.add_argument("--private-repo-dir", default=str(DEFAULT_PRIVATE_REPO_DIR))
     parser.add_argument("--destination-subdir", default="bitcoin/bitnodes/ip_db")
+    parser.add_argument("--output-dir", default="")
     parser.add_argument("--report", default="")
 
     parser.add_argument("--include-latest", action="store_true")
@@ -329,14 +301,15 @@ def main() -> int:
     parser.add_argument("--copy-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
 
+    parser.add_argument("--manifest", default="", help="Legacy compatibility argument; ignored.")
+    parser.add_argument("--compact", action="store_true", help="Legacy compatibility argument; affects report formatting only.")
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
     args = parser.parse_args()
-
-    private_repo_dir = Path(args.private_repo_dir).expanduser().resolve()
-
-    if not str(private_repo_dir):
-        raise SystemExit("missing --private-repo-dir or BITNODES_IPDB_ARCHIVE_REPO")
-
-    require_git_repo(private_repo_dir)
 
     source_index_path = Path(args.index).resolve()
     source_stats_path = Path(args.stats).resolve()
@@ -344,18 +317,53 @@ def main() -> int:
     source_archive_dir = Path(args.archive_dir).resolve()
 
     if not source_index_path.exists():
-        raise SystemExit(f"missing source IP DB index: {source_index_path}")
+        print(f"[push_ipdb.py] missing source IP DB index: {source_index_path}", flush=True)
+        if args.copy_only or args.no_push:
+            report = {
+                "schema": "zzx-bitnodes-ipdb-push-report-v2",
+                "updated_at": utc_now(),
+                "status": "skipped",
+                "reason": "missing source IP DB index",
+                "source_index_path": str(source_index_path),
+            }
+            if args.report:
+                write_json(Path(args.report), report, pretty=not args.compact)
+            return 0
+        raise SystemExit(1)
 
     if not source_archive_dir.exists():
-        raise SystemExit(f"missing source IP DB archive dir: {source_archive_dir}")
+        print(f"[push_ipdb.py] missing source IP DB archive dir: {source_archive_dir}", flush=True)
+        if args.copy_only or args.no_push:
+            report = {
+                "schema": "zzx-bitnodes-ipdb-push-report-v2",
+                "updated_at": utc_now(),
+                "status": "skipped",
+                "reason": "missing source IP DB archive dir",
+                "source_archive_dir": str(source_archive_dir),
+            }
+            if args.report:
+                write_json(Path(args.report), report, pretty=not args.compact)
+            return 0
+        raise SystemExit(1)
+
+    if args.output_dir:
+        destination_root = Path(args.output_dir).resolve()
+        repo_dir = None
+    else:
+        private_repo_dir = Path(args.private_repo_dir).expanduser()
+        if str(private_repo_dir) and str(private_repo_dir) != ".":
+            repo_dir = private_repo_dir.resolve()
+            destination_root = repo_dir / args.destination_subdir.strip("/")
+        else:
+            repo_dir = None
+            destination_root = Path(args.ipdb_dir).resolve() / "published"
 
     report = copy_ipdb_archive(
         source_index_path=source_index_path,
         source_stats_path=source_stats_path,
         source_latest_path=source_latest_path,
         source_archive_dir=source_archive_dir,
-        private_repo_dir=private_repo_dir,
-        destination_subdir=args.destination_subdir.strip("/"),
+        destination_root=destination_root,
         include_latest=args.include_latest,
         include_stats=not args.no_stats,
         include_index=not args.no_index,
@@ -363,11 +371,13 @@ def main() -> int:
     )
 
     if args.report:
-        write_json(Path(args.report), report, pretty=True)
+        write_json(Path(args.report), report, pretty=not args.compact)
 
     if not args.copy_only:
+        if repo_dir is None:
+            raise SystemExit("missing --private-repo-dir or BITNODES_IPDB_ARCHIVE_REPO for git push mode")
         git_sync_and_push(
-            repo_dir=private_repo_dir,
+            repo_dir=repo_dir,
             remote=args.remote,
             branch=args.branch,
             commit_message=args.commit_message,
@@ -380,7 +390,7 @@ def main() -> int:
         "push_ipdb complete: "
         f"copied={len(report['copied_segments'])}, "
         f"skipped={len(report['skipped_segments'])}, "
-        f"repo={private_repo_dir}"
+        f"destination={destination_root}"
     )
 
     return 0
