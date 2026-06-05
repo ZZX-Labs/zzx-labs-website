@@ -395,46 +395,17 @@ jobs:
             --compact \
             --fail-empty
 
-          mkdir -p "${BITNODES_LIVE_MAP}/data" "${BITNODES_MAPS}/data"
-
-          python tools/bitnodes/map/mapvectors.py \
-            --input "${{ steps.sources.outputs.zzx_input }}" \
-            --output "${BITNODES_LIVE_MAP}/data/map-vectors.json" \
-            --geojson "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
-            --source zzxbitnodes \
-            --compact
-
-          test -f "${BITNODES_LIVE_MAP}/data/map-vectors.json"
           test -f "${BITNODES_LIVE_MAP}/data/map-points.geojson"
+          test -f "${BITNODES_LIVE_MAP}/data/map-vectors.json"
+          test -f "${BITNODES_LIVE_MAP}/data/map-settings.json"
+          test -f "${BITNODES_LIVE_MAP}/data/map-theme.json"
+          test -f "${BITNODES_LIVE_MAP}/data/vector-types.json"
 
-          cp "${BITNODES_LIVE_MAP}/data/map-vectors.json" "${BITNODES_MAPS}/data/map-vectors.json"
-          cp "${BITNODES_LIVE_MAP}/data/map-points.geojson" "${BITNODES_MAPS}/data/map-points.geojson"
+          cp -f "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
+                "${BITNODES_MAPS}/data/map-points.geojson"
 
-          VECTORS="${BITNODES_LIVE_MAP}/data/map-vectors.json"
-
-          for TOOL in \
-            mapregions.py \
-            mapcontinents.py \
-            mapcountries.py \
-            mapterritories.py \
-            mapcounties.py \
-            mapcities.py \
-            mapparcels.py \
-            mapbuildings.py \
-            maptimezones.py \
-            mapw3waddresses.py \
-            mapzzxgcsaddresses.py \
-            mapgeohashids.py \
-            mapnodes.py
-          do
-            if [ -f "tools/bitnodes/map/${TOOL}" ]; then
-              python "tools/bitnodes/map/${TOOL}" \
-                --vectors "${VECTORS}" \
-                --map-dir "${BITNODES_MAPS}" \
-                --live-map-dir "${BITNODES_LIVE_MAP}" \
-                --compact
-            fi
-          done
+          cp -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" \
+                "${BITNODES_MAPS}/data/map-vectors.json"
 
       - name: Validate canonical live-map output
         if: steps.sources.outputs.map_ready == 'true'
