@@ -1,5 +1,3 @@
-@import url("../maps/map.css");
-
 .bn-live-map-page .bn-map-panel {
     overflow: hidden;
 }
@@ -8,8 +6,7 @@
     border-color: rgba(230, 164, 43, 0.18);
 }
 
-.bn-live-map-page .bn-map-hud article:first-child,
-.bn-live-map-page .bn-map-hud .bn-map-pill:first-child {
+.bn-live-map-page .bn-map-hud article:first-child {
     border-color: rgba(230, 164, 43, 0.26);
     box-shadow: 0 0 18px rgba(230, 164, 43, 0.08);
 }
@@ -48,17 +45,80 @@
     }
 }
 
-.bn-live-map-page .bn-map-status.live {
+/* ==========================================================
+   Live Status States
+   ========================================================== */
+
+.bn-live-map-page #bn-map-status.live {
     border-color: rgba(192, 214, 116, 0.30);
     color: var(--bn-map-accent, #c0d674);
 }
 
-.bn-live-map-page .bn-map-status.warn {
+.bn-live-map-page #bn-map-status.warn {
     border-color: rgba(230, 164, 43, 0.30);
     color: var(--bn-map-ochre, #e6a42b);
 }
 
-.bn-live-map-page .bn-map-status.error {
+.bn-live-map-page #bn-map-status.error {
     border-color: rgba(217, 92, 92, 0.30);
     color: var(--bn-map-danger, #d95c5c);
+}
+
+/* ==========================================================
+   Live Map Visual Accents
+   ========================================================== */
+
+.bn-live-map-page .bn-live-map {
+    position: relative;
+}
+
+.bn-live-map-page .leaflet-container {
+    background: var(--bn-map-background, #050705);
+}
+
+.bn-live-map-page .leaflet-popup-content {
+    font-family: var(--bn-map-font, "IBM Plex Mono", monospace);
+}
+
+.bn-live-map-page .leaflet-control-attribution {
+    font-size: 0.7rem;
+}
+
+.bn-live-map-page .leaflet-control-attribution a {
+    color: var(--bn-map-accent, #c0d674);
+}
+
+/* ==========================================================
+   HUD Enhancements
+   ========================================================== */
+
+.bn-live-map-page .bn-map-hud article {
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.25s ease;
+}
+
+.bn-live-map-page .bn-map-hud article:hover {
+    border-color: rgba(192, 214, 116, 0.28);
+    transform: translateY(-2px);
+}
+
+/* ==========================================================
+   Legend Enhancements
+   ========================================================== */
+
+.bn-live-map-page .bn-map-legend {
+    align-items: center;
+}
+
+.bn-live-map-page .bn-map-legend span {
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.bn-live-map-page .bn-map-legend span:hover {
+    border-color: rgba(192, 214, 116, 0.25);
+    background: rgba(192, 214, 116, 0.04);
 }
