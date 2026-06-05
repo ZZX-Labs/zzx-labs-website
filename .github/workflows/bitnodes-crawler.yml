@@ -228,6 +228,8 @@ jobs:
             --archive-replay-files "${{ steps.profile.outputs.archive_replay_files }}" \
             --export-mode reachable_24h \
             --mirror-legacy-api \
+            --no-enrich-after \
+            --no-aggregate-after \
             --no-export-all-after \
             --compact
 
@@ -316,21 +318,22 @@ jobs:
             --archive-dir "${BITNODES_GEOIP}/archive" \
             --max-segment-bytes "${MAX_PUBLIC_JSON_BYTES}" \
             --source zzxbitnodes \
-            --compact
+            --update-db \
+            --compact \
+            --report "${BITNODES_GEOIP}/ip_db.run-report.json"
 
-          if [ -f tools/bitnodes/push_ipdb.py ]; then
-            python tools/bitnodes/push_ipdb.py \
-              --ipdb-dir "${BITNODES_GEOIP}" \
-              --latest "${BITNODES_GEOIP}/current/ip_db.latest.json" \
-              --index "${BITNODES_GEOIP}/current/ip_db.index.json" \
-              --stats "${BITNODES_GEOIP}/current/ip_db.stats.json" \
-              --archive-dir "${BITNODES_GEOIP}/archive" \
-              --report "${BITNODES_GEOIP}/ip_db.push-report.json" \
-              --include-latest \
-              --copy-only \
-              --no-pull \
-              --no-push || true
-          fi
+          python tools/bitnodes/push_ipdb.py \
+            --ipdb-dir "${BITNODES_GEOIP}" \
+            --latest "${BITNODES_GEOIP}/current/ip_db.latest.json" \
+            --index "${BITNODES_GEOIP}/current/ip_db.index.json" \
+            --stats "${BITNODES_GEOIP}/current/ip_db.stats.json" \
+            --archive-dir "${BITNODES_GEOIP}/archive" \
+            --report "${BITNODES_GEOIP}/ip_db.push-report.json" \
+            --include-latest \
+            --copy-only \
+            --no-pull \
+            --no-push \
+            --compact || true
 
       - name: Export MariaDB gzip shards
         shell: bash
