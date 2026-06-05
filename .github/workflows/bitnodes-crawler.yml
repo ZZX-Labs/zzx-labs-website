@@ -115,25 +115,61 @@ jobs:
         run: |
           set -euo pipefail
 
-          python -m py_compile tools/bitnodes/crawl.py
-          python -m py_compile tools/bitnodes/enrich.py
-          python -m py_compile tools/bitnodes/geoip.py
-          python -m py_compile tools/bitnodes/geoloc.py
-          python -m py_compile tools/bitnodes/aggregate.py
-          python -m py_compile tools/bitnodes/ip_db.py
-          python -m py_compile tools/bitnodes/push_ipdb.py
-          python -m py_compile tools/bitnodes/export_db.py
-          python -m py_compile tools/bitnodes/build_geo_indexes.py
-          python -m py_compile tools/bitnodes/map/map.py
-          python -m py_compile tools/bitnodes/map/maps.py
-          python -m py_compile tools/bitnodes/map/live-map.py
-          python -m py_compile tools/bitnodes/map/mapplotter.py
-          python -m py_compile tools/bitnodes/map/mapvectors.py
-          python -m py_compile tools/bitnodes/map/mapnodes.py
+          REQUIRED=(
+            tools/bitnodes/crawl.py
+            tools/bitnodes/enrich.py
+            tools/bitnodes/geoloc.py
+            tools/bitnodes/aggregate.py
+            tools/bitnodes/ip_db.py
+            tools/bitnodes/push_ipdb.py
+            tools/bitnodes/export_db.py
+            tools/bitnodes/build_geo_indexes.py
+            tools/bitnodes/map/map.py
+            tools/bitnodes/map/maps.py
+            tools/bitnodes/map/live-map.py
+            tools/bitnodes/map/mapplotter.py
+            tools/bitnodes/map/mapvectors.py
+            tools/bitnodes/map/mapnodes.py
+          )
+
+          MOVED_MODULES=(
+            tools/bitnodes/network/ipv4.py
+            tools/bitnodes/network/ipv6.py
+            tools/bitnodes/network/tor.py
+            tools/bitnodes/network/i2p.py
+            tools/bitnodes/network/proxy.py
+            tools/bitnodes/network/vpn.py
+            tools/bitnodes/geoclass/isp.py
+            tools/bitnodes/geoclass/organization.py
+            tools/bitnodes/geoclass/provider.py
+            tools/bitnodes/geoclass/datacenter.py
+            tools/bitnodes/geoclass/government.py
+            tools/bitnodes/geoclass/military.py
+            tools/bitnodes/geoclass/sanctioned_nodes.py
+            tools/bitnodes/threat-detection/knownmalactor.py
+            tools/bitnodes/threat-detection/tagattribution.py
+          )
+
+          OPTIONAL_NEW_MODULES=(
+            tools/bitnodes/geoclass/boundary_zone.py
+            tools/bitnodes/geoclass/land_parcel.py
+            tools/bitnodes/geoclass/building_perimeter.py
+            tools/bitnodes/geoclass/asn_footprint.py
+          )
+
+          for FILE in "${REQUIRED[@]}" "${MOVED_MODULES[@]}"; do
+            test -f "${FILE}"
+            python -m py_compile "${FILE}"
+          done
+
+          for FILE in "${OPTIONAL_NEW_MODULES[@]}"; do
+            if [ -f "${FILE}" ]; then
+              python -m py_compile "${FILE}"
+            fi
+          done
 
           python tools/bitnodes/crawl.py --help
           python tools/bitnodes/enrich.py --help
-          python tools/bitnodes/geoip.py --help
           python tools/bitnodes/aggregate.py --help
           python tools/bitnodes/ip_db.py --help
           python tools/bitnodes/push_ipdb.py --help
