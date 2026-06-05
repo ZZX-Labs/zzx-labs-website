@@ -120,25 +120,26 @@ def utc_now() -> int:
 def utc_iso(ts: int | None = None) -> str:
     if ts is None:
         ts = utc_now()
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(ts)))
 
 
 def mkdir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def read_json(path: Path, default: Any = None, fallback: Any = None) -> Any:
     if fallback is not None:
         default = fallback
-
     if default is None:
         default = {}
 
-    if not Path(path).exists():
+    path = Path(path)
+
+    if not path.exists():
         return default
 
     try:
-        with Path(path).open("r", encoding="utf-8") as handle:
+        with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
     except Exception:
         return default
@@ -216,7 +217,18 @@ def boolish(value: Any) -> bool:
         return False
 
     text = str(value or "").strip().lower()
-    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success", "connected"}
+
+    return text in {
+        "true",
+        "yes",
+        "y",
+        "ok",
+        "up",
+        "online",
+        "reachable",
+        "success",
+        "connected",
+    }
 
 
 def normalize_country(value: Any) -> str | None:
@@ -364,7 +376,13 @@ def metadata_from_dict(data: Mapping[str, Any]) -> dict[str, Any]:
         if value is not None and key not in metadata:
             metadata[key] = value
 
-    candidate_address = data.get("address") or data.get("node") or data.get("addr") or data.get("host") or data.get("hostname")
+    candidate_address = (
+        data.get("address")
+        or data.get("node")
+        or data.get("addr")
+        or data.get("host")
+        or data.get("hostname")
+    )
 
     normalized_address = normalize_address(
         address=candidate_address,
@@ -708,7 +726,7 @@ class BitnodesState:
         *,
         source: str = "",
     ) -> None:
-        self.source = str(source or "").strip()
+        self.source = str(source or "zzxbitnodes").strip()
         self.state_dir = Path(state_dir)
         self.snapshot_24h_dir = Path(snapshot_24h_dir)
 
@@ -917,6 +935,7 @@ class BitnodesState:
         self,
         limit: int = 0,
         *,
+        seed_addresses: Iterable[Any] | None = None,
         include_queue: bool = True,
         include_known: bool = True,
         include_unreachable: bool = True,
@@ -925,6 +944,9 @@ class BitnodesState:
         **_kwargs: Any,
     ) -> list[str]:
         candidates: list[str] = []
+
+        if seed_addresses:
+            candidates.extend(self._normalize_addresses(seed_addresses))
 
         if include_queue:
             candidates.extend(list(self.queue))
@@ -977,159 +999,150 @@ class BitnodesState:
             else:
                 self.mark_unreachable(normalized)
 
-def update_successes(
-    self,
-    successes: Mapping[str, Any],
-    *,
-    now: int | None = None,
-    timestamp: int | None = None,
-    **_kwargs: Any,
-) -> None:
-    now = int(now or timestamp or utc_now())
+    def update_successes(
+        self,
+        successes: Mapping[str, Any],
+        *,
+        now: int | None = None,
+        timestamp: int | None = None,
+        **_kwargs: Any,
+    ) -> None:
+        ts = int(now or timestamp or utc_now())
 
-    for address, row in successes.items():
-        normalized = normalize_address(address=address)
+        for address, row in successes.items():
+            normalized = normalize_address(address=address)
 
-        if not normalized:
-            continue
+            if not normalized:
+                continue
 
-        if isinstance(row, tuple) and len(row) == 2:
-            normalized = normalize_address(address=row[0]) or normalized
-            row = row[1]
+            if isinstance(row, tuple) and len(row) == 2:
+                normalized = normalize_address(address=row[0]) or normalized
+                row = row[1]
 
-        record = self._record_from_any(normalized, row)
-        metadata = normalize_metadata(record.get("metadata"))
+            record = self._record_from_any(normalized, row)
+            metadata = normalize_metadata(record.get("metadata"))
 
-        metadata["reachable"] = True
-        metadata["reachable_now"] = True
-        metadata["reachable_24h"] = True
-        metadata["last_seen"] = now
-        metadata["last_success"] = now
-        metadata["success_count"] = (
-            int(metadata.get("success_count") or record.get("success_count") or 0)
-            + 1
-        )
+            metadata["reachable"] = True
+            metadata["reachable_now"] = True
+            metadata["reachable_24h"] = True
+            metadata["last_seen"] = ts
+            metadata["last_success"] = ts
+            metadata["success_count"] = int(metadata.get("success_count") or record.get("success_count") or 0) + 1
+            metadata["first_seen"] = metadata.get("first_seen") or record.get("first_seen") or ts
+            metadata.setdefault("network", classify_network(normalized))
 
-        first_seen = metadata.get("first_seen") or record.get("first_seen")
-        metadata["first_seen"] = first_seen or now
+            record["metadata"] = metadata
+            record["row"] = self._row_from_record(record)
 
-        record["metadata"] = metadata
-        record["row"] = self._row_from_record(record)
+            record.update({
+                "reachable": True,
+                "reachable_now": True,
+                "reachable_24h": True,
+                "last_seen": ts,
+                "last_success": ts,
+                "first_seen": metadata["first_seen"],
+                "success_count": metadata["success_count"],
+                "network": metadata["network"],
+            })
 
-        record.update({
-            "reachable": True,
-            "reachable_now": True,
-            "reachable_24h": True,
-            "last_seen": now,
-            "last_success": now,
-            "first_seen": metadata["first_seen"],
-            "success_count": metadata["success_count"],
-        })
+            self.nodes[normalized] = record
 
-        self.nodes[normalized] = record
+            if normalized in self._queue_set:
+                try:
+                    self.queue.remove(normalized)
+                except ValueError:
+                    pass
 
-        if normalized in self._queue_set:
-            try:
-                self.queue.remove(normalized)
-            except ValueError:
-                pass
+                self._queue_set.discard(normalized)
 
-            self._queue_set.discard(normalized)
+        self.meta["last_success_update_at"] = utc_iso(ts)
+        self.meta["last_success_count"] = len(successes)
 
-    self.meta["last_success_update_at"] = utc_iso(now)
-    self.meta["last_success_count"] = len(successes)
+    def update_failures(
+        self,
+        failures: Iterable[Any],
+        *,
+        now: int | None = None,
+        timestamp: int | None = None,
+        **_kwargs: Any,
+    ) -> None:
+        ts = int(now or timestamp or utc_now())
+        count = 0
 
-def update_failures(
-    self,
-    failures: Iterable[Any],
-    *,
-    now: int | None = None,
-    timestamp: int | None = None,
-    **_kwargs: Any,
-) -> None:
-    now = int(now or timestamp or utc_now())
+        for address in failures:
+            normalized = normalize_address(address=address)
 
-    count = 0
+            if not normalized:
+                continue
 
-    for address in failures:
-        normalized = normalize_address(address=address)
+            record = self.nodes.get(normalized)
 
-        if not normalized:
-            continue
+            if record is None:
+                record = self._record_from_row(normalized, [])
 
-        record = self.nodes.get(normalized)
+            metadata = normalize_metadata(record.get("metadata"))
 
-        if record is None:
-            record = self._record_from_row(normalized, [])
+            metadata["reachable"] = False
+            metadata["reachable_now"] = False
+            metadata["last_failure"] = ts
+            metadata["failure_count"] = int(metadata.get("failure_count") or record.get("failure_count") or 0) + 1
+            metadata["first_seen"] = metadata.get("first_seen") or ts
+            metadata.setdefault("network", classify_network(normalized))
 
-        metadata = normalize_metadata(record.get("metadata"))
+            record["metadata"] = metadata
+            record["row"] = self._row_from_record(record)
 
-        metadata["reachable"] = False
-        metadata["reachable_now"] = False
-        metadata["last_failure"] = now
-        metadata["failure_count"] = (
-            int(metadata.get("failure_count") or record.get("failure_count") or 0)
-            + 1
-        )
+            record.update({
+                "reachable": False,
+                "reachable_now": False,
+                "last_failure": ts,
+                "failure_count": metadata["failure_count"],
+                "first_seen": metadata["first_seen"],
+                "network": metadata["network"],
+            })
 
-        metadata.setdefault(
-            "network",
-            classify_network(normalized),
-        )
+            self.nodes[normalized] = record
+            count += 1
 
-        if not metadata.get("first_seen"):
-            metadata["first_seen"] = now
+        self.meta["last_failure_update_at"] = utc_iso(ts)
+        self.meta["last_failure_count"] = count
 
-        record["metadata"] = metadata
-        record["row"] = self._row_from_record(record)
-
-        record.update({
-            "reachable": False,
-            "reachable_now": False,
-            "last_failure": now,
-            "failure_count": metadata["failure_count"],
-            "network": metadata["network"],
-        })
-
-        self.nodes[normalized] = record
-        count += 1
-
-    self.meta["last_failure_update_at"] = utc_iso(now)
-    self.meta["last_failure_count"] = count
-    def mark_reachable(self, address: str, row: Any | None = None) -> None:
+    def mark_reachable(self, address: str, row: Any | None = None, *, now: int | None = None) -> None:
         normalized = normalize_address(address=address)
 
         if not normalized:
             return
 
         if row is not None:
-            self.update_successes({normalized: row})
+            self.update_successes({normalized: row}, now=now)
             return
 
+        ts = int(now or utc_now())
         record = self.nodes.get(normalized) or self._record_from_row(normalized, [])
         metadata = normalize_metadata(record.get("metadata"))
-        now = utc_now()
 
         metadata["reachable"] = True
         metadata["reachable_now"] = True
         metadata["reachable_24h"] = True
-        metadata["last_seen"] = now
-        metadata["last_success"] = now
+        metadata["last_seen"] = ts
+        metadata["last_success"] = ts
+        metadata.setdefault("network", classify_network(normalized))
 
         record["metadata"] = metadata
         record.update({
             "reachable": True,
             "reachable_now": True,
             "reachable_24h": True,
-            "last_seen": now,
-            "last_success": now,
+            "last_seen": ts,
+            "last_success": ts,
+            "network": metadata["network"],
         })
         record["row"] = self._row_from_record(record)
 
         self.nodes[normalized] = record
 
-    def mark_unreachable(self, address: str) -> None:
-        self.update_failures([address])
+    def mark_unreachable(self, address: str, *, now: int | None = None) -> None:
+        self.update_failures([address], now=now)
 
     def record_latency(self, address: str, latency_ms: float | int | None) -> None:
         normalized = normalize_address(address=address)
@@ -1165,17 +1178,21 @@ def update_failures(
             row = self._row_from_record(record)
             metadata = normalize_metadata(row[19])
 
-            if mode in {"reachable", "reachable_now"}:
-                if boolish(metadata.get("reachable_now") or record.get("reachable_now")) is not True:
-                    continue
+            reachable = boolish(metadata.get("reachable") or record.get("reachable"))
+            reachable_now = boolish(metadata.get("reachable_now") or record.get("reachable_now"))
+            reachable_24h = boolish(metadata.get("reachable_24h") or record.get("reachable_24h") or reachable_now)
 
-            elif mode in {"reachable_24h", "24h"}:
-                if boolish(metadata.get("reachable_24h") or record.get("reachable_24h") or metadata.get("reachable_now")) is not True:
-                    continue
+            if mode in {"reachable", "reachable_now"} and not reachable_now:
+                continue
 
-            elif mode in {"unreachable", "failed"}:
-                if boolish(metadata.get("reachable") or record.get("reachable")) is not False:
-                    continue
+            if mode in {"reachable_24h", "24h"} and not reachable_24h:
+                continue
+
+            if mode in {"unreachable", "failed"} and reachable:
+                continue
+
+            if mode in {"stale"} and reachable_now:
+                continue
 
             output[address] = row
 
@@ -1184,21 +1201,22 @@ def update_failures(
     def reachable_nodes(self) -> dict[str, list[Any]]:
         return self.to_bitnodes_nodes("reachable")
 
+    def export_nodes(self, mode: str = "all") -> dict[str, list[Any]]:
+        return self.to_bitnodes_nodes(mode)
+
     def build_export_payload(self, mode: str = "all") -> dict[str, Any]:
         timestamp = utc_now()
         nodes = self.to_bitnodes_nodes(mode)
-
         dicts = nodes_to_dicts(nodes)
+
         latest_height = 0
+        network_counts: dict[str, int] = {}
+        reachable_count = 0
 
         for item in dicts:
             height = to_int(item.get("height"), 0) or 0
             latest_height = max(latest_height, height)
 
-        network_counts: dict[str, int] = {}
-        reachable_count = 0
-
-        for item in dicts:
             network = str(item.get("network") or "unknown")
             network_counts[network] = network_counts.get(network, 0) + 1
 
@@ -1227,8 +1245,79 @@ def update_failures(
         write_json(path, payload)
         return path
 
-    def export_nodes(self, mode: str = "all") -> dict[str, list[Any]]:
-        return self.to_bitnodes_nodes(mode)
+    def write_24h_snapshot(self, payload: dict[str, Any] | None = None) -> Path:
+        return self.snapshot_24h(payload)
+
+    def state_summary(self) -> dict[str, Any]:
+        total = len(self.nodes)
+        reachable_now = 0
+        reachable_24h = 0
+        unreachable_now = 0
+        stale = 0
+
+        networks = {
+            "ipv4": 0,
+            "ipv6": 0,
+            "tor": 0,
+            "i2p": 0,
+            "cjdns": 0,
+            "dns": 0,
+            "unknown": 0,
+        }
+
+        vpn = 0
+        proxy = 0
+
+        now = utc_now()
+
+        for address, record in self.nodes.items():
+            metadata = normalize_metadata(record.get("metadata"))
+            network = str(record.get("network") or metadata.get("network") or classify_network(address))
+            networks[network] = networks.get(network, 0) + 1
+
+            is_reachable_now = boolish(record.get("reachable_now") or metadata.get("reachable_now"))
+            is_reachable_24h = boolish(record.get("reachable_24h") or metadata.get("reachable_24h") or is_reachable_now)
+            is_reachable = boolish(record.get("reachable") or metadata.get("reachable"))
+
+            if is_reachable_now:
+                reachable_now += 1
+            elif is_reachable is False:
+                unreachable_now += 1
+
+            if is_reachable_24h:
+                reachable_24h += 1
+
+            last_seen = to_int(record.get("last_seen") or metadata.get("last_seen"), 0) or 0
+            if last_seen and now - last_seen > 86400:
+                stale += 1
+
+            if boolish(record.get("is_vpn") or metadata.get("is_vpn") or metadata.get("suspected_vpn") or metadata.get("vpn")):
+                vpn += 1
+
+            if boolish(record.get("is_proxy") or metadata.get("is_proxy") or metadata.get("suspected_proxy") or metadata.get("proxy")):
+                proxy += 1
+
+        return {
+            "schema": "zzx-bitnodes-state-summary-v1",
+            "source": self.source,
+            "generated_at": utc_iso(),
+            "total_known_nodes": total,
+            "reachable_now": reachable_now,
+            "unreachable_now": unreachable_now,
+            "reachable_24h": reachable_24h,
+            "stale_nodes": stale,
+            "queue_size": len(self.queue),
+            "ipv4_nodes": networks.get("ipv4", 0),
+            "ipv6_nodes": networks.get("ipv6", 0),
+            "tor_nodes": networks.get("tor", 0),
+            "i2p_nodes": networks.get("i2p", 0),
+            "cjdns_nodes": networks.get("cjdns", 0),
+            "dns_nodes": networks.get("dns", 0),
+            "unknown_nodes": networks.get("unknown", 0),
+            "vpn_nodes": vpn,
+            "proxy_nodes": proxy,
+            "network_counts": networks,
+        }
 
     def as_dict(self) -> dict[str, Any]:
         return {
