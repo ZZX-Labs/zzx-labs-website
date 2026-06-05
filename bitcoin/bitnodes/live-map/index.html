@@ -22,52 +22,58 @@
     <br>
     <div id="bn-header"></div>
 </header>
+
 <main class="bn-shell">
     <section class="bn-hero container">
         <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
         <h2>Bitcoin Node Live Map</h2>
         <p>OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization, uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, and policy overlays.</p>
     </section>
-    
-<section class="bn-map-status container">
-    <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
-</section>
 
-<section class="bn-panel container bn-map-panel">
-    <div class="bn-live-map-wrap">
+    <section class="bn-map-status container">
+        <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
+    </section>
 
-        <div class="bn-map-toolbar">
-            <div>
-                <span class="bn-kicker">Live Map Mode</span>
-                <h2>Bitcoin Node Live Map</h2>
+    <section class="bn-panel container bn-map-panel">
+        <div class="bn-live-map-wrap">
+
+            <div class="bn-map-toolbar">
+                <div>
+                    <span class="bn-kicker">Live Map Mode</span>
+                    <h2>Bitcoin Node Live Map</h2>
+                </div>
+
+                <div class="bn-map-selectors">
+                    <label>
+                        Theme
+                        <select id="bn-map-theme-select" data-map-theme-select></select>
+                    </label>
+
+                    <label>
+                        Settings
+                        <select id="bn-map-settings-select" data-map-settings-select></select>
+                    </label>
+                </div>
+
+                <div class="bn-map-controls">
+                    <button type="button" data-map-filter="all" class="is-active">All</button>
+                    <button type="button" data-map-filter="ipv4">IPv4</button>
+                    <button type="button" data-map-filter="ipv6">IPv6</button>
+                    <button type="button" data-map-filter="tor">Tor</button>
+                    <button type="button" data-map-filter="i2p">I2P</button>
+                    <button type="button" data-map-filter="vpn">VPN</button>
+                    <button type="button" data-map-filter="proxy">Proxy</button>
+                    <button type="button" data-map-reset>Reset View</button>
+                </div>
             </div>
 
-            <div class="bn-map-selectors">
-                <label>
-                    Theme
-                    <select id="bn-map-theme-select" data-map-theme-select></select>
-                </label>
-
-                <label>
-                    Settings
-                    <select id="bn-map-settings-select" data-map-settings-select></select>
-                </label>
-            </div>
-
-            <div class="bn-map-controls">
-                <button type="button" data-map-filter="all" class="is-active">All</button>
-                <button type="button" data-map-filter="ipv4">IPv4</button>
-                <button type="button" data-map-filter="ipv6">IPv6</button>
-                <button type="button" data-map-filter="tor">Tor</button>
-                <button type="button" data-map-filter="i2p">I2P</button>
-                <button type="button" data-map-filter="vpn">VPN</button>
-                <button type="button" data-map-filter="proxy">Proxy</button>
-                <button type="button" data-map-reset>Reset View</button>
-            </div>
+            <aside id="bn-map-node-info" class="bn-map-node-info" aria-live="polite">
+                <p>Select a node to inspect telemetry.</p>
+            </aside>
 
             <div class="bn-map-left-stack">
                 <div id="bn-map-legend" class="bn-map-legend is-open"></div>
-   
+
                 <button
                     id="bn-map-legend-toggle"
                     class="bn-map-legend-toggle"
@@ -77,32 +83,15 @@
                     Hide Key
                 </button>
             </div>
+
+            <div id="bn-live-map" class="bn-live-map" data-map-root></div>
+
         </div>
 
-        <aside id="bn-map-node-info" class="bn-map-node-info" aria-live="polite">
-            <p>Select a node to inspect telemetry.</p>
-        </aside>
-
-        <div class="bn-map-left-stack">
-            <div id="bn-map-legend" class="bn-map-legend is-open"></div>
-
-            <button
-                id="bn-map-legend-toggle"
-                class="bn-map-legend-toggle"
-                type="button"
-                aria-expanded="true"
-                aria-controls="bn-map-legend">
-                Hide Key
-            </button>
-        </div>
-
-        <div id="bn-live-map" class="bn-live-map" data-map-root></div>
-
-    </div>
-
-    <div id="bn-map-hud" class="bn-map-hud"></div>
-</section>
+        <div id="bn-map-hud" class="bn-map-hud"></div>
+    </section>
 </main>
+
 <footer>
     <div id="bn-footer"></div>
     <div id="zzx-footer"></div>
