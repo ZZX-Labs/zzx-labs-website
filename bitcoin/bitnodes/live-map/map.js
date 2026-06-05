@@ -2,16 +2,23 @@
     "use strict";
 
     const state = {
+        initialized: false,
+        options: {},
         map: null,
         layer: null,
         polygonLayer: null,
         canvasRenderer: null,
+        geojson: null,
         vectors: null,
         vectorTypes: null,
         settings: null,
         theme: null,
         themes: null,
         settingsProfiles: null,
+        latestSource: "",
+        latestVectorSource: "",
+        latestThemeSource: "",
+        latestSettingsSource: "",
         filter: "all"
     };
 
@@ -23,6 +30,10 @@
         return Array.from(scope.querySelectorAll(selector));
     }
 
+    function option(name, fallback) {
+        return state.options?.[name] || fallback;
+    }
+
     function escapeHtml(value) {
         return String(value ?? "")
             .replaceAll("&", "&amp;")
@@ -32,18 +43,40 @@
             .replaceAll("'", "&#039;");
     }
 
-    function setStatus(message) {
-        const target = qs("#bn-map-status");
-        if (target) target.textContent = message;
+    function setStatus(message, mode = "") {
+        const target = qs(option("statusSelector", "#bn-map-status"));
+
+        if (target) {
+            target.textContent = message;
+
+            if (mode) {
+                target.className = `bn-map-status ${mode}`.trim();
+            }
+        }
     }
 
-    function loadLeaflet() {
-        return new Promise((resolve, reject) => {
-            if (window.L) {
-                resolve();
-                return;
-            }
+    function normalizeList(value) {
+        if (Array.isArray(value)) return value;
+        if (!value) return [];
+        return [value];
+    }
 
+    function mapById(items) {
+        const out = {};
+
+        normalizeList(items).forEach(item => {
+            if (item && typeof item === "object" && item.id) {
+                out[item.id] = item;
+            }
+        });
+
+        return out;
+    }
+
+    async function loadLeaflet() {
+        if (window.L) return;
+
+        await new Promise((resolve, reject) => {
             const css = document.createElement("link");
             css.rel = "stylesheet";
             css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
@@ -59,42 +92,225 @@
 
     async function readJson(path) {
         const response = await fetch(path, { cache: "no-store" });
-        if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to load ${path}: ${response.status}`);
+        }
+
         return response.json();
     }
 
+    async function readFirst(paths, fallback = undefined) {
+        let lastError = null;
+
+        for (const path of normalizeList(paths)) {
+            if (!path) continue;
+
+            try {
+                const data = await readJson(path);
+                return { data, source: path };
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        if (fallback !== undefined) {
+            return { data: fallback, source: "" };
+        }
+
+        throw lastError || new Error("No readable JSON source.");
+    }
+
+    function paths(name, fallback) {
+        return state.options?.paths?.[name] || fallback;
+    }
+
+    function pathFactory(name, fallback) {
+        return typeof state.options?.paths?.[name] === "function"
+            ? state.options.paths[name]
+            : fallback;
+    }
+
+    function settingsProfilePaths(id) {
+        const factory = pathFactory("settingsProfile", profileId => [
+            `./data/settings/${profileId}.json`,
+            "./data/map-settings.json"
+        ]);
+
+        return factory(id);
+    }
+
+    function themePaths(id) {
+        const factory = pathFactory("theme", themeId => [
+            `./data/themes/${themeId}.json`,
+            "./data/map-theme.json"
+        ]);
+
+        return factory(id);
+    }
+
     function applyTheme(theme) {
-        if (!theme) return;
+        if (!theme || typeof theme !== "object") return;
+
         state.theme = theme;
-        const vars = theme.css_variables || {};
+
+        const vars = theme.css_variables || theme.variables || {};
+
         Object.entries(vars).forEach(([key, value]) => {
             document.documentElement.style.setProperty(key, value);
         });
     }
 
     async function loadTheme(themeId) {
-        const id = themeId || state.settings?.theme?.selected || "zzx_dark_olive";
-        const theme = await readJson(`./data/themes/${id}.json`).catch(() => readJson("./data/map-theme.json"));
-        applyTheme(theme);
-        return theme;
+        const id =
+            themeId ||
+            state.settings?.theme?.selected ||
+            state.themes?.default_theme ||
+            state.themes?.default ||
+            "zzx_dark_olive";
+
+        const result = await readFirst(themePaths(id), {});
+        state.latestThemeSource = result.source;
+        applyTheme(result.data);
+
+        if (state.settings) {
+            state.settings.theme = state.settings.theme || {};
+            state.settings.theme.selected = id;
+        }
+
+        return result.data;
+    }
+
+    async function loadSettingsProfile(profileId) {
+        const id =
+            profileId ||
+            state.settingsProfiles?.default_settings ||
+            state.settingsProfiles?.default_profile ||
+            state.settings?.profile?.id ||
+            "live";
+
+        const result = await readFirst(settingsProfilePaths(id), null);
+
+        if (result.data && typeof result.data === "object") {
+            state.settings = {
+                ...(state.settings || {}),
+                ...result.data
+            };
+
+            state.settings.profile = state.settings.profile || {};
+            state.settings.profile.id = id;
+
+            state.latestSettingsSource = result.source;
+        }
+
+        return state.settings;
+    }
+
+    function normalizeThemes(payload) {
+        if (!payload || typeof payload !== "object") {
+            return { themes: [], default_theme: "zzx_dark_olive" };
+        }
+
+        if (Array.isArray(payload.themes)) {
+            return payload;
+        }
+
+        if (payload.themes && typeof payload.themes === "object") {
+            return {
+                ...payload,
+                themes: Object.entries(payload.themes).map(([id, value]) => ({
+                    id,
+                    name: value?.name || value?.label || id,
+                    ...(typeof value === "object" ? value : {})
+                }))
+            };
+        }
+
+        return {
+            ...payload,
+            themes: []
+        };
+    }
+
+    function normalizeSettingsProfiles(payload) {
+        if (!payload || typeof payload !== "object") {
+            return { profiles: [], default_settings: "live" };
+        }
+
+        if (Array.isArray(payload.profiles)) {
+            return payload;
+        }
+
+        if (payload.profiles && typeof payload.profiles === "object") {
+            return {
+                ...payload,
+                profiles: Object.entries(payload.profiles).map(([id, value]) => ({
+                    id,
+                    name: value?.name || value?.label || id,
+                    ...(typeof value === "object" ? value : {})
+                }))
+            };
+        }
+
+        return {
+            ...payload,
+            profiles: []
+        };
+    }
+
+    function featureToPoint(feature) {
+        const props = feature?.properties || {};
+        const coords = feature?.geometry?.coordinates || [];
+
+        return {
+            ...props,
+            latitude: props.latitude ?? props.lat ?? coords[1],
+            longitude: props.longitude ?? props.lon ?? props.lng ?? coords[0]
+        };
+    }
+
+    function allPoints() {
+        if (Array.isArray(state.geojson?.features) && state.geojson.features.length) {
+            return state.geojson.features.map(featureToPoint);
+        }
+
+        if (Array.isArray(state.vectors?.points)) {
+            return state.vectors.points;
+        }
+
+        return [];
     }
 
     function pointVisible(point) {
-        if (state.filter === "all") return true;
-        if (point.network === state.filter || point.status === state.filter) return true;
-        if (state.filter === "vpn") return point.is_vpn === true;
-        if (state.filter === "proxy") return point.is_proxy === true;
+        const filter = String(state.filter || "all").toLowerCase();
+
+        if (filter === "all") return true;
+
+        const network = String(point.network || point.network_type || "").toLowerCase();
+        const status = String(point.status || "").toLowerCase();
+
+        if (network === filter || status === filter) return true;
+
+        if (filter === "vpn") {
+            return point.is_vpn === true || point.suspected_vpn === true;
+        }
+
+        if (filter === "proxy") {
+            return point.is_proxy === true || point.suspected_proxy === true;
+        }
+
         return false;
     }
 
     function filteredPoints() {
-        return (state.vectors?.points || []).filter(pointVisible);
+        return allPoints().filter(pointVisible);
     }
 
     function radius(point) {
         const dup = Number(point.duplicate_count || 1);
         const min = Number(state.settings?.marker?.radius_min || 4);
         const max = Number(state.settings?.marker?.radius_max || 14);
+
         return Math.max(min, Math.min(max, min + Math.log2(dup + 1) * 3));
     }
 
@@ -103,68 +319,90 @@
             <div class="bn-map-popup">
                 <strong>${escapeHtml(point.address || point.id || "Unknown node")}</strong>
                 <div>Status: ${escapeHtml(point.status_label || point.status || "Unknown")}</div>
-                <div>Network: ${escapeHtml(point.network || "unknown")}</div>
+                <div>Network: ${escapeHtml(point.network || point.network_type || "unknown")}</div>
                 <div>Height: ${escapeHtml(point.height || "—")}</div>
                 <div>Uptime: ${escapeHtml(Math.round(Number(point.uptime_seconds || 0)).toLocaleString())}s</div>
                 <div>City: ${escapeHtml(point.city || "—")}</div>
                 <div>County: ${escapeHtml(point.county || "—")}</div>
                 <div>Territory: ${escapeHtml(point.territory || "—")}</div>
-                <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
+                <div>Country: ${escapeHtml(point.country_name || point.country || point.country_code || "—")}</div>
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
-                <div>Agent: ${escapeHtml(point.agent || "—")}</div>
-                <div>VPN: ${point.is_vpn ? "yes" : "no"}</div>
-                <div>Proxy: ${point.is_proxy ? "yes" : "no"}</div>
-                <div>W3W: ${escapeHtml(point.w3w || "—")}</div>
+                <div>Agent: ${escapeHtml(point.agent || point.user_agent || "—")}</div>
+                <div>VPN: ${point.is_vpn || point.suspected_vpn ? "yes" : "no"}</div>
+                <div>Proxy: ${point.is_proxy || point.suspected_proxy ? "yes" : "no"}</div>
+                <div>W3W: ${escapeHtml(point.w3w || point.what3words || "—")}</div>
                 <div>ZZX-GCS: ${escapeHtml(point.zzxgcs || "—")}</div>
-                <div>GeohashID: ${escapeHtml(point.geohashid || "—")}</div>
+                <div>GeohashID: ${escapeHtml(point.geohashid || point.geohash || "—")}</div>
             </div>
         `;
     }
 
-    function renderHud() {
-        const target = qs("#bn-map-hud");
-        if (!target || !state.vectors) return;
+    function countBy(points, getter) {
+        const counts = {};
 
-        const networks = state.vectors.network_counts || {};
-        const statuses = state.vectors.status_counts || {};
-        const intel = state.vectors.intelligence_counts || {};
+        points.forEach(point => {
+            const key = String(getter(point) || "unknown").toLowerCase();
+            counts[key] = (counts[key] || 0) + 1;
+        });
+
+        return counts;
+    }
+
+    function renderHud() {
+        const target = qs(option("hudSelector", "#bn-map-hud"));
+        if (!target) return;
+
+        const points = allPoints();
+        const networks = state.vectors?.network_counts || countBy(points, point => point.network || point.network_type);
+        const statuses = state.vectors?.status_counts || countBy(points, point => point.status);
+        const intel = state.vectors?.intelligence_counts || {};
+
+        const vpnCount = Number(intel.vpn_nodes || points.filter(p => p.is_vpn || p.suspected_vpn).length || 0);
+        const proxyCount = Number(intel.proxy_nodes || points.filter(p => p.is_proxy || p.suspected_proxy).length || 0);
 
         target.innerHTML = `
-            <article><span>Total Points</span><strong>${Number(state.vectors.point_count || 0).toLocaleString()}</strong></article>
+            <article><span>Total Points</span><strong>${Number(points.length || state.vectors?.point_count || 0).toLocaleString()}</strong></article>
             <article><span>IPv4</span><strong>${Number(networks.ipv4 || 0).toLocaleString()}</strong></article>
             <article><span>IPv6</span><strong>${Number(networks.ipv6 || 0).toLocaleString()}</strong></article>
             <article><span>Tor</span><strong>${Number(networks.tor || 0).toLocaleString()}</strong></article>
             <article><span>I2P</span><strong>${Number(networks.i2p || 0).toLocaleString()}</strong></article>
             <article><span>Duplicate</span><strong>${Number(statuses["duplicate-location"] || 0).toLocaleString()}</strong></article>
             <article><span>Unreachable</span><strong>${Number(statuses.unreachable || 0).toLocaleString()}</strong></article>
-            <article><span>VPN</span><strong>${Number(intel.vpn_nodes || 0).toLocaleString()}</strong></article>
-            <article><span>Proxy</span><strong>${Number(intel.proxy_nodes || 0).toLocaleString()}</strong></article>
+            <article><span>VPN</span><strong>${vpnCount.toLocaleString()}</strong></article>
+            <article><span>Proxy</span><strong>${proxyCount.toLocaleString()}</strong></article>
             <article><span>Datacenter</span><strong>${Number(intel.datacenter_nodes || 0).toLocaleString()}</strong></article>
         `;
     }
 
     function renderLegend() {
-        const target = qs("#bn-map-legend");
-        if (!target || !state.vectors?.legend) return;
+        const target = qs(option("legendSelector", "#bn-map-legend"));
+        if (!target) return;
 
-        target.innerHTML = Object.entries(state.vectors.legend).map(([_key, item]) => `
-            <span><i style="background:${escapeHtml(item.color)}"></i>${escapeHtml(item.label)}</span>
+        const legend = state.vectors?.legend || {};
+
+        target.innerHTML = Object.entries(legend).map(([key, item]) => `
+            <span><i style="background:${escapeHtml(item?.color || "#c0d674")}"></i>${escapeHtml(item?.label || key)}</span>
         `).join("");
     }
 
     function renderPoints() {
         if (!state.map || !window.L) return;
 
-        if (state.layer) state.layer.remove();
+        if (state.layer) {
+            state.layer.remove();
+        }
 
         state.layer = window.L.layerGroup();
 
-        filteredPoints().forEach(point => {
+        const points = filteredPoints();
+
+        points.forEach(point => {
             const lat = Number(point.latitude ?? point.lat);
-            const lon = Number(point.longitude ?? point.lon);
+            const lon = Number(point.longitude ?? point.lon ?? point.lng);
 
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
 
             const marker = window.L.circleMarker([lat, lon], {
                 radius: radius(point),
@@ -183,22 +421,31 @@
         });
 
         state.layer.addTo(state.map);
+
         renderHud();
         renderLegend();
-        setStatus(`Loaded ${filteredPoints().length.toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`);
+
+        setStatus(
+            `Loaded ${points.length.toLocaleString()} visible map points from ${state.latestVectorSource || state.latestSource || "selected source"}.`,
+            points.length ? "live" : "warn"
+        );
     }
 
     async function renderPolygons() {
         if (!state.map || !window.L) return;
 
-        const polygons = await readJson("./data/map-polygons.geojson").catch(() => null);
-        if (!polygons || !Array.isArray(polygons.features)) return;
+        const result = await readFirst(paths("polygons", ["./data/map-polygons.geojson"]), null).catch(() => null);
 
-        if (state.polygonLayer) state.polygonLayer.remove();
+        if (!result?.data || !Array.isArray(result.data.features)) return;
 
-        state.polygonLayer = window.L.geoJSON(polygons, {
+        if (state.polygonLayer) {
+            state.polygonLayer.remove();
+        }
+
+        state.polygonLayer = window.L.geoJSON(result.data, {
             style: feature => {
                 const props = feature.properties || {};
+
                 return {
                     color: props.stroke || "#c0d674",
                     fillColor: props.fill || "#c0d674",
@@ -216,37 +463,57 @@
     }
 
     function populateThemeSelect() {
-        const select = qs("[data-map-theme-select]");
-        if (!select || !state.themes?.themes) return;
+        const select = qs(option("themeSelectSelector", "[data-map-theme-select]"));
+        if (!select) return;
 
-        select.innerHTML = state.themes.themes.map(theme => `
-            <option value="${escapeHtml(theme.id)}">${escapeHtml(theme.name)}</option>
+        const themes = normalizeList(state.themes?.themes);
+
+        select.innerHTML = themes.map(theme => `
+            <option value="${escapeHtml(theme.id)}">${escapeHtml(theme.name || theme.label || theme.id)}</option>
         `).join("");
 
-        select.value = state.theme?.id || state.themes.default_theme || "zzx_dark_olive";
+        select.value =
+            state.theme?.id ||
+            state.settings?.theme?.selected ||
+            state.themes?.default_theme ||
+            "zzx_dark_olive";
 
         select.addEventListener("change", async () => {
             await loadTheme(select.value);
+            renderPoints();
         });
     }
 
     function populateSettingsSelect() {
-        const select = qs("[data-map-settings-select]");
-        if (!select || !state.settingsProfiles?.profiles) return;
+        const select = qs(option("settingsSelectSelector", "[data-map-settings-select]"));
+        if (!select) return;
 
-        select.innerHTML = state.settingsProfiles.profiles.map(profile => `
-            <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>
+        const profiles = normalizeList(state.settingsProfiles?.profiles);
+
+        select.innerHTML = profiles.map(profile => `
+            <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.label || profile.id)}</option>
         `).join("");
 
-        select.value = state.settings?.profile?.id || state.settingsProfiles.default_settings || "default";
+        select.value =
+            state.settings?.profile?.id ||
+            state.settingsProfiles?.default_settings ||
+            state.settingsProfiles?.default_profile ||
+            "live";
+
+        select.addEventListener("change", async () => {
+            await loadSettingsProfile(select.value);
+            await loadTheme(state.settings?.theme?.selected || select.value);
+            applyMapSettings();
+            renderPoints();
+        });
     }
 
     function wireControls(view) {
-        qsa("[data-map-filter]").forEach(button => {
+        qsa(option("filterSelector", "[data-map-filter]")).forEach(button => {
             button.addEventListener("click", () => {
                 state.filter = button.dataset.mapFilter || "all";
 
-                qsa("[data-map-filter]").forEach(item => {
+                qsa(option("filterSelector", "[data-map-filter]")).forEach(item => {
                     item.classList.toggle("is-active", item === button);
                 });
 
@@ -254,30 +521,91 @@
             });
         });
 
-        qs("[data-map-reset]")?.addEventListener("click", () => {
+        qs(option("resetSelector", "[data-map-reset]"))?.addEventListener("click", () => {
+            const currentView = state.settings?.initial_view || view || {};
+
             state.map.setView(
-                [Number(view.latitude || 20), Number(view.longitude || 0)],
-                Number(view.zoom || 2)
+                [Number(currentView.latitude || 20), Number(currentView.longitude || 0)],
+                Number(currentView.zoom || 2)
             );
         });
     }
 
-    async function init() {
-        await loadLeaflet();
-
-        state.settings = await readJson("./data/map-settings.json");
-        state.vectors = await readJson("./data/map-vectors.json");
-        state.vectorTypes = await readJson("./data/vector-types.json").catch(() => null);
-        state.themes = await readJson("./data/map-themes.json").catch(() => null);
-        state.settingsProfiles = await readJson("./data/map-settings-profiles.json").catch(() => null);
-
-        await loadTheme(state.settings?.theme?.selected || "zzx_dark_olive");
-
-        const root = qs("[data-map-root]");
-        if (!root) return;
+    function applyMapSettings() {
+        if (!state.map || !state.settings) return;
 
         const view = state.settings.initial_view || {};
-        const interaction = state.settings.interaction || {};
+        const tileUrl = state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+        const tileAttribution = state.settings.tile_attribution || "© OpenStreetMap contributors";
+
+        if (state.tileLayer) {
+            state.tileLayer.remove();
+        }
+
+        state.tileLayer = window.L.tileLayer(tileUrl, {
+            attribution: tileAttribution,
+            subdomains: state.settings.tile_subdomains || undefined,
+            maxZoom: Number(view.max_zoom || 20),
+            minZoom: Number(view.min_zoom || 2)
+        }).addTo(state.map);
+    }
+
+    async function loadData() {
+        let result;
+
+        result = await readFirst(paths("settings", ["./data/map-settings.json"]));
+        state.settings = result.data;
+        state.latestSettingsSource = result.source;
+
+        result = await readFirst(paths("settingsProfiles", ["./data/map-settings-profiles.json"]), null).catch(() => null);
+        state.settingsProfiles = normalizeSettingsProfiles(result?.data || null);
+
+        result = await readFirst(paths("vectors", ["./data/map-points.geojson"]), { type: "FeatureCollection", features: [] });
+        state.geojson = result.data;
+        state.latestVectorSource = result.source;
+        state.latestSource = result.source;
+
+        result = await readFirst(paths("vectorManifest", ["./data/map-vectors.json"]), {});
+        state.vectors = result.data;
+
+        result = await readFirst(paths("vectorTypes", ["./data/vector-types.json"]), null).catch(() => null);
+        state.vectorTypes = result?.data || null;
+
+        result = await readFirst(paths("themes", ["./data/map-themes.json"]), null).catch(() => null);
+        state.themes = normalizeThemes(result?.data || null);
+
+        await loadSettingsProfile(
+            state.settings?.profile?.id ||
+            state.settingsProfiles?.default_settings ||
+            state.settingsProfiles?.default_profile ||
+            "live"
+        );
+
+        await loadTheme(
+            state.settings?.theme?.selected ||
+            state.themes?.default_theme ||
+            "zzx_dark_olive"
+        );
+    }
+
+    async function init(options = {}) {
+        state.options = options || {};
+
+        await loadLeaflet();
+        await loadData();
+
+        const root = qs(option("rootSelector", "[data-map-root]"));
+
+        if (!root) {
+            throw new Error("Map root not found.");
+        }
+
+        if (state.map) {
+            destroy();
+        }
+
+        const view = state.settings?.initial_view || {};
+        const interaction = state.settings?.interaction || {};
 
         state.canvasRenderer = window.L.canvas({ padding: 0.35 });
 
@@ -287,14 +615,12 @@
             boxZoom: interaction.box_zoom !== false,
             keyboard: interaction.keyboard !== false,
             preferCanvas: state.settings?.performance?.prefer_canvas_renderer !== false
-        }).setView([Number(view.latitude || 20), Number(view.longitude || 0)], Number(view.zoom || 2));
+        }).setView(
+            [Number(view.latitude || 20), Number(view.longitude || 0)],
+            Number(view.zoom || 2)
+        );
 
-        window.L.tileLayer(state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
-            subdomains: state.settings.tile_subdomains || undefined,
-            maxZoom: Number(view.max_zoom || 20),
-            minZoom: Number(view.min_zoom || 2)
-        }).addTo(state.map);
+        applyMapSettings();
 
         populateThemeSelect();
         populateSettingsSelect();
@@ -303,15 +629,61 @@
         await renderPolygons();
         renderPoints();
 
-        window.ZZXBitnodesMap = state;
+        state.initialized = true;
+
+        return state;
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-        init().catch(error => {
-            console.error(error);
-            const root = qs("[data-map-root]");
-            if (root) root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
-            setStatus(`Map load failure: ${error.message}`);
+    function destroy() {
+        try {
+            if (state.layer) state.layer.remove();
+            if (state.polygonLayer) state.polygonLayer.remove();
+            if (state.tileLayer) state.tileLayer.remove();
+            if (state.map) state.map.remove();
+        } catch (error) {
+            console.warn(error);
+        }
+
+        state.map = null;
+        state.layer = null;
+        state.polygonLayer = null;
+        state.tileLayer = null;
+        state.canvasRenderer = null;
+        state.initialized = false;
+    }
+
+    async function reload() {
+        await loadData();
+        await renderPolygons();
+        renderPoints();
+
+        return state;
+    }
+
+    window.ZZXBitnodesMap = {
+        state,
+        init,
+        destroy,
+        renderPoints,
+        renderPolygons,
+        loadTheme,
+        loadSettingsProfile,
+        reload
+    };
+
+    if (!window.ZZX_BITNODES_MAP_DISABLE_AUTO_INIT) {
+        document.addEventListener("DOMContentLoaded", () => {
+            init().catch(error => {
+                console.error(error);
+
+                const root = qs("[data-map-root]");
+
+                if (root) {
+                    root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
+                }
+
+                setStatus(`Map load failure: ${error.message}`, "error");
+            });
         });
-    });
+    }
 })();
