@@ -75,6 +75,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          python -m py_compile tools/bitnodes/map/map.py
+          python -m py_compile tools/bitnodes/map/maps.py
+          python -m py_compile tools/bitnodes/map/live-map.py
+          python -m py_compile tools/bitnodes/map/mapvectors.py
+          python -m py_compile tools/bitnodes/map/mapnodes.py
+
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/maps.py --help
           python tools/bitnodes/map/live-map.py --help
@@ -128,15 +134,39 @@ jobs:
 
               if isinstance(payload, dict):
                   nodes = payload.get("nodes")
+
                   if isinstance(nodes, dict):
                       return len(nodes)
+
                   if isinstance(nodes, list):
                       return len(nodes)
 
-                  for key in ("reachable_nodes", "data", "results", "rows", "peers", "node_records"):
+                  vectors = payload.get("vectors")
+
+                  if isinstance(vectors, dict):
+                      points = vectors.get("points")
+
+                      if isinstance(points, list):
+                          return len(points)
+
+                  points = payload.get("points")
+
+                  if isinstance(points, list):
+                      return len(points)
+
+                  for key in (
+                      "reachable_nodes",
+                      "data",
+                      "results",
+                      "rows",
+                      "peers",
+                      "node_records",
+                  ):
                       value = payload.get(key)
+
                       if isinstance(value, dict):
                           return len(value)
+
                       if isinstance(value, list):
                           return len(value)
 
@@ -296,7 +326,7 @@ jobs:
               out.write_text(
                   json.dumps(
                       {
-                          "schema": "zzx-bitnodes-map-source-from-db-v4",
+                          "schema": "zzx-bitnodes-map-source-from-db-v5",
                           "source": source_name,
                           "nodes": rows,
                       },
@@ -313,6 +343,8 @@ jobs:
               API / "enriched" / "zzxbitnodes" / "latest.json",
               API / "zzxbitnodes" / "latest.json",
               API / "data" / "latest.json",
+              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
+              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
           ]) or build_from_mariadb("zzxbitnodes")
 
           original = choose_existing_json([
@@ -337,6 +369,61 @@ jobs:
           set -euo pipefail
 
           printf '%s\n' "No node-level ZZX map source exists yet. Skipping map build."
+
+      - name: Validate selected map source
+        if: steps.sources.outputs.map_ready == 'true'
+        shell: bash
+        env:
+          INPUT: ${{ steps.sources.outputs.zzx_input }}
+        run: |
+          set -euo pipefail
+
+          test -f "${INPUT}"
+
+          python - <<'PY'
+          import json
+          import os
+
+          path = os.environ["INPUT"]
+
+          with open(path, "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          count = 0
+
+          if isinstance(payload, dict):
+              nodes = payload.get("nodes")
+
+              if isinstance(nodes, dict):
+                  count = len(nodes)
+
+              elif isinstance(nodes, list):
+                  count = len(nodes)
+
+              vectors = payload.get("vectors")
+
+              if count == 0 and isinstance(vectors, dict):
+                  points = vectors.get("points")
+
+                  if isinstance(points, list):
+                      count = len(points)
+
+              points = payload.get("points")
+
+              if count == 0 and isinstance(points, list):
+                  count = len(points)
+
+          elif isinstance(payload, list):
+              count = len(payload)
+
+          print(f"selected_input={path}")
+          print(f"selected_count={count}")
+
+          if count < 1:
+              raise SystemExit(
+                  "selected map source contains no nodes or points"
+              )
+          PY
 
       - name: Build ZZX Bitnodes maps
         if: steps.sources.outputs.map_ready == 'true'
@@ -401,12 +488,6 @@ jobs:
           test -f "${BITNODES_LIVE_MAP}/data/map-theme.json"
           test -f "${BITNODES_LIVE_MAP}/data/vector-types.json"
 
-          cp -f "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
-                "${BITNODES_MAPS}/data/map-points.geojson"
-
-          cp -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" \
-                "${BITNODES_MAPS}/data/map-vectors.json"
-
       - name: Validate canonical live-map output
         if: steps.sources.outputs.map_ready == 'true'
         shell: bash
@@ -420,9 +501,12 @@ jobs:
 
           min_features = int(os.environ.get("MIN_MAP_FEATURES", "1"))
 
+          geojson_path = Path("bitcoin/bitnodes/live-map/data/map-points.geojson")
+          vectors_path = Path("bitcoin/bitnodes/live-map/data/map-vectors.json")
+
           required = [
-              Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
-              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
+              geojson_path,
+              vectors_path,
               Path("bitcoin/bitnodes/live-map/data/map-settings.json"),
               Path("bitcoin/bitnodes/live-map/data/map-theme.json"),
               Path("bitcoin/bitnodes/live-map/data/vector-types.json"),
@@ -432,8 +516,8 @@ jobs:
               if not path.exists():
                   raise SystemExit(f"missing {path}")
 
-          geojson = json.loads(required[0].read_text(encoding="utf-8"))
-          vectors = json.loads(required[1].read_text(encoding="utf-8"))
+          geojson = json.loads(geojson_path.read_text(encoding="utf-8"))
+          vectors = json.loads(vectors_path.read_text(encoding="utf-8"))
 
           if geojson.get("type") != "FeatureCollection":
               raise SystemExit("map-points.geojson is not a GeoJSON FeatureCollection")
@@ -447,6 +531,9 @@ jobs:
           if not isinstance(points, list):
               raise SystemExit("map-vectors.json points is not a list")
 
+          print(f"live-map canonical feature count: {len(features)}")
+          print(f"live-map canonical vector point count: {len(points)}")
+
           if len(features) < min_features:
               raise SystemExit(
                   f"map-points.geojson has too few plotted features: {len(features)} < {min_features}"
@@ -456,10 +543,24 @@ jobs:
               raise SystemExit(
                   f"map-vectors.json has too few points: {len(points)} < {min_features}"
               )
-
-          print(f"live-map canonical feature count: {len(features)}")
-          print(f"live-map canonical vector point count: {len(points)}")
           PY
+
+      - name: Mirror validated canonical map outputs
+        if: steps.sources.outputs.map_ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${BITNODES_MAPS}/data"
+
+          cp -f "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
+                "${BITNODES_MAPS}/data/map-points.geojson"
+
+          cp -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" \
+                "${BITNODES_MAPS}/data/map-vectors.json"
+
+          cp -f "${BITNODES_LIVE_MAP}/data/nodes.geojson" \
+                "${BITNODES_MAPS}/data/nodes.geojson" || true
 
       - name: Enforce map artifact size policy
         if: steps.sources.outputs.map_ready == 'true'
@@ -523,6 +624,26 @@ jobs:
             printf '%s\n' "Refusing exploded map/API fanout files."
             exit 1
           fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in [
+              Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
+              Path("bitcoin/bitnodes/maps/data/map-points.geojson"),
+          ]:
+              if not path.exists():
+                  raise SystemExit(f"missing staged map file: {path}")
+
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              features = payload.get("features", [])
+
+              if not isinstance(features, list) or len(features) < 1:
+                  raise SystemExit(f"refusing to stage empty GeoJSON: {path}")
+
+              print(f"staging verified: {path} features={len(features)}")
+          PY
 
       - name: Commit and push map outputs
         if: steps.sources.outputs.map_ready == 'true'
