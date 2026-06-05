@@ -52,6 +52,30 @@ UNKNOWN_VALUES = {
 }
 
 
+BITNODES_ROW_FIELDS = [
+    "protocol_version",
+    "user_agent",
+    "connected_since",
+    "services",
+    "height",
+    "hostname",
+    "city",
+    "country",
+    "latitude",
+    "longitude",
+    "timezone",
+    "asn",
+    "organization",
+    "provider",
+    "county",
+    "zip",
+    "w3w",
+    "geohash",
+    "asn_location",
+    "metadata",
+]
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -174,9 +198,58 @@ def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-def nested_dict(row: Mapping[str, Any], key: str) -> dict[str, Any]:
-    value = row.get(key)
-    return value if isinstance(value, dict) else {}
+def list_get(row: list[Any], index: int, fallback: Any = None) -> Any:
+    if len(row) > index:
+        return row[index]
+    return fallback
+
+
+def row_to_point(address: str, row: Any) -> dict[str, Any] | None:
+    if isinstance(row, Mapping):
+        point = dict(row)
+        point.setdefault("address", address)
+        return point
+
+    if not isinstance(row, list):
+        return None
+
+    padded = list(row) + [None] * max(0, len(BITNODES_ROW_FIELDS) - len(row))
+    metadata = padded[19] if isinstance(padded[19], Mapping) else {}
+
+    point = {
+        "address": address,
+        "protocol_version": padded[0],
+        "user_agent": padded[1],
+        "agent": padded[1],
+        "connected_since": padded[2],
+        "services": padded[3],
+        "height": padded[4],
+        "hostname": padded[5],
+        "host": padded[5],
+        "city": padded[6],
+        "country": padded[7],
+        "country_code": padded[7],
+        "latitude": padded[8],
+        "longitude": padded[9],
+        "timezone": padded[10],
+        "asn": padded[11],
+        "organization": padded[12],
+        "provider": padded[13],
+        "county": padded[14],
+        "zip": padded[15],
+        "postal_code": padded[15],
+        "w3w": padded[16],
+        "what3words": padded[16],
+        "geohash": padded[17],
+        "geohashid": padded[17],
+        "asn_location": padded[18],
+        "metadata": dict(metadata),
+    }
+
+    for key, value in metadata.items():
+        point.setdefault(key, value)
+
+    return point
 
 
 def split_host(address: str) -> str:
@@ -799,60 +872,33 @@ def build_standalone(
     if not isinstance(payload, dict):
         payload = {}
 
-vectors_payload = payload.get("vectors", payload)
+    vectors_payload = payload.get("vectors", payload)
 
-if not isinstance(vectors_payload, dict):
-    vectors_payload = {}
+    if not isinstance(vectors_payload, dict):
+        vectors_payload = {}
 
-#
-# auto-convert aggregate/latest.json
-#
-if "points" not in vectors_payload:
-    nodes = vectors_payload.get("nodes", {})
+    if "points" not in vectors_payload:
+        nodes = vectors_payload.get("nodes", {})
+        generated_points: list[dict[str, Any]] = []
 
-    generated_points = []
+        if isinstance(nodes, Mapping):
+            for address, row in nodes.items():
+                point = row_to_point(str(address), row)
 
-    if isinstance(nodes, dict):
-        for address, row in nodes.items():
+                if point is not None:
+                    generated_points.append(point)
 
-            lat = first(row, (
-                "latitude",
-                "geo.latitude",
-                "geoip.latitude",
-                "metadata.latitude",
-            ))
+        elif isinstance(nodes, list):
+            for index, row in enumerate(nodes):
+                point = row_to_point(str(index), row)
 
-            lon = first(row, (
-                "longitude",
-                "geo.longitude",
-                "geoip.longitude",
-                "metadata.longitude",
-            ))
+                if point is not None:
+                    generated_points.append(point)
 
-            try:
-                lat = float(lat)
-                lon = float(lon)
-            except Exception:
-                continue
-
-            if not (-90 <= lat <= 90):
-                continue
-
-            if not (-180 <= lon <= 180):
-                continue
-
-            point = dict(row)
-
-            point["address"] = address
-            point["latitude"] = lat
-            point["longitude"] = lon
-
-            generated_points.append(point)
-
-    vectors_payload = {
-        "source": source,
-        "points": generated_points,
-    }
+        vectors_payload = {
+            "source": source,
+            "points": generated_points,
+        }
 
     vectors_payload.setdefault("source", source)
 
