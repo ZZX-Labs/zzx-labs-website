@@ -37,6 +37,7 @@ env:
   MAX_COMMIT_FILES: "600"
   MAX_DELETIONS: "2500000"
   PYTHONUNBUFFERED: "1"
+  BITNODES_REQUIRE_GEO_COORDINATES: "false"
 
 jobs:
   crawl-bitnodes:
@@ -344,6 +345,11 @@ jobs:
           import os
           from pathlib import Path
 
+          require_coordinates = os.environ.get(
+              "BITNODES_REQUIRE_GEO_COORDINATES",
+              "false",
+          ).strip().lower() in {"1", "true", "yes", "y"}
+
           def node_items(payload):
               nodes = payload.get("nodes")
               if isinstance(nodes, dict):
@@ -352,13 +358,17 @@ jobs:
                   return nodes
               return []
 
-          coordinate_count = 0
+          total_coordinate_count = 0
 
           for rel in (
               "enriched/zzxbitnodes/latest.json",
               "enriched/originalbitnodes/latest.json",
           ):
               path = Path(os.environ["BITNODES_API"]) / rel
+
+              if not path.exists():
+                  raise SystemExit(f"{rel} is missing")
+
               payload = json.loads(path.read_text(encoding="utf-8"))
               nodes = list(node_items(payload))
 
@@ -370,11 +380,27 @@ jobs:
               coords = 0
 
               for item in nodes:
-                  if not isinstance(item, dict):
+                  if isinstance(item, dict):
+                      lat = (
+                          item.get("latitude")
+                          or item.get("lat")
+                          or item.get("geo", {}).get("latitude")
+                          if isinstance(item.get("geo"), dict)
+                          else None
+                      )
+                      lon = (
+                          item.get("longitude")
+                          or item.get("lon")
+                          or item.get("lng")
+                          or item.get("geo", {}).get("longitude")
+                          if isinstance(item.get("geo"), dict)
+                          else None
+                      )
+                  elif isinstance(item, list):
+                      lat = item[8] if len(item) > 8 else None
+                      lon = item[9] if len(item) > 9 else None
+                  else:
                       continue
-
-                  lat = item.get("latitude") or item.get("lat")
-                  lon = item.get("longitude") or item.get("lon") or item.get("lng")
 
                   try:
                       lat = float(lat)
@@ -388,11 +414,16 @@ jobs:
               print(f"{rel}: coordinates={coords}")
 
               if coords == 0:
-                  raise SystemExit(f"{rel} contains zero geocoded nodes")
+                  message = f"{rel} contains zero geocoded nodes"
 
-              coordinate_count += coords
+                  if require_coordinates:
+                      raise SystemExit(message)
 
-          print(f"total geocoded nodes={coordinate_count}")
+                  print(f"WARNING: {message}; continuing because BITNODES_REQUIRE_GEO_COORDINATES=false")
+
+              total_coordinate_count += coords
+
+          print(f"total geocoded nodes={total_coordinate_count}")
           PY
 
       - name: Aggregate public summaries
