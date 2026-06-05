@@ -108,6 +108,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          python -m py_compile tools/bitnodes/crawl.py
+          python -m py_compile tools/bitnodes/enrich.py
+          python -m py_compile tools/bitnodes/aggregate.py
+          python -m py_compile tools/bitnodes/ip_db.py
+          python -m py_compile tools/bitnodes/push_ipdb.py
+          python -m py_compile tools/bitnodes/export_db.py
+          python -m py_compile tools/bitnodes/map/map.py
+          python -m py_compile tools/bitnodes/map/maps.py
+          python -m py_compile tools/bitnodes/map/live-map.py
+          python -m py_compile tools/bitnodes/map/mapvectors.py
+          python -m py_compile tools/bitnodes/map/mapnodes.py
+          python -m py_compile tools/bitnodes/build_geo_indexes.py
+
           python tools/bitnodes/crawl.py --help
           python tools/bitnodes/enrich.py --help
           python tools/bitnodes/aggregate.py --help
@@ -326,25 +339,60 @@ jobs:
         run: |
           set -euo pipefail
 
-          test -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json"
-          test -f "${BITNODES_API}/enriched/originalbitnodes/latest.json"
-
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          for rel in [
+          def node_items(payload):
+              nodes = payload.get("nodes")
+              if isinstance(nodes, dict):
+                  return nodes.values()
+              if isinstance(nodes, list):
+                  return nodes
+              return []
+
+          coordinate_count = 0
+
+          for rel in (
               "enriched/zzxbitnodes/latest.json",
               "enriched/originalbitnodes/latest.json",
-          ]:
+          ):
               path = Path(os.environ["BITNODES_API"]) / rel
               payload = json.loads(path.read_text(encoding="utf-8"))
-              nodes = payload.get("nodes") if isinstance(payload, dict) else None
-              count = len(nodes) if isinstance(nodes, (dict, list)) else 0
-              print(f"{rel}: {count} nodes")
-              if count <= 0:
-                  raise SystemExit(f"{rel} has zero nodes")
+              nodes = list(node_items(payload))
+
+              print(f"{rel}: nodes={len(nodes)}")
+
+              if not nodes:
+                  raise SystemExit(f"{rel} contains zero nodes")
+
+              coords = 0
+
+              for item in nodes:
+                  if not isinstance(item, dict):
+                      continue
+
+                  lat = item.get("latitude") or item.get("lat")
+                  lon = item.get("longitude") or item.get("lon") or item.get("lng")
+
+                  try:
+                      lat = float(lat)
+                      lon = float(lon)
+                  except Exception:
+                      continue
+
+                  if -90 <= lat <= 90 and -180 <= lon <= 180:
+                      coords += 1
+
+              print(f"{rel}: coordinates={coords}")
+
+              if coords == 0:
+                  raise SystemExit(f"{rel} contains zero geocoded nodes")
+
+              coordinate_count += coords
+
+          print(f"total geocoded nodes={coordinate_count}")
           PY
 
       - name: Aggregate public summaries
@@ -475,24 +523,47 @@ jobs:
             --theme zzx_dark_olive \
             --settings live \
             --tile-provider cartodb_dark \
-            --compact
+            --compact \
+            --fail-empty
 
-          VECTORS="${BITNODES_LIVE_MAP}/data/map-vectors.json"
+      - name: Validate generated maps
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          for TOOL in \
-            mapregions.py mapcontinents.py mapcountries.py mapterritories.py \
-            mapcounties.py mapcities.py mapparcels.py mapbuildings.py \
-            maptimezones.py mapw3waddresses.py mapzzxgcsaddresses.py \
-            mapgeohashids.py mapnodes.py
-          do
-            if [ -f "tools/bitnodes/map/${TOOL}" ]; then
-              python "tools/bitnodes/map/${TOOL}" \
-                --vectors "${VECTORS}" \
-                --map-dir "${BITNODES_MAPS}" \
-                --live-map-dir "${BITNODES_LIVE_MAP}" \
-                --compact
-            fi
-          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          required = [
+              Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
+              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
+              Path("bitcoin/bitnodes/live-map/data/map-settings.json"),
+              Path("bitcoin/bitnodes/live-map/data/map-theme.json"),
+              Path("bitcoin/bitnodes/live-map/data/vector-types.json"),
+              Path("bitcoin/bitnodes/maps/data/map-points.geojson"),
+              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
+          ]
+
+          for path in required:
+              if not path.exists():
+                  raise SystemExit(f"missing generated map artifact: {path}")
+
+          geojson = json.loads(required[0].read_text(encoding="utf-8"))
+          vectors = json.loads(required[1].read_text(encoding="utf-8"))
+
+          features = geojson.get("features", [])
+          points = vectors.get("points", [])
+
+          print(f"live-map features={len(features)}")
+          print(f"live-map vector points={len(points)}")
+
+          if not isinstance(features, list) or len(features) < 1:
+              raise SystemExit("map-points.geojson contains zero features")
+
+          if not isinstance(points, list) or len(points) < 1:
+              raise SystemExit("map-vectors.json contains zero points")
+          PY
 
       - name: Prune private runtime, legacy fanout, and oversized artifacts
         shell: bash
