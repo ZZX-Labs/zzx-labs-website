@@ -21,10 +21,10 @@ env:
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
   BITNODES_DATA: bitcoin/bitnodes/data
-  BITNODES_GEO: bitcoin/bitnodes/data/geo
   BITNODES_MAPS: bitcoin/bitnodes/maps
   BITNODES_LIVE_MAP: bitcoin/bitnodes/live-map
   MAX_PUBLIC_JSON_BYTES: "24000000"
+  MIN_MAP_FEATURES: "1"
   PYTHONUNBUFFERED: "1"
 
 jobs:
@@ -65,6 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/maps.py --help
           python tools/bitnodes/map/live-map.py --help
@@ -75,14 +76,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           mkdir -p \
             "${BITNODES_MAPS}/zzxbitnodes/data" \
             "${BITNODES_MAPS}/originalbitnodes/data" \
             "${BITNODES_MAPS}/data" \
             "${BITNODES_LIVE_MAP}/zzxbitnodes/data" \
             "${BITNODES_LIVE_MAP}/originalbitnodes/data" \
-            "${BITNODES_LIVE_MAP}/data" \
-            "${BITNODES_GEO}"
+            "${BITNODES_LIVE_MAP}/data"
 
       - name: Select node-level map sources
         id: sources
@@ -94,83 +95,137 @@ jobs:
           import json
           from pathlib import Path
 
-          def read(path):
+          def read_json(path):
               try:
                   return json.loads(path.read_text(encoding="utf-8"))
               except Exception:
                   return None
 
-          def nodes(payload):
+          def node_items(payload):
               if not isinstance(payload, dict):
                   return []
-              value = payload.get("nodes")
-              if isinstance(value, dict):
-                  return list(value.items())
-              if isinstance(value, list):
-                  return [(str(i), x) for i, x in enumerate(value)]
-              for key in ("reachable_nodes", "data", "results", "rows", "peers"):
+
+              nodes = payload.get("nodes")
+
+              if isinstance(nodes, dict):
+                  return list(nodes.items())
+
+              if isinstance(nodes, list):
+                  return [(str(i), item) for i, item in enumerate(nodes)]
+
+              for key in ("reachable_nodes", "data", "results", "rows", "peers", "node_records"):
                   value = payload.get(key)
+
                   if isinstance(value, dict):
                       return list(value.items())
+
                   if isinstance(value, list):
-                      return [(str(i), x) for i, x in enumerate(value)]
+                      return [(str(i), item) for i, item in enumerate(value)]
+
               return []
 
-          def getval(item, key):
+          def getval(item, keys):
               if isinstance(item, dict):
-                  cur = item
-                  for part in key.split("."):
-                      if not isinstance(cur, dict) or part not in cur:
-                          return None
-                      cur = cur[part]
-                  return cur
+                  for key in keys:
+                      cur = item
+                      ok = True
+
+                      for part in key.split("."):
+                          if not isinstance(cur, dict) or part not in cur:
+                              ok = False
+                              break
+                          cur = cur[part]
+
+                      if ok and cur not in ("", None):
+                          return cur
+
               if isinstance(item, list):
-                  idx = {"latitude": 8, "longitude": 9, "lat": 8, "lon": 9}.get(key)
-                  if idx is not None and len(item) > idx:
-                      return item[idx]
+                  indexes = {
+                      "latitude": 8,
+                      "lat": 8,
+                      "longitude": 9,
+                      "lon": 9,
+                      "lng": 9,
+                  }
+
+                  for key in keys:
+                      idx = indexes.get(key)
+
+                      if idx is not None and len(item) > idx and item[idx] not in ("", None):
+                          return item[idx]
+
               return None
 
           def has_coords(path):
-              payload = read(path)
+              payload = read_json(path)
+
               if payload is None:
                   return False
-              for _addr, item in nodes(payload)[:2500]:
-                  lat = getval(item, "latitude") or getval(item, "lat") or getval(item, "geoip.latitude") or getval(item, "metadata.latitude")
-                  lon = getval(item, "longitude") or getval(item, "lon") or getval(item, "lng") or getval(item, "geoip.longitude") or getval(item, "metadata.longitude")
+
+              rows = node_items(payload)
+
+              if not rows:
+                  return False
+
+              checked = 0
+
+              for _address, item in rows[:5000]:
+                  checked += 1
+
+                  lat = getval(item, (
+                      "latitude",
+                      "lat",
+                      "geo.latitude",
+                      "geoip.latitude",
+                      "metadata.latitude",
+                      "location.latitude",
+                  ))
+
+                  lon = getval(item, (
+                      "longitude",
+                      "lon",
+                      "lng",
+                      "geo.longitude",
+                      "geoip.longitude",
+                      "metadata.longitude",
+                      "location.longitude",
+                  ))
+
                   try:
                       lat = float(lat)
                       lon = float(lon)
                   except Exception:
                       continue
+
                   if -90 <= lat <= 90 and -180 <= lon <= 180:
                       return True
+
               return False
 
-          def choose(candidates):
-              existing = [Path(x) for x in candidates if Path(x).exists()]
+          def choose(name, candidates):
+              existing = [Path(item) for item in candidates if Path(item).exists()]
+
               for path in existing:
                   if has_coords(path):
                       return path
-              if existing:
-                  return existing[0]
-              return None
 
-          zzx = choose([
+              if existing:
+                  raise SystemExit(
+                      f"{name} source files exist, but none contain node-level coordinates: "
+                      + ", ".join(str(path) for path in existing)
+                  )
+
+              raise SystemExit(f"missing {name} node source")
+
+          zzx = choose("ZZX", [
               "bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json",
               "bitcoin/bitnodes/api/zzxbitnodes/latest.json",
-              "bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json",
           ])
 
-          original = choose([
+          original = choose("Original", [
               "bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json",
               "bitcoin/bitnodes/api/originalbitnodes/latest.json",
-              "bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json",
           ])
-
-          if zzx is None:
-              raise SystemExit("missing ZZX node source")
-          if original is None:
-              raise SystemExit("missing Original node source")
 
           print(f"zzx_input={zzx}")
           print(f"original_input={original}")
@@ -180,10 +235,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py maps \
             --input "${{ steps.sources.outputs.zzx_input }}" \
             --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/state/zzxbitnodes" \
+            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
             --map-dir "${BITNODES_MAPS}/zzxbitnodes" \
             --live-map-dir "${BITNODES_LIVE_MAP}/zzxbitnodes" \
             --source zzxbitnodes \
@@ -196,10 +252,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py maps \
             --input "${{ steps.sources.outputs.original_input }}" \
             --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/state/originalbitnodes" \
+            --state-dir "${BITNODES_DATA}/runtime/state/originalbitnodes" \
             --map-dir "${BITNODES_MAPS}/originalbitnodes" \
             --live-map-dir "${BITNODES_LIVE_MAP}/originalbitnodes" \
             --source originalbitnodes \
@@ -208,14 +265,15 @@ jobs:
             --tile-provider cartodb_dark \
             --compact
 
-      - name: Build canonical global and live-map data
+      - name: Build canonical live-map data
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bitnodes/map/map.py both \
             --input "${{ steps.sources.outputs.zzx_input }}" \
             --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/state/zzxbitnodes" \
+            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
             --map-dir "${BITNODES_MAPS}" \
             --live-map-dir "${BITNODES_LIVE_MAP}" \
             --source zzxbitnodes \
@@ -227,10 +285,19 @@ jobs:
           VECTORS="${BITNODES_LIVE_MAP}/data/map-vectors.json"
 
           for TOOL in \
-            mapregions.py mapcontinents.py mapcountries.py mapterritories.py \
-            mapcounties.py mapcities.py mapparcels.py mapbuildings.py \
-            maptimezones.py mapw3waddresses.py mapzzxgcsaddresses.py \
-            mapgeohashids.py mapnodes.py
+            mapregions.py \
+            mapcontinents.py \
+            mapcountries.py \
+            mapterritories.py \
+            mapcounties.py \
+            mapcities.py \
+            mapparcels.py \
+            mapbuildings.py \
+            maptimezones.py \
+            mapw3waddresses.py \
+            mapzzxgcsaddresses.py \
+            mapgeohashids.py \
+            mapnodes.py
           do
             if [ -f "tools/bitnodes/map/${TOOL}" ]; then
               python "tools/bitnodes/map/${TOOL}" \
@@ -241,163 +308,6 @@ jobs:
             fi
           done
 
-      - name: Repair empty canonical map outputs from node-level source
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python - <<'PY'
-          import json
-          import time
-          from pathlib import Path
-
-          live = Path("bitcoin/bitnodes/live-map/data")
-          maps = Path("bitcoin/bitnodes/maps/data")
-          source = Path("${{ steps.sources.outputs.zzx_input }}")
-
-          def read(path, fallback):
-              try:
-                  return json.loads(path.read_text(encoding="utf-8"))
-              except Exception:
-                  return fallback
-
-          def write(path, payload):
-              path.parent.mkdir(parents=True, exist_ok=True)
-              path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-
-          def node_items(payload):
-              if isinstance(payload, dict):
-                  value = payload.get("nodes")
-                  if isinstance(value, dict):
-                      return list(value.items())
-                  if isinstance(value, list):
-                      return [(str(i), item) for i, item in enumerate(value)]
-                  for key in ("reachable_nodes", "data", "results", "rows", "peers"):
-                      value = payload.get(key)
-                      if isinstance(value, dict):
-                          return list(value.items())
-                      if isinstance(value, list):
-                          return [(str(i), item) for i, item in enumerate(value)]
-              return []
-
-          def getval(item, keys):
-              if isinstance(item, dict):
-                  for key in keys:
-                      cur = item
-                      ok = True
-                      for part in key.split("."):
-                          if not isinstance(cur, dict) or part not in cur:
-                              ok = False
-                              break
-                          cur = cur[part]
-                      if ok and cur not in ("", None):
-                          return cur
-              if isinstance(item, list):
-                  indexes = {
-                      "city": 6,
-                      "country": 7,
-                      "latitude": 8,
-                      "lat": 8,
-                      "longitude": 9,
-                      "lon": 9,
-                      "timezone": 10,
-                      "asn": 11,
-                      "organization": 12,
-                  }
-                  for key in keys:
-                      idx = indexes.get(key)
-                      if idx is not None and len(item) > idx and item[idx] not in ("", None):
-                          return item[idx]
-              return None
-
-          def fnum(value):
-              try:
-                  value = float(value)
-              except Exception:
-                  return None
-              return value
-
-          vectors_path = live / "map-vectors.json"
-          points_path = live / "map-points.geojson"
-
-          vectors = read(vectors_path, {})
-          geojson = read(points_path, {})
-
-          if (
-              isinstance(vectors, dict)
-              and isinstance(vectors.get("points"), list)
-              and len(vectors["points"]) > 0
-              and isinstance(geojson, dict)
-              and isinstance(geojson.get("features"), list)
-              and len(geojson["features"]) > 0
-          ):
-              print("canonical map outputs already populated")
-              raise SystemExit(0)
-
-          payload = read(source, {})
-          rebuilt_points = []
-          rebuilt_features = []
-
-          for address, item in node_items(payload):
-              lat = fnum(getval(item, ("latitude", "lat", "geo.latitude", "geoip.latitude", "metadata.latitude")))
-              lon = fnum(getval(item, ("longitude", "lon", "lng", "geo.longitude", "geoip.longitude", "metadata.longitude")))
-
-              if lat is None or lon is None:
-                  continue
-              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                  continue
-
-              city = getval(item, ("city", "city_name", "geoip.city", "metadata.city")) or ""
-              country = getval(item, ("country", "country_code", "geoip.country_code", "metadata.country_code")) or ""
-              asn = getval(item, ("asn", "geoip.asn", "metadata.asn")) or ""
-              org = getval(item, ("organization", "org", "geoip.organization", "metadata.organization")) or ""
-              tz = getval(item, ("timezone", "tz", "geoip.timezone", "metadata.timezone")) or ""
-
-              point = {
-                  "address": str(address),
-                  "latitude": lat,
-                  "longitude": lon,
-                  "city": city,
-                  "country": country,
-                  "asn": asn,
-                  "organization": org,
-                  "timezone": tz,
-                  "source": "repair-from-node-level-map-source"
-              }
-
-              rebuilt_points.append(point)
-              rebuilt_features.append({
-                  "type": "Feature",
-                  "geometry": {"type": "Point", "coordinates": [lon, lat]},
-                  "properties": point
-              })
-
-          if not rebuilt_points:
-              raise SystemExit("could not repair map output: no node-level coordinates in selected source")
-
-          vector_payload = {
-              "schema": "zzx-bitnodes-map-vectors-repaired-v2",
-              "generated_at": int(time.time()),
-              "source": str(source),
-              "points": rebuilt_points
-          }
-
-          geojson_payload = {
-              "type": "FeatureCollection",
-              "schema": "zzx-bitnodes-map-points-repaired-v2",
-              "generated_at": int(time.time()),
-              "source": str(source),
-              "features": rebuilt_features
-          }
-
-          write(vectors_path, vector_payload)
-          write(points_path, geojson_payload)
-          write(maps / "map-vectors.json", vector_payload)
-          write(maps / "map-points.geojson", geojson_payload)
-
-          print(f"repaired canonical map points: {len(rebuilt_points)}")
-          PY
-
       - name: Validate canonical live-map output
         shell: bash
         run: |
@@ -405,7 +315,10 @@ jobs:
 
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
+
+          min_features = int(os.environ.get("MIN_MAP_FEATURES", "1"))
 
           required = [
               Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
@@ -422,19 +335,93 @@ jobs:
           geojson = json.loads(required[0].read_text(encoding="utf-8"))
           vectors = json.loads(required[1].read_text(encoding="utf-8"))
 
+          if geojson.get("type") != "FeatureCollection":
+              raise SystemExit("map-points.geojson is not a GeoJSON FeatureCollection")
+
           features = geojson.get("features")
           points = vectors.get("points")
 
-          if geojson.get("type") != "FeatureCollection":
-              raise SystemExit("map-points.geojson is not a GeoJSON FeatureCollection")
-          if not isinstance(features, list) or len(features) < 1:
-              raise SystemExit("map-points.geojson has zero plotted features")
-          if not isinstance(points, list) or len(points) < 1:
-              raise SystemExit("map-vectors.json has zero points")
+          if not isinstance(features, list):
+              raise SystemExit("map-points.geojson features is not a list")
+
+          if not isinstance(points, list):
+              raise SystemExit("map-vectors.json points is not a list")
+
+          if len(features) < min_features:
+              raise SystemExit(
+                  f"map-points.geojson has too few plotted features: {len(features)} < {min_features}"
+              )
+
+          if len(points) < min_features:
+              raise SystemExit(
+                  f"map-vectors.json has too few points: {len(points)} < {min_features}"
+              )
 
           print(f"live-map canonical feature count: {len(features)}")
           print(f"live-map canonical vector point count: {len(points)}")
           PY
+
+      - name: Enforce map artifact size policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+
+          roots = [
+              Path(os.environ["BITNODES_MAPS"]),
+              Path(os.environ["BITNODES_LIVE_MAP"]),
+          ]
+
+          bad = []
+
+          for root in roots:
+              for path in root.rglob("*"):
+                  if not path.is_file():
+                      continue
+
+                  if path.suffix.lower() not in {".json", ".geojson", ".css", ".js", ".html", ".svg", ".png", ".webp"}:
+                      continue
+
+                  if path.stat().st_size > max_bytes:
+                      bad.append((path.stat().st_size, path))
+
+          if bad:
+              for size, path in bad:
+                  print(f"oversized map artifact: {size} {path}")
+              raise SystemExit(1)
+
+          print("map artifact size policy passed")
+          PY
+
+      - name: Prune map runtime cache
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find bitcoin/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f -name '*.pyc' -delete || true
+
+      - name: Stage map outputs only
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git reset
+
+          git add -A \
+            "${BITNODES_MAPS}" \
+            "${BITNODES_LIVE_MAP}"
+
+          if git diff --cached --name-only | grep -E '/(cities|asns|countries|agents|geohashes|providers|organizations|versions)/.+\.json$'; then
+            printf '%s\n' "Refusing exploded map/API fanout files."
+            exit 1
+          fi
 
       - name: Commit and push map outputs
         shell: bash
@@ -443,8 +430,6 @@ jobs:
 
           git config user.name "zzx-labs-maphost-bot"
           git config user.email "actions@github.com"
-
-          git add -A "${BITNODES_MAPS}" "${BITNODES_LIVE_MAP}"
 
           if git diff --cached --quiet; then
             printf '%s\n' "No map changes."
@@ -455,10 +440,12 @@ jobs:
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
+
             if git rebase --autostash origin/main && git push origin HEAD:main; then
               printf '%s\n' "Map outputs pushed."
               exit 0
             fi
+
             git rebase --abort || true
             printf '%s\n' "Map push attempt ${attempt} failed; retrying."
             sleep 10
