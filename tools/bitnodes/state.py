@@ -977,97 +977,125 @@ class BitnodesState:
             else:
                 self.mark_unreachable(normalized)
 
-    def update_successes(self, successes: Mapping[str, Any]) -> None:
-        now = utc_now()
+def update_successes(
+    self,
+    successes: Mapping[str, Any],
+    *,
+    now: int | None = None,
+    timestamp: int | None = None,
+    **_kwargs: Any,
+) -> None:
+    now = int(now or timestamp or utc_now())
 
-        for address, row in successes.items():
-            normalized = normalize_address(address=address)
+    for address, row in successes.items():
+        normalized = normalize_address(address=address)
 
-            if not normalized:
-                continue
+        if not normalized:
+            continue
 
-            if isinstance(row, tuple) and len(row) == 2:
-                normalized = normalize_address(address=row[0]) or normalized
-                row = row[1]
+        if isinstance(row, tuple) and len(row) == 2:
+            normalized = normalize_address(address=row[0]) or normalized
+            row = row[1]
 
-            record = self._record_from_any(normalized, row)
-            metadata = normalize_metadata(record.get("metadata"))
+        record = self._record_from_any(normalized, row)
+        metadata = normalize_metadata(record.get("metadata"))
 
-            metadata["reachable"] = True
-            metadata["reachable_now"] = True
-            metadata["reachable_24h"] = True
-            metadata["last_seen"] = now
-            metadata["last_success"] = now
-            metadata["success_count"] = int(metadata.get("success_count") or record.get("success_count") or 0) + 1
+        metadata["reachable"] = True
+        metadata["reachable_now"] = True
+        metadata["reachable_24h"] = True
+        metadata["last_seen"] = now
+        metadata["last_success"] = now
+        metadata["success_count"] = (
+            int(metadata.get("success_count") or record.get("success_count") or 0)
+            + 1
+        )
 
-            first_seen = metadata.get("first_seen") or record.get("first_seen")
-            metadata["first_seen"] = first_seen or now
+        first_seen = metadata.get("first_seen") or record.get("first_seen")
+        metadata["first_seen"] = first_seen or now
 
-            record["metadata"] = metadata
-            record["row"] = self._row_from_record(record)
-            record.update({
-                "reachable": True,
-                "reachable_now": True,
-                "reachable_24h": True,
-                "last_seen": now,
-                "last_success": now,
-                "first_seen": metadata["first_seen"],
-                "success_count": metadata["success_count"],
-            })
+        record["metadata"] = metadata
+        record["row"] = self._row_from_record(record)
 
-            self.nodes[normalized] = record
+        record.update({
+            "reachable": True,
+            "reachable_now": True,
+            "reachable_24h": True,
+            "last_seen": now,
+            "last_success": now,
+            "first_seen": metadata["first_seen"],
+            "success_count": metadata["success_count"],
+        })
 
-            if normalized in self._queue_set:
-                try:
-                    self.queue.remove(normalized)
-                except ValueError:
-                    pass
-                self._queue_set.discard(normalized)
+        self.nodes[normalized] = record
 
-        self.meta["last_success_update_at"] = utc_iso(now)
-        self.meta["last_success_count"] = len(successes)
+        if normalized in self._queue_set:
+            try:
+                self.queue.remove(normalized)
+            except ValueError:
+                pass
 
-    def update_failures(self, failures: Iterable[Any]) -> None:
-        now = utc_now()
-        count = 0
+            self._queue_set.discard(normalized)
 
-        for address in failures:
-            normalized = normalize_address(address=address)
+    self.meta["last_success_update_at"] = utc_iso(now)
+    self.meta["last_success_count"] = len(successes)
 
-            if not normalized:
-                continue
+def update_failures(
+    self,
+    failures: Iterable[Any],
+    *,
+    now: int | None = None,
+    timestamp: int | None = None,
+    **_kwargs: Any,
+) -> None:
+    now = int(now or timestamp or utc_now())
 
-            record = self.nodes.get(normalized)
+    count = 0
 
-            if record is None:
-                record = self._record_from_row(normalized, [])
+    for address in failures:
+        normalized = normalize_address(address=address)
 
-            metadata = normalize_metadata(record.get("metadata"))
-            metadata["reachable"] = False
-            metadata["reachable_now"] = False
-            metadata["last_failure"] = now
-            metadata["failure_count"] = int(metadata.get("failure_count") or record.get("failure_count") or 0) + 1
-            metadata.setdefault("network", classify_network(normalized))
+        if not normalized:
+            continue
 
-            if not metadata.get("first_seen"):
-                metadata["first_seen"] = now
+        record = self.nodes.get(normalized)
 
-            record["metadata"] = metadata
-            record["row"] = self._row_from_record(record)
-            record.update({
-                "reachable": False,
-                "reachable_now": False,
-                "last_failure": now,
-                "failure_count": metadata["failure_count"],
-                "network": metadata["network"],
-            })
+        if record is None:
+            record = self._record_from_row(normalized, [])
 
-            self.nodes[normalized] = record
-            count += 1
+        metadata = normalize_metadata(record.get("metadata"))
 
-        self.meta["last_failure_update_at"] = utc_iso(now)
-        self.meta["last_failure_count"] = count
+        metadata["reachable"] = False
+        metadata["reachable_now"] = False
+        metadata["last_failure"] = now
+        metadata["failure_count"] = (
+            int(metadata.get("failure_count") or record.get("failure_count") or 0)
+            + 1
+        )
 
+        metadata.setdefault(
+            "network",
+            classify_network(normalized),
+        )
+
+        if not metadata.get("first_seen"):
+            metadata["first_seen"] = now
+
+        record["metadata"] = metadata
+        record["row"] = self._row_from_record(record)
+
+        record.update({
+            "reachable": False,
+            "reachable_now": False,
+            "last_failure": now,
+            "failure_count": metadata["failure_count"],
+            "network": metadata["network"],
+        })
+
+        self.nodes[normalized] = record
+        count += 1
+
+    self.meta["last_failure_update_at"] = utc_iso(now)
+    self.meta["last_failure_count"] = count
     def mark_reachable(self, address: str, row: Any | None = None) -> None:
         normalized = normalize_address(address=address)
 
