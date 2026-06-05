@@ -18,7 +18,7 @@
 
     function bootLiveMap() {
         if (!window.ZZXBitnodesMap) {
-            status("Live map failed: core map engine missing. Load ../maps/map.js before ./live-map.js.", "error");
+            status("Live map failed: core map engine missing. Load ./map.js before ./live-map.js.", "error");
             return;
         }
 
@@ -46,33 +46,29 @@
                 settings: [
                     "./data/map-settings.json",
                     "./zzxbitnodes/data/map-settings.json",
-                    "../maps/data/map-settings.json",
-                    "../maps/zzxbitnodes/data/map-settings.json",
-                    "../maps/originalbitnodes/data/map-settings.json"
+                    "./global/data/map-settings.json",
+                    "./originalbitnodes/data/map-settings.json"
                 ],
 
                 settingsProfiles: [
                     "./data/map-settings-profiles.json",
                     "./zzxbitnodes/data/map-settings-profiles.json",
-                    "../maps/data/map-settings-profiles.json",
-                    "../maps/zzxbitnodes/data/map-settings-profiles.json",
-                    "../maps/originalbitnodes/data/map-settings-profiles.json"
+                    "./global/data/map-settings-profiles.json",
+                    "./originalbitnodes/data/map-settings-profiles.json"
                 ],
 
                 settingsProfile: id => [
                     `./data/settings/${id}.json`,
                     `./zzxbitnodes/data/settings/${id}.json`,
-                    `../maps/data/settings/${id}.json`,
-                    `../maps/zzxbitnodes/data/settings/${id}.json`,
-                    `../maps/originalbitnodes/data/settings/${id}.json`
+                    `./global/data/settings/${id}.json`,
+                    `./originalbitnodes/data/settings/${id}.json`
                 ],
 
                 themes: [
                     "./data/map-themes.json",
                     "./zzxbitnodes/data/map-themes.json",
-                    "../maps/data/map-themes.json",
-                    "../maps/zzxbitnodes/data/map-themes.json",
-                    "../maps/originalbitnodes/data/map-themes.json"
+                    "./global/data/map-themes.json",
+                    "./originalbitnodes/data/map-themes.json"
                 ],
 
                 theme: id => [
@@ -80,60 +76,52 @@
                     "./data/map-theme.json",
                     `./zzxbitnodes/data/themes/${id}.json`,
                     "./zzxbitnodes/data/map-theme.json",
-                    `../maps/data/themes/${id}.json`,
-                    "../maps/data/map-theme.json",
-                    `../maps/zzxbitnodes/data/themes/${id}.json`,
-                    "../maps/zzxbitnodes/data/map-theme.json",
-                    `../maps/originalbitnodes/data/themes/${id}.json`,
-                    "../maps/originalbitnodes/data/map-theme.json"
+                    `./global/data/themes/${id}.json`,
+                    "./global/data/map-theme.json",
+                    `./originalbitnodes/data/themes/${id}.json`,
+                    "./originalbitnodes/data/map-theme.json"
                 ],
 
                 tileProviders: [
                     "./data/map-tile-providers.json",
                     "./zzxbitnodes/data/map-tile-providers.json",
-                    "../maps/data/map-tile-providers.json",
-                    "../maps/zzxbitnodes/data/map-tile-providers.json",
-                    "../maps/originalbitnodes/data/map-tile-providers.json"
+                    "./global/data/map-tile-providers.json",
+                    "./originalbitnodes/data/map-tile-providers.json"
                 ],
 
                 vectors: [
                     "./data/map-points.geojson",
                     "./zzxbitnodes/data/map-points.geojson",
-                    "../maps/data/map-points.geojson",
-                    "../maps/zzxbitnodes/data/map-points.geojson",
-                    "../maps/originalbitnodes/data/map-points.geojson"
+                    "./global/data/map-points.geojson",
+                    "./originalbitnodes/data/map-points.geojson"
                 ],
 
                 vectorManifest: [
                     "./data/map-vectors.json",
                     "./zzxbitnodes/data/map-vectors.json",
-                    "../maps/data/map-vectors.json",
-                    "../maps/zzxbitnodes/data/map-vectors.json",
-                    "../maps/originalbitnodes/data/map-vectors.json"
+                    "./global/data/map-vectors.json",
+                    "./originalbitnodes/data/map-vectors.json"
                 ],
 
                 polygons: [
                     "./data/map-polygons.geojson",
                     "./zzxbitnodes/data/map-polygons.geojson",
-                    "../maps/data/map-polygons.geojson",
-                    "../maps/zzxbitnodes/data/map-polygons.geojson",
-                    "../maps/originalbitnodes/data/map-polygons.geojson"
+                    "./global/data/map-polygons.geojson",
+                    "./originalbitnodes/data/map-polygons.geojson"
                 ],
 
                 overlays: [
                     "./data/map-overlays.json",
                     "./zzxbitnodes/data/map-overlays.json",
-                    "../maps/data/map-overlays.json",
-                    "../maps/zzxbitnodes/data/map-overlays.json",
-                    "../maps/originalbitnodes/data/map-overlays.json"
+                    "./global/data/map-overlays.json",
+                    "./originalbitnodes/data/map-overlays.json"
                 ],
 
                 layers: [
                     "./data/map-layers.json",
                     "./zzxbitnodes/data/map-layers.json",
-                    "../maps/data/map-layers.json",
-                    "../maps/zzxbitnodes/data/map-layers.json",
-                    "../maps/originalbitnodes/data/map-layers.json"
+                    "./global/data/map-layers.json",
+                    "./originalbitnodes/data/map-layers.json"
                 ]
             }
         }).then(() => {
