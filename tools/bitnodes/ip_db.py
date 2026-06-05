@@ -7,13 +7,12 @@ import ipaddress
 import json
 import os
 import re
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 
-SCHEMA = "zzx-bitnodes-ip-db-v1"
+SCHEMA = "zzx-bitnodes-ip-db-v2"
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
@@ -26,6 +25,7 @@ DEFAULT_ARCHIVE_DIR = DEFAULT_IPDB_DIR / "archive"
 DEFAULT_LATEST_PATH = DEFAULT_CURRENT_DIR / "ip_db.latest.json"
 DEFAULT_INDEX_PATH = DEFAULT_CURRENT_DIR / "ip_db.index.json"
 DEFAULT_STATS_PATH = DEFAULT_CURRENT_DIR / "ip_db.stats.json"
+DEFAULT_REPORT_PATH = DEFAULT_IPDB_DIR / "ip_db.run-report.json"
 
 DEFAULT_MAX_SEGMENT_BYTES = 24 * 1024 * 1024
 DEFAULT_SEGMENT_PREFIX = "ip_db"
@@ -39,27 +39,30 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
 
 
 def json_bytes(payload: Any, pretty: bool = False) -> bytes:
-    if pretty:
-        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-    else:
-        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=2 if pretty else None,
+        separators=None if pretty else (",", ":"),
+        sort_keys=pretty,
+    )
     return (text + "\n").encode("utf-8")
 
 
 def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(json_bytes(payload, pretty=pretty))
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_bytes(json_bytes(payload, pretty=pretty))
+    tmp.replace(path)
 
 
 def sha256_text(text: str) -> str:
@@ -67,7 +70,9 @@ def sha256_text(text: str) -> str:
 
 
 def compact_key(value: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_.:-]+", "_", value.strip().lower())
+    text = value.strip().lower()
+    text = text.replace("[", "").replace("]", "")
+    return re.sub(r"[^a-zA-Z0-9_.:-]+", "_", text)
 
 
 def normalize_host(address: Any) -> str:
@@ -81,21 +86,19 @@ def normalize_host(address: Any) -> str:
 
     lower = value.lower()
 
-    if ".onion:" in lower or ".i2p:" in lower:
-        return value.rsplit(":", 1)[0].strip("[]").lower()
-
     if lower.endswith(".onion") or lower.endswith(".i2p"):
         return value.strip("[]").lower()
 
+    if ".onion:" in lower or ".i2p:" in lower:
+        return value.rsplit(":", 1)[0].strip("[]").lower()
+
     if value.count(":") == 1 and "." in value:
         host, port_text = value.rsplit(":", 1)
-
         if port_text.isdigit():
             return host.strip("[]").lower()
 
     if value.count(":") > 1:
         possible_host, possible_port = value.rsplit(":", 1)
-
         if possible_port.isdigit():
             try:
                 ipaddress.ip_address(possible_host.strip("[]"))
@@ -104,6 +107,16 @@ def normalize_host(address: Any) -> str:
                 pass
 
     return value.strip("[]").lower()
+
+
+def normalize_port(value: Any, default: int = 8333) -> int:
+    try:
+        port = int(float(value))
+        if 0 < port <= 65535:
+            return port
+    except Exception:
+        pass
+    return default
 
 
 def classify_network_from_host(host: str) -> str:
@@ -186,6 +199,34 @@ def classify_ip(address: Any) -> dict[str, Any]:
     return result
 
 
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    current: Any = row
+    for part in key.split("."):
+        if not isinstance(current, Mapping):
+            return None
+        current = current.get(part)
+    return current
+
+
+def first_value(row: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = deep_get(row, key)
+        if value not in ("", None):
+            return value
+    return None
+
+
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    text = str(value or "").strip().lower()
+    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
+
+
 def node_address(node: Mapping[str, Any]) -> str:
     return str(
         node.get("address")
@@ -199,79 +240,6 @@ def node_address(node: Mapping[str, Any]) -> str:
     )
 
 
-def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
-    current: Any = row
-
-    for part in key.split("."):
-        if not isinstance(current, Mapping):
-            return None
-        current = current.get(part)
-
-    return current
-
-
-def first_value(row: Mapping[str, Any], *keys: str) -> Any:
-    for key in keys:
-        value = deep_get(row, key)
-
-        if value not in ("", None):
-            return value
-
-    return None
-
-
-def boolish(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-
-    if value in (1, "1"):
-        return True
-
-    text = str(value or "").strip().lower()
-
-    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
-
-
-def extract_nodes(payload: Any) -> list[dict[str, Any]]:
-    if isinstance(payload, list):
-        return [dict(x) for x in payload if isinstance(x, Mapping)]
-
-    if not isinstance(payload, Mapping):
-        return []
-
-    nodes = payload.get("nodes")
-
-    if isinstance(nodes, list):
-        return [dict(x) for x in nodes if isinstance(x, Mapping)]
-
-    if isinstance(nodes, Mapping):
-        output: list[dict[str, Any]] = []
-
-        for address, value in nodes.items():
-            if isinstance(value, Mapping):
-                output.append({"address": str(address), **dict(value)})
-            elif isinstance(value, list):
-                output.append(bitnodes_array_to_record(str(address), value))
-            else:
-                output.append({"address": str(address), "value": value})
-
-        return output
-
-    for key in ("results", "data", "rows", "reachable", "unreachable", "peers", "node_records"):
-        value = payload.get(key)
-
-        if isinstance(value, list):
-            return [dict(x) for x in value if isinstance(x, Mapping)]
-
-        if isinstance(value, Mapping):
-            return extract_nodes({"nodes": value})
-
-    return []
-
-
 def bitnodes_array_to_record(address: str, row: list[Any]) -> dict[str, Any]:
     padded = list(row) + [None] * max(0, 20 - len(row))
     metadata = padded[19] if isinstance(padded[19], Mapping) else {}
@@ -279,6 +247,7 @@ def bitnodes_array_to_record(address: str, row: list[Any]) -> dict[str, Any]:
     record = {
         "address": address,
         "protocol_version": padded[0],
+        "protocol": padded[0],
         "agent": padded[1],
         "user_agent": padded[1],
         "connected_since": padded[2],
@@ -311,6 +280,51 @@ def bitnodes_array_to_record(address: str, row: list[Any]) -> dict[str, Any]:
     return record
 
 
+def extract_nodes(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        out = []
+        for index, item in enumerate(payload):
+            if isinstance(item, Mapping):
+                out.append(dict(item))
+            elif isinstance(item, list):
+                out.append(bitnodes_array_to_record(str(index), item))
+        return out
+
+    if not isinstance(payload, Mapping):
+        return []
+
+    nodes = payload.get("nodes")
+
+    if isinstance(nodes, list):
+        out = []
+        for index, item in enumerate(nodes):
+            if isinstance(item, Mapping):
+                out.append(dict(item))
+            elif isinstance(item, list):
+                out.append(bitnodes_array_to_record(str(index), item))
+        return out
+
+    if isinstance(nodes, Mapping):
+        output = []
+        for address, value in nodes.items():
+            if isinstance(value, Mapping):
+                output.append({"address": str(address), **dict(value)})
+            elif isinstance(value, list):
+                output.append(bitnodes_array_to_record(str(address), value))
+            else:
+                output.append({"address": str(address), "value": value})
+        return output
+
+    for key in ("results", "data", "rows", "reachable", "unreachable", "peers", "node_records"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return extract_nodes(value)
+        if isinstance(value, Mapping):
+            return extract_nodes({"nodes": value})
+
+    return []
+
+
 def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
     if isinstance(payload, list):
         return nodes
@@ -321,7 +335,10 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
     output = dict(payload)
 
     if isinstance(output.get("nodes"), Mapping):
-        output["nodes"] = {node.get("address", str(i)): node for i, node in enumerate(nodes)}
+        output["nodes"] = {
+            str(node.get("address") or index): node
+            for index, node in enumerate(nodes)
+        }
     else:
         output["nodes"] = nodes
 
@@ -334,7 +351,6 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
 
 def source_value(node: Mapping[str, Any], context: dict[str, Any] | None = None) -> str:
     context = context or {}
-
     return str(
         node.get("source")
         or first_value(node, "metadata.source", "crawl_source")
@@ -354,8 +370,10 @@ def record_from_node(node: Mapping[str, Any], context: dict[str, Any] | None = N
     now = utc_now()
     src = source_value(node, context)
 
-    record = {
-        "schema": "zzx-bitnodes-ip-db-record-v1",
+    port_value = first_value(node, "port", "metadata.port")
+
+    return {
+        "schema": "zzx-bitnodes-ip-db-record-v2",
         "host": host,
         "host_hash_sha256": sha256_text(host),
         "first_seen": first_value(node, "first_seen", "metadata.first_seen") or now,
@@ -363,7 +381,7 @@ def record_from_node(node: Mapping[str, Any], context: dict[str, Any] | None = N
         "seen_count": 1,
         "sources": sorted({src}),
         "addresses": sorted({str(address)}),
-        "ports": sorted({int(first_value(node, "port", "metadata.port") or 8333)}),
+        "ports": sorted({normalize_port(port_value)}),
         "network": ip_data["network"],
         "is_ip": ip_data["is_ip"],
         "ip_version": ip_data["ip_version"],
@@ -402,8 +420,6 @@ def record_from_node(node: Mapping[str, Any], context: dict[str, Any] | None = N
         "updated_at": now,
     }
 
-    return record
-
 
 def merge_record(existing: Mapping[str, Any] | None, incoming: Mapping[str, Any]) -> dict[str, Any]:
     if existing is None:
@@ -431,7 +447,6 @@ def merge_record(existing: Mapping[str, Any] | None, incoming: Mapping[str, Any]
     for key, value in incoming.items():
         if key in {"seen_count", "sources", "addresses", "ports", "first_seen"}:
             continue
-
         if value not in ("", None, [], {}):
             merged[key] = value
 
@@ -442,7 +457,7 @@ def merge_record(existing: Mapping[str, Any] | None, incoming: Mapping[str, Any]
 
 def default_index() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-ip-db-index-v1",
+        "schema": "zzx-bitnodes-ip-db-index-v2",
         "generated_at": utc_now(),
         "updated_at": utc_now(),
         "segment_count": 0,
@@ -479,15 +494,14 @@ def split_records_into_segments(
     records: Mapping[str, Any],
     *,
     max_segment_bytes: int = DEFAULT_MAX_SEGMENT_BYTES,
-    segment_prefix: str = DEFAULT_SEGMENT_PREFIX,
 ) -> list[dict[str, Any]]:
-    segments: list[dict[str, Any]] = []
+    segments = []
     current_records: dict[str, Any] = {}
     segment_number = 1
 
     def payload_for(number: int, recs: Mapping[str, Any]) -> dict[str, Any]:
         return {
-            "schema": "zzx-bitnodes-ip-db-segment-v1",
+            "schema": "zzx-bitnodes-ip-db-segment-v2",
             "generated_at": utc_now(),
             "segment": number,
             "record_count": len(recs),
@@ -527,17 +541,12 @@ def write_segments(
     for old in archive_dir.glob(f"{segment_prefix}.*.json"):
         old.unlink()
 
-    segments = split_records_into_segments(
-        records,
-        max_segment_bytes=max_segment_bytes,
-        segment_prefix=segment_prefix,
-    )
-
+    segments = split_records_into_segments(records, max_segment_bytes=max_segment_bytes)
     index = default_index()
     index["segment_count"] = len(segments)
     index["total_unique_hosts"] = len(records)
 
-    segment_entries = []
+    entries = []
 
     for segment in segments:
         number = int(segment["segment"])
@@ -546,24 +555,20 @@ def write_segments(
 
         write_json(path, segment, pretty=pretty)
 
-        size_bytes = path.stat().st_size
-        checksum = hashlib.sha256(path.read_bytes()).hexdigest()
-
-        segment_entries.append({
+        entries.append({
             "segment": number,
             "filename": filename,
             "path": str(path),
-            "size_bytes": size_bytes,
-            "sha256": checksum,
+            "size_bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "record_count": segment["record_count"],
         })
 
-    index["segments"] = segment_entries
-    index["latest_segment"] = segment_entries[-1]["filename"] if segment_entries else ""
+    index["segments"] = entries
+    index["latest_segment"] = entries[-1]["filename"] if entries else ""
     index["updated_at"] = utc_now()
 
     write_json(index_path, index, pretty=True)
-
     return index
 
 
@@ -591,11 +596,7 @@ def build_stats(records: Mapping[str, Any]) -> dict[str, Any]:
             continue
 
         network = str(record.get("network") or "unknown")
-
-        if network in counters:
-            counters[network] += 1
-        else:
-            counters["unknown"] += 1
+        counters[network if network in counters else "unknown"] += 1
 
         for key in ("suspected_vpn", "suspected_proxy", "policy_restricted", "policy_watch"):
             counters[key] += int(bool(record.get(key)))
@@ -615,7 +616,7 @@ def build_stats(records: Mapping[str, Any]) -> dict[str, Any]:
         ]
 
     return {
-        "schema": "zzx-bitnodes-ip-db-stats-v1",
+        "schema": "zzx-bitnodes-ip-db-stats-v2",
         "generated_at": utc_now(),
         "total_unique_hosts": len(records),
         "counts": counters,
@@ -630,17 +631,16 @@ def build_stats(records: Mapping[str, Any]) -> dict[str, Any]:
 def update_ipdb(
     nodes: list[dict[str, Any]],
     *,
-    latest_path: Path = DEFAULT_LATEST_PATH,
-    index_path: Path = DEFAULT_INDEX_PATH,
-    stats_path: Path = DEFAULT_STATS_PATH,
-    archive_dir: Path = DEFAULT_ARCHIVE_DIR,
-    max_segment_bytes: int = DEFAULT_MAX_SEGMENT_BYTES,
+    latest_path: Path,
+    index_path: Path,
+    stats_path: Path,
+    archive_dir: Path,
+    max_segment_bytes: int,
     source: str = "",
     pretty: bool = True,
     write_archive: bool = True,
 ) -> dict[str, Any]:
     records = load_ipdb(latest_path)
-
     changed = 0
 
     for node in nodes:
@@ -649,9 +649,7 @@ def update_ipdb(
         if record is None:
             continue
 
-        host = record["host"]
-        key = compact_key(host)
-
+        key = compact_key(str(record["host"]))
         old = records.get(key)
         new = merge_record(old, record)
 
@@ -666,24 +664,22 @@ def update_ipdb(
     stats = build_stats(records)
     write_json(stats_path, stats, pretty=True)
 
-    index = read_json(index_path, fallback=default_index())
-
     if write_archive:
         index = write_segments(
             records,
             archive_dir=archive_dir,
             index_path=index_path,
             max_segment_bytes=max_segment_bytes,
-            segment_prefix=DEFAULT_SEGMENT_PREFIX,
             pretty=pretty,
         )
     else:
+        index = read_json(index_path, fallback=default_index())
         index["updated_at"] = utc_now()
         index["total_unique_hosts"] = len(records)
         write_json(index_path, index, pretty=True)
 
     return {
-        "schema": "zzx-bitnodes-ip-db-update-report-v1",
+        "schema": "zzx-bitnodes-ip-db-update-report-v2",
         "updated_at": utc_now(),
         "input_nodes": len(nodes),
         "changed_records": changed,
@@ -704,7 +700,11 @@ def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     node["host"] = ip_data.get("host") or normalize_host(address)
     node["is_ip"] = ip_data["is_ip"]
     node["ip_version"] = ip_data["ip_version"]
-    node["network"] = ip_data["network"] if ip_data["network"] != "unknown" else node.get("network", "unknown")
+
+    if ip_data["network"] != "unknown":
+        node["network"] = ip_data["network"]
+    else:
+        node.setdefault("network", "unknown")
 
     node["is_ipv4"] = ip_data["is_ipv4"]
     node["is_ipv6"] = ip_data["is_ipv6"]
@@ -722,53 +722,31 @@ def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     return node
 
 
-def enrich_nodes(
-    nodes: Any,
-    context: dict[str, Any] | None = None,
-) -> Any:
+def enrich_nodes(nodes: Any) -> Any:
     if isinstance(nodes, list):
-        enriched = [
+        return [
             enrich_node(dict(node)) if isinstance(node, Mapping) else node
             for node in nodes
         ]
-    elif isinstance(nodes, Mapping):
-        enriched = {
+
+    if isinstance(nodes, Mapping):
+        return {
             key: enrich_node(dict(value)) if isinstance(value, Mapping) else value
             for key, value in nodes.items()
         }
-    else:
-        return nodes
 
-    if context and context.get("ip_db_update"):
-        update_ipdb(
-            extract_nodes({"nodes": enriched}),
-            latest_path=Path(context.get("ip_db_latest", DEFAULT_LATEST_PATH)),
-            index_path=Path(context.get("ip_db_index", DEFAULT_INDEX_PATH)),
-            stats_path=Path(context.get("ip_db_stats", DEFAULT_STATS_PATH)),
-            archive_dir=Path(context.get("ip_db_archive", DEFAULT_ARCHIVE_DIR)),
-            max_segment_bytes=int(context.get("ip_db_max_segment_bytes", DEFAULT_MAX_SEGMENT_BYTES)),
-            source=str(context.get("source", "")),
-            pretty=not bool(context.get("compact", False)),
-            write_archive=not bool(context.get("ip_db_no_archive", False)),
-        )
-
-    return enriched
+    return nodes
 
 
-def enrich_payload(
-    payload: Any,
-    context: dict[str, Any] | None = None,
-) -> Any:
+def enrich_payload(payload: Any) -> Any:
     if isinstance(payload, list):
-        enriched = enrich_nodes(payload, context)
-        return enriched
+        return enrich_nodes(payload)
 
     if not isinstance(payload, MutableMapping):
         return payload
 
     nodes = extract_nodes(payload)
-    enriched_nodes = enrich_nodes(nodes, context)
-
+    enriched_nodes = enrich_nodes(nodes)
     output = put_nodes(payload, enriched_nodes)
 
     output.setdefault("metadata", {})
@@ -778,15 +756,16 @@ def enrich_payload(
     return output
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Enrich Bitnodes records with normalized IP metadata and maintain segmented IP DB logs."
+        description="Enrich Bitnodes records with normalized IP metadata and maintain segmented IP DB logs.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
 
-    parser.add_argument("--ipdb-dir", default=str(DEFAULT_IPDB_DIR))
+    parser.add_argument("--ipdb-dir", "--log-dir", "--source-dir", dest="ipdb_dir", default=str(DEFAULT_IPDB_DIR))
     parser.add_argument("--latest", default="")
     parser.add_argument("--index", default="")
     parser.add_argument("--stats", default="")
@@ -797,7 +776,13 @@ def main() -> int:
     parser.add_argument("--no-archive", action="store_true")
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--report", default="")
+    parser.add_argument("--manifest", default="", help="Legacy compatibility argument; ignored.")
 
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
     args = parser.parse_args()
 
     ipdb_dir = Path(args.ipdb_dir)
@@ -809,30 +794,19 @@ def main() -> int:
     stats_path = Path(args.stats) if args.stats else current_dir / "ip_db.stats.json"
 
     payload = read_json(Path(args.input), fallback={})
-
-    context = {
-        "source": args.source,
-        "ip_db_update": args.update_db,
-        "ip_db_latest": str(latest_path),
-        "ip_db_index": str(index_path),
-        "ip_db_stats": str(stats_path),
-        "ip_db_archive": str(archive_dir),
-        "ip_db_max_segment_bytes": args.max_segment_bytes,
-        "ip_db_no_archive": args.no_archive,
-        "compact": args.compact,
-    }
-
-    enriched = enrich_payload(payload, context=context)
+    enriched = enrich_payload(payload)
 
     write_json(Path(args.output), enriched, pretty=not args.compact)
 
+    nodes = extract_nodes(enriched)
+
     report = {
-        "schema": "zzx-bitnodes-ip-db-run-report-v1",
+        "schema": "zzx-bitnodes-ip-db-run-report-v2",
         "updated_at": utc_now(),
         "input": str(Path(args.input)),
         "output": str(Path(args.output)),
-        "node_count": len(extract_nodes(enriched)),
-        "updated_db": args.update_db,
+        "node_count": len(nodes),
+        "updated_db": bool(args.update_db),
         "ipdb_dir": str(ipdb_dir),
         "latest": str(latest_path),
         "index": str(index_path),
@@ -842,7 +816,7 @@ def main() -> int:
 
     if args.update_db:
         report["db_update"] = update_ipdb(
-            extract_nodes(enriched),
+            nodes,
             latest_path=latest_path,
             index_path=index_path,
             stats_path=stats_path,
@@ -855,6 +829,8 @@ def main() -> int:
 
     if args.report:
         write_json(Path(args.report), report, pretty=True)
+    else:
+        write_json(DEFAULT_REPORT_PATH, report, pretty=True)
 
     print(
         "ip_db complete: "
