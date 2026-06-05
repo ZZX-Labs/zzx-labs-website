@@ -639,3 +639,111 @@ def validate_nodes(nodes: dict[str, list[Any]]) -> tuple[dict[str, list[Any]], l
         valid[normalized_address] = normalize_node_array(values)
 
     return valid, errors
+
+from collections import deque
+from pathlib import Path
+
+DEFAULT_STATE_DIR = Path("bitcoin/bitnodes/data/state")
+DEFAULT_SNAPSHOT_24H_DIR = Path("bitcoin/bitnodes/data/snapshots/24h")
+
+
+def utc_now() -> int:
+    return now_ts()
+
+
+def utc_iso(ts: int | None = None) -> str:
+    if ts is None:
+        ts = utc_now()
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+
+
+def mkdir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def read_json(path: Path, default: Any) -> Any:
+    if not path.exists():
+        return default
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return default
+
+
+def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
+    mkdir(path.parent)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            payload,
+            handle,
+            ensure_ascii=False,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            sort_keys=pretty,
+        )
+        handle.write("\n")
+
+
+class BitnodesState:
+    def __init__(
+        self,
+        state_dir: Path = DEFAULT_STATE_DIR,
+        snapshot_24h_dir: Path = DEFAULT_SNAPSHOT_24H_DIR,
+        *,
+        source: str = "",
+    ) -> None:
+        self.source = str(source or "").strip()
+        self.state_dir = Path(state_dir)
+        self.snapshot_24h_dir = Path(snapshot_24h_dir)
+
+        mkdir(self.state_dir)
+        mkdir(self.snapshot_24h_dir)
+
+        self.nodes_path = self.state_dir / "nodes.json"
+        self.queue_path = self.state_dir / "queue.json"
+        self.meta_path = self.state_dir / "meta.json"
+
+        self.nodes: dict[str, dict[str, Any]] = read_json(self.nodes_path, {})
+        self.queue: deque[str] = deque(read_json(self.queue_path, []))
+        self.meta: dict[str, Any] = read_json(self.meta_path, {})
+        self._queue_set = set(self.queue)
+
+    def save(self) -> None:
+        self.meta["saved_at"] = utc_iso()
+        self.meta["source"] = self.source or self.meta.get("source", "")
+        self.meta["state_dir"] = str(self.state_dir)
+        self.meta["snapshot_24h_dir"] = str(self.snapshot_24h_dir)
+
+        write_json(self.nodes_path, self.nodes)
+        write_json(self.queue_path, list(self.queue))
+        write_json(self.meta_path, self.meta)
+
+    def add_to_queue(self, addresses: list[str]) -> None:
+        added = 0
+
+        for address in addresses:
+            normalized = normalize_address(address=address)
+
+            if not normalized or normalized in self._queue_set:
+                continue
+
+            self.queue.append(normalized)
+            self._queue_set.add(normalized)
+            added += 1
+
+        self.meta["queue_last_added"] = added
+        self.meta["queue_last_updated_at"] = utc_iso()
+
+    def pop_batch(self, size: int) -> list[str]:
+        batch: list[str] = []
+
+        while self.queue and len(batch) < size:
+            address = self.queue.popleft()
+            self._queue_set.discard(address)
+            batch.append(address)
+
+        self.meta["queue_last_popped"] = len(batch)
+        self.meta["queue_last_popped_at"] = utc_iso()
+
+        return batch
