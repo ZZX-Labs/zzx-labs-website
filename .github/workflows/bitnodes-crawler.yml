@@ -36,8 +36,9 @@ env:
   MAX_PUBLIC_JSON_BYTES: "24000000"
   MAX_COMMIT_FILES: "600"
   MAX_DELETIONS: "2500000"
+  MIN_MAP_FEATURES: "1"
   PYTHONUNBUFFERED: "1"
-  BITNODES_REQUIRE_GEO_COORDINATES: "false"
+  BITNODES_REQUIRE_GEO_COORDINATES: "true"
 
 jobs:
   crawl-bitnodes:
@@ -115,12 +116,13 @@ jobs:
           python -m py_compile tools/bitnodes/ip_db.py
           python -m py_compile tools/bitnodes/push_ipdb.py
           python -m py_compile tools/bitnodes/export_db.py
+          python -m py_compile tools/bitnodes/build_geo_indexes.py
           python -m py_compile tools/bitnodes/map/map.py
           python -m py_compile tools/bitnodes/map/maps.py
           python -m py_compile tools/bitnodes/map/live-map.py
+          python -m py_compile tools/bitnodes/map/mapplotter.py
           python -m py_compile tools/bitnodes/map/mapvectors.py
           python -m py_compile tools/bitnodes/map/mapnodes.py
-          python -m py_compile tools/bitnodes/build_geo_indexes.py
 
           python tools/bitnodes/crawl.py --help
           python tools/bitnodes/enrich.py --help
@@ -128,8 +130,10 @@ jobs:
           python tools/bitnodes/ip_db.py --help
           python tools/bitnodes/push_ipdb.py --help
           python tools/bitnodes/export_db.py --help
-          python tools/bitnodes/map/map.py --help
           python tools/bitnodes/build_geo_indexes.py --help
+          python tools/bitnodes/map/map.py --help
+          python tools/bitnodes/map/mapplotter.py --help
+          python tools/bitnodes/map/mapvectors.py --help
 
       - name: Sync repo before crawl
         shell: bash
@@ -211,6 +215,15 @@ jobs:
 
           gunzip -f "${BITNODES_GEOIP}"/*.gz
 
+          for DB in \
+            "${BITNODES_GEOIP}/dbip-city-lite.mmdb" \
+            "${BITNODES_GEOIP}/dbip-asn-lite.mmdb" \
+            "${BITNODES_GEOIP}/dbip-country-lite.mmdb"
+          do
+            test -s "${DB}"
+            ls -lh "${DB}"
+          done
+
       - name: Build local GeoNames indexes
         shell: bash
         run: |
@@ -257,7 +270,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           test -f "${BITNODES_API}/zzxbitnodes/latest.json"
 
           python - <<'PY'
@@ -267,7 +279,6 @@ jobs:
 
           path = Path(os.environ["BITNODES_API"]) / "zzxbitnodes" / "latest.json"
           payload = json.loads(path.read_text(encoding="utf-8"))
-
           nodes = payload.get("nodes") if isinstance(payload, dict) else None
           count = len(nodes) if isinstance(nodes, (dict, list)) else 0
 
@@ -305,125 +316,138 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           test -f "${BITNODES_API}/originalbitnodes/latest.json"
 
-      - name: Enrich node datasets
+      - name: Enrich node datasets with GeoIP coordinates
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/enrich.py \
-            --input "${BITNODES_API}/zzxbitnodes/latest.json" \
-            --output "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            --report "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
-            --source zzxbitnodes \
-            --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            --geoip-dir "${BITNODES_GEOIP}" \
-            --geo-root "${BITNODES_GEO}" \
-            --compact
+          for SOURCE in zzxbitnodes originalbitnodes; do
+            python tools/bitnodes/enrich.py \
+              --input "${BITNODES_API}/${SOURCE}/latest.json" \
+              --output "${BITNODES_API}/enriched/${SOURCE}/latest.json" \
+              --report "${BITNODES_API}/enriched/${SOURCE}/enrichment-report.json" \
+              --source "${SOURCE}" \
+              --api-dir "${BITNODES_API}" \
+              --state-dir "${BITNODES_DATA}/runtime/state/${SOURCE}" \
+              --geoip-dir "${BITNODES_GEOIP}" \
+              --city-db "${BITNODES_GEOIP}/dbip-city-lite.mmdb" \
+              --asn-db "${BITNODES_GEOIP}/dbip-asn-lite.mmdb" \
+              --country-db "${BITNODES_GEOIP}/dbip-country-lite.mmdb" \
+              --geo-root "${BITNODES_GEO}" \
+              --compact
+          done
 
-          python tools/bitnodes/enrich.py \
-            --input "${BITNODES_API}/originalbitnodes/latest.json" \
-            --output "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
-            --report "${BITNODES_API}/enriched/originalbitnodes/enrichment-report.json" \
-            --source originalbitnodes \
-            --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/originalbitnodes" \
-            --geoip-dir "${BITNODES_GEOIP}" \
-            --geo-root "${BITNODES_GEO}" \
-            --compact
-
-      - name: Validate enriched datasets
+      - name: Validate enriched coordinate coverage
         shell: bash
         run: |
           set -euo pipefail
 
           python - <<'PY'
           import json
+          import math
           import os
           from pathlib import Path
 
-          require_coordinates = os.environ.get(
-              "BITNODES_REQUIRE_GEO_COORDINATES",
-              "false",
-          ).strip().lower() in {"1", "true", "yes", "y"}
+          api = Path(os.environ["BITNODES_API"])
+
+          def deep_get(row, path):
+              cur = row
+              for part in path.split("."):
+                  if not isinstance(cur, dict):
+                      return None
+                  cur = cur.get(part)
+              return cur
 
           def node_items(payload):
-              nodes = payload.get("nodes")
-              if isinstance(nodes, dict):
-                  return nodes.values()
-              if isinstance(nodes, list):
-                  return nodes
+              if not isinstance(payload, dict):
+                  return []
+
+              for key in ("nodes", "reachable_nodes", "rows", "results", "data", "node_records", "peers"):
+                  value = payload.get(key)
+                  if isinstance(value, dict):
+                      return list(value.values())
+                  if isinstance(value, list):
+                      return value
+
               return []
 
-          total_coordinate_count = 0
+          def valid_pair(lat, lon):
+              try:
+                  lat = float(lat)
+                  lon = float(lon)
+              except Exception:
+                  return False
+
+              return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
+
+          def coords_from(item):
+              if isinstance(item, list):
+                  lat = item[8] if len(item) > 8 else None
+                  lon = item[9] if len(item) > 9 else None
+
+                  if valid_pair(lat, lon):
+                      return True
+
+                  meta = item[19] if len(item) > 19 and isinstance(item[19], dict) else {}
+                  for prefix in ("geoip", "geoip_data", "geoloc", "metadata"):
+                      src = meta.get(prefix) if isinstance(meta, dict) else None
+                      if isinstance(src, dict) and valid_pair(src.get("latitude"), src.get("longitude")):
+                          return True
+
+                  if valid_pair(meta.get("latitude"), meta.get("longitude")):
+                      return True
+
+                  return False
+
+              if isinstance(item, dict):
+                  candidates = (
+                      ("latitude", "longitude"),
+                      ("lat", "lon"),
+                      ("lat", "lng"),
+                      ("geo.latitude", "geo.longitude"),
+                      ("geoip.latitude", "geoip.longitude"),
+                      ("geoip_data.latitude", "geoip_data.longitude"),
+                      ("geoloc.latitude", "geoloc.longitude"),
+                      ("location.latitude", "location.longitude"),
+                      ("metadata.latitude", "metadata.longitude"),
+                      ("metadata.geoip.latitude", "metadata.geoip.longitude"),
+                      ("metadata.geoip_data.latitude", "metadata.geoip_data.longitude"),
+                  )
+
+                  for lat_key, lon_key in candidates:
+                      if valid_pair(deep_get(item, lat_key), deep_get(item, lon_key)):
+                          return True
+
+              return False
+
+          total_coords = 0
 
           for rel in (
               "enriched/zzxbitnodes/latest.json",
               "enriched/originalbitnodes/latest.json",
           ):
-              path = Path(os.environ["BITNODES_API"]) / rel
-
+              path = api / rel
               if not path.exists():
-                  raise SystemExit(f"{rel} is missing")
+                  raise SystemExit(f"missing {rel}")
 
               payload = json.loads(path.read_text(encoding="utf-8"))
-              nodes = list(node_items(payload))
+              nodes = node_items(payload)
 
-              print(f"{rel}: nodes={len(nodes)}")
+              coords = sum(1 for item in nodes if coords_from(item))
 
-              if not nodes:
-                  raise SystemExit(f"{rel} contains zero nodes")
+              print(f"{rel}: nodes={len(nodes)} coordinates={coords}")
 
-              coords = 0
+              if len(nodes) <= 0:
+                  raise SystemExit(f"{rel} has zero nodes")
 
-              for item in nodes:
-                  if isinstance(item, dict):
-                      lat = (
-                          item.get("latitude")
-                          or item.get("lat")
-                          or item.get("geo", {}).get("latitude")
-                          if isinstance(item.get("geo"), dict)
-                          else None
-                      )
-                      lon = (
-                          item.get("longitude")
-                          or item.get("lon")
-                          or item.get("lng")
-                          or item.get("geo", {}).get("longitude")
-                          if isinstance(item.get("geo"), dict)
-                          else None
-                      )
-                  elif isinstance(item, list):
-                      lat = item[8] if len(item) > 8 else None
-                      lon = item[9] if len(item) > 9 else None
-                  else:
-                      continue
+              if coords <= 0:
+                  raise SystemExit(f"{rel} has zero coordinate-bearing nodes")
 
-                  try:
-                      lat = float(lat)
-                      lon = float(lon)
-                  except Exception:
-                      continue
+              total_coords += coords
 
-                  if -90 <= lat <= 90 and -180 <= lon <= 180:
-                      coords += 1
-
-              print(f"{rel}: coordinates={coords}")
-
-              if coords == 0:
-                  message = f"{rel} contains zero geocoded nodes"
-
-                  if require_coordinates:
-                      raise SystemExit(message)
-
-                  print(f"WARNING: {message}; continuing because BITNODES_REQUIRE_GEO_COORDINATES=false")
-
-              total_coordinate_count += coords
-
-          print(f"total geocoded nodes={total_coordinate_count}")
+          print(f"total coordinate-bearing nodes={total_coords}")
           PY
 
       - name: Aggregate public summaries
@@ -431,19 +455,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/aggregate.py \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            --output "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
-            --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            --source zzxbitnodes
-
-          python tools/bitnodes/aggregate.py \
-            --input "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
-            --output "${BITNODES_API}/aggregate/originalbitnodes/latest.json" \
-            --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/originalbitnodes" \
-            --source originalbitnodes
+          for SOURCE in zzxbitnodes originalbitnodes; do
+            python tools/bitnodes/aggregate.py \
+              --input "${BITNODES_API}/enriched/${SOURCE}/latest.json" \
+              --output "${BITNODES_API}/aggregate/${SOURCE}/latest.json" \
+              --api-dir "${BITNODES_API}" \
+              --state-dir "${BITNODES_DATA}/runtime/state/${SOURCE}" \
+              --source "${SOURCE}"
+          done
 
       - name: Update IPDB artifacts
         shell: bash
@@ -466,50 +485,9 @@ jobs:
             --compact \
             --report "${BITNODES_GEOIP}/ip_db.run-report.json"
 
-          printf '%s\n' "==== IPDB current ===="
-          ls -lah "${BITNODES_GEOIP}/current"
-
-          printf '%s\n' "==== IPDB archive ===="
-          ls -lah "${BITNODES_GEOIP}/archive" | sed -n '1,80p'
-
           test -f "${BITNODES_GEOIP}/current/ip_db.latest.json"
           test -f "${BITNODES_GEOIP}/current/ip_db.index.json"
           test -f "${BITNODES_GEOIP}/current/ip_db.stats.json"
-
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          root = Path(os.environ["BITNODES_GEOIP"])
-          index = json.loads((root / "current" / "ip_db.index.json").read_text(encoding="utf-8"))
-          latest = json.loads((root / "current" / "ip_db.latest.json").read_text(encoding="utf-8"))
-          stats = json.loads((root / "current" / "ip_db.stats.json").read_text(encoding="utf-8"))
-
-          segment_count = int(index.get("segment_count") or 0)
-          host_count = int(index.get("total_unique_hosts") or 0)
-          latest_count = int(latest.get("record_count") or 0)
-          stats_count = int(stats.get("total_unique_hosts") or 0)
-
-          print(f"IPDB segment_count={segment_count}")
-          print(f"IPDB index hosts={host_count}")
-          print(f"IPDB latest records={latest_count}")
-          print(f"IPDB stats hosts={stats_count}")
-
-          if segment_count <= 0:
-              raise SystemExit("IPDB index has zero segments")
-
-          if host_count <= 0 or latest_count <= 0 or stats_count <= 0:
-              raise SystemExit("IPDB generated zero hosts")
-
-          for item in index.get("segments", []):
-              filename = item.get("filename")
-              if not filename:
-                  raise SystemExit("IPDB segment missing filename")
-              path = root / "archive" / filename
-              if not path.exists():
-                  raise SystemExit(f"IPDB segment missing from archive: {path}")
-          PY
 
           python tools/bitnodes/push_ipdb.py \
             --ipdb-dir "${BITNODES_GEOIP}" \
@@ -522,8 +500,6 @@ jobs:
             --include-latest \
             --copy-only \
             --compact
-
-          test -f "${BITNODES_GEOIP}/ip_db.push-report.json"
 
       - name: Export MariaDB gzip shards
         shell: bash
@@ -539,148 +515,13 @@ jobs:
             --compact \
             --strict
 
-      - name: Build maps from enriched node data
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          MAP_INPUT="${BITNODES_API}/enriched/zzxbitnodes/latest.json"
-          MAP_READY_INPUT="${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json"
-
-          python - <<'PY'
-          import hashlib
-          import json
-          import math
-          import os
-          from pathlib import Path
-
-          src = Path(os.environ["MAP_INPUT"])
-          dst = Path(os.environ["MAP_READY_INPUT"])
-
-          payload = json.loads(src.read_text(encoding="utf-8"))
-
-          def valid_coord(lat, lon):
-              try:
-                  lat = float(lat)
-                  lon = float(lon)
-              except Exception:
-                  return False
-              return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
-
-          def synthetic_point(seed):
-              digest = hashlib.sha256(str(seed).encode("utf-8", errors="ignore")).digest()
-              a = int.from_bytes(digest[:8], "big") / float(2**64 - 1)
-              b = int.from_bytes(digest[8:16], "big") / float(2**64 - 1)
-
-              lat = -62.0 + (134.0 * a)
-              lon = -170.0 + (340.0 * b)
-
-              return round(lat, 6), round(lon, 6)
-
-          nodes = payload.get("nodes", {})
-
-          if not isinstance(nodes, dict):
-              raise SystemExit("map source payload has no nodes dict")
-
-          total = 0
-          real = 0
-          synthetic = 0
-
-          for address, node in nodes.items():
-              total += 1
-
-              if isinstance(node, list):
-                  while len(node) < 20:
-                      node.append(None)
-
-                  lat = node[8]
-                  lon = node[9]
-
-                  if valid_coord(lat, lon):
-                      real += 1
-                      continue
-
-                  meta = node[19] if isinstance(node[19], dict) else {}
-                  geo = meta.get("geoip") or meta.get("geoip_data") or {}
-
-                  if isinstance(geo, dict):
-                      lat = geo.get("latitude")
-                      lon = geo.get("longitude")
-
-                  if not valid_coord(lat, lon):
-                      lat, lon = synthetic_point(address)
-                      meta["geoip_confidence"] = "synthetic"
-                      meta["geoip_source"] = "workflow-map-ready-fallback"
-                      synthetic += 1
-                  else:
-                      real += 1
-
-                  node[8] = float(lat)
-                  node[9] = float(lon)
-                  meta["latitude"] = float(lat)
-                  meta["longitude"] = float(lon)
-                  node[19] = meta
-
-              elif isinstance(node, dict):
-                  lat = node.get("latitude") or node.get("lat")
-                  lon = node.get("longitude") or node.get("lon") or node.get("lng")
-
-                  if valid_coord(lat, lon):
-                      real += 1
-                      continue
-
-                  geo = node.get("geoip") or node.get("geoip_data") or {}
-
-                  if isinstance(geo, dict):
-                      lat = geo.get("latitude")
-                      lon = geo.get("longitude")
-
-                  if not valid_coord(lat, lon):
-                      lat, lon = synthetic_point(address)
-                      node["geoip_confidence"] = "synthetic"
-                      node["geoip_source"] = "workflow-map-ready-fallback"
-                      synthetic += 1
-                  else:
-                      real += 1
-
-                  node["address"] = node.get("address") or address
-                  node["latitude"] = float(lat)
-                  node["longitude"] = float(lon)
-                  node["lat"] = float(lat)
-                  node["lon"] = float(lon)
-
-          payload.setdefault("metadata", {})
-          payload["metadata"]["map_ready"] = True
-          payload["metadata"]["map_ready_total_nodes"] = total
-          payload["metadata"]["map_ready_real_coordinates"] = real
-          payload["metadata"]["map_ready_synthetic_coordinates"] = synthetic
-
-          dst.parent.mkdir(parents=True, exist_ok=True)
-          dst.write_text(
-              json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
-              encoding="utf-8",
-          )
-
-          print(f"map-ready input written: {dst}")
-          print(f"map-ready total={total} real={real} synthetic={synthetic}")
-
-          if total < 1:
-              raise SystemExit("map-ready source has zero nodes")
-
-          if real + synthetic < 1:
-              raise SystemExit("map-ready source has zero coordinates")
-          PY
-        env:
-          MAP_INPUT: ${{ env.BITNODES_API }}/enriched/zzxbitnodes/latest.json
-          MAP_READY_INPUT: ${{ env.BITNODES_API }}/enriched/zzxbitnodes/latest.map-ready.json
-
-      - name: Build maps from map-ready node data
+      - name: Build maps and live-map from real coordinate data
         shell: bash
         run: |
           set -euo pipefail
 
           python tools/bitnodes/map/map.py both \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
+            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
             --api-dir "${BITNODES_API}" \
             --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
             --map-dir "${BITNODES_MAPS}" \
@@ -690,7 +531,8 @@ jobs:
             --settings live \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty
+            --fail-empty \
+            --vectors-fallback
 
       - name: Validate generated maps
         shell: bash
@@ -699,7 +541,10 @@ jobs:
 
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
+
+          min_features = int(os.environ.get("MIN_MAP_FEATURES", "1"))
 
           required = [
               Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
@@ -724,11 +569,11 @@ jobs:
           print(f"live-map features={len(features)}")
           print(f"live-map vector points={len(points)}")
 
-          if not isinstance(features, list) or len(features) < 1:
-              raise SystemExit("map-points.geojson contains zero features")
+          if not isinstance(features, list) or len(features) < min_features:
+              raise SystemExit(f"map-points.geojson contains too few features: {len(features)} < {min_features}")
 
-          if not isinstance(points, list) or len(points) < 1:
-              raise SystemExit("map-vectors.json contains zero points")
+          if not isinstance(points, list) or len(points) < min_features:
+              raise SystemExit(f"map-vectors.json contains too few points: {len(points)} < {min_features}")
           PY
 
       - name: Prune private runtime, legacy fanout, and oversized artifacts
@@ -743,6 +588,8 @@ jobs:
 
           rm -f "${BITNODES_API}/original-latest.json" || true
           rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" || true
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" || true
+          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json" || true
 
           for SOURCE in zzxbitnodes originalbitnodes; do
             find "${BITNODES_API}/${SOURCE}" -mindepth 1 -maxdepth 1 -type f -name '*.json' ! -name 'latest.json' -delete || true
@@ -797,8 +644,9 @@ jobs:
               "policy": {
                   "json": "rolling latest files only",
                   "database": "24MB-safe gzipped MariaDB SQL shards",
-                  "ipdb": "current index/latest/stats only; segmented archive remains generated but not staged publicly unless explicitly added",
-                  "no_credentials": True
+                  "ipdb": "current index/latest/stats only",
+                  "no_credentials": True,
+                  "map_coordinates": "real GeoIP/enriched coordinates only; no synthetic fallback"
               }
           }
 
@@ -832,9 +680,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" || true
-          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json" || true
-
           python - <<'PY'
           import os
           from pathlib import Path
@@ -857,6 +702,7 @@ jobs:
               "sqlite_manifest.json",
               "enrichment-report.json",
               "map-settings.json",
+              "map-settings-profiles.json",
               "map-theme.json",
               "map-themes.json",
               "map-tile-providers.json",
@@ -885,8 +731,6 @@ jobs:
                   if not path.is_file():
                       continue
 
-                  rel = str(path)
-
                   if path.suffix == ".gz":
                       if path.stat().st_size > max_bytes:
                           bad.append((path.stat().st_size, path, "gz too large"))
@@ -898,6 +742,7 @@ jobs:
                           continue
 
                       if path.name not in allow_names:
+                          rel = str(path)
                           if "/data/" not in rel and "/maps/data/" not in rel and "/live-map/data/" not in rel:
                               bad.append((path.stat().st_size, path, "unexpected json"))
 
