@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from collections import Counter
@@ -17,11 +18,14 @@ TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from export_json import export_all, write_json
 
+DEFAULT_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api" / "originalbitnodes"
+DEFAULT_ARCHIVE = APP_ROOT / "bitcoin" / "bitnodes" / "archive" / "originalbitnodes"
+DEFAULT_DATAPLANE = APP_ROOT / "bitcoin" / "bitnodes" / "api" / "data"
+DEFAULT_DATABASE = "zzx_bitnodes"
+DEFAULT_MAX_BYTES = 24_000_000
 
-DEFAULT_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api"
-DEFAULT_ARCHIVE = APP_ROOT / "bitcoin" / "bitnodes" / "archive"
+EXPORT = TOOLS_DIR / "export.py"
 
 
 def utc_now() -> int:
@@ -33,6 +37,46 @@ def utc_iso(ts: int | None = None) -> str:
         ts = utc_now()
 
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+
+
+def write_json(path: Path, payload: Any, *, compact: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def run(command: list[str]) -> int:
+    print("$ " + " ".join(str(part) for part in command), flush=True)
+
+    result = subprocess.run(
+        command,
+        cwd=str(APP_ROOT),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    if result.stdout.strip():
+        print(result.stdout.strip(), flush=True)
+
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr, flush=True)
+
+    return result.returncode
+
+
+def py(script: Path, *args: str) -> list[str]:
+    return [sys.executable, str(script), *args]
 
 
 def redis_client():
@@ -153,6 +197,11 @@ def normalize_node_array(row: list[Any]) -> list[Any]:
     if not isinstance(output[19], dict):
         output[19] = {}
 
+    metadata = output[19]
+    metadata.setdefault("source", "originalbitnodes")
+    metadata.setdefault("crawler", "originalbitnodes")
+    metadata.setdefault("redis_exported_at", utc_iso())
+
     return output
 
 
@@ -191,10 +240,8 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
 
     metadata.setdefault("is_tor", bool(value.get("is_tor") or value.get("tor") or network == "tor"))
     metadata.setdefault("tor", bool(value.get("tor") or value.get("is_tor") or network == "tor"))
-
     metadata.setdefault("is_i2p", bool(value.get("is_i2p") or value.get("i2p") or network == "i2p"))
     metadata.setdefault("i2p", bool(value.get("i2p") or value.get("is_i2p") or network == "i2p"))
-
     metadata.setdefault("is_ipv4", bool(value.get("is_ipv4") or network == "ipv4"))
     metadata.setdefault("is_ipv6", bool(value.get("is_ipv6") or network == "ipv6"))
     metadata.setdefault("is_vpn", bool(value.get("is_vpn") or value.get("vpn")))
@@ -222,6 +269,10 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
     metadata.setdefault("city", value.get("city"))
     metadata.setdefault("zip", value.get("zip") or value.get("postal_code"))
     metadata.setdefault("timezone", value.get("timezone"))
+
+    metadata.setdefault("source", "originalbitnodes")
+    metadata.setdefault("crawler", "originalbitnodes")
+    metadata.setdefault("redis_exported_at", utc_iso())
 
     return [
         pick(value, "protocol_version", "protocol", "version"),
@@ -501,13 +552,13 @@ def build_latest_payload(nodes: dict[str, list[Any]], source: str) -> dict[str, 
     }
 
     return {
-        "schema": "zzx-bitnodes-redis-export-v3",
+        "schema": "zzx-bitnodes-redis-export-v4",
         "source": source,
         "crawler": {
             "engine": source,
             "generated_at": utc_iso(timestamp),
             "generator": "export_from_redis.py",
-            "schema_version": 3,
+            "schema_version": 4,
         },
         "timestamp": timestamp,
         "updated_at": utc_iso(timestamp),
@@ -518,44 +569,107 @@ def build_latest_payload(nodes: dict[str, list[Any]], source: str) -> dict[str, 
         "latest_height": latest_height(nodes),
         "statistics": statistics,
         "network_counts": dict(networks),
+        "dataplane": {
+            "enabled": True,
+            "canonical_output": "bitcoin/bitnodes/api/data",
+            "policy": "Redis is an ingest source. DB/dataplane artifacts are canonical.",
+        },
         "nodes": nodes,
     }
 
 
-def export_empty_api(output: Path, archive_dir: Path, *, compact: bool = False, no_gzip: bool = False) -> None:
-    latest = build_latest_payload({}, source="zzx-labs-bitnodes-redis-export-empty")
+def run_dataplane(
+    *,
+    input_path: Path,
+    output_dir: Path,
+    database: str,
+    max_bytes: int,
+    compact: bool,
+    strict: bool,
+) -> int:
+    if not EXPORT.exists():
+        print(f"Missing export wrapper: {EXPORT}", file=sys.stderr)
+        return 1
 
-    output.mkdir(parents=True, exist_ok=True)
-
-    temp = output / "_empty_latest_raw.json"
-    write_json(temp, latest, pretty=not compact)
-
-    export_all(
-        input_path=temp,
-        output_dir=output,
-        source="zzx-labs-bitnodes-redis-export-empty",
-        pretty=not compact,
-        archive_dir=archive_dir,
-        gzip_archive=not no_gzip,
+    command = py(
+        EXPORT,
+        "dataplane",
+        "--input",
+        str(input_path),
+        "--output-dir",
+        str(output_dir),
+        "--database",
+        database,
+        "--max-bytes",
+        str(max_bytes),
     )
 
-    try:
-        temp.unlink()
-    except FileNotFoundError:
-        pass
+    if compact:
+        command.append("--compact")
+
+    if strict:
+        command.append("--strict")
+
+    return run(command)
+
+
+def export_empty_api(
+    output: Path,
+    archive_dir: Path,
+    *,
+    dataplane_dir: Path,
+    database: str,
+    max_bytes: int,
+    compact: bool = False,
+    no_gzip: bool = False,
+    strict: bool = False,
+) -> int:
+    latest = build_latest_payload({}, source="originalbitnodes-redis-empty")
+
+    output.mkdir(parents=True, exist_ok=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    latest_path = output / "latest.json"
+    write_json(latest_path, latest, compact=compact)
+
+    pointer = {
+        "schema": "zzx-bitnodes-redis-empty-pointer-v1",
+        "source": latest["source"],
+        "generated_at": utc_iso(),
+        "latest": str(latest_path),
+        "dataplane": str(dataplane_dir),
+        "node_count": 0,
+        "policy": "Empty Redis export. No full snapshot fan-out written.",
+    }
+    write_json(archive_dir / "latest.json", pointer, compact=compact)
+
+    if strict:
+        return run_dataplane(
+            input_path=latest_path,
+            output_dir=dataplane_dir,
+            database=database,
+            max_bytes=max_bytes,
+            compact=compact,
+            strict=strict,
+        )
 
     print(f"exported 0 nodes to {output}")
+    return 0
 
 
 def export_static_api(
     output: Path,
     *,
     archive_dir: Path,
+    dataplane_dir: Path,
+    database: str,
+    max_bytes: int,
     scan_pattern: str = "*",
     scan_limit: int = 1000000,
     compact: bool = False,
     no_gzip: bool = False,
     empty_on_failure: bool = True,
+    strict: bool = False,
 ) -> int:
     try:
         r = redis_client()
@@ -564,8 +678,16 @@ def export_static_api(
         print(f"Redis unavailable: {exc}")
 
         if empty_on_failure:
-            export_empty_api(output, archive_dir, compact=compact, no_gzip=no_gzip)
-            return 0
+            return export_empty_api(
+                output,
+                archive_dir,
+                dataplane_dir=dataplane_dir,
+                database=database,
+                max_bytes=max_bytes,
+                compact=compact,
+                no_gzip=no_gzip,
+                strict=strict,
+            )
 
         return 1
 
@@ -575,33 +697,46 @@ def export_static_api(
         scan_limit=scan_limit,
     )
 
-    latest = build_latest_payload(nodes, source="zzx-labs-bitnodes-redis-export")
+    latest = build_latest_payload(nodes, source="originalbitnodes")
 
     output.mkdir(parents=True, exist_ok=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
 
-    temp = output / "_redis_latest_raw.json"
-    write_json(temp, latest, pretty=not compact)
+    latest_path = output / "latest.json"
+    write_json(latest_path, latest, compact=compact)
 
-    export_all(
-        input_path=temp,
-        output_dir=output,
-        source="zzx-labs-bitnodes-redis-export",
-        pretty=not compact,
-        archive_dir=archive_dir,
-        gzip_archive=not no_gzip,
+    archive_pointer = {
+        "schema": "zzx-bitnodes-redis-export-pointer-v1",
+        "source": latest["source"],
+        "generated_at": utc_iso(),
+        "latest": str(latest_path),
+        "dataplane": str(dataplane_dir),
+        "node_count": len(nodes),
+        "reachable_nodes": latest["reachable_nodes"],
+        "latest_height": latest["latest_height"],
+        "policy": "Redis export writes latest.json for interchange only. Dataplane is canonical.",
+    }
+    write_json(archive_dir / "latest.json", archive_pointer, compact=compact)
+
+    code = run_dataplane(
+        input_path=latest_path,
+        output_dir=dataplane_dir,
+        database=database,
+        max_bytes=max_bytes,
+        compact=compact,
+        strict=strict,
     )
 
-    try:
-        temp.unlink()
-    except FileNotFoundError:
-        pass
+    if code != 0:
+        return code
 
     print(
         "redis export complete: "
         f"{len(nodes)} nodes, "
         f"reachable={latest['reachable_nodes']}, "
         f"latest_height={latest['latest_height']}, "
-        f"output={output}"
+        f"output={output}, "
+        f"dataplane={dataplane_dir}"
     )
 
     return 0
@@ -609,27 +744,35 @@ def export_static_api(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export classic Redis-backed Bitnodes crawler data to static JSON API."
+        description="Export classic Redis-backed Bitnodes crawler data into the ZZX DB-first dataplane."
     )
 
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    parser.add_argument("--dataplane-dir", default=str(DEFAULT_DATAPLANE))
+    parser.add_argument("--database", default=DEFAULT_DATABASE)
+    parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     parser.add_argument("--scan-pattern", default="*")
     parser.add_argument("--scan-limit", type=int, default=1000000)
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--no-gzip", action="store_true")
     parser.add_argument("--fail-empty", action="store_true")
+    parser.add_argument("--strict", action="store_true")
 
     args = parser.parse_args()
 
     return export_static_api(
         Path(args.output).resolve(),
         archive_dir=Path(args.archive_dir).resolve(),
+        dataplane_dir=Path(args.dataplane_dir).resolve(),
+        database=str(args.database),
+        max_bytes=int(args.max_bytes),
         scan_pattern=args.scan_pattern,
         scan_limit=args.scan_limit,
         compact=args.compact,
         no_gzip=args.no_gzip,
         empty_on_failure=not args.fail_empty,
+        strict=args.strict,
     )
 
 
