@@ -42,6 +42,9 @@ NODE_CONTAINER_KEYS = (
     "rows",
     "peers",
     "node_records",
+    "latest",
+    "snapshot",
+    "payload",
 )
 
 FIELD_ALIASES = {
@@ -52,17 +55,17 @@ FIELD_ALIASES = {
     "height": ["height", "latest_height", "start_height", "block_height", "blocks"],
     "hostname": ["hostname", "host", "dns", "name", "ip"],
     "city": ["city", "city_name", "city_data.city", "geoip.city", "metadata.city"],
-    "country_code": ["country_code", "country", "cc", "country_iso", "iso_code", "geoip.country_code", "metadata.country"],
-    "latitude": ["latitude", "lat", "geoloc.latitude", "geo.latitude", "geoip.latitude", "geoip.lat", "location.latitude", "metadata.latitude"],
-    "longitude": ["longitude", "lon", "lng", "geoloc.longitude", "geo.longitude", "geoip.longitude", "geoip.lon", "geoip.lng", "location.longitude", "metadata.longitude"],
+    "country_code": ["country_code", "country", "cc", "country_iso", "iso_code", "geoip.country_code", "metadata.country", "metadata.country_code"],
+    "latitude": ["latitude", "lat", "geoloc.latitude", "geo.latitude", "geoip.latitude", "geoip.lat", "location.latitude", "metadata.latitude", "metadata.lat"],
+    "longitude": ["longitude", "lon", "lng", "geoloc.longitude", "geo.longitude", "geoip.longitude", "geoip.lon", "geoip.lng", "location.longitude", "metadata.longitude", "metadata.lon", "metadata.lng"],
     "timezone": ["timezone", "time_zone", "tz", "timezone_data.timezone", "geoip.timezone", "metadata.timezone"],
     "asn": ["asn", "as", "autonomous_system", "autonomous_system_number", "isp.asn", "geoip.asn", "metadata.asn"],
     "organization": ["organization", "org", "as_org", "autonomous_system_organization", "isp", "isp.organization", "geoip.organization", "metadata.organization"],
     "provider": ["provider", "isp_provider", "hosting_provider", "isp.provider", "geoip.provider", "metadata.provider"],
     "county": ["county", "county_name", "admin2", "county_data.county", "metadata.county"],
-    "zip": ["zip", "postal", "postal_code", "postcode", "zip_code", "postal_data.postal_code", "metadata.zip"],
+    "zip": ["zip", "postal", "postal_code", "postcode", "zip_code", "postal_data.postal_code", "metadata.zip", "metadata.postal_code"],
     "w3w": ["w3w", "what3words", "w3w_data.words", "w3w_data.w3w", "metadata.w3w"],
-    "geohash": ["geohash", "geohashid", "geohashid_data.geohash", "geohashid_data.geohashid", "metadata.geohash"],
+    "geohash": ["geohash", "geohashid", "geohashid_data.geohash", "geohashid_data.geohashid", "metadata.geohash", "metadata.geohashid"],
     "asn_location": ["asn_location", "as_location", "metadata.asn_location"],
 }
 
@@ -70,6 +73,8 @@ METADATA_KEYS = (
     "reachable",
     "reachable_now",
     "reachable_24h",
+    "reachable_week",
+    "reachable_month",
     "latency_ms",
     "uptime_seconds",
     "total_uptime",
@@ -80,6 +85,7 @@ METADATA_KEYS = (
     "last_success",
     "last_failure",
     "peer_index",
+    "peer_health",
     "network",
     "is_tor",
     "tor",
@@ -102,6 +108,29 @@ METADATA_KEYS = (
     "is_policy_restricted_node",
     "policy_watch",
     "is_policy_watch_node",
+    "is_sanctioned_node",
+    "jurisdiction_risk_level",
+    "continent",
+    "region",
+    "territory",
+    "provider_kind",
+    "organization_type",
+    "network_classification",
+    "zzxgcs",
+    "zzxgms",
+    "geohashid",
+    "suspected_government",
+    "suspected_military",
+    "suspected_datacenter",
+    "suspected_apt_related",
+    "suspected_threat_actor_group_related",
+    "suspected_known_malicious_actor",
+    "apt_attribution_score",
+    "apt_attribution_confidence",
+    "tag_attribution_score",
+    "tag_attribution_confidence",
+    "known_malactor_score",
+    "known_malactor_confidence",
 )
 
 
@@ -144,11 +173,9 @@ def to_int(value: Any, default: int | None = None) -> int | None:
     try:
         if value in ("", None):
             return default
-        parsed = int(float(value))
+        return int(float(value))
     except Exception:
         return default
-
-    return parsed
 
 
 def to_float(value: Any, default: float | None = None) -> float | None:
@@ -176,64 +203,45 @@ def boolish(value: Any) -> bool:
         return False
 
     text = str(value or "").strip().lower()
-
-    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
+    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success", "connected", "on"}
 
 
 def normalize_country(value: Any) -> str | None:
     text = str(value or "").strip()
-
     if not text:
         return None
-
     return text.upper() if len(text) == 2 else text
 
 
 def normalize_asn(value: Any) -> str | None:
     text = str(value or "").strip().upper()
-
     if not text:
         return None
-
     if text.startswith("AS"):
         return text
-
     if text.isdigit():
         return f"AS{text}"
-
     return text
 
 
 def valid_lat(value: Any) -> float | None:
     lat = to_float(value)
-
-    if lat is None:
-        return None
-
-    if -90 <= lat <= 90:
+    if lat is not None and -90 <= lat <= 90:
         return lat
-
     return None
 
 
 def valid_lon(value: Any) -> float | None:
     lon = to_float(value)
-
-    if lon is None:
-        return None
-
-    if -180 <= lon <= 180:
+    if lon is not None and -180 <= lon <= 180:
         return lon
-
     return None
 
 
 def strip_ipv6_brackets(host: str) -> str:
     host = str(host or "").strip()
-
     if host.startswith("[") and "]" in host:
         return host[1:host.index("]")]
-
     return host.strip("[]")
 
 
@@ -278,9 +286,9 @@ def parse_address_port(value: Any, default_port: int = DEFAULT_PORT) -> tuple[st
     possible_host, possible_port = raw.rsplit(":", 1)
 
     if possible_port.isdigit():
-        return possible_host, to_int(possible_port, default_port) or default_port
+        return possible_host.strip("[]"), to_int(possible_port, default_port) or default_port
 
-    return raw, default_port
+    return raw.strip("[]"), default_port
 
 
 def format_address(host: str, port: int = DEFAULT_PORT) -> str:
@@ -320,7 +328,6 @@ def normalize_address(
         parsed_port = default_port
 
     normalized = format_address(parsed_host, parsed_port)
-
     return normalized or None
 
 
@@ -371,15 +378,18 @@ def metadata_from_dict(data: Mapping[str, Any]) -> dict[str, Any]:
 
     if normalized_address:
         metadata["network"] = metadata.get("network") or classify_network(normalized_address)
+        metadata["canonical_address"] = normalized_address
+        metadata["host"] = parse_address_port(normalized_address)[0]
+        metadata["port"] = parse_address_port(normalized_address)[1]
 
     lat = valid_lat(first_present(data, FIELD_ALIASES["latitude"]))
     lon = valid_lon(first_present(data, FIELD_ALIASES["longitude"]))
 
-    if lat is not None and "latitude" not in metadata:
-        metadata["latitude"] = lat
+    if lat is not None:
+        metadata.setdefault("latitude", lat)
 
-    if lon is not None and "longitude" not in metadata:
-        metadata["longitude"] = lon
+    if lon is not None:
+        metadata.setdefault("longitude", lon)
 
     return metadata
 
@@ -397,7 +407,7 @@ def normalize_node_array(values: list[Any], timestamp: int | None = None) -> lis
     if lon is not None:
         metadata.setdefault("longitude", lon)
 
-    return [
+    row = [
         to_int(padded[0]),
         padded[1] if padded[1] not in ("", None) else "unknown",
         to_int(padded[2], timestamp or now_ts()),
@@ -420,12 +430,20 @@ def normalize_node_array(values: list[Any], timestamp: int | None = None) -> lis
         metadata,
     ]
 
+    return row
+
 
 def normalize_node_dict(data: Mapping[str, Any], timestamp: int | None = None) -> list[Any]:
     metadata = metadata_from_dict(data)
 
     lat = valid_lat(first_present(data, FIELD_ALIASES["latitude"]))
     lon = valid_lon(first_present(data, FIELD_ALIASES["longitude"]))
+
+    if lat is not None:
+        metadata.setdefault("latitude", lat)
+
+    if lon is not None:
+        metadata.setdefault("longitude", lon)
 
     return [
         to_int(first_present(data, FIELD_ALIASES["protocol_version"])),
@@ -465,6 +483,7 @@ def normalize_node_item(
 
         row = normalize_node_array(value, timestamp)
         row[19]["network"] = row[19].get("network") or classify_network(normalized_address)
+        row[19]["canonical_address"] = normalized_address
 
         return NormalizedNode(normalized_address, row)
 
@@ -485,6 +504,7 @@ def normalize_node_item(
 
         values = normalize_node_dict(value, timestamp)
         values[19]["network"] = values[19].get("network") or classify_network(normalized_address)
+        values[19]["canonical_address"] = normalized_address
 
         return NormalizedNode(normalized_address, values)
 
@@ -539,9 +559,13 @@ def normalize_nodes(
 def node_array_to_dict(address: str, values: list[Any]) -> dict[str, Any]:
     padded = normalize_node_array(values)
     network = classify_network(address)
+    host, port = parse_address_port(address)
 
     item: dict[str, Any] = {
         "address": address,
+        "canonical_address": address,
+        "host": host,
+        "port": port,
         "network": network,
     }
 
@@ -551,42 +575,65 @@ def node_array_to_dict(address: str, values: list[Any]) -> dict[str, Any]:
     metadata = normalize_metadata(item.get("metadata"))
     item["metadata"] = metadata
 
-    item["reachable"] = metadata.get("reachable")
-    item["reachable_now"] = metadata.get("reachable_now")
-    item["reachable_24h"] = metadata.get("reachable_24h")
-    item["latency_ms"] = metadata.get("latency_ms")
-    item["uptime_seconds"] = metadata.get("uptime_seconds") or metadata.get("total_uptime")
-    item["total_uptime"] = metadata.get("total_uptime")
-    item["peer_index"] = metadata.get("peer_index")
+    mirrors = {
+        "reachable": metadata.get("reachable"),
+        "reachable_now": metadata.get("reachable_now"),
+        "reachable_24h": metadata.get("reachable_24h"),
+        "reachable_week": metadata.get("reachable_week"),
+        "reachable_month": metadata.get("reachable_month"),
+        "latency_ms": metadata.get("latency_ms"),
+        "uptime_seconds": metadata.get("uptime_seconds") or metadata.get("total_uptime"),
+        "total_uptime": metadata.get("total_uptime"),
+        "peer_index": metadata.get("peer_index"),
+        "is_tor": network == "tor" or boolish(metadata.get("is_tor") or metadata.get("tor")),
+        "is_i2p": network == "i2p" or boolish(metadata.get("is_i2p") or metadata.get("i2p")),
+        "is_ipv4": network == "ipv4",
+        "is_ipv6": network == "ipv6",
+        "is_cjdns": network == "cjdns",
+        "suspected_vpn": boolish(metadata.get("suspected_vpn") or metadata.get("is_vpn") or metadata.get("vpn")),
+        "is_vpn": boolish(metadata.get("suspected_vpn") or metadata.get("is_vpn") or metadata.get("vpn")),
+        "vpn_score": metadata.get("vpn_score"),
+        "vpn_confidence": metadata.get("vpn_confidence"),
+        "suspected_proxy": boolish(metadata.get("suspected_proxy") or metadata.get("is_proxy") or metadata.get("proxy")),
+        "is_proxy": boolish(metadata.get("suspected_proxy") or metadata.get("is_proxy") or metadata.get("proxy")),
+        "proxy_score": metadata.get("proxy_score"),
+        "proxy_confidence": metadata.get("proxy_confidence"),
+        "policy_restricted": boolish(metadata.get("policy_restricted") or metadata.get("is_policy_restricted_node")),
+        "is_policy_restricted_node": boolish(metadata.get("policy_restricted") or metadata.get("is_policy_restricted_node")),
+        "policy_watch": boolish(metadata.get("policy_watch") or metadata.get("is_policy_watch_node")),
+        "is_sanctioned_node": boolish(metadata.get("is_sanctioned_node")),
+        "continent": metadata.get("continent"),
+        "region": metadata.get("region"),
+        "territory": metadata.get("territory"),
+        "provider_kind": metadata.get("provider_kind"),
+        "organization_type": metadata.get("organization_type"),
+        "network_classification": metadata.get("network_classification"),
+        "zzxgcs": metadata.get("zzxgcs"),
+        "zzxgms": metadata.get("zzxgms"),
+        "geohashid": metadata.get("geohashid") or item.get("geohash"),
+        "suspected_government": boolish(metadata.get("suspected_government")),
+        "suspected_military": boolish(metadata.get("suspected_military")),
+        "suspected_datacenter": boolish(metadata.get("suspected_datacenter")),
+        "suspected_apt_related": boolish(metadata.get("suspected_apt_related")),
+        "suspected_threat_actor_group_related": boolish(metadata.get("suspected_threat_actor_group_related")),
+        "suspected_known_malicious_actor": boolish(metadata.get("suspected_known_malicious_actor")),
+        "apt_attribution_score": metadata.get("apt_attribution_score"),
+        "apt_attribution_confidence": metadata.get("apt_attribution_confidence"),
+        "tag_attribution_score": metadata.get("tag_attribution_score"),
+        "tag_attribution_confidence": metadata.get("tag_attribution_confidence"),
+        "known_malactor_score": metadata.get("known_malactor_score"),
+        "known_malactor_confidence": metadata.get("known_malactor_confidence"),
+        "first_seen": metadata.get("first_seen"),
+        "last_seen": metadata.get("last_seen"),
+        "last_failure": metadata.get("last_failure"),
+    }
 
-    item["is_tor"] = network == "tor" or boolish(metadata.get("is_tor") or metadata.get("tor"))
-    item["is_i2p"] = network == "i2p" or boolish(metadata.get("is_i2p") or metadata.get("i2p"))
-    item["is_ipv4"] = network == "ipv4"
-    item["is_ipv6"] = network == "ipv6"
-    item["is_cjdns"] = network == "cjdns"
-
-    item["suspected_vpn"] = boolish(metadata.get("suspected_vpn") or metadata.get("is_vpn") or metadata.get("vpn"))
-    item["is_vpn"] = item["suspected_vpn"]
-    item["vpn_score"] = metadata.get("vpn_score")
-    item["vpn_confidence"] = metadata.get("vpn_confidence")
-
-    item["suspected_proxy"] = boolish(metadata.get("suspected_proxy") or metadata.get("is_proxy") or metadata.get("proxy"))
-    item["is_proxy"] = item["suspected_proxy"]
-    item["proxy_score"] = metadata.get("proxy_score")
-    item["proxy_confidence"] = metadata.get("proxy_confidence")
-
-    item["policy_restricted"] = boolish(metadata.get("policy_restricted") or metadata.get("is_policy_restricted_node"))
-    item["is_policy_restricted_node"] = item["policy_restricted"]
-    item["policy_watch"] = boolish(metadata.get("policy_watch") or metadata.get("is_policy_watch_node"))
-
+    item.update(mirrors)
     return item
 
 
 def nodes_to_dicts(nodes: dict[str, list[Any]]) -> list[dict[str, Any]]:
-    return [
-        node_array_to_dict(address, values)
-        for address, values in nodes.items()
-    ]
+    return [node_array_to_dict(address, values) for address, values in nodes.items()]
 
 
 def filter_reachable(nodes: dict[str, list[Any]]) -> dict[str, list[Any]]:
@@ -640,7 +687,6 @@ def split_nodes_by_network(nodes: dict[str, list[Any]]) -> dict[str, dict[str, l
 def node_quality(row: list[Any]) -> int:
     row = normalize_node_array(row)
     metadata = normalize_metadata(row[19])
-
     score = sum(1 for value in row[:19] if value not in ("", None))
 
     if row[4]:
@@ -664,6 +710,9 @@ def node_quality(row: list[Any]) -> int:
     if metadata.get("peer_index"):
         score += 5
 
+    if metadata.get("canonical_address"):
+        score += 5
+
     return score
 
 
@@ -681,6 +730,8 @@ def merge_node_sets(*sets: dict[str, list[Any]]) -> dict[str, list[Any]]:
             existing = merged.get(normalized_address)
 
             if existing is None or node_quality(candidate) >= node_quality(existing):
+                candidate[19]["canonical_address"] = normalized_address
+                candidate[19]["network"] = candidate[19].get("network") or classify_network(normalized_address)
                 merged[normalized_address] = candidate
 
     return merged
@@ -716,6 +767,9 @@ def validate_nodes(nodes: dict[str, list[Any]]) -> tuple[dict[str, list[Any]], l
             errors.append(f"Invalid node array: {address}")
             continue
 
-        valid[normalized_address] = normalize_node_array(values)
+        row = normalize_node_array(values)
+        row[19]["canonical_address"] = normalized_address
+        row[19]["network"] = row[19].get("network") or classify_network(normalized_address)
+        valid[normalized_address] = row
 
     return valid, errors
