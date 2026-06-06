@@ -5,83 +5,143 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 import re
 import sqlite3
-import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 
 DEFAULT_INPUTS = [
-    APP_ROOT / "bitcoin" / "bitnodes" / "api" / "aggregate" / "zzxbitnodes" / "latest.json",
-    APP_ROOT / "bitcoin" / "bitnodes" / "api" / "aggregate" / "originalbitnodes" / "latest.json",
+    BITNODES_ROOT / "api" / "aggregate" / "zzxbitnodes" / "latest.json",
+    BITNODES_ROOT / "api" / "aggregate" / "originalbitnodes" / "latest.json",
+    BITNODES_ROOT / "api" / "zzxbitnodes" / "latest.json",
+    BITNODES_ROOT / "api" / "originalbitnodes" / "latest.json",
 ]
 
-DEFAULT_OUT_DIR = APP_ROOT / "tools" / "bitnodes" / "api"
-DEFAULT_SQL = DEFAULT_OUT_DIR / "bitnodes_mariadb.sql"
-DEFAULT_SQL_GZ = DEFAULT_OUT_DIR / "bitnodes_mariadb.sql.gz"
+DEFAULT_OUT_DIR = BITNODES_ROOT / "data" / "mariadb" / "api"
+DEFAULT_SQL_GZ = DEFAULT_OUT_DIR / "bitnodes-api-latest.sql.gz"
+DEFAULT_SHARDS_DIR = DEFAULT_OUT_DIR / "shards"
 DEFAULT_SQLITE = DEFAULT_OUT_DIR / "bitnodes.sqlite3"
 
-SCHEMA_VERSION = "zzx-bitnodes-mariadb-v1"
+SCHEMA_VERSION = "zzx-bitnodes-api-mariadb-gz-v4"
+
+NODE_TABLE = "bitnodes_api_nodes"
+METADATA_TABLE = "bitnodes_api_metadata"
+SHARD_TABLE = "bitnodes_api_shards"
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def utc_mysql() -> str:
+    return datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
+
+
 def clean(value: Any) -> str:
-    return str(value or "").strip()
+    return re.sub(r"\s+", " ", str(value or "").strip())
 
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def sql_string(value: Any) -> str:
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+
+    with path.open("rb") as handle:
+        for block in iter(lambda: block_read(handle), b""):
+            digest.update(block)
+
+    return digest.hexdigest()
+
+
+def block_read(handle: Any) -> bytes:
+    return handle.read(1024 * 1024)
+
+
+def sql_quote(value: Any) -> str:
     if value is None:
         return "NULL"
 
-    text = str(value)
-    text = text.replace("\\", "\\\\")
-    text = text.replace("'", "''")
-    text = text.replace("\x00", "")
+    if isinstance(value, bool):
+        return "1" if value else "0"
 
+    if isinstance(value, (int, float)):
+        return str(value)
+
+    text = str(value).replace("\x00", "")
+    text = text.replace("\\", "\\\\").replace("'", "''")
     return f"'{text}'"
 
 
-def sql_int(value: Any) -> str:
-    if value in ("", None):
-        return "NULL"
+def compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)
 
+
+def safe_int(value: Any, fallback: int | None = None) -> int | None:
     try:
-        return str(int(float(value)))
+        if value in ("", None):
+            return fallback
+        return int(float(value))
     except Exception:
-        return "NULL"
+        return fallback
 
 
-def sql_float(value: Any) -> str:
-    if value in ("", None):
-        return "NULL"
-
+def safe_float(value: Any, fallback: float | None = None) -> float | None:
     try:
-        return repr(float(value))
+        if value in ("", None):
+            return fallback
+        out = float(value)
+        if out != out:
+            return fallback
+        return out
     except Exception:
-        return "NULL"
+        return fallback
+
+
+def bool_or_none(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return 1 if value else 0
+
+    text = str(value or "").strip().lower()
+
+    if text in {"1", "true", "yes", "y", "reachable", "ok", "online"}:
+        return 1
+
+    if text in {"0", "false", "no", "n", "unreachable", "offline"}:
+        return 0
+
+    return None
 
 
 def read_json(path: Path) -> Any:
     if not path.exists():
         return {}
 
-    if path.suffix == ".gz":
-        with gzip.open(path, "rt", encoding="utf-8") as handle:
-            return json.load(handle)
+    try:
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
 
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return {}
+
+
+def write_gzip_text(path: Path, text: str) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as handle:
+        handle.write(text)
+
+    return path.stat().st_size
 
 
 def write_text(path: Path, text: str) -> None:
@@ -89,27 +149,20 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def gzip_file(src: Path, dst: Path) -> None:
-    dst.parent.mkdir(parents=True, exist_ok=True)
-
-    with src.open("rb") as source, gzip.open(dst, "wb", compresslevel=9) as target:
-        target.write(source.read())
-
-
-def deep_get(row: dict[str, Any], key: str) -> Any:
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
     current: Any = row
 
     for part in key.split("."):
-        if not isinstance(current, dict):
+        if not isinstance(current, Mapping):
             return None
         current = current.get(part)
 
     return current
 
 
-def first(row: dict[str, Any], keys: tuple[str, ...]) -> Any:
+def first(row: Mapping[str, Any], *keys: str) -> Any:
     for key in keys:
-        value = deep_get(row, key)
+        value = deep_get(row, key) if "." in key else row.get(key)
 
         if value not in ("", None):
             return value
@@ -117,114 +170,162 @@ def first(row: dict[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-def normalize_node_record(source: str, address: str, value: Any) -> dict[str, Any]:
-    row: dict[str, Any]
+def split_host_port(address: str) -> tuple[str, int | None]:
+    value = clean(address)
 
-    if isinstance(value, dict):
+    if not value:
+        return "", None
+
+    if value.startswith("[") and "]" in value:
+        host = value[1:value.index("]")]
+        rest = value[value.index("]") + 1:]
+
+        if rest.startswith(":") and rest[1:].isdigit():
+            return host, int(rest[1:])
+
+        return host, None
+
+    lower = value.lower()
+
+    if ".onion:" in lower or ".i2p:" in lower:
+        host, port = value.rsplit(":", 1)
+
+        if port.isdigit():
+            return host, int(port)
+
+    if value.count(":") == 1:
+        host, port = value.rsplit(":", 1)
+
+        if port.isdigit():
+            return host, int(port)
+
+    return value, None
+
+
+def infer_network(address: str, row: Mapping[str, Any]) -> str:
+    network = clean(first(row, "network", "metadata.network", "address_family"))
+
+    if network:
+        return network.lower()
+
+    lower = address.lower()
+
+    if ".onion" in lower:
+        return "tor"
+
+    if ".i2p" in lower:
+        return "i2p"
+
+    if ":" in lower and lower.count(":") > 1:
+        return "ipv6"
+
+    if lower.count(".") >= 3:
+        return "ipv4"
+
+    return "unknown"
+
+
+def normalize_original_array(address: str, value: list[Any]) -> dict[str, Any]:
+    padded = list(value) + [None] * max(0, 24 - len(value))
+    metadata = padded[19] if isinstance(padded[19], Mapping) else {}
+    host, port = split_host_port(address)
+
+    return {
+        "address": address,
+        "host": host,
+        "port": port or 8333,
+        "protocol": padded[0],
+        "agent": padded[1],
+        "services": padded[2],
+        "timestamp": padded[3],
+        "height": padded[4],
+        "hostname": padded[5],
+        "city": padded[6],
+        "country": padded[7],
+        "latitude": padded[8],
+        "longitude": padded[9],
+        "timezone": padded[10],
+        "asn": padded[11],
+        "organization": padded[12],
+        "provider": padded[13],
+        "metadata": dict(metadata),
+        "reachable": True,
+        "raw_array": value,
+    }
+
+
+def normalize_node_record(source: str, address: str, value: Any) -> dict[str, Any]:
+    if isinstance(value, Mapping):
         row = dict(value)
     elif isinstance(value, list):
-        row = {
-            "raw_array": value,
-            "address": address,
-        }
-
-        array_map = {
-            "agent": 0,
-            "protocol": 1,
-            "services": 2,
-            "height": 3,
-            "host": 4,
-            "port": 5,
-            "city": 6,
-            "country": 7,
-            "latitude": 8,
-            "longitude": 9,
-            "timezone": 10,
-            "asn": 11,
-            "organization": 12,
-            "provider": 13,
-            "county": 14,
-            "zip": 15,
-            "w3w": 16,
-            "geohash": 17,
-            "asn_location": 18,
-            "metadata": 19,
-        }
-
-        for key, index in array_map.items():
-            if len(value) > index:
-                row[key] = value[index]
+        row = normalize_original_array(address, value)
     else:
-        row = {"address": address, "value": value}
+        row = {"address": address, "raw": value}
 
-    address = clean(row.get("address") or row.get("node") or row.get("addr") or row.get("host") or address)
-    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    address = clean(first(row, "address", "canonical_address", "node", "addr", "host") or address)
+    host_from_address, port_from_address = split_host_port(address)
 
-    if not isinstance(metadata, dict):
-        metadata = {}
-
-    node_id = clean(row.get("node_id") or row.get("id"))
+    node_id = clean(first(row, "node_id", "id"))
 
     if not node_id:
         node_id = "node:" + sha256_text(f"{source}:{address}")[:24]
 
-    network = clean(first(row, ("network", "metadata.network")))
-
-    if not network:
-        lower = address.lower()
-        if ".onion" in lower:
-            network = "tor"
-        elif ".i2p" in lower:
-            network = "i2p"
-        elif ":" in lower:
-            network = "ipv6"
-        elif lower.count(".") >= 3:
-            network = "ipv4"
-        else:
-            network = "unknown"
+    network = infer_network(address, row)
 
     return {
         "node_id": node_id,
         "source": source,
         "address": address,
-        "host": clean(row.get("host") or address),
-        "port": first(row, ("port", "metadata.port")),
+        "host": clean(first(row, "host", "hostname") or host_from_address),
+        "port": safe_int(first(row, "port", "metadata.port"), port_from_address or 8333),
         "network": network,
-        "agent": first(row, ("agent", "user_agent", "metadata.agent")),
-        "protocol": first(row, ("protocol", "metadata.protocol")),
-        "services": first(row, ("services", "metadata.services")),
-        "height": first(row, ("height", "metadata.height")),
-        "city": first(row, ("city", "city_name", "geoip.city", "metadata.city")),
-        "country": first(row, ("country", "country_code", "geoip.country_code", "metadata.country")),
-        "territory": first(row, ("territory", "state", "region", "admin1", "metadata.territory")),
-        "county": first(row, ("county", "district", "admin2", "metadata.county")),
-        "zip_code": first(row, ("zip", "zip_code", "postal_code", "metadata.zip")),
-        "timezone": first(row, ("timezone", "tz", "metadata.timezone")),
-        "latitude": first(row, ("latitude", "lat", "geoip.latitude", "metadata.latitude")),
-        "longitude": first(row, ("longitude", "lon", "lng", "geoip.longitude", "metadata.longitude")),
-        "asn": first(row, ("asn", "geoip.asn", "metadata.asn")),
-        "organization": first(row, ("organization", "org", "geoip.organization", "metadata.organization")),
-        "provider": first(row, ("provider", "isp", "geoip.provider", "metadata.provider")),
-        "w3w": first(row, ("w3w", "what3words", "metadata.w3w")),
-        "zzxgcs": first(row, ("zzxgcs", "zzx_gcs", "metadata.zzxgcs")),
-        "geohash": first(row, ("geohash", "metadata.geohash")),
-        "reachable": first(row, ("reachable", "metadata.reachable")),
-        "reachable_now": first(row, ("reachable_now", "metadata.reachable_now")),
-        "reachable_24h": first(row, ("reachable_24h", "metadata.reachable_24h")),
-        "latency_ms": first(row, ("latency_ms", "metadata.latency_ms")),
-        "last_seen": first(row, ("last_seen", "metadata.last_seen")),
-        "raw_json": json.dumps(row, ensure_ascii=False, separators=(",", ":")),
-        "raw_hash": sha256_text(json.dumps(row, ensure_ascii=False, sort_keys=True, default=str)),
+        "agent": first(row, "agent", "user_agent", "subver", "metadata.agent"),
+        "protocol": first(row, "protocol", "version", "metadata.protocol"),
+        "services": first(row, "services", "metadata.services"),
+        "height": first(row, "height", "block_height", "metadata.height"),
+        "city": first(row, "city", "city_name", "city_data.city", "geoip.city", "metadata.city"),
+        "country_code": first(row, "country_code", "country", "country_data.country_code", "geoip.country_code", "metadata.country_code"),
+        "country_name": first(row, "country_name", "country_data.country_name", "metadata.country_name"),
+        "continent": first(row, "continent", "continent_name", "continent_data.continent", "metadata.continent"),
+        "region": first(row, "region", "region_name", "metadata.region"),
+        "territory": first(row, "territory", "state", "province", "admin1", "territory_data.territory", "metadata.territory"),
+        "county": first(row, "county", "district", "admin2", "county_data.county", "metadata.county"),
+        "zip_code": first(row, "zip", "zipcode", "postal_code", "postcode", "postal_data.postal_code", "metadata.zip"),
+        "timezone": first(row, "timezone", "iana_timezone", "tz", "timezone_data.timezone", "metadata.timezone"),
+        "latitude": first(row, "latitude", "lat", "geoip.latitude", "metadata.latitude"),
+        "longitude": first(row, "longitude", "lon", "lng", "geoip.longitude", "metadata.longitude"),
+        "asn": first(row, "asn", "asn_data.asn", "geoip.asn", "metadata.asn"),
+        "organization": first(row, "organization", "org", "asn_data.organization", "geoip.organization", "metadata.organization"),
+        "provider": first(row, "provider", "isp", "provider_data.provider", "geoip.provider", "metadata.provider"),
+        "w3w": first(row, "w3w", "what3words", "w3w_data.w3w", "metadata.w3w"),
+        "zzxgcs": first(row, "zzxgcs", "zzx_gcs", "zzxgcs_data.zzxgcs", "metadata.zzxgcs"),
+        "geohash": first(row, "geohash", "geohashid_data.geohash", "metadata.geohash"),
+        "geohashid": first(row, "geohashid", "geohashid_data.geohashid", "metadata.geohashid"),
+        "reachable": first(row, "reachable", "metadata.reachable"),
+        "reachable_now": first(row, "reachable_now", "metadata.reachable_now"),
+        "reachable_24h": first(row, "reachable_24h", "metadata.reachable_24h"),
+        "latency_ms": first(row, "latency_ms", "latency", "metadata.latency_ms"),
+        "last_seen": first(row, "last_seen", "last_success", "metadata.last_seen"),
+        "is_tor": first(row, "is_tor", "tor.is_tor", "metadata.is_tor"),
+        "is_i2p": first(row, "is_i2p", "i2p.is_i2p", "metadata.is_i2p"),
+        "is_vpn": first(row, "is_vpn", "vpn.is_vpn", "metadata.is_vpn"),
+        "is_proxy": first(row, "is_proxy", "proxy.is_proxy", "metadata.is_proxy"),
+        "is_sanctioned_node": first(row, "is_sanctioned_node", "sanctions_data.is_sanctioned", "metadata.is_sanctioned_node"),
+        "is_policy_restricted_node": first(row, "is_policy_restricted_node", "sanctions_data.is_policy_restricted", "metadata.is_policy_restricted_node"),
+        "is_threat_infrastructure": first(row, "is_threat_infrastructure", "threat_infrastructure.is_threat_infrastructure", "metadata.is_threat_infrastructure"),
+        "threat_level": first(row, "threat_level", "threat_infrastructure.threat_level", "tag_attribution.threat_level", "metadata.threat_level"),
+        "raw_json": compact_json(row),
+        "raw_hash": sha256_text(compact_json(row)),
     }
 
 
 def iter_nodes(payload: Any, source: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
 
-    if isinstance(payload, dict):
+    if isinstance(payload, Mapping):
         nodes = payload.get("nodes")
 
-        if isinstance(nodes, dict):
+        if isinstance(nodes, Mapping):
             for address, value in nodes.items():
                 records.append(normalize_node_record(source, str(address), value))
             return records
@@ -232,17 +333,15 @@ def iter_nodes(payload: Any, source: str) -> list[dict[str, Any]]:
         if isinstance(nodes, list):
             for index, value in enumerate(nodes):
                 address = ""
-
-                if isinstance(value, dict):
+                if isinstance(value, Mapping):
                     address = clean(value.get("address") or value.get("node") or value.get("addr") or value.get("host"))
-
                 records.append(normalize_node_record(source, address or str(index), value))
             return records
 
-        for key in ("data", "results", "rows", "peers", "reachable_nodes"):
+        for key in ("data", "results", "rows", "peers", "reachable_nodes", "node_records"):
             value = payload.get(key)
 
-            if isinstance(value, dict):
+            if isinstance(value, Mapping):
                 for address, item in value.items():
                     records.append(normalize_node_record(source, str(address), item))
                 return records
@@ -260,7 +359,7 @@ def iter_nodes(payload: Any, source: str) -> list[dict[str, Any]]:
 
 
 def infer_source(path: Path, payload: Any) -> str:
-    if isinstance(payload, dict):
+    if isinstance(payload, Mapping):
         source = clean(payload.get("source") or payload.get("crawler"))
         if source:
             return source
@@ -277,19 +376,22 @@ def infer_source(path: Path, payload: Any) -> str:
 
 
 def schema_sql() -> str:
-    return """
-CREATE TABLE IF NOT EXISTS bitnodes_metadata (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    return f"""
+-- {SCHEMA_VERSION}
+SET NAMES utf8mb4;
+
+CREATE TABLE IF NOT EXISTS {METADATA_TABLE} (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   schema_version VARCHAR(128) NOT NULL,
-  generated_at_utc VARCHAR(64) NOT NULL,
+  generated_at DATETIME NOT NULL,
   source_file TEXT NOT NULL,
   source_name VARCHAR(128) NOT NULL,
   node_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  PRIMARY KEY (id),
-  KEY idx_source_name (source_name)
+  payload_json LONGTEXT NULL,
+  KEY idx_bitnodes_api_metadata_source (source_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS bitnodes_nodes (
+CREATE TABLE IF NOT EXISTS {NODE_TABLE} (
   node_id VARCHAR(96) NOT NULL,
   source_name VARCHAR(128) NOT NULL,
   address VARCHAR(512) NOT NULL,
@@ -298,14 +400,17 @@ CREATE TABLE IF NOT EXISTS bitnodes_nodes (
   network VARCHAR(32) NULL,
   agent TEXT NULL,
   protocol BIGINT NULL,
-  services BIGINT NULL,
+  services TEXT NULL,
   height BIGINT NULL,
   city VARCHAR(255) NULL,
-  country VARCHAR(64) NULL,
-  territory VARCHAR(255) NULL,
-  county VARCHAR(255) NULL,
+  country_code VARCHAR(32) NULL,
+  country_name VARCHAR(128) NULL,
+  continent VARCHAR(128) NULL,
+  region_name VARCHAR(128) NULL,
+  territory_name VARCHAR(255) NULL,
+  county_name VARCHAR(255) NULL,
   zip_code VARCHAR(64) NULL,
-  timezone VARCHAR(128) NULL,
+  timezone_name VARCHAR(128) NULL,
   latitude DOUBLE NULL,
   longitude DOUBLE NULL,
   asn VARCHAR(64) NULL,
@@ -314,42 +419,67 @@ CREATE TABLE IF NOT EXISTS bitnodes_nodes (
   w3w VARCHAR(255) NULL,
   zzxgcs VARCHAR(255) NULL,
   geohash VARCHAR(64) NULL,
+  geohashid VARCHAR(96) NULL,
   reachable TINYINT NULL,
   reachable_now TINYINT NULL,
   reachable_24h TINYINT NULL,
   latency_ms DOUBLE NULL,
   last_seen VARCHAR(64) NULL,
+  is_tor TINYINT NULL,
+  is_i2p TINYINT NULL,
+  is_vpn TINYINT NULL,
+  is_proxy TINYINT NULL,
+  is_sanctioned_node TINYINT NULL,
+  is_policy_restricted_node TINYINT NULL,
+  is_threat_infrastructure TINYINT NULL,
+  threat_level VARCHAR(32) NULL,
   raw_hash CHAR(64) NOT NULL,
   raw_json LONGTEXT NOT NULL,
-  updated_at_utc VARCHAR(64) NOT NULL,
+  updated_at DATETIME NOT NULL,
   PRIMARY KEY (node_id, source_name),
-  KEY idx_address (address),
-  KEY idx_source_name (source_name),
-  KEY idx_network (network),
-  KEY idx_country (country),
-  KEY idx_city (city),
-  KEY idx_asn (asn),
-  KEY idx_geohash (geohash),
-  KEY idx_reachable_now (reachable_now),
-  KEY idx_reachable_24h (reachable_24h),
-  KEY idx_lat_lon (latitude, longitude)
+  KEY idx_bitnodes_api_address (address),
+  KEY idx_bitnodes_api_source (source_name),
+  KEY idx_bitnodes_api_network (network),
+  KEY idx_bitnodes_api_country (country_code),
+  KEY idx_bitnodes_api_city (city),
+  KEY idx_bitnodes_api_asn (asn),
+  KEY idx_bitnodes_api_geohash (geohash),
+  KEY idx_bitnodes_api_reachable_now (reachable_now),
+  KEY idx_bitnodes_api_reachable_24h (reachable_24h),
+  KEY idx_bitnodes_api_lat_lon (latitude, longitude),
+  KEY idx_bitnodes_api_flags (is_tor, is_i2p, is_vpn, is_proxy, is_sanctioned_node, is_threat_infrastructure)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS {SHARD_TABLE} (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  generated_at DATETIME NOT NULL,
+  shard_name VARCHAR(255) NOT NULL,
+  shard_path TEXT NOT NULL,
+  source_name VARCHAR(128) NOT NULL,
+  node_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  size_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  sha256 CHAR(64) NOT NULL,
+  UNIQUE KEY uniq_bitnodes_api_shard_sha256 (sha256),
+  KEY idx_bitnodes_api_shard_source (source_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 """.strip()
 
 
-def bool_to_sql(value: Any) -> str:
-    if isinstance(value, bool):
-        return "1" if value else "0"
+def insert_metadata_sql(source: str, input_path: Path, node_count: int, payload: Any) -> str:
+    values = [
+        SCHEMA_VERSION,
+        utc_mysql(),
+        str(input_path),
+        source,
+        node_count,
+        compact_json({k: v for k, v in payload.items() if k != "nodes"}) if isinstance(payload, Mapping) else "",
+    ]
 
-    text = str(value or "").strip().lower()
-
-    if text in {"1", "true", "yes", "y", "reachable", "ok"}:
-        return "1"
-
-    if text in {"0", "false", "no", "n", "unreachable"}:
-        return "0"
-
-    return "NULL"
+    return (
+        f"INSERT INTO {METADATA_TABLE} "
+        "(schema_version, generated_at, source_file, source_name, node_count, payload_json) "
+        f"VALUES ({','.join(sql_quote(value) for value in values)});\n"
+    )
 
 
 def insert_node_sql(row: dict[str, Any]) -> str:
@@ -365,11 +495,14 @@ def insert_node_sql(row: dict[str, Any]) -> str:
         "services",
         "height",
         "city",
-        "country",
-        "territory",
-        "county",
+        "country_code",
+        "country_name",
+        "continent",
+        "region_name",
+        "territory_name",
+        "county_name",
         "zip_code",
-        "timezone",
+        "timezone_name",
         "latitude",
         "longitude",
         "asn",
@@ -378,49 +511,70 @@ def insert_node_sql(row: dict[str, Any]) -> str:
         "w3w",
         "zzxgcs",
         "geohash",
+        "geohashid",
         "reachable",
         "reachable_now",
         "reachable_24h",
         "latency_ms",
         "last_seen",
+        "is_tor",
+        "is_i2p",
+        "is_vpn",
+        "is_proxy",
+        "is_sanctioned_node",
+        "is_policy_restricted_node",
+        "is_threat_infrastructure",
+        "threat_level",
         "raw_hash",
         "raw_json",
-        "updated_at_utc",
+        "updated_at",
     ]
 
     values = [
-        sql_string(row["node_id"]),
-        sql_string(row["source"]),
-        sql_string(row["address"]),
-        sql_string(row["host"]),
-        sql_int(row["port"]),
-        sql_string(row["network"]),
-        sql_string(row["agent"]),
-        sql_int(row["protocol"]),
-        sql_int(row["services"]),
-        sql_int(row["height"]),
-        sql_string(row["city"]),
-        sql_string(row["country"]),
-        sql_string(row["territory"]),
-        sql_string(row["county"]),
-        sql_string(row["zip_code"]),
-        sql_string(row["timezone"]),
-        sql_float(row["latitude"]),
-        sql_float(row["longitude"]),
-        sql_string(row["asn"]),
-        sql_string(row["organization"]),
-        sql_string(row["provider"]),
-        sql_string(row["w3w"]),
-        sql_string(row["zzxgcs"]),
-        sql_string(row["geohash"]),
-        bool_to_sql(row["reachable"]),
-        bool_to_sql(row["reachable_now"]),
-        bool_to_sql(row["reachable_24h"]),
-        sql_float(row["latency_ms"]),
-        sql_string(row["last_seen"]),
-        sql_string(row["raw_hash"]),
-        sql_string(row["raw_json"]),
-        sql_string(utc_now()),
+        row["node_id"],
+        row["source"],
+        row["address"],
+        row["host"],
+        row["port"],
+        row["network"],
+        row["agent"],
+        safe_int(row["protocol"]),
+        row["services"],
+        safe_int(row["height"]),
+        row["city"],
+        row["country_code"],
+        row["country_name"],
+        row["continent"],
+        row["region"],
+        row["territory"],
+        row["county"],
+        row["zip_code"],
+        row["timezone"],
+        safe_float(row["latitude"]),
+        safe_float(row["longitude"]),
+        row["asn"],
+        row["organization"],
+        row["provider"],
+        row["w3w"],
+        row["zzxgcs"],
+        row["geohash"],
+        row["geohashid"],
+        bool_or_none(row["reachable"]),
+        bool_or_none(row["reachable_now"]),
+        bool_or_none(row["reachable_24h"]),
+        safe_float(row["latency_ms"]),
+        row["last_seen"],
+        bool_or_none(row["is_tor"]),
+        bool_or_none(row["is_i2p"]),
+        bool_or_none(row["is_vpn"]),
+        bool_or_none(row["is_proxy"]),
+        bool_or_none(row["is_sanctioned_node"]),
+        bool_or_none(row["is_policy_restricted_node"]),
+        bool_or_none(row["is_threat_infrastructure"]),
+        row["threat_level"],
+        row["raw_hash"],
+        row["raw_json"],
+        utc_mysql(),
     ]
 
     updates = [
@@ -430,171 +584,54 @@ def insert_node_sql(row: dict[str, Any]) -> str:
     ]
 
     return (
-        f"INSERT INTO bitnodes_nodes ({', '.join(columns)}) VALUES ({', '.join(values)}) "
-        f"ON DUPLICATE KEY UPDATE {', '.join(updates)};"
+        f"INSERT INTO {NODE_TABLE} ({', '.join(columns)}) "
+        f"VALUES ({','.join(sql_quote(value) for value in values)}) "
+        f"ON DUPLICATE KEY UPDATE {', '.join(updates)};\n"
     )
 
 
-def build_mariadb_dump(inputs: list[Path], output_sql: Path, output_gz: Path | None) -> dict[str, Any]:
-    output_sql.parent.mkdir(parents=True, exist_ok=True)
+def shard_control_sql(path: Path, name: str, source: str, node_count: int) -> str:
+    values = [
+        utc_mysql(),
+        name,
+        str(path),
+        source,
+        node_count,
+        path.stat().st_size if path.exists() else 0,
+        sha256_file(path) if path.exists() else "",
+    ]
 
-    total = 0
-    source_counts: dict[str, int] = {}
-
-    with output_sql.open("w", encoding="utf-8") as handle:
-        handle.write("-- ZZX-Labs Bitnodes MariaDB dump\n")
-        handle.write(f"-- Generated: {utc_now()}\n")
-        handle.write(f"-- Schema: {SCHEMA_VERSION}\n\n")
-        handle.write("SET NAMES utf8mb4;\n")
-        handle.write("SET FOREIGN_KEY_CHECKS=0;\n")
-        handle.write(schema_sql())
-        handle.write("\n\n")
-
-        for input_path in inputs:
-            if not input_path.exists():
-                continue
-
-            payload = read_json(input_path)
-            source = infer_source(input_path, payload)
-            rows = iter_nodes(payload, source)
-            source_counts[source] = source_counts.get(source, 0) + len(rows)
-            total += len(rows)
-
-            handle.write(
-                "INSERT INTO bitnodes_metadata "
-                "(schema_version, generated_at_utc, source_file, source_name, node_count) VALUES "
-                f"({sql_string(SCHEMA_VERSION)}, {sql_string(utc_now())}, {sql_string(str(input_path))}, "
-                f"{sql_string(source)}, {len(rows)});\n"
-            )
-
-            for row in rows:
-                handle.write(insert_node_sql(row))
-                handle.write("\n")
-
-        handle.write("\nSET FOREIGN_KEY_CHECKS=1;\n")
-
-    if output_gz:
-        gzip_file(output_sql, output_gz)
-
-    manifest = {
-        "schema": SCHEMA_VERSION,
-        "generated_at": utc_now(),
-        "output_sql": str(output_sql),
-        "output_sql_gz": str(output_gz) if output_gz else "",
-        "node_count": total,
-        "source_counts": source_counts,
-        "inputs": [str(path) for path in inputs],
-    }
-
-    write_text(
-        output_sql.parent / "bitnodes_mariadb_manifest.json",
-        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    return (
+        f"INSERT INTO {SHARD_TABLE} "
+        "(generated_at, shard_name, shard_path, source_name, node_count, size_bytes, sha256) "
+        f"VALUES ({','.join(sql_quote(value) for value in values)}) "
+        "ON DUPLICATE KEY UPDATE generated_at=VALUES(generated_at), shard_path=VALUES(shard_path), "
+        "source_name=VALUES(source_name), node_count=VALUES(node_count), size_bytes=VALUES(size_bytes);\n"
     )
 
-    return manifest
+
+def split_sql(lines: list[str], max_bytes: int, header: str) -> list[list[str]]:
+    shards: list[list[str]] = []
+    current: list[str] = []
+
+    for line in lines:
+        current_size = len(header.encode("utf-8")) + sum(len(item.encode("utf-8")) for item in current)
+
+        if current and current_size + len(line.encode("utf-8")) > max_bytes:
+            shards.append(current)
+            current = []
+
+        current.append(line)
+
+    if current:
+        shards.append(current)
+
+    return shards
 
 
-def sqlite_type_schema() -> str:
-    return """
-CREATE TABLE IF NOT EXISTS bitnodes_nodes (
-  node_id TEXT NOT NULL,
-  source_name TEXT NOT NULL,
-  address TEXT NOT NULL,
-  host TEXT,
-  port INTEGER,
-  network TEXT,
-  agent TEXT,
-  protocol INTEGER,
-  services INTEGER,
-  height INTEGER,
-  city TEXT,
-  country TEXT,
-  territory TEXT,
-  county TEXT,
-  zip_code TEXT,
-  timezone TEXT,
-  latitude REAL,
-  longitude REAL,
-  asn TEXT,
-  organization TEXT,
-  provider TEXT,
-  w3w TEXT,
-  zzxgcs TEXT,
-  geohash TEXT,
-  reachable INTEGER,
-  reachable_now INTEGER,
-  reachable_24h INTEGER,
-  latency_ms REAL,
-  last_seen TEXT,
-  raw_hash TEXT NOT NULL,
-  raw_json TEXT NOT NULL,
-  updated_at_utc TEXT NOT NULL,
-  PRIMARY KEY (node_id, source_name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_bitnodes_address ON bitnodes_nodes(address);
-CREATE INDEX IF NOT EXISTS idx_bitnodes_source ON bitnodes_nodes(source_name);
-CREATE INDEX IF NOT EXISTS idx_bitnodes_network ON bitnodes_nodes(network);
-CREATE INDEX IF NOT EXISTS idx_bitnodes_country ON bitnodes_nodes(country);
-CREATE INDEX IF NOT EXISTS idx_bitnodes_city ON bitnodes_nodes(city);
-CREATE INDEX IF NOT EXISTS idx_bitnodes_asn ON bitnodes_nodes(asn);
-CREATE INDEX IF NOT EXISTS idx_bitnodes_geohash ON bitnodes_nodes(geohash);
-""".strip()
-
-
-def to_int_or_none(value: Any) -> int | None:
-    try:
-        if value in ("", None):
-            return None
-        return int(float(value))
-    except Exception:
-        return None
-
-
-def to_float_or_none(value: Any) -> float | None:
-    try:
-        if value in ("", None):
-            return None
-        return float(value)
-    except Exception:
-        return None
-
-
-def bool_or_none(value: Any) -> int | None:
-    if isinstance(value, bool):
-        return 1 if value else 0
-
-    text = str(value or "").strip().lower()
-
-    if text in {"1", "true", "yes", "y", "reachable", "ok"}:
-        return 1
-
-    if text in {"0", "false", "no", "n", "unreachable"}:
-        return 0
-
-    return None
-
-
-def build_sqlite(inputs: list[Path], output: Path) -> dict[str, Any]:
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    if output.exists():
-        output.unlink()
-
-    conn = sqlite3.connect(str(output))
-    conn.executescript(sqlite_type_schema())
-
-    total = 0
-    source_counts: dict[str, int] = {}
-
-    sql = """
-INSERT OR REPLACE INTO bitnodes_nodes (
-  node_id, source_name, address, host, port, network, agent, protocol, services, height,
-  city, country, territory, county, zip_code, timezone, latitude, longitude, asn,
-  organization, provider, w3w, zzxgcs, geohash, reachable, reachable_now, reachable_24h,
-  latency_ms, last_seen, raw_hash, raw_json, updated_at_utc
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-"""
+def build_rows(inputs: list[Path]) -> tuple[list[str], dict[str, int]]:
+    lines: list[str] = []
+    counts: dict[str, int] = {}
 
     for input_path in inputs:
         if not input_path.exists():
@@ -604,40 +641,216 @@ INSERT OR REPLACE INTO bitnodes_nodes (
         source = infer_source(input_path, payload)
         rows = iter_nodes(payload, source)
 
+        counts[source] = counts.get(source, 0) + len(rows)
+        lines.append(insert_metadata_sql(source, input_path, len(rows), payload))
+
+        for row in rows:
+            lines.append(insert_node_sql(row))
+
+    return lines, counts
+
+
+def build_mariadb_gz(
+    *,
+    inputs: list[Path],
+    output_gz: Path,
+    shards_dir: Path,
+    max_mb: float,
+    no_shards: bool = False,
+) -> dict[str, Any]:
+    header = schema_sql() + "\n\n"
+    lines, source_counts = build_rows(inputs)
+    max_bytes = int(max_mb * 1024 * 1024)
+
+    shards_dir.mkdir(parents=True, exist_ok=True)
+
+    if no_shards:
+        sql = header + "".join(lines)
+        sql += f"-- latest_sha256:{sha256_text(sql)}\n"
+        write_gzip_text(output_gz, sql)
+        shard_paths: list[Path] = []
+    else:
+        shard_paths = []
+        chunks = split_sql(lines, max_bytes=max_bytes, header=header)
+
+        for index, chunk in enumerate(chunks):
+            name = f"bitnodes-api-{index:04d}.sql.gz"
+            path = shards_dir / name
+            body = "".join(chunk)
+            sql = header + f"-- shard_index: {index}\n-- shard_sha256:{sha256_text(body)}\n" + body
+            write_gzip_text(path, sql)
+            shard_paths.append(path)
+
+        control_lines = [
+            shard_control_sql(path, path.name, "mixed", 0)
+            for path in shard_paths
+        ]
+
+        latest_sql = header + "".join(control_lines)
+        latest_sql += f"-- latest_sha256:{sha256_text(latest_sql)}\n"
+        write_gzip_text(output_gz, latest_sql)
+
+    manifest = {
+        "schema": SCHEMA_VERSION,
+        "generated_at": utc_now(),
+        "output_sql_gz": str(output_gz),
+        "shards_dir": str(shards_dir),
+        "node_count": sum(source_counts.values()),
+        "source_counts": source_counts,
+        "inputs": [str(path) for path in inputs],
+        "storage": "mariadb-sql-gzip-shards",
+        "shards": [
+            {
+                "file": path.name,
+                "path": str(path),
+                "size_bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+            }
+            for path in shard_paths
+        ],
+    }
+
+    write_gzip_text(output_gz.parent / "bitnodes_mariadb_manifest.sql.gz", header + f"-- manifest:{compact_json(manifest)}\n")
+    return manifest
+
+
+def sqlite_schema() -> str:
+    return """
+CREATE TABLE IF NOT EXISTS bitnodes_api_nodes (
+  node_id TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  host TEXT,
+  port INTEGER,
+  network TEXT,
+  agent TEXT,
+  protocol INTEGER,
+  services TEXT,
+  height INTEGER,
+  city TEXT,
+  country_code TEXT,
+  country_name TEXT,
+  continent TEXT,
+  region_name TEXT,
+  territory_name TEXT,
+  county_name TEXT,
+  zip_code TEXT,
+  timezone_name TEXT,
+  latitude REAL,
+  longitude REAL,
+  asn TEXT,
+  organization TEXT,
+  provider TEXT,
+  w3w TEXT,
+  zzxgcs TEXT,
+  geohash TEXT,
+  geohashid TEXT,
+  reachable INTEGER,
+  reachable_now INTEGER,
+  reachable_24h INTEGER,
+  latency_ms REAL,
+  last_seen TEXT,
+  is_tor INTEGER,
+  is_i2p INTEGER,
+  is_vpn INTEGER,
+  is_proxy INTEGER,
+  is_sanctioned_node INTEGER,
+  is_policy_restricted_node INTEGER,
+  is_threat_infrastructure INTEGER,
+  threat_level TEXT,
+  raw_hash TEXT NOT NULL,
+  raw_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (node_id, source_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_address ON bitnodes_api_nodes(address);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_source ON bitnodes_api_nodes(source_name);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_network ON bitnodes_api_nodes(network);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_country ON bitnodes_api_nodes(country_code);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_city ON bitnodes_api_nodes(city);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_asn ON bitnodes_api_nodes(asn);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_geohash ON bitnodes_api_nodes(geohash);
+CREATE INDEX IF NOT EXISTS idx_bitnodes_api_geo ON bitnodes_api_nodes(latitude, longitude);
+""".strip()
+
+
+def build_sqlite(inputs: list[Path], output: Path) -> dict[str, Any]:
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    if output.exists():
+        output.unlink()
+
+    conn = sqlite3.connect(str(output))
+    conn.executescript(sqlite_schema())
+
+    insert_sql = """
+INSERT OR REPLACE INTO bitnodes_api_nodes (
+  node_id, source_name, address, host, port, network, agent, protocol, services, height,
+  city, country_code, country_name, continent, region_name, territory_name, county_name, zip_code,
+  timezone_name, latitude, longitude, asn, organization, provider, w3w, zzxgcs, geohash, geohashid,
+  reachable, reachable_now, reachable_24h, latency_ms, last_seen, is_tor, is_i2p, is_vpn, is_proxy,
+  is_sanctioned_node, is_policy_restricted_node, is_threat_infrastructure, threat_level,
+  raw_hash, raw_json, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+    total = 0
+    source_counts: dict[str, int] = {}
+
+    for input_path in inputs:
+        if not input_path.exists():
+            continue
+
+        payload = read_json(input_path)
+        source = infer_source(input_path, payload)
+        rows = iter_nodes(payload, source)
         source_counts[source] = source_counts.get(source, 0) + len(rows)
         total += len(rows)
 
         for row in rows:
-            conn.execute(sql, (
+            conn.execute(insert_sql, (
                 row["node_id"],
                 row["source"],
                 row["address"],
                 row["host"],
-                to_int_or_none(row["port"]),
+                safe_int(row["port"]),
                 row["network"],
                 row["agent"],
-                to_int_or_none(row["protocol"]),
-                to_int_or_none(row["services"]),
-                to_int_or_none(row["height"]),
+                safe_int(row["protocol"]),
+                row["services"],
+                safe_int(row["height"]),
                 row["city"],
-                row["country"],
+                row["country_code"],
+                row["country_name"],
+                row["continent"],
+                row["region"],
                 row["territory"],
                 row["county"],
                 row["zip_code"],
                 row["timezone"],
-                to_float_or_none(row["latitude"]),
-                to_float_or_none(row["longitude"]),
+                safe_float(row["latitude"]),
+                safe_float(row["longitude"]),
                 row["asn"],
                 row["organization"],
                 row["provider"],
                 row["w3w"],
                 row["zzxgcs"],
                 row["geohash"],
+                row["geohashid"],
                 bool_or_none(row["reachable"]),
                 bool_or_none(row["reachable_now"]),
                 bool_or_none(row["reachable_24h"]),
-                to_float_or_none(row["latency_ms"]),
+                safe_float(row["latency_ms"]),
                 row["last_seen"],
+                bool_or_none(row["is_tor"]),
+                bool_or_none(row["is_i2p"]),
+                bool_or_none(row["is_vpn"]),
+                bool_or_none(row["is_proxy"]),
+                bool_or_none(row["is_sanctioned_node"]),
+                bool_or_none(row["is_policy_restricted_node"]),
+                bool_or_none(row["is_threat_infrastructure"]),
+                row["threat_level"],
                 row["raw_hash"],
                 row["raw_json"],
                 utc_now(),
@@ -646,21 +859,14 @@ INSERT OR REPLACE INTO bitnodes_nodes (
     conn.commit()
     conn.close()
 
-    manifest = {
-        "schema": "zzx-bitnodes-sqlite-v1",
+    return {
+        "schema": "zzx-bitnodes-api-sqlite-v4",
         "generated_at": utc_now(),
         "output": str(output),
         "node_count": total,
         "source_counts": source_counts,
         "inputs": [str(path) for path in inputs],
     }
-
-    write_text(
-        output.parent / "bitnodes_sqlite_manifest.json",
-        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-    )
-
-    return manifest
 
 
 def parse_inputs(values: list[str]) -> list[Path]:
@@ -678,32 +884,34 @@ def parse_inputs(values: list[str]) -> list[Path]:
         else:
             inputs.append(path)
 
-    seen = set()
-    unique = []
+    seen: set[str] = set()
+    unique: list[Path] = []
 
     for path in inputs:
-        resolved = str(path)
+        resolved = str(path.resolve())
 
         if resolved in seen:
             continue
 
         seen.add(resolved)
-        unique.append(path)
+        unique.append(path.resolve())
 
     return unique
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Convert Bitnodes JSON outputs into a compact MariaDB SQL dump and optional SQLite database."
+        description="Convert Bitnodes API JSON into MariaDB .sql.gz shards and optional SQLite cache.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--input", action="append", default=[])
-    parser.add_argument("--output-sql", default=str(DEFAULT_SQL))
     parser.add_argument("--output-gz", default=str(DEFAULT_SQL_GZ))
+    parser.add_argument("--shards-dir", default=str(DEFAULT_SHARDS_DIR))
+    parser.add_argument("--max-mb", type=float, default=24.0)
     parser.add_argument("--sqlite", default="")
-    parser.add_argument("--no-gzip", action="store_true")
     parser.add_argument("--only-sqlite", action="store_true")
+    parser.add_argument("--no-shards", action="store_true")
     parser.add_argument("--strict", action="store_true")
 
     args = parser.parse_args()
@@ -719,23 +927,23 @@ def main() -> int:
         print(message)
         return 0
 
-    print(f"inputs: {len(inputs)}")
-
-    manifests = {}
+    manifests: dict[str, Any] = {}
 
     if args.only_sqlite:
-        sqlite_output = Path(args.sqlite or DEFAULT_SQLITE)
-        manifests["sqlite"] = build_sqlite(inputs, sqlite_output)
+        manifests["sqlite"] = build_sqlite(inputs, Path(args.sqlite or DEFAULT_SQLITE))
     else:
-        sql_output = Path(args.output_sql)
-        gz_output = None if args.no_gzip else Path(args.output_gz)
-        manifests["mariadb"] = build_mariadb_dump(inputs, sql_output, gz_output)
+        manifests["mariadb"] = build_mariadb_gz(
+            inputs=inputs,
+            output_gz=Path(args.output_gz),
+            shards_dir=Path(args.shards_dir),
+            max_mb=args.max_mb,
+            no_shards=args.no_shards,
+        )
 
         if args.sqlite:
             manifests["sqlite"] = build_sqlite(inputs, Path(args.sqlite))
 
     print(json.dumps(manifests, ensure_ascii=False, indent=2, sort_keys=True))
-
     return 0
 
 
