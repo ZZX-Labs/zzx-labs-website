@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
+import hashlib
 import json
 import re
+import time
 import urllib.request
 import zipfile
 from datetime import datetime, timezone
@@ -15,69 +18,103 @@ from typing import Any
 APP_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_GEO_ROOT = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geo"
-
 DEFAULT_SOURCE_DIR = DEFAULT_GEO_ROOT / "sources"
-DEFAULT_COUNTRY_DIR = DEFAULT_GEO_ROOT / "countries"
-DEFAULT_TERRITORY_DIR = DEFAULT_GEO_ROOT / "territories"
-DEFAULT_COUNTY_DIR = DEFAULT_GEO_ROOT / "counties"
-DEFAULT_CITY_DIR = DEFAULT_GEO_ROOT / "cities"
-DEFAULT_ALIAS_DIR = DEFAULT_GEO_ROOT / "aliases"
-DEFAULT_MANIFEST_DIR = DEFAULT_GEO_ROOT / "manifests"
+DEFAULT_OUTPUT_DIR = DEFAULT_GEO_ROOT / "mariadb-gz"
 
 GEONAMES_ADMIN1_URL = "https://download.geonames.org/export/dump/admin1CodesASCII.txt"
 GEONAMES_ADMIN2_URL = "https://download.geonames.org/export/dump/admin2Codes.txt"
 GEONAMES_CITIES_URL = "https://download.geonames.org/export/dump/cities500.zip"
 GEONAMES_COUNTRY_INFO_URL = "https://download.geonames.org/export/dump/countryInfo.txt"
 
+SCHEMA = "zzx-bitnodes-geo-index-mariadb-gz-v4"
+
+COUNTRY_TABLE = "bitnodes_geo_countries"
+TERRITORY_TABLE = "bitnodes_geo_territories"
+COUNTY_TABLE = "bitnodes_geo_counties"
+CITY_TABLE = "bitnodes_geo_cities"
+ALIAS_TABLE = "bitnodes_geo_aliases"
+CONTROL_TABLE = "bitnodes_geo_index_control"
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def utc_mysql() -> str:
+    return datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
+
+
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
-    if text.lower() in {
-        "",
-        "unknown",
-        "none",
-        "null",
-        "undefined",
-        "—",
-        "-",
-        "n/a",
-        "na",
-    }:
+    if text.lower() in {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}:
         return ""
 
     return re.sub(r"\s+", " ", text)
 
 
-def write_json(path: Path, payload: Any, compact: bool = False) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=None if compact else 2,
-        separators=(",", ":") if compact else None,
-        sort_keys=not compact,
-    )
-
-    path.write_text(text + "\n", encoding="utf-8")
-
-
-def read_json(path: Path, fallback: Any = None) -> Any:
-    if fallback is None:
-        fallback = {}
-
-    if not path.exists():
-        return fallback
-
+def safe_int(value: Any, fallback: int = 0) -> int:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        if value in ("", None):
+            return fallback
+        return int(float(value))
     except Exception:
         return fallback
+
+
+def safe_float(value: Any, fallback: float | None = None) -> float | None:
+    try:
+        if value in ("", None):
+            return fallback
+        out = float(value)
+        if out != out:
+            return fallback
+        return out
+    except Exception:
+        return fallback
+
+
+def sql_quote(value: Any) -> str:
+    if value is None:
+        return "NULL"
+
+    if isinstance(value, bool):
+        return "1" if value else "0"
+
+    if isinstance(value, (int, float)):
+        return str(value)
+
+    text = str(value)
+    text = text.replace("\\", "\\\\")
+    text = text.replace("'", "''")
+    return f"'{text}'"
+
+
+def compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+
+    return digest.hexdigest()
+
+
+def write_gzip_text(path: Path, text: str) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as handle:
+        handle.write(text)
+
+    return path.stat().st_size
 
 
 def download(url: str, output: Path, *, force: bool = False) -> Path:
@@ -90,7 +127,6 @@ def download(url: str, output: Path, *, force: bool = False) -> Path:
     print(f"output:   {output}")
 
     urllib.request.urlretrieve(url, output)
-
     return output
 
 
@@ -128,10 +164,7 @@ def parse_country_info(path: Path) -> dict[str, dict[str, Any]]:
         reader = csv.reader(handle, delimiter="\t")
 
         for row in reader:
-            if not row or row[0].startswith("#"):
-                continue
-
-            if len(row) < 19:
+            if not row or row[0].startswith("#") or len(row) < 19:
                 continue
 
             code = clean(row[0]).upper()
@@ -143,8 +176,8 @@ def parse_country_info(path: Path) -> dict[str, dict[str, Any]]:
                 "country_code": code,
                 "country_name": clean(row[4]),
                 "capital": clean(row[5]),
-                "area_sq_km": clean(row[6]),
-                "population": clean(row[7]),
+                "area_sq_km": safe_float(row[6]),
+                "population": safe_int(row[7]),
                 "continent_code": clean(row[8]),
                 "tld": clean(row[9]),
                 "currency_code": clean(row[10]),
@@ -261,11 +294,7 @@ def parse_cities(path: Path) -> dict[str, dict[str, list[dict[str, Any]]]]:
             if not country:
                 continue
 
-            alternate_names = [
-                clean(item)
-                for item in clean(row[3]).split(",")
-                if clean(item)
-            ]
+            alternate_names = [clean(item) for item in clean(row[3]).split(",") if clean(item)]
 
             city = {
                 "geoname_id": clean(row[0]),
@@ -274,8 +303,8 @@ def parse_cities(path: Path) -> dict[str, dict[str, list[dict[str, Any]]]]:
                 "city_name": clean(row[1]),
                 "ascii_name": clean(row[2]),
                 "alternate_names": alternate_names[:50],
-                "latitude": clean(row[4]),
-                "longitude": clean(row[5]),
+                "latitude": safe_float(row[4]),
+                "longitude": safe_float(row[5]),
                 "feature_class": clean(row[6]),
                 "feature_code": clean(row[7]),
                 "country_code": country,
@@ -286,9 +315,9 @@ def parse_cities(path: Path) -> dict[str, dict[str, list[dict[str, Any]]]]:
                 "admin2_code": admin2,
                 "admin3_code": clean(row[12]),
                 "admin4_code": clean(row[13]),
-                "population": clean(row[14]),
-                "elevation": clean(row[15]),
-                "dem": clean(row[16]),
+                "population": safe_int(row[14]),
+                "elevation": safe_int(row[15]),
+                "dem": safe_int(row[16]),
                 "timezone": clean(row[17]),
                 "modified_at": clean(row[18]),
                 "source": "GeoNames cities500",
@@ -301,416 +330,450 @@ def parse_cities(path: Path) -> dict[str, dict[str, list[dict[str, Any]]]]:
     return output
 
 
-def build_country_indexes(
-    countries: dict[str, dict[str, Any]],
-    output_dir: Path,
-    *,
-    compact: bool = False,
-) -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
+def create_sql_header() -> str:
+    return f"""-- {SCHEMA}
+-- generated_at: {utc_now()}
+SET NAMES utf8mb4;
 
-    payload = {
-        "schema": "zzx-bitnodes-geo-countries-v1",
-        "generated_at": utc_now(),
-        "source": "GeoNames countryInfo",
-        "country_count": len(countries),
-        "countries": countries,
-    }
+CREATE TABLE IF NOT EXISTS {COUNTRY_TABLE} (
+  country_code VARCHAR(8) NOT NULL PRIMARY KEY,
+  country_name VARCHAR(192) NOT NULL DEFAULT '',
+  capital VARCHAR(192) NOT NULL DEFAULT '',
+  continent_code VARCHAR(8) NOT NULL DEFAULT '',
+  tld VARCHAR(32) NOT NULL DEFAULT '',
+  currency_code VARCHAR(16) NOT NULL DEFAULT '',
+  currency_name VARCHAR(128) NOT NULL DEFAULT '',
+  phone VARCHAR(64) NOT NULL DEFAULT '',
+  postal_code_format TEXT NULL,
+  postal_code_regex TEXT NULL,
+  languages TEXT NULL,
+  geoname_id VARCHAR(32) NOT NULL DEFAULT '',
+  neighbors TEXT NULL,
+  population BIGINT NULL,
+  area_sq_km DOUBLE NULL,
+  payload_json LONGTEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-    write_json(output_dir / "countries.json", payload, compact=compact)
-    write_json(output_dir / "mapcountries.json", payload, compact=compact)
+CREATE TABLE IF NOT EXISTS {TERRITORY_TABLE} (
+  id VARCHAR(64) NOT NULL PRIMARY KEY,
+  country_code VARCHAR(8) NOT NULL,
+  territory_code VARCHAR(32) NOT NULL,
+  admin1_code VARCHAR(32) NOT NULL,
+  territory_name VARCHAR(192) NOT NULL DEFAULT '',
+  ascii_name VARCHAR(192) NOT NULL DEFAULT '',
+  geoname_id VARCHAR(32) NOT NULL DEFAULT '',
+  aliases_json LONGTEXT NULL,
+  payload_json LONGTEXT NOT NULL,
+  KEY idx_geo_territory_country (country_code),
+  KEY idx_geo_territory_admin1 (country_code, admin1_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-    entries = [
-        {
-            "country_code": code,
-            "country_name": item.get("country_name", code),
-            "continent_code": item.get("continent_code", ""),
-            "geoname_id": item.get("geoname_id", ""),
-        }
-        for code, item in sorted(countries.items())
+CREATE TABLE IF NOT EXISTS {COUNTY_TABLE} (
+  id VARCHAR(96) NOT NULL PRIMARY KEY,
+  country_code VARCHAR(8) NOT NULL,
+  territory_code VARCHAR(32) NOT NULL,
+  admin1_code VARCHAR(32) NOT NULL,
+  county_code VARCHAR(64) NOT NULL,
+  admin2_code VARCHAR(64) NOT NULL,
+  county_name VARCHAR(192) NOT NULL DEFAULT '',
+  ascii_name VARCHAR(192) NOT NULL DEFAULT '',
+  geoname_id VARCHAR(32) NOT NULL DEFAULT '',
+  aliases_json LONGTEXT NULL,
+  payload_json LONGTEXT NOT NULL,
+  KEY idx_geo_county_country (country_code),
+  KEY idx_geo_county_admin1 (country_code, admin1_code),
+  KEY idx_geo_county_admin2 (country_code, admin1_code, admin2_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS {CITY_TABLE} (
+  id VARCHAR(512) NOT NULL PRIMARY KEY,
+  geoname_id VARCHAR(32) NOT NULL DEFAULT '',
+  country_code VARCHAR(8) NOT NULL,
+  admin1_code VARCHAR(32) NOT NULL,
+  admin2_code VARCHAR(64) NOT NULL,
+  city_name VARCHAR(255) NOT NULL DEFAULT '',
+  ascii_name VARCHAR(255) NOT NULL DEFAULT '',
+  latitude DOUBLE NULL,
+  longitude DOUBLE NULL,
+  population BIGINT NULL,
+  timezone_name VARCHAR(128) NOT NULL DEFAULT '',
+  alternate_names_json LONGTEXT NULL,
+  payload_json LONGTEXT NOT NULL,
+  KEY idx_geo_city_country (country_code),
+  KEY idx_geo_city_admin1 (country_code, admin1_code),
+  KEY idx_geo_city_admin2 (country_code, admin1_code, admin2_code),
+  KEY idx_geo_city_geo (latitude, longitude),
+  KEY idx_geo_city_name (city_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS {ALIAS_TABLE} (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  alias_family VARCHAR(64) NOT NULL,
+  alias_text VARCHAR(255) NOT NULL,
+  target_id VARCHAR(512) NOT NULL,
+  country_code VARCHAR(8) NOT NULL DEFAULT '',
+  payload_json LONGTEXT NULL,
+  UNIQUE KEY uniq_geo_alias (alias_family, alias_text, target_id),
+  KEY idx_geo_alias_lookup (alias_family, alias_text),
+  KEY idx_geo_alias_country (country_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS {CONTROL_TABLE} (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  generated_at DATETIME NOT NULL,
+  schema_name VARCHAR(128) NOT NULL,
+  source_dir TEXT NOT NULL,
+  geo_root TEXT NOT NULL,
+  country_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  territory_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  county_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  city_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  alias_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  manifest_json LONGTEXT NOT NULL,
+  UNIQUE KEY uniq_geo_index_schema (schema_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+"""
+
+
+def country_sql(item: dict[str, Any]) -> str:
+    values = [
+        item.get("country_code", ""),
+        item.get("country_name", ""),
+        item.get("capital", ""),
+        item.get("continent_code", ""),
+        item.get("tld", ""),
+        item.get("currency_code", ""),
+        item.get("currency_name", ""),
+        item.get("phone", ""),
+        item.get("postal_code_format", ""),
+        item.get("postal_code_regex", ""),
+        item.get("languages", ""),
+        item.get("geoname_id", ""),
+        item.get("neighbors", ""),
+        safe_int(item.get("population")),
+        safe_float(item.get("area_sq_km")),
+        compact_json(item),
     ]
 
-    return {
-        "schema": "zzx-bitnodes-geo-countries-manifest-v1",
-        "generated_at": utc_now(),
-        "entry_count": len(entries),
-        "entries": entries,
+    return (
+        f"INSERT INTO {COUNTRY_TABLE} "
+        "(country_code,country_name,capital,continent_code,tld,currency_code,currency_name,phone,"
+        "postal_code_format,postal_code_regex,languages,geoname_id,neighbors,population,area_sq_km,payload_json) "
+        f"VALUES ({','.join(sql_quote(v) for v in values)}) "
+        "ON DUPLICATE KEY UPDATE country_name=VALUES(country_name), capital=VALUES(capital), "
+        "continent_code=VALUES(continent_code), tld=VALUES(tld), currency_code=VALUES(currency_code), "
+        "currency_name=VALUES(currency_name), phone=VALUES(phone), postal_code_format=VALUES(postal_code_format), "
+        "postal_code_regex=VALUES(postal_code_regex), languages=VALUES(languages), geoname_id=VALUES(geoname_id), "
+        "neighbors=VALUES(neighbors), population=VALUES(population), area_sq_km=VALUES(area_sq_km), "
+        "payload_json=VALUES(payload_json);\n"
+    )
+
+
+def territory_sql(country: str, code: str, item: dict[str, Any]) -> str:
+    name = clean(item.get("name")) or clean(item.get("ascii_name")) or code
+    record = {
+        **item,
+        "id": f"{country}:{code}",
+        "territory_name": name,
+        "admin1_code": code,
     }
 
+    values = [
+        record["id"],
+        country,
+        code,
+        code,
+        name,
+        item.get("ascii_name", ""),
+        item.get("geoname_id", ""),
+        compact_json(item.get("aliases", [])),
+        compact_json(record),
+    ]
 
-def build_territory_indexes(
-    admin1: dict[str, dict[str, dict[str, Any]]],
-    countries: dict[str, dict[str, Any]],
-    output_dir: Path,
+    return (
+        f"INSERT INTO {TERRITORY_TABLE} "
+        "(id,country_code,territory_code,admin1_code,territory_name,ascii_name,geoname_id,aliases_json,payload_json) "
+        f"VALUES ({','.join(sql_quote(v) for v in values)}) "
+        "ON DUPLICATE KEY UPDATE territory_name=VALUES(territory_name), ascii_name=VALUES(ascii_name), "
+        "geoname_id=VALUES(geoname_id), aliases_json=VALUES(aliases_json), payload_json=VALUES(payload_json);\n"
+    )
+
+
+def county_sql(country: str, admin1: str, code: str, item: dict[str, Any]) -> str:
+    name = clean(item.get("name")) or clean(item.get("ascii_name")) or code
+    record = {
+        **item,
+        "id": f"{country}:{admin1}:{code}",
+        "county_name": name,
+        "admin2_code": code,
+    }
+
+    values = [
+        record["id"],
+        country,
+        admin1,
+        admin1,
+        code,
+        code,
+        name,
+        item.get("ascii_name", ""),
+        item.get("geoname_id", ""),
+        compact_json(item.get("aliases", [])),
+        compact_json(record),
+    ]
+
+    return (
+        f"INSERT INTO {COUNTY_TABLE} "
+        "(id,country_code,territory_code,admin1_code,county_code,admin2_code,county_name,ascii_name,"
+        "geoname_id,aliases_json,payload_json) "
+        f"VALUES ({','.join(sql_quote(v) for v in values)}) "
+        "ON DUPLICATE KEY UPDATE county_name=VALUES(county_name), ascii_name=VALUES(ascii_name), "
+        "geoname_id=VALUES(geoname_id), aliases_json=VALUES(aliases_json), payload_json=VALUES(payload_json);\n"
+    )
+
+
+def city_sql(item: dict[str, Any]) -> str:
+    country = item.get("country_code", "")
+    admin1 = item.get("admin1_code", "")
+    admin2 = item.get("admin2_code", "")
+    name = item.get("name") or item.get("city") or ""
+    geoname_id = item.get("geoname_id") or ""
+    city_id = f"{country}:{admin1}:{admin2}:{geoname_id or name}"
+
+    record = {
+        **item,
+        "id": city_id,
+        "city": name,
+        "city_name": name,
+    }
+
+    values = [
+        city_id,
+        geoname_id,
+        country,
+        admin1,
+        admin2,
+        name,
+        item.get("ascii_name", ""),
+        safe_float(item.get("latitude")),
+        safe_float(item.get("longitude")),
+        safe_int(item.get("population")),
+        item.get("timezone", ""),
+        compact_json(item.get("alternate_names", [])),
+        compact_json(record),
+    ]
+
+    return (
+        f"INSERT INTO {CITY_TABLE} "
+        "(id,geoname_id,country_code,admin1_code,admin2_code,city_name,ascii_name,latitude,longitude,"
+        "population,timezone_name,alternate_names_json,payload_json) "
+        f"VALUES ({','.join(sql_quote(v) for v in values)}) "
+        "ON DUPLICATE KEY UPDATE city_name=VALUES(city_name), ascii_name=VALUES(ascii_name), "
+        "latitude=VALUES(latitude), longitude=VALUES(longitude), population=VALUES(population), "
+        "timezone_name=VALUES(timezone_name), alternate_names_json=VALUES(alternate_names_json), "
+        "payload_json=VALUES(payload_json);\n"
+    )
+
+
+def alias_sql(family: str, alias: str, target: str, country: str = "", payload: Any = None) -> str:
+    values = [
+        family,
+        alias.lower(),
+        target,
+        country,
+        compact_json(payload or {}),
+    ]
+
+    return (
+        f"INSERT INTO {ALIAS_TABLE} "
+        "(alias_family,alias_text,target_id,country_code,payload_json) "
+        f"VALUES ({','.join(sql_quote(v) for v in values)}) "
+        "ON DUPLICATE KEY UPDATE country_code=VALUES(country_code), payload_json=VALUES(payload_json);\n"
+    )
+
+
+def control_sql(
     *,
-    compact: bool = False,
-) -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
+    generated_at: str,
+    source_dir: Path,
+    geo_root: Path,
+    manifest: dict[str, Any],
+) -> str:
+    values = [
+        generated_at,
+        SCHEMA,
+        str(source_dir),
+        str(geo_root),
+        safe_int(manifest.get("country_count")),
+        safe_int(manifest.get("territory_count")),
+        safe_int(manifest.get("county_count")),
+        safe_int(manifest.get("city_count")),
+        safe_int(manifest.get("alias_count")),
+        compact_json(manifest),
+    ]
 
-    manifest_entries = []
-    flat: dict[str, Any] = {}
-
-    for country, subdivisions in sorted(admin1.items()):
-        country_info = countries.get(country, {})
-
-        payload = {
-            "schema": "zzx-bitnodes-geo-territories-v1",
-            "generated_at": utc_now(),
-            "country_code": country,
-            "country_name": country_info.get("country_name", country),
-            "subdivision_label": "admin1",
-            "source": "GeoNames admin1CodesASCII",
-            "subdivisions": {},
-            "aliases": {},
-            "territories": {},
-        }
-
-        for code, item in sorted(subdivisions.items()):
-            name = clean(item.get("name")) or clean(item.get("ascii_name")) or code
-            key = f"{country}:{code}"
-
-            record = {
-                "id": key,
-                "country_code": country,
-                "territory_code": code,
-                "admin1_code": code,
-                "territory_name": name,
-                "name": name,
-                "ascii_name": clean(item.get("ascii_name")),
-                "geoname_id": clean(item.get("geoname_id")),
-                "aliases": item.get("aliases", []),
-                "source": item.get("source", "GeoNames admin1CodesASCII"),
-            }
-
-            payload["subdivisions"][code] = name
-            payload["territories"][key] = record
-            flat[key] = record
-
-            for alias in item.get("aliases", []):
-                alias_text = clean(alias)
-
-                if alias_text:
-                    payload["aliases"][alias_text] = code
-
-        path = output_dir / f"{country}.json"
-        write_json(path, payload, compact=compact)
-
-        manifest_entries.append({
-            "country_code": country,
-            "country_name": payload["country_name"],
-            "path": str(path.relative_to(output_dir.parent)),
-            "subdivision_count": len(payload["subdivisions"]),
-        })
-
-    combined = {
-        "schema": "zzx-bitnodes-geo-territories-combined-v1",
-        "generated_at": utc_now(),
-        "territory_count": len(flat),
-        "territories": flat,
-    }
-
-    write_json(output_dir / "territories.json", combined, compact=compact)
-    write_json(output_dir / "mapterritories.json", combined, compact=compact)
-
-    return {
-        "schema": "zzx-bitnodes-geo-territories-manifest-v1",
-        "generated_at": utc_now(),
-        "entry_count": len(manifest_entries),
-        "entries": manifest_entries,
-    }
+    return (
+        f"INSERT INTO {CONTROL_TABLE} "
+        "(generated_at,schema_name,source_dir,geo_root,country_count,territory_count,county_count,"
+        "city_count,alias_count,manifest_json) "
+        f"VALUES ({','.join(sql_quote(v) for v in values)}) "
+        "ON DUPLICATE KEY UPDATE generated_at=VALUES(generated_at), source_dir=VALUES(source_dir), "
+        "geo_root=VALUES(geo_root), country_count=VALUES(country_count), territory_count=VALUES(territory_count), "
+        "county_count=VALUES(county_count), city_count=VALUES(city_count), alias_count=VALUES(alias_count), "
+        "manifest_json=VALUES(manifest_json);\n"
+    )
 
 
-def build_county_indexes(
-    admin2: dict[str, dict[str, dict[str, dict[str, Any]]]],
-    countries: dict[str, dict[str, Any]],
-    output_dir: Path,
-    *,
-    compact: bool = False,
-) -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    manifest_entries = []
-    flat: dict[str, Any] = {}
-
-    for country, admin1_items in sorted(admin2.items()):
-        country_info = countries.get(country, {})
-
-        payload = {
-            "schema": "zzx-bitnodes-geo-counties-v1",
-            "generated_at": utc_now(),
-            "country_code": country,
-            "country_name": country_info.get("country_name", country),
-            "subdivision_label": "admin2",
-            "source": "GeoNames admin2Codes",
-            "admin1": {},
-            "counties": {},
-        }
-
-        count = 0
-
-        for admin1_code, county_items in sorted(admin1_items.items()):
-            payload["admin1"][admin1_code] = {
-                "counties": {},
-                "aliases": {},
-            }
-
-            for county_code, item in sorted(county_items.items()):
-                name = clean(item.get("name")) or clean(item.get("ascii_name")) or county_code
-                key = f"{country}:{admin1_code}:{county_code}"
-
-                record = {
-                    "id": key,
-                    "country_code": country,
-                    "territory_code": admin1_code,
-                    "admin1_code": admin1_code,
-                    "county_code": county_code,
-                    "admin2_code": county_code,
-                    "county_name": name,
-                    "name": name,
-                    "ascii_name": clean(item.get("ascii_name")),
-                    "geoname_id": clean(item.get("geoname_id")),
-                    "aliases": item.get("aliases", []),
-                    "source": item.get("source", "GeoNames admin2Codes"),
-                }
-
-                payload["admin1"][admin1_code]["counties"][county_code] = name
-                payload["counties"][key] = record
-                flat[key] = record
-
-                for alias in item.get("aliases", []):
-                    alias_text = clean(alias)
-
-                    if alias_text:
-                        payload["admin1"][admin1_code]["aliases"][alias_text] = county_code
-
-                count += 1
-
-        path = output_dir / f"{country}.json"
-        write_json(path, payload, compact=compact)
-
-        manifest_entries.append({
-            "country_code": country,
-            "country_name": payload["country_name"],
-            "path": str(path.relative_to(output_dir.parent)),
-            "county_count": count,
-        })
-
-    combined = {
-        "schema": "zzx-bitnodes-geo-counties-combined-v1",
-        "generated_at": utc_now(),
-        "county_count": len(flat),
-        "counties": flat,
-    }
-
-    write_json(output_dir / "counties.json", combined, compact=compact)
-    write_json(output_dir / "mapcounties.json", combined, compact=compact)
-
-    return {
-        "schema": "zzx-bitnodes-geo-counties-manifest-v1",
-        "generated_at": utc_now(),
-        "entry_count": len(manifest_entries),
-        "entries": manifest_entries,
-    }
-
-
-def build_city_indexes(
-    cities: dict[str, dict[str, list[dict[str, Any]]]],
-    countries: dict[str, dict[str, Any]],
-    output_dir: Path,
-    *,
-    compact: bool = False,
-) -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    manifest_entries = []
-    flat: dict[str, Any] = {}
-
-    for country, admin1_items in sorted(cities.items()):
-        country_info = countries.get(country, {})
-        country_dir = output_dir / country
-        country_dir.mkdir(parents=True, exist_ok=True)
-
-        city_count = 0
-        admin1_manifest = []
-
-        for admin1_code, city_rows in sorted(admin1_items.items()):
-            city_rows = sorted(
-                city_rows,
-                key=lambda item: (
-                    -int(item.get("population") or 0),
-                    item.get("name") or "",
-                ),
-            )
-
-            payload = {
-                "schema": "zzx-bitnodes-geo-cities-v1",
-                "generated_at": utc_now(),
-                "country_code": country,
-                "country_name": country_info.get("country_name", country),
-                "territory_code": admin1_code,
-                "admin1_code": admin1_code,
-                "source": "GeoNames cities500",
-                "cities": city_rows,
-            }
-
-            for item in city_rows:
-                key = f"{country}:{admin1_code}:{item.get('admin2_code') or 'UNKNOWN'}:{item.get('name')}"
-                flat[key] = {
-                    **item,
-                    "id": key,
-                    "city": item.get("name"),
-                    "city_name": item.get("name"),
-                }
-
-            path = country_dir / f"{admin1_code}.json"
-            write_json(path, payload, compact=compact)
-
-            city_count += len(city_rows)
-
-            admin1_manifest.append({
-                "admin1_code": admin1_code,
-                "path": str(path.relative_to(output_dir.parent)),
-                "city_count": len(city_rows),
-            })
-
-        manifest_entries.append({
-            "country_code": country,
-            "country_name": country_info.get("country_name", country),
-            "city_count": city_count,
-            "admin1": admin1_manifest,
-        })
-
-    combined = {
-        "schema": "zzx-bitnodes-geo-cities-combined-v1",
-        "generated_at": utc_now(),
-        "city_count": len(flat),
-        "cities": flat,
-    }
-
-    write_json(output_dir / "cities.json", combined, compact=compact)
-    write_json(output_dir / "mapcities.json", combined, compact=compact)
-
-    return {
-        "schema": "zzx-bitnodes-geo-cities-manifest-v1",
-        "generated_at": utc_now(),
-        "entry_count": len(manifest_entries),
-        "entries": manifest_entries,
-    }
-
-
-def build_alias_indexes(
+def build_sql_lines(
     *,
     countries: dict[str, dict[str, Any]],
     admin1: dict[str, dict[str, dict[str, Any]]],
     admin2: dict[str, dict[str, dict[str, dict[str, Any]]]],
     cities: dict[str, dict[str, list[dict[str, Any]]]],
-    output_dir: Path,
-    compact: bool = False,
-) -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    aliases = {
-        "schema": "zzx-bitnodes-geo-aliases-v1",
-        "generated_at": utc_now(),
-        "countries": {},
-        "territories": {},
-        "counties": {},
-        "cities": {},
+    only: str,
+) -> tuple[list[str], dict[str, int]]:
+    lines: list[str] = []
+    counts = {
+        "country_count": 0,
+        "territory_count": 0,
+        "county_count": 0,
+        "city_count": 0,
+        "alias_count": 0,
     }
 
-    for code, country in countries.items():
-        name = clean(country.get("country_name"))
+    if only in {"all", "countries"}:
+        for _code, item in sorted(countries.items()):
+            lines.append(country_sql(item))
+            counts["country_count"] += 1
+            name = clean(item.get("country_name"))
+            code = clean(item.get("country_code"))
+            if name:
+                lines.append(alias_sql("country", name, code, code, item))
+                counts["alias_count"] += 1
+            if code:
+                lines.append(alias_sql("country", code, code, code, item))
+                counts["alias_count"] += 1
 
-        if name:
-            aliases["countries"][name.lower()] = code
-
-        aliases["countries"][code.lower()] = code
-
-    for country, rows in admin1.items():
-        for code, item in rows.items():
-            key = f"{country}:{code}"
-
-            for alias in item.get("aliases", []):
-                alias_text = clean(alias).lower()
-
-                if alias_text:
-                    aliases["territories"].setdefault(alias_text, [])
-                    aliases["territories"][alias_text].append(key)
-
-    for country, admin1_rows in admin2.items():
-        for admin1_code, county_rows in admin1_rows.items():
-            for county_code, item in county_rows.items():
-                key = f"{country}:{admin1_code}:{county_code}"
+    if only in {"all", "territories"}:
+        for country, rows in sorted(admin1.items()):
+            for code, item in sorted(rows.items()):
+                target = f"{country}:{code}"
+                lines.append(territory_sql(country, code, item))
+                counts["territory_count"] += 1
 
                 for alias in item.get("aliases", []):
-                    alias_text = clean(alias).lower()
+                    alias = clean(alias)
+                    if alias:
+                        lines.append(alias_sql("territory", alias, target, country, item))
+                        counts["alias_count"] += 1
 
-                    if alias_text:
-                        aliases["counties"].setdefault(alias_text, [])
-                        aliases["counties"][alias_text].append(key)
+    if only in {"all", "counties"}:
+        for country, admin1_rows in sorted(admin2.items()):
+            for admin1_code, county_rows in sorted(admin1_rows.items()):
+                for county_code, item in sorted(county_rows.items()):
+                    target = f"{country}:{admin1_code}:{county_code}"
+                    lines.append(county_sql(country, admin1_code, county_code, item))
+                    counts["county_count"] += 1
 
-    for country, admin1_rows in cities.items():
-        for admin1_code, city_rows in admin1_rows.items():
-            for item in city_rows:
-                key = f"{country}:{admin1_code}:{item.get('admin2_code') or 'UNKNOWN'}:{item.get('name')}"
+                    for alias in item.get("aliases", []):
+                        alias = clean(alias)
+                        if alias:
+                            lines.append(alias_sql("county", alias, target, country, item))
+                            counts["alias_count"] += 1
 
-                names = [
-                    clean(item.get("name")),
-                    clean(item.get("ascii_name")),
-                    *[clean(name) for name in item.get("alternate_names", [])],
-                ]
+    if only in {"all", "cities"}:
+        for country, admin1_rows in sorted(cities.items()):
+            for _admin1_code, city_rows in sorted(admin1_rows.items()):
+                city_rows = sorted(
+                    city_rows,
+                    key=lambda item: (
+                        -safe_int(item.get("population")),
+                        item.get("name") or "",
+                    ),
+                )
 
-                for alias in names:
-                    alias_text = clean(alias).lower()
+                for item in city_rows:
+                    target = f"{item.get('country_code')}:{item.get('admin1_code')}:{item.get('admin2_code')}:{item.get('geoname_id') or item.get('name')}"
+                    lines.append(city_sql(item))
+                    counts["city_count"] += 1
 
-                    if alias_text:
-                        aliases["cities"].setdefault(alias_text, [])
-                        aliases["cities"][alias_text].append(key)
+                    names = [
+                        clean(item.get("name")),
+                        clean(item.get("ascii_name")),
+                        *[clean(name) for name in item.get("alternate_names", [])],
+                    ]
 
-    for family in ("territories", "counties", "cities"):
-        for alias, values in aliases[family].items():
-            aliases[family][alias] = sorted(set(values))
+                    for alias in sorted(set(names) - {""}):
+                        lines.append(alias_sql("city", alias, target, country, item))
+                        counts["alias_count"] += 1
 
-    write_json(output_dir / "aliases.json", aliases, compact=compact)
+    if only == "aliases":
+        _, counts = build_sql_lines(
+            countries=countries,
+            admin1=admin1,
+            admin2=admin2,
+            cities=cities,
+            only="all",
+        )
 
-    return {
-        "schema": "zzx-bitnodes-geo-aliases-manifest-v1",
-        "generated_at": utc_now(),
-        "country_aliases": len(aliases["countries"]),
-        "territory_aliases": len(aliases["territories"]),
-        "county_aliases": len(aliases["counties"]),
-        "city_aliases": len(aliases["cities"]),
-    }
+    return lines, counts
+
+
+def split_lines(header: str, lines: list[str], max_bytes: int) -> list[list[str]]:
+    shards: list[list[str]] = []
+    current: list[str] = []
+
+    for line in lines:
+        current_size = len(header.encode("utf-8")) + sum(len(item.encode("utf-8")) for item in current)
+
+        if current and current_size + len(line.encode("utf-8")) > max_bytes:
+            shards.append(current)
+            current = []
+
+        current.append(line)
+
+    if current:
+        shards.append(current)
+
+    return shards
+
+
+def clean_output_dir(output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for item in output_dir.glob("*.sql.gz"):
+        try:
+            item.unlink()
+        except Exception:
+            pass
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build local GeoNames-derived JSON indexes for Bitnodes geolocation enrichment."
+        description="Build local GeoNames-derived MariaDB .sql.gz indexes for Bitnodes geolocation enrichment.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--geo-root", default=str(DEFAULT_GEO_ROOT))
     parser.add_argument("--source-dir", default="")
+    parser.add_argument("--output-dir", default="")
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument(
-        "--only",
-        default="all",
-        choices=["all", "countries", "territories", "counties", "cities", "aliases"],
-    )
-    parser.add_argument("--compact", action="store_true")
+    parser.add_argument("--only", default="all", choices=["all", "countries", "territories", "counties", "cities", "aliases"])
+    parser.add_argument("--max-mb", type=float, default=24.0)
+    parser.add_argument("--no-clean", action="store_true")
     parser.add_argument("--report", default="")
 
     args = parser.parse_args()
 
     geo_root = Path(args.geo_root).resolve()
     source_dir = Path(args.source_dir).resolve() if args.source_dir else geo_root / "sources"
+    output_dir = Path(args.output_dir).resolve() if args.output_dir else geo_root / "mariadb-gz"
+    max_bytes = int(args.max_mb * 1024 * 1024)
 
-    country_dir = geo_root / "countries"
-    territory_dir = geo_root / "territories"
-    county_dir = geo_root / "counties"
-    city_dir = geo_root / "cities"
-    alias_dir = geo_root / "aliases"
-    manifest_dir = geo_root / "manifests"
+    if not args.no_clean:
+        clean_output_dir(output_dir)
 
     source_paths = ensure_sources(
         source_dir,
@@ -723,52 +786,75 @@ def main() -> int:
     admin2 = parse_admin2(source_paths["admin2"])
     cities = parse_cities(source_paths["cities"])
 
-    manifests = {
-        "schema": "zzx-bitnodes-geo-index-build-v2",
+    generated_at = utc_mysql()
+    header = create_sql_header()
+
+    lines, counts = build_sql_lines(
+        countries=countries,
+        admin1=admin1,
+        admin2=admin2,
+        cities=cities,
+        only=args.only,
+    )
+
+    manifest = {
+        "schema": SCHEMA,
         "generated_at": utc_now(),
         "geo_root": str(geo_root),
         "source_dir": str(source_dir),
-        "indexes": {},
+        "output_dir": str(output_dir),
+        "only": args.only,
+        "storage": "mariadb-sql-gzip-shards",
+        **counts,
+        "line_count": len(lines),
+        "shards": [],
     }
 
-    if args.only in {"all", "countries"}:
-        manifest = build_country_indexes(countries, country_dir, compact=args.compact)
-        write_json(manifest_dir / "countries.json", manifest, compact=args.compact)
-        manifests["indexes"]["countries"] = manifest
+    control = control_sql(
+        generated_at=generated_at,
+        source_dir=source_dir,
+        geo_root=geo_root,
+        manifest=manifest,
+    )
 
-    if args.only in {"all", "territories"}:
-        manifest = build_territory_indexes(admin1, countries, territory_dir, compact=args.compact)
-        write_json(manifest_dir / "territories.json", manifest, compact=args.compact)
-        manifests["indexes"]["territories"] = manifest
+    shards = split_lines(header, lines + [control], max_bytes=max_bytes)
 
-    if args.only in {"all", "counties"}:
-        manifest = build_county_indexes(admin2, countries, county_dir, compact=args.compact)
-        write_json(manifest_dir / "counties.json", manifest, compact=args.compact)
-        manifests["indexes"]["counties"] = manifest
-
-    if args.only in {"all", "cities"}:
-        manifest = build_city_indexes(cities, countries, city_dir, compact=args.compact)
-        write_json(manifest_dir / "cities.json", manifest, compact=args.compact)
-        manifests["indexes"]["cities"] = manifest
-
-    if args.only in {"all", "aliases"}:
-        manifest = build_alias_indexes(
-            countries=countries,
-            admin1=admin1,
-            admin2=admin2,
-            cities=cities,
-            output_dir=alias_dir,
-            compact=args.compact,
+    for index, shard_lines in enumerate(shards):
+        name = f"geo-index-{args.only}-{index:04d}.sql.gz"
+        path = output_dir / name
+        body = "".join(shard_lines)
+        sql = (
+            header
+            + f"-- shard_index: {index}\n"
+            + f"-- shard_name: {name}\n"
+            + f"-- shard_sha256: {sha256_text(body)}\n"
+            + body
         )
-        write_json(manifest_dir / "aliases.json", manifest, compact=args.compact)
-        manifests["indexes"]["aliases"] = manifest
 
-    write_json(manifest_dir / "geo-index.json", manifests, compact=args.compact)
+        size = write_gzip_text(path, sql)
+
+        manifest["shards"].append(
+            {
+                "index": index,
+                "file": name,
+                "path": str(path),
+                "size_bytes": size,
+                "sha256": sha256_file(path),
+            }
+        )
+
+    latest_sql = header + control
+    latest_sql += f"-- latest_sha256:{sha256_text(latest_sql)}\n"
+
+    latest_path = output_dir / "latest-geo-index.sql.gz"
+    write_gzip_text(latest_path, latest_sql)
 
     if args.report:
-        write_json(Path(args.report), manifests, compact=args.compact)
+        report_sql = header + control
+        write_gzip_text(Path(args.report).resolve(), report_sql)
 
-    print(f"geo indexes built: {geo_root}")
+    print(f"geo mariadb gz indexes built: {output_dir}")
+    print(f"shards: {len(manifest['shards'])}")
 
     return 0
 
