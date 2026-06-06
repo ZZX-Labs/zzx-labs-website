@@ -1,173 +1,96 @@
 #!/usr/bin/env python3
-"""
-ZZX-Labs Bitnodes Proxy Heuristics
-----------------------------------
-
-Purpose:
-    Enrich Bitcoin node records with suspected proxy metadata.
-
-Policy:
-    This module does NOT claim certainty. It assigns a heuristic proxy score,
-    confidence level, category, and evidence list.
-
-Input:
-    A node record dictionary.
-
-Output:
-    The same node record dictionary with:
-
-        proxy: {
-            suspected_proxy: bool,
-            proxy_score: float,
-            proxy_confidence: str,
-            proxy_category: str,
-            evidence: list[str],
-            source: "zzx_proxy_heuristic_v1"
-        }
-
-Compatibility:
-    Designed to be imported by enrich.py, aggregate.py, maps.py, or crawler
-    pipelines without requiring third-party APIs.
-
-Notes:
-    VPN and proxy detection are related but not identical. VPN should stay in
-    vpn.py. This module focuses on web proxy, reverse proxy, hosting proxy,
-    CDN/WARP-like, anonymizer, tunnel, relay, gateway, and suspicious provider
-    patterns.
-"""
-
 from __future__ import annotations
 
 import argparse
+import gzip
 import ipaddress
 import json
 import os
 import re
-import sys
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Tuple
+from typing import Any, Iterable, Mapping, MutableMapping
 
 
-SCHEMA = "zzx-bitnodes-proxy-heuristic-v1"
-SOURCE = "zzx_proxy_heuristic_v1"
-
+SCHEMA = "zzx-bitnodes-proxy-heuristic-v2"
+SOURCE = "zzx_proxy_heuristic_v2"
 
 BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", "bitcoin/bitnodes"))
 BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")))
 PROXY_DATA_DIR = Path(os.environ.get("BITNODES_PROXY_DATA", str(BITNODES_DATA / "proxy")))
 
-
 PROXY_PROVIDER_KEYWORDS = {
-    "proxy",
-    "proxies",
-    "proxied",
-    "reverse proxy",
-    "forward proxy",
-    "http proxy",
-    "socks",
-    "socks5",
-    "anonymizer",
-    "anonymous",
-    "anonymouse",
-    "webproxy",
-    "web proxy",
-    "hide ip",
-    "hide-ip",
-    "vpn proxy",
-    "tunnel",
-    "tunneling",
-    "relay",
-    "gateway",
-    "exit node",
-    "egress",
-    "nat gateway",
-    "carrier grade nat",
-    "cgnat",
-    "cg-nat",
-    "scraper",
-    "scraping",
-    "crawler proxy",
-    "residential proxy",
-    "mobile proxy",
-    "rotating proxy",
-    "datacenter proxy",
-    "bulletproof",
-    "privacy service",
-    "privacy network",
-    "shield",
-    "warp",
+    "proxy", "proxies", "proxied", "reverse proxy", "forward proxy",
+    "http proxy", "socks", "socks5", "anonymizer", "anonymous",
+    "webproxy", "web proxy", "hide ip", "hide-ip", "vpn proxy",
+    "tunnel", "tunneling", "relay", "gateway", "exit node", "egress",
+    "nat gateway", "carrier grade nat", "cgnat", "cg-nat", "scraper",
+    "scraping", "crawler proxy", "residential proxy", "mobile proxy",
+    "rotating proxy", "datacenter proxy", "bulletproof", "privacy service",
+    "privacy network", "shield", "warp",
 }
 
-
 CDN_OR_REVERSE_PROXY_KEYWORDS = {
-    "cloudflare",
-    "cloudflare warp",
-    "fastly",
-    "akamai",
-    "edgecast",
-    "imperva",
-    "incapsula",
-    "sucuri",
-    "stackpath",
-    "bunnycdn",
-    "cachefly",
-    "cdn77",
-    "cloudfront",
-    "amazon cloudfront",
-    "google cloud cdn",
-    "azure front door",
-    "netlify",
-    "vercel",
-    "nginx proxy",
-    "haproxy",
+    "cloudflare", "cloudflare warp", "fastly", "akamai", "edgecast",
+    "imperva", "incapsula", "sucuri", "stackpath", "bunnycdn", "cachefly",
+    "cdn77", "cloudfront", "amazon cloudfront", "google cloud cdn",
+    "azure front door", "netlify", "vercel", "nginx proxy", "haproxy",
     "traefik",
 }
 
-
 HOSTING_PROXY_CONTEXT_KEYWORDS = {
-    "vps",
-    "cloud",
-    "hosting",
-    "host",
-    "server",
-    "servers",
-    "colo",
-    "colocation",
-    "datacenter",
-    "data center",
-    "dedicated",
-    "bare metal",
-    "virtual private",
-    "compute",
-    "instance",
+    "vps", "cloud", "hosting", "host", "server", "servers", "colo",
+    "colocation", "datacenter", "data center", "dedicated", "bare metal",
+    "virtual private", "compute", "instance",
 }
 
-
 RESIDENTIAL_PROXY_KEYWORDS = {
-    "residential proxy",
-    "residential proxies",
-    "mobile proxy",
-    "mobile proxies",
-    "rotating residential",
-    "peer-to-peer proxy",
+    "residential proxy", "residential proxies", "mobile proxy",
+    "mobile proxies", "rotating residential", "peer-to-peer proxy",
     "p2p proxy",
 }
 
-
-KNOWN_PROXY_ASNS = {
-    # Intentionally conservative and small. Do not over-label entire ASNs.
-    # Add only when your own data proves repeated proxy behavior.
-}
+KNOWN_PROXY_ASNS: set[str] = set()
 
 
-PRIVATE_OR_SPECIAL_NETWORKS = {
-    "private",
-    "loopback",
-    "link_local",
-    "multicast",
-    "reserved",
-    "unspecified",
-}
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def read_json(path: Path, fallback: Any = None) -> Any:
+    if fallback is None:
+        fallback = {}
+
+    try:
+        if not path.exists():
+            return fallback
+
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
+
+
+def write_json(path: Path, data: Any, compact: bool = False, pretty: bool | None = None) -> None:
+    if pretty is None:
+        pretty = not compact
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            data,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            sort_keys=pretty,
+            ensure_ascii=False,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def as_text(value: Any) -> str:
@@ -191,43 +114,102 @@ def clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, value))
 
 
-def parse_ip(address: str) -> Optional[ipaddress._BaseAddress]:
-    text = str(address or "").strip()
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    if value in (0, "0"):
+        return False
+
+    return str(value or "").strip().lower() in {
+        "true", "yes", "y", "ok", "up", "online", "reachable", "success",
+        "connected", "on",
+    }
+
+
+def deep_get(row: Mapping[str, Any], key: str) -> Any:
+    current: Any = row
+
+    for part in key.split("."):
+        if not isinstance(current, Mapping):
+            return None
+        current = current.get(part)
+
+    return current
+
+
+def first_value(row: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+        if value not in ("", None):
+            return value
+    return None
+
+
+def normalize_host(address: Any) -> str:
+    text = str(address or "").strip().lower()
 
     if not text:
-        return None
+        return ""
 
     if text.startswith("[") and "]" in text:
-        text = text[1:text.index("]")]
-    elif ":" in text and text.count(":") == 1:
-        text = text.rsplit(":", 1)[0]
+        return text[1:text.index("]")]
+
+    if ".onion:" in text or ".i2p:" in text:
+        return text.rsplit(":", 1)[0].strip("[]")
+
+    if text.endswith(".onion") or text.endswith(".i2p"):
+        return text.strip("[]")
+
+    if text.count(":") == 1:
+        host, port = text.rsplit(":", 1)
+        if port.isdigit():
+            return host.strip("[]")
+
+    if text.count(":") > 1:
+        possible_host, possible_port = text.rsplit(":", 1)
+        if possible_port.isdigit():
+            try:
+                ipaddress.ip_address(possible_host.strip("[]"))
+                return possible_host.strip("[]")
+            except ValueError:
+                pass
+
+    return text.strip("[]")
+
+
+def parse_ip(address: Any) -> ipaddress._BaseAddress | None:
+    host = normalize_host(address)
+
+    if not host or host.endswith(".onion") or host.endswith(".i2p"):
+        return None
 
     try:
-        return ipaddress.ip_address(text)
+        return ipaddress.ip_address(host)
     except ValueError:
         return None
 
 
 def extract_address(node: Mapping[str, Any]) -> str:
     return str(
-        node.get("address")
-        or node.get("addr")
-        or node.get("node")
-        or node.get("ip")
-        or node.get("host")
-        or node.get("hostname")
-        or node.get("id")
+        first_value(
+            node,
+            "address", "canonical_address", "addr", "node", "ip", "host", "hostname", "id",
+            "metadata.address", "metadata.canonical_address", "metadata.host",
+        )
         or ""
     )
 
 
 def extract_asn(node: Mapping[str, Any]) -> str:
-    value = node.get("asn") or node.get("as_number") or node.get("autonomous_system_number")
-
-    if value is None:
-        geoip = node.get("geoip") or node.get("geo") or {}
-        if isinstance(geoip, Mapping):
-            value = geoip.get("asn") or geoip.get("as_number")
+    value = first_value(
+        node,
+        "asn", "as_number", "autonomous_system_number",
+        "metadata.asn", "geoip.asn", "asn_data.asn", "provider_data.asn",
+    )
 
     text = str(value or "").upper().strip()
 
@@ -238,41 +220,36 @@ def extract_asn(node: Mapping[str, Any]) -> str:
 
 
 def provider_text(node: Mapping[str, Any]) -> str:
-    fields = [
-        node.get("provider"),
-        node.get("isp"),
-        node.get("organization"),
-        node.get("org"),
-        node.get("as_org"),
-        node.get("asn_org"),
-        node.get("host"),
-        node.get("hostname"),
-        node.get("reverse_dns"),
-        node.get("rdns"),
-    ]
+    keys = (
+        "provider", "provider_raw", "provider_normalized", "isp", "organization",
+        "org", "as_org", "asn_org", "host", "hostname", "reverse_dns", "rdns",
+        "provider_kind", "network_classification",
+        "metadata.provider", "metadata.organization", "metadata.org",
+        "metadata.provider_kind", "metadata.network_classification",
+        "provider_data.provider", "provider_data.provider_kind",
+        "provider_data.network_classification", "provider_data.organization",
+        "geoip.provider", "geoip.organization", "geoip.org",
+        "network.provider", "network.organization",
+        "whois.provider", "whois.organization",
+        "asn_data.provider", "asn_data.organization",
+        "isp_data.provider", "isp_data.organization",
+    )
 
-    for key in ("geoip", "geo", "network", "whois", "asn_data", "isp_data"):
-        value = node.get(key)
-        if isinstance(value, Mapping):
-            fields.extend([
-                value.get("provider"),
-                value.get("isp"),
-                value.get("organization"),
-                value.get("org"),
-                value.get("as_org"),
-                value.get("asn_org"),
-                value.get("reverse_dns"),
-                value.get("hostname"),
-            ])
-
-    return norm(" ".join(as_text(field) for field in fields))
+    return norm(" ".join(as_text(first_value(node, key)) for key in keys))
 
 
-def keyword_hits(text: str, keywords: Iterable[str]) -> List[str]:
-    hits = []
+def keyword_hits(text: str, keywords: Iterable[str]) -> list[str]:
+    hits: list[str] = []
 
     for keyword in sorted(set(keywords), key=len, reverse=True):
-        pattern = r"\b" + re.escape(keyword.lower()).replace(r"\ ", r"\s+") + r"\b"
+        key = keyword.lower()
+
+        if key.startswith("."):
+            if key in text:
+                hits.append(keyword)
+            continue
+
+        pattern = r"\b" + re.escape(key).replace(r"\ ", r"\s+") + r"\b"
 
         if re.search(pattern, text):
             hits.append(keyword)
@@ -290,7 +267,7 @@ def classify_confidence(score: float) -> str:
     return "none"
 
 
-def classify_category(score: float, evidence: List[str]) -> str:
+def classify_category(score: float, evidence: list[str]) -> str:
     joined = " ".join(evidence).lower()
 
     if score < 0.35:
@@ -314,10 +291,9 @@ def classify_category(score: float, evidence: List[str]) -> str:
     return "suspected_proxy"
 
 
-def inspect_ip_address(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
+def inspect_ip_address(node: Mapping[str, Any]) -> tuple[float, list[str]]:
     score = 0.0
-    evidence: List[str] = []
-
+    evidence: list[str] = []
     address = extract_address(node)
     parsed = parse_ip(address)
 
@@ -348,10 +324,10 @@ def inspect_ip_address(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
     return score, evidence
 
 
-def inspect_provider(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
+def inspect_provider(node: Mapping[str, Any]) -> tuple[float, list[str]]:
     text = provider_text(node)
     score = 0.0
-    evidence: List[str] = []
+    evidence: list[str] = []
 
     if not text:
         return score, evidence
@@ -386,35 +362,20 @@ def inspect_provider(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
     return score, evidence
 
 
-def inspect_reverse_dns(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
-    fields = [
-        node.get("hostname"),
-        node.get("host"),
-        node.get("reverse_dns"),
-        node.get("rdns"),
-        node.get("ptr"),
-    ]
-
-    text = norm(" ".join(as_text(field) for field in fields))
+def inspect_reverse_dns(node: Mapping[str, Any]) -> tuple[float, list[str]]:
+    text = norm(
+        " ".join(
+            as_text(first_value(node, key))
+            for key in ("hostname", "host", "reverse_dns", "rdns", "ptr", "metadata.hostname", "metadata.host")
+        )
+    )
 
     if not text:
         return 0.0, []
 
     keywords = {
-        "proxy",
-        "socks",
-        "socks5",
-        "http-proxy",
-        "http.proxy",
-        "webproxy",
-        "relay",
-        "gateway",
-        "nat",
-        "tunnel",
-        "cdn",
-        "edge",
-        "warp",
-        "anon",
+        "proxy", "socks", "socks5", "http proxy", "webproxy", "relay",
+        "gateway", "nat", "tunnel", "cdn", "edge", "warp", "anon",
         "anonymous",
     }
 
@@ -426,7 +387,7 @@ def inspect_reverse_dns(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
     return min(0.42, 0.14 + 0.07 * len(hits)), [f"reverse DNS proxy indicators: {', '.join(hits[:8])}"]
 
 
-def inspect_asn(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
+def inspect_asn(node: Mapping[str, Any]) -> tuple[float, list[str]]:
     asn = extract_asn(node)
 
     if not asn:
@@ -438,38 +399,37 @@ def inspect_asn(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
     return 0.0, []
 
 
-def inspect_existing_flags(node: Mapping[str, Any]) -> Tuple[float, List[str]]:
+def inspect_existing_flags(node: Mapping[str, Any]) -> tuple[float, list[str]]:
     score = 0.0
-    evidence: List[str] = []
-
+    evidence: list[str] = []
     existing_proxy = node.get("proxy")
 
     if isinstance(existing_proxy, Mapping):
-        if existing_proxy.get("suspected_proxy") is True or existing_proxy.get("is_proxy") is True:
+        if boolish(existing_proxy.get("suspected_proxy") or existing_proxy.get("is_proxy")):
             score += 0.45
             evidence.append("existing proxy metadata already marked suspicious")
 
-        existing_score = existing_proxy.get("proxy_score")
-
         try:
-            existing_score_f = float(existing_score)
-            if existing_score_f > 0:
-                score += min(0.30, existing_score_f * 0.30)
-                evidence.append(f"existing proxy score: {existing_score_f:.2f}")
+            existing_score = float(existing_proxy.get("proxy_score"))
+            if existing_score > 0:
+                if existing_score > 1:
+                    existing_score = existing_score / 100.0
+                score += min(0.30, existing_score * 0.30)
+                evidence.append(f"existing proxy score: {existing_score:.2f}")
         except (TypeError, ValueError):
             pass
 
-    for key in ("suspected_proxy", "is_proxy", "proxy_detected"):
-        if node.get(key) is True:
+    for key in ("suspected_proxy", "is_proxy", "proxy_detected", "metadata.suspected_proxy", "metadata.is_proxy"):
+        if boolish(first_value(node, key)):
             score += 0.40
             evidence.append(f"existing boolean flag set: {key}")
 
     return score, evidence
 
 
-def compute_proxy_score(node: Mapping[str, Any]) -> Dict[str, Any]:
+def compute_proxy_score(node: Mapping[str, Any]) -> dict[str, Any]:
     score = 0.0
-    evidence: List[str] = []
+    evidence: list[str] = []
 
     for inspector in (
         inspect_existing_flags,
@@ -490,116 +450,219 @@ def compute_proxy_score(node: Mapping[str, Any]) -> Dict[str, Any]:
     return {
         "schema": SCHEMA,
         "source": SOURCE,
+        "host": normalize_host(extract_address(node)),
         "suspected_proxy": suspected,
         "is_proxy": suspected,
         "proxy_score": round(score, 4),
         "proxy_confidence": confidence,
         "proxy_category": category,
         "evidence": evidence,
+        "updated_at": utc_now(),
     }
+
+
+def ensure_block(node: MutableMapping[str, Any], key: str) -> MutableMapping[str, Any]:
+    block = node.get(key)
+
+    if not isinstance(block, MutableMapping):
+        block = {}
+        node[key] = block
+
+    return block
 
 
 def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     result = compute_proxy_score(node)
+    metadata = ensure_block(node, "metadata")
+    enrichment = ensure_block(node, "enrichment")
 
     node["proxy"] = result
-    node["suspected_proxy"] = result["suspected_proxy"]
-    node["proxy_score"] = result["proxy_score"]
-    node["proxy_confidence"] = result["proxy_confidence"]
-    node["proxy_category"] = result["proxy_category"]
+    metadata["proxy"] = result
+
+    for key in ("suspected_proxy", "is_proxy", "proxy_score", "proxy_confidence", "proxy_category"):
+        node[key] = result[key]
+        metadata[key] = result[key]
+
+    enrichment["proxy"] = {
+        "schema": SCHEMA,
+        "source": SOURCE,
+        "status": "ok",
+        "updated_at": result["updated_at"],
+        "proxy_score": result["proxy_score"],
+        "proxy_confidence": result["proxy_confidence"],
+    }
 
     return node
 
 
-def enrich_nodes(nodes: Any) -> Any:
+def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
     if isinstance(nodes, list):
         return [enrich_node(dict(node)) if isinstance(node, Mapping) else node for node in nodes]
 
-    if isinstance(nodes, dict):
-        return {
-            key: enrich_node(dict(value)) if isinstance(value, Mapping) else value
-            for key, value in nodes.items()
-        }
+    if isinstance(nodes, Mapping):
+        return {key: enrich_node(dict(value)) if isinstance(value, Mapping) else value for key, value in nodes.items()}
 
     return nodes
 
 
-def enrich_payload(payload: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
-    if isinstance(payload.get("nodes"), list):
-        payload["nodes"] = enrich_nodes(payload["nodes"])
-    elif isinstance(payload.get("nodes"), dict):
-        payload["nodes"] = enrich_nodes(payload["nodes"])
+def extract_nodes(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [dict(node) for node in payload if isinstance(node, Mapping)]
 
-    if isinstance(payload.get("results"), list):
-        payload["results"] = enrich_nodes(payload["results"])
+    if not isinstance(payload, Mapping):
+        return []
 
-    if isinstance(payload.get("data"), list):
-        payload["data"] = enrich_nodes(payload["data"])
+    nodes = payload.get("nodes")
 
-    payload.setdefault("enrichment", {})
-    payload["enrichment"]["proxy"] = {
-        "schema": SCHEMA,
-        "source": SOURCE,
-        "generated_data_dir": str(PROXY_DATA_DIR),
+    if isinstance(nodes, list):
+        return [dict(node) for node in nodes if isinstance(node, Mapping)]
+
+    if isinstance(nodes, Mapping):
+        output = []
+        for address, value in nodes.items():
+            if isinstance(value, Mapping):
+                output.append({"address": str(address), **dict(value)})
+            elif isinstance(value, list):
+                padded = list(value) + [None] * max(0, 20 - len(value))
+                metadata = padded[19] if isinstance(padded[19], Mapping) else {}
+                output.append(
+                    {
+                        "address": str(address),
+                        "protocol": padded[0],
+                        "agent": padded[1],
+                        "height": padded[4],
+                        "hostname": padded[5],
+                        "city": padded[6],
+                        "country": padded[7],
+                        "latitude": padded[8],
+                        "longitude": padded[9],
+                        "timezone": padded[10],
+                        "asn": padded[11],
+                        "organization": padded[12],
+                        "provider": padded[13],
+                        "metadata": dict(metadata),
+                    }
+                )
+        return output
+
+    for key in ("results", "data", "rows", "peers", "node_records", "reachable_nodes"):
+        value = payload.get(key)
+
+        if isinstance(value, list):
+            return [dict(node) for node in value if isinstance(node, Mapping)]
+
+        if isinstance(value, Mapping):
+            return extract_nodes({"nodes": value})
+
+    return []
+
+
+def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
+    if isinstance(payload, list):
+        return nodes
+
+    if not isinstance(payload, MutableMapping):
+        return {"nodes": nodes}
+
+    output = dict(payload)
+
+    if isinstance(output.get("nodes"), Mapping):
+        output["nodes"] = {
+            str(node.get("canonical_address") or node.get("address") or index): node
+            for index, node in enumerate(nodes)
+        }
+    else:
+        output["nodes"] = nodes
+
+    output.setdefault("metadata", {})
+    if isinstance(output["metadata"], MutableMapping):
+        output["metadata"]["proxy_enriched_at"] = utc_now()
+        output["metadata"]["proxy_schema"] = SCHEMA
+
+    output.setdefault("enrichment", {})
+    if isinstance(output["enrichment"], MutableMapping):
+        output["enrichment"]["proxy"] = {
+            "schema": SCHEMA,
+            "source": SOURCE,
+            "status": "ok",
+            "generated_data_dir": str(PROXY_DATA_DIR),
+            "updated_at": utc_now(),
+        }
+
+    return output
+
+
+def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    nodes = extract_nodes(payload)
+
+    if not nodes:
+        return payload
+
+    return put_nodes(payload, enrich_nodes(nodes, context))
+
+
+def iter_payload_nodes(payload: Any) -> list[Mapping[str, Any]]:
+    return extract_nodes(payload)
+
+
+def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
+    categories: dict[str, int] = {}
+    confidence: dict[str, int] = {}
+    suspected = 0
+
+    for node in nodes:
+        proxy = node.get("proxy", {})
+        if not isinstance(proxy, Mapping):
+            proxy = {}
+
+        category = str(node.get("proxy_category") or proxy.get("proxy_category") or "not_suspected")
+        conf = str(node.get("proxy_confidence") or proxy.get("proxy_confidence") or "none")
+
+        categories[category] = categories.get(category, 0) + 1
+        confidence[conf] = confidence.get(conf, 0) + 1
+
+        if boolish(node.get("suspected_proxy") or node.get("is_proxy") or proxy.get("suspected_proxy")):
+            suspected += 1
+
+    return {
+        "schema": "zzx-bitnodes-proxy-summary-v2",
+        "generated_at": utc_now(),
+        "total_nodes": len(nodes),
+        "suspected_proxy_nodes": suspected,
+        "proxy_nodes": suspected,
+        "categories": dict(sorted(categories.items(), key=lambda item: (-item[1], item[0]))),
+        "confidence": dict(sorted(confidence.items(), key=lambda item: (-item[1], item[0]))),
     }
 
-    return payload
+
+def enrich(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
 
 
-def load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+def process(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
 
 
-def write_json(path: Path, data: Any, pretty: bool = False) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def cli(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Enrich Bitnodes node records with ZZX proxy heuristics.", allow_abbrev=False)
 
-    if pretty:
-        text = json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False)
-    else:
-        text = json.dumps(data, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
-
-    path.write_text(text + "\n", encoding="utf-8")
-
-
-def cli(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Enrich Bitnodes node records with ZZX proxy heuristics."
-    )
-
-    parser.add_argument(
-        "--input",
-        required=True,
-        help="Input JSON payload containing nodes/results/data.",
-    )
-
-    parser.add_argument(
-        "--output",
-        required=True,
-        help="Output JSON payload with proxy enrichment.",
-    )
-
-    parser.add_argument(
-        "--pretty",
-        action="store_true",
-        help="Write pretty indented JSON.",
-    )
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--summary", default="")
+    parser.add_argument("--compact", action="store_true")
+    parser.add_argument("--pretty", action="store_true")
 
     args = parser.parse_args(argv)
 
-    input_path = Path(args.input)
-    output_path = Path(args.output)
+    payload = read_json(Path(args.input), fallback={})
+    enriched = enrich_payload(payload)
 
-    payload = load_json(input_path)
+    write_json(Path(args.output), enriched, compact=args.compact, pretty=args.pretty or not args.compact)
 
-    if isinstance(payload, MutableMapping):
-        payload = enrich_payload(payload)
-    elif isinstance(payload, list):
-        payload = enrich_nodes(payload)
-    else:
-        raise SystemExit("Input JSON must be an object or list.")
+    if args.summary:
+        write_json(Path(args.summary), summarize(iter_payload_nodes(enriched)), compact=args.compact)
 
-    write_json(output_path, payload, pretty=args.pretty)
-
+    print(f"proxy enrichment complete: {len(iter_payload_nodes(enriched))} nodes")
     return 0
 
 
