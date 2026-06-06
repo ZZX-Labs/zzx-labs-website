@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import re
 from datetime import datetime, timezone
@@ -12,19 +13,9 @@ from typing import Any, Mapping, MutableMapping
 APP_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_POLICY_PATH = APP_ROOT / "tools" / "bitnodes" / "data" / "policy" / "sanctioned-jurisdictions.json"
 
-SCHEMA = "zzx-bitnodes-sanctioned-nodes-v2"
+SCHEMA = "zzx-bitnodes-sanctioned-nodes-v3"
 
-UNKNOWN_VALUES = {
-    "",
-    "unknown",
-    "none",
-    "null",
-    "undefined",
-    "—",
-    "-",
-    "n/a",
-    "na",
-}
+UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 DEFAULT_SANCTIONED_COUNTRIES = {
     "RU": "Russia",
@@ -88,6 +79,12 @@ COUNTRY_NAME_TO_CODE = {
     "DEMOCRATIC REPUBLIC OF THE CONGO": "CD",
     "CONGO, THE DEMOCRATIC REPUBLIC OF THE": "CD",
     "ZIMBABWE": "ZW",
+    "HONG KONG": "HK",
+    "MACAU": "MO",
+    "MACAO": "MO",
+    "PAKISTAN": "PK",
+    "LEBANON": "LB",
+    "IRAQ": "IQ",
 }
 
 
@@ -96,12 +93,10 @@ def utc_now() -> str:
 
 
 def clean(value: Any) -> str:
-    text = str(value or "").strip()
-
+    text = re.sub(r"\s+", " ", str(value or "").strip())
     if text.lower() in UNKNOWN_VALUES:
         return ""
-
-    return re.sub(r"\s+", " ", text)
+    return text
 
 
 def normalize_code(value: Any) -> str:
@@ -120,36 +115,52 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
+    try:
+        if not path.exists():
+            return fallback
 
-    return json.loads(path.read_text(encoding="utf-8"))
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
 
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if compact:
-        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-    else:
-        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-
-    path.write_text(text + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
     current: Any = row
 
     for part in key.split("."):
         if not isinstance(current, Mapping):
             return None
-
         current = current.get(part)
 
     return current
+
+
+def first_value(row: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+        if value not in ("", None):
+            return value
+    return None
 
 
 def boolish(value: Any) -> bool:
@@ -159,12 +170,15 @@ def boolish(value: Any) -> bool:
     if value in (1, "1"):
         return True
 
-    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1"}
+    if value in (0, "0"):
+        return False
+
+    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1", "on"}
 
 
 def default_policy() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-sanction-policy-v2",
+        "schema": "zzx-bitnodes-sanction-policy-v3",
         "generated_at": utc_now(),
         "policy_name": "ZZX-Labs Bitnodes Jurisdiction Risk Policy",
         "note": (
@@ -188,26 +202,76 @@ def default_policy() -> dict[str, Any]:
             "review-unknown": "Review manually because jurisdiction is unknown.",
             "allow": "No local policy match.",
         },
+        "map_styles": {
+            "sanctioned": {
+                "marker_color": "#ff0000",
+                "marker_outline": "#ff0000",
+                "marker_fill": "#ff0000",
+                "marker_fill_opacity": 0.18,
+                "marker_radius": 9,
+                "marker_shape": "circle",
+                "marker_ring": True,
+                "table_badge": "SANCTIONED",
+                "table_badge_class": "bn-badge bn-badge-red bn-badge-sanctioned",
+            },
+            "watch": {
+                "marker_color": "#ffb000",
+                "marker_outline": "#ffb000",
+                "marker_fill": "#ffb000",
+                "marker_fill_opacity": 0.18,
+                "marker_radius": 8,
+                "marker_shape": "circle",
+                "marker_ring": True,
+                "table_badge": "WATCH",
+                "table_badge_class": "bn-badge bn-badge-amber bn-badge-watch",
+            },
+            "restricted_overlay": {
+                "marker_color": "#ff3b3b",
+                "marker_outline": "#ff3b3b",
+                "marker_fill": "#111111",
+                "marker_fill_opacity": 0.28,
+                "marker_radius": 8,
+                "marker_shape": "circle",
+                "marker_ring": True,
+                "table_badge": "OVERLAY",
+                "table_badge_class": "bn-badge bn-badge-red bn-badge-overlay",
+            },
+            "unknown": {
+                "marker_color": "#9ca3af",
+                "marker_outline": "#9ca3af",
+                "marker_fill": "#9ca3af",
+                "marker_fill_opacity": 0.15,
+                "marker_radius": 6,
+                "marker_shape": "circle",
+                "marker_ring": False,
+                "table_badge": "UNKNOWN",
+                "table_badge_class": "bn-badge bn-badge-gray",
+            },
+            "clear": {
+                "marker_color": "#c0d674",
+                "marker_outline": "#c0d674",
+                "marker_fill": "#c0d674",
+                "marker_fill_opacity": 0.12,
+                "marker_radius": 5,
+                "marker_shape": "circle",
+                "marker_ring": False,
+                "table_badge": "CLEAR",
+                "table_badge_class": "bn-badge bn-badge-green",
+            },
+        },
     }
 
 
 def normalize_policy_table(value: Any, fallback: dict[str, str]) -> dict[str, str]:
     if isinstance(value, list):
-        return {
-            normalize_code(item): normalize_code(item)
-            for item in value
-            if normalize_code(item)
-        }
+        return {normalize_code(item): normalize_code(item) for item in value if normalize_code(item)}
 
     if isinstance(value, Mapping):
         out = {}
-
         for key, label in value.items():
             code = normalize_code(key)
-
             if code:
                 out[code] = clean(label) or code
-
         return out or fallback
 
     return fallback
@@ -232,6 +296,9 @@ def load_policy(policy_path: Path) -> dict[str, Any]:
         policy.get("restricted_overlays"),
         DEFAULT_RESTRICTED_OVERLAYS,
     )
+
+    if not isinstance(policy.get("map_styles"), Mapping):
+        policy["map_styles"] = default_policy()["map_styles"]
 
     return policy
 
@@ -262,33 +329,37 @@ def country_code(row: Mapping[str, Any]) -> str:
         "location.country",
         "metadata.country_code",
         "metadata.country",
+        "metadata.geoip.country_code",
+        "metadata.geoloc.country_code",
+        "geoloc.country_code",
+        "geoloc.country",
     )
 
     for key in keys:
-        code = normalize_code(deep_get(row, key))
+        code = normalize_code(deep_get(row, key) if "." in key else row.get(key))
 
         if len(code) == 2 or code in {"TOR", "I2P"}:
             return code
 
     if (
         boolish(row.get("is_tor"))
-        or boolish(row.get("tor"))
+        or boolish(row.get("suspected_tor"))
         or boolish(deep_get(row, "tor.is_tor"))
         or boolish(deep_get(row, "metadata.is_tor"))
-        or boolish(deep_get(row, "metadata.tor"))
+        or boolish(deep_get(row, "metadata.tor.is_tor"))
     ):
         return "TOR"
 
     if (
         boolish(row.get("is_i2p"))
-        or boolish(row.get("i2p"))
+        or boolish(row.get("suspected_i2p"))
         or boolish(deep_get(row, "i2p.is_i2p"))
         or boolish(deep_get(row, "metadata.is_i2p"))
-        or boolish(deep_get(row, "metadata.i2p"))
+        or boolish(deep_get(row, "metadata.i2p.is_i2p"))
     ):
         return "I2P"
 
-    network = clean(row.get("network") or deep_get(row, "metadata.network")).lower()
+    network = clean(first_value(row, "network", "metadata.network")).lower()
 
     if network == "tor":
         return "TOR"
@@ -297,6 +368,20 @@ def country_code(row: Mapping[str, Any]) -> str:
         return "I2P"
 
     return ""
+
+
+def style_for_label(policy: Mapping[str, Any], risk_label: str) -> dict[str, Any]:
+    styles = policy.get("map_styles", {})
+    default_styles = default_policy()["map_styles"]
+
+    if not isinstance(styles, Mapping):
+        styles = {}
+
+    style = styles.get(risk_label)
+    if not isinstance(style, Mapping):
+        style = default_styles.get(risk_label, default_styles["unknown"])
+
+    return dict(style)
 
 
 def policy_match(row: Mapping[str, Any], policy: Mapping[str, Any]) -> dict[str, Any]:
@@ -344,10 +429,17 @@ def policy_match(row: Mapping[str, Any], policy: Mapping[str, Any]) -> dict[str,
         risk_label = "clear"
         action = "allow"
 
+    matched_name = sanctioned_name or watch_name or overlay_name or ""
+    map_style = style_for_label(policy, risk_label)
+
     return {
         "schema": SCHEMA,
         "country_code": code or "Unknown",
-        "matched_name": sanctioned_name or watch_name or overlay_name or "",
+        "sanctioned_country_code": code if is_sanctioned else "",
+        "sanctioned_country_name": sanctioned_name or "",
+        "watch_country_code": code if is_watch else "",
+        "watch_country_name": watch_name or "",
+        "matched_name": matched_name,
         "is_sanctioned": is_sanctioned,
         "is_watch": is_watch,
         "is_restricted_overlay": is_restricted_overlay,
@@ -356,29 +448,95 @@ def policy_match(row: Mapping[str, Any], policy: Mapping[str, Any]) -> dict[str,
         "risk_level": risk_level,
         "risk_label": risk_label,
         "recommended_action": action,
+        "map_style": map_style,
+        "map_marker_color": map_style.get("marker_color", "#ff0000" if is_sanctioned else "#c0d674"),
+        "map_marker_outline": map_style.get("marker_outline", "#ff0000" if is_sanctioned else "#c0d674"),
+        "map_marker_radius": map_style.get("marker_radius", 9 if is_sanctioned else 5),
+        "map_marker_shape": map_style.get("marker_shape", "circle"),
+        "map_marker_ring": bool(map_style.get("marker_ring", is_sanctioned)),
+        "table_badge": map_style.get("table_badge", "SANCTIONED" if is_sanctioned else risk_label.upper()),
+        "table_badge_class": map_style.get("table_badge_class", "bn-badge bn-badge-red bn-badge-sanctioned"),
         "policy_name": clean(policy.get("policy_name")) or "ZZX-Labs Bitnodes Jurisdiction Risk Policy",
-        "policy_schema": clean(policy.get("schema")) or "zzx-bitnodes-sanction-policy-v2",
+        "policy_schema": clean(policy.get("schema")) or "zzx-bitnodes-sanction-policy-v3",
         "checked_at": utc_now(),
     }
 
 
+def ensure_block(node: MutableMapping[str, Any], key: str) -> MutableMapping[str, Any]:
+    block = node.get(key)
+
+    if not isinstance(block, MutableMapping):
+        block = {}
+        node[key] = block
+
+    return block
+
+
 def enrich_node(node: MutableMapping[str, Any], policy: Mapping[str, Any], policy_path: Path) -> MutableMapping[str, Any]:
     meta = policy_match(node, policy)
+    metadata = ensure_block(node, "metadata")
+    enrichment = ensure_block(node, "enrichment")
+    map_style = meta["map_style"]
 
     node["sanctions_data"] = meta
+    metadata["sanctions_data"] = meta
+
     node["is_sanctioned_node"] = meta["is_sanctioned"]
     node["is_policy_restricted_node"] = meta["is_policy_restricted"]
     node["policy_restricted"] = meta["is_policy_restricted"]
     node["policy_watch"] = meta["is_policy_watch"]
     node["jurisdiction_risk_level"] = meta["risk_level"]
+    node["jurisdiction_risk_label"] = meta["risk_label"]
     node["jurisdiction_recommended_action"] = meta["recommended_action"]
 
-    node.setdefault("enrichment", {})
-    node["enrichment"]["sanctioned_nodes"] = {
+    node["sanctioned_country_code"] = meta["sanctioned_country_code"]
+    node["sanctioned_country_name"] = meta["sanctioned_country_name"]
+    node["policy_match_country_code"] = meta["country_code"]
+    node["policy_match_country_name"] = meta["matched_name"]
+
+    node["map_marker_color"] = meta["map_marker_color"]
+    node["map_marker_outline"] = meta["map_marker_outline"]
+    node["map_marker_radius"] = meta["map_marker_radius"]
+    node["map_marker_shape"] = meta["map_marker_shape"]
+    node["map_marker_ring"] = meta["map_marker_ring"]
+    node["map_style"] = map_style
+
+    node["table_badge"] = meta["table_badge"]
+    node["table_badge_class"] = meta["table_badge_class"]
+
+    for key in (
+        "is_sanctioned_node",
+        "is_policy_restricted_node",
+        "policy_restricted",
+        "policy_watch",
+        "jurisdiction_risk_level",
+        "jurisdiction_risk_label",
+        "jurisdiction_recommended_action",
+        "sanctioned_country_code",
+        "sanctioned_country_name",
+        "policy_match_country_code",
+        "policy_match_country_name",
+        "map_marker_color",
+        "map_marker_outline",
+        "map_marker_radius",
+        "map_marker_shape",
+        "map_marker_ring",
+        "map_style",
+        "table_badge",
+        "table_badge_class",
+    ):
+        metadata[key] = node[key]
+
+    enrichment["sanctioned_nodes"] = {
         "schema": SCHEMA,
         "status": "ok",
         "updated_at": utc_now(),
         "policy_path": str(policy_path),
+        "risk_label": meta["risk_label"],
+        "country_code": meta["country_code"],
+        "matched_name": meta["matched_name"],
+        "map_marker_color": meta["map_marker_color"],
+        "table_badge": meta["table_badge"],
     }
 
     return node
@@ -386,14 +544,12 @@ def enrich_node(node: MutableMapping[str, Any], policy: Mapping[str, Any], polic
 
 def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
     context = context or {}
-
     policy_path = Path(
         context.get("sanctions_policy")
         or context.get("sanctioned_policy")
         or context.get("policy_path")
         or DEFAULT_POLICY_PATH
     )
-
     policy = load_policy(policy_path)
 
     if isinstance(nodes, list):
@@ -411,36 +567,9 @@ def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
     return nodes
 
 
-def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
-        return enrich_nodes(payload, context)
-
-    if not isinstance(payload, MutableMapping):
-        return payload
-
-    if isinstance(payload.get("nodes"), (list, dict)):
-        payload["nodes"] = enrich_nodes(payload["nodes"], context)
-
-    if isinstance(payload.get("results"), list):
-        payload["results"] = enrich_nodes(payload["results"], context)
-
-    if isinstance(payload.get("data"), list):
-        payload["data"] = enrich_nodes(payload["data"], context)
-
-    payload.setdefault("metadata", {})
-
-    if isinstance(payload["metadata"], MutableMapping):
-        payload["metadata"]["sanctioned_nodes_enriched_at"] = utc_now()
-        payload["metadata"]["sanctions_policy"] = str(
-            context.get("sanctions_policy") if context else DEFAULT_POLICY_PATH
-        )
-
-    return payload
-
-
-def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
-    if isinstance(payload, list):
-        return [node for node in payload if isinstance(node, Mapping)]
+        return [dict(node) for node in payload if isinstance(node, Mapping)]
 
     if not isinstance(payload, Mapping):
         return []
@@ -448,22 +577,89 @@ def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
     nodes = payload.get("nodes")
 
     if isinstance(nodes, list):
-        return [node for node in nodes if isinstance(node, Mapping)]
+        return [dict(node) for node in nodes if isinstance(node, Mapping)]
 
     if isinstance(nodes, Mapping):
-        return [node for node in nodes.values() if isinstance(node, Mapping)]
+        output = []
+        for address, value in nodes.items():
+            if isinstance(value, Mapping):
+                output.append({"address": str(address), **dict(value)})
+            elif isinstance(value, list):
+                padded = list(value) + [None] * max(0, 20 - len(value))
+                metadata = padded[19] if isinstance(padded[19], Mapping) else {}
+                output.append(
+                    {
+                        "address": str(address),
+                        "protocol": padded[0],
+                        "agent": padded[1],
+                        "height": padded[4],
+                        "hostname": padded[5],
+                        "city": padded[6],
+                        "country": padded[7],
+                        "latitude": padded[8],
+                        "longitude": padded[9],
+                        "timezone": padded[10],
+                        "asn": padded[11],
+                        "organization": padded[12],
+                        "provider": padded[13],
+                        "metadata": dict(metadata),
+                    }
+                )
+        return output
 
-    for key in ("results", "data"):
+    for key in ("results", "data", "rows", "peers", "node_records", "reachable_nodes"):
         value = payload.get(key)
 
         if isinstance(value, list):
-            return [node for node in value if isinstance(node, Mapping)]
+            return [dict(node) for node in value if isinstance(node, Mapping)]
+
+        if isinstance(value, Mapping):
+            return extract_nodes({"nodes": value})
 
     return []
 
 
+def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
+    if isinstance(payload, list):
+        return nodes
+
+    if not isinstance(payload, MutableMapping):
+        return {"nodes": nodes}
+
+    output = dict(payload)
+
+    if isinstance(output.get("nodes"), Mapping):
+        output["nodes"] = {
+            str(node.get("canonical_address") or node.get("address") or index): node
+            for index, node in enumerate(nodes)
+        }
+    else:
+        output["nodes"] = nodes
+
+    output.setdefault("metadata", {})
+    if isinstance(output["metadata"], MutableMapping):
+        output["metadata"]["sanctioned_nodes_enriched_at"] = utc_now()
+        output["metadata"]["sanctioned_nodes_schema"] = SCHEMA
+
+    return output
+
+
+def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    nodes = extract_nodes(payload)
+
+    if not nodes:
+        return payload
+
+    return put_nodes(payload, enrich_nodes(nodes, context))
+
+
+def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
+    return extract_nodes(payload)
+
+
 def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
     countries: dict[str, int] = {}
+    sanctioned_countries: dict[str, int] = {}
     risk_levels: dict[str, int] = {}
     actions: dict[str, int] = {}
 
@@ -474,11 +670,11 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
 
     for node in nodes:
         data = node.get("sanctions_data", {})
-
         if not isinstance(data, Mapping):
             data = {}
 
         country = clean(data.get("country_code")) or "Unknown"
+        sanctioned_country = clean(data.get("sanctioned_country_code")) or ""
         risk = clean(data.get("risk_level")) or "unknown"
         action = clean(data.get("recommended_action")) or "unknown"
 
@@ -486,54 +682,63 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
         risk_levels[risk] = risk_levels.get(risk, 0) + 1
         actions[action] = actions.get(action, 0) + 1
 
-        if data.get("is_sanctioned"):
+        if sanctioned_country:
+            sanctioned_countries[sanctioned_country] = sanctioned_countries.get(sanctioned_country, 0) + 1
+
+        if boolish(data.get("is_sanctioned")):
             sanctioned_count += 1
 
-        if data.get("is_restricted_overlay"):
+        if boolish(data.get("is_restricted_overlay")):
             restricted_overlay_count += 1
 
-        if data.get("is_policy_restricted"):
+        if boolish(data.get("is_policy_restricted")):
             policy_restricted_count += 1
 
-        if data.get("is_policy_watch"):
+        if boolish(data.get("is_policy_watch")):
             policy_watch_count += 1
 
     return {
-        "schema": "zzx-bitnodes-sanctioned-nodes-summary-v2",
+        "schema": "zzx-bitnodes-sanctioned-nodes-summary-v3",
         "generated_at": utc_now(),
         "total_nodes": len(nodes),
         "sanctioned_nodes": sanctioned_count,
         "restricted_overlay_nodes": restricted_overlay_count,
         "policy_restricted_nodes": policy_restricted_count,
         "policy_watch_nodes": policy_watch_count,
+        "map_encoding": {
+            "sanctioned": "red circled marker and red table badge",
+            "watch": "amber circled marker and amber table badge",
+            "restricted_overlay": "red overlay marker with attribution-limited badge",
+        },
         "countries": dict(sorted(countries.items(), key=lambda item: (-item[1], item[0]))),
+        "sanctioned_countries": dict(sorted(sanctioned_countries.items(), key=lambda item: (-item[1], item[0]))),
         "risk_levels": dict(sorted(risk_levels.items(), key=lambda item: (-item[1], item[0]))),
         "recommended_actions": dict(sorted(actions.items(), key=lambda item: (-item[1], item[0]))),
     }
 
 
+def enrich(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
+
+
+def process(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Enrich Bitnodes records with local policy-based sanctioned/restricted jurisdiction classification."
+        description="Enrich Bitnodes records with local policy-based sanctioned/restricted jurisdiction classification.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--summary", default="")
-    parser.add_argument(
-        "--policy",
-        default=str(DEFAULT_POLICY_PATH),
-        help="Path to sanctioned-jurisdictions policy JSON.",
-    )
-    parser.add_argument(
-        "--write-default-policy",
-        action="store_true",
-        help="Write a starter policy JSON to --policy and exit.",
-    )
+    parser.add_argument("--policy", default=str(DEFAULT_POLICY_PATH))
+    parser.add_argument("--write-default-policy", action="store_true")
     parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
-
     policy_path = Path(args.policy)
 
     if args.write_default_policy:
@@ -550,7 +755,6 @@ def main() -> int:
         write_json(Path(args.summary), summarize(iter_nodes(enriched)), compact=args.compact)
 
     print(f"sanctioned nodes enrichment complete: {len(iter_nodes(enriched))} nodes")
-
     return 0
 
 
