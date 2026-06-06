@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
 import re
@@ -15,9 +16,11 @@ DEFAULT_GEO_ROOT = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geo"
 DEFAULT_GEOHASH_DIR = DEFAULT_GEO_ROOT / "geohash"
 DEFAULT_CACHE_PATH = DEFAULT_GEOHASH_DIR / "geohash-cache.json"
 
-SCHEMA = "zzx-bitnodes-geohashid-v2"
-BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
+SCHEMA = "zzx-bitnodes-geohashid-v3"
+CACHE_SCHEMA = "zzx-bitnodes-geohashid-cache-v3"
+SUMMARY_SCHEMA = "zzx-bitnodes-geohashid-summary-v3"
 
+BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
 UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 
@@ -50,10 +53,17 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
+    try:
+        if not path.exists():
+            return fallback
 
-    return json.loads(path.read_text(encoding="utf-8"))
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
 
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
@@ -65,15 +75,13 @@ def write_json(path: Path, payload: Any, compact: bool = False) -> None:
         indent=None if compact else 2,
         separators=(",", ":") if compact else None,
         sort_keys=not compact,
+        default=str,
     )
 
     path.write_text(text + "\n", encoding="utf-8")
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
     current: Any = row
 
     for part in key.split("."):
@@ -85,6 +93,16 @@ def deep_get(row: Mapping[str, Any], key: str) -> Any:
     return current
 
 
+def first_value(row: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+
+        if value not in ("", None):
+            return value
+
+    return None
+
+
 def boolish(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -92,44 +110,56 @@ def boolish(value: Any) -> bool:
     if value in (1, "1"):
         return True
 
-    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1"}
+    if value in (0, "0"):
+        return False
+
+    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1", "on"}
 
 
 def row_lat_lon(row: Mapping[str, Any]) -> tuple[float | None, float | None]:
     lat = number(
-        row.get("latitude")
-        or row.get("lat")
-        or deep_get(row, "geoloc.latitude")
-        or deep_get(row, "city_data.latitude")
-        or deep_get(row, "postal_data.latitude")
-        or deep_get(row, "w3w_data.center_latitude")
-        or deep_get(row, "zzxgcs_data.center_latitude")
-        or deep_get(row, "geo.latitude")
-        or deep_get(row, "geo.lat")
-        or deep_get(row, "geoip.latitude")
-        or deep_get(row, "geoip.lat")
-        or deep_get(row, "geoip_data.latitude")
-        or deep_get(row, "location.latitude")
-        or deep_get(row, "metadata.latitude")
+        first_value(
+            row,
+            "latitude",
+            "lat",
+            "geoloc.latitude",
+            "city_data.latitude",
+            "postal_data.latitude",
+            "zip_data.latitude",
+            "w3w_data.center_latitude",
+            "zzxgcs_data.center_latitude",
+            "geo.latitude",
+            "geo.lat",
+            "geoip.latitude",
+            "geoip.lat",
+            "geoip_data.latitude",
+            "location.latitude",
+            "metadata.latitude",
+        )
     )
 
     lon = number(
-        row.get("longitude")
-        or row.get("lon")
-        or row.get("lng")
-        or deep_get(row, "geoloc.longitude")
-        or deep_get(row, "city_data.longitude")
-        or deep_get(row, "postal_data.longitude")
-        or deep_get(row, "w3w_data.center_longitude")
-        or deep_get(row, "zzxgcs_data.center_longitude")
-        or deep_get(row, "geo.longitude")
-        or deep_get(row, "geo.lon")
-        or deep_get(row, "geo.lng")
-        or deep_get(row, "geoip.longitude")
-        or deep_get(row, "geoip.lon")
-        or deep_get(row, "geoip_data.longitude")
-        or deep_get(row, "location.longitude")
-        or deep_get(row, "metadata.longitude")
+        first_value(
+            row,
+            "longitude",
+            "lon",
+            "lng",
+            "geoloc.longitude",
+            "city_data.longitude",
+            "postal_data.longitude",
+            "zip_data.longitude",
+            "w3w_data.center_longitude",
+            "zzxgcs_data.center_longitude",
+            "geo.longitude",
+            "geo.lon",
+            "geo.lng",
+            "geoip.longitude",
+            "geoip.lon",
+            "geoip.lng",
+            "geoip_data.longitude",
+            "location.longitude",
+            "metadata.longitude",
+        )
     )
 
     if lat is None or lon is None:
@@ -141,23 +171,51 @@ def row_lat_lon(row: Mapping[str, Any]) -> tuple[float | None, float | None]:
     return lat, lon
 
 
-def overlay_coordinates(row: Mapping[str, Any], lat: float | None, lon: float | None) -> tuple[float | None, float | None]:
-    network = clean(row.get("network") or deep_get(row, "metadata.network")).lower()
+def detect_overlay(row: Mapping[str, Any]) -> str:
+    network = clean(first_value(row, "network", "metadata.network")).lower()
 
-    if boolish(row.get("is_tor")) or boolish(deep_get(row, "tor.is_tor")) or network == "tor":
-        return 0.0, -32.0
+    if (
+        boolish(row.get("is_tor"))
+        or boolish(row.get("suspected_tor"))
+        or boolish(deep_get(row, "tor.is_tor"))
+        or boolish(deep_get(row, "metadata.is_tor"))
+        or boolish(deep_get(row, "metadata.tor.is_tor"))
+        or network == "tor"
+    ):
+        return "tor"
 
-    if boolish(row.get("is_i2p")) or boolish(deep_get(row, "i2p.is_i2p")) or network == "i2p":
-        return 0.0, 32.0
+    if (
+        boolish(row.get("is_i2p"))
+        or boolish(row.get("suspected_i2p"))
+        or boolish(deep_get(row, "i2p.is_i2p"))
+        or boolish(deep_get(row, "metadata.is_i2p"))
+        or boolish(deep_get(row, "metadata.i2p.is_i2p"))
+        or network == "i2p"
+    ):
+        return "i2p"
 
-    return lat, lon
+    return ""
+
+
+def overlay_coordinates(row: Mapping[str, Any], lat: float | None, lon: float | None) -> tuple[float | None, float | None, str]:
+    overlay = detect_overlay(row)
+
+    if overlay == "tor":
+        return 0.0, -32.0, "tor"
+
+    if overlay == "i2p":
+        return 0.0, 32.0, "i2p"
+
+    return lat, lon, ""
 
 
 def encode_geohash(latitude: float, longitude: float, precision: int = 12) -> str:
     precision = max(1, min(32, int(precision)))
+
     lat_range = [-90.0, 90.0]
     lon_range = [-180.0, 180.0]
-    geohash = []
+
+    geohash: list[str] = []
     bit = 0
     ch = 0
     even = True
@@ -195,6 +253,9 @@ def encode_geohash(latitude: float, longitude: float, precision: int = 12) -> st
 def decode_geohash(geohash: str) -> dict[str, Any]:
     text = clean(geohash).lower()
 
+    if ":" in text:
+        text = text.split(":", 1)[-1]
+
     lat_range = [-90.0, 90.0]
     lon_range = [-180.0, 180.0]
     even = True
@@ -208,12 +269,14 @@ def decode_geohash(geohash: str) -> dict[str, Any]:
         for mask in (16, 8, 4, 2, 1):
             if even:
                 mid = (lon_range[0] + lon_range[1]) / 2.0
+
                 if value & mask:
                     lon_range[0] = mid
                 else:
                     lon_range[1] = mid
             else:
                 mid = (lat_range[0] + lat_range[1]) / 2.0
+
                 if value & mask:
                     lat_range[0] = mid
                 else:
@@ -244,7 +307,7 @@ def geohash_neighbors(geohash: str) -> dict[str, str]:
     lon = decoded["longitude"]
     lat_step = decoded["lat_error"] * 2.0
     lon_step = decoded["lon_error"] * 2.0
-    precision = len(geohash)
+    precision = len(decoded["geohash"])
 
     def enc(dlat: float, dlon: float) -> str:
         return encode_geohash(
@@ -265,7 +328,15 @@ def geohash_neighbors(geohash: str) -> dict[str, str]:
     }
 
 
-def geohashid_for(latitude: float, longitude: float, *, precision: int = 12, prefix: str = "gh") -> dict[str, Any]:
+def geohashid_for(
+    latitude: float,
+    longitude: float,
+    *,
+    precision: int = 12,
+    prefix: str = "gh",
+    is_overlay: bool = False,
+    overlay_network: str = "",
+) -> dict[str, Any]:
     geohash = encode_geohash(latitude, longitude, precision)
     decoded = decode_geohash(geohash)
 
@@ -286,9 +357,11 @@ def geohashid_for(latitude: float, longitude: float, *, precision: int = 12, pre
         "lat_error": decoded["lat_error"],
         "lon_error": decoded["lon_error"],
         "neighbors": geohash_neighbors(geohash),
-        "source": "local-geohash",
-        "confidence": "deterministic",
+        "source": f"{overlay_network}-overlay-geohash" if overlay_network else "local-geohash",
+        "confidence": "overlay-deterministic" if overlay_network else "deterministic",
         "cache_hit": False,
+        "is_overlay": is_overlay,
+        "overlay_network": overlay_network,
         "looked_up_at": utc_now(),
     }
 
@@ -311,7 +384,7 @@ def save_cache(cache_path: Path, entries: dict[str, Any], compact: bool = False)
     write_json(
         cache_path,
         {
-            "schema": "zzx-bitnodes-geohashid-cache-v2",
+            "schema": CACHE_SCHEMA,
             "updated_at": utc_now(),
             "entries": entries,
         },
@@ -329,8 +402,9 @@ def existing_geohash(row: Mapping[str, Any]) -> str:
         "geoloc.geohash",
         "metadata.geohash",
         "metadata.geohashid",
+        "metadata.geohashid_data.geohash",
     ):
-        value = clean(deep_get(row, key))
+        value = clean(deep_get(row, key) if "." in key else row.get(key))
 
         if value:
             return value
@@ -347,6 +421,8 @@ def resolve_geohashid(
     compact_cache: bool = False,
 ) -> dict[str, Any]:
     existing = existing_geohash(row)
+    lat, lon = row_lat_lon(row)
+    lat, lon, overlay_network = overlay_coordinates(row, lat, lon)
 
     if existing:
         existing_hash = existing.split(":", 1)[-1].lower()
@@ -362,8 +438,8 @@ def resolve_geohashid(
                 "precision": len(existing_hash),
                 "center_latitude": decoded["latitude"],
                 "center_longitude": decoded["longitude"],
-                "input_latitude": None,
-                "input_longitude": None,
+                "input_latitude": lat,
+                "input_longitude": lon,
                 "lat_min": decoded["lat_min"],
                 "lat_max": decoded["lat_max"],
                 "lon_min": decoded["lon_min"],
@@ -374,13 +450,12 @@ def resolve_geohashid(
                 "source": "explicit",
                 "confidence": "explicit",
                 "cache_hit": False,
+                "is_overlay": bool(overlay_network),
+                "overlay_network": overlay_network,
                 "looked_up_at": utc_now(),
             }
         except ValueError:
             pass
-
-    lat, lon = row_lat_lon(row)
-    lat, lon = overlay_coordinates(row, lat, lon)
 
     if lat is None or lon is None:
         return {
@@ -403,6 +478,8 @@ def resolve_geohashid(
             "source": "missing-coordinates",
             "confidence": "none",
             "cache_hit": False,
+            "is_overlay": bool(overlay_network),
+            "overlay_network": overlay_network,
             "warning": "No latitude/longitude available for geohashid lookup.",
             "looked_up_at": utc_now(),
         }
@@ -414,14 +491,34 @@ def resolve_geohashid(
     if key in entries and isinstance(entries[key], Mapping):
         cached = dict(entries[key])
         cached.setdefault("schema", SCHEMA)
+        cached.setdefault("is_overlay", bool(overlay_network))
+        cached.setdefault("overlay_network", overlay_network)
         cached["cache_hit"] = True
         return cached
 
-    result = geohashid_for(lat, lon, precision=precision, prefix=prefix)
+    result = geohashid_for(
+        lat,
+        lon,
+        precision=precision,
+        prefix=prefix,
+        is_overlay=bool(overlay_network),
+        overlay_network=overlay_network,
+    )
+
     entries[key] = result
     save_cache(cache_path, entries, compact=compact_cache)
 
     return result
+
+
+def ensure_block(node: MutableMapping[str, Any], key: str) -> MutableMapping[str, Any]:
+    block = node.get(key)
+
+    if not isinstance(block, MutableMapping):
+        block = {}
+        node[key] = block
+
+    return block
 
 
 def enrich_node(node: MutableMapping[str, Any], context: Mapping[str, Any]) -> MutableMapping[str, Any]:
@@ -438,18 +535,32 @@ def enrich_node(node: MutableMapping[str, Any], context: Mapping[str, Any]) -> M
         compact_cache=compact_cache,
     )
 
+    metadata = ensure_block(node, "metadata")
+    enrichment = ensure_block(node, "enrichment")
+
     node["geohashid_data"] = meta
+    metadata["geohashid_data"] = meta
+
     node["geohash"] = meta.get("geohash", "")
     node["geohashid"] = meta.get("geohashid", "")
 
-    node.setdefault("enrichment", {})
-    node["enrichment"]["geohashid_lookup"] = {
+    metadata["geohash"] = node["geohash"]
+    metadata["geohashid"] = node["geohashid"]
+
+    if meta.get("is_overlay"):
+        node["is_overlay"] = True
+        node["overlay_network"] = meta.get("overlay_network", "")
+        metadata["is_overlay"] = True
+        metadata["overlay_network"] = meta.get("overlay_network", "")
+
+    enrichment["geohashid_lookup"] = {
         "schema": SCHEMA,
         "status": "ok",
         "updated_at": utc_now(),
         "cache_path": str(cache_path),
         "source": meta.get("source", ""),
         "confidence": meta.get("confidence", ""),
+        "cache_hit": bool(meta.get("cache_hit")),
     }
 
     return node
@@ -473,38 +584,9 @@ def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
     return nodes
 
 
-def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
-    context = context or {}
-
+def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
-        return enrich_nodes(payload, context)
-
-    if not isinstance(payload, MutableMapping):
-        return payload
-
-    if isinstance(payload.get("nodes"), (list, dict)):
-        payload["nodes"] = enrich_nodes(payload["nodes"], context)
-
-    if isinstance(payload.get("results"), list):
-        payload["results"] = enrich_nodes(payload["results"], context)
-
-    if isinstance(payload.get("data"), list):
-        payload["data"] = enrich_nodes(payload["data"], context)
-
-    payload.setdefault("metadata", {})
-
-    if isinstance(payload["metadata"], MutableMapping):
-        payload["metadata"]["geohashid_enriched_at"] = utc_now()
-        payload["metadata"]["geohashid_cache"] = str(context.get("geohash_cache") or DEFAULT_CACHE_PATH)
-        payload["metadata"]["geohash_precision"] = int(context.get("geohash_precision") or context.get("precision") or 12)
-        payload["metadata"]["geohash_prefix"] = str(context.get("geohash_prefix") or context.get("prefix") or "gh")
-
-    return payload
-
-
-def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
-    if isinstance(payload, list):
-        return [node for node in payload if isinstance(node, Mapping)]
+        return [dict(node) for node in payload if isinstance(node, Mapping)]
 
     if not isinstance(payload, Mapping):
         return []
@@ -512,25 +594,104 @@ def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
     nodes = payload.get("nodes")
 
     if isinstance(nodes, list):
-        return [node for node in nodes if isinstance(node, Mapping)]
+        return [dict(node) for node in nodes if isinstance(node, Mapping)]
 
     if isinstance(nodes, Mapping):
-        return [node for node in nodes.values() if isinstance(node, Mapping)]
+        output = []
 
-    for key in ("results", "data"):
+        for address, value in nodes.items():
+            if isinstance(value, Mapping):
+                output.append({"address": str(address), **dict(value)})
+            elif isinstance(value, list):
+                padded = list(value) + [None] * max(0, 20 - len(value))
+                metadata = padded[19] if isinstance(padded[19], Mapping) else {}
+                output.append(
+                    {
+                        "address": str(address),
+                        "protocol": padded[0],
+                        "agent": padded[1],
+                        "height": padded[4],
+                        "hostname": padded[5],
+                        "city": padded[6],
+                        "country": padded[7],
+                        "latitude": padded[8],
+                        "longitude": padded[9],
+                        "timezone": padded[10],
+                        "asn": padded[11],
+                        "organization": padded[12],
+                        "provider": padded[13],
+                        "metadata": dict(metadata),
+                    }
+                )
+
+        return output
+
+    for key in ("results", "data", "rows", "peers", "node_records", "reachable_nodes"):
         value = payload.get(key)
 
         if isinstance(value, list):
-            return [node for node in value if isinstance(node, Mapping)]
+            return [dict(node) for node in value if isinstance(node, Mapping)]
+
+        if isinstance(value, Mapping):
+            return extract_nodes({"nodes": value})
 
     return []
+
+
+def put_nodes(payload: Any, nodes: list[dict[str, Any]], context: dict[str, Any] | None = None) -> Any:
+    context = context or {}
+
+    if isinstance(payload, list):
+        return nodes
+
+    if not isinstance(payload, MutableMapping):
+        return {"nodes": nodes}
+
+    output = dict(payload)
+
+    if isinstance(output.get("nodes"), Mapping):
+        output["nodes"] = {
+            str(node.get("canonical_address") or node.get("address") or index): node
+            for index, node in enumerate(nodes)
+        }
+    else:
+        output["nodes"] = nodes
+
+    output.setdefault("metadata", {})
+
+    if isinstance(output["metadata"], MutableMapping):
+        output["metadata"]["geohashid_enriched_at"] = utc_now()
+        output["metadata"]["geohashid_schema"] = SCHEMA
+        output["metadata"]["geohashid_cache"] = str(context.get("geohash_cache") or DEFAULT_CACHE_PATH)
+        output["metadata"]["geohash_precision"] = int(context.get("geohash_precision") or context.get("precision") or 12)
+        output["metadata"]["geohash_prefix"] = str(context.get("geohash_prefix") or context.get("prefix") or "gh")
+
+    return output
+
+
+def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    nodes = extract_nodes(payload)
+
+    if not nodes:
+        return payload
+
+    return put_nodes(payload, enrich_nodes(nodes, context), context)
+
+
+def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
+    return extract_nodes(payload)
 
 
 def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
     sources: dict[str, int] = {}
     confidence: dict[str, int] = {}
     prefixes: dict[str, int] = {}
+
     resolved = 0
+    cache_hits = 0
+    overlay = 0
+    tor = 0
+    i2p = 0
 
     for node in nodes:
         data = node.get("geohashid_data", {})
@@ -541,29 +702,55 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
         if clean(data.get("geohash")) or clean(node.get("geohash")):
             resolved += 1
 
+        if boolish(data.get("cache_hit")):
+            cache_hits += 1
+
         source = clean(data.get("source")) or "unknown"
         conf = clean(data.get("confidence")) or "unknown"
         prefix = clean(data.get("prefix")) or "unknown"
+        overlay_network = clean(data.get("overlay_network")) or clean(node.get("overlay_network"))
 
         sources[source] = sources.get(source, 0) + 1
         confidence[conf] = confidence.get(conf, 0) + 1
         prefixes[prefix] = prefixes.get(prefix, 0) + 1
 
+        if boolish(data.get("is_overlay")) or boolish(node.get("is_overlay")):
+            overlay += 1
+
+        if overlay_network == "tor" or clean(node.get("network")).lower() == "tor":
+            tor += 1
+
+        if overlay_network == "i2p" or clean(node.get("network")).lower() == "i2p":
+            i2p += 1
+
     return {
-        "schema": "zzx-bitnodes-geohashid-summary-v2",
+        "schema": SUMMARY_SCHEMA,
         "generated_at": utc_now(),
         "total_nodes": len(nodes),
         "resolved_geohash_nodes": resolved,
         "missing_geohash_nodes": max(0, len(nodes) - resolved),
+        "cache_hit_nodes": cache_hits,
+        "overlay_geohash_nodes": overlay,
+        "tor_geohash_nodes": tor,
+        "i2p_geohash_nodes": i2p,
         "sources": dict(sorted(sources.items(), key=lambda item: (-item[1], item[0]))),
         "confidence": dict(sorted(confidence.items(), key=lambda item: (-item[1], item[0]))),
         "prefixes": dict(sorted(prefixes.items(), key=lambda item: (-item[1], item[0]))),
     }
 
 
+def enrich(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
+
+
+def process(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Enrich Bitnodes records with deterministic local geohashid values from coordinates."
+        description="Enrich Bitnodes records with deterministic local geohashid values from coordinates.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--input", required=True)
@@ -594,7 +781,6 @@ def main() -> int:
         write_json(Path(args.summary), summarize(iter_nodes(enriched)), compact=args.compact)
 
     print(f"geohashid lookup enrichment complete: {len(iter_nodes(enriched))} nodes")
-
     return 0
 
 
