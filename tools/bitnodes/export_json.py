@@ -29,11 +29,15 @@ def mkdir(path: Path) -> None:
 
 
 def read_json(path: Path) -> Any:
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            return json.load(handle)
+
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def write_json(path: Path, payload: Any, pretty: bool = True, sort_keys: bool = False) -> None:
+def write_json(path: Path, payload: Any, pretty: bool = True, sort_keys: bool = False) -> int:
     mkdir(path.parent)
 
     with path.open("w", encoding="utf-8") as handle:
@@ -44,14 +48,17 @@ def write_json(path: Path, payload: Any, pretty: bool = True, sort_keys: bool = 
             separators=None if pretty else (",", ":"),
             ensure_ascii=False,
             sort_keys=sort_keys,
+            default=str,
         )
         handle.write("\n")
 
+    return path.stat().st_size
 
-def write_gzip_json(path: Path, payload: Any, pretty: bool = False, sort_keys: bool = False) -> None:
+
+def write_gzip_json(path: Path, payload: Any, pretty: bool = False, sort_keys: bool = False) -> int:
     mkdir(path.parent)
 
-    with gzip.open(path, "wt", encoding="utf-8") as handle:
+    with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as handle:
         json.dump(
             payload,
             handle,
@@ -59,8 +66,11 @@ def write_gzip_json(path: Path, payload: Any, pretty: bool = False, sort_keys: b
             separators=None if pretty else (",", ":"),
             ensure_ascii=False,
             sort_keys=sort_keys,
+            default=str,
         )
         handle.write("\n")
+
+    return path.stat().st_size
 
 
 def safe_number(value: Any) -> float | None:
@@ -79,7 +89,7 @@ def safe_int(value: Any) -> int | None:
     try:
         if value in ("", None):
             return None
-        return int(value)
+        return int(float(value))
     except Exception:
         return None
 
@@ -140,14 +150,6 @@ def deep_get(row: dict[str, Any], *keys: str) -> Any:
         if ok:
             return current
 
-    return None
-
-
-def first_value(row: dict[str, Any], *keys: str) -> Any:
-    for key in keys:
-        value = deep_get(row, key)
-        if value not in ("", None, [], {}):
-            return value
     return None
 
 
@@ -269,10 +271,12 @@ def normalize_reachable(row: dict[str, Any]) -> bool | None:
 def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
     metadata = dict(value.get("metadata", {})) if isinstance(value.get("metadata"), dict) else {}
 
-    for key in (
+    passthrough_keys = (
         "reachable",
         "reachable_now",
         "reachable_24h",
+        "reachable_week",
+        "reachable_month",
         "latency_ms",
         "uptime_seconds",
         "total_uptime",
@@ -327,7 +331,15 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
         "suspected_apt_related",
         "suspected_threat_actor_group_related",
         "suspected_known_malicious_actor",
-    ):
+        "zzxgcs",
+        "zzxgms",
+        "source_type",
+        "source_url",
+        "crawler_version",
+        "crawl_id",
+    )
+
+    for key in passthrough_keys:
         if key in value and key not in metadata:
             metadata[key] = value.get(key)
 
@@ -466,6 +478,8 @@ def normalize_node(address: str, values: list[Any], rank: int | None = None) -> 
         "geohash": row[17],
         "geohashid": row[17] or metadata.get("geohashid"),
         "asn_location": row[18],
+        "zzxgcs": metadata.get("zzxgcs"),
+        "zzxgms": metadata.get("zzxgms"),
         "latency_ms": metadata.get("latency_ms"),
         "uptime_human": metadata.get("uptime_human"),
         "uptime_seconds": metadata.get("total_uptime") or metadata.get("uptime_seconds"),
@@ -480,6 +494,8 @@ def normalize_node(address: str, values: list[Any], rank: int | None = None) -> 
         "peer_health": metadata.get("peer_health"),
         "reachable_now": boolish(metadata.get("reachable_now")),
         "reachable_24h": boolish(metadata.get("reachable_24h")),
+        "reachable_week": boolish(metadata.get("reachable_week")),
+        "reachable_month": boolish(metadata.get("reachable_month")),
         "tor": truthy(metadata.get("tor")) or truthy(metadata.get("is_tor")) or network == "tor",
         "i2p": truthy(metadata.get("i2p")) or truthy(metadata.get("is_i2p")) or network == "i2p",
         "is_tor": truthy(metadata.get("is_tor")) or truthy(metadata.get("tor")) or network == "tor",
@@ -600,8 +616,8 @@ def group_rows(rows: list[dict[str, Any]], key_name: str, unknown: str = "Unknow
     return grouped
 
 
-def summarize_group(name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
+def summarize_group(name: str, rows: list[dict[str, Any]], include_nodes: bool = False) -> dict[str, Any]:
+    item = {
         "name": name,
         "total_nodes": len(rows),
         "reachable_nodes": sum(1 for row in rows if row.get("reachable") is True),
@@ -633,15 +649,25 @@ def summarize_group(name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "top_port": most_common(row.get("port") for row in rows),
     }
 
+    if include_nodes:
+        item["nodes"] = rows
 
-def build_group_payload(rows: list[dict[str, Any]], key_name: str, total_name: str, unknown: str = "Unknown") -> dict[str, Any]:
+    return item
+
+
+def build_group_payload(
+    rows: list[dict[str, Any]],
+    key_name: str,
+    total_name: str,
+    unknown: str = "Unknown",
+    include_nodes: bool = False,
+) -> dict[str, Any]:
     grouped = group_rows(rows, key_name, unknown=unknown)
 
     results = [
         {
-            **summarize_group(name, entries),
+            **summarize_group(name, entries, include_nodes=include_nodes),
             key_name: name,
-            "nodes": entries,
         }
         for name, entries in grouped.items()
     ]
@@ -656,7 +682,7 @@ def build_group_payload(rows: list[dict[str, Any]], key_name: str, total_name: s
     }
 
 
-def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def build_city_payload(rows: list[dict[str, Any]], include_nodes: bool = False) -> dict[str, Any]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for row in rows:
@@ -669,12 +695,13 @@ def build_city_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     for key, entries in grouped.items():
         city, country = key.rsplit(", ", 1)
 
-        results.append({
-            **summarize_group(key, entries),
+        item = {
+            **summarize_group(key, entries, include_nodes=include_nodes),
             "city": city,
             "country": country,
-            "nodes": entries,
-        })
+        }
+
+        results.append(item)
 
     results.sort(key=lambda item: item["total_nodes"], reverse=True)
 
@@ -707,33 +734,37 @@ def build_coordinates_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if lat is None or lon is None:
             continue
 
-        selected.append({
-            "address": row.get("address"),
-            "host": row.get("host"),
-            "port": row.get("port"),
-            "network": row.get("network"),
-            "country": row.get("country"),
-            "continent": row.get("continent"),
-            "region": row.get("region"),
-            "territory": row.get("territory"),
-            "city": row.get("city"),
-            "county": row.get("county"),
-            "zip": row.get("zip"),
-            "latitude": lat,
-            "longitude": lon,
-            "asn": row.get("asn"),
-            "organization": row.get("organization"),
-            "provider": row.get("provider"),
-            "geohash": row.get("geohash"),
-            "geohashid": row.get("geohashid"),
-            "w3w": row.get("w3w"),
-            "tor": row.get("tor"),
-            "i2p": row.get("i2p"),
-            "reachable": row.get("reachable"),
-            "reachable_now": row.get("reachable_now"),
-            "reachable_24h": row.get("reachable_24h"),
-            "peer_index": row.get("peer_index"),
-        })
+        selected.append(
+            {
+                "address": row.get("address"),
+                "host": row.get("host"),
+                "port": row.get("port"),
+                "network": row.get("network"),
+                "country": row.get("country"),
+                "continent": row.get("continent"),
+                "region": row.get("region"),
+                "territory": row.get("territory"),
+                "city": row.get("city"),
+                "county": row.get("county"),
+                "zip": row.get("zip"),
+                "latitude": lat,
+                "longitude": lon,
+                "asn": row.get("asn"),
+                "organization": row.get("organization"),
+                "provider": row.get("provider"),
+                "geohash": row.get("geohash"),
+                "geohashid": row.get("geohashid"),
+                "w3w": row.get("w3w"),
+                "zzxgcs": row.get("zzxgcs"),
+                "zzxgms": row.get("zzxgms"),
+                "tor": row.get("tor"),
+                "i2p": row.get("i2p"),
+                "reachable": row.get("reachable"),
+                "reachable_now": row.get("reachable_now"),
+                "reachable_24h": row.get("reachable_24h"),
+                "peer_index": row.get("peer_index"),
+            }
+        )
 
     return {
         "updated_at": utc_iso(),
@@ -755,18 +786,20 @@ def build_geojson_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         properties = dict(row)
         properties.pop("metadata", None)
 
-        features.append({
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [lon, lat],
-            },
-            "properties": properties,
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [lon, lat],
+                },
+                "properties": properties,
+            }
+        )
 
     return {
         "type": "FeatureCollection",
-        "schema": "zzx-bitnodes-map-points-v1",
+        "schema": "zzx-bitnodes-map-points-v2",
         "generated_at": utc_iso(),
         "source": "zzxbitnodes",
         "node_count": len(rows),
@@ -959,7 +992,7 @@ def build_registry_statistics(rows: list[dict[str, Any]], payload: dict[str, Any
     counts = build_counts(rows, payload)
 
     return {
-        "schema": "zzx-bitnodes-registry-statistics-v2",
+        "schema": "zzx-bitnodes-registry-statistics-v3",
         "updated_at": utc_iso(),
         "known_nodes": counts["known"],
         "reachable_nodes": counts["reachable"],
@@ -990,14 +1023,13 @@ def build_registry_statistics(rows: list[dict[str, Any]], payload: dict[str, Any
     }
 
 
-def build_networks_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def build_networks_payload(rows: list[dict[str, Any]], include_nodes: bool = False) -> dict[str, Any]:
     grouped = group_rows(rows, "network", unknown="unknown")
 
     results = [
         {
-            **summarize_group(network, entries),
+            **summarize_group(network, entries, include_nodes=include_nodes),
             "network": network,
-            "nodes": entries,
         }
         for network, entries in grouped.items()
     ]
@@ -1017,7 +1049,7 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
     registry_statistics = build_registry_statistics(rows, payload)
 
     return {
-        "schema": "zzx-bitnodes-static-api-status-v5",
+        "schema": "zzx-bitnodes-static-api-status-v6",
         "source": payload.get("source"),
         "timestamp": payload.get("timestamp"),
         "updated_at": payload.get("updated_at") or utc_iso(),
@@ -1066,6 +1098,7 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
         "api": {
             "latest": "./latest.json",
             "nodes": "./nodes.json",
+            "nodes_gz": "./nodes.json.gz",
             "reachable": "./reachable.json",
             "unreachable": "./unreachable.json",
             "reachable_now": "./reachable-now.json",
@@ -1105,7 +1138,9 @@ def build_status_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
             "tag_attribution": "./tag-attribution.json",
             "known_malactor": "./known-malactor.json",
             "coordinates": "./coordinates.json",
+            "coordinates_gz": "./coordinates.json.gz",
             "geojson": "./maps/nodes.geojson",
+            "geojson_gz": "./maps/nodes.geojson.gz",
             "latency": "./latency.json",
             "peer_health": "./peer-health.json",
             "leaderboard": "./leaderboard.json",
@@ -1124,49 +1159,6 @@ def build_latest_payload(payload: dict[str, Any], rows: list[dict[str, Any]]) ->
     latest["counts"] = build_counts(rows, payload)
     latest["registry_statistics"] = build_registry_statistics(rows, payload)
     return latest
-
-
-def write_node_files(output_dir: Path, rows: list[dict[str, Any]], pretty: bool) -> None:
-    node_dir = output_dir / "nodes"
-    mkdir(node_dir)
-
-    for row in rows:
-        host = row.get("host") or "unknown"
-        port = row.get("port") or "unknown"
-        write_json(node_dir / f"{safe_name(host)}-{safe_name(port)}.json", row, pretty=pretty)
-
-
-def write_group_files(output_dir: Path, group_name: str, group_payload: dict[str, Any], pretty: bool) -> None:
-    group_dir = output_dir / group_name
-    mkdir(group_dir)
-
-    singular = {
-        "countries": "country",
-        "continents": "continent",
-        "regions": "region",
-        "territories": "territory",
-        "counties": "county",
-        "cities": "city",
-        "zipcodes": "zip",
-        "timezones": "timezone",
-        "asns": "asn",
-        "agents": "agent",
-        "versions": "protocol",
-        "ports": "port",
-        "services": "services",
-        "organizations": "organization",
-        "providers": "provider",
-        "provider-kinds": "provider_kind",
-        "organization-types": "organization_type",
-        "network-classifications": "network_classification",
-        "networks": "network",
-        "geohashes": "geohash",
-        "what3words": "w3w",
-    }.get(group_name, "name")
-
-    for item in group_payload.get("results", []):
-        name = item.get(singular) or item.get("name") or "unknown"
-        write_json(group_dir / f"{safe_name(name)}.json", item, pretty=pretty)
 
 
 def build_widget_payloads(rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
@@ -1207,6 +1199,24 @@ def build_widget_payloads(rows: list[dict[str, Any]], payload: dict[str, Any]) -
     }
 
 
+def write_payload_pair(output_dir: Path, filename: str, payload: dict[str, Any], pretty: bool, gzip_copy: bool) -> dict[str, Any]:
+    path = output_dir / filename
+    size = write_json(path, payload, pretty=pretty)
+
+    entry = {
+        "path": filename,
+        "bytes": size,
+    }
+
+    if gzip_copy:
+        gz_path = output_dir / f"{filename}.gz"
+        gz_size = write_gzip_json(gz_path, payload, pretty=False)
+        entry["gzip_path"] = f"{filename}.gz"
+        entry["gzip_bytes"] = gz_size
+
+    return entry
+
+
 def export_all(
     input_path: Path,
     output_dir: Path,
@@ -1214,6 +1224,9 @@ def export_all(
     pretty: bool = True,
     archive_dir: Path | None = None,
     gzip_archive: bool = True,
+    write_fanout: bool = False,
+    include_group_nodes: bool = False,
+    gzip_large: bool = True,
 ) -> None:
     payload = load_snapshot(input_path)
 
@@ -1240,25 +1253,25 @@ def export_all(
         "unreachable.json": build_subset_payload(rows, lambda row: row.get("reachable") is False, "total_unreachable_nodes"),
         "reachable-now.json": build_subset_payload(rows, lambda row: row.get("reachable_now") is True, "total_reachable_now_nodes"),
         "reachable-24h.json": build_subset_payload(rows, lambda row: row.get("reachable_24h") is True, "total_reachable_24h_nodes"),
-        "countries.json": build_group_payload(rows, "country", "total_countries", unknown="??"),
-        "continents.json": build_group_payload(rows, "continent", "total_continents"),
-        "regions.json": build_group_payload(rows, "region", "total_regions"),
-        "territories.json": build_group_payload(rows, "territory", "total_territories"),
-        "counties.json": build_group_payload(rows, "county", "total_counties"),
-        "cities.json": build_city_payload(rows),
-        "zipcodes.json": build_group_payload(rows, "zip", "total_zipcodes"),
-        "timezones.json": build_group_payload(rows, "timezone", "total_timezones"),
-        "asns.json": build_group_payload(rows, "asn", "total_asns", unknown="UNKNOWN"),
-        "agents.json": build_group_payload(rows, "agent", "total_agents", unknown="UNKNOWN"),
-        "versions.json": build_group_payload(rows, "protocol", "total_versions", unknown="UNKNOWN"),
-        "ports.json": build_group_payload(rows, "port", "total_ports", unknown="UNKNOWN"),
-        "services.json": build_group_payload(rows, "services", "total_service_sets", unknown="UNKNOWN"),
-        "organizations.json": build_group_payload(rows, "organization", "total_organizations", unknown="UNKNOWN"),
-        "providers.json": build_group_payload(rows, "provider", "total_providers", unknown="UNKNOWN"),
-        "provider-kinds.json": build_group_payload(rows, "provider_kind", "total_provider_kinds", unknown="unknown"),
-        "organization-types.json": build_group_payload(rows, "organization_type", "total_organization_types", unknown="unknown"),
-        "network-classifications.json": build_group_payload(rows, "network_classification", "total_network_classifications", unknown="unknown"),
-        "networks.json": build_networks_payload(rows),
+        "countries.json": build_group_payload(rows, "country", "total_countries", unknown="??", include_nodes=include_group_nodes),
+        "continents.json": build_group_payload(rows, "continent", "total_continents", include_nodes=include_group_nodes),
+        "regions.json": build_group_payload(rows, "region", "total_regions", include_nodes=include_group_nodes),
+        "territories.json": build_group_payload(rows, "territory", "total_territories", include_nodes=include_group_nodes),
+        "counties.json": build_group_payload(rows, "county", "total_counties", include_nodes=include_group_nodes),
+        "cities.json": build_city_payload(rows, include_nodes=include_group_nodes),
+        "zipcodes.json": build_group_payload(rows, "zip", "total_zipcodes", include_nodes=include_group_nodes),
+        "timezones.json": build_group_payload(rows, "timezone", "total_timezones", include_nodes=include_group_nodes),
+        "asns.json": build_group_payload(rows, "asn", "total_asns", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "agents.json": build_group_payload(rows, "agent", "total_agents", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "versions.json": build_group_payload(rows, "protocol", "total_versions", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "ports.json": build_group_payload(rows, "port", "total_ports", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "services.json": build_group_payload(rows, "services", "total_service_sets", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "organizations.json": build_group_payload(rows, "organization", "total_organizations", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "providers.json": build_group_payload(rows, "provider", "total_providers", unknown="UNKNOWN", include_nodes=include_group_nodes),
+        "provider-kinds.json": build_group_payload(rows, "provider_kind", "total_provider_kinds", unknown="unknown", include_nodes=include_group_nodes),
+        "organization-types.json": build_group_payload(rows, "organization_type", "total_organization_types", unknown="unknown", include_nodes=include_group_nodes),
+        "network-classifications.json": build_group_payload(rows, "network_classification", "total_network_classifications", unknown="unknown", include_nodes=include_group_nodes),
+        "networks.json": build_networks_payload(rows, include_nodes=include_group_nodes),
         "ipv4.json": build_subset_payload(rows, lambda row: row.get("network") == "ipv4", "total_ipv4_nodes"),
         "ipv6.json": build_subset_payload(rows, lambda row: row.get("network") == "ipv6", "total_ipv6_nodes"),
         "cjdns.json": build_subset_payload(rows, lambda row: row.get("network") == "cjdns", "total_cjdns_nodes"),
@@ -1274,8 +1287,8 @@ def export_all(
         "apt-attribution.json": build_subset_payload(rows, lambda row: row.get("suspected_apt_related"), "total_apt_related_nodes"),
         "tag-attribution.json": build_subset_payload(rows, lambda row: row.get("suspected_threat_actor_group_related"), "total_threat_actor_group_related_nodes"),
         "known-malactor.json": build_subset_payload(rows, lambda row: row.get("suspected_known_malicious_actor"), "total_known_malactor_nodes"),
-        "geohashes.json": build_group_payload(rows, "geohash", "total_geohashes"),
-        "what3words.json": build_group_payload(rows, "w3w", "total_what3words"),
+        "geohashes.json": build_group_payload(rows, "geohash", "total_geohashes", include_nodes=include_group_nodes),
+        "what3words.json": build_group_payload(rows, "w3w", "total_what3words", include_nodes=include_group_nodes),
         "coordinates.json": build_coordinates_payload(rows),
         "latency.json": build_latency_payload(rows),
         "peer-health.json": peer_health,
@@ -1313,49 +1326,82 @@ def export_all(
         ],
     }
 
+    manifest_files = {}
+
     for filename, export_payload in exports.items():
-        write_json(output_dir / filename, export_payload, pretty=pretty)
+        gzip_copy = gzip_large and filename in {"latest.json", "nodes.json", "coordinates.json", "peer-health.json"}
+        manifest_files[filename] = write_payload_pair(output_dir, filename, export_payload, pretty, gzip_copy)
 
     maps_dir = output_dir / "maps"
     mkdir(maps_dir)
-    write_json(maps_dir / "nodes.geojson", build_geojson_payload(rows), pretty=pretty)
-    write_json(maps_dir / "coordinates.json", build_coordinates_payload(rows), pretty=pretty)
-    write_json(maps_dir / "live-map.json", build_coordinates_payload(rows), pretty=pretty)
 
-    write_node_files(output_dir, rows, pretty=pretty)
+    geojson = build_geojson_payload(rows)
+    coordinates = build_coordinates_payload(rows)
 
-    for group_name in [
-        "countries",
-        "continents",
-        "regions",
-        "territories",
-        "counties",
-        "cities",
-        "zipcodes",
-        "timezones",
-        "asns",
-        "agents",
-        "versions",
-        "ports",
-        "services",
-        "organizations",
-        "providers",
-        "provider-kinds",
-        "organization-types",
-        "network-classifications",
-        "networks",
-        "geohashes",
-        "what3words",
-    ]:
-        write_group_files(output_dir, group_name, exports[f"{group_name}.json"], pretty=pretty)
+    manifest_files["maps/nodes.geojson"] = {
+        "path": "maps/nodes.geojson",
+        "bytes": write_json(maps_dir / "nodes.geojson", geojson, pretty=pretty),
+    }
+    manifest_files["maps/nodes.geojson"]["gzip_path"] = "maps/nodes.geojson.gz"
+    manifest_files["maps/nodes.geojson"]["gzip_bytes"] = write_gzip_json(maps_dir / "nodes.geojson.gz", geojson, pretty=False)
+
+    manifest_files["maps/coordinates.json"] = {
+        "path": "maps/coordinates.json",
+        "bytes": write_json(maps_dir / "coordinates.json", coordinates, pretty=pretty),
+    }
+    manifest_files["maps/live-map.json"] = {
+        "path": "maps/live-map.json",
+        "bytes": write_json(maps_dir / "live-map.json", coordinates, pretty=pretty),
+    }
+
+    if write_fanout:
+        fanout_dir = output_dir / "_fanout_disabled_by_default"
+        mkdir(fanout_dir)
+        write_json(
+            fanout_dir / "README.json",
+            {
+                "schema": "zzx-bitnodes-fanout-warning-v1",
+                "generated_at": utc_iso(),
+                "policy": "Per-node and per-group fan-out is disabled by default to prevent thousands of repository files.",
+            },
+            pretty=pretty,
+        )
+
+    manifest = {
+        "schema": "zzx-bitnodes-static-api-export-manifest-v2",
+        "generated_at": utc_iso(),
+        "source": payload.get("source"),
+        "input": str(input_path),
+        "output": str(output_dir),
+        "node_count": len(rows),
+        "fanout_enabled": bool(write_fanout),
+        "group_nodes_embedded": bool(include_group_nodes),
+        "files": manifest_files,
+        "policy": {
+            "canonical_store": "bitcoin/bitnodes/api/data",
+            "json_role": "dashboard/API cache only",
+            "repo_rule": "No per-node or per-group fan-out files unless explicitly requested.",
+        },
+    }
+
+    write_json(output_dir / "manifest.json", manifest, pretty=pretty)
 
     if archive_dir:
         mkdir(archive_dir)
 
         timestamp = payload.get("timestamp", utc_now())
-        archive_payload = build_latest_payload(payload, rows)
-        archive_path = archive_dir / f"{timestamp}.json"
+        archive_payload = {
+            "schema": "zzx-bitnodes-json-archive-pointer-v1",
+            "generated_at": utc_iso(),
+            "timestamp": timestamp,
+            "source": payload.get("source"),
+            "latest": str((output_dir / "latest.json").resolve()),
+            "manifest": str((output_dir / "manifest.json").resolve()),
+            "node_count": len(rows),
+            "policy": "Archive stores a pointer only. Canonical history belongs in dataplane DB artifacts.",
+        }
 
+        archive_path = archive_dir / f"{timestamp}.json"
         write_json(archive_path, archive_payload, pretty=pretty)
 
         if gzip_archive:
@@ -1363,7 +1409,7 @@ def export_all(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Export ZZX-Labs Bitnodes static API JSON files.")
+    parser = argparse.ArgumentParser(description="Export ZZX-Labs Bitnodes static API JSON cache files.")
 
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", default="bitcoin/bitnodes/api")
@@ -1372,6 +1418,16 @@ def main() -> int:
     parser.add_argument("--archive-dir", default="bitcoin/bitnodes/archive")
     parser.add_argument("--no-archive", action="store_true")
     parser.add_argument("--no-gzip", action="store_true")
+    parser.add_argument(
+        "--fanout",
+        action="store_true",
+        help="Explicitly enable legacy fan-out marker. Real per-node fan-out remains disabled.",
+    )
+    parser.add_argument(
+        "--include-group-nodes",
+        action="store_true",
+        help="Embed full node arrays inside grouped endpoint payloads. Disabled by default to keep JSON smaller.",
+    )
 
     args = parser.parse_args()
 
@@ -1382,6 +1438,9 @@ def main() -> int:
         pretty=not args.compact,
         archive_dir=None if args.no_archive else Path(args.archive_dir),
         gzip_archive=not args.no_gzip,
+        write_fanout=bool(args.fanout),
+        include_group_nodes=bool(args.include_group_nodes),
+        gzip_large=not args.no_gzip,
     )
 
     return 0
