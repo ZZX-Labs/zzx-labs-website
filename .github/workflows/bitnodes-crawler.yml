@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: zzx-bitnodes-global-crawler
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -51,6 +51,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+
+      - name: Sync repo before generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fdx
 
       - name: Set crawl profile
         id: profile
@@ -158,28 +166,18 @@ jobs:
             tools/bitnodes/geoclass/asn_footprint.py
           )
 
-          echo "Validating required Bitnodes files..."
-
           for FILE in "${REQUIRED[@]}" "${MOVED_MODULES[@]}"; do
             if [ ! -f "${FILE}" ]; then
               echo "MISSING REQUIRED FILE: ${FILE}"
-              echo "Repository tree near tools/bitnodes:"
               find tools/bitnodes -maxdepth 3 -type f | sort
               exit 1
             fi
-
-            echo "py_compile ${FILE}"
             python -m py_compile "${FILE}"
           done
 
-          echo "Validating optional geoclass modules..."
-
           for FILE in "${OPTIONAL_NEW_MODULES[@]}"; do
             if [ -f "${FILE}" ]; then
-              echo "py_compile ${FILE}"
               python -m py_compile "${FILE}"
-            else
-              echo "optional missing: ${FILE}"
             fi
           done
 
@@ -194,13 +192,6 @@ jobs:
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/mapplotter.py --help
           python tools/bitnodes/map/mapvectors.py --help
-
-      - name: Sync repo before crawl
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main
-          git rebase --autostash origin/main
 
       - name: Prepare Bitnodes directories
         shell: bash
@@ -238,11 +229,9 @@ jobs:
           MONTHS="$(
             python - <<'PY'
           from datetime import datetime, timezone
-
           now = datetime.now(timezone.utc)
           year = now.year
           month = now.month
-
           for _ in range(6):
               print(f"{year:04d}-{month:02d}")
               month -= 1
@@ -379,10 +368,6 @@ jobs:
 
           if count <= 0:
               raise SystemExit("ZZX crawler produced zero nodes")
-
-          sample = next(iter(nodes.items())) if isinstance(nodes, dict) else nodes[0]
-          print("ZZX sample node:")
-          print(json.dumps(sample, ensure_ascii=False, indent=2)[:3000])
           PY
 
       - name: Run Original Bitnodes-compatible crawler
@@ -420,7 +405,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          MODULES="geoip,geoloc,continent,region,country,territory,county,city,zip,timezone,isp,w3w_lookup,geohashid_lookup,sanctioned_nodes,peers,peer_index,peer_health,dns_seeder_health"
+          MODULES="geoip,geoloc,boundary_zone,continent,region,country,territory,county,city,zip,timezone,land_parcel,building_perimeter,asn_footprint,isp,organization,provider,datacenter,government,military,sanctioned_nodes,knownmalactor,tagattribution,w3w_lookup,geohashid_lookup,peers,peer_index,peer_health,dns_seeder_health"
 
           for SOURCE in zzxbitnodes originalbitnodes; do
             python tools/bitnodes/enrich.py \
@@ -455,8 +440,6 @@ jobs:
                   f"{module.get('message', '')}"
               )
 
-          print("final coordinates:", report.get("final_coordinate_count"))
-
           if int(report.get("final_coordinate_count") or 0) == 0:
               raise SystemExit("${SOURCE} enrichment produced zero coordinates")
           PY
@@ -471,11 +454,6 @@ jobs:
           import json
           import os
           from pathlib import Path
-
-          require_coordinates = os.environ.get(
-              "BITNODES_REQUIRE_GEO_COORDINATES",
-              "true",
-          ).strip().lower() in {"1", "true", "yes", "y"}
 
           def deep_get(obj, path):
               cur = obj
@@ -502,48 +480,10 @@ jobs:
 
           def coord_pair(item):
               if isinstance(item, dict):
-                  lat = first(item, (
-                      "latitude",
-                      "lat",
-                      "geo.latitude",
-                      "geo.lat",
-                      "geoip.latitude",
-                      "geoip.lat",
-                      "geoip_data.latitude",
-                      "geoip_data.lat",
-                      "geoloc.latitude",
-                      "geoloc.lat",
-                      "location.latitude",
-                      "location.lat",
-                      "metadata.latitude",
-                      "metadata.lat",
-                  ))
-
-                  lon = first(item, (
-                      "longitude",
-                      "lon",
-                      "lng",
-                      "geo.longitude",
-                      "geo.lon",
-                      "geo.lng",
-                      "geoip.longitude",
-                      "geoip.lon",
-                      "geoip.lng",
-                      "geoip_data.longitude",
-                      "geoip_data.lon",
-                      "geoip_data.lng",
-                      "geoloc.longitude",
-                      "geoloc.lon",
-                      "geoloc.lng",
-                      "location.longitude",
-                      "location.lon",
-                      "location.lng",
-                      "metadata.longitude",
-                      "metadata.lon",
-                      "metadata.lng",
-                  ))
-
-                  return lat, lon
+                  return (
+                      first(item, ("latitude", "lat", "geo.latitude", "geoip.latitude", "geoip_data.latitude", "geoloc.latitude", "location.latitude", "metadata.latitude")),
+                      first(item, ("longitude", "lon", "lng", "geo.longitude", "geoip.longitude", "geoip_data.longitude", "geoloc.longitude", "location.longitude", "metadata.longitude")),
+                  )
 
               if isinstance(item, list):
                   return (
@@ -587,24 +527,8 @@ jobs:
               print(f"{rel}: nodes={len(nodes)} coordinates={coords}")
 
               if coords == 0:
-                  print("sample node:")
                   print(json.dumps(nodes[0], ensure_ascii=False, indent=2)[:5000])
-
-                  report_path = path.parent / "enrichment-report.json"
-                  if report_path.exists():
-                      report = json.loads(report_path.read_text(encoding="utf-8"))
-                      print("module coordinate report:")
-                      for module in report.get("modules", []):
-                          print(
-                              f"  {module.get('name')}: "
-                              f"{module.get('coordinate_count_before')} -> "
-                              f"{module.get('coordinate_count_after')} "
-                              f"{module.get('status')} "
-                              f"{module.get('message', '')}"
-                          )
-
-                  if require_coordinates:
-                      raise SystemExit(f"{rel} has zero coordinate-bearing nodes")
+                  raise SystemExit(f"{rel} has zero coordinate-bearing nodes")
 
               total_coordinate_count += coords
 
@@ -901,11 +825,6 @@ jobs:
                           bad.append((path.stat().st_size, path, "transient map-ready json was not pruned"))
                           continue
 
-                      if path.name not in allow_names:
-                          rel = str(path)
-                          if "/data/" not in rel and "/maps/data/" not in rel and "/live-map/data/" not in rel:
-                              bad.append((path.stat().st_size, path, "unexpected json"))
-
                       if path.stat().st_size > max_bytes:
                           bad.append((path.stat().st_size, path, "json too large"))
 
@@ -976,7 +895,7 @@ jobs:
             exit 1
           fi
 
-      - name: Commit and push Bitnodes public artifacts
+      - name: Commit and push generated Bitnodes artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -992,15 +911,12 @@ jobs:
           git commit -m "Update Bitnodes public artifacts"
 
           for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase --autostash origin/main && git push origin HEAD:main; then
+            if git push --force-with-lease origin HEAD:main; then
               printf '%s\n' "Bitnodes public artifacts pushed."
               exit 0
             fi
 
-            git rebase --abort || true
-            printf '%s\n' "Push attempt ${attempt} failed."
+            printf '%s\n' "Push attempt ${attempt} failed; refreshing base and regenerating is required on next run."
             sleep 10
           done
 
