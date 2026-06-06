@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import argparse
-import gzip
 import json
+import os
 import subprocess
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -14,64 +15,31 @@ from typing import Any
 APP_ROOT = Path(__file__).resolve().parents[2]
 TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 
-DEFAULT_DATA_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api" / "data"
-DEFAULT_INPUT = DEFAULT_DATA_DIR / "json" / "latest.json.gz"
-DEFAULT_OUTPUT_DIR = DEFAULT_DATA_DIR / "redis"
-
-SCHEMA = "zzx-bitnodes-export-redis-v1"
-
-PUBLIC_FIELDS = [
-    "node_id",
-    "source",
-    "source_type",
-    "source_url",
-    "crawler_version",
-    "crawl_id",
-    "address",
-    "host",
-    "port",
-    "network",
-    "agent",
-    "protocol",
-    "services",
-    "height",
-    "continent",
-    "region",
-    "city",
-    "country",
-    "territory",
-    "county",
-    "zip_code",
-    "timezone",
-    "latitude",
-    "longitude",
-    "asn",
-    "organization",
-    "provider",
-    "w3w",
-    "zzxgcs",
-    "zzxgms",
-    "geohash",
-    "reachable",
-    "reachable_now",
-    "reachable_24h",
-    "reachable_week",
-    "reachable_month",
-    "latency_ms",
-    "last_seen",
-    "raw_hash",
-]
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
 
 
-def read_json(path: Path) -> Any:
-    if path.suffix == ".gz":
-        with gzip.open(path, "rt", encoding="utf-8") as handle:
-            return json.load(handle)
+DEFAULT_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api" / "originalbitnodes"
+DEFAULT_ARCHIVE = APP_ROOT / "bitcoin" / "bitnodes" / "archive" / "originalbitnodes"
+DEFAULT_DATAPLANE = APP_ROOT / "bitcoin" / "bitnodes" / "api" / "data"
+DEFAULT_DATABASE = "zzx_bitnodes"
+DEFAULT_MAX_BYTES = 24_000_000
 
-    return json.loads(path.read_text(encoding="utf-8"))
+EXPORT = TOOLS_DIR / "export.py"
 
 
-def write_json(path: Path, payload: Any, *, compact: bool = False) -> int:
+def utc_now() -> int:
+    return int(time.time())
+
+
+def utc_iso(ts: int | None = None) -> str:
+    if ts is None:
+        ts = utc_now()
+
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+
+
+def write_json(path: Path, payload: Any, *, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
@@ -80,283 +48,732 @@ def write_json(path: Path, payload: Any, *, compact: bool = False) -> int:
             indent=None if compact else 2,
             separators=(",", ":") if compact else None,
             sort_keys=not compact,
-            default=str,
         )
         + "\n",
         encoding="utf-8",
     )
-    return path.stat().st_size
 
 
-def write_gzip_json(path: Path, payload: Any, *, compact: bool = True) -> int:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def run(command: list[str]) -> int:
+    print("$ " + " ".join(str(part) for part in command), flush=True)
 
-    with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as handle:
-        json.dump(
-            payload,
-            handle,
-            ensure_ascii=False,
-            indent=None if compact else 2,
-            separators=(",", ":") if compact else None,
-            sort_keys=not compact,
-            default=str,
-        )
-        handle.write("\n")
+    result = subprocess.run(
+        command,
+        cwd=str(APP_ROOT),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
 
-    return path.stat().st_size
+    if result.stdout.strip():
+        print(result.stdout.strip(), flush=True)
 
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr, flush=True)
 
-def resp(parts: list[str]) -> bytes:
-    out = [f"*{len(parts)}\r\n".encode("utf-8")]
-
-    for part in parts:
-        data = str(part).encode("utf-8")
-        out.append(f"${len(data)}\r\n".encode("utf-8"))
-        out.append(data + b"\r\n")
-
-    return b"".join(out)
+    return result.returncode
 
 
-def extract_nodes(payload: Any) -> list[dict[str, Any]]:
-    if isinstance(payload, dict):
-        nodes = payload.get("nodes")
-
-        if isinstance(nodes, list):
-            return [node for node in nodes if isinstance(node, dict)]
-
-        if isinstance(nodes, dict):
-            out = []
-
-            for address, node in nodes.items():
-                if isinstance(node, dict):
-                    row = dict(node)
-                    row.setdefault("address", address)
-                    out.append(row)
-
-            return out
-
-    if isinstance(payload, list):
-        return [node for node in payload if isinstance(node, dict)]
-
-    return []
+def py(script: Path, *args: str) -> list[str]:
+    return [sys.executable, str(script), *args]
 
 
-def public_row(row: dict[str, Any]) -> dict[str, Any]:
-    return {field: row.get(field) for field in PUBLIC_FIELDS}
+def redis_client():
+    try:
+        import redis
+    except ImportError as exc:
+        raise SystemExit("Missing dependency: redis. Install with: python -m pip install redis") from exc
 
+    password = os.environ.get("REDIS_PASSWORD") or None
+    redis_url = os.environ.get("REDIS_URL")
 
-def row_address(row: dict[str, Any]) -> str:
-    return str(
-        row.get("address")
-        or row.get("node")
-        or row.get("addr")
-        or row.get("host")
-        or row.get("node_id")
-        or ""
-    ).strip()
+    if redis_url:
+        return redis.Redis.from_url(redis_url, decode_responses=True)
 
+    socket_path = os.environ.get("REDIS_SOCKET")
 
-def source_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
-    return dict(sorted(Counter(str(row.get("source") or "unknown") for row in rows).items()))
-
-
-def counter_for(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
-    return dict(sorted(Counter(str(row.get(key) or "unknown") for row in rows).items()))
-
-
-def export_redis_files(
-    rows: list[dict[str, Any]],
-    output_dir: Path,
-    *,
-    key_prefix: str,
-    compact: bool,
-) -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    json_path = output_dir / "bitnodes.redis.json.gz"
-    commands_path = output_dir / "bitnodes.redis.commands.gz"
-
-    public_rows = [public_row(row) for row in rows]
-
-    json_payload = {
-        "schema": SCHEMA,
-        "key_prefix": key_prefix,
-        "node_count": len(public_rows),
-        "source_counts": source_counts(public_rows),
-        "country_counts": counter_for(public_rows, "country"),
-        "network_counts": counter_for(public_rows, "network"),
-        "asn_counts": counter_for(public_rows, "asn"),
-        "nodes": public_rows,
-    }
-
-    json_size = write_gzip_json(json_path, json_payload, compact=True)
-
-    sources = counter_for(public_rows, "source")
-    countries = counter_for(public_rows, "country")
-    networks = counter_for(public_rows, "network")
-    asns = counter_for(public_rows, "asn")
-    cities = counter_for(public_rows, "city")
-
-    with gzip.open(commands_path, "wb", compresslevel=9) as handle:
-        handle.write(
-            resp(
-                [
-                    "DEL",
-                    f"{key_prefix}:nodes",
-                    f"{key_prefix}:sources",
-                    f"{key_prefix}:countries",
-                    f"{key_prefix}:networks",
-                    f"{key_prefix}:asns",
-                    f"{key_prefix}:cities",
-                ]
-            )
+    if socket_path and os.name != "nt":
+        return redis.Redis(
+            unix_socket_path=socket_path,
+            password=password,
+            decode_responses=True,
         )
 
-        for row in public_rows:
-            address = row_address(row)
+    return redis.Redis(
+        host=os.environ.get("REDIS_HOST", "127.0.0.1"),
+        port=int(os.environ.get("REDIS_PORT", "6379")),
+        db=int(os.environ.get("REDIS_DB", "0")),
+        password=password,
+        decode_responses=True,
+    )
 
-            if not address:
+
+def try_json(value: Any) -> Any:
+    if value is None or isinstance(value, (dict, list)):
+        return value
+
+    try:
+        return json.loads(value)
+    except Exception:
+        return value
+
+
+def redis_type(r, key: str) -> str:
+    value = r.type(key)
+
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+
+    return str(value)
+
+
+def safe_int(value: Any, default: int | None = None) -> int | None:
+    try:
+        if value in ("", None):
+            return default
+
+        return int(value)
+    except Exception:
+        return default
+
+
+def safe_bool(value: Any, default: bool | None = None) -> bool | None:
+    if isinstance(value, bool):
+        return value
+
+    if value in (1, "1"):
+        return True
+
+    if value in (0, "0"):
+        return False
+
+    text = str(value or "").strip().lower()
+
+    if text in {"true", "yes", "y", "on", "ok", "up", "online", "reachable", "connected", "success"}:
+        return True
+
+    if text in {"false", "no", "n", "off", "down", "offline", "unreachable", "failed", "fail", "timeout", "error"}:
+        return False
+
+    return default
+
+
+def clean_address(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def address_network(address: str) -> str:
+    text = clean_address(address).lower()
+
+    if text.endswith(".onion") or ".onion:" in text:
+        return "tor"
+
+    if text.endswith(".i2p") or ".i2p:" in text:
+        return "i2p"
+
+    host = text
+
+    if text.startswith("[") and "]" in text:
+        host = text[1:text.index("]")]
+    elif text.count(":") == 1:
+        host = text.rsplit(":", 1)[0]
+
+    if host.count(".") == 3 and ":" not in host:
+        return "ipv4"
+
+    if ":" in host:
+        return "ipv6"
+
+    return "dns" if host else "unknown"
+
+
+def normalize_node_array(row: list[Any]) -> list[Any]:
+    output = list(row)
+
+    while len(output) < 20:
+        output.append(None)
+
+    if not isinstance(output[19], dict):
+        output[19] = {}
+
+    metadata = output[19]
+    metadata.setdefault("source", "originalbitnodes")
+    metadata.setdefault("crawler", "originalbitnodes")
+    metadata.setdefault("redis_exported_at", utc_iso())
+
+    return output
+
+
+def pick(value: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    for key in keys:
+        if key in value and value[key] not in ("", None):
+            return value[key]
+
+    return default
+
+
+def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
+    metadata = dict(value.get("metadata", {})) if isinstance(value.get("metadata"), dict) else {}
+
+    address = clean_address(
+        pick(value, "address", "node", "addr", "host", default="")
+    )
+
+    reachable = pick(value, "reachable", "reachable_now", "connected", "success", default=None)
+
+    metadata.setdefault("reachable", safe_bool(reachable, reachable))
+    metadata.setdefault("reachable_now", safe_bool(pick(value, "reachable_now", default=reachable), None))
+    metadata.setdefault("reachable_24h", safe_bool(pick(value, "reachable_24h", default=None), None))
+
+    metadata.setdefault("latency_ms", pick(value, "latency_ms", "latency", "ping_ms", "rtt_ms"))
+    metadata.setdefault("total_uptime", pick(value, "total_uptime", "uptime_seconds", "uptime"))
+    metadata.setdefault("uptime_seconds", pick(value, "uptime_seconds", "total_uptime", "uptime"))
+    metadata.setdefault("success_count", value.get("success_count"))
+    metadata.setdefault("failure_count", value.get("failure_count"))
+    metadata.setdefault("first_seen", value.get("first_seen"))
+    metadata.setdefault("last_seen", value.get("last_seen"))
+    metadata.setdefault("last_failure", value.get("last_failure"))
+
+    network = pick(value, "network", "network_type", default=address_network(address))
+    metadata.setdefault("network", network)
+
+    metadata.setdefault("is_tor", bool(value.get("is_tor") or value.get("tor") or network == "tor"))
+    metadata.setdefault("tor", bool(value.get("tor") or value.get("is_tor") or network == "tor"))
+    metadata.setdefault("is_i2p", bool(value.get("is_i2p") or value.get("i2p") or network == "i2p"))
+    metadata.setdefault("i2p", bool(value.get("i2p") or value.get("is_i2p") or network == "i2p"))
+    metadata.setdefault("is_ipv4", bool(value.get("is_ipv4") or network == "ipv4"))
+    metadata.setdefault("is_ipv6", bool(value.get("is_ipv6") or network == "ipv6"))
+    metadata.setdefault("is_vpn", bool(value.get("is_vpn") or value.get("vpn")))
+    metadata.setdefault("vpn", bool(value.get("vpn") or value.get("is_vpn")))
+    metadata.setdefault("is_proxy", bool(value.get("is_proxy") or value.get("proxy")))
+    metadata.setdefault("proxy", bool(value.get("proxy") or value.get("is_proxy")))
+
+    metadata.setdefault("is_sanctioned_node", value.get("is_sanctioned_node"))
+    metadata.setdefault("is_policy_restricted_node", value.get("is_policy_restricted_node"))
+    metadata.setdefault("jurisdiction_risk_level", value.get("jurisdiction_risk_level"))
+
+    metadata.setdefault("peer_health", value.get("peer_health"))
+    metadata.setdefault("peer_index", value.get("peer_index"))
+    metadata.setdefault("daily_latency_ms", value.get("daily_latency_ms"))
+    metadata.setdefault("weekly_latency_ms", value.get("weekly_latency_ms"))
+    metadata.setdefault("monthly_latency_ms", value.get("monthly_latency_ms"))
+    metadata.setdefault("daily_uptime_seconds", value.get("daily_uptime_seconds"))
+    metadata.setdefault("weekly_uptime_seconds", value.get("weekly_uptime_seconds"))
+    metadata.setdefault("monthly_uptime_seconds", value.get("monthly_uptime_seconds"))
+
+    metadata.setdefault("continent", value.get("continent"))
+    metadata.setdefault("region", value.get("region"))
+    metadata.setdefault("territory", value.get("territory"))
+    metadata.setdefault("county", value.get("county"))
+    metadata.setdefault("city", value.get("city"))
+    metadata.setdefault("zip", value.get("zip") or value.get("postal_code"))
+    metadata.setdefault("timezone", value.get("timezone"))
+
+    metadata.setdefault("source", "originalbitnodes")
+    metadata.setdefault("crawler", "originalbitnodes")
+    metadata.setdefault("redis_exported_at", utc_iso())
+
+    return [
+        pick(value, "protocol_version", "protocol", "version"),
+        pick(value, "user_agent", "agent", "subver", default="unknown"),
+        pick(value, "connected_since", "timestamp", "seen_at", "last_seen", default=utc_now()),
+        pick(value, "services", "service_bits"),
+        pick(value, "height", "start_height", "latest_height"),
+        pick(value, "hostname", "host"),
+        pick(value, "city", default=metadata.get("city")),
+        pick(value, "country_code", "country"),
+        pick(value, "latitude", "lat"),
+        pick(value, "longitude", "lon", "lng"),
+        pick(value, "timezone", "tz", default=metadata.get("timezone")),
+        value.get("asn"),
+        pick(value, "organization", "org"),
+        value.get("provider"),
+        pick(value, "county", default=metadata.get("county")),
+        pick(value, "zip", "postal_code", default=metadata.get("zip")),
+        pick(value, "w3w", "what3words"),
+        pick(value, "geohash", "geohashid"),
+        value.get("asn_location"),
+        metadata,
+    ]
+
+
+def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
+    nodes: dict[str, list[Any]] = {}
+
+    if isinstance(raw, dict):
+        if isinstance(raw.get("nodes"), dict):
+            raw = raw["nodes"]
+
+        for address, value in raw.items():
+            if isinstance(value, list):
+                nodes[str(address)] = normalize_node_array(value)
+            elif isinstance(value, dict):
+                node_address = value.get("address") or value.get("node") or value.get("addr") or address
+                nodes[str(node_address)] = dict_to_node_array(value)
+
+    elif isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
                 continue
 
-            node_key = f"{key_prefix}:node:{address}"
-            parts = ["HSET", node_key]
+            address = item.get("address") or item.get("node") or item.get("addr") or item.get("host")
 
-            for field in PUBLIC_FIELDS:
-                value = row.get(field)
-                parts.extend([field, "" if value is None else str(value)])
+            if address:
+                nodes[str(address)] = dict_to_node_array(item)
 
-            handle.write(resp(parts))
-            handle.write(resp(["SADD", f"{key_prefix}:nodes", address]))
-
-            source = str(row.get("source") or "unknown")
-            country = str(row.get("country") or "unknown")
-            network = str(row.get("network") or "unknown")
-            asn = str(row.get("asn") or "unknown")
-            city = str(row.get("city") or "unknown")
-
-            handle.write(resp(["SADD", f"{key_prefix}:source:{source}", address]))
-            handle.write(resp(["SADD", f"{key_prefix}:country:{country}", address]))
-            handle.write(resp(["SADD", f"{key_prefix}:network:{network}", address]))
-            handle.write(resp(["SADD", f"{key_prefix}:asn:{asn}", address]))
-            handle.write(resp(["SADD", f"{key_prefix}:city:{city}", address]))
-
-        for name, count in sources.items():
-            handle.write(resp(["HSET", f"{key_prefix}:sources", name, str(count)]))
-
-        for name, count in countries.items():
-            handle.write(resp(["HSET", f"{key_prefix}:countries", name, str(count)]))
-
-        for name, count in networks.items():
-            handle.write(resp(["HSET", f"{key_prefix}:networks", name, str(count)]))
-
-        for name, count in asns.items():
-            handle.write(resp(["HSET", f"{key_prefix}:asns", name, str(count)]))
-
-        for name, count in cities.items():
-            handle.write(resp(["HSET", f"{key_prefix}:cities", name, str(count)]))
-
-    manifest = {
-        "schema": SCHEMA,
-        "key_prefix": key_prefix,
-        "node_count": len(public_rows),
-        "source_counts": sources,
-        "artifacts": {
-            "redis_json_gz": {
-                "path": json_path.name,
-                "bytes": json_size,
-            },
-            "redis_commands_gz": {
-                "path": commands_path.name,
-                "bytes": commands_path.stat().st_size,
-            },
-        },
-        "redis_import_examples": {
-            "linux": f"gzip -dc {commands_path.name} | redis-cli --pipe",
-            "windows_git_bash": f"gzip -dc {commands_path.name} | redis-cli --pipe",
-        },
+    return {
+        clean_address(address): normalize_node_array(row)
+        for address, row in nodes.items()
+        if clean_address(address)
     }
 
-    write_json(output_dir / "manifest.json", manifest, compact=compact)
-    return manifest
+
+def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
+    candidate_keys = [
+        "nodes",
+        "nodes:latest",
+        "nodes:snapshot",
+        "bitnodes",
+        "bitnodes:nodes",
+        "bitnodes:nodes:latest",
+        "bitnodes:latest",
+        "bitnodes:snapshot",
+        "snapshot:nodes",
+        "latest:nodes",
+        "latest",
+        "snapshot",
+        "crawler",
+        "crawler:nodes",
+        "crawler:latest",
+        "reachable",
+        "reachable_nodes",
+        "known_nodes",
+    ]
+
+    for key in candidate_keys:
+        if not r.exists(key):
+            continue
+
+        key_type = redis_type(r, key)
+
+        if key_type == "hash":
+            raw = r.hgetall(key)
+            nodes: dict[str, list[Any]] = {}
+
+            for address, value in raw.items():
+                parsed = try_json(value)
+
+                if isinstance(parsed, list):
+                    nodes[str(address)] = normalize_node_array(parsed)
+                elif isinstance(parsed, dict):
+                    node_address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or address
+                    nodes[str(node_address)] = dict_to_node_array(parsed)
+
+            if nodes:
+                return nodes
+
+        elif key_type == "string":
+            parsed = try_json(r.get(key))
+
+            if isinstance(parsed, dict) and "nodes" in parsed:
+                nodes = normalize_nodes_object(parsed["nodes"])
+
+                if nodes:
+                    return nodes
+
+            if isinstance(parsed, dict):
+                nodes = normalize_nodes_object(parsed)
+
+                if nodes:
+                    return nodes
+
+        elif key_type in {"set", "zset", "list"}:
+            if key_type == "set":
+                values = list(r.smembers(key))
+            elif key_type == "zset":
+                values = list(r.zrange(key, 0, -1))
+            else:
+                values = list(r.lrange(key, 0, -1))
+
+            nodes = normalize_nodes_object([try_json(item) for item in values])
+
+            if nodes:
+                return nodes
+
+    return {}
 
 
-def import_commands(commands_gz: Path, redis_cli: str) -> int:
-    if not commands_gz.exists():
-        print(f"missing Redis command file: {commands_gz}", file=sys.stderr)
+def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 1000000) -> dict[str, list[Any]]:
+    nodes: dict[str, list[Any]] = {}
+    scanned = 0
+
+    for key in r.scan_iter(scan_pattern):
+        scanned += 1
+
+        if scanned > scan_limit:
+            break
+
+        key_type = redis_type(r, key)
+
+        if key_type == "hash":
+            raw = r.hgetall(key)
+
+            for address, value in raw.items():
+                parsed = try_json(value)
+
+                if isinstance(parsed, list):
+                    nodes[str(address)] = normalize_node_array(parsed)
+                elif isinstance(parsed, dict):
+                    node_address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or address
+                    nodes[str(node_address)] = dict_to_node_array(parsed)
+
+        elif key_type == "string":
+            parsed = try_json(r.get(key))
+
+            if isinstance(parsed, dict) and "nodes" in parsed:
+                nodes.update(normalize_nodes_object(parsed["nodes"]))
+
+            elif isinstance(parsed, dict):
+                address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or parsed.get("host")
+
+                if address:
+                    nodes[str(address)] = dict_to_node_array(parsed)
+
+        elif key_type in {"set", "zset", "list"}:
+            if key_type == "set":
+                values = list(r.smembers(key))
+            elif key_type == "zset":
+                values = list(r.zrange(key, 0, -1))
+            else:
+                values = list(r.lrange(key, 0, -1))
+
+            nodes.update(normalize_nodes_object([try_json(item) for item in values]))
+
+    return {
+        clean_address(address): normalize_node_array(row)
+        for address, row in nodes.items()
+        if clean_address(address)
+    }
+
+
+def extract_nodes_from_redis(r, scan_pattern: str = "*", scan_limit: int = 1000000) -> dict[str, list[Any]]:
+    nodes = extract_nodes_from_known_keys(r)
+
+    if nodes:
+        return nodes
+
+    return extract_nodes_by_scan(r, scan_pattern=scan_pattern, scan_limit=scan_limit)
+
+
+def latest_height(nodes: dict[str, list[Any]]) -> int | None:
+    heights = [
+        safe_int(row[4])
+        for row in nodes.values()
+        if len(row) > 4 and safe_int(row[4]) is not None
+    ]
+
+    return max(heights) if heights else None
+
+
+def metadata_of(row: list[Any]) -> dict[str, Any]:
+    row = normalize_node_array(row)
+    return row[19] if isinstance(row[19], dict) else {}
+
+
+def reachable_count(nodes: dict[str, list[Any]]) -> int:
+    total = 0
+
+    for row in nodes.values():
+        metadata = metadata_of(row)
+        reachable = safe_bool(metadata.get("reachable"))
+
+        if reachable is False:
+            continue
+
+        if reachable is True:
+            total += 1
+            continue
+
+        if metadata.get("last_seen") or metadata.get("last_success"):
+            total += 1
+            continue
+
+        total += 1
+
+    return total
+
+
+def flag_count(nodes: dict[str, list[Any]], key: str) -> int:
+    return sum(
+        1
+        for row in nodes.values()
+        if safe_bool(metadata_of(row).get(key)) is True
+    )
+
+
+def network_counts(nodes: dict[str, list[Any]]) -> Counter:
+    counter: Counter = Counter()
+
+    for address, row in nodes.items():
+        metadata = metadata_of(row)
+        network = metadata.get("network") or address_network(address)
+
+        if metadata.get("is_tor") or metadata.get("tor"):
+            network = "tor"
+        elif metadata.get("is_i2p") or metadata.get("i2p"):
+            network = "i2p"
+        elif metadata.get("is_ipv6"):
+            network = "ipv6"
+        elif metadata.get("is_ipv4"):
+            network = "ipv4"
+
+        counter[str(network or "unknown")] += 1
+
+    return counter
+
+
+def build_latest_payload(nodes: dict[str, list[Any]], source: str) -> dict[str, Any]:
+    timestamp = utc_now()
+    reachable = reachable_count(nodes)
+    networks = network_counts(nodes)
+
+    statistics = {
+        "reachable": reachable,
+        "unreachable": max(0, len(nodes) - reachable),
+        "reachable_now": flag_count(nodes, "reachable_now"),
+        "reachable_24h": flag_count(nodes, "reachable_24h"),
+        "ipv4": networks.get("ipv4", 0),
+        "ipv6": networks.get("ipv6", 0),
+        "tor": networks.get("tor", 0),
+        "i2p": networks.get("i2p", 0),
+        "vpn": flag_count(nodes, "is_vpn"),
+        "proxy": flag_count(nodes, "is_proxy"),
+    }
+
+    return {
+        "schema": "zzx-bitnodes-redis-export-v4",
+        "source": source,
+        "crawler": {
+            "engine": source,
+            "generated_at": utc_iso(timestamp),
+            "generator": "export_from_redis.py",
+            "schema_version": 4,
+        },
+        "timestamp": timestamp,
+        "updated_at": utc_iso(timestamp),
+        "total_nodes": len(nodes),
+        "known_nodes": len(nodes),
+        "reachable_nodes": reachable,
+        "unreachable_nodes": max(0, len(nodes) - reachable),
+        "latest_height": latest_height(nodes),
+        "statistics": statistics,
+        "network_counts": dict(networks),
+        "dataplane": {
+            "enabled": True,
+            "canonical_output": "bitcoin/bitnodes/api/data",
+            "policy": "Redis is an ingest source. DB/dataplane artifacts are canonical.",
+        },
+        "nodes": nodes,
+    }
+
+
+def run_dataplane(
+    *,
+    input_path: Path,
+    output_dir: Path,
+    database: str,
+    max_bytes: int,
+    compact: bool,
+    strict: bool,
+) -> int:
+    if not EXPORT.exists():
+        print(f"Missing export wrapper: {EXPORT}", file=sys.stderr)
         return 1
 
-    if sys.platform.startswith("win"):
-        print(
-            "Redis import is safest from Git Bash or WSL with: "
-            f"gzip -dc {commands_gz} | redis-cli --pipe",
-            file=sys.stderr,
+    command = py(
+        EXPORT,
+        "dataplane",
+        "--input",
+        str(input_path),
+        "--output-dir",
+        str(output_dir),
+        "--database",
+        database,
+        "--max-bytes",
+        str(max_bytes),
+    )
+
+    if compact:
+        command.append("--compact")
+
+    if strict:
+        command.append("--strict")
+
+    return run(command)
+
+
+def export_empty_api(
+    output: Path,
+    archive_dir: Path,
+    *,
+    dataplane_dir: Path,
+    database: str,
+    max_bytes: int,
+    compact: bool = False,
+    no_gzip: bool = False,
+    strict: bool = False,
+) -> int:
+    latest = build_latest_payload({}, source="originalbitnodes-redis-empty")
+
+    output.mkdir(parents=True, exist_ok=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    latest_path = output / "latest.json"
+    write_json(latest_path, latest, compact=compact)
+
+    pointer = {
+        "schema": "zzx-bitnodes-redis-empty-pointer-v1",
+        "source": latest["source"],
+        "generated_at": utc_iso(),
+        "latest": str(latest_path),
+        "dataplane": str(dataplane_dir),
+        "node_count": 0,
+        "policy": "Empty Redis export. No full snapshot fan-out written.",
+    }
+    write_json(archive_dir / "latest.json", pointer, compact=compact)
+
+    if strict:
+        return run_dataplane(
+            input_path=latest_path,
+            output_dir=dataplane_dir,
+            database=database,
+            max_bytes=max_bytes,
+            compact=compact,
+            strict=strict,
         )
-        return 0
 
-    gzip_proc = subprocess.Popen(
-        ["gzip", "-dc", str(commands_gz)],
-        stdout=subprocess.PIPE,
+    print(f"exported 0 nodes to {output}")
+    return 0
+
+
+def export_static_api(
+    output: Path,
+    *,
+    archive_dir: Path,
+    dataplane_dir: Path,
+    database: str,
+    max_bytes: int,
+    scan_pattern: str = "*",
+    scan_limit: int = 1000000,
+    compact: bool = False,
+    no_gzip: bool = False,
+    empty_on_failure: bool = True,
+    strict: bool = False,
+) -> int:
+    try:
+        r = redis_client()
+        r.ping()
+    except Exception as exc:
+        print(f"Redis unavailable: {exc}")
+
+        if empty_on_failure:
+            return export_empty_api(
+                output,
+                archive_dir,
+                dataplane_dir=dataplane_dir,
+                database=database,
+                max_bytes=max_bytes,
+                compact=compact,
+                no_gzip=no_gzip,
+                strict=strict,
+            )
+
+        return 1
+
+    nodes = extract_nodes_from_redis(
+        r,
+        scan_pattern=scan_pattern,
+        scan_limit=scan_limit,
     )
 
-    redis_proc = subprocess.Popen(
-        [redis_cli, "--pipe"],
-        stdin=gzip_proc.stdout,
+    latest = build_latest_payload(nodes, source="originalbitnodes")
+
+    output.mkdir(parents=True, exist_ok=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    latest_path = output / "latest.json"
+    write_json(latest_path, latest, compact=compact)
+
+    archive_pointer = {
+        "schema": "zzx-bitnodes-redis-export-pointer-v1",
+        "source": latest["source"],
+        "generated_at": utc_iso(),
+        "latest": str(latest_path),
+        "dataplane": str(dataplane_dir),
+        "node_count": len(nodes),
+        "reachable_nodes": latest["reachable_nodes"],
+        "latest_height": latest["latest_height"],
+        "policy": "Redis export writes latest.json for interchange only. Dataplane is canonical.",
+    }
+    write_json(archive_dir / "latest.json", archive_pointer, compact=compact)
+
+    code = run_dataplane(
+        input_path=latest_path,
+        output_dir=dataplane_dir,
+        database=database,
+        max_bytes=max_bytes,
+        compact=compact,
+        strict=strict,
     )
 
-    if gzip_proc.stdout:
-        gzip_proc.stdout.close()
+    if code != 0:
+        return code
 
-    redis_code = redis_proc.wait()
-    gzip_code = gzip_proc.wait()
+    print(
+        "redis export complete: "
+        f"{len(nodes)} nodes, "
+        f"reachable={latest['reachable_nodes']}, "
+        f"latest_height={latest['latest_height']}, "
+        f"output={output}, "
+        f"dataplane={dataplane_dir}"
+    )
 
-    return redis_code or gzip_code
+    return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export ZZX Bitnodes dataplane JSON into Redis rebuild artifacts."
+        description="Export classic Redis-backed Bitnodes crawler data into the ZZX DB-first dataplane."
     )
 
-    parser.add_argument("--input", default=str(DEFAULT_INPUT))
-    parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
-    parser.add_argument("--key-prefix", default="zzx:bitnodes")
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    parser.add_argument("--dataplane-dir", default=str(DEFAULT_DATAPLANE))
+    parser.add_argument("--database", default=DEFAULT_DATABASE)
+    parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    parser.add_argument("--scan-pattern", default="*")
+    parser.add_argument("--scan-limit", type=int, default=1000000)
     parser.add_argument("--compact", action="store_true")
-    parser.add_argument("--import-redis", action="store_true")
-    parser.add_argument("--redis-cli", default="redis-cli")
+    parser.add_argument("--no-gzip", action="store_true")
+    parser.add_argument("--fail-empty", action="store_true")
+    parser.add_argument("--strict", action="store_true")
 
     args = parser.parse_args()
 
-    input_path = Path(args.input)
-
-    if not input_path.exists():
-        print(f"missing input: {input_path}", file=sys.stderr)
-        return 1
-
-    payload = read_json(input_path)
-    rows = extract_nodes(payload)
-
-    if not rows:
-        print(f"no nodes found in input: {input_path}", file=sys.stderr)
-        return 1
-
-    output_dir = Path(args.output_dir)
-    manifest = export_redis_files(
-        rows,
-        output_dir,
-        key_prefix=str(args.key_prefix),
-        compact=bool(args.compact),
+    return export_static_api(
+        Path(args.output).resolve(),
+        archive_dir=Path(args.archive_dir).resolve(),
+        dataplane_dir=Path(args.dataplane_dir).resolve(),
+        database=str(args.database),
+        max_bytes=int(args.max_bytes),
+        scan_pattern=args.scan_pattern,
+        scan_limit=args.scan_limit,
+        compact=args.compact,
+        no_gzip=args.no_gzip,
+        empty_on_failure=not args.fail_empty,
+        strict=args.strict,
     )
-
-    print(
-        "export_redis complete: "
-        f"{manifest['node_count']} nodes, "
-        f"output={output_dir}"
-    )
-
-    if args.import_redis:
-        return import_commands(output_dir / "bitnodes.redis.commands.gz", str(args.redis_cli))
-
-    return 0
 
 
 if __name__ == "__main__":
