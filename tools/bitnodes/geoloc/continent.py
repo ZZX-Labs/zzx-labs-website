@@ -2,26 +2,17 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 
-SCHEMA = "zzx-bitnodes-continent-v2"
+SCHEMA = "zzx-bitnodes-continent-v3"
 
-UNKNOWN_VALUES = {
-    "",
-    "unknown",
-    "none",
-    "null",
-    "undefined",
-    "—",
-    "-",
-    "n/a",
-    "na",
-}
-
+UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 CONTINENT_ALIASES = {
     "af": "Africa",
@@ -48,7 +39,6 @@ CONTINENT_ALIASES = {
     "overlay": "Overlay Network",
     "overlay network": "Overlay Network",
 }
-
 
 COUNTRY_NAME_TO_CODE = {
     "UNITED STATES": "US",
@@ -91,6 +81,7 @@ COUNTRY_NAME_TO_CODE = {
     "CHINA": "CN",
     "HONG KONG": "HK",
     "MACAU": "MO",
+    "MACAO": "MO",
     "TAIWAN": "TW",
     "JAPAN": "JP",
     "SOUTH KOREA": "KR",
@@ -123,206 +114,69 @@ COUNTRY_NAME_TO_CODE = {
     "KUWAIT": "KW",
 }
 
-
 COUNTRY_TO_CONTINENT = {
-    "US": "North America",
-    "CA": "North America",
-    "MX": "North America",
-    "BZ": "North America",
-    "CR": "North America",
-    "SV": "North America",
-    "GT": "North America",
-    "HN": "North America",
-    "NI": "North America",
-    "PA": "North America",
-    "BS": "North America",
-    "BB": "North America",
-    "CU": "North America",
-    "DO": "North America",
-    "HT": "North America",
-    "JM": "North America",
-    "TT": "North America",
+    "US": "North America", "CA": "North America", "MX": "North America",
+    "BZ": "North America", "CR": "North America", "SV": "North America",
+    "GT": "North America", "HN": "North America", "NI": "North America",
+    "PA": "North America", "BS": "North America", "BB": "North America",
+    "CU": "North America", "DO": "North America", "HT": "North America",
+    "JM": "North America", "TT": "North America",
 
-    "AR": "South America",
-    "BO": "South America",
-    "BR": "South America",
-    "CL": "South America",
-    "CO": "South America",
-    "EC": "South America",
-    "FK": "South America",
-    "GF": "South America",
-    "GY": "South America",
-    "PY": "South America",
-    "PE": "South America",
-    "SR": "South America",
-    "UY": "South America",
-    "VE": "South America",
+    "AR": "South America", "BO": "South America", "BR": "South America",
+    "CL": "South America", "CO": "South America", "EC": "South America",
+    "FK": "South America", "GF": "South America", "GY": "South America",
+    "PY": "South America", "PE": "South America", "SR": "South America",
+    "UY": "South America", "VE": "South America",
 
-    "GB": "Europe",
-    "IE": "Europe",
-    "IS": "Europe",
-    "NO": "Europe",
-    "SE": "Europe",
-    "FI": "Europe",
-    "DK": "Europe",
-    "EE": "Europe",
-    "LV": "Europe",
-    "LT": "Europe",
-    "DE": "Europe",
-    "FR": "Europe",
-    "NL": "Europe",
-    "BE": "Europe",
-    "LU": "Europe",
-    "CH": "Europe",
-    "AT": "Europe",
-    "LI": "Europe",
-    "MC": "Europe",
-    "ES": "Europe",
-    "PT": "Europe",
-    "IT": "Europe",
-    "GR": "Europe",
-    "MT": "Europe",
-    "CY": "Europe",
-    "SI": "Europe",
-    "HR": "Europe",
-    "BA": "Europe",
-    "RS": "Europe",
-    "ME": "Europe",
-    "MK": "Europe",
-    "AL": "Europe",
-    "AD": "Europe",
-    "SM": "Europe",
-    "VA": "Europe",
-    "PL": "Europe",
-    "CZ": "Europe",
-    "SK": "Europe",
-    "HU": "Europe",
-    "RO": "Europe",
-    "BG": "Europe",
-    "MD": "Europe",
-    "UA": "Europe",
-    "BY": "Europe",
+    "GB": "Europe", "IE": "Europe", "IS": "Europe", "NO": "Europe",
+    "SE": "Europe", "FI": "Europe", "DK": "Europe", "EE": "Europe",
+    "LV": "Europe", "LT": "Europe", "DE": "Europe", "FR": "Europe",
+    "NL": "Europe", "BE": "Europe", "LU": "Europe", "CH": "Europe",
+    "AT": "Europe", "LI": "Europe", "MC": "Europe", "ES": "Europe",
+    "PT": "Europe", "IT": "Europe", "GR": "Europe", "MT": "Europe",
+    "CY": "Europe", "SI": "Europe", "HR": "Europe", "BA": "Europe",
+    "RS": "Europe", "ME": "Europe", "MK": "Europe", "AL": "Europe",
+    "AD": "Europe", "SM": "Europe", "VA": "Europe", "PL": "Europe",
+    "CZ": "Europe", "SK": "Europe", "HU": "Europe", "RO": "Europe",
+    "BG": "Europe", "MD": "Europe", "UA": "Europe", "BY": "Europe",
     "RU": "Europe",
 
-    "TR": "Asia",
-    "GE": "Asia",
-    "AM": "Asia",
-    "AZ": "Asia",
-    "IR": "Asia",
-    "IQ": "Asia",
-    "SY": "Asia",
-    "LB": "Asia",
-    "IL": "Asia",
-    "JO": "Asia",
-    "SA": "Asia",
-    "YE": "Asia",
-    "OM": "Asia",
-    "AE": "Asia",
-    "QA": "Asia",
-    "BH": "Asia",
-    "KW": "Asia",
-    "KZ": "Asia",
-    "UZ": "Asia",
-    "TM": "Asia",
-    "KG": "Asia",
-    "TJ": "Asia",
-    "IN": "Asia",
-    "PK": "Asia",
-    "BD": "Asia",
-    "LK": "Asia",
-    "NP": "Asia",
-    "BT": "Asia",
-    "MV": "Asia",
-    "AF": "Asia",
-    "CN": "Asia",
-    "HK": "Asia",
-    "MO": "Asia",
-    "TW": "Asia",
-    "JP": "Asia",
-    "KR": "Asia",
-    "KP": "Asia",
-    "MN": "Asia",
-    "MM": "Asia",
-    "TH": "Asia",
-    "LA": "Asia",
-    "KH": "Asia",
-    "VN": "Asia",
-    "MY": "Asia",
-    "SG": "Asia",
-    "ID": "Asia",
-    "PH": "Asia",
-    "BN": "Asia",
+    "TR": "Asia", "GE": "Asia", "AM": "Asia", "AZ": "Asia",
+    "IR": "Asia", "IQ": "Asia", "SY": "Asia", "LB": "Asia",
+    "IL": "Asia", "JO": "Asia", "SA": "Asia", "YE": "Asia",
+    "OM": "Asia", "AE": "Asia", "QA": "Asia", "BH": "Asia",
+    "KW": "Asia", "KZ": "Asia", "UZ": "Asia", "TM": "Asia",
+    "KG": "Asia", "TJ": "Asia", "IN": "Asia", "PK": "Asia",
+    "BD": "Asia", "LK": "Asia", "NP": "Asia", "BT": "Asia",
+    "MV": "Asia", "AF": "Asia", "CN": "Asia", "HK": "Asia",
+    "MO": "Asia", "TW": "Asia", "JP": "Asia", "KR": "Asia",
+    "KP": "Asia", "MN": "Asia", "MM": "Asia", "TH": "Asia",
+    "LA": "Asia", "KH": "Asia", "VN": "Asia", "MY": "Asia",
+    "SG": "Asia", "ID": "Asia", "PH": "Asia", "BN": "Asia",
     "TL": "Asia",
 
-    "AU": "Oceania",
-    "NZ": "Oceania",
-    "FJ": "Oceania",
-    "PG": "Oceania",
-    "SB": "Oceania",
-    "VU": "Oceania",
-    "WS": "Oceania",
-    "TO": "Oceania",
-    "KI": "Oceania",
-    "FM": "Oceania",
-    "MH": "Oceania",
-    "PW": "Oceania",
+    "AU": "Oceania", "NZ": "Oceania", "FJ": "Oceania",
+    "PG": "Oceania", "SB": "Oceania", "VU": "Oceania",
+    "WS": "Oceania", "TO": "Oceania", "KI": "Oceania",
+    "FM": "Oceania", "MH": "Oceania", "PW": "Oceania",
 
-    "MA": "Africa",
-    "DZ": "Africa",
-    "TN": "Africa",
-    "LY": "Africa",
-    "EG": "Africa",
-    "SD": "Africa",
-    "SS": "Africa",
-    "ZA": "Africa",
-    "NA": "Africa",
-    "BW": "Africa",
-    "LS": "Africa",
-    "SZ": "Africa",
-    "NG": "Africa",
-    "GH": "Africa",
-    "SN": "Africa",
-    "CI": "Africa",
-    "ML": "Africa",
-    "NE": "Africa",
-    "BF": "Africa",
-    "GM": "Africa",
-    "GN": "Africa",
-    "GW": "Africa",
-    "LR": "Africa",
-    "SL": "Africa",
-    "TG": "Africa",
-    "BJ": "Africa",
-    "CV": "Africa",
-    "KE": "Africa",
-    "ET": "Africa",
-    "TZ": "Africa",
-    "UG": "Africa",
-    "RW": "Africa",
-    "BI": "Africa",
-    "SO": "Africa",
-    "DJ": "Africa",
-    "ER": "Africa",
-    "MZ": "Africa",
-    "MG": "Africa",
-    "MU": "Africa",
-    "SC": "Africa",
-    "ZM": "Africa",
-    "ZW": "Africa",
-    "MW": "Africa",
-    "AO": "Africa",
-    "CM": "Africa",
-    "CF": "Africa",
-    "TD": "Africa",
-    "CG": "Africa",
-    "CD": "Africa",
-    "GQ": "Africa",
-    "GA": "Africa",
+    "MA": "Africa", "DZ": "Africa", "TN": "Africa", "LY": "Africa",
+    "EG": "Africa", "SD": "Africa", "SS": "Africa", "ZA": "Africa",
+    "NA": "Africa", "BW": "Africa", "LS": "Africa", "SZ": "Africa",
+    "NG": "Africa", "GH": "Africa", "SN": "Africa", "CI": "Africa",
+    "ML": "Africa", "NE": "Africa", "BF": "Africa", "GM": "Africa",
+    "GN": "Africa", "GW": "Africa", "LR": "Africa", "SL": "Africa",
+    "TG": "Africa", "BJ": "Africa", "CV": "Africa", "KE": "Africa",
+    "ET": "Africa", "TZ": "Africa", "UG": "Africa", "RW": "Africa",
+    "BI": "Africa", "SO": "Africa", "DJ": "Africa", "ER": "Africa",
+    "MZ": "Africa", "MG": "Africa", "MU": "Africa", "SC": "Africa",
+    "ZM": "Africa", "ZW": "Africa", "MW": "Africa", "AO": "Africa",
+    "CM": "Africa", "CF": "Africa", "TD": "Africa", "CG": "Africa",
+    "CD": "Africa", "GQ": "Africa", "GA": "Africa",
 
     "TOR": "Overlay Network",
     "I2P": "Overlay Network",
 }
-
 
 REGION_TO_CONTINENT = {
     "Northern America": "North America",
@@ -360,25 +214,37 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
+    try:
+        if not path.exists():
+            return fallback
 
-    return json.loads(path.read_text(encoding="utf-8"))
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
 
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if compact:
-        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-    else:
-        text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-
-    path.write_text(text + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def clean(value: Any) -> str:
-    text = str(value or "").strip()
+    text = re.sub(r"\s+", " ", str(value or "").strip())
 
     if text.lower() in UNKNOWN_VALUES:
         return ""
@@ -387,18 +253,22 @@ def clean(value: Any) -> str:
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
     current: Any = row
 
     for part in key.split("."):
         if not isinstance(current, Mapping):
             return None
-
         current = current.get(part)
 
     return current
+
+
+def first_value(row: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = deep_get(row, key) if "." in key else row.get(key)
+        if value not in ("", None):
+            return value
+    return None
 
 
 def boolish(value: Any) -> bool:
@@ -408,7 +278,10 @@ def boolish(value: Any) -> bool:
     if value in (1, "1"):
         return True
 
-    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1"}
+    if value in (0, "0"):
+        return False
+
+    return str(value or "").strip().lower() in {"true", "yes", "y", "ok", "1", "on"}
 
 
 def normalize_country_code(value: Any) -> str:
@@ -425,55 +298,40 @@ def normalize_country_code(value: Any) -> str:
 
 def country_code(row: Mapping[str, Any]) -> str:
     keys = (
-        "country_code",
-        "country",
-        "cc",
-        "iso_country",
-        "iso_country_code",
-        "geo.country_code",
-        "geo.country",
-        "geo.iso_code",
-        "geoip.country_code",
-        "geoip.country",
-        "geoip.country_name",
-        "geoip_data.country_code",
-        "geoip_data.country",
-        "geoip_data.country_name",
-        "country_data.country_code",
-        "country_data.cc",
-        "country_data.iso_country",
-        "country_data.iso_country_code",
-        "location.country_code",
-        "location.country",
-        "metadata.country_code",
-        "metadata.country",
+        "country_code", "country", "cc", "iso_country", "iso_country_code",
+        "geo.country_code", "geo.country", "geo.iso_code",
+        "geoip.country_code", "geoip.country", "geoip.country_name",
+        "geoip_data.country_code", "geoip_data.country", "geoip_data.country_name",
+        "country_data.country_code", "country_data.cc", "country_data.iso_country",
+        "country_data.iso_country_code", "location.country_code", "location.country",
+        "geoloc.country_code", "geoloc.country", "metadata.country_code",
+        "metadata.country", "metadata.geoip.country_code", "metadata.geoloc.country_code",
     )
 
     for key in keys:
-        code = normalize_country_code(deep_get(row, key))
-
+        code = normalize_country_code(deep_get(row, key) if "." in key else row.get(key))
         if code:
             return code
 
     if (
         boolish(row.get("is_tor"))
-        or boolish(row.get("tor"))
+        or boolish(row.get("suspected_tor"))
         or boolish(deep_get(row, "tor.is_tor"))
         or boolish(deep_get(row, "metadata.is_tor"))
-        or boolish(deep_get(row, "metadata.tor"))
+        or boolish(deep_get(row, "metadata.tor.is_tor"))
     ):
         return "TOR"
 
     if (
         boolish(row.get("is_i2p"))
-        or boolish(row.get("i2p"))
+        or boolish(row.get("suspected_i2p"))
         or boolish(deep_get(row, "i2p.is_i2p"))
         or boolish(deep_get(row, "metadata.is_i2p"))
-        or boolish(deep_get(row, "metadata.i2p"))
+        or boolish(deep_get(row, "metadata.i2p.is_i2p"))
     ):
         return "I2P"
 
-    network = clean(row.get("network") or deep_get(row, "metadata.network")).lower()
+    network = clean(first_value(row, "network", "metadata.network")).lower()
 
     if network == "tor":
         return "TOR"
@@ -491,11 +349,58 @@ def normalize_continent(value: Any) -> str:
         return ""
 
     key = text.lower().replace("_", " ").replace("-", " ")
-
-    while "  " in key:
-        key = key.replace("  ", " ")
+    key = re.sub(r"\s+", " ", key).strip()
 
     return CONTINENT_ALIASES.get(key, text)
+
+
+def normalize_region(value: Any) -> str:
+    text = clean(value)
+
+    if not text:
+        return ""
+
+    key = text.lower().replace("_", " ").replace("-", " ")
+    key = re.sub(r"\s+", " ", key).strip()
+
+    return {
+        "north america": "Northern America",
+        "northern america": "Northern America",
+        "latin america": "Latin America",
+        "south america": "South America",
+        "central america": "Central America",
+        "caribbean": "Caribbean",
+        "western europe": "Western Europe",
+        "eastern europe": "Eastern Europe",
+        "northern europe": "Northern Europe",
+        "southern europe": "Southern Europe",
+        "western asia": "Western Asia",
+        "central asia": "Central Asia",
+        "south asia": "South Asia",
+        "southern asia": "South Asia",
+        "east asia": "Eastern Asia",
+        "eastern asia": "Eastern Asia",
+        "southeast asia": "South-Eastern Asia",
+        "south eastern asia": "South-Eastern Asia",
+        "south-eastern asia": "South-Eastern Asia",
+        "northern africa": "Northern Africa",
+        "north africa": "Northern Africa",
+        "western africa": "Western Africa",
+        "west africa": "Western Africa",
+        "eastern africa": "Eastern Africa",
+        "east africa": "Eastern Africa",
+        "middle africa": "Middle Africa",
+        "central africa": "Middle Africa",
+        "southern africa": "Southern Africa",
+        "australia and new zealand": "Australia and New Zealand",
+        "melanesia": "Melanesia",
+        "micronesia": "Micronesia",
+        "polynesia": "Polynesia",
+        "tor": "Onion Routing",
+        "onion routing": "Onion Routing",
+        "i2p": "Garlic Routing",
+        "garlic routing": "Garlic Routing",
+    }.get(key, text)
 
 
 def explicit_continent(row: Mapping[str, Any]) -> str:
@@ -516,12 +421,15 @@ def explicit_continent(row: Mapping[str, Any]) -> str:
         "geoip_data.continent_code",
         "location.continent",
         "location.continent_name",
+        "geoloc.continent",
         "metadata.continent",
         "metadata.continent_name",
+        "metadata.geoip.continent",
+        "metadata.geoloc.continent",
     )
 
     for key in keys:
-        continent = normalize_continent(deep_get(row, key))
+        continent = normalize_continent(deep_get(row, key) if "." in key else row.get(key))
 
         if continent:
             return continent
@@ -533,6 +441,7 @@ def explicit_region(row: Mapping[str, Any]) -> str:
     keys = (
         "region",
         "region_data.region",
+        "region_normalized",
         "subregion",
         "world_region",
         "geo_region",
@@ -546,12 +455,15 @@ def explicit_region(row: Mapping[str, Any]) -> str:
         "geoip_data.region",
         "geoip_data.subregion",
         "location.region",
+        "geoloc.region",
         "metadata.region",
         "metadata.subregion",
+        "metadata.geoip.region",
+        "metadata.geoloc.region",
     )
 
     for key in keys:
-        region = clean(deep_get(row, key))
+        region = normalize_region(deep_get(row, key) if "." in key else row.get(key))
 
         if region:
             return region
@@ -582,28 +494,53 @@ def continent_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
 
     if not normalized:
         normalized = "Unknown"
+        source = "unknown"
 
     return {
         "schema": SCHEMA,
         "continent": normalized,
+        "continent_normalized": normalized,
         "continent_source": source,
         "region": region,
         "country_code": code,
+        "is_overlay_continent": normalized == "Overlay Network",
+        "is_unknown_continent": normalized == "Unknown",
         "updated_at": utc_now(),
     }
 
 
+def ensure_block(node: MutableMapping[str, Any], key: str) -> MutableMapping[str, Any]:
+    block = node.get(key)
+
+    if not isinstance(block, MutableMapping):
+        block = {}
+        node[key] = block
+
+    return block
+
+
 def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     meta = continent_metadata(node)
+    metadata = ensure_block(node, "metadata")
+    enrichment = ensure_block(node, "enrichment")
 
     node["continent_data"] = meta
-    node["continent"] = meta["continent"]
+    metadata["continent_data"] = meta
 
-    node.setdefault("enrichment", {})
-    node["enrichment"]["continent"] = {
+    node["continent"] = meta["continent"]
+    node["continent_normalized"] = meta["continent_normalized"]
+    node["continent_source"] = meta["continent_source"]
+
+    metadata["continent"] = meta["continent"]
+    metadata["continent_normalized"] = meta["continent_normalized"]
+    metadata["continent_source"] = meta["continent_source"]
+
+    enrichment["continent"] = {
         "schema": SCHEMA,
         "status": "ok",
-        "updated_at": utc_now(),
+        "updated_at": meta["updated_at"],
+        "continent": meta["continent"],
+        "continent_source": meta["continent_source"],
     }
 
     return node
@@ -611,47 +548,17 @@ def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
 
 def enrich_nodes(nodes: Any, context: dict[str, Any] | None = None) -> Any:
     if isinstance(nodes, list):
-        return [
-            enrich_node(dict(node)) if isinstance(node, Mapping) else node
-            for node in nodes
-        ]
+        return [enrich_node(dict(node)) if isinstance(node, Mapping) else node for node in nodes]
 
     if isinstance(nodes, Mapping):
-        return {
-            key: enrich_node(dict(value)) if isinstance(value, Mapping) else value
-            for key, value in nodes.items()
-        }
+        return {key: enrich_node(dict(value)) if isinstance(value, Mapping) else value for key, value in nodes.items()}
 
     return nodes
 
 
-def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
-        return enrich_nodes(payload, context)
-
-    if not isinstance(payload, MutableMapping):
-        return payload
-
-    if isinstance(payload.get("nodes"), (list, dict)):
-        payload["nodes"] = enrich_nodes(payload["nodes"], context)
-
-    if isinstance(payload.get("results"), list):
-        payload["results"] = enrich_nodes(payload["results"], context)
-
-    if isinstance(payload.get("data"), list):
-        payload["data"] = enrich_nodes(payload["data"], context)
-
-    payload.setdefault("metadata", {})
-
-    if isinstance(payload["metadata"], MutableMapping):
-        payload["metadata"]["continent_enriched_at"] = utc_now()
-
-    return payload
-
-
-def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
-    if isinstance(payload, list):
-        return [node for node in payload if isinstance(node, Mapping)]
+        return [dict(node) for node in payload if isinstance(node, Mapping)]
 
     if not isinstance(payload, Mapping):
         return []
@@ -659,18 +566,85 @@ def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
     nodes = payload.get("nodes")
 
     if isinstance(nodes, list):
-        return [node for node in nodes if isinstance(node, Mapping)]
+        return [dict(node) for node in nodes if isinstance(node, Mapping)]
 
     if isinstance(nodes, Mapping):
-        return [node for node in nodes.values() if isinstance(node, Mapping)]
+        output = []
+        for address, value in nodes.items():
+            if isinstance(value, Mapping):
+                output.append({"address": str(address), **dict(value)})
+            elif isinstance(value, list):
+                padded = list(value) + [None] * max(0, 20 - len(value))
+                metadata = padded[19] if isinstance(padded[19], Mapping) else {}
+                output.append(
+                    {
+                        "address": str(address),
+                        "protocol": padded[0],
+                        "agent": padded[1],
+                        "height": padded[4],
+                        "hostname": padded[5],
+                        "city": padded[6],
+                        "country": padded[7],
+                        "latitude": padded[8],
+                        "longitude": padded[9],
+                        "timezone": padded[10],
+                        "asn": padded[11],
+                        "organization": padded[12],
+                        "provider": padded[13],
+                        "metadata": dict(metadata),
+                    }
+                )
+        return output
 
-    for key in ("results", "data"):
+    for key in ("results", "data", "rows", "peers", "node_records", "reachable_nodes"):
         value = payload.get(key)
 
         if isinstance(value, list):
-            return [node for node in value if isinstance(node, Mapping)]
+            return [dict(node) for node in value if isinstance(node, Mapping)]
+
+        if isinstance(value, Mapping):
+            return extract_nodes({"nodes": value})
 
     return []
+
+
+def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
+    if isinstance(payload, list):
+        return nodes
+
+    if not isinstance(payload, MutableMapping):
+        return {"nodes": nodes}
+
+    output = dict(payload)
+
+    if isinstance(output.get("nodes"), Mapping):
+        output["nodes"] = {
+            str(node.get("canonical_address") or node.get("address") or index): node
+            for index, node in enumerate(nodes)
+        }
+    else:
+        output["nodes"] = nodes
+
+    output.setdefault("metadata", {})
+
+    if isinstance(output["metadata"], MutableMapping):
+        output["metadata"]["continent_enriched_at"] = utc_now()
+        output["metadata"]["continent_schema"] = SCHEMA
+
+    return output
+
+
+def enrich_payload(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    nodes = extract_nodes(payload)
+
+    if not nodes:
+        return payload
+
+    return put_nodes(payload, enrich_nodes(nodes, context))
+
+
+def iter_nodes(payload: Any) -> list[Mapping[str, Any]]:
+    return extract_nodes(payload)
 
 
 def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
@@ -684,19 +658,15 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
             data = {}
 
         continent = clean(data.get("continent")) or clean(node.get("continent")) or "Unknown"
-        source = clean(data.get("continent_source")) or "unknown"
+        source = clean(data.get("continent_source")) or clean(node.get("continent_source")) or "unknown"
 
         counts[continent] = counts.get(continent, 0) + 1
         source_counts[source] = source_counts.get(source, 0) + 1
 
-    top_continent = max(
-        counts.items(),
-        key=lambda item: item[1],
-        default=("Unknown", 0),
-    )
+    top_continent = max(counts.items(), key=lambda item: item[1], default=("Unknown", 0))
 
     return {
-        "schema": "zzx-bitnodes-continent-summary-v2",
+        "schema": "zzx-bitnodes-continent-summary-v3",
         "generated_at": utc_now(),
         "total_nodes": len(nodes),
         "continent_count": len(counts),
@@ -709,9 +679,18 @@ def summarize(nodes: list[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
+def enrich(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
+
+
+def process(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload, context)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Enrich Bitnodes records with continent metadata."
+        description="Enrich Bitnodes records with continent metadata.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--input", required=True)
@@ -730,7 +709,6 @@ def main() -> int:
         write_json(Path(args.summary), summarize(iter_nodes(enriched)), compact=args.compact)
 
     print(f"continent enrichment complete: {len(iter_nodes(enriched))} nodes")
-
     return 0
 
 
