@@ -10,6 +10,8 @@ from pathlib import Path
 APP_ROOT = Path(__file__).resolve().parents[2]
 TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 
+DATAPLANE = TOOLS_DIR / "dataplane.py"
+EXPORT_DB = TOOLS_DIR / "export_db.py"
 EXPORT_FROM_REDIS = TOOLS_DIR / "export_from_redis.py"
 EXPORT_JSON = TOOLS_DIR / "export_json.py"
 EXPORT_CSV = TOOLS_DIR / "export_csv.py"
@@ -17,15 +19,14 @@ EXPORT_XML = TOOLS_DIR / "export_xml.py"
 
 DEFAULT_INPUT = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state" / "latest.json"
 DEFAULT_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api"
+DEFAULT_DATA_OUTPUT = APP_ROOT / "bitcoin" / "bitnodes" / "api" / "data"
 DEFAULT_ARCHIVE = APP_ROOT / "bitcoin" / "bitnodes" / "archive"
+DEFAULT_DATABASE = "zzx_bitnodes"
+DEFAULT_MAX_BYTES = 24_000_000
 
 
 def py(script: Path, *args: str) -> list[str]:
-    return [
-        sys.executable,
-        str(script),
-        *args,
-    ]
+    return [sys.executable, str(script), *args]
 
 
 def call(command: list[str]) -> int:
@@ -34,7 +35,7 @@ def call(command: list[str]) -> int:
 
 
 def existing_input(path: str | Path) -> Path | None:
-    item = Path(path).resolve()
+    item = Path(path).expanduser().resolve()
 
     if item.exists() and item.is_file():
         return item
@@ -50,6 +51,35 @@ def require_script(path: Path) -> bool:
     return False
 
 
+def add_snapshot_parser_args(parser: argparse.ArgumentParser, *, include_archive: bool) -> None:
+    parser.add_argument("--input", default=str(DEFAULT_INPUT))
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--source", default=None)
+    parser.add_argument("--compact", action="store_true")
+
+    if include_archive:
+        parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+        parser.add_argument("--no-archive", action="store_true")
+        parser.add_argument("--no-gzip", action="store_true")
+
+
+def add_dataplane_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--input",
+        action="append",
+        default=[],
+        help=(
+            "Input snapshot JSON file. May be supplied multiple times. "
+            "Defaults to bitcoin/bitnodes/data/state/latest.json when present."
+        ),
+    )
+    parser.add_argument("--output-dir", default=str(DEFAULT_DATA_OUTPUT))
+    parser.add_argument("--database", default=DEFAULT_DATABASE)
+    parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    parser.add_argument("--compact", action="store_true")
+    parser.add_argument("--strict", action="store_true")
+
+
 def add_common_snapshot_args(
     command: list[str],
     args: argparse.Namespace,
@@ -61,12 +91,14 @@ def add_common_snapshot_args(
     if input_path is None:
         raise FileNotFoundError(f"snapshot input does not exist: {args.input}")
 
-    command.extend([
-        "--input",
-        str(input_path),
-        "--output",
-        str(Path(args.output).resolve()),
-    ])
+    command.extend(
+        [
+            "--input",
+            str(input_path),
+            "--output",
+            str(Path(args.output).expanduser().resolve()),
+        ]
+    )
 
     if getattr(args, "source", None):
         command.extend(["--source", str(args.source)])
@@ -75,10 +107,12 @@ def add_common_snapshot_args(
         command.append("--compact")
 
     if include_archive:
-        command.extend([
-            "--archive-dir",
-            str(Path(args.archive_dir).resolve()),
-        ])
+        command.extend(
+            [
+                "--archive-dir",
+                str(Path(args.archive_dir).expanduser().resolve()),
+            ]
+        )
 
         if getattr(args, "no_archive", False):
             command.append("--no-archive")
@@ -92,10 +126,25 @@ def add_common_snapshot_args(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="export.py",
-        description="ZZX-Labs Bitnodes export wrapper for JSON, CSV, XML, Redis, auto, and all-format exports.",
+        description=(
+            "ZZX-Labs Bitnodes export wrapper. Supports canonical DB-first dataplane, "
+            "MariaDB/SQLite database artifacts, JSON, CSV, XML, Redis, auto, and legacy all-format exports."
+        ),
     )
 
     sub = parser.add_subparsers(dest="mode", required=True)
+
+    dataplane = sub.add_parser(
+        "dataplane",
+        help="Canonical DB-first export path. Produces DB shards plus compact JSON/CSV/XML/Redis artifacts.",
+    )
+    add_dataplane_args(dataplane)
+
+    db_export = sub.add_parser(
+        "db",
+        help="Direct DB artifact export using export_db.py.",
+    )
+    add_dataplane_args(db_export)
 
     redis_export = sub.add_parser(
         "redis",
@@ -111,25 +160,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     json_export = sub.add_parser(
         "json",
-        help="Export static JSON API files from a local Bitnodes snapshot JSON file.",
+        help="Legacy static JSON API export from a local Bitnodes snapshot JSON file.",
     )
     add_snapshot_parser_args(json_export, include_archive=True)
 
     csv_export = sub.add_parser(
         "csv",
-        help="Export CSV files from a local Bitnodes snapshot JSON file.",
+        help="Legacy CSV export from a local Bitnodes snapshot JSON file.",
     )
     add_snapshot_parser_args(csv_export, include_archive=False)
 
     xml_export = sub.add_parser(
         "xml",
-        help="Export XML files from a local Bitnodes snapshot JSON file.",
+        help="Legacy XML export from a local Bitnodes snapshot JSON file.",
     )
     add_snapshot_parser_args(xml_export, include_archive=False)
 
     all_export = sub.add_parser(
         "all",
-        help="Run JSON, CSV, and XML exporters from a local snapshot.",
+        help="Run legacy JSON, CSV, and XML exporters from a local snapshot.",
     )
     add_snapshot_parser_args(all_export, include_archive=True)
     all_export.add_argument(
@@ -140,36 +189,76 @@ def build_parser() -> argparse.ArgumentParser:
 
     auto = sub.add_parser(
         "auto",
-        help="Prefer JSON snapshot export when input exists; otherwise fall back to Redis export.",
+        help=(
+            "Canonical auto mode. Prefer dataplane when a snapshot exists; otherwise "
+            "fall back to Redis export."
+        ),
     )
-    add_snapshot_parser_args(auto, include_archive=True)
+    auto.add_argument("--input", default=str(DEFAULT_INPUT))
+    auto.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    auto.add_argument("--output-dir", default=str(DEFAULT_DATA_OUTPUT))
+    auto.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    auto.add_argument("--database", default=DEFAULT_DATABASE)
+    auto.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    auto.add_argument("--source", default=None)
+    auto.add_argument("--compact", action="store_true")
+    auto.add_argument("--strict", action="store_true")
     auto.add_argument("--scan-pattern", default="*")
     auto.add_argument("--scan-limit", type=int, default=250000)
     auto.add_argument("--fail-empty", action="store_true")
+    auto.add_argument("--no-gzip", action="store_true")
     auto.add_argument(
-        "--all",
+        "--legacy-all",
         action="store_true",
-        help="When JSON snapshot input exists, run JSON + CSV + XML instead of JSON only.",
+        help="When snapshot input exists, run legacy JSON + CSV + XML instead of dataplane.",
+    )
+    auto.add_argument(
+        "--legacy-json",
+        action="store_true",
+        help="When snapshot input exists, run only the legacy JSON exporter instead of dataplane.",
     )
     auto.add_argument(
         "--keep-going",
         action="store_true",
-        help="Continue later all-format exporters even if an earlier exporter fails.",
+        help="Continue later legacy exporters even if an earlier exporter fails.",
     )
 
     return parser
 
 
-def add_snapshot_parser_args(parser: argparse.ArgumentParser, *, include_archive: bool) -> None:
-    parser.add_argument("--input", default=str(DEFAULT_INPUT))
-    parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
-    parser.add_argument("--source", default=None)
-    parser.add_argument("--compact", action="store_true")
+def run_dataplane(args: argparse.Namespace, *, script: Path = DATAPLANE) -> int:
+    if not require_script(script):
+        return 1
 
-    if include_archive:
-        parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
-        parser.add_argument("--no-archive", action="store_true")
-        parser.add_argument("--no-gzip", action="store_true")
+    inputs = list(getattr(args, "input", []) or [])
+
+    if not inputs and DEFAULT_INPUT.exists():
+        inputs = [str(DEFAULT_INPUT)]
+
+    command = py(
+        script,
+        "--output-dir",
+        str(Path(args.output_dir).expanduser().resolve()),
+        "--database",
+        str(args.database),
+        "--max-bytes",
+        str(args.max_bytes),
+    )
+
+    for item in inputs:
+        command.extend(["--input", str(Path(item).expanduser().resolve())])
+
+    if getattr(args, "compact", False):
+        command.append("--compact")
+
+    if getattr(args, "strict", False):
+        command.append("--strict")
+
+    return call(command)
+
+
+def run_db_export(args: argparse.Namespace) -> int:
+    return run_dataplane(args, script=EXPORT_DB)
 
 
 def run_redis_export(args: argparse.Namespace) -> int:
@@ -179,22 +268,22 @@ def run_redis_export(args: argparse.Namespace) -> int:
     command = py(
         EXPORT_FROM_REDIS,
         "--output",
-        str(Path(args.output).resolve()),
+        str(Path(args.output).expanduser().resolve()),
         "--archive-dir",
-        str(Path(args.archive_dir).resolve()),
+        str(Path(args.archive_dir).expanduser().resolve()),
         "--scan-pattern",
         str(args.scan_pattern),
         "--scan-limit",
         str(args.scan_limit),
     )
 
-    if args.compact:
+    if getattr(args, "compact", False):
         command.append("--compact")
 
-    if args.no_gzip:
+    if getattr(args, "no_gzip", False):
         command.append("--no-gzip")
 
-    if args.fail_empty:
+    if getattr(args, "fail_empty", False):
         command.append("--fail-empty")
 
     return call(command)
@@ -273,6 +362,7 @@ def run_all_export(args: argparse.Namespace) -> int:
 
     if failures:
         print("[export.py] export failures:", file=sys.stderr)
+
         for name, code in failures:
             print(f"  {name}: {code}", file=sys.stderr)
 
@@ -285,10 +375,21 @@ def run_auto_export(args: argparse.Namespace) -> int:
     input_path = existing_input(args.input)
 
     if input_path is not None:
-        if getattr(args, "all", False):
+        if getattr(args, "legacy_all", False):
             return run_all_export(args)
 
-        return run_json_export(args)
+        if getattr(args, "legacy_json", False):
+            return run_json_export(args)
+
+        dp_args = argparse.Namespace(
+            input=[str(input_path)],
+            output_dir=args.output_dir,
+            database=args.database,
+            max_bytes=args.max_bytes,
+            compact=args.compact,
+            strict=args.strict,
+        )
+        return run_dataplane(dp_args)
 
     print(f"JSON input missing; falling back to Redis export: {args.input}", flush=True)
     return run_redis_export(args)
@@ -297,6 +398,12 @@ def run_auto_export(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.mode == "dataplane":
+        return run_dataplane(args)
+
+    if args.mode == "db":
+        return run_db_export(args)
 
     if args.mode == "redis":
         return run_redis_export(args)
