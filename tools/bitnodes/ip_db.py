@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import ipaddress
 import json
@@ -12,7 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 
-SCHEMA = "zzx-bitnodes-ip-db-v2"
+SCHEMA = "zzx-bitnodes-ip-db-v3"
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
@@ -42,20 +43,28 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     try:
         if not path.exists():
             return fallback
+
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
 
 
 def json_bytes(payload: Any, pretty: bool = False) -> bytes:
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=2 if pretty else None,
-        separators=None if pretty else (",", ":"),
-        sort_keys=pretty,
-    )
-    return (text + "\n").encode("utf-8")
+    return (
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            sort_keys=pretty,
+            default=str,
+        )
+        + "\n"
+    ).encode("utf-8")
 
 
 def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
@@ -65,14 +74,33 @@ def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
     tmp.replace(path)
 
 
+def write_gzip_json(path: Path, payload: Any, pretty: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as handle:
+        json.dump(
+            payload,
+            handle,
+            ensure_ascii=False,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            sort_keys=pretty,
+            default=str,
+        )
+        handle.write("\n")
+
+
 def sha256_text(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(str(text).encode("utf-8")).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def compact_key(value: str) -> str:
-    text = value.strip().lower()
+    text = str(value or "").strip().lower()
     text = text.replace("[", "").replace("]", "")
-    return re.sub(r"[^a-zA-Z0-9_.:-]+", "_", text)
+    return re.sub(r"[^a-zA-Z0-9_.:-]+", "_", text) or "unknown"
 
 
 def normalize_host(address: Any) -> str:
@@ -152,7 +180,7 @@ def classify_ip(address: Any) -> dict[str, Any]:
     network = classify_network_from_host(host)
 
     result = {
-        "schema": "zzx-bitnodes-ip-classification-v1",
+        "schema": "zzx-bitnodes-ip-classification-v2",
         "host": host,
         "network": network,
         "is_ip": False,
@@ -180,37 +208,41 @@ def classify_ip(address: Any) -> dict[str, Any]:
     except ValueError:
         return result
 
-    result.update({
-        "is_ip": True,
-        "ip_version": ip.version,
-        "is_ipv4": ip.version == 4,
-        "is_ipv6": ip.version == 6,
-        "is_private": ip.is_private,
-        "is_loopback": ip.is_loopback,
-        "is_reserved": ip.is_reserved,
-        "is_multicast": ip.is_multicast,
-        "is_global": ip.is_global,
-        "is_link_local": ip.is_link_local,
-        "is_unspecified": ip.is_unspecified,
-        "compressed": ip.compressed,
-        "exploded": ip.exploded,
-    })
+    result.update(
+        {
+            "is_ip": True,
+            "ip_version": ip.version,
+            "is_ipv4": ip.version == 4,
+            "is_ipv6": ip.version == 6,
+            "is_private": ip.is_private,
+            "is_loopback": ip.is_loopback,
+            "is_reserved": ip.is_reserved,
+            "is_multicast": ip.is_multicast,
+            "is_global": ip.is_global,
+            "is_link_local": ip.is_link_local,
+            "is_unspecified": ip.is_unspecified,
+            "compressed": ip.compressed,
+            "exploded": ip.exploded,
+        }
+    )
 
     return result
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
     current: Any = row
+
     for part in key.split("."):
         if not isinstance(current, Mapping):
             return None
         current = current.get(part)
+
     return current
 
 
 def first_value(row: Mapping[str, Any], *keys: str) -> Any:
     for key in keys:
-        value = deep_get(row, key)
+        value = deep_get(row, key) if "." in key else row.get(key)
         if value not in ("", None):
             return value
     return None
@@ -223,13 +255,17 @@ def boolish(value: Any) -> bool:
     if value in (1, "1"):
         return True
 
+    if value in (0, "0"):
+        return False
+
     text = str(value or "").strip().lower()
-    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success"}
+    return text in {"true", "yes", "y", "ok", "up", "online", "reachable", "success", "connected", "on"}
 
 
 def node_address(node: Mapping[str, Any]) -> str:
     return str(
         node.get("address")
+        or node.get("canonical_address")
         or node.get("node")
         or node.get("addr")
         or node.get("host")
@@ -296,13 +332,7 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
     nodes = payload.get("nodes")
 
     if isinstance(nodes, list):
-        out = []
-        for index, item in enumerate(nodes):
-            if isinstance(item, Mapping):
-                out.append(dict(item))
-            elif isinstance(item, list):
-                out.append(bitnodes_array_to_record(str(index), item))
-        return out
+        return extract_nodes(nodes)
 
     if isinstance(nodes, Mapping):
         output = []
@@ -315,12 +345,18 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
                 output.append({"address": str(address), "value": value})
         return output
 
-    for key in ("results", "data", "rows", "reachable", "unreachable", "peers", "node_records"):
+    for key in ("results", "data", "rows", "reachable", "unreachable", "peers", "node_records", "reachable_nodes"):
         value = payload.get(key)
         if isinstance(value, list):
             return extract_nodes(value)
         if isinstance(value, Mapping):
             return extract_nodes({"nodes": value})
+
+    for key in ("latest", "snapshot", "payload"):
+        value = payload.get(key)
+        extracted = extract_nodes(value)
+        if extracted:
+            return extracted
 
     return []
 
@@ -336,7 +372,7 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
 
     if isinstance(output.get("nodes"), Mapping):
         output["nodes"] = {
-            str(node.get("address") or index): node
+            str(node.get("canonical_address") or node.get("address") or index): node
             for index, node in enumerate(nodes)
         }
     else:
@@ -345,6 +381,7 @@ def put_nodes(payload: Any, nodes: list[dict[str, Any]]) -> Any:
     output.setdefault("metadata", {})
     if isinstance(output["metadata"], MutableMapping):
         output["metadata"]["ip_db_enriched_at"] = utc_now()
+        output["metadata"]["ip_db_schema"] = SCHEMA
 
     return output
 
@@ -353,7 +390,7 @@ def source_value(node: Mapping[str, Any], context: dict[str, Any] | None = None)
     context = context or {}
     return str(
         node.get("source")
-        or first_value(node, "metadata.source", "crawl_source")
+        or first_value(node, "metadata.source", "crawl_source", "crawler.engine")
         or context.get("source")
         or "unknown"
     )
@@ -364,16 +401,18 @@ def record_from_node(node: Mapping[str, Any], context: dict[str, Any] | None = N
     host = normalize_host(address)
 
     if not host:
+        host = normalize_host(first_value(node, "host", "hostname", "metadata.host"))
+
+    if not host:
         return None
 
     ip_data = classify_ip(host)
     now = utc_now()
     src = source_value(node, context)
-
     port_value = first_value(node, "port", "metadata.port")
 
     return {
-        "schema": "zzx-bitnodes-ip-db-record-v2",
+        "schema": "zzx-bitnodes-ip-db-record-v3",
         "host": host,
         "host_hash_sha256": sha256_text(host),
         "first_seen": first_value(node, "first_seen", "metadata.first_seen") or now,
@@ -387,9 +426,9 @@ def record_from_node(node: Mapping[str, Any], context: dict[str, Any] | None = N
         "ip_version": ip_data["ip_version"],
         "is_ipv4": ip_data["is_ipv4"],
         "is_ipv6": ip_data["is_ipv6"],
-        "is_tor": ip_data["is_tor"] or boolish(first_value(node, "is_tor", "tor.is_tor")),
-        "is_i2p": ip_data["is_i2p"] or boolish(first_value(node, "is_i2p", "i2p.is_i2p")),
-        "is_cjdns": ip_data["is_cjdns"] or boolish(first_value(node, "is_cjdns", "ipv6.is_cjdns_ipv6")),
+        "is_tor": ip_data["is_tor"] or boolish(first_value(node, "is_tor", "tor", "metadata.is_tor", "metadata.tor")),
+        "is_i2p": ip_data["is_i2p"] or boolish(first_value(node, "is_i2p", "i2p", "metadata.is_i2p", "metadata.i2p")),
+        "is_cjdns": ip_data["is_cjdns"] or boolish(first_value(node, "is_cjdns", "metadata.is_cjdns")),
         "is_dns": ip_data["is_dns"],
         "is_global": ip_data["is_global"],
         "is_private": ip_data["is_private"],
@@ -397,22 +436,26 @@ def record_from_node(node: Mapping[str, Any], context: dict[str, Any] | None = N
         "is_reserved": ip_data["is_reserved"],
         "is_multicast": ip_data["is_multicast"],
         "is_link_local": ip_data["is_link_local"],
-        "suspected_vpn": boolish(first_value(node, "suspected_vpn", "is_vpn", "vpn.suspected_vpn", "vpn.is_vpn", "metadata.suspected_vpn")),
-        "suspected_proxy": boolish(first_value(node, "suspected_proxy", "is_proxy", "proxy.suspected_proxy", "proxy.is_proxy", "metadata.suspected_proxy")),
-        "policy_restricted": boolish(first_value(node, "policy_restricted", "is_policy_restricted_node", "sanctions_data.is_policy_restricted", "metadata.policy_restricted")),
-        "policy_watch": boolish(first_value(node, "policy_watch", "is_policy_watch_node", "sanctions_data.is_policy_watch", "metadata.policy_watch")),
-        "country": first_value(node, "country_code", "country", "geoip.country_code", "geoip_data.country_code"),
+        "suspected_vpn": boolish(first_value(node, "suspected_vpn", "is_vpn", "vpn", "metadata.suspected_vpn", "metadata.is_vpn")),
+        "suspected_proxy": boolish(first_value(node, "suspected_proxy", "is_proxy", "proxy", "metadata.suspected_proxy", "metadata.is_proxy")),
+        "policy_restricted": boolish(first_value(node, "policy_restricted", "is_policy_restricted_node", "metadata.policy_restricted", "metadata.is_policy_restricted_node")),
+        "policy_watch": boolish(first_value(node, "policy_watch", "is_policy_watch_node", "metadata.policy_watch")),
+        "country": first_value(node, "country_code", "country", "geoip.country_code", "geoip_data.country_code", "metadata.country", "metadata.country_code"),
         "country_name": first_value(node, "country_name", "geoip.country_name", "geoip_data.country_name"),
-        "region": first_value(node, "region", "territory", "state", "province", "geoip.region"),
-        "city": first_value(node, "city", "geoip.city", "city_data.city"),
-        "county": first_value(node, "county", "county_data.county"),
-        "postal_code": first_value(node, "postal_code", "zip", "postal", "postal_data.postal_code"),
-        "timezone": first_value(node, "timezone", "timezone_data.timezone", "geoip.timezone"),
-        "latitude": first_value(node, "latitude", "lat", "geoip.latitude", "geoloc.latitude"),
-        "longitude": first_value(node, "longitude", "lon", "lng", "geoip.longitude", "geoloc.longitude"),
-        "asn": first_value(node, "asn", "isp.asn", "geoip.asn", "isp_data.asn"),
-        "organization": first_value(node, "organization", "org", "isp.organization", "geoip.organization"),
-        "provider": first_value(node, "provider", "isp.provider", "geoip.provider"),
+        "continent": first_value(node, "continent", "metadata.continent"),
+        "region": first_value(node, "region", "territory", "state", "province", "geoip.region", "metadata.region"),
+        "city": first_value(node, "city", "geoip.city", "city_data.city", "metadata.city"),
+        "county": first_value(node, "county", "county_data.county", "metadata.county"),
+        "postal_code": first_value(node, "postal_code", "zip", "postal", "postal_data.postal_code", "metadata.zip"),
+        "timezone": first_value(node, "timezone", "timezone_data.timezone", "geoip.timezone", "metadata.timezone"),
+        "latitude": first_value(node, "latitude", "lat", "geoip.latitude", "geoloc.latitude", "metadata.latitude"),
+        "longitude": first_value(node, "longitude", "lon", "lng", "geoip.longitude", "geoloc.longitude", "metadata.longitude"),
+        "asn": first_value(node, "asn", "isp.asn", "geoip.asn", "isp_data.asn", "metadata.asn"),
+        "organization": first_value(node, "organization", "org", "isp.organization", "geoip.organization", "metadata.organization"),
+        "provider": first_value(node, "provider", "isp.provider", "geoip.provider", "metadata.provider"),
+        "provider_kind": first_value(node, "provider_kind", "metadata.provider_kind"),
+        "organization_type": first_value(node, "organization_type", "metadata.organization_type"),
+        "network_classification": first_value(node, "network_classification", "metadata.network_classification"),
         "agent": first_value(node, "agent", "user_agent"),
         "protocol_version": first_value(node, "protocol_version", "protocol"),
         "height": first_value(node, "height"),
@@ -451,13 +494,12 @@ def merge_record(existing: Mapping[str, Any] | None, incoming: Mapping[str, Any]
             merged[key] = value
 
     merged.setdefault("first_seen", incoming.get("first_seen") or now)
-
     return merged
 
 
 def default_index() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-ip-db-index-v2",
+        "schema": "zzx-bitnodes-ip-db-index-v3",
         "generated_at": utc_now(),
         "updated_at": utc_now(),
         "segment_count": 0,
@@ -501,7 +543,7 @@ def split_records_into_segments(
 
     def payload_for(number: int, recs: Mapping[str, Any]) -> dict[str, Any]:
         return {
-            "schema": "zzx-bitnodes-ip-db-segment-v2",
+            "schema": "zzx-bitnodes-ip-db-segment-v3",
             "generated_at": utc_now(),
             "segment": number,
             "record_count": len(recs),
@@ -511,8 +553,7 @@ def split_records_into_segments(
     for host, record in sorted(records.items()):
         tentative = dict(current_records)
         tentative[host] = record
-        tentative_payload = payload_for(segment_number, tentative)
-        tentative_size = len(json_bytes(tentative_payload, pretty=False))
+        tentative_size = len(json_bytes(payload_for(segment_number, tentative), pretty=False))
 
         if current_records and tentative_size > max_segment_bytes:
             segments.append(payload_for(segment_number, current_records))
@@ -535,10 +576,14 @@ def write_segments(
     max_segment_bytes: int,
     segment_prefix: str = DEFAULT_SEGMENT_PREFIX,
     pretty: bool = True,
+    gzip_segments: bool = True,
 ) -> dict[str, Any]:
     archive_dir.mkdir(parents=True, exist_ok=True)
 
     for old in archive_dir.glob(f"{segment_prefix}.*.json"):
+        old.unlink()
+
+    for old in archive_dir.glob(f"{segment_prefix}.*.json.gz"):
         old.unlink()
 
     segments = split_records_into_segments(records, max_segment_bytes=max_segment_bytes)
@@ -555,14 +600,24 @@ def write_segments(
 
         write_json(path, segment, pretty=pretty)
 
-        entries.append({
+        entry = {
             "segment": number,
             "filename": filename,
             "path": str(path),
             "size_bytes": path.stat().st_size,
-            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "sha256": sha256_file(path),
             "record_count": segment["record_count"],
-        })
+        }
+
+        if gzip_segments:
+            gz_path = path.with_suffix(path.suffix + ".gz")
+            write_gzip_json(gz_path, segment, pretty=False)
+            entry["gzip_filename"] = gz_path.name
+            entry["gzip_path"] = str(gz_path)
+            entry["gzip_size_bytes"] = gz_path.stat().st_size
+            entry["gzip_sha256"] = sha256_file(gz_path)
+
+        entries.append(entry)
 
     index["segments"] = entries
     index["latest_segment"] = entries[-1]["filename"] if entries else ""
@@ -585,11 +640,15 @@ def build_stats(records: Mapping[str, Any]) -> dict[str, Any]:
         "suspected_proxy": 0,
         "policy_restricted": 0,
         "policy_watch": 0,
+        "global_ip": 0,
+        "private_ip": 0,
+        "reserved_ip": 0,
     }
 
     countries: dict[str, int] = {}
     asns: dict[str, int] = {}
     providers: dict[str, int] = {}
+    networks: dict[str, int] = {}
 
     for record in records.values():
         if not isinstance(record, Mapping):
@@ -597,9 +656,15 @@ def build_stats(records: Mapping[str, Any]) -> dict[str, Any]:
 
         network = str(record.get("network") or "unknown")
         counters[network if network in counters else "unknown"] += 1
+        networks[network] = networks.get(network, 0) + 1
 
-        for key in ("suspected_vpn", "suspected_proxy", "policy_restricted", "policy_watch"):
-            counters[key] += int(bool(record.get(key)))
+        counters["suspected_vpn"] += int(bool(record.get("suspected_vpn")))
+        counters["suspected_proxy"] += int(bool(record.get("suspected_proxy")))
+        counters["policy_restricted"] += int(bool(record.get("policy_restricted")))
+        counters["policy_watch"] += int(bool(record.get("policy_watch")))
+        counters["global_ip"] += int(bool(record.get("is_global")))
+        counters["private_ip"] += int(bool(record.get("is_private")))
+        counters["reserved_ip"] += int(bool(record.get("is_reserved")))
 
         country = str(record.get("country") or "Unknown")
         asn = str(record.get("asn") or "Unknown")
@@ -616,11 +681,12 @@ def build_stats(records: Mapping[str, Any]) -> dict[str, Any]:
         ]
 
     return {
-        "schema": "zzx-bitnodes-ip-db-stats-v2",
+        "schema": "zzx-bitnodes-ip-db-stats-v3",
         "generated_at": utc_now(),
         "total_unique_hosts": len(records),
         "counts": counters,
         "top": {
+            "networks": top(networks),
             "countries": top(countries),
             "asns": top(asns),
             "providers": top(providers),
@@ -639,6 +705,7 @@ def update_ipdb(
     source: str = "",
     pretty: bool = True,
     write_archive: bool = True,
+    gzip_segments: bool = True,
 ) -> dict[str, Any]:
     records = load_ipdb(latest_path)
     changed = 0
@@ -671,6 +738,7 @@ def update_ipdb(
             index_path=index_path,
             max_segment_bytes=max_segment_bytes,
             pretty=pretty,
+            gzip_segments=gzip_segments,
         )
     else:
         index = read_json(index_path, fallback=default_index())
@@ -679,7 +747,7 @@ def update_ipdb(
         write_json(index_path, index, pretty=True)
 
     return {
-        "schema": "zzx-bitnodes-ip-db-update-report-v2",
+        "schema": "zzx-bitnodes-ip-db-update-report-v3",
         "updated_at": utc_now(),
         "input_nodes": len(nodes),
         "changed_records": changed,
@@ -695,6 +763,9 @@ def update_ipdb(
 def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     address = node_address(node)
     ip_data = classify_ip(address)
+
+    if not ip_data.get("host"):
+        ip_data = classify_ip(first_value(node, "host", "hostname", "metadata.host"))
 
     node["ip"] = ip_data
     node["host"] = ip_data.get("host") or normalize_host(address)
@@ -712,12 +783,27 @@ def enrich_node(node: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     node["is_i2p"] = ip_data["is_i2p"] or boolish(node.get("is_i2p"))
     node["is_cjdns"] = ip_data["is_cjdns"] or boolish(node.get("is_cjdns"))
 
+    metadata = node.get("metadata")
+    if not isinstance(metadata, MutableMapping):
+        metadata = {}
+        node["metadata"] = metadata
+
+    metadata["ip"] = ip_data
+    metadata["host"] = node["host"]
+    metadata["network"] = node["network"]
+    metadata["is_ipv4"] = node["is_ipv4"]
+    metadata["is_ipv6"] = node["is_ipv6"]
+    metadata["is_tor"] = node["is_tor"]
+    metadata["is_i2p"] = node["is_i2p"]
+    metadata["is_cjdns"] = node["is_cjdns"]
+
     node.setdefault("enrichment", {})
-    node["enrichment"]["ip_db"] = {
-        "schema": SCHEMA,
-        "status": "ok",
-        "updated_at": utc_now(),
-    }
+    if isinstance(node["enrichment"], MutableMapping):
+        node["enrichment"]["ip_db"] = {
+            "schema": SCHEMA,
+            "status": "ok",
+            "updated_at": utc_now(),
+        }
 
     return node
 
@@ -747,13 +833,15 @@ def enrich_payload(payload: Any) -> Any:
 
     nodes = extract_nodes(payload)
     enriched_nodes = enrich_nodes(nodes)
-    output = put_nodes(payload, enriched_nodes)
+    return put_nodes(payload, enriched_nodes)
 
-    output.setdefault("metadata", {})
-    if isinstance(output["metadata"], MutableMapping):
-        output["metadata"]["ip_db_enriched_at"] = utc_now()
 
-    return output
+def enrich(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload)
+
+
+def process(payload: Any, context: dict[str, Any] | None = None) -> Any:
+    return enrich_payload(payload)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -774,6 +862,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", default="")
     parser.add_argument("--update-db", action="store_true")
     parser.add_argument("--no-archive", action="store_true")
+    parser.add_argument("--no-gzip", action="store_true")
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--report", default="")
     parser.add_argument("--manifest", default="", help="Legacy compatibility argument; ignored.")
@@ -801,7 +890,7 @@ def main() -> int:
     nodes = extract_nodes(enriched)
 
     report = {
-        "schema": "zzx-bitnodes-ip-db-run-report-v2",
+        "schema": "zzx-bitnodes-ip-db-run-report-v3",
         "updated_at": utc_now(),
         "input": str(Path(args.input)),
         "output": str(Path(args.output)),
@@ -825,6 +914,7 @@ def main() -> int:
             source=args.source,
             pretty=not args.compact,
             write_archive=not args.no_archive,
+            gzip_segments=not args.no_gzip,
         )
 
     if args.report:
