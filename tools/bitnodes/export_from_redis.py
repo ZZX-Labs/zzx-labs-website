@@ -48,6 +48,7 @@ def write_json(path: Path, payload: Any, *, compact: bool = False) -> None:
             indent=None if compact else 2,
             separators=(",", ":") if compact else None,
             sort_keys=not compact,
+            default=str,
         )
         + "\n",
         encoding="utf-8",
@@ -133,7 +134,7 @@ def safe_int(value: Any, default: int | None = None) -> int | None:
         if value in ("", None):
             return default
 
-        return int(value)
+        return int(float(value))
     except Exception:
         return default
 
@@ -188,7 +189,7 @@ def address_network(address: str) -> str:
     return "dns" if host else "unknown"
 
 
-def normalize_node_array(row: list[Any]) -> list[Any]:
+def normalize_node_array(row: list[Any], *, source: str) -> list[Any]:
     output = list(row)
 
     while len(output) < 20:
@@ -198,8 +199,9 @@ def normalize_node_array(row: list[Any]) -> list[Any]:
         output[19] = {}
 
     metadata = output[19]
-    metadata.setdefault("source", "originalbitnodes")
-    metadata.setdefault("crawler", "originalbitnodes")
+    metadata.setdefault("source", source)
+    metadata.setdefault("crawler", source)
+    metadata.setdefault("source_type", "original-bitnodes-redis")
     metadata.setdefault("redis_exported_at", utc_iso())
 
     return output
@@ -213,7 +215,7 @@ def pick(value: dict[str, Any], *keys: str, default: Any = None) -> Any:
     return default
 
 
-def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
+def dict_to_node_array(value: dict[str, Any], *, source: str) -> list[Any]:
     metadata = dict(value.get("metadata", {})) if isinstance(value.get("metadata"), dict) else {}
 
     address = clean_address(
@@ -270,8 +272,9 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
     metadata.setdefault("zip", value.get("zip") or value.get("postal_code"))
     metadata.setdefault("timezone", value.get("timezone"))
 
-    metadata.setdefault("source", "originalbitnodes")
-    metadata.setdefault("crawler", "originalbitnodes")
+    metadata.setdefault("source", source)
+    metadata.setdefault("crawler", source)
+    metadata.setdefault("source_type", "original-bitnodes-redis")
     metadata.setdefault("redis_exported_at", utc_iso())
 
     return [
@@ -298,7 +301,7 @@ def dict_to_node_array(value: dict[str, Any]) -> list[Any]:
     ]
 
 
-def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
+def normalize_nodes_object(raw: Any, *, source: str) -> dict[str, list[Any]]:
     nodes: dict[str, list[Any]] = {}
 
     if isinstance(raw, dict):
@@ -307,10 +310,10 @@ def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
 
         for address, value in raw.items():
             if isinstance(value, list):
-                nodes[str(address)] = normalize_node_array(value)
+                nodes[str(address)] = normalize_node_array(value, source=source)
             elif isinstance(value, dict):
                 node_address = value.get("address") or value.get("node") or value.get("addr") or address
-                nodes[str(node_address)] = dict_to_node_array(value)
+                nodes[str(node_address)] = dict_to_node_array(value, source=source)
 
     elif isinstance(raw, list):
         for item in raw:
@@ -320,16 +323,16 @@ def normalize_nodes_object(raw: Any) -> dict[str, list[Any]]:
             address = item.get("address") or item.get("node") or item.get("addr") or item.get("host")
 
             if address:
-                nodes[str(address)] = dict_to_node_array(item)
+                nodes[str(address)] = dict_to_node_array(item, source=source)
 
     return {
-        clean_address(address): normalize_node_array(row)
+        clean_address(address): normalize_node_array(row, source=source)
         for address, row in nodes.items()
         if clean_address(address)
     }
 
 
-def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
+def extract_nodes_from_known_keys(r, *, source: str) -> dict[str, list[Any]]:
     candidate_keys = [
         "nodes",
         "nodes:latest",
@@ -365,10 +368,10 @@ def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
                 parsed = try_json(value)
 
                 if isinstance(parsed, list):
-                    nodes[str(address)] = normalize_node_array(parsed)
+                    nodes[str(address)] = normalize_node_array(parsed, source=source)
                 elif isinstance(parsed, dict):
                     node_address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or address
-                    nodes[str(node_address)] = dict_to_node_array(parsed)
+                    nodes[str(node_address)] = dict_to_node_array(parsed, source=source)
 
             if nodes:
                 return nodes
@@ -377,13 +380,13 @@ def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
             parsed = try_json(r.get(key))
 
             if isinstance(parsed, dict) and "nodes" in parsed:
-                nodes = normalize_nodes_object(parsed["nodes"])
+                nodes = normalize_nodes_object(parsed["nodes"], source=source)
 
                 if nodes:
                     return nodes
 
             if isinstance(parsed, dict):
-                nodes = normalize_nodes_object(parsed)
+                nodes = normalize_nodes_object(parsed, source=source)
 
                 if nodes:
                     return nodes
@@ -396,7 +399,7 @@ def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
             else:
                 values = list(r.lrange(key, 0, -1))
 
-            nodes = normalize_nodes_object([try_json(item) for item in values])
+            nodes = normalize_nodes_object([try_json(item) for item in values], source=source)
 
             if nodes:
                 return nodes
@@ -404,7 +407,13 @@ def extract_nodes_from_known_keys(r) -> dict[str, list[Any]]:
     return {}
 
 
-def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 1000000) -> dict[str, list[Any]]:
+def extract_nodes_by_scan(
+    r,
+    *,
+    source: str,
+    scan_pattern: str = "*",
+    scan_limit: int = 1000000,
+) -> dict[str, list[Any]]:
     nodes: dict[str, list[Any]] = {}
     scanned = 0
 
@@ -423,22 +432,22 @@ def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 1000000)
                 parsed = try_json(value)
 
                 if isinstance(parsed, list):
-                    nodes[str(address)] = normalize_node_array(parsed)
+                    nodes[str(address)] = normalize_node_array(parsed, source=source)
                 elif isinstance(parsed, dict):
                     node_address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or address
-                    nodes[str(node_address)] = dict_to_node_array(parsed)
+                    nodes[str(node_address)] = dict_to_node_array(parsed, source=source)
 
         elif key_type == "string":
             parsed = try_json(r.get(key))
 
             if isinstance(parsed, dict) and "nodes" in parsed:
-                nodes.update(normalize_nodes_object(parsed["nodes"]))
+                nodes.update(normalize_nodes_object(parsed["nodes"], source=source))
 
             elif isinstance(parsed, dict):
                 address = parsed.get("address") or parsed.get("node") or parsed.get("addr") or parsed.get("host")
 
                 if address:
-                    nodes[str(address)] = dict_to_node_array(parsed)
+                    nodes[str(address)] = dict_to_node_array(parsed, source=source)
 
         elif key_type in {"set", "zset", "list"}:
             if key_type == "set":
@@ -448,22 +457,33 @@ def extract_nodes_by_scan(r, scan_pattern: str = "*", scan_limit: int = 1000000)
             else:
                 values = list(r.lrange(key, 0, -1))
 
-            nodes.update(normalize_nodes_object([try_json(item) for item in values]))
+            nodes.update(normalize_nodes_object([try_json(item) for item in values], source=source))
 
     return {
-        clean_address(address): normalize_node_array(row)
+        clean_address(address): normalize_node_array(row, source=source)
         for address, row in nodes.items()
         if clean_address(address)
     }
 
 
-def extract_nodes_from_redis(r, scan_pattern: str = "*", scan_limit: int = 1000000) -> dict[str, list[Any]]:
-    nodes = extract_nodes_from_known_keys(r)
+def extract_nodes_from_redis(
+    r,
+    *,
+    source: str,
+    scan_pattern: str = "*",
+    scan_limit: int = 1000000,
+) -> dict[str, list[Any]]:
+    nodes = extract_nodes_from_known_keys(r, source=source)
 
     if nodes:
         return nodes
 
-    return extract_nodes_by_scan(r, scan_pattern=scan_pattern, scan_limit=scan_limit)
+    return extract_nodes_by_scan(
+        r,
+        source=source,
+        scan_pattern=scan_pattern,
+        scan_limit=scan_limit,
+    )
 
 
 def latest_height(nodes: dict[str, list[Any]]) -> int | None:
@@ -477,7 +497,7 @@ def latest_height(nodes: dict[str, list[Any]]) -> int | None:
 
 
 def metadata_of(row: list[Any]) -> dict[str, Any]:
-    row = normalize_node_array(row)
+    row = normalize_node_array(row, source="originalbitnodes")
     return row[19] if isinstance(row[19], dict) else {}
 
 
@@ -552,13 +572,13 @@ def build_latest_payload(nodes: dict[str, list[Any]], source: str) -> dict[str, 
     }
 
     return {
-        "schema": "zzx-bitnodes-redis-export-v4",
+        "schema": "zzx-bitnodes-redis-ingest-v5",
         "source": source,
         "crawler": {
             "engine": source,
             "generated_at": utc_iso(timestamp),
             "generator": "export_from_redis.py",
-            "schema_version": 4,
+            "schema_version": 5,
         },
         "timestamp": timestamp,
         "updated_at": utc_iso(timestamp),
@@ -572,7 +592,7 @@ def build_latest_payload(nodes: dict[str, list[Any]], source: str) -> dict[str, 
         "dataplane": {
             "enabled": True,
             "canonical_output": "bitcoin/bitnodes/api/data",
-            "policy": "Redis is an ingest source. DB/dataplane artifacts are canonical.",
+            "policy": "Redis is ingest only. export_redis.py handles Redis rebuild exports. DB/dataplane artifacts are canonical.",
         },
         "nodes": nodes,
     }
@@ -620,11 +640,11 @@ def export_empty_api(
     dataplane_dir: Path,
     database: str,
     max_bytes: int,
+    source: str,
     compact: bool = False,
-    no_gzip: bool = False,
     strict: bool = False,
 ) -> int:
-    latest = build_latest_payload({}, source="originalbitnodes-redis-empty")
+    latest = build_latest_payload({}, source=f"{source}-redis-empty")
 
     output.mkdir(parents=True, exist_ok=True)
     archive_dir.mkdir(parents=True, exist_ok=True)
@@ -633,14 +653,15 @@ def export_empty_api(
     write_json(latest_path, latest, compact=compact)
 
     pointer = {
-        "schema": "zzx-bitnodes-redis-empty-pointer-v1",
+        "schema": "zzx-bitnodes-redis-empty-pointer-v2",
         "source": latest["source"],
         "generated_at": utc_iso(),
         "latest": str(latest_path),
         "dataplane": str(dataplane_dir),
         "node_count": 0,
-        "policy": "Empty Redis export. No full snapshot fan-out written.",
+        "policy": "Empty Redis ingest. No full snapshot fan-out written.",
     }
+
     write_json(archive_dir / "latest.json", pointer, compact=compact)
 
     if strict:
@@ -664,10 +685,10 @@ def export_static_api(
     dataplane_dir: Path,
     database: str,
     max_bytes: int,
+    source: str,
     scan_pattern: str = "*",
     scan_limit: int = 1000000,
     compact: bool = False,
-    no_gzip: bool = False,
     empty_on_failure: bool = True,
     strict: bool = False,
 ) -> int:
@@ -684,8 +705,8 @@ def export_static_api(
                 dataplane_dir=dataplane_dir,
                 database=database,
                 max_bytes=max_bytes,
+                source=source,
                 compact=compact,
-                no_gzip=no_gzip,
                 strict=strict,
             )
 
@@ -693,11 +714,12 @@ def export_static_api(
 
     nodes = extract_nodes_from_redis(
         r,
+        source=source,
         scan_pattern=scan_pattern,
         scan_limit=scan_limit,
     )
 
-    latest = build_latest_payload(nodes, source="originalbitnodes")
+    latest = build_latest_payload(nodes, source=source)
 
     output.mkdir(parents=True, exist_ok=True)
     archive_dir.mkdir(parents=True, exist_ok=True)
@@ -706,7 +728,7 @@ def export_static_api(
     write_json(latest_path, latest, compact=compact)
 
     archive_pointer = {
-        "schema": "zzx-bitnodes-redis-export-pointer-v1",
+        "schema": "zzx-bitnodes-redis-ingest-pointer-v2",
         "source": latest["source"],
         "generated_at": utc_iso(),
         "latest": str(latest_path),
@@ -714,8 +736,9 @@ def export_static_api(
         "node_count": len(nodes),
         "reachable_nodes": latest["reachable_nodes"],
         "latest_height": latest["latest_height"],
-        "policy": "Redis export writes latest.json for interchange only. Dataplane is canonical.",
+        "policy": "Redis ingest writes latest.json for interchange only. Dataplane is canonical.",
     }
+
     write_json(archive_dir / "latest.json", archive_pointer, compact=compact)
 
     code = run_dataplane(
@@ -731,7 +754,7 @@ def export_static_api(
         return code
 
     print(
-        "redis export complete: "
+        "redis ingest complete: "
         f"{len(nodes)} nodes, "
         f"reachable={latest['reachable_nodes']}, "
         f"latest_height={latest['latest_height']}, "
@@ -744,7 +767,11 @@ def export_static_api(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export classic Redis-backed Bitnodes crawler data into the ZZX DB-first dataplane."
+        description=(
+            "Ingest classic Redis-backed Bitnodes crawler data into ZZX Bitnodes. "
+            "This reads Redis and writes latest.json plus DB-first dataplane artifacts. "
+            "Use export_redis.py for exporting dataplane data back into Redis rebuild files."
+        )
     )
 
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
@@ -752,10 +779,10 @@ def main() -> int:
     parser.add_argument("--dataplane-dir", default=str(DEFAULT_DATAPLANE))
     parser.add_argument("--database", default=DEFAULT_DATABASE)
     parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    parser.add_argument("--source", default="originalbitnodes")
     parser.add_argument("--scan-pattern", default="*")
     parser.add_argument("--scan-limit", type=int, default=1000000)
     parser.add_argument("--compact", action="store_true")
-    parser.add_argument("--no-gzip", action="store_true")
     parser.add_argument("--fail-empty", action="store_true")
     parser.add_argument("--strict", action="store_true")
 
@@ -767,10 +794,10 @@ def main() -> int:
         dataplane_dir=Path(args.dataplane_dir).resolve(),
         database=str(args.database),
         max_bytes=int(args.max_bytes),
+        source=str(args.source),
         scan_pattern=args.scan_pattern,
         scan_limit=args.scan_limit,
         compact=args.compact,
-        no_gzip=args.no_gzip,
         empty_on_failure=not args.fail_empty,
         strict=args.strict,
     )
