@@ -25,6 +25,7 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   ACTIONS_STEP_DEBUG: "false"
+
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
   BITNODES_DATA: bitcoin/bitnodes/data
@@ -33,10 +34,12 @@ env:
   BITNODES_GEOIP: bitcoin/bitnodes/data/geoip
   BITNODES_MAPS: bitcoin/bitnodes/maps
   BITNODES_LIVE_MAP: bitcoin/bitnodes/live-map
+
   MAX_PUBLIC_JSON_BYTES: "24000000"
   MAX_COMMIT_FILES: "600"
   MAX_DELETIONS: "2500000"
   MIN_MAP_FEATURES: "1"
+
   PYTHONUNBUFFERED: "1"
   BITNODES_REQUIRE_GEO_COORDINATES: "true"
 
@@ -169,7 +172,7 @@ jobs:
           for FILE in "${REQUIRED[@]}" "${MOVED_MODULES[@]}"; do
             if [ ! -f "${FILE}" ]; then
               echo "MISSING REQUIRED FILE: ${FILE}"
-              find tools/bitnodes -maxdepth 3 -type f | sort
+              find tools/bitnodes -maxdepth 4 -type f | sort
               exit 1
             fi
             python -m py_compile "${FILE}"
@@ -178,6 +181,8 @@ jobs:
           for FILE in "${OPTIONAL_NEW_MODULES[@]}"; do
             if [ -f "${FILE}" ]; then
               python -m py_compile "${FILE}"
+            else
+              echo "optional missing: ${FILE}"
             fi
           done
 
@@ -313,9 +318,7 @@ jobs:
 
           python tools/bitnodes/build_geo_indexes.py \
             --geo-root "${BITNODES_GEO}" \
-            --download \
-            --compact \
-            --report "${BITNODES_GEO}/manifests/geo-index-build-report.json"
+            --download
 
       - name: Run ZZX Bitnodes crawler window
         shell: bash
@@ -400,7 +403,7 @@ jobs:
           set -euo pipefail
           test -f "${BITNODES_API}/originalbitnodes/latest.json"
 
-      - name: Enrich node datasets with GeoIP coordinates
+      - name: Enrich node datasets with GeoIP and GeoLoc classification
         shell: bash
         run: |
           set -euo pipefail
@@ -420,6 +423,10 @@ jobs:
               --asn-db "${BITNODES_GEOIP}/dbip-asn-lite.mmdb" \
               --country-db "${BITNODES_GEOIP}/dbip-country-lite.mmdb" \
               --geo-root "${BITNODES_GEO}" \
+              --land-parcel-dir "${BITNODES_GEO}/parcels" \
+              --building-perimeter-dir "${BITNODES_GEO}/buildings" \
+              --asn-footprint-dir "${BITNODES_GEO}/asn-footprints" \
+              --boundary-dir "${BITNODES_GEO}/boundaries" \
               --modules "${MODULES}" \
               --compact
 
@@ -600,6 +607,83 @@ jobs:
             --compact \
             --strict
 
+      - name: Backup MariaDB shards to private repo
+        if: ${{ secrets.BITNODES_BACKUP_REPO != '' && secrets.BITNODES_BACKUP_TOKEN != '' }}
+        shell: bash
+        env:
+          BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
+          BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          TODAY="$(date -u +%Y-%m-%d)"
+          RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          BACKUP_ROOT="$(mktemp -d)"
+
+          git clone \
+            "https://x-access-token:${BITNODES_BACKUP_TOKEN}@github.com/${BITNODES_BACKUP_REPO}.git" \
+            "${BACKUP_ROOT}"
+
+          mkdir -p \
+            "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}" \
+            "${BACKUP_ROOT}/bitnodes/latest" \
+            "${BACKUP_ROOT}/bitnodes/manifests"
+
+          cp -av "${BITNODES_API}/data/"*.sql.gz "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}/" || true
+          cp -av "${BITNODES_API}/data/"*.json "${BACKUP_ROOT}/bitnodes/latest/" || true
+
+          python - <<PY
+          import json
+          import time
+          from pathlib import Path
+
+          root = Path("${BACKUP_ROOT}")
+          run_dir = root / "bitnodes" / "mariadb" / "${TODAY}" / "${RUN_ID}"
+          manifest_dir = root / "bitnodes" / "manifests"
+          manifest_dir.mkdir(parents=True, exist_ok=True)
+
+          manifest = {
+              "schema": "zzx-bitnodes-private-mariadb-backup-v1",
+              "generated_at": int(time.time()),
+              "date": "${TODAY}",
+              "run_id": "${RUN_ID}",
+              "source_repo": "${GITHUB_REPOSITORY}",
+              "source_sha": "${GITHUB_SHA}",
+              "files": []
+          }
+
+          for path in sorted(run_dir.glob("*.sql.gz")):
+              manifest["files"].append({
+                  "path": str(path.relative_to(root)),
+                  "size_bytes": path.stat().st_size
+              })
+
+          (manifest_dir / f"${TODAY}-${RUN_ID}.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8"
+          )
+
+          (root / "bitnodes" / "latest" / "private-backup-latest.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8"
+          )
+          PY
+
+          cd "${BACKUP_ROOT}"
+
+          git config user.name "zzx-labs-bitnodes-bot"
+          git config user.email "actions@github.com"
+
+          git add bitnodes
+
+          if git diff --cached --quiet; then
+            echo "No private MariaDB backup changes."
+            exit 0
+          fi
+
+          git commit -m "Backup Bitnodes MariaDB shards ${TODAY} ${RUN_ID}"
+          git push origin HEAD:main
+
       - name: Build maps and live-map from real coordinate data
         shell: bash
         run: |
@@ -660,7 +744,7 @@ jobs:
               raise SystemExit(f"map-vectors.json contains too few points: {len(points)} < {min_features}")
           PY
 
-      - name: Prune private runtime, legacy fanout, and oversized artifacts
+      - name: Prune private runtime, raw archives, MMDBs, and legacy fanout
         shell: bash
         run: |
           set -euo pipefail
@@ -726,8 +810,9 @@ jobs:
                   "live_map": "../live-map/data/"
               },
               "policy": {
-                  "json": "rolling latest files only",
+                  "json": "rolling latest only; no historical JSON fanout",
                   "database": "24MB-safe gzipped MariaDB SQL shards",
+                  "private_backup": "MariaDB shards are optionally mirrored to private backup repo",
                   "ipdb": "current index/latest/stats only",
                   "no_credentials": True,
                   "map_coordinates": "real GeoIP/enriched coordinates required"
@@ -777,34 +862,6 @@ jobs:
           ]
 
           bad = []
-
-          allow_names = {
-              "latest.json",
-              "index.json",
-              "manifest.json",
-              "mariadb_manifest.json",
-              "sqlite_manifest.json",
-              "enrichment-report.json",
-              "map-settings.json",
-              "map-settings-profiles.json",
-              "map-theme.json",
-              "map-themes.json",
-              "map-tile-providers.json",
-              "map-fonts.json",
-              "map-layers.json",
-              "map-overlays.json",
-              "map-vectors.json",
-              "map-points.geojson",
-              "map-polygons.geojson",
-              "map-build-report.json",
-              "live-map-build-report.json",
-              "vector-types.json",
-              "ip_db.latest.json",
-              "ip_db.index.json",
-              "ip_db.stats.json",
-              "ip_db.push-report.json",
-              "ip_db.run-report.json",
-          }
 
           for root in roots:
               if not root.exists():
@@ -876,7 +933,7 @@ jobs:
           printf '%s\n' "Staged deletions: ${DELETIONS}"
 
           if [ "${CHANGED}" -gt "${MAX_COMMIT_FILES}" ]; then
-            git diff --cached --name-only | sed -n '1,200p'
+            git diff --cached --name-only | sed -n '1,240p'
             exit 1
           fi
 
@@ -891,7 +948,7 @@ jobs:
           fi
 
           if git diff --cached --name-only | grep -E '^bitcoin/bitnodes/data/geoip/archive/ip_db\.[0-9]+\.json$'; then
-            printf '%s\n' "Refusing to publish segmented IPDB archive into public website repo."
+            printf '%s\n' "Refusing public segmented IPDB archive."
             exit 1
           fi
 
@@ -916,7 +973,7 @@ jobs:
               exit 0
             fi
 
-            printf '%s\n' "Push attempt ${attempt} failed; refreshing base and regenerating is required on next run."
+            printf '%s\n' "Push attempt ${attempt} failed. Another run or human commit advanced main; rerun from fresh origin/main."
             sleep 10
           done
 
