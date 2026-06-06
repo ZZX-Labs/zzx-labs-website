@@ -46,6 +46,10 @@ ORIGINAL_ENRICHMENT_REPORT = ORIGINAL_ENRICHED_DIR / "enrichment-report.json"
 ORIGINAL_AGGREGATE_DIR = API_DIR / "aggregate" / SOURCE
 ORIGINAL_AGGREGATE_LATEST = ORIGINAL_AGGREGATE_DIR / "latest.json"
 
+DATAPLANE_DIR = API_DIR / "data"
+DATAPLANE_DATABASE = "zzx_bitnodes"
+DATAPLANE_MAX_BYTES = 24_000_000
+
 EXPORT = TOOLS_DIR / "export.py"
 EXPORT_FROM_REDIS = TOOLS_DIR / "export_from_redis.py"
 ENRICH = TOOLS_DIR / "enrich.py"
@@ -88,13 +92,6 @@ def quarter_slug() -> str:
     return f"{now.year}-Q{quarter}"
 
 
-def snapshot_name(timestamp: int | None = None) -> str:
-    if timestamp is None:
-        timestamp = utc_ts()
-
-    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(timestamp)) + ".json"
-
-
 def ensure_dirs() -> None:
     for path in (
         BITNODES_ROOT,
@@ -104,6 +101,7 @@ def ensure_dirs() -> None:
         ARCHIVE_DIR,
         LOG_DIR,
         GEOIP_DIR,
+        DATAPLANE_DIR,
         ORIGINAL_API_DIR,
         ORIGINAL_ARCHIVE_DIR,
         ORIGINAL_STATE_DIR,
@@ -189,11 +187,7 @@ def run(
 
 
 def py(script: Path, *args: str) -> list[str]:
-    return [
-        sys.executable,
-        str(script),
-        *args,
-    ]
+    return [sys.executable, str(script), *args]
 
 
 def runtime_env() -> dict[str, str]:
@@ -234,16 +228,18 @@ def clone(repo: str = DEFAULT_REPO, branch: str = DEFAULT_BRANCH) -> int:
 
     SRC_DIR.parent.mkdir(parents=True, exist_ok=True)
 
-    return run([
-        "git",
-        "clone",
-        "--depth",
-        "1",
-        "--branch",
-        branch,
-        repo,
-        str(SRC_DIR),
-    ])
+    return run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            branch,
+            repo,
+            str(SRC_DIR),
+        ]
+    )
 
 
 def install_requirements() -> int:
@@ -323,15 +319,17 @@ def start_original(
         return 1
 
     env = runtime_env()
-    env.update({
-        "ZZX_BITNODES_LIMIT": str(limit),
-        "ZZX_BITNODES_BATCH_SIZE": str(batch_size),
-        "ZZX_BITNODES_TIMEOUT": str(timeout),
-        "ZZX_BITNODES_WORKERS": str(workers),
-        "ZZX_BITNODES_GETADDR_ROUNDS": str(getaddr_rounds),
-        "ZZX_BITNODES_DNS_SEED_LIMIT": str(dns_seed_limit),
-        "ZZX_BITNODES_COMPACT": "1" if compact else "0",
-    })
+    env.update(
+        {
+            "ZZX_BITNODES_LIMIT": str(limit),
+            "ZZX_BITNODES_BATCH_SIZE": str(batch_size),
+            "ZZX_BITNODES_TIMEOUT": str(timeout),
+            "ZZX_BITNODES_WORKERS": str(workers),
+            "ZZX_BITNODES_GETADDR_ROUNDS": str(getaddr_rounds),
+            "ZZX_BITNODES_DNS_SEED_LIMIT": str(dns_seed_limit),
+            "ZZX_BITNODES_COMPACT": "1" if compact else "0",
+        }
+    )
 
     if target.name in {"start.sh", "run.sh"}:
         return run(["bash", str(target)], cwd=SRC_DIR, env=env)
@@ -457,21 +455,20 @@ def export_all_formats(compact: bool = False) -> int:
         input_path = ORIGINAL_API_DIR / "latest.json"
 
     if not input_path.exists():
-        printf(f"Original all-format export skipped; missing {input_path}")
+        printf(f"Original dataplane export skipped; missing {input_path}")
         return 0
 
     command = py(
         EXPORT,
-        "all",
+        "dataplane",
         "--input",
         str(input_path),
-        "--output",
-        str(ORIGINAL_API_DIR),
-        "--archive-dir",
-        str(ORIGINAL_ARCHIVE_DIR),
-        "--source",
-        SOURCE,
-        "--keep-going",
+        "--output-dir",
+        str(DATAPLANE_DIR),
+        "--database",
+        DATAPLANE_DATABASE,
+        "--max-bytes",
+        str(DATAPLANE_MAX_BYTES),
     )
 
     if compact:
@@ -498,65 +495,6 @@ def latest_payload() -> dict[str, Any]:
     return payload
 
 
-def prune_bucket(path: Path, max_files: int) -> None:
-    if max_files <= 0 or not path.exists():
-        return
-
-    files = sorted(
-        [item for item in path.glob("*.json") if item.name != "index.json"],
-        key=lambda item: item.stat().st_mtime,
-        reverse=True,
-    )
-
-    for old in files[max_files:]:
-        try:
-            old.unlink()
-        except Exception:
-            pass
-
-
-def write_snapshot_indexes(pretty: bool = True) -> None:
-    for bucket in SNAPSHOT_BUCKETS:
-        directory = SNAPSHOTS_ROOT / bucket / SOURCE
-        directory.mkdir(parents=True, exist_ok=True)
-
-        files = sorted(
-            [item for item in directory.glob("*.json") if item.name != "index.json"],
-            key=lambda item: item.stat().st_mtime,
-            reverse=True,
-        )
-
-        entries = []
-
-        for item in files:
-            payload = read_json(item, fallback={})
-
-            entries.append({
-                "file": item.name,
-                "path": item.relative_to(BITNODES_ROOT).as_posix(),
-                "updated_at": payload.get("updated_at") if isinstance(payload, dict) else None,
-                "timestamp": payload.get("timestamp") if isinstance(payload, dict) else None,
-                "total_nodes": payload.get("total_nodes") if isinstance(payload, dict) else None,
-                "reachable_nodes": payload.get("reachable_nodes") if isinstance(payload, dict) else None,
-                "latest_height": payload.get("latest_height") if isinstance(payload, dict) else None,
-                "bytes": item.stat().st_size,
-            })
-
-        write_json(
-            directory / "index.json",
-            {
-                "schema": "zzx-bitnodes-snapshot-bucket-index-v1",
-                "source": SOURCE,
-                "bucket": bucket,
-                "generated_at": utc_iso(),
-                "count": len(entries),
-                "latest": entries[0] if entries else None,
-                "entries": entries,
-            },
-            pretty=pretty,
-        )
-
-
 def write_snapshot_buckets(pretty: bool = True) -> None:
     payload = latest_payload()
 
@@ -564,7 +502,6 @@ def write_snapshot_buckets(pretty: bool = True) -> None:
         return
 
     timestamp = int(payload.get("timestamp") or utc_ts())
-    name = snapshot_name(timestamp)
 
     bucket_dirs = {
         bucket: SNAPSHOTS_ROOT / bucket / SOURCE
@@ -574,21 +511,41 @@ def write_snapshot_buckets(pretty: bool = True) -> None:
     for directory in bucket_dirs.values():
         directory.mkdir(parents=True, exist_ok=True)
 
-    write_json(bucket_dirs["24h"] / name, payload, pretty=pretty)
-    write_json(bucket_dirs["week"] / f"{date_slug()}.json", payload, pretty=pretty)
-    write_json(bucket_dirs["monthly"] / f"{month_slug()}.json", payload, pretty=pretty)
-    write_json(bucket_dirs["quarterly"] / f"{quarter_slug()}.json", payload, pretty=pretty)
-    write_json(bucket_dirs["yearly"] / f"{year_slug()}.json", payload, pretty=pretty)
-    write_json(bucket_dirs["all-time"] / name, payload, pretty=pretty)
+    pointer = {
+        "schema": "zzx-original-bitnodes-snapshot-pointer-v1",
+        "source": SOURCE,
+        "generated_at": utc_iso(),
+        "timestamp": timestamp,
+        "canonical_latest": "api/originalbitnodes/latest.json",
+        "canonical_enriched": "api/enriched/originalbitnodes/latest.json",
+        "canonical_aggregate": "api/aggregate/originalbitnodes/latest.json",
+        "canonical_dataplane": "api/data/dataplane_manifest.json",
+        "node_count": payload.get("total_nodes") or payload.get("known_nodes"),
+        "reachable_nodes": payload.get("reachable_nodes"),
+        "latest_height": payload.get("latest_height"),
+        "policy": "No full node fan-out snapshots. Full node data is held in DB/dataplane artifacts.",
+    }
 
-    prune_bucket(bucket_dirs["24h"], 288)
-    prune_bucket(bucket_dirs["week"], 14)
-    prune_bucket(bucket_dirs["monthly"], 24)
-    prune_bucket(bucket_dirs["quarterly"], 24)
-    prune_bucket(bucket_dirs["yearly"], 10)
-    prune_bucket(bucket_dirs["all-time"], 0)
+    write_json(bucket_dirs["24h"] / "latest.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["week"] / f"{date_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["monthly"] / f"{month_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["quarterly"] / f"{quarter_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["yearly"] / f"{year_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["all-time"] / "latest.json", pointer, pretty=pretty)
 
-    write_snapshot_indexes(pretty=pretty)
+    for bucket, directory in bucket_dirs.items():
+        write_json(
+            directory / "index.json",
+            {
+                "schema": "zzx-original-bitnodes-snapshot-bucket-index-v2",
+                "source": SOURCE,
+                "bucket": bucket,
+                "generated_at": utc_iso(),
+                "latest": pointer,
+                "entries": [pointer],
+            },
+            pretty=pretty,
+        )
 
 
 def registry_backup_original(enabled: bool = True) -> int:
@@ -632,19 +589,16 @@ def push_original(enabled: bool = False) -> int:
     command = py(
         PUSH_SNAPSHOTS,
         "--message",
-        "Update Original Bitnodes-compatible snapshots",
+        "Update Original Bitnodes-compatible dataplane snapshots",
         "--paths",
         "bitcoin/bitnodes/api/originalbitnodes",
+        "bitcoin/bitnodes/api/original-latest.json",
         "bitcoin/bitnodes/api/enriched/originalbitnodes",
         "bitcoin/bitnodes/api/aggregate/originalbitnodes",
+        "bitcoin/bitnodes/api/data",
         "bitcoin/bitnodes/archive/originalbitnodes",
         "bitcoin/bitnodes/data/state/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/24h/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/week/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/monthly/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/quarterly/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/yearly/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/all-time/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots",
         "bitcoin/bitnodes/data/registry/originalbitnodes",
     )
 
@@ -662,7 +616,7 @@ def mirror_original_latest(pretty: bool = True) -> None:
 
 def write_status(stage: str, extra: dict[str, Any] | None = None) -> None:
     payload = {
-        "schema": "zzx-original-bitnodes-runner-status-v2",
+        "schema": "zzx-original-bitnodes-runner-status-v3",
         "updated_at": utc_iso(),
         "stage": stage,
         "src_dir": str(SRC_DIR),
@@ -671,6 +625,7 @@ def write_status(stage: str, extra: dict[str, Any] | None = None) -> None:
         "state_dir": str(ORIGINAL_STATE_DIR),
         "snapshots_root": str(SNAPSHOTS_ROOT),
         "registry_dir": str(ORIGINAL_REGISTRY_DIR),
+        "dataplane_dir": str(DATAPLANE_DIR),
         **(extra or {}),
     }
 
@@ -753,7 +708,7 @@ def pipeline_once(args: argparse.Namespace) -> int:
         code = export_all_formats(compact=args.compact)
 
         if code and args.strict:
-            write_status("all-export-failed", {"exit_code": code})
+            write_status("dataplane-export-failed", {"exit_code": code})
             return code
 
     mirror_original_latest(pretty=not args.compact)
