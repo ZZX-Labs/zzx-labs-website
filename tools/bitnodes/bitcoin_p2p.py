@@ -25,6 +25,7 @@ NODE_BLOOM = 4
 NODE_WITNESS = 8
 NODE_COMPACT_FILTERS = 64
 NODE_NETWORK_LIMITED = 1024
+NODE_P2P_V2 = 2048
 
 ADDRV2_IPV4 = 1
 ADDRV2_IPV6 = 2
@@ -40,7 +41,7 @@ DEFAULT_PORTS = {
     "regtest": 18444,
 }
 
-DEFAULT_USER_AGENT = "/ZZX-Labs-Bitnodes:0.4.20/"
+DEFAULT_USER_AGENT = "/ZZX-Labs-Bitnodes:0.5.0/"
 
 MAX_HEADER_PAYLOAD = 32_000_000
 MAX_ADDR_ITEMS = 1000
@@ -64,6 +65,8 @@ class VersionInfo:
     host: str | None = None
     port: int | None = None
     magic: str = "mainnet"
+    supports_addrv2: bool | None = None
+    services_flags: dict[str, bool] | None = None
 
 
 def default_port(network: str = "mainnet") -> int:
@@ -99,33 +102,37 @@ def encode_varint(value: int) -> bytes:
     if value < 0:
         raise ValueError("varint cannot be negative")
 
-    if value < 0xfd:
+    if value < 0xFD:
         return struct.pack("<B", value)
 
-    if value <= 0xffff:
+    if value <= 0xFFFF:
         return b"\xfd" + struct.pack("<H", value)
 
-    if value <= 0xffffffff:
+    if value <= 0xFFFFFFFF:
         return b"\xfe" + struct.pack("<I", value)
 
     return b"\xff" + struct.pack("<Q", value)
 
 
+def require_len(payload: bytes, offset: int, size: int) -> None:
+    if offset + size > len(payload):
+        raise ValueError("payload truncated")
+
+
 def read_varint(payload: bytes, offset: int = 0) -> tuple[int, int]:
-    if offset >= len(payload):
-        raise ValueError("varint offset outside payload")
+    require_len(payload, offset, 1)
 
     prefix = payload[offset]
     offset += 1
 
-    if prefix < 0xfd:
+    if prefix < 0xFD:
         return prefix, offset
 
-    if prefix == 0xfd:
+    if prefix == 0xFD:
         require_len(payload, offset, 2)
         return struct.unpack_from("<H", payload, offset)[0], offset + 2
 
-    if prefix == 0xfe:
+    if prefix == 0xFE:
         require_len(payload, offset, 4)
         return struct.unpack_from("<I", payload, offset)[0], offset + 4
 
@@ -134,13 +141,8 @@ def read_varint(payload: bytes, offset: int = 0) -> tuple[int, int]:
 
 
 def encode_varstr(text: str) -> bytes:
-    raw = text.encode("utf-8", errors="replace")
+    raw = str(text or "").encode("utf-8", errors="replace")
     return encode_varint(len(raw)) + raw
-
-
-def require_len(payload: bytes, offset: int, size: int) -> None:
-    if offset + size > len(payload):
-        raise ValueError("payload truncated")
 
 
 def make_message(command: str, payload: bytes = b"", *, network: str = "mainnet") -> bytes:
@@ -216,13 +218,25 @@ def split_host_port(address: str, default_port_value: int = 8333) -> tuple[str, 
             return host, int(port_text)
 
     if value.count(":") > 1:
-        return value, default_port_value
+        possible_host, possible_port = value.rsplit(":", 1)
+
+        if possible_port.isdigit():
+            try:
+                ipaddress.ip_address(possible_host.strip("[]"))
+                return possible_host.strip("[]"), int(possible_port)
+            except ValueError:
+                pass
+
+        return value.strip("[]"), default_port_value
 
     return value, default_port_value
 
 
 def format_address(host: str, port: int = 8333) -> str:
-    host = str(host or "").strip()
+    host = str(host or "").strip().strip("[]").lower()
+
+    if not host:
+        return ""
 
     if ":" in host and not host.endswith(".onion") and not host.endswith(".i2p"):
         return f"[{host}]:{port}"
@@ -249,7 +263,7 @@ def address_network(host: str) -> str:
     ip = parse_ip(value)
 
     if ip is None:
-        return "dns"
+        return "dns" if value else "unknown"
 
     if ip.version == 4:
         return "ipv4"
@@ -257,16 +271,13 @@ def address_network(host: str) -> str:
     if ip.version == 6:
         if ip in ipaddress.ip_network("fc00::/8"):
             return "cjdns"
-
         return "ipv6"
 
     return "unknown"
 
 
 def supports_direct_socket(host: str) -> bool:
-    network = address_network(host)
-
-    return network in {"ipv4", "ipv6", "dns", "cjdns"}
+    return address_network(host) in {"ipv4", "ipv6", "dns", "cjdns"}
 
 
 def ip_to_16(host: str) -> bytes:
@@ -283,7 +294,7 @@ def encode_netaddr(
     port: int,
     services: int = NODE_NETWORK | NODE_WITNESS | NODE_NETWORK_LIMITED,
 ) -> bytes:
-    return struct.pack("<Q", services) + ip_to_16(host) + struct.pack(">H", port)
+    return struct.pack("<Q", int(services)) + ip_to_16(host) + struct.pack(">H", int(port))
 
 
 def build_version_payload(
@@ -300,22 +311,24 @@ def build_version_payload(
     try:
         addr_recv = encode_netaddr(remote_host, remote_port, services)
     except Exception:
-        addr_recv = struct.pack("<Q", services) + b"\x00" * 16 + struct.pack(">H", remote_port)
+        addr_recv = struct.pack("<Q", services) + b"\x00" * 16 + struct.pack(">H", int(remote_port))
 
-    addr_from = struct.pack("<Q", services) + b"\x00" * 16 + struct.pack(">H", 8333)
+    addr_from = struct.pack("<Q", services) + b"\x00" * 16 + struct.pack(">H", DEFAULT_PORTS["mainnet"])
     nonce = random.getrandbits(64)
 
-    return b"".join([
-        struct.pack("<i", PROTOCOL_VERSION),
-        struct.pack("<Q", services),
-        struct.pack("<q", timestamp),
-        addr_recv,
-        addr_from,
-        struct.pack("<Q", nonce),
-        encode_varstr(user_agent),
-        struct.pack("<i", int(start_height)),
-        b"\x01" if relay else b"\x00",
-    ])
+    return b"".join(
+        [
+            struct.pack("<i", PROTOCOL_VERSION),
+            struct.pack("<Q", services),
+            struct.pack("<q", timestamp),
+            addr_recv,
+            addr_from,
+            struct.pack("<Q", nonce),
+            encode_varstr(user_agent),
+            struct.pack("<i", int(start_height)),
+            b"\x01" if relay else b"\x00",
+        ]
+    )
 
 
 def parse_version_payload(payload: bytes) -> dict[str, Any]:
@@ -357,11 +370,8 @@ def parse_version_payload(payload: bytes) -> dict[str, Any]:
     relay = None
 
     if len(payload) >= offset + 4:
-        try:
-            height = struct.unpack_from("<i", payload, offset)[0]
-            offset += 4
-        except Exception:
-            height = None
+        height = struct.unpack_from("<i", payload, offset)[0]
+        offset += 4
 
     if len(payload) >= offset + 1:
         relay = bool(payload[offset])
@@ -387,6 +397,7 @@ def service_flags(services: int | None) -> dict[str, bool]:
         "node_witness": bool(value & NODE_WITNESS),
         "node_compact_filters": bool(value & NODE_COMPACT_FILTERS),
         "node_network_limited": bool(value & NODE_NETWORK_LIMITED),
+        "node_p2p_v2": bool(value & NODE_P2P_V2),
     }
 
 
@@ -398,7 +409,6 @@ def handshake(
 ) -> VersionInfo:
     host, port = split_host_port(address, default_port(network))
     formatted = format_address(host, port)
-
     started = time.time()
 
     info = VersionInfo(
@@ -443,6 +453,11 @@ def handshake(
                     info.relay = parsed.get("relay")
                     info.connected_since = int(time.time())
                     info.latency_ms = round((time.time() - started) * 1000.0, 2)
+                    info.services_flags = service_flags(info.services)
+                    info.supports_addrv2 = bool(
+                        info.protocol_version is not None
+                        and int(info.protocol_version) >= 70016
+                    )
 
                     sock.sendall(make_message("verack", network=network))
                     got_version = True
@@ -535,15 +550,15 @@ def parse_addrv2_payload(payload: bytes, *, limit: int = MAX_ADDR_ITEMS) -> list
             require_len(payload, offset, 4)
             offset += 4
 
-            _services, offset = read_varint(payload, offset)
+            services, offset = read_varint(payload, offset)
 
             require_len(payload, offset, 1)
             network_id = payload[offset]
             offset += 1
 
             addr_len, offset = read_varint(payload, offset)
-
             require_len(payload, offset, addr_len)
+
             addr_raw = payload[offset:offset + addr_len]
             offset += addr_len
 
@@ -552,6 +567,9 @@ def parse_addrv2_payload(payload: bytes, *, limit: int = MAX_ADDR_ITEMS) -> list
             offset += 2
 
             host = None
+
+            if services == 0 or port <= 0:
+                continue
 
             if network_id == ADDRV2_IPV4 and addr_len == 4:
                 host = str(ipaddress.ip_address(addr_raw))
@@ -607,6 +625,7 @@ def getaddr(
             )
 
             got_version = False
+            got_verack = False
             sent_getaddr = False
             deadline = time.time() + timeout
 
@@ -617,15 +636,18 @@ def getaddr(
                     got_version = True
                     sock.sendall(make_message("verack", network=network))
 
-                elif command == "verack" and got_version and not sent_getaddr:
-                    sock.sendall(make_message("sendaddrv2", network=network))
-                    sock.sendall(make_message("getaddr", network=network))
-                    sent_getaddr = True
+                elif command == "verack" and got_version:
+                    got_verack = True
 
                 elif command == "ping" and len(payload) == 8:
                     sock.sendall(make_message("pong", payload, network=network))
 
-                elif command == "addr":
+                if got_version and got_verack and not sent_getaddr:
+                    sock.sendall(make_message("sendaddrv2", network=network))
+                    sock.sendall(make_message("getaddr", network=network))
+                    sent_getaddr = True
+
+                if command == "addr":
                     discovered.extend(parse_addr_payload(payload, limit=max_addresses))
 
                 elif command == "addrv2":
@@ -644,23 +666,59 @@ def version_info_to_record(info: VersionInfo) -> dict[str, Any]:
     payload = asdict(info)
     payload["services_flags"] = service_flags(info.services)
     payload["updated_at"] = int(time.time())
+    payload["reachable_now"] = info.reachable
+    payload["reachable_24h"] = info.reachable
     payload["is_ipv4"] = info.network == "ipv4"
     payload["is_ipv6"] = info.network == "ipv6"
     payload["is_tor"] = info.network == "tor"
     payload["is_i2p"] = info.network == "i2p"
     payload["is_cjdns"] = info.network == "cjdns"
+    payload["metadata"] = {
+        "canonical_address": info.address,
+        "host": info.host,
+        "port": info.port,
+        "network": info.network,
+        "reachable": info.reachable,
+        "reachable_now": info.reachable,
+        "reachable_24h": info.reachable,
+        "latency_ms": info.latency_ms,
+        "last_seen": int(time.time()) if info.reachable else None,
+        "last_failure": int(time.time()) if not info.reachable else None,
+        "services_flags": payload["services_flags"],
+        "supports_addrv2": info.supports_addrv2,
+    }
 
     return payload
 
 
 def version_info_to_bitnodes_array(info: VersionInfo) -> list[Any]:
+    metadata = {
+        "canonical_address": info.address,
+        "host": info.host,
+        "port": info.port,
+        "network": info.network,
+        "reachable": info.reachable,
+        "reachable_now": info.reachable,
+        "reachable_24h": info.reachable,
+        "latency_ms": info.latency_ms,
+        "last_seen": int(time.time()) if info.reachable else None,
+        "last_failure": int(time.time()) if not info.reachable else None,
+        "services_flags": service_flags(info.services),
+        "supports_addrv2": info.supports_addrv2,
+        "is_ipv4": info.network == "ipv4",
+        "is_ipv6": info.network == "ipv6",
+        "is_tor": info.network == "tor",
+        "is_i2p": info.network == "i2p",
+        "is_cjdns": info.network == "cjdns",
+    }
+
     return [
         info.protocol_version,
-        info.user_agent,
+        info.user_agent or "unknown",
         info.connected_since,
         info.services,
         info.height,
-        info.hostname,
+        info.hostname or info.host,
         None,
         None,
         None,
@@ -668,5 +726,11 @@ def version_info_to_bitnodes_array(info: VersionInfo) -> list[Any]:
         None,
         None,
         None,
-        info.latency_ms,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        metadata,
     ]
