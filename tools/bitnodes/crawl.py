@@ -18,12 +18,17 @@ BITNODES_API = BITNODES_ROOT / "api"
 BITNODES_DATA = BITNODES_ROOT / "data"
 BITNODES_ARCHIVE = BITNODES_ROOT / "archive"
 
+EXPORT_WRAPPER = TOOLS_DIR / "export.py"
+
 CRAWLER_MODULES = {
     "zzxbitnodes": TOOLS_DIR / "zzxbitnodes.py",
     "originalbitnodes": TOOLS_DIR / "originalbitnodes.py",
 }
 
 DEFAULT_CRAWLER = "zzxbitnodes"
+DEFAULT_DATA_OUTPUT = BITNODES_API / "data"
+DEFAULT_DATABASE = "zzx_bitnodes"
+DEFAULT_MAX_BYTES = 24_000_000
 
 
 def build_env() -> dict[str, str]:
@@ -39,6 +44,11 @@ def build_env() -> dict[str, str]:
 
 def py(script: Path, args: Sequence[str]) -> list[str]:
     return [sys.executable, str(script), *args]
+
+
+def call(command: list[str]) -> int:
+    print("$ " + " ".join(str(part) for part in command), flush=True)
+    return subprocess.call(command, cwd=str(APP_ROOT), env=build_env())
 
 
 def option_present(args: list[str], flag: str) -> bool:
@@ -83,12 +93,19 @@ def strip_wrapper_args(argv: list[str]) -> list[str]:
         "--source",
         "--wrapper-interval",
         "--wrapper-run-seconds",
+        "--dataplane-output-dir",
+        "--dataplane-database",
+        "--dataplane-max-bytes",
     }
 
     wrapper_bool_flags = {
         "--list-crawlers",
         "--wrapper-daemon",
         "--stop-on-error",
+        "--export-after",
+        "--no-export-after",
+        "--dataplane-compact",
+        "--dataplane-strict",
     }
 
     out: list[str] = []
@@ -135,6 +152,23 @@ def force_crawler_paths(module_name: str, args: list[str]) -> list[str]:
     return args
 
 
+def ensure_runtime_dirs() -> None:
+    for path in (
+        BITNODES_API,
+        BITNODES_API / "zzxbitnodes",
+        BITNODES_API / "originalbitnodes",
+        BITNODES_API / "data",
+        BITNODES_DATA,
+        BITNODES_DATA / "runtime",
+        BITNODES_DATA / "runtime" / "state",
+        BITNODES_DATA / "runtime" / "snapshots" / "24h",
+        BITNODES_DATA / "runtime" / "seeders",
+        BITNODES_ARCHIVE,
+        BITNODES_ARCHIVE / "runtime",
+    ):
+        path.mkdir(parents=True, exist_ok=True)
+
+
 def run_module(module_name: str, passthrough: list[str]) -> int:
     script = CRAWLER_MODULES.get(module_name)
 
@@ -146,12 +180,14 @@ def run_module(module_name: str, passthrough: list[str]) -> int:
         print(f"[crawl.py] missing crawler module: {script}", file=sys.stderr, flush=True)
         return 1
 
+    ensure_runtime_dirs()
+
     cmd = py(script, passthrough)
 
     print(f"[crawl.py] cwd: {APP_ROOT}", flush=True)
     print(f"[crawl.py] exec: {' '.join(cmd)}", flush=True)
 
-    return subprocess.call(cmd, cwd=str(APP_ROOT), env=build_env())
+    return call(cmd)
 
 
 def split_passthrough_for_both(passthrough: list[str]) -> tuple[list[str], list[str]]:
@@ -194,10 +230,73 @@ def run_both(passthrough: list[str], continue_on_error: bool = True) -> int:
     return original_code
 
 
+def latest_inputs_for(crawler: str) -> list[Path]:
+    candidates: list[Path] = []
+
+    if crawler in {"zzxbitnodes", "both"}:
+        candidates.extend(
+            [
+                BITNODES_API / "enriched" / "zzxbitnodes" / "latest.json",
+                BITNODES_API / "zzxbitnodes" / "latest.json",
+            ]
+        )
+
+    if crawler in {"originalbitnodes", "both"}:
+        candidates.extend(
+            [
+                BITNODES_API / "enriched" / "originalbitnodes" / "latest.json",
+                BITNODES_API / "originalbitnodes" / "latest.json",
+            ]
+        )
+
+    return [path for path in candidates if path.exists() and path.is_file()]
+
+
+def run_dataplane_after(args: argparse.Namespace) -> int:
+    if not EXPORT_WRAPPER.exists():
+        print(f"[crawl.py] missing export wrapper: {EXPORT_WRAPPER}", file=sys.stderr, flush=True)
+        return 1
+
+    inputs = latest_inputs_for(args.crawler)
+
+    if not inputs:
+        print("[crawl.py] no crawler latest.json inputs found for dataplane export", file=sys.stderr, flush=True)
+
+        if args.dataplane_strict:
+            return 1
+
+        return 0
+
+    command = py(
+        EXPORT_WRAPPER,
+        [
+            "dataplane",
+            "--output-dir",
+            str(Path(args.dataplane_output_dir).resolve()),
+            "--database",
+            str(args.dataplane_database),
+            "--max-bytes",
+            str(args.dataplane_max_bytes),
+        ],
+    )
+
+    for path in inputs:
+        command.extend(["--input", str(path.resolve())])
+
+    if args.dataplane_compact:
+        command.append("--compact")
+
+    if args.dataplane_strict:
+        command.append("--strict")
+
+    print("[crawl.py] running post-crawl dataplane export", flush=True)
+    return call(command)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="crawl.py",
-        description="ZZX-Labs Bitnodes crawler wrapper.",
+        description="ZZX-Labs Bitnodes crawler wrapper and post-crawl dataplane orchestrator.",
         allow_abbrev=False,
     )
 
@@ -241,6 +340,52 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stop both-mode execution if the first crawler fails.",
     )
 
+    parser.add_argument(
+        "--export-after",
+        dest="export_after",
+        action="store_true",
+        default=True,
+        help="Run DB-first dataplane export after successful crawler execution.",
+    )
+
+    parser.add_argument(
+        "--no-export-after",
+        dest="export_after",
+        action="store_false",
+        help="Disable post-crawl dataplane export.",
+    )
+
+    parser.add_argument(
+        "--dataplane-output-dir",
+        default=str(DEFAULT_DATA_OUTPUT),
+        help="Output directory for canonical DB/data artifacts.",
+    )
+
+    parser.add_argument(
+        "--dataplane-database",
+        default=DEFAULT_DATABASE,
+        help="MariaDB database name for generated SQL shards.",
+    )
+
+    parser.add_argument(
+        "--dataplane-max-bytes",
+        type=int,
+        default=DEFAULT_MAX_BYTES,
+        help="Maximum compressed public shard size target.",
+    )
+
+    parser.add_argument(
+        "--dataplane-compact",
+        action="store_true",
+        help="Write compact dataplane manifests and JSON artifacts.",
+    )
+
+    parser.add_argument(
+        "--dataplane-strict",
+        action="store_true",
+        help="Fail if dataplane inputs or records are missing.",
+    )
+
     return parser
 
 
@@ -257,10 +402,18 @@ def run_once(args: argparse.Namespace, passthrough: list[str]) -> int:
     clean = strip_wrapper_args(passthrough)
 
     if args.crawler == "both":
-        return run_both(clean, continue_on_error=not args.stop_on_error)
+        code = run_both(clean, continue_on_error=not args.stop_on_error)
+    else:
+        clean = force_crawler_paths(args.crawler, clean)
+        code = run_module(args.crawler, clean)
 
-    clean = force_crawler_paths(args.crawler, clean)
-    return run_module(args.crawler, clean)
+    if code != 0:
+        return code
+
+    if args.export_after:
+        return run_dataplane_after(args)
+
+    return 0
 
 
 def daemon_loop(args: argparse.Namespace, passthrough: list[str]) -> int:
