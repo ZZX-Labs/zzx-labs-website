@@ -55,6 +55,10 @@ ORIGINAL_AGGREGATE_LATEST = ORIGINAL_AGGREGATE_DIR / "latest.json"
 ORIGINAL_REGISTRY_DIR = DATA_DIR / "registry" / SOURCE
 ORIGINAL_REGISTRY_LATEST_DIR = ORIGINAL_REGISTRY_DIR / "latest"
 
+DATAPLANE_OUTPUT = API_DIR / "data"
+DATAPLANE_DATABASE = "zzx_bitnodes"
+MAX_PUBLIC_JSON_BYTES = 24_000_000
+
 
 def printf(message: str) -> None:
     print(message, flush=True)
@@ -131,6 +135,7 @@ def ensure_layout() -> None:
         DATA_DIR,
         API_DIR,
         ARCHIVE_DIR,
+        DATAPLANE_OUTPUT,
         ORIGINAL_OUTPUT,
         ORIGINAL_ARCHIVE,
         ORIGINAL_STATE,
@@ -274,8 +279,8 @@ def run_zzx_compatible_original(args: argparse.Namespace) -> int:
 
     args.disable_archive_replay = True
     args.archive_replay_files = 0
-
     args.export_mode = "reachable"
+
     args.timeout = min(float(args.timeout), 5.0)
     args.workers = min(int(args.workers), 256)
     args.batch_size = min(int(args.batch_size), 4096)
@@ -285,14 +290,9 @@ def run_zzx_compatible_original(args: argparse.Namespace) -> int:
     args.registry_root = str(ORIGINAL_REGISTRY_DIR)
     args.registry_latest_dir = str(ORIGINAL_REGISTRY_LATEST_DIR)
 
-    if not hasattr(args, "no_export_all_after"):
-        args.no_export_all_after = False
-
-    if not hasattr(args, "build_maps"):
-        args.build_maps = False
-
-    if not hasattr(args, "enrich_modules"):
-        args.enrich_modules = ""
+    args.no_export_all_after = True
+    args.build_maps = False
+    args.enrich_modules = getattr(args, "enrich_modules", "")
 
     return zzxbitnodes.run_from_args(args)
 
@@ -345,9 +345,10 @@ def run_aggregate(args: argparse.Namespace) -> int:
     return run_command(command).returncode
 
 
-def run_all_exports(args: argparse.Namespace) -> int:
+def run_dataplane_export(args: argparse.Namespace) -> int:
     if not EXPORT.exists():
-        return 0
+        printf(f"[originalbitnodes] missing export wrapper: {EXPORT}")
+        return 1
 
     input_path = ORIGINAL_AGGREGATE_LATEST if ORIGINAL_AGGREGATE_LATEST.exists() else ORIGINAL_ENRICHED_LATEST
 
@@ -355,21 +356,23 @@ def run_all_exports(args: argparse.Namespace) -> int:
         input_path = ORIGINAL_OUTPUT / "latest.json"
 
     if not input_path.exists():
-        printf(f"[originalbitnodes] all export skipped; missing {input_path}")
+        printf(f"[originalbitnodes] dataplane skipped; missing {input_path}")
         return 0
 
     command = py(
         EXPORT,
-        "all",
+        "dataplane",
         "--input", str(input_path),
-        "--output", str(ORIGINAL_OUTPUT),
-        "--archive-dir", str(ORIGINAL_ARCHIVE),
-        "--source", SOURCE,
-        "--keep-going",
+        "--output-dir", str(DATAPLANE_OUTPUT),
+        "--database", DATAPLANE_DATABASE,
+        "--max-bytes", str(MAX_PUBLIC_JSON_BYTES),
     )
 
     if args.compact:
         command.append("--compact")
+
+    if args.strict:
+        command.append("--strict")
 
     return run_command(command).returncode
 
@@ -377,6 +380,14 @@ def run_all_exports(args: argparse.Namespace) -> int:
 def run_registry_backup(args: argparse.Namespace) -> int:
     if not getattr(args, "registry_backup", False):
         return 0
+
+    if not CHUNK_REGISTRY_BACKUP.exists():
+        printf(f"[originalbitnodes] missing registry backup tool: {CHUNK_REGISTRY_BACKUP}")
+        return 1
+
+    if not UPDATE_DAILY_INDEX.exists():
+        printf(f"[originalbitnodes] missing registry index tool: {UPDATE_DAILY_INDEX}")
+        return 1
 
     dated = ORIGINAL_REGISTRY_DIR / zzxbitnodes.date_slug()
 
@@ -406,21 +417,22 @@ def push_snapshots(args: argparse.Namespace) -> int:
     if not getattr(args, "git_push", False):
         return 0
 
+    if not PUSH_SNAPSHOTS.exists():
+        printf(f"[originalbitnodes] missing push tool: {PUSH_SNAPSHOTS}")
+        return 1
+
     command = py(
         PUSH_SNAPSHOTS,
-        "--message", "Update Original Bitnodes-compatible snapshots",
+        "--message", "Update Original Bitnodes-compatible dataplane snapshots",
         "--paths",
         "bitcoin/bitnodes/api/originalbitnodes",
+        "bitcoin/bitnodes/api/original-latest.json",
         "bitcoin/bitnodes/api/enriched/originalbitnodes",
         "bitcoin/bitnodes/api/aggregate/originalbitnodes",
+        "bitcoin/bitnodes/api/data",
         "bitcoin/bitnodes/archive/originalbitnodes",
         "bitcoin/bitnodes/data/state/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/24h/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/week/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/monthly/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/quarterly/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/yearly/originalbitnodes",
-        "bitcoin/bitnodes/data/snapshots/all-time/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots",
         "bitcoin/bitnodes/data/registry/originalbitnodes",
     )
 
@@ -462,18 +474,24 @@ def pipeline_once(args: argparse.Namespace) -> int:
 
     if not args.no_enrich_after:
         code = run_enrichment(args)
-        if code != 0 and args.strict:
-            return code
+        if code != 0:
+            printf(f"[originalbitnodes] enrichment exited with code {code}")
+            if args.strict:
+                return code
 
     if not args.no_aggregate_after:
         code = run_aggregate(args)
-        if code != 0 and args.strict:
-            return code
+        if code != 0:
+            printf(f"[originalbitnodes] aggregate exited with code {code}")
+            if args.strict:
+                return code
 
     if not args.no_export_all_after:
-        code = run_all_exports(args)
-        if code != 0 and args.strict:
-            return code
+        code = run_dataplane_export(args)
+        if code != 0:
+            printf(f"[originalbitnodes] dataplane export exited with code {code}")
+            if args.strict:
+                return code
 
     code = run_registry_backup(args)
 
@@ -532,9 +550,8 @@ def add_argument_if_missing(
 def build_parser() -> argparse.ArgumentParser:
     parser = zzxbitnodes.build_parser(
         description=(
-            "Original Bitnodes-compatible crawler mode. "
-            "Runs the original-compatible crawler path, Redis export path, "
-            "or ZZX-compatible fallback while keeping outputs separate from zzxbitnodes."
+            "Original Bitnodes-compatible crawler mode. Runs the original-compatible crawler path, "
+            "Redis export path, or ZZX-compatible fallback while keeping outputs separate from zzxbitnodes."
         )
     )
 
