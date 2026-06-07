@@ -2,22 +2,58 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 
-DEFAULT_THEME_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "mapthemes"
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
+DEFAULT_THEME_DIR = BITNODES_ROOT / "data" / "mapthemes"
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
 
 DEFAULT_THEME = "zzx_dark_olive"
+SCHEMA = "zzx-bitnodes-map-theme-v4"
 
 
-THEME_FILES = {
+BASE_MARKERS = {
+    "sanctioned_node": "#ff0000",
+    "policy_restricted_node": "#ff3b30",
+    "confirmed_threat": "#ff0000",
+    "threat_infrastructure": "#ff9500",
+    "duplicate_location": "#d95c5c",
+    "not_yet_synced": "#9d67ad",
+    "synced_under_10m": "#edf7b9",
+    "stable_48h_plus": "#c0d674",
+    "stable_1w_plus": "#9fdb6d",
+    "synced_10m_plus": "#e6a42b",
+    "synced": "#edf7b9",
+    "became_unreachable": "#d95c5c",
+    "unreachable": "#d95c5c",
+    "ipv4": "#c0d674",
+    "ipv6": "#70b7ff",
+    "cjdns": "#00d1b2",
+    "tor": "#9d67ad",
+    "i2p": "#b889ff",
+    "dns": "#edf7b9",
+    "vpn": "#e6a42b",
+    "proxy": "#d9a65c",
+    "datacenter": "#70b7ff",
+    "government": "#edf7b9",
+    "military": "#c0d674",
+    "university": "#e6a42b",
+    "private": "#70b7ff",
+    "public": "#c0d674",
+    "unknown": "#8c927e",
+}
+
+
+THEME_FILES: dict[str, dict[str, Any]] = {
     "zzx_dark_olive": {
         "name": "ZZX Dark Olive",
         "description": "Default ZZX-Labs dark tactical olive/ochre map theme.",
@@ -38,29 +74,7 @@ THEME_FILES = {
             "blue": "#70b7ff",
             "unknown": "#8c927e",
         },
-        "markers": {
-            "duplicate_location": "#d95c5c",
-            "not_yet_synced": "#9d67ad",
-            "synced_under_10m": "#edf7b9",
-            "stable_48h_plus": "#c0d674",
-            "stable_1w_plus": "#9fdb6d",
-            "synced_10m_plus": "#e6a42b",
-            "synced": "#edf7b9",
-            "became_unreachable": "#d95c5c",
-            "ipv4": "#c0d674",
-            "ipv6": "#70b7ff",
-            "tor": "#9d67ad",
-            "i2p": "#b889ff",
-            "vpn": "#e6a42b",
-            "proxy": "#d9a65c",
-            "datacenter": "#70b7ff",
-            "government": "#edf7b9",
-            "military": "#c0d674",
-            "university": "#e6a42b",
-            "private": "#70b7ff",
-            "public": "#c0d674",
-            "unknown": "#8c927e",
-        },
+        "markers": BASE_MARKERS,
         "layout": {
             "border_radius": "18px",
             "panel_padding": "1.1rem",
@@ -89,29 +103,7 @@ THEME_FILES = {
             "blue": "#66d9ff",
             "unknown": "#6f7f6b",
         },
-        "markers": {
-            "duplicate_location": "#ff5f56",
-            "not_yet_synced": "#b48cff",
-            "synced_under_10m": "#d9ffd0",
-            "stable_48h_plus": "#78ff66",
-            "stable_1w_plus": "#b7ff66",
-            "synced_10m_plus": "#ffe66d",
-            "synced": "#d9ffd0",
-            "became_unreachable": "#ff5f56",
-            "ipv4": "#78ff66",
-            "ipv6": "#66d9ff",
-            "tor": "#b48cff",
-            "i2p": "#d28cff",
-            "vpn": "#ffe66d",
-            "proxy": "#b7ff66",
-            "datacenter": "#66d9ff",
-            "government": "#d9ffd0",
-            "military": "#78ff66",
-            "university": "#ffe66d",
-            "private": "#66d9ff",
-            "public": "#78ff66",
-            "unknown": "#6f7f6b",
-        },
+        "markers": {**BASE_MARKERS, "ipv4": "#78ff66", "stable_48h_plus": "#78ff66", "stable_1w_plus": "#b7ff66"},
         "layout": {
             "border_radius": "10px",
             "panel_padding": "1rem",
@@ -140,29 +132,7 @@ THEME_FILES = {
             "blue": "#7dcfff",
             "unknown": "#8d806c",
         },
-        "markers": {
-            "duplicate_location": "#ff6b5f",
-            "not_yet_synced": "#c792ea",
-            "synced_under_10m": "#ffe4ad",
-            "stable_48h_plus": "#ffb84d",
-            "stable_1w_plus": "#ffd166",
-            "synced_10m_plus": "#ffd166",
-            "synced": "#ffe4ad",
-            "became_unreachable": "#ff6b5f",
-            "ipv4": "#ffb84d",
-            "ipv6": "#7dcfff",
-            "tor": "#c792ea",
-            "i2p": "#df9fff",
-            "vpn": "#ffd166",
-            "proxy": "#f2a93b",
-            "datacenter": "#7dcfff",
-            "government": "#ffe4ad",
-            "military": "#ffb84d",
-            "university": "#ffd166",
-            "private": "#7dcfff",
-            "public": "#ffb84d",
-            "unknown": "#8d806c",
-        },
+        "markers": {**BASE_MARKERS, "ipv4": "#ffb84d", "stable_48h_plus": "#ffb84d", "stable_1w_plus": "#ffd166"},
         "layout": {
             "border_radius": "16px",
             "panel_padding": "1.15rem",
@@ -191,29 +161,7 @@ THEME_FILES = {
             "blue": "#70b7ff",
             "unknown": "#7a8794",
         },
-        "markers": {
-            "duplicate_location": "#ff6b6b",
-            "not_yet_synced": "#b889ff",
-            "synced_under_10m": "#d8ecff",
-            "stable_48h_plus": "#79e6c5",
-            "stable_1w_plus": "#9fffdc",
-            "synced_10m_plus": "#f2c14e",
-            "synced": "#d8ecff",
-            "became_unreachable": "#ff6b6b",
-            "ipv4": "#79e6c5",
-            "ipv6": "#70b7ff",
-            "tor": "#b889ff",
-            "i2p": "#d3a2ff",
-            "vpn": "#f2c14e",
-            "proxy": "#ffb86b",
-            "datacenter": "#70b7ff",
-            "government": "#d8ecff",
-            "military": "#79e6c5",
-            "university": "#f2c14e",
-            "private": "#70b7ff",
-            "public": "#79e6c5",
-            "unknown": "#7a8794",
-        },
+        "markers": {**BASE_MARKERS, "ipv4": "#79e6c5", "stable_48h_plus": "#79e6c5", "stable_1w_plus": "#9fffdc"},
         "layout": {
             "border_radius": "18px",
             "panel_padding": "1.1rem",
@@ -242,29 +190,7 @@ THEME_FILES = {
             "blue": "#1d5f8f",
             "unknown": "#777568",
         },
-        "markers": {
-            "duplicate_location": "#b53030",
-            "not_yet_synced": "#714a91",
-            "synced_under_10m": "#172017",
-            "stable_48h_plus": "#536d1f",
-            "stable_1w_plus": "#6c8a2a",
-            "synced_10m_plus": "#b77c12",
-            "synced": "#172017",
-            "became_unreachable": "#b53030",
-            "ipv4": "#536d1f",
-            "ipv6": "#1d5f8f",
-            "tor": "#714a91",
-            "i2p": "#8f60ad",
-            "vpn": "#b77c12",
-            "proxy": "#a86d0b",
-            "datacenter": "#1d5f8f",
-            "government": "#172017",
-            "military": "#536d1f",
-            "university": "#b77c12",
-            "private": "#1d5f8f",
-            "public": "#536d1f",
-            "unknown": "#777568",
-        },
+        "markers": {**BASE_MARKERS, "ipv4": "#536d1f", "ipv6": "#1d5f8f", "stable_48h_plus": "#536d1f"},
         "layout": {
             "border_radius": "14px",
             "panel_padding": "1.05rem",
@@ -293,29 +219,7 @@ THEME_FILES = {
             "blue": "#6ecbff",
             "unknown": "#8d7373",
         },
-        "markers": {
-            "duplicate_location": "#ff3030",
-            "not_yet_synced": "#c084fc",
-            "synced_under_10m": "#ffd7d7",
-            "stable_48h_plus": "#7dff91",
-            "stable_1w_plus": "#b2ff72",
-            "synced_10m_plus": "#ffcc66",
-            "synced": "#ffd7d7",
-            "became_unreachable": "#ff3030",
-            "ipv4": "#7dff91",
-            "ipv6": "#6ecbff",
-            "tor": "#c084fc",
-            "i2p": "#dc9dff",
-            "vpn": "#ffcc66",
-            "proxy": "#ffb84d",
-            "datacenter": "#6ecbff",
-            "government": "#ffd7d7",
-            "military": "#7dff91",
-            "university": "#ffcc66",
-            "private": "#6ecbff",
-            "public": "#7dff91",
-            "unknown": "#8d7373",
-        },
+        "markers": {**BASE_MARKERS, "ipv4": "#7dff91", "stable_48h_plus": "#7dff91", "stable_1w_plus": "#b2ff72"},
         "layout": {
             "border_radius": "12px",
             "panel_padding": "1rem",
@@ -344,29 +248,7 @@ THEME_FILES = {
             "blue": "#74d6ff",
             "unknown": "#85758f",
         },
-        "markers": {
-            "duplicate_location": "#ff5f7e",
-            "not_yet_synced": "#b889ff",
-            "synced_under_10m": "#f0dcff",
-            "stable_48h_plus": "#c0d674",
-            "stable_1w_plus": "#d6ff8c",
-            "synced_10m_plus": "#f0b85a",
-            "synced": "#f0dcff",
-            "became_unreachable": "#ff5f7e",
-            "ipv4": "#c0d674",
-            "ipv6": "#74d6ff",
-            "tor": "#b889ff",
-            "i2p": "#d6a8ff",
-            "vpn": "#f0b85a",
-            "proxy": "#df9fff",
-            "datacenter": "#74d6ff",
-            "government": "#f0dcff",
-            "military": "#c0d674",
-            "university": "#f0b85a",
-            "private": "#74d6ff",
-            "public": "#c0d674",
-            "unknown": "#85758f",
-        },
+        "markers": {**BASE_MARKERS, "tor": "#b889ff", "i2p": "#d6a8ff"},
         "layout": {
             "border_radius": "20px",
             "panel_padding": "1.15rem",
@@ -395,29 +277,7 @@ THEME_FILES = {
             "blue": "#70b7ff",
             "unknown": "#777777",
         },
-        "markers": {
-            "duplicate_location": "#ff4d4d",
-            "not_yet_synced": "#b889ff",
-            "synced_under_10m": "#f2f2f2",
-            "stable_48h_plus": "#d7ff72",
-            "stable_1w_plus": "#bfff57",
-            "synced_10m_plus": "#ffcc4d",
-            "synced": "#f2f2f2",
-            "became_unreachable": "#ff4d4d",
-            "ipv4": "#d7ff72",
-            "ipv6": "#70b7ff",
-            "tor": "#b889ff",
-            "i2p": "#d8a8ff",
-            "vpn": "#ffcc4d",
-            "proxy": "#ffb84d",
-            "datacenter": "#70b7ff",
-            "government": "#f2f2f2",
-            "military": "#d7ff72",
-            "university": "#ffcc4d",
-            "private": "#70b7ff",
-            "public": "#d7ff72",
-            "unknown": "#777777",
-        },
+        "markers": {**BASE_MARKERS, "ipv4": "#d7ff72", "stable_48h_plus": "#d7ff72", "stable_1w_plus": "#bfff57"},
         "layout": {
             "border_radius": "8px",
             "panel_padding": "1rem",
@@ -437,10 +297,14 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -448,16 +312,17 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=None if compact else 2,
-        separators=(",", ":") if compact else None,
-        sort_keys=not compact,
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        ) + "\n",
+        encoding="utf-8",
     )
-
-    path.write_text(text + "\n", encoding="utf-8")
 
 
 def build_css_variables(data: dict[str, Any]) -> dict[str, str]:
@@ -466,8 +331,8 @@ def build_css_variables(data: dict[str, Any]) -> dict[str, str]:
     layout = data.get("layout", {})
 
     output = {
-        "--bn-map-font": data.get("font_family", "IBM Plex Mono, monospace"),
-        "--bn-map-heading": data.get("heading_font_family", "IBM Plex Mono, monospace"),
+        "--bn-map-font": str(data.get("font_family", "IBM Plex Mono, monospace")),
+        "--bn-map-heading": str(data.get("heading_font_family", "IBM Plex Mono, monospace")),
     }
 
     for key, value in colors.items():
@@ -483,25 +348,38 @@ def build_css_variables(data: dict[str, Any]) -> dict[str, str]:
 
 
 def theme_payload(theme_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    markers = {**BASE_MARKERS, **dict(data.get("markers", {}))}
+
+    normalized = {**data, "markers": markers}
+
     return {
-        "schema": "zzx-bitnodes-map-theme-v2",
+        "schema": SCHEMA,
         "id": theme_id,
         "generated_at": utc_now(),
-        "name": data["name"],
-        "description": data["description"],
-        "font_family": data["font_family"],
-        "heading_font_family": data["heading_font_family"],
-        "colors": data["colors"],
-        "markers": data["markers"],
-        "layout": data["layout"],
-        "tiles": data["tiles"],
-        "css_variables": build_css_variables(data),
+        "name": normalized["name"],
+        "description": normalized["description"],
+        "font_family": normalized["font_family"],
+        "heading_font_family": normalized["heading_font_family"],
+        "colors": normalized["colors"],
+        "markers": markers,
+        "layout": normalized["layout"],
+        "tiles": normalized["tiles"],
+        "css_variables": build_css_variables(normalized),
+        "red_ring_semantics": {
+            "is_sanctioned_node": "red marker ring and SANCTIONED table badge",
+            "is_policy_restricted_node": "red-orange marker ring and RESTRICTED table badge",
+            "confirmed_or_high_threat": "red marker/ring and THREAT/CONFIRMED table badge",
+        },
+        "false_positive_control": {
+            "threat_infrastructure": "defensive infrastructure correlation only",
+            "threat_actor_labels": "explicit trusted metadata/feed labels only",
+            "no_country_to_apt_inference": True,
+        },
     }
 
 
 def ensure_theme_files(theme_dir: Path, compact: bool = False) -> dict[str, Any]:
     theme_dir.mkdir(parents=True, exist_ok=True)
-
     entries = []
 
     for theme_id, data in THEME_FILES.items():
@@ -513,19 +391,21 @@ def ensure_theme_files(theme_dir: Path, compact: bool = False) -> dict[str, Any]
 
         existing = read_json(path, fallback=payload)
 
-        if not isinstance(existing, dict):
+        if not isinstance(existing, dict) or not existing:
             existing = payload
 
-        entries.append({
-            "id": theme_id,
-            "name": existing.get("name", data["name"]),
-            "description": existing.get("description", data["description"]),
-            "path": f"{theme_id}.json",
-            "tile_provider": existing.get("tiles", {}).get("provider", data["tiles"]["provider"]),
-        })
+        entries.append(
+            {
+                "id": theme_id,
+                "name": existing.get("name", data["name"]),
+                "description": existing.get("description", data["description"]),
+                "path": f"{theme_id}.json",
+                "tile_provider": existing.get("tiles", {}).get("provider", data["tiles"]["provider"]),
+            }
+        )
 
     manifest = {
-        "schema": "zzx-bitnodes-map-themes-manifest-v2",
+        "schema": "zzx-bitnodes-map-themes-manifest-v4",
         "generated_at": utc_now(),
         "default_theme": DEFAULT_THEME,
         "theme_count": len(entries),
@@ -533,14 +413,12 @@ def ensure_theme_files(theme_dir: Path, compact: bool = False) -> dict[str, Any]
     }
 
     write_json(theme_dir / "manifest.json", manifest, compact=compact)
-
     return manifest
 
 
 def load_theme(theme_dir: Path, theme_id: str) -> dict[str, Any]:
-    path = theme_dir / f"{theme_id}.json"
     fallback = theme_payload(DEFAULT_THEME, THEME_FILES[DEFAULT_THEME])
-    payload = read_json(path, fallback={})
+    payload = read_json(theme_dir / f"{theme_id}.json", fallback={})
 
     if isinstance(payload, dict) and payload:
         return payload
@@ -556,14 +434,17 @@ def merge_theme(
     compact: bool = False,
 ) -> dict[str, Any]:
     output = dict(payload)
-
     manifest = ensure_theme_files(theme_dir, compact=compact)
     theme = load_theme(theme_dir, selected_theme)
 
     output["theme"] = theme
     output["themes"] = manifest
 
-    settings = dict(output.get("settings", {}))
+    settings = output.get("settings")
+    if not isinstance(settings, dict):
+        settings = {}
+
+    settings = dict(settings)
     settings["theme"] = {
         "selected": theme.get("id", selected_theme),
         "manifest_url": "./data/map-themes.json",
@@ -573,38 +454,25 @@ def merge_theme(
     }
 
     tile_provider = theme.get("tiles", {}).get("provider")
-
     if tile_provider:
         settings["preferred_tile_provider"] = tile_provider
 
     output["settings"] = settings
-
     return output
 
 
 def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     context = context or {}
 
-    theme_dir = Path(
-        context.get("theme_dir")
-        or context.get("map_theme_dir")
-        or DEFAULT_THEME_DIR
-    )
-
-    selected_theme = str(
-        context.get("theme")
-        or context.get("selected_theme")
-        or DEFAULT_THEME
-    )
-
+    theme_dir = Path(context.get("theme_dir") or context.get("map_theme_dir") or DEFAULT_THEME_DIR)
+    selected_theme = str(context.get("theme") or context.get("selected_theme") or DEFAULT_THEME)
     compact = bool(context.get("compact", False))
 
-    return merge_theme(
-        payload,
-        theme_dir=theme_dir,
-        selected_theme=selected_theme,
-        compact=compact,
-    )
+    return merge_theme(payload, theme_dir=theme_dir, selected_theme=selected_theme, compact=compact)
+
+
+def process(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return build(payload, context)
 
 
 def sync_theme_assets(
@@ -621,7 +489,6 @@ def sync_theme_assets(
     for directory in (map_dir, live_map_dir):
         data_dir = directory / "data"
         target_theme_dir = data_dir / "themes"
-
         target_theme_dir.mkdir(parents=True, exist_ok=True)
 
         write_json(data_dir / "map-themes.json", manifest, compact=compact)
@@ -634,7 +501,6 @@ def sync_theme_assets(
 
         settings_path = data_dir / "map-settings.json"
         settings = read_json(settings_path, fallback={})
-
         if not isinstance(settings, dict):
             settings = {}
 
@@ -647,14 +513,13 @@ def sync_theme_assets(
         }
 
         tile_provider = selected.get("tiles", {}).get("provider")
-
         if tile_provider:
             settings["preferred_tile_provider"] = tile_provider
 
         write_json(settings_path, settings, compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-mapthemes-build-report-v2",
+        "schema": "zzx-bitnodes-mapthemes-build-report-v4",
         "generated_at": utc_now(),
         "theme_dir": str(theme_dir),
         "map_dir": str(map_dir),
@@ -666,7 +531,8 @@ def sync_theme_assets(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build selectable JSON themes for Bitnodes maps and live-map pages."
+        description="Build selectable JSON themes for ZZX Bitnodes maps and live-map pages.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--theme-dir", default=str(DEFAULT_THEME_DIR))
