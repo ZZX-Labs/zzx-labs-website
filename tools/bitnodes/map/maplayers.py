@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -10,43 +12,41 @@ from typing import Any, Mapping
 
 APP_ROOT = Path(__file__).resolve().parents[3]
 
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
+
+SCHEMA = "zzx-bitnodes-map-layers-v3"
 
 
 DEFAULT_LAYER_ORDER = [
     "all_nodes",
-
     "ipv4_nodes",
     "ipv6_nodes",
-
+    "cjdns_nodes",
     "tor_nodes",
     "i2p_nodes",
-
     "vpn_nodes",
     "proxy_nodes",
-
     "datacenter_nodes",
     "government_nodes",
     "military_nodes",
-
+    "university_nodes",
     "sanctioned_nodes",
-
-    "apt_nodes",
+    "policy_restricted_nodes",
+    "threat_infrastructure_nodes",
+    "confirmed_threat_nodes",
     "threat_actor_nodes",
     "known_malactor_nodes",
-
     "duplicate_locations",
-
     "unreachable",
     "not_yet_synced",
     "synced",
     "synced_10m_plus",
     "stable_48h_plus",
-
+    "stable_1w_plus",
     "clusters",
     "heatmap",
-
     "unknown",
 ]
 
@@ -72,10 +72,14 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -90,6 +94,7 @@ def write_json(path: Path, payload: Any, compact: bool = False) -> None:
         indent=None if compact else 2,
         separators=(",", ":") if compact else None,
         sort_keys=not compact,
+        default=str,
     )
 
     path.write_text(text + "\n", encoding="utf-8")
@@ -127,13 +132,13 @@ def boolish(value: Any) -> bool:
         "success",
         "flagged",
         "matched",
+        "listed",
+        "hit",
+        "confirmed",
     }
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
     current: Any = row
 
     for part in key.split("."):
@@ -147,7 +152,7 @@ def deep_get(row: Mapping[str, Any], key: str) -> Any:
 
 def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     for key in keys:
-        value = deep_get(row, key)
+        value = deep_get(row, key) if "." in key else row.get(key)
 
         if value not in ("", None):
             return value
@@ -157,49 +162,75 @@ def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
 
 def vectors(payload: Mapping[str, Any]) -> dict[str, Any]:
     value = payload.get("vectors", {})
-
     return value if isinstance(value, dict) else {}
 
 
 def points(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
     vectors_payload = vectors(payload)
 
-    for key in ("points", "results", "data"):
+    for key in ("points", "results", "data", "rows"):
         value = vectors_payload.get(key)
 
         if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            return [dict(row) for row in value if isinstance(row, Mapping)]
 
-    for key in ("points", "results", "data"):
+    for key in ("points", "results", "data", "rows"):
         value = payload.get(key)
 
         if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            return [dict(row) for row in value if isinstance(row, Mapping)]
+
+    geojson = payload.get("geojson")
+
+    if isinstance(geojson, Mapping) and isinstance(geojson.get("features"), list):
+        rows: list[dict[str, Any]] = []
+
+        for index, feature in enumerate(geojson["features"]):
+            if not isinstance(feature, Mapping):
+                continue
+
+            props = feature.get("properties") if isinstance(feature.get("properties"), Mapping) else {}
+            geom = feature.get("geometry") if isinstance(feature.get("geometry"), Mapping) else {}
+            coords = geom.get("coordinates") if isinstance(geom.get("coordinates"), list) else []
+
+            row = dict(props)
+            row.setdefault("id", feature.get("id") or f"feature-{index:08d}")
+
+            if len(coords) >= 2:
+                row.setdefault("longitude", coords[0])
+                row.setdefault("latitude", coords[1])
+
+            rows.append(row)
+
+        return rows
 
     live_map = payload.get("live_map")
 
     if isinstance(live_map, Mapping):
-        value = live_map.get("points")
+        value = live_map.get("points") or live_map.get("nodes")
 
         if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            return [dict(row) for row in value if isinstance(row, Mapping)]
 
     return []
 
 
 def row_network(row: Mapping[str, Any]) -> str:
-    network = clean(first(row, ("network", "metadata.network", "network_type", "geoip.network_type"))).lower()
+    network = clean(first(row, ("network", "metadata.network", "network_type", "geoip.network_type", "address_family"))).lower()
 
     if network:
         return network
 
     address = clean(first(row, ("address", "addr", "node", "host", "hostname"))).lower()
 
-    if ".onion" in address or boolish(first(row, ("is_tor", "tor", "metadata.is_tor", "metadata.tor"))):
+    if ".onion" in address or boolish(first(row, ("is_tor", "tor", "tor.is_tor", "metadata.is_tor", "metadata.tor"))):
         return "tor"
 
-    if ".i2p" in address or boolish(first(row, ("is_i2p", "i2p", "metadata.is_i2p", "metadata.i2p"))):
+    if ".i2p" in address or boolish(first(row, ("is_i2p", "i2p", "i2p.is_i2p", "metadata.is_i2p", "metadata.i2p"))):
         return "i2p"
+
+    if boolish(first(row, ("is_cjdns", "ipv6.is_cjdns_ipv6", "metadata.is_cjdns"))):
+        return "cjdns"
 
     if boolish(first(row, ("is_ipv6", "metadata.is_ipv6"))) or address.startswith("["):
         return "ipv6"
@@ -215,6 +246,17 @@ def row_status(row: Mapping[str, Any]) -> str:
 
     if status:
         return status
+
+    if row_has_flag(row, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned")):
+        return "sanctioned-node"
+
+    if row_has_flag(row, ("is_policy_restricted_node", "sanctions_data.is_policy_restricted")):
+        return "policy-restricted-node"
+
+    threat_level = clean(first(row, ("threat_level", "tag_threat_level", "threat_infrastructure.threat_level", "metadata.threat_level"))).lower()
+
+    if threat_level in {"confirmed", "high"}:
+        return "high-threat-infrastructure"
 
     if boolish(first(row, ("reachable_now", "metadata.reachable_now"))):
         return "reachable-now"
@@ -235,6 +277,16 @@ def row_has_flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
     return any(boolish(first(row, (key,))) for key in keys)
 
 
+def threat_level(row: Mapping[str, Any]) -> str:
+    return clean(first(row, (
+        "threat_level",
+        "tag_threat_level",
+        "threat_infrastructure.threat_level",
+        "tag_attribution.threat_level",
+        "metadata.threat_level",
+    ))).lower()
+
+
 def count_network(rows: list[dict[str, Any]], network: str) -> int:
     return sum(1 for row in rows if row_network(row) == network)
 
@@ -247,13 +299,25 @@ def count_flag(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> int:
     return sum(1 for row in rows if row_has_flag(row, keys))
 
 
+def count_threat_level(rows: list[dict[str, Any]], levels: set[str]) -> int:
+    return sum(1 for row in rows if threat_level(row) in levels)
+
+
 def count_duplicates(rows: list[dict[str, Any]]) -> int:
-    return sum(
-        1
-        for row in rows
-        if row_status(row) == "duplicate-location"
-        or int(first(row, ("duplicate_count", "metadata.duplicate_count")) or 1) > 1
-    )
+    total = 0
+
+    for row in rows:
+        duplicate_count = first(row, ("duplicate_count", "metadata.duplicate_count"))
+
+        try:
+            duplicates = int(float(duplicate_count or 1))
+        except Exception:
+            duplicates = 1
+
+        if row_status(row) == "duplicate-location" or duplicates > 1:
+            total += 1
+
+    return total
 
 
 def layer_definition(
@@ -274,6 +338,8 @@ def layer_definition(
     opacity: float = 0.88,
     point_count: int = 0,
     z_index: int = 10,
+    marker_ring: bool = False,
+    table_badge: str = "",
 ) -> dict[str, Any]:
     return {
         "id": layer_id,
@@ -294,6 +360,8 @@ def layer_definition(
         "opacity": opacity,
         "point_count": point_count,
         "z_index": z_index,
+        "marker_ring": marker_ring,
+        "table_badge": table_badge,
     }
 
 
@@ -310,6 +378,8 @@ def point_layer(
     filter_keys: list[str] | None = None,
     visible: bool = False,
     z_index: int = 100,
+    marker_ring: bool = False,
+    table_badge: str = "",
 ) -> dict[str, Any]:
     return layer_definition(
         layer_id=layer_id,
@@ -325,6 +395,8 @@ def point_layer(
         filter_keys=filter_keys,
         point_count=point_count,
         z_index=z_index,
+        marker_ring=marker_ring,
+        table_badge=table_badge,
     )
 
 
@@ -343,6 +415,119 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
 
     total = len(rows)
 
+    vpn_keys = (
+        "is_vpn",
+        "vpn",
+        "suspected_vpn",
+        "vpn_data.is_vpn",
+        "vpn_data.suspected_vpn",
+        "vpn.is_vpn",
+        "vpn.suspected_vpn",
+        "metadata.is_vpn",
+        "metadata.suspected_vpn",
+    )
+
+    proxy_keys = (
+        "is_proxy",
+        "proxy",
+        "suspected_proxy",
+        "proxy_data.is_proxy",
+        "proxy_data.suspected_proxy",
+        "proxy.is_proxy",
+        "proxy.suspected_proxy",
+        "metadata.is_proxy",
+        "metadata.suspected_proxy",
+    )
+
+    datacenter_keys = (
+        "is_datacenter",
+        "datacenter",
+        "datacenter_data.is_datacenter",
+        "datacenter.is_datacenter",
+        "provider_data.is_datacenter",
+        "metadata.is_datacenter",
+    )
+
+    government_keys = (
+        "is_government",
+        "government",
+        "government_data.is_government",
+        "government.is_government",
+        "organization_data.is_government",
+        "metadata.is_government",
+    )
+
+    military_keys = (
+        "is_military",
+        "military",
+        "military_data.is_military",
+        "military.is_military",
+        "organization_data.is_military",
+        "metadata.is_military",
+    )
+
+    university_keys = (
+        "is_university",
+        "is_academic",
+        "is_institute",
+        "organization_data.is_university",
+        "organization_data.is_academic",
+        "metadata.is_university",
+        "metadata.is_academic",
+    )
+
+    sanctioned_keys = (
+        "is_sanctioned",
+        "is_sanctioned_node",
+        "sanctions_data.is_sanctioned",
+        "metadata.is_sanctioned",
+        "metadata.is_sanctioned_node",
+    )
+
+    restricted_keys = (
+        "policy_restricted",
+        "is_policy_restricted_node",
+        "sanctions_data.is_policy_restricted",
+        "metadata.is_policy_restricted_node",
+    )
+
+    threat_keys = (
+        "is_threat_infrastructure",
+        "suspected_threat_infrastructure",
+        "threat_infrastructure.is_threat_infrastructure",
+        "threat_infrastructure.suspected_threat_infrastructure",
+        "metadata.is_threat_infrastructure",
+    )
+
+    confirmed_threat_keys = (
+        "confirmed_intelligence_match",
+        "threat_infrastructure.confirmed_intelligence_match",
+        "trusted_intel_feed_match",
+        "threat_infrastructure.trusted_intel_feed_match",
+        "metadata.confirmed_intelligence_match",
+    )
+
+    actor_keys = (
+        "is_threat_actor",
+        "threat_actor",
+        "suspected_threat_actor_group_related",
+        "confirmed_threat_actor_group_match",
+        "tagattribution.is_threat_actor",
+        "tag_attribution.is_threat_actor",
+        "tag_attribution.suspected_threat_actor_group_related",
+        "tag_attribution.confirmed_threat_actor_group_match",
+        "threat_actor_data.is_threat_actor",
+        "metadata.is_threat_actor",
+    )
+
+    known_malactor_keys = (
+        "is_known_malactor",
+        "known_malactor",
+        "knownmalactor.is_known_malactor",
+        "known_malactor_data.is_known_malactor",
+        "metadata.is_known_malactor",
+    )
+
     layers = [
         point_layer(
             layer_id="all_nodes",
@@ -353,7 +538,6 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             visible=True,
             z_index=100,
         ),
-
         point_layer(
             layer_id="ipv4_nodes",
             label="IPv4 Nodes",
@@ -374,7 +558,16 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             point_count=count_network(rows, "ipv6"),
             z_index=111,
         ),
-
+        point_layer(
+            layer_id="cjdns_nodes",
+            label="CJDNS Nodes",
+            description="CJDNS/fc00::/8 IPv6 Bitcoin node endpoints.",
+            color="#00d1b2",
+            filter_key="network",
+            filter_value="cjdns",
+            point_count=count_network(rows, "cjdns"),
+            z_index=112,
+        ),
         point_layer(
             layer_id="tor_nodes",
             label="Tor Nodes",
@@ -383,7 +576,7 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             filter_key="network",
             filter_value="tor",
             point_count=count_network(rows, "tor"),
-            z_index=112,
+            z_index=113,
         ),
         point_layer(
             layer_id="i2p_nodes",
@@ -393,33 +586,16 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             filter_key="network",
             filter_value="i2p",
             point_count=count_network(rows, "i2p"),
-            z_index=113,
+            z_index=114,
         ),
-
         point_layer(
             layer_id="vpn_nodes",
             label="VPN / Suspected VPN",
             description="Nodes flagged by local VPN heuristics or provider intelligence.",
             color="#e6a42b",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_vpn",
-                "vpn",
-                "suspected_vpn",
-                "vpn_data.is_vpn",
-                "vpn_data.suspected_vpn",
-                "metadata.is_vpn",
-                "metadata.suspected_vpn",
-            ],
-            point_count=count_flag(rows, (
-                "is_vpn",
-                "vpn",
-                "suspected_vpn",
-                "vpn_data.is_vpn",
-                "vpn_data.suspected_vpn",
-                "metadata.is_vpn",
-                "metadata.suspected_vpn",
-            )),
+            filter_keys=list(vpn_keys),
+            point_count=count_flag(rows, vpn_keys),
             z_index=121,
         ),
         point_layer(
@@ -428,168 +604,108 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             description="Nodes flagged by local proxy heuristics or proxy intelligence.",
             color="#d9a65c",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_proxy",
-                "proxy",
-                "suspected_proxy",
-                "proxy_data.is_proxy",
-                "proxy_data.suspected_proxy",
-                "metadata.is_proxy",
-                "metadata.suspected_proxy",
-            ],
-            point_count=count_flag(rows, (
-                "is_proxy",
-                "proxy",
-                "suspected_proxy",
-                "proxy_data.is_proxy",
-                "proxy_data.suspected_proxy",
-                "metadata.is_proxy",
-                "metadata.suspected_proxy",
-            )),
+            filter_keys=list(proxy_keys),
+            point_count=count_flag(rows, proxy_keys),
             z_index=122,
         ),
-
         point_layer(
             layer_id="datacenter_nodes",
             label="Datacenter / Hosting",
             description="Nodes associated with hosting, VPS, cloud, CDN, or datacenter networks.",
             color="#70b7ff",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_datacenter",
-                "datacenter",
-                "datacenter_data.is_datacenter",
-                "provider_data.is_datacenter",
-                "metadata.is_datacenter",
-            ],
-            point_count=count_flag(rows, (
-                "is_datacenter",
-                "datacenter",
-                "datacenter_data.is_datacenter",
-                "provider_data.is_datacenter",
-                "metadata.is_datacenter",
-            )),
+            filter_keys=list(datacenter_keys),
+            point_count=count_flag(rows, datacenter_keys),
             z_index=123,
         ),
         point_layer(
             layer_id="government_nodes",
             label="Government",
-            description="Nodes associated with government networks by local attribution rules.",
+            description="Nodes associated with government networks by local classification rules.",
             color="#edf7b9",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_government",
-                "government",
-                "government_data.is_government",
-                "organization_data.is_government",
-                "metadata.is_government",
-            ],
-            point_count=count_flag(rows, (
-                "is_government",
-                "government",
-                "government_data.is_government",
-                "organization_data.is_government",
-                "metadata.is_government",
-            )),
+            filter_keys=list(government_keys),
+            point_count=count_flag(rows, government_keys),
             z_index=124,
         ),
         point_layer(
             layer_id="military_nodes",
             label="Military",
-            description="Nodes associated with military networks by local attribution rules.",
+            description="Nodes associated with military networks by local classification rules.",
             color="#c0d674",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_military",
-                "military",
-                "military_data.is_military",
-                "organization_data.is_military",
-                "metadata.is_military",
-            ],
-            point_count=count_flag(rows, (
-                "is_military",
-                "military",
-                "military_data.is_military",
-                "organization_data.is_military",
-                "metadata.is_military",
-            )),
+            filter_keys=list(military_keys),
+            point_count=count_flag(rows, military_keys),
             z_index=125,
         ),
-
+        point_layer(
+            layer_id="university_nodes",
+            label="University / Academic",
+            description="Nodes associated with academic, university, institute, or research networks.",
+            color="#8fd694",
+            filter_type="truthy-any",
+            filter_keys=list(university_keys),
+            point_count=count_flag(rows, university_keys),
+            z_index=126,
+        ),
         point_layer(
             layer_id="sanctioned_nodes",
-            label="Sanctioned / Restricted Jurisdiction",
-            description="Nodes flagged by local sanctioned/restricted jurisdiction policy.",
-            color="#d95c5c",
+            label="Sanctioned Nation Nodes",
+            description="Nodes flagged by local sanctioned-nation policy classification. These are circled in red on the map and table views.",
+            color="#ff0000",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_sanctioned",
-                "is_sanctioned_node",
-                "policy_restricted",
-                "is_policy_restricted_node",
-                "sanctions_data.is_sanctioned",
-                "sanctions_data.is_policy_restricted",
-                "metadata.is_sanctioned",
-            ],
-            point_count=count_flag(rows, (
-                "is_sanctioned",
-                "is_sanctioned_node",
-                "policy_restricted",
-                "is_policy_restricted_node",
-                "sanctions_data.is_sanctioned",
-                "sanctions_data.is_policy_restricted",
-                "metadata.is_sanctioned",
-            )),
-            z_index=131,
+            filter_keys=list(sanctioned_keys),
+            point_count=count_flag(rows, sanctioned_keys),
+            z_index=151,
+            marker_ring=True,
+            table_badge="SANCTIONED",
         ),
-
         point_layer(
-            layer_id="apt_nodes",
-            label="APT Attribution",
-            description="Nodes with advanced persistent threat attribution flags.",
-            color="#ff6b6b",
+            layer_id="policy_restricted_nodes",
+            label="Policy Restricted Nodes",
+            description="Nodes flagged by local policy-restricted jurisdiction classification. These are circled red-orange on the map and table views.",
+            color="#ff3b30",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_apt",
-                "apt",
-                "apt_data.is_apt",
-                "aptattribution.is_apt",
-                "apt_attribution.is_apt",
-                "metadata.is_apt",
-            ],
-            point_count=count_flag(rows, (
-                "is_apt",
-                "apt",
-                "apt_data.is_apt",
-                "aptattribution.is_apt",
-                "apt_attribution.is_apt",
-                "metadata.is_apt",
-            )),
-            z_index=140,
+            filter_keys=list(restricted_keys),
+            point_count=count_flag(rows, restricted_keys),
+            z_index=150,
+            marker_ring=True,
+            table_badge="RESTRICTED",
+        ),
+        point_layer(
+            layer_id="threat_infrastructure_nodes",
+            label="Threat Infrastructure",
+            description="Nodes classified by defensive threat-infrastructure correlation. This is not country-to-APT attribution.",
+            color="#ff9500",
+            filter_type="truthy-any",
+            filter_keys=list(threat_keys),
+            point_count=count_flag(rows, threat_keys),
+            z_index=160,
+            marker_ring=True,
+            table_badge="THREAT",
+        ),
+        point_layer(
+            layer_id="confirmed_threat_nodes",
+            label="Confirmed Intelligence Match",
+            description="Nodes with explicit trusted intelligence-feed match or confirmed source metadata.",
+            color="#ff0000",
+            filter_type="truthy-any",
+            filter_keys=list(confirmed_threat_keys),
+            point_count=count_flag(rows, confirmed_threat_keys) + count_threat_level(rows, {"confirmed"}),
+            z_index=165,
+            marker_ring=True,
+            table_badge="CONFIRMED",
         ),
         point_layer(
             layer_id="threat_actor_nodes",
-            label="Threat Actor Group Attribution",
-            description="Nodes with threat actor group attribution flags.",
+            label="Threat Actor Group Label",
+            description="Nodes with explicit threat actor/group labels from trusted metadata or feed correlation only.",
             color="#ff8c42",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_threat_actor",
-                "threat_actor",
-                "tagattribution.is_threat_actor",
-                "tag_attribution.is_threat_actor",
-                "threat_actor_data.is_threat_actor",
-                "metadata.is_threat_actor",
-            ],
-            point_count=count_flag(rows, (
-                "is_threat_actor",
-                "threat_actor",
-                "tagattribution.is_threat_actor",
-                "tag_attribution.is_threat_actor",
-                "threat_actor_data.is_threat_actor",
-                "metadata.is_threat_actor",
-            )),
+            filter_keys=list(actor_keys),
+            point_count=count_flag(rows, actor_keys),
             z_index=141,
+            table_badge="ACTOR",
         ),
         point_layer(
             layer_id="known_malactor_nodes",
@@ -597,23 +713,11 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             description="Nodes matched by local known-malactor intelligence.",
             color="#ff3333",
             filter_type="truthy-any",
-            filter_keys=[
-                "is_known_malactor",
-                "known_malactor",
-                "knownmalactor.is_known_malactor",
-                "known_malactor_data.is_known_malactor",
-                "metadata.is_known_malactor",
-            ],
-            point_count=count_flag(rows, (
-                "is_known_malactor",
-                "known_malactor",
-                "knownmalactor.is_known_malactor",
-                "known_malactor_data.is_known_malactor",
-                "metadata.is_known_malactor",
-            )),
+            filter_keys=list(known_malactor_keys),
+            point_count=count_flag(rows, known_malactor_keys),
             z_index=142,
+            table_badge="MALACTOR",
         ),
-
         point_layer(
             layer_id="duplicate_locations",
             label="Duplicate Locations",
@@ -624,7 +728,6 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             point_count=count_duplicates(rows),
             z_index=130,
         ),
-
         point_layer(
             layer_id="unreachable",
             label="Unreachable",
@@ -675,7 +778,16 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             point_count=count_status(rows, "stable-48h-plus"),
             z_index=120,
         ),
-
+        point_layer(
+            layer_id="stable_1w_plus",
+            label="Stable 1w+",
+            description="Synced nodes with observed uptime over 1 week.",
+            color="#9fdb6d",
+            filter_key="status",
+            filter_value="stable-1w-plus",
+            point_count=count_status(rows, "stable-1w-plus"),
+            z_index=121,
+        ),
         layer_definition(
             layer_id="clusters",
             label="Clusters",
@@ -699,7 +811,6 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
             z_index=40,
             opacity=0.42,
         ),
-
         point_layer(
             layer_id="unknown",
             label="Unknown",
@@ -720,18 +831,35 @@ def build_layers(payload: dict[str, Any]) -> dict[str, Any]:
         if layer_id in layer_map
     ]
 
+    layer_counts = {
+        item["id"]: item["point_count"]
+        for item in ordered
+    }
+
     return {
-        "schema": "zzx-bitnodes-map-layers-v2",
+        "schema": SCHEMA,
         "generated_at": utc_now(),
         "default_layer": "all_nodes",
-        "exclusive_point_layers": True,
+        "exclusive_point_layers": False,
         "layer_order": DEFAULT_LAYER_ORDER,
         "layers": ordered,
+        "layer_counts": layer_counts,
         "point_count": total,
+        "red_ring_semantics": {
+            "sanctioned_nodes": "red ring and SANCTIONED badge",
+            "policy_restricted_nodes": "red-orange ring and RESTRICTED badge",
+            "threat_infrastructure_nodes": "threat ring and THREAT badge",
+            "confirmed_threat_nodes": "red ring and CONFIRMED badge",
+        },
+        "false_positive_control": {
+            "threat_infrastructure_nodes": "defensive infrastructure correlation only",
+            "threat_actor_nodes": "explicit trusted metadata/feed labels only",
+            "no_country_to_apt_inference": True,
+        },
     }
 
 
-def merge_layers(payload: dict[str, Any]) -> dict[str, Any]:
+def merge_layers(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     output = dict(payload)
     layer_payload = build_layers(output)
 
@@ -745,7 +873,11 @@ def merge_layers(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
-    return merge_layers(payload)
+    return merge_layers(payload, context)
+
+
+def process(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return merge_layers(payload, context)
 
 
 def build_standalone(
@@ -780,7 +912,7 @@ def build_standalone(
         write_json(settings_path, settings, compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-maplayers-build-report-v2",
+        "schema": "zzx-bitnodes-maplayers-build-report-v3",
         "generated_at": utc_now(),
         "vectors": str(vectors_path),
         "map_dir": str(map_dir),
@@ -792,7 +924,8 @@ def build_standalone(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build Bitnodes map layer definitions for maps and live-map."
+        description="Build Bitnodes map layer definitions for maps and live-map.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--vectors", required=True)
