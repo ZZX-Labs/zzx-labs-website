@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import ipaddress
 import json
 import math
@@ -11,7 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-SCHEMA = "zzx-bitnodes-mapplotter-v3"
+SCHEMA = "zzx-bitnodes-mapplotter-v4"
 
 
 def utc_now() -> str:
@@ -25,6 +26,11 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     try:
         if not path.exists():
             return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -38,6 +44,7 @@ def write_json(path: Path, payload: Any, compact: bool = False) -> None:
         indent=None if compact else 2,
         separators=(",", ":") if compact else None,
         sort_keys=not compact,
+        default=str,
     )
     path.write_text(text + "\n", encoding="utf-8")
 
@@ -56,6 +63,11 @@ def num(value: Any) -> float | None:
     return n
 
 
+def integer(value: Any, fallback: int = 0) -> int:
+    n = num(value)
+    return fallback if n is None else int(n)
+
+
 def boolish(value: Any) -> bool | None:
     if isinstance(value, bool):
         return value
@@ -68,13 +80,22 @@ def boolish(value: Any) -> bool | None:
 
     text = str(value or "").strip().lower()
 
-    if text in {"true", "yes", "ok", "reachable", "connected", "online", "success", "up"}:
+    if text in {"true", "yes", "y", "ok", "reachable", "connected", "online", "success", "up", "matched", "listed", "hit", "confirmed"}:
         return True
 
-    if text in {"false", "no", "unreachable", "failed", "offline", "timeout", "error", "down"}:
+    if text in {"false", "no", "n", "unreachable", "failed", "offline", "timeout", "error", "down"}:
         return False
 
     return None
+
+
+def clean(value: Any) -> str:
+    text = str(value or "").strip()
+
+    if text.lower() in {"", "unknown", "none", "null", "undefined", "n/a", "na", "-", "—"}:
+        return ""
+
+    return " ".join(text.split())
 
 
 def split_host(address: Any) -> str:
@@ -111,6 +132,27 @@ def split_host(address: Any) -> str:
     return text.strip("[]").lower()
 
 
+def split_port(address: Any, fallback: int = 8333) -> int:
+    text = str(address or "").strip()
+
+    if text.startswith("[") and "]" in text:
+        rest = text[text.index("]") + 1:]
+        if rest.startswith(":") and rest[1:].isdigit():
+            return int(rest[1:])
+
+    lower = text.lower()
+
+    if ".onion:" in lower or ".i2p:" in lower:
+        port = text.rsplit(":", 1)[1]
+        return int(port) if port.isdigit() else fallback
+
+    if text.count(":") == 1:
+        port = text.rsplit(":", 1)[1]
+        return int(port) if port.isdigit() else fallback
+
+    return fallback
+
+
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
     cur: Any = row
 
@@ -130,8 +172,12 @@ def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
+def has_flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
+    return any(boolish(first(row, (key,))) is True for key in keys)
+
+
 def array_node_to_dict(address: str, row: list[Any]) -> dict[str, Any]:
-    padded = list(row) + [None] * max(0, 20 - len(row))
+    padded = list(row) + [None] * max(0, 24 - len(row))
     metadata = padded[19] if isinstance(padded[19], Mapping) else {}
 
     record = {
@@ -246,7 +292,7 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
 
 
 def network_for(row: Mapping[str, Any]) -> str:
-    network = str(first(row, (
+    network = clean(first(row, (
         "network",
         "metadata.network",
         "network_type",
@@ -254,7 +300,8 @@ def network_for(row: Mapping[str, Any]) -> str:
         "geoip_data.network_type",
         "metadata.geoip.network_type",
         "metadata.geoip_data.network_type",
-    )) or "").strip().lower()
+        "address_family",
+    ))).lower()
 
     if network:
         return network
@@ -262,10 +309,10 @@ def network_for(row: Mapping[str, Any]) -> str:
     address = str(first(row, ("address", "node", "addr", "host", "hostname", "ip")) or "").lower()
     host = split_host(address)
 
-    if boolish(first(row, ("is_tor", "tor", "metadata.is_tor", "metadata.tor"))) or ".onion" in address:
+    if boolish(first(row, ("is_tor", "tor", "tor.is_tor", "metadata.is_tor", "metadata.tor"))) or ".onion" in address:
         return "tor"
 
-    if boolish(first(row, ("is_i2p", "i2p", "metadata.is_i2p", "metadata.i2p"))) or ".i2p" in address:
+    if boolish(first(row, ("is_i2p", "i2p", "i2p.is_i2p", "metadata.is_i2p", "metadata.i2p"))) or ".i2p" in address:
         return "i2p"
 
     try:
@@ -283,6 +330,22 @@ def network_for(row: Mapping[str, Any]) -> str:
 
 
 def status_for(row: Mapping[str, Any]) -> str:
+    explicit = clean(first(row, ("status", "metadata.status"))).lower()
+
+    if explicit:
+        return explicit
+
+    if has_flag(row, ("is_sanctioned_node", "is_sanctioned", "sanctions_data.is_sanctioned")):
+        return "sanctioned-node"
+
+    if has_flag(row, ("is_policy_restricted_node", "policy_restricted", "sanctions_data.is_policy_restricted")):
+        return "policy-restricted-node"
+
+    threat = clean(first(row, ("threat_level", "tag_threat_level", "threat_infrastructure.threat_level", "metadata.threat_level"))).lower()
+
+    if threat in {"confirmed", "high"}:
+        return "high-threat-infrastructure"
+
     if boolish(first(row, ("reachable_now", "metadata.reachable_now"))) is True:
         return "reachable_now"
 
@@ -298,7 +361,7 @@ def status_for(row: Mapping[str, Any]) -> str:
     return "unknown"
 
 
-def coordinate_pair(row: Mapping[str, Any]) -> tuple[float | None, float | None, str]:
+def coordinate_pair(row: Mapping[str, Any], network: str) -> tuple[float | None, float | None, str]:
     candidates = (
         (
             first(row, ("latitude", "lat", "geo_lat", "dbip_latitude")),
@@ -367,26 +430,82 @@ def coordinate_pair(row: Mapping[str, Any]) -> tuple[float | None, float | None,
         if -90 <= lat <= 90 and -180 <= lon <= 180:
             return lat, lon, source
 
+    if network == "tor":
+        return 0.0, -32.0, "symbolic.tor_atlantic_channel"
+
+    if network == "i2p":
+        return 0.0, 32.0, "symbolic.i2p_indian_ocean_channel"
+
     return None, None, ""
 
 
+def marker_color(network: str, row: Mapping[str, Any], status: str) -> str:
+    sanctioned = has_flag(row, ("is_sanctioned_node", "is_sanctioned", "sanctions_data.is_sanctioned"))
+    restricted = has_flag(row, ("is_policy_restricted_node", "policy_restricted", "sanctions_data.is_policy_restricted"))
+    threat = clean(first(row, ("threat_level", "tag_threat_level", "threat_infrastructure.threat_level", "metadata.threat_level"))).lower()
+
+    if sanctioned:
+        return "#ff0000"
+
+    if restricted:
+        return "#ff3b30"
+
+    if threat in {"confirmed", "high"}:
+        return "#ff0000"
+
+    if threat == "medium":
+        return "#ff9500"
+
+    if threat == "low":
+        return "#ffcc00"
+
+    if status == "unreachable":
+        return "#d95c5c"
+
+    return {
+        "ipv4": "#c0d674",
+        "ipv6": "#70b7ff",
+        "cjdns": "#00d1b2",
+        "tor": "#9d67ad",
+        "i2p": "#b889ff",
+        "dns": "#edf7b9",
+        "unknown": "#8c927e",
+    }.get(network, "#8c927e")
+
+
 def point_from_node(row: Mapping[str, Any]) -> dict[str, Any] | None:
-    lat, lon, coord_source = coordinate_pair(row)
+    address = str(first(row, ("address", "node", "addr", "host", "hostname", "ip")) or "")
+    network = network_for(row)
+    lat, lon, coord_source = coordinate_pair(row, network)
 
     if lat is None or lon is None:
         return None
 
-    address = str(first(row, ("address", "node", "addr", "host", "hostname", "ip")) or "")
-    network = network_for(row)
+    status = status_for(row)
+    threat = clean(first(row, ("threat_level", "tag_threat_level", "threat_infrastructure.threat_level", "metadata.threat_level"))).lower() or "none"
+
+    sanctioned = has_flag(row, ("is_sanctioned_node", "is_sanctioned", "sanctions_data.is_sanctioned"))
+    restricted = has_flag(row, ("is_policy_restricted_node", "policy_restricted", "sanctions_data.is_policy_restricted"))
+    threat_infra = has_flag(row, ("is_threat_infrastructure", "suspected_threat_infrastructure", "threat_infrastructure.is_threat_infrastructure"))
+
+    color = marker_color(network, row, status)
 
     return {
+        "id": address or split_host(address),
         "address": address,
         "host": split_host(address),
+        "port": integer(first(row, ("port", "metadata.port")), split_port(address)),
         "latitude": lat,
         "longitude": lon,
+        "lat": lat,
+        "lon": lon,
         "coordinate_source": coord_source,
         "network": network,
-        "status": status_for(row),
+        "status": status,
+        "status_label": status.replace("_", " ").replace("-", " ").title(),
+        "color": color,
+        "marker_color": color,
+        "marker_ring": sanctioned or restricted or threat_infra or threat in {"confirmed", "high"},
         "country": first(row, (
             "country",
             "country_code",
@@ -394,7 +513,9 @@ def point_from_node(row: Mapping[str, Any]) -> dict[str, Any] | None:
             "geoip.country_code",
             "geoip_data.country_code",
             "metadata.geoip.country_code",
+            "metadata.country",
         )),
+        "country_code": first(row, ("country_code", "country_data.country_code", "metadata.country_code")),
         "country_name": first(row, (
             "country_name",
             "country_data.country_name",
@@ -402,18 +523,19 @@ def point_from_node(row: Mapping[str, Any]) -> dict[str, Any] | None:
             "geoip_data.country_name",
             "metadata.geoip.country_name",
         )),
-        "continent": first(row, ("continent", "continent_data.continent")),
-        "region": first(row, ("region", "region_data.region", "geoip.region", "metadata.geoip.region")),
-        "territory": first(row, ("territory", "territory_data.territory", "state", "province")),
-        "county": first(row, ("county", "county_data.county")),
-        "city": first(row, ("city", "city_data.city", "geoip.city", "geoip_data.city", "metadata.geoip.city")),
-        "zip": first(row, ("zip", "postal_code", "postal_data.postal_code")),
+        "continent": first(row, ("continent", "continent_data.continent", "metadata.continent")),
+        "region": first(row, ("region", "region_data.region", "geoip.region", "metadata.geoip.region", "metadata.region")),
+        "territory": first(row, ("territory", "territory_data.territory", "state", "province", "metadata.territory")),
+        "county": first(row, ("county", "county_data.county", "metadata.county")),
+        "city": first(row, ("city", "city_data.city", "geoip.city", "geoip_data.city", "metadata.geoip.city", "metadata.city")),
+        "zip": first(row, ("zip", "postal_code", "postal_data.postal_code", "metadata.zip")),
         "timezone": first(row, (
             "timezone",
             "timezone_data.timezone",
             "geoip.timezone",
             "geoip_data.timezone",
             "metadata.geoip.timezone",
+            "metadata.timezone",
         )),
         "asn": first(row, ("asn", "asn_data.asn", "geoip.asn", "geoip_data.asn", "metadata.geoip.asn")),
         "organization": first(row, (
@@ -431,32 +553,66 @@ def point_from_node(row: Mapping[str, Any]) -> dict[str, Any] | None:
             "geoip_data.provider",
             "metadata.geoip.provider",
         )),
-        "agent": first(row, ("agent", "user_agent")),
-        "height": first(row, ("height",)),
+        "agent": first(row, ("agent", "user_agent", "subver")),
+        "protocol": first(row, ("protocol", "protocol_version", "version")),
+        "services": first(row, ("services",)),
+        "height": first(row, ("height", "block_height")),
         "latency_ms": first(row, ("latency_ms", "metadata.latency_ms")),
         "peer_index": first(row, ("peer_index", "metadata.peer_index")),
         "reachable": boolish(first(row, ("reachable", "metadata.reachable"))),
         "reachable_now": boolish(first(row, ("reachable_now", "metadata.reachable_now"))),
         "reachable_24h": boolish(first(row, ("reachable_24h", "metadata.reachable_24h"))),
-        "tor": network == "tor",
-        "i2p": network == "i2p",
-        "vpn": boolish(first(row, ("vpn", "is_vpn", "suspected_vpn", "metadata.is_vpn", "metadata.suspected_vpn"))) is True,
-        "proxy": boolish(first(row, ("proxy", "is_proxy", "suspected_proxy", "metadata.is_proxy", "metadata.suspected_proxy"))) is True,
-        "geohash": first(row, ("geohash", "geohashid", "geohashid_data.geohashid")),
-        "w3w": first(row, ("w3w", "what3words", "w3w_data.w3w")),
-        "zzxgcs": first(row, ("zzxgcs", "zzxgcs_data.zzxgcs")),
+        "is_tor": network == "tor",
+        "is_i2p": network == "i2p",
+        "is_vpn": has_flag(row, ("vpn", "is_vpn", "suspected_vpn", "metadata.is_vpn", "metadata.suspected_vpn")),
+        "is_proxy": has_flag(row, ("proxy", "is_proxy", "suspected_proxy", "metadata.is_proxy", "metadata.suspected_proxy")),
+        "is_datacenter": has_flag(row, ("is_datacenter", "datacenter.is_datacenter", "provider_data.is_datacenter")),
+        "is_government": has_flag(row, ("is_government", "government.is_government", "organization_data.is_government")),
+        "is_military": has_flag(row, ("is_military", "military.is_military", "organization_data.is_military")),
+        "is_sanctioned_node": sanctioned,
+        "is_policy_restricted_node": restricted,
+        "is_threat_infrastructure": threat_infra,
+        "confirmed_intelligence_match": has_flag(row, ("confirmed_intelligence_match", "threat_infrastructure.confirmed_intelligence_match")),
+        "suspected_threat_actor_group_related": has_flag(row, ("suspected_threat_actor_group_related", "tag_attribution.suspected_threat_actor_group_related")),
+        "is_known_malactor": has_flag(row, ("is_known_malactor", "knownmalactor.is_known_malactor", "known_malactor_data.is_known_malactor")),
+        "threat_level": threat,
+        "threat_color": first(row, ("threat_color", "tag_threat_color", "threat_infrastructure.map.threat_color")) or color,
+        "geohash": first(row, ("geohash", "geohashid_data.geohash", "metadata.geohash")),
+        "geohashid": first(row, ("geohashid", "geohashid_data.geohashid", "metadata.geohashid")),
+        "w3w": first(row, ("w3w", "what3words", "w3w_data.w3w", "metadata.w3w")),
+        "zzxgcs": first(row, ("zzxgcs", "zzxgcs_data.zzxgcs", "metadata.zzxgcs")),
     }
+
+
+def duplicate_annotate(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts = Counter(f"{point['latitude']:.4f},{point['longitude']:.4f}" for point in points)
+
+    output = []
+
+    for point in points:
+        item = dict(point)
+        key = f"{point['latitude']:.4f},{point['longitude']:.4f}"
+        item["duplicate_count"] = counts[key]
+
+        if counts[key] > 1 and item.get("status") not in {"sanctioned-node", "policy-restricted-node", "high-threat-infrastructure"}:
+            item["status"] = "duplicate-location"
+            item["status_label"] = "Duplicate Location"
+
+        output.append(item)
+
+    return output
 
 
 def build_geojson(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
     return {
         "type": "FeatureCollection",
-        "schema": "zzx-bitnodes-map-points-geojson-v3",
+        "schema": "zzx-bitnodes-map-points-geojson-v4",
         "source": source,
         "updated_at": utc_now(),
         "features": [
             {
                 "type": "Feature",
+                "id": point.get("id") or point.get("address"),
                 "geometry": {
                     "type": "Point",
                     "coordinates": [point["longitude"], point["latitude"]],
@@ -464,7 +620,7 @@ def build_geojson(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
                 "properties": {
                     key: value
                     for key, value in point.items()
-                    if key not in {"latitude", "longitude"}
+                    if key not in {"latitude", "longitude", "lat", "lon"}
                 },
             }
             for point in points
@@ -479,7 +635,7 @@ def build_index(points: list[dict[str, Any]], source: str, input_path: str) -> d
     coord_sources = Counter(point.get("coordinate_source") or "unknown" for point in points)
 
     return {
-        "schema": "zzx-bitnodes-mapplotter-index-v3",
+        "schema": "zzx-bitnodes-mapplotter-index-v4",
         "source": source,
         "input": input_path,
         "updated_at": utc_now(),
@@ -496,19 +652,48 @@ def build_index(points: list[dict[str, Any]], source: str, input_path: str) -> d
             "vectors": "./map-vectors.json",
             "index": "./index.json",
         },
+        "red_ring_semantics": {
+            "is_sanctioned_node": "red marker ring",
+            "is_policy_restricted_node": "red-orange marker ring",
+            "confirmed_or_high_threat": "red marker/ring",
+        },
     }
 
 
 def build_vector_payload(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-vectors-v3",
+        "schema": "zzx-bitnodes-map-vectors-v4",
         "source": source,
         "updated_at": utc_now(),
+        "generated_at": utc_now(),
         "point_count": len(points),
         "points": points,
+        "vectors": {"points": points},
         "network_counts": dict(Counter(point["network"] for point in points)),
         "status_counts": dict(Counter(point["status"] for point in points)),
         "country_counts": dict(Counter(point.get("country") or "Unknown" for point in points).most_common(250)),
+        "intelligence_counts": {
+            "vpn_nodes": sum(1 for point in points if point.get("is_vpn")),
+            "proxy_nodes": sum(1 for point in points if point.get("is_proxy")),
+            "datacenter_nodes": sum(1 for point in points if point.get("is_datacenter")),
+            "government_nodes": sum(1 for point in points if point.get("is_government")),
+            "military_nodes": sum(1 for point in points if point.get("is_military")),
+            "sanctioned_nodes": sum(1 for point in points if point.get("is_sanctioned_node")),
+            "policy_restricted_nodes": sum(1 for point in points if point.get("is_policy_restricted_node")),
+            "threat_infrastructure_nodes": sum(1 for point in points if point.get("is_threat_infrastructure")),
+            "known_malactor_nodes": sum(1 for point in points if point.get("is_known_malactor")),
+        },
+        "legend": {
+            "reachable_now": {"label": "Reachable Now", "color": "#c0d674"},
+            "reachable_24h": {"label": "Reachable 24H", "color": "#e6a42b"},
+            "unreachable": {"label": "Unreachable", "color": "#d95c5c"},
+            "tor": {"label": "Tor", "color": "#9d67ad"},
+            "i2p": {"label": "I2P", "color": "#b889ff"},
+            "sanctioned": {"label": "Sanctioned Nation Node", "color": "#ff0000", "marker_ring": True},
+            "policy_restricted": {"label": "Policy Restricted Node", "color": "#ff3b30", "marker_ring": True},
+            "threat_infrastructure": {"label": "Threat Infrastructure", "color": "#ff9500", "marker_ring": True},
+            "unknown": {"label": "Unknown", "color": "#8c927e"},
+        },
     }
 
 
@@ -523,7 +708,7 @@ def write_outputs(
     vector_payload = build_vector_payload(points, source)
 
     write_json(target / "points.json", {
-        "schema": "zzx-bitnodes-map-points-v3",
+        "schema": "zzx-bitnodes-map-points-v4",
         "source": source,
         "updated_at": utc_now(),
         "total_points": len(points),
@@ -536,12 +721,14 @@ def write_outputs(
     write_json(target / "map-points.geojson", geojson, compact=compact)
 
     write_json(target / "live-map.json", {
-        "schema": "zzx-bitnodes-live-map-v3",
+        "schema": "zzx-bitnodes-live-map-v4",
         "source": source,
         "updated_at": utc_now(),
+        "generated_at": utc_now(),
         "total_points": len(points),
         "point_count": len(points),
         "points": points,
+        "nodes": points,
     }, compact=compact)
 
     write_json(target / "index.json", index, compact=compact)
@@ -593,8 +780,11 @@ def main() -> int:
         seen.add(key)
         points.append(point)
 
+    points = duplicate_annotate(points)
+
     points.sort(
         key=lambda point: (
+            -int(bool(point.get("marker_ring"))),
             str(point.get("country") or ""),
             str(point.get("city") or ""),
             str(point.get("address") or ""),
