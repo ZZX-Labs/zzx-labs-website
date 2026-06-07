@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import importlib.util
 import json
 import math
+import os
 import shutil
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -15,14 +18,21 @@ APP_ROOT = Path(__file__).resolve().parents[3]
 TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
 MAP_TOOLS_DIR = TOOLS_DIR / "map"
 
-DEFAULT_STATE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state"
-DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
+BITNODES_API = Path(os.environ.get("BITNODES_API", str(BITNODES_ROOT / "api")))
+BITNODES_DATA = Path(os.environ.get("BITNODES_DATA", str(BITNODES_ROOT / "data")))
 
-DEFAULT_THEME_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "mapthemes"
-DEFAULT_SETTINGS_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "mapsettings"
+DEFAULT_STATE_DIR = BITNODES_DATA / "state"
+DEFAULT_API_DIR = BITNODES_API
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
+DEFAULT_SQLITE = BITNODES_DATA / "mariadb" / "api" / "bitnodes.sqlite3"
+DEFAULT_DB_SHARDS = BITNODES_DATA / "mariadb"
 
+DEFAULT_THEME_DIR = BITNODES_DATA / "mapthemes"
+DEFAULT_SETTINGS_DIR = BITNODES_DATA / "mapsettings"
+
+DEFAULT_SOURCE = "zzxbitnodes"
 DEFAULT_THEME = "zzx_dark_olive"
 DEFAULT_SETTINGS = "default"
 DEFAULT_TILE_PROVIDER = "cartodb_dark"
@@ -48,41 +58,6 @@ def resolve_path(value: str | Path, base: Path = APP_ROOT) -> Path:
     return path if path.is_absolute() else base / path
 
 
-def read_json(path: Path, fallback: Any = None) -> Any:
-    if fallback is None:
-        fallback = {}
-
-    try:
-        if not path.exists():
-            return fallback
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return fallback
-
-
-def write_json(path: Path, payload: Any, compact: bool = False) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=None if compact else 2,
-            separators=(",", ":") if compact else None,
-            sort_keys=not compact,
-        ) + "\n",
-        encoding="utf-8",
-    )
-    tmp.replace(path)
-
-
-def write_text(path: Path, payload: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(payload, encoding="utf-8")
-    tmp.replace(path)
-
-
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
@@ -94,6 +69,8 @@ def clean(value: Any) -> str:
 
 def number(value: Any, fallback: float | None = None) -> float | None:
     try:
+        if value in ("", None):
+            return fallback
         n = float(value)
     except (TypeError, ValueError):
         return fallback
@@ -125,13 +102,54 @@ def boolish(value: Any) -> bool | None:
 
     text = str(value or "").strip().lower()
 
-    if text in {"true", "yes", "y", "ok", "1", "reachable", "online", "success"}:
+    if text in {"true", "yes", "y", "ok", "1", "reachable", "online", "success", "match", "matched"}:
         return True
 
     if text in {"false", "no", "n", "0", "unreachable", "offline", "failed", "timeout", "error"}:
         return False
 
     return None
+
+
+def read_json(path: Path, fallback: Any = None) -> Any:
+    if fallback is None:
+        fallback = {}
+
+    try:
+        if not path.exists():
+            return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
+
+
+def write_json(path: Path, payload: Any, compact: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        ) + "\n",
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+
+
+def write_text(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(path)
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
@@ -156,6 +174,38 @@ def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
             return value
 
     return None
+
+
+def split_host_port(address: str) -> tuple[str, int | None]:
+    value = clean(address)
+
+    if not value:
+        return "", None
+
+    if value.startswith("[") and "]" in value:
+        host = value[1:value.index("]")]
+        rest = value[value.index("]") + 1:]
+
+        if rest.startswith(":") and rest[1:].isdigit():
+            return host, int(rest[1:])
+
+        return host, None
+
+    lower = value.lower()
+
+    if ".onion:" in lower or ".i2p:" in lower:
+        host, port = value.rsplit(":", 1)
+        return host, int(port) if port.isdigit() else None
+
+    if value.count(":") == 1:
+        host, port = value.rsplit(":", 1)
+        return host, int(port) if port.isdigit() else None
+
+    return value, None
+
+
+def node_address(row: Mapping[str, Any]) -> str:
+    return clean(first(row, ("address", "canonical_address", "node", "addr", "host", "hostname", "id")))
 
 
 def row_lat_lon(row: Mapping[str, Any]) -> tuple[float | None, float | None]:
@@ -207,107 +257,170 @@ def row_lat_lon(row: Mapping[str, Any]) -> tuple[float | None, float | None]:
     return lat, lon
 
 
-def load_module(module_name: str) -> Any | None:
-    path = MAP_TOOLS_DIR / f"{module_name}.py"
+def is_tor(row: Mapping[str, Any]) -> bool:
+    address = node_address(row).lower()
+    return boolish(first(row, ("is_tor", "tor", "tor.is_tor", "metadata.is_tor", "metadata.tor"))) is True or ".onion" in address
 
-    if not path.exists():
-        return None
 
-    spec = importlib.util.spec_from_file_location(
-        f"zzx_bitnodes_map_{module_name}",
-        path,
+def is_i2p(row: Mapping[str, Any]) -> bool:
+    address = node_address(row).lower()
+    return boolish(first(row, ("is_i2p", "i2p", "i2p.is_i2p", "metadata.is_i2p", "metadata.i2p"))) is True or ".i2p" in address
+
+
+def is_ipv4(row: Mapping[str, Any]) -> bool:
+    address = node_address(row)
+    host = address.rsplit(":", 1)[0] if address.count(":") == 1 else address
+    return boolish(first(row, ("is_ipv4", "metadata.is_ipv4"))) is True or host.count(".") == 3
+
+
+def is_ipv6(row: Mapping[str, Any]) -> bool:
+    address = node_address(row).lower()
+    return boolish(first(row, ("is_ipv6", "metadata.is_ipv6"))) is True or address.startswith("[") or (
+        ":" in address and ".onion" not in address and ".i2p" not in address and address.count(".") < 3
     )
 
-    if spec is None or spec.loader is None:
-        return None
 
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+def classify_node(row: Mapping[str, Any]) -> str:
+    network = clean(first(row, ("network", "metadata.network", "address_family"))).lower()
 
-    return module
+    if network:
+        return network
 
+    if is_tor(row):
+        return "tor"
 
-def find_callable(module: Any) -> Callable[..., Any] | None:
-    for name in ("build", "build_map", "build_maps", "render", "render_map", "process", "run"):
-        fn = getattr(module, name, None)
+    if is_i2p(row):
+        return "i2p"
 
-        if callable(fn):
-            return fn
+    if is_ipv6(row):
+        return "ipv6"
 
-    return None
+    if is_ipv4(row):
+        return "ipv4"
 
-
-def payload_point_count(payload: Mapping[str, Any]) -> int:
-    vectors = payload.get("vectors")
-    geojson = payload.get("geojson")
-
-    vector_points = 0
-    geojson_points = 0
-
-    if isinstance(vectors, Mapping) and isinstance(vectors.get("points"), list):
-        vector_points = len(vectors["points"])
-
-    if isinstance(geojson, Mapping) and isinstance(geojson.get("features"), list):
-        geojson_points = len(geojson["features"])
-
-    return max(vector_points, geojson_points)
+    return "unknown"
 
 
-def call_module(
-    name: str,
-    fn: Callable[..., Any],
-    payload: dict[str, Any],
-    context: dict[str, Any],
-) -> dict[str, Any]:
-    before_count = payload_point_count(payload)
+def is_synced(row: Mapping[str, Any], max_height: int) -> bool:
+    height = integer(first(row, ("height", "block_height")), 0)
 
-    attempts = (
-        lambda: fn(payload, context),
-        lambda: fn(payload=payload, context=context),
-        lambda: fn(payload),
-    )
+    if max_height <= 0 or height <= 0:
+        return False
 
-    last_error: Exception | None = None
+    return height >= max_height - 2
 
-    for attempt in attempts:
-        try:
-            result = attempt()
 
-            if result is None:
-                return payload
+def uptime_seconds(row: Mapping[str, Any]) -> float:
+    for key in ("uptime_seconds", "uptime", "age_seconds", "last_seen_duration", "metadata.uptime_seconds"):
+        value = number(first(row, (key,)))
 
-            if not isinstance(result, dict):
-                return payload
+        if value is not None:
+            return float(value)
 
-            after_count = payload_point_count(result)
+    first_seen = number(first(row, ("first_seen", "metadata.first_seen")))
+    last_seen = number(first(row, ("last_seen", "timestamp", "metadata.last_seen")))
 
-            if before_count > 0 and after_count <= 0:
-                protected = dict(result)
-                protected["vectors"] = payload.get("vectors")
-                protected["geojson"] = payload.get("geojson")
-                protected.setdefault("module_warnings", [])
-                if isinstance(protected["module_warnings"], list):
-                    protected["module_warnings"].append({
-                        "module": name,
-                        "warning": "module attempted to replace non-empty map output with empty vectors/geojson; original non-empty output preserved",
-                        "generated_at": utc_now(),
-                    })
-                return protected
+    if first_seen is not None and last_seen is not None and last_seen >= first_seen:
+        return last_seen - first_seen
 
-            return result
+    return 0.0
 
-        except TypeError as err:
-            last_error = err
-            continue
 
-    if last_error:
-        raise RuntimeError(f"{name} signature mismatch: {last_error}") from last_error
+def marker_status(row: Mapping[str, Any], duplicate_count: int, max_height: int) -> dict[str, Any]:
+    reachable = boolish(first(row, ("reachable", "metadata.reachable")))
+    reachable_now = boolish(first(row, ("reachable_now", "metadata.reachable_now")))
+    synced = is_synced(row, max_height)
+    uptime = uptime_seconds(row)
+    height = integer(first(row, ("height", "block_height")), 0)
 
-    return payload
+    sanctioned = flag(row, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned"))
+    restricted = flag(row, ("is_policy_restricted_node", "sanctions_data.is_policy_restricted"))
+    threat_level = clean(first(row, ("threat_level", "tag_threat_level", "threat_infrastructure.threat_level", "metadata.threat_level"))).lower()
+
+    if sanctioned:
+        color = "#ff0000"
+        status = "sanctioned-node"
+        label = "Sanctioned / Restricted Nation Node"
+        priority = 110
+        marker_ring = True
+    elif restricted:
+        color = "#ff3b30"
+        status = "policy-restricted-node"
+        label = "Policy Restricted Node"
+        priority = 105
+        marker_ring = True
+    elif threat_level in {"confirmed", "high"}:
+        color = "#ff0000"
+        status = "high-threat-infrastructure"
+        label = "Confirmed / High Threat Infrastructure"
+        priority = 100
+        marker_ring = True
+    elif duplicate_count > 1:
+        color = "#d95c5c"
+        status = "duplicate-location"
+        label = "Duplicate IP / Multiple Nodes at Location"
+        priority = 95
+        marker_ring = False
+    elif reachable is False or reachable_now is False:
+        color = "#d95c5c"
+        status = "unreachable"
+        label = "Node Became Unreachable"
+        priority = 85
+        marker_ring = False
+    elif not synced and height > 0:
+        color = "#9d67ad"
+        status = "not-yet-synced"
+        label = "Not Yet Synced"
+        priority = 75
+        marker_ring = False
+    elif synced and uptime >= 604800:
+        color = "#9fdb6d"
+        status = "stable-1w-plus"
+        label = "Synced / Uptime Over 1 Week"
+        priority = 70
+        marker_ring = False
+    elif synced and uptime >= 172800:
+        color = "#c0d674"
+        status = "stable-48h-plus"
+        label = "Synced / Uptime Over 48h"
+        priority = 65
+        marker_ring = False
+    elif synced and uptime >= 600:
+        color = "#e6a42b"
+        status = "synced-10m-plus"
+        label = "Synced / Uptime Over 10m"
+        priority = 55
+        marker_ring = False
+    elif synced:
+        color = "#edf7b9"
+        status = "synced-under-10m"
+        label = "Synced / Uptime Less Than 10m"
+        priority = 45
+        marker_ring = False
+    else:
+        color = "#8c927e"
+        status = "unknown"
+        label = "Unknown / Unclassified"
+        priority = 10
+        marker_ring = False
+
+    return {
+        "status": status,
+        "label": label,
+        "color": color,
+        "priority": priority,
+        "synced": synced,
+        "uptime_seconds": uptime,
+        "marker_ring": marker_ring,
+    }
+
+
+def flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
+    return any(boolish(first(row, (key,))) is True for key in keys)
 
 
 def array_node_to_dict(address: str, row: list[Any]) -> dict[str, Any]:
-    padded = list(row) + [None] * max(0, 20 - len(row))
+    padded = list(row) + [None] * max(0, 24 - len(row))
     metadata = padded[19] if isinstance(padded[19], dict) else {}
 
     record = {
@@ -339,9 +452,8 @@ def array_node_to_dict(address: str, row: list[Any]) -> dict[str, Any]:
         "metadata": dict(metadata),
     }
 
-    if isinstance(metadata, dict):
-        for key, value in metadata.items():
-            record.setdefault(key, value)
+    for key, value in metadata.items():
+        record.setdefault(key, value)
 
     return record
 
@@ -392,34 +504,100 @@ def extract_nodes(payload: Any) -> list[dict[str, Any]]:
 
     vectors = payload.get("vectors")
 
-    if isinstance(vectors, dict):
-        value = vectors.get("points")
+    if isinstance(vectors, dict) and isinstance(vectors.get("points"), list):
+        return extract_nodes(vectors["points"])
 
-        if isinstance(value, list):
-            return extract_nodes(value)
+    if isinstance(payload.get("points"), list):
+        return extract_nodes(payload["points"])
 
-    value = payload.get("points")
-    if isinstance(value, list):
-        return extract_nodes(value)
-
-    value = payload.get("features")
-    if isinstance(value, list):
+    if isinstance(payload.get("features"), list):
         output = []
-        for index, feature in enumerate(value):
+
+        for index, feature in enumerate(payload["features"]):
             if not isinstance(feature, dict):
                 continue
+
             props = feature.get("properties") if isinstance(feature.get("properties"), dict) else {}
             geom = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
             coords = geom.get("coordinates") if isinstance(geom.get("coordinates"), list) else []
             row = dict(props)
+
             if len(coords) >= 2:
                 row.setdefault("longitude", coords[0])
                 row.setdefault("latitude", coords[1])
+
             row.setdefault("address", props.get("address") or str(index))
             output.append(row)
+
         return output
 
     return []
+
+
+def sqlite_available(path: Path) -> bool:
+    return path.exists() and path.is_file()
+
+
+def load_sqlite_nodes(sqlite_path: Path, source: str = "", limit: int = 0) -> list[dict[str, Any]]:
+    if not sqlite_available(sqlite_path):
+        return []
+
+    conn = sqlite3.connect(str(sqlite_path))
+    conn.row_factory = sqlite3.Row
+
+    try:
+        query = """
+            SELECT *
+            FROM bitnodes_api_nodes
+            WHERE latitude IS NOT NULL
+              AND longitude IS NOT NULL
+        """
+        params: list[Any] = []
+
+        if source:
+            query += " AND source_name = ?"
+            params.append(source)
+
+        query += " ORDER BY reachable_now DESC, height DESC, address ASC"
+
+        if limit > 0:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        return [dict(row) for row in conn.execute(query, tuple(params)).fetchall()]
+    finally:
+        conn.close()
+
+
+def load_sql_gz_nodes(root: Path, source: str = "", limit: int = 0) -> list[dict[str, Any]]:
+    if not root.exists():
+        return []
+
+    rows: list[dict[str, Any]] = []
+
+    for path in sorted(root.rglob("*.sql.gz")):
+        if source and source not in path.as_posix() and "mixed" not in path.as_posix():
+            continue
+
+        try:
+            with gzip.open(path, "rt", encoding="utf-8", errors="replace") as handle:
+                text = handle.read(16 * 1024 * 1024)
+        except Exception:
+            continue
+
+        for match in __import__("re").finditer(r"\{.*?\}", text, flags=__import__("re").DOTALL):
+            try:
+                payload = json.loads(match.group(0))
+            except Exception:
+                continue
+
+            if isinstance(payload, dict):
+                rows.append(payload)
+
+            if limit > 0 and len(rows) >= limit:
+                return rows
+
+    return rows
 
 
 def find_input_file(api_dir: Path, state_dir: Path, explicit_input: str = "") -> Path | None:
@@ -430,9 +608,11 @@ def find_input_file(api_dir: Path, state_dir: Path, explicit_input: str = "") ->
             return path
 
     candidates = [
+        api_dir / "aggregate" / "zzxbitnodes" / "latest.json",
         api_dir / "enriched" / "zzxbitnodes" / "latest.json",
         api_dir / "zzxbitnodes" / "latest.json",
         api_dir / "zzxbitnodes" / "nodes.json",
+        api_dir / "aggregate" / "originalbitnodes" / "latest.json",
         api_dir / "enriched" / "originalbitnodes" / "latest.json",
         api_dir / "originalbitnodes" / "latest.json",
         api_dir / "originalbitnodes" / "nodes.json",
@@ -452,145 +632,51 @@ def find_input_file(api_dir: Path, state_dir: Path, explicit_input: str = "") ->
     return None
 
 
-def node_address(row: Mapping[str, Any]) -> str:
-    return clean(first(row, ("address", "node", "addr", "host", "hostname", "id")))
+def load_best_nodes(
+    *,
+    input_path: Path | None,
+    api_dir: Path,
+    state_dir: Path,
+    sqlite_path: Path,
+    db_shards: Path,
+    source: str,
+    limit: int,
+    prefer_db: bool,
+) -> tuple[list[dict[str, Any]], str, str]:
+    if prefer_db:
+        rows = load_sqlite_nodes(sqlite_path, source, limit)
 
+        if rows:
+            return rows, "sqlite", str(sqlite_path)
 
-def is_tor(row: Mapping[str, Any]) -> bool:
-    address = node_address(row).lower()
-    return boolish(first(row, ("is_tor", "tor", "tor.is_tor", "metadata.is_tor", "metadata.tor"))) is True or ".onion" in address
+        rows = load_sql_gz_nodes(db_shards, source, limit)
 
+        if rows:
+            return rows, "mariadb-sql-gz", str(db_shards)
 
-def is_i2p(row: Mapping[str, Any]) -> bool:
-    address = node_address(row).lower()
-    return boolish(first(row, ("is_i2p", "i2p", "i2p.is_i2p", "metadata.is_i2p", "metadata.i2p"))) is True or ".i2p" in address
+    selected = find_input_file(api_dir, state_dir, str(input_path) if input_path else "")
 
+    if selected:
+        rows = extract_nodes(read_json(selected, fallback={}))
+        if rows:
+            return rows[:limit] if limit > 0 else rows, "json", str(selected)
 
-def is_ipv4(row: Mapping[str, Any]) -> bool:
-    address = node_address(row)
-    host = address.rsplit(":", 1)[0] if address.count(":") == 1 else address
-    return boolish(first(row, ("is_ipv4", "metadata.is_ipv4"))) is True or host.count(".") == 3
+    rows = load_sqlite_nodes(sqlite_path, source, limit)
 
+    if rows:
+        return rows, "sqlite", str(sqlite_path)
 
-def is_ipv6(row: Mapping[str, Any]) -> bool:
-    address = node_address(row).lower()
-    return boolish(first(row, ("is_ipv6", "metadata.is_ipv6"))) is True or address.startswith("[") or (
-        ":" in address and ".onion" not in address and ".i2p" not in address and address.count(".") < 3
-    )
+    rows = load_sql_gz_nodes(db_shards, source, limit)
 
+    if rows:
+        return rows, "mariadb-sql-gz", str(db_shards)
 
-def classify_node(row: Mapping[str, Any]) -> str:
-    network = clean(first(row, ("network", "metadata.network"))).lower()
-
-    if network:
-        return network
-
-    if is_tor(row):
-        return "tor"
-
-    if is_i2p(row):
-        return "i2p"
-
-    if is_ipv6(row):
-        return "ipv6"
-
-    if is_ipv4(row):
-        return "ipv4"
-
-    return "unknown"
-
-
-def is_synced(row: Mapping[str, Any], max_height: int) -> bool:
-    height = integer(first(row, ("height",)), 0)
-
-    if max_height <= 0 or height <= 0:
-        return False
-
-    return height >= max_height - 2
-
-
-def uptime_seconds(row: Mapping[str, Any]) -> float:
-    for key in ("uptime_seconds", "uptime", "age_seconds", "last_seen_duration", "metadata.uptime_seconds"):
-        value = number(first(row, (key,)))
-
-        if value is not None:
-            return float(value)
-
-    first_seen = number(first(row, ("first_seen", "metadata.first_seen")))
-    last_seen = number(first(row, ("last_seen", "timestamp", "metadata.last_seen")))
-
-    if first_seen is not None and last_seen is not None and last_seen >= first_seen:
-        return last_seen - first_seen
-
-    return 0.0
-
-
-def marker_status(row: Mapping[str, Any], duplicate_count: int, max_height: int) -> dict[str, Any]:
-    reachable = boolish(first(row, ("reachable", "metadata.reachable")))
-    reachable_now = boolish(first(row, ("reachable_now", "metadata.reachable_now")))
-    synced = is_synced(row, max_height)
-    uptime = uptime_seconds(row)
-    height = integer(first(row, ("height",)), 0)
-
-    if duplicate_count > 1:
-        color = "#d95c5c"
-        status = "duplicate-location"
-        label = "Duplicate IP / Multiple Nodes at Location"
-        priority = 95
-    elif reachable is False or reachable_now is False:
-        color = "#d95c5c"
-        status = "unreachable"
-        label = "Node Became Unreachable"
-        priority = 85
-    elif not synced and height > 0:
-        color = "#9d67ad"
-        status = "not-yet-synced"
-        label = "Not Yet Synced"
-        priority = 75
-    elif synced and uptime >= 604800:
-        color = "#9fdb6d"
-        status = "stable-1w-plus"
-        label = "Synced / Uptime Over 1 Week"
-        priority = 70
-    elif synced and uptime >= 172800:
-        color = "#c0d674"
-        status = "stable-48h-plus"
-        label = "Synced / Uptime Over 48h"
-        priority = 65
-    elif synced and uptime >= 600:
-        color = "#e6a42b"
-        status = "synced-10m-plus"
-        label = "Synced / Uptime Over 10m"
-        priority = 55
-    elif synced:
-        color = "#edf7b9"
-        status = "synced-under-10m"
-        label = "Synced / Uptime Less Than 10m"
-        priority = 45
-    else:
-        color = "#8c927e"
-        status = "unknown"
-        label = "Unknown / Unclassified"
-        priority = 10
-
-    return {
-        "status": status,
-        "label": label,
-        "color": color,
-        "priority": priority,
-        "synced": synced,
-        "uptime_seconds": uptime,
-    }
-
-
-def flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
-    return any(boolish(first(row, (key,))) is True for key in keys)
+    return [], "none", ""
 
 
 def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     geocoded: list[tuple[dict[str, Any], float, float]] = []
-
-    max_height = max([integer(first(row, ("height",)), 0) for row in nodes] or [0])
+    max_height = max([integer(first(row, ("height", "block_height")), 0) for row in nodes] or [0])
 
     for row in nodes:
         lat, lon = row_lat_lon(row)
@@ -618,26 +704,30 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         duplicate_count = location_counts.get(key, 1)
         status = marker_status(row, duplicate_count, max_height)
         address = node_address(row)
+        network = classify_node(row)
 
         points.append({
             "id": address or f"{lat:.6f},{lon:.6f}",
             "address": address,
-            "host": clean(first(row, ("host", "hostname"))) or address,
+            "host": clean(first(row, ("host", "hostname"))) or split_host_port(address)[0],
+            "port": integer(first(row, ("port",)), split_host_port(address)[1] or 8333),
             "latitude": lat,
             "longitude": lon,
             "lat": lat,
             "lon": lon,
-            "network": classify_node(row),
+            "network": network,
             "status": status["status"],
             "status_label": status["label"],
             "color": status["color"],
+            "marker_color": status["color"],
+            "marker_ring": status["marker_ring"],
             "priority": status["priority"],
             "duplicate_count": duplicate_count,
             "synced": status["synced"],
             "reachable": boolish(first(row, ("reachable", "metadata.reachable"))),
             "reachable_now": boolish(first(row, ("reachable_now", "metadata.reachable_now"))),
             "reachable_24h": boolish(first(row, ("reachable_24h", "metadata.reachable_24h"))),
-            "height": integer(first(row, ("height",)), 0),
+            "height": integer(first(row, ("height", "block_height")), 0),
             "uptime_seconds": status["uptime_seconds"],
             "city": clean(first(row, ("city", "city_data.city", "metadata.city"))),
             "county": clean(first(row, ("county", "county_data.county", "metadata.county"))),
@@ -653,7 +743,6 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "provider": clean(first(row, ("provider", "provider_data.provider", "organization", "org", "metadata.provider"))),
             "organization": clean(first(row, ("organization", "org", "organization_data.organization", "metadata.organization"))),
             "asn": clean(first(row, ("asn", "asn_data.asn", "isp.asn", "metadata.asn"))),
-            "port": clean(first(row, ("port", "metadata.port"))),
             "services": first(row, ("services", "metadata.services")),
             "latency_ms": first(row, ("latency_ms", "metadata.latency_ms")),
             "peer_index": first(row, ("peer_index", "metadata.peer_index")),
@@ -664,17 +753,23 @@ def build_points(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "zzxgcs": clean(first(row, ("zzxgcs", "zzxgcs_data.zzxgcs", "metadata.zzxgcs"))),
             "jurisdiction_risk_level": clean(first(row, ("jurisdiction_risk_level", "sanctions_data.risk_level"))),
             "jurisdiction_recommended_action": clean(first(row, ("jurisdiction_recommended_action", "sanctions_data.recommended_action"))),
-            "is_vpn": flag(row, ("is_vpn", "suspected_vpn", "vpn_data.is_vpn", "metadata.is_vpn", "metadata.suspected_vpn")),
-            "is_proxy": flag(row, ("is_proxy", "suspected_proxy", "proxy_data.is_proxy", "metadata.is_proxy", "metadata.suspected_proxy")),
-            "is_datacenter": flag(row, ("is_datacenter", "datacenter_data.is_datacenter", "provider_data.is_datacenter")),
-            "is_government": flag(row, ("is_government", "government_data.is_government", "organization_data.is_government")),
-            "is_military": flag(row, ("is_military", "military_data.is_military", "organization_data.is_military")),
+            "threat_level": clean(first(row, ("threat_level", "tag_threat_level", "threat_infrastructure.threat_level", "metadata.threat_level"))) or "none",
+            "is_tor": is_tor(row),
+            "is_i2p": is_i2p(row),
+            "is_vpn": flag(row, ("is_vpn", "suspected_vpn", "vpn_data.is_vpn", "vpn.is_vpn", "metadata.is_vpn", "metadata.suspected_vpn")),
+            "is_proxy": flag(row, ("is_proxy", "suspected_proxy", "proxy_data.is_proxy", "proxy.is_proxy", "metadata.is_proxy", "metadata.suspected_proxy")),
+            "is_datacenter": flag(row, ("is_datacenter", "datacenter_data.is_datacenter", "datacenter.is_datacenter", "provider_data.is_datacenter")),
+            "is_government": flag(row, ("is_government", "government_data.is_government", "government.is_government", "organization_data.is_government")),
+            "is_military": flag(row, ("is_military", "military_data.is_military", "military.is_military", "organization_data.is_military")),
             "is_university": flag(row, ("is_university", "is_academic", "is_institute", "organization_data.is_university")),
             "is_private": flag(row, ("is_private", "is_commercial", "organization_data.is_private")),
             "is_public": flag(row, ("is_public", "is_residential", "organization_data.is_public")),
             "is_sanctioned": flag(row, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned")),
-            "is_apt": flag(row, ("is_apt", "apt_data.is_apt", "aptattribution.is_apt")),
-            "is_threat_actor": flag(row, ("is_threat_actor", "threat_actor_data.is_threat_actor", "tagattribution.is_threat_actor")),
+            "is_sanctioned_node": flag(row, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned")),
+            "is_policy_restricted_node": flag(row, ("is_policy_restricted_node", "sanctions_data.is_policy_restricted")),
+            "is_threat_infrastructure": flag(row, ("is_threat_infrastructure", "threat_infrastructure.is_threat_infrastructure")),
+            "is_apt": flag(row, ("is_apt", "apt_data.is_apt", "aptattribution.is_apt", "suspected_apt_related")),
+            "is_threat_actor": flag(row, ("is_threat_actor", "threat_actor_data.is_threat_actor", "tagattribution.is_threat_actor", "suspected_threat_actor_group_related")),
             "is_known_malactor": flag(row, ("is_known_malactor", "known_malactor_data.is_known_malactor", "knownmalactor.is_known_malactor")),
         })
 
@@ -702,13 +797,18 @@ def intelligence_counts(points: list[dict[str, Any]]) -> dict[str, int]:
         "government_nodes": sum(1 for point in points if point.get("is_government")),
         "military_nodes": sum(1 for point in points if point.get("is_military")),
         "university_nodes": sum(1 for point in points if point.get("is_university")),
-        "sanctioned_nodes": sum(1 for point in points if point.get("is_sanctioned")),
+        "sanctioned_nodes": sum(1 for point in points if point.get("is_sanctioned_node")),
+        "policy_restricted_nodes": sum(1 for point in points if point.get("is_policy_restricted_node")),
+        "threat_infrastructure_nodes": sum(1 for point in points if point.get("is_threat_infrastructure")),
         "known_malactor_nodes": sum(1 for point in points if point.get("is_known_malactor")),
     }
 
 
 def default_legend() -> dict[str, dict[str, str]]:
     return {
+        "sanctioned-node": {"label": "Sanctioned / Restricted Nation Node", "color": "#ff0000"},
+        "policy-restricted-node": {"label": "Policy Restricted Node", "color": "#ff3b30"},
+        "high-threat-infrastructure": {"label": "Confirmed / High Threat Infrastructure", "color": "#ff0000"},
         "duplicate-location": {"label": "Duplicate IP / Multiple Nodes at Location", "color": "#d95c5c"},
         "unreachable": {"label": "Node Became Unreachable", "color": "#d95c5c"},
         "not-yet-synced": {"label": "Not Yet Synced", "color": "#9d67ad"},
@@ -720,11 +820,12 @@ def default_legend() -> dict[str, dict[str, str]]:
     }
 
 
-def build_vector_payload(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
+def build_vector_payload(points: list[dict[str, Any]], source: str, input_mode: str) -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-vectors-v4",
+        "schema": "zzx-bitnodes-map-vectors-v5",
         "generated_at": utc_now(),
         "source": source,
+        "input_mode": input_mode,
         "point_count": len(points),
         "network_counts": count_by(points, "network"),
         "status_counts": count_by(points, "status"),
@@ -735,16 +836,18 @@ def build_vector_payload(points: list[dict[str, Any]], source: str) -> dict[str,
         "intelligence_counts": intelligence_counts(points),
         "legend": default_legend(),
         "points": points,
+        "vectors": {"points": points},
     }
 
 
-def build_geojson(points: list[dict[str, Any]], source: str) -> dict[str, Any]:
+def build_geojson(points: list[dict[str, Any]], source: str, input_mode: str) -> dict[str, Any]:
     return {
         "type": "FeatureCollection",
-        "schema": "zzx-bitnodes-map-points-geojson-v4",
+        "schema": "zzx-bitnodes-map-points-geojson-v5",
         "name": "ZZX Bitnodes Live Map",
         "generated_at": utc_now(),
         "source": source,
+        "input_mode": input_mode,
         "features": [
             {
                 "type": "Feature",
@@ -774,7 +877,7 @@ def default_settings(tile_provider: str = DEFAULT_TILE_PROVIDER) -> dict[str, An
         tile_subdomains = ["a", "b", "c"]
 
     return {
-        "schema": "zzx-bitnodes-map-settings-fallback-v4",
+        "schema": "zzx-bitnodes-map-settings-fallback-v5",
         "generated_at": utc_now(),
         "profile": {"id": DEFAULT_SETTINGS, "name": "Default"},
         "theme": {"selected": DEFAULT_THEME},
@@ -789,9 +892,7 @@ def default_settings(tile_provider: str = DEFAULT_TILE_PROVIDER) -> dict[str, An
             "box_zoom": True,
             "keyboard": True,
         },
-        "performance": {
-            "prefer_canvas_renderer": True,
-        },
+        "performance": {"prefer_canvas_renderer": True},
         "marker": {
             "radius_min": 4,
             "radius_max": 14,
@@ -799,9 +900,7 @@ def default_settings(tile_provider: str = DEFAULT_TILE_PROVIDER) -> dict[str, An
             "opacity": 0.95,
             "stroke_weight": 1,
         },
-        "polygons": {
-            "visible": False,
-        },
+        "polygons": {"visible": False},
         "refresh": {
             "enabled": True,
             "interval_seconds": 60,
@@ -819,7 +918,7 @@ def default_settings(tile_provider: str = DEFAULT_TILE_PROVIDER) -> dict[str, An
 
 def default_theme() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-theme-fallback-v4",
+        "schema": "zzx-bitnodes-map-theme-fallback-v5",
         "id": DEFAULT_THEME,
         "generated_at": utc_now(),
         "name": "ZZX Dark Olive",
@@ -835,102 +934,237 @@ def default_theme() -> dict[str, Any]:
 
 def default_themes() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-themes-fallback-v4",
+        "schema": "zzx-bitnodes-map-themes-fallback-v5",
         "generated_at": utc_now(),
         "default_theme": DEFAULT_THEME,
-        "themes": [
-            {"id": DEFAULT_THEME, "name": "ZZX Dark Olive"},
-        ],
+        "themes": [{"id": DEFAULT_THEME, "name": "ZZX Dark Olive"}],
     }
 
 
 def default_settings_profiles() -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-settings-profiles-fallback-v4",
+        "schema": "zzx-bitnodes-map-settings-profiles-fallback-v5",
         "generated_at": utc_now(),
         "default_settings": DEFAULT_SETTINGS,
-        "profiles": [
-            {"id": DEFAULT_SETTINGS, "name": "Default"},
-        ],
+        "profiles": [{"id": DEFAULT_SETTINGS, "name": "Default"}],
     }
 
 
 def default_layers() -> dict[str, Any]:
-    return {
-        "schema": "zzx-bitnodes-map-layers-fallback-v4",
-        "generated_at": utc_now(),
-        "layers": [],
-    }
+    return {"schema": "zzx-bitnodes-map-layers-fallback-v5", "generated_at": utc_now(), "layers": []}
 
 
 def default_overlays() -> dict[str, Any]:
-    return {
-        "schema": "zzx-bitnodes-map-overlays-fallback-v4",
-        "generated_at": utc_now(),
-        "overlays": [],
-    }
+    return {"schema": "zzx-bitnodes-map-overlays-fallback-v5", "generated_at": utc_now(), "overlays": []}
 
 
 def default_polygons() -> dict[str, Any]:
-    return {
-        "type": "FeatureCollection",
-        "schema": "zzx-bitnodes-map-polygons-fallback-v4",
-        "generated_at": utc_now(),
-        "features": [],
-    }
+    return {"type": "FeatureCollection", "schema": "zzx-bitnodes-map-polygons-fallback-v5", "generated_at": utc_now(), "features": []}
 
 
 def default_vector_types() -> dict[str, Any]:
-    return {
-        "schema": "zzx-bitnodes-vector-types-fallback-v4",
-        "generated_at": utc_now(),
-        "types": default_legend(),
-    }
+    return {"schema": "zzx-bitnodes-vector-types-fallback-v5", "generated_at": utc_now(), "types": default_legend()}
+
+
+def load_module(module_name: str) -> Any | None:
+    path = MAP_TOOLS_DIR / f"{module_name}.py"
+
+    if not path.exists():
+        return None
+
+    spec = importlib.util.spec_from_file_location(f"zzx_bitnodes_map_{module_name}", path)
+
+    if spec is None or spec.loader is None:
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def find_callable(module: Any) -> Callable[..., Any] | None:
+    for name in ("build", "build_map", "build_maps", "render", "render_map", "process", "run"):
+        fn = getattr(module, name, None)
+
+        if callable(fn):
+            return fn
+
+    return None
+
+
+def payload_point_count(payload: Mapping[str, Any]) -> int:
+    vectors = payload.get("vectors")
+    geojson = payload.get("geojson")
+
+    vector_points = 0
+    geojson_points = 0
+
+    if isinstance(vectors, Mapping) and isinstance(vectors.get("points"), list):
+        vector_points = len(vectors["points"])
+
+    if isinstance(geojson, Mapping) and isinstance(geojson.get("features"), list):
+        geojson_points = len(geojson["features"])
+
+    return max(vector_points, geojson_points)
+
+
+def call_module(name: str, fn: Callable[..., Any], payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    before_count = payload_point_count(payload)
+
+    attempts = (
+        lambda: fn(payload, context),
+        lambda: fn(payload=payload, context=context),
+        lambda: fn(payload),
+    )
+
+    last_error: Exception | None = None
+
+    for attempt in attempts:
+        try:
+            result = attempt()
+
+            if result is None or not isinstance(result, dict):
+                return payload
+
+            after_count = payload_point_count(result)
+
+            if before_count > 0 and after_count <= 0:
+                protected = dict(result)
+                protected["vectors"] = payload.get("vectors")
+                protected["geojson"] = payload.get("geojson")
+                protected.setdefault("module_warnings", [])
+
+                if isinstance(protected["module_warnings"], list):
+                    protected["module_warnings"].append({
+                        "module": name,
+                        "warning": "module attempted to replace non-empty map output with empty vectors/geojson; original non-empty output preserved",
+                        "generated_at": utc_now(),
+                    })
+
+                return protected
+
+            return result
+
+        except TypeError as err:
+            last_error = err
+            continue
+
+    if last_error:
+        raise RuntimeError(f"{name} signature mismatch: {last_error}") from last_error
+
+    return payload
+
+
+def run_component_modules(payload: dict[str, Any], context: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    report = []
+    current = payload
+
+    for name in MAP_MODULE_ORDER:
+        module_report = {"name": name, "status": "skipped", "message": "", "updated_at": utc_now()}
+        module = load_module(name)
+
+        if module is None:
+            module_report["status"] = "missing"
+            module_report["message"] = f"{name}.py not found; maps.py fallback output retained."
+            report.append(module_report)
+            continue
+
+        fn = find_callable(module)
+
+        if fn is None:
+            module_report["status"] = "missing-callable"
+            module_report["message"] = f"{name}.py has no supported build/render/process function."
+            report.append(module_report)
+            continue
+
+        try:
+            before = payload_point_count(current)
+            current = call_module(name, fn, current, context)
+            after = payload_point_count(current)
+            module_report["status"] = "ok"
+            module_report["message"] = f"{name}.py completed. points_before={before}, points_after={after}."
+        except Exception as err:
+            module_report["status"] = "error"
+            module_report["message"] = str(err)
+
+            if context.get("strict"):
+                report.append(module_report)
+                raise
+
+        report.append(module_report)
+
+    return current, report
+
+
+def ensure_nonempty_outputs(map_payload: dict[str, Any], fallback_vectors: dict[str, Any], fallback_geojson: dict[str, Any]) -> dict[str, Any]:
+    output = dict(map_payload)
+
+    vectors = output.get("vectors")
+    geojson = output.get("geojson")
+
+    if not isinstance(vectors, dict) or not isinstance(vectors.get("points"), list) or len(vectors["points"]) <= 0:
+        output["vectors"] = fallback_vectors
+
+    if not isinstance(geojson, dict) or not isinstance(geojson.get("features"), list) or len(geojson["features"]) <= 0:
+        output["geojson"] = fallback_geojson
+
+    output.setdefault("settings", default_settings())
+    output.setdefault("theme", default_theme())
+    output.setdefault("themes", default_themes())
+    output.setdefault("settings_profiles", default_settings_profiles())
+    output.setdefault("layers", default_layers())
+    output.setdefault("overlays", default_overlays())
+    output.setdefault("polygons", default_polygons())
+    output.setdefault("vector_types", default_vector_types())
+
+    return output
 
 
 def render_index_html(title: str, depth: str = "..") -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} | ZZX-Labs R&D Bitnodes</title>
-    <link rel="stylesheet" href="{depth}/styles.css">
-    <link rel="stylesheet" href="./map.css">
-    <script src="{depth}/script.js" defer></script>
-    <script src="./map.js" defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title} | ZZX-Labs R&D Bitnodes</title>
+<link rel="stylesheet" href="{depth}/styles.css">
+<link rel="stylesheet" href="./map.css">
+<script src="{depth}/script.js" defer></script>
+<script src="./map.js" defer></script>
 </head>
 <body data-bn-depth="{depth}" data-bn-view="map">
 <header><div id="bn-header"></div></header>
 <main class="bn-shell">
-    <section class="bn-hero container">
-        <p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
-        <h2>{title}</h2>
-        <p>OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization, uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, and policy overlays.</p>
-    </section>
-    <section class="bn-panel container bn-map-panel">
-        <div class="bn-map-toolbar">
-            <div><span class="bn-kicker">Map Mode</span><h2>Bitcoin Node Map</h2></div>
-            <div class="bn-map-selectors">
-                <label>Theme<select id="bn-map-theme-select" data-map-theme-select></select></label>
-                <label>Settings<select id="bn-map-settings-select" data-map-settings-select></select></label>
-            </div>
-            <div class="bn-map-controls">
-                <button type="button" data-map-filter="all" class="is-active">All</button>
-                <button type="button" data-map-filter="ipv4">IPv4</button>
-                <button type="button" data-map-filter="ipv6">IPv6</button>
-                <button type="button" data-map-filter="tor">Tor</button>
-                <button type="button" data-map-filter="i2p">I2P</button>
-                <button type="button" data-map-filter="vpn">VPN</button>
-                <button type="button" data-map-filter="proxy">Proxy</button>
-                <button type="button" data-map-reset>Reset View</button>
-            </div>
-        </div>
-        <div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
-        <div id="bn-live-map" class="bn-live-map" data-map-root></div>
-        <div id="bn-map-hud" class="bn-map-hud"></div>
-        <div id="bn-map-legend" class="bn-map-legend"></div>
-    </section>
+<section class="bn-hero container">
+<p class="bn-kicker">ZZX-Labs / Bitnodes Mirror</p>
+<h2>{title}</h2>
+<p>OpenStreetMap-backed Bitcoin node telemetry with GeoIP, ISP, synchronization, uptime, Tor, I2P, IPv4, IPv6, GeoHashID, ZZX-GCS, what3words, sanctions, and policy overlays.</p>
+</section>
+<section class="bn-panel container bn-map-panel">
+<div class="bn-map-toolbar">
+<div><span class="bn-kicker">Map Mode</span><h2>Bitcoin Node Map</h2></div>
+<div class="bn-map-selectors">
+<label>Theme<select id="bn-map-theme-select" data-map-theme-select></select></label>
+<label>Settings<select id="bn-map-settings-select" data-map-settings-select></select></label>
+</div>
+<div class="bn-map-controls">
+<button type="button" data-map-filter="all" class="is-active">All</button>
+<button type="button" data-map-filter="ipv4">IPv4</button>
+<button type="button" data-map-filter="ipv6">IPv6</button>
+<button type="button" data-map-filter="tor">Tor</button>
+<button type="button" data-map-filter="i2p">I2P</button>
+<button type="button" data-map-filter="vpn">VPN</button>
+<button type="button" data-map-filter="proxy">Proxy</button>
+<button type="button" data-map-filter="sanctioned">Sanctioned</button>
+<button type="button" data-map-filter="threat">Threat</button>
+<button type="button" data-map-reset>Reset View</button>
+</div>
+</div>
+<div id="bn-map-status" class="bn-map-status">Loading map telemetry…</div>
+<div id="bn-live-map" class="bn-live-map" data-map-root></div>
+<div id="bn-map-hud" class="bn-map-hud"></div>
+<div id="bn-map-legend" class="bn-map-legend"></div>
+</section>
 </main>
 <footer><div id="bn-footer"></div></footer>
 </body>
@@ -1107,14 +1341,6 @@ def render_map_css() -> str:
     margin-bottom: 0.35rem;
 }
 
-.bn-chart-empty {
-    display: grid;
-    place-items: center;
-    min-height: 160px;
-    color: var(--bn-map-muted);
-    padding: 2rem;
-}
-
 @media (max-width: 1100px) {
     .bn-map-toolbar { grid-template-columns: 1fr; align-items: start; }
     .bn-map-controls { justify-content: flex-start; }
@@ -1135,35 +1361,15 @@ def render_map_js() -> str:
     return """(() => {
     "use strict";
 
-    const state = {
-        map: null,
-        layer: null,
-        polygonLayer: null,
-        canvasRenderer: null,
-        vectors: null,
-        vectorTypes: null,
-        settings: null,
-        theme: null,
-        themes: null,
-        settingsProfiles: null,
-        filter: "all"
-    };
+    const state = { map: null, layer: null, vectors: null, settings: null, theme: null, filter: "all" };
 
-    function qs(selector, scope = document) {
-        return scope.querySelector(selector);
-    }
-
-    function qsa(selector, scope = document) {
-        return Array.from(scope.querySelectorAll(selector));
-    }
+    function qs(selector, scope = document) { return scope.querySelector(selector); }
+    function qsa(selector, scope = document) { return Array.from(scope.querySelectorAll(selector)); }
 
     function escapeHtml(value) {
         return String(value ?? "")
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
+            .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
     }
 
     function setStatus(message) {
@@ -1173,11 +1379,7 @@ def render_map_js() -> str:
 
     function loadLeaflet() {
         return new Promise((resolve, reject) => {
-            if (window.L) {
-                resolve();
-                return;
-            }
-
+            if (window.L) return resolve();
             const css = document.createElement("link");
             css.rel = "stylesheet";
             css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
@@ -1198,19 +1400,8 @@ def render_map_js() -> str:
     }
 
     function applyTheme(theme) {
-        if (!theme) return;
-        state.theme = theme;
-        const vars = theme.css_variables || {};
-        Object.entries(vars).forEach(([key, value]) => {
-            document.documentElement.style.setProperty(key, value);
-        });
-    }
-
-    async function loadTheme(themeId) {
-        const id = themeId || state.settings?.theme?.selected || "zzx_dark_olive";
-        const theme = await readJson(`./data/themes/${id}.json`).catch(() => readJson("./data/map-theme.json"));
-        applyTheme(theme);
-        return theme;
+        const vars = theme?.css_variables || {};
+        Object.entries(vars).forEach(([key, value]) => document.documentElement.style.setProperty(key, value));
     }
 
     function pointVisible(point) {
@@ -1218,11 +1409,9 @@ def render_map_js() -> str:
         if (point.network === state.filter || point.status === state.filter) return true;
         if (state.filter === "vpn") return point.is_vpn === true;
         if (state.filter === "proxy") return point.is_proxy === true;
+        if (state.filter === "sanctioned") return point.is_sanctioned_node === true || point.is_sanctioned === true;
+        if (state.filter === "threat") return point.is_threat_infrastructure === true;
         return false;
-    }
-
-    function filteredPoints() {
-        return (state.vectors?.points || []).filter(pointVisible);
     }
 
     function radius(point) {
@@ -1239,16 +1428,15 @@ def render_map_js() -> str:
                 <div>Status: ${escapeHtml(point.status_label || point.status || "Unknown")}</div>
                 <div>Network: ${escapeHtml(point.network || "unknown")}</div>
                 <div>Height: ${escapeHtml(point.height || "—")}</div>
-                <div>Uptime: ${escapeHtml(Math.round(Number(point.uptime_seconds || 0)).toLocaleString())}s</div>
                 <div>City: ${escapeHtml(point.city || "—")}</div>
                 <div>County: ${escapeHtml(point.county || "—")}</div>
                 <div>Territory: ${escapeHtml(point.territory || "—")}</div>
                 <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
-                <div>Agent: ${escapeHtml(point.agent || "—")}</div>
-                <div>VPN: ${point.is_vpn ? "yes" : "no"}</div>
-                <div>Proxy: ${point.is_proxy ? "yes" : "no"}</div>
+                <div>Sanctioned: ${point.is_sanctioned_node ? "yes" : "no"}</div>
+                <div>Policy Restricted: ${point.is_policy_restricted_node ? "yes" : "no"}</div>
+                <div>Threat Infrastructure: ${point.is_threat_infrastructure ? "yes" : "no"}</div>
                 <div>W3W: ${escapeHtml(point.w3w || "—")}</div>
                 <div>ZZX-GCS: ${escapeHtml(point.zzxgcs || "—")}</div>
                 <div>GeohashID: ${escapeHtml(point.geohashid || "—")}</div>
@@ -1256,12 +1444,15 @@ def render_map_js() -> str:
         `;
     }
 
+    function filteredPoints() {
+        return (state.vectors?.points || []).filter(pointVisible);
+    }
+
     function renderHud() {
         const target = qs("#bn-map-hud");
         if (!target || !state.vectors) return;
 
         const networks = state.vectors.network_counts || {};
-        const statuses = state.vectors.status_counts || {};
         const intel = state.vectors.intelligence_counts || {};
 
         target.innerHTML = `
@@ -1270,18 +1461,17 @@ def render_map_js() -> str:
             <article><span>IPv6</span><strong>${Number(networks.ipv6 || 0).toLocaleString()}</strong></article>
             <article><span>Tor</span><strong>${Number(networks.tor || 0).toLocaleString()}</strong></article>
             <article><span>I2P</span><strong>${Number(networks.i2p || 0).toLocaleString()}</strong></article>
-            <article><span>Duplicate</span><strong>${Number(statuses["duplicate-location"] || 0).toLocaleString()}</strong></article>
-            <article><span>Unreachable</span><strong>${Number(statuses.unreachable || 0).toLocaleString()}</strong></article>
             <article><span>VPN</span><strong>${Number(intel.vpn_nodes || 0).toLocaleString()}</strong></article>
             <article><span>Proxy</span><strong>${Number(intel.proxy_nodes || 0).toLocaleString()}</strong></article>
-            <article><span>Datacenter</span><strong>${Number(intel.datacenter_nodes || 0).toLocaleString()}</strong></article>
+            <article><span>Sanctioned</span><strong>${Number(intel.sanctioned_nodes || 0).toLocaleString()}</strong></article>
+            <article><span>Restricted</span><strong>${Number(intel.policy_restricted_nodes || 0).toLocaleString()}</strong></article>
+            <article><span>Threat</span><strong>${Number(intel.threat_infrastructure_nodes || 0).toLocaleString()}</strong></article>
         `;
     }
 
     function renderLegend() {
         const target = qs("#bn-map-legend");
         if (!target || !state.vectors?.legend) return;
-
         target.innerHTML = Object.entries(state.vectors.legend).map(([_key, item]) => `
             <span><i style="background:${escapeHtml(item.color)}"></i>${escapeHtml(item.label)}</span>
         `).join("");
@@ -1289,7 +1479,6 @@ def render_map_js() -> str:
 
     function renderPoints() {
         if (!state.map || !window.L) return;
-
         if (state.layer) state.layer.remove();
 
         state.layer = window.L.layerGroup();
@@ -1297,19 +1486,15 @@ def render_map_js() -> str:
         filteredPoints().forEach(point => {
             const lat = Number(point.latitude ?? point.lat);
             const lon = Number(point.longitude ?? point.lon);
-
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
             const marker = window.L.circleMarker([lat, lon], {
                 radius: radius(point),
-                color: point.color || "#c0d674",
-                fillColor: point.color || "#c0d674",
+                color: point.color || point.marker_color || "#c0d674",
+                fillColor: point.color || point.marker_color || "#c0d674",
                 fillOpacity: Number(state.settings?.marker?.fill_opacity || 0.72),
                 opacity: Number(state.settings?.marker?.opacity || 0.95),
-                weight: Number(state.settings?.marker?.stroke_weight || 1),
-                renderer: state.settings?.performance?.prefer_canvas_renderer && state.canvasRenderer
-                    ? state.canvasRenderer
-                    : undefined
+                weight: point.marker_ring ? 3 : Number(state.settings?.marker?.stroke_weight || 1)
             });
 
             marker.bindPopup(markerPopup(point));
@@ -1322,77 +1507,17 @@ def render_map_js() -> str:
         setStatus(`Loaded ${filteredPoints().length.toLocaleString()} visible map points from ${state.vectors?.source || "selected source"}.`);
     }
 
-    async function renderPolygons() {
-        if (!state.map || !window.L) return;
-
-        const polygons = await readJson("./data/map-polygons.geojson").catch(() => null);
-        if (!polygons || !Array.isArray(polygons.features)) return;
-
-        if (state.polygonLayer) state.polygonLayer.remove();
-
-        state.polygonLayer = window.L.geoJSON(polygons, {
-            style: feature => {
-                const props = feature.properties || {};
-                return {
-                    color: props.stroke || "#c0d674",
-                    fillColor: props.fill || "#c0d674",
-                    fillOpacity: Number(props.fill_opacity || 0.08),
-                    opacity: Number(props.opacity || 0.22),
-                    weight: Number(props.weight || 1)
-                };
-            },
-            interactive: false
-        });
-
-        if (state.settings?.polygons?.visible === true) {
-            state.polygonLayer.addTo(state.map);
-        }
-    }
-
-    function populateThemeSelect() {
-        const select = qs("[data-map-theme-select]");
-        if (!select || !state.themes?.themes) return;
-
-        select.innerHTML = state.themes.themes.map(theme => `
-            <option value="${escapeHtml(theme.id)}">${escapeHtml(theme.name)}</option>
-        `).join("");
-
-        select.value = state.theme?.id || state.themes.default_theme || "zzx_dark_olive";
-
-        select.addEventListener("change", async () => {
-            await loadTheme(select.value);
-        });
-    }
-
-    function populateSettingsSelect() {
-        const select = qs("[data-map-settings-select]");
-        if (!select || !state.settingsProfiles?.profiles) return;
-
-        select.innerHTML = state.settingsProfiles.profiles.map(profile => `
-            <option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>
-        `).join("");
-
-        select.value = state.settings?.profile?.id || state.settingsProfiles.default_settings || "default";
-    }
-
     function wireControls(view) {
         qsa("[data-map-filter]").forEach(button => {
             button.addEventListener("click", () => {
                 state.filter = button.dataset.mapFilter || "all";
-
-                qsa("[data-map-filter]").forEach(item => {
-                    item.classList.toggle("is-active", item === button);
-                });
-
+                qsa("[data-map-filter]").forEach(item => item.classList.toggle("is-active", item === button));
                 renderPoints();
             });
         });
 
         qs("[data-map-reset]")?.addEventListener("click", () => {
-            state.map.setView(
-                [Number(view.latitude || 20), Number(view.longitude || 0)],
-                Number(view.zoom || 2)
-            );
+            state.map.setView([Number(view.latitude || 20), Number(view.longitude || 0)], Number(view.zoom || 2));
         });
     }
 
@@ -1401,27 +1526,17 @@ def render_map_js() -> str:
 
         state.settings = await readJson("./data/map-settings.json");
         state.vectors = await readJson("./data/map-vectors.json");
-        state.vectorTypes = await readJson("./data/vector-types.json").catch(() => null);
-        state.themes = await readJson("./data/map-themes.json").catch(() => null);
-        state.settingsProfiles = await readJson("./data/map-settings-profiles.json").catch(() => null);
-
-        await loadTheme(state.settings?.theme?.selected || "zzx_dark_olive");
+        state.theme = await readJson("./data/map-theme.json").catch(() => null);
+        applyTheme(state.theme);
 
         const root = qs("[data-map-root]");
         if (!root) return;
 
         const view = state.settings.initial_view || {};
-        const interaction = state.settings.interaction || {};
-
-        state.canvasRenderer = window.L.canvas({ padding: 0.35 });
-
-        state.map = window.L.map(root, {
-            scrollWheelZoom: interaction.scroll_wheel_zoom !== false,
-            doubleClickZoom: interaction.double_click_zoom !== false,
-            boxZoom: interaction.box_zoom !== false,
-            keyboard: interaction.keyboard !== false,
-            preferCanvas: state.settings?.performance?.prefer_canvas_renderer !== false
-        }).setView([Number(view.latitude || 20), Number(view.longitude || 0)], Number(view.zoom || 2));
+        state.map = window.L.map(root, { preferCanvas: true }).setView(
+            [Number(view.latitude || 20), Number(view.longitude || 0)],
+            Number(view.zoom || 2)
+        );
 
         window.L.tileLayer(state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
@@ -1430,21 +1545,14 @@ def render_map_js() -> str:
             minZoom: Number(view.min_zoom || 2)
         }).addTo(state.map);
 
-        populateThemeSelect();
-        populateSettingsSelect();
         wireControls(view);
-
-        await renderPolygons();
         renderPoints();
-
         window.ZZXBitnodesMap = state;
     }
 
     document.addEventListener("DOMContentLoaded", () => {
         init().catch(error => {
             console.error(error);
-            const root = qs("[data-map-root]");
-            if (root) root.innerHTML = `<div class="bn-chart-empty">${escapeHtml(error.message)}</div>`;
             setStatus(`Map load failure: ${error.message}`);
         });
     });
@@ -1452,100 +1560,14 @@ def render_map_js() -> str:
 """
 
 
-def run_component_modules(payload: dict[str, Any], context: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    report = []
-    current = payload
-
-    for name in MAP_MODULE_ORDER:
-        module_report = {
-            "name": name,
-            "status": "skipped",
-            "message": "",
-            "updated_at": utc_now(),
-        }
-
-        module = load_module(name)
-
-        if module is None:
-            module_report["status"] = "missing"
-            module_report["message"] = f"{name}.py not found; maps.py fallback output retained."
-            report.append(module_report)
-            continue
-
-        fn = find_callable(module)
-
-        if fn is None:
-            module_report["status"] = "missing-callable"
-            module_report["message"] = f"{name}.py has no supported build/render/process function."
-            report.append(module_report)
-            continue
-
-        try:
-            before = payload_point_count(current)
-            current = call_module(name, fn, current, context)
-            after = payload_point_count(current)
-            module_report["status"] = "ok"
-            module_report["message"] = f"{name}.py completed. points_before={before}, points_after={after}."
-        except Exception as err:
-            module_report["status"] = "error"
-            module_report["message"] = str(err)
-
-            if context.get("strict"):
-                report.append(module_report)
-                raise
-
-        report.append(module_report)
-
-    return current, report
-
-
-def ensure_nonempty_outputs(
-    *,
-    map_payload: dict[str, Any],
-    fallback_vectors: dict[str, Any],
-    fallback_geojson: dict[str, Any],
-) -> dict[str, Any]:
-    output = dict(map_payload)
-
-    vectors = output.get("vectors")
-    geojson = output.get("geojson")
-
-    if not isinstance(vectors, dict) or not isinstance(vectors.get("points"), list) or len(vectors["points"]) <= 0:
-        output["vectors"] = fallback_vectors
-
-    if not isinstance(geojson, dict) or not isinstance(geojson.get("features"), list) or len(geojson["features"]) <= 0:
-        output["geojson"] = fallback_geojson
-
-    output.setdefault("settings", default_settings())
-    output.setdefault("theme", default_theme())
-    output.setdefault("themes", default_themes())
-    output.setdefault("settings_profiles", default_settings_profiles())
-    output.setdefault("layers", default_layers())
-    output.setdefault("overlays", default_overlays())
-    output.setdefault("polygons", default_polygons())
-    output.setdefault("vector_types", default_vector_types())
-
-    return output
-
-
-def write_directory_output(
-    *,
-    out_dir: Path,
-    title: str,
-    map_payload: dict[str, Any],
-    vectors: dict[str, Any],
-    geojson: dict[str, Any],
-    settings: dict[str, Any],
-    theme: dict[str, Any],
-    compact: bool = False,
-) -> None:
+def write_directory_output(out_dir: Path, title: str, map_payload: dict[str, Any], compact: bool = False) -> None:
     data_dir = out_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    write_json(data_dir / "map-vectors.json", map_payload.get("vectors", vectors), compact=compact)
-    write_json(data_dir / "map-points.geojson", map_payload.get("geojson", geojson), compact=compact)
-    write_json(data_dir / "map-settings.json", map_payload.get("settings", settings), compact=compact)
-    write_json(data_dir / "map-theme.json", map_payload.get("theme", theme), compact=compact)
+    write_json(data_dir / "map-vectors.json", map_payload["vectors"], compact=compact)
+    write_json(data_dir / "map-points.geojson", map_payload["geojson"], compact=compact)
+    write_json(data_dir / "map-settings.json", map_payload.get("settings", default_settings()), compact=compact)
+    write_json(data_dir / "map-theme.json", map_payload.get("theme", default_theme()), compact=compact)
     write_json(data_dir / "map-themes.json", map_payload.get("themes", default_themes()), compact=compact)
     write_json(data_dir / "map-settings-profiles.json", map_payload.get("settings_profiles", default_settings_profiles()), compact=compact)
     write_json(data_dir / "map-layers.json", map_payload.get("layers", default_layers()), compact=compact)
@@ -1553,34 +1575,15 @@ def write_directory_output(
     write_json(data_dir / "map-polygons.geojson", map_payload.get("polygons", default_polygons()), compact=compact)
     write_json(data_dir / "vector-types.json", map_payload.get("vector_types", default_vector_types()), compact=compact)
 
-    selected_theme = map_payload.get("theme", theme)
-    selected_theme_id = selected_theme.get("id", DEFAULT_THEME) if isinstance(selected_theme, dict) else DEFAULT_THEME
+    theme = map_payload.get("theme", default_theme())
+    theme_id = theme.get("id", DEFAULT_THEME) if isinstance(theme, dict) else DEFAULT_THEME
 
-    if isinstance(selected_theme, dict):
-        write_json(data_dir / "themes" / f"{selected_theme_id}.json", selected_theme, compact=compact)
+    if isinstance(theme, dict):
+        write_json(data_dir / "themes" / f"{theme_id}.json", theme, compact=compact)
 
     write_text(out_dir / "index.html", render_index_html(title))
     write_text(out_dir / "map.css", render_map_css())
     write_text(out_dir / "map.js", render_map_js())
-
-
-def mirror_data_files(source_dir: Path, destination_dir: Path) -> None:
-    source_data = source_dir / "data"
-    destination_data = destination_dir / "data"
-
-    if not source_data.exists():
-        return
-
-    destination_data.mkdir(parents=True, exist_ok=True)
-
-    for path in source_data.rglob("*"):
-        if not path.is_file():
-            continue
-
-        rel = path.relative_to(source_data)
-        target = destination_data / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, target)
 
 
 def build_maps(
@@ -1588,6 +1591,8 @@ def build_maps(
     input_path: Path | None,
     api_dir: Path,
     state_dir: Path,
+    sqlite_path: Path,
+    db_shards: Path,
     map_dir: Path,
     live_map_dir: Path,
     source: str,
@@ -1596,20 +1601,29 @@ def build_maps(
     theme: str,
     settings_profile: str,
     tile_provider: str,
+    limit: int = 0,
     strict: bool = False,
     run_modules: bool = True,
     compact: bool = False,
+    prefer_db: bool = True,
 ) -> dict[str, Any]:
-    selected_input = find_input_file(api_dir, state_dir, str(input_path) if input_path else "")
+    nodes, input_mode, selected_input = load_best_nodes(
+        input_path=input_path,
+        api_dir=api_dir,
+        state_dir=state_dir,
+        sqlite_path=sqlite_path,
+        db_shards=db_shards,
+        source=source,
+        limit=limit,
+        prefer_db=prefer_db,
+    )
 
-    if selected_input is None:
-        raise FileNotFoundError("No Bitnodes node JSON input found.")
+    if not nodes:
+        raise FileNotFoundError("No Bitnodes node input found from MariaDB/SQLite/JSON sources.")
 
-    payload = read_json(selected_input, fallback={})
-    nodes = extract_nodes(payload)
     points = build_points(nodes)
-    vectors = build_vector_payload(points, source)
-    geojson = build_geojson(points, source)
+    vectors = build_vector_payload(points, source, input_mode)
+    geojson = build_geojson(points, source, input_mode)
 
     if strict and not points:
         raise SystemExit(f"No plottable map points found in {selected_input}")
@@ -1618,9 +1632,12 @@ def build_maps(
         "app_root": str(APP_ROOT),
         "tools_dir": str(TOOLS_DIR),
         "map_tools_dir": str(MAP_TOOLS_DIR),
-        "input_path": str(selected_input),
+        "input_path": selected_input,
+        "input_mode": input_mode,
         "api_dir": str(api_dir),
         "state_dir": str(state_dir),
+        "sqlite_path": str(sqlite_path),
+        "db_shards": str(db_shards),
         "map_dir": str(map_dir),
         "live_map_dir": str(live_map_dir),
         "source": source,
@@ -1656,44 +1673,19 @@ def build_maps(
     if run_modules:
         map_payload, module_report = run_component_modules(map_payload, context)
 
-    map_payload = ensure_nonempty_outputs(
-        map_payload=map_payload,
-        fallback_vectors=vectors,
-        fallback_geojson=geojson,
-    )
+    map_payload = ensure_nonempty_outputs(map_payload, vectors, geojson)
 
-    final_settings = map_payload.get("settings", default_settings(tile_provider))
-    final_theme = map_payload.get("theme", default_theme())
+    write_directory_output(map_dir, "Bitcoin Node Map", map_payload, compact=compact)
+    write_directory_output(live_map_dir, "Live Bitcoin Node Map", map_payload, compact=compact)
+
     final_vectors = map_payload.get("vectors", vectors)
-    final_geojson = map_payload.get("geojson", geojson)
-
-    write_directory_output(
-        out_dir=map_dir,
-        title="Bitcoin Node Map",
-        map_payload=map_payload,
-        vectors=final_vectors,
-        geojson=final_geojson,
-        settings=final_settings,
-        theme=final_theme,
-        compact=compact,
-    )
-
-    write_directory_output(
-        out_dir=live_map_dir,
-        title="Live Bitcoin Node Map",
-        map_payload=map_payload,
-        vectors=final_vectors,
-        geojson=final_geojson,
-        settings=final_settings,
-        theme=final_theme,
-        compact=compact,
-    )
 
     report = {
-        "schema": "zzx-bitnodes-maps-build-report-v4",
+        "schema": "zzx-bitnodes-maps-build-report-v5",
         "generated_at": utc_now(),
         "source": source,
-        "input": str(selected_input),
+        "input": selected_input,
+        "input_mode": input_mode,
         "node_count": len(nodes),
         "point_count": len(final_vectors.get("points", [])) if isinstance(final_vectors, dict) else len(points),
         "fallback_point_count": len(points),
@@ -1704,6 +1696,11 @@ def build_maps(
         "selected_theme": theme,
         "selected_settings": settings_profile,
         "tile_provider": tile_provider,
+        "red_ring_semantics": {
+            "is_sanctioned_node": "red marker ring",
+            "is_policy_restricted_node": "red-orange marker ring",
+            "confirmed_or_high_threat": "red marker",
+        },
         "modules": module_report,
         "module_warnings": map_payload.get("module_warnings", []),
     }
@@ -1716,25 +1713,27 @@ def build_maps(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build OpenStreetMap-backed Bitnodes map and live-map static frontend data.",
+        description="Build OpenStreetMap-backed Bitnodes map and live-map static frontend data from MariaDB/SQLite/JSON.",
         allow_abbrev=False,
     )
 
     parser.add_argument("--input", default="")
     parser.add_argument("--api-dir", default=str(DEFAULT_API_DIR))
     parser.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
+    parser.add_argument("--sqlite", default=str(DEFAULT_SQLITE))
+    parser.add_argument("--db-shards", default=str(DEFAULT_DB_SHARDS))
     parser.add_argument("--map-dir", default=str(DEFAULT_MAP_DIR))
     parser.add_argument("--live-map-dir", default=str(DEFAULT_LIVE_MAP_DIR))
-    parser.add_argument("--source", default="zzxbitnodes")
-
+    parser.add_argument("--source", default=DEFAULT_SOURCE)
     parser.add_argument("--theme-dir", default=str(DEFAULT_THEME_DIR))
     parser.add_argument("--settings-dir", default=str(DEFAULT_SETTINGS_DIR))
     parser.add_argument("--theme", default=DEFAULT_THEME)
     parser.add_argument("--settings", default=DEFAULT_SETTINGS)
     parser.add_argument("--tile-provider", default=DEFAULT_TILE_PROVIDER)
-
+    parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--no-modules", action="store_true")
+    parser.add_argument("--no-db", action="store_true")
     parser.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
@@ -1743,6 +1742,8 @@ def main() -> int:
         input_path=resolve_path(args.input) if args.input else None,
         api_dir=resolve_path(args.api_dir),
         state_dir=resolve_path(args.state_dir),
+        sqlite_path=resolve_path(args.sqlite),
+        db_shards=resolve_path(args.db_shards),
         map_dir=resolve_path(args.map_dir),
         live_map_dir=resolve_path(args.live_map_dir),
         source=args.source,
@@ -1751,14 +1752,17 @@ def main() -> int:
         theme=args.theme,
         settings_profile=args.settings,
         tile_provider=args.tile_provider,
+        limit=args.limit,
         strict=args.strict,
         run_modules=not args.no_modules,
         compact=args.compact,
+        prefer_db=not args.no_db,
     )
 
     print(
         "maps build complete: "
         f"{report['point_count']} points, "
+        f"mode={report['input_mode']}, "
         f"theme={report['selected_theme']}, "
         f"settings={report['selected_settings']}, "
         f"map_dir={report['map_dir']}, "
