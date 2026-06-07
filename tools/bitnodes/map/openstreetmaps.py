@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
-
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
 
 OPENSTREETMAP_TILESETS = {
     "openstreetmap": {
@@ -53,6 +55,8 @@ OPENSTREETMAP_TILESETS = {
     },
 }
 
+SCHEMA = "zzx-bitnodes-openstreetmaps-v4"
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -62,10 +66,14 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -73,23 +81,28 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=None if compact else 2,
-        separators=(",", ":") if compact else None,
-        sort_keys=not compact,
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        ) + "\n",
+        encoding="utf-8",
     )
 
-    path.write_text(text + "\n", encoding="utf-8")
+
+def selected_tileset(tile_provider: str) -> dict[str, Any]:
+    return dict(OPENSTREETMAP_TILESETS.get(tile_provider, OPENSTREETMAP_TILESETS["cartodb_dark"]))
 
 
 def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[str, Any]:
-    selected = OPENSTREETMAP_TILESETS.get(tile_provider, OPENSTREETMAP_TILESETS["cartodb_dark"])
+    selected = selected_tileset(tile_provider)
 
     return {
-        "schema": "zzx-bitnodes-openstreetmaps-v2",
+        "schema": SCHEMA,
         "generated_at": utc_now(),
         "engine": "leaflet",
         "provider": selected["id"],
@@ -100,7 +113,7 @@ def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[
             "leaflet_js": "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
             "local_leaflet_css": "../../vendor/leaflet/leaflet.css",
             "local_leaflet_js": "../../vendor/leaflet/leaflet.js",
-            "integrity_note": "For production hardening, vendor Leaflet locally under bitcoin/bitnodes/vendor/leaflet/ and update map.js/live-map.js to load local files.",
+            "preferred_production_mode": "vendor-local",
         },
         "controls": {
             "zoom": True,
@@ -124,7 +137,28 @@ def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[
             "longitude": 0.0,
             "zoom": 2,
             "min_zoom": selected.get("min_zoom", 2),
-            "max_zoom": selected.get("max_zoom", 19),
+            "max_zoom": selected.get("max_zoom", 20),
+        },
+        "overlay_channels": {
+            "tor": {
+                "name": "Tor Atlantic Channel",
+                "latitude": 0.0,
+                "longitude": -32.0,
+                "color": "#9d67ad",
+                "symbolic": True,
+            },
+            "i2p": {
+                "name": "I2P Indian Ocean Channel",
+                "latitude": 0.0,
+                "longitude": 32.0,
+                "color": "#b889ff",
+                "symbolic": True,
+            },
+        },
+        "red_ring_semantics": {
+            "is_sanctioned_node": "red marker ring",
+            "is_policy_restricted_node": "red-orange marker ring",
+            "confirmed_or_high_threat": "red marker/ring",
         },
     }
 
@@ -139,7 +173,7 @@ def merge_settings(payload: dict[str, Any], osm: dict[str, Any]) -> dict[str, An
     settings["tile_attribution"] = selected["attribution"]
     settings["tile_subdomains"] = selected.get("subdomains", [])
     settings["tile_min_zoom"] = selected.get("min_zoom", 2)
-    settings["tile_max_zoom"] = selected.get("max_zoom", 19)
+    settings["tile_max_zoom"] = selected.get("max_zoom", 20)
     settings["openstreetmaps"] = osm
 
     initial_view = dict(settings.get("initial_view", {}))
@@ -151,26 +185,32 @@ def merge_settings(payload: dict[str, Any], osm: dict[str, Any]) -> dict[str, An
     settings["initial_view"] = initial_view
 
     interaction = dict(settings.get("interaction", {}))
-    interaction.update(osm.get("interaction", {}))
+    interaction.update(osm["interaction"])
     settings["interaction"] = interaction
+
+    settings.setdefault("refresh", {})
+    if isinstance(settings["refresh"], dict):
+        settings["refresh"].setdefault("vectors_url", "./data/map-vectors.json")
+        settings["refresh"].setdefault("geojson_url", "./data/map-points.geojson")
+        settings["refresh"].setdefault("settings_url", "./data/map-settings.json")
+        settings["refresh"].setdefault("theme_url", "./data/map-theme.json")
+        settings["refresh"].setdefault("layers_url", "./data/map-layers.json")
+        settings["refresh"].setdefault("overlays_url", "./data/map-overlays.json")
+        settings["refresh"].setdefault("polygons_url", "./data/map-polygons.geojson")
 
     output["settings"] = settings
     output["openstreetmaps"] = osm
-
     return output
 
 
 def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     context = context or {}
+    tile_provider = str(context.get("tile_provider") or context.get("osm_tile_provider") or "cartodb_dark")
+    return merge_settings(payload, default_openstreetmaps_payload(tile_provider))
 
-    tile_provider = str(
-        context.get("tile_provider")
-        or context.get("osm_tile_provider")
-        or "cartodb_dark"
-    )
 
-    osm = default_openstreetmaps_payload(tile_provider)
-    return merge_settings(payload, osm)
+def process(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return build(payload, context)
 
 
 def build_standalone(
@@ -187,7 +227,6 @@ def build_standalone(
 
         settings_path = directory / "data" / "map-settings.json"
         settings = read_json(settings_path, fallback={})
-
         if not isinstance(settings, dict):
             settings = {}
 
@@ -195,7 +234,7 @@ def build_standalone(
         write_json(settings_path, merged["settings"], compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-openstreetmaps-build-report-v2",
+        "schema": "zzx-bitnodes-openstreetmaps-build-report-v4",
         "generated_at": utc_now(),
         "map_dir": str(output_dir),
         "live_map_dir": str(live_map_dir),
@@ -206,16 +245,13 @@ def build_standalone(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build OpenStreetMap/Leaflet map configuration for Bitnodes maps."
+        description="Build OpenStreetMap/Leaflet map configuration for ZZX Bitnodes maps.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--map-dir", default=str(DEFAULT_MAP_DIR))
     parser.add_argument("--live-map-dir", default=str(DEFAULT_LIVE_MAP_DIR))
-    parser.add_argument(
-        "--tile-provider",
-        default="cartodb_dark",
-        choices=sorted(OPENSTREETMAP_TILESETS.keys()),
-    )
+    parser.add_argument("--tile-provider", default="cartodb_dark", choices=sorted(OPENSTREETMAP_TILESETS.keys()))
     parser.add_argument("--report", default="")
     parser.add_argument("--compact", action="store_true")
 
