@@ -12,14 +12,22 @@ from pathlib import Path
 APP_ROOT = Path(__file__).resolve().parents[3]
 MAP_TOOLS_DIR = APP_ROOT / "tools" / "bitnodes" / "map"
 
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
-DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
-DEFAULT_STATE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "state"
+BITNODES_ROOT = APP_ROOT / "bitcoin" / "bitnodes"
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
+DEFAULT_API_DIR = BITNODES_ROOT / "api"
+DEFAULT_STATE_DIR = BITNODES_ROOT / "data" / "state"
+DEFAULT_SQLITE = BITNODES_ROOT / "data" / "mariadb" / "api" / "bitnodes.sqlite3"
+DEFAULT_DB_SHARDS = BITNODES_ROOT / "data" / "mariadb"
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def resolve_path(value: str | Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else APP_ROOT / path
 
 
 def py(script: Path, args: list[str]) -> list[str]:
@@ -40,15 +48,24 @@ def read_json(path: Path):
 
 def feature_count(path: Path) -> int:
     data = read_json(path)
+
     if isinstance(data, dict) and isinstance(data.get("features"), list):
         return len(data["features"])
+
     return 0
 
 
 def point_count(path: Path) -> int:
     data = read_json(path)
-    if isinstance(data, dict) and isinstance(data.get("points"), list):
-        return len(data["points"])
+
+    if isinstance(data, dict):
+        if isinstance(data.get("points"), list):
+            return len(data["points"])
+
+        vectors = data.get("vectors")
+        if isinstance(vectors, dict) and isinstance(vectors.get("points"), list):
+            return len(vectors["points"])
+
     return 0
 
 
@@ -56,10 +73,7 @@ def validate_input(path_text: str, strict: bool) -> Path | None:
     if not path_text:
         return None
 
-    path = Path(path_text)
-
-    if not path.is_absolute():
-        path = APP_ROOT / path
+    path = resolve_path(path_text)
 
     if path.exists() and path.is_file() and path.stat().st_size > 0:
         return path
@@ -74,7 +88,7 @@ def validate_input(path_text: str, strict: bool) -> Path | None:
     return None
 
 
-def common_args(args: argparse.Namespace) -> list[str]:
+def base_args(args: argparse.Namespace) -> list[str]:
     out = [
         "--map-dir", args.map_dir,
         "--live-map-dir", args.live_map_dir,
@@ -82,6 +96,7 @@ def common_args(args: argparse.Namespace) -> list[str]:
         "--theme", args.theme,
         "--settings", args.settings,
         "--tile-provider", args.tile_provider,
+        "--limit", str(args.limit),
     ]
 
     if args.compact:
@@ -99,15 +114,20 @@ def run_maps(args: argparse.Namespace, input_path: Path | None) -> int:
     cmd_args.extend([
         "--api-dir", args.api_dir,
         "--state-dir", args.state_dir,
+        "--sqlite", args.sqlite,
+        "--db-shards", args.db_shards,
     ])
 
-    cmd_args.extend(common_args(args))
+    cmd_args.extend(base_args(args))
 
     if args.strict:
         cmd_args.append("--strict")
 
     if args.no_modules:
         cmd_args.append("--no-modules")
+
+    if args.no_db:
+        cmd_args.append("--no-db")
 
     return run(py(MAP_TOOLS_DIR / "maps.py", cmd_args))
 
@@ -116,35 +136,39 @@ def run_live_map(args: argparse.Namespace, input_path: Path | None) -> int:
     live_input = input_path
 
     if live_input is None:
-        candidate = Path(args.live_map_dir) / "data" / "live-map.json"
-        if not candidate.is_absolute():
-            candidate = APP_ROOT / candidate
-        live_input = candidate
+        live_input = resolve_path(Path(args.live_map_dir) / "data" / "live-map.json")
 
     cmd_args = [
         "--input", str(live_input),
-        *common_args(args),
+        "--sqlite", args.sqlite,
+        "--db-shards", args.db_shards,
+        *base_args(args),
     ]
 
     if args.fail_empty:
         cmd_args.append("--fail-empty")
 
+    if args.no_plotter:
+        cmd_args.append("--no-plotter")
+
+    if args.no_db:
+        cmd_args.append("--no-db")
+
+    if args.no_fallback_vectors:
+        cmd_args.append("--no-fallback-vectors")
+
     return run(py(MAP_TOOLS_DIR / "live-map.py", cmd_args))
 
 
 def run_vectors_fallback(args: argparse.Namespace, input_path: Path | None) -> int:
-    if input_path is None:
+    live_data = resolve_path(Path(args.live_map_dir) / "data")
+    maps_data = resolve_path(Path(args.map_dir) / "data")
+
+    candidate = input_path or live_data / "live-map.json"
+
+    if not candidate.exists():
         print("[map.py] cannot build vector fallback without input", file=sys.stderr, flush=True)
         return 1 if args.fail_empty or args.strict else 0
-
-    live_data = Path(args.live_map_dir) / "data"
-    maps_data = Path(args.map_dir) / "data"
-
-    if not live_data.is_absolute():
-        live_data = APP_ROOT / live_data
-
-    if not maps_data.is_absolute():
-        maps_data = APP_ROOT / maps_data
 
     live_data.mkdir(parents=True, exist_ok=True)
     maps_data.mkdir(parents=True, exist_ok=True)
@@ -153,7 +177,7 @@ def run_vectors_fallback(args: argparse.Namespace, input_path: Path | None) -> i
     geojson_path = live_data / "map-points.geojson"
 
     cmd_args = [
-        "--input", str(input_path),
+        "--input", str(candidate),
         "--output", str(vector_path),
         "--geojson", str(geojson_path),
         "--source", args.source,
@@ -171,17 +195,15 @@ def run_vectors_fallback(args: argparse.Namespace, input_path: Path | None) -> i
         (vector_path, maps_data / "map-vectors.json"),
         (geojson_path, maps_data / "map-points.geojson"),
     ):
-        dst.write_bytes(src.read_bytes())
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(src.read_bytes())
 
     return 0
 
 
 def validate_nonempty(args: argparse.Namespace) -> int:
-    live_data = Path(args.live_map_dir) / "data"
-
-    if not live_data.is_absolute():
-        live_data = APP_ROOT / live_data
-
+    live_data = resolve_path(Path(args.live_map_dir) / "data")
     geojson = live_data / "map-points.geojson"
     vectors = live_data / "map-vectors.json"
 
@@ -203,7 +225,7 @@ def validate_nonempty(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="ZZX Bitnodes map wrapper. Builds maps/, live-map/, or both.",
+        description="ZZX Bitnodes map wrapper. Builds maps/, live-map/, or both from MariaDB/SQLite/JSON.",
         allow_abbrev=False,
     )
 
@@ -217,15 +239,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", default="")
     parser.add_argument("--api-dir", default=str(DEFAULT_API_DIR))
     parser.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
+    parser.add_argument("--sqlite", default=str(DEFAULT_SQLITE))
+    parser.add_argument("--db-shards", default=str(DEFAULT_DB_SHARDS))
     parser.add_argument("--map-dir", default=str(DEFAULT_MAP_DIR))
     parser.add_argument("--live-map-dir", default=str(DEFAULT_LIVE_MAP_DIR))
+
     parser.add_argument("--source", default="zzxbitnodes")
     parser.add_argument("--theme", default="zzx_dark_olive")
     parser.add_argument("--settings", default="default")
     parser.add_argument("--tile-provider", default="cartodb_dark")
+    parser.add_argument("--limit", type=int, default=0)
+
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--no-modules", action="store_true")
+    parser.add_argument("--no-db", action="store_true")
+    parser.add_argument("--no-plotter", action="store_true")
+    parser.add_argument("--no-fallback-vectors", action="store_true")
     parser.add_argument("--fail-empty", action="store_true")
     parser.add_argument("--vectors-fallback", action="store_true")
 
@@ -245,15 +275,17 @@ def main() -> int:
 
     if args.target in {"live-map", "both"}:
         code = run_live_map(args, input_path)
+
+        if code != 0 and args.vectors_fallback:
+            code = run_vectors_fallback(args, input_path)
+
         if code != 0:
-            if args.vectors_fallback:
-                code = run_vectors_fallback(args, input_path)
-            if code != 0:
-                return code
+            return code
 
     if args.target in {"live-map", "both"}:
-        features = feature_count(Path(args.live_map_dir) / "data" / "map-points.geojson")
-        points = point_count(Path(args.live_map_dir) / "data" / "map-vectors.json")
+        live_data = resolve_path(Path(args.live_map_dir) / "data")
+        features = feature_count(live_data / "map-points.geojson")
+        points = point_count(live_data / "map-vectors.json")
 
         if (features <= 0 or points <= 0) and args.vectors_fallback:
             code = run_vectors_fallback(args, input_path)
