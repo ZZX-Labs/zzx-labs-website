@@ -2,32 +2,30 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
-DEFAULT_SETTINGS_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "mapsettings"
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
+DEFAULT_SETTINGS_DIR = BITNODES_ROOT / "data" / "mapsettings"
 
 DEFAULT_SETTINGS_ID = "default"
+SCHEMA = "zzx-bitnodes-map-settings-v4"
 
 
 DEFAULT_SETTINGS = {
     "default": {
         "name": "Default Live Map",
         "description": "Balanced OpenStreetMap configuration for maps/ and live-map/.",
-        "view": {
-            "latitude": 20.0,
-            "longitude": 0.0,
-            "zoom": 2,
-            "min_zoom": 2,
-            "max_zoom": 20,
-        },
+        "view": {"latitude": 20.0, "longitude": 0.0, "zoom": 2, "min_zoom": 2, "max_zoom": 20},
         "tile": {
             "provider": "cartodb_dark",
             "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
@@ -43,18 +41,7 @@ DEFAULT_SETTINGS = {
             "keyboard": True,
             "middle_mouse_reserved_for_network_map": True,
         },
-        "refresh": {
-            "enabled": True,
-            "interval_seconds": 60,
-            "vectors_url": "./data/map-vectors.json",
-            "geojson_url": "./data/map-points.geojson",
-            "settings_url": "./data/map-settings.json",
-            "theme_url": "./data/map-theme.json",
-            "layers_url": "./data/map-layers.json",
-            "overlays_url": "./data/map-overlays.json",
-            "polygons_url": "./data/map-polygons.geojson",
-            "vector_types_url": "./data/vector-types.json",
-        },
+        "refresh": {"enabled": True, "interval_seconds": 60},
         "markers": {
             "radius_min": 4,
             "radius_max": 14,
@@ -65,6 +52,7 @@ DEFAULT_SETTINGS = {
             "heatmap_enabled": True,
             "status_drives_color": True,
             "owner_type_drives_symbol": True,
+            "policy_or_threat_overrides_status_color": True,
         },
         "performance": {
             "max_points_before_clustering": 2500,
@@ -76,13 +64,7 @@ DEFAULT_SETTINGS = {
     "live": {
         "name": "Live Monitoring",
         "description": "Faster refresh profile for active crawler watching.",
-        "view": {
-            "latitude": 20.0,
-            "longitude": 0.0,
-            "zoom": 2,
-            "min_zoom": 2,
-            "max_zoom": 20,
-        },
+        "view": {"latitude": 20.0, "longitude": 0.0, "zoom": 2, "min_zoom": 2, "max_zoom": 20},
         "tile": {
             "provider": "cartodb_dark",
             "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
@@ -98,18 +80,7 @@ DEFAULT_SETTINGS = {
             "keyboard": True,
             "middle_mouse_reserved_for_network_map": True,
         },
-        "refresh": {
-            "enabled": True,
-            "interval_seconds": 15,
-            "vectors_url": "./data/map-vectors.json",
-            "geojson_url": "./data/map-points.geojson",
-            "settings_url": "./data/map-settings.json",
-            "theme_url": "./data/map-theme.json",
-            "layers_url": "./data/map-layers.json",
-            "overlays_url": "./data/map-overlays.json",
-            "polygons_url": "./data/map-polygons.geojson",
-            "vector_types_url": "./data/vector-types.json",
-        },
+        "refresh": {"enabled": True, "interval_seconds": 15},
         "markers": {
             "radius_min": 4,
             "radius_max": 13,
@@ -120,6 +91,7 @@ DEFAULT_SETTINGS = {
             "heatmap_enabled": False,
             "status_drives_color": True,
             "owner_type_drives_symbol": True,
+            "policy_or_threat_overrides_status_color": True,
         },
         "performance": {
             "max_points_before_clustering": 1500,
@@ -131,13 +103,7 @@ DEFAULT_SETTINGS = {
     "analysis": {
         "name": "Analysis",
         "description": "Slower, richer map profile for deep review and dense overlays.",
-        "view": {
-            "latitude": 20.0,
-            "longitude": 0.0,
-            "zoom": 2,
-            "min_zoom": 2,
-            "max_zoom": 20,
-        },
+        "view": {"latitude": 20.0, "longitude": 0.0, "zoom": 2, "min_zoom": 2, "max_zoom": 20},
         "tile": {
             "provider": "cartodb_voyager",
             "url": "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
@@ -153,18 +119,7 @@ DEFAULT_SETTINGS = {
             "keyboard": True,
             "middle_mouse_reserved_for_network_map": True,
         },
-        "refresh": {
-            "enabled": False,
-            "interval_seconds": 300,
-            "vectors_url": "./data/map-vectors.json",
-            "geojson_url": "./data/map-points.geojson",
-            "settings_url": "./data/map-settings.json",
-            "theme_url": "./data/map-theme.json",
-            "layers_url": "./data/map-layers.json",
-            "overlays_url": "./data/map-overlays.json",
-            "polygons_url": "./data/map-polygons.geojson",
-            "vector_types_url": "./data/vector-types.json",
-        },
+        "refresh": {"enabled": False, "interval_seconds": 300},
         "markers": {
             "radius_min": 5,
             "radius_max": 18,
@@ -175,6 +130,7 @@ DEFAULT_SETTINGS = {
             "heatmap_enabled": True,
             "status_drives_color": True,
             "owner_type_drives_symbol": True,
+            "policy_or_threat_overrides_status_color": True,
         },
         "performance": {
             "max_points_before_clustering": 5000,
@@ -186,6 +142,21 @@ DEFAULT_SETTINGS = {
 }
 
 
+DATA_URLS = {
+    "vectors_url": "./data/map-vectors.json",
+    "geojson_url": "./data/map-points.geojson",
+    "settings_url": "./data/map-settings.json",
+    "theme_url": "./data/map-theme.json",
+    "layers_url": "./data/map-layers.json",
+    "overlays_url": "./data/map-overlays.json",
+    "polygons_url": "./data/map-polygons.geojson",
+    "vector_types_url": "./data/vector-types.json",
+    "nodes_url": "./data/map-nodes.json",
+    "node_layers_url": "./data/map-node-layers.json",
+    "openstreetmaps_url": "./data/openstreetmaps.json",
+}
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -194,10 +165,14 @@ def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -205,21 +180,22 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=None if compact else 2,
-        separators=(",", ":") if compact else None,
-        sort_keys=not compact,
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        ) + "\n",
+        encoding="utf-8",
     )
-
-    path.write_text(text + "\n", encoding="utf-8")
 
 
 def settings_payload(settings_id: str, data: dict[str, Any]) -> dict[str, Any]:
     return {
-        "schema": "zzx-bitnodes-map-settings-profile-v2",
+        "schema": "zzx-bitnodes-map-settings-profile-v4",
         "id": settings_id,
         "generated_at": utc_now(),
         "name": data["name"],
@@ -227,40 +203,53 @@ def settings_payload(settings_id: str, data: dict[str, Any]) -> dict[str, Any]:
         "view": data["view"],
         "tile": data["tile"],
         "interaction": data["interaction"],
-        "refresh": data["refresh"],
+        "refresh": {**DATA_URLS, **data["refresh"]},
         "markers": data["markers"],
         "performance": data["performance"],
+        "red_ring_semantics": {
+            "is_sanctioned_node": "red marker ring and SANCTIONED badge",
+            "is_policy_restricted_node": "red-orange marker ring and RESTRICTED badge",
+            "confirmed_or_high_threat": "red marker/ring and THREAT/CONFIRMED badge",
+        },
+        "false_positive_control": {
+            "threat_infrastructure": "defensive infrastructure correlation only",
+            "threat_actor_labels": "explicit trusted metadata/feed labels only",
+            "no_country_to_apt_inference": True,
+        },
     }
 
 
 def ensure_settings_files(settings_dir: Path, compact: bool = False) -> dict[str, Any]:
     settings_dir.mkdir(parents=True, exist_ok=True)
-
     entries = []
 
     for settings_id, data in DEFAULT_SETTINGS.items():
-        payload = settings_payload(settings_id, data)
+        fallback_payload = settings_payload(settings_id, data)
         path = settings_dir / f"{settings_id}.json"
 
         if not path.exists():
-            write_json(path, payload, compact=compact)
+            write_json(path, fallback_payload, compact=compact)
 
-        existing = read_json(path, fallback=payload)
+        existing = read_json(path, fallback=fallback_payload)
 
-        if not isinstance(existing, dict):
-            existing = payload
+        if not isinstance(existing, dict) or not existing:
+            existing = fallback_payload
 
-        entries.append({
-            "id": settings_id,
-            "name": existing.get("name", data["name"]),
-            "description": existing.get("description", data["description"]),
-            "path": f"{settings_id}.json",
-            "refresh_interval_seconds": existing.get("refresh", {}).get("interval_seconds"),
-            "tile_provider": existing.get("tile", {}).get("provider"),
-        })
+        entries.append(
+            {
+                "id": settings_id,
+                "name": existing.get("name", data["name"]),
+                "description": existing.get("description", data["description"]),
+                "path": f"{settings_id}.json",
+                "refresh_interval_seconds": existing.get("refresh", {}).get("interval_seconds"),
+                "tile_provider": existing.get("tile", {}).get("provider"),
+                "heatmap_enabled": existing.get("markers", {}).get("heatmap_enabled"),
+                "cluster_enabled": existing.get("markers", {}).get("cluster_enabled"),
+            }
+        )
 
     manifest = {
-        "schema": "zzx-bitnodes-map-settings-manifest-v2",
+        "schema": "zzx-bitnodes-map-settings-manifest-v4",
         "generated_at": utc_now(),
         "default_settings": DEFAULT_SETTINGS_ID,
         "settings_count": len(entries),
@@ -268,14 +257,12 @@ def ensure_settings_files(settings_dir: Path, compact: bool = False) -> dict[str
     }
 
     write_json(settings_dir / "manifest.json", manifest, compact=compact)
-
     return manifest
 
 
 def load_settings(settings_dir: Path, settings_id: str) -> dict[str, Any]:
-    path = settings_dir / f"{settings_id}.json"
     fallback = settings_payload(DEFAULT_SETTINGS_ID, DEFAULT_SETTINGS[DEFAULT_SETTINGS_ID])
-    payload = read_json(path, fallback={})
+    payload = read_json(settings_dir / f"{settings_id}.json", fallback={})
 
     if isinstance(payload, dict) and payload:
         return payload
@@ -287,12 +274,12 @@ def normalize_settings(profile: dict[str, Any]) -> dict[str, Any]:
     view = dict(profile.get("view", {}))
     tile = dict(profile.get("tile", {}))
     interaction = dict(profile.get("interaction", {}))
-    refresh = dict(profile.get("refresh", {}))
+    refresh = {**DATA_URLS, **dict(profile.get("refresh", {}))}
     markers = dict(profile.get("markers", {}))
     performance = dict(profile.get("performance", {}))
 
     return {
-        "schema": "zzx-bitnodes-map-settings-v2",
+        "schema": SCHEMA,
         "generated_at": utc_now(),
         "profile": {
             "id": profile.get("id", DEFAULT_SETTINGS_ID),
@@ -303,6 +290,8 @@ def normalize_settings(profile: dict[str, Any]) -> dict[str, Any]:
         "tile_url": tile.get("url", "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"),
         "tile_attribution": tile.get("attribution", "© OpenStreetMap contributors © CARTO"),
         "tile_subdomains": tile.get("subdomains", ["a", "b", "c", "d"]),
+        "tile_min_zoom": view.get("min_zoom", 2),
+        "tile_max_zoom": view.get("max_zoom", 20),
         "initial_view": {
             "latitude": view.get("latitude", 20.0),
             "longitude": view.get("longitude", 0.0),
@@ -322,14 +311,7 @@ def normalize_settings(profile: dict[str, Any]) -> dict[str, Any]:
         "refresh": {
             "enabled": refresh.get("enabled", True),
             "interval_seconds": refresh.get("interval_seconds", 60),
-            "vectors_url": refresh.get("vectors_url", "./data/map-vectors.json"),
-            "geojson_url": refresh.get("geojson_url", "./data/map-points.geojson"),
-            "settings_url": refresh.get("settings_url", "./data/map-settings.json"),
-            "theme_url": refresh.get("theme_url", "./data/map-theme.json"),
-            "layers_url": refresh.get("layers_url", "./data/map-layers.json"),
-            "overlays_url": refresh.get("overlays_url", "./data/map-overlays.json"),
-            "polygons_url": refresh.get("polygons_url", "./data/map-polygons.geojson"),
-            "vector_types_url": refresh.get("vector_types_url", "./data/vector-types.json"),
+            **{key: refresh.get(key, value) for key, value in DATA_URLS.items()},
         },
         "marker": {
             "radius_min": markers.get("radius_min", 4),
@@ -341,6 +323,7 @@ def normalize_settings(profile: dict[str, Any]) -> dict[str, Any]:
             "heatmap_enabled": markers.get("heatmap_enabled", True),
             "status_drives_color": markers.get("status_drives_color", True),
             "owner_type_drives_symbol": markers.get("owner_type_drives_symbol", True),
+            "policy_or_threat_overrides_status_color": markers.get("policy_or_threat_overrides_status_color", True),
         },
         "performance": {
             "max_points_before_clustering": performance.get("max_points_before_clustering", 2500),
@@ -348,6 +331,19 @@ def normalize_settings(profile: dict[str, Any]) -> dict[str, Any]:
             "prefer_canvas_renderer": performance.get("prefer_canvas_renderer", True),
             "chunked_loading": performance.get("chunked_loading", True),
         },
+        "polygons": {
+            "url": "./data/map-polygons.geojson",
+            "enabled": True,
+            "visible": False,
+        },
+        "nodes": {
+            "url": "./data/map-nodes.json",
+            "layers_url": "./data/map-node-layers.json",
+            "enabled": True,
+            "user_selectable": True,
+        },
+        "red_ring_semantics": profile.get("red_ring_semantics", {}),
+        "false_positive_control": profile.get("false_positive_control", {}),
     }
 
 
@@ -359,17 +355,15 @@ def merge_settings(
     compact: bool = False,
 ) -> dict[str, Any]:
     output = dict(payload)
-
     manifest = ensure_settings_files(settings_dir, compact=compact)
     profile = load_settings(settings_dir, selected_settings)
     settings = normalize_settings(profile)
 
-    existing = dict(output.get("settings", {}))
-    merged = {
-        **settings,
-        **existing,
-    }
+    existing = output.get("settings")
+    if not isinstance(existing, dict):
+        existing = {}
 
+    merged = {**settings, **existing}
     merged["settings_manifest"] = {
         "url": "./data/map-settings-profiles.json",
         "selected": profile.get("id", selected_settings),
@@ -378,25 +372,14 @@ def merge_settings(
 
     output["settings"] = merged
     output["settings_profiles"] = manifest
-
     return output
 
 
 def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     context = context or {}
 
-    settings_dir = Path(
-        context.get("settings_dir")
-        or context.get("map_settings_dir")
-        or DEFAULT_SETTINGS_DIR
-    )
-
-    selected_settings = str(
-        context.get("settings")
-        or context.get("selected_settings")
-        or DEFAULT_SETTINGS_ID
-    )
-
+    settings_dir = Path(context.get("settings_dir") or context.get("map_settings_dir") or DEFAULT_SETTINGS_DIR)
+    selected_settings = str(context.get("settings") or context.get("selected_settings") or DEFAULT_SETTINGS_ID)
     compact = bool(context.get("compact", False))
 
     return merge_settings(
@@ -405,6 +388,10 @@ def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dic
         selected_settings=selected_settings,
         compact=compact,
     )
+
+
+def process(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return build(payload, context)
 
 
 def sync_settings_assets(
@@ -422,7 +409,6 @@ def sync_settings_assets(
     for directory in (map_dir, live_map_dir):
         data_dir = directory / "data"
         target_settings_dir = data_dir / "settings"
-
         target_settings_dir.mkdir(parents=True, exist_ok=True)
 
         write_json(data_dir / "map-settings-profiles.json", manifest, compact=compact)
@@ -434,7 +420,7 @@ def sync_settings_assets(
             write_json(dst, read_json(src, fallback={}), compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-mapsettings-build-report-v2",
+        "schema": "zzx-bitnodes-mapsettings-build-report-v4",
         "generated_at": utc_now(),
         "settings_dir": str(settings_dir),
         "map_dir": str(map_dir),
@@ -446,7 +432,8 @@ def sync_settings_assets(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build selectable JSON settings profiles for Bitnodes maps and live-map pages."
+        description="Build selectable JSON settings profiles for ZZX Bitnodes maps and live-map pages.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--settings-dir", default=str(DEFAULT_SETTINGS_DIR))
