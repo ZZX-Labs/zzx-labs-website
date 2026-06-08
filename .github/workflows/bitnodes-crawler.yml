@@ -607,8 +607,23 @@ jobs:
             --compact \
             --strict
 
+      - name: Detect private MariaDB backup credentials
+        id: backup_gate
+        shell: bash
+        env:
+          BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
+          BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${BITNODES_BACKUP_REPO:-}" ] && [ -n "${BITNODES_BACKUP_TOKEN:-}" ]; then
+            printf '%s\n' "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            printf '%s\n' "enabled=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Backup MariaDB shards to private repo
-        if: ${{ secrets.BITNODES_BACKUP_REPO != '' && secrets.BITNODES_BACKUP_TOKEN != '' }}
+        if: ${{ steps.backup_gate.outputs.enabled == 'true' }}
         shell: bash
         env:
           BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
