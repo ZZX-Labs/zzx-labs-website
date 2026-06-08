@@ -2,23 +2,27 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
-DEFAULT_CONTINENT_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geo" / "continents"
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
+DEFAULT_CONTINENT_DIR = BITNODES_ROOT / "data" / "geo" / "continents"
 
-SCHEMA = "zzx-bitnodes-map-continents-v1"
+SCHEMA = "zzx-bitnodes-map-continents-v4"
 
+UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
-CONTINENT_GROUPS = {
+CONTINENT_GROUPS: dict[str, dict[str, Any]] = {
     "NA": {
         "id": "NA",
         "label": "North America",
@@ -103,33 +107,48 @@ def utc_now() -> str:
 
 def clean(value: Any) -> str:
     text = str(value or "").strip()
-
-    if text.lower() in {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}:
+    if text.lower() in UNKNOWN_VALUES:
         return ""
-
     return " ".join(text.split())
 
 
 def number(value: Any, fallback: float | None = None) -> float | None:
     try:
-        n = float(value)
+        if value in ("", None):
+            return fallback
+        out = float(value)
     except (TypeError, ValueError):
         return fallback
 
-    if not math.isfinite(n):
-        return fallback
+    return out if math.isfinite(out) else fallback
 
-    return n
+
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (1, "1"):
+        return True
+    if value in (0, "0"):
+        return False
+
+    return str(value or "").strip().lower() in {
+        "true", "yes", "y", "ok", "1", "reachable", "online",
+        "success", "flagged", "matched", "listed", "hit", "confirmed",
+    }
 
 
 def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
 
-    if not path.exists():
-        return fallback
-
     try:
+        if not path.exists():
+            return fallback
+
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -137,28 +156,25 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=None if compact else 2,
-        separators=(",", ":") if compact else None,
-        sort_keys=not compact,
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        ) + "\n",
+        encoding="utf-8",
     )
-
-    path.write_text(text + "\n", encoding="utf-8")
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
     current: Any = row
 
     for part in key.split("."):
         if not isinstance(current, Mapping):
             return None
-
         current = current.get(part)
 
     return current
@@ -167,11 +183,13 @@ def deep_get(row: Mapping[str, Any], key: str) -> Any:
 def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     for key in keys:
         value = deep_get(row, key)
-
         if value not in ("", None):
             return value
-
     return None
+
+
+def flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
+    return any(boolish(first(row, (key,))) for key in keys)
 
 
 def vectors(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -180,97 +198,134 @@ def vectors(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def points(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
-    vectors_payload = vectors(payload)
+    candidates = [vectors(payload), payload]
 
-    for key in ("points", "results", "data"):
-        value = vectors_payload.get(key)
+    for source in candidates:
+        for key in ("points", "results", "data", "rows", "nodes"):
+            value = source.get(key)
 
-        if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            if isinstance(value, list):
+                return [dict(row) for row in value if isinstance(row, Mapping)]
 
-    for key in ("points", "results", "data"):
-        value = payload.get(key)
+            if isinstance(value, Mapping):
+                return [
+                    {"address": str(address), **dict(row)}
+                    for address, row in value.items()
+                    if isinstance(row, Mapping)
+                ]
 
-        if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+    geojson = payload.get("geojson")
+    if isinstance(geojson, Mapping) and isinstance(geojson.get("features"), list):
+        rows: list[dict[str, Any]] = []
+
+        for index, feature in enumerate(geojson["features"]):
+            if not isinstance(feature, Mapping):
+                continue
+
+            props = feature.get("properties") if isinstance(feature.get("properties"), Mapping) else {}
+            geom = feature.get("geometry") if isinstance(feature.get("geometry"), Mapping) else {}
+            coords = geom.get("coordinates") if isinstance(geom.get("coordinates"), list) else []
+
+            row = dict(props)
+            row.setdefault("id", feature.get("id") or f"feature-{index:08d}")
+
+            if len(coords) >= 2:
+                row.setdefault("longitude", coords[0])
+                row.setdefault("latitude", coords[1])
+
+            rows.append(row)
+
+        return rows
 
     return []
 
 
+def point_network(point: Mapping[str, Any]) -> str:
+    network = clean(first(point, ("network", "metadata.network", "address_family"))).lower()
+    if network:
+        return network
+
+    address = clean(first(point, ("address", "host", "node", "addr"))).lower()
+
+    if ".onion" in address:
+        return "tor"
+    if ".i2p" in address:
+        return "i2p"
+    if ":" in address and ".onion" not in address and ".i2p" not in address:
+        return "ipv6"
+    if address.count(".") >= 3:
+        return "ipv4"
+
+    return "unknown"
+
+
 def point_country(point: Mapping[str, Any]) -> str:
     country = clean(first(point, (
-        "country",
         "country_code",
+        "country",
         "country_data.country_code",
         "geoip.country_code",
         "geoip_data.country_code",
         "location.country_code",
         "metadata.country_code",
+        "metadata.country",
     ))).upper()
+
+    if country in {"TOR", "I2P"}:
+        return country
+
+    network = point_network(point)
+    if network == "tor":
+        return "TOR"
+    if network == "i2p":
+        return "I2P"
 
     return country or "UNKNOWN"
 
 
 def point_continent(point: Mapping[str, Any]) -> str:
     continent = clean(first(point, (
-        "continent",
         "continent_code",
+        "continent",
         "continent_data.continent_code",
         "continent_data.continent",
         "geoip.continent_code",
         "geoip_data.continent_code",
         "location.continent_code",
         "metadata.continent_code",
+        "metadata.continent",
     ))).upper()
+
+    aliases = {
+        "NORTH AMERICA": "NA",
+        "SOUTH AMERICA": "SA",
+        "EUROPE": "EU",
+        "AFRICA": "AF",
+        "ASIA": "AS",
+        "OCEANIA": "OC",
+        "ANTARCTICA": "AN",
+        "OVERLAY": "OV",
+        "OVERLAY NETWORKS": "OV",
+        "UNKNOWN": "UN",
+    }
 
     if continent in CONTINENT_GROUPS:
         return continent
 
-    if continent in {"NORTH AMERICA"}:
-        return "NA"
-    if continent in {"SOUTH AMERICA"}:
-        return "SA"
-    if continent in {"EUROPE"}:
-        return "EU"
-    if continent in {"AFRICA"}:
-        return "AF"
-    if continent in {"ASIA"}:
-        return "AS"
-    if continent in {"OCEANIA"}:
-        return "OC"
-    if continent in {"ANTARCTICA"}:
-        return "AN"
-
-    return ""
+    return aliases.get(continent, "")
 
 
 def point_lat_lon(point: Mapping[str, Any]) -> tuple[float | None, float | None]:
     lat = number(first(point, (
-        "latitude",
-        "lat",
-        "geoloc.latitude",
-        "geo.latitude",
-        "geo.lat",
-        "geoip.latitude",
-        "geoip.lat",
-        "geoip_data.latitude",
-        "location.latitude",
-        "metadata.latitude",
+        "latitude", "lat", "geoloc.latitude", "geo.latitude", "geo.lat",
+        "geoip.latitude", "geoip.lat", "geoip_data.latitude",
+        "location.latitude", "metadata.latitude",
     )))
 
     lon = number(first(point, (
-        "longitude",
-        "lon",
-        "lng",
-        "geoloc.longitude",
-        "geoloc.lon",
-        "geo.longitude",
-        "geo.lon",
-        "geo.lng",
-        "geoip.longitude",
-        "geoip.lon",
-        "geoip_data.longitude",
-        "location.longitude",
+        "longitude", "lon", "lng", "geoloc.longitude", "geoloc.lon",
+        "geo.longitude", "geo.lon", "geo.lng", "geoip.longitude",
+        "geoip.lon", "geoip_data.longitude", "location.longitude",
         "metadata.longitude",
     )))
 
@@ -283,31 +338,29 @@ def point_lat_lon(point: Mapping[str, Any]) -> tuple[float | None, float | None]
     return lat, lon
 
 
-def point_network(point: Mapping[str, Any]) -> str:
-    network = clean(first(point, ("network", "metadata.network"))).lower()
-
-    if network:
-        return network
-
-    address = clean(first(point, ("address", "host", "node", "addr"))).lower()
-
-    if ".onion" in address:
-        return "tor"
-
-    if ".i2p" in address:
-        return "i2p"
-
-    if ":" in address and ".onion" not in address and ".i2p" not in address:
-        return "ipv6"
-
-    if address.count(".") >= 3:
-        return "ipv4"
-
-    return "unknown"
-
-
 def point_status(point: Mapping[str, Any]) -> str:
-    return clean(first(point, ("status", "metadata.status"))).lower() or "unknown"
+    return clean(first(point, ("status", "metadata.status"))).lower().replace("_", "-") or "unknown"
+
+
+def is_sanctioned(point: Mapping[str, Any]) -> bool:
+    return flag(point, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned", "metadata.is_sanctioned_node"))
+
+
+def is_policy_restricted(point: Mapping[str, Any]) -> bool:
+    return flag(point, ("policy_restricted", "is_policy_restricted_node", "sanctions_data.is_policy_restricted", "metadata.is_policy_restricted_node"))
+
+
+def is_threat(point: Mapping[str, Any]) -> bool:
+    level = clean(first(point, (
+        "threat_level", "tag_threat_level", "threat_infrastructure.threat_level",
+        "tag_attribution.threat_level", "metadata.threat_level",
+    ))).lower()
+
+    return flag(point, (
+        "is_threat_infrastructure", "suspected_threat_infrastructure",
+        "threat_infrastructure.is_threat_infrastructure",
+        "confirmed_intelligence_match",
+    )) or level in {"confirmed", "high", "medium", "low"}
 
 
 def country_to_continent_map(continent_groups: Mapping[str, Mapping[str, Any]]) -> dict[str, str]:
@@ -315,7 +368,6 @@ def country_to_continent_map(continent_groups: Mapping[str, Mapping[str, Any]]) 
 
     for continent_id, continent in continent_groups.items():
         countries = continent.get("countries", [])
-
         if not isinstance(countries, list):
             continue
 
@@ -331,25 +383,34 @@ def continent_for_point(point: Mapping[str, Any], continent_groups: Mapping[str,
     if explicit:
         return explicit
 
+    network = point_network(point)
+    if network in {"tor", "i2p"}:
+        return "OV"
+
     country = point_country(point)
-
-    if point_network(point) == "tor":
-        return "OV"
-
-    if point_network(point) == "i2p":
-        return "OV"
-
     lookup = country_to_continent_map(continent_groups)
     return lookup.get(country, "UN")
 
 
+def sorted_counts(counter: dict[str, int]) -> dict[str, int]:
+    return dict(sorted(counter.items(), key=lambda item: (-item[1], item[0])))
+
+
+def inc(counter: dict[str, int], key: Any) -> None:
+    value = clean(key) or "Unknown"
+    counter[value] = counter.get(value, 0) + 1
+
+
 def load_external_continent_groups(continent_dir: Path) -> dict[str, Any]:
-    groups = dict(CONTINENT_GROUPS)
+    groups: dict[str, Any] = {key: dict(value) for key, value in CONTINENT_GROUPS.items()}
 
     for candidate in (
         continent_dir / "continents.json",
+        continent_dir / "continents.json.gz",
         continent_dir / "mapcontinents.json",
+        continent_dir / "mapcontinents.json.gz",
         continent_dir / "continent-groups.json",
+        continent_dir / "continent-groups.json.gz",
     ):
         data = read_json(candidate, fallback={})
 
@@ -362,131 +423,9 @@ def load_external_continent_groups(continent_dir: Path) -> dict[str, Any]:
             for continent_id, continent in external_groups.items():
                 if isinstance(continent, dict):
                     key = str(continent_id).upper()
-                    groups[key] = {
-                        **groups.get(key, {}),
-                        **continent,
-                    }
+                    groups[key] = {**groups.get(key, {}), **continent}
 
     return groups
-
-
-def build_continent_summary(
-    rows: list[dict[str, Any]],
-    continent_groups: Mapping[str, Mapping[str, Any]],
-) -> dict[str, Any]:
-    continent_counts: dict[str, int] = {}
-    country_counts: dict[str, int] = {}
-    network_counts_by_continent: dict[str, dict[str, int]] = {}
-    status_counts_by_continent: dict[str, dict[str, int]] = {}
-    coordinates: dict[str, list[tuple[float, float]]] = {}
-    centroids: dict[str, dict[str, float]] = {}
-
-    for row in rows:
-        continent = continent_for_point(row, continent_groups)
-        country = point_country(row)
-        network = point_network(row)
-        status = point_status(row)
-
-        continent_counts[continent] = continent_counts.get(continent, 0) + 1
-        country_counts[country] = country_counts.get(country, 0) + 1
-
-        network_counts_by_continent.setdefault(continent, {})
-        network_counts_by_continent[continent][network] = network_counts_by_continent[continent].get(network, 0) + 1
-
-        status_counts_by_continent.setdefault(continent, {})
-        status_counts_by_continent[continent][status] = status_counts_by_continent[continent].get(status, 0) + 1
-
-        lat, lon = point_lat_lon(row)
-
-        if lat is not None and lon is not None:
-            coordinates.setdefault(continent, []).append((lat, lon))
-
-    for continent, coords in coordinates.items():
-        if not coords:
-            continue
-
-        latitudes = [item[0] for item in coords]
-        longitudes = [item[1] for item in coords]
-
-        centroids[continent] = {
-            "latitude": sum(latitudes) / len(latitudes),
-            "longitude": sum(longitudes) / len(longitudes),
-            "south": min(latitudes),
-            "north": max(latitudes),
-            "west": min(longitudes),
-            "east": max(longitudes),
-        }
-
-    continents = {}
-
-    for continent_id, group in continent_groups.items():
-        count = continent_counts.get(continent_id, 0)
-
-        continents[continent_id] = {
-            "id": continent_id,
-            "label": clean(group.get("label")) or continent_id,
-            "color": clean(group.get("color")) or "#8c927e",
-            "point_count": count,
-            "countries": sorted(group.get("countries", [])) if isinstance(group.get("countries"), list) else [],
-            "network_counts": dict(sorted(network_counts_by_continent.get(continent_id, {}).items())),
-            "status_counts": dict(sorted(status_counts_by_continent.get(continent_id, {}).items())),
-            "centroid": centroids.get(continent_id, {}),
-        }
-
-    for continent_id, count in continent_counts.items():
-        continents.setdefault(continent_id, {
-            "id": continent_id,
-            "label": continent_id,
-            "color": "#8c927e",
-            "point_count": count,
-            "countries": [],
-            "network_counts": dict(sorted(network_counts_by_continent.get(continent_id, {}).items())),
-            "status_counts": dict(sorted(status_counts_by_continent.get(continent_id, {}).items())),
-            "centroid": centroids.get(continent_id, {}),
-        })
-
-    return {
-        "schema": SCHEMA,
-        "generated_at": utc_now(),
-        "total_points": len(rows),
-        "continent_count": len(continents),
-        "continents": dict(sorted(continents.items(), key=lambda item: (-item[1]["point_count"], item[0]))),
-        "country_counts": dict(sorted(country_counts.items(), key=lambda item: (-item[1], item[0]))),
-    }
-
-
-def build_continent_layers(continent_payload: Mapping[str, Any]) -> dict[str, Any]:
-    continents = continent_payload.get("continents", {})
-
-    if not isinstance(continents, Mapping):
-        continents = {}
-
-    layers = []
-
-    for continent_id, continent in continents.items():
-        if not isinstance(continent, Mapping):
-            continue
-
-        layers.append({
-            "id": f"continent:{continent_id}",
-            "label": continent.get("label", str(continent_id)),
-            "kind": "continent-filter",
-            "enabled": True,
-            "visible": False,
-            "color": continent.get("color", "#8c927e"),
-            "point_count": continent.get("point_count", 0),
-            "filter": {
-                "type": "continent",
-                "key": "map_continent",
-                "value": continent_id,
-            },
-        })
-
-    return {
-        "schema": "zzx-bitnodes-map-continent-layers-v1",
-        "generated_at": utc_now(),
-        "layers": sorted(layers, key=lambda item: (-int(item.get("point_count", 0) or 0), item["id"])),
-    }
 
 
 def annotate_points_with_continents(
@@ -498,7 +437,7 @@ def annotate_points_with_continents(
     for row in rows:
         item = dict(row)
         continent_id = continent_for_point(item, continent_groups)
-        continent = continent_groups.get(continent_id, {})
+        continent = continent_groups.get(continent_id, continent_groups.get("UN", {}))
 
         item["map_continent"] = continent_id
         item["map_continent_label"] = clean(continent.get("label")) or continent_id
@@ -507,6 +446,179 @@ def annotate_points_with_continents(
         output.append(item)
 
     return output
+
+
+def build_continent_summary(
+    rows: list[dict[str, Any]],
+    continent_groups: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    continent_counts: dict[str, int] = {}
+    country_counts: dict[str, int] = {}
+    network_counts_by_continent: dict[str, dict[str, int]] = {}
+    status_counts_by_continent: dict[str, dict[str, int]] = {}
+    security_counts_by_continent: dict[str, dict[str, int]] = {}
+    coordinates: dict[str, list[tuple[float, float]]] = {}
+
+    for row in rows:
+        continent = continent_for_point(row, continent_groups)
+        country = point_country(row)
+        network = point_network(row)
+        status = point_status(row)
+
+        inc(continent_counts, continent)
+        inc(country_counts, country)
+
+        network_counts_by_continent.setdefault(continent, {})
+        status_counts_by_continent.setdefault(continent, {})
+        security_counts_by_continent.setdefault(continent, {
+            "sanctioned_nodes": 0,
+            "policy_restricted_nodes": 0,
+            "threat_infrastructure_nodes": 0,
+        })
+
+        inc(network_counts_by_continent[continent], network)
+        inc(status_counts_by_continent[continent], status)
+
+        if is_sanctioned(row):
+            security_counts_by_continent[continent]["sanctioned_nodes"] += 1
+        if is_policy_restricted(row):
+            security_counts_by_continent[continent]["policy_restricted_nodes"] += 1
+        if is_threat(row):
+            security_counts_by_continent[continent]["threat_infrastructure_nodes"] += 1
+
+        lat, lon = point_lat_lon(row)
+        if lat is not None and lon is not None:
+            coordinates.setdefault(continent, []).append((lat, lon))
+
+    centroids: dict[str, dict[str, float]] = {}
+
+    for continent, coords in coordinates.items():
+        lats = [lat for lat, _lon in coords]
+        lons = [lon for _lat, lon in coords]
+        centroids[continent] = {
+            "latitude": sum(lats) / len(lats),
+            "longitude": sum(lons) / len(lons),
+            "south": min(lats),
+            "north": max(lats),
+            "west": min(lons),
+            "east": max(lons),
+        }
+
+    continents = {}
+
+    for continent_id, group in continent_groups.items():
+        count = continent_counts.get(continent_id, 0)
+        countries = group.get("countries", [])
+        if not isinstance(countries, list):
+            countries = []
+
+        continents[continent_id] = {
+            "id": continent_id,
+            "label": clean(group.get("label")) or continent_id,
+            "color": clean(group.get("color")) or "#8c927e",
+            "point_count": count,
+            "countries": sorted(str(country).upper() for country in countries),
+            "network_counts": sorted_counts(network_counts_by_continent.get(continent_id, {})),
+            "status_counts": sorted_counts(status_counts_by_continent.get(continent_id, {})),
+            "security_counts": security_counts_by_continent.get(continent_id, {
+                "sanctioned_nodes": 0,
+                "policy_restricted_nodes": 0,
+                "threat_infrastructure_nodes": 0,
+            }),
+            "centroid": centroids.get(continent_id, {}),
+        }
+
+    for continent_id, count in continent_counts.items():
+        continents.setdefault(continent_id, {
+            "id": continent_id,
+            "label": continent_id,
+            "color": "#8c927e",
+            "point_count": count,
+            "countries": [],
+            "network_counts": sorted_counts(network_counts_by_continent.get(continent_id, {})),
+            "status_counts": sorted_counts(status_counts_by_continent.get(continent_id, {})),
+            "security_counts": security_counts_by_continent.get(continent_id, {
+                "sanctioned_nodes": 0,
+                "policy_restricted_nodes": 0,
+                "threat_infrastructure_nodes": 0,
+            }),
+            "centroid": centroids.get(continent_id, {}),
+        })
+
+    return {
+        "schema": SCHEMA,
+        "generated_at": utc_now(),
+        "total_points": len(rows),
+        "continent_count": len(continents),
+        "continents": dict(sorted(continents.items(), key=lambda item: (-int(item[1]["point_count"]), item[0]))),
+        "country_counts": sorted_counts(country_counts),
+        "red_ring_semantics": {
+            "sanctioned_continent_count": "continent contains nodes with red marker ring",
+            "policy_restricted_continent_count": "continent contains nodes with red-orange marker ring",
+            "threat_continent_count": "continent contains defensive threat-infrastructure matches",
+        },
+        "false_positive_control": {
+            "threat_infrastructure": "defensive infrastructure correlation only",
+            "threat_actor_labels": "explicit trusted metadata/feed labels only",
+            "no_country_to_apt_inference": True,
+        },
+    }
+
+
+def build_continent_layers(continent_payload: Mapping[str, Any]) -> dict[str, Any]:
+    continents = continent_payload.get("continents", {})
+    if not isinstance(continents, Mapping):
+        continents = {}
+
+    layers = []
+
+    for continent_id, continent in continents.items():
+        if not isinstance(continent, Mapping):
+            continue
+
+        security = continent.get("security_counts", {})
+        if not isinstance(security, Mapping):
+            security = {}
+
+        color = clean(continent.get("color")) or "#8c927e"
+        marker_ring = False
+        table_badge = ""
+
+        if int(security.get("sanctioned_nodes", 0) or 0) > 0:
+            color = "#ff0000"
+            marker_ring = True
+            table_badge = "SANCTIONED"
+        elif int(security.get("policy_restricted_nodes", 0) or 0) > 0:
+            color = "#ff3b30"
+            marker_ring = True
+            table_badge = "RESTRICTED"
+        elif int(security.get("threat_infrastructure_nodes", 0) or 0) > 0:
+            color = "#ff9500"
+            marker_ring = True
+            table_badge = "THREAT"
+
+        layers.append({
+            "id": f"continent:{continent_id}",
+            "label": continent.get("label", str(continent_id)),
+            "kind": "continent-filter",
+            "enabled": True,
+            "visible": False,
+            "color": color,
+            "point_count": continent.get("point_count", 0),
+            "marker_ring": marker_ring,
+            "table_badge": table_badge,
+            "filter": {
+                "type": "equals",
+                "key": "map_continent",
+                "value": continent_id,
+            },
+        })
+
+    return {
+        "schema": "zzx-bitnodes-map-continent-layers-v4",
+        "generated_at": utc_now(),
+        "layers": sorted(layers, key=lambda item: (-int(item.get("point_count", 0) or 0), item["id"])),
+    }
 
 
 def merge_continents(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -522,6 +634,9 @@ def merge_continents(payload: dict[str, Any], context: dict[str, Any] | None = N
 
     if vectors_payload:
         vectors_payload["points"] = annotated
+        vectors_payload.setdefault("vectors", {})
+        if isinstance(vectors_payload["vectors"], dict):
+            vectors_payload["vectors"]["points"] = annotated
         output["vectors"] = vectors_payload
 
     continent_payload = build_continent_summary(annotated, continent_groups)
@@ -544,6 +659,10 @@ def merge_continents(payload: dict[str, Any], context: dict[str, Any] | None = N
 
 
 def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return merge_continents(payload, context)
+
+
+def process(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     return merge_continents(payload, context)
 
 
@@ -587,7 +706,7 @@ def build_standalone(
         write_json(settings_path, settings, compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-mapcontinents-build-report-v1",
+        "schema": "zzx-bitnodes-mapcontinents-build-report-v4",
         "generated_at": utc_now(),
         "vectors": str(vectors_path),
         "map_dir": str(map_dir),
@@ -600,7 +719,8 @@ def build_standalone(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build Bitnodes map continent summaries, continent filters, and continent-annotated vectors."
+        description="Build Bitnodes map continent summaries, continent filters, and continent-annotated vectors.",
+        allow_abbrev=False,
     )
 
     parser.add_argument("--vectors", required=True)
