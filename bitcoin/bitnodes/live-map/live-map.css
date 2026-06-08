@@ -80,12 +80,31 @@
     font-family: var(--bn-map-font, "IBM Plex Mono", monospace);
 }
 
+.bn-live-map-page .leaflet-popup-content-wrapper {
+    background: #edf7b9;
+    color: #050705;
+}
+
+.bn-live-map-page .leaflet-popup-tip {
+    background: #edf7b9;
+}
+
 .bn-live-map-page .leaflet-control-attribution {
     font-size: 0.7rem;
 }
 
 .bn-live-map-page .leaflet-control-attribution a {
     color: var(--bn-map-accent, #c0d674);
+}
+
+.bn-live-map-page .leaflet-control-zoom a {
+    background: rgba(5, 7, 5, 0.92);
+    color: var(--bn-map-accent, #c0d674);
+    border-color: rgba(192, 214, 116, 0.16);
+}
+
+.bn-live-map-page .leaflet-control-zoom a:hover {
+    background: rgba(16, 20, 13, 0.95);
 }
 
 /* ==========================================================
@@ -102,6 +121,17 @@
 .bn-live-map-page .bn-map-hud article:hover {
     border-color: rgba(192, 214, 116, 0.28);
     transform: translateY(-2px);
+}
+
+.bn-live-map-page .bn-map-hud article strong {
+    transition:
+        color 0.25s ease,
+        text-shadow 0.25s ease;
+}
+
+.bn-live-map-page .bn-map-hud article:hover strong {
+    color: var(--bn-map-accent, #c0d674);
+    text-shadow: 0 0 12px rgba(192, 214, 116, 0.18);
 }
 
 /* ==========================================================
@@ -123,8 +153,16 @@
     background: rgba(192, 214, 116, 0.04);
 }
 
+.bn-live-map-page .bn-map-legend .legend-sanctioned {
+    border-color: rgba(255, 0, 0, 0.45);
+}
+
+.bn-live-map-page .bn-map-legend .legend-threat {
+    border-color: rgba(255, 149, 0, 0.45);
+}
+
 /* ==========================================================
-   Search + Mini Toggle Live Styling
+   Search + Theme + Toggle Controls
    ========================================================== */
 
 .bn-live-map-page .bn-map-search input:focus,
@@ -146,8 +184,13 @@
 }
 
 /* ==========================================================
-   Node Info Live Styling
+   Node Info Inspector
    ========================================================== */
+
+.bn-live-map-page .bn-map-node-info {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(192,214,116,0.35) transparent;
+}
 
 .bn-live-map-page .bn-map-node-info h3 {
     margin: 0 0 0.9rem;
@@ -185,7 +228,7 @@
 }
 
 /* ==========================================================
-   Leaflet Marker Interaction Accents
+   Marker Styles
    ========================================================== */
 
 .bn-live-map-page .leaflet-interactive {
@@ -197,6 +240,54 @@
 
 .bn-live-map-page .leaflet-interactive:hover {
     filter: drop-shadow(0 0 8px rgba(192, 214, 116, 0.45));
+}
+
+.bn-live-map-page .leaflet-marker-icon.bn-sanctioned-node {
+    filter:
+        drop-shadow(0 0 8px rgba(255,0,0,0.8))
+        drop-shadow(0 0 16px rgba(255,0,0,0.4));
+}
+
+.bn-live-map-page .leaflet-marker-icon.bn-threat-node {
+    filter:
+        drop-shadow(0 0 8px rgba(255,149,0,0.7));
+}
+
+.bn-live-map-page .leaflet-marker-icon.bn-vpn-node {
+    filter:
+        drop-shadow(0 0 6px rgba(112,183,255,0.5));
+}
+
+/* ==========================================================
+   Building / Parcel / Polygon Layers
+   ========================================================== */
+
+.bn-live-map-page .bn-building-polygon {
+    transition:
+        fill-opacity 0.25s ease,
+        opacity 0.25s ease;
+}
+
+.bn-live-map-page .bn-building-polygon:hover {
+    fill-opacity: 0.55;
+}
+
+.bn-live-map-page .bn-sanctioned-building {
+    stroke: #ff0000;
+    stroke-width: 3;
+}
+
+.bn-live-map-page .bn-threat-building {
+    stroke: #ff9500;
+    stroke-width: 3;
+}
+
+.bn-live-map-page .bn-government-building {
+    stroke: #edf7b9;
+}
+
+.bn-live-map-page .bn-military-building {
+    stroke: #c0d674;
 }
 
 /* ==========================================================
@@ -244,16 +335,28 @@ body.bn-map-satellite .leaflet-tile {
 }
 
 /* ==========================================================
-   Live Refresh Pulse Support
+   Responsive Layout
    ========================================================== */
 
-.bn-live-map-page .bn-map-hud article strong {
-    transition:
-        color 0.25s ease,
-        text-shadow 0.25s ease;
+@media (max-width: 1100px) {
+
+    .bn-live-map-page .bn-map-node-info,
+    .bn-live-map-page .bn-map-left-stack {
+        width: 100%;
+    }
 }
 
-.bn-live-map-page .bn-map-hud article:hover strong {
-    color: var(--bn-map-accent, #c0d674);
-    text-shadow: 0 0 12px rgba(192, 214, 116, 0.18);
+@media (max-width: 768px) {
+
+    .bn-live-map-page .bn-map-node-info {
+        font-size: 0.72rem;
+    }
+
+    .bn-live-map-page .bn-node-grid span {
+        font-size: 0.72rem;
+    }
+
+    .bn-live-map-page .leaflet-control-attribution {
+        display: none;
+    }
 }
