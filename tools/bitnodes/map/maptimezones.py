@@ -2,20 +2,24 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
+BITNODES_ROOT = Path(os.environ.get("BITNODES_ROOT", str(APP_ROOT / "bitcoin" / "bitnodes")))
 
-DEFAULT_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "maps"
-DEFAULT_LIVE_MAP_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "live-map"
-DEFAULT_TIMEZONE_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "data" / "geo" / "timezones"
+DEFAULT_MAP_DIR = BITNODES_ROOT / "maps"
+DEFAULT_LIVE_MAP_DIR = BITNODES_ROOT / "live-map"
+DEFAULT_TIMEZONE_DIR = BITNODES_ROOT / "data" / "geo" / "timezones"
 
-SCHEMA = "zzx-bitnodes-map-timezones-v1"
+SCHEMA = "zzx-bitnodes-map-timezones-v4"
+UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 
 def utc_now() -> str:
@@ -24,27 +28,42 @@ def utc_now() -> str:
 
 def clean(value: Any) -> str:
     text = str(value or "").strip()
-    if text.lower() in {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}:
-        return ""
-    return " ".join(text.split())
+    return "" if text.lower() in UNKNOWN_VALUES else " ".join(text.split())
 
 
 def number(value: Any, fallback: float | None = None) -> float | None:
     try:
-        n = float(value)
+        if value in ("", None):
+            return fallback
+        out = float(value)
     except (TypeError, ValueError):
         return fallback
-    if not math.isfinite(n):
-        return fallback
-    return n
+    return out if math.isfinite(out) else fallback
+
+
+def boolish(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (1, "1"):
+        return True
+    if value in (0, "0"):
+        return False
+    return str(value or "").strip().lower() in {
+        "true", "yes", "y", "ok", "1", "reachable", "online",
+        "success", "flagged", "matched", "listed", "hit", "confirmed",
+    }
 
 
 def read_json(path: Path, fallback: Any = None) -> Any:
     if fallback is None:
         fallback = {}
-    if not path.exists():
-        return fallback
+
     try:
+        if not path.exists():
+            return fallback
+        if path.name.endswith(".gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return fallback
@@ -52,20 +71,20 @@ def read_json(path: Path, fallback: Any = None) -> Any:
 
 def write_json(path: Path, payload: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=None if compact else 2,
-        separators=(",", ":") if compact else None,
-        sort_keys=not compact,
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+            sort_keys=not compact,
+            default=str,
+        ) + "\n",
+        encoding="utf-8",
     )
-    path.write_text(text + "\n", encoding="utf-8")
 
 
 def deep_get(row: Mapping[str, Any], key: str) -> Any:
-    if "." not in key:
-        return row.get(key)
-
     current: Any = row
     for part in key.split("."):
         if not isinstance(current, Mapping):
@@ -82,43 +101,104 @@ def first(row: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
+def flag(row: Mapping[str, Any], keys: tuple[str, ...]) -> bool:
+    return any(boolish(first(row, (key,))) for key in keys)
+
+
 def vectors(payload: Mapping[str, Any]) -> dict[str, Any]:
     value = payload.get("vectors", {})
     return value if isinstance(value, dict) else {}
 
 
 def points(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
-    vp = vectors(payload)
+    for source in (vectors(payload), payload):
+        for key in ("points", "results", "data", "rows", "nodes"):
+            value = source.get(key)
 
-    for key in ("points", "results", "data"):
-        value = vp.get(key)
-        if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            if isinstance(value, list):
+                return [dict(row) for row in value if isinstance(row, Mapping)]
 
-    for key in ("points", "results", "data"):
-        value = payload.get(key)
-        if isinstance(value, list):
-            return [row for row in value if isinstance(row, dict)]
+            if isinstance(value, Mapping):
+                return [
+                    {"address": str(address), **dict(row)}
+                    for address, row in value.items()
+                    if isinstance(row, Mapping)
+                ]
+
+    geojson = payload.get("geojson")
+    if isinstance(geojson, Mapping) and isinstance(geojson.get("features"), list):
+        rows: list[dict[str, Any]] = []
+
+        for index, feature in enumerate(geojson["features"]):
+            if not isinstance(feature, Mapping):
+                continue
+
+            props = feature.get("properties") if isinstance(feature.get("properties"), Mapping) else {}
+            geom = feature.get("geometry") if isinstance(feature.get("geometry"), Mapping) else {}
+            coords = geom.get("coordinates") if isinstance(geom.get("coordinates"), list) else []
+
+            row = dict(props)
+            row.setdefault("id", feature.get("id") or f"feature-{index:08d}")
+
+            if len(coords) >= 2:
+                row.setdefault("longitude", coords[0])
+                row.setdefault("latitude", coords[1])
+
+            rows.append(row)
+
+        return rows
 
     return []
 
 
+def point_network(point: Mapping[str, Any]) -> str:
+    network = clean(first(point, ("network", "metadata.network", "address_family"))).lower()
+    if network:
+        return network
+
+    address = clean(first(point, ("address", "host", "node", "addr"))).lower()
+
+    if ".onion" in address:
+        return "tor"
+    if ".i2p" in address:
+        return "i2p"
+    if ":" in address and ".onion" not in address and ".i2p" not in address:
+        return "ipv6"
+    if address.count(".") >= 3:
+        return "ipv4"
+
+    return "unknown"
+
+
+def point_country(point: Mapping[str, Any]) -> str:
+    country = clean(first(point, (
+        "map_country", "country_code", "country", "country_data.country_code",
+        "geoip.country_code", "geoip_data.country_code", "location.country_code",
+        "metadata.country_code", "metadata.country",
+    ))).upper()
+
+    if country in {"TOR", "I2P"}:
+        return country
+
+    network = point_network(point)
+    if network == "tor":
+        return "TOR"
+    if network == "i2p":
+        return "I2P"
+
+    return country or "UNKNOWN"
+
+
 def point_timezone(point: Mapping[str, Any]) -> str:
     tz = clean(first(point, (
-        "timezone",
-        "iana_timezone",
-        "tz",
-        "time_zone",
-        "map_timezone",
-        "timezone_data.timezone",
-        "timezone_data.iana_timezone",
-        "geoip.timezone",
-        "geoip.tz",
-        "metadata.timezone",
+        "map_timezone", "timezone", "iana_timezone", "tz", "time_zone",
+        "timezone_data.timezone", "timezone_data.iana_timezone",
+        "geoip.timezone", "geoip.tz", "geoip_data.timezone",
+        "geoip_data.tz", "location.timezone", "metadata.timezone",
         "metadata.tz",
     )))
 
-    network = clean(first(point, ("network", "metadata.network"))).lower()
+    network = point_network(point)
     address = clean(first(point, ("address", "host", "node", "addr"))).lower()
 
     if network in {"tor", "i2p"} or ".onion" in address or ".i2p" in address:
@@ -127,23 +207,24 @@ def point_timezone(point: Mapping[str, Any]) -> str:
     return tz or "Unknown"
 
 
-def point_lat_lon(point: Mapping[str, Any]) -> tuple[float | None, float | None]:
-    lat = number(first(point, (
-        "latitude", "lat",
-        "geoloc.latitude",
-        "geo.latitude", "geo.lat",
-        "geoip.latitude", "geoip.lat",
-        "location.latitude",
-        "metadata.latitude",
+def point_timezone_name(point: Mapping[str, Any]) -> str:
+    return clean(first(point, (
+        "map_timezone_label", "timezone_name", "timezone_data.timezone_name",
+        "timezone_data.name", "geoip.timezone_name", "metadata.timezone_name",
     )))
 
+
+def point_lat_lon(point: Mapping[str, Any]) -> tuple[float | None, float | None]:
+    lat = number(first(point, (
+        "latitude", "lat", "geoloc.latitude", "timezone_data.latitude",
+        "geo.latitude", "geo.lat", "geoip.latitude", "geoip.lat",
+        "geoip_data.latitude", "location.latitude", "metadata.latitude",
+    )))
     lon = number(first(point, (
-        "longitude", "lon", "lng",
-        "geoloc.longitude", "geoloc.lon",
-        "geo.longitude", "geo.lon", "geo.lng",
-        "geoip.longitude", "geoip.lon",
-        "location.longitude",
-        "metadata.longitude",
+        "longitude", "lon", "lng", "geoloc.longitude", "geoloc.lon",
+        "timezone_data.longitude", "geo.longitude", "geo.lon", "geo.lng",
+        "geoip.longitude", "geoip.lon", "geoip_data.longitude",
+        "location.longitude", "metadata.longitude",
     )))
 
     if lat is None or lon is None:
@@ -153,35 +234,28 @@ def point_lat_lon(point: Mapping[str, Any]) -> tuple[float | None, float | None]
     return lat, lon
 
 
-def point_country(point: Mapping[str, Any]) -> str:
-    return clean(first(point, (
-        "map_country",
-        "country",
-        "country_code",
-        "geoip.country_code",
-        "metadata.country_code",
-    ))).upper() or "UNKNOWN"
-
-
-def point_network(point: Mapping[str, Any]) -> str:
-    network = clean(first(point, ("network", "metadata.network"))).lower()
-    if network:
-        return network
-
-    address = clean(first(point, ("address", "host", "node", "addr"))).lower()
-    if ".onion" in address:
-        return "tor"
-    if ".i2p" in address:
-        return "i2p"
-    if ":" in address and ".onion" not in address and ".i2p" not in address:
-        return "ipv6"
-    if address.count(".") >= 3:
-        return "ipv4"
-    return "unknown"
-
-
 def point_status(point: Mapping[str, Any]) -> str:
-    return clean(first(point, ("status", "metadata.status"))).lower() or "unknown"
+    return clean(first(point, ("status", "metadata.status"))).lower().replace("_", "-") or "unknown"
+
+
+def is_sanctioned(point: Mapping[str, Any]) -> bool:
+    return flag(point, ("is_sanctioned", "is_sanctioned_node", "sanctions_data.is_sanctioned", "metadata.is_sanctioned_node"))
+
+
+def is_policy_restricted(point: Mapping[str, Any]) -> bool:
+    return flag(point, ("policy_restricted", "is_policy_restricted_node", "sanctions_data.is_policy_restricted", "metadata.is_policy_restricted_node"))
+
+
+def is_threat(point: Mapping[str, Any]) -> bool:
+    level = clean(first(point, (
+        "threat_level", "tag_threat_level", "threat_infrastructure.threat_level",
+        "tag_attribution.threat_level", "metadata.threat_level",
+    ))).lower()
+
+    return flag(point, (
+        "is_threat_infrastructure", "suspected_threat_infrastructure",
+        "threat_infrastructure.is_threat_infrastructure", "confirmed_intelligence_match",
+    )) or level in {"confirmed", "high", "medium", "low"}
 
 
 def offset_from_longitude(lon: float | None) -> int | None:
@@ -190,48 +264,84 @@ def offset_from_longitude(lon: float | None) -> int | None:
     return max(-12, min(14, int(round(lon / 15.0))))
 
 
+def offset_label(offset: Any) -> str:
+    offset_number = number(offset)
+    if offset_number is None:
+        return "Unknown"
+
+    sign = "+" if offset_number >= 0 else "-"
+    absolute = abs(offset_number)
+    hours = int(absolute)
+    minutes = int(round((absolute - hours) * 60))
+
+    return f"UTC{sign}{hours:02d}:{minutes:02d}"
+
+
 def load_timezone_reference(timezone_dir: Path) -> dict[str, dict[str, Any]]:
     refs: dict[str, dict[str, Any]] = {}
 
     for candidate in (
         timezone_dir / "timezones.json",
+        timezone_dir / "timezones.json.gz",
         timezone_dir / "maptimezones.json",
+        timezone_dir / "maptimezones.json.gz",
         timezone_dir / "global.json",
+        timezone_dir / "global.json.gz",
+        timezone_dir / "iana.json",
+        timezone_dir / "iana.json.gz",
     ):
         data = read_json(candidate, fallback={})
         if not isinstance(data, dict):
             continue
 
-        rows = data.get("timezones", data.get("zones", data))
+        rows = data.get("timezones", data.get("zones", data.get("iana", data)))
 
         if isinstance(rows, dict):
             for tz, row in rows.items():
                 if isinstance(row, dict):
-                    refs[str(tz)] = row
+                    refs[str(tz)] = dict(row)
 
         elif isinstance(rows, list):
             for row in rows:
                 if not isinstance(row, dict):
                     continue
+
                 tz = clean(row.get("timezone") or row.get("iana_timezone") or row.get("tz") or row.get("name"))
                 if tz:
-                    refs[tz] = row
+                    refs[tz] = dict(row)
 
     refs.setdefault("UTC", {
         "timezone": "UTC",
         "iana_timezone": "UTC",
+        "timezone_name": "Coordinated Universal Time",
         "utc_offset_hours": 0,
+        "utc_offset_label": "UTC+00:00",
         "color": "#9d67ad",
     })
 
     refs.setdefault("Unknown", {
         "timezone": "Unknown",
         "iana_timezone": "Unknown",
+        "timezone_name": "Unknown / Unclassified",
         "utc_offset_hours": None,
+        "utc_offset_label": "Unknown",
         "color": "#8c927e",
     })
 
     return refs
+
+
+def ref_for(tz: str, refs: Mapping[str, Mapping[str, Any]]) -> Mapping[str, Any]:
+    return refs.get(tz, refs.get("Unknown", {}))
+
+
+def sorted_counts(counter: dict[str, int]) -> dict[str, int]:
+    return dict(sorted(counter.items(), key=lambda item: (-item[1], item[0])))
+
+
+def inc(counter: dict[str, int], key: Any) -> None:
+    value = clean(key) or "Unknown"
+    counter[value] = counter.get(value, 0) + 1
 
 
 def build_timezone_summary(rows: list[dict[str, Any]], refs: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
@@ -240,44 +350,80 @@ def build_timezone_summary(rows: list[dict[str, Any]], refs: Mapping[str, Mappin
     for row in rows:
         tz = point_timezone(row)
         lat, lon = point_lat_lon(row)
-        ref = refs.get(tz, {})
+        reference = ref_for(tz, refs)
+
         offset = number(
-            ref.get("utc_offset_hours")
-            or first(row, ("timezone_data.utc_offset_hours", "utc_offset_hours")),
+            reference.get("utc_offset_hours")
+            or first(row, ("timezone_data.utc_offset_hours", "utc_offset_hours", "metadata.utc_offset_hours")),
             offset_from_longitude(lon),
         )
 
         item = grouped.setdefault(tz, {
             "id": tz,
             "timezone": tz,
-            "iana_timezone": clean(ref.get("iana_timezone") or ref.get("timezone")) or tz,
+            "iana_timezone": clean(reference.get("iana_timezone") or reference.get("timezone")) or tz,
+            "timezone_name": clean(reference.get("timezone_name") or reference.get("name")) or point_timezone_name(row) or tz,
             "utc_offset_hours": offset,
-            "color": clean(ref.get("color")) or "#8c927e",
+            "utc_offset_label": clean(reference.get("utc_offset_label")) or offset_label(offset),
+            "color": clean(reference.get("color")) or "#8c927e",
             "point_count": 0,
             "country_counts": {},
             "network_counts": {},
             "status_counts": {},
-            "coordinates": [],
+            "security_counts": {
+                "sanctioned_nodes": 0,
+                "policy_restricted_nodes": 0,
+                "threat_infrastructure_nodes": 0,
+            },
+            "intelligence_counts": {
+                "vpn_nodes": 0,
+                "proxy_nodes": 0,
+                "datacenter_nodes": 0,
+                "government_nodes": 0,
+                "military_nodes": 0,
+                "apt_label_nodes": 0,
+                "threat_actor_label_nodes": 0,
+                "known_malactor_nodes": 0,
+            },
+            "_coordinates": [],
         })
 
         item["point_count"] += 1
+        inc(item["country_counts"], point_country(row))
+        inc(item["network_counts"], point_network(row))
+        inc(item["status_counts"], point_status(row))
 
-        country = point_country(row)
-        network = point_network(row)
-        status = point_status(row)
+        if is_sanctioned(row):
+            item["security_counts"]["sanctioned_nodes"] += 1
+        if is_policy_restricted(row):
+            item["security_counts"]["policy_restricted_nodes"] += 1
+        if is_threat(row):
+            item["security_counts"]["threat_infrastructure_nodes"] += 1
 
-        item["country_counts"][country] = item["country_counts"].get(country, 0) + 1
-        item["network_counts"][network] = item["network_counts"].get(network, 0) + 1
-        item["status_counts"][status] = item["status_counts"].get(status, 0) + 1
+        if flag(row, ("is_vpn", "suspected_vpn", "vpn_data.is_vpn", "vpn.is_vpn", "metadata.is_vpn")):
+            item["intelligence_counts"]["vpn_nodes"] += 1
+        if flag(row, ("is_proxy", "suspected_proxy", "proxy_data.is_proxy", "proxy.is_proxy", "metadata.is_proxy")):
+            item["intelligence_counts"]["proxy_nodes"] += 1
+        if flag(row, ("is_datacenter", "datacenter_data.is_datacenter", "datacenter.is_datacenter", "metadata.is_datacenter")):
+            item["intelligence_counts"]["datacenter_nodes"] += 1
+        if flag(row, ("is_government", "government_data.is_government", "government.is_government", "metadata.is_government")):
+            item["intelligence_counts"]["government_nodes"] += 1
+        if flag(row, ("is_military", "military_data.is_military", "military.is_military", "metadata.is_military")):
+            item["intelligence_counts"]["military_nodes"] += 1
+        if flag(row, ("suspected_apt_related", "is_apt", "apt_data.is_apt", "metadata.is_apt")):
+            item["intelligence_counts"]["apt_label_nodes"] += 1
+        if flag(row, ("suspected_threat_actor_group_related", "is_threat_actor", "threat_actor_data.is_threat_actor", "metadata.is_threat_actor")):
+            item["intelligence_counts"]["threat_actor_label_nodes"] += 1
+        if flag(row, ("is_known_malactor", "knownmalactor.is_known_malactor", "known_malactor_data.is_known_malactor", "metadata.is_known_malactor")):
+            item["intelligence_counts"]["known_malactor_nodes"] += 1
 
         if lat is not None and lon is not None:
-            item["coordinates"].append((lat, lon))
+            item["_coordinates"].append((lat, lon))
 
-    timezones = {}
+    timezones: dict[str, Any] = {}
 
     for tz, item in grouped.items():
-        coords = item.pop("coordinates", [])
-
+        coords = item.pop("_coordinates", [])
         if coords:
             lats = [lat for lat, _lon in coords]
             lons = [lon for _lat, lon in coords]
@@ -292,9 +438,9 @@ def build_timezone_summary(rows: list[dict[str, Any]], refs: Mapping[str, Mappin
         else:
             item["centroid"] = {}
 
-        item["country_counts"] = dict(sorted(item["country_counts"].items(), key=lambda pair: (-pair[1], pair[0])))
-        item["network_counts"] = dict(sorted(item["network_counts"].items()))
-        item["status_counts"] = dict(sorted(item["status_counts"].items()))
+        item["country_counts"] = sorted_counts(item["country_counts"])
+        item["network_counts"] = sorted_counts(item["network_counts"])
+        item["status_counts"] = sorted_counts(item["status_counts"])
         timezones[tz] = item
 
     return {
@@ -302,7 +448,17 @@ def build_timezone_summary(rows: list[dict[str, Any]], refs: Mapping[str, Mappin
         "generated_at": utc_now(),
         "total_points": len(rows),
         "timezone_count": len(timezones),
-        "timezones": dict(sorted(timezones.items(), key=lambda pair: (-pair[1]["point_count"], pair[0]))),
+        "timezones": dict(sorted(timezones.items(), key=lambda pair: (-int(pair[1]["point_count"]), pair[0]))),
+        "red_ring_semantics": {
+            "sanctioned_timezone_count": "timezone contains nodes with red marker ring",
+            "policy_restricted_timezone_count": "timezone contains nodes with red-orange marker ring",
+            "threat_timezone_count": "timezone contains defensive threat-infrastructure matches",
+        },
+        "false_positive_control": {
+            "threat_infrastructure": "defensive infrastructure correlation only",
+            "threat_actor_labels": "explicit trusted metadata/feed labels only",
+            "no_country_to_apt_inference": True,
+        },
     }
 
 
@@ -317,23 +473,46 @@ def build_timezone_layers(payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(item, Mapping):
             continue
 
+        security = item.get("security_counts", {})
+        if not isinstance(security, Mapping):
+            security = {}
+
+        color = clean(item.get("color")) or "#8c927e"
+        marker_ring = False
+        table_badge = ""
+
+        if int(security.get("sanctioned_nodes", 0) or 0) > 0:
+            color = "#ff0000"
+            marker_ring = True
+            table_badge = "SANCTIONED"
+        elif int(security.get("policy_restricted_nodes", 0) or 0) > 0:
+            color = "#ff3b30"
+            marker_ring = True
+            table_badge = "RESTRICTED"
+        elif int(security.get("threat_infrastructure_nodes", 0) or 0) > 0:
+            color = "#ff9500"
+            marker_ring = True
+            table_badge = "THREAT"
+
         layers.append({
             "id": f"timezone:{tz}",
             "label": item.get("iana_timezone", tz),
             "kind": "timezone-filter",
             "enabled": True,
             "visible": False,
-            "color": item.get("color", "#8c927e"),
+            "color": color,
             "point_count": item.get("point_count", 0),
+            "marker_ring": marker_ring,
+            "table_badge": table_badge,
             "filter": {
-                "type": "timezone",
+                "type": "equals",
                 "key": "map_timezone",
                 "value": tz,
             },
         })
 
     return {
-        "schema": "zzx-bitnodes-map-timezone-layers-v1",
+        "schema": "zzx-bitnodes-map-timezone-layers-v4",
         "generated_at": utc_now(),
         "layers": sorted(layers, key=lambda item: (-int(item.get("point_count", 0) or 0), item["id"])),
     }
@@ -353,8 +532,10 @@ def annotate_points(rows: list[dict[str, Any]], timezone_payload: Mapping[str, A
 
         item["map_timezone"] = tz
         item["map_timezone_label"] = clean(ref.get("iana_timezone")) or tz
+        item["map_timezone_name"] = clean(ref.get("timezone_name")) or tz
         item["map_timezone_color"] = clean(ref.get("color")) or "#8c927e"
         item["map_timezone_offset_hours"] = ref.get("utc_offset_hours")
+        item["map_timezone_offset_label"] = ref.get("utc_offset_label")
 
         output.append(item)
 
@@ -376,6 +557,9 @@ def merge_timezones(payload: dict[str, Any], context: dict[str, Any] | None = No
 
     if vectors_payload:
         vectors_payload["points"] = annotated
+        vectors_payload.setdefault("vectors", {})
+        if isinstance(vectors_payload["vectors"], dict):
+            vectors_payload["vectors"]["points"] = annotated
         output["vectors"] = vectors_payload
 
     output["timezones"] = timezone_payload
@@ -395,6 +579,10 @@ def merge_timezones(payload: dict[str, Any], context: dict[str, Any] | None = No
 
 
 def build(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    return merge_timezones(payload, context)
+
+
+def process(payload: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     return merge_timezones(payload, context)
 
 
@@ -422,7 +610,6 @@ def build_standalone(
 
     for directory in (map_dir, live_map_dir):
         data_dir = directory / "data"
-
         write_json(data_dir / "map-timezones.json", timezones, compact=compact)
         write_json(data_dir / "map-timezone-layers.json", timezone_layers, compact=compact)
         write_json(data_dir / "map-vectors.json", updated_vectors, compact=compact)
@@ -436,7 +623,7 @@ def build_standalone(
         write_json(settings_path, settings, compact=compact)
 
     return {
-        "schema": "zzx-bitnodes-maptimezones-build-report-v1",
+        "schema": "zzx-bitnodes-maptimezones-build-report-v4",
         "generated_at": utc_now(),
         "vectors": str(vectors_path),
         "map_dir": str(map_dir),
@@ -448,7 +635,11 @@ def build_standalone(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build Bitnodes map timezone summaries and filters.")
+    parser = argparse.ArgumentParser(
+        description="Build Bitnodes map timezone summaries, security counters, filters, and timezone-annotated vectors.",
+        allow_abbrev=False,
+    )
+
     parser.add_argument("--vectors", required=True)
     parser.add_argument("--map-dir", default=str(DEFAULT_MAP_DIR))
     parser.add_argument("--live-map-dir", default=str(DEFAULT_LIVE_MAP_DIR))
