@@ -289,7 +289,7 @@ def split_address(address: str) -> tuple[str, int | None]:
         if possible_port.isdigit():
             try:
                 ipaddress.ip_address(possible_host.strip("[]"))
-                return possible_host.strip("[]"), int(possible_port))
+                return possible_host.strip("[]"), int(possible_port)
             except Exception:
                 pass
 
