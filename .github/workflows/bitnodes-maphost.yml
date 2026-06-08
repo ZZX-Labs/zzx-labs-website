@@ -19,18 +19,24 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
   BITNODES_DATA: bitcoin/bitnodes/data
   BITNODES_MAPS: bitcoin/bitnodes/maps
   BITNODES_LIVE_MAP: bitcoin/bitnodes/live-map
+
   MAX_PUBLIC_JSON_BYTES: "24000000"
+  MAX_COMMIT_FILES: "700"
+  MAX_DELETIONS: "2500000"
   MIN_MAP_FEATURES: "1"
+
   PYTHONUNBUFFERED: "1"
+  BITNODES_REQUIRE_GEO_COORDINATES: "true"
 
 jobs:
   maps:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -50,10 +56,10 @@ jobs:
           git reset --hard origin/main
 
           printf '%s\n' "Available Bitnodes latest/index/map files:"
-          find bitcoin/bitnodes -maxdepth 6 -type f \
-            \( -name 'latest.json' -o -name 'index.json' -o -name '*.geojson' -o -name 'map-vectors.json' \) \
+          find bitcoin/bitnodes -maxdepth 7 -type f \
+            \( -name 'latest.json' -o -name 'index.json' -o -name '*.geojson' -o -name 'map-vectors.json' -o -name '*.sql.gz' \) \
             | sort \
-            | sed -n '1,240p'
+            | sed -n '1,320p'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -75,17 +81,51 @@ jobs:
         run: |
           set -euo pipefail
 
-          python -m py_compile tools/bitnodes/map/map.py
-          python -m py_compile tools/bitnodes/map/maps.py
-          python -m py_compile tools/bitnodes/map/live-map.py
-          python -m py_compile tools/bitnodes/map/mapvectors.py
-          python -m py_compile tools/bitnodes/map/mapnodes.py
+          REQUIRED_MAP_TOOLS=(
+            tools/bitnodes/map/map.py
+            tools/bitnodes/map/maps.py
+            tools/bitnodes/map/live-map.py
+            tools/bitnodes/map/mapvectors.py
+            tools/bitnodes/map/vector_types.py
+            tools/bitnodes/map/mapnodes.py
+            tools/bitnodes/map/maplayers.py
+            tools/bitnodes/map/mapoverlays.py
+            tools/bitnodes/map/mapplotter.py
+            tools/bitnodes/map/mappolygons.py
+            tools/bitnodes/map/openstreetmaps.py
+            tools/bitnodes/map/mapsettings.py
+            tools/bitnodes/map/mapthemes.py
+            tools/bitnodes/map/mapregions.py
+            tools/bitnodes/map/mapcontinents.py
+            tools/bitnodes/map/mapcountries.py
+            tools/bitnodes/map/mapterritories.py
+            tools/bitnodes/map/mapcounties.py
+            tools/bitnodes/map/mapcities.py
+            tools/bitnodes/map/mapzips.py
+            tools/bitnodes/map/maptimezones.py
+            tools/bitnodes/map/mapw3waddresses.py
+            tools/bitnodes/map/mapzzxgcsaddresses.py
+            tools/bitnodes/map/mapgeohashids.py
+            tools/bitnodes/map/mapparcels.py
+            tools/bitnodes/map/mapbuildings.py
+          )
+
+          for FILE in "${REQUIRED_MAP_TOOLS[@]}"; do
+            if [ ! -f "${FILE}" ]; then
+              printf '%s\n' "MISSING REQUIRED MAP TOOL: ${FILE}"
+              find tools/bitnodes/map -maxdepth 2 -type f | sort
+              exit 1
+            fi
+
+            python -m py_compile "${FILE}"
+          done
 
           python tools/bitnodes/map/map.py --help
           python tools/bitnodes/map/maps.py --help
           python tools/bitnodes/map/live-map.py --help
           python tools/bitnodes/map/mapvectors.py --help
           python tools/bitnodes/map/mapnodes.py --help
+          python tools/bitnodes/map/mapplotter.py --help
 
       - name: Prepare map directories
         shell: bash
@@ -110,6 +150,7 @@ jobs:
           python - <<'PY' >> "${GITHUB_OUTPUT}"
           import gzip
           import json
+          import math
           import re
           from pathlib import Path
 
@@ -119,15 +160,48 @@ jobs:
           TMP.mkdir(parents=True, exist_ok=True)
 
           INSERT_RE = re.compile(
-              r"INSERT INTO bitnodes_nodes \((?P<cols>.*?)\) VALUES \((?P<vals>.*?)\) ON DUPLICATE KEY UPDATE",
-              re.S,
+              r"INSERT INTO\s+`?bitnodes_nodes`?\s+\((?P<cols>.*?)\)\s+VALUES\s+(?P<vals>.*?);",
+              re.S | re.I,
           )
+
+          TUPLE_RE = re.compile(r"\((.*?)\)(?:,|$)", re.S)
 
           def read_json(path: Path):
               try:
                   return json.loads(path.read_text(encoding="utf-8"))
               except Exception:
                   return None
+
+          def deep_get(obj, dotted):
+              cur = obj
+              for part in dotted.split("."):
+                  if not isinstance(cur, dict):
+                      return None
+                  cur = cur.get(part)
+              return cur
+
+          def first(obj, keys):
+              if not isinstance(obj, dict):
+                  return None
+              for key in keys:
+                  value = deep_get(obj, key) if "." in key else obj.get(key)
+                  if value not in ("", None):
+                      return value
+              return None
+
+          def valid_coord(lat, lon):
+              try:
+                  lat = float(lat)
+                  lon = float(lon)
+              except Exception:
+                  return False
+
+              return (
+                  math.isfinite(lat)
+                  and math.isfinite(lon)
+                  and -90 <= lat <= 90
+                  and -180 <= lon <= 180
+              )
 
           def count_nodes(path: Path) -> int:
               payload = read_json(path)
@@ -154,6 +228,11 @@ jobs:
                   if isinstance(points, list):
                       return len(points)
 
+                  features = payload.get("features")
+
+                  if isinstance(features, list):
+                      return len(features)
+
                   for key in (
                       "reachable_nodes",
                       "data",
@@ -175,21 +254,108 @@ jobs:
 
               return 0
 
-          def choose_existing_json(candidates):
+          def coord_count(path: Path) -> int:
+              payload = read_json(path)
+              rows = []
+
+              if isinstance(payload, dict):
+                  nodes = payload.get("nodes")
+                  if isinstance(nodes, dict):
+                      rows = list(nodes.values())
+                  elif isinstance(nodes, list):
+                      rows = nodes
+                  elif isinstance(payload.get("vectors"), dict) and isinstance(payload["vectors"].get("points"), list):
+                      rows = payload["vectors"]["points"]
+                  elif isinstance(payload.get("points"), list):
+                      rows = payload["points"]
+                  elif isinstance(payload.get("features"), list):
+                      rows = [
+                          {
+                              **(feature.get("properties") if isinstance(feature.get("properties"), dict) else {}),
+                              "latitude": (
+                                  feature.get("geometry", {}).get("coordinates", [None, None])[1]
+                                  if isinstance(feature.get("geometry"), dict)
+                                  and isinstance(feature.get("geometry", {}).get("coordinates"), list)
+                                  and len(feature.get("geometry", {}).get("coordinates")) >= 2
+                                  else None
+                              ),
+                              "longitude": (
+                                  feature.get("geometry", {}).get("coordinates", [None, None])[0]
+                                  if isinstance(feature.get("geometry"), dict)
+                                  and isinstance(feature.get("geometry", {}).get("coordinates"), list)
+                                  and len(feature.get("geometry", {}).get("coordinates")) >= 2
+                                  else None
+                              ),
+                          }
+                          for feature in payload["features"]
+                          if isinstance(feature, dict)
+                      ]
+              elif isinstance(payload, list):
+                  rows = payload
+
+              total = 0
+
+              for row in rows:
+                  if isinstance(row, dict):
+                      lat = first(row, (
+                          "latitude",
+                          "lat",
+                          "geo.latitude",
+                          "geoip.latitude",
+                          "geoip_data.latitude",
+                          "geoloc.latitude",
+                          "location.latitude",
+                          "metadata.latitude",
+                      ))
+                      lon = first(row, (
+                          "longitude",
+                          "lon",
+                          "lng",
+                          "geo.longitude",
+                          "geoip.longitude",
+                          "geoip_data.longitude",
+                          "geoloc.longitude",
+                          "location.longitude",
+                          "metadata.longitude",
+                      ))
+                      if valid_coord(lat, lon):
+                          total += 1
+
+                  elif isinstance(row, list):
+                      lat = row[8] if len(row) > 8 else None
+                      lon = row[9] if len(row) > 9 else None
+                      if valid_coord(lat, lon):
+                          total += 1
+
+              return total
+
+          def choose_existing_json(candidates, label):
+              best = None
+              best_nodes = 0
+              best_coords = -1
+
               for item in candidates:
                   path = Path(item)
-                  if not path.exists():
+
+                  if not path.exists() or path.stat().st_size <= 0:
                       continue
-                  if path.stat().st_size <= 0:
-                      continue
 
-                  n = count_nodes(path)
-                  print(f"{path}_node_count={n}")
+                  nodes = count_nodes(path)
+                  coords = coord_count(path)
 
-                  if n > 0:
-                      return path
+                  print(f"{label}_{path.name}_node_count={nodes}")
+                  print(f"{label}_{path.name}_coordinate_count={coords}")
 
-              return None
+                  if nodes > 0 and (coords > best_coords or best is None):
+                      best = path
+                      best_nodes = nodes
+                      best_coords = coords
+
+              if best is not None:
+                  print(f"{label}_selected_node_count={best_nodes}")
+                  print(f"{label}_selected_coordinate_count={best_coords}")
+
+              return best
 
           def fnum(value):
               try:
@@ -238,7 +404,15 @@ jobs:
 
           def sql_clean(value):
               value = value.strip()
-              return None if value.upper() == "NULL" else value
+
+              if value.upper() == "NULL":
+                  return None
+
+              if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+                  value = value[1:-1]
+                  value = value.replace("\\'", "'").replace("\\\\", "\\")
+
+              return value
 
           def build_from_mariadb(source_name):
               shard_dirs = [
@@ -258,66 +432,74 @@ jobs:
 
                       try:
                           with gzip.open(shard, "rt", encoding="utf-8", errors="replace") as handle:
-                              text = handle.read()
+                              sql_text = handle.read()
                       except Exception:
                           continue
 
-                      for match in INSERT_RE.finditer(text):
+                      for match in INSERT_RE.finditer(sql_text):
                           cols = [x.strip().strip("`") for x in match.group("cols").split(",")]
-                          vals = split_sql_values(match.group("vals"))
+                          values_block = match.group("vals")
 
-                          if len(cols) != len(vals):
-                              continue
+                          for tuple_match in TUPLE_RE.finditer(values_block):
+                              vals = split_sql_values(tuple_match.group(1))
 
-                          row = dict(zip(cols, [sql_clean(v) for v in vals]))
+                              if len(cols) != len(vals):
+                                  continue
 
-                          if row.get("source_name") != source_name:
-                              continue
+                              row = dict(zip(cols, [sql_clean(v) for v in vals]))
 
-                          lat = fnum(row.get("latitude"))
-                          lon = fnum(row.get("longitude"))
+                              if row.get("source_name") != source_name and row.get("source") != source_name:
+                                  continue
 
-                          if lat is None or lon is None:
-                              continue
+                              lat = fnum(row.get("latitude") or row.get("lat"))
+                              lon = fnum(row.get("longitude") or row.get("lon") or row.get("lng"))
 
-                          if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                              continue
+                              if lat is None or lon is None:
+                                  continue
 
-                          address = row.get("address") or row.get("node_id")
-                          if not address:
-                              continue
+                              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                                  continue
 
-                          rows[address] = {
-                              "address": address,
-                              "node_id": row.get("node_id"),
-                              "source": row.get("source_name"),
-                              "host": row.get("host"),
-                              "port": row.get("port"),
-                              "network": row.get("network"),
-                              "agent": row.get("agent"),
-                              "protocol": row.get("protocol"),
-                              "services": row.get("services"),
-                              "height": row.get("height"),
-                              "city": row.get("city"),
-                              "country": row.get("country"),
-                              "territory": row.get("territory"),
-                              "county": row.get("county"),
-                              "zip_code": row.get("zip_code"),
-                              "timezone": row.get("timezone"),
-                              "latitude": lat,
-                              "longitude": lon,
-                              "asn": row.get("asn"),
-                              "organization": row.get("organization"),
-                              "provider": row.get("provider"),
-                              "w3w": row.get("w3w"),
-                              "zzxgcs": row.get("zzxgcs"),
-                              "geohash": row.get("geohash"),
-                              "reachable": row.get("reachable"),
-                              "reachable_now": row.get("reachable_now"),
-                              "reachable_24h": row.get("reachable_24h"),
-                              "latency_ms": row.get("latency_ms"),
-                              "last_seen": row.get("last_seen"),
-                          }
+                              address = row.get("address") or row.get("node_id") or row.get("host")
+                              if not address:
+                                  continue
+
+                              rows[address] = {
+                                  "address": address,
+                                  "node_id": row.get("node_id"),
+                                  "source": row.get("source_name") or row.get("source"),
+                                  "host": row.get("host"),
+                                  "port": row.get("port"),
+                                  "network": row.get("network"),
+                                  "agent": row.get("agent") or row.get("user_agent"),
+                                  "protocol": row.get("protocol"),
+                                  "services": row.get("services"),
+                                  "height": row.get("height") or row.get("block_height"),
+                                  "city": row.get("city"),
+                                  "country": row.get("country") or row.get("country_code"),
+                                  "country_code": row.get("country_code"),
+                                  "territory": row.get("territory") or row.get("territory_code"),
+                                  "county": row.get("county") or row.get("county_code"),
+                                  "zip_code": row.get("zip_code") or row.get("postal_code"),
+                                  "timezone": row.get("timezone"),
+                                  "latitude": lat,
+                                  "longitude": lon,
+                                  "lat": lat,
+                                  "lon": lon,
+                                  "asn": row.get("asn"),
+                                  "organization": row.get("organization") or row.get("org"),
+                                  "provider": row.get("provider"),
+                                  "w3w": row.get("w3w"),
+                                  "zzxgcs": row.get("zzxgcs"),
+                                  "geohash": row.get("geohash"),
+                                  "geohashid": row.get("geohashid"),
+                                  "reachable": row.get("reachable"),
+                                  "reachable_now": row.get("reachable_now"),
+                                  "reachable_24h": row.get("reachable_24h"),
+                                  "status": row.get("status"),
+                                  "latency_ms": row.get("latency_ms"),
+                                  "last_seen": row.get("last_seen"),
+                              }
 
               if not rows:
                   return None
@@ -326,7 +508,7 @@ jobs:
               out.write_text(
                   json.dumps(
                       {
-                          "schema": "zzx-bitnodes-map-source-from-db-v5",
+                          "schema": "zzx-bitnodes-map-source-from-db-v6",
                           "source": source_name,
                           "nodes": rows,
                       },
@@ -336,7 +518,8 @@ jobs:
                   encoding="utf-8",
               )
 
-              print(f"{out}_node_count={len(rows)}")
+              print(f"{source_name}_db_node_count={len(rows)}")
+              print(f"{source_name}_db_coordinate_count={len(rows)}")
               return out
 
           zzx = choose_existing_json([
@@ -345,12 +528,12 @@ jobs:
               API / "data" / "latest.json",
               Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
               Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
-          ]) or build_from_mariadb("zzxbitnodes")
+          ], "zzx") or build_from_mariadb("zzxbitnodes")
 
           original = choose_existing_json([
               API / "enriched" / "originalbitnodes" / "latest.json",
               API / "originalbitnodes" / "latest.json",
-          ]) or build_from_mariadb("originalbitnodes")
+          ], "original") or build_from_mariadb("originalbitnodes")
 
           if zzx is None:
               print("map_ready=false")
@@ -367,7 +550,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           printf '%s\n' "No node-level ZZX map source exists yet. Skipping map build."
 
       - name: Validate selected map source
@@ -382,6 +564,7 @@ jobs:
 
           python - <<'PY'
           import json
+          import math
           import os
 
           path = os.environ["INPUT"]
@@ -389,40 +572,99 @@ jobs:
           with open(path, "r", encoding="utf-8") as handle:
               payload = json.load(handle)
 
-          count = 0
+          def deep_get(obj, dotted):
+              cur = obj
+              for part in dotted.split("."):
+                  if not isinstance(cur, dict):
+                      return None
+                  cur = cur.get(part)
+              return cur
+
+          def first(obj, keys):
+              if not isinstance(obj, dict):
+                  return None
+              for key in keys:
+                  value = deep_get(obj, key) if "." in key else obj.get(key)
+                  if value not in ("", None):
+                      return value
+              return None
+
+          def valid_coord(lat, lon):
+              try:
+                  lat = float(lat)
+                  lon = float(lon)
+              except Exception:
+                  return False
+
+              return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
+
+          rows = []
 
           if isinstance(payload, dict):
               nodes = payload.get("nodes")
 
               if isinstance(nodes, dict):
-                  count = len(nodes)
-
+                  rows = list(nodes.values())
               elif isinstance(nodes, list):
-                  count = len(nodes)
-
-              vectors = payload.get("vectors")
-
-              if count == 0 and isinstance(vectors, dict):
-                  points = vectors.get("points")
-
-                  if isinstance(points, list):
-                      count = len(points)
-
-              points = payload.get("points")
-
-              if count == 0 and isinstance(points, list):
-                  count = len(points)
+                  rows = nodes
+              elif isinstance(payload.get("vectors"), dict) and isinstance(payload["vectors"].get("points"), list):
+                  rows = payload["vectors"]["points"]
+              elif isinstance(payload.get("points"), list):
+                  rows = payload["points"]
+              elif isinstance(payload.get("features"), list):
+                  rows = payload["features"]
 
           elif isinstance(payload, list):
-              count = len(payload)
+              rows = payload
+
+          count = len(rows)
+          coords = 0
+
+          for row in rows:
+              if isinstance(row, dict) and row.get("type") == "Feature":
+                  geom = row.get("geometry") if isinstance(row.get("geometry"), dict) else {}
+                  coordinates = geom.get("coordinates")
+                  if isinstance(coordinates, list) and len(coordinates) >= 2 and valid_coord(coordinates[1], coordinates[0]):
+                      coords += 1
+                  continue
+
+              if isinstance(row, dict):
+                  lat = first(row, (
+                      "latitude",
+                      "lat",
+                      "geo.latitude",
+                      "geoip.latitude",
+                      "geoip_data.latitude",
+                      "geoloc.latitude",
+                      "location.latitude",
+                      "metadata.latitude",
+                  ))
+                  lon = first(row, (
+                      "longitude",
+                      "lon",
+                      "lng",
+                      "geo.longitude",
+                      "geoip.longitude",
+                      "geoip_data.longitude",
+                      "geoloc.longitude",
+                      "location.longitude",
+                      "metadata.longitude",
+                  ))
+                  if valid_coord(lat, lon):
+                      coords += 1
+
+              elif isinstance(row, list):
+                  lat = row[8] if len(row) > 8 else None
+                  lon = row[9] if len(row) > 9 else None
+                  if valid_coord(lat, lon):
+                      coords += 1
 
           print(f"selected_input={path}")
           print(f"selected_count={count}")
+          print(f"selected_coordinate_count={coords}")
 
           if count < 1:
-              raise SystemExit(
-                  "selected map source contains no nodes or points"
-              )
+              raise SystemExit("selected map source contains no nodes or points")
           PY
 
       - name: Build ZZX Bitnodes maps
@@ -442,7 +684,8 @@ jobs:
             --settings default \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty
+            --fail-empty \
+            --vectors-fallback
 
       - name: Build Original Bitnodes maps
         if: steps.sources.outputs.map_ready == 'true' && steps.sources.outputs.original_input != ''
@@ -461,16 +704,17 @@ jobs:
             --settings default \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty
+            --fail-empty \
+            --vectors-fallback
 
-      - name: Build canonical live-map data
+      - name: Build canonical map-ready source
         if: steps.sources.outputs.map_ready == 'true'
         shell: bash
+        env:
+          MAP_INPUT: ${{ steps.sources.outputs.zzx_input }}
+          MAP_READY_INPUT: ${{ env.BITNODES_API }}/enriched/zzxbitnodes/latest.map-ready.json
         run: |
           set -euo pipefail
-
-          MAP_INPUT="${{ steps.sources.outputs.zzx_input }}"
-          MAP_READY_INPUT="${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json"
 
           python - <<'PY'
           import hashlib
@@ -508,16 +752,106 @@ jobs:
 
               return round(lat, 6), round(lon, 6)
 
-          nodes = payload.get("nodes", {})
+          def deep_get(obj, dotted):
+              cur = obj
+              for part in dotted.split("."):
+                  if not isinstance(cur, dict):
+                      return None
+                  cur = cur.get(part)
+              return cur
+
+          def first(obj, keys):
+              if not isinstance(obj, dict):
+                  return None
+              for key in keys:
+                  value = deep_get(obj, key) if "." in key else obj.get(key)
+                  if value not in ("", None):
+                      return value
+              return None
+
+          def normalize_from_features(data):
+              nodes = {}
+
+              for index, feature in enumerate(data.get("features", [])):
+                  if not isinstance(feature, dict):
+                      continue
+
+                  props = feature.get("properties") if isinstance(feature.get("properties"), dict) else {}
+                  geom = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
+                  coordinates = geom.get("coordinates")
+
+                  row = dict(props)
+                  address = row.get("address") or row.get("node") or row.get("id") or feature.get("id") or f"feature-{index:08d}"
+
+                  if isinstance(coordinates, list) and len(coordinates) >= 2:
+                      row["longitude"] = coordinates[0]
+                      row["latitude"] = coordinates[1]
+                      row["lon"] = coordinates[0]
+                      row["lat"] = coordinates[1]
+
+                  row["address"] = address
+                  nodes[address] = row
+
+              return {
+                  "schema": "zzx-bitnodes-map-ready-from-geojson-v1",
+                  "source": "zzxbitnodes",
+                  "nodes": nodes,
+              }
+
+          def normalize_from_vectors(data):
+              points = []
+
+              if isinstance(data.get("vectors"), dict) and isinstance(data["vectors"].get("points"), list):
+                  points = data["vectors"]["points"]
+              elif isinstance(data.get("points"), list):
+                  points = data["points"]
+
+              nodes = {}
+
+              for index, point in enumerate(points):
+                  if not isinstance(point, dict):
+                      continue
+
+                  row = dict(point)
+                  address = row.get("address") or row.get("node") or row.get("id") or row.get("host") or f"point-{index:08d}"
+                  row["address"] = address
+                  nodes[address] = row
+
+              return {
+                  "schema": "zzx-bitnodes-map-ready-from-vectors-v1",
+                  "source": "zzxbitnodes",
+                  "nodes": nodes,
+              }
+
+          if isinstance(payload, dict) and isinstance(payload.get("nodes"), dict):
+              out = payload
+          elif isinstance(payload, dict) and isinstance(payload.get("nodes"), list):
+              out = dict(payload)
+              out["nodes"] = {
+                  (node.get("address") or node.get("node") or node.get("id") or f"node-{index:08d}"): node
+                  for index, node in enumerate(payload["nodes"])
+                  if isinstance(node, dict)
+              }
+          elif isinstance(payload, dict) and payload.get("type") == "FeatureCollection":
+              out = normalize_from_features(payload)
+          elif isinstance(payload, dict) and (
+              isinstance(payload.get("points"), list)
+              or isinstance(payload.get("vectors"), dict)
+          ):
+              out = normalize_from_vectors(payload)
+          else:
+              raise SystemExit("map source payload cannot be normalized into nodes dict")
+
+          nodes = out.get("nodes", {})
 
           if not isinstance(nodes, dict):
-              raise SystemExit("map source payload has no nodes dict")
+              raise SystemExit("map-ready normalized payload has no nodes dict")
 
           total = 0
           real = 0
           synthetic = 0
 
-          for address, node in nodes.items():
+          for address, node in list(nodes.items()):
               total += 1
 
               if isinstance(node, list):
@@ -552,11 +886,30 @@ jobs:
                       real += 1
 
               elif isinstance(node, dict):
-                  lat = node.get("latitude") or node.get("lat")
-                  lon = node.get("longitude") or node.get("lon") or node.get("lng")
+                  lat = first(node, (
+                      "latitude",
+                      "lat",
+                      "geo.latitude",
+                      "geoip.latitude",
+                      "geoip_data.latitude",
+                      "geoloc.latitude",
+                      "location.latitude",
+                      "metadata.latitude",
+                  ))
+                  lon = first(node, (
+                      "longitude",
+                      "lon",
+                      "lng",
+                      "geo.longitude",
+                      "geoip.longitude",
+                      "geoip_data.longitude",
+                      "geoloc.longitude",
+                      "location.longitude",
+                      "metadata.longitude",
+                  ))
 
                   if not valid_coord(lat, lon):
-                      geo = node.get("geoip") or node.get("geoip_data") or {}
+                      geo = node.get("geoip") or node.get("geoip_data") or node.get("geoloc") or {}
 
                       if isinstance(geo, dict):
                           lat = geo.get("latitude")
@@ -569,24 +922,24 @@ jobs:
                           synthetic += 1
                       else:
                           real += 1
-
-                      node["address"] = node.get("address") or address
-                      node["latitude"] = float(lat)
-                      node["longitude"] = float(lon)
-                      node["lat"] = float(lat)
-                      node["lon"] = float(lon)
                   else:
                       real += 1
 
-          payload.setdefault("metadata", {})
-          payload["metadata"]["map_ready"] = True
-          payload["metadata"]["map_ready_total_nodes"] = total
-          payload["metadata"]["map_ready_real_coordinates"] = real
-          payload["metadata"]["map_ready_synthetic_coordinates"] = synthetic
+                  node["address"] = node.get("address") or address
+                  node["latitude"] = float(lat)
+                  node["longitude"] = float(lon)
+                  node["lat"] = float(lat)
+                  node["lon"] = float(lon)
+
+          out.setdefault("metadata", {})
+          out["metadata"]["map_ready"] = True
+          out["metadata"]["map_ready_total_nodes"] = total
+          out["metadata"]["map_ready_real_coordinates"] = real
+          out["metadata"]["map_ready_synthetic_coordinates"] = synthetic
 
           dst.parent.mkdir(parents=True, exist_ok=True)
           dst.write_text(
-              json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
+              json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n",
               encoding="utf-8",
           )
 
@@ -599,9 +952,6 @@ jobs:
           if real + synthetic < 1:
               raise SystemExit("map-ready source has zero coordinates")
           PY
-        env:
-          MAP_INPUT: ${{ steps.sources.outputs.zzx_input }}
-          MAP_READY_INPUT: ${{ env.BITNODES_API }}/enriched/zzxbitnodes/latest.map-ready.json
 
       - name: Build canonical live-map data from map-ready input
         if: steps.sources.outputs.map_ready == 'true'
@@ -620,7 +970,8 @@ jobs:
             --settings live \
             --tile-provider cartodb_dark \
             --compact \
-            --fail-empty
+            --fail-empty \
+            --vectors-fallback
 
           test -f "${BITNODES_LIVE_MAP}/data/map-points.geojson"
           test -f "${BITNODES_LIVE_MAP}/data/map-vectors.json"
@@ -726,8 +1077,10 @@ jobs:
               for path in root.rglob("*"):
                   if not path.is_file():
                       continue
+
                   if path.suffix.lower() not in {".json", ".geojson", ".css", ".js", ".html", ".svg", ".png", ".webp"}:
                       continue
+
                   if path.stat().st_size > max_bytes:
                       bad.append((path.stat().st_size, path))
 
@@ -746,6 +1099,8 @@ jobs:
           set -euo pipefail
 
           rm -rf "${BITNODES_API}/data/map-source" || true
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" || true
+
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find bitcoin/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
@@ -764,6 +1119,22 @@ jobs:
 
           if git diff --cached --name-only | grep -E '/(cities|asns|countries|agents|geohashes|providers|organizations|versions)/.+\.json$'; then
             printf '%s\n' "Refusing exploded map/API fanout files."
+            exit 1
+          fi
+
+          CHANGED="$(git diff --cached --name-only | wc -l | tr -d ' ')"
+          DELETIONS="$(git diff --cached --numstat | awk '{d += $2} END {print d + 0}')"
+
+          printf '%s\n' "Staged files: ${CHANGED}"
+          printf '%s\n' "Staged deletions: ${DELETIONS}"
+
+          if [ "${CHANGED}" -gt "${MAX_COMMIT_FILES}" ]; then
+            git diff --cached --name-only | sed -n '1,320p'
+            exit 1
+          fi
+
+          if [ "${DELETIONS}" -gt "${MAX_DELETIONS}" ]; then
+            git diff --cached --stat
             exit 1
           fi
 
