@@ -7,7 +7,10 @@ import gzip
 import hashlib
 import json
 import re
+import shutil
+import socket
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timezone
@@ -26,7 +29,7 @@ GEONAMES_ADMIN2_URL = "https://download.geonames.org/export/dump/admin2Codes.txt
 GEONAMES_CITIES_URL = "https://download.geonames.org/export/dump/cities500.zip"
 GEONAMES_COUNTRY_INFO_URL = "https://download.geonames.org/export/dump/countryInfo.txt"
 
-SCHEMA = "zzx-bitnodes-geo-index-mariadb-gz-v4"
+SCHEMA = "zzx-bitnodes-geo-index-mariadb-gz-v5"
 
 COUNTRY_TABLE = "bitnodes_geo_countries"
 TERRITORY_TABLE = "bitnodes_geo_territories"
@@ -34,6 +37,8 @@ COUNTY_TABLE = "bitnodes_geo_counties"
 CITY_TABLE = "bitnodes_geo_cities"
 ALIAS_TABLE = "bitnodes_geo_aliases"
 CONTROL_TABLE = "bitnodes_geo_index_control"
+
+UNKNOWN_VALUES = {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}
 
 
 def utc_now() -> str:
@@ -47,7 +52,7 @@ def utc_mysql() -> str:
 def clean(value: Any) -> str:
     text = str(value or "").strip()
 
-    if text.lower() in {"", "unknown", "none", "null", "undefined", "—", "-", "n/a", "na"}:
+    if text.lower() in UNKNOWN_VALUES:
         return ""
 
     return re.sub(r"\s+", " ", text)
@@ -66,10 +71,14 @@ def safe_float(value: Any, fallback: float | None = None) -> float | None:
     try:
         if value in ("", None):
             return fallback
+
         out = float(value)
+
         if out != out:
             return fallback
+
         return out
+
     except Exception:
         return fallback
 
@@ -91,7 +100,13 @@ def sql_quote(value: Any) -> str:
 
 
 def compact_json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+        default=str,
+    )
 
 
 def sha256_text(text: str) -> str:
@@ -117,20 +132,113 @@ def write_gzip_text(path: Path, text: str) -> int:
     return path.stat().st_size
 
 
-def download(url: str, output: Path, *, force: bool = False) -> Path:
+def file_is_usable(path: Path, *, min_bytes: int = 1) -> bool:
+    try:
+        return path.exists() and path.is_file() and path.stat().st_size >= min_bytes
+    except Exception:
+        return False
+
+
+def download(
+    url: str,
+    output: Path,
+    *,
+    force: bool = False,
+    timeout: int = 60,
+    retries: int = 3,
+    min_bytes: int = 1,
+) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    if output.exists() and not force:
+    if file_is_usable(output, min_bytes=min_bytes) and not force:
+        print(f"source exists: {output} ({output.stat().st_size:,} bytes)", flush=True)
         return output
 
-    print(f"download: {url}")
-    print(f"output:   {output}")
+    print(f"download: {url}", flush=True)
+    print(f"output:   {output}", flush=True)
 
-    urllib.request.urlretrieve(url, output)
-    return output
+    tmp = output.with_name(output.name + ".tmp")
+    last_error: Exception | None = None
+
+    for attempt in range(1, retries + 1):
+        start = time.time()
+
+        try:
+            if tmp.exists():
+                tmp.unlink()
+
+            request = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "ZZX-Bitnodes-GeoIndex/1.0 (+https://zzx-labs.io)",
+                    "Accept": "*/*",
+                    "Connection": "close",
+                },
+            )
+
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                status_code = getattr(response, "status", 200)
+
+                if int(status_code) >= 400:
+                    raise RuntimeError(f"HTTP {status_code}")
+
+                with tmp.open("wb") as handle:
+                    total = 0
+
+                    while True:
+                        block = response.read(1024 * 1024)
+
+                        if not block:
+                            break
+
+                        handle.write(block)
+                        total += len(block)
+
+                        if total and total % (16 * 1024 * 1024) == 0:
+                            print(f"download progress: {output.name} {total:,} bytes", flush=True)
+
+            if not file_is_usable(tmp, min_bytes=min_bytes):
+                raise RuntimeError(f"downloaded file too small: {tmp}")
+
+            tmp.replace(output)
+
+            print(
+                f"download complete: {output.name} "
+                f"({output.stat().st_size:,} bytes, {time.time() - start:.1f}s)",
+                flush=True,
+            )
+
+            return output
+
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, socket.timeout, RuntimeError, OSError) as exc:
+            last_error = exc
+
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except Exception:
+                pass
+
+            print(
+                f"download attempt {attempt}/{retries} failed for {url}: {exc}",
+                flush=True,
+            )
+
+            if attempt < retries:
+                time.sleep(min(5 * attempt, 30))
+
+    raise RuntimeError(f"failed downloading {url}: {last_error}")
 
 
-def ensure_sources(source_dir: Path, *, download_sources: bool, force: bool) -> dict[str, Path]:
+def ensure_sources(
+    source_dir: Path,
+    *,
+    download_sources: bool,
+    force: bool,
+    timeout: int,
+    retries: int,
+    allow_missing: bool,
+) -> dict[str, Path]:
     source_dir.mkdir(parents=True, exist_ok=True)
 
     paths = {
@@ -142,14 +250,55 @@ def ensure_sources(source_dir: Path, *, download_sources: bool, force: bool) -> 
     }
 
     if download_sources:
-        download(GEONAMES_ADMIN1_URL, paths["admin1"], force=force)
-        download(GEONAMES_ADMIN2_URL, paths["admin2"], force=force)
-        download(GEONAMES_COUNTRY_INFO_URL, paths["country_info"], force=force)
-        download(GEONAMES_CITIES_URL, paths["cities_zip"], force=force)
+        download(GEONAMES_ADMIN1_URL, paths["admin1"], force=force, timeout=timeout, retries=retries)
+        download(GEONAMES_ADMIN2_URL, paths["admin2"], force=force, timeout=timeout, retries=retries)
+        download(GEONAMES_COUNTRY_INFO_URL, paths["country_info"], force=force, timeout=timeout, retries=retries)
+        download(GEONAMES_CITIES_URL, paths["cities_zip"], force=force, timeout=timeout, retries=retries, min_bytes=1024)
 
     if paths["cities_zip"].exists() and (force or not paths["cities"].exists()):
-        with zipfile.ZipFile(paths["cities_zip"], "r") as archive:
-            archive.extract("cities500.txt", source_dir)
+        print("extracting cities500.txt", flush=True)
+        start = time.time()
+
+        try:
+            with zipfile.ZipFile(paths["cities_zip"], "r") as archive:
+                bad = archive.testzip()
+
+                if bad:
+                    raise RuntimeError(f"corrupt zip member: {bad}")
+
+                if "cities500.txt" not in archive.namelist():
+                    raise RuntimeError("cities500.txt missing from cities500.zip")
+
+                archive.extract("cities500.txt", source_dir)
+
+        except Exception:
+            if force:
+                try:
+                    paths["cities_zip"].unlink()
+                except Exception:
+                    pass
+            raise
+
+        print(
+            f"extracted cities500.txt "
+            f"({paths['cities'].stat().st_size:,} bytes, {time.time() - start:.1f}s)",
+            flush=True,
+        )
+
+    missing = [name for name, path in paths.items() if name != "cities_zip" and not file_is_usable(path)]
+
+    if missing and not allow_missing:
+        raise FileNotFoundError(
+            "missing required GeoNames source files: "
+            + ", ".join(f"{name}={paths[name]}" for name in missing)
+        )
+
+    if missing:
+        print(
+            "WARNING: missing GeoNames sources allowed: "
+            + ", ".join(f"{name}={paths[name]}" for name in missing),
+            flush=True,
+        )
 
     return paths
 
@@ -192,6 +341,7 @@ def parse_country_info(path: Path) -> dict[str, dict[str, Any]]:
                 "source": "GeoNames countryInfo",
             }
 
+    print(f"parsed countries: {len(countries):,}", flush=True)
     return countries
 
 
@@ -230,6 +380,8 @@ def parse_admin1(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
                 "source": "GeoNames admin1CodesASCII",
             }
 
+    total = sum(len(rows) for rows in output.values())
+    print(f"parsed territories/admin1: {total:,}", flush=True)
     return output
 
 
@@ -271,6 +423,8 @@ def parse_admin2(path: Path) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
                 "source": "GeoNames admin2Codes",
             }
 
+    total = sum(len(counties) for admin1_rows in output.values() for counties in admin1_rows.values())
+    print(f"parsed counties/admin2: {total:,}", flush=True)
     return output
 
 
@@ -279,6 +433,9 @@ def parse_cities(path: Path) -> dict[str, dict[str, list[dict[str, Any]]]]:
 
     if not path.exists():
         return output
+
+    count = 0
+    start = time.time()
 
     with path.open("r", encoding="utf-8") as handle:
         reader = csv.reader(handle, delimiter="\t")
@@ -326,7 +483,12 @@ def parse_cities(path: Path) -> dict[str, dict[str, list[dict[str, Any]]]]:
             output.setdefault(country, {})
             output[country].setdefault(admin1, [])
             output[country][admin1].append(city)
+            count += 1
 
+            if count % 100000 == 0:
+                print(f"parsed cities: {count:,}", flush=True)
+
+    print(f"parsed cities: {count:,} ({time.time() - start:.1f}s)", flush=True)
     return output
 
 
@@ -472,6 +634,7 @@ def country_sql(item: dict[str, Any]) -> str:
 
 def territory_sql(country: str, code: str, item: dict[str, Any]) -> str:
     name = clean(item.get("name")) or clean(item.get("ascii_name")) or code
+
     record = {
         **item,
         "id": f"{country}:{code}",
@@ -502,6 +665,7 @@ def territory_sql(country: str, code: str, item: dict[str, Any]) -> str:
 
 def county_sql(country: str, admin1: str, code: str, item: dict[str, Any]) -> str:
     name = clean(item.get("name")) or clean(item.get("ascii_name")) or code
+
     record = {
         **item,
         "id": f"{country}:{admin1}:{code}",
@@ -634,6 +798,7 @@ def build_sql_lines(
     only: str,
 ) -> tuple[list[str], dict[str, int]]:
     lines: list[str] = []
+
     counts = {
         "country_count": 0,
         "territory_count": 0,
@@ -646,11 +811,14 @@ def build_sql_lines(
         for _code, item in sorted(countries.items()):
             lines.append(country_sql(item))
             counts["country_count"] += 1
+
             name = clean(item.get("country_name"))
             code = clean(item.get("country_code"))
+
             if name:
                 lines.append(alias_sql("country", name, code, code, item))
                 counts["alias_count"] += 1
+
             if code:
                 lines.append(alias_sql("country", code, code, code, item))
                 counts["alias_count"] += 1
@@ -664,6 +832,7 @@ def build_sql_lines(
 
                 for alias in item.get("aliases", []):
                     alias = clean(alias)
+
                     if alias:
                         lines.append(alias_sql("territory", alias, target, country, item))
                         counts["alias_count"] += 1
@@ -678,6 +847,7 @@ def build_sql_lines(
 
                     for alias in item.get("aliases", []):
                         alias = clean(alias)
+
                         if alias:
                             lines.append(alias_sql("county", alias, target, country, item))
                             counts["alias_count"] += 1
@@ -694,7 +864,11 @@ def build_sql_lines(
                 )
 
                 for item in city_rows:
-                    target = f"{item.get('country_code')}:{item.get('admin1_code')}:{item.get('admin2_code')}:{item.get('geoname_id') or item.get('name')}"
+                    target = (
+                        f"{item.get('country_code')}:{item.get('admin1_code')}:"
+                        f"{item.get('admin2_code')}:{item.get('geoname_id') or item.get('name')}"
+                    )
+
                     lines.append(city_sql(item))
                     counts["city_count"] += 1
 
@@ -709,7 +883,7 @@ def build_sql_lines(
                         counts["alias_count"] += 1
 
     if only == "aliases":
-        _, counts = build_sql_lines(
+        all_lines, all_counts = build_sql_lines(
             countries=countries,
             admin1=admin1,
             admin2=admin2,
@@ -717,21 +891,46 @@ def build_sql_lines(
             only="all",
         )
 
+        alias_prefix = f"INSERT INTO {ALIAS_TABLE} "
+        lines = [line for line in all_lines if line.startswith(alias_prefix)]
+        counts = {
+            "country_count": 0,
+            "territory_count": 0,
+            "county_count": 0,
+            "city_count": 0,
+            "alias_count": all_counts["alias_count"],
+        }
+
+    print(
+        "sql lines built: "
+        f"{len(lines):,} "
+        f"countries={counts['country_count']:,} "
+        f"territories={counts['territory_count']:,} "
+        f"counties={counts['county_count']:,} "
+        f"cities={counts['city_count']:,} "
+        f"aliases={counts['alias_count']:,}",
+        flush=True,
+    )
+
     return lines, counts
 
 
 def split_lines(header: str, lines: list[str], max_bytes: int) -> list[list[str]]:
     shards: list[list[str]] = []
     current: list[str] = []
+    header_size = len(header.encode("utf-8"))
+    current_size = header_size
 
     for line in lines:
-        current_size = len(header.encode("utf-8")) + sum(len(item.encode("utf-8")) for item in current)
+        line_size = len(line.encode("utf-8"))
 
-        if current and current_size + len(line.encode("utf-8")) > max_bytes:
+        if current and current_size + line_size > max_bytes:
             shards.append(current)
             current = []
+            current_size = header_size
 
         current.append(line)
+        current_size += line_size
 
     if current:
         shards.append(current)
@@ -748,6 +947,49 @@ def clean_output_dir(output_dir: Path) -> None:
         except Exception:
             pass
 
+    for item in output_dir.glob("*.json"):
+        try:
+            item.unlink()
+        except Exception:
+            pass
+
+
+def write_manifest(output_dir: Path, manifest: dict[str, Any]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for name in ("manifest.json", "geo-index-manifest.json"):
+        (output_dir / name).write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+
+def copy_latest_sources(source_paths: dict[str, Path], output_dir: Path) -> None:
+    latest_dir = output_dir / "source-manifest"
+    latest_dir.mkdir(parents=True, exist_ok=True)
+
+    source_manifest = {
+        "schema": "zzx-bitnodes-geo-source-manifest-v1",
+        "generated_at": utc_now(),
+        "sources": {},
+    }
+
+    for key, path in source_paths.items():
+        if not path.exists() or not path.is_file():
+            continue
+
+        source_manifest["sources"][key] = {
+            "path": str(path),
+            "name": path.name,
+            "size_bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+
+    (latest_dir / "sources.json").write_text(
+        json.dumps(source_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -760,17 +1002,28 @@ def main() -> int:
     parser.add_argument("--output-dir", default="")
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--allow-missing", action="store_true")
+    parser.add_argument("--download-timeout", type=int, default=60)
+    parser.add_argument("--download-retries", type=int, default=3)
     parser.add_argument("--only", default="all", choices=["all", "countries", "territories", "counties", "cities", "aliases"])
     parser.add_argument("--max-mb", type=float, default=24.0)
     parser.add_argument("--no-clean", action="store_true")
     parser.add_argument("--report", default="")
+    parser.add_argument("--copy-source-manifest", action="store_true")
 
     args = parser.parse_args()
+
+    started = time.time()
 
     geo_root = Path(args.geo_root).resolve()
     source_dir = Path(args.source_dir).resolve() if args.source_dir else geo_root / "sources"
     output_dir = Path(args.output_dir).resolve() if args.output_dir else geo_root / "mariadb-gz"
     max_bytes = int(args.max_mb * 1024 * 1024)
+
+    print(f"geo root:   {geo_root}", flush=True)
+    print(f"source dir: {source_dir}", flush=True)
+    print(f"output dir: {output_dir}", flush=True)
+    print(f"only:       {args.only}", flush=True)
 
     if not args.no_clean:
         clean_output_dir(output_dir)
@@ -779,6 +1032,9 @@ def main() -> int:
         source_dir,
         download_sources=args.download,
         force=args.force,
+        timeout=max(5, args.download_timeout),
+        retries=max(1, args.download_retries),
+        allow_missing=args.allow_missing,
     )
 
     countries = parse_country_info(source_paths["country_info"])
@@ -805,6 +1061,9 @@ def main() -> int:
         "output_dir": str(output_dir),
         "only": args.only,
         "storage": "mariadb-sql-gzip-shards",
+        "downloaded_sources": bool(args.download),
+        "download_timeout_seconds": max(5, args.download_timeout),
+        "download_retries": max(1, args.download_retries),
         **counts,
         "line_count": len(lines),
         "shards": [],
@@ -823,6 +1082,7 @@ def main() -> int:
         name = f"geo-index-{args.only}-{index:04d}.sql.gz"
         path = output_dir / name
         body = "".join(shard_lines)
+
         sql = (
             header
             + f"-- shard_index: {index}\n"
@@ -843,18 +1103,44 @@ def main() -> int:
             }
         )
 
+        print(f"wrote shard {index + 1}/{len(shards)}: {name} {size:,} bytes", flush=True)
+
     latest_sql = header + control
     latest_sql += f"-- latest_sha256:{sha256_text(latest_sql)}\n"
 
     latest_path = output_dir / "latest-geo-index.sql.gz"
-    write_gzip_text(latest_path, latest_sql)
+    latest_size = write_gzip_text(latest_path, latest_sql)
+
+    manifest["latest"] = {
+        "file": latest_path.name,
+        "path": str(latest_path),
+        "size_bytes": latest_size,
+        "sha256": sha256_file(latest_path),
+    }
+
+    manifest["elapsed_seconds"] = round(time.time() - started, 3)
+
+    write_manifest(output_dir, manifest)
+
+    if args.copy_source_manifest:
+        copy_latest_sources(source_paths, output_dir)
 
     if args.report:
-        report_sql = header + control
-        write_gzip_text(Path(args.report).resolve(), report_sql)
+        report_path = Path(args.report).resolve()
 
-    print(f"geo mariadb gz indexes built: {output_dir}")
-    print(f"shards: {len(manifest['shards'])}")
+        if report_path.suffix == ".gz":
+            report_sql = header + control
+            write_gzip_text(report_path, report_sql)
+        else:
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+
+    print(f"geo mariadb gz indexes built: {output_dir}", flush=True)
+    print(f"shards: {len(manifest['shards'])}", flush=True)
+    print(f"elapsed: {manifest['elapsed_seconds']}s", flush=True)
 
     return 0
 
