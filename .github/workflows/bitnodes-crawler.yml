@@ -631,6 +631,9 @@ jobs:
           echo "Finished export_db.py"
           date
 
+          du -sh "${BITNODES_API}/data" || true
+          find "${BITNODES_API}/data" -type f -printf "%s %p\n" | sort -nr | head -20 || true
+
       - name: Detect private MariaDB backup credentials
         id: backup_gate
         shell: bash
@@ -832,8 +835,12 @@ jobs:
               "schema": "zzx-bitnodes-public-api-index-v1",
               "generated_at": int(time.time()),
               "sources": {
+                  "zzxbitnodes_latest": "zzxbitnodes/latest.json",
+                  "originalbitnodes_latest": "originalbitnodes/latest.json",
                   "zzxbitnodes_enrichment_report": "enriched/zzxbitnodes/enrichment-report.json",
                   "originalbitnodes_enrichment_report": "enriched/originalbitnodes/enrichment-report.json",
+                  "zzxbitnodes_aggregate": "aggregate/zzxbitnodes/latest.json",
+                  "originalbitnodes_aggregate": "aggregate/originalbitnodes/latest.json",
                   "database_latest": "data/latest.json",
                   "database_index": "data/index.json",
                   "database_manifest": "data/mariadb_manifest.json",
@@ -848,7 +855,7 @@ jobs:
                   "private_backup": "MariaDB shards are optionally mirrored to private backup repo",
                   "ipdb": "current index/latest/stats only",
                   "no_credentials": True,
-                  "map_coordinates": "real GeoIP/enriched coordinates required"
+                  "map_coordinates": "public map files are capped; full coordinate data lives in MariaDB gz shards/private backup"
               }
           }
 
@@ -881,16 +888,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          
-          python - <<'PY'
-          # cap map-points and create map-vectors-public.json
-          ...
-          PY
-
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
-          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.json" || true
-          rm -f "${BITNODES_MAPS}/data/map-vectors.json" || true
-          rm -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" || true
 
           python - <<'PY'
           import json
@@ -903,37 +900,73 @@ jobs:
               Path("bitcoin/bitnodes/live-map/data"),
           ]:
               geo = base / "map-points.geojson"
+
               if geo.exists():
                   data = json.loads(geo.read_text(encoding="utf-8"))
                   features = data.get("features", [])
+                  original_count = len(features)
+
                   data["features"] = features[:LIMIT]
                   data.setdefault("metadata", {})
                   data["metadata"]["public_capped"] = True
                   data["metadata"]["public_feature_limit"] = LIMIT
-                  data["metadata"]["original_feature_count"] = len(features)
-                  geo.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+                  data["metadata"]["original_feature_count"] = original_count
+
+                  geo.write_text(
+                      json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
+                      encoding="utf-8",
+                  )
 
               vectors = base / "map-vectors-public.json"
-              points_src = base / "map-points.geojson"
-              if points_src.exists():
-                  data = json.loads(points_src.read_text(encoding="utf-8"))
+
+              if geo.exists():
+                  data = json.loads(geo.read_text(encoding="utf-8"))
                   points = []
+
                   for feature in data.get("features", []):
-                      props = feature.get("properties", {})
-                      geom = feature.get("geometry", {})
-                      coords = geom.get("coordinates", [None, None])
-                      if len(coords) >= 2:
-                          props = dict(props)
-                          props["longitude"] = coords[0]
-                          props["latitude"] = coords[1]
-                          points.append(props)
-                  vectors.write_text(json.dumps({
-                      "schema": "zzx-bitnodes-public-capped-map-vectors-v1",
-                      "public_capped": True,
-                      "point_count": len(points),
-                      "points": points
-                  }, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+                      if not isinstance(feature, dict):
+                          continue
+
+                      props = feature.get("properties")
+                      geom = feature.get("geometry")
+
+                      if not isinstance(props, dict):
+                          props = {}
+
+                      if not isinstance(geom, dict):
+                          geom = {}
+
+                      coords = geom.get("coordinates")
+
+                      if isinstance(coords, list) and len(coords) >= 2:
+                          row = dict(props)
+                          row["longitude"] = coords[0]
+                          row["latitude"] = coords[1]
+                          points.append(row)
+
+                  vectors.write_text(
+                      json.dumps(
+                          {
+                              "schema": "zzx-bitnodes-public-capped-map-vectors-v1",
+                              "public_capped": True,
+                              "point_count": len(points),
+                              "points": points,
+                          },
+                          ensure_ascii=False,
+                          separators=(",", ":"),
+                      ) + "\n",
+                      encoding="utf-8",
+                  )
           PY
+
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
+          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.json" || true
+          rm -f "${BITNODES_MAPS}/data/map-vectors.json" || true
+          rm -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" || true
+
+          printf '%s\n' "Largest files in public API data:"
+          du -sh "${BITNODES_API}/data" || true
+          find "${BITNODES_API}/data" -type f -printf "%s %p\n" | sort -nr | head -20 || true
 
           git reset
 
@@ -961,11 +994,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          printf '%s\n' "Oversized JSON candidates in API data:"
+          find "${BITNODES_API}/data" \
+            -type f \
+            -name '*.json' \
+            -size +24M \
+            -print || true
+
           python - <<'PY'
           import os
           from pathlib import Path
 
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+
           roots = [
               Path(os.environ["BITNODES_API"]),
               Path(os.environ["BITNODES_MAPS"]) / "data",
