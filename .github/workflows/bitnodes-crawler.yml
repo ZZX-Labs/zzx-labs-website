@@ -877,70 +877,15 @@ jobs:
           )
           PY
 
-      - name: Validate public artifact policy
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python - <<'PY'
-          import os
-          from pathlib import Path
-
-          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
-          roots = [
-              Path(os.environ["BITNODES_API"]),
-              Path(os.environ["BITNODES_MAPS"]) / "data",
-              Path(os.environ["BITNODES_LIVE_MAP"]) / "data",
-              Path(os.environ["BITNODES_GEOIP"]) / "current",
-          ]
-
-          forbidden = {
-              Path("bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
-              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
-          }
-
-          bad = []
-
-          for path in forbidden:
-              if path.exists():
-                  bad.append((path.stat().st_size, path, "forbidden full public artifact"))
-
-          for root in roots:
-              if not root.exists():
-                  bad.append((0, root, "missing artifact root"))
-                  continue
-
-              for path in root.rglob("*"):
-                  if not path.is_file():
-                      continue
-
-                  if path.suffix == ".gz":
-                      if path.stat().st_size > max_bytes:
-                          bad.append((path.stat().st_size, path, "gz too large"))
-                      continue
-
-                  if path.suffix in {".json", ".geojson"}:
-                      if path.name.endswith(".map-ready.json"):
-                          bad.append((path.stat().st_size, path, "transient map-ready json was not pruned"))
-                          continue
-
-                      if path.stat().st_size > max_bytes:
-                          bad.append((path.stat().st_size, path, "json too large"))
-
-          if bad:
-              for size, path, reason in bad:
-                  print(f"{reason}: {size} {path}")
-              raise SystemExit(1)
-
-          print("public artifact policy passed")
-          PY
-
       - name: Stage safe public Bitnodes outputs
         shell: bash
         run: |
           set -euo pipefail
+          
+          python - <<'PY'
+          # cap map-points and create map-vectors-public.json
+          ...
+          PY
 
           rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
           rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.json" || true
@@ -1010,6 +955,66 @@ jobs:
             "${BITNODES_GEOIP}/ip_db.push-report.json" \
             "${BITNODES_MAPS}/data" \
             "${BITNODES_LIVE_MAP}/data"
+
+      - name: Validate public artifact policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          roots = [
+              Path(os.environ["BITNODES_API"]),
+              Path(os.environ["BITNODES_MAPS"]) / "data",
+              Path(os.environ["BITNODES_LIVE_MAP"]) / "data",
+              Path(os.environ["BITNODES_GEOIP"]) / "current",
+          ]
+
+          forbidden = {
+              Path("bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
+              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
+          }
+
+          bad = []
+
+          for path in forbidden:
+              if path.exists():
+                  bad.append((path.stat().st_size, path, "forbidden full public artifact"))
+
+          for root in roots:
+              if not root.exists():
+                  bad.append((0, root, "missing artifact root"))
+                  continue
+
+              for path in root.rglob("*"):
+                  if not path.is_file():
+                      continue
+
+                  if path.suffix == ".gz":
+                      if path.stat().st_size > max_bytes:
+                          bad.append((path.stat().st_size, path, "gz too large"))
+                      continue
+
+                  if path.suffix in {".json", ".geojson"}:
+                      if path.name.endswith(".map-ready.json"):
+                          bad.append((path.stat().st_size, path, "transient map-ready json was not pruned"))
+                          continue
+
+                      if path.stat().st_size > max_bytes:
+                          bad.append((path.stat().st_size, path, "json too large"))
+
+          if bad:
+              for size, path, reason in bad:
+                  print(f"{reason}: {size} {path}")
+              raise SystemExit(1)
+
+          print("public artifact policy passed")
+          PY
 
       - name: Guard against destructive or bloated commit
         shell: bash
