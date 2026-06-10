@@ -312,13 +312,17 @@ jobs:
           PY
 
       - name: Build local GeoNames indexes
+        timeout-minutes: 10
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/build_geo_indexes.py \
+          timeout 540 python tools/bitnodes/build_geo_indexes.py \
             --geo-root "${BITNODES_GEO}" \
-            --download
+            --download \
+            --download-timeout 60 \
+            --download-retries 3 \
+            --copy-source-manifest
 
       - name: Run ZZX Bitnodes crawler window
         shell: bash
@@ -378,6 +382,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          set +e
           python tools/bitnodes/crawl.py \
             --crawler originalbitnodes \
             --original-mode hybrid \
@@ -394,8 +399,23 @@ jobs:
             --archive-replay-files 0 \
             --disable-archive-replay \
             --export-mode reachable \
+            --no-enrich-after \
+            --no-aggregate-after \
             --no-export-all-after \
             --compact
+          RC="$?"
+          set -e
+
+          if [ "${RC}" -ne 0 ]; then
+            printf '%s\n' "Original-compatible crawler exited ${RC}; checking whether latest.json was still produced."
+          fi
+
+          if [ ! -s "${BITNODES_API}/originalbitnodes/latest.json" ]; then
+            printf '%s\n' "Original-compatible crawler failed and produced no latest.json."
+            exit "${RC}"
+          fi
+
+          printf '%s\n' "Original-compatible latest.json exists; continuing."
 
       - name: Validate Original crawler output
         shell: bash
