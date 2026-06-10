@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: zzx-bitnodes-global-crawler
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -46,7 +46,7 @@ env:
 jobs:
   crawl-bitnodes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 58
+    timeout-minutes: 90
 
     steps:
       - name: Checkout website repo
@@ -610,9 +610,13 @@ jobs:
             --compact
 
       - name: Export MariaDB gzip shards
+        timeout-minutes: 20
         shell: bash
         run: |
           set -euo pipefail
+
+          date
+          echo "Starting export_db.py"
 
           python tools/bitnodes/export_db.py \
             --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
@@ -623,6 +627,9 @@ jobs:
             --compact \
             --strict \
             --no-sqlite
+
+          echo "Finished export_db.py"
+          date
 
       - name: Detect private MariaDB backup credentials
         id: backup_gate
