@@ -900,7 +900,18 @@ jobs:
               Path(os.environ["BITNODES_GEOIP"]) / "current",
           ]
 
+          forbidden = {
+              Path("bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
+              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
+          }
+
           bad = []
+
+          for path in forbidden:
+              if path.exists():
+                  bad.append((path.stat().st_size, path, "forbidden full public artifact"))
 
           for root in roots:
               if not root.exists():
@@ -937,6 +948,54 @@ jobs:
         run: |
           set -euo pipefail
 
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
+          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.json" || true
+          rm -f "${BITNODES_MAPS}/data/map-vectors.json" || true
+          rm -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" || true
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          LIMIT = 5000
+
+          for base in [
+              Path("bitcoin/bitnodes/maps/data"),
+              Path("bitcoin/bitnodes/live-map/data"),
+          ]:
+              geo = base / "map-points.geojson"
+              if geo.exists():
+                  data = json.loads(geo.read_text(encoding="utf-8"))
+                  features = data.get("features", [])
+                  data["features"] = features[:LIMIT]
+                  data.setdefault("metadata", {})
+                  data["metadata"]["public_capped"] = True
+                  data["metadata"]["public_feature_limit"] = LIMIT
+                  data["metadata"]["original_feature_count"] = len(features)
+                  geo.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+
+              vectors = base / "map-vectors-public.json"
+              points_src = base / "map-points.geojson"
+              if points_src.exists():
+                  data = json.loads(points_src.read_text(encoding="utf-8"))
+                  points = []
+                  for feature in data.get("features", []):
+                      props = feature.get("properties", {})
+                      geom = feature.get("geometry", {})
+                      coords = geom.get("coordinates", [None, None])
+                      if len(coords) >= 2:
+                          props = dict(props)
+                          props["longitude"] = coords[0]
+                          props["latitude"] = coords[1]
+                          points.append(props)
+                  vectors.write_text(json.dumps({
+                      "schema": "zzx-bitnodes-public-capped-map-vectors-v1",
+                      "public_capped": True,
+                      "point_count": len(points),
+                      "points": points
+                  }, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+          PY
+
           git reset
 
           git add -A \
@@ -944,9 +1003,7 @@ jobs:
             "${BITNODES_API}/manifest.json" \
             "${BITNODES_API}/zzxbitnodes/latest.json" \
             "${BITNODES_API}/originalbitnodes/latest.json" \
-            "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
             "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
-            "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
             "${BITNODES_API}/enriched/originalbitnodes/enrichment-report.json" \
             "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
             "${BITNODES_API}/aggregate/originalbitnodes/latest.json" \
