@@ -731,18 +731,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/map/map.py both \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            --map-dir "${BITNODES_MAPS}" \
-            --live-map-dir "${BITNODES_LIVE_MAP}" \
-            --source zzxbitnodes \
-            --theme zzx_dark_olive \
-            --settings live \
-            --tile-provider cartodb_dark \
-            --compact \
-            --fail-empty
+            python tools/bitnodes/map/map.py both \
+              --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+              --api-dir "${BITNODES_API}" \
+              --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
+              --map-dir "${BITNODES_MAPS}" \
+              --live-map-dir "${BITNODES_LIVE_MAP}" \
+              --source zzxbitnodes \
+              --theme zzx_dark_olive \
+              --settings live \
+              --tile-provider cartodb_dark \
+              --public-safe \
+              --max-points 5000 \
+              --compact \
+              --fail-empty
 
       - name: Validate generated maps
         shell: bash
@@ -893,12 +895,6 @@ jobs:
           import json
           from pathlib import Path
 
-          LIMIT = 5000
-
-          for base in [
-              Path("bitcoin/bitnodes/maps/data"),
-              Path("bitcoin/bitnodes/live-map/data"),
-          ]:
               geo = base / "map-points.geojson"
 
               if geo.exists():
@@ -1033,6 +1029,14 @@ jobs:
                   continue
 
               for path in root.rglob("*"):
+              p = str(path)
+
+              if "/enriched/" in p:
+                  continue
+
+              if p.endswith(".ipdb-enriched.json"):
+                  continue
+                  
                   if not path.is_file():
                       continue
 
