@@ -13,6 +13,54 @@
     <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
 
     <link rel="stylesheet" href="../static/styles.css">
+
+    <style>
+        .zzx-profile-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .zzx-profile-media {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 220px;
+            margin: 0 0 0.35rem;
+            border: 1px solid rgba(198, 214, 116, 0.28);
+            border-radius: 1.25rem;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.32);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zzx-profile-image,
+        .partner-logo,
+        .consultant-avatar,
+        .staff-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .zzx-profile-placeholder {
+            color: var(--zzx-accent, #c0d674);
+            font-family: monospace;
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 720px) {
+            .zzx-profile-media {
+                max-width: 180px;
+            }
+        }
+    </style>
+
     <script src="../static/script.js" defer></script>
 </head>
 
@@ -31,9 +79,9 @@
 
     <section class="zzx-page-hero container">
         <p class="zzx-kicker">ZZX-Labs / Partners</p>
-        <h1>Strategic Partners & Allied Ventures</h1>
+        <h1>Strategic Partners &amp; Allied Ventures</h1>
         <p>
-            ZZX-Labs R&D is built around collaboration: Bitcoin-native infrastructure, open-source systems, software,
+            ZZX-Labs R&amp;D is built around collaboration: Bitcoin-native infrastructure, open-source systems, software,
             firmware, hardware, AI, ML, OSINT, cybersecurity, research publication, and sovereign digital tools.
         </p>
         <p>
@@ -66,7 +114,7 @@
     <section class="zzx-card-grid container">
         <article class="zzx-card">
             <h3>Internal Ventures</h3>
-            <p>Projects, startups, service lines, and labs incubated within the ZZX-Labs R&D ecosystem.</p>
+            <p>Projects, startups, service lines, and labs incubated within the ZZX-Labs R&amp;D ecosystem.</p>
         </article>
 
         <article class="zzx-card">
@@ -86,27 +134,46 @@
     </section>
 
     <section class="container zzx-panel">
+        <p class="zzx-kicker">Partner Identity Standard</p>
+        <h2>Logos, Portraits, and Brand Shields</h2>
+        <p>
+            Partner records may display a company logo, venture mark, pseudonymous operator shield, or project avatar.
+            Organization entries should normally use logos or brand marks. Individual-led partner entries may use avatar
+            portraits where personal identity is intentionally private, pseudonymous, or role-based.
+        </p>
+        <p>
+            The current public standard uses local static assets under <code>static/images/</code>. The founder/operator
+            identity uses <code>deadbeef.png</code>. Future partners can replace placeholders with final logo assets while
+            keeping the same card markup and responsive layout.
+        </p>
+    </section>
+
+    <section class="container zzx-panel">
         <p class="zzx-kicker">Core Strategic Alliances</p>
-        <h2>Active & Foundational Partner Records</h2>
+        <h2>Active &amp; Foundational Partner Records</h2>
 
         <div class="zzx-card-grid">
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/deadbeef.png" alt="0xdeadbeef avatar portrait" class="partner-logo zzx-profile-image">
+                </figure>
                 <p class="zzx-kicker">Founder / Principal</p>
                 <h3>0xdeadbeef</h3>
-                <img src="../static/images/deadbeef-logo.png" alt="0xdeadbeef logo" class="partner-logo">
                 <p><a href="https://0xdeadbeef.in" target="_blank" rel="noopener">https://0xdeadbeef.in</a></p>
                 <p>
-                    0xdeadbeef is the pseudonymous creator, founder, owner, head, and lead behind ZZX-Labs R&D and
+                    0xdeadbeef is the pseudonymous creator, founder, owner, head, and lead behind ZZX-Labs R&amp;D and
                     0xdeadbeef Consulting. The identity anchors the technical, philosophical, design, and operational
                     direction of the ecosystem.
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
-                <p class="zzx-kicker">Consulting / R&D</p>
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/partner1_logo.png" alt="0xdeadbeef Consulting logo" class="partner-logo zzx-profile-image">
+                </figure>
+                <p class="zzx-kicker">Consulting / R&amp;D</p>
                 <h3>0xdeadbeef Consulting</h3>
-                <img src="../static/images/partner1_logo.png" alt="0xdeadbeef Consulting logo" class="partner-logo">
                 <p><a href="https://0xdeadbeefconsulting.io" target="_blank" rel="noopener">https://0xdeadbeefconsulting.io</a></p>
                 <p>
                     A private general technology consulting group focused on open-source technology, software
@@ -115,10 +182,12 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/partner4_logo.png" alt="BitTechIn logo" class="partner-logo zzx-profile-image">
+                </figure>
                 <p class="zzx-kicker">Bitcoin / India</p>
                 <h3>BitTechIn</h3>
-                <img src="../static/images/partner4_logo.png" alt="BitTechIn logo" class="partner-logo">
                 <p><a href="https://bit-tech.in" target="_blank" rel="noopener">https://bit-tech.in</a></p>
                 <p>
                     BitTechIn is a private Bitcoin mining technology consulting group and India-facing Bitcoin
@@ -126,10 +195,12 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/partner3_logo.png" alt="bit-tick logo" class="partner-logo zzx-profile-image">
+                </figure>
                 <p class="zzx-kicker">Bitcoin Price Intelligence</p>
                 <h3>bit-tick</h3>
-                <img src="../static/images/partner3_logo.png" alt="bit-tick logo" class="partner-logo">
                 <p><a href="https://bit-tick.in" target="_blank" rel="noopener">https://bit-tick.in</a></p>
                 <p>
                     bit-tick is a public open-source Bitcoin Price Index and website frontend using weighted price data
@@ -139,10 +210,12 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/partner2_logo.png" alt="Speciedex logo" class="partner-logo zzx-profile-image">
+                </figure>
                 <p class="zzx-kicker">Science / Bitcoin / Conservation</p>
                 <h3>Speciedex</h3>
-                <img src="../static/images/partner2_logo.png" alt="Speciedex logo" class="partner-logo">
                 <p><a href="https://speciedex.org" target="_blank" rel="noopener">https://speciedex.org</a></p>
                 <p>
                     Speciedex is a decentralized species cataloging concept using Bitcoin and Lightning Network security
@@ -164,7 +237,8 @@
 
         <div class="zzx-card-grid">
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">DI</figure>
                 <p class="zzx-kicker">Cybersecurity</p>
                 <h3>Digital-Infinity CySec</h3>
                 <p>
@@ -173,7 +247,8 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">ST</figure>
                 <p class="zzx-kicker">Bitcoin Technology</p>
                 <h3>SatoTech</h3>
                 <p>
@@ -182,7 +257,8 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">BK</figure>
                 <p class="zzx-kicker">Bitcoin / Trading / Advisory</p>
                 <h3>BlackKey Consulting</h3>
                 <p>
@@ -191,7 +267,8 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">GB</figure>
                 <p class="zzx-kicker">Bitcoin Analytics</p>
                 <h3>greybit</h3>
                 <p>
@@ -200,7 +277,8 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">SC</figure>
                 <p class="zzx-kicker">Think Tank</p>
                 <h3>Squared Cube</h3>
                 <p>
@@ -209,7 +287,8 @@
                 </p>
             </article>
 
-            <article class="zzx-card partner-entry">
+            <article class="zzx-card partner-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">CAB</figure>
                 <p class="zzx-kicker">Bitcoin Commerce</p>
                 <h3>CyberArmsBazaar</h3>
                 <p>
@@ -280,7 +359,7 @@
     └── index.html</pre>
         <p>
             Each partner profile should eventually include mission, relationship type, domain, public status, website,
-            related projects, incubation connections, contribution model, and contact path.
+            related projects, incubation connections, contribution model, contact path, portrait, logo, or brand asset.
         </p>
     </section>
 
@@ -301,7 +380,7 @@
 
     <section class="container zzx-panel zzx-cta-panel">
         <p class="zzx-kicker">Donate</p>
-        <h2>Support Partnered Research & Infrastructure</h2>
+        <h2>Support Partnered Research &amp; Infrastructure</h2>
         <p>
             Donations support ZZX-Labs research, public tooling, documentation, startup incubation, partner project
             development, Bitcoin infrastructure, and long-horizon open technology.
