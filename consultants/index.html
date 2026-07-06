@@ -13,6 +13,54 @@
     <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
 
     <link rel="stylesheet" href="../static/styles.css">
+
+    <style>
+        .zzx-profile-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .zzx-profile-media {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 220px;
+            margin: 0 0 0.35rem;
+            border: 1px solid rgba(198, 214, 116, 0.28);
+            border-radius: 1.25rem;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.32);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zzx-profile-image,
+        .partner-logo,
+        .consultant-avatar,
+        .staff-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .zzx-profile-placeholder {
+            color: var(--zzx-accent, #c0d674);
+            font-family: monospace;
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 720px) {
+            .zzx-profile-media {
+                max-width: 180px;
+            }
+        }
+    </style>
+
     <script src="../static/script.js" defer></script>
 </head>
 
@@ -33,7 +81,7 @@
         <p class="zzx-kicker">ZZX-Labs / Consultants</p>
         <h1>Consultants</h1>
         <p>
-            ZZX-Labs R&D is building a distributed consulting network of engineers, analysts, scientists,
+            ZZX-Labs R&amp;D is building a distributed consulting network of engineers, analysts, scientists,
             designers, researchers, legal and policy advisors, security specialists, Bitcoin developers,
             infrastructure builders, and technical visionaries.
         </p>
@@ -64,9 +112,64 @@
         </p>
     </section>
 
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Profile Standard</p>
+        <h2>Consultant Avatars and Public Profile Cards</h2>
+        <p>
+            Consultant profiles may display a portrait, pseudonymous avatar, role shield, or placeholder mark. Named
+            consultants can use approved portraits. Pseudonymous consultants can use avatar art. Private consultants can
+            remain unlisted or appear only as a role-based placeholder until disclosure terms are approved.
+        </p>
+        <p>
+            The same visual pattern is used across staff, consultants, and partners: a media area for portrait/logo,
+            a role kicker, a public name or codename, a scoped description, and optional links for profile routing.
+        </p>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Foundational Consultant Record</p>
+        <h2>Public Consultant Directory</h2>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card consultant-entry zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/deadbeef.png" alt="0xdeadbeef consultant avatar portrait" class="consultant-avatar zzx-profile-image">
+                </figure>
+                <p class="zzx-kicker">Principal Consultant / Founder</p>
+                <h3>0xdeadbeef</h3>
+                <p><a href="https://0xdeadbeef.in" target="_blank" rel="noopener">https://0xdeadbeef.in</a></p>
+                <p>
+                    Pseudonymous principal consultant for ZZX-Labs R&amp;D and 0xdeadbeef Consulting, focused on Bitcoin,
+                    software systems, cybersecurity, OSINT, AI/ML workflows, research architecture, open-source tooling,
+                    and technical strategy.
+                </p>
+            </article>
+
+            <article class="zzx-card consultant-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">CY</figure>
+                <p class="zzx-kicker">Future Consultant Seat</p>
+                <h3>Cybersecurity Consultant</h3>
+                <p>
+                    Placeholder for a vetted defensive security, threat intelligence, malware analysis, infrastructure
+                    hardening, disclosure coordination, and adversarial systems consultant.
+                </p>
+            </article>
+
+            <article class="zzx-card consultant-entry zzx-profile-card">
+                <figure class="zzx-profile-media zzx-profile-placeholder" aria-hidden="true">AI</figure>
+                <p class="zzx-kicker">Future Consultant Seat</p>
+                <h3>AI / ML Consultant</h3>
+                <p>
+                    Placeholder for an applied AI/ML consultant supporting model evaluation, data workflows, local
+                    inference, fine-tuning, automation, agentic tools, and research systems.
+                </p>
+            </article>
+        </div>
+    </section>
+
     <section class="zzx-card-grid container">
         <article class="zzx-card">
-            <h3>Cybersecurity & Threat Intelligence</h3>
+            <h3>Cybersecurity &amp; Threat Intelligence</h3>
             <p>
                 Defensive security, threat modeling, OSINT, malware analysis, incident review, infrastructure hardening,
                 vulnerability coordination, and adversarial system analysis.
@@ -90,7 +193,7 @@
         </article>
 
         <article class="zzx-card">
-            <h3>Hardware & Firmware</h3>
+            <h3>Hardware &amp; Firmware</h3>
             <p>
                 Embedded systems, Raspberry Pi, ESP32, Arduino-class devices, control panels, displays, sensors,
                 firmware, prototyping, device testing, and physical computing.
@@ -98,7 +201,7 @@
         </article>
 
         <article class="zzx-card">
-            <h3>Software & Web Systems</h3>
+            <h3>Software &amp; Web Systems</h3>
             <p>
                 Python, C, C++, Go, JavaScript, APIs, static sites, dashboards, PyQt applications, CLI tools, daemons,
                 build systems, automation, and deployment workflows.
