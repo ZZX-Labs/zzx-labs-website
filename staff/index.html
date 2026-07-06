@@ -15,6 +15,54 @@
     <link rel="stylesheet" href="../static/styles.css">
     <link rel="stylesheet" href="./staff.css">
 
+
+    <style>
+        .zzx-profile-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .zzx-profile-media {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 220px;
+            margin: 0 0 0.35rem;
+            border: 1px solid rgba(198, 214, 116, 0.28);
+            border-radius: 1.25rem;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.32);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zzx-profile-image,
+        .partner-logo,
+        .consultant-avatar,
+        .staff-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .zzx-profile-placeholder {
+            color: var(--zzx-accent, #c0d674);
+            font-family: monospace;
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 720px) {
+            .zzx-profile-media {
+                max-width: 180px;
+            }
+        }
+    </style>
+
     <script src="../static/script.js" defer></script>
     <script src="./staff.js" defer></script>
 </head>
@@ -68,6 +116,36 @@
             differentiated by posture, lighting, accent color, patch, division marker, and expression. These avatars are
             stylized identity shields, not claims of criminality, militancy, or unlawful activity.
         </p>
+    </section>
+
+
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Founder Profile</p>
+        <h2>0xdeadbeef</h2>
+
+        <div class="zzx-card-grid">
+            <article class="zzx-card staff-profile-card zzx-profile-card">
+                <figure class="zzx-profile-media">
+                    <img src="../static/images/staff/avatars/0xdeadbeef/deadbeef.png" alt="0xdeadbeef staff avatar portrait" class="staff-avatar zzx-profile-image">
+                </figure>
+                <p class="zzx-kicker">Founder / Principal Operator</p>
+                <h3>0xdeadbeef</h3>
+                <p>
+                    Pseudonymous founder, architect, and operational lead for ZZX-Labs R&amp;D. This record uses the
+                    public <code>deadbeef.png</code> image as the staff portrait while preserving the broader JSON-loaded
+                    staff directory below.
+                </p>
+                <p>
+                    Focus areas include Bitcoin infrastructure, cybersecurity, OSINT, AI/ML systems, software, hardware,
+                    firmware, research publication, technical design, and ecosystem strategy.
+                </p>
+                <div class="zzx-action-row">
+                    <a href="https://0xdeadbeef.in" target="_blank" rel="noopener" class="btn btn-outline">0xdeadbeef.in</a>
+                    <a href="../contact" class="btn btn-outline">Contact Route</a>
+                </div>
+            </article>
+        </div>
     </section>
 
     <section class="container zzx-panel">
@@ -166,8 +244,9 @@
 
         <p>
             Each profile can be generated or copied from a future <code>staff/_template/index.html</code> and customized
-            with role, division, codename, public work, projects, publications, responsibilities, disclosure level, and
-            contact routing. The index page remains dynamic and pulls the main directory from JSON.
+            with role, division, codename, public work, projects, publications, responsibilities, disclosure level,
+            portrait or avatar path, and contact routing. The index page remains dynamic and pulls the main directory
+            from JSON.
         </p>
     </section>
 
@@ -220,7 +299,7 @@
             "rank": "Department Head",
             "status": "Placeholder",
             "visibility": "Pseudonymous",
-            "avatar": "../static/images/staff/bitcoin/bitcoin-001.webp",
+            "avatar": "../static/images/deadbeef.png",
             "division": "Bitcoin",
             "department": "Bitcoin",
             "specialties": [
