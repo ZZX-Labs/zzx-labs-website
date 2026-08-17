@@ -12,27 +12,145 @@ concurrency:
   group: bpi-latest
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   update-latest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Update latest BPI data
+      - name: Sync repository before generation
+        shell: bash
         run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Validate BPI updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/bpi/update_latest.py
+          python -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+
+      - name: Update latest BPI data
+        shell: bash
+        run: |
+          set -euo pipefail
           python tools/bpi/update_latest.py
 
-      - name: Commit BPI latest data
+      - name: Validate generated BPI contract
+        shell: bash
         run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          api = Path("bitcoin/bpi/api")
+
+          latest = json.loads(
+              (api / "latest.json").read_text(encoding="utf-8")
+          )
+          changes = json.loads(
+              (api / "changes.json").read_text(encoding="utf-8")
+          )
+          history = json.loads(
+              (api / "history.json").read_text(encoding="utf-8")
+          )
+
+          price = float(latest.get("price_usd", 0))
+          source_count = int(latest.get("bpi_exchange_count", 0))
+
+          if not math.isfinite(price) or price <= 0:
+              raise SystemExit("refusing invalid BPI price")
+
+          if source_count < 2:
+              raise SystemExit(
+                  f"refusing BPI built from too few sources: {source_count}"
+              )
+
+          if not isinstance(latest.get("exchanges"), dict):
+              raise SystemExit(
+                  "latest.json exchanges must be an object"
+              )
+
+          if not isinstance(changes, list):
+              raise SystemExit(
+                  "changes.json must be an array"
+              )
+
+          if not isinstance(history, list):
+              raise SystemExit(
+                  "history.json must be an array"
+              )
+
+          if not history:
+              raise SystemExit(
+                  "history.json must contain at least one record"
+              )
+
+          print(
+              f"BPI contract valid: "
+              f"price={price:.2f} "
+              f"sources={source_count}"
+          )
+          PY
+
+      - name: Commit and push BPI latest data
+        shell: bash
+        run: |
+          set -euo pipefail
+
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
-          git add bitcoin/bpi/api/latest.json bitcoin/bpi/api/changes.json bitcoin/bpi/api/history.json
-          git diff --cached --quiet || git commit -m "Update BPI latest data"
-          git push --force-with-lease
+
+          git add \
+            bitcoin/bpi/api/latest.json \
+            bitcoin/bpi/api/changes.json \
+            bitcoin/bpi/api/history.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No BPI latest changes."
+            exit 0
+          fi
+
+          git commit -m "Update BPI latest data"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main && \
+               git push origin HEAD:main; then
+              printf '%s\n' \
+                "BPI latest data pushed."
+              exit 0
+            fi
+
+            git rebase --abort || true
+
+            printf '%s\n' \
+              "BPI latest push attempt ${attempt} failed; retrying without force."
+
+            sleep 5
+          done
+
+          printf '%s\n' \
+            "Failed to push BPI latest data without rewriting main."
+
+          exit 1
