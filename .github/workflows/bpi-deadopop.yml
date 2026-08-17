@@ -40,37 +40,130 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-      - name: Validate DeadOPop updater and registry
+      - name: Validate DeadOPop updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/bpi/update_deadopop.py
+
+      - name: Inspect archival dead-coin registry
+        id: registry
         shell: bash
         run: |
           set -euo pipefail
 
-          python -m py_compile tools/bpi/update_deadopop.py
-
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           path = Path("bitcoin/bpi/data/deadcoins_registry.json")
-          data = json.loads(path.read_text(encoding="utf-8"))
+
+          def emit(ready, reason):
+              with open(
+                  os.environ["GITHUB_OUTPUT"],
+                  "a",
+                  encoding="utf-8",
+              ) as out:
+                  out.write(f"ready={'true' if ready else 'false'}\n")
+                  out.write(f"reason={reason}\n")
+
+          if not path.is_file():
+              print("DeadOPop archival registry is missing.")
+              emit(False, "missing")
+              raise SystemExit(0)
+
+          try:
+              data = json.loads(path.read_text(encoding="utf-8"))
+          except Exception as exc:
+              raise SystemExit(
+                  f"deadcoins_registry.json is invalid JSON: {exc}"
+              )
+
           entries = data.get("entries") if isinstance(data, dict) else data
 
-          if not isinstance(entries, list) or not entries:
-              raise SystemExit("deadcoins_registry.json must contain entries")
+          if not isinstance(entries, list):
+              raise SystemExit(
+                  "deadcoins_registry.json must contain an entries array"
+              )
+
+          if not entries:
+              print("DeadOPop archival registry exists but is empty.")
+              emit(False, "empty")
+              raise SystemExit(0)
 
           if any(
               str(item.get("id") or "") == "REPLACE_WITH_CANONICAL_ID"
               for item in entries
               if isinstance(item, dict)
           ):
-              raise SystemExit(
-                  "deadcoins_registry.json still contains the template placeholder"
-              )
+              print("DeadOPop archival registry still contains template data.")
+              emit(False, "template")
+              raise SystemExit(0)
 
+          emit(True, "ready")
           print(f"Dead-coin registry entries={len(entries)}")
           PY
 
-      - name: Update DeadOPop data
+      - name: Quarantine legacy/wrong DeadOPop output
+        if: ${{ steps.registry.outputs.ready != 'true' }}
+        shell: bash
+        env:
+          REGISTRY_REASON: ${{ steps.registry.outputs.reason }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("bitcoin/bpi/api/deadopop.json")
+
+          payload = {
+              "updated_at": datetime.now(timezone.utc)
+              .isoformat()
+              .replace("+00:00", "Z"),
+              "source": "zzx_deadcoins_archival_registry",
+              "scope": "failed_dead_bankrupt_scam_collapsed_cryptoassets",
+              "available": False,
+              "status": "registry_unavailable",
+              "registry_reason": os.environ.get(
+                  "REGISTRY_REASON",
+                  "unknown",
+              ),
+              "bitcoin_excluded": True,
+              "total_dead_coins": 0,
+              "combined_estimated_value_lost_usd": None,
+              "combined_peak_market_cap_usd": None,
+              "status_counts": {},
+              "top_dead_coins": [],
+              "note": (
+                  "DeadOPop intentionally refuses to publish the legacy "
+                  "active non-Bitcoin market dataset. Populate "
+                  "bitcoin/bpi/data/deadcoins_registry.json with sourced "
+                  "failed/dead/bankrupt/scam/collapsed assets."
+              ),
+          }
+
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(
+              json.dumps(
+                  payload,
+                  ensure_ascii=False,
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+
+          print(
+              "DeadOPop quarantined: archival registry is not ready."
+          )
+          PY
+
+      - name: Update DeadOPop archival data
+        if: ${{ steps.registry.outputs.ready == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -92,25 +185,64 @@ jobs:
               )
           )
 
+          if data.get("source") != "zzx_deadcoins_archival_registry":
+              raise SystemExit(
+                  "refusing legacy/non-archival DeadOPop source"
+              )
+
+          if data.get("bitcoin_excluded") is not True:
+              raise SystemExit(
+                  "DeadOPop did not explicitly exclude Bitcoin"
+              )
+
+          if data.get("available") is False:
+              if data.get("status") != "registry_unavailable":
+                  raise SystemExit(
+                      "invalid DeadOPop unavailable marker"
+                  )
+
+              if data.get("top_dead_coins") != []:
+                  raise SystemExit(
+                      "unavailable DeadOPop must not expose stale rows"
+                  )
+
+              if data.get("total_dead_coins") != 0:
+                  raise SystemExit(
+                      "unavailable DeadOPop must report zero dead coins"
+                  )
+
+              print(
+                  "DeadOPop unavailable marker valid; "
+                  "legacy active-market data is quarantined."
+              )
+              raise SystemExit(0)
+
           count = int(data.get("total_dead_coins", 0))
-          lost = float(data.get("combined_estimated_value_lost_usd", 0))
-          peak = float(data.get("combined_peak_market_cap_usd", 0))
+          lost = float(
+              data.get("combined_estimated_value_lost_usd", 0)
+          )
+          peak = float(
+              data.get("combined_peak_market_cap_usd", 0)
+          )
           top = data.get("top_dead_coins")
 
           if count < 1:
               raise SystemExit("DeadOPop contains zero dead coins")
 
           if not math.isfinite(lost) or lost <= 0:
-              raise SystemExit("DeadOPop combined lost value is invalid")
+              raise SystemExit(
+                  "DeadOPop combined lost value is invalid"
+              )
 
           if not math.isfinite(peak) or peak < 0:
-              raise SystemExit("DeadOPop combined peak market cap is invalid")
+              raise SystemExit(
+                  "DeadOPop combined peak market cap is invalid"
+              )
 
           if not isinstance(top, list) or not top:
-              raise SystemExit("DeadOPop top_dead_coins must be non-empty")
-
-          if data.get("bitcoin_excluded") is not True:
-              raise SystemExit("DeadOPop did not explicitly exclude Bitcoin")
+              raise SystemExit(
+                  "DeadOPop top_dead_coins must be non-empty"
+              )
 
           allowed = {
               "bankrupt",
@@ -130,14 +262,19 @@ jobs:
 
           for index, item in enumerate(top):
               if not isinstance(item, dict):
-                  raise SystemExit(f"top_dead_coins[{index}] is not an object")
+                  raise SystemExit(
+                      f"top_dead_coins[{index}] is not an object"
+                  )
 
               status = str(item.get("status") or "")
-              loss = float(item.get("estimated_value_lost_usd") or 0)
+              loss = float(
+                  item.get("estimated_value_lost_usd") or 0
+              )
 
               if status not in allowed:
                   raise SystemExit(
-                      f"top_dead_coins[{index}] has invalid status: {status}"
+                      f"top_dead_coins[{index}] has invalid status: "
+                      f"{status}"
                   )
 
               if not math.isfinite(loss) or loss <= 0:
@@ -146,7 +283,7 @@ jobs:
                   )
 
           print(
-              "DeadOPop contract valid: "
+              "DeadOPop archival contract valid: "
               f"dead_coins={count} "
               f"combined_lost_usd={lost:.2f} "
               f"top={len(top)}"
@@ -161,8 +298,7 @@ jobs:
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
 
-          git add \
-            bitcoin/bpi/api/deadopop.json
+          git add bitcoin/bpi/api/deadopop.json
 
           if git diff --cached --quiet; then
             printf '%s\n' "No DeadOPop changes."
