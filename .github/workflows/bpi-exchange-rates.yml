@@ -12,27 +12,172 @@ concurrency:
   group: bpi-exchange-rates
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   update-exchange-rates:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Update exchange rates
+      - name: Sync repository before generation
+        shell: bash
         run: |
+          set -euo pipefail
+
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Validate exchange-rate updater
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m py_compile \
+            tools/bpi/update_exchange_rates.py
+
+          python -m json.tool \
+            bitcoin/bpi/api/exchange_rates.json \
+            >/dev/null
+
+      - name: Update exchange rates
+        shell: bash
+        run: |
+          set -euo pipefail
+
           python tools/bpi/update_exchange_rates.py
 
-      - name: Commit exchange rates
+      - name: Validate generated exchange-rate contract
+        shell: bash
         run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          path = Path(
+              "bitcoin/bpi/api/exchange_rates.json"
+          )
+
+          data = json.loads(
+              path.read_text(encoding="utf-8")
+          )
+
+          if not isinstance(data, dict):
+              raise SystemExit(
+                  "exchange_rates.json must be an object"
+              )
+
+          rates = data.get("rates")
+
+          if not isinstance(rates, dict):
+              raise SystemExit(
+                  "exchange_rates.json must contain "
+                  "a rates object"
+              )
+
+          if "USD" not in rates:
+              raise SystemExit(
+                  "exchange_rates.json is missing USD"
+              )
+
+          usd = float(rates["USD"])
+
+          if not math.isfinite(usd) or usd <= 0:
+              raise SystemExit(
+                  "USD exchange rate is invalid"
+              )
+
+          if abs(usd - 1.0) > 0.000001:
+              raise SystemExit(
+                  f"USD base rate must equal 1, got {usd}"
+              )
+
+          valid_rates = 0
+
+          for code, value in rates.items():
+              try:
+                  rate = float(value)
+              except (TypeError, ValueError):
+                  raise SystemExit(
+                      f"invalid rate for {code}: {value!r}"
+                  )
+
+              if not math.isfinite(rate) or rate <= 0:
+                  raise SystemExit(
+                      f"non-positive rate for {code}: {rate}"
+                  )
+
+              valid_rates += 1
+
+          if valid_rates < 5:
+              raise SystemExit(
+                  "refusing exchange-rate dataset "
+                  f"with only {valid_rates} valid rates"
+              )
+
+          print(
+              f"Exchange-rate contract valid: "
+              f"{valid_rates} rates"
+          )
+          PY
+
+      - name: Commit and push exchange rates
+        shell: bash
+        run: |
+          set -euo pipefail
+
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
-          git add bitcoin/bpi/api/exchange_rates.json
-          git diff --cached --quiet || git commit -m "Update BPI exchange rates"
-          git push
+
+          git add \
+            bitcoin/bpi/api/exchange_rates.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' \
+              "No BPI exchange-rate changes."
+            exit 0
+          fi
+
+          git commit \
+            -m "Update BPI exchange rates"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main && \
+               git push origin HEAD:main; then
+
+              printf '%s\n' \
+                "BPI exchange rates pushed."
+
+              exit 0
+            fi
+
+            git rebase --abort || true
+
+            printf '%s\n' \
+              "BPI exchange-rate push attempt ${attempt} failed; retrying."
+
+            sleep 5
+          done
+
+          printf '%s\n' \
+            "Failed to push BPI exchange rates without rewriting main."
+
+          exit 1
