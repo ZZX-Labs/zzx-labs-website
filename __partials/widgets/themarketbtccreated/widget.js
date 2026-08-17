@@ -88,16 +88,12 @@
   }
 
   function apiCandidates() {
-    return [...new Set([
+    return [
       new URL(
         "bitcoin/bpi/api/themarketbtccreated.json",
         projectRootURL()
-      ).toString(),
-      new URL(
-        "api/themarketbtccreated.json",
-        document.baseURI
       ).toString()
-    ])];
+    ];
   }
 
   async function fetchJSON(url) {
@@ -119,71 +115,307 @@
   }
 
   function normalize(data) {
-    if (
-      !data ||
-      typeof data !== "object" ||
-      data.source !== "zzx_themarketbtccreated_deadopop_v3"
-    ) {
-      throw new Error("refusing stale TheMarketBTCCreated API schema");
+    if (!data || typeof data !== "object") {
+      throw new Error(
+        "invalid TheMarketBTCCreated API root"
+      );
+    }
+
+    const source = String(data.source || "");
+
+    const isV3 =
+      source ===
+      "zzx_themarketbtccreated_deadopop_v3";
+
+    const isV2 =
+      source ===
+      "zzx_themarketbtccreated_deadopop_v2";
+
+    if (!isV3 && !isV2) {
+      throw new Error(
+        `unsupported TheMarketBTCCreated API schema: ${
+          source || "missing source"
+        }`
+      );
     }
 
     const i = data.inputs || {};
     const o = data.outputs || {};
     const net = data.network || {};
 
+    const theoretical = n(
+      o.the_market_btc_created_price_usd
+    );
+
+    const adjusted = n(
+      o.deadopop_adjusted_appraised_btc_price_usd
+    );
+
+    const spot = n(
+      i.spot_btc_price_usd
+    );
+
+    const derivedDeltaUSD =
+      Number.isFinite(theoretical) &&
+      Number.isFinite(spot)
+        ? theoretical - spot
+        : NaN;
+
+    const derivedDeltaPct =
+      Number.isFinite(derivedDeltaUSD) &&
+      Number.isFinite(spot) &&
+      spot !== 0
+        ? (derivedDeltaUSD / spot) * 100
+        : NaN;
+
+    const derivedTotalDeltaUSD =
+      Number.isFinite(adjusted) &&
+      Number.isFinite(spot)
+        ? adjusted - spot
+        : NaN;
+
+    const derivedTotalDeltaPct =
+      Number.isFinite(derivedTotalDeltaUSD) &&
+      Number.isFinite(spot) &&
+      spot !== 0
+        ? (derivedTotalDeltaUSD / spot) * 100
+        : NaN;
+
+    const deadTotal = n(
+      i.deadopop_total_dead_coins
+    );
+
+    const deadValued = n(
+      i.deadopop_valued_dead_coins
+    );
+
+    const deadUnvalued = n(
+      i.deadopop_unvalued_dead_coins
+    );
+
+    let deadCoverage = n(
+      i.deadopop_valuation_coverage_percent
+    );
+
+    if (
+      !Number.isFinite(deadCoverage) &&
+      Number.isFinite(deadTotal) &&
+      deadTotal > 0 &&
+      Number.isFinite(deadValued)
+    ) {
+      deadCoverage =
+        (deadValued / deadTotal) * 100;
+    }
+
     const s = {
-      updatedAt: String(data.updated_at || ""),
-      marketSource: String(data.market_data_source || "unknown"),
-      blockSource: String(data.block_data_source || "unknown"),
+      schemaVersion:
+        isV3 ? "v3" : "v2-compat",
 
-      globalCap: n(i.current_global_crypto_market_cap_usd),
-      btcCap: n(i.current_bitcoin_market_cap_usd),
-      shitcoinCap: n(i.current_non_bitcoin_market_cap_usd),
-      deadLoss: n(i.deadopop_cumulative_estimated_value_lost_usd),
-      deadTotal: n(i.deadopop_total_dead_coins),
-      deadValued: n(i.deadopop_valued_dead_coins),
-      deadUnvalued: n(i.deadopop_unvalued_dead_coins),
-      deadCoverage: n(i.deadopop_valuation_coverage_percent),
+      updatedAt:
+        String(data.updated_at || ""),
 
-      spot: n(i.spot_btc_price_usd),
-      supply: n(i.btc_circulating_supply),
-      theoretical: n(o.the_market_btc_created_price_usd),
-      adjusted: n(o.deadopop_adjusted_appraised_btc_price_usd),
-      deltaUSD: n(o.baseline_delta_usd),
-      deltaPct: n(o.baseline_delta_percent),
-      invDeltaPct: n(o.inverse_baseline_delta_percent),
-      totalDeltaUSD: n(o.total_delta_usd),
-      totalDeltaPct: n(o.total_delta_percent),
-      invTotalDeltaPct: n(o.inverse_total_delta_percent),
-      capturePct: n(o.btc_capture_percent_of_created_market_plus_deadopop),
-      inverseCapturePct: n(o.inverse_unabsorbed_percent),
+      marketSource:
+        String(
+          data.market_data_source || "unknown"
+        ),
 
-      height: n(net.block_height),
-      remaining: n(net.btc_remaining_to_mine),
-      remainingPct: n(net.btc_remaining_to_mine_percent),
-      minedYear: n(net.estimated_btc_mined_this_year),
-      reward: n(net.current_block_reward_btc),
-      nextReward: n(net.next_block_reward_btc),
-      nextHalving: n(net.next_halving_height),
-      blocksRemaining: n(net.blocks_remaining_until_halving),
-      halvingAt: String(net.estimated_halving_at || ""),
-      countdown: n(net.halving_countdown_seconds)
+      blockSource:
+        String(
+          data.block_data_source ||
+          (
+            isV2
+              ? "not-published-in-v2"
+              : "unknown"
+          )
+        ),
+
+      globalCap:
+        n(
+          i.current_global_crypto_market_cap_usd
+        ),
+
+      btcCap:
+        n(
+          i.current_bitcoin_market_cap_usd
+        ),
+
+      shitcoinCap:
+        n(
+          i.current_non_bitcoin_market_cap_usd
+        ),
+
+      deadLoss:
+        n(
+          i.deadopop_cumulative_estimated_value_lost_usd
+        ),
+
+      deadTotal,
+      deadValued,
+      deadUnvalued,
+      deadCoverage,
+
+      spot,
+
+      supply:
+        n(
+          i.btc_circulating_supply
+        ),
+
+      theoretical,
+      adjusted,
+
+      deltaUSD:
+        Number.isFinite(
+          n(o.baseline_delta_usd)
+        )
+          ? n(o.baseline_delta_usd)
+          : derivedDeltaUSD,
+
+      deltaPct:
+        Number.isFinite(
+          n(o.baseline_delta_percent)
+        )
+          ? n(o.baseline_delta_percent)
+          : derivedDeltaPct,
+
+      invDeltaPct:
+        Number.isFinite(
+          n(o.inverse_baseline_delta_percent)
+        )
+          ? n(o.inverse_baseline_delta_percent)
+          : (
+              Number.isFinite(derivedDeltaPct)
+                ? -derivedDeltaPct
+                : NaN
+            ),
+
+      totalDeltaUSD:
+        Number.isFinite(
+          n(o.total_delta_usd)
+        )
+          ? n(o.total_delta_usd)
+          : derivedTotalDeltaUSD,
+
+      totalDeltaPct:
+        Number.isFinite(
+          n(o.total_delta_percent)
+        )
+          ? n(o.total_delta_percent)
+          : derivedTotalDeltaPct,
+
+      invTotalDeltaPct:
+        Number.isFinite(
+          n(o.inverse_total_delta_percent)
+        )
+          ? n(o.inverse_total_delta_percent)
+          : (
+              Number.isFinite(
+                derivedTotalDeltaPct
+              )
+                ? -derivedTotalDeltaPct
+                : NaN
+            ),
+
+      capturePct:
+        n(
+          o.btc_capture_percent_of_created_market_plus_deadopop
+        ),
+
+      inverseCapturePct:
+        n(
+          o.inverse_unabsorbed_percent
+        ),
+
+      height:
+        n(net.block_height),
+
+      remaining:
+        n(
+          net.btc_remaining_to_mine
+        ),
+
+      remainingPct:
+        n(
+          net.btc_remaining_to_mine_percent
+        ),
+
+      minedYear:
+        n(
+          net.estimated_btc_mined_this_year
+        ),
+
+      reward:
+        n(
+          net.current_block_reward_btc
+        ),
+
+      nextReward:
+        n(
+          net.next_block_reward_btc
+        ),
+
+      nextHalving:
+        n(
+          net.next_halving_height
+        ),
+
+      blocksRemaining:
+        n(
+          net.blocks_remaining_until_halving
+        ),
+
+      halvingAt:
+        String(
+          net.estimated_halving_at || ""
+        ),
+
+      countdown:
+        n(
+          net.halving_countdown_seconds
+        )
     };
 
     for (const value of [
-      s.globalCap, s.btcCap, s.spot, s.supply, s.theoretical, s.adjusted
+      s.globalCap,
+      s.btcCap,
+      s.spot,
+      s.supply,
+      s.theoretical,
+      s.adjusted
     ]) {
-      if (!Number.isFinite(value) || value <= 0) {
-        throw new Error("invalid appraisal values");
+      if (
+        !Number.isFinite(value) ||
+        value <= 0
+      ) {
+        throw new Error(
+          "invalid appraisal values"
+        );
       }
     }
 
-    if (!Number.isFinite(s.deadLoss) || s.deadLoss < 0) {
-      throw new Error("invalid DeadOPop cumulative loss");
+    if (
+      !Number.isFinite(s.deadLoss) ||
+      s.deadLoss < 0
+    ) {
+      throw new Error(
+        "invalid DeadOPop cumulative loss"
+      );
     }
 
-    if (!Number.isFinite(s.height) || s.height < 0) {
-      throw new Error("invalid block height");
+    if (
+      isV3 &&
+      (
+        !Number.isFinite(s.height) ||
+        s.height < 0 ||
+        !Number.isFinite(s.reward) ||
+        s.reward <= 0 ||
+        !Number.isFinite(s.nextHalving) ||
+        s.nextHalving <= s.height
+      )
+    ) {
+      throw new Error(
+        "invalid v3 network/reward/halving data"
+      );
     }
 
     return s;
@@ -255,7 +487,7 @@
     setText(root, "[data-tmbtc-countdown]", fmtCountdown(s.countdown));
 
     setText(root, "[data-tmbtc-status]",
-      `${source} • market:${s.marketSource} • block:${s.blockSource}`);
+      `${source} • schema:${s.schemaVersion} • market:${s.marketSource} • block:${s.blockSource}`);
   }
 
   function renderError(root, error) {
