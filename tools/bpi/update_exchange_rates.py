@@ -5,6 +5,7 @@ import math
 import os
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -79,30 +80,110 @@ def finite_positive(value):
     return number
 
 
-def fetch_json(url, timeout=25):
+def fetch_json(url, timeout=25, attempts=1):
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "ZZX-Labs-BPI/2.1",
+            "User-Agent": "ZZX-Labs-BPI/2.2",
             "Accept": "application/json"
         }
     )
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8"))
+
+    last_error = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read().decode("utf-8"))
+
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+
+            # Cloudflare 52x, rate limiting, and ordinary transient server
+            # failures are retryable. Permanent 4xx errors fail immediately.
+            if exc.code not in {
+                408, 425, 429,
+                500, 502, 503, 504,
+                520, 521, 522, 523, 524
+            }:
+                raise
+
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last_error = exc
+
+        if attempt < attempts:
+            time.sleep(min(2 ** attempt, 8))
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("request failed without an exception")
 
 
 def fetch_frankfurter(codes):
     rates = {"USD": 1.0}
-    wanted = [c for c in codes if c != "USD"]
 
-    for i in range(0, len(wanted), 20):
-        chunk = wanted[i:i + 20]
+    # Discovery is mandatory. If Frankfurter itself is unavailable, do not
+    # blindly send every configured currency to /latest; hand the whole set
+    # to the fallback provider instead.
+    try:
+        supported_payload = fetch_json(
+            "https://api.frankfurter.app/currencies",
+            timeout=12,
+            attempts=2,
+        )
+        supported = {
+            str(code).strip().upper()
+            for code in supported_payload.keys()
+        }
+        supported.add("USD")
+    except Exception as e:
+        print(
+            "Frankfurter unavailable during currency discovery; "
+            "using fallback provider for fiat rates:",
+            e
+        )
+        return rates
+
+    wanted = [
+        code
+        for code in codes
+        if code != "USD" and code in supported
+    ]
+
+    unsupported = [
+        code
+        for code in codes
+        if code != "USD" and code not in supported
+    ]
+
+    if unsupported:
+        print(
+            "Frankfurter unsupported currencies; "
+            "using fallback provider:",
+            ",".join(unsupported)
+        )
+
+    # Smaller requests reduce the blast radius of a single provider error.
+    # The first failed supported chunk opens a circuit breaker because 522/
+    # timeout failures normally indicate provider-wide reachability trouble.
+    for i in range(0, len(wanted), 10):
+        chunk = wanted[i:i + 10]
         if not chunk:
             continue
 
+        url = (
+            "https://api.frankfurter.app/latest"
+            "?from=USD&to="
+            + ",".join(chunk)
+        )
+
         try:
-            url = "https://api.frankfurter.app/latest?from=USD&to=" + ",".join(chunk)
-            data = fetch_json(url)
+            data = fetch_json(
+                url,
+                timeout=12,
+                attempts=2,
+            )
 
             for code, value in data.get("rates", {}).items():
                 rate = finite_positive(value)
@@ -110,18 +191,32 @@ def fetch_frankfurter(codes):
                     rates[code] = rate
 
         except Exception as e:
-            print("Frankfurter chunk failed:", ",".join(chunk), e)
+            print(
+                "Frankfurter unavailable; "
+                "handing remaining currencies to fallback provider:",
+                e
+            )
+            break
 
     return rates
 
 
 def fetch_erapi(codes, rates):
+    missing = [code for code in codes if code not in rates]
+
+    if not missing:
+        return rates
+
     try:
-        data = fetch_json("https://open.er-api.com/v6/latest/USD")
+        data = fetch_json(
+            "https://open.er-api.com/v6/latest/USD",
+            timeout=20,
+            attempts=3,
+        )
         fallback_rates = data.get("rates", {})
 
-        for code in codes:
-            if code in rates or code not in fallback_rates:
+        for code in missing:
+            if code not in fallback_rates:
                 continue
 
             rate = finite_positive(fallback_rates[code])
