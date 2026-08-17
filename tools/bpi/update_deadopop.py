@@ -5,29 +5,62 @@ import math
 import os
 import tempfile
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "bitcoin" / "bpi" / "api" / "deadopop.json"
+DEFAULT_REGISTRY = ROOT / "bitcoin" / "bpi" / "data" / "deadcoins_registry.json"
+DEFAULT_OUT = ROOT / "bitcoin" / "bpi" / "api" / "deadopop.json"
 
 INTERVAL_SECONDS = 3600
-PER_PAGE = 250
-HTTP_ATTEMPTS = 4
-TOP_ASSET_LIMIT = 50
-COINGECKO_REQUEST_GAP_SECONDS = 4.0
+TOP_LIMIT = 100
+
+ALLOWED_STATUSES = {
+    "bankrupt",
+    "insolvent",
+    "scam",
+    "rug_pull",
+    "fraud",
+    "collapsed",
+    "abandoned",
+    "shutdown",
+    "dead",
+    "delisted_dead",
+    "protocol_failure",
+    "exchange_failure",
+    "zeroed_out",
+}
 
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def write_json(path, data):
+def finite(value, default=None):
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    return number if math.isfinite(number) else default
+
+
+def positive(value, default=None):
+    number = finite(value)
+    if number is None or number <= 0:
+        return default
+    return number
+
+
+def nonnegative(value, default=0.0):
+    number = finite(value)
+    if number is None or number < 0:
+        return default
+    return number
+
+
+def write_json_atomic(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
     fd, tmp_name = tempfile.mkstemp(
         prefix=path.name + ".",
@@ -38,10 +71,9 @@ def write_json(path, data):
 
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(payload)
+            handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-
         os.replace(tmp_name, path)
     except Exception:
         try:
@@ -51,335 +83,195 @@ def write_json(path, data):
         raise
 
 
-def finite_number(value, default=None):
-    try:
-        number = float(value)
-    except (TypeError, ValueError, OverflowError):
-        return default
+def load_registry(path):
+    if not path.is_file():
+        raise RuntimeError(f"dead-coin registry is missing: {path}")
 
-    if not math.isfinite(number):
-        return default
+    data = json.loads(path.read_text(encoding="utf-8"))
 
-    return number
+    if isinstance(data, dict):
+        entries = data.get("entries")
+    else:
+        entries = data
 
+    if not isinstance(entries, list):
+        raise RuntimeError("dead-coin registry must contain an entries array")
 
-def nonnegative_number(value, default=0.0):
-    number = finite_number(value)
-
-    if number is None or number < 0:
-        return default
-
-    return number
+    return entries
 
 
-def fetch_json(url, timeout=30, attempts=HTTP_ATTEMPTS):
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "ZZX-Labs-DeadOPop/2.1",
-            "Accept": "application/json"
-        }
-    )
+def normalize_sources(value):
+    if not isinstance(value, list):
+        return []
 
-    last_error = None
+    out = []
+    seen = set()
 
-    for attempt in range(1, attempts + 1):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+    for item in value:
+        if isinstance(item, str):
+            url = item.strip()
+            label = ""
+        elif isinstance(item, dict):
+            url = str(item.get("url") or "").strip()
+            label = str(item.get("label") or "").strip()
+        else:
+            continue
 
-        except urllib.error.HTTPError as exc:
-            last_error = exc
+        if not url or url in seen:
+            continue
 
-            if exc.code not in {408, 425, 429, 500, 502, 503, 504}:
-                raise
+        if not (url.startswith("https://") or url.startswith("http://")):
+            continue
 
-            retry_after = exc.headers.get("Retry-After")
-            try:
-                delay = min(max(float(retry_after), 1.0), 60.0)
-            except (TypeError, ValueError):
-                delay = min(2.0 ** attempt, 20.0)
+        seen.add(url)
+        out.append({"url": url, "label": label})
 
-        except (urllib.error.URLError, TimeoutError) as exc:
-            last_error = exc
-            delay = min(2.0 ** attempt, 20.0)
-
-        if attempt < attempts:
-            print(
-                f"CoinGecko request attempt {attempt}/{attempts} failed; "
-                f"retrying in {delay:g}s:",
-                last_error
-            )
-            time.sleep(delay)
-
-    raise RuntimeError(
-        f"CoinGecko request failed after {attempts} attempts: {last_error}"
-    )
+    return out
 
 
-def coingecko_markets_page(page):
-    params = urllib.parse.urlencode({
-        "vs_currency": "usd",
-        "order": "market_cap_desc",
-        "per_page": PER_PAGE,
-        "page": page,
-        "sparkline": "false",
-        "price_change_percentage": "24h"
-    })
+def normalize_entry(raw):
+    if not isinstance(raw, dict):
+        return None
 
-    return fetch_json(
-        "https://api.coingecko.com/api/v3/coins/markets?" + params
-    )
+    coin_id = str(raw.get("id") or "").strip()
+    symbol = str(raw.get("symbol") or "").strip()
+    name = str(raw.get("name") or "").strip()
+    status = str(raw.get("status") or "").strip().lower()
 
+    if not coin_id or not name or status not in ALLOWED_STATUSES:
+        return None
 
-def coingecko_global():
-    return fetch_json(
-        "https://api.coingecko.com/api/v3/global"
-    )
+    if coin_id.lower() == "bitcoin" or symbol.lower() == "btc":
+        return None
 
+    peak = positive(raw.get("peak_market_cap_usd"))
+    terminal = nonnegative(raw.get("terminal_market_cap_usd"), 0.0)
+    direct_loss = positive(raw.get("estimated_value_lost_usd"))
 
-def normalized_top_asset(coin, market_cap, volume_24h):
-    price = nonnegative_number(coin.get("current_price"))
-    change = finite_number(coin.get("price_change_percentage_24h"))
+    if direct_loss is not None:
+        loss = direct_loss
+        loss_method = str(
+            raw.get("loss_method") or "archival_estimate"
+        ).strip()
+    elif peak is not None:
+        loss = max(0.0, peak - terminal)
+        loss_method = "peak_market_cap_minus_terminal_market_cap"
+    else:
+        return None
+
+    if loss <= 0:
+        return None
+
+    failure_date = str(raw.get("failure_date") or "").strip()
+    failure_reason = str(raw.get("failure_reason") or "").strip()
+    notes = str(raw.get("notes") or "").strip()
+    confidence = finite(raw.get("confidence"), 0.0)
+    confidence = max(0.0, min(1.0, confidence))
 
     return {
-        "rank": coin.get("market_cap_rank"),
-        "id": coin.get("id"),
-        "symbol": coin.get("symbol"),
-        "name": coin.get("name"),
-        "market_cap_usd": market_cap,
-        "volume_24h_usd": volume_24h,
-        "price_usd": price,
-        "price_change_24h_percent": change
+        "id": coin_id,
+        "symbol": symbol,
+        "name": name,
+        "status": status,
+        "failure_date": failure_date,
+        "failure_reason": failure_reason,
+        "peak_market_cap_usd": peak,
+        "terminal_market_cap_usd": terminal,
+        "estimated_value_lost_usd": loss,
+        "loss_method": loss_method,
+        "confidence": confidence,
+        "sources": normalize_sources(raw.get("sources")),
+        "notes": notes,
     }
 
 
-def validate_output(out):
-    count = int(out.get("non_bitcoin_assets_count") or 0)
-    pages = int(out.get("pages_scanned") or 0)
-    market_cap = finite_number(
-        out.get("alive_non_bitcoin_market_cap_usd")
-    )
-    total_cap = finite_number(
-        out.get("total_non_bitcoin_market_cap_usd")
-    )
-    volume = finite_number(
-        out.get("alive_non_bitcoin_volume_24h_usd")
-    )
-    top_assets = out.get("top_non_bitcoin_assets")
+def build_once(registry_path=DEFAULT_REGISTRY, out_path=DEFAULT_OUT):
+    raw_entries = load_registry(registry_path)
 
-    if pages < 1:
-        raise RuntimeError(
-            "refusing to overwrite DeadOPop output with zero scanned pages"
-        )
+    normalized = []
+    seen = set()
 
-    if count < 1:
-        raise RuntimeError(
-            "refusing to overwrite DeadOPop output with zero assets"
-        )
-
-    if market_cap is None or market_cap <= 0:
-        raise RuntimeError(
-            "refusing to overwrite DeadOPop output with invalid market cap"
-        )
-
-    if total_cap is None or total_cap <= 0:
-        raise RuntimeError(
-            "refusing to overwrite DeadOPop output with invalid total market cap"
-        )
-
-    if volume is None or volume < 0:
-        raise RuntimeError(
-            "refusing to overwrite DeadOPop output with invalid volume"
-        )
-
-    if not isinstance(top_assets, list) or not top_assets:
-        raise RuntimeError(
-            "refusing to overwrite DeadOPop output with empty top-assets list"
-        )
-
-    if out.get("bitcoin_excluded") is not True:
-        raise RuntimeError(
-            "refusing DeadOPop output that does not explicitly exclude Bitcoin"
-        )
-
-
-def build_once():
-    # One global request gives the aggregate market size and active-asset
-    # count. One markets request gives Bitcoin's own market/volume values and
-    # enough ranked assets to build the top-50 non-Bitcoin list. This replaces
-    # the old 10-page crawl and greatly reduces CoinGecko rate-limit pressure.
-    try:
-        global_payload = coingecko_global()
-    except Exception as exc:
-        raise RuntimeError(
-            "CoinGecko global endpoint failed; refusing DeadOPop publish"
-        ) from exc
-
-    global_data = (
-        global_payload.get("data")
-        if isinstance(global_payload, dict)
-        else None
-    )
-
-    if not isinstance(global_data, dict):
-        raise RuntimeError(
-            "CoinGecko global endpoint returned an invalid payload"
-        )
-
-    total_market_caps = global_data.get("total_market_cap")
-    total_volumes = global_data.get("total_volume")
-
-    if not isinstance(total_market_caps, dict):
-        raise RuntimeError(
-            "CoinGecko global payload has no total_market_cap object"
-        )
-
-    if not isinstance(total_volumes, dict):
-        raise RuntimeError(
-            "CoinGecko global payload has no total_volume object"
-        )
-
-    total_market_cap = finite_number(total_market_caps.get("usd"))
-    total_volume_24h = nonnegative_number(total_volumes.get("usd"))
-    active_cryptoassets = int(global_data.get("active_cryptocurrencies") or 0)
-
-    if total_market_cap is None or total_market_cap <= 0:
-        raise RuntimeError(
-            "CoinGecko global payload has invalid USD market cap"
-        )
-
-    if active_cryptoassets < 2:
-        raise RuntimeError(
-            "CoinGecko global payload has invalid active cryptocurrency count"
-        )
-
-    # Give the free endpoint breathing room between the only two requests.
-    time.sleep(COINGECKO_REQUEST_GAP_SECONDS)
-
-    try:
-        markets = coingecko_markets_page(1)
-    except Exception as exc:
-        raise RuntimeError(
-            "CoinGecko markets page failed; refusing DeadOPop publish"
-        ) from exc
-
-    if not isinstance(markets, list) or not markets:
-        raise RuntimeError(
-            "CoinGecko markets page returned an empty or invalid payload"
-        )
-
-    bitcoin_market_cap = None
-    bitcoin_volume_24h = 0.0
-    top_assets = []
-    seen_ids = set()
-
-    for coin in markets:
-        if not isinstance(coin, dict):
+    for raw in raw_entries:
+        item = normalize_entry(raw)
+        if item is None:
             continue
 
-        coin_id = str(coin.get("id") or "").strip().lower()
-        symbol = str(coin.get("symbol") or "").strip().lower()
+        key = item["id"].lower()
+        if key in seen:
+            raise RuntimeError(f"duplicate dead-coin registry id: {item['id']}")
 
-        if not coin_id:
-            continue
+        seen.add(key)
+        normalized.append(item)
 
-        market_cap = finite_number(coin.get("market_cap"))
-        volume_24h = nonnegative_number(coin.get("total_volume"))
-
-        if coin_id == "bitcoin" or symbol == "btc":
-            if market_cap is not None and market_cap > 0:
-                bitcoin_market_cap = market_cap
-                bitcoin_volume_24h = volume_24h
-            continue
-
-        if coin_id in seen_ids:
-            continue
-
-        if market_cap is None or market_cap <= 0:
-            continue
-
-        seen_ids.add(coin_id)
-
-        if len(top_assets) < TOP_ASSET_LIMIT:
-            top_assets.append(
-                normalized_top_asset(
-                    coin,
-                    market_cap,
-                    volume_24h
-                )
-            )
-
-    if bitcoin_market_cap is None or bitcoin_market_cap <= 0:
-        # Fallback to CoinGecko's global BTC market-cap percentage only if the
-        # first markets page unexpectedly omitted Bitcoin.
-        percentages = global_data.get("market_cap_percentage")
-        btc_percentage = None
-
-        if isinstance(percentages, dict):
-            btc_percentage = finite_number(percentages.get("btc"))
-
-        if btc_percentage is None or not (0 < btc_percentage < 100):
-            raise RuntimeError(
-                "unable to determine Bitcoin market cap for exclusion"
-            )
-
-        bitcoin_market_cap = total_market_cap * (btc_percentage / 100.0)
-
-    alive_market_cap = total_market_cap - bitcoin_market_cap
-
-    if alive_market_cap <= 0:
+    if not normalized:
         raise RuntimeError(
-            "computed non-Bitcoin market cap is not positive"
+            "dead-coin registry produced zero validated failed/dead/scam assets"
         )
 
-    alive_volume_24h = max(
-        0.0,
-        total_volume_24h - bitcoin_volume_24h
+    normalized.sort(
+        key=lambda item: item["estimated_value_lost_usd"],
+        reverse=True,
     )
 
-    # CoinGecko's active_cryptocurrencies is the closest aggregate count for
-    # the scope of this file. Subtract one for Bitcoin itself.
-    asset_count = max(0, active_cryptoassets - 1)
+    total_lost = sum(
+        item["estimated_value_lost_usd"]
+        for item in normalized
+    )
 
-    out = {
+    peak_values = [
+        item["peak_market_cap_usd"]
+        for item in normalized
+        if item["peak_market_cap_usd"] is not None
+    ]
+    total_peak = sum(peak_values)
+
+    status_counts = {}
+    for item in normalized:
+        status = item["status"]
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    top = []
+    for rank, item in enumerate(normalized[:TOP_LIMIT], start=1):
+        top.append({
+            "rank": rank,
+            **item,
+        })
+
+    output = {
         "updated_at": now_iso(),
-        "source": "coingecko_global_and_current_markets",
-        "scope": "non_bitcoin_cryptoassets_currently_listed",
-        "pages_scanned": 1,
-        "per_page": PER_PAGE,
-        "non_bitcoin_assets_count": asset_count,
-        "alive_non_bitcoin_market_cap_usd": alive_market_cap,
-        "alive_non_bitcoin_volume_24h_usd": alive_volume_24h,
-        "dead_or_inactive_market_cap_usd": None,
-        "total_non_bitcoin_market_cap_usd": alive_market_cap,
+        "source": "zzx_deadcoins_archival_registry",
+        "scope": "failed_dead_bankrupt_scam_collapsed_cryptoassets",
         "bitcoin_excluded": True,
-        "top_non_bitcoin_assets": top_assets,
-        "note": (
-            "This file measures currently listed non-Bitcoin cryptoasset market cap. "
-            "Aggregate market cap is derived from CoinGecko global market data with "
-            "Bitcoin market cap excluded; ranked asset detail comes from the current "
-            "markets endpoint. Dead/inactive historical market cap requires a separate "
-            "archival dataset."
-        )
+        "total_dead_coins": len(normalized),
+        "combined_estimated_value_lost_usd": round(total_lost, 2),
+        "combined_peak_market_cap_usd": round(total_peak, 2),
+        "status_counts": status_counts,
+        "top_dead_coins": top,
+        "methodology": (
+            "Includes only assets explicitly classified in the archival registry "
+            "as failed, dead, bankrupt/insolvent, scam/fraud/rug, collapsed, "
+            "abandoned/shutdown, delisted-and-dead, protocol/exchange failure, "
+            "or effectively zeroed out. estimated_value_lost_usd is used when "
+            "the registry has a sourced loss estimate; otherwise loss is computed "
+            "as peak_market_cap_usd minus terminal_market_cap_usd. Market-cap loss "
+            "is not necessarily identical to realized investor losses."
+        ),
     }
 
-    validate_output(out)
-    write_json(OUT, out)
+    write_json_atomic(out_path, output)
 
     print(
         "deadopop updated:",
-        asset_count,
-        "assets;",
-        "pages_scanned=1;",
-        "coingecko_requests=2;",
-        "market_cap_usd=",
-        round(alive_market_cap, 2)
+        f"dead_coins={output['total_dead_coins']};",
+        f"combined_lost_usd={output['combined_estimated_value_lost_usd']:.2f};",
+        f"combined_peak_mcap_usd={output['combined_peak_market_cap_usd']:.2f}",
     )
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--loop", action="store_true")
     parser.add_argument("--interval", type=float, default=INTERVAL_SECONDS)
     args = parser.parse_args()
@@ -387,13 +279,12 @@ def main():
     if args.loop:
         while True:
             try:
-                build_once()
-            except Exception as e:
-                print("ERROR:", e)
-
+                build_once(args.registry, args.output)
+            except Exception as exc:
+                print("ERROR:", exc)
             time.sleep(args.interval)
     else:
-        build_once()
+        build_once(args.registry, args.output)
 
 
 if __name__ == "__main__":
