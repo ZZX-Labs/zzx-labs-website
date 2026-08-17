@@ -36,7 +36,15 @@ env:
 
 jobs:
   maps:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -54,6 +62,7 @@ jobs:
 
           git fetch origin main
           git reset --hard origin/main
+          git clean -fdx
 
           printf '%s\n' "Available Bitnodes latest/index/map files:"
           find bitcoin/bitnodes -maxdepth 7 -type f \
@@ -526,8 +535,6 @@ jobs:
               API / "enriched" / "zzxbitnodes" / "latest.json",
               API / "zzxbitnodes" / "latest.json",
               API / "data" / "latest.json",
-              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
-              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
           ], "zzx") or build_from_mariadb("zzxbitnodes")
 
           original = choose_existing_json([
@@ -717,7 +724,6 @@ jobs:
           set -euo pipefail
 
           python - <<'PY'
-          import hashlib
           import json
           import math
           import os
@@ -742,15 +748,6 @@ jobs:
                   and -180 <= lon <= 180
               )
 
-          def synthetic_point(seed):
-              digest = hashlib.sha256(str(seed).encode("utf-8", errors="ignore")).digest()
-              a = int.from_bytes(digest[:8], "big") / float(2**64 - 1)
-              b = int.from_bytes(digest[8:16], "big") / float(2**64 - 1)
-
-              lat = -62.0 + (134.0 * a)
-              lon = -170.0 + (340.0 * b)
-
-              return round(lat, 6), round(lon, 6)
 
           def deep_get(obj, dotted):
               cur = obj
@@ -849,7 +846,6 @@ jobs:
 
           total = 0
           real = 0
-          synthetic = 0
 
           for address, node in list(nodes.items()):
               total += 1
@@ -870,10 +866,8 @@ jobs:
                           lon = geo.get("longitude")
 
                       if not valid_coord(lat, lon):
-                          lat, lon = synthetic_point(address)
-                          meta["geoip_confidence"] = "synthetic"
-                          meta["geoip_source"] = "workflow-map-ready-fallback"
-                          synthetic += 1
+                          del nodes[address]
+                          continue
                       else:
                           real += 1
 
@@ -916,10 +910,8 @@ jobs:
                           lon = geo.get("longitude")
 
                       if not valid_coord(lat, lon):
-                          lat, lon = synthetic_point(address)
-                          node["geoip_confidence"] = "synthetic"
-                          node["geoip_source"] = "workflow-map-ready-fallback"
-                          synthetic += 1
+                          del nodes[address]
+                          continue
                       else:
                           real += 1
                   else:
@@ -935,7 +927,9 @@ jobs:
           out["metadata"]["map_ready"] = True
           out["metadata"]["map_ready_total_nodes"] = total
           out["metadata"]["map_ready_real_coordinates"] = real
-          out["metadata"]["map_ready_synthetic_coordinates"] = synthetic
+          out["metadata"]["map_ready_synthetic_coordinates"] = 0
+          out["metadata"]["coordinate_policy"] = "real_coordinates_only"
+          out["metadata"]["map_ready_excluded_without_real_coordinates"] = total - real
 
           dst.parent.mkdir(parents=True, exist_ok=True)
           dst.write_text(
@@ -944,13 +938,13 @@ jobs:
           )
 
           print(f"map-ready input written: {dst}")
-          print(f"map-ready total={total} real={real} synthetic={synthetic}")
+          print(f"map-ready total={total} real={real} synthetic=0 excluded={total - real}")
 
           if total < 1:
               raise SystemExit("map-ready source has zero nodes")
 
-          if real + synthetic < 1:
-              raise SystemExit("map-ready source has zero coordinates")
+          if real < 1:
+              raise SystemExit("map-ready source has zero real coordinates; synthetic coordinates are prohibited")
           PY
 
       - name: Build canonical live-map data from map-ready input
@@ -979,7 +973,6 @@ jobs:
           test -f "${BITNODES_LIVE_MAP}/data/map-theme.json"
           test -f "${BITNODES_LIVE_MAP}/data/vector-types.json"
 
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json"
 
       - name: Validate canonical live-map output
         if: steps.sources.outputs.map_ready == 'true'
@@ -1036,6 +1029,288 @@ jobs:
               raise SystemExit(
                   f"map-vectors.json has too few points: {len(points)} < {min_features}"
               )
+          PY
+
+      - name: Verify real-coordinate provenance
+        if: steps.sources.outputs.map_ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          source_path = Path(
+              "bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.map-ready.json"
+          )
+
+          geojson_path = Path(
+              "bitcoin/bitnodes/live-map/data/map-points.geojson"
+          )
+
+          source = json.loads(
+              source_path.read_text(encoding="utf-8")
+          )
+
+          metadata = (
+              source.get("metadata")
+              if isinstance(
+                  source.get("metadata"),
+                  dict,
+              )
+              else {}
+          )
+
+          if metadata.get("coordinate_policy") != "real_coordinates_only":
+              raise SystemExit(
+                  "map-ready source is not marked real-coordinates-only"
+              )
+
+          if int(
+              metadata.get(
+                  "map_ready_synthetic_coordinates",
+                  -1,
+              )
+          ) != 0:
+              raise SystemExit(
+                  "map-ready source reports synthetic coordinates"
+              )
+
+          def valid_coord(lat, lon):
+              try:
+                  lat = float(lat)
+                  lon = float(lon)
+              except Exception:
+                  return False
+
+              return (
+                  math.isfinite(lat)
+                  and math.isfinite(lon)
+                  and -90 <= lat <= 90
+                  and -180 <= lon <= 180
+              )
+
+          def key(lat, lon):
+              return (
+                  round(float(lat), 6),
+                  round(float(lon), 6),
+              )
+
+          nodes = source.get("nodes")
+
+          if not isinstance(nodes, dict):
+              raise SystemExit(
+                  "map-ready source has no nodes dictionary"
+              )
+
+          source_coordinates = set()
+
+          for address, node in nodes.items():
+              if isinstance(node, dict):
+                  if (
+                      str(
+                          node.get(
+                              "geoip_confidence",
+                              "",
+                          )
+                      ).lower()
+                      == "synthetic"
+                  ):
+                      raise SystemExit(
+                          "synthetic coordinate marker found in source: "
+                          f"{address}"
+                      )
+
+                  if (
+                      str(
+                          node.get(
+                              "geoip_source",
+                              "",
+                          )
+                      )
+                      == "workflow-map-ready-fallback"
+                  ):
+                      raise SystemExit(
+                          "legacy synthetic coordinate source found: "
+                          f"{address}"
+                      )
+
+                  lat = (
+                      node.get("latitude")
+                      if node.get("latitude") is not None
+                      else node.get("lat")
+                  )
+
+                  lon = (
+                      node.get("longitude")
+                      if node.get("longitude") is not None
+                      else (
+                          node.get("lon")
+                          if node.get("lon") is not None
+                          else node.get("lng")
+                      )
+                  )
+
+              elif isinstance(node, list):
+                  lat = (
+                      node[8]
+                      if len(node) > 8
+                      else None
+                  )
+
+                  lon = (
+                      node[9]
+                      if len(node) > 9
+                      else None
+                  )
+
+                  metadata_row = (
+                      node[19]
+                      if (
+                          len(node) > 19
+                          and isinstance(
+                              node[19],
+                              dict,
+                          )
+                      )
+                      else {}
+                  )
+
+                  if (
+                      str(
+                          metadata_row.get(
+                              "geoip_confidence",
+                              "",
+                          )
+                      ).lower()
+                      == "synthetic"
+                  ):
+                      raise SystemExit(
+                          "synthetic coordinate marker found in list source: "
+                          f"{address}"
+                      )
+
+              else:
+                  continue
+
+              if not valid_coord(lat, lon):
+                  raise SystemExit(
+                      "invalid coordinate in real-only source: "
+                      f"{address}"
+                  )
+
+              source_coordinates.add(
+                  key(
+                      lat,
+                      lon,
+                  )
+              )
+
+          if not source_coordinates:
+              raise SystemExit(
+                  "real-only source contains zero coordinates"
+              )
+
+          geojson = json.loads(
+              geojson_path.read_text(encoding="utf-8")
+          )
+
+          if geojson.get("type") != "FeatureCollection":
+              raise SystemExit(
+                  "canonical map-points.geojson is not a FeatureCollection"
+              )
+
+          features = geojson.get("features")
+
+          if not isinstance(features, list) or not features:
+              raise SystemExit(
+                  "canonical map-points.geojson has no features"
+              )
+
+          for index, feature in enumerate(features):
+              if not isinstance(feature, dict):
+                  raise SystemExit(
+                      f"invalid GeoJSON feature at index {index}"
+                  )
+
+              props = (
+                  feature.get("properties")
+                  if isinstance(
+                      feature.get("properties"),
+                      dict,
+                  )
+                  else {}
+              )
+
+              if (
+                  str(
+                      props.get(
+                          "geoip_confidence",
+                          "",
+                      )
+                  ).lower()
+                  == "synthetic"
+              ):
+                  raise SystemExit(
+                      f"synthetic map feature at index {index}"
+                  )
+
+              if (
+                  str(
+                      props.get(
+                          "geoip_source",
+                          "",
+                      )
+                  )
+                  == "workflow-map-ready-fallback"
+              ):
+                  raise SystemExit(
+                      f"legacy synthetic map feature at index {index}"
+                  )
+
+              geometry = (
+                  feature.get("geometry")
+                  if isinstance(
+                      feature.get("geometry"),
+                      dict,
+                  )
+                  else {}
+              )
+
+              coordinates = geometry.get("coordinates")
+
+              if (
+                  not isinstance(coordinates, list)
+                  or len(coordinates) < 2
+                  or not valid_coord(
+                      coordinates[1],
+                      coordinates[0],
+                  )
+              ):
+                  raise SystemExit(
+                      f"invalid GeoJSON coordinate at feature {index}"
+                  )
+
+              coordinate = key(
+                  coordinates[1],
+                  coordinates[0],
+              )
+
+              if coordinate not in source_coordinates:
+                  raise SystemExit(
+                      "canonical map contains a coordinate that did not "
+                      "exist in the real-coordinate input: "
+                      f"{coordinate}"
+                  )
+
+          print(
+              "real-coordinate provenance passed:",
+              f"source_coordinates={len(source_coordinates)}",
+              f"features={len(features)}",
+              "synthetic=0",
+          )
           PY
 
       - name: Mirror validated canonical map outputs
@@ -1117,8 +1392,29 @@ jobs:
             "${BITNODES_MAPS}" \
             "${BITNODES_LIVE_MAP}"
 
+          STAGED_OUTSIDE_MAPHOST="$(
+            git diff --cached --name-only \
+              | grep -Ev '^bitcoin/bitnodes/(maps|live-map)/' \
+              || true
+          )"
+
+          if [ -n "${STAGED_OUTSIDE_MAPHOST}" ]; then
+            printf '%s\n' \
+              "Refusing Map Host commit containing non-Map-Host paths:"
+            printf '%s\n' "${STAGED_OUTSIDE_MAPHOST}"
+            exit 1
+          fi
+
           if git diff --cached --name-only | grep -E '/(cities|asns|countries|agents|geohashes|providers|organizations|versions)/.+\.json$'; then
             printf '%s\n' "Refusing exploded map/API fanout files."
+            exit 1
+          fi
+
+          if git grep --cached -n -E \
+            'workflow-map-ready-fallback|"geoip_confidence"[[:space:]]*:[[:space:]]*"synthetic"' \
+            -- "${BITNODES_MAPS}" "${BITNODES_LIVE_MAP}"; then
+            printf '%s\n' \
+              "Refusing staged map artifacts containing synthetic-coordinate markers."
             exit 1
           fi
 
@@ -1174,18 +1470,63 @@ jobs:
 
           git commit -m "Update Bitnodes map host outputs"
 
+          printf '%s\n' \
+            "Discarding non-public runtime/cache files before publication."
+
+          git reset --hard HEAD
+          git clean -fdx
+
+          if [ -n "$(git status --porcelain)" ]; then
+            printf '%s\n' \
+              "Refusing to rebase Map Host commit from a dirty worktree."
+            git status --short
+            exit 1
+          fi
+
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase --autostash origin/main && git push origin HEAD:main; then
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+
+              printf '%s\n' \
+                "Map rebase attempt ${attempt} failed; retrying without force."
+
+              git reset --hard HEAD
+              git clean -fdx
+
+              if [ -n "$(git status --porcelain)" ]; then
+                printf '%s\n' \
+                  "Map Host worktree remained dirty after rebase cleanup."
+                git status --short
+                exit 1
+              fi
+
+              sleep 10
+              continue
+            fi
+
+            if git push origin HEAD:main; then
               printf '%s\n' "Map outputs pushed."
               exit 0
             fi
 
-            git rebase --abort || true
-            printf '%s\n' "Map push attempt ${attempt} failed; retrying."
+            printf '%s\n' \
+              "Map push attempt ${attempt} failed; retrying without force."
+
+            git reset --hard HEAD
+            git clean -fdx
+
+            if [ -n "$(git status --porcelain)" ]; then
+              printf '%s\n' \
+                "Map Host worktree remained dirty after push cleanup."
+              git status --short
+              exit 1
+            fi
+
             sleep 10
           done
 
-          printf '%s\n' "Failed to push map outputs."
+          printf '%s\n' \
+            "Failed to push map outputs without rewriting main."
           exit 1
