@@ -991,7 +991,7 @@ jobs:
           )
           PY
 
-      - name: Stage safe public Bitnodes outputs
+      - name: Stage crawler-owned public Bitnodes outputs
         shell: bash
         run: |
           set -euo pipefail
@@ -1143,9 +1143,15 @@ jobs:
             "${BITNODES_GEOIP}/current/ip_db.index.json" \
             "${BITNODES_GEOIP}/current/ip_db.stats.json" \
             "${BITNODES_GEOIP}/ip_db.run-report.json" \
-            "${BITNODES_GEOIP}/ip_db.push-report.json" \
-            "${BITNODES_MAPS}/data" \
-            "${BITNODES_LIVE_MAP}/data"
+            "${BITNODES_GEOIP}/ip_db.push-report.json"
+
+          # Single-writer policy:
+          #   crawler      -> API/dataplane/GeoIP public artifacts
+          #   Map Host     -> bitcoin/bitnodes/maps/** and live-map/**
+          #
+          # The crawler may still generate and validate map files above, but it
+          # must never stage them. The dedicated Map Host workflow publishes
+          # those directories after a successful crawler run.
 
           git ls-files -z -- \
             "${BITNODES_ROOT}/src" \
@@ -1284,6 +1290,22 @@ jobs:
             exit 1
           fi
 
+          MAP_STAGE_VIOLATIONS="$(
+            git diff --cached --name-only \
+              | grep -E '^bitcoin/bitnodes/(maps|live-map)/' \
+              || true
+          )"
+
+          if [ -n "${MAP_STAGE_VIOLATIONS}" ]; then
+            printf '%s\n' \
+              "Refusing crawler commit that overlaps Map Host-owned paths:"
+            printf '%s\n' "${MAP_STAGE_VIOLATIONS}"
+            exit 1
+          fi
+
+          printf '%s\n' \
+            "crawler/map-host single-writer staging policy passed"
+
       - name: Commit and push generated Bitnodes artifacts
         shell: bash
         run: |
@@ -1299,9 +1321,9 @@ jobs:
 
           git commit -m "Update Bitnodes public artifacts"
 
-          # Everything intended for publication is now inside HEAD. The crawler
-          # deliberately creates additional runtime/download/generated files
-          # that are not part of the public commit. Git refuses to rebase while
+          # Everything owned by the crawler is now inside HEAD. Map Host-owned
+          # maps/live-map output plus runtime/download/generated files remain
+          # intentionally unstaged. Git refuses to rebase while
           # tracked leftovers are modified, so make the post-commit worktree
           # pristine before synchronizing with origin/main.
           printf '%s\n' "Post-commit leftover worktree state:"
