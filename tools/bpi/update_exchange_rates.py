@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import math
+import os
+import tempfile
 import time
 import urllib.parse
 import urllib.request
@@ -40,17 +43,47 @@ def read_json(path, fallback):
 
 def write_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8"
+    payload = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=path.name + ".",
+        suffix=".tmp",
+        dir=str(path.parent),
+        text=True,
     )
+
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def finite_positive(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+    if not math.isfinite(number) or number <= 0:
+        return None
+
+    return number
 
 
 def fetch_json(url, timeout=25):
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "ZZX-Labs-BPI/2.0",
+            "User-Agent": "ZZX-Labs-BPI/2.1",
             "Accept": "application/json"
         }
     )
@@ -70,8 +103,12 @@ def fetch_frankfurter(codes):
         try:
             url = "https://api.frankfurter.app/latest?from=USD&to=" + ",".join(chunk)
             data = fetch_json(url)
-            for k, v in data.get("rates", {}).items():
-                rates[k] = float(v)
+
+            for code, value in data.get("rates", {}).items():
+                rate = finite_positive(value)
+                if rate is not None:
+                    rates[code] = rate
+
         except Exception as e:
             print("Frankfurter chunk failed:", ",".join(chunk), e)
 
@@ -84,8 +121,12 @@ def fetch_erapi(codes, rates):
         fallback_rates = data.get("rates", {})
 
         for code in codes:
-            if code not in rates and code in fallback_rates:
-                rates[code] = float(fallback_rates[code])
+            if code in rates or code not in fallback_rates:
+                continue
+
+            rate = finite_positive(fallback_rates[code])
+            if rate is not None:
+                rates[code] = rate
 
     except Exception as e:
         print("open.er-api fallback failed:", e)
@@ -113,9 +154,9 @@ def fetch_yahoo_chart(symbol):
     if price is None:
         price = meta.get("previousClose")
 
-    price = float(price)
+    price = finite_positive(price)
 
-    if price <= 0:
+    if price is None:
         raise RuntimeError("bad commodity price for " + symbol)
 
     return price
@@ -131,28 +172,103 @@ def normalize_commodities(prev):
         except Exception as e:
             print("commodity fetch failed:", code, symbol, e)
 
-            if previous.get(code):
-                commodities[code] = previous[code]
+            old = finite_positive(previous.get(code))
+            if old is not None:
+                commodities[code] = old
 
-    commodities["WEED_LB"] = WEED_LB_USD
+    commodities["WEED_LB"] = float(WEED_LB_USD)
 
     return commodities
 
 
+def normalize_codes(currencies):
+    raw = currencies.get("order", ["USD"])
+
+    if not isinstance(raw, list):
+        raw = ["USD"]
+
+    codes = []
+    seen = set()
+
+    for value in raw:
+        code = str(value).strip().upper()
+
+        if not code or code in seen:
+            continue
+
+        seen.add(code)
+        codes.append(code)
+
+    if "USD" not in seen:
+        codes.insert(0, "USD")
+
+    return codes or ["USD"]
+
+
+def preserve_missing_rates(codes, rates, prev):
+    previous = prev.get("rates", {})
+
+    if not isinstance(previous, dict):
+        previous = {}
+
+    for code in codes:
+        if code in rates:
+            continue
+
+        old = finite_positive(previous.get(code))
+        if old is not None:
+            rates[code] = old
+            print("preserved previous exchange rate:", code)
+
+    rates["USD"] = 1.0
+    return rates
+
+
+def validate_rates(codes, rates):
+    valid = {}
+
+    for code in codes:
+        value = finite_positive(rates.get(code))
+        if value is not None:
+            valid[code] = value
+
+    valid["USD"] = 1.0
+
+    minimum = 2 if len(codes) > 1 else 1
+
+    if len(valid) < minimum:
+        raise RuntimeError(
+            "refusing to overwrite exchange_rates.json with "
+            f"only {len(valid)} valid fiat rate(s); minimum={minimum}"
+        )
+
+    return valid
+
+
 def build_once():
     currencies = read_json(CURRENCIES, {"order": ["USD"]})
-    codes = currencies.get("order", ["USD"])
+    codes = normalize_codes(currencies)
+
+    # Read the previous production file before querying providers so that a
+    # partial upstream outage can preserve individually valid prior values.
+    prev = read_json(EXCHANGE_RATES, {})
 
     rates = fetch_frankfurter(codes)
     rates = fetch_erapi(codes, rates)
-    rates["USD"] = 1.0
-
-    prev = read_json(EXCHANGE_RATES, {})
+    rates = preserve_missing_rates(codes, rates, prev)
+    rates = validate_rates(codes, rates)
 
     updated_at = now_iso()
     next_update = (
         datetime.now(timezone.utc) + timedelta(seconds=FX_INTERVAL_SECONDS)
     ).isoformat().replace("+00:00", "Z")
+
+    commodities = normalize_commodities(prev)
+
+    if not commodities:
+        raise RuntimeError(
+            "refusing to overwrite exchange_rates.json with no commodity data"
+        )
 
     out = {
         "base": "USD",
@@ -173,7 +289,7 @@ def build_once():
             if code in rates
         },
         "assets_usd": dict(prev.get("assets_usd", {}) or {}),
-        "commodities_usd": normalize_commodities(prev),
+        "commodities_usd": commodities,
         "user_values_usd": dict(prev.get("user_values_usd", {}) or {}),
         "intervals": {
             "currency_seconds": FX_INTERVAL_SECONDS,
