@@ -88,18 +88,33 @@ jobs:
           SOURCE="${BITNODES_API}/zzxbitnodes/latest.json"
 
           if [ ! -s "${SOURCE}" ]; then
-            printf '%s\n' "Committed ZZX registry snapshot is missing or empty: ${SOURCE}"
+            printf '%s\n' \
+              "Committed ZZX registry snapshot is missing or empty: ${SOURCE}"
             exit 1
           fi
 
           python - <<'PY'
+          import hashlib
           import json
           import os
+          import subprocess
           from pathlib import Path
 
-          path = Path(os.environ["BITNODES_API"]) / "zzxbitnodes" / "latest.json"
-          payload = json.loads(path.read_text(encoding="utf-8"))
-          nodes = payload.get("nodes") if isinstance(payload, dict) else None
+          path = (
+              Path(os.environ["BITNODES_API"])
+              / "zzxbitnodes"
+              / "latest.json"
+          )
+
+          payload = json.loads(
+              path.read_text(encoding="utf-8")
+          )
+
+          nodes = (
+              payload.get("nodes")
+              if isinstance(payload, dict)
+              else None
+          )
 
           if isinstance(nodes, dict):
               count = len(nodes)
@@ -109,42 +124,115 @@ jobs:
               count = 0
 
           if count < 1:
-              raise SystemExit("committed ZZX registry snapshot contains zero nodes")
+              raise SystemExit(
+                  "committed ZZX registry snapshot contains zero nodes"
+              )
 
-          print(f"committed ZZX registry snapshot nodes={count}")
+          source_sha256 = hashlib.sha256(
+              path.read_bytes()
+          ).hexdigest()
+
+          source_commit = (
+              subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"],
+                  text=True,
+              )
+              .strip()
+          )
+
+          with Path(
+              os.environ["GITHUB_OUTPUT"]
+          ).open(
+              "a",
+              encoding="utf-8",
+          ) as handle:
+              handle.write(
+                  f"registry_source={path.as_posix()}\n"
+              )
+              handle.write(
+                  f"source_nodes={count}\n"
+              )
+              handle.write(
+                  f"source_sha256={source_sha256}\n"
+              )
+              handle.write(
+                  f"source_commit={source_commit}\n"
+              )
+
+          print(
+              "committed ZZX registry snapshot:",
+              f"nodes={count}",
+              f"sha256={source_sha256}",
+              f"commit={source_commit}",
+          )
           PY
 
-          printf '%s\n' "registry_source=${SOURCE}" >> "${GITHUB_OUTPUT}"
-          printf '%s\n' "Selected committed registry snapshot: ${SOURCE}"
           printf '%s\n' \
-            "Full pre-prune runtime/MariaDB history is backed up inside the crawler before publication."
+            "Selected exact committed registry snapshot: ${SOURCE}"
+          printf '%s\n' \
+            "Full pre-prune runtime/MariaDB history remains the crawler's responsibility."
 
       - name: Backup committed registry snapshot to private repo
         shell: bash
         env:
           REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
+          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id || github.run_id }}
+          TRIGGER_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || github.run_attempt }}
+          TRIGGER_HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_NODES: ${{ steps.source.outputs.source_nodes }}
+          SOURCE_SHA256: ${{ steps.source.outputs.source_sha256 }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.source_commit }}
+          REGISTRY_SOURCE: ${{ steps.source.outputs.registry_source }}
         run: |
           set -euo pipefail
 
           if [ -z "${REGISTRY_PAT:-}" ]; then
-            printf '%s\n' "BITNODES_REGISTRY_PAT is missing or empty."
+            printf '%s\n' \
+              "BITNODES_REGISTRY_PAT is missing or empty."
             exit 1
           fi
 
           if [ "${#REGISTRY_PAT}" -lt 20 ]; then
-            printf '%s\n' "BITNODES_REGISTRY_PAT appears invalid or truncated."
+            printf '%s\n' \
+              "BITNODES_REGISTRY_PAT appears invalid or truncated."
+            exit 1
+          fi
+
+          if ! [[ "${SOURCE_NODES}" =~ ^[0-9]+$ ]] || [ "${SOURCE_NODES}" -lt 1 ]; then
+            printf '%s\n' \
+              "Validated source node count is missing or invalid: ${SOURCE_NODES}"
+            exit 1
+          fi
+
+          if ! [[ "${SOURCE_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+            printf '%s\n' \
+              "Validated source SHA256 is missing or invalid."
+            exit 1
+          fi
+
+          if ! [[ "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]; then
+            printf '%s\n' \
+              "Validated source commit SHA is missing or invalid."
             exit 1
           fi
 
           TODAY="$(date -u +%Y-%m-%d)"
-          RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          SOURCE_RUN_ID="${TRIGGER_RUN_ID}-${TRIGGER_RUN_ATTEMPT}"
+          RUN_ID="${SOURCE_RUN_ID}-${SOURCE_COMMIT:0:12}"
+
           BACKUP_ROOT="$(mktemp -d)"
           ASKPASS="$(mktemp)"
+
+          export TODAY
+          export SOURCE_RUN_ID
+          export RUN_ID
+          export BACKUP_ROOT
 
           cleanup() {
             rm -f "${ASKPASS}"
             rm -rf "${BACKUP_ROOT}"
           }
+
           trap cleanup EXIT
 
           cat > "${ASKPASS}" <<'ASKPASS'
@@ -157,6 +245,7 @@ jobs:
           ASKPASS
 
           chmod 700 "${ASKPASS}"
+
           export GIT_ASKPASS="${ASKPASS}"
           export GIT_TERMINAL_PROMPT=0
 
@@ -167,9 +256,13 @@ jobs:
             "https://github.com/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git" \
             "${BACKUP_ROOT}"
 
-          REMOTE_URL="$(git -C "${BACKUP_ROOT}" remote get-url origin)"
+          REMOTE_URL="$(
+            git -C "${BACKUP_ROOT}" remote get-url origin
+          )"
+
           if printf '%s' "${REMOTE_URL}" | grep -Fq "${REGISTRY_PAT}"; then
-            printf '%s\n' "Refusing registry remote containing embedded credentials."
+            printf '%s\n' \
+              "Refusing registry remote containing embedded credentials."
             exit 1
           fi
 
@@ -178,9 +271,15 @@ jobs:
             "${BACKUP_ROOT}/latest" \
             "${BACKUP_ROOT}/manifests"
 
+          # chunk_registry_backup.py recursively merges every supported file
+          # supplied through --input and --api. Passing the entire zzxbitnodes
+          # API directory would create a union, not an exact latest.json backup.
+          #
+          # Both required arguments intentionally point to the same validated
+          # latest.json. collect_input_files() deduplicates the resolved path.
           python tools/bitnodes/chunk_registry_backup.py \
-            --input "${{ steps.source.outputs.registry_source }}" \
-            --api "${BITNODES_API}/zzxbitnodes" \
+            --input "${REGISTRY_SOURCE}" \
+            --api "${REGISTRY_SOURCE}" \
             --output "${BACKUP_ROOT}/registry/${TODAY}/${RUN_ID}" \
             --latest-output "${BACKUP_ROOT}/latest" \
             --max-mb 24 \
@@ -194,7 +293,7 @@ jobs:
             --max-mb 24 \
             --compact
 
-          python - <<PY
+          python - <<'PY'
           import gzip
           import hashlib
           import json
@@ -202,115 +301,370 @@ jobs:
           import re
           from pathlib import Path
 
-          root = Path("${BACKUP_ROOT}")
-          run_dir = root / "registry" / "${TODAY}" / "${RUN_ID}"
-          latest_dir = root / "latest"
-          manifest_dir = root / "manifests"
-          max_bytes = int(os.environ["MAX_REGISTRY_SHARD_BYTES"])
+          root = Path(
+              os.environ["BACKUP_ROOT"]
+          )
+
+          today = os.environ["TODAY"]
+          run_id = os.environ["RUN_ID"]
+
+          run_dir = (
+              root
+              / "registry"
+              / today
+              / run_id
+          )
+
+          latest_dir = (
+              root
+              / "latest"
+          )
+
+          manifest_dir = (
+              root
+              / "manifests"
+          )
+
+          max_bytes = int(
+              os.environ[
+                  "MAX_REGISTRY_SHARD_BYTES"
+              ]
+          )
+
+          expected_nodes = int(
+              os.environ["SOURCE_NODES"]
+          )
+
+          expected_source_sha256 = (
+              os.environ["SOURCE_SHA256"]
+          )
+
+          source_commit = (
+              os.environ["SOURCE_COMMIT"]
+          )
+
+          trigger_run_id = (
+              os.environ["TRIGGER_RUN_ID"]
+          )
+
+          trigger_run_attempt = (
+              os.environ[
+                  "TRIGGER_RUN_ATTEMPT"
+              ]
+          )
+
+          trigger_head_sha = (
+              os.environ.get(
+                  "TRIGGER_HEAD_SHA",
+                  "",
+              )
+          )
 
           required = [
-              latest_dir / "manifest.sql.gz",
-              latest_dir / "latest.sql.gz",
-              manifest_dir / "latest-index.sql.gz",
-              manifest_dir / "bitnodes-index-control.sql.gz",
+              run_dir
+              / "manifest.sql.gz",
+
+              latest_dir
+              / "manifest.sql.gz",
+
+              latest_dir
+              / "latest.sql.gz",
+
+              manifest_dir
+              / "latest-index.sql.gz",
+
+              manifest_dir
+              / "bitnodes-index-control.sql.gz",
           ]
 
           for path in required:
-              if not path.is_file() or path.stat().st_size <= 0:
-                  raise SystemExit(f"missing or empty registry artifact: {path}")
-
-          shards = sorted(run_dir.glob("nodes-*.sql.gz"))
-
-          if not shards:
-              raise SystemExit("registry backup produced zero node shards")
-
-          node_rows = 0
-          files = []
-
-          for path in sorted({*shards, *required}):
-              if path.stat().st_size > max_bytes:
+              if (
+                  not path.is_file()
+                  or path.stat().st_size <= 0
+              ):
                   raise SystemExit(
-                      f"registry artifact exceeds 24 MiB ceiling: "
-                      f"{path.stat().st_size} {path}"
+                      "missing or empty registry artifact: "
+                      f"{path}"
                   )
 
-              with gzip.open(path, "rt", encoding="utf-8", errors="replace") as handle:
-                  text = handle.read()
+          run_shards = sorted(
+              run_dir.glob(
+                  "nodes-*.sql.gz"
+              )
+          )
 
-              if path in shards:
-                  node_rows += len(
+          latest_shards = sorted(
+              latest_dir.glob(
+                  "nodes-*.sql.gz"
+              )
+          )
+
+          if not run_shards:
+              raise SystemExit(
+                  "registry backup produced zero dated node shards"
+              )
+
+          if not latest_shards:
+              raise SystemExit(
+                  "registry backup produced zero latest node shards"
+              )
+
+          run_names = [
+              path.name
+              for path
+              in run_shards
+          ]
+
+          latest_names = [
+              path.name
+              for path
+              in latest_shards
+          ]
+
+          if run_names != latest_names:
+              raise SystemExit(
+                  "dated/latest node shard names do not match"
+              )
+
+          all_gzip_artifacts = sorted(
+              {
+                  *run_dir.glob(
+                      "*.sql.gz"
+                  ),
+                  *latest_dir.glob(
+                      "*.sql.gz"
+                  ),
+                  *manifest_dir.glob(
+                      "*.sql.gz"
+                  ),
+              },
+              key=lambda path: (
+                  path
+                  .relative_to(root)
+                  .as_posix()
+              ),
+          )
+
+          if not all_gzip_artifacts:
+              raise SystemExit(
+                  "registry backup produced zero gzip SQL artifacts"
+              )
+
+          sql_node_rows = 0
+          files = []
+
+          for path in all_gzip_artifacts:
+              size = path.stat().st_size
+
+              if size <= 0:
+                  raise SystemExit(
+                      "empty registry artifact: "
+                      f"{path}"
+                  )
+
+              if size > max_bytes:
+                  raise SystemExit(
+                      "registry artifact exceeds 24 MiB ceiling: "
+                      f"{size} {path}"
+                  )
+
+              try:
+                  with gzip.open(
+                      path,
+                      "rt",
+                      encoding="utf-8",
+                      errors="strict",
+                  ) as handle:
+                      text = handle.read()
+
+              except Exception as exc:
+                  raise SystemExit(
+                      "invalid gzip/text registry artifact: "
+                      f"{path}: {exc}"
+                  )
+
+              if path in run_shards:
+                  sql_node_rows += len(
                       re.findall(
-                          r"INSERT\\s+INTO\\s+bitnodes_registry_nodes\\b",
+                          r"INSERT\s+INTO\s+bitnodes_registry_nodes\b",
                           text,
                           flags=re.IGNORECASE,
                       )
                   )
 
-              digest = hashlib.sha256(path.read_bytes()).hexdigest()
-              files.append({
-                  "path": path.relative_to(root).as_posix(),
-                  "size_bytes": path.stat().st_size,
-                  "sha256": digest,
-              })
+              digest = hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
 
-          if node_rows < 1:
-              raise SystemExit(
-                  "registry SQL shards contain zero bitnodes_registry_nodes rows"
+              files.append(
+                  {
+                      "path": (
+                          path
+                          .relative_to(root)
+                          .as_posix()
+                      ),
+                      "size_bytes": size,
+                      "sha256": digest,
+                  }
               )
 
+          # chunk_registry_backup.py emits one node-table INSERT per normalized
+          # node. This catches truncation, accidental source unioning, and
+          # silent loss between the selected JSON and SQL shards.
+          if sql_node_rows != expected_nodes:
+              raise SystemExit(
+                  "registry node-row mismatch: "
+                  f"source_nodes={expected_nodes} "
+                  f"sql_node_rows={sql_node_rows}"
+              )
+
+          # latest/nodes-*.sql.gz is the moving alias of this dated run.
+          # It must be byte-for-byte identical to the dated shard set.
+          for dated, latest in zip(
+              run_shards,
+              latest_shards,
+              strict=True,
+          ):
+              dated_sha = hashlib.sha256(
+                  dated.read_bytes()
+              ).hexdigest()
+
+              latest_sha = hashlib.sha256(
+                  latest.read_bytes()
+              ).hexdigest()
+
+              if dated_sha != latest_sha:
+                  raise SystemExit(
+                      "dated/latest shard mismatch: "
+                      f"{dated.name}"
+                  )
+
           verification = {
-              "schema": "zzx-bitnodes-registry-backup-verification-v1",
-              "date": "${TODAY}",
-              "run_id": "${RUN_ID}",
-              "node_rows": node_rows,
-              "files": files,
+              "schema": (
+                  "zzx-bitnodes-registry-"
+                  "backup-verification-v2"
+              ),
+
+              "date":
+                  today,
+
+              "run_id":
+                  run_id,
+
+              "trigger_workflow_run_id":
+                  trigger_run_id,
+
+              "trigger_workflow_run_attempt":
+                  trigger_run_attempt,
+
+              "trigger_head_sha":
+                  trigger_head_sha,
+
+              "source_commit_sha":
+                  source_commit,
+
+              "source_snapshot_sha256":
+                  expected_source_sha256,
+
+              "source_node_count":
+                  expected_nodes,
+
+              "sql_node_row_count":
+                  sql_node_rows,
+
+              "node_shard_count":
+                  len(run_shards),
+
+              "files":
+                  files,
           }
 
-          (manifest_dir / "backup-verification.json").write_text(
+          verification_path = (
+              manifest_dir
+              / "backup-verification.json"
+          )
+
+          verification_path.write_text(
               json.dumps(
                   verification,
                   ensure_ascii=False,
                   indent=2,
-              ) + "\\n",
+              )
+              + "\n",
               encoding="utf-8",
           )
 
           print(
-              f"registry backup verified: "
-              f"node_rows={node_rows} "
-              f"node_shards={len(shards)}"
+              "registry backup verified:",
+              f"source_nodes={expected_nodes}",
+              f"sql_node_rows={sql_node_rows}",
+              f"node_shards={len(run_shards)}",
+              f"gzip_artifacts={len(all_gzip_artifacts)}",
+              f"source_commit={source_commit}",
           )
           PY
 
           cd "${BACKUP_ROOT}"
 
-          git config user.name "zzx-labs-bitnodes-bot"
-          git config user.email "actions@github.com"
+          git config \
+            user.name \
+            "zzx-labs-bitnodes-bot"
 
-          git add -A registry latest manifests
+          git config \
+            user.email \
+            "actions@github.com"
+
+          git add -A \
+            registry \
+            latest \
+            manifests
 
           if [ -f README.md ]; then
             git add README.md
           fi
 
           if git diff --cached --quiet; then
-            printf '%s\n' "No private registry backup changes to commit."
+            printf '%s\n' \
+              "No private registry backup changes to commit."
             exit 0
           fi
 
-          git commit -m "Backup global Bitnodes registry ${TODAY} ${RUN_ID}"
+          git commit -m \
+            "Backup global Bitnodes registry ${TODAY} ${RUN_ID}"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            printf '%s\n' \
+              "Refusing to publish from a dirty private registry worktree."
+            git status --short
+            exit 1
+          fi
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase origin/main && git push origin HEAD:main; then
-              printf '%s\n' "Private Bitnodes registry backup pushed."
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+
+              printf '%s\n' \
+                "Private registry rebase attempt ${attempt} failed; retrying without force."
+
+              git reset --hard HEAD
+              git clean -fdx
+              sleep 10
+              continue
+            fi
+
+            if git push origin HEAD:main; then
+              printf '%s\n' \
+                "Private Bitnodes registry backup pushed."
               exit 0
             fi
 
-            git rebase --abort || true
             printf '%s\n' \
               "Private registry push attempt ${attempt} failed; retrying without force."
+
+            git reset --hard HEAD
+            git clean -fdx
             sleep 10
           done
 
