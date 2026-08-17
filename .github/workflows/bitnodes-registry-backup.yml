@@ -93,6 +93,12 @@ jobs:
             exit 1
           fi
 
+          if ! git ls-files --error-unmatch "${SOURCE}" >/dev/null 2>&1; then
+            printf '%s\n' \
+              "Registry snapshot exists but is not tracked by Git: ${SOURCE}"
+            exit 1
+          fi
+
           python - <<'PY'
           import hashlib
           import json
@@ -132,13 +138,46 @@ jobs:
               path.read_bytes()
           ).hexdigest()
 
-          source_commit = (
+          checkout_commit = (
               subprocess.check_output(
                   ["git", "rev-parse", "HEAD"],
                   text=True,
               )
               .strip()
           )
+
+          source_commit = (
+              subprocess.check_output(
+                  [
+                      "git",
+                      "log",
+                      "-1",
+                      "--format=%H",
+                      "--",
+                      path.as_posix(),
+                  ],
+                  text=True,
+              )
+              .strip()
+          )
+
+          source_blob_oid = (
+              subprocess.check_output(
+                  [
+                      "git",
+                      "hash-object",
+                      path.as_posix(),
+                  ],
+                  text=True,
+              )
+              .strip()
+          )
+
+          if not source_commit:
+              raise SystemExit(
+                  "could not resolve the commit that last changed "
+                  f"{path}"
+              )
 
           with Path(
               os.environ["GITHUB_OUTPUT"]
@@ -158,12 +197,20 @@ jobs:
               handle.write(
                   f"source_commit={source_commit}\n"
               )
+              handle.write(
+                  f"checkout_commit={checkout_commit}\n"
+              )
+              handle.write(
+                  f"source_blob_oid={source_blob_oid}\n"
+              )
 
           print(
               "committed ZZX registry snapshot:",
               f"nodes={count}",
               f"sha256={source_sha256}",
-              f"commit={source_commit}",
+              f"source_commit={source_commit}",
+              f"checkout_commit={checkout_commit}",
+              f"blob={source_blob_oid}",
           )
           PY
 
@@ -182,6 +229,8 @@ jobs:
           SOURCE_NODES: ${{ steps.source.outputs.source_nodes }}
           SOURCE_SHA256: ${{ steps.source.outputs.source_sha256 }}
           SOURCE_COMMIT: ${{ steps.source.outputs.source_commit }}
+          CHECKOUT_COMMIT: ${{ steps.source.outputs.checkout_commit }}
+          SOURCE_BLOB_OID: ${{ steps.source.outputs.source_blob_oid }}
           REGISTRY_SOURCE: ${{ steps.source.outputs.registry_source }}
         run: |
           set -euo pipefail
@@ -210,9 +259,21 @@ jobs:
             exit 1
           fi
 
-          if ! [[ "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]; then
+          if ! [[ "${SOURCE_COMMIT}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
             printf '%s\n' \
-              "Validated source commit SHA is missing or invalid."
+              "Validated source-file commit SHA is missing or invalid."
+            exit 1
+          fi
+
+          if ! [[ "${CHECKOUT_COMMIT}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
+            printf '%s\n' \
+              "Validated checkout commit SHA is missing or invalid."
+            exit 1
+          fi
+
+          if ! [[ "${SOURCE_BLOB_OID}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
+            printf '%s\n' \
+              "Validated source Git blob OID is missing or invalid."
             exit 1
           fi
 
@@ -341,6 +402,14 @@ jobs:
 
           source_commit = (
               os.environ["SOURCE_COMMIT"]
+          )
+
+          checkout_commit = (
+              os.environ["CHECKOUT_COMMIT"]
+          )
+
+          source_blob_oid = (
+              os.environ["SOURCE_BLOB_OID"]
           )
 
           trigger_run_id = (
@@ -560,8 +629,14 @@ jobs:
               "trigger_head_sha":
                   trigger_head_sha,
 
-              "source_commit_sha":
+              "source_file_commit_sha":
                   source_commit,
+
+              "checkout_commit_sha":
+                  checkout_commit,
+
+              "source_git_blob_oid":
+                  source_blob_oid,
 
               "source_snapshot_sha256":
                   expected_source_sha256,
@@ -601,6 +676,7 @@ jobs:
               f"node_shards={len(run_shards)}",
               f"gzip_artifacts={len(all_gzip_artifacts)}",
               f"source_commit={source_commit}",
+              f"checkout_commit={checkout_commit}",
           )
           PY
 
