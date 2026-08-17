@@ -22,11 +22,19 @@ env:
   BITNODES_DATA: bitcoin/bitnodes/data
   BITNODES_REGISTRY_OWNER: ZZX-Labs
   BITNODES_REGISTRY_REPO: zzxbitnodesglobalregistry
+  MAX_REGISTRY_SHARD_BYTES: "25165824"
   PYTHONUNBUFFERED: "1"
 
 jobs:
   backup-registry:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -43,6 +51,7 @@ jobs:
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
+          git clean -fdx
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,41 +71,55 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          python -m py_compile \
+            tools/bitnodes/chunk_registry_backup.py \
+            tools/bitnodes/update_daily_index.py
+
           python tools/bitnodes/chunk_registry_backup.py --help
           python tools/bitnodes/update_daily_index.py --help
 
-      - name: Select registry backup source
+      - name: Validate committed ZZX registry snapshot
         id: source
         shell: bash
         run: |
           set -euo pipefail
 
-          SOURCE=""
+          SOURCE="${BITNODES_API}/zzxbitnodes/latest.json"
 
-          for CANDIDATE in \
-            "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            "${BITNODES_DATA}/state/zzxbitnodes" \
-            "${BITNODES_DATA}/state" \
-            "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            "${BITNODES_API}/zzxbitnodes/latest.json"
-          do
-            if [ -d "${CANDIDATE}" ] || [ -s "${CANDIDATE}" ]; then
-              SOURCE="${CANDIDATE}"
-              break
-            fi
-          done
-
-          if [ -z "${SOURCE}" ]; then
-            printf '%s\n' "No registry source exists."
-            printf '%s\n' "Available Bitnodes files:"
-            find "${BITNODES_ROOT}" -maxdepth 6 -type f | sort | sed -n '1,240p'
+          if [ ! -s "${SOURCE}" ]; then
+            printf '%s\n' "Committed ZZX registry snapshot is missing or empty: ${SOURCE}"
             exit 1
           fi
 
-          printf '%s\n' "registry_source=${SOURCE}" >> "${GITHUB_OUTPUT}"
-          printf '%s\n' "Selected registry source: ${SOURCE}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
 
-      - name: Backup master node registry to private repo
+          path = Path(os.environ["BITNODES_API"]) / "zzxbitnodes" / "latest.json"
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          nodes = payload.get("nodes") if isinstance(payload, dict) else None
+
+          if isinstance(nodes, dict):
+              count = len(nodes)
+          elif isinstance(nodes, list):
+              count = len(nodes)
+          else:
+              count = 0
+
+          if count < 1:
+              raise SystemExit("committed ZZX registry snapshot contains zero nodes")
+
+          print(f"committed ZZX registry snapshot nodes={count}")
+          PY
+
+          printf '%s\n' "registry_source=${SOURCE}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "Selected committed registry snapshot: ${SOURCE}"
+          printf '%s\n' \
+            "Full pre-prune runtime/MariaDB history is backed up inside the crawler before publication."
+
+      - name: Backup committed registry snapshot to private repo
         shell: bash
         env:
           REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
@@ -114,43 +137,168 @@ jobs:
           fi
 
           TODAY="$(date -u +%Y-%m-%d)"
-          BACKUP_ROOT="/tmp/zzxbitnodesglobalregistry"
-          REGISTRY_URL="https://oauth2:${REGISTRY_PAT}@github.com/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git"
+          RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          BACKUP_ROOT="$(mktemp -d)"
+          ASKPASS="$(mktemp)"
 
-          rm -rf "${BACKUP_ROOT}"
+          cleanup() {
+            rm -f "${ASKPASS}"
+            rm -rf "${BACKUP_ROOT}"
+          }
+          trap cleanup EXIT
+
+          cat > "${ASKPASS}" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "${REGISTRY_PAT}" ;;
+            *) printf '%s\n' "" ;;
+          esac
+          ASKPASS
+
+          chmod 700 "${ASKPASS}"
+          export GIT_ASKPASS="${ASKPASS}"
+          export GIT_TERMINAL_PROMPT=0
 
           git clone \
-            --depth 1 \
-            "${REGISTRY_URL}" \
+            --filter=blob:none \
+            --single-branch \
+            --branch main \
+            "https://github.com/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git" \
             "${BACKUP_ROOT}"
 
-          mkdir -p "${BACKUP_ROOT}/registry/${TODAY}"
-          mkdir -p "${BACKUP_ROOT}/latest"
-          mkdir -p "${BACKUP_ROOT}/manifests"
+          REMOTE_URL="$(git -C "${BACKUP_ROOT}" remote get-url origin)"
+          if printf '%s' "${REMOTE_URL}" | grep -Fq "${REGISTRY_PAT}"; then
+            printf '%s\n' "Refusing registry remote containing embedded credentials."
+            exit 1
+          fi
+
+          mkdir -p \
+            "${BACKUP_ROOT}/registry/${TODAY}/${RUN_ID}" \
+            "${BACKUP_ROOT}/latest" \
+            "${BACKUP_ROOT}/manifests"
 
           python tools/bitnodes/chunk_registry_backup.py \
             --input "${{ steps.source.outputs.registry_source }}" \
-            --api "${BITNODES_API}" \
-            --output "${BACKUP_ROOT}/registry/${TODAY}" \
+            --api "${BITNODES_API}/zzxbitnodes" \
+            --output "${BACKUP_ROOT}/registry/${TODAY}/${RUN_ID}" \
             --latest-output "${BACKUP_ROOT}/latest" \
-            --max-mb 24
+            --max-mb 24 \
+            --source zzxbitnodes
 
           python tools/bitnodes/update_daily_index.py \
-            --repo-root "${BACKUP_ROOT}"
+            --repo-root "${BACKUP_ROOT}/registry" \
+            --db-root "${BACKUP_ROOT}/latest" \
+            --output-dir "${BACKUP_ROOT}/manifests" \
+            --index-date "${TODAY}" \
+            --max-mb 24 \
+            --compact
+
+          python - <<PY
+          import gzip
+          import hashlib
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path("${BACKUP_ROOT}")
+          run_dir = root / "registry" / "${TODAY}" / "${RUN_ID}"
+          latest_dir = root / "latest"
+          manifest_dir = root / "manifests"
+          max_bytes = int(os.environ["MAX_REGISTRY_SHARD_BYTES"])
+
+          required = [
+              latest_dir / "manifest.sql.gz",
+              latest_dir / "latest.sql.gz",
+              manifest_dir / "latest-index.sql.gz",
+              manifest_dir / "bitnodes-index-control.sql.gz",
+          ]
+
+          for path in required:
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(f"missing or empty registry artifact: {path}")
+
+          shards = sorted(run_dir.glob("nodes-*.sql.gz"))
+
+          if not shards:
+              raise SystemExit("registry backup produced zero node shards")
+
+          node_rows = 0
+          files = []
+
+          for path in sorted({*shards, *required}):
+              if path.stat().st_size > max_bytes:
+                  raise SystemExit(
+                      f"registry artifact exceeds 24 MiB ceiling: "
+                      f"{path.stat().st_size} {path}"
+                  )
+
+              with gzip.open(path, "rt", encoding="utf-8", errors="replace") as handle:
+                  text = handle.read()
+
+              if path in shards:
+                  node_rows += len(
+                      re.findall(
+                          r"INSERT\\s+INTO\\s+bitnodes_registry_nodes\\b",
+                          text,
+                          flags=re.IGNORECASE,
+                      )
+                  )
+
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              files.append({
+                  "path": path.relative_to(root).as_posix(),
+                  "size_bytes": path.stat().st_size,
+                  "sha256": digest,
+              })
+
+          if node_rows < 1:
+              raise SystemExit(
+                  "registry SQL shards contain zero bitnodes_registry_nodes rows"
+              )
+
+          verification = {
+              "schema": "zzx-bitnodes-registry-backup-verification-v1",
+              "date": "${TODAY}",
+              "run_id": "${RUN_ID}",
+              "node_rows": node_rows,
+              "files": files,
+          }
+
+          (manifest_dir / "backup-verification.json").write_text(
+              json.dumps(
+                  verification,
+                  ensure_ascii=False,
+                  indent=2,
+              ) + "\\n",
+              encoding="utf-8",
+          )
+
+          print(
+              f"registry backup verified: "
+              f"node_rows={node_rows} "
+              f"node_shards={len(shards)}"
+          )
+          PY
 
           cd "${BACKUP_ROOT}"
 
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          git add -A registry latest manifests README.md || true
+          git add -A registry latest manifests
+
+          if [ -f README.md ]; then
+            git add README.md
+          fi
 
           if git diff --cached --quiet; then
             printf '%s\n' "No private registry backup changes to commit."
             exit 0
           fi
 
-          git commit -m "Backup global Bitnodes registry ${TODAY}"
+          git commit -m "Backup global Bitnodes registry ${TODAY} ${RUN_ID}"
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
@@ -161,9 +309,11 @@ jobs:
             fi
 
             git rebase --abort || true
-            printf '%s\n' "Private registry push attempt ${attempt} failed; retrying..."
+            printf '%s\n' \
+              "Private registry push attempt ${attempt} failed; retrying without force."
             sleep 10
           done
 
-          printf '%s\n' "Failed to push private Bitnodes registry backup."
+          printf '%s\n' \
+            "Failed to push private Bitnodes registry backup without rewriting main."
           exit 1
