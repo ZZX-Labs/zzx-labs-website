@@ -12,27 +12,245 @@ concurrency:
   group: bpi-deadopop
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   update-deadopop:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Update DeadOPop data
+      - name: Sync repository before generation
+        shell: bash
         run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Validate DeadOPop updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/bpi/update_deadopop.py
+
+      - name: Update DeadOPop data
+        shell: bash
+        run: |
+          set -euo pipefail
           python tools/bpi/update_deadopop.py
 
-      - name: Commit DeadOPop data
+      - name: Validate DeadOPop contract
+        shell: bash
         run: |
-          git config user.name "zzx-bpi-bot"
-          git config user.email "actions@github.com"
-          git add bitcoin/bpi/api/deadopop.json
-          git diff --cached --quiet || git commit -m "Update DeadOPop data"
-          git push
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          path = Path(
+              "bitcoin/bpi/api/deadopop.json"
+          )
+
+          data = json.loads(
+              path.read_text(encoding="utf-8")
+          )
+
+          if not isinstance(data, dict):
+              raise SystemExit(
+                  "deadopop.json must contain an object"
+              )
+
+          count = int(
+              data.get(
+                  "non_bitcoin_assets_count",
+                  0
+              )
+          )
+
+          cap = float(
+              data.get(
+                  "alive_non_bitcoin_market_cap_usd",
+                  0
+              )
+          )
+
+          volume = float(
+              data.get(
+                  "alive_non_bitcoin_volume_24h_usd",
+                  0
+              )
+          )
+
+          total_cap = float(
+              data.get(
+                  "total_non_bitcoin_market_cap_usd",
+                  0
+              )
+          )
+
+          pages = int(
+              data.get(
+                  "pages_scanned",
+                  0
+              )
+          )
+
+          top = data.get(
+              "top_non_bitcoin_assets"
+          )
+
+          if count < 1:
+              raise SystemExit(
+                  "refusing DeadOPop output "
+                  "with zero assets"
+              )
+
+          if pages < 1:
+              raise SystemExit(
+                  "refusing DeadOPop output "
+                  "with zero pages scanned"
+              )
+
+          if not math.isfinite(cap) or cap <= 0:
+              raise SystemExit(
+                  "invalid DeadOPop market cap"
+              )
+
+          if (
+              not math.isfinite(total_cap)
+              or total_cap <= 0
+          ):
+              raise SystemExit(
+                  "invalid DeadOPop total market cap"
+              )
+
+          if not math.isfinite(volume) or volume < 0:
+              raise SystemExit(
+                  "invalid DeadOPop volume"
+              )
+
+          if not isinstance(top, list) or not top:
+              raise SystemExit(
+                  "top_non_bitcoin_assets "
+                  "must be a non-empty array"
+              )
+
+          if data.get("bitcoin_excluded") is not True:
+              raise SystemExit(
+                  "DeadOPop dataset did not "
+                  "explicitly exclude Bitcoin"
+              )
+
+          required_asset_fields = {
+              "id",
+              "symbol",
+              "name",
+              "market_cap_usd",
+              "volume_24h_usd",
+              "price_usd"
+          }
+
+          for index, asset in enumerate(top):
+              if not isinstance(asset, dict):
+                  raise SystemExit(
+                      f"asset {index} is not an object"
+                  )
+
+              missing = (
+                  required_asset_fields
+                  - set(asset)
+              )
+
+              if missing:
+                  raise SystemExit(
+                      f"asset {index} missing "
+                      f"fields: {sorted(missing)}"
+                  )
+
+              market_cap = float(
+                  asset.get(
+                      "market_cap_usd",
+                      0
+                  )
+              )
+
+              if (
+                  not math.isfinite(market_cap)
+                  or market_cap <= 0
+              ):
+                  raise SystemExit(
+                      f"asset {index} has invalid "
+                      "market cap"
+                  )
+
+          print(
+              "DeadOPop contract valid: "
+              f"assets={count} "
+              f"pages={pages} "
+              f"market_cap={cap:.2f} "
+              f"top_assets={len(top)}"
+          )
+          PY
+
+      - name: Commit and push DeadOPop data
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name \
+            "zzx-bpi-bot"
+
+          git config user.email \
+            "actions@github.com"
+
+          git add \
+            bitcoin/bpi/api/deadopop.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' \
+              "No DeadOPop changes."
+            exit 0
+          fi
+
+          git commit \
+            -m "Update DeadOPop data"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main && \
+               git push origin HEAD:main; then
+
+              printf '%s\n' \
+                "DeadOPop data pushed."
+
+              exit 0
+            fi
+
+            git rebase --abort || true
+
+            printf '%s\n' \
+              "DeadOPop push attempt ${attempt} failed; retrying without force."
+
+            sleep 5
+          done
+
+          printf '%s\n' \
+            "Failed to push DeadOPop data without rewriting main."
+
+          exit 1
