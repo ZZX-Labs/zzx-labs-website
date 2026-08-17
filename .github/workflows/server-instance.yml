@@ -12,6 +12,7 @@ on:
           - production
           - staging
           - local-mirror
+
       mode:
         description: "Action mode"
         required: true
@@ -22,13 +23,15 @@ on:
           - deploy
           - restart
           - audit-deploy-restart
+
       include_mail:
-        description: "Check dovecot/thunderbird/protonmail bridge"
+        description: "Check/restart dovecot and ProtonMail Bridge where applicable"
         required: true
         default: true
         type: boolean
+
       include_storage:
-        description: "Check SFTP/IPFS/LFS/MariaDB"
+        description: "Check/restart SSH/SFTP, IPFS and MariaDB/MySQL where applicable"
         required: true
         default: true
         type: boolean
@@ -41,7 +44,11 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ENABLE_WORKFLOW: "false"
+  # Enable with repository variable:
+  #   ZZX_SERVER_INSTANCE_ENABLED=true
+  #
+  # This keeps remote administration opt-in without requiring a source edit.
+  ENABLE_WORKFLOW: ${{ vars.ZZX_SERVER_INSTANCE_ENABLED || 'false' }}
 
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
@@ -56,11 +63,29 @@ env:
   BACKUPS_ROOT: server/backups
   REPORT_DIR: server-instance-report
 
+  # Backward-compatible production secrets.
   ZZX_SERVER_HOST: ${{ secrets.ZZX_SERVER_HOST }}
   ZZX_SERVER_USER: ${{ secrets.ZZX_SERVER_USER }}
   ZZX_SERVER_PORT: ${{ secrets.ZZX_SERVER_PORT }}
   ZZX_SERVER_SSH_KEY: ${{ secrets.ZZX_SERVER_SSH_KEY }}
   ZZX_SERVER_PATH: ${{ secrets.ZZX_SERVER_PATH }}
+  ZZX_SERVER_KNOWN_HOSTS: ${{ secrets.ZZX_SERVER_KNOWN_HOSTS }}
+
+  # Preferred target-specific production secrets.
+  ZZX_PRODUCTION_SERVER_HOST: ${{ secrets.ZZX_PRODUCTION_SERVER_HOST }}
+  ZZX_PRODUCTION_SERVER_USER: ${{ secrets.ZZX_PRODUCTION_SERVER_USER }}
+  ZZX_PRODUCTION_SERVER_PORT: ${{ secrets.ZZX_PRODUCTION_SERVER_PORT }}
+  ZZX_PRODUCTION_SERVER_SSH_KEY: ${{ secrets.ZZX_PRODUCTION_SERVER_SSH_KEY }}
+  ZZX_PRODUCTION_SERVER_PATH: ${{ secrets.ZZX_PRODUCTION_SERVER_PATH }}
+  ZZX_PRODUCTION_SERVER_KNOWN_HOSTS: ${{ secrets.ZZX_PRODUCTION_SERVER_KNOWN_HOSTS }}
+
+  # Staging deliberately has no production fallback.
+  ZZX_STAGING_SERVER_HOST: ${{ secrets.ZZX_STAGING_SERVER_HOST }}
+  ZZX_STAGING_SERVER_USER: ${{ secrets.ZZX_STAGING_SERVER_USER }}
+  ZZX_STAGING_SERVER_PORT: ${{ secrets.ZZX_STAGING_SERVER_PORT }}
+  ZZX_STAGING_SERVER_SSH_KEY: ${{ secrets.ZZX_STAGING_SERVER_SSH_KEY }}
+  ZZX_STAGING_SERVER_PATH: ${{ secrets.ZZX_STAGING_SERVER_PATH }}
+  ZZX_STAGING_SERVER_KNOWN_HOSTS: ${{ secrets.ZZX_STAGING_SERVER_KNOWN_HOSTS }}
 
 jobs:
   server-instance:
@@ -70,10 +95,13 @@ jobs:
     steps:
       - name: Disabled guard
         if: env.ENABLE_WORKFLOW != 'true'
+        shell: bash
         run: |
+          set -euo pipefail
+
           printf '%s\n' "ZZX-Labs Server Instance workflow is disabled."
-          printf '%s\n' "To enable testing, edit ENABLE_WORKFLOW from false to true."
-          exit 0
+          printf '%s\n' \
+            "Set repository variable ZZX_SERVER_INSTANCE_ENABLED=true to enable it."
 
       - name: Checkout repository
         if: env.ENABLE_WORKFLOW == 'true'
@@ -82,57 +110,287 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Set up Python
+        if: env.ENABLE_WORKFLOW == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Prepare report directory
         if: env.ENABLE_WORKFLOW == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "${REPORT_DIR}"
+
+          rm -rf "${REPORT_DIR}"
+          mkdir -p \
+            "${REPORT_DIR}/nginx" \
+            "${REPORT_DIR}/python" \
+            "${REPORT_DIR}/deploy" \
+            "${REPORT_DIR}/restart"
+
+      - name: Validate requested operation
+        if: env.ENABLE_WORKFLOW == 'true'
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+
+          case "${TARGET}" in
+            production|staging|local-mirror)
+              ;;
+            *)
+              printf '%s\n' "Unsupported target: ${TARGET}"
+              exit 1
+              ;;
+          esac
+
+          case "${MODE}" in
+            audit|deploy|restart|audit-deploy-restart)
+              ;;
+            *)
+              printf '%s\n' "Unsupported mode: ${MODE}"
+              exit 1
+              ;;
+          esac
+
+          if [ "${TARGET}" = "local-mirror" ] && \
+             { [ "${MODE}" = "restart" ] || [ "${MODE}" = "audit-deploy-restart" ]; }
+          then
+            printf '%s\n' \
+              "local-mirror does not support remote service restart."
+            exit 1
+          fi
+
+      - name: Resolve target configuration
+        if: env.ENABLE_WORKFLOW == 'true'
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+
+          CONFIG="${RUNNER_TEMP}/zzx-server-instance.env"
+          rm -f "${CONFIG}"
+          touch "${CONFIG}"
+          chmod 600 "${CONFIG}"
+
+          write_config() {
+            local key="$1"
+            local value="$2"
+
+            if printf '%s' "${value}" | grep -q $'[\r\n]'; then
+              printf '%s\n' \
+                "Refusing target configuration containing a newline: ${key}"
+              exit 1
+            fi
+
+            printf '%s=%q\n' "${key}" "${value}" >> "${CONFIG}"
+          }
+
+          case "${TARGET}" in
+            production)
+              HOST="${ZZX_PRODUCTION_SERVER_HOST:-${ZZX_SERVER_HOST:-}}"
+              USER="${ZZX_PRODUCTION_SERVER_USER:-${ZZX_SERVER_USER:-root}}"
+              PORT="${ZZX_PRODUCTION_SERVER_PORT:-${ZZX_SERVER_PORT:-22}}"
+              SSH_KEY="${ZZX_PRODUCTION_SERVER_SSH_KEY:-${ZZX_SERVER_SSH_KEY:-}}"
+              DEST="${ZZX_PRODUCTION_SERVER_PATH:-${ZZX_SERVER_PATH:-/srv/zzx-labs}}"
+              KNOWN_HOSTS="${ZZX_PRODUCTION_SERVER_KNOWN_HOSTS:-${ZZX_SERVER_KNOWN_HOSTS:-}}"
+              ;;
+
+            staging)
+              HOST="${ZZX_STAGING_SERVER_HOST:-}"
+              USER="${ZZX_STAGING_SERVER_USER:-root}"
+              PORT="${ZZX_STAGING_SERVER_PORT:-22}"
+              SSH_KEY="${ZZX_STAGING_SERVER_SSH_KEY:-}"
+              DEST="${ZZX_STAGING_SERVER_PATH:-/srv/zzx-labs-staging}"
+              KNOWN_HOSTS="${ZZX_STAGING_SERVER_KNOWN_HOSTS:-}"
+              ;;
+
+            local-mirror)
+              HOST=""
+              USER=""
+              PORT="22"
+              SSH_KEY=""
+              DEST=""
+              KNOWN_HOSTS=""
+              ;;
+          esac
+
+          if ! [[ "${PORT}" =~ ^[0-9]+$ ]] || \
+             [ "${PORT}" -lt 1 ] || \
+             [ "${PORT}" -gt 65535 ]
+          then
+            printf '%s\n' "Invalid SSH port for ${TARGET}: ${PORT}"
+            exit 1
+          fi
+
+          if [ "${TARGET}" != "local-mirror" ]; then
+            if [ -n "${DEST}" ] && \
+               ! [[ "${DEST}" =~ ^/[A-Za-z0-9._/-]+$ ]]
+            then
+              printf '%s\n' \
+                "Unsafe or unsupported server destination path: ${DEST}"
+              exit 1
+            fi
+
+            case "${DEST}" in
+              ""|"/"|"/srv"|"/home"|"/root"|"/var"|"/var/www"|"/etc"|"/usr")
+                printf '%s\n' \
+                  "Refusing dangerously broad server destination path: ${DEST}"
+                exit 1
+                ;;
+            esac
+          fi
+
+          write_config TARGET "${TARGET}"
+          write_config HOST "${HOST}"
+          write_config USER "${USER}"
+          write_config PORT "${PORT}"
+          write_config DEST "${DEST}"
+
+          # Keep secret material only in runner-temporary files.
+          SSH_KEY_FILE="${RUNNER_TEMP}/zzx-server-instance.key"
+          KNOWN_HOSTS_FILE="${RUNNER_TEMP}/zzx-server-known-hosts"
+
+          rm -f \
+            "${SSH_KEY_FILE}" \
+            "${KNOWN_HOSTS_FILE}"
+
+          if [ -n "${SSH_KEY}" ]; then
+            printf '%s\n' "${SSH_KEY}" > "${SSH_KEY_FILE}"
+            chmod 600 "${SSH_KEY_FILE}"
+          fi
+
+          if [ -n "${KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${KNOWN_HOSTS}" > "${KNOWN_HOSTS_FILE}"
+            chmod 600 "${KNOWN_HOSTS_FILE}"
+          fi
+
+          write_config SSH_KEY_FILE "${SSH_KEY_FILE}"
+          write_config KNOWN_HOSTS_FILE "${KNOWN_HOSTS_FILE}"
+
+          printf '%s\n' \
+            "target=${TARGET}" \
+            "ssh_configured=$([ -n "${HOST}" ] && [ -s "${SSH_KEY_FILE}" ] && [ -s "${KNOWN_HOSTS_FILE}" ] && printf true || printf false)" \
+            "destination=${DEST:-local-only}" \
+            > "${REPORT_DIR}/target-resolution.txt"
 
       - name: Build server instance manifest
         if: env.ENABLE_WORKFLOW == 'true'
         shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          MODE: ${{ inputs.mode }}
+          INCLUDE_MAIL: ${{ inputs.include_mail }}
+          INCLUDE_STORAGE: ${{ inputs.include_storage }}
         run: |
           set -euo pipefail
 
-          cat > "${REPORT_DIR}/server-instance-manifest.json" <<JSON
-          {
-            "schema": "zzx-labs-server-instance-v1",
-            "target": "${{ inputs.target }}",
-            "mode": "${{ inputs.mode }}",
-            "enabled": "${ENABLE_WORKFLOW}",
-            "components": {
-              "web": ["nginx", "flask", "gunicorn"],
-              "mail": ["dovecot", "thunderbird", "protonmail-bridge"],
-              "storage": ["sftp", "ipfs", "git-lfs", "mariadb"],
-              "ops": ["systemd", "backups", "logs", "healthchecks"]
-            }
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "schema": "zzx-labs-server-instance-v2",
+              "target": os.environ["TARGET"],
+              "mode": os.environ["MODE"],
+              "enabled": True,
+              "include_mail": (
+                  os.environ["INCLUDE_MAIL"].lower() == "true"
+              ),
+              "include_storage": (
+                  os.environ["INCLUDE_STORAGE"].lower() == "true"
+              ),
+              "components": {
+                  "web": [
+                      "nginx",
+                      "flask",
+                      "gunicorn",
+                  ],
+                  "mail": [
+                      "dovecot",
+                      "thunderbird",
+                      "protonmail-bridge",
+                  ],
+                  "storage": [
+                      "ssh/sftp",
+                      "ipfs",
+                      "git-lfs",
+                      "mariadb/mysql",
+                  ],
+                  "ops": [
+                      "systemd",
+                      "backups",
+                      "logs",
+                      "healthchecks",
+                  ],
+              },
           }
-          JSON
+
+          path = Path(
+              os.environ["REPORT_DIR"]
+          ) / "server-instance-manifest.json"
+
+          path.write_text(
+              json.dumps(
+                  payload,
+                  ensure_ascii=False,
+                  indent=2,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Validate repository-side server files
         if: env.ENABLE_WORKFLOW == 'true'
         shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          MODE: ${{ inputs.mode }}
+          INCLUDE_MAIL: ${{ inputs.include_mail }}
+          INCLUDE_STORAGE: ${{ inputs.include_storage }}
         run: |
           set -euo pipefail
 
           {
-            printf '%s\n' "ZZX-Labs Server Instance Repository Audit"
-            printf '%s\n' "target=${{ inputs.target }}"
-            printf '%s\n' "mode=${{ inputs.mode }}"
+            printf '%s\n' \
+              "ZZX-Labs Server Instance Repository Audit"
+
+            printf 'target=%s\n' "${TARGET}"
+            printf 'mode=%s\n' "${MODE}"
+            printf 'include_mail=%s\n' "${INCLUDE_MAIL}"
+            printf 'include_storage=%s\n' "${INCLUDE_STORAGE}"
             printf '%s\n' ""
 
             printf '%s\n' "Directory scan:"
-            for DIR in \
-              "${INSTANCE_ROOT}" \
-              "${SYSTEMD_ROOT}" \
-              "${NGINX_ROOT}" \
-              "${FLASK_ROOT}" \
-              "${SFTP_ROOT}" \
-              "${EMAIL_ROOT}" \
-              "${STORAGE_ROOT}" \
+
+            REQUIRED_DIRS=(
+              "${INSTANCE_ROOT}"
+              "${SYSTEMD_ROOT}"
+              "${NGINX_ROOT}"
+              "${FLASK_ROOT}"
               "${BACKUPS_ROOT}"
-            do
+            )
+
+            if [ "${INCLUDE_MAIL}" = "true" ]; then
+              REQUIRED_DIRS+=(
+                "${EMAIL_ROOT}"
+              )
+            fi
+
+            if [ "${INCLUDE_STORAGE}" = "true" ]; then
+              REQUIRED_DIRS+=(
+                "${SFTP_ROOT}"
+                "${STORAGE_ROOT}"
+              )
+            fi
+
+            for DIR in "${REQUIRED_DIRS[@]}"; do
               if [ -d "${DIR}" ]; then
                 printf 'OK   %s\n' "${DIR}"
               else
@@ -142,16 +400,34 @@ jobs:
 
             printf '%s\n' ""
             printf '%s\n' "Systemd units:"
-            find "${SYSTEMD_ROOT}" -type f \( -name '*.service' -o -name '*.timer' \) 2>/dev/null | sort || true
+
+            find "${SYSTEMD_ROOT}" \
+              -type f \
+              \( -name '*.service' -o -name '*.timer' \) \
+              2>/dev/null \
+              | sort \
+              || true
 
             printf '%s\n' ""
             printf '%s\n' "Nginx files:"
-            find "${NGINX_ROOT}" -type f 2>/dev/null | sort || true
+
+            find "${NGINX_ROOT}" \
+              -type f \
+              2>/dev/null \
+              | sort \
+              || true
 
             printf '%s\n' ""
             printf '%s\n' "Flask/Gunicorn files:"
-            find "${FLASK_ROOT}" -type f 2>/dev/null | sort || true
-          } | tee "${REPORT_DIR}/repo-audit.txt"
+
+            find "${FLASK_ROOT}" \
+              -type f \
+              2>/dev/null \
+              | sort \
+              || true
+
+          } | tee \
+            "${REPORT_DIR}/repo-audit.txt"
 
       - name: Syntax check nginx configs if present
         if: env.ENABLE_WORKFLOW == 'true'
@@ -164,17 +440,49 @@ jobs:
             sudo apt-get install -y nginx
           fi
 
-          mkdir -p "${REPORT_DIR}/nginx"
-          FOUND="0"
+          mapfile -d '' NGINX_ROOT_CONFIGS < <(
+            find "${NGINX_ROOT}" \
+              -type f \
+              -name 'nginx.conf' \
+              -print0 \
+              2>/dev/null
+          )
 
-          while IFS= read -r FILE; do
-            FOUND="1"
-            printf '%s\n' "Checking ${FILE}"
-            nginx -t -c "$(realpath "${FILE}")" > "${REPORT_DIR}/nginx/$(basename "${FILE}").log" 2>&1 || true
-          done < <(find "${NGINX_ROOT}" -type f \( -name '*.conf' -o -name 'nginx.conf' \) 2>/dev/null | sort)
+          if [ "${#NGINX_ROOT_CONFIGS[@]}" -eq 0 ]; then
+            printf '%s\n' \
+              "No top-level nginx.conf found. Site fragments were not incorrectly treated as standalone nginx roots." \
+              | tee "${REPORT_DIR}/nginx/no-root-config.txt"
+            exit 0
+          fi
 
-          if [ "${FOUND}" = "0" ]; then
-            printf '%s\n' "No nginx config files found for local syntax check." | tee "${REPORT_DIR}/nginx/no-configs.txt"
+          FAILED=0
+
+          for FILE in "${NGINX_ROOT_CONFIGS[@]}"; do
+            LOG="$(
+              printf '%s' "${FILE}" \
+                | sed 's#[^A-Za-z0-9._-]#_#g'
+            )"
+
+            LOG="${REPORT_DIR}/nginx/${LOG}.log"
+
+            printf '%s\n' \
+              "Checking nginx root config: ${FILE}"
+
+            if ! sudo nginx \
+              -t \
+              -c "$(realpath "${FILE}")" \
+              > "${LOG}" \
+              2>&1
+            then
+              FAILED=1
+              cat "${LOG}"
+            fi
+          done
+
+          if [ "${FAILED}" -ne 0 ]; then
+            printf '%s\n' \
+              "One or more nginx root configurations failed syntax validation."
+            exit 1
           fi
 
       - name: Syntax check Python Flask files if present
@@ -183,54 +491,162 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p "${REPORT_DIR}/python"
-
           if [ -d "${FLASK_ROOT}" ]; then
-            find "${FLASK_ROOT}" -type f -name '*.py' -print0 \
-              | xargs -0 -r python -m py_compile
+            find "${FLASK_ROOT}" \
+              -type f \
+              -name '*.py' \
+              -print0 \
+              | xargs -0 -r \
+                  python -m py_compile
           fi
 
-          printf '%s\n' "Python Flask syntax check complete." | tee "${REPORT_DIR}/python/flask-check.txt"
+          printf '%s\n' \
+            "Python Flask syntax check complete." \
+            | tee "${REPORT_DIR}/python/flask-check.txt"
 
-      - name: Prepare SSH key
-        if: env.ENABLE_WORKFLOW == 'true' && env.ZZX_SERVER_HOST != '' && env.ZZX_SERVER_SSH_KEY != ''
+      - name: Validate remote SSH requirements
+        if: >-
+          env.ENABLE_WORKFLOW == 'true' &&
+          inputs.target != 'local-mirror' &&
+          (
+            inputs.mode == 'audit' ||
+            inputs.mode == 'deploy' ||
+            inputs.mode == 'restart' ||
+            inputs.mode == 'audit-deploy-restart'
+          )
         shell: bash
         run: |
           set -euo pipefail
 
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          source "${RUNNER_TEMP}/zzx-server-instance.env"
 
-          printf '%s\n' "${ZZX_SERVER_SSH_KEY}" > ~/.ssh/zzx_server_key
-          chmod 600 ~/.ssh/zzx_server_key
+          MISSING=()
 
-          ssh-keyscan -H "${ZZX_SERVER_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+          [ -n "${HOST}" ] || MISSING+=("server host")
+          [ -n "${USER}" ] || MISSING+=("server user")
+          [ -s "${SSH_KEY_FILE}" ] || MISSING+=("SSH private key")
+          [ -s "${KNOWN_HOSTS_FILE}" ] || MISSING+=("pinned known_hosts")
+
+          if [ "${#MISSING[@]}" -ne 0 ]; then
+            printf '%s\n' \
+              "Remote target ${TARGET} is not fully configured."
+
+            printf 'Missing: %s\n' \
+              "${MISSING[*]}"
+
+            printf '%s\n' \
+              "A pinned known_hosts secret is required; runtime ssh-keyscan trust is intentionally prohibited."
+
+            exit 1
+          fi
 
       - name: Remote server audit
-        if: env.ENABLE_WORKFLOW == 'true' && env.ZZX_SERVER_HOST != '' && env.ZZX_SERVER_SSH_KEY != ''
+        if: >-
+          env.ENABLE_WORKFLOW == 'true' &&
+          inputs.target != 'local-mirror'
         shell: bash
+        env:
+          INCLUDE_MAIL: ${{ inputs.include_mail }}
+          INCLUDE_STORAGE: ${{ inputs.include_storage }}
         run: |
           set -euo pipefail
 
-          PORT="${ZZX_SERVER_PORT:-22}"
-          USER="${ZZX_SERVER_USER:-root}"
+          source "${RUNNER_TEMP}/zzx-server-instance.env"
 
-          ssh -i ~/.ssh/zzx_server_key -p "${PORT}" "${USER}@${ZZX_SERVER_HOST}" 'bash -s' > "${REPORT_DIR}/remote-audit.txt" <<'REMOTE'
+          SSH=(
+            ssh
+            -i "${SSH_KEY_FILE}"
+            -p "${PORT}"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=${KNOWN_HOSTS_FILE}"
+            -o ConnectTimeout=15
+            "${USER}@${HOST}"
+          )
+
+          "${SSH[@]}" \
+            "INCLUDE_MAIL='${INCLUDE_MAIL}' INCLUDE_STORAGE='${INCLUDE_STORAGE}' bash -s" \
+            > "${REPORT_DIR}/remote-audit.txt" \
+            <<'REMOTE'
           set -euo pipefail
 
-          printf '%s\n' "ZZX-Labs remote server audit"
-          printf '%s\n' "host=$(hostname)"
-          printf '%s\n' "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          printf '%s\n' "kernel=$(uname -a)"
+          printf '%s\n' \
+            "ZZX-Labs remote server audit"
+
+          printf 'host=%s\n' "$(hostname)"
+          printf 'date=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf 'kernel=%s\n' "$(uname -a)"
           printf '%s\n' ""
 
-          printf '%s\n' "Core service status:"
-          for SVC in nginx gunicorn mariadb mysql dovecot ssh sshd ipfs protonmail-bridge; do
-            if systemctl list-unit-files | grep -q "^${SVC}"; then
-              systemctl --no-pager --full status "${SVC}" | sed -n '1,18p' || true
+          service_exists() {
+            local service="$1"
+
+            systemctl list-unit-files \
+              --type=service \
+              --no-legend \
+              "${service}.service" \
+              2>/dev/null \
+              | grep -q "^${service}\.service"
+          }
+
+          audit_service() {
+            local service="$1"
+
+            if service_exists "${service}"; then
+              printf 'SERVICE %s\n' "${service}"
+
+              systemctl \
+                --no-pager \
+                --full \
+                status \
+                "${service}.service" \
+                | sed -n '1,18p' \
+                || true
+
               printf '%s\n' "---"
             fi
-          done
+          }
+
+          printf '%s\n' "Core service status:"
+
+          audit_service nginx
+          audit_service gunicorn
+
+          if [ "${INCLUDE_MAIL}" = "true" ]; then
+            printf '%s\n' ""
+            printf '%s\n' "Mail service status:"
+
+            audit_service dovecot
+            audit_service protonmail-bridge
+          fi
+
+          if [ "${INCLUDE_STORAGE}" = "true" ]; then
+            printf '%s\n' ""
+            printf '%s\n' "Storage/service status:"
+
+            if service_exists mariadb; then
+              audit_service mariadb
+            elif service_exists mysql; then
+              audit_service mysql
+            fi
+
+            audit_service ipfs
+
+            if service_exists ssh; then
+              audit_service ssh
+            elif service_exists sshd; then
+              audit_service sshd
+            fi
+
+            if command -v sshd >/dev/null 2>&1; then
+              printf '%s\n' ""
+              printf '%s\n' "SFTP/SSH effective subsystem configuration:"
+              sudo sshd -T 2>/dev/null \
+                | grep -E '^subsystem[[:space:]]+sftp' \
+                || true
+            fi
+          fi
 
           printf '%s\n' ""
           printf '%s\n' "Listening sockets:"
@@ -243,69 +659,266 @@ jobs:
           printf '%s\n' ""
           printf '%s\n' "Memory:"
           free -h || true
-REMOTE
+          REMOTE
+
+      - name: Build local mirror artifact
+        if: >-
+          env.ENABLE_WORKFLOW == 'true' &&
+          inputs.target == 'local-mirror' &&
+          (
+            inputs.mode == 'deploy' ||
+            inputs.mode == 'audit'
+          )
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MIRROR="${REPORT_DIR}/local-mirror/server"
+
+          mkdir -p "${MIRROR}"
+
+          rsync \
+            -a \
+            --delete \
+            server/ \
+            "${MIRROR}/"
+
+          printf '%s\n' \
+            "Local server mirror generated at ${MIRROR}" \
+            | tee "${REPORT_DIR}/deploy/local-mirror.txt"
 
       - name: Deploy server files
-        if: env.ENABLE_WORKFLOW == 'true' && env.ZZX_SERVER_HOST != '' && env.ZZX_SERVER_SSH_KEY != '' && (inputs.mode == 'deploy' || inputs.mode == 'audit-deploy-restart')
+        if: >-
+          env.ENABLE_WORKFLOW == 'true' &&
+          inputs.target != 'local-mirror' &&
+          (
+            inputs.mode == 'deploy' ||
+            inputs.mode == 'audit-deploy-restart'
+          )
         shell: bash
         run: |
           set -euo pipefail
 
-          PORT="${ZZX_SERVER_PORT:-22}"
-          USER="${ZZX_SERVER_USER:-root}"
-          DEST="${ZZX_SERVER_PATH:-/srv/zzx-labs}"
+          source "${RUNNER_TEMP}/zzx-server-instance.env"
 
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/zzx_server_key -p ${PORT}" \
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          REMOTE_BACKUP="${DEST}/.deploy-backups/${STAMP}"
+
+          SSH=(
+            ssh
+            -i "${SSH_KEY_FILE}"
+            -p "${PORT}"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=${KNOWN_HOSTS_FILE}"
+            -o ConnectTimeout=15
+          )
+
+          REMOTE=(
+            "${USER}@${HOST}"
+          )
+
+          "${SSH[@]}" \
+            "${REMOTE[@]}" \
+            "mkdir -p '${DEST}/server' '${REMOTE_BACKUP}'"
+
+          rsync \
+            -az \
+            --delete-delay \
+            --backup \
+            --backup-dir="${REMOTE_BACKUP}" \
+            -e "${SSH[*]}" \
             server/ \
-            "${USER}@${ZZX_SERVER_HOST}:${DEST}/server/"
+            "${USER}@${HOST}:${DEST}/server/"
+
+          {
+            printf 'target=%s\n' "${TARGET}"
+            printf 'destination=%s/server/\n' "${DEST}"
+            printf 'rollback_directory=%s\n' "${REMOTE_BACKUP}"
+            printf 'deployed_at=%s\n' \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } | tee \
+            "${REPORT_DIR}/deploy/deploy.txt"
 
       - name: Remote restart services
-        if: env.ENABLE_WORKFLOW == 'true' && env.ZZX_SERVER_HOST != '' && env.ZZX_SERVER_SSH_KEY != '' && (inputs.mode == 'restart' || inputs.mode == 'audit-deploy-restart')
+        if: >-
+          env.ENABLE_WORKFLOW == 'true' &&
+          inputs.target != 'local-mirror' &&
+          (
+            inputs.mode == 'restart' ||
+            inputs.mode == 'audit-deploy-restart'
+          )
         shell: bash
+        env:
+          INCLUDE_MAIL: ${{ inputs.include_mail }}
+          INCLUDE_STORAGE: ${{ inputs.include_storage }}
         run: |
           set -euo pipefail
 
-          PORT="${ZZX_SERVER_PORT:-22}"
-          USER="${ZZX_SERVER_USER:-root}"
+          source "${RUNNER_TEMP}/zzx-server-instance.env"
 
-          ssh -i ~/.ssh/zzx_server_key -p "${PORT}" "${USER}@${ZZX_SERVER_HOST}" 'bash -s' <<'REMOTE'
+          SSH=(
+            ssh
+            -i "${SSH_KEY_FILE}"
+            -p "${PORT}"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=${KNOWN_HOSTS_FILE}"
+            -o ConnectTimeout=15
+            "${USER}@${HOST}"
+          )
+
+          "${SSH[@]}" \
+            "INCLUDE_MAIL='${INCLUDE_MAIL}' INCLUDE_STORAGE='${INCLUDE_STORAGE}' bash -s" \
+            | tee "${REPORT_DIR}/restart/restart.txt" \
+            <<'REMOTE'
           set -euo pipefail
 
-          sudo systemctl daemon-reload || true
+          service_exists() {
+            local service="$1"
 
-          for SVC in nginx gunicorn mariadb dovecot ssh ipfs protonmail-bridge; do
-            if systemctl list-unit-files | grep -q "^${SVC}"; then
-              sudo systemctl restart "${SVC}" || true
-              sudo systemctl --no-pager --full status "${SVC}" | sed -n '1,14p' || true
-              printf '%s\n' "---"
+            systemctl list-unit-files \
+              --type=service \
+              --no-legend \
+              "${service}.service" \
+              2>/dev/null \
+              | grep -q "^${service}\.service"
+          }
+
+          restart_service() {
+            local service="$1"
+
+            if ! service_exists "${service}"; then
+              printf 'SKIP %s.service not installed\n' "${service}"
+              return 0
             fi
-          done
-REMOTE
 
-      - name: Write no-SSH notice
-        if: env.ENABLE_WORKFLOW == 'true' && (env.ZZX_SERVER_HOST == '' || env.ZZX_SERVER_SSH_KEY == '')
+            printf 'RESTART %s.service\n' "${service}"
+
+            sudo systemctl restart \
+              "${service}.service"
+
+            if ! sudo systemctl is-active \
+              --quiet \
+              "${service}.service"
+            then
+              printf 'FAIL %s.service is not active after restart\n' \
+                "${service}"
+              return 1
+            fi
+
+            sudo systemctl \
+              --no-pager \
+              --full \
+              status \
+              "${service}.service" \
+              | sed -n '1,14p' \
+              || true
+
+            printf '%s\n' "---"
+          }
+
+          sudo systemctl daemon-reload
+
+          FAILED=0
+
+          restart_service nginx || FAILED=1
+          restart_service gunicorn || FAILED=1
+
+          if [ "${INCLUDE_MAIL}" = "true" ]; then
+            restart_service dovecot || FAILED=1
+            restart_service protonmail-bridge || FAILED=1
+          fi
+
+          if [ "${INCLUDE_STORAGE}" = "true" ]; then
+            if service_exists mariadb; then
+              restart_service mariadb || FAILED=1
+            elif service_exists mysql; then
+              restart_service mysql || FAILED=1
+            fi
+
+            restart_service ipfs || FAILED=1
+
+            if service_exists ssh; then
+              restart_service ssh || FAILED=1
+            elif service_exists sshd; then
+              restart_service sshd || FAILED=1
+            fi
+          fi
+
+          if [ "${FAILED}" -ne 0 ]; then
+            printf '%s\n' \
+              "One or more requested services failed to restart cleanly."
+            exit 1
+          fi
+
+          printf '%s\n' \
+            "Requested services restarted successfully."
+          REMOTE
+
+      - name: Final remote health check
+        if: >-
+          env.ENABLE_WORKFLOW == 'true' &&
+          inputs.target != 'local-mirror' &&
+          (
+            inputs.mode == 'deploy' ||
+            inputs.mode == 'restart' ||
+            inputs.mode == 'audit-deploy-restart'
+          )
         shell: bash
         run: |
           set -euo pipefail
 
-          cat > "${REPORT_DIR}/no-ssh.txt" <<'TXT'
-          No remote SSH audit/deploy was executed.
+          source "${RUNNER_TEMP}/zzx-server-instance.env"
 
-          Required repository secrets:
-          - ZZX_SERVER_HOST
-          - ZZX_SERVER_USER
-          - ZZX_SERVER_PORT
-          - ZZX_SERVER_SSH_KEY
-          - ZZX_SERVER_PATH
+          ssh \
+            -i "${SSH_KEY_FILE}" \
+            -p "${PORT}" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=${KNOWN_HOSTS_FILE}" \
+            -o ConnectTimeout=15 \
+            "${USER}@${HOST}" \
+            'bash -s' \
+            > "${REPORT_DIR}/final-health.txt" \
+            <<'REMOTE'
+          set -euo pipefail
 
-          The workflow completed local repository-side validation only.
-          TXT
+          printf 'date=%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          if systemctl list-unit-files \
+            --type=service \
+            --no-legend \
+            nginx.service \
+            2>/dev/null \
+            | grep -q '^nginx\.service'
+          then
+            systemctl is-active nginx.service
+          fi
+
+          ss -ltn || true
+          REMOTE
+
+      - name: Cleanup SSH material
+        if: always() && env.ENABLE_WORKFLOW == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -f \
+            "${RUNNER_TEMP}/zzx-server-instance.key" \
+            "${RUNNER_TEMP}/zzx-server-known-hosts" \
+            "${RUNNER_TEMP}/zzx-server-instance.env"
 
       - name: Upload server instance report
-        if: env.ENABLE_WORKFLOW == 'true'
+        if: always() && env.ENABLE_WORKFLOW == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: zzx-server-instance-${{ inputs.target }}-${{ inputs.mode }}
           path: server-instance-report
           if-no-files-found: warn
+          retention-days: 14
