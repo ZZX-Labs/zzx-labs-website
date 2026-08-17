@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import math
 import time
 import urllib.request
 from pathlib import Path
@@ -43,20 +44,54 @@ def fetch_json(url, timeout=20):
 def n(value):
     try:
         x = float(value)
-        return x if x == x else 0.0
+        return x if math.isfinite(x) else 0.0
     except Exception:
         return 0.0
 
 
-def mined_supply_btc():
-    halvings = [
-        (210000, 50.0),
-        (210000, 25.0),
-        (210000, 12.5),
-        (210000, 6.25),
-        (210000, 3.125),
-    ]
-    return sum(blocks * reward for blocks, reward in halvings)
+def fetch_text(url, timeout=10):
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "ZZX-Labs-BPI/2.4", "Accept": "text/plain"}
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8", errors="strict").strip()
+
+
+def fetch_block_height():
+    endpoints = (
+        "https://mempool.space/api/blocks/tip/height",
+        "https://blockstream.info/api/blocks/tip/height",
+    )
+
+    for url in endpoints:
+        try:
+            height = int(fetch_text(url))
+            if 0 < height < 10_000_000:
+                return height, url
+        except Exception as e:
+            print("block-height source failed:", url, e)
+
+    return None, "unavailable"
+
+
+def mined_supply_btc(height):
+    """Return issued BTC through block height using integer-satoshi subsidies."""
+    height = int(height)
+    if height < 0:
+        return 0.0
+
+    blocks_remaining = height + 1
+    subsidy_sats = 5_000_000_000
+    issued_sats = 0
+
+    while blocks_remaining > 0 and subsidy_sats > 0:
+        epoch_blocks = min(blocks_remaining, 210_000)
+        issued_sats += epoch_blocks * subsidy_sats
+        blocks_remaining -= epoch_blocks
+        subsidy_sats //= 2
+
+    return issued_sats / 100_000_000.0
 
 
 def parse_coingecko_bitcoin_tickers(data):
@@ -201,7 +236,26 @@ def fetch_source(exchange_key, source, cfg):
 def build_once():
     cfg = read_json(EXCHANGES, {})
     sources = cfg.get("sources", {})
-    supply = mined_supply_btc()
+    previous = read_json(LATEST, {})
+    block_height, supply_source = fetch_block_height()
+
+    if block_height is not None:
+        supply = mined_supply_btc(block_height)
+    else:
+        previous_height = previous.get("block_height")
+        try:
+            previous_height = int(previous_height)
+        except Exception:
+            previous_height = 0
+
+        if previous_height > 0:
+            block_height = previous_height
+            supply = mined_supply_btc(previous_height)
+            supply_source = "previous_block_height"
+        else:
+            supply = n(previous.get("mined_supply_btc"))
+            supply_source = "previous_mined_supply"
+
     updated_at = now_iso()
 
     rows = {}
@@ -260,6 +314,11 @@ def build_once():
                 "updated_at": updated_at
             }
 
+    if len(bpi_rows) < 2:
+        raise RuntimeError(
+            f"refusing to replace BPI output with only {len(bpi_rows)} valid source(s)"
+        )
+
     weighted_rows = [row for row in bpi_rows if row["price_usd"] > 0 and row["volume_24h_btc"] > 0]
     total_supply_ratio = sum(row["supply_ratio"] for row in weighted_rows)
 
@@ -293,7 +352,9 @@ def build_once():
         "mode": "generated",
         "base": "USD",
         "updated_at": updated_at,
+        "block_height": block_height,
         "mined_supply_btc": supply,
+        "mined_supply_source": supply_source,
         "price_usd": price,
         "btc_usd": price,
         "vwap_usd": price,
@@ -316,7 +377,6 @@ def build_once():
         "exchanges": rows
     }
 
-    previous = read_json(LATEST, {})
     write_json(LATEST, latest)
 
     if previous.get("price_usd") != latest.get("price_usd"):
