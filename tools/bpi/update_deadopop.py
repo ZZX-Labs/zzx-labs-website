@@ -16,9 +16,9 @@ OUT = ROOT / "bitcoin" / "bpi" / "api" / "deadopop.json"
 
 INTERVAL_SECONDS = 3600
 PER_PAGE = 250
-MAX_PAGES = 10
 HTTP_ATTEMPTS = 4
 TOP_ASSET_LIMIT = 50
+COINGECKO_REQUEST_GAP_SECONDS = 4.0
 
 
 def now_iso():
@@ -132,6 +132,12 @@ def coingecko_markets_page(page):
     )
 
 
+def coingecko_global():
+    return fetch_json(
+        "https://api.coingecko.com/api/v3/global"
+    )
+
+
 def normalized_top_asset(coin, market_cap, volume_24h):
     price = nonnegative_number(coin.get("current_price"))
     change = finite_number(coin.get("price_change_percentage_24h"))
@@ -199,79 +205,148 @@ def validate_output(out):
 
 
 def build_once():
-    alive_market_cap = 0.0
-    alive_volume_24h = 0.0
-    asset_count = 0
-    pages_scanned = 0
+    # One global request gives the aggregate market size and active-asset
+    # count. One markets request gives Bitcoin's own market/volume values and
+    # enough ranked assets to build the top-50 non-Bitcoin list. This replaces
+    # the old 10-page crawl and greatly reduces CoinGecko rate-limit pressure.
+    try:
+        global_payload = coingecko_global()
+    except Exception as exc:
+        raise RuntimeError(
+            "CoinGecko global endpoint failed; refusing DeadOPop publish"
+        ) from exc
 
+    global_data = (
+        global_payload.get("data")
+        if isinstance(global_payload, dict)
+        else None
+    )
+
+    if not isinstance(global_data, dict):
+        raise RuntimeError(
+            "CoinGecko global endpoint returned an invalid payload"
+        )
+
+    total_market_caps = global_data.get("total_market_cap")
+    total_volumes = global_data.get("total_volume")
+
+    if not isinstance(total_market_caps, dict):
+        raise RuntimeError(
+            "CoinGecko global payload has no total_market_cap object"
+        )
+
+    if not isinstance(total_volumes, dict):
+        raise RuntimeError(
+            "CoinGecko global payload has no total_volume object"
+        )
+
+    total_market_cap = finite_number(total_market_caps.get("usd"))
+    total_volume_24h = nonnegative_number(total_volumes.get("usd"))
+    active_cryptoassets = int(global_data.get("active_cryptocurrencies") or 0)
+
+    if total_market_cap is None or total_market_cap <= 0:
+        raise RuntimeError(
+            "CoinGecko global payload has invalid USD market cap"
+        )
+
+    if active_cryptoassets < 2:
+        raise RuntimeError(
+            "CoinGecko global payload has invalid active cryptocurrency count"
+        )
+
+    # Give the free endpoint breathing room between the only two requests.
+    time.sleep(COINGECKO_REQUEST_GAP_SECONDS)
+
+    try:
+        markets = coingecko_markets_page(1)
+    except Exception as exc:
+        raise RuntimeError(
+            "CoinGecko markets page failed; refusing DeadOPop publish"
+        ) from exc
+
+    if not isinstance(markets, list) or not markets:
+        raise RuntimeError(
+            "CoinGecko markets page returned an empty or invalid payload"
+        )
+
+    bitcoin_market_cap = None
+    bitcoin_volume_24h = 0.0
     top_assets = []
     seen_ids = set()
 
-    for page in range(1, MAX_PAGES + 1):
-        try:
-            data = coingecko_markets_page(page)
-        except Exception as exc:
-            raise RuntimeError(
-                f"CoinGecko page {page} failed; refusing partial DeadOPop publish"
-            ) from exc
+    for coin in markets:
+        if not isinstance(coin, dict):
+            continue
 
-        if not isinstance(data, list):
-            raise RuntimeError(
-                f"CoinGecko page {page} returned a non-list payload"
+        coin_id = str(coin.get("id") or "").strip().lower()
+        symbol = str(coin.get("symbol") or "").strip().lower()
+
+        if not coin_id:
+            continue
+
+        market_cap = finite_number(coin.get("market_cap"))
+        volume_24h = nonnegative_number(coin.get("total_volume"))
+
+        if coin_id == "bitcoin" or symbol == "btc":
+            if market_cap is not None and market_cap > 0:
+                bitcoin_market_cap = market_cap
+                bitcoin_volume_24h = volume_24h
+            continue
+
+        if coin_id in seen_ids:
+            continue
+
+        if market_cap is None or market_cap <= 0:
+            continue
+
+        seen_ids.add(coin_id)
+
+        if len(top_assets) < TOP_ASSET_LIMIT:
+            top_assets.append(
+                normalized_top_asset(
+                    coin,
+                    market_cap,
+                    volume_24h
+                )
             )
 
-        if not data:
-            break
+    if bitcoin_market_cap is None or bitcoin_market_cap <= 0:
+        # Fallback to CoinGecko's global BTC market-cap percentage only if the
+        # first markets page unexpectedly omitted Bitcoin.
+        percentages = global_data.get("market_cap_percentage")
+        btc_percentage = None
 
-        pages_scanned += 1
+        if isinstance(percentages, dict):
+            btc_percentage = finite_number(percentages.get("btc"))
 
-        for coin in data:
-            if not isinstance(coin, dict):
-                continue
+        if btc_percentage is None or not (0 < btc_percentage < 100):
+            raise RuntimeError(
+                "unable to determine Bitcoin market cap for exclusion"
+            )
 
-            coin_id = str(coin.get("id") or "").strip().lower()
-            symbol = str(coin.get("symbol") or "").strip().lower()
+        bitcoin_market_cap = total_market_cap * (btc_percentage / 100.0)
 
-            if not coin_id:
-                continue
+    alive_market_cap = total_market_cap - bitcoin_market_cap
 
-            if coin_id == "bitcoin" or symbol == "btc":
-                continue
+    if alive_market_cap <= 0:
+        raise RuntimeError(
+            "computed non-Bitcoin market cap is not positive"
+        )
 
-            if coin_id in seen_ids:
-                continue
+    alive_volume_24h = max(
+        0.0,
+        total_volume_24h - bitcoin_volume_24h
+    )
 
-            market_cap = finite_number(coin.get("market_cap"))
-            volume_24h = nonnegative_number(coin.get("total_volume"))
-
-            if market_cap is None or market_cap <= 0:
-                continue
-
-            seen_ids.add(coin_id)
-            alive_market_cap += market_cap
-            alive_volume_24h += volume_24h
-            asset_count += 1
-
-            if len(top_assets) < TOP_ASSET_LIMIT:
-                top_assets.append(
-                    normalized_top_asset(
-                        coin,
-                        market_cap,
-                        volume_24h
-                    )
-                )
-
-        if len(data) < PER_PAGE:
-            break
-
-        if page < MAX_PAGES:
-            time.sleep(1.2)
+    # CoinGecko's active_cryptocurrencies is the closest aggregate count for
+    # the scope of this file. Subtract one for Bitcoin itself.
+    asset_count = max(0, active_cryptoassets - 1)
 
     out = {
         "updated_at": now_iso(),
-        "source": "coingecko_current_markets",
+        "source": "coingecko_global_and_current_markets",
         "scope": "non_bitcoin_cryptoassets_currently_listed",
-        "pages_scanned": pages_scanned,
+        "pages_scanned": 1,
         "per_page": PER_PAGE,
         "non_bitcoin_assets_count": asset_count,
         "alive_non_bitcoin_market_cap_usd": alive_market_cap,
@@ -282,8 +357,10 @@ def build_once():
         "top_non_bitcoin_assets": top_assets,
         "note": (
             "This file measures currently listed non-Bitcoin cryptoasset market cap. "
-            "Dead/inactive historical market cap requires a separate archival dataset. "
-            "CoinGecko free market data does not provide reliable historical dead-coin loss accounting."
+            "Aggregate market cap is derived from CoinGecko global market data with "
+            "Bitcoin market cap excluded; ranked asset detail comes from the current "
+            "markets endpoint. Dead/inactive historical market cap requires a separate "
+            "archival dataset."
         )
     }
 
@@ -294,8 +371,8 @@ def build_once():
         "deadopop updated:",
         asset_count,
         "assets;",
-        "pages_scanned=",
-        pages_scanned,
+        "pages_scanned=1;",
+        "coingecko_requests=2;",
         "market_cap_usd=",
         round(alive_market_cap, 2)
     )
