@@ -19,7 +19,7 @@ env:
 jobs:
   update-deadopop:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -40,11 +40,35 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-      - name: Validate DeadOPop updater
+      - name: Validate DeadOPop updater and registry
         shell: bash
         run: |
           set -euo pipefail
+
           python -m py_compile tools/bpi/update_deadopop.py
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("bitcoin/bpi/data/deadcoins_registry.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          entries = data.get("entries") if isinstance(data, dict) else data
+
+          if not isinstance(entries, list) or not entries:
+              raise SystemExit("deadcoins_registry.json must contain entries")
+
+          if any(
+              str(item.get("id") or "") == "REPLACE_WITH_CANONICAL_ID"
+              for item in entries
+              if isinstance(item, dict)
+          ):
+              raise SystemExit(
+                  "deadcoins_registry.json still contains the template placeholder"
+              )
+
+          print(f"Dead-coin registry entries={len(entries)}")
+          PY
 
       - name: Update DeadOPop data
         shell: bash
@@ -62,148 +86,70 @@ jobs:
           import math
           from pathlib import Path
 
-          path = Path(
-              "bitcoin/bpi/api/deadopop.json"
-          )
-
           data = json.loads(
-              path.read_text(encoding="utf-8")
-          )
-
-          if not isinstance(data, dict):
-              raise SystemExit(
-                  "deadopop.json must contain an object"
-              )
-
-          count = int(
-              data.get(
-                  "non_bitcoin_assets_count",
-                  0
+              Path("bitcoin/bpi/api/deadopop.json").read_text(
+                  encoding="utf-8"
               )
           )
 
-          cap = float(
-              data.get(
-                  "alive_non_bitcoin_market_cap_usd",
-                  0
-              )
-          )
-
-          volume = float(
-              data.get(
-                  "alive_non_bitcoin_volume_24h_usd",
-                  0
-              )
-          )
-
-          total_cap = float(
-              data.get(
-                  "total_non_bitcoin_market_cap_usd",
-                  0
-              )
-          )
-
-          pages = int(
-              data.get(
-                  "pages_scanned",
-                  0
-              )
-          )
-
-          top = data.get(
-              "top_non_bitcoin_assets"
-          )
+          count = int(data.get("total_dead_coins", 0))
+          lost = float(data.get("combined_estimated_value_lost_usd", 0))
+          peak = float(data.get("combined_peak_market_cap_usd", 0))
+          top = data.get("top_dead_coins")
 
           if count < 1:
-              raise SystemExit(
-                  "refusing DeadOPop output "
-                  "with zero assets"
-              )
+              raise SystemExit("DeadOPop contains zero dead coins")
 
-          if pages < 1:
-              raise SystemExit(
-                  "refusing DeadOPop output "
-                  "with zero pages scanned"
-              )
+          if not math.isfinite(lost) or lost <= 0:
+              raise SystemExit("DeadOPop combined lost value is invalid")
 
-          if not math.isfinite(cap) or cap <= 0:
-              raise SystemExit(
-                  "invalid DeadOPop market cap"
-              )
-
-          if (
-              not math.isfinite(total_cap)
-              or total_cap <= 0
-          ):
-              raise SystemExit(
-                  "invalid DeadOPop total market cap"
-              )
-
-          if not math.isfinite(volume) or volume < 0:
-              raise SystemExit(
-                  "invalid DeadOPop volume"
-              )
+          if not math.isfinite(peak) or peak < 0:
+              raise SystemExit("DeadOPop combined peak market cap is invalid")
 
           if not isinstance(top, list) or not top:
-              raise SystemExit(
-                  "top_non_bitcoin_assets "
-                  "must be a non-empty array"
-              )
+              raise SystemExit("DeadOPop top_dead_coins must be non-empty")
 
           if data.get("bitcoin_excluded") is not True:
-              raise SystemExit(
-                  "DeadOPop dataset did not "
-                  "explicitly exclude Bitcoin"
-              )
+              raise SystemExit("DeadOPop did not explicitly exclude Bitcoin")
 
-          required_asset_fields = {
-              "id",
-              "symbol",
-              "name",
-              "market_cap_usd",
-              "volume_24h_usd",
-              "price_usd"
+          allowed = {
+              "bankrupt",
+              "insolvent",
+              "scam",
+              "rug_pull",
+              "fraud",
+              "collapsed",
+              "abandoned",
+              "shutdown",
+              "dead",
+              "delisted_dead",
+              "protocol_failure",
+              "exchange_failure",
+              "zeroed_out",
           }
 
-          for index, asset in enumerate(top):
-              if not isinstance(asset, dict):
+          for index, item in enumerate(top):
+              if not isinstance(item, dict):
+                  raise SystemExit(f"top_dead_coins[{index}] is not an object")
+
+              status = str(item.get("status") or "")
+              loss = float(item.get("estimated_value_lost_usd") or 0)
+
+              if status not in allowed:
                   raise SystemExit(
-                      f"asset {index} is not an object"
+                      f"top_dead_coins[{index}] has invalid status: {status}"
                   )
 
-              missing = (
-                  required_asset_fields
-                  - set(asset)
-              )
-
-              if missing:
+              if not math.isfinite(loss) or loss <= 0:
                   raise SystemExit(
-                      f"asset {index} missing "
-                      f"fields: {sorted(missing)}"
-                  )
-
-              market_cap = float(
-                  asset.get(
-                      "market_cap_usd",
-                      0
-                  )
-              )
-
-              if (
-                  not math.isfinite(market_cap)
-                  or market_cap <= 0
-              ):
-                  raise SystemExit(
-                      f"asset {index} has invalid "
-                      "market cap"
+                      f"top_dead_coins[{index}] has invalid lost value"
                   )
 
           print(
               "DeadOPop contract valid: "
-              f"assets={count} "
-              f"pages={pages} "
-              f"market_cap={cap:.2f} "
-              f"top_assets={len(top)}"
+              f"dead_coins={count} "
+              f"combined_lost_usd={lost:.2f} "
+              f"top={len(top)}"
           )
           PY
 
@@ -212,45 +158,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          git config user.name \
-            "zzx-bpi-bot"
-
-          git config user.email \
-            "actions@github.com"
+          git config user.name "zzx-bpi-bot"
+          git config user.email "actions@github.com"
 
           git add \
             bitcoin/bpi/api/deadopop.json
 
           if git diff --cached --quiet; then
-            printf '%s\n' \
-              "No DeadOPop changes."
+            printf '%s\n' "No DeadOPop changes."
             exit 0
           fi
 
-          git commit \
-            -m "Update DeadOPop data"
+          git commit -m "Update DeadOPop data"
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase origin/main && \
-               git push origin HEAD:main; then
-
-              printf '%s\n' \
-                "DeadOPop data pushed."
-
+            if git rebase origin/main && git push origin HEAD:main; then
+              printf '%s\n' "DeadOPop data pushed."
               exit 0
             fi
 
             git rebase --abort || true
-
             printf '%s\n' \
               "DeadOPop push attempt ${attempt} failed; retrying without force."
-
             sleep 5
           done
 
           printf '%s\n' \
             "Failed to push DeadOPop data without rewriting main."
-
           exit 1
