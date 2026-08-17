@@ -1,35 +1,52 @@
 {
-  "updated_at": "2026-08-17T20:32:10.397754Z",
-  "source": "zzx_themarketbtccreated_deadopop_v2",
+  "updated_at": "2026-08-17T21:41:43.624440Z",
+  "source": "zzx_themarketbtccreated_deadopop_v3",
   "market_data_source": "coingecko",
-  "model": {
-    "name": "TheMarketBTCCreated + DeadOPop",
-    "the_market_btc_created_formula": "current_global_crypto_market_cap_usd / btc_circulating_supply",
-    "deadopop_adjusted_formula": "(current_global_crypto_market_cap_usd + deadopop_cumulative_estimated_value_lost_usd) / btc_circulating_supply",
-    "decomposition": "BTC market cap + current non-BTC market cap + historical DeadOPop loss, all divided by circulating BTC.",
-    "warning": "This is an appraisal/accounting model, not an intrinsic-value proof or a prediction that market participants will actually transfer this capital into Bitcoin."
-  },
+  "block_data_source": "blockchain.info",
   "inputs": {
-    "current_global_crypto_market_cap_usd": 2282234272737.27,
-    "current_bitcoin_market_cap_usd": 1291734825379.0,
-    "current_non_bitcoin_market_cap_usd": 990499447358.27,
-    "spot_btc_price_usd": 64355.0,
+    "current_global_crypto_market_cap_usd": 2283358584926.3,
+    "current_bitcoin_market_cap_usd": 1290148052508.0,
+    "current_non_bitcoin_market_cap_usd": 993210532418.3,
+    "spot_btc_price_usd": 64279.0,
     "btc_circulating_supply": 20071518.0,
     "deadopop_cumulative_estimated_value_lost_usd": 79515430000.0,
     "deadopop_total_dead_coins": 46,
     "deadopop_valued_dead_coins": 46,
-    "deadopop_unvalued_dead_coins": 0
+    "deadopop_unvalued_dead_coins": 0,
+    "deadopop_valuation_coverage_percent": 100.0
   },
   "outputs": {
-    "the_market_btc_created_price_usd": 113705.12,
-    "active_non_bitcoin_absorption_per_btc_usd": 49348.51,
+    "the_market_btc_created_price_usd": 113761.13,
+    "active_non_bitcoin_absorption_per_btc_usd": 49483.58,
     "deadopop_absorption_per_btc_usd": 3961.61,
-    "deadopop_adjusted_appraised_btc_price_usd": 117666.72,
-    "appraisal_premium_over_spot_usd": 53311.72,
-    "appraisal_multiple_over_spot": 1.8284006,
-    "btc_capture_percent_of_created_market_plus_deadopop": 54.69397641,
-    "inverse_unabsorbed_percent": 45.30602359,
-    "spot_to_appraised_percent": 54.69260944,
-    "inverse_spot_to_appraised_percent": 45.30739056
+    "deadopop_adjusted_appraised_btc_price_usd": 117722.74,
+    "baseline_delta_usd": 49482.13,
+    "baseline_delta_percent": 76.98024365,
+    "inverse_baseline_delta_percent": -76.98024365,
+    "total_delta_usd": 53443.74,
+    "total_delta_percent": 83.14338433,
+    "inverse_total_delta_percent": -83.14338433,
+    "btc_capture_percent_of_created_market_plus_deadopop": 54.60079735,
+    "inverse_unabsorbed_percent": 45.39920265,
+    "appraisal_multiple_over_spot": 1.83143384
+  },
+  "network": {
+    "block_height": 962950,
+    "btc_total_supply_limit": 21000000.0,
+    "btc_remaining_to_mine": 928482.0,
+    "btc_remaining_to_mine_percent": 4.421342857142857,
+    "estimated_btc_mined_this_year": 164359.12499999997,
+    "current_block_reward_btc": 3.125,
+    "next_block_reward_btc": 1.5625,
+    "next_halving_height": 1050000,
+    "blocks_remaining_until_halving": 87050,
+    "estimated_halving_at": "2028-04-13T10:01:43.624468Z",
+    "halving_countdown_seconds": 52230000
+  },
+  "model": {
+    "name": "TheMarketBTCCreated + DeadOPop",
+    "baseline_formula": "current_global_crypto_market_cap_usd / btc_circulating_supply",
+    "deadopop_adjusted_formula": "(current_global_crypto_market_cap_usd + deadopop_cumulative_estimated_value_lost_usd) / btc_circulating_supply",
+    "warning": "Appraisal/accounting model, not a prediction of spot price."
   }
 }
