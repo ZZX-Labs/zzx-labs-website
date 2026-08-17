@@ -1,10 +1,10 @@
 // __partials/widgets/deadopop/widget.js
-// Read-only Deadopop widget backed by:
-//   bitcoin/bpi/api/deadopop.json
+// Read-only DeadOPop widget backed by:
+//   /bitcoin/bpi/api/deadopop.json
 //
-// The backend workflow owns CoinGecko collection. The browser never crawls
-// CoinGecko, never proxies through AllOrigins, and never estimates "dead coin"
-// peak market caps locally.
+// DeadOPop is an archival index of failed/dead/bankrupt/scam/collapsed
+// cryptoassets and their estimated destroyed/lost value. It is NOT the
+// active non-Bitcoin crypto market.
 
 (function () {
   "use strict";
@@ -16,28 +16,28 @@
     PAGE_SIZE: 5,
     REFRESH_MS: 10 * 60_000,
     TIMEOUT_MS: 20_000,
-    CACHE_KEY: "zzx:deadopop:api-cache:v2",
+    CACHE_KEY: "zzx:deadopop:deadcoins:v2",
   };
 
   function q(root, sel) {
     return root ? root.querySelector(sel) : null;
   }
 
-  function setText(root, sel, text) {
+  function setText(root, sel, value) {
     const el = q(root, sel);
-    if (el) el.textContent = String(text ?? "—");
+    if (el) el.textContent = String(value ?? "—");
   }
 
   function toFiniteNumber(value, fallback = NaN) {
-    const number = Number(value);
-    return Number.isFinite(number) ? number : fallback;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
   }
 
   function fmtUSD0(value) {
-    const number = toFiniteNumber(value);
-    if (!Number.isFinite(number)) return "—";
+    const n = toFiniteNumber(value);
+    if (!Number.isFinite(n)) return "—";
 
-    return number.toLocaleString(undefined, {
+    return n.toLocaleString(undefined, {
       style: "currency",
       currency: "USD",
       maximumFractionDigits: 0,
@@ -45,9 +45,9 @@
   }
 
   function fmtInt(value) {
-    const number = toFiniteNumber(value);
-    if (!Number.isFinite(number)) return "—";
-    return Math.trunc(number).toLocaleString();
+    const n = toFiniteNumber(value);
+    if (!Number.isFinite(n)) return "—";
+    return Math.trunc(n).toLocaleString();
   }
 
   function fmtTime(value) {
@@ -86,22 +86,17 @@
   }
 
   function apiCandidates() {
-    const candidates = [];
-
-    // First choice when the widget is rendered on /bitcoin/bpi/.
-    candidates.push(
-      new URL("api/deadopop.json", document.baseURI).toString()
-    );
-
-    // Stable site-root choice for widgets mounted elsewhere.
-    candidates.push(
+    return [...new Set([
       new URL(
         "bitcoin/bpi/api/deadopop.json",
         projectRootURL()
-      ).toString()
-    );
+      ).toString(),
 
-    return [...new Set(candidates)];
+      new URL(
+        "api/deadopop.json",
+        document.baseURI
+      ).toString(),
+    ])];
   }
 
   async function fetchJSON(url) {
@@ -122,126 +117,160 @@
         },
       });
 
-      const text = await response.text();
-
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("invalid JSON");
-      }
-
-      return data;
+      return await response.json();
     } finally {
       clearTimeout(timer);
     }
   }
 
-  function normalizeAsset(asset) {
-    if (!asset || typeof asset !== "object") return null;
+  function normalizeDeadCoin(item) {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
 
-    const id = String(asset.id || "").trim();
-    const symbol = String(asset.symbol || "").trim();
-    const name = String(asset.name || "").trim();
-    const marketCap = toFiniteNumber(asset.market_cap_usd);
+    const id = String(item.id || "").trim();
+    const symbol = String(item.symbol || "").trim();
+    const name = String(item.name || "").trim();
+    const status = String(item.status || "").trim();
+    const failureDate = String(item.failure_date || "").trim();
+    const loss = toFiniteNumber(
+      item.estimated_value_lost_usd
+    );
+    const peak = toFiniteNumber(
+      item.peak_market_cap_usd,
+      NaN
+    );
 
-    if (!id || !Number.isFinite(marketCap) || marketCap <= 0) {
+    if (!id || !Number.isFinite(loss) || loss <= 0) {
       return null;
     }
 
     return {
-      rank: toFiniteNumber(asset.rank, 0),
+      rank: Math.trunc(
+        toFiniteNumber(item.rank, 0)
+      ),
       id,
       symbol,
       name,
-      market_cap_usd: marketCap,
-      volume_24h_usd: Math.max(
-        0,
-        toFiniteNumber(asset.volume_24h_usd, 0)
-      ),
-      price_usd: Math.max(
-        0,
-        toFiniteNumber(asset.price_usd, 0)
-      ),
-      price_change_24h_percent:
-        toFiniteNumber(asset.price_change_24h_percent, NaN),
+      status,
+      failure_date: failureDate,
+      estimated_value_lost_usd: loss,
+      peak_market_cap_usd: peak,
     };
   }
 
   function normalizeDataset(data) {
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new Error("Deadopop API root must be an object");
+    if (
+      !data ||
+      typeof data !== "object" ||
+      Array.isArray(data)
+    ) {
+      throw new Error(
+        "DeadOPop API root must be an object"
+      );
+    }
+
+    if (
+      data.source !==
+      "zzx_deadcoins_archival_registry"
+    ) {
+      throw new Error(
+        "refusing legacy/non-archival DeadOPop source"
+      );
     }
 
     if (data.bitcoin_excluded !== true) {
-      throw new Error("Deadopop API did not explicitly exclude Bitcoin");
+      throw new Error(
+        "DeadOPop did not explicitly exclude Bitcoin"
+      );
+    }
+
+    if (data.available === false) {
+      if (
+        data.status !== "registry_unavailable"
+      ) {
+        throw new Error(
+          "invalid DeadOPop unavailable marker"
+        );
+      }
+
+      return {
+        available: false,
+        status: "registry_unavailable",
+        registry_reason: String(
+          data.registry_reason || "unknown"
+        ),
+        updated_at: String(
+          data.updated_at || ""
+        ),
+        total_dead_coins: 0,
+        combined_estimated_value_lost_usd: null,
+        combined_peak_market_cap_usd: null,
+        top_dead_coins: [],
+      };
     }
 
     const count = toFiniteNumber(
-      data.non_bitcoin_assets_count
+      data.total_dead_coins
     );
-    const marketCap = toFiniteNumber(
-      data.alive_non_bitcoin_market_cap_usd
+    const lost = toFiniteNumber(
+      data.combined_estimated_value_lost_usd
     );
-    const totalMarketCap = toFiniteNumber(
-      data.total_non_bitcoin_market_cap_usd
-    );
-    const volume = toFiniteNumber(
-      data.alive_non_bitcoin_volume_24h_usd
+    const peak = toFiniteNumber(
+      data.combined_peak_market_cap_usd,
+      0
     );
 
     if (!Number.isFinite(count) || count < 1) {
-      throw new Error("invalid non-Bitcoin asset count");
+      throw new Error(
+        "invalid dead coin count"
+      );
     }
 
-    if (!Number.isFinite(marketCap) || marketCap <= 0) {
-      throw new Error("invalid non-Bitcoin market cap");
+    if (!Number.isFinite(lost) || lost <= 0) {
+      throw new Error(
+        "invalid combined lost value"
+      );
     }
 
-    if (!Number.isFinite(totalMarketCap) || totalMarketCap <= 0) {
-      throw new Error("invalid total non-Bitcoin market cap");
+    if (!Number.isFinite(peak) || peak < 0) {
+      throw new Error(
+        "invalid combined peak market cap"
+      );
     }
 
-    if (!Number.isFinite(volume) || volume < 0) {
-      throw new Error("invalid non-Bitcoin 24h volume");
-    }
-
-    const rawTop = Array.isArray(data.top_non_bitcoin_assets)
-      ? data.top_non_bitcoin_assets
-      : [];
-
-    const top = rawTop
-      .map(normalizeAsset)
+    const rows = (
+      Array.isArray(data.top_dead_coins)
+        ? data.top_dead_coins
+        : []
+    )
+      .map(normalizeDeadCoin)
       .filter(Boolean)
-      .sort((a, b) => {
-        const ar = a.rank > 0 ? a.rank : Number.MAX_SAFE_INTEGER;
-        const br = b.rank > 0 ? b.rank : Number.MAX_SAFE_INTEGER;
+      .sort(
+        (a, b) =>
+          b.estimated_value_lost_usd -
+          a.estimated_value_lost_usd
+      );
 
-        if (ar !== br) return ar - br;
-        return b.market_cap_usd - a.market_cap_usd;
-      });
-
-    if (!top.length) {
-      throw new Error("Deadopop API contains no valid top assets");
+    if (!rows.length) {
+      throw new Error(
+        "DeadOPop contains no dead-coin rows"
+      );
     }
 
     return {
-      source: String(data.source || "deadopop"),
-      scope: String(data.scope || ""),
-      updated_at: String(data.updated_at || ""),
-      pages_scanned: Math.trunc(
-        toFiniteNumber(data.pages_scanned, 0)
+      available: true,
+      updated_at: String(
+        data.updated_at || ""
       ),
-      non_bitcoin_assets_count: Math.trunc(count),
-      alive_non_bitcoin_market_cap_usd: marketCap,
-      alive_non_bitcoin_volume_24h_usd: volume,
-      total_non_bitcoin_market_cap_usd: totalMarketCap,
-      bitcoin_excluded: true,
-      top_non_bitcoin_assets: top,
+      total_dead_coins: Math.trunc(count),
+      combined_estimated_value_lost_usd: lost,
+      combined_peak_market_cap_usd: peak,
+      top_dead_coins: rows,
     };
   }
 
@@ -258,9 +287,23 @@
 
   function loadCache() {
     try {
-      const raw = localStorage.getItem(CFG.CACHE_KEY);
+      const raw = localStorage.getItem(
+        CFG.CACHE_KEY
+      );
+
       if (!raw) return null;
-      return normalizeDataset(JSON.parse(raw));
+
+      const data = JSON.parse(raw);
+
+      if (
+        data &&
+        typeof data === "object" &&
+        "available" in data
+      ) {
+        return data;
+      }
+
+      return null;
     } catch {
       return null;
     }
@@ -278,7 +321,9 @@
         };
       } catch (error) {
         errors.push(
-          `${url}: ${String(error?.message || error)}`
+          `${url}: ${String(
+            error?.message || error
+          )}`
         );
       }
     }
@@ -287,133 +332,312 @@
   }
 
   function renderTable(root, state) {
-    const body = q(root, "[data-deado-body]");
+    const body = q(
+      root,
+      "[data-deado-body]"
+    );
+
     if (!body) return;
 
     const rows = state.rows || [];
-    const pageSize = CFG.PAGE_SIZE;
     const totalPages = Math.max(
       1,
-      Math.ceil(rows.length / pageSize)
+      Math.ceil(
+        rows.length / CFG.PAGE_SIZE
+      )
     );
-    const page = Math.min(
+
+    state.page = Math.min(
       Math.max(1, state.page || 1),
       totalPages
     );
 
-    state.page = page;
-    state.totalPages = totalPages;
+    const start =
+      (state.page - 1) *
+      CFG.PAGE_SIZE;
 
-    const start = (page - 1) * pageSize;
-    const slice = rows.slice(start, start + pageSize);
+    const slice = rows.slice(
+      start,
+      start + CFG.PAGE_SIZE
+    );
 
     body.replaceChildren();
 
-    for (let index = 0; index < slice.length; index++) {
-      const asset = slice[index];
-      const displayRank =
-        asset.rank > 0 ? Math.trunc(asset.rank) : start + index + 1;
+    slice.forEach((item, index) => {
+      const rank =
+        item.rank > 0
+          ? item.rank
+          : start + index + 1;
 
-      const label = asset.name || asset.id || "Unknown";
-      const symbol = asset.symbol
-        ? ` (${String(asset.symbol).toUpperCase()})`
+      const label =
+        item.name || item.id || "Unknown";
+
+      const symbol = item.symbol
+        ? ` (${item.symbol.toUpperCase()})`
         : "";
 
-      const row = document.createElement("div");
+      const failure = item.status
+        ? item.status.replaceAll("_", " ")
+        : "dead";
+
+      const row =
+        document.createElement("div");
+
       row.className = "zzx-deado-row";
       row.setAttribute("role", "row");
 
       row.innerHTML =
-        `<div class="zzx-deado-cell" role="cell">${escapeHTML(displayRank)}</div>` +
+        `<div class="zzx-deado-cell" role="cell">${escapeHTML(rank)}</div>` +
         `<div class="zzx-deado-cell" role="cell" title="${escapeHTML(label + symbol)}">` +
         `${escapeHTML(label)}${escapeHTML(symbol)}</div>` +
+        `<div class="zzx-deado-cell" role="cell" title="${escapeHTML(item.failure_date)}">` +
+        `${escapeHTML(failure)}</div>` +
         `<div class="zzx-deado-cell zzx-deado-num" role="cell">` +
-        `${escapeHTML(fmtUSD0(asset.market_cap_usd))}</div>`;
+        `${escapeHTML(fmtUSD0(item.estimated_value_lost_usd))}</div>`;
 
       body.appendChild(row);
-    }
+    });
 
     setText(
       root,
       "[data-deado-page]",
-      `Page ${page} / ${totalPages}`
+      `Page ${state.page} / ${totalPages}`
     );
 
-    const prev = q(root, "[data-deado-prev]");
-    const next = q(root, "[data-deado-next]");
+    const prev = q(
+      root,
+      "[data-deado-prev]"
+    );
 
-    if (prev) prev.disabled = page <= 1;
-    if (next) next.disabled = page >= totalPages;
+    const next = q(
+      root,
+      "[data-deado-next]"
+    );
+
+    if (prev) {
+      prev.disabled =
+        state.page <= 1 ||
+        rows.length === 0;
+    }
+
+    if (next) {
+      next.disabled =
+        state.page >= totalPages ||
+        rows.length === 0;
+    }
   }
 
-  function renderSummary(root, dataset, sourceLabel) {
+  function renderUnavailable(
+    root,
+    state,
+    dataset,
+    sourceLabel
+  ) {
+    state.rows = [];
+    state.page = 1;
+
     setText(
       root,
       "[data-deado-headline]",
-      `non-Bitcoin market cap: ${fmtUSD0(
-        dataset.alive_non_bitcoin_market_cap_usd
+      "Deadopop unavailable"
+    );
+
+    setText(
+      root,
+      "[data-deado-sub]",
+      "archival dead-coin registry not populated"
+    );
+
+    setText(
+      root,
+      "[data-deado-count]",
+      "0"
+    );
+
+    setText(
+      root,
+      "[data-deado-lost]",
+      "—"
+    );
+
+    setText(
+      root,
+      "[data-deado-peak]",
+      "—"
+    );
+
+    // Compatibility with the immediately previous HTML variant.
+    setText(
+      root,
+      "[data-deado-total]",
+      "—"
+    );
+
+    setText(
+      root,
+      "[data-deado-volume]",
+      "—"
+    );
+
+    setText(
+      root,
+      "[data-deado-status]",
+      `${sourceLabel || "API"} • registry ${dataset.registry_reason || "unavailable"} • updated ${fmtTime(dataset.updated_at)}`
+    );
+
+    renderTable(root, state);
+  }
+
+  function renderAvailable(
+    root,
+    state,
+    dataset,
+    sourceLabel
+  ) {
+    state.rows =
+      dataset.top_dead_coins || [];
+
+    state.page = 1;
+
+    setText(
+      root,
+      "[data-deado-headline]",
+      `dead capital lost: ${fmtUSD0(
+        dataset.combined_estimated_value_lost_usd
       )}`
     );
 
     setText(
       root,
       "[data-deado-sub]",
-      `${fmtInt(dataset.non_bitcoin_assets_count)} active assets`
+      `${fmtInt(
+        dataset.total_dead_coins
+      )} failed / dead / scam coins`
     );
 
     setText(
       root,
       "[data-deado-count]",
-      fmtInt(dataset.non_bitcoin_assets_count)
+      fmtInt(
+        dataset.total_dead_coins
+      )
     );
 
     setText(
       root,
+      "[data-deado-lost]",
+      fmtUSD0(
+        dataset.combined_estimated_value_lost_usd
+      )
+    );
+
+    setText(
+      root,
+      "[data-deado-peak]",
+      fmtUSD0(
+        dataset.combined_peak_market_cap_usd
+      )
+    );
+
+    // Compatibility with the immediately previous HTML variant.
+    setText(
+      root,
       "[data-deado-total]",
-      fmtUSD0(dataset.total_non_bitcoin_market_cap_usd)
+      fmtUSD0(
+        dataset.combined_peak_market_cap_usd
+      )
     );
 
     setText(
       root,
       "[data-deado-volume]",
-      fmtUSD0(dataset.alive_non_bitcoin_volume_24h_usd)
+      fmtUSD0(
+        dataset.combined_estimated_value_lost_usd
+      )
     );
 
-    const source = sourceLabel || "API";
     setText(
       root,
       "[data-deado-status]",
-      `${source} • updated ${fmtTime(dataset.updated_at)}`
+      `${sourceLabel || "API"} • updated ${fmtTime(
+        dataset.updated_at
+      )}`
     );
+
+    renderTable(root, state);
   }
 
-  function applyDataset(root, state, dataset, sourceLabel) {
+  function applyDataset(
+    root,
+    state,
+    dataset,
+    sourceLabel
+  ) {
     state.dataset = dataset;
-    state.rows = dataset.top_non_bitcoin_assets || [];
-    state.page = 1;
 
-    renderSummary(root, dataset, sourceLabel);
-    renderTable(root, state);
+    if (dataset.available === false) {
+      renderUnavailable(
+        root,
+        state,
+        dataset,
+        sourceLabel
+      );
+      return;
+    }
+
+    renderAvailable(
+      root,
+      state,
+      dataset,
+      sourceLabel
+    );
   }
 
   async function refresh(root, state) {
     if (state.inflight) return;
     state.inflight = true;
 
-    const refreshButton = q(root, "[data-deado-refresh]");
-    if (refreshButton) refreshButton.disabled = true;
+    const refreshButton = q(
+      root,
+      "[data-deado-refresh]"
+    );
 
-    setText(root, "[data-deado-status]", "refreshing…");
+    if (refreshButton) {
+      refreshButton.disabled = true;
+    }
+
+    setText(
+      root,
+      "[data-deado-status]",
+      "refreshing…"
+    );
 
     try {
-      const result = await loadRemote();
-      saveCache(result.dataset);
-      applyDataset(root, state, result.dataset, "live");
+      const result =
+        await loadRemote();
+
+      saveCache(
+        result.dataset
+      );
+
+      applyDataset(
+        root,
+        state,
+        result.dataset,
+        "live"
+      );
     } catch (error) {
-      const cached = loadCache();
+      const cached =
+        loadCache();
 
       if (cached) {
-        applyDataset(root, state, cached, "cached");
+        applyDataset(
+          root,
+          state,
+          cached,
+          "cached"
+        );
+
         setText(
           root,
           "[data-deado-status]",
@@ -427,45 +651,86 @@
           "[data-deado-headline]",
           "Deadopop unavailable"
         );
+
         setText(
           root,
           "[data-deado-sub]",
-          "no cached dataset"
+          "no valid archival dataset"
         );
+
         setText(
           root,
           "[data-deado-status]",
-          `error: ${String(error?.message || error)}`
+          `error: ${String(
+            error?.message || error
+          )}`
         );
       }
     } finally {
       state.inflight = false;
-      if (refreshButton) refreshButton.disabled = false;
+
+      if (refreshButton) {
+        refreshButton.disabled = false;
+      }
     }
   }
 
   function wire(root, state) {
-    const prev = q(root, "[data-deado-prev]");
-    const next = q(root, "[data-deado-next]");
-    const refreshButton = q(root, "[data-deado-refresh]");
+    const prev = q(
+      root,
+      "[data-deado-prev]"
+    );
 
-    if (prev && prev.dataset.zzxBound !== "1") {
+    const next = q(
+      root,
+      "[data-deado-next]"
+    );
+
+    const refreshButton = q(
+      root,
+      "[data-deado-refresh]"
+    );
+
+    if (
+      prev &&
+      prev.dataset.zzxBound !== "1"
+    ) {
       prev.dataset.zzxBound = "1";
-      prev.addEventListener("click", () => {
-        state.page = Math.max(1, (state.page || 1) - 1);
-        renderTable(root, state);
-      });
+
+      prev.addEventListener(
+        "click",
+        () => {
+          state.page =
+            Math.max(
+              1,
+              (state.page || 1) - 1
+            );
+
+          renderTable(
+            root,
+            state
+          );
+        }
+      );
     }
 
-    if (next && next.dataset.zzxBound !== "1") {
+    if (
+      next &&
+      next.dataset.zzxBound !== "1"
+    ) {
       next.dataset.zzxBound = "1";
-      next.addEventListener("click", () => {
-        state.page = Math.min(
-          state.totalPages || 1,
-          (state.page || 1) + 1
-        );
-        renderTable(root, state);
-      });
+
+      next.addEventListener(
+        "click",
+        () => {
+          state.page += 1;
+
+          renderTable(
+            root,
+            state
+          );
+        }
+      );
     }
 
     if (
@@ -473,9 +738,13 @@
       refreshButton.dataset.zzxBound !== "1"
     ) {
       refreshButton.dataset.zzxBound = "1";
+
       refreshButton.addEventListener(
         "click",
-        () => refresh(root, state)
+        () => refresh(
+          root,
+          state
+        )
       );
     }
   }
@@ -494,24 +763,44 @@
         }
     );
 
-    wire(root, state);
+    wire(
+      root,
+      state
+    );
 
     if (root.__zzxDeadoTimer) {
-      clearInterval(root.__zzxDeadoTimer);
+      clearInterval(
+        root.__zzxDeadoTimer
+      );
+
       root.__zzxDeadoTimer = null;
     }
 
-    const cached = loadCache();
+    const cached =
+      loadCache();
+
     if (cached) {
-      applyDataset(root, state, cached, "cached");
+      applyDataset(
+        root,
+        state,
+        cached,
+        "cached"
+      );
     }
 
-    refresh(root, state);
-
-    root.__zzxDeadoTimer = setInterval(
-      () => refresh(root, state),
-      CFG.REFRESH_MS
+    refresh(
+      root,
+      state
     );
+
+    root.__zzxDeadoTimer =
+      setInterval(
+        () => refresh(
+          root,
+          state
+        ),
+        CFG.REFRESH_MS
+      );
   }
 
   if (
