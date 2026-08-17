@@ -1,25 +1,50 @@
-name: Update DeadOPop
+name: Update DeadOPop + TheMarketBTCCreated
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "DeadOPop scan mode"
+        required: true
+        default: "current"
+        type: choice
+        options:
+          - current
+          - backfill
+      start_year:
+        description: "Historical backfill start year"
+        required: false
+        default: "2009"
+        type: string
+      end_year:
+        description: "Historical backfill end year; blank = current year"
+        required: false
+        default: ""
+        type: string
   schedule:
-    - cron: "7 * * * *"
+    - cron: "17 */6 * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: bpi-deadopop
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
+  DEADOPOP_REGISTRY: bitcoin/bpi/data/deadcoins_registry.json
+  DEADOPOP_CANDIDATES: bitcoin/bpi/data/deadcoins_candidates.json
+  DEADOPOP_STATE: bitcoin/bpi/data/deadcoins_scan_state.json
+  DEADOPOP_SOURCES: bitcoin/bpi/data/deadcoins_sources.json
+  DEADOPOP_API: bitcoin/bpi/api/deadopop.json
+  MARKET_CREATED_API: bitcoin/bpi/api/themarketbtccreated.json
 
 jobs:
-  update-deadopop:
+  deadopop:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -33,32 +58,99 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Sync repository before generation
+      - name: Sync main
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
 
-      - name: Validate DeadOPop updater
+      - name: Validate DeadOPop programs
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile tools/bpi/update_deadopop.py
-          python tools/bpi/update_deadopop.py --help
+          python -m py_compile \
+            tools/bpi/deadopop_scan.py \
+            tools/bpi/update_deadopop.py \
+            tools/bpi/update_themarketbtccreated.py
 
-      - name: Generate DeadOPop from archival registry
+          python tools/bpi/deadopop_scan.py --help >/dev/null
+          python tools/bpi/update_deadopop.py --help >/dev/null
+          python tools/bpi/update_themarketbtccreated.py --help >/dev/null
+
+          test -s "${DEADOPOP_REGISTRY}"
+          test -s "${DEADOPOP_SOURCES}"
+
+      - name: Ensure scanner state files
         shell: bash
         run: |
           set -euo pipefail
 
-          # The updater owns registry discovery. Do not independently gate on
-          # one hardcoded path and do not overwrite the last valid API output
-          # with a zero/unavailable marker when discovery fails.
+          if [ ! -s "${DEADOPOP_CANDIDATES}" ]; then
+            printf '%s\n' \
+              '{"schema":"zzx-deadopop-candidates-v1","candidates":[]}' \
+              > "${DEADOPOP_CANDIDATES}"
+          fi
+
+          if [ ! -s "${DEADOPOP_STATE}" ]; then
+            printf '%s\n' \
+              '{"schema":"zzx-deadopop-scan-state-v1","seen_evidence_ids":[],"backfill_year":2009}' \
+              > "${DEADOPOP_STATE}"
+          fi
+
+      - name: Discover and promote failed/dead/scam assets
+        shell: bash
+        env:
+          INPUT_MODE: ${{ github.event.inputs.mode || 'current' }}
+          INPUT_START_YEAR: ${{ github.event.inputs.start_year || '2009' }}
+          INPUT_END_YEAR: ${{ github.event.inputs.end_year || '' }}
+        run: |
+          set -euo pipefail
+
+          MODE="${INPUT_MODE}"
+          START_YEAR="${INPUT_START_YEAR}"
+          END_YEAR="${INPUT_END_YEAR}"
+
+          ARGS=(
+            --registry "${DEADOPOP_REGISTRY}"
+            --candidates "${DEADOPOP_CANDIDATES}"
+            --state "${DEADOPOP_STATE}"
+            --sources "${DEADOPOP_SOURCES}"
+            --mode "${MODE}"
+            --start-year "${START_YEAR}"
+            --promote
+          )
+
+          if [ -n "${END_YEAR}" ]; then
+            ARGS+=(--end-year "${END_YEAR}")
+          fi
+
+          if [ "${MODE}" = "current" ]; then
+            ARGS+=(--rolling-backfill)
+          fi
+
+          python tools/bpi/deadopop_scan.py "${ARGS[@]}"
+
+      - name: Build DeadOPop API
+        shell: bash
+        run: |
+          set -euo pipefail
+
           python tools/bpi/update_deadopop.py \
-            --output bitcoin/bpi/api/deadopop.json
+            --registry "${DEADOPOP_REGISTRY}" \
+            --output "${DEADOPOP_API}" \
+            --top 100
 
-      - name: Validate DeadOPop contract
+      - name: Build TheMarketBTCCreated appraisal
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bpi/update_themarketbtccreated.py \
+            --deadopop "${DEADOPOP_API}" \
+            --output "${MARKET_CREATED_API}"
+
+      - name: Validate DeadOPop and appraisal contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -66,96 +158,108 @@ jobs:
           python - <<'PY'
           import json
           import math
+          import os
           from pathlib import Path
 
-          path = Path("bitcoin/bpi/api/deadopop.json")
-          data = json.loads(path.read_text(encoding="utf-8"))
-
-          if data.get("source") != "zzx_deadcoins_archival_registry":
-              raise SystemExit(
-                  "refusing legacy/non-archival DeadOPop source"
-              )
-
-          if data.get("available") is not True:
-              raise SystemExit(
-                  "generated DeadOPop must be available=true"
-              )
-
-          if data.get("bitcoin_excluded") is not True:
-              raise SystemExit(
-                  "DeadOPop did not explicitly exclude Bitcoin"
-              )
-
-          registry_source = str(
-              data.get("registry_source_path") or ""
-          ).strip()
-
-          if not registry_source:
-              raise SystemExit(
-                  "DeadOPop did not record the loaded registry path"
-              )
-
-          count = int(data.get("total_dead_coins", 0))
-          lost = float(
-              data.get("combined_estimated_value_lost_usd", 0)
+          dead = json.loads(
+              Path(os.environ["DEADOPOP_API"]).read_text(encoding="utf-8")
           )
-          peak = float(
-              data.get("combined_peak_market_cap_usd", 0)
+          market = json.loads(
+              Path(os.environ["MARKET_CREATED_API"]).read_text(encoding="utf-8")
           )
-          top = data.get("top_dead_coins")
 
-          if count < 1:
-              raise SystemExit(
-                  "DeadOPop contains zero dead coins"
-              )
+          if dead.get("source") != "zzx_deadcoins_archival_registry":
+              raise SystemExit("invalid DeadOPop source")
+
+          if dead.get("bitcoin_excluded") is not True:
+              raise SystemExit("Bitcoin must be excluded from DeadOPop")
+
+          total = int(dead.get("total_dead_coins", 0))
+          valued = int(dead.get("valued_dead_coins", 0))
+          unvalued = int(dead.get("unvalued_dead_coins", 0))
+          lost = float(dead.get("combined_estimated_value_lost_usd", 0))
+
+          if total < 1 or valued < 1:
+              raise SystemExit("DeadOPop registry is unexpectedly empty")
+
+          if valued + unvalued != total:
+              raise SystemExit("DeadOPop valuation counts do not reconcile")
 
           if not math.isfinite(lost) or lost <= 0:
+              raise SystemExit("DeadOPop cumulative loss is invalid")
+
+          outputs = market.get("outputs") or {}
+          appraised = float(
+              outputs.get("deadopop_adjusted_appraised_btc_price_usd", 0)
+          )
+          market_created = float(
+              outputs.get("the_market_btc_created_price_usd", 0)
+          )
+
+          if not math.isfinite(appraised) or appraised <= 0:
+              raise SystemExit("DeadOPop-adjusted BTC appraisal invalid")
+
+          if appraised < market_created:
               raise SystemExit(
-                  "DeadOPop combined lost value is invalid"
+                  "DeadOPop-adjusted appraisal cannot be below "
+                  "TheMarketBTCCreated baseline"
               )
 
-          if not math.isfinite(peak) or peak < 0:
-              raise SystemExit(
-                  "DeadOPop combined peak market cap is invalid"
+          capture = float(
+              outputs.get(
+                  "btc_capture_percent_of_created_market_plus_deadopop",
+                  -1,
               )
+          )
+          inverse = float(
+              outputs.get("inverse_unabsorbed_percent", -1)
+          )
 
-          if not isinstance(top, list) or not top:
+          if abs((capture + inverse) - 100.0) > 1e-6:
               raise SystemExit(
-                  "DeadOPop top_dead_coins must be non-empty"
+                  "capture and inverse/unabsorbed percentages do not sum to 100"
               )
 
           print(
-              "DeadOPop archival contract valid: "
-              f"registry={registry_source} "
-              f"dead_coins={count} "
-              f"combined_lost_usd={lost:.2f} "
-              f"top={len(top)}"
+              "DeadOPop/TheMarketBTCCreated contract valid:",
+              f"dead={total}",
+              f"valued={valued}",
+              f"unvalued={unvalued}",
+              f"lost_usd={lost:.2f}",
+              f"appraised_btc_usd={appraised:.2f}",
           )
           PY
 
-      - name: Commit and push DeadOPop data
+      - name: Commit and push DeadOPop state
         shell: bash
         run: |
           set -euo pipefail
 
-          git config user.name "zzx-bpi-bot"
+          git config user.name "zzx-deadopop-bot"
           git config user.email "actions@github.com"
 
-          git add bitcoin/bpi/api/deadopop.json
+          git add \
+            "${DEADOPOP_REGISTRY}" \
+            "${DEADOPOP_CANDIDATES}" \
+            "${DEADOPOP_STATE}" \
+            "${DEADOPOP_API}" \
+            "${MARKET_CREATED_API}"
 
           if git diff --cached --quiet; then
             printf '%s\n' "No DeadOPop changes."
             exit 0
           fi
 
-          git commit -m "Update DeadOPop data"
+          git commit -m "Update DeadOPop registry and BTC appraisal"
 
+          # These paths are DeadOPop-owned, so a normal rebase should be
+          # conflict-free unless another writer violates ownership.
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
             if git rebase origin/main; then
               if git push origin HEAD:main; then
-                printf '%s\n' "DeadOPop data pushed."
+                printf '%s\n' "DeadOPop registry/appraisal pushed."
                 exit 0
               fi
             else
@@ -164,11 +268,13 @@ jobs:
 
             git reset --hard HEAD
             git clean -fdx
+
             printf '%s\n' \
               "DeadOPop push attempt ${attempt} failed; retrying without force."
+
             sleep 5
           done
 
           printf '%s\n' \
-            "Failed to push DeadOPop data without rewriting main."
+            "Failed to push DeadOPop registry/appraisal without rewriting main."
           exit 1
