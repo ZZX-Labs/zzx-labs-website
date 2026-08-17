@@ -1299,18 +1299,57 @@ jobs:
 
           git commit -m "Update Bitnodes public artifacts"
 
+          # Everything intended for publication is now inside HEAD. The crawler
+          # deliberately creates additional runtime/download/generated files
+          # that are not part of the public commit. Git refuses to rebase while
+          # tracked leftovers are modified, so make the post-commit worktree
+          # pristine before synchronizing with origin/main.
+          printf '%s\n' "Post-commit leftover worktree state:"
+          git status --short || true
+
+          git reset --hard HEAD
+          git clean -fdx
+
+          if [ -n "$(git status --porcelain)" ]; then
+            printf '%s\n' "Refusing to publish from a dirty worktree after cleanup."
+            git status --short
+            exit 1
+          fi
+
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase origin/main && git push origin HEAD:main; then
-              printf '%s\n' "Bitnodes public artifacts pushed."
-              exit 0
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                printf '%s\n' "Bitnodes public artifacts pushed."
+                exit 0
+              fi
+
+              printf '%s\n' \
+                "Bitnodes push attempt ${attempt} raced with main; refetching."
+            else
+              git rebase --abort || true
+              printf '%s\n' \
+                "Bitnodes rebase attempt ${attempt} failed; refetching without force."
             fi
 
-            git rebase --abort || true
-            printf '%s\n' "Bitnodes push attempt ${attempt} failed; refetching and retrying without force."
+            # A failed/conflicted rebase or helper process must not poison the
+            # next attempt. HEAD already contains the generated public commit
+            # (or its successfully rebased equivalent), so cleaning the
+            # worktree here does not discard intended publication data.
+            git reset --hard HEAD
+            git clean -fdx
+
+            if [ -n "$(git status --porcelain)" ]; then
+              printf '%s\n' \
+                "Worktree remained dirty after retry cleanup; refusing publication."
+              git status --short
+              exit 1
+            fi
+
             sleep 10
           done
 
-          printf '%s\n' "Failed to push Bitnodes public artifacts without rewriting main."
+          printf '%s\n' \
+            "Failed to push Bitnodes public artifacts without rewriting main."
           exit 1
