@@ -1,6 +1,9 @@
 // __partials/widgets/deadopop/widget.js
-// Read-only DeadOPop widget backed by:
+// Read-only DeadOPop widget.
+// Preferred source:
 //   /bitcoin/bpi/api/deadopop.json
+// Direct registry fallback:
+//   /bitcoin/bpi/data/deadcoins_registry.json
 //
 // DeadOPop is an archival index of failed/dead/bankrupt/scam/collapsed
 // cryptoassets and their estimated destroyed/lost value. It is NOT the
@@ -14,10 +17,27 @@
 
   const CFG = {
     PAGE_SIZE: 5,
+    TOP_LIMIT: 100,
     REFRESH_MS: 10 * 60_000,
     TIMEOUT_MS: 20_000,
-    CACHE_KEY: "zzx:deadopop:deadcoins:v2",
+    CACHE_KEY: "zzx:deadopop:deadcoins:v3",
   };
+
+  const ALLOWED_STATUSES = new Set([
+    "bankrupt",
+    "insolvent",
+    "scam",
+    "rug_pull",
+    "fraud",
+    "collapsed",
+    "abandoned",
+    "shutdown",
+    "dead",
+    "delisted_dead",
+    "protocol_failure",
+    "exchange_failure",
+    "zeroed_out",
+  ]);
 
   function q(root, sel) {
     return root ? root.querySelector(sel) : null;
@@ -91,9 +111,29 @@
         "bitcoin/bpi/api/deadopop.json",
         projectRootURL()
       ).toString(),
-
       new URL(
         "api/deadopop.json",
+        document.baseURI
+      ).toString(),
+    ])];
+  }
+
+  function registryCandidates() {
+    return [...new Set([
+      new URL(
+        "bitcoin/bpi/data/deadcoins_registry.json",
+        projectRootURL()
+      ).toString(),
+      new URL(
+        "bitcoin/bpi/api/deadcoins_registry.json",
+        projectRootURL()
+      ).toString(),
+      new URL(
+        "bitcoin/bpi/deadcoins_registry.json",
+        projectRootURL()
+      ).toString(),
+      new URL(
+        "data/deadcoins_registry.json",
         document.baseURI
       ).toString(),
     ])];
@@ -135,17 +175,42 @@
     const id = String(item.id || "").trim();
     const symbol = String(item.symbol || "").trim();
     const name = String(item.name || "").trim();
-    const status = String(item.status || "").trim();
+    const status = String(item.status || "").trim().toLowerCase();
     const failureDate = String(item.failure_date || "").trim();
-    const loss = toFiniteNumber(
+
+    if (
+      !id ||
+      !name ||
+      !ALLOWED_STATUSES.has(status) ||
+      id.toLowerCase() === "bitcoin" ||
+      symbol.toLowerCase() === "btc"
+    ) {
+      return null;
+    }
+
+    const directLoss = toFiniteNumber(
       item.estimated_value_lost_usd
     );
     const peak = toFiniteNumber(
-      item.peak_market_cap_usd,
-      NaN
+      item.peak_market_cap_usd
+    );
+    const terminal = Math.max(
+      0,
+      toFiniteNumber(
+        item.terminal_market_cap_usd,
+        0
+      )
     );
 
-    if (!id || !Number.isFinite(loss) || loss <= 0) {
+    let loss = directLoss;
+
+    if (!Number.isFinite(loss) || loss <= 0) {
+      if (Number.isFinite(peak) && peak > 0) {
+        loss = Math.max(0, peak - terminal);
+      }
+    }
+
+    if (!Number.isFinite(loss) || loss <= 0) {
       return null;
     }
 
@@ -159,7 +224,10 @@
       status,
       failure_date: failureDate,
       estimated_value_lost_usd: loss,
-      peak_market_cap_usd: peak,
+      peak_market_cap_usd:
+        Number.isFinite(peak) && peak > 0
+          ? peak
+          : null,
     };
   }
 
@@ -183,35 +251,18 @@
       );
     }
 
+    if (data.available === false) {
+      throw new Error(
+        `generated API unavailable: ${
+          data.registry_reason || "unknown"
+        }`
+      );
+    }
+
     if (data.bitcoin_excluded !== true) {
       throw new Error(
         "DeadOPop did not explicitly exclude Bitcoin"
       );
-    }
-
-    if (data.available === false) {
-      if (
-        data.status !== "registry_unavailable"
-      ) {
-        throw new Error(
-          "invalid DeadOPop unavailable marker"
-        );
-      }
-
-      return {
-        available: false,
-        status: "registry_unavailable",
-        registry_reason: String(
-          data.registry_reason || "unknown"
-        ),
-        updated_at: String(
-          data.updated_at || ""
-        ),
-        total_dead_coins: 0,
-        combined_estimated_value_lost_usd: null,
-        combined_peak_market_cap_usd: null,
-        top_dead_coins: [],
-      };
     }
 
     const count = toFiniteNumber(
@@ -274,6 +325,83 @@
     };
   }
 
+  function normalizeRegistry(data) {
+    if (!data || typeof data !== "object") {
+      throw new Error(
+        "deadcoins registry root must be an object"
+      );
+    }
+
+    const rawEntries = Array.isArray(data)
+      ? data
+      : data.entries;
+
+    if (!Array.isArray(rawEntries)) {
+      throw new Error(
+        "deadcoins registry must contain entries"
+      );
+    }
+
+    const seen = new Set();
+
+    const rows = rawEntries
+      .map(normalizeDeadCoin)
+      .filter(Boolean)
+      .filter((item) => {
+        const key = item.id.toLowerCase();
+
+        if (seen.has(key)) {
+          return false;
+        }
+
+        seen.add(key);
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          b.estimated_value_lost_usd -
+          a.estimated_value_lost_usd
+      );
+
+    if (!rows.length) {
+      throw new Error(
+        "deadcoins registry contains no usable entries"
+      );
+    }
+
+    const combinedLost = rows.reduce(
+      (sum, item) =>
+        sum + item.estimated_value_lost_usd,
+      0
+    );
+
+    const combinedPeak = rows.reduce(
+      (sum, item) =>
+        sum + (
+          Number.isFinite(item.peak_market_cap_usd)
+            ? item.peak_market_cap_usd
+            : 0
+        ),
+      0
+    );
+
+    return {
+      available: true,
+      updated_at: String(
+        data.generated_at ||
+        data.updated_at ||
+        ""
+      ),
+      total_dead_coins: rows.length,
+      combined_estimated_value_lost_usd:
+        combinedLost,
+      combined_peak_market_cap_usd:
+        combinedPeak,
+      top_dead_coins:
+        rows.slice(0, CFG.TOP_LIMIT),
+    };
+  }
+
   function saveCache(dataset) {
     try {
       localStorage.setItem(
@@ -297,8 +425,9 @@
 
       if (
         data &&
-        typeof data === "object" &&
-        "available" in data
+        data.available === true &&
+        Array.isArray(data.top_dead_coins) &&
+        data.top_dead_coins.length > 0
       ) {
         return data;
       }
@@ -314,9 +443,11 @@
 
     for (const url of apiCandidates()) {
       try {
-        const data = await fetchJSON(url);
         return {
-          dataset: normalizeDataset(data),
+          dataset: normalizeDataset(
+            await fetchJSON(url)
+          ),
+          sourceLabel: "API",
           url,
         };
       } catch (error) {
@@ -328,7 +459,27 @@
       }
     }
 
-    throw new Error(errors.join(" | "));
+    for (const url of registryCandidates()) {
+      try {
+        return {
+          dataset: normalizeRegistry(
+            await fetchJSON(url)
+          ),
+          sourceLabel: "registry",
+          url,
+        };
+      } catch (error) {
+        errors.push(
+          `${url}: ${String(
+            error?.message || error
+          )}`
+        );
+      }
+    }
+
+    throw new Error(
+      errors.join(" | ")
+    );
   }
 
   function renderTable(root, state) {
@@ -427,76 +578,15 @@
     }
   }
 
-  function renderUnavailable(
+  function applyDataset(
     root,
     state,
     dataset,
     sourceLabel
   ) {
-    state.rows = [];
-    state.page = 1;
-
-    setText(
-      root,
-      "[data-deado-headline]",
-      "Deadopop unavailable"
-    );
-
-    setText(
-      root,
-      "[data-deado-sub]",
-      "archival dead-coin registry not populated"
-    );
-
-    setText(
-      root,
-      "[data-deado-count]",
-      "0"
-    );
-
-    setText(
-      root,
-      "[data-deado-lost]",
-      "—"
-    );
-
-    setText(
-      root,
-      "[data-deado-peak]",
-      "—"
-    );
-
-    // Compatibility with the immediately previous HTML variant.
-    setText(
-      root,
-      "[data-deado-total]",
-      "—"
-    );
-
-    setText(
-      root,
-      "[data-deado-volume]",
-      "—"
-    );
-
-    setText(
-      root,
-      "[data-deado-status]",
-      `${sourceLabel || "API"} • registry ${dataset.registry_reason || "unavailable"} • updated ${fmtTime(dataset.updated_at)}`
-    );
-
-    renderTable(root, state);
-  }
-
-  function renderAvailable(
-    root,
-    state,
-    dataset,
-    sourceLabel
-  ) {
+    state.dataset = dataset;
     state.rows =
       dataset.top_dead_coins || [];
-
     state.page = 1;
 
     setText(
@@ -539,23 +629,6 @@
       )
     );
 
-    // Compatibility with the immediately previous HTML variant.
-    setText(
-      root,
-      "[data-deado-total]",
-      fmtUSD0(
-        dataset.combined_peak_market_cap_usd
-      )
-    );
-
-    setText(
-      root,
-      "[data-deado-volume]",
-      fmtUSD0(
-        dataset.combined_estimated_value_lost_usd
-      )
-    );
-
     setText(
       root,
       "[data-deado-status]",
@@ -565,32 +638,6 @@
     );
 
     renderTable(root, state);
-  }
-
-  function applyDataset(
-    root,
-    state,
-    dataset,
-    sourceLabel
-  ) {
-    state.dataset = dataset;
-
-    if (dataset.available === false) {
-      renderUnavailable(
-        root,
-        state,
-        dataset,
-        sourceLabel
-      );
-      return;
-    }
-
-    renderAvailable(
-      root,
-      state,
-      dataset,
-      sourceLabel
-    );
   }
 
   async function refresh(root, state) {
@@ -624,7 +671,7 @@
         root,
         state,
         result.dataset,
-        "live"
+        result.sourceLabel
       );
     } catch (error) {
       const cached =
@@ -655,7 +702,7 @@
         setText(
           root,
           "[data-deado-sub]",
-          "no valid archival dataset"
+          "no valid DeadOPop API or registry"
         );
 
         setText(
@@ -757,7 +804,6 @@
         root.__zzxDeadoState || {
           rows: [],
           page: 1,
-          totalPages: 1,
           dataset: null,
           inflight: false,
         }
