@@ -584,8 +584,71 @@ jobs:
               --output "${BITNODES_API}/aggregate/${SOURCE}/latest.json" \
               --api-dir "${BITNODES_API}" \
               --state-dir "${BITNODES_DATA}/runtime/state/${SOURCE}" \
-              --source "${SOURCE}"
+              --source "${SOURCE}" \
+              --compact
           done
+
+          # Preserve the aggregate's designed node-bearing behavior.
+          # Compact JSON is a serialization change only; it must not strip nodes.
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          api = Path(os.environ["BITNODES_API"])
+          ceiling = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+
+          for source in (
+              "zzxbitnodes",
+              "originalbitnodes",
+          ):
+              path = (
+                  api
+                  / "aggregate"
+                  / source
+                  / "latest.json"
+              )
+
+              payload = json.loads(
+                  path.read_text(encoding="utf-8")
+              )
+
+              nodes = (
+                  payload.get("nodes")
+                  if isinstance(payload, dict)
+                  else None
+              )
+
+              if not isinstance(nodes, (dict, list)):
+                  raise SystemExit(
+                      "aggregate lost its node collection: "
+                      f"{path}"
+                  )
+
+              if len(nodes) < 1:
+                  raise SystemExit(
+                      "aggregate contains zero nodes: "
+                      f"{path}"
+                  )
+
+              size = path.stat().st_size
+
+              print(
+                  "full aggregate preserved:",
+                  f"source={source}",
+                  f"nodes={len(nodes)}",
+                  f"bytes={size}",
+                  f"ceiling={ceiling}",
+              )
+
+              if size > ceiling:
+                  raise SystemExit(
+                      "compact full aggregate still exceeds "
+                      "the 24 MB publication ceiling; "
+                      "do not strip nodes automatically. "
+                      f"size={size} path={path}"
+                  )
+          PY
 
       - name: Update IPDB artifacts
         shell: bash
@@ -1170,7 +1233,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          printf '%s\n' "Oversized JSON candidates in API data:"
+          printf '%s\n' "Oversized crawler-owned JSON candidates in API data:"
           find "${BITNODES_API}/data" \
             -type f \
             -name '*.json' \
@@ -1183,18 +1246,22 @@ jobs:
 
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
 
+          # Publication-size policy is scoped to crawler-owned/staged roots.
+          #
+          # The map pipeline above is intentionally retained in full so every
+          # crawler run still exercises map generation, validation, public-safe
+          # projection, feature capping, and vector creation. However, the
+          # crawler's single-writer staging guard below explicitly forbids
+          # maps/** and live-map/** from entering this commit. Their publication
+          # and size policy belongs to the dedicated Map Host workflow.
           roots = [
               Path(os.environ["BITNODES_API"]),
-              Path(os.environ["BITNODES_MAPS"]) / "data",
-              Path(os.environ["BITNODES_LIVE_MAP"]) / "data",
               Path(os.environ["BITNODES_GEOIP"]) / "current",
           ]
 
           forbidden = {
               Path("bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json"),
               Path("bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
-              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
           }
 
           bad = []
