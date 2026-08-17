@@ -1,0 +1,35 @@
+{
+  "updated_at": "2026-08-17T20:32:10.397754Z",
+  "source": "zzx_themarketbtccreated_deadopop_v2",
+  "market_data_source": "coingecko",
+  "model": {
+    "name": "TheMarketBTCCreated + DeadOPop",
+    "the_market_btc_created_formula": "current_global_crypto_market_cap_usd / btc_circulating_supply",
+    "deadopop_adjusted_formula": "(current_global_crypto_market_cap_usd + deadopop_cumulative_estimated_value_lost_usd) / btc_circulating_supply",
+    "decomposition": "BTC market cap + current non-BTC market cap + historical DeadOPop loss, all divided by circulating BTC.",
+    "warning": "This is an appraisal/accounting model, not an intrinsic-value proof or a prediction that market participants will actually transfer this capital into Bitcoin."
+  },
+  "inputs": {
+    "current_global_crypto_market_cap_usd": 2282234272737.27,
+    "current_bitcoin_market_cap_usd": 1291734825379.0,
+    "current_non_bitcoin_market_cap_usd": 990499447358.27,
+    "spot_btc_price_usd": 64355.0,
+    "btc_circulating_supply": 20071518.0,
+    "deadopop_cumulative_estimated_value_lost_usd": 79515430000.0,
+    "deadopop_total_dead_coins": 46,
+    "deadopop_valued_dead_coins": 46,
+    "deadopop_unvalued_dead_coins": 0
+  },
+  "outputs": {
+    "the_market_btc_created_price_usd": 113705.12,
+    "active_non_bitcoin_absorption_per_btc_usd": 49348.51,
+    "deadopop_absorption_per_btc_usd": 3961.61,
+    "deadopop_adjusted_appraised_btc_price_usd": 117666.72,
+    "appraisal_premium_over_spot_usd": 53311.72,
+    "appraisal_multiple_over_spot": 1.8284006,
+    "btc_capture_percent_of_created_market_plus_deadopop": 54.69397641,
+    "inverse_unabsorbed_percent": 45.30602359,
+    "spot_to_appraised_percent": 54.69260944,
+    "inverse_spot_to_appraised_percent": 45.30739056
+  }
+}
