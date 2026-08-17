@@ -12,7 +12,8 @@ on:
           - hourly
           - deep
   schedule:
-    - cron: "7 * * * *"
+    # Hourly crawl except 03:00 UTC, which is reserved for the deep crawl.
+    - cron: "7 0-2,4-23 * * *"
     - cron: "23 3 * * *"
 
 permissions:
@@ -47,7 +48,7 @@ env:
 jobs:
   crawl-bitnodes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150
 
     steps:
       - name: Checkout website repo
@@ -72,13 +73,16 @@ jobs:
 
           PROFILE="${{ inputs.crawl_profile || '' }}"
 
-          if [ -z "${PROFILE}" ]; then
-            HOUR="$(date -u +%H)"
-            if [ "${HOUR}" = "03" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "23 3 * * *" ]; then
               PROFILE="deep"
             else
               PROFILE="hourly"
             fi
+          fi
+
+          if [ -z "${PROFILE}" ]; then
+            PROFILE="hourly"
           fi
 
           if [ "${PROFILE}" = "deep" ]; then
@@ -172,7 +176,7 @@ jobs:
 
           for FILE in "${REQUIRED[@]}" "${MOVED_MODULES[@]}"; do
             if [ ! -f "${FILE}" ]; then
-              echo "MISSING REQUIRED FILE: ${FILE}"
+              printf '%s\n' "MISSING REQUIRED FILE: ${FILE}"
               find tools/bitnodes -maxdepth 4 -type f | sort
               exit 1
             fi
@@ -183,7 +187,7 @@ jobs:
             if [ -f "${FILE}" ]; then
               python -m py_compile "${FILE}"
             else
-              echo "optional missing: ${FILE}"
+              printf '%s\n' "optional missing: ${FILE}"
             fi
           done
 
@@ -254,7 +258,17 @@ jobs:
               URL="https://download.db-ip.com/free/dbip-${DB}-lite-${DBIP_MONTH}.mmdb.gz"
               OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb.gz"
 
-              if curl -fL --retry 3 --retry-delay 5 -o "${OUT}" "${URL}"; then
+              if curl \
+                --proto '=https' \
+                --tlsv1.2 \
+                --fail \
+                --location \
+                --retry 3 \
+                --retry-all-errors \
+                --retry-delay 5 \
+                --output "${OUT}" \
+                "${URL}"
+              then
                 OK="1"
                 break
               fi
@@ -617,7 +631,7 @@ jobs:
           set -euo pipefail
 
           date
-          echo "Starting export_db.py"
+          printf '%s\n' "Starting export_db.py"
 
           python tools/bitnodes/export_db.py \
             --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
@@ -629,7 +643,7 @@ jobs:
             --strict \
             --no-sqlite
 
-          echo "Finished export_db.py"
+          printf '%s\n' "Finished export_db.py"
           date
 
           du -sh "${BITNODES_API}/data" || true
@@ -659,23 +673,88 @@ jobs:
         run: |
           set -euo pipefail
 
+          if ! [[ "${BITNODES_BACKUP_REPO}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            printf '%s\n' "BITNODES_BACKUP_REPO must be in owner/repository form."
+            exit 1
+          fi
+
           TODAY="$(date -u +%Y-%m-%d)"
           RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          SOURCE_SHA="$(git rev-parse HEAD)"
           BACKUP_ROOT="$(mktemp -d)"
+          ASKPASS="$(mktemp)"
+
+          cleanup() {
+            rm -f "${ASKPASS}"
+            rm -rf "${BACKUP_ROOT}"
+          }
+          trap cleanup EXIT
+
+          cat > "${ASKPASS}" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "${BITNODES_BACKUP_TOKEN}" ;;
+            *) printf '%s\n' "" ;;
+          esac
+          ASKPASS
+          chmod 700 "${ASKPASS}"
+
+          export GIT_ASKPASS="${ASKPASS}"
+          export GIT_TERMINAL_PROMPT=0
 
           git clone \
-            "https://x-access-token:${BITNODES_BACKUP_TOKEN}@github.com/${BITNODES_BACKUP_REPO}.git" \
+            --filter=blob:none \
+            --single-branch \
+            --branch main \
+            "https://github.com/${BITNODES_BACKUP_REPO}.git" \
             "${BACKUP_ROOT}"
+
+          REMOTE_URL="$(git -C "${BACKUP_ROOT}" remote get-url origin)"
+          if printf '%s' "${REMOTE_URL}" | grep -Fq "${BITNODES_BACKUP_TOKEN}"; then
+            printf '%s\n' "Refusing backup remote containing embedded credentials."
+            exit 1
+          fi
 
           mkdir -p \
             "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}" \
             "${BACKUP_ROOT}/bitnodes/latest" \
             "${BACKUP_ROOT}/bitnodes/manifests"
 
-          cp -av "${BITNODES_API}/data/"*.sql.gz "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}/" || true
-          cp -av "${BITNODES_API}/data/"*.json "${BACKUP_ROOT}/bitnodes/latest/" || true
+          shopt -s nullglob
+          SQL_SHARDS=("${BITNODES_API}/data/"*.sql.gz)
+          JSON_ARTIFACTS=("${BITNODES_API}/data/"*.json)
+          shopt -u nullglob
+
+          if [ "${#SQL_SHARDS[@]}" -eq 0 ]; then
+            printf '%s\n' "No MariaDB SQL gzip shards were produced; refusing empty private backup."
+            exit 1
+          fi
+
+          if [ "${#JSON_ARTIFACTS[@]}" -eq 0 ]; then
+            printf '%s\n' "No MariaDB JSON metadata artifacts were produced; refusing incomplete private backup."
+            exit 1
+          fi
+
+          for SHARD in "${SQL_SHARDS[@]}"; do
+            gzip -t "${SHARD}"
+            SIZE="$(stat -c '%s' "${SHARD}")"
+            if [ "${SIZE}" -gt "${MAX_PUBLIC_JSON_BYTES}" ]; then
+              printf '%s\n' "SQL shard exceeds configured shard ceiling: ${SIZE} ${SHARD}"
+              exit 1
+            fi
+          done
+
+          cp -av \
+            "${SQL_SHARDS[@]}" \
+            "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}/"
+
+          cp -av \
+            "${JSON_ARTIFACTS[@]}" \
+            "${BACKUP_ROOT}/bitnodes/latest/"
 
           python - <<PY
+          import hashlib
           import json
           import time
           from pathlib import Path
@@ -685,30 +764,41 @@ jobs:
           manifest_dir = root / "bitnodes" / "manifests"
           manifest_dir.mkdir(parents=True, exist_ok=True)
 
+          files = []
+          for path in sorted(run_dir.glob("*.sql.gz")):
+              files.append({
+                  "path": str(path.relative_to(root)),
+                  "size_bytes": path.stat().st_size,
+                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+              })
+
+          if not files:
+              raise SystemExit("private backup manifest would contain zero SQL shards")
+
           manifest = {
-              "schema": "zzx-bitnodes-private-mariadb-backup-v1",
+              "schema": "zzx-bitnodes-private-mariadb-backup-v2",
               "generated_at": int(time.time()),
               "date": "${TODAY}",
               "run_id": "${RUN_ID}",
               "source_repo": "${GITHUB_REPOSITORY}",
-              "source_sha": "${GITHUB_SHA}",
-              "files": []
+              "source_sha": "${SOURCE_SHA}",
+              "files": files,
           }
 
-          for path in sorted(run_dir.glob("*.sql.gz")):
-              manifest["files"].append({
-                  "path": str(path.relative_to(root)),
-                  "size_bytes": path.stat().st_size
-              })
+          manifest_text = json.dumps(
+              manifest,
+              ensure_ascii=False,
+              indent=2,
+          ) + "\n"
 
           (manifest_dir / f"${TODAY}-${RUN_ID}.json").write_text(
-              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-              encoding="utf-8"
+              manifest_text,
+              encoding="utf-8",
           )
 
           (root / "bitnodes" / "latest" / "private-backup-latest.json").write_text(
-              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-              encoding="utf-8"
+              manifest_text,
+              encoding="utf-8",
           )
           PY
 
@@ -716,16 +806,30 @@ jobs:
 
           git config user.name "zzx-labs-bitnodes-bot"
           git config user.email "actions@github.com"
-
           git add bitnodes
 
           if git diff --cached --quiet; then
-            echo "No private MariaDB backup changes."
+            printf '%s\n' "No private MariaDB backup changes."
             exit 0
           fi
 
           git commit -m "Backup Bitnodes MariaDB shards ${TODAY} ${RUN_ID}"
-          git push origin HEAD:main
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main && git push origin HEAD:main; then
+              printf '%s\n' "Private MariaDB backup pushed."
+              exit 0
+            fi
+
+            git rebase --abort || true
+            printf '%s\n' "Private backup push attempt ${attempt} failed; retrying without force."
+            sleep 10
+          done
+
+          printf '%s\n' "Failed to push private MariaDB backup without rewriting main."
+          exit 1
 
       - name: Build maps and live-map from real coordinate data
         shell: bash
@@ -977,6 +1081,47 @@ jobs:
           rm -f "${BITNODES_MAPS}/data/map-vectors.json" || true
           rm -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" || true
 
+          python - <<'PY'
+          import json
+          import os
+          import time
+          from pathlib import Path
+
+          api = Path(os.environ["BITNODES_API"])
+          manifest = {
+              "schema": "zzx-bitnodes-public-file-manifest-v2",
+              "generated_at": int(time.time()),
+              "files": [],
+          }
+
+          for path in sorted(api.rglob("*")):
+              if not path.is_file():
+                  continue
+
+              rel = path.relative_to(api)
+              if rel.as_posix() == "manifest.json":
+                  continue
+
+              manifest["files"].append({
+                  "path": rel.as_posix(),
+                  "size_bytes": path.stat().st_size,
+              })
+
+          (api / "manifest.json").write_text(
+              json.dumps(
+                  manifest,
+                  ensure_ascii=False,
+                  separators=(",", ":"),
+              ) + "\n",
+              encoding="utf-8",
+          )
+
+          print(
+              f"public API manifest rebuilt: "
+              f"{len(manifest['files'])} files"
+          )
+          PY
+
           printf '%s\n' "Largest files in public API data:"
           du -sh "${BITNODES_API}/data" || true
           find "${BITNODES_API}/data" -type f -printf "%s %p\n" | sort -nr | head -20 || true
@@ -1001,6 +1146,18 @@ jobs:
             "${BITNODES_GEOIP}/ip_db.push-report.json" \
             "${BITNODES_MAPS}/data" \
             "${BITNODES_LIVE_MAP}/data"
+
+          git ls-files -z -- \
+            "${BITNODES_ROOT}/src" \
+            "${BITNODES_DATA}/runtime" \
+            "${BITNODES_ARCHIVE}/runtime" \
+            "${BITNODES_API}/original-latest.json" \
+            "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
+            "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
+            "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
+            "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json" \
+            | xargs -0 -r git add -u --
 
       - name: Validate public artifact policy
         shell: bash
@@ -1051,9 +1208,6 @@ jobs:
 
                   p = path.as_posix()
 
-                  if "/enriched/" in p:
-                      continue
-
                   if p.endswith(".ipdb-enriched.json"):
                       continue
 
@@ -1075,8 +1229,29 @@ jobs:
                   print(f"{reason}: {size} {path}")
               raise SystemExit(1)
 
-          print("public artifact policy passed")
+          print("public artifact filesystem policy passed")
           PY
+
+          FORBIDDEN_TRACKED="$(
+            git ls-files -- \
+              "${BITNODES_DATA}/runtime" \
+              "${BITNODES_ARCHIVE}/runtime" \
+              "${BITNODES_ROOT}/src" \
+              "${BITNODES_API}/original-latest.json" \
+              "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+              "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
+              "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
+              "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
+              "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json"
+          )"
+
+          if [ -n "${FORBIDDEN_TRACKED}" ]; then
+            printf '%s\n' "Refusing tracked private/transient Bitnodes artifacts:"
+            printf '%s\n' "${FORBIDDEN_TRACKED}"
+            exit 1
+          fi
+
+          printf '%s\n' "public artifact index policy passed"
 
       - name: Guard against destructive or bloated commit
         shell: bash
