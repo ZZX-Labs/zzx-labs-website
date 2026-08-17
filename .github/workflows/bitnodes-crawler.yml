@@ -894,66 +894,82 @@ jobs:
 
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
+          limit = max(1, int(os.environ["PUBLIC_MAP_MAX_POINTS"]))
+          bases = [
+              Path(os.environ["BITNODES_MAPS"]) / "data",
+              Path(os.environ["BITNODES_LIVE_MAP"]) / "data",
+          ]
+
+          for base in bases:
+              base.mkdir(parents=True, exist_ok=True)
               geo = base / "map-points.geojson"
 
-              if geo.exists():
-                  data = json.loads(geo.read_text(encoding="utf-8"))
-                  features = data.get("features", [])
-                  original_count = len(features)
+              if not geo.exists():
+                  continue
 
-                  data["features"] = features[:LIMIT]
-                  data.setdefault("metadata", {})
-                  data["metadata"]["public_capped"] = True
-                  data["metadata"]["public_feature_limit"] = LIMIT
-                  data["metadata"]["original_feature_count"] = original_count
+              data = json.loads(geo.read_text(encoding="utf-8"))
+              features = data.get("features", [])
 
-                  geo.write_text(
-                      json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
-                      encoding="utf-8",
-                  )
+              if not isinstance(features, list):
+                  raise SystemExit(f"invalid GeoJSON features array: {geo}")
+
+              original_count = len(features)
+              data["features"] = features[:limit]
+              data.setdefault("metadata", {})
+              data["metadata"]["public_capped"] = True
+              data["metadata"]["public_feature_limit"] = limit
+              data["metadata"]["original_feature_count"] = original_count
+
+              geo.write_text(
+                  json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
+                  encoding="utf-8",
+              )
+
+              points = []
+
+              for feature in data["features"]:
+                  if not isinstance(feature, dict):
+                      continue
+
+                  props = feature.get("properties")
+                  geom = feature.get("geometry")
+
+                  if not isinstance(props, dict):
+                      props = {}
+
+                  if not isinstance(geom, dict):
+                      geom = {}
+
+                  coords = geom.get("coordinates")
+
+                  if isinstance(coords, list) and len(coords) >= 2:
+                      row = dict(props)
+                      row["longitude"] = coords[0]
+                      row["latitude"] = coords[1]
+                      points.append(row)
 
               vectors = base / "map-vectors-public.json"
+              vectors.write_text(
+                  json.dumps(
+                      {
+                          "schema": "zzx-bitnodes-public-capped-map-vectors-v1",
+                          "public_capped": True,
+                          "point_count": len(points),
+                          "points": points,
+                      },
+                      ensure_ascii=False,
+                      separators=(",", ":"),
+                  ) + "\n",
+                  encoding="utf-8",
+              )
 
-              if geo.exists():
-                  data = json.loads(geo.read_text(encoding="utf-8"))
-                  points = []
-
-                  for feature in data.get("features", []):
-                      if not isinstance(feature, dict):
-                          continue
-
-                      props = feature.get("properties")
-                      geom = feature.get("geometry")
-
-                      if not isinstance(props, dict):
-                          props = {}
-
-                      if not isinstance(geom, dict):
-                          geom = {}
-
-                      coords = geom.get("coordinates")
-
-                      if isinstance(coords, list) and len(coords) >= 2:
-                          row = dict(props)
-                          row["longitude"] = coords[0]
-                          row["latitude"] = coords[1]
-                          points.append(row)
-
-                  vectors.write_text(
-                      json.dumps(
-                          {
-                              "schema": "zzx-bitnodes-public-capped-map-vectors-v1",
-                              "public_capped": True,
-                              "point_count": len(points),
-                              "points": points,
-                          },
-                          ensure_ascii=False,
-                          separators=(",", ":"),
-                      ) + "\n",
-                      encoding="utf-8",
-                  )
+              print(
+                  f"public map capped: {geo} original={original_count} "
+                  f"emitted={len(data['features'])} vectors={len(points)}"
+              )
           PY
 
           rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
@@ -1030,15 +1046,15 @@ jobs:
                   continue
 
               for path in root.rglob("*"):
-              p = str(path)
-
-              if "/enriched/" in p:
-                  continue
-
-              if p.endswith(".ipdb-enriched.json"):
-                  continue
-                  
                   if not path.is_file():
+                      continue
+
+                  p = path.as_posix()
+
+                  if "/enriched/" in p:
+                      continue
+
+                  if p.endswith(".ipdb-enriched.json"):
                       continue
 
                   if path.suffix == ".gz":
@@ -1109,13 +1125,17 @@ jobs:
           git commit -m "Update Bitnodes public artifacts"
 
           for attempt in 1 2 3 4 5; do
-            if git push --force-with-lease origin HEAD:main; then
+            git fetch origin main
+
+            if git rebase origin/main && git push origin HEAD:main; then
               printf '%s\n' "Bitnodes public artifacts pushed."
               exit 0
             fi
 
-            printf '%s\n' "Push attempt ${attempt} failed. Another run or human commit advanced main; rerun from fresh origin/main."
+            git rebase --abort || true
+            printf '%s\n' "Bitnodes push attempt ${attempt} failed; refetching and retrying without force."
             sleep 10
           done
 
+          printf '%s\n' "Failed to push Bitnodes public artifacts without rewriting main."
           exit 1
