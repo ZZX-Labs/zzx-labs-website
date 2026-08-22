@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Mid-horizon Bitcoin savings planner for staged deposits, quarterly or semiannual timelock tranches, liquidity buffers, and deterministic capital-release policies.">
+  <title>BackNABit · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-backnabit-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-backnabit-1">
+  <script src="./hook.js?v=20260822-backnabit-1" defer></script>
+  <script src="./script.js?v=20260822-backnabit-1" defer></script>
+  <script src="./bitcoin-time.js?v=20260822-backnabit-1" defer></script>
+  <script src="./storage.js?v=20260822-backnabit-1" defer></script>
+  <script src="./backnabit.js?v=20260822-backnabit-1" defer></script>
+</head>
+
+<body class="project project-backnabit">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BackNABit logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BackNABit</h1>
+    <p class="blurb">Mid-horizon Bitcoin savings planner for staged deposits, quarterly or semiannual timelock tranches, liquidity buffers, and deterministic capital-release policies.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/backnabit" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+  <div class="section-head"><div><p class="kicker">MID-TERM BITCOIN TIMELOCK SAVINGS</p><h2>BackNABit Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">HORIZON: 1–5Y</span><span class="runtime-badge ok">LADDER: STAGED</span><span class="runtime-badge ok">KEYS: NONE</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+  <div class="workbench">
+    <aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+      <button class="tool-tab mode-tab active" data-mode="plan" type="button">Capital Plan</button>
+      <button class="tool-tab mode-tab" data-mode="ladder" type="button">Timelock Ladder</button>
+      <button class="tool-tab mode-tab" data-mode="budget" type="button">Liquidity Buffer</button>
+      <button class="tool-tab mode-tab" data-mode="policy" type="button">Policy Template</button>
+      <button class="tool-tab mode-tab" data-mode="export" type="button">Export / Import</button>
+    </div><div class="bb-sidebar-note"><strong>MID-HORIZON LAYER</strong><p>Designed for staged 1–5 year savings, not instant spending and not deep 10–20 year cold-vault preservation.</p></div></aside>
+    <section class="tool-workspace">
+      <div id="mode-plan" class="bb-mode-panel mode-panel active"><div class="bb-mode-heading"><p class="kicker">12–60 MONTH HORIZON</p><h2>Capital Plan</h2><p>Model recurring contributions and a staged release schedule with quarterly or semiannual tranches.</p></div><div class="tool-card">
+        <div class="bb-grid-3">
+          <label>Starting sats<input id="plan-start" type="number" min="0" step="1000" value="2000000"></label>
+          <label>Monthly contribution sats<input id="plan-monthly" type="number" min="0" step="1000" value="250000"></label>
+          <label>Horizon months<input id="plan-months" type="number" min="12" max="60" value="36"></label>
+          <label>Release interval<select id="plan-interval"><option value="3">Quarterly</option><option value="6" selected>Semiannual</option><option value="12">Annual</option></select></label>
+          <label>Liquid buffer %<input id="plan-buffer" type="number" min="0" max="50" value="15"></label>
+          <label>Anchor height<input id="anchor-height" type="number" min="0" value="900000"></label>
+        </div>
+        <label style="margin-top:.7rem">Anchor date/time<input id="anchor-time" type="datetime-local" step="1"></label>
+        <div class="button-row" style="justify-content:flex-start"><button id="plan-build" class="btn" type="button">BUILD MID-TERM PLAN</button><button id="plan-save" class="btn ghost" type="button">SAVE LOCALLY</button></div>
+        <div class="bb-metrics"><div><span>Projected balance</span><strong id="metric-total">—</strong></div><div><span>Liquid buffer</span><strong id="metric-buffer">—</strong></div><div><span>Locked capital</span><strong id="metric-locked">—</strong></div><div><span>Tranches</span><strong id="metric-tranches">—</strong></div></div>
+      </div></div>
+
+      <div id="mode-ladder" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">STAGED RELEASES</p><h2>Timelock Ladder</h2><p>Each tranche matures on a separate estimated block height so mid-term capital becomes available progressively.</p></div><div class="tool-card"><div class="bb-table-wrap"><table class="bb-table"><thead><tr><th>#</th><th>Amount</th><th>Unlock</th><th>Height</th><th>Months locked</th></tr></thead><tbody id="ladder-body"></tbody></table></div><canvas id="ladder-canvas" class="bb-canvas" width="1200" height="320"></canvas></div></div>
+
+      <div id="mode-budget" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">OPERATING LIQUIDITY</p><h2>Liquidity Buffer</h2><p>Keep a defined portion outside the timelock ladder and estimate how many months of planned contributions it represents.</p></div><div class="tool-card"><div class="bb-metrics"><div><span>Buffer sats</span><strong id="budget-buffer">—</strong></div><div><span>Monthly contribution</span><strong id="budget-monthly">—</strong></div><div><span>Contribution months covered</span><strong id="budget-months">—</strong></div><div><span>Locked ratio</span><strong id="budget-ratio">—</strong></div></div><pre id="budget-output" class="bb-policy"></pre></div></div>
+
+      <div id="mode-policy" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">BITCOIN SCRIPT POLICY</p><h2>Policy Template</h2><p>Generate a CLTV template for a selected maturity tranche or a CSV template for a relative delay.</p></div><div class="tool-card"><div class="bb-grid-3"><label>Mode<select id="policy-type"><option value="cltv">Selected tranche CLTV</option><option value="csv">Relative CSV</option></select></label><label>Tranche #<input id="policy-tranche" type="number" min="1" value="1"></label><label>Relative days<input id="policy-days" type="number" min="1" value="180"></label></div><label style="margin-top:.7rem">Public-key placeholder<input id="policy-key" type="text" value="&lt;midterm_pubkey&gt;"></label><div class="button-row" style="justify-content:flex-start"><button id="policy-build" class="btn" type="button">GENERATE POLICY</button></div><pre id="policy-output" class="bb-policy"></pre><div class="bb-note">Planning template only. No keys or funded transactions are produced.</div></div></div>
+
+      <div id="mode-export" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">PORTABLE MID-TERM PLAN</p><h2>Export / Import</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn" type="button">EXPORT JSON</button><label class="file-button">IMPORT JSON<input id="import-json" type="file" accept=".json,application/json"></label><button id="clear-plan" class="btn ghost" type="button">CLEAR SAVED PLAN</button></div><pre id="export-output" class="tool-output"></pre></div></div>
+    </section>
+  </div>
+</div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BackNABit</h2><p>Mid-term Bitcoin savings layer with staged timelock maturities and an explicit liquidity buffer.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · bitcoinlib · lnd-grpc · SQLite</dd></div><div><dt>Web</dt><dd>JavaScript · localStorage · Canvas</dd></div></dl></article><article class="panel"><p class="kicker">CURRENT PRODUCT DIRECTION</p><h2>Mid-Term Layer</h2><p>This web build follows the current requested short / mid / long family split: BackABit short, BackNABit mid, BackInABit long.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
