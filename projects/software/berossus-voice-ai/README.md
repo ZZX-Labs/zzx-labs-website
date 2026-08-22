@@ -1,3 +1,6 @@
+<div align="center">
+<img src="logo.png" alt="BerossusVoiceAI" width="240" height="240">
+
 # BerossusVoiceAI
 
 Modular TTS/STT, alignment, diarization-workspace, and voice-dataset orchestration tools for Berossus.
@@ -5,6 +8,9 @@ Modular TTS/STT, alignment, diarization-workspace, and voice-dataset orchestrati
 **Version:** 0.1.0-alpha  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Browser edition
 
