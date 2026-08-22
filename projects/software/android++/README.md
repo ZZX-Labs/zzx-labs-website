@@ -12,6 +12,8 @@ Offline-first **Android code and text editor** inspired by Notepad++ with local 
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Kotlin / Android SDK · JavaScript / Web Crypto / File API
 
+</div>
+
 
 ## What it does
 
