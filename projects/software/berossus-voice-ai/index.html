@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Modular TTS/STT stack for Berossus with browser speech synthesis, speech recognition, local audio analysis, VAD-style segmentation, transcript alignment, speaker labeling, and dataset orchestration.">
+  <title>BerossusVoiceAI · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260822-berossusvoiceai-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-berossusvoiceai-1">
+  <script src="./hook.js?v=20260822-berossusvoiceai-1" defer></script>
+  <script src="./script.js?v=20260822-berossusvoiceai-1" defer></script>
+  <script src="./voice-audio.js?v=20260822-berossusvoiceai-1" defer></script>
+  <script src="./berossusvoiceai.js?v=20260822-berossusvoiceai-1" defer></script>
+</head>
+
+<body class="project project-berossusvoiceai">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BerossusVoiceAI logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BerossusVoiceAI</h1>
+    <p class="blurb">Modular TTS/STT stack for Berossus with browser speech synthesis, speech recognition, local audio analysis, VAD-style segmentation, transcript alignment, speaker labeling, and dataset orchestration.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/berossusvoiceai" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">TTS / STT / DATASET ORCHESTRATION</p><h2>BerossusVoiceAI Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">TTS: SPEECHSYNTHESIS</span><span id="voice-stt-status" class="runtime-badge partial">STT: CHECKING</span><span class="runtime-badge ok">AUDIO: WEB AUDIO</span><span class="runtime-badge ok">DATASET: LOCAL</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="tts" type="button">TTS</button>
+<button class="tool-tab mode-tab" data-mode="stt" type="button">STT</button>
+<button class="tool-tab mode-tab" data-mode="dataset" type="button">Audio Dataset</button>
+<button class="tool-tab mode-tab" data-mode="align" type="button">Alignment</button>
+<button class="tool-tab mode-tab" data-mode="diarize" type="button">Diarization</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Orchestration</button>
+</div><div class="p-sidebar-note"><strong>CONTROLLED VOICE GENERATION</strong><p>The browser uses installed system voices or an explicit provider hook. It does not perform hidden voice cloning or impersonation.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-tts" class="p-mode-panel mode-panel active"><div class="p-mode-heading"><p class="kicker">SYSTEM-VOICE SYNTHESIS</p><h2>TTS</h2><p>Synthesize text with the browser's installed speech voices and configure rate, pitch, volume, and voice selection.</p></div><div class="tool-card"><label>Text<textarea id="tts-text" rows="8">BerossusVoiceAI is ready.</textarea></label><div class="p-grid-3"><label>Voice<select id="tts-voice"></select></label><label>Rate<input id="tts-rate" class="p-range" type="range" min="0.5" max="2" step="0.05" value="1"></label><label>Pitch<input id="tts-pitch" class="p-range" type="range" min="0" max="2" step="0.05" value="1"></label></div><div class="button-row" style="justify-content:flex-start"><button id="tts-speak" class="btn" type="button">SPEAK</button><button id="tts-stop" class="btn ghost" type="button">STOP</button></div><pre id="tts-output" class="p-log"></pre></div></div>
+
+<div id="mode-stt" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">BROWSER SPEECH RECOGNITION</p><h2>STT</h2><p>Use the browser speech-recognition interface where available. Browser implementations may use an online service.</p></div><div class="tool-card"><div class="p-grid-3"><label>Language<input id="stt-lang" type="text" value="en-US"></label><label>Continuous<select id="stt-continuous"><option value="false">No</option><option value="true">Yes</option></select></label><label>Interim<select id="stt-interim"><option value="true">Yes</option><option value="false">No</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="stt-start" class="btn" type="button">START LISTENING</button><button id="stt-stop" class="btn ghost" type="button">STOP</button></div><pre id="stt-output" class="p-log"></pre></div></div>
+
+<div id="mode-dataset" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">LOCAL AUDIO CORPUS</p><h2>Audio Dataset</h2><p>Import recordings, decode them locally, measure duration/sample-rate/peak/RMS, and generate VAD-style energy segments.</p></div><div class="tool-card"><div id="audio-drop" class="p-dropzone"><h3>Drop Audio Files</h3><p>Audio is decoded locally through Web Audio.</p><label class="file-button">SELECT AUDIO<input id="audio-files" type="file" multiple accept="audio/*"></label></div><div class="p-grid-3" style="margin-top:.8rem"><label>VAD frame ms<input id="vad-frame" type="number" min="10" max="100" value="30"></label><label>RMS threshold<input id="vad-threshold" type="number" min="0" max="1" step="0.001" value="0.015"></label><label>Merge gap ms<input id="vad-gap" type="number" min="0" max="2000" value="250"></label></div><div class="button-row" style="justify-content:flex-start"><button id="vad-run" class="btn" type="button">SEGMENT ALL</button></div><div class="p-metrics"><div><span>Files</span><strong id="audio-count">0</strong></div><div><span>Duration</span><strong id="audio-duration">0 s</strong></div><div><span>Segments</span><strong id="audio-segments">0</strong></div><div><span>Sample rates</span><strong id="audio-rates">—</strong></div></div><div id="audio-list" class="p-list" style="margin-top:.8rem"></div></div></div>
+
+<div id="mode-align" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">TRANSCRIPT TIMING</p><h2>Alignment</h2><p>Attach transcript lines to a selected audio file and distribute them across detected segments or proportionally across duration.</p></div><div class="tool-card"><div class="p-grid-2"><label>Audio file<select id="align-file"></select></label><label>Speaker label<input id="align-speaker" type="text" value="speaker_1"></label></div><label style="margin-top:.7rem">Transcript — one utterance per line<textarea id="align-text" rows="10"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="align-run" class="btn" type="button">ALIGN LINES</button></div><pre id="align-output" class="p-log"></pre></div></div>
+
+<div id="mode-diarize" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">SPEAKER-LABEL WORKSPACE</p><h2>Diarization</h2><p>Assign speaker labels to aligned segments. The static browser build does not claim biometric speaker identification.</p></div><div class="tool-card"><div id="diarize-list" class="p-list"></div><div class="p-note">Native PyTorch/Torchaudio pipelines can replace this manual labeling layer with actual speaker-embedding diarization models.</div></div></div>
+
+<div id="mode-export" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">DATASET ORCHESTRATION</p><h2>Orchestration</h2><p>Export file metadata, segments, aligned utterances, speaker labels, and provider configuration as JSON/JSONL manifests.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn" type="button">EXPORT WORKSPACE JSON</button><button id="export-jsonl" class="btn ghost" type="button">EXPORT UTTERANCES JSONL</button><label class="file-button">IMPORT WORKSPACE<input id="import-json" type="file" accept=".json,application/json"></label></div><pre id="export-output" class="p-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BerossusVoiceAI</h2><p>Modular voice-data tooling for TTS, STT, segmentation, alignment, speaker labeling, and controlled dataset creation.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>PyTorch · Torchaudio · Whisper · WebRTC VAD</dd></div><div><dt>Web</dt><dd>speechSynthesis · SpeechRecognition · Web Audio</dd></div></dl></article><article class="panel"><p class="kicker">BROWSER BOUNDARY</p><h2>No hidden voice cloning</h2><p>TTS uses installed system voices. Speaker diarization is a transparent labeling workspace unless the user deliberately connects an external model provider.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
