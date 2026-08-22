@@ -1,0 +1,150 @@
+{
+  "slug": "audiosieve",
+  "title": "AudioSieve",
+  "name": "AudioSieve",
+  "blurb": "AudioSieve is a cross-platform music library workstation integrating VLC playback, FFmpeg processing, and Mutagen metadata editing. It provides waveform visualization, audio output routing, playlist management, and tag editing with a PyQt5 GUI that mirrors VLC’s native transport controls. Designed for professional music cataloging, playback, and tagging across multi-device environments.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/audiosieve/",
+  "github": "https://github.com/ZZX-Labs/audiosieve",
+  "logo": "/projects/software/audiosieve/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "python3",
+      "pyqt5",
+      "python-vlc",
+      "ffmpeg-python",
+      "mutagen",
+      "pillow",
+      "sqlite3",
+      "requests"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "VLC",
+      "FFmpeg",
+      "Mutagen"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./audiosieve.js",
+    "modules": [
+      "./library-store.js",
+      "./metadata.js",
+      "./waveform.js",
+      "./audio-processing.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "capabilities": [
+      {
+        "name": "Local audio import",
+        "web": "yes",
+        "notes": "File API and drag/drop."
+      },
+      {
+        "name": "VLC-style playback controls",
+        "web": "yes",
+        "notes": "HTMLMediaElement."
+      },
+      {
+        "name": "Playlist management",
+        "web": "yes",
+        "notes": "Session playlist plus JSON export."
+      },
+      {
+        "name": "Waveform visualization",
+        "web": "yes",
+        "notes": "Web Audio decode and Canvas."
+      },
+      {
+        "name": "Signal analysis",
+        "web": "yes",
+        "notes": "Peak, RMS, crest factor, zero crossing, spectrum."
+      },
+      {
+        "name": "Audio output routing",
+        "web": "partial",
+        "notes": "setSinkId where supported."
+      },
+      {
+        "name": "Embedded metadata read",
+        "web": "yes",
+        "notes": "ID3v2/v1 and FLAC Vorbis comments."
+      },
+      {
+        "name": "Metadata editing",
+        "web": "partial",
+        "notes": "Catalog/sidecar edits; source audio bytes unchanged."
+      },
+      {
+        "name": "FFmpeg-style processing",
+        "web": "partial",
+        "notes": "Trim, normalize, fade and PCM WAV render through Web Audio."
+      },
+      {
+        "name": "Library persistence",
+        "web": "yes",
+        "notes": "IndexedDB metadata catalog."
+      },
+      {
+        "name": "Fingerprinting",
+        "web": "yes",
+        "notes": "SHA-256 via Web Crypto."
+      },
+      {
+        "name": "Library/playlist export",
+        "web": "yes",
+        "notes": "JSON."
+      }
+    ]
+  },
+  "tags": [
+    "audio",
+    "music",
+    "vlc",
+    "ffmpeg",
+    "mutagen",
+    "metadata",
+    "tagging",
+    "playlist",
+    "waveform",
+    "library",
+    "gui",
+    "cli",
+    "pyqt5",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "audiosieve.js",
+    "library-store.js",
+    "metadata.js",
+    "waveform.js",
+    "audio-processing.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}
