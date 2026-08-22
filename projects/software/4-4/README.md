@@ -11,6 +11,7 @@ Guided **4-4-4-4 box-breathing clock** with synchronized visual, audio, and hapt
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python 3.11+ / PyQt5 · JavaScript / Web Audio / Vibration API
+</div>
 
 
 ## What it does
