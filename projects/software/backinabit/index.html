@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Long-horizon Bitcoin capital-preservation planner for 10–20 year timelocks, multisig policy design, cold-storage procedures, recovery paths, and staged legacy releases.">
+  <title>BackInABit · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-backinabit-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-backinabit-1">
+  <script src="./hook.js?v=20260822-backinabit-1" defer></script>
+  <script src="./script.js?v=20260822-backinabit-1" defer></script>
+  <script src="./bitcoin-time.js?v=20260822-backinabit-1" defer></script>
+  <script src="./storage.js?v=20260822-backinabit-1" defer></script>
+  <script src="./backinabit.js?v=20260822-backinabit-1" defer></script>
+</head>
+
+<body class="project project-backinabit">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BackInABit logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BackInABit</h1>
+    <p class="blurb">Long-horizon Bitcoin capital-preservation planner for 10–20 year timelocks, multisig policy design, cold-storage procedures, recovery paths, and staged legacy releases.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/backinabit" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">LONG-TERM BITCOIN CAPITAL PRESERVATION</p><h2>BackInABit Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">HORIZON: 10–20Y</span><span class="runtime-badge ok">MULTISIG: POLICY</span><span class="runtime-badge ok">TIMELOCK: STAGED</span><span class="runtime-badge ok">KEYS: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="vault" type="button">Vault Plan</button>
+<button class="tool-tab mode-tab" data-mode="multisig" type="button">Multisig Policy</button>
+<button class="tool-tab mode-tab" data-mode="epochs" type="button">Release Epochs</button>
+<button class="tool-tab mode-tab" data-mode="recovery" type="button">Recovery Path</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export / Import</button>
+</div><div class="bb-sidebar-note"><strong>DEEP SAVINGS</strong><p>Designed for long-horizon policy planning. The browser stores no seed phrases, private keys, xprvs, or signed transactions.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-vault" class="bb-mode-panel mode-panel active"><div class="bb-mode-heading"><p class="kicker">10–20 YEAR HORIZON</p><h2>Vault Plan</h2><p>Model long-term accumulation, cold-reserve allocation, and staged maturity epochs.</p></div><div class="tool-card">
+<div class="bb-grid-3">
+<label>Starting sats<input id="vault-start" type="number" min="0" step="10000" value="10000000"></label>
+<label>Annual contribution sats<input id="vault-annual" type="number" min="0" step="10000" value="2000000"></label>
+<label>Horizon years<input id="vault-years" type="number" min="10" max="20" value="15"></label>
+<label>Release epochs<input id="vault-epochs" type="number" min="2" max="8" value="4"></label>
+<label>Anchor height<input id="anchor-height" type="number" min="0" value="900000"></label>
+<label>Anchor date/time<input id="anchor-time" type="datetime-local" step="1"></label>
+</div>
+<div class="button-row" style="justify-content:flex-start"><button id="vault-build" class="btn" type="button">BUILD VAULT PLAN</button><button id="vault-save" class="btn ghost" type="button">SAVE LOCALLY</button></div>
+<div class="bb-metrics"><div><span>Projected sats</span><strong id="vault-total">—</strong></div><div><span>Horizon</span><strong id="vault-horizon">—</strong></div><div><span>Release epochs</span><strong id="vault-count">—</strong></div><div><span>Final maturity</span><strong id="vault-final">—</strong></div></div>
+</div></div>
+
+<div id="mode-multisig" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">KEY-DISTRIBUTION POLICY</p><h2>Multisig Policy</h2><p>Document the intended signing threshold and key-location roles without collecting actual key material.</p></div><div class="tool-card">
+<div class="bb-grid-3"><label>Required signatures<input id="multi-m" type="number" min="1" max="5" value="2"></label><label>Total signers<input id="multi-n" type="number" min="2" max="7" value="3"></label><label>Policy label<input id="multi-label" type="text" value="Deep Savings Vault"></label></div>
+<div class="bb-grid-3" style="margin-top:.7rem"><label>Signer role 1<input id="role-1" type="text" value="Primary cold key"></label><label>Signer role 2<input id="role-2" type="text" value="Secondary geographic key"></label><label>Signer role 3<input id="role-3" type="text" value="Recovery / estate key"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="multi-build" class="btn" type="button">GENERATE POLICY DOCUMENT</button></div><pre id="multi-output" class="bb-policy"></pre>
+</div></div>
+
+<div id="mode-epochs" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">STAGED LONG-TERM RELEASE</p><h2>Release Epochs</h2><p>Split projected capital across multiple absolute CLTV maturity epochs.</p></div><div class="tool-card"><div class="bb-table-wrap"><table class="bb-table"><thead><tr><th>#</th><th>Share</th><th>Amount</th><th>Maturity</th><th>Est. height</th></tr></thead><tbody id="epoch-body"></tbody></table></div><canvas id="epoch-canvas" class="bb-canvas" width="1200" height="320"></canvas></div></div>
+
+<div id="mode-recovery" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">CONTINGENCY DESIGN</p><h2>Recovery Path</h2><p>Describe a delayed recovery branch and generate a relative CSV template for an alternate recovery key.</p></div><div class="tool-card"><div class="bb-grid-3"><label>Recovery delay days<input id="recovery-days" type="number" min="1" value="365"></label><label>Primary key placeholder<input id="recovery-primary" type="text" value="&lt;primary_pubkey&gt;"></label><label>Recovery key placeholder<input id="recovery-key" type="text" value="&lt;recovery_pubkey&gt;"></label></div><div class="button-row" style="justify-content:flex-start"><button id="recovery-build" class="btn" type="button">GENERATE RECOVERY TEMPLATE</button></div><pre id="recovery-output" class="bb-policy"></pre><div class="bb-note">Recovery templates are documentation aids, not production-ready wallet descriptors. Long-term vaults should be independently reviewed and periodically recovery-tested before significant funds are committed.</div></div></div>
+
+<div id="mode-export" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">VAULT DOCUMENT</p><h2>Export / Import</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn" type="button">EXPORT JSON</button><label class="file-button">IMPORT JSON<input id="import-json" type="file" accept=".json,application/json"></label><button id="clear-plan" class="btn ghost" type="button">CLEAR SAVED PLAN</button></div><pre id="export-output" class="tool-output"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BackInABit</h2><p>Long-term Bitcoin preservation planning for 10–20 year holdings, staged timelocks, multisig role distribution, cold storage, and recovery policy documentation.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · bitcoinlib · GnuPG · OpenSSL · SQLite</dd></div><div><dt>Web</dt><dd>JavaScript · localStorage · Canvas</dd></div></dl></article><article class="panel"><p class="kicker">NON-CUSTODIAL</p><h2>No Secret Material</h2><p>The browser implementation stores policy parameters and placeholder roles only. It deliberately refuses to become a key store.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
