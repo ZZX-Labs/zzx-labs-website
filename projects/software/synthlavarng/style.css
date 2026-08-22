@@ -503,3 +503,73 @@ body.project {
 @media (max-width: 980px) {
   .synthlava-app { grid-template-columns: 1fr; }
 }
+
+/* ------------------------------------------------------------------
+ * Demo grid field
+ * The grid belongs to the complete demo/workbench region, not merely
+ * to the page background behind one column.
+ * ------------------------------------------------------------------ */
+
+.project #demo {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-inline: 1px solid var(--zzx-line);
+  background-color: var(--zzx-bg);
+  background-image:
+    linear-gradient(rgba(192,214,116,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(192,214,116,.055) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
+  background-size:
+    32px 32px,
+    32px 32px,
+    8px 8px,
+    8px 8px;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat: repeat;
+}
+
+/* Keep the grid continuous behind the entire workbench. */
+.project #demo .workbench {
+  position: relative;
+  background-color: rgba(18,18,18,.82);
+  background-image:
+    linear-gradient(rgba(192,214,116,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(192,214,116,.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: 0 0;
+  background-repeat: repeat;
+}
+
+/* The two workbench columns no longer erase the grid field. */
+.project #demo .tool-list-wrap {
+  background: rgba(11,11,11,.88);
+}
+
+.project #demo .tool-workspace {
+  background: rgba(18,18,18,.62);
+}
+
+/* Cards remain readable while allowing the same grid to visually span
+   the full height/width of the demo instead of terminating at a column. */
+.project #demo .tool-card,
+.project #demo .synthlava-stats > div {
+  background-color: rgba(9,9,9,.88);
+}
+
+/* Make the SynthLavaRNG app occupy the complete available workspace. */
+.project #demo .tool-body,
+.project #demo #tool-body,
+.project #demo .synthlava-app {
+  width: 100%;
+  min-width: 0;
+}
+
+.project #demo .synthlava-app {
+  min-height: 100%;
+}
