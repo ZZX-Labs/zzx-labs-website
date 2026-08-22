@@ -12,6 +12,8 @@ Native Android **4-4-4-4 box-breathing application** with visual timing cues, ha
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Kotlin / Android SDK · JavaScript / Web Audio / Vibration API
 
+</div>
+
 
 ## What it does
 
