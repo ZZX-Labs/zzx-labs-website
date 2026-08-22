@@ -1,50 +1,34 @@
 <div align="center">
-<img src="logo.png" alt="SynthLavaRNG" width="240" height="240">
+<img src="logo.png" alt="TerVIS" width="240" height="240">
 
-# SynthLavaRNG
-
-
-Lavarand/LavaRnd-inspired **visual-chaos entropy harvester** with a rolling **SHA3-256 pool** and **HMAC-DRBG (SHA3-256)**, with optional Bitcoin-derived BitRNG mixing.
+# TerVIS
 
 
-**Version:** 1.0.0-web / 1.0-whitepaper  
+**Terrestrial Video Identification System** for browser-native image, video, webcam, motion-pattern, and bioacoustic analysis of terrestrial species and biodiversity datasets.
+
+
+**Version:** 0.3.0-alpha  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
-**Language:** Python 3.11+ / PyQt5 · JavaScript / Canvas / Web Crypto
-
+**Language:** Python 3.11+ / TensorFlow / OpenCV · JavaScript / TensorFlow.js / Canvas / Web Audio
 </div>
+
 
 ## What it does
 
-- Renders animated visual-chaos systems and continuously samples their evolving state
-- Mixes sampled visual state into a rolling **SHA3-256 entropy pool**
-- Mixes browser/OS-backed entropy from `crypto.getRandomValues()` by default
-- Seeds and reseeds an **HMAC-DRBG using SHA3-256**
-- Generates arbitrary random-byte output as **hex**, **Base64**, or raw binary
-- Supports manual entropy input from user-supplied text, hashes, dice rolls, coin flips, or sensor data
-- Optionally mixes public **Bitcoin tip / block / mempool state** as additional non-secret input
-- Exposes all sixteen starting visual presets as functional browser simulations
-- Runs entirely in-browser for the web edition, with no installation required
-
-
-## Visual Presets
-
-- **Lava Lamp** — metaball-style blobs with smooth motion and collision/boundary dynamics
-- **Fireflies** — stochastic species-style flash patterns and drifting bioluminescent particles
-- **Oil Projector (TF)** — psychedelic fluid-field animation with optional future TensorFlow.js texture input
-- **Magnetic Field (TF)** — animated dipole/vector-field interference with optional ML-generated texture input
-- **Jellyfish Swarm** — drifting bells, glow compositing, phase jitter, and animated tentacles
-- **Rain Pond** — stochastic impacts, expanding ripple interference, and decay
-- **Moss Growth (TF)** — persistent procedural branching/growth simulation with optional ML texture input
-- **Crickets** — chirp-phase wave interference with optional browser Web Audio chirps
-- **Kaleidoscope** — mirrored rotational stochastic geometry
-- **Mandelbrot** — animated Mandelbrot zoom with moving center and jitter injection
-- **Fractal Mirror** — evolving mirrored particle/fractal fields
-- **Virtual Bonsai** — recursive procedural branching with stochastic wind deformation
-- **Bird Flock** — boids-style separation, alignment, cohesion, and predator avoidance
-- **Bat Hunt** — predator/prey swarm dynamics with bats pursuing insects
-- **Mercury Maze** — procedurally generated maze with metallic droplets moving through valid channels
-- **Gravity Equalized** — varying-mass bodies undergoing synchronized gravitational acceleration
+- Loads and analyzes local **images** without uploading them
+- Performs image metrics including **mean luminance** and **edge density**
+- Supports browser-side object/species inference through **TensorFlow.js**
+- Loads **MobileNet** on demand as a general demonstration classifier
+- Supports compatible custom **TensorFlow.js LayersModel** and **GraphModel** files
+- Loads and decodes local **video** through HTML5 media APIs
+- Performs frame-by-frame Canvas extraction and configurable temporal sampling
+- Computes **motion scores** and detects changing frame-pattern events
+- Supports local **webcam** analysis with explicit browser permission
+- Loads and decodes local **audio** through the Web Audio API
+- Computes **RMS energy**, **zero-crossing rate**, **spectral centroid**, and frequency-spectrum visualization
+- Logs image, video, camera, and audio observations into an in-browser research session
+- Exports observation sessions as **JSON** or **CSV**
 
 
 ## Install
@@ -56,8 +40,10 @@ python -m venv .venv && . .venv/bin/activate
 # Windows:
 # .venv\Scripts\activate
 
-pip install pyqt5
+pip install tensorflow opencv-python pandas
 ```
+
+FFmpeg should also be installed and available on the system path.
 
 If the native repository provides a `requirements.txt`, prefer:
 
@@ -67,9 +53,9 @@ pip install -r requirements.txt
 
 ### Web Edition
 
-No package installation is required.
+No local package installation is required for the core HTML/JavaScript application.
 
-Serve the project directory over HTTP/HTTPS:
+Serve the directory through HTTP/HTTPS:
 
 ```bash
 python -m http.server 8000
@@ -87,116 +73,185 @@ http://localhost:8000/
 Deploy or serve:
 
 ```text
-/projects/software/synthlavarng/
+/projects/software/tervis/
 ```
 
-The browser demo provides:
-
-- visual preset selection
-- animation start/stop
-- automatic and manual harvesting
-- SHA3-256 pool fingerprint display
-- HMAC-DRBG reseeding
-- random-byte generation
-- manual entropy mixing
-- optional Bitcoin-derived mixing
-- raw-byte export
-
-
-## Run (Native)
-
-The native project is designed for:
+The browser workbench provides:
 
 ```text
-Python 3.11+
-PyQt5
+Image Species ID
+Video Frame Analysis
+Live Camera
+Audio Pattern Analysis
+Model Control
+Dataset / Export
 ```
 
-Use the repository's Python entry point for GUI or CLI execution.
 
-The browser edition is not a replacement for native access to physical entropy hardware, unrestricted filesystem access, or privileged operating-system interfaces.
+## TensorFlow.js Models
 
+TensorFlow.js is loaded only when model inference is requested.
 
-## Entropy Pipeline
-
-Each harvest can combine:
+Default runtime:
 
 ```text
-Canvas framebuffer sample
-+ serialized preset simulation state
-+ performance timing
-+ wall-clock timing
-+ frame counter
-+ pointer state
-+ active preset identifier
-+ crypto.getRandomValues() bytes
-+ optional manual input
-+ optional public Bitcoin-derived input
+https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js
 ```
 
-The resulting material is mixed into the rolling pool:
+General-purpose demonstration classifier:
 
 ```text
-POOL(n+1) = SHA3-256(
-    POOL(n)
-    || domain-separation label
-    || harvest metadata
-    || harvested material
+https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js
+```
+
+MobileNet demonstrates the complete browser inference path but is not intended to represent a biodiversity-grade TerVIS classifier.
+
+
+## Custom TerVIS Model
+
+The web edition supports:
+
+```javascript
+tf.loadLayersModel(modelUrl)
+tf.loadGraphModel(modelUrl)
+```
+
+A compatible custom model should normally expose image input shaped approximately as:
+
+```text
+[batch, height, width, channels]
+```
+
+and return a primary class-score or class-probability vector.
+
+Labels can be supplied one per line through the Model Control interface.
+
+
+## Image Analysis
+
+The browser image pipeline uses:
+
+```text
+File API
+createImageBitmap()
+Canvas 2D
+TensorFlow.js
+```
+
+Current local measurements include:
+
+```text
+image width
+image height
+mean luminance
+edge density
+```
+
+Classification uses the active TensorFlow.js model.
+
+
+## Video Analysis
+
+Local video is decoded by the browser and sampled frame by frame.
+
+The analysis path performs:
+
+```text
+video frame
+→ Canvas copy
+→ grayscale downsample
+→ previous-frame comparison
+→ mean motion score
+→ active-pixel ratio
+→ pattern-event detection
+→ periodic model classification
+→ observation logging
+```
+
+The sampling interval and motion threshold are configurable from the web interface.
+
+
+## Motion Score
+
+For each sampled frame, TerVIS computes per-pixel grayscale differences:
+
+```text
+D_i = |G_current(i) - G_previous(i)|
+```
+
+The normalized motion score is approximately:
+
+```text
+motion_score =
+    Σ D_i
+    ─────────────
+    N × 255
+```
+
+An active-pixel ratio is also calculated using the configured difference threshold.
+
+
+## Live Camera
+
+Live camera mode uses:
+
+```javascript
+navigator.mediaDevices.getUserMedia()
+```
+
+Camera access requires explicit permission.
+
+The supplied browser implementation requests an environment-facing camera when available and processes selected frames locally.
+
+
+## Audio Analysis
+
+Local audio is decoded using the Web Audio API.
+
+Current features include:
+
+```text
+duration
+sample rate
+RMS energy
+zero-crossing rate
+spectral centroid
+frequency-spectrum visualization
+```
+
+The demonstrator currently performs a transparent direct spectral transform over a bounded sample window.
+
+Species-level bioacoustic identification requires a compatible trained model.
+
+
+## Audio Math
+
+RMS energy:
+
+```text
+RMS = sqrt(
+    Σ x[n]^2
+    ─────────
+        N
 )
 ```
 
-
-## SHA3-256
-
-The web edition includes a local Keccak-f[1600] / SHA3-256 implementation using:
+Zero-crossing rate:
 
 ```text
-Rate:       1088 bits / 136 bytes
-Capacity:    512 bits
-Output:      256 bits
-Domain:      SHA-3 suffix 0x06
+ZCR =
+number of sign changes
+──────────────────────
+number of samples
 ```
 
-Startup self-tests validate against the canonical SHA3-256 vectors for:
+Spectral centroid:
 
 ```text
-""
-"abc"
-```
-
-
-## HMAC-DRBG
-
-SynthLavaRNG uses an HMAC-DRBG construction with:
-
-```text
-Primitive: HMAC-SHA3-256
-State:     K, V
-Output:    arbitrary byte length
-Reseed:    manual + scheduled + pool-driven
-```
-
-Generated output is derived from the DRBG rather than directly exposing the entropy-pool state.
-
-
-## Bitcoin / BitRNG Mixing
-
-The web edition may optionally fetch public Bitcoin network data such as:
-
-```text
-tip height
-tip hash
-mempool state
-```
-
-Public blockchain data is **additional mixing material only**.
-
-It must not be treated as:
-
-```text
-secret entropy
-a private seed
-the sole source for Bitcoin private-key generation
+Centroid =
+Σ frequency[k] × magnitude[k]
+─────────────────────────────
+Σ magnitude[k]
 ```
 
 
@@ -205,17 +260,16 @@ the sole source for Bitcoin private-key generation
 ## Directory layout
 
 ```text
-synthlavarng/
+tervis/
 ├─ index.html
 ├─ style.css
 ├─ script.js
-├─ synthlavarng.js
+├─ tervis.js
 ├─ hook.css
 ├─ hook.js
 ├─ manifest.json
 ├─ README.md
-├─ logo.png
-└─ images/
+└─ logo.png
 ```
 
 
@@ -226,58 +280,84 @@ synthlavarng/
 The project-specific browser port is exposed as:
 
 ```javascript
-window.SynthLavaRNG
+window.TerVIS
 ```
 
-Core methods:
+Current methods include:
 
 ```javascript
-SynthLavaRNG.start()
-SynthLavaRNG.stop()
-SynthLavaRNG.setPreset(id)
+TerVIS.ensureTf(...)
+TerVIS.loadMobileNet()
+TerVIS.loadCustomModel(type)
+TerVIS.clearCustomModel()
 
-SynthLavaRNG.harvest()
-SynthLavaRNG.mix(data, label)
+TerVIS.classifySource(source)
+TerVIS.imageFeatures(canvas)
+TerVIS.motionScore(current, previous, threshold)
 
-SynthLavaRNG.reseed()
-SynthLavaRNG.generate(byteCount)
+TerVIS.analyzeAudio()
 
-SynthLavaRNG.sha3_256(data)
-SynthLavaRNG.hmacSha3(key, data)
+TerVIS.startCamera()
+TerVIS.stopCamera()
 
-SynthLavaRNG.getStats()
-SynthLavaRNG.selfTest()
-
-SynthLavaRNG.registerTextureProvider(id, provider)
-SynthLavaRNG.unregisterTextureProvider(id)
+TerVIS.exportSession()
+TerVIS.getState()
 ```
+
+
+---
+
+## Privacy
+
+User-selected image, video, and audio files remain local to the browser.
+
+The supplied code does not upload:
+
+```text
+local image files
+local video files
+local audio files
+webcam streams
+```
+
+Network requests occur only when required for:
+
+```text
+TensorFlow.js runtime
+MobileNet model assets
+a custom TensorFlow.js model URL explicitly supplied by the user
+```
+
+For strict offline operation, host all model JavaScript, weights, labels, and runtime files under the TerVIS project directory.
 
 
 ---
 
 ## Notes
 
-The visual systems are algorithmic simulations and are **not claimed to be independent physical entropy sources**.
+The native project uses TensorFlow, OpenCV, Pandas, and FFmpeg.
 
-For browser operation, the root random source remains the operating-system-backed CSPRNG exposed through:
+The web edition replaces native media decoding and much of the OpenCV display pipeline with:
 
-```javascript
-crypto.getRandomValues()
+```text
+HTML5 media APIs
+Canvas
+Web Audio
+TensorFlow.js
 ```
 
-Visual state, timing, pointer state, manual input, and Bitcoin-derived data are treated as additional mixing material.
+This provides substantial functional parity, but does not claim exact equivalence with every OpenCV operator, FFmpeg codec/filter path, or native TensorFlow model.
 
-For high-value Bitcoin keys or production cryptographic secrets, use an audited OS CSPRNG, hardware TRNG, or separately validated entropy architecture.
+Production-grade terrestrial species identification requires a trained TerVIS biodiversity model converted or exported for TensorFlow.js.
 
 
 ---
 
 ## Usage quickstart
 
-- **Web**: open `/projects/software/synthlavarng/` → choose preset → `START`
-- **Harvest**: select cadence → `HARVEST NOW` or allow automatic harvesting
-- **Generate**: choose byte count and format → `GENERATE`
-- **Manual entropy**: paste input → mix into the SHA3-256 pool
-- **Bitcoin mix**: explicitly request public Bitcoin network data
-- **Preset API**: `SynthLavaRNG.setPreset("mandelbrot")`
-- **Random bytes**: `SynthLavaRNG.generate(32)`
+- **Image**: `Image Species ID` → select image → `CLASSIFY IMAGE`
+- **Video**: `Video Frame Analysis` → select video → `START ANALYSIS`
+- **Camera**: `Live Camera` → `START CAMERA` → classify current frame
+- **Audio**: `Audio Pattern Analysis` → select audio → `ANALYZE AUDIO`
+- **Model**: `Model Control` → load MobileNet or custom `model.json`
+- **Dataset**: `Dataset / Export` → export observations as JSON or CSV
