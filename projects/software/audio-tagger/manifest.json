@@ -1,0 +1,155 @@
+{
+  "slug": "audio-tagger",
+  "title": "AudioTagger",
+  "name": "AudioTagger",
+  "blurb": "AudioTagger is an automated audio metadata tagging and cataloging engine for music libraries and archival collections. It extracts and normalizes ID3 and embedded metadata, performs audio fingerprinting, and connects to online databases for track recognition. Integrates with beets and Mutagen for consistent metadata control across large collections and supports batch tagging, cleanup, and export in JSON or YAML formats.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/audio-tagger/",
+  "github": "https://github.com/ZZX-Labs/audiotagger",
+  "logo": "/projects/software/audio-tagger/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "python3",
+      "pyqt5",
+      "mutagen",
+      "ffmpeg-python",
+      "requests",
+      "beets",
+      "sqlite3",
+      "pillow"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "FFmpeg",
+      "Mutagen"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./audio-tagger.js",
+    "modules": [
+      "./metadata.js",
+      "./fingerprint.js",
+      "./catalog-store.js",
+      "./recognition.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "capabilities": [
+      {
+        "name": "Batch audio import",
+        "web": "yes",
+        "notes": "File API + drag/drop."
+      },
+      {
+        "name": "ID3v2/v1 extraction",
+        "web": "yes",
+        "notes": "Browser parser."
+      },
+      {
+        "name": "FLAC STREAMINFO/Vorbis comments",
+        "web": "yes",
+        "notes": "Browser parser."
+      },
+      {
+        "name": "SHA-256 fingerprinting",
+        "web": "yes",
+        "notes": "Web Crypto."
+      },
+      {
+        "name": "Acoustic summary fingerprint",
+        "web": "yes",
+        "notes": "Decoded PCM feature hash."
+      },
+      {
+        "name": "Metadata normalization",
+        "web": "yes",
+        "notes": "Deterministic local rules."
+      },
+      {
+        "name": "Catalog editing",
+        "web": "yes",
+        "notes": "Non-destructive sidecar/catalog layer."
+      },
+      {
+        "name": "Batch cleanup",
+        "web": "yes",
+        "notes": "Preview and apply."
+      },
+      {
+        "name": "Recognition integration",
+        "web": "provider",
+        "notes": "Explicit custom provider hook."
+      },
+      {
+        "name": "IndexedDB persistence",
+        "web": "yes",
+        "notes": "Metadata/fingerprints only."
+      },
+      {
+        "name": "JSON export/import",
+        "web": "yes",
+        "notes": "AudioTagger catalog schema."
+      },
+      {
+        "name": "YAML export",
+        "web": "yes",
+        "notes": "Local serializer."
+      },
+      {
+        "name": "CSV export",
+        "web": "yes",
+        "notes": "Effective-tag inventory."
+      }
+    ]
+  },
+  "tags": [
+    "audio",
+    "music",
+    "metadata",
+    "tagging",
+    "id3",
+    "fingerprinting",
+    "library",
+    "ffmpeg",
+    "mutagen",
+    "beets",
+    "automation",
+    "cli",
+    "gui",
+    "pyqt5",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "audio-tagger.js",
+    "metadata.js",
+    "fingerprint.js",
+    "catalog-store.js",
+    "recognition.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="AudioTagger — batch audio metadata extraction, normalization, fingerprinting, catalog cleanup, recognition-provider integration, and JSON/YAML export.">
+  <title>AudioTagger · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-audio-tagger-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-audio-tagger-1">
+  <script src="./hook.js?v=20260822-audio-tagger-1" defer></script>
+  <script src="./script.js?v=20260822-audio-tagger-1" defer></script>
+  <script src="./metadata.js?v=20260822-audio-tagger-1" defer></script>
+  <script src="./fingerprint.js?v=20260822-audio-tagger-1" defer></script>
+  <script src="./catalog-store.js?v=20260822-audio-tagger-1" defer></script>
+  <script src="./recognition.js?v=20260822-audio-tagger-1" defer></script>
+  <script src="./audio-tagger.js?v=20260822-audio-tagger-1" defer></script>
+</head>
+
+<body class="project project-audio-tagger">
+<header><div id="zzx-header"></div></header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="AudioTagger logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>AudioTagger</h1>
+      <p class="blurb">
+        Automated audio metadata tagging and cataloging engine for music libraries and
+        archival collections, with embedded-tag extraction, normalization, fingerprints,
+        batch cleanup, recognition-provider hooks, and structured exports.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/audiotagger" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>AudioTagger Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status">
+          <span class="runtime-badge ok">TAGS: LOCAL</span>
+          <span class="runtime-badge ok">HASH: SHA-256</span>
+          <span class="runtime-badge ok">CATALOG: INDEXEDDB</span>
+          <span id="status-recognition" class="runtime-badge partial">RECOGNITION: PROVIDER</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="import" type="button">Batch Import</button>
+            <button class="tool-tab mode-tab" data-mode="catalog" type="button">Catalog &amp; Edit</button>
+            <button class="tool-tab mode-tab" data-mode="cleanup" type="button">Normalize &amp; Clean</button>
+            <button class="tool-tab mode-tab" data-mode="fingerprints" type="button">Fingerprints</button>
+            <button class="tool-tab mode-tab" data-mode="recognition" type="button">Recognition</button>
+            <button class="tool-tab mode-tab" data-mode="export" type="button">Export / Import</button>
+          </div>
+
+          <div class="atg-sidebar-note">
+            <strong>NON-DESTRUCTIVE WEB PORT</strong>
+            <p>
+              Embedded tags are read from local files. Browser edits live in the AudioTagger
+              catalog and sidecar exports; original audio bytes are not rewritten.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-import" class="atg-mode-panel mode-panel active">
+            <div class="atg-mode-heading">
+              <p class="kicker">BATCH LIBRARY INGEST</p>
+              <h2>Batch Import</h2>
+              <p>
+                Add an audio collection, extract browser-readable embedded metadata, compute
+                SHA-256 and acoustic summary fingerprints, and persist derived records locally.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="atg-grid-main">
+                <div>
+                  <div id="import-dropzone" class="atg-dropzone">
+                    <h3>Drop Audio Files Here</h3>
+                    <p>MP3, FLAC, WAV, OGG, M4A/AAC, Opus, and browser-decodable audio.</p>
+                    <label class="file-button">
+                      SELECT AUDIO
+                      <input id="import-files" type="file" multiple accept="audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.opus">
+                    </label>
+                  </div>
+
+                  <div class="atg-progress"><div id="import-progress"></div></div>
+                </div>
+
+                <div>
+                  <div class="atg-metrics" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:0">
+                    <div><span>Queue</span><strong id="import-queue">0</strong></div>
+                    <div><span>Processed</span><strong id="import-processed">0</strong></div>
+                    <div><span>Errors</span><strong id="import-errors">0</strong></div>
+                    <div><span>Total bytes</span><strong id="import-bytes">0 B</strong></div>
+                  </div>
+
+                  <pre id="import-log" class="atg-log">AudioTagger ready.</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-catalog" class="atg-mode-panel mode-panel">
+            <div class="atg-mode-heading">
+              <p class="kicker">MUTAGEN / BEETS-STYLE CATALOG</p>
+              <h2>Catalog &amp; Edit</h2>
+              <p>
+                Browse indexed tracks, inspect embedded tags and fingerprints, and maintain
+                non-destructive normalized catalog metadata.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="atg-metrics">
+                <div><span>Tracks</span><strong id="catalog-count">0</strong></div>
+                <div><span>Tagged</span><strong id="catalog-tagged">0</strong></div>
+                <div><span>Missing title</span><strong id="catalog-missing-title">0</strong></div>
+                <div><span>Missing artist</span><strong id="catalog-missing-artist">0</strong></div>
+                <div><span>Custom edits</span><strong id="catalog-edited">0</strong></div>
+              </div>
+
+              <div class="atg-grid-main" style="margin-top:.8rem">
+                <div class="atg-table-wrap">
+                  <table class="atg-table">
+                    <thead>
+                      <tr><th>Title</th><th>Artist</th><th>Album</th><th>Format</th><th>Duration</th></tr>
+                    </thead>
+                    <tbody id="catalog-body">
+                      <tr><td colspan="5" class="muted">No tracks.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <div class="atg-editor">
+                    <label>Title<input id="edit-title" type="text"></label>
+                    <label>Artist<input id="edit-artist" type="text"></label>
+                    <label>Album<input id="edit-album" type="text"></label>
+                    <label>Album artist<input id="edit-albumartist" type="text"></label>
+                    <label>Genre<input id="edit-genre" type="text"></label>
+                    <label>Track<input id="edit-track" type="text"></label>
+                    <label>Year / date<input id="edit-year" type="text"></label>
+                    <label>Composer<input id="edit-composer" type="text"></label>
+                    <label class="atg-span-2">Comment<textarea id="edit-comment" rows="4"></textarea></label>
+                  </div>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="edit-save" class="btn" type="button">SAVE CATALOG TAGS</button>
+                    <button id="edit-reset" class="btn ghost" type="button">RESET TO EMBEDDED</button>
+                    <button id="edit-sidecar" class="btn ghost" type="button">EXPORT SIDECAR</button>
+                  </div>
+
+                  <dl id="record-meta" class="atg-meta"></dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-cleanup" class="atg-mode-panel mode-panel">
+            <div class="atg-mode-heading">
+              <p class="kicker">BATCH NORMALIZATION</p>
+              <h2>Normalize &amp; Clean</h2>
+              <p>
+                Preview deterministic cleanup rules before applying them to the local catalog.
+                Source audio files remain unchanged.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="atg-rule-grid">
+                <article class="atg-rule">
+                  <h3>Whitespace</h3>
+                  <p>Trim leading/trailing whitespace and collapse repeated spaces.</p>
+                  <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                    <input id="rule-whitespace" type="checkbox" checked style="width:auto;min-height:auto">
+                    Enable
+                  </label>
+                </article>
+
+                <article class="atg-rule">
+                  <h3>Filename fallback</h3>
+                  <p>Use the filename stem as the title when title metadata is empty.</p>
+                  <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                    <input id="rule-filename-title" type="checkbox" checked style="width:auto;min-height:auto">
+                    Enable
+                  </label>
+                </article>
+
+                <article class="atg-rule">
+                  <h3>Smart title case</h3>
+                  <p>Apply conservative title casing to all-lowercase titles and album names.</p>
+                  <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                    <input id="rule-titlecase" type="checkbox" style="width:auto;min-height:auto">
+                    Enable
+                  </label>
+                </article>
+
+                <article class="atg-rule">
+                  <h3>Genre cleanup</h3>
+                  <p>Normalize separators and remove duplicate genre tokens.</p>
+                  <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                    <input id="rule-genre" type="checkbox" checked style="width:auto;min-height:auto">
+                    Enable
+                  </label>
+                </article>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="cleanup-preview" class="btn ghost" type="button">PREVIEW CHANGES</button>
+                <button id="cleanup-apply" class="btn" type="button">APPLY TO CATALOG</button>
+              </div>
+
+              <div id="cleanup-review" class="atg-review-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-fingerprints" class="atg-mode-panel mode-panel">
+            <div class="atg-mode-heading">
+              <p class="kicker">CONTENT IDENTITY</p>
+              <h2>Fingerprints</h2>
+              <p>
+                Every imported file receives a full-file SHA-256 digest. Browser-decodable
+                audio also receives a deterministic acoustic-summary fingerprint.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="atg-metrics">
+                <div><span>SHA-256</span><strong id="fp-sha-count">0</strong></div>
+                <div><span>Acoustic</span><strong id="fp-acoustic-count">0</strong></div>
+                <div><span>Exact duplicates</span><strong id="fp-duplicates">0</strong></div>
+                <div><span>Duration conflicts</span><strong id="fp-duration-conflicts">0</strong></div>
+                <div><span>Selected</span><strong id="fp-selected">—</strong></div>
+              </div>
+
+              <pre id="fingerprint-output" class="atg-log">Select a catalog track to inspect its fingerprints.</pre>
+            </div>
+          </div>
+
+          <div id="mode-recognition" class="atg-mode-panel mode-panel">
+            <div class="atg-mode-heading">
+              <p class="kicker">ONLINE DATABASE INTEGRATION HOOK</p>
+              <h2>Recognition</h2>
+              <p>
+                The static page does not fabricate a recognition service. Register an explicit
+                provider to connect fingerprints and catalog metadata to your own recognition backend.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="atg-provider">
+                <label>
+                  Recognition mode
+                  <select id="recognition-mode">
+                    <option value="selected">Selected track</option>
+                    <option value="missing">Tracks missing title/artist</option>
+                    <option value="all">All tracks</option>
+                  </select>
+                </label>
+                <button id="recognition-run" class="btn" type="button">RUN PROVIDER</button>
+              </div>
+
+              <div class="atg-note">
+                Register a provider with
+                <code>AudioTagger.registerRecognitionProvider(async ({record, file}) =&gt; ({title, artist, album, ...}))</code>.
+                The provider decides whether network access is used.
+              </div>
+
+              <pre id="recognition-output" class="atg-log">No recognition provider registered.</pre>
+            </div>
+          </div>
+
+          <div id="mode-export" class="atg-mode-panel mode-panel">
+            <div class="atg-mode-heading">
+              <p class="kicker">PORTABLE CATALOGS</p>
+              <h2>Export / Import</h2>
+              <p>
+                Export normalized catalog metadata and fingerprints as JSON or YAML, or
+                import a prior AudioTagger catalog without embedding raw audio.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="atg-export-grid">
+                <article class="atg-export-card">
+                  <h3>JSON Catalog</h3>
+                  <p>Complete structured records, embedded tags, catalog edits, and fingerprints.</p>
+                  <button id="export-json" class="btn" type="button">EXPORT JSON</button>
+                </article>
+
+                <article class="atg-export-card">
+                  <h3>YAML Catalog</h3>
+                  <p>Human-readable metadata and fingerprint inventory.</p>
+                  <button id="export-yaml" class="btn" type="button">EXPORT YAML</button>
+                </article>
+
+                <article class="atg-export-card">
+                  <h3>CSV Inventory</h3>
+                  <p>Flat effective-tag inventory for spreadsheet and archival workflows.</p>
+                  <button id="export-csv" class="btn" type="button">EXPORT CSV</button>
+                </article>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <label class="file-button">
+                  IMPORT CATALOG JSON
+                  <input id="import-catalog" type="file" accept=".json,application/json">
+                </label>
+                <button id="catalog-clear" class="btn ghost" type="button">CLEAR CATALOG</button>
+              </div>
+
+              <pre id="export-output" class="tool-output"></pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>AudioTagger</h2>
+        <p>
+          AudioTagger automates metadata extraction, normalization, fingerprinting, catalog
+          cleanup, recognition integration, and export for large audio libraries and archives.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · PyQt5 · Mutagen · FFmpeg · Beets</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Web Audio · Web Crypto · IndexedDB</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead><tr><th>Capability</th><th>Web</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Batch audio ingest</td><td><span class="parity-badge yes">YES</span></td><td>File API + drag/drop.</td></tr>
+              <tr><td>ID3 metadata extraction</td><td><span class="parity-badge yes">YES</span></td><td>ID3v2 + ID3v1 fallback.</td></tr>
+              <tr><td>FLAC metadata</td><td><span class="parity-badge yes">YES</span></td><td>STREAMINFO + Vorbis comments.</td></tr>
+              <tr><td>SHA-256 fingerprint</td><td><span class="parity-badge yes">YES</span></td><td>Web Crypto.</td></tr>
+              <tr><td>Acoustic summary fingerprint</td><td><span class="parity-badge yes">YES</span></td><td>Decoded PCM feature hash.</td></tr>
+              <tr><td>Metadata normalization</td><td><span class="parity-badge yes">YES</span></td><td>Deterministic catalog rules.</td></tr>
+              <tr><td>Online recognition</td><td><span class="parity-badge partial">PROVIDER</span></td><td>Explicit provider hook.</td></tr>
+              <tr><td>Write tags into source file</td><td><span class="parity-badge partial">SIDECAR</span></td><td>Browser keeps edits non-destructive.</td></tr>
+              <tr><td>JSON/YAML export</td><td><span class="parity-badge yes">YES</span></td><td>Local downloads.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Catalog Safety Boundary</h2>
+      <p>
+        Raw audio files are processed in-browser and are not uploaded by the supplied page.
+        IndexedDB stores metadata, fingerprints, and catalog edits only. Recognition can use
+        a network only if an explicit user-supplied provider chooses to do so.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>
