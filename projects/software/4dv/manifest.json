@@ -1,0 +1,152 @@
+{
+  "slug": "4dv",
+  "title": "4DV (Four-Dimensional Video System)",
+  "short_title": "4DV",
+  "blurb": "4DV adds metadata and contextual content layers to existing videos, allowing audio, video, or text commentary tracks to be overlaid as dynamic time-based layers.",
+  "description": "4DV is a non-destructive temporal augmentation system for video. The web edition loads a local source video and synchronizes independent text, audio, and secondary-video commentary layers against its playback timeline without modifying the source media.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/4dv/",
+  "github": "https://github.com/ZZX-Labs/4dv",
+  "logo": "/projects/software/4dv/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "pyqt5",
+      "ffmpeg",
+      "opencv-python",
+      "numpy",
+      "matplotlib",
+      "sqlite3",
+      "pillow"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "OpenCV",
+      "FFmpeg",
+      "Matplotlib"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./4dv.js",
+    "modules": [
+      "./timeline.js",
+      "./media-layer.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "capabilities": [
+      {
+        "name": "Local source video",
+        "web": "yes",
+        "notes": "Browser File API and object URL."
+      },
+      {
+        "name": "Non-destructive augmentation",
+        "web": "yes",
+        "notes": "Source media is never rewritten."
+      },
+      {
+        "name": "Text commentary layers",
+        "web": "yes",
+        "notes": "Timed DOM overlays."
+      },
+      {
+        "name": "Audio commentary layers",
+        "web": "yes",
+        "notes": "Timed HTMLAudioElement synchronization."
+      },
+      {
+        "name": "Video commentary layers",
+        "web": "yes",
+        "notes": "Timed secondary-video overlays."
+      },
+      {
+        "name": "Layer enable/disable",
+        "web": "yes",
+        "notes": "Runtime muting without deletion."
+      },
+      {
+        "name": "Timeline visualization",
+        "web": "yes",
+        "notes": "Text/audio/video tracks and synchronized playhead."
+      },
+      {
+        "name": "Layer jump navigation",
+        "web": "yes",
+        "notes": "Previous/next layer seeking."
+      },
+      {
+        "name": "Project JSON export",
+        "web": "yes",
+        "notes": "Portable temporal metadata."
+      },
+      {
+        "name": "Project JSON import",
+        "web": "yes",
+        "notes": "Schema-validated import."
+      },
+      {
+        "name": "OpenCV display pipeline",
+        "web": "partial",
+        "notes": "Browser media/DOM replace native display path."
+      },
+      {
+        "name": "FFmpeg processing",
+        "web": "partial",
+        "notes": "Browser codec support replaces decode path; final mux/render is not performed."
+      },
+      {
+        "name": "SQLite persistence",
+        "web": "partial",
+        "notes": "JSON import/export used in static web edition."
+      }
+    ]
+  },
+  "tags": [
+    "video",
+    "metadata",
+    "commentary",
+    "overlay",
+    "annotations",
+    "multitrack",
+    "timeline",
+    "audio",
+    "visualization",
+    "education",
+    "analysis",
+    "pyqt5",
+    "gui",
+    "cli",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "4dv.js",
+    "timeline.js",
+    "media-layer.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

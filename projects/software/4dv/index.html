@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="4DV — browser-native time-based video augmentation with synchronized text, audio, and video commentary layers.">
+  <title>4DV · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-4dv-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-4dv-1">
+  <script src="./hook.js?v=20260822-4dv-1" defer></script>
+  <script src="./script.js?v=20260822-4dv-1" defer></script>
+  <script src="./timeline.js?v=20260822-4dv-1" defer></script>
+  <script src="./media-layer.js?v=20260822-4dv-1" defer></script>
+  <script src="./4dv.js?v=20260822-4dv-1" defer></script>
+</head>
+
+<body class="project project-4dv">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="4DV logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>4DV</h1>
+      <p class="blurb">
+        Four-Dimensional Video System — non-destructive time-based augmentation of source
+        video with synchronized text, audio, and video commentary layers.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/4dv" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>4DV Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status" aria-label="Browser runtime capabilities">
+          <span id="status-video" class="runtime-badge ok">VIDEO: YES</span>
+          <span id="status-audio" class="runtime-badge">AUDIO: CHECKING</span>
+          <span id="status-files" class="runtime-badge ok">LOCAL FILES: YES</span>
+          <span id="status-export" class="runtime-badge ok">JSON: YES</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist" aria-label="4DV capabilities">
+            <button class="tool-tab mode-tab active" data-mode="player" type="button">4DV Player</button>
+            <button class="tool-tab mode-tab" data-mode="layers" type="button">Layer Editor</button>
+            <button class="tool-tab mode-tab" data-mode="timeline" type="button">Timeline</button>
+            <button class="tool-tab mode-tab" data-mode="project" type="button">Project Import / Export</button>
+            <button class="tool-tab mode-tab" data-mode="about" type="button">Architecture</button>
+          </div>
+
+          <div class="four-sidebar-note">
+            <strong>NON-DESTRUCTIVE</strong>
+            <p>
+              The source video is never rewritten. 4DV stores commentary and annotation
+              timing separately from the original media.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-player" class="fourdv-mode-panel mode-panel active">
+            <div class="fourdv-mode-heading">
+              <p class="kicker">SYNCHRONIZED PLAYBACK</p>
+              <h2>4DV Player</h2>
+              <p>
+                Load a local source video, then play it with synchronized annotation,
+                commentary-audio, and secondary-video layers.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="fourdv-player-grid">
+                <div>
+                  <label class="file-button">
+                    SELECT SOURCE VIDEO
+                    <input id="source-video-file" type="file" accept="video/*">
+                  </label>
+
+                  <div class="fourdv-stage">
+                    <video id="source-video" controls playsinline></video>
+                    <div id="overlay-root" class="fourdv-overlay-root"></div>
+                  </div>
+
+                  <div id="audio-layer-bin" class="fourdv-audio-bin"></div>
+                </div>
+
+                <div class="fourdv-player-side">
+                  <div class="fourdv-status-grid">
+                    <div><span>Source</span><strong id="source-name">—</strong></div>
+                    <div><span>Duration</span><strong id="source-duration">—</strong></div>
+                    <div><span>Current time</span><strong id="source-current">00:00.000</strong></div>
+                    <div><span>Active layers</span><strong id="active-layer-count">0</strong></div>
+                  </div>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="jump-prev-layer" class="btn ghost" type="button">PREV LAYER</button>
+                    <button id="jump-next-layer" class="btn ghost" type="button">NEXT LAYER</button>
+                  </div>
+
+                  <div class="fourdv-layer-badges">
+                    <span class="fourdv-layer-badge text">TEXT</span>
+                    <span class="fourdv-layer-badge audio">AUDIO</span>
+                    <span class="fourdv-layer-badge video">VIDEO</span>
+                  </div>
+
+                  <pre id="player-output" class="tool-output">Load a source video to begin.</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-layers" class="fourdv-mode-panel mode-panel">
+            <div class="fourdv-mode-heading">
+              <p class="kicker">CONTEXT LAYERS</p>
+              <h2>Layer Editor</h2>
+              <p>
+                Add annotations and commentary at precise start/end times. Audio and
+                secondary-video layers can use local media files without altering the source.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="fourdv-form-grid">
+                <label>
+                  Layer type
+                  <select id="layer-type">
+                    <option value="text">Text annotation</option>
+                    <option value="audio">Audio commentary</option>
+                    <option value="video">Video commentary</option>
+                  </select>
+                </label>
+
+                <label>
+                  Title
+                  <input id="layer-title" type="text" maxlength="160" placeholder="Commentary / annotation title">
+                </label>
+
+                <label>
+                  Start time (seconds)
+                  <input id="layer-start" type="number" min="0" step="0.001" value="0">
+                </label>
+
+                <label>
+                  End time (seconds)
+                  <input id="layer-end" type="number" min="0" step="0.001" value="5">
+                </label>
+
+                <label class="fourdv-span-2">
+                  Text / notes
+                  <textarea id="layer-text" rows="6" spellcheck="true" placeholder="Annotation or commentary text"></textarea>
+                </label>
+
+                <label class="fourdv-span-2">
+                  Local media attachment
+                  <input id="layer-media-file" type="file" accept="audio/*,video/*">
+                </label>
+
+                <label class="fourdv-check">
+                  <input id="layer-enabled" type="checkbox" checked>
+                  <span>Layer enabled</span>
+                </label>
+
+                <label class="fourdv-check">
+                  <input id="layer-loop" type="checkbox">
+                  <span>Loop attached media while layer is active</span>
+                </label>
+              </div>
+
+              <div class="button-row">
+                <button id="capture-start" class="btn ghost" type="button">SET START = CURRENT</button>
+                <button id="capture-end" class="btn ghost" type="button">SET END = CURRENT</button>
+                <button id="add-layer" class="btn" type="button">ADD LAYER</button>
+                <button id="clear-layer-form" class="btn ghost" type="button">CLEAR FORM</button>
+              </div>
+
+              <div class="table-wrap">
+                <table class="fourdv-layer-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Title</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th>Enabled</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="layer-table-body">
+                    <tr><td colspan="6" class="muted">No layers yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-timeline" class="fourdv-mode-panel mode-panel">
+            <div class="fourdv-mode-heading">
+              <p class="kicker">TEMPORAL VIEW</p>
+              <h2>Timeline</h2>
+              <p>
+                All text, audio, and video commentary clips are drawn against the
+                source-video duration with a synchronized playhead.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div id="timeline-root" class="fourdv-timeline">
+                <div id="timeline-ruler" class="fourdv-ruler"></div>
+                <div id="timeline-playhead" class="fourdv-playhead"></div>
+                <div id="timeline-tracks"></div>
+              </div>
+
+              <div class="button-row">
+                <button id="timeline-fit" class="btn ghost" type="button">FIT TIMELINE</button>
+                <button id="timeline-clear" class="btn ghost" type="button">CLEAR ALL LAYERS</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-project" class="fourdv-mode-panel mode-panel">
+            <div class="fourdv-mode-heading">
+              <p class="kicker">PORTABLE METADATA</p>
+              <h2>Project Import / Export</h2>
+              <p>
+                Save the temporal augmentation data separately from the source video.
+                Local object URLs are intentionally excluded from exported project files.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="fourdv-dropzone" id="project-dropzone">
+                <h3>4DV Project JSON</h3>
+                <p>Import a previously exported project or create a new one in this browser session.</p>
+
+                <div class="button-row">
+                  <label class="file-button">
+                    IMPORT JSON
+                    <input id="project-file" type="file" accept=".json,application/json">
+                  </label>
+
+                  <button id="export-project" class="btn" type="button">EXPORT JSON</button>
+                  <button id="new-project" class="btn ghost" type="button">NEW PROJECT</button>
+                </div>
+              </div>
+
+              <label style="margin-top:.8rem">
+                Project title
+                <input id="project-title" type="text" value="Untitled 4DV Project">
+              </label>
+
+              <label style="margin-top:.8rem">
+                Project notes
+                <textarea id="project-notes" rows="6" spellcheck="true"></textarea>
+              </label>
+
+              <pre id="project-output" class="tool-output"></pre>
+            </div>
+          </div>
+
+          <div id="mode-about" class="fourdv-mode-panel mode-panel">
+            <div class="fourdv-mode-heading">
+              <p class="kicker">ARCHITECTURE</p>
+              <h2>How 4DV Works</h2>
+            </div>
+
+            <div class="tool-card">
+              <div class="four-protocol">
+                <div class="four-protocol-step">
+                  <span>01</span>
+                  <div><h3>SOURCE</h3><p>Load the original source video without modifying it.</p></div>
+                </div>
+                <div class="four-protocol-step">
+                  <span>02</span>
+                  <div><h3>TIME</h3><p>Define start/end windows for contextual layers.</p></div>
+                </div>
+                <div class="four-protocol-step">
+                  <span>03</span>
+                  <div><h3>LAYERS</h3><p>Add text, audio, or secondary-video commentary.</p></div>
+                </div>
+                <div class="four-protocol-step">
+                  <span>04</span>
+                  <div><h3>EXPORT</h3><p>Save the augmentation metadata separately as JSON.</p></div>
+                </div>
+              </div>
+
+              <p class="muted four-note">
+                Browser object URLs for local commentary media exist only during the active
+                session. Exported JSON preserves layer metadata but not the raw local media bytes.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>Overview</h2>
+        <p>
+          4DV augments an existing video with synchronized contextual layers rather than
+          rewriting the original media. Text, audio, and secondary-video tracks remain
+          independent and are activated according to the source timeline.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · PyQt5 · OpenCV · FFmpeg · SQLite</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · HTML5 Media · Canvas/DOM overlays</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead>
+              <tr><th>Capability</th><th>Web</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Local source video</td><td><span class="parity-badge yes">YES</span></td><td>Browser File API.</td></tr>
+              <tr><td>Text commentary</td><td><span class="parity-badge yes">YES</span></td><td>Timed DOM overlays.</td></tr>
+              <tr><td>Audio commentary</td><td><span class="parity-badge yes">YES</span></td><td>Timed HTMLAudioElement synchronization.</td></tr>
+              <tr><td>Video commentary</td><td><span class="parity-badge yes">YES</span></td><td>Timed picture-in-picture-style overlay.</td></tr>
+              <tr><td>Timeline editing</td><td><span class="parity-badge yes">YES</span></td><td>Browser timeline view.</td></tr>
+              <tr><td>JSON project export</td><td><span class="parity-badge yes">YES</span></td><td>Non-destructive metadata.</td></tr>
+              <tr><td>OpenCV processing</td><td><span class="parity-badge partial">PARTIAL</span></td><td>HTML5 media/DOM replace native display path.</td></tr>
+              <tr><td>FFmpeg render/export</td><td><span class="parity-badge partial">PARTIAL</span></td><td>Browser demo does not mux a new rendered master.</td></tr>
+              <tr><td>SQLite persistence</td><td><span class="parity-badge partial">PARTIAL</span></td><td>JSON import/export replaces native DB here.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">NON-DESTRUCTIVE</p>
+      <h2>Media Safety Boundary</h2>
+      <p>
+        The supplied browser implementation reads user-selected media through object URLs.
+        It does not overwrite the source video, does not upload local media, and stores the
+        4DV temporal-layer model separately from the original file.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
