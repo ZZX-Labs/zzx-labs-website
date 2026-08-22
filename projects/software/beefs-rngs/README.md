@@ -1,5 +1,5 @@
 <div align="center">
-<img src="logo.png" alt="beef's Diceware Wordlists" width="240" height="240">
+<img src="logo.png" alt="beef's RNGs" width="240" height="240">
 
 # beef's RNGs
 
