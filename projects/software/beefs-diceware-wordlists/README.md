@@ -1,3 +1,6 @@
+<div align="center">
+<img src="logo.png" alt="Astral Clock" width="240" height="240">
+
 # beef's Diceware Wordlists
 
 Cryptographically signed, locale-aware Diceware wordlist tooling.
@@ -5,6 +8,9 @@ Cryptographically signed, locale-aware Diceware wordlist tooling.
 **Version:** 1.0.0  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Browser edition
 
