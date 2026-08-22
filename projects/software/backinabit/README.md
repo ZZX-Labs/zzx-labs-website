@@ -1,3 +1,6 @@
+<div align="center">
+<img src="logo.png" alt="BackInABit" width="240" height="240">
+
 # BackInABit
 
 Long-term Bitcoin capital-preservation and timelock-vault policy planner.
@@ -5,6 +8,9 @@ Long-term Bitcoin capital-preservation and timelock-vault policy planner.
 **Version:** 0.1.0-alpha  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Scope
 
