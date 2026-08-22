@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Suite of RNG implementations and test vectors with local entropy collection, deterministic HMAC-SHA256 streams, bias tests, and reproducible audit logs for offline cryptographic seeding.">
+  <title>beef's RNGs · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260822-beefs-rngs-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-beefs-rngs-1">
+  <script src="./hook.js?v=20260822-beefs-rngs-1" defer></script>
+  <script src="./script.js?v=20260822-beefs-rngs-1" defer></script>
+  <script src="./rng-core.js?v=20260822-beefs-rngs-1" defer></script>
+  <script src="./rng-tests.js?v=20260822-beefs-rngs-1" defer></script>
+  <script src="./beefs-rngs.js?v=20260822-beefs-rngs-1" defer></script>
+</head>
+
+<body class="project project-beefs-rngs">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="beef's RNGs logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>beef's RNGs</h1>
+    <p class="blurb">Suite of RNG implementations and test vectors with local entropy collection, deterministic HMAC-SHA256 streams, bias tests, and reproducible audit logs for offline cryptographic seeding.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/beefs-rngs" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ENTROPY + TEST VECTORS</p><h2>RNG Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">CSPRNG: WEB CRYPTO</span><span class="runtime-badge ok">HASH: SHA-256</span><span class="runtime-badge ok">AUDIT: LOCAL</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="random" type="button">Random Bytes</button>
+<button class="tool-tab mode-tab" data-mode="entropy" type="button">Entropy Collector</button>
+<button class="tool-tab mode-tab" data-mode="deterministic" type="button">Deterministic Stream</button>
+<button class="tool-tab mode-tab" data-mode="tests" type="button">Bias Tests</button>
+<button class="tool-tab mode-tab" data-mode="vectors" type="button">Test Vectors</button>
+<button class="tool-tab mode-tab" data-mode="audit" type="button">Audit Log</button>
+</div><div class="p-sidebar-note"><strong>SEPARATE GENERATORS</strong><p>Web Crypto is the browser CSPRNG. The deterministic HMAC stream is for reproducibility/testing and is labeled separately.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-random" class="p-mode-panel mode-panel active"><div class="p-mode-heading"><p class="kicker">WEB CRYPTO CSPRNG</p><h2>Random Bytes</h2><p>Generate cryptographically secure random bytes with <code>crypto.getRandomValues()</code>.</p></div><div class="tool-card"><div class="p-grid-3"><label>Byte count<input id="random-count" type="number" min="1" max="1048576" value="64"></label><label>Output<select id="random-format"><option value="hex">Hex</option><option value="base64">Base64</option></select></label><label>Chunk label<input id="random-label" type="text" value="webcrypto"></label></div><div class="button-row" style="justify-content:flex-start"><button id="random-run" class="btn" type="button">GENERATE</button><button id="random-copy" class="btn ghost" type="button">COPY</button></div><pre id="random-output" class="p-log"></pre></div></div>
+
+<div id="mode-entropy" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">HASHED ENTROPY POOL</p><h2>Entropy Collector</h2><p>Mix user text, local files, and fresh Web Crypto bytes into a SHA-256 audit pool without modifying source files.</p></div><div class="tool-card"><div class="p-grid-2"><label>Optional text contribution<textarea id="entropy-text" rows="8"></textarea></label><div id="entropy-drop" class="p-dropzone"><h3>Drop Entropy Files</h3><p>File bytes are hashed locally.</p><label class="file-button">SELECT FILES<input id="entropy-files" type="file" multiple></label></div></div><div class="button-row" style="justify-content:flex-start"><button id="entropy-mix" class="btn" type="button">MIX POOL</button><button id="entropy-clear" class="btn ghost" type="button">CLEAR POOL</button></div><pre id="entropy-output" class="p-log"></pre></div></div>
+
+<div id="mode-deterministic" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">REPRODUCIBLE HMAC STREAM</p><h2>Deterministic Stream</h2><p>Generate an auditable byte stream using HMAC-SHA256(seed, counter || context). Same inputs reproduce the same output.</p></div><div class="tool-card"><div class="p-grid-3"><label>Seed / key<input id="det-seed" type="text" value="beef-test-seed"></label><label>Context<input id="det-context" type="text" value="vector-1"></label><label>Bytes<input id="det-count" type="number" min="1" max="65536" value="64"></label></div><div class="button-row" style="justify-content:flex-start"><button id="det-run" class="btn" type="button">GENERATE STREAM</button></div><pre id="det-output" class="p-log"></pre></div></div>
+
+<div id="mode-tests" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">QUICK STATISTICAL DIAGNOSTICS</p><h2>Bias Tests</h2><p>Run monobit, byte-frequency chi-square, serial correlation, and runs diagnostics on pasted hex or the latest generated bytes.</p></div><div class="tool-card"><label>Hex bytes<textarea id="test-input" rows="10"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="test-run" class="btn" type="button">RUN TESTS</button><button id="test-use-latest" class="btn ghost" type="button">USE LATEST</button></div><pre id="test-output" class="p-log"></pre><div class="p-note">These are lightweight diagnostics, not a substitute for full NIST STS, Dieharder, PractRand, or specialized hardware-RNG qualification.</div></div></div>
+
+<div id="mode-vectors" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">REPRODUCIBLE AUDIT VECTORS</p><h2>Test Vectors</h2><p>Generate deterministic HMAC stream vectors for known seed/context pairs.</p></div><div class="tool-card"><div class="p-table-wrap"><table class="p-table"><thead><tr><th>Seed</th><th>Context</th><th>First 32 bytes</th></tr></thead><tbody id="vector-body"></tbody></table></div></div></div>
+
+<div id="mode-audit" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">REPRODUCIBLE LOG</p><h2>Audit Log</h2><p>Export a chronological log of generator operations, pool hashes, and test results.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="audit-export" class="btn" type="button">EXPORT AUDIT JSON</button><button id="audit-clear" class="btn ghost" type="button">CLEAR LOG</button></div><pre id="audit-log" class="p-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>beef's RNGs</h2><p>Offline RNG implementations, entropy collectors, bias diagnostics, deterministic vectors, and reproducible audit records.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.2.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>C · C++ · Python · Bash · OpenSSL</dd></div><div><dt>Web</dt><dd>Web Crypto · HMAC-SHA256</dd></div></dl></article><article class="panel"><p class="kicker">GENERATOR BOUNDARY</p><h2>CSPRNG vs deterministic</h2><p>Secure random output comes from the browser's Web Crypto implementation. Reproducible HMAC streams are explicitly separated for test vectors and deterministic audits.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
