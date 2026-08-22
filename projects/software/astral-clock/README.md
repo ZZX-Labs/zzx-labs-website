@@ -12,6 +12,9 @@ A multi-body time and relativity workstation for comparing Earth, Moon, Mars, Ga
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python / PyQt5 / Astropy / NumPy / SciPy · JavaScript / Canvas / Date-Time
 
+</div>
+
+
 ## What it does
 
 - Displays a live Earth UTC reference clock.
