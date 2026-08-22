@@ -12,6 +12,8 @@ General-purpose **learning, teaching, and review assistant** for studying virtua
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python 3.11+ / FastAPI / FAISS · JavaScript / Local Retrieval
 
+</div>
+
 
 ## What it does
 
