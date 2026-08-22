@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="4⁴ — browser-native 4-4-4-4 box breathing clock with visual, audio, and haptic cues.">
+  <title>4⁴ · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-4-4-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-4-4-1">
+  <script src="./hook.js?v=20260822-4-4-1" defer></script>
+  <script src="./script.js?v=20260822-4-4-1" defer></script>
+  <script src="./4-4.js?v=20260822-4-4-1" defer></script>
+</head>
+
+<body class="project project-4-4">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="4⁴ logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>4⁴</h1>
+      <p class="blurb">
+        Guided 4-4-4-4 box-breathing clock with synchronized visual, audio, and haptic cues
+        for inhale, hold, exhale, and hold cycles.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/4-4" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>4⁴ Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status" aria-label="Browser runtime capabilities">
+          <span id="status-timer" class="runtime-badge ok">TIMER: YES</span>
+          <span id="status-audio" class="runtime-badge">AUDIO: CHECKING</span>
+          <span id="status-haptics" class="runtime-badge">HAPTICS: CHECKING</span>
+          <span id="status-fullscreen" class="runtime-badge">FULLSCREEN: CHECKING</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist" aria-label="4⁴ capabilities">
+            <button class="tool-tab mode-tab active" data-mode="session" type="button">Breathing Session</button>
+            <button class="tool-tab mode-tab" data-mode="settings" type="button">Timing &amp; Cues</button>
+            <button class="tool-tab mode-tab" data-mode="stats" type="button">Session Statistics</button>
+            <button class="tool-tab mode-tab" data-mode="about" type="button">Protocol</button>
+          </div>
+
+          <div class="four-sidebar-note">
+            <strong>KEYBOARD</strong>
+            <p>
+              <kbd>Space</kbd> start/pause · <kbd>R</kbd> reset ·
+              <kbd>F</kbd> fullscreen · <kbd>M</kbd> mute.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-session" class="four-mode-panel mode-panel active">
+            <div class="four-mode-heading">
+              <p class="kicker">4-4-4-4 BOX BREATHING</p>
+              <h2>Breathing Session</h2>
+              <p>
+                Follow the expanding and contracting guide. The active phase, countdown,
+                cycle, total progress, audio cue, and optional device vibration stay synchronized.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="four-session-grid">
+                <section class="four-stage" id="four-stage">
+                  <div class="four-ring-shell">
+                    <div id="breath-ring" class="four-ring">
+                      <div class="four-ring-inner">
+                        <span id="phase-label">READY</span>
+                        <strong id="phase-countdown">4.0</strong>
+                        <small id="phase-hint">Press START</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="four-progress-track" aria-label="session progress">
+                    <div id="session-progress" class="four-progress-bar"></div>
+                  </div>
+
+                  <div class="four-cycle-line">
+                    <span>Cycle <strong id="cycle-current">0</strong>/<strong id="cycle-total">4</strong></span>
+                    <span>Elapsed <strong id="elapsed-time">00:00</strong></span>
+                    <span>Remaining <strong id="remaining-time">01:04</strong></span>
+                  </div>
+                </section>
+
+                <section class="four-controls">
+                  <div class="button-row four-buttons">
+                    <button id="start-pause" class="btn" type="button">START</button>
+                    <button id="reset-session" class="btn ghost" type="button">RESET</button>
+                    <button id="fullscreen-session" class="btn ghost" type="button">FULLSCREEN</button>
+                  </div>
+
+                  <div class="four-phase-table" aria-label="Current breathing timings">
+                    <div><span>INHALE</span><strong id="display-inhale">4s</strong></div>
+                    <div><span>HOLD</span><strong id="display-hold1">4s</strong></div>
+                    <div><span>EXHALE</span><strong id="display-exhale">4s</strong></div>
+                    <div><span>HOLD</span><strong id="display-hold2">4s</strong></div>
+                  </div>
+
+                  <div class="four-cue-state">
+                    <span id="cue-audio">AUDIO ON</span>
+                    <span id="cue-haptics">HAPTICS ON</span>
+                    <span id="cue-breath">READY</span>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-settings" class="four-mode-panel mode-panel">
+            <div class="four-mode-heading">
+              <p class="kicker">CONFIGURATION</p>
+              <h2>Timing &amp; Cues</h2>
+              <p>
+                The canonical preset is 4-4-4-4, but each phase can be changed independently
+                for alternate breathing protocols.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="tool-grid">
+                <label>
+                  Inhale seconds
+                  <input id="setting-inhale" type="number" min="1" max="60" step="0.5" value="4">
+                </label>
+
+                <label>
+                  Hold after inhale
+                  <input id="setting-hold1" type="number" min="0" max="60" step="0.5" value="4">
+                </label>
+
+                <label>
+                  Exhale seconds
+                  <input id="setting-exhale" type="number" min="1" max="60" step="0.5" value="4">
+                </label>
+
+                <label>
+                  Hold after exhale
+                  <input id="setting-hold2" type="number" min="0" max="60" step="0.5" value="4">
+                </label>
+
+                <label>
+                  Cycles
+                  <input id="setting-cycles" type="number" min="1" max="100" step="1" value="4">
+                </label>
+
+                <label>
+                  Visual scale
+                  <select id="setting-scale">
+                    <option value="0.42">Compact</option>
+                    <option value="0.55" selected>Standard</option>
+                    <option value="0.68">Large</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="four-toggle-grid">
+                <label class="four-check">
+                  <input id="setting-audio" type="checkbox" checked>
+                  <span>Audio phase cues</span>
+                </label>
+
+                <label class="four-check">
+                  <input id="setting-haptics" type="checkbox" checked>
+                  <span>Vibration / haptics when supported</span>
+                </label>
+
+                <label class="four-check">
+                  <input id="setting-voice" type="checkbox">
+                  <span>Spoken phase names</span>
+                </label>
+
+                <label class="four-check">
+                  <input id="setting-wakelock" type="checkbox" checked>
+                  <span>Keep display awake when supported</span>
+                </label>
+              </div>
+
+              <div class="button-row">
+                <button id="apply-settings" class="btn" type="button">APPLY SETTINGS</button>
+                <button id="preset-box" class="btn ghost" type="button">4-4-4-4 PRESET</button>
+                <button id="preset-relax" class="btn ghost" type="button">4-7-8 PRESET</button>
+                <button id="clear-settings" class="btn ghost" type="button">RESET DEFAULTS</button>
+              </div>
+
+              <pre id="settings-output" class="tool-output"></pre>
+            </div>
+          </div>
+
+          <div id="mode-stats" class="four-mode-panel mode-panel">
+            <div class="four-mode-heading">
+              <p class="kicker">SESSION DATA</p>
+              <h2>Session Statistics</h2>
+              <p>
+                Statistics are kept locally in this browser. No account or server is required.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="four-stats">
+                <div><span>Completed sessions</span><strong id="stat-sessions">0</strong></div>
+                <div><span>Completed cycles</span><strong id="stat-cycles">0</strong></div>
+                <div><span>Total breathing time</span><strong id="stat-time">00:00:00</strong></div>
+                <div><span>Last completed</span><strong id="stat-last">—</strong></div>
+                <div><span>Current protocol</span><strong id="stat-protocol">4-4-4-4</strong></div>
+                <div><span>Session duration</span><strong id="stat-duration">01:04</strong></div>
+              </div>
+
+              <div class="button-row">
+                <button id="export-stats" class="btn" type="button">EXPORT JSON</button>
+                <button id="clear-stats" class="btn ghost" type="button">CLEAR STATISTICS</button>
+              </div>
+
+              <pre id="stats-output" class="tool-output"></pre>
+            </div>
+          </div>
+
+          <div id="mode-about" class="four-mode-panel mode-panel">
+            <div class="four-mode-heading">
+              <p class="kicker">PROTOCOL</p>
+              <h2>How 4⁴ Works</h2>
+            </div>
+
+            <div class="tool-card">
+              <div class="four-protocol">
+                <div class="four-protocol-step">
+                  <span>01</span>
+                  <div><h3>INHALE</h3><p>Breathe in smoothly for four seconds.</p></div>
+                </div>
+                <div class="four-protocol-step">
+                  <span>02</span>
+                  <div><h3>HOLD</h3><p>Hold the breath for four seconds.</p></div>
+                </div>
+                <div class="four-protocol-step">
+                  <span>03</span>
+                  <div><h3>EXHALE</h3><p>Exhale smoothly for four seconds.</p></div>
+                </div>
+                <div class="four-protocol-step">
+                  <span>04</span>
+                  <div><h3>HOLD</h3><p>Remain empty for four seconds, then repeat.</p></div>
+                </div>
+              </div>
+
+              <p class="muted four-note">
+                The web edition is a timing and cueing tool. It does not measure respiration,
+                oxygen saturation, heart rate, or any other physiological signal.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>Overview</h2>
+        <p>
+          4⁴ is a guided respiration timer built around the canonical four-phase box-breathing
+          sequence: inhale, hold, exhale, hold. The browser port mirrors the native application's
+          timing, visual guidance, and cueing without requiring installation.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>1.0.0</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python 3 · PyQt5 · Pillow · NumPy</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Web Audio · Vibration API</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead>
+              <tr><th>Capability</th><th>Web</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>4-phase timer</td><td><span class="parity-badge yes">YES</span></td><td>Monotonic performance clock.</td></tr>
+              <tr><td>Visual breathing guide</td><td><span class="parity-badge yes">YES</span></td><td>CSS transform synchronized to phase.</td></tr>
+              <tr><td>Audio cues</td><td><span class="parity-badge yes">YES</span></td><td>Web Audio oscillator cues.</td></tr>
+              <tr><td>Haptic cues</td><td><span class="parity-badge partial">PARTIAL</span></td><td>Uses Vibration API where supported.</td></tr>
+              <tr><td>Spoken cues</td><td><span class="parity-badge partial">PARTIAL</span></td><td>Depends on SpeechSynthesis support.</td></tr>
+              <tr><td>Wake lock</td><td><span class="parity-badge partial">PARTIAL</span></td><td>Screen Wake Lock where supported.</td></tr>
+              <tr><td>Persistent settings</td><td><span class="parity-badge yes">YES</span></td><td>LocalStorage only.</td></tr>
+              <tr><td>Session export</td><td><span class="parity-badge yes">YES</span></td><td>JSON download.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Browser Privacy Boundary</h2>
+      <p>
+        4⁴ does not need a network connection for its breathing timer. Settings and statistics
+        are stored only in the browser's local storage. Audio, haptic, speech, fullscreen, and
+        wake-lock features use permissioned browser APIs.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
