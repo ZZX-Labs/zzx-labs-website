@@ -1,3 +1,6 @@
+<div align="center">
+<img src="logo.png" alt="Berossus" width="240" height="240">
+
 # Berossus
 
 Corpus-building and retrieval pipelines for domain-specific LLM tooling.
@@ -5,6 +8,9 @@ Corpus-building and retrieval pipelines for domain-specific LLM tooling.
 **Version:** 0.3.0-beta  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Browser edition
 
