@@ -12,6 +12,7 @@ Lavarand/LavaRnd-inspired **visual-chaos entropy harvester** with a rolling **SH
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python 3.11+ / PyQt5 · JavaScript / Canvas / Web Crypto
 
+</div>
 
 ## What it does
 
