@@ -2,8 +2,16 @@
   "slug": "synthlavarng",
   "title": "SynthLavaRNG",
   "blurb": "A Lavarand/LavaRnd-inspired, offline, visual-chaos entropy harvester with a SHA3-256 pool and HMAC-DRBG — optionally blended with Bitcoin-derived BitRNG entropy.",
-  "description": "SynthLavaRNG is a digital reimagining of SGI’s Lavarand and LavaRnd. It renders animated, parameterized visual systems (lava blobs, fireflies, kaleidoscopes, ripples, swarms, fractals, etc.) and ingests each frame into a rolling SHA3-256 pool. An HMAC-DRBG (SHA3-256) is reseeded on a schedule or on-demand. Optional external entropy can be mixed in from BitRNG (Bitcoin-derived chain/mempool data). Designed for offline, local-first use with a PyQt5 GUI, it targets seeding workflows, cryptographic testing, and research.",
+  "description": "SynthLavaRNG is a digital reimagining of SGI’s Lavarand and LavaRnd. It renders animated, parameterized visual systems and ingests sampled frame state into a rolling SHA3-256 pool. The browser edition also mixes operating-system-backed randomness from crypto.getRandomValues() by default. An HMAC-DRBG construction using SHA3-256 is reseeded on demand and after pool updates. Optional public Bitcoin tip and mempool data can be mixed as additional input. Designed for local-first entropy research, cryptographic testing, and secure-seeding experiments.",
   "state": "pre-release",
+  "version": "1.0.0-web",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "date": "2025-10-04",
+  "license": "MIT",
+  "nativeLanguage": "Python 3.11+ / PyQt5",
+  "webLanguage": "Vanilla JavaScript / Canvas / Web Crypto",
+  "coreHash": "SHA3-256",
+  "drbg": "HMAC-DRBG construction using SHA3-256",
   "href": "/projects/software/synthlavarng/",
   "github": "",
   "huggingface": "",
@@ -21,13 +29,157 @@
     "HMAC-DRBG",
     "Offline",
     "PyQt5",
+    "JavaScript",
     "Bitcoin",
     "BitRNG",
     "Visualization"
   ],
   "versions": [
+    "1.0.0-web",
     "1.0.0-whitepaper",
     "0.9.0-beta",
     "0.8.0-prototype"
-  ]
+  ],
+  "presets": [
+    {
+      "id": "lava",
+      "name": "Lava Lamp",
+      "description": "Metaball-like blobs with smooth motion and collisions."
+    },
+    {
+      "id": "fireflies",
+      "name": "Fireflies",
+      "description": "Stochastic flash phases and drifting bioluminescent particles."
+    },
+    {
+      "id": "oil",
+      "name": "Oil Projector",
+      "description": "Layered psychedelic fluid-field forms and color interference."
+    },
+    {
+      "id": "magnetic",
+      "name": "Magnetic Field",
+      "description": "Ferrofluid-inspired vector curls and dipole interference."
+    },
+    {
+      "id": "jellyfish",
+      "name": "Jellyfish Swarm",
+      "description": "Organic swarm motion, phase jitter, and trailing tentacles."
+    },
+    {
+      "id": "rain",
+      "name": "Rain Pond",
+      "description": "Ripple interference from time-varying impact points."
+    },
+    {
+      "id": "moss",
+      "name": "Moss Growth",
+      "description": "Procedural branching and creeping biological growth."
+    },
+    {
+      "id": "crickets",
+      "name": "Crickets",
+      "description": "Chirp-phase wavefront interference across moving emitters."
+    },
+    {
+      "id": "kaleidoscope",
+      "name": "Kaleidoscope",
+      "description": "Rotational and mirrored stochastic geometry."
+    },
+    {
+      "id": "mandelbrot",
+      "name": "Mandelbrot",
+      "description": "Animated low-resolution fractal zoom with parameter jitter."
+    },
+    {
+      "id": "fractalMirror",
+      "name": "Fractal Mirror",
+      "description": "Rorschach-like mirrored particle fields."
+    },
+    {
+      "id": "bonsai",
+      "name": "Virtual Bonsai",
+      "description": "Recursive branching with stochastic wind deformation."
+    },
+    {
+      "id": "birds",
+      "name": "Bird Flock",
+      "description": "Boids-inspired emergent flock movement."
+    },
+    {
+      "id": "bats",
+      "name": "Bat Hunt",
+      "description": "Predator/prey particle dynamics."
+    },
+    {
+      "id": "mercury",
+      "name": "Mercury Maze",
+      "description": "Maze-like channels with flowing metallic droplets."
+    },
+    {
+      "id": "gravity",
+      "name": "Gravity Equalized",
+      "description": "Varying-mass bodies sharing a synchronized fall field."
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "Animated visual presets",
+      "web": "yes",
+      "notes": "Canvas-based implementations of all conceptual preset families."
+    },
+    {
+      "name": "SHA3-256 rolling pool",
+      "web": "yes",
+      "notes": "Pure JavaScript Keccak/SHA3-256 implementation."
+    },
+    {
+      "name": "HMAC-DRBG with SHA3-256",
+      "web": "yes",
+      "notes": "Local browser implementation; not independently audited."
+    },
+    {
+      "name": "OS-backed CSPRNG mixing",
+      "web": "yes",
+      "notes": "crypto.getRandomValues() is mixed by default."
+    },
+    {
+      "name": "Frame-state harvesting",
+      "web": "yes",
+      "notes": "Downsampled Canvas pixels, timing state, pointer state, and optional CSPRNG bytes."
+    },
+    {
+      "name": "Manual entropy mixing",
+      "web": "yes",
+      "notes": "User-provided text/data can be mixed into the pool."
+    },
+    {
+      "name": "Bitcoin-derived additional input",
+      "web": "partial",
+      "notes": "User-triggered HTTPS fetch to mempool.space; subject to connectivity/CORS."
+    },
+    {
+      "name": "Native PyQt5 GUI",
+      "web": "no",
+      "notes": "Replaced by equivalent browser controls rather than embedded Python."
+    },
+    {
+      "name": "Arbitrary local filesystem access",
+      "web": "no",
+      "notes": "Browser sandbox forbids unrestricted traversal."
+    },
+    {
+      "name": "Independent physical optical entropy",
+      "web": "no",
+      "notes": "Canvas simulation is algorithmic; use physical sensors/native hardware for a physical source."
+    }
+  ],
+  "bitrng": {
+    "provider": "mempool.space",
+    "endpoints": [
+      "https://mempool.space/api/blocks/tip/height",
+      "https://mempool.space/api/blocks/tip/hash",
+      "https://mempool.space/api/mempool"
+    ]
+  }
 }
