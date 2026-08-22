@@ -6,19 +6,17 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#121212">
-  <meta name="description" content="TerVIS — browser-native terrestrial video identification and biodiversity media-analysis demo.">
+  <meta name="description" content="TerVIS — browser-native terrestrial species image, video, webcam, motion-pattern, and bioacoustic analysis.">
   <title>TerVIS · Projects · Software | ZZX-Labs R&amp;D</title>
 
-  <!-- ZZX-Labs global site assets -->
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/script.js" defer></script>
 
-  <!-- Project assets -->
-  <link rel="stylesheet" href="./style.css?v=20260822-tervis-1">
-  <link rel="stylesheet" href="./hook.css?v=20260822-tervis-1">
-  <script src="./hook.js?v=20260822-tervis-1" defer></script>
-  <script src="./script.js?v=20260822-tervis-1" defer></script>
-  <script src="./tervis.js?v=20260822-tervis-1" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260822-standard-shell-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-standard-shell-1">
+  <script src="./hook.js?v=20260822-standard-shell-1" defer></script>
+  <script src="./script.js?v=20260822-standard-shell-1" defer></script>
+  <script src="./tervis.js?v=20260822-standard-shell-1" defer></script>
 </head>
 
 <body class="project project-tervis">
@@ -27,14 +25,15 @@
 </header>
 
 <main>
-  <section class="hero">
+  <section class="zzx-project-hero">
     <div class="container hero-inner">
       <img class="project-logo" src="./logo.png" alt="TerVIS logo">
       <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
       <h1>TerVIS</h1>
       <p class="blurb">
-        Terrestrial Video Identification System — browser-native vision, video, webcam,
-        motion-pattern, and audio analysis for biodiversity media.
+        Terrestrial Video Identification System — TensorFlow/OpenCV-inspired terrestrial
+        species identification, frame-by-frame video analysis, webcam observation,
+        motion-pattern detection, and bioacoustic analysis in the browser.
       </p>
 
       <div class="cta-row">
@@ -45,7 +44,7 @@
     </div>
   </section>
 
-  <section id="demo" class="demo-field">
+  <section id="demo" class="demo-section">
     <div class="container section demo-container">
       <div class="section-head">
         <div>
@@ -53,200 +52,217 @@
           <h2>TerVIS Browser Workbench</h2>
         </div>
 
-        <div class="runtime-pills" aria-label="runtime capability status">
-          <span id="status-canvas" class="runtime-pill">CANVAS: CHECKING</span>
-          <span id="status-camera" class="runtime-pill">CAMERA: CHECKING</span>
-          <span id="status-audio" class="runtime-pill">AUDIO: CHECKING</span>
-          <span id="status-tf" class="runtime-pill">TFJS: NOT LOADED</span>
+        <div class="runtime-status" aria-label="Browser runtime capabilities">
+          <span id="status-canvas" class="runtime-badge">CANVAS: CHECKING</span>
+          <span id="status-camera" class="runtime-badge">CAMERA: CHECKING</span>
+          <span id="status-audio" class="runtime-badge">AUDIO: CHECKING</span>
+          <span id="status-tf" class="runtime-badge">TFJS: NOT LOADED</span>
         </div>
       </div>
 
       <div class="workbench">
-        <aside class="sidebar">
-          <h3>Analysis Modes</h3>
-          <button class="mode-tab active" data-mode="image" type="button">Image Species ID</button>
-          <button class="mode-tab" data-mode="video" type="button">Video Frame Analysis</button>
-          <button class="mode-tab" data-mode="camera" type="button">Live Camera</button>
-          <button class="mode-tab" data-mode="audio" type="button">Audio Pattern Analysis</button>
-          <button class="mode-tab" data-mode="model" type="button">Model Control</button>
-          <button class="mode-tab" data-mode="dataset" type="button">Dataset / Export</button>
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
 
-          <div class="sidebar-note">
-            <strong>Privacy</strong>
-            <p>Local image, video, and audio files remain in the browser. Webcam frames are processed locally.</p>
+          <div class="tool-list" role="tablist" aria-label="TerVIS capabilities">
+            <button class="tool-tab mode-tab active" data-mode="image" type="button">Image Species ID</button>
+            <button class="tool-tab mode-tab" data-mode="video" type="button">Video Frame Analysis</button>
+            <button class="tool-tab mode-tab" data-mode="camera" type="button">Live Camera</button>
+            <button class="tool-tab mode-tab" data-mode="audio" type="button">Audio Pattern Analysis</button>
+            <button class="tool-tab mode-tab" data-mode="model" type="button">Model Control</button>
+            <button class="tool-tab mode-tab" data-mode="dataset" type="button">Dataset / Export</button>
+          </div>
+
+          <div class="tervis-sidebar-note">
+            <strong>LOCAL-FIRST</strong>
+            <p>
+              Selected media stays in the browser. Webcam frames are processed locally.
+              Model resources are fetched only when inference is requested.
+            </p>
           </div>
         </aside>
 
-        <section class="workspace">
-          <div id="mode-image" class="mode-panel active">
-            <div class="mode-heading">
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-image" class="tervis-mode-panel mode-panel active">
+            <div class="tervis-mode-heading">
               <p class="kicker">VISION</p>
               <h2>Image Species Identification</h2>
               <p>
-                Analyze a local image with a general MobileNet classifier or a compatible custom TensorFlow.js model.
-                The original file is never uploaded by this page.
+                Analyze a local image with a general MobileNet classifier or a compatible
+                custom TensorFlow.js terrestrial-species model.
               </p>
             </div>
 
-            <div class="media-grid">
-              <div>
-                <label class="file-button">
-                  SELECT IMAGE
-                  <input id="image-file" type="file" accept="image/*">
-                </label>
+            <div class="tool-card">
+              <div class="tervis-media-grid">
+                <div>
+                  <label class="file-button">
+                    SELECT IMAGE
+                    <input id="image-file" type="file" accept="image/*">
+                  </label>
 
-                <div class="canvas-shell">
-                  <canvas id="image-canvas" width="960" height="540"></canvas>
-                </div>
-              </div>
-
-              <div class="result-column">
-                <div class="metric-grid">
-                  <div><span>Width</span><strong id="image-width">—</strong></div>
-                  <div><span>Height</span><strong id="image-height">—</strong></div>
-                  <div><span>Mean luminance</span><strong id="image-luma">—</strong></div>
-                  <div><span>Edge density</span><strong id="image-edge">—</strong></div>
+                  <div class="tervis-canvas-shell">
+                    <canvas id="image-canvas" width="960" height="540"></canvas>
+                  </div>
                 </div>
 
-                <button id="classify-image" class="btn" type="button">CLASSIFY IMAGE</button>
-                <div id="image-predictions" class="prediction-list">
-                  <p class="muted">Load an image, then classify it.</p>
+                <div>
+                  <div class="tervis-metrics">
+                    <div><span>Width</span><strong id="image-width">—</strong></div>
+                    <div><span>Height</span><strong id="image-height">—</strong></div>
+                    <div><span>Mean luminance</span><strong id="image-luma">—</strong></div>
+                    <div><span>Edge density</span><strong id="image-edge">—</strong></div>
+                  </div>
+
+                  <div class="button-row">
+                    <button id="classify-image" class="btn" type="button">CLASSIFY IMAGE</button>
+                  </div>
+
+                  <div id="image-predictions" class="tervis-predictions">
+                    <p class="muted" style="padding:.75rem">Load an image, then classify it.</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div id="mode-video" class="mode-panel">
-            <div class="mode-heading">
+          <div id="mode-video" class="tervis-mode-panel mode-panel">
+            <div class="tervis-mode-heading">
               <p class="kicker">FRAME-BY-FRAME ANALYSIS</p>
               <h2>Video Species &amp; Motion Analysis</h2>
               <p>
-                Decode a local video with the browser, inspect each rendered frame for motion, and periodically
-                classify representative frames.
+                Decode local video in-browser, sample frames, measure motion, detect changing
+                patterns, and periodically run the active classifier.
               </p>
             </div>
 
-            <label class="file-button">
-              SELECT VIDEO
-              <input id="video-file" type="file" accept="video/*">
-            </label>
-
-            <div class="video-stage">
-              <video id="video-player" controls playsinline></video>
-              <canvas id="video-overlay" width="960" height="540"></canvas>
-            </div>
-
-            <div class="tool-grid">
-              <label>
-                Classification interval
-                <select id="video-classify-interval">
-                  <option value="500">0.5 s</option>
-                  <option value="1000" selected>1.0 s</option>
-                  <option value="2000">2.0 s</option>
-                  <option value="5000">5.0 s</option>
-                </select>
+            <div class="tool-card">
+              <label class="file-button">
+                SELECT VIDEO
+                <input id="video-file" type="file" accept="video/*">
               </label>
 
-              <label>
-                Motion threshold
-                <input id="video-motion-threshold" type="range" min="2" max="60" value="18">
-              </label>
-            </div>
+              <div class="tervis-video-stage">
+                <video id="video-player" controls playsinline></video>
+                <canvas id="video-overlay" width="960" height="540"></canvas>
+              </div>
 
-            <div class="button-row">
-              <button id="start-video-analysis" class="btn" type="button">START ANALYSIS</button>
-              <button id="stop-video-analysis" class="btn ghost" type="button">STOP</button>
-              <button id="snapshot-video" class="btn ghost" type="button">SNAPSHOT</button>
-            </div>
+              <div class="tool-grid">
+                <label>
+                  Classification interval
+                  <select id="video-classify-interval">
+                    <option value="500">0.5 s</option>
+                    <option value="1000" selected>1.0 s</option>
+                    <option value="2000">2.0 s</option>
+                    <option value="5000">5.0 s</option>
+                  </select>
+                </label>
 
-            <div class="metric-grid four">
-              <div><span>Frame samples</span><strong id="video-frame-count">0</strong></div>
-              <div><span>Motion score</span><strong id="video-motion-score">0.000</strong></div>
-              <div><span>Pattern events</span><strong id="video-pattern-events">0</strong></div>
-              <div><span>Top class</span><strong id="video-top-class">—</strong></div>
-            </div>
+                <label>
+                  Motion threshold
+                  <input id="video-motion-threshold" type="range" min="2" max="60" value="18">
+                </label>
+              </div>
 
-            <pre id="video-log" class="terminal"></pre>
+              <div class="button-row">
+                <button id="start-video-analysis" class="btn" type="button">START ANALYSIS</button>
+                <button id="stop-video-analysis" class="btn ghost" type="button">STOP</button>
+                <button id="snapshot-video" class="btn ghost" type="button">SNAPSHOT</button>
+              </div>
+
+              <div class="tervis-metrics four">
+                <div><span>Frame samples</span><strong id="video-frame-count">0</strong></div>
+                <div><span>Motion score</span><strong id="video-motion-score">0.000</strong></div>
+                <div><span>Pattern events</span><strong id="video-pattern-events">0</strong></div>
+                <div><span>Top class</span><strong id="video-top-class">—</strong></div>
+              </div>
+
+              <pre id="video-log" class="tervis-terminal"></pre>
+            </div>
           </div>
 
-          <div id="mode-camera" class="mode-panel">
-            <div class="mode-heading">
+          <div id="mode-camera" class="tervis-mode-panel mode-panel">
+            <div class="tervis-mode-heading">
               <p class="kicker">LIVE VISION</p>
               <h2>Webcam Species Observation</h2>
               <p>
-                Request camera permission, run local frame analysis, and classify selected frames without
-                transmitting the camera stream.
+                Request camera permission and classify selected frames locally without transmitting
+                the camera stream.
               </p>
             </div>
 
-            <div class="video-stage">
-              <video id="camera-player" autoplay muted playsinline></video>
-              <canvas id="camera-overlay" width="960" height="540"></canvas>
-            </div>
+            <div class="tool-card">
+              <div class="tervis-video-stage">
+                <video id="camera-player" autoplay muted playsinline></video>
+                <canvas id="camera-overlay" width="960" height="540"></canvas>
+              </div>
 
-            <div class="button-row">
-              <button id="start-camera" class="btn" type="button">START CAMERA</button>
-              <button id="classify-camera" class="btn ghost" type="button">CLASSIFY CURRENT FRAME</button>
-              <button id="stop-camera" class="btn ghost" type="button">STOP CAMERA</button>
-            </div>
+              <div class="button-row">
+                <button id="start-camera" class="btn" type="button">START CAMERA</button>
+                <button id="classify-camera" class="btn ghost" type="button">CLASSIFY CURRENT FRAME</button>
+                <button id="stop-camera" class="btn ghost" type="button">STOP CAMERA</button>
+              </div>
 
-            <div id="camera-predictions" class="prediction-list">
-              <p class="muted">Camera is not active.</p>
+              <div id="camera-predictions" class="tervis-predictions">
+                <p class="muted" style="padding:.75rem">Camera is not active.</p>
+              </div>
             </div>
           </div>
 
-          <div id="mode-audio" class="mode-panel">
-            <div class="mode-heading">
+          <div id="mode-audio" class="tervis-mode-panel mode-panel">
+            <div class="tervis-mode-heading">
               <p class="kicker">BIOACOUSTICS</p>
               <h2>Audio Pattern Analysis</h2>
               <p>
-                Decode a local audio file, compute FFT-derived spectral features, detect changing acoustic
-                energy, and visualize the spectrum. Species naming requires a compatible trained audio model.
+                Decode local audio, calculate signal features, and visualize the spectrum.
+                Species naming requires a compatible trained bioacoustic model.
               </p>
             </div>
 
-            <label class="file-button">
-              SELECT AUDIO
-              <input id="audio-file" type="file" accept="audio/*">
-            </label>
+            <div class="tool-card">
+              <label class="file-button">
+                SELECT AUDIO
+                <input id="audio-file" type="file" accept="audio/*">
+              </label>
 
-            <audio id="audio-player" controls></audio>
-            <canvas id="audio-spectrum" width="960" height="300"></canvas>
+              <audio id="audio-player" controls></audio>
+              <canvas id="audio-spectrum" width="960" height="300"></canvas>
 
-            <div class="metric-grid four">
-              <div><span>Duration</span><strong id="audio-duration">—</strong></div>
-              <div><span>RMS energy</span><strong id="audio-rms">—</strong></div>
-              <div><span>Spectral centroid</span><strong id="audio-centroid">—</strong></div>
-              <div><span>Zero crossings</span><strong id="audio-zcr">—</strong></div>
+              <div class="tervis-metrics four">
+                <div><span>Duration</span><strong id="audio-duration">—</strong></div>
+                <div><span>RMS energy</span><strong id="audio-rms">—</strong></div>
+                <div><span>Spectral centroid</span><strong id="audio-centroid">—</strong></div>
+                <div><span>Zero crossings</span><strong id="audio-zcr">—</strong></div>
+              </div>
+
+              <div class="button-row">
+                <button id="analyze-audio" class="btn" type="button">ANALYZE AUDIO</button>
+              </div>
+
+              <pre id="audio-log" class="tervis-terminal"></pre>
             </div>
-
-            <div class="button-row">
-              <button id="analyze-audio" class="btn" type="button">ANALYZE AUDIO</button>
-            </div>
-
-            <pre id="audio-log" class="terminal"></pre>
           </div>
 
-          <div id="mode-model" class="mode-panel">
-            <div class="mode-heading">
+          <div id="mode-model" class="tervis-mode-panel mode-panel">
+            <div class="tervis-mode-heading">
               <p class="kicker">MODEL RUNTIME</p>
               <h2>TensorFlow.js Model Control</h2>
               <p>
-                Use the general MobileNet classifier for an immediate demo or load a compatible custom
-                TensorFlow.js Layers/Graph model for project-specific terrestrial species inference.
+                Load the general MobileNet demo or supply a compatible TerVIS
+                TensorFlow.js Layers/Graph model.
               </p>
             </div>
 
-            <div class="model-card">
+            <div class="tervis-model-card">
               <h3>General Demo Model</h3>
               <p>
-                MobileNet provides broad object and animal labels. It demonstrates the browser inference path,
-                but it is not a biodiversity-grade TerVIS model.
+                MobileNet validates the browser inference pipeline. It is not a
+                biodiversity-grade TerVIS classifier.
               </p>
               <button id="load-mobilenet" class="btn" type="button">LOAD MOBILENET</button>
             </div>
 
-            <div class="model-card">
+            <div class="tervis-model-card">
               <h3>Custom TerVIS TensorFlow.js Model</h3>
 
               <label>
@@ -266,33 +282,35 @@
               </div>
             </div>
 
-            <pre id="model-log" class="terminal"></pre>
+            <pre id="model-log" class="tervis-terminal"></pre>
           </div>
 
-          <div id="mode-dataset" class="mode-panel">
-            <div class="mode-heading">
+          <div id="mode-dataset" class="tervis-mode-panel mode-panel">
+            <div class="tervis-mode-heading">
               <p class="kicker">BIODIVERSITY DATASET</p>
               <h2>Observation Session</h2>
               <p>
-                Every accepted classification or analysis event can be retained in this browser session and
-                exported as JSON or CSV for later research.
+                Retain accepted image, video, camera, and audio observations in this
+                browser session and export the research data as JSON or CSV.
               </p>
             </div>
 
-            <div class="metric-grid">
-              <div><span>Observations</span><strong id="dataset-count">0</strong></div>
-              <div><span>Session started</span><strong id="dataset-started">—</strong></div>
-              <div><span>Image events</span><strong id="dataset-images">0</strong></div>
-              <div><span>Video/camera events</span><strong id="dataset-video">0</strong></div>
-            </div>
+            <div class="tool-card">
+              <div class="tervis-metrics">
+                <div><span>Observations</span><strong id="dataset-count">0</strong></div>
+                <div><span>Session started</span><strong id="dataset-started">—</strong></div>
+                <div><span>Image events</span><strong id="dataset-images">0</strong></div>
+                <div><span>Video/camera events</span><strong id="dataset-video">0</strong></div>
+              </div>
 
-            <div class="button-row">
-              <button id="export-json" class="btn" type="button">EXPORT JSON</button>
-              <button id="export-csv" class="btn ghost" type="button">EXPORT CSV</button>
-              <button id="clear-dataset" class="btn ghost" type="button">CLEAR SESSION</button>
-            </div>
+              <div class="button-row">
+                <button id="export-json" class="btn" type="button">EXPORT JSON</button>
+                <button id="export-csv" class="btn ghost" type="button">EXPORT CSV</button>
+                <button id="clear-dataset" class="btn ghost" type="button">CLEAR SESSION</button>
+              </div>
 
-            <pre id="dataset-preview" class="terminal"></pre>
+              <pre id="dataset-preview" class="tervis-terminal"></pre>
+            </div>
           </div>
         </section>
       </div>
@@ -300,34 +318,59 @@
   </section>
 
   <section class="container section">
-    <div class="grid-two">
+    <div class="grid grid-2">
       <article class="panel">
         <p class="kicker">PROJECT</p>
         <h2>Overview</h2>
         <p>
-          TerVIS is designed around TensorFlow-based terrestrial species recognition with OpenCV/FFmpeg
-          media processing. The web port replaces native media decoding with browser media APIs and Canvas,
-          while TensorFlow.js provides an inference path for compatible models.
+          TerVIS identifies and analyzes terrestrial biodiversity media using image inference,
+          temporal video analysis, camera frames, motion-pattern detection, and audio features.
+          The web edition ports the native TensorFlow/OpenCV/FFmpeg workflow into browser APIs.
         </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.3.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · TensorFlow · OpenCV · FFmpeg</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · TensorFlow.js · Canvas · Web Audio</dd></div>
+        </dl>
       </article>
 
       <article class="panel">
-        <p class="kicker">PARITY</p>
-        <h2>Native / Browser Boundary</h2>
-        <table class="parity-table">
-          <tbody>
-            <tr><td>Image inference</td><td><span class="yes">YES</span></td></tr>
-            <tr><td>Local video decoding</td><td><span class="yes">YES</span></td></tr>
-            <tr><td>Frame sampling / motion</td><td><span class="yes">YES</span></td></tr>
-            <tr><td>Webcam analysis</td><td><span class="yes">YES</span></td></tr>
-            <tr><td>Audio FFT features</td><td><span class="yes">YES</span></td></tr>
-            <tr><td>TensorFlow model inference</td><td><span class="partial">TFJS MODEL REQUIRED</span></td></tr>
-            <tr><td>OpenCV native pipeline</td><td><span class="partial">CANVAS / BROWSER PORT</span></td></tr>
-            <tr><td>FFmpeg native pipeline</td><td><span class="partial">BROWSER DECODER</span></td></tr>
-          </tbody>
-        </table>
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead>
+              <tr><th>Capability</th><th>Web</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Image inference</td><td><span class="tervis-parity-label yes">YES</span></td><td>TensorFlow.js model path.</td></tr>
+              <tr><td>Video decoding</td><td><span class="tervis-parity-label yes">YES</span></td><td>HTML5 media decoder.</td></tr>
+              <tr><td>Frame sampling / motion</td><td><span class="tervis-parity-label yes">YES</span></td><td>Canvas-based implementation.</td></tr>
+              <tr><td>Webcam analysis</td><td><span class="tervis-parity-label yes">YES</span></td><td>Permissioned getUserMedia().</td></tr>
+              <tr><td>Audio features</td><td><span class="tervis-parity-label yes">YES</span></td><td>Web Audio + spectral analysis.</td></tr>
+              <tr><td>Species model</td><td><span class="tervis-parity-label partial">PARTIAL</span></td><td>Requires compatible trained TFJS model.</td></tr>
+              <tr><td>OpenCV parity</td><td><span class="tervis-parity-label partial">PARTIAL</span></td><td>Canvas replaces core display/frame operations.</td></tr>
+              <tr><td>FFmpeg parity</td><td><span class="tervis-parity-label partial">PARTIAL</span></td><td>Browser codec support differs by platform.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </article>
     </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Browser Security Boundary</h2>
+      <p>
+        Local images, videos, audio files, and webcam frames remain inside the browser.
+        Network access is used only when the user invokes model functionality requiring
+        TensorFlow.js, MobileNet, or a custom model URL.
+      </p>
+    </article>
   </section>
 </main>
 
