@@ -2,20 +2,27 @@
   "use strict";
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".mode-tab").forEach((button) => {
-      button.addEventListener("click", () => {
-        const mode = button.dataset.mode;
+    const tabs = [...document.querySelectorAll(".mode-tab")];
+    const panels = [...document.querySelectorAll(".mode-panel")];
 
-        document.querySelectorAll(".mode-tab").forEach((tab) => {
-          tab.classList.toggle("active", tab === button);
-        });
-
-        document.querySelectorAll(".mode-panel").forEach((panel) => {
-          panel.classList.toggle("active", panel.id === `mode-${mode}`);
-        });
-
-        window.ZZXHooks?.emit("tervis:mode", { mode });
+    function activate(mode) {
+      tabs.forEach((tab) => {
+        const active = tab.dataset.mode === mode;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", active ? "true" : "false");
       });
+
+      panels.forEach((panel) => {
+        panel.classList.toggle("active", panel.id === `mode-${mode}`);
+      });
+
+      window.ZZXHooks?.emit("tervis:mode", { mode });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => activate(tab.dataset.mode));
     });
+
+    if (tabs.length) activate(tabs[0].dataset.mode);
   });
 })();
