@@ -1,0 +1,191 @@
+{
+  "slug": "archive-tagger",
+  "title": "ArchiveTagger",
+  "name": "ArchiveTagger",
+  "blurb": "ArchiveTagger automates tagging, indexing, and metadata extraction across large offline and online datasets. Supports text, audio, video, and image archives with content fingerprinting, optical character recognition, and keyword taxonomy mapping for digital preservation, research analytics, and AI dataset structuring.",
+  "description": "ArchiveTagger is a local-first cataloging and dataset-preparation system for heterogeneous archives. The browser edition performs batch ingestion, SHA-256 fingerprinting, image perceptual hashing, metadata extraction, text indexing, taxonomy tagging, exact and near-duplicate analysis, local previews, provider-based OCR, IndexedDB catalog persistence, and JSON/CSV/JSONL exports.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/archive-tagger/",
+  "github": "https://github.com/ZZX-Labs/archivetagger",
+  "logo": "/projects/software/archive-tagger/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Kali",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "python3",
+      "pyqt5",
+      "opencv-python",
+      "pytesseract",
+      "pillow",
+      "ffmpeg",
+      "mutagen",
+      "sqlite3",
+      "numpy"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "OpenCV",
+      "FFmpeg"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./archivetagger.js",
+    "modules": [
+      "./archive-store.js",
+      "./metadata.js",
+      "./tagger.js",
+      "./search.js",
+      "./ocr.js",
+      "./archive-core.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "optional_network": [
+      "CORS-enabled URL ingestion"
+    ],
+    "capabilities": [
+      {
+        "name": "Batch local file ingestion",
+        "web": "yes",
+        "notes": "File API and drag/drop."
+      },
+      {
+        "name": "URL ingestion",
+        "web": "partial",
+        "notes": "Works for CORS-enabled HTTP(S) resources."
+      },
+      {
+        "name": "SHA-256 fingerprinting",
+        "web": "yes",
+        "notes": "Web Crypto API."
+      },
+      {
+        "name": "Image perceptual hashing",
+        "web": "yes",
+        "notes": "8x8 average hash via Canvas."
+      },
+      {
+        "name": "Text extraction",
+        "web": "yes",
+        "notes": "Plain-text, code, JSON, CSV, Markdown and related browser-readable formats."
+      },
+      {
+        "name": "Image metadata",
+        "web": "yes",
+        "notes": "Dimensions and perceptual hash."
+      },
+      {
+        "name": "Audio/video metadata",
+        "web": "yes",
+        "notes": "Duration and video dimensions where browser codec support permits."
+      },
+      {
+        "name": "ZIP inventory",
+        "web": "yes",
+        "notes": "Read-only central-directory listing."
+      },
+      {
+        "name": "TAR inventory",
+        "web": "yes",
+        "notes": "Read-only tar header listing."
+      },
+      {
+        "name": "OCR",
+        "web": "provider",
+        "notes": "Tesseract.js auto-detection or custom provider registration."
+      },
+      {
+        "name": "Keyword taxonomy mapping",
+        "web": "yes",
+        "notes": "Reusable local rules."
+      },
+      {
+        "name": "Search",
+        "web": "yes",
+        "notes": "Field-weighted local lexical search."
+      },
+      {
+        "name": "Exact duplicate detection",
+        "web": "yes",
+        "notes": "SHA-256 groups."
+      },
+      {
+        "name": "Near-image detection",
+        "web": "yes",
+        "notes": "Perceptual-hash Hamming distance."
+      },
+      {
+        "name": "Catalog persistence",
+        "web": "yes",
+        "notes": "IndexedDB; metadata only."
+      },
+      {
+        "name": "JSON export/import",
+        "web": "yes",
+        "notes": "ArchiveTagger catalog schema."
+      },
+      {
+        "name": "CSV export",
+        "web": "yes",
+        "notes": "Flat archival inventory."
+      },
+      {
+        "name": "JSONL dataset export",
+        "web": "yes",
+        "notes": "ML/RAG/data-engineering workflow."
+      }
+    ]
+  },
+  "tags": [
+    "archive",
+    "metadata",
+    "indexing",
+    "tagging",
+    "ocr",
+    "fingerprinting",
+    "search",
+    "cataloging",
+    "dataset",
+    "research",
+    "digital-preservation",
+    "duplicates",
+    "pyqt5",
+    "opencv",
+    "ffmpeg",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "archivetagger.js",
+    "archive-core.js",
+    "archive-store.js",
+    "metadata.js",
+    "tagger.js",
+    "search.js",
+    "ocr.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

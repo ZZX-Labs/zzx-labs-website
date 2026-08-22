@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="ArchiveTagger — local archive cataloging, metadata extraction, fingerprinting, tagging, search, preview, duplicate analysis, and dataset export.">
+  <title>ArchiveTagger · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-archivetagger-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-archivetagger-1">
+  <script src="./hook.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./script.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./archive-store.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./metadata.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./tagger.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./search.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./ocr.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./archive-core.js?v=20260822-archivetagger-1" defer></script>
+  <script src="./archivetagger.js?v=20260822-archivetagger-1" defer></script>
+</head>
+
+<body class="project project-archivetagger">
+<header><div id="zzx-header"></div></header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="ArchiveTagger logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>ArchiveTagger</h1>
+      <p class="blurb">
+        Local-first archive cataloging, metadata extraction, content fingerprinting,
+        taxonomy tagging, duplicate analysis, search, preview, and AI-dataset structuring.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/archivetagger" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>ArchiveTagger Browser Workbench</h2>
+        </div>
+        <div class="runtime-status">
+          <span class="runtime-badge ok">HASH: SHA-256</span>
+          <span class="runtime-badge ok">INDEX: LOCAL</span>
+          <span class="runtime-badge ok">CATALOG: INDEXEDDB</span>
+          <span id="status-ocr" class="runtime-badge partial">OCR: PROVIDER</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="scan" type="button">Scan &amp; Import</button>
+            <button class="tool-tab mode-tab" data-mode="catalog" type="button">Catalog</button>
+            <button class="tool-tab mode-tab" data-mode="taxonomy" type="button">Tags &amp; Taxonomy</button>
+            <button class="tool-tab mode-tab" data-mode="search" type="button">Search</button>
+            <button class="tool-tab mode-tab" data-mode="duplicates" type="button">Duplicates</button>
+            <button class="tool-tab mode-tab" data-mode="preview" type="button">Preview &amp; Metadata</button>
+            <button class="tool-tab mode-tab" data-mode="export" type="button">Export / Import</button>
+          </div>
+
+          <div class="at-sidebar-note">
+            <strong>LOCAL-FIRST</strong>
+            <p>
+              Raw files are processed in-browser. Persisted catalog records contain metadata,
+              tags, fingerprints, and extracted text—not the original file bytes.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-scan" class="at-mode-panel mode-panel active">
+            <div class="at-mode-heading">
+              <p class="kicker">BATCH INGESTION</p>
+              <h2>Scan &amp; Import</h2>
+              <p>
+                Add files or fetch a CORS-accessible URL. ArchiveTagger fingerprints each item,
+                extracts browser-readable metadata, indexes text, and applies taxonomy rules.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="at-grid-main">
+                <div>
+                  <div id="scan-dropzone" class="at-dropzone">
+                    <h3>Drop Archive Files Here</h3>
+                    <p>Documents, text, images, audio, video, ZIP/TAR archives, datasets, and code.</p>
+                    <label class="file-button">
+                      SELECT FILES
+                      <input id="scan-files" type="file" multiple>
+                    </label>
+                  </div>
+
+                  <div class="at-grid-2" style="margin-top:.8rem">
+                    <label>
+                      Import URL
+                      <input id="scan-url" type="url" placeholder="https://example.org/file">
+                    </label>
+                    <div style="align-self:end">
+                      <button id="scan-fetch-url" class="btn" type="button">FETCH URL</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="at-metrics" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:0">
+                    <div><span>Queue</span><strong id="scan-queue">0</strong></div>
+                    <div><span>Processed</span><strong id="scan-processed">0</strong></div>
+                    <div><span>Errors</span><strong id="scan-errors">0</strong></div>
+                    <div><span>Total bytes</span><strong id="scan-bytes">0 B</strong></div>
+                  </div>
+
+                  <div class="at-progress"><div id="scan-progress"></div></div>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="scan-cancel" class="btn ghost" type="button">CANCEL QUEUE</button>
+                    <button id="scan-clear-session" class="btn ghost" type="button">CLEAR SESSION FILE HANDLES</button>
+                  </div>
+
+                  <pre id="scan-log" class="at-log">ArchiveTagger ready.</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-catalog" class="at-mode-panel mode-panel">
+            <div class="at-mode-heading">
+              <p class="kicker">INDEXED COLLECTION</p>
+              <h2>Catalog</h2>
+              <p>
+                Browse every indexed record. Select a row to inspect its metadata, tags,
+                hashes, extracted text, and current-session preview.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="at-metrics">
+                <div><span>Records</span><strong id="catalog-count">0</strong></div>
+                <div><span>Total bytes</span><strong id="catalog-bytes">0 B</strong></div>
+                <div><span>Text indexed</span><strong id="catalog-text">0</strong></div>
+                <div><span>Unique tags</span><strong id="catalog-tags">0</strong></div>
+                <div><span>Exact dup groups</span><strong id="catalog-dups">0</strong></div>
+              </div>
+
+              <div class="at-table-wrap" style="margin-top:.8rem">
+                <table class="at-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Category</th>
+                      <th>Size</th>
+                      <th>Tags</th>
+                      <th>SHA-256</th>
+                    </tr>
+                  </thead>
+                  <tbody id="catalog-body">
+                    <tr><td colspan="5" class="muted">No records.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-taxonomy" class="at-mode-panel mode-panel">
+            <div class="at-mode-heading">
+              <p class="kicker">KEYWORD TAXONOMY</p>
+              <h2>Tags &amp; Taxonomy</h2>
+              <p>
+                Define reusable tag rules. Rules match filename, extracted text, MIME type,
+                extension, and existing metadata; re-run auto-tagging at any time.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="at-taxonomy-entry">
+                <label>
+                  Tag
+                  <input id="rule-tag" type="text" placeholder="research">
+                </label>
+                <label>
+                  Keywords / patterns
+                  <input id="rule-keywords" type="text" placeholder="paper, citation, abstract, bibliography">
+                </label>
+                <button id="rule-add" class="btn" type="button">ADD RULE</button>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="rule-apply-all" class="btn" type="button">AUTO-TAG ALL</button>
+                <button id="rule-reset-defaults" class="btn ghost" type="button">RESET DEFAULTS</button>
+                <button id="rule-clear" class="btn ghost" type="button">CLEAR RULES</button>
+              </div>
+
+              <div id="rule-list" class="at-rule-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-search" class="at-mode-panel mode-panel">
+            <div class="at-mode-heading">
+              <p class="kicker">LOCAL SEARCH INDEX</p>
+              <h2>Search</h2>
+              <p>
+                Search filenames, tags, extracted text, MIME types, extensions, and metadata.
+                Results are ranked locally using field-weighted token overlap.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="at-search-bar">
+                <label>
+                  Query
+                  <input id="search-query" type="text" placeholder="research pdf image bitcoin transcript">
+                </label>
+                <button id="search-run" class="btn" type="button">SEARCH</button>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                  <input id="search-tag-only" type="checkbox" style="width:auto;min-height:auto">
+                  Tags only
+                </label>
+              </div>
+
+              <div id="search-results" class="at-search-results"></div>
+            </div>
+          </div>
+
+          <div id="mode-duplicates" class="at-mode-panel mode-panel">
+            <div class="at-mode-heading">
+              <p class="kicker">CONTENT FINGERPRINTS</p>
+              <h2>Duplicates</h2>
+              <p>
+                Group exact duplicates by SHA-256. Images also receive an 8×8 perceptual
+                average hash so visually similar images can be surfaced by Hamming distance.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="duplicates-refresh" class="btn" type="button">REFRESH ANALYSIS</button>
+              </div>
+
+              <h3 style="margin-top:.8rem">Exact SHA-256 Groups</h3>
+              <div id="duplicate-exact" class="at-duplicate-list"></div>
+
+              <h3 style="margin-top:1rem">Near-Image Groups</h3>
+              <div id="duplicate-near" class="at-duplicate-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-preview" class="at-mode-panel mode-panel">
+            <div class="at-mode-heading">
+              <p class="kicker">CONTENT INSPECTION</p>
+              <h2>Preview &amp; Metadata</h2>
+              <p>
+                Preview the selected record when its original file is still present in the
+                current browser session. Persisted catalog metadata remains available later.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="at-grid-main">
+                <div>
+                  <div id="preview-stage" class="at-preview-stage">
+                    <span class="muted">Select a catalog record.</span>
+                  </div>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="preview-ocr" class="btn ghost" type="button">OCR SELECTED IMAGE</button>
+                    <button id="preview-copy-text" class="btn ghost" type="button">COPY EXTRACTED TEXT</button>
+                  </div>
+
+                  <div class="at-ocr-note">
+                    Browser OCR is provider-based. If Tesseract.js is already loaded, ArchiveTagger
+                    can use it automatically; otherwise register a provider with
+                    <code>ArchiveTagger.registerOCRProvider()</code>.
+                  </div>
+                </div>
+
+                <div>
+                  <dl id="preview-meta" class="at-meta"></dl>
+
+                  <label style="margin-top:.8rem">
+                    Tags
+                    <input id="preview-tags" type="text" placeholder="comma,separated,tags">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="preview-save-tags" class="btn" type="button">SAVE TAGS</button>
+                  </div>
+
+                  <label style="margin-top:.8rem">
+                    Extracted / OCR text
+                    <textarea id="preview-text" rows="14" spellcheck="false"></textarea>
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="preview-save-text" class="btn ghost" type="button">SAVE TEXT</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-export" class="at-mode-panel mode-panel">
+            <div class="at-mode-heading">
+              <p class="kicker">PRESERVATION &amp; DATASETS</p>
+              <h2>Export / Import</h2>
+              <p>
+                Export catalog metadata for preservation, research analytics, or AI dataset
+                structuring. Import previous ArchiveTagger catalog JSON without raw files.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="at-export-grid">
+                <article class="at-export-card">
+                  <h3>Catalog JSON</h3>
+                  <p>Complete ArchiveTagger metadata records, taxonomy, and text index.</p>
+                  <button id="export-json" class="btn" type="button">EXPORT JSON</button>
+                </article>
+
+                <article class="at-export-card">
+                  <h3>CSV</h3>
+                  <p>Flat metadata table for spreadsheets, research, and archival inventories.</p>
+                  <button id="export-csv" class="btn" type="button">EXPORT CSV</button>
+                </article>
+
+                <article class="at-export-card">
+                  <h3>JSONL Dataset</h3>
+                  <p>One record per line for ML/RAG/data-engineering workflows.</p>
+                  <button id="export-jsonl" class="btn" type="button">EXPORT JSONL</button>
+                </article>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <label class="file-button">
+                  IMPORT CATALOG JSON
+                  <input id="import-catalog" type="file" accept=".json,application/json">
+                </label>
+                <button id="catalog-clear" class="btn ghost" type="button">CLEAR CATALOG</button>
+              </div>
+
+              <pre id="export-output" class="tool-output"></pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>ArchiveTagger</h2>
+        <p>
+          ArchiveTagger catalogs heterogeneous offline/online datasets, extracts metadata,
+          computes content fingerprints, maps records into keyword taxonomies, and prepares
+          structured indexes for digital preservation, research, and dataset engineering.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · PyQt5 · OpenCV · Tesseract · FFmpeg</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Web Crypto · Canvas · IndexedDB</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead><tr><th>Capability</th><th>Web</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Batch local file ingestion</td><td><span class="parity-badge yes">YES</span></td><td>File API + drag/drop.</td></tr>
+              <tr><td>URL ingestion</td><td><span class="parity-badge partial">YES*</span></td><td>Subject to CORS.</td></tr>
+              <tr><td>SHA-256 fingerprints</td><td><span class="parity-badge yes">YES</span></td><td>Web Crypto.</td></tr>
+              <tr><td>Image perceptual hash</td><td><span class="parity-badge yes">YES</span></td><td>Canvas 8×8 average hash.</td></tr>
+              <tr><td>Text extraction/indexing</td><td><span class="parity-badge yes">YES</span></td><td>Text/JSON/CSV/code formats.</td></tr>
+              <tr><td>Image/audio/video metadata</td><td><span class="parity-badge yes">YES</span></td><td>Browser media decoders.</td></tr>
+              <tr><td>ZIP/TAR inventory</td><td><span class="parity-badge yes">YES</span></td><td>Read-only listing.</td></tr>
+              <tr><td>OCR</td><td><span class="parity-badge partial">PROVIDER</span></td><td>Tesseract.js or custom OCR provider.</td></tr>
+              <tr><td>Taxonomy tagging</td><td><span class="parity-badge yes">YES</span></td><td>Local rules.</td></tr>
+              <tr><td>Catalog persistence</td><td><span class="parity-badge yes">YES</span></td><td>IndexedDB metadata only.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Archive Safety Boundary</h2>
+      <p>
+        Raw imported files are never uploaded by the supplied page. Archive inventory code
+        reads ZIP/TAR structures without extracting them onto the host filesystem. Persisted
+        catalog records store derived metadata, tags, fingerprints, archive entry names, and
+        extracted text; raw source files remain under user control.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>
