@@ -1,5 +1,5 @@
-<div align=center>
-<img src="logo.png" alt="Base48-BDEF Logo">
+<div align="center">
+<img src="logo.png" alt="Base48-BDEF" width="240" height="240">
 
 # Base48
 
