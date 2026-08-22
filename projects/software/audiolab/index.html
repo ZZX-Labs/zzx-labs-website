@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="AudioLab — browser-native sound synthesis, waveform generation, spectral analysis, recording, filtering, effects chaining, multi-track mixing, and WAV rendering.">
+  <title>AudioLab · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-audiolab-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-audiolab-1">
+  <script src="./hook.js?v=20260822-audiolab-1" defer></script>
+  <script src="./script.js?v=20260822-audiolab-1" defer></script>
+  <script src="./dsp.js?v=20260822-audiolab-1" defer></script>
+  <script src="./waveform.js?v=20260822-audiolab-1" defer></script>
+  <script src="./recorder.js?v=20260822-audiolab-1" defer></script>
+  <script src="./audio-engine.js?v=20260822-audiolab-1" defer></script>
+  <script src="./audiolab.js?v=20260822-audiolab-1" defer></script>
+</head>
+
+<body class="project project-audiolab">
+<header><div id="zzx-header"></div></header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="AudioLab logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>AudioLab</h1>
+      <p class="blurb">
+        Experimental sound-design and analysis environment for synthesis, waveform generation,
+        spectral visualization, recording, filtering, effects chains, multi-track mixing,
+        and non-destructive local audio rendering.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/audiolab" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>AudioLab Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status">
+          <span class="runtime-badge ok">AUDIO: WEB AUDIO</span>
+          <span class="runtime-badge ok">SYNTH: LIVE</span>
+          <span id="status-mic" class="runtime-badge partial">MIC: OPTIONAL</span>
+          <span class="runtime-badge ok">NETWORK: NONE</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="synth" type="button">Synthesizer</button>
+            <button class="tool-tab mode-tab" data-mode="mixer" type="button">Multi-Track</button>
+            <button class="tool-tab mode-tab" data-mode="fx" type="button">Filters &amp; FX</button>
+            <button class="tool-tab mode-tab" data-mode="analysis" type="button">Spectrum &amp; Scope</button>
+            <button class="tool-tab mode-tab" data-mode="record" type="button">Recorder</button>
+            <button class="tool-tab mode-tab" data-mode="render" type="button">Offline Render</button>
+          </div>
+
+          <div class="al-sidebar-note">
+            <strong>LOCAL AUDIO LAB</strong>
+            <p>
+              Synthesis, decoding, visualization, recording, and DSP run in-browser.
+              Imported audio remains local unless you explicitly download a rendered result.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-synth" class="al-mode-panel mode-panel active">
+            <div class="al-mode-heading">
+              <p class="kicker">OSCILLATOR + NOISE GENERATOR</p>
+              <h2>Synthesizer</h2>
+              <p>
+                Generate sine, square, sawtooth, triangle, or white-noise signals, route them
+                through the active effects chain, and render tones directly to WAV.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="al-synth-layout">
+                <div class="al-controls">
+                  <label>
+                    Waveform
+                    <select id="synth-wave">
+                      <option value="sine">Sine</option>
+                      <option value="square">Square</option>
+                      <option value="sawtooth">Sawtooth</option>
+                      <option value="triangle">Triangle</option>
+                      <option value="noise">White noise</option>
+                    </select>
+                  </label>
+
+                  <div class="al-control-row">
+                    <span>Frequency</span>
+                    <input id="synth-frequency" class="al-range" type="range" min="20" max="2000" step="1" value="440">
+                    <output id="synth-frequency-out">440 Hz</output>
+                  </div>
+
+                  <div class="al-control-row">
+                    <span>Gain</span>
+                    <input id="synth-gain" class="al-range" type="range" min="0" max="1" step="0.01" value="0.35">
+                    <output id="synth-gain-out">0.35</output>
+                  </div>
+
+                  <div class="al-control-row">
+                    <span>Pan</span>
+                    <input id="synth-pan" class="al-range" type="range" min="-1" max="1" step="0.01" value="0">
+                    <output id="synth-pan-out">0.00</output>
+                  </div>
+
+                  <label>
+                    Render duration seconds
+                    <input id="synth-duration" type="number" min="0.1" max="60" step="0.1" value="3">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="synth-play" class="btn" type="button">PLAY TONE</button>
+                    <button id="synth-stop" class="btn ghost" type="button">STOP</button>
+                    <button id="synth-render" class="btn ghost" type="button">RENDER WAV</button>
+                  </div>
+                </div>
+
+                <div>
+                  <canvas id="synth-scope" class="al-scope" width="1200" height="300"></canvas>
+                  <div class="al-metrics">
+                    <div><span>Wave</span><strong id="metric-wave">sine</strong></div>
+                    <div><span>Frequency</span><strong id="metric-frequency">440 Hz</strong></div>
+                    <div><span>Gain</span><strong id="metric-gain">0.35</strong></div>
+                    <div><span>Pan</span><strong id="metric-pan">0.00</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-mixer" class="al-mode-panel mode-panel">
+            <div class="al-mode-heading">
+              <p class="kicker">MULTI-TRACK MANIPULATION</p>
+              <h2>Multi-Track</h2>
+              <p>
+                Import multiple audio files, assign gain/pan/mute/solo/loop controls, and play
+                them through the shared AudioLab effects bus.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="al-grid-2">
+                <div id="mixer-dropzone" class="al-dropzone">
+                  <h3>Drop Audio Files Here</h3>
+                  <p>Browser-decodable WAV, MP3, OGG, AAC/M4A, FLAC, Opus, and related formats.</p>
+                  <label class="file-button">
+                    SELECT AUDIO
+                    <input id="mixer-files" type="file" multiple accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.opus">
+                  </label>
+                </div>
+
+                <div>
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="mixer-play" class="btn" type="button">PLAY MIX</button>
+                    <button id="mixer-stop" class="btn ghost" type="button">STOP MIX</button>
+                    <button id="mixer-clear" class="btn ghost" type="button">CLEAR TRACKS</button>
+                  </div>
+
+                  <div class="al-metrics">
+                    <div><span>Tracks</span><strong id="mixer-count">0</strong></div>
+                    <div><span>Decoded</span><strong id="mixer-decoded">0</strong></div>
+                    <div><span>Muted</span><strong id="mixer-muted">0</strong></div>
+                    <div><span>Solo</span><strong id="mixer-solo">0</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="mixer-track-list" class="al-track-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-fx" class="al-mode-panel mode-panel">
+            <div class="al-mode-heading">
+              <p class="kicker">MODULAR DSP CHAIN</p>
+              <h2>Filters &amp; FX</h2>
+              <p>
+                Configure a shared Biquad filter, waveshaper distortion, delay/feedback,
+                and master-gain chain used by the synthesizer and mixer.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="al-fx-chain">
+                <article class="al-fx-card">
+                  <h3>Filter</h3>
+                  <label>
+                    Type
+                    <select id="fx-filter-type">
+                      <option value="lowpass">Low-pass</option>
+                      <option value="highpass">High-pass</option>
+                      <option value="bandpass">Band-pass</option>
+                      <option value="notch">Notch</option>
+                      <option value="allpass">All-pass</option>
+                    </select>
+                  </label>
+
+                  <div class="al-control-row">
+                    <span>Frequency</span>
+                    <input id="fx-filter-frequency" class="al-range" type="range" min="20" max="20000" step="1" value="16000">
+                    <output id="fx-filter-frequency-out">16000 Hz</output>
+                  </div>
+
+                  <div class="al-control-row">
+                    <span>Q</span>
+                    <input id="fx-filter-q" class="al-range" type="range" min="0.1" max="30" step="0.1" value="0.7">
+                    <output id="fx-filter-q-out">0.7</output>
+                  </div>
+                </article>
+
+                <article class="al-fx-card">
+                  <h3>Distortion</h3>
+                  <div class="al-control-row">
+                    <span>Drive</span>
+                    <input id="fx-drive" class="al-range" type="range" min="0" max="100" step="1" value="0">
+                    <output id="fx-drive-out">0</output>
+                  </div>
+                  <p class="muted">Drive 0 bypasses the waveshaper curve.</p>
+                </article>
+
+                <article class="al-fx-card">
+                  <h3>Delay</h3>
+                  <div class="al-control-row">
+                    <span>Time</span>
+                    <input id="fx-delay" class="al-range" type="range" min="0" max="1.5" step="0.01" value="0">
+                    <output id="fx-delay-out">0.00 s</output>
+                  </div>
+                  <div class="al-control-row">
+                    <span>Feedback</span>
+                    <input id="fx-feedback" class="al-range" type="range" min="0" max="0.85" step="0.01" value="0.2">
+                    <output id="fx-feedback-out">0.20</output>
+                  </div>
+                  <div class="al-control-row">
+                    <span>Wet</span>
+                    <input id="fx-wet" class="al-range" type="range" min="0" max="1" step="0.01" value="0">
+                    <output id="fx-wet-out">0.00</output>
+                  </div>
+                </article>
+
+                <article class="al-fx-card">
+                  <h3>Master</h3>
+                  <div class="al-control-row">
+                    <span>Gain</span>
+                    <input id="fx-master" class="al-range" type="range" min="0" max="1.5" step="0.01" value="0.8">
+                    <output id="fx-master-out">0.80</output>
+                  </div>
+                  <div class="al-chip-row">
+                    <span class="al-chip ok">BIQUAD</span>
+                    <span class="al-chip ok">WAVESHAPER</span>
+                    <span class="al-chip ok">DELAY</span>
+                    <span class="al-chip ok">ANALYSER</span>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-analysis" class="al-mode-panel mode-panel">
+            <div class="al-mode-heading">
+              <p class="kicker">REAL-TIME SIGNAL ANALYSIS</p>
+              <h2>Spectrum &amp; Scope</h2>
+              <p>
+                Inspect the shared output bus using a live time-domain oscilloscope and
+                FFT spectrum analyzer.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <canvas id="analysis-wave" class="al-scope large" width="1200" height="340"></canvas>
+              <canvas id="analysis-spectrum" class="al-scope large" width="1200" height="340" style="margin-top:.8rem"></canvas>
+
+              <div class="al-metrics">
+                <div><span>FFT size</span><strong id="analysis-fft">2048</strong></div>
+                <div><span>Sample rate</span><strong id="analysis-samplerate">—</strong></div>
+                <div><span>Peak meter</span><strong id="analysis-peak">—</strong></div>
+                <div><span>RMS meter</span><strong id="analysis-rms">—</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-record" class="al-mode-panel mode-panel">
+            <div class="al-mode-heading">
+              <p class="kicker">MICROPHONE CAPTURE</p>
+              <h2>Recorder</h2>
+              <p>
+                Capture a browser-authorized microphone using MediaRecorder, monitor duration,
+                audition the result, and download the recording in the browser-supported container.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="al-recorder">
+                <div>
+                  <div id="record-status" class="al-rec-status">IDLE</div>
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="record-start" class="btn" type="button">START RECORDING</button>
+                    <button id="record-stop" class="btn ghost" type="button" disabled>STOP</button>
+                    <button id="record-download" class="btn ghost" type="button" disabled>DOWNLOAD</button>
+                  </div>
+                  <audio id="record-preview" controls style="width:100%;margin-top:.8rem"></audio>
+                </div>
+
+                <div>
+                  <pre id="record-log" class="al-log">Microphone permission is requested only when START RECORDING is pressed.</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-render" class="al-mode-panel mode-panel">
+            <div class="al-mode-heading">
+              <p class="kicker">NON-DESTRUCTIVE PROCESSING</p>
+              <h2>Offline Render</h2>
+              <p>
+                Decode one local source, trim it, normalize peak level, add fades, and export
+                a new PCM WAV without modifying the source file.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="al-processing-grid">
+                <div>
+                  <label class="file-button">
+                    SELECT SOURCE AUDIO
+                    <input id="render-file" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aac,.opus">
+                  </label>
+
+                  <div class="al-controls" style="margin-top:.8rem">
+                    <label>Start seconds<input id="render-start" type="number" min="0" step="0.01" value="0"></label>
+                    <label>End seconds<input id="render-end" type="number" min="0" step="0.01" value="0"></label>
+                    <label>Peak target dBFS<input id="render-peak" type="number" min="-24" max="0" step="0.1" value="-1"></label>
+                    <label>Fade in seconds<input id="render-fadein" type="number" min="0" step="0.01" value="0"></label>
+                    <label>Fade out seconds<input id="render-fadeout" type="number" min="0" step="0.01" value="0"></label>
+                    <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                      <input id="render-normalize" type="checkbox" checked style="width:auto;min-height:auto">
+                      Normalize peak
+                    </label>
+                    <button id="render-run" class="btn" type="button">EXPORT WAV</button>
+                  </div>
+                </div>
+
+                <div>
+                  <pre id="render-output" class="al-log">Select an audio file to prepare an offline render.</pre>
+                </div>
+              </div>
+
+              <div class="al-note">
+                This browser port implements a practical FFmpeg-style subset locally through
+                decoded PCM. The native project remains the path for broader codec coverage,
+                advanced filters, and external FFmpeg pipelines.
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>AudioLab</h2>
+        <p>
+          AudioLab is an experimental sound-design and signal-analysis environment for
+          researchers, producers, and developers exploring synthesis, acoustics, DSP,
+          recording, and modular audio workflows.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · PyQt5 · NumPy · SciPy · FFmpeg · Librosa</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Web Audio · MediaRecorder · Canvas</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead><tr><th>Capability</th><th>Web</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Waveform synthesis</td><td><span class="parity-badge yes">YES</span></td><td>Oscillator + white noise.</td></tr>
+              <tr><td>Multi-track playback</td><td><span class="parity-badge yes">YES</span></td><td>Web Audio buffers.</td></tr>
+              <tr><td>Filters / effects</td><td><span class="parity-badge yes">YES</span></td><td>Biquad, distortion, delay, gain.</td></tr>
+              <tr><td>Spectral visualization</td><td><span class="parity-badge yes">YES</span></td><td>AnalyserNode FFT.</td></tr>
+              <tr><td>Recording</td><td><span class="parity-badge yes">YES</span></td><td>MediaRecorder where supported.</td></tr>
+              <tr><td>Offline WAV render</td><td><span class="parity-badge yes">YES</span></td><td>Decoded PCM processing.</td></tr>
+              <tr><td>FFmpeg full pipeline</td><td><span class="parity-badge partial">PORT</span></td><td>Browser implements practical subset.</td></tr>
+              <tr><td>Librosa analysis</td><td><span class="parity-badge partial">PORT</span></td><td>Realtime Web Audio metrics instead.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Audio Boundary</h2>
+      <p>
+        Imported files, generated signals, and microphone recordings are processed locally.
+        Microphone access is requested only when recording starts. The supplied page does not
+        upload audio or require a remote service.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>
