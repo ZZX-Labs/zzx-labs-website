@@ -1,5 +1,5 @@
 <div align="center">
-<img src="logo.png" alt="Astral Clock" width="240" height="240">
+<img src="logo.png" alt="beef's Diceware Wordlists" width="240" height="240">
 
 # beef's Diceware Wordlists
 
