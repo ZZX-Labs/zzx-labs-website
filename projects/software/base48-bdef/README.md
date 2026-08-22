@@ -1,3 +1,6 @@
+<div align=center>
+<img src="logo.png" alt="Base48-BDEF Logo">
+
 # Base48
 
 Deterministic binary-to-text encoding derived from Bitcoin's Base58 alphabet.
@@ -5,6 +8,9 @@ Deterministic binary-to-text encoding derived from Bitcoin's Base58 alphabet.
 **Version:** 1.0.0  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Main title
 
