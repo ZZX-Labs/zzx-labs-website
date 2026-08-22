@@ -12,6 +12,8 @@ Local-first **archive cataloging, metadata extraction, fingerprinting, taxonomy 
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python 3.11+ / PyQt5 / OpenCV / Tesseract / FFmpeg · JavaScript / Web Crypto / Canvas / IndexedDB
 
+</div>
+
 
 ## What it does
 
