@@ -1,0 +1,154 @@
+{
+  "slug": "androidpp",
+  "title": "Android++",
+  "name": "Android++",
+  "blurb": "Offline Android code editor inspired by Notepad++ with GPG encryption workflows and CyberChef-style transformations for local analysis and secure note-taking.",
+  "description": "Android++ is an offline-first Android code and text editor. The web edition runs a browser-native multi-document editor independently of the APK, adds local search/replace and data transformations, provides an encrypted note-container workflow with an OpenPGP provider hook, and can safely inspect the Android APK or launch packaged WebView assets inside a restrictive sandbox.",
+  "version": "0.6.0-alpha",
+  "web_version": "0.6.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/androidpp/",
+  "github": "https://github.com/ZZX-Labs/androidpp",
+  "logo": "/projects/software/androidpp/logo.png",
+  "apk": "/projects/software/androidpp/androidpp.apk",
+  "platforms": [
+    "Android",
+    "Web"
+  ],
+  "native": {
+    "language": "Kotlin",
+    "dependencies": [],
+    "frameworks": [
+      "Android SDK",
+      "Kotlin"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./androidpp.js",
+    "modules": [
+      "./editor-core.js",
+      "./transforms.js",
+      "./crypto-vault.js",
+      "./apk-container.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "hosted_apk": "./androidpp.apk",
+    "capabilities": [
+      {
+        "name": "Multi-document editor",
+        "web": "yes",
+        "notes": "Runs independently of APK loading."
+      },
+      {
+        "name": "Local file open",
+        "web": "yes",
+        "notes": "Browser File API."
+      },
+      {
+        "name": "File download",
+        "web": "yes",
+        "notes": "Blob download."
+      },
+      {
+        "name": "Draft recovery",
+        "web": "yes",
+        "notes": "LocalStorage."
+      },
+      {
+        "name": "Line numbers",
+        "web": "yes",
+        "notes": "Synchronized editor gutter."
+      },
+      {
+        "name": "Find and replace",
+        "web": "yes",
+        "notes": "Literal and regex modes."
+      },
+      {
+        "name": "CyberChef-style transforms",
+        "web": "yes",
+        "notes": "Base64, hex, URL, ROT13, JSON, case, SHA-256."
+      },
+      {
+        "name": "Encrypted note vault",
+        "web": "yes",
+        "notes": "PBKDF2-HMAC-SHA256 + AES-256-GCM."
+      },
+      {
+        "name": "GPG/OpenPGP",
+        "web": "partial",
+        "notes": "Public provider hook for real OpenPGP integration."
+      },
+      {
+        "name": "APK loading",
+        "web": "yes",
+        "notes": "Hosted or local APK loaded as inert binary data."
+      },
+      {
+        "name": "APK SHA-256",
+        "web": "yes",
+        "notes": "Web Crypto API."
+      },
+      {
+        "name": "APK ZIP parsing",
+        "web": "yes",
+        "notes": "Read-only central directory parser."
+      },
+      {
+        "name": "WebView asset detection",
+        "web": "yes",
+        "notes": "HTML/CSS/JS assets under assets/ or res/raw/."
+      },
+      {
+        "name": "WebView asset container",
+        "web": "yes",
+        "notes": "Sandboxed iframe with network-blocking CSP."
+      },
+      {
+        "name": "Native DEX/Kotlin execution",
+        "web": "provider",
+        "notes": "Requires separately registered Android/WASM runtime provider."
+      }
+    ]
+  },
+  "tags": [
+    "editor",
+    "notepadpp",
+    "gpg",
+    "openpgp",
+    "cyberchef",
+    "mobile",
+    "offline",
+    "android",
+    "kotlin",
+    "apk",
+    "code-editor",
+    "encryption",
+    "transforms",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "androidpp.js",
+    "editor-core.js",
+    "transforms.js",
+    "crypto-vault.js",
+    "apk-container.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png",
+    "androidpp.apk"
+  ]
+}
