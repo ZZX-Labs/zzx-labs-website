@@ -1,3 +1,6 @@
+<div align="center">
+<img src="logo.png" alt="BackNABit" width="240" height="240">
+
 # BackNABit
 
 Mid-term Bitcoin savings and staged timelock planner.
@@ -5,6 +8,9 @@ Mid-term Bitcoin savings and staged timelock planner.
 **Version:** 0.1.0-alpha  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Current web scope
 
