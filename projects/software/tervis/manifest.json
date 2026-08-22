@@ -1,0 +1,176 @@
+{
+  "slug": "tervis",
+  "title": "TerVIS",
+  "full_title": "Terrestrial Video Identification System",
+  "blurb": "TerVIS performs TensorFlow-based vision and audio analysis for identifying terrestrial species, providing frame-by-frame recognition and pattern detection for biodiversity datasets.",
+  "description": "TerVIS is a terrestrial biodiversity media-analysis system built around image recognition, frame-by-frame video analysis, webcam observation, motion-pattern detection, and bioacoustic feature extraction. The native project uses TensorFlow, OpenCV, FFmpeg, and Python. The browser port replaces native GUI/media dependencies with HTML5 media APIs, Canvas, Web Audio, and TensorFlow.js while preserving the core analysis workflow wherever browser APIs permit.",
+  "state": "alpha",
+  "status": "alpha",
+  "version": "0.3.0-alpha",
+  "web_version": "0.3.0-alpha-web",
+  "license": "MIT",
+  "author": "ZZX-Labs R&D",
+  "href": "/projects/software/tervis/",
+  "github": "https://github.com/ZZX-Labs/tervis",
+  "logo": "/projects/software/tervis/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "tensorflow",
+      "opencv-python",
+      "pandas",
+      "ffmpeg"
+    ],
+    "frameworks": [
+      "TensorFlow",
+      "OpenCV",
+      "FFmpeg"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./tervis.js",
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "dependencies": [
+      "TensorFlow.js (loaded on demand)",
+      "MobileNet TensorFlow.js model (loaded on demand)"
+    ],
+    "model_urls": {
+      "tensorflow_js": "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js",
+      "mobilenet": "https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"
+    },
+    "capabilities": [
+      {
+        "name": "Local image loading",
+        "web": "yes",
+        "notes": "Images are loaded with browser File APIs and processed locally."
+      },
+      {
+        "name": "Image feature analysis",
+        "web": "yes",
+        "notes": "Canvas-based luminance and edge-density analysis."
+      },
+      {
+        "name": "General image classification",
+        "web": "yes",
+        "notes": "MobileNet can be loaded on demand through TensorFlow.js."
+      },
+      {
+        "name": "Custom terrestrial species model",
+        "web": "partial",
+        "notes": "Compatible TensorFlow.js Layers or Graph models can be loaded from model.json."
+      },
+      {
+        "name": "Local video playback",
+        "web": "yes",
+        "notes": "HTML5 video decoding replaces the native FFmpeg/OpenCV display path."
+      },
+      {
+        "name": "Frame-by-frame video analysis",
+        "web": "yes",
+        "notes": "Canvas frame sampling, motion scoring, periodic inference, and event logging."
+      },
+      {
+        "name": "Live webcam analysis",
+        "web": "yes",
+        "notes": "Uses getUserMedia with explicit user permission."
+      },
+      {
+        "name": "Motion-pattern detection",
+        "web": "yes",
+        "notes": "Downsampled grayscale frame differencing with configurable thresholds."
+      },
+      {
+        "name": "Local audio decoding",
+        "web": "yes",
+        "notes": "Web Audio API decodes user-selected audio files locally."
+      },
+      {
+        "name": "Bioacoustic feature extraction",
+        "web": "yes",
+        "notes": "RMS energy, zero-crossing rate, spectral centroid, and spectrum visualization."
+      },
+      {
+        "name": "Species audio classification",
+        "web": "partial",
+        "notes": "Requires a compatible trained TensorFlow.js audio model; generic audio features work without one."
+      },
+      {
+        "name": "Observation session logging",
+        "web": "yes",
+        "notes": "Image, video, camera, and audio observations are retained in the current browser session."
+      },
+      {
+        "name": "JSON export",
+        "web": "yes",
+        "notes": "Session observations can be exported as JSON."
+      },
+      {
+        "name": "CSV export",
+        "web": "yes",
+        "notes": "Session observations can be exported as CSV."
+      },
+      {
+        "name": "Native OpenCV pipeline",
+        "web": "partial",
+        "notes": "Canvas and browser media APIs reproduce the major analysis path but not every OpenCV operator."
+      },
+      {
+        "name": "Native FFmpeg pipeline",
+        "web": "partial",
+        "notes": "Browser media decoders are used in the static demo; exact FFmpeg codec/filter parity is not claimed."
+      }
+    ]
+  },
+  "tags": [
+    "ai",
+    "vision",
+    "terrestrial",
+    "species",
+    "identification",
+    "tensorflow",
+    "tensorflowjs",
+    "opencv",
+    "ffmpeg",
+    "biodiversity",
+    "image-classification",
+    "video-analysis",
+    "webcam",
+    "bioacoustics",
+    "motion-detection",
+    "dataset",
+    "browser",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "hook.css",
+    "hook.js",
+    "tervis.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ],
+  "privacy": {
+    "local_files_uploaded": false,
+    "webcam_stream_uploaded": false,
+    "network_requests": [
+      "TensorFlow.js runtime when explicitly loaded",
+      "MobileNet model assets when explicitly loaded",
+      "Custom TensorFlow.js model URL when explicitly supplied by the user"
+    ]
+  }
+}
