@@ -12,6 +12,8 @@
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python 3.11+ / PyQt5 / OpenCV / FFmpeg · JavaScript / HTML5 Media
 
+</div>
+
 
 ## What it does
 
