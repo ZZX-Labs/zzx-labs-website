@@ -10,6 +10,9 @@ Automated **audio metadata tagging, normalization, cataloging, fingerprinting, c
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python / PyQt5 / Mutagen / FFmpeg / Beets · JavaScript / Web Audio / Web Crypto / IndexedDB
 
+</div>
+
+
 ## What it does
 
 - Imports large batches of local audio files.
