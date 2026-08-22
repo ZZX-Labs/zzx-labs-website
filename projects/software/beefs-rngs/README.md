@@ -1,3 +1,6 @@
+<div align="center">
+<img src="logo.png" alt="beef's Diceware Wordlists" width="240" height="240">
+
 # beef's RNGs
 
 RNG implementations, entropy collectors, bias tests, test vectors, and reproducible audit logs.
@@ -5,6 +8,9 @@ RNG implementations, entropy collectors, bias tests, test vectors, and reproduci
 **Version:** 0.2.0-alpha  
 **License:** MIT  
 **Author:** [0xdeadbeef] of ZZX-Labs R&D
+
+</div>
+
 
 ## Browser edition
 
