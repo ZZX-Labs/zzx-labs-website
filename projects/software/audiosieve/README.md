@@ -10,6 +10,9 @@ Cross-platform **music-library workstation** combining VLC-style playback, wavef
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python 3.11+ / PyQt5 / VLC / FFmpeg / Mutagen · JavaScript / Web Audio / IndexedDB
 
+</div>
+
+
 ## What it does
 
 - Imports local audio libraries and computes SHA-256 fingerprints.
