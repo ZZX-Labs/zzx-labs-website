@@ -10,6 +10,9 @@ Experimental **sound-design, synthesis, recording, signal-processing, spectral-a
 **Author:** [0xdeadbeef] of ZZX-Labs R&D  
 **Language:** Python / PyQt5 / NumPy / SciPy / FFmpeg / Librosa · JavaScript / Web Audio / MediaRecorder / Canvas
 
+</div>
+
+
 ## What it does
 
 - Generates sine, square, sawtooth, triangle, and white-noise signals.
