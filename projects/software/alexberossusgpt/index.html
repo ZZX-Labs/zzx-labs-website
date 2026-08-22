@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="AlexBerossusGPT — browser-native learning, tutoring, review, quizzes, flashcards, retrieval, and spaced repetition for any subject.">
+  <title>AlexBerossusGPT · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-alexberossusgpt-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-alexberossusgpt-1">
+  <script src="./hook.js?v=20260822-alexberossusgpt-1" defer></script>
+  <script src="./script.js?v=20260822-alexberossusgpt-1" defer></script>
+  <script src="./corpus.js?v=20260822-alexberossusgpt-1" defer></script>
+  <script src="./tutor.js?v=20260822-alexberossusgpt-1" defer></script>
+  <script src="./quiz.js?v=20260822-alexberossusgpt-1" defer></script>
+  <script src="./review.js?v=20260822-alexberossusgpt-1" defer></script>
+  <script src="./alexberossusgpt.js?v=20260822-alexberossusgpt-1" defer></script>
+</head>
+
+<body class="project project-alexberossusgpt">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="AlexBerossusGPT logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>AlexBerossusGPT</h1>
+      <p class="blurb">
+        Learn, study, review, and teach yourself virtually any subject through structured
+        lessons, source-grounded tutoring, quizzes, flashcards, retrieval, and spaced repetition.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/alexberossusgpt" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>AlexBerossusGPT Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status">
+          <span class="runtime-badge ok">LOCAL INDEX: YES</span>
+          <span class="runtime-badge ok">QUIZZES: YES</span>
+          <span class="runtime-badge ok">REVIEW: YES</span>
+          <span id="status-model" class="runtime-badge partial">MODEL: LOCAL</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="learn" type="button">Learn</button>
+            <button class="tool-tab mode-tab" data-mode="sources" type="button">Study Sources</button>
+            <button class="tool-tab mode-tab" data-mode="tutor" type="button">Tutor</button>
+            <button class="tool-tab mode-tab" data-mode="quiz" type="button">Quiz</button>
+            <button class="tool-tab mode-tab" data-mode="flashcards" type="button">Flashcards</button>
+            <button class="tool-tab mode-tab" data-mode="review" type="button">Review</button>
+            <button class="tool-tab mode-tab" data-mode="progress" type="button">Progress</button>
+            <button class="tool-tab mode-tab" data-mode="model" type="button">Model Provider</button>
+          </div>
+
+          <div class="abg-sidebar-note">
+            <strong>LEARN ANY SUBJECT</strong>
+            <p>
+              Add your own study materials for source-grounded learning, or connect an
+              approved local/model backend for broader subject instruction.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-learn" class="abg-mode-panel mode-panel active">
+            <div class="abg-mode-heading">
+              <p class="kicker">CURRICULUM BUILDER</p>
+              <h2>Learn</h2>
+              <p>
+                Define the subject, current level, desired depth, and goal. AlexBerossusGPT
+                builds a structured study sequence and adapts it to available source material.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="abg-setup-grid">
+                <label>
+                  Subject / area of knowledge
+                  <input id="learn-subject" type="text" placeholder="e.g. Classical mechanics, Sanskrit, Bitcoin Script, Renaissance art">
+                </label>
+
+                <label>
+                  Current level
+                  <select id="learn-level">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                    <option value="expert-review">Expert review</option>
+                  </select>
+                </label>
+
+                <label>
+                  Study depth
+                  <select id="learn-depth">
+                    <option value="overview">Overview</option>
+                    <option value="standard" selected>Standard</option>
+                    <option value="deep">Deep study</option>
+                    <option value="exam">Exam preparation</option>
+                  </select>
+                </label>
+
+                <label>
+                  Number of units
+                  <input id="learn-units" type="number" min="3" max="24" value="8">
+                </label>
+
+                <label class="abg-span-2">
+                  Learning goal
+                  <textarea id="learn-goal" rows="4" placeholder="What should you be able to understand, explain, solve, compare, or remember?"></textarea>
+                </label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="build-plan" class="btn" type="button">BUILD STUDY PLAN</button>
+                <button id="plan-from-sources" class="btn ghost" type="button">USE SOURCE CORPUS</button>
+                <button id="clear-plan" class="btn ghost" type="button">CLEAR</button>
+              </div>
+
+              <div class="abg-metrics">
+                <div><span>Documents</span><strong id="learn-docs">0</strong></div>
+                <div><span>Indexed chunks</span><strong id="learn-chunks">0</strong></div>
+                <div><span>Flashcards</span><strong id="learn-cards">0</strong></div>
+                <div><span>Review due</span><strong id="learn-due">0</strong></div>
+              </div>
+
+              <div id="study-plan" class="abg-plan" style="margin-top:.8rem"></div>
+            </div>
+          </div>
+
+          <div id="mode-sources" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">LOCAL KNOWLEDGE CORPUS</p>
+              <h2>Study Sources</h2>
+              <p>
+                Import text, Markdown, JSON, or plain-text notes. Documents are chunked and
+                indexed in-browser for retrieval without uploading their contents.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <label class="file-button">
+                IMPORT FILES
+                <input id="source-files" type="file" multiple accept=".txt,.md,.markdown,.json,text/plain,text/markdown,application/json">
+              </label>
+
+              <div class="abg-two-column" style="margin-top:.8rem">
+                <label>
+                  Source title
+                  <input id="source-title" type="text" placeholder="My notes">
+                </label>
+
+                <label>
+                  Chunk size
+                  <select id="source-chunk-size">
+                    <option value="500">~500 chars</option>
+                    <option value="900" selected>~900 chars</option>
+                    <option value="1500">~1500 chars</option>
+                    <option value="2400">~2400 chars</option>
+                  </select>
+                </label>
+              </div>
+
+              <label style="margin-top:.8rem">
+                Paste source material
+                <textarea id="source-text" rows="10" spellcheck="true"></textarea>
+              </label>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="add-source-text" class="btn" type="button">ADD TO CORPUS</button>
+                <button id="export-corpus" class="btn ghost" type="button">EXPORT CORPUS</button>
+                <button id="clear-corpus" class="btn ghost" type="button">CLEAR CORPUS</button>
+              </div>
+
+              <div id="source-list" class="abg-source-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-tutor" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">SOURCE-GROUNDED TUTORING</p>
+              <h2>Tutor</h2>
+              <p>
+                Ask a question. The local tutor retrieves relevant corpus passages and builds
+                a transparent source-grounded answer; an optional model provider can augment it.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div id="tutor-chat" class="abg-chat">
+                <div class="abg-turn assistant">
+                  <span class="abg-turn-role">AlexBerossusGPT</span>
+                  <pre class="abg-turn-text">Choose a subject and add study sources, then ask what you want to understand or review.</pre>
+                </div>
+              </div>
+
+              <label style="margin-top:.8rem">
+                Question
+                <textarea id="tutor-question" rows="4" placeholder="Explain this concept in simpler terms."></textarea>
+              </label>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="tutor-ask" class="btn" type="button">ASK</button>
+                <button id="tutor-explain" class="btn ghost" type="button">EXPLAIN CURRENT SUBJECT</button>
+                <button id="tutor-socratic" class="btn ghost" type="button">SOCRATIC PROMPT</button>
+                <button id="tutor-clear" class="btn ghost" type="button">CLEAR CHAT</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-quiz" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">ACTIVE RECALL</p>
+              <h2>Quiz</h2>
+              <p>
+                Generate source-grounded cloze and short-answer questions, answer them one
+                by one, and record the results into local learning progress.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="tool-grid">
+                <label>
+                  Questions
+                  <input id="quiz-count" type="number" min="3" max="30" value="10">
+                </label>
+
+                <label>
+                  Mode
+                  <select id="quiz-mode">
+                    <option value="mixed">Mixed</option>
+                    <option value="cloze">Cloze</option>
+                    <option value="short">Short answer</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="generate-quiz" class="btn" type="button">GENERATE QUIZ</button>
+                <button id="reset-quiz" class="btn ghost" type="button">RESET</button>
+              </div>
+
+              <div id="quiz-root" style="margin-top:.8rem"></div>
+            </div>
+          </div>
+
+          <div id="mode-flashcards" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">MEMORY CARDS</p>
+              <h2>Flashcards</h2>
+              <p>
+                Generate study cards from definitions, headings, and salient corpus sentences,
+                then send selected cards to the spaced-review queue.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="generate-cards" class="btn" type="button">GENERATE FLASHCARDS</button>
+                <button id="cards-to-review" class="btn ghost" type="button">ADD ALL TO REVIEW</button>
+                <button id="clear-cards" class="btn ghost" type="button">CLEAR CARDS</button>
+              </div>
+
+              <div id="flashcard-list" class="abg-card-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-review" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">SPACED REPETITION</p>
+              <h2>Review</h2>
+              <p>
+                Review due cards and grade recall from 0–5. Scheduling uses an SM-2-style
+                interval model stored locally in the browser.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="abg-memory-grid">
+                <div><span>Due now</span><strong id="review-due">0</strong></div>
+                <div><span>Total scheduled</span><strong id="review-total">0</strong></div>
+                <div><span>Reviewed today</span><strong id="review-today">0</strong></div>
+              </div>
+
+              <div id="review-list" class="abg-review-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-progress" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">LEARNING STATE</p>
+              <h2>Progress</h2>
+              <p>
+                Track study activity, quiz performance, flashcards, review scheduling,
+                and export the complete workspace as JSON.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="abg-metrics">
+                <div><span>Study plans</span><strong id="progress-plans">0</strong></div>
+                <div><span>Quiz attempts</span><strong id="progress-quizzes">0</strong></div>
+                <div><span>Correct answers</span><strong id="progress-correct">0</strong></div>
+                <div><span>Review events</span><strong id="progress-reviews">0</strong></div>
+              </div>
+
+              <div style="margin-top:.8rem">
+                <div class="abg-progress-track">
+                  <div id="progress-bar" class="abg-progress-bar"></div>
+                </div>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="export-workspace" class="btn" type="button">EXPORT WORKSPACE</button>
+                <label class="file-button">
+                  IMPORT WORKSPACE
+                  <input id="import-workspace" type="file" accept=".json,application/json">
+                </label>
+                <button id="reset-progress" class="btn ghost" type="button">RESET PROGRESS</button>
+              </div>
+
+              <pre id="progress-output" class="tool-output"></pre>
+            </div>
+          </div>
+
+          <div id="mode-model" class="abg-mode-panel mode-panel">
+            <div class="abg-mode-heading">
+              <p class="kicker">OPTIONAL MODEL BACKEND</p>
+              <h2>Model Provider</h2>
+              <p>
+                The browser tutor works locally from imported sources. For broader subject
+                instruction, connect a local Ollama server or a separately deployed compatible proxy.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="abg-provider-grid">
+                <article class="abg-provider-card">
+                  <h3>Local Ollama</h3>
+                  <p>
+                    Connect to a local Ollama API when CORS/network policy permits it.
+                    No cloud key is required.
+                  </p>
+
+                  <label>
+                    Base URL
+                    <input id="ollama-base" type="url" value="http://localhost:11434">
+                  </label>
+
+                  <label style="margin-top:.65rem">
+                    Model
+                    <input id="ollama-model" type="text" value="llama3.2">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="ollama-test" class="btn ghost" type="button">TEST</button>
+                    <button id="ollama-use" class="btn" type="button">USE OLLAMA</button>
+                  </div>
+                </article>
+
+                <article class="abg-provider-card">
+                  <h3>Compatible Server Proxy</h3>
+                  <p>
+                    Use a same-origin or trusted HTTPS proxy for other models. Keep API
+                    keys server-side rather than embedding secrets in browser JavaScript.
+                  </p>
+
+                  <label>
+                    Proxy URL
+                    <input id="proxy-url" type="url" placeholder="https://example.org/learning-model">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="proxy-use" class="btn" type="button">USE PROXY</button>
+                    <button id="model-local" class="btn ghost" type="button">LOCAL ONLY</button>
+                  </div>
+                </article>
+              </div>
+
+              <pre id="model-output" class="tool-output"></pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>AlexBerossusGPT</h2>
+        <p>
+          AlexBerossusGPT is a general learning and review environment inspired by the
+          quizmaster tradition of Alex Trebek and the scholarly tradition of Berossus:
+          structured questioning, broad knowledge, source study, teaching, and recall.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · FastAPI · SQLAlchemy · FAISS</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · local retrieval · optional model backend</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead>
+              <tr><th>Capability</th><th>Web</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Study-source ingestion</td><td><span class="parity-badge yes">YES</span></td><td>TXT / Markdown / JSON.</td></tr>
+              <tr><td>Local retrieval</td><td><span class="parity-badge yes">YES</span></td><td>TF-IDF/BM25-style scoring.</td></tr>
+              <tr><td>Lesson planning</td><td><span class="parity-badge yes">YES</span></td><td>Local structure + optional model.</td></tr>
+              <tr><td>Source-grounded tutoring</td><td><span class="parity-badge yes">YES</span></td><td>Retrieved passages are shown transparently.</td></tr>
+              <tr><td>Quiz generation</td><td><span class="parity-badge yes">YES</span></td><td>Cloze + short answer.</td></tr>
+              <tr><td>Flashcards</td><td><span class="parity-badge yes">YES</span></td><td>Corpus-derived cards.</td></tr>
+              <tr><td>Spaced repetition</td><td><span class="parity-badge yes">YES</span></td><td>SM-2-style local schedule.</td></tr>
+              <tr><td>External LLM</td><td><span class="parity-badge partial">OPTIONAL</span></td><td>Ollama or server proxy.</td></tr>
+              <tr><td>FAISS native index</td><td><span class="parity-badge partial">PORT</span></td><td>Browser uses lightweight lexical index.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Learning Data Boundary</h2>
+      <p>
+        Imported source documents, flashcards, quiz results, and review state remain in
+        the browser unless the user explicitly chooses an external model provider. The
+        page does not embed cloud API keys; compatible hosted models should be reached
+        through a trusted server-side proxy.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>
