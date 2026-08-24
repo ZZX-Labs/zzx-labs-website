@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Dharma Lab is a computational research environment for contemplative timing, breath, and attention, bundling experimental protocols, analytics, and simulation instruments."><title>Dharma Lab · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-dharma-lab-1"><link rel="stylesheet" href="./hook.css?v=20260824-dharma-lab-1">
+<script src="./hook.js?v=20260824-dharma-lab-1" defer></script><script src="./script.js?v=20260824-dharma-lab-1" defer></script>
+<script src="./dharma-lab.js?v=20260824-dharma-lab-1" defer></script></head><body class="project project-dharma-lab">
+<header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="Dharma Lab logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE</p><h1>Dharma Lab</h1><p class="blurb">Dharma Lab is a computational research environment for contemplative timing, breath, and attention, bundling experimental protocols, analytics, and simulation instruments.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/dharma-lab" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">INTERNAL // CONTEMPLATIVE SCIENCE</p><h2>Dharma Lab Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">TIMER</span><span class="runtime-badge ok">BREATH PACER</span><span class="runtime-badge ok">ANALYTICS</span><span class="runtime-badge partial">RESEARCH ONLY</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Instruments</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="protocol">Protocol</button>
+<button class="tool-tab mode-tab" data-mode="pacer">Breath Pacer</button>
+<button class="tool-tab mode-tab" data-mode="attention">Attention Probe</button>
+<button class="tool-tab mode-tab" data-mode="analytics">Analytics</button>
+<button class="tool-tab mode-tab" data-mode="simulation">Simulation</button>
+<button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div><div class="z-sidebar-note"><strong>BOUNDARY</strong><p>Use comfortable breathing only. This browser build intentionally excludes extreme breath-hold or hypoxia protocols.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-protocol" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3"><label>Protocol name<input id="protocol-name" value="Focused Attention 10"></label><label>Session minutes<input id="session-minutes" type="number" min="1" max="180" value="10"></label><label>Probe interval s<input id="probe-interval" type="number" min="10" max="600" value="60"></label></div>
+<label>Instruction<textarea id="instruction" rows="5">Rest attention on a neutral anchor such as natural breathing. When attention wanders, notice it and return without judgment.</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="start-session" class="btn">START SESSION</button><button id="pause-session" class="btn ghost">PAUSE</button><button id="reset-session" class="btn ghost">RESET</button></div>
+<div class="z-metrics"><div><span>Remaining</span><strong id="session-remaining">10:00</strong></div><div><span>Elapsed</span><strong id="session-elapsed">00:00</strong></div><div><span>Probes</span><strong id="probe-count">0</strong></div></div>
+</div></div>
+
+<div id="mode-pacer" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Inhale s<input id="inhale" type="number" min="1" max="10" step="0.5" value="4"></label><label>Exhale s<input id="exhale" type="number" min="1" max="12" step="0.5" value="6"></label><label>Cycles<input id="cycles" type="number" min="1" max="300" value="12"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="start-pacer" class="btn">START PACER</button><button id="stop-pacer" class="btn ghost">STOP</button></div>
+<div id="breath-orb" style="width:180px;height:180px;border:2px solid var(--zzx-green);border-radius:50%;display:grid;place-items:center;margin:24px auto;transition:transform 1s linear"><strong id="breath-phase">READY</strong></div>
+<div class="z-metrics"><div><span>Cycle</span><strong id="cycle-count">0 / 12</strong></div><div><span>Cadence</span><strong id="cadence">6.0 bpm</strong></div></div>
+</div></div>
+
+<div id="mode-attention" class="z-mode-panel mode-panel"><div class="tool-card">
+<p>Record voluntary self-reports at any point during a session.</p>
+<div class="z-grid-3"><label>Attention stability 1–5<input id="stability" type="number" min="1" max="5" value="3"></label><label>Mind wandering 1–5<input id="wandering" type="number" min="1" max="5" value="3"></label><label>Effort 1–5<input id="effort" type="number" min="1" max="5" value="3"></label></div>
+<label>Note<textarea id="probe-note" rows="4"></textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="record-probe" class="btn">RECORD PROBE</button></div><div id="probe-list" class="z-list"></div>
+</div></div>
+
+<div id="mode-analytics" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-metrics"><div><span>Mean stability</span><strong id="mean-stability">—</strong></div><div><span>Mean wandering</span><strong id="mean-wandering">—</strong></div><div><span>Mean effort</span><strong id="mean-effort">—</strong></div></div>
+<canvas id="attention-chart" class="z-canvas" width="1000" height="360"></canvas>
+</div></div>
+
+<div id="mode-simulation" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Minutes<input id="sim-minutes" type="number" min="1" max="240" value="30"></label><label>Baseline stability 0–1<input id="sim-base" type="number" min="0" max="1" step="0.01" value="0.55"></label><label>Recovery rate 0–1<input id="sim-recovery" type="number" min="0" max="1" step="0.01" value="0.18"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="run-sim" class="btn">RUN ATTENTION SIMULATION</button></div><pre id="sim-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn">EXPORT SESSION JSON</button><button id="export-csv" class="btn ghost">EXPORT PROBES CSV</button></div><pre id="export-output" class="z-log"></pre>
+</div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">MANIFEST</p><h2>0.1.0-alpha · INTERNAL</h2><p>Native research stack: NumPy, SciPy, Matplotlib, Pandas, Jupyter.</p></article><article class="panel"><p class="kicker">METHOD</p><h2>Explicit protocols, reproducible logs</h2><p>The browser adaptation records timing and self-report data without claiming clinical or spiritual outcomes.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
