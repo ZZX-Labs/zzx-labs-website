@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Minimalist Bitcoin circulation and emission tracker using block height to calculate subsidy-only issued supply, remaining issuance, current epoch, next halving, and forward emission estimates.">
+  <title>Bitcoin-Mined · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260824-bitcoin-mined-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitcoin-mined-1">
+  <script src="./hook.js?v=20260824-bitcoin-mined-1" defer></script>
+  <script src="./script.js?v=20260824-bitcoin-mined-1" defer></script>
+  <script src="./bitcoin-mined-core.js?v=20260824-bitcoin-mined-1" defer></script>
+  <script src="./bitcoin-mined.js?v=20260824-bitcoin-mined-1" defer></script>
+</head>
+
+<body class="project project-bitcoin-mined">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bitcoin-Mined logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bitcoin-Mined</h1>
+    <p class="blurb">Minimalist Bitcoin circulation and emission tracker using block height to calculate subsidy-only issued supply, remaining issuance, current epoch, next halving, and forward emission estimates.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitcoin-mined" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN CIRCULATION / EMISSION</p><h2>Bitcoin-Mined Browser Workbench</h2></div><div class="runtime-status"><span id="bm-net" class="runtime-badge partial">HEIGHT: IDLE</span><span class="runtime-badge ok">SUPPLY: CONSENSUS MATH</span><span class="runtime-badge ok">FEES: EXCLUDED</span><span class="runtime-badge ok">NETWORK: OPTIONAL</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="circulation" type="button">Circulation</button>
+<button class="tool-tab mode-tab" data-mode="epoch" type="button">Epoch</button>
+<button class="tool-tab mode-tab" data-mode="projection" type="button">Projection</button>
+<button class="tool-tab mode-tab" data-mode="chart" type="button">Emission Curve</button>
+<button class="tool-tab mode-tab" data-mode="manual" type="button">Manual Height</button>
+<button class="tool-tab mode-tab" data-mode="source" type="button">Source</button>
+</div><div class="z-sidebar-note"><strong>WHAT “MINED” MEANS HERE</strong><p>This page estimates subsidy issuance from block height. It does not subtract provably burned or lost coins and does not count transaction fees as new issuance.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-circulation" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">REAL-TIME ISSUANCE ESTIMATE</p><h2>Circulation</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="mined-refresh" class="btn" type="button">REFRESH HEIGHT</button><button id="mined-auto" class="btn ghost" type="button">AUTO: OFF</button></div>
+<div class="z-metrics"><div><span>Height</span><strong id="mi-height">—</strong></div><div><span>Issued BTC</span><strong id="mi-issued">—</strong></div><div><span>Remaining BTC</span><strong id="mi-remain">—</strong></div><div><span>Issued %</span><strong id="mi-percent">—</strong></div></div>
+<pre id="mi-output" class="z-log"></pre></div></div>
+
+<div id="mode-epoch" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CURRENT SUBSIDY EPOCH</p><h2>Epoch</h2></div><div class="tool-card"><div class="z-metrics"><div><span>Epoch</span><strong id="me-epoch">—</strong></div><div><span>Subsidy</span><strong id="me-subsidy">—</strong></div><div><span>Blocks remaining</span><strong id="me-blocks">—</strong></div><div><span>Epoch issuance so far</span><strong id="me-issued">—</strong></div></div></div></div>
+
+<div id="mode-projection" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">FORWARD EMISSION</p><h2>Projection</h2><p>Project subsidy-only supply at a future block height or after a number of average 600-second days.</p></div><div class="tool-card"><div class="z-grid-2"><label>Future height<input id="mp-height" type="number" min="0" value="1000000"></label><label>Average days forward<input id="mp-days" type="number" min="0" value="365"></label></div><div class="button-row" style="justify-content:flex-start"><button id="mp-height-run" class="btn" type="button">PROJECT HEIGHT</button><button id="mp-days-run" class="btn ghost" type="button">PROJECT DAYS</button></div><pre id="mp-output" class="z-log"></pre></div></div>
+
+<div id="mode-chart" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LONG-RUN EMISSION CURVE</p><h2>Emission Curve</h2></div><div class="tool-card"><canvas id="mined-canvas" class="z-canvas" width="1200" height="380"></canvas></div></div>
+
+<div id="mode-manual" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">OFFLINE MODE</p><h2>Manual Height</h2></div><div class="tool-card"><div class="z-grid-2"><label>Known height<input id="mm-height" type="number" min="0" value="900000"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="mm-apply" class="btn" type="button">APPLY</button></div></div></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CHAIN SOURCE</p><h2>Source</h2></div><div class="tool-card"><label>Esplora/mempool API<input id="mined-api" type="url" value="https://mempool.space/api"></label><div class="button-row" style="justify-content:flex-start"><button id="mined-save" class="btn" type="button">SAVE</button><button id="mined-reset" class="btn ghost" type="button">RESET</button></div><pre id="mined-source-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Bitcoin-Mined</h2><p>Minimal real-time Bitcoin circulation tracker and block-subsidy emission estimator.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Requests · NumPy · Matplotlib</dd></div><div><dt>Web</dt><dd>Fetch · Canvas · consensus subsidy math</dd></div></dl></article><article class="panel"><p class="kicker">SUPPLY DEFINITION</p><h2>Issued, not necessarily spendable</h2><p>“Issued BTC” is subsidy created by consensus through the chosen height. It does not attempt to determine whether historical outputs are lost, burned, unspendable, or otherwise inaccessible.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
