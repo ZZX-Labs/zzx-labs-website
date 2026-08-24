@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin Core/Knots wallet-finding and forensic backup workspace for Windows/cmd-style environments, with browser-side inventory, hashing, classification, duplicate detection, and backup-manifest generation for user-selected files.">
+  <title>Bitcoin-Tully · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitcoin-tully-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitcoin-tully-1">
+  <script src="./hook.js?v=20260824-bitcoin-tully-1" defer></script>
+  <script src="./script.js?v=20260824-bitcoin-tully-1" defer></script>
+  <script src="./tully-core.js?v=20260824-bitcoin-tully-1" defer></script>
+  <script src="./bitcoin-tully.js?v=20260824-bitcoin-tully-1" defer></script>
+</head>
+
+<body class="project project-bitcoin-tully">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bitcoin-Tully logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bitcoin-Tully</h1>
+    <p class="blurb">Bitcoin Core/Knots wallet-finding and forensic backup workspace for Windows/cmd-style environments, with browser-side inventory, hashing, classification, duplicate detection, and backup-manifest generation for user-selected files.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitcoin-tully" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">WALLET FORENSICS / BACKUP INVENTORY</p><h2>Bitcoin-Tully Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">FILES: USER SELECTED</span><span class="runtime-badge ok">HASH: SHA-256</span><span class="runtime-badge ok">HOST SCAN: NONE</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="scan" type="button">Inventory</button>
+<button class="tool-tab mode-tab" data-mode="classify" type="button">Classify</button>
+<button class="tool-tab mode-tab" data-mode="duplicates" type="button">Duplicates</button>
+<button class="tool-tab mode-tab" data-mode="manifest" type="button">Backup Manifest</button>
+<button class="tool-tab mode-tab" data-mode="notes" type="button">Forensic Notes</button>
+</div><div class="z-sidebar-note"><strong>BROWSER BOUNDARY</strong><p>This static port cannot silently scan your drives. You explicitly choose files/directories; no private keys or wallet contents are uploaded anywhere.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-scan" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">USER-SELECTED FILE INVENTORY</p><h2>Inventory</h2><p>Select files or a directory tree to create a local forensic inventory.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">SELECT FILES<input id="tu-files" type="file" multiple></label><label class="file-button">SELECT DIRECTORY<input id="tu-dir" type="file" webkitdirectory directory multiple></label><button id="tu-clear" class="btn ghost" type="button">CLEAR</button></div>
+<div class="z-metrics"><div><span>Files</span><strong id="tu-count">0</strong></div><div><span>Total bytes</span><strong id="tu-bytes">0</strong></div><div><span>Wallet-like</span><strong id="tu-wallets">0</strong></div><div><span>Hashed</span><strong id="tu-hashed">0</strong></div></div>
+<div class="z-table-wrap"><table class="z-table"><thead><tr><th>Path</th><th>Size</th><th>Type</th><th>SHA-256</th></tr></thead><tbody id="tu-body"></tbody></table></div>
+</div></div>
+
+<div id="mode-classify" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">RECOVERY TARGET CLASSIFICATION</p><h2>Classify</h2><p>Flag common Bitcoin Core/Knots wallet and backup artifacts by filename/path patterns.</p></div><div class="tool-card"><div id="tu-class-list" class="z-list"></div></div></div>
+
+<div id="mode-duplicates" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">HASH-BASED DUPLICATES</p><h2>Duplicates</h2><p>Group byte-identical selected files by SHA-256.</p></div><div class="tool-card"><div id="tu-dup-list" class="z-list"></div></div></div>
+
+<div id="mode-manifest" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">FORENSIC BACKUP RECORD</p><h2>Backup Manifest</h2><p>Export paths, sizes, classifications, and SHA-256 hashes. No raw wallet bytes are embedded.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="tu-export-json" class="btn" type="button">EXPORT JSON</button><button id="tu-export-csv" class="btn ghost" type="button">EXPORT CSV</button></div><pre id="tu-manifest-output" class="z-log"></pre></div></div>
+
+<div id="mode-notes" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CHAIN OF CUSTODY</p><h2>Forensic Notes</h2></div><div class="tool-card"><label>Case / system label<input id="tu-case" type="text" value="wallet-recovery"></label><label style="margin-top:.6rem">Notes<textarea id="tu-notes" rows="12" placeholder="Source device, acquisition date, observed path, backup media, etc."></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="tu-save-notes" class="btn" type="button">SAVE NOTES LOCALLY</button></div></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Bitcoin-Tully</h2><p>Wallet-finding and forensic backup tooling for Bitcoin Core/Knots recovery workflows.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Platform</dt><dd>Windows</dd></div><div><dt>Native</dt><dd>Bash · Python · grep · findutils</dd></div><div><dt>Web</dt><dd>File API · SHA-256</dd></div></dl></article><article class="panel"><p class="kicker">SAFETY</p><h2>Read-only inventory</h2><p>The browser edition never modifies selected files. Backup copying and drive scanning remain native-side operations.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
