@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Empirical Bitcoin block-time interval analysis with Esplora and optional Bitcoin Core provider backends, rolling windows, statistics, visualization, and export.">
+  <title>BitAge · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260823-bitage-1">
+  <link rel="stylesheet" href="./hook.css?v=20260823-bitage-1">
+  <script src="./hook.js?v=20260823-bitage-1" defer></script>
+  <script src="./script.js?v=20260823-bitage-1" defer></script>
+  <script src="./bitage-core.js?v=20260823-bitage-1" defer></script>
+  <script src="./bitage.js?v=20260823-bitage-1" defer></script>
+</head>
+
+<body class="project project-bitage">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitAge logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitAge</h1>
+    <p class="blurb">Empirical Bitcoin block-time interval analysis with Esplora and optional Bitcoin Core provider backends, rolling windows, statistics, visualization, and export.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitage" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+  <div class="section-head">
+    <div><p class="kicker">BITCOIN BLOCK-TIME ANALYTICS</p><h2>BitAge Browser Workbench</h2></div>
+    <div class="runtime-status">
+      <span id="ba-net" class="runtime-badge partial">ESPLORA: IDLE</span>
+      <span id="ba-core" class="runtime-badge partial">CORE RPC: PROVIDER</span>
+      <span class="runtime-badge ok">STATS: LOCAL</span>
+      <span class="runtime-badge ok">NETWORK: OPTIONAL</span>
+    </div>
+  </div>
+  <div class="workbench">
+    <aside class="tool-list-wrap">
+      <h3>Capabilities</h3>
+      <div class="tool-list" role="tablist">
+        <button class="tool-tab mode-tab active" data-mode="measure" type="button">Measure</button>
+        <button class="tool-tab mode-tab" data-mode="stats" type="button">Rolling Stats</button>
+        <button class="tool-tab mode-tab" data-mode="chart" type="button">Visualization</button>
+        <button class="tool-tab mode-tab" data-mode="backend" type="button">Backends</button>
+        <button class="tool-tab mode-tab" data-mode="import" type="button">Import / Export</button>
+      </div>
+      <div class="z-sidebar-note"><strong>EMPIRICAL INTERVALS</strong><p>Intervals are computed from successive block header timestamps. Bitcoin timestamps are miner-reported and are not a perfect wall-clock oracle.</p></div>
+    </aside>
+
+    <section class="tool-workspace">
+      <div id="mode-measure" class="z-mode-panel mode-panel active">
+        <div class="z-mode-heading"><p class="kicker">RECENT BLOCK SAMPLE</p><h2>Measure</h2><p>Fetch recent blocks from Esplora or load them through a registered Bitcoin Core provider.</p></div>
+        <div class="tool-card">
+          <div class="z-grid-3">
+            <label>Window blocks<select id="ba-window"><option>10</option><option>25</option><option selected>50</option><option>100</option><option>250</option></select></label>
+            <label>Backend<select id="ba-backend"><option value="esplora">Esplora</option><option value="core">Bitcoin Core provider</option></select></label>
+            <label>Minimum interval filter s<input id="ba-min" type="number" min="0" value="0"></label>
+          </div>
+          <div class="button-row" style="justify-content:flex-start"><button id="ba-fetch" class="btn" type="button">FETCH SAMPLE</button><button id="ba-clear" class="btn ghost" type="button">CLEAR</button></div>
+          <div class="z-metrics">
+            <div><span>Blocks</span><strong id="ba-blocks">0</strong></div>
+            <div><span>Intervals</span><strong id="ba-intervals">0</strong></div>
+            <div><span>Tip height</span><strong id="ba-tip">—</strong></div>
+            <div><span>Sample span</span><strong id="ba-span">—</strong></div>
+          </div>
+          <pre id="ba-output" class="z-log"></pre>
+        </div>
+      </div>
+
+      <div id="mode-stats" class="z-mode-panel mode-panel">
+        <div class="z-mode-heading"><p class="kicker">ROLLING WINDOWS</p><h2>Rolling Stats</h2><p>Calculate mean, median, standard deviation, quantiles, min/max, and proportion above/below Bitcoin's 600-second target.</p></div>
+        <div class="tool-card">
+          <div class="z-metrics">
+            <div><span>Mean</span><strong id="st-mean">—</strong></div>
+            <div><span>Median</span><strong id="st-med">—</strong></div>
+            <div><span>Std dev</span><strong id="st-sd">—</strong></div>
+            <div><span>Target delta</span><strong id="st-delta">—</strong></div>
+          </div>
+          <div class="z-table-wrap" style="margin-top:.8rem"><table class="z-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody id="st-body"></tbody></table></div>
+        </div>
+      </div>
+
+      <div id="mode-chart" class="z-mode-panel mode-panel">
+        <div class="z-mode-heading"><p class="kicker">TEMPORAL VISUALIZATION</p><h2>Visualization</h2><p>Plot block intervals against the 600-second target and a rolling mean.</p></div>
+        <div class="tool-card"><label>Rolling mean width<input id="chart-roll" class="z-range" type="range" min="2" max="25" value="10"></label><canvas id="ba-canvas" class="z-canvas" width="1200" height="380"></canvas></div>
+      </div>
+
+      <div id="mode-backend" class="z-mode-panel mode-panel">
+        <div class="z-mode-heading"><p class="kicker">DUAL BACKEND</p><h2>Backends</h2><p>Configure a public Esplora endpoint or register a sanitized Bitcoin Core RPC adapter.</p></div>
+        <div class="tool-card">
+          <label>Esplora API base<input id="ba-api" type="url" value="https://mempool.space/api"></label>
+          <div class="button-row" style="justify-content:flex-start"><button id="ba-save-api" class="btn" type="button">SAVE API</button><button id="ba-reset-api" class="btn ghost" type="button">RESET</button></div>
+          <pre id="backend-output" class="z-log"></pre>
+          <div class="z-note">Core provider contract: <code>BitAge.registerCoreProvider(async (count) =&gt; [{height,timestamp,hash}, ...])</code>. Keep RPC credentials server-side or in a trusted local bridge.</div>
+        </div>
+      </div>
+
+      <div id="mode-import" class="z-mode-panel mode-panel">
+        <div class="z-mode-heading"><p class="kicker">PORTABLE MEASUREMENTS</p><h2>Import / Export</h2><p>Export measured blocks and derived intervals to JSON/CSV, or import a prior BitAge JSON sample.</p></div>
+        <div class="tool-card">
+          <div class="button-row" style="justify-content:flex-start"><button id="ba-export-json" class="btn" type="button">EXPORT JSON</button><button id="ba-export-csv" class="btn ghost" type="button">EXPORT CSV</button><label class="file-button">IMPORT JSON<input id="ba-import" type="file" accept=".json,application/json"></label></div>
+          <pre id="import-output" class="z-log"></pre>
+        </div>
+      </div>
+    </section>
+  </div>
+</div></section>
+
+<section class="container section"><div class="grid grid-2">
+<article class="panel"><p class="kicker">PROJECT</p><h2>BitAge</h2><p>Empirical Bitcoin block-interval measurement and rolling statistical visualization.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.2.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Pandas · Matplotlib · SQLAlchemy · bitcoinrpc</dd></div><div><dt>Web</dt><dd>Fetch · Canvas · local statistics</dd></div></dl></article>
+<article class="panel"><p class="kicker">BACKEND MODEL</p><h2>Esplora + Core</h2><p>The browser can fetch public Esplora data directly. Bitcoin Core RPC remains behind an explicit provider adapter so credentials never live in static frontend code.</p></article>
+</div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
