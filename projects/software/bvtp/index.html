@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Blinkee Visual Transport Protocol reference implementation for synchronizing, packetizing, buffering, loss-recovering, and replaying Blinkee optical frame streams across display/camera/video-style channels.">
+  <title>Blinkee Visual Transport Protocol (BVTP) · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bvtp-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bvtp-1">
+  <script src="./hook.js?v=20260824-bvtp-1" defer></script>
+  <script src="./script.js?v=20260824-bvtp-1" defer></script>
+  <script src="./bvtp-core.js?v=20260824-bvtp-1" defer></script>
+  <script src="./bvtp.js?v=20260824-bvtp-1" defer></script>
+</head>
+
+<body class="project project-bvtp">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Blinkee Visual Transport Protocol (BVTP) logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Blinkee Visual Transport Protocol (BVTP)</h1>
+    <p class="blurb">Blinkee Visual Transport Protocol reference implementation for synchronizing, packetizing, buffering, loss-recovering, and replaying Blinkee optical frame streams across display/camera/video-style channels.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bvtp" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BVTP // OPTICAL TRANSPORT</p><h2>BVTP Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">SYNC: PTS</span><span class="runtime-badge ok">FEC: XOR PARITY</span><span class="runtime-badge ok">BUFFER: LOCAL</span><span class="runtime-badge ok">PLAYBACK: CANVAS</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="source" type="button">Source</button>
+<button class="tool-tab mode-tab" data-mode="transport" type="button">Transport</button>
+<button class="tool-tab mode-tab" data-mode="buffer" type="button">Jitter Buffer</button>
+<button class="tool-tab mode-tab" data-mode="player" type="button">Optical Player</button>
+<button class="tool-tab mode-tab" data-mode="decode" type="button">Decode</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>TRANSPORT LAYER</strong><p>BVTP sits above BlinkeeQR-style visual frames: stream IDs, sequence numbers, timestamps, buffering, loss handling, and deterministic recovery. Webcam/OpenCV and FFmpeg capture remain native-side backends.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-source" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">FRAME-SEQUENCED SOURCE</p><h2>Source</h2></div><div class="tool-card">
+<label>Text payload<textarea id="vs-text" rows="8">BVTP transport-layer optical data stream.</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">LOAD FILE<input id="vs-file" type="file"></label></div>
+<div class="z-grid-3"><label>Stream ID<input id="vs-id" value="BVTP-DEMO-001"></label><label>Payload bytes<input id="vs-size" type="number" min="32" max="4096" value="256"></label><label>Parity group<input id="vs-group" type="number" min="2" max="16" value="4"></label><label>Frames/sec<input id="vs-fps" type="number" min="1" max="60" value="8"></label><label>Source mode<select id="vs-mode"><option value="text">Text</option><option value="binary">Binary/file</option></select></label><label>Original name<input id="vs-name" value="message.txt"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="vs-build" class="btn">PACKETIZE STREAM</button></div><pre id="vs-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-transport" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CHANNEL SIMULATION</p><h2>Transport</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Packet loss %<input id="vt-loss" type="number" min="0" max="100" step=".1" value="5"></label><label>Timing jitter ms<input id="vt-jitter" type="number" min="0" value="80"></label><label>Simulation seed<input id="vt-seed" type="number" value="42"></label></div>
+<label style="margin-top:.7rem"><input id="vt-reorder" type="checkbox" checked> Deliver in simulated arrival order</label>
+<div class="button-row" style="justify-content:flex-start"><button id="vt-run" class="btn">SIMULATE CHANNEL</button></div>
+<div class="z-metrics"><div><span>Sent</span><strong id="vt-sent">0</strong></div><div><span>Delivered</span><strong id="vt-delivered">0</strong></div><div><span>Dropped</span><strong id="vt-dropped">0</strong></div><div><span>Loss</span><strong id="vt-lossactual">0%</strong></div></div>
+<pre id="vt-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-buffer" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TIMING / REORDER BUFFER</p><h2>Jitter Buffer</h2></div><div class="tool-card">
+<div class="z-grid-2"><label>Buffer depth ms<input id="vb-ms" type="number" min="0" value="250"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="vb-run" class="btn">BUFFER + REORDER</button></div></div>
+<div class="z-table-wrap"><table class="z-table"><thead><tr><th>Seq</th><th>Kind</th><th>PTS</th><th>Arrival</th><th>Playout</th><th>Group</th></tr></thead><tbody id="vb-body"></tbody></table></div>
+</div></div>
+
+<div id="mode-player" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DISPLAY-SIDE OPTICAL STREAM</p><h2>Optical Player</h2></div><div class="tool-card">
+<canvas id="vp-canvas" class="z-canvas" width="800" height="800"></canvas>
+<div class="z-grid-3"><label>Packet<input id="vp-index" type="number" min="0" value="0"></label><label>Playback FPS<input id="vp-fps" type="number" min="1" max="60" value="8"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="vp-toggle" class="btn">PLAY</button></div></div>
+<pre id="vp-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-decode" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOSS RECOVERY / REASSEMBLY</p><h2>Decode</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="vd-run" class="btn">RECOVER + DECODE DELIVERED STREAM</button></div><pre id="vd-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TRANSPORT ARCHIVE</p><h2>Export</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="vx-json" class="btn">EXPORT BVTP JSON</button></div><pre id="vx-output" class="z-log"></pre>
+</div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2">
+<article class="panel"><p class="kicker">PROJECT</p><h2>BVTP</h2><p>Synchronization, packetization, loss recovery, buffering, and real-time decoding for Blinkee optical channels.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Category</dt><dd>protocol</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Web</dd></div><div><dt>Native</dt><dd>OpenCV · NumPy · FFmpeg</dd></div></dl></article>
+<article class="panel"><p class="kicker">NATIVE / WEB SPLIT</p><h2>Transport semantics in-browser</h2><p>The web version exercises timing, packetization, recovery, jitter buffering and visual playback. Native OpenCV/FFmpeg handle real camera/video acquisition and decoding pipelines.</p></article>
+</div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
