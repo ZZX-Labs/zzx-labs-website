@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin blackjack engine under the BitCasino stack with deterministic provably-fair deck shuffling, local blackjack gameplay, proof export/verification, and non-custodial Lightning settlement hooks.">
+  <title>BitJack · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitjack-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitjack-1">
+  <script src="./hook.js?v=20260824-bitjack-1" defer></script>
+  <script src="./script.js?v=20260824-bitjack-1" defer></script>
+  <script src="./bitjack-core.js?v=20260824-bitjack-1" defer></script>
+  <script src="./bitjack.js?v=20260824-bitjack-1" defer></script>
+</head>
+
+<body class="project project-bitjack">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitJack logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitJack</h1>
+    <p class="blurb">Bitcoin blackjack engine under the BitCasino stack with deterministic provably-fair deck shuffling, local blackjack gameplay, proof export/verification, and non-custodial Lightning settlement hooks.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitjack" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">PROVABLY-FAIR BLACKJACK</p><h2>BitJack Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">SHUFFLE: HMAC-SHA256</span><span class="runtime-badge ok">GAMEPLAY: LOCAL</span><span class="runtime-badge ok">PROOF: EXPORTABLE</span><span class="runtime-badge ok">FUNDS: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="table" type="button">Table</button><button class="tool-tab mode-tab" data-mode="fair" type="button">Fair Shuffle</button><button class="tool-tab mode-tab" data-mode="proof" type="button">Proof</button><button class="tool-tab mode-tab" data-mode="settle" type="button">LN Settlement</button>
+</div><div class="z-sidebar-note"><strong>SIMULATION</strong><p>Gameplay uses local simulation credits. Lightning integration is an external provider hook only.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-table" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">BLACKJACK TABLE</p><h2>Table</h2></div><div class="tool-card"><div class="z-grid-3"><label>Simulated stake credits<input id="bj-stake" type="number" min="1" value="100"></label><label>Player credits<input id="bj-credit" type="number" min="1" value="10000"></label><label>Client seed<input id="bj-client" value="player-001"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bj-new" class="btn">NEW HAND</button><button id="bj-hit" class="btn ghost">HIT</button><button id="bj-stand" class="btn ghost">STAND</button></div>
+<div class="z-grid-2" style="margin-top:.8rem"><article class="z-card"><h3>Player</h3><p id="bj-player">—</p><strong id="bj-player-score">—</strong></article><article class="z-card"><h3>Dealer</h3><p id="bj-dealer">—</p><strong id="bj-dealer-score">—</strong></article></div><pre id="bj-output" class="z-log"></pre></div></div>
+
+<div id="mode-fair" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SERVER-SEED COMMITMENT</p><h2>Fair Shuffle</h2></div><div class="tool-card"><label>Server seed<input id="bf-server"></label><div class="button-row" style="justify-content:flex-start"><button id="bf-random" class="btn ghost">RANDOM SEED</button><button id="bf-commit" class="btn">COMMIT SEED</button></div><pre id="bf-output" class="z-log"></pre></div></div>
+
+<div id="mode-proof" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SHUFFLE REPLAY</p><h2>Proof</h2></div><div class="tool-card"><label>Hand proof JSON<textarea id="bp-json" rows="16"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="bp-verify" class="btn">VERIFY</button><button id="bp-export" class="btn ghost">EXPORT LAST HAND</button></div><pre id="bp-output" class="z-log"></pre></div></div>
+
+<div id="mode-settle" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIGHTNING SETTLEMENT HOOK</p><h2>LN Settlement</h2></div><div class="tool-card"><div class="z-grid-3"><label>Player<input id="bs-player" value="player-001"></label><label>Amount sats<input id="bs-sats" type="number" min="0" value="100"></label><label>Payment ref<input id="bs-ref"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bs-send" class="btn">CALL REGISTERED PROVIDER</button></div><pre id="bs-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitJack</h2><p>Bitcoin blackjack under the BitCasino stack.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Android</dd></div><div><dt>Native</dt><dd>PyQt5 · NumPy · Requests · Flask</dd></div><div><dt>Web</dt><dd>Web Crypto · local gameplay</dd></div></dl></article><article class="panel"><p class="kicker">FAIRNESS</p><h2>Replayable deck order</h2><p>The complete hand proof contains the revealed server seed, client seed, commitment, and deterministic deck order so a third party can reproduce the shuffle.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
