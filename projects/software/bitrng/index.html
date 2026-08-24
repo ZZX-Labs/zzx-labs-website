@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Cryptographically secure RNG and entropy-audit suite using Web Crypto as the CSPRNG, with supplemental Bitcoin block, transaction-hash, and measured network-latency inputs mixed into verifiable SHA-256/HMAC seeds.">
+  <title>BitRNG · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260824-bitrng-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitrng-1">
+  <script src="./hook.js?v=20260824-bitrng-1" defer></script>
+  <script src="./script.js?v=20260824-bitrng-1" defer></script>
+  <script src="./bitrng-core.js?v=20260824-bitrng-1" defer></script>
+  <script src="./bitrng.js?v=20260824-bitrng-1" defer></script>
+</head>
+
+<body class="project project-bitrng">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitRNG logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitRNG</h1>
+    <p class="blurb">Cryptographically secure RNG and entropy-audit suite using Web Crypto as the CSPRNG, with supplemental Bitcoin block, transaction-hash, and measured network-latency inputs mixed into verifiable SHA-256/HMAC seeds.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitrng" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN-AUGMENTED ENTROPY / CSPRNG</p><h2>BitRNG Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">CSPRNG: WEB CRYPTO</span><span id="rng-net" class="runtime-badge partial">BITCOIN: IDLE</span><span class="runtime-badge ok">MIX: SHA-256</span><span class="runtime-badge ok">STREAM: HMAC-SHA256</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="collect" type="button">Collect</button>
+<button class="tool-tab mode-tab" data-mode="mix" type="button">Mix Seed</button>
+<button class="tool-tab mode-tab" data-mode="random" type="button">Random Output</button>
+<button class="tool-tab mode-tab" data-mode="tests" type="button">Entropy Tests</button>
+<button class="tool-tab mode-tab" data-mode="audit" type="button">Audit Log</button>
+<button class="tool-tab mode-tab" data-mode="source" type="button">Source</button>
+</div><div class="z-sidebar-note"><strong>SECURITY MODEL</strong><p>Public Bitcoin data is supplemental entropy/audit material, not a secret. Key-grade randomness comes from <code>crypto.getRandomValues()</code>; public chain data is mixed in, never trusted as the sole seed.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-collect" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">LIVE ENTROPY MATERIAL</p><h2>Collect</h2><p>Collect recent block hashes, transaction hashes, endpoint latency measurements, and fresh browser CSPRNG bytes.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Recent blocks<input id="rc-blocks" type="number" min="1" max="25" value="6"></label><label>Latency probes<input id="rc-probes" type="number" min="1" max="25" value="8"></label><label>CSPRNG bytes<input id="rc-bytes" type="number" min="32" max="4096" value="64"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="rc-run" class="btn" type="button">COLLECT ENTROPY</button></div>
+<div class="z-metrics"><div><span>Block hashes</span><strong id="rc-block-count">0</strong></div><div><span>TX hashes</span><strong id="rc-tx-count">0</strong></div><div><span>Latency samples</span><strong id="rc-lat-count">0</strong></div><div><span>CSPRNG bytes</span><strong id="rc-rng-count">0</strong></div></div>
+<pre id="rc-output" class="z-log"></pre></div></div>
+
+<div id="mode-mix" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">VERIFIABLE SEED DERIVATION</p><h2>Mix Seed</h2><p>Canonicalize the collected material and hash it with a fresh secret browser contribution to derive a 256-bit seed.</p></div><div class="tool-card">
+<label>Optional user context<input id="mix-context" type="text" value="bitrng-session"></label>
+<div class="button-row" style="justify-content:flex-start"><button id="mix-run" class="btn" type="button">DERIVE SEED</button><button id="mix-copy" class="btn ghost" type="button">COPY SEED</button></div>
+<pre id="mix-output" class="z-log"></pre></div></div>
+
+<div id="mode-random" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CSPRNG / DETERMINISTIC STREAM</p><h2>Random Output</h2><p>Choose direct Web Crypto bytes or a reproducible HMAC-SHA256 stream derived from the mixed seed.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Mode<select id="ro-mode"><option value="webcrypto">Web Crypto CSPRNG</option><option value="seeded">Seeded HMAC stream</option></select></label><label>Bytes<input id="ro-count" type="number" min="1" max="65536" value="64"></label><label>Format<select id="ro-format"><option value="hex">Hex</option><option value="base64">Base64</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="ro-run" class="btn" type="button">GENERATE</button><button id="ro-copy" class="btn ghost" type="button">COPY</button></div>
+<pre id="ro-output" class="z-log"></pre></div></div>
+
+<div id="mode-tests" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">QUICK BIAS DIAGNOSTICS</p><h2>Entropy Tests</h2><p>Run byte-frequency, monobit, Shannon entropy, and serial-correlation diagnostics against generated output.</p></div><div class="tool-card">
+<label>Hex bytes<textarea id="rt-input" rows="10"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="rt-latest" class="btn ghost" type="button">USE LATEST</button><button id="rt-run" class="btn" type="button">RUN TESTS</button></div><pre id="rt-output" class="z-log"></pre>
+<div class="z-note">These quick diagnostics do not replace NIST STS, Dieharder, PractRand, hardware certification, or a formal entropy-source assessment.</div></div></div>
+
+<div id="mode-audit" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">REPRODUCIBLE RECORD</p><h2>Audit Log</h2><p>Export public collection material, hashes, test results, and seed fingerprints. Secret CSPRNG contributions are never written into the audit log.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="ra-export" class="btn" type="button">EXPORT AUDIT JSON</button><button id="ra-clear" class="btn ghost" type="button">CLEAR</button></div><pre id="ra-output" class="z-log"></pre></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">BITCOIN API</p><h2>Source</h2><p>Configure an Esplora/mempool-compatible public API.</p></div><div class="tool-card"><label>API base<input id="rs-api" type="url" value="https://mempool.space/api"></label><div class="button-row" style="justify-content:flex-start"><button id="rs-save" class="btn" type="button">SAVE SOURCE</button><button id="rs-reset" class="btn ghost" type="button">RESET</button></div><pre id="rs-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitRNG</h2><p>Bitcoin-augmented entropy collection, secure browser randomness, reproducible seeded streams, and entropy diagnostics.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · Requests · NumPy · PyQt5 · Matplotlib · hashlib</dd></div><div><dt>Web</dt><dd>Web Crypto · SHA-256 · HMAC</dd></div></dl></article><article class="panel"><p class="kicker">KEY-GRADE RULE</p><h2>Never rely on public chain data alone</h2><p>Block and transaction hashes are public and partially influenceable. The page always uses Web Crypto for secret entropy and treats Bitcoin/network observations as additional context.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
