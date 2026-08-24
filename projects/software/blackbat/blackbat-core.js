@@ -1,0 +1,8 @@
+(() => {
+"use strict";
+function sma(a,p){const o=new Array(a.length).fill(null);let s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=p)s-=a[i-p];if(i>=p-1)o[i]=s/p;}return o;}
+function maxDrawdown(vals){let peak=vals[0]||0,dd=0;for(const v of vals){peak=Math.max(peak,v);if(peak>0)dd=Math.max(dd,(peak-v)/peak);}return dd*100;}
+function signals(rows,cfg){const c=rows.map(x=>x.close),ma=sma(c,cfg.period),out=[];let peak=c[0]||0;for(let i=0;i<c.length;i++){peak=Math.max(peak,c[i]);const dd=peak?100*(peak-c[i])/peak:0;let mult=0;if(cfg.kind==="dca")mult=1;else if(cfg.kind==="bats")mult=dd>=cfg.trigger?Math.min(cfg.maxMultiplier,1+Math.floor(dd/cfg.trigger)):0;else{const trend=ma[i]!=null&&c[i]>=ma[i],pullback=dd>=cfg.trigger/2;mult=trend&&pullback?Math.min(cfg.maxMultiplier,2):trend?1:0;}out.push({multiplier:mult,drawdownPct:dd,ma:ma[i]});}return out;}
+function backtest(rows,cfg,risk){const sig=signals(rows,cfg);let cash=cfg.initialCash,btc=0,peakEquity=cash,stopped=false;const eq=[];for(let i=0;i<rows.length;i++){const p=rows[i].close;let buy=cfg.baseBuy*sig[i].multiplier;buy=Math.min(buy,cash,cash*risk.maxDeployPct/100);const equityPre=cash+btc*p;peakEquity=Math.max(peakEquity,equityPre);const dd=peakEquity?100*(peakEquity-equityPre)/peakEquity:0;if(dd>=risk.portfolioStopPct)stopped=true;if(stopped)buy=0;if(buy>0){btc+=buy/p;cash-=buy;}const equity=cash+btc*p;eq.push({time:rows[i].time,price:p,buyUsd:buy,btc,cash,equity,signal:sig[i],stopped});}return{config:cfg,risk,btcAccumulated:btc,cashRemaining:cash,finalEquity:eq.at(-1)?.equity||cash,maxDrawdownPct:maxDrawdown(eq.map(x=>x.equity)),stopped,equity:eq};}
+window.BlackBatCore=Object.freeze({sma,maxDrawdown,signals,backtest});
+})();
