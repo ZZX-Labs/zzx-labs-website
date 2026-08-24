@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Secure audio field recording system for desktop and server environments with offline-first storage, optional encrypted export, and controlled backup workflows."><title>FieldRecorder · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./hook.css">
+<script src="./hook.js" defer></script><script src="./script.js" defer></script><script src="./recorder-core.js?v=20260824-fieldrecorder-1" defer></script>
+<script src="./fieldrecorder.js?v=20260824-fieldrecorder-1" defer></script></head><body class="project project-fieldrecorder"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="FieldRecorder logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE</p><h1>FieldRecorder</h1><p class="blurb">Secure audio field recording system for desktop and server environments with offline-first storage, optional encrypted export, and controlled backup workflows.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/fieldrecorder" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">SECURE AUDIO // OFFLINE FIRST</p><h2>FieldRecorder Web Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">MEDIARECORDER</span><span class="runtime-badge ok">SHA-256</span><span class="runtime-badge ok">ENCRYPTED EXPORT</span><span class="runtime-badge ok">EXPLICIT BACKUP</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Recorder</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="record">Record</button>
+<button class="tool-tab mode-tab" data-mode="sessions">Sessions</button>
+<button class="tool-tab mode-tab" data-mode="encrypt">Encrypted Export</button>
+<button class="tool-tab mode-tab" data-mode="backup">Backup Plan</button>
+</div><div class="z-sidebar-note"><strong>LOCAL FIRST</strong><p>No recording leaves the browser automatically. Exports and backup plans require explicit user action.</p></div></aside><section class="tool-workspace">
+
+<div id="mode-record" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3"><label>Input device<select id="device"></select></label><label>Segment minutes<input id="segment-minutes" type="number" min="1" max="240" value="30"></label><label>Project label<input id="project" value="field-session"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="permission" class="btn">REQUEST MIC</button><button id="start" class="btn">START RECORDING</button><button id="pause" class="btn ghost">PAUSE</button><button id="resume" class="btn ghost">RESUME</button><button id="stop" class="btn ghost">STOP</button></div>
+<div class="z-metrics"><div><span>Status</span><strong id="status">READY</strong></div><div><span>Elapsed</span><strong id="elapsed">00:00</strong></div><div><span>Codec</span><strong id="codec">—</strong></div></div>
+<canvas id="meter" class="z-canvas" width="1000" height="180"></canvas>
+</div></div>
+
+<div id="mode-sessions" class="z-mode-panel mode-panel"><div class="tool-card"><div id="session-list" class="z-list"></div></div></div>
+
+<div id="mode-encrypt" class="z-mode-panel mode-panel"><div class="tool-card">
+<p>Encrypted export uses PBKDF2-HMAC-SHA256 → AES-256-GCM on the selected recording blob.</p>
+<div class="z-grid-3"><label>Recording<select id="encrypt-session"></select></label><label>Passphrase<input id="pass" type="password" autocomplete="new-password"></label><label>PBKDF2 iterations<input id="iterations" type="number" min="100000" value="310000"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="export-encrypted" class="btn">EXPORT ENCRYPTED RECORDING</button></div><pre id="encrypt-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-backup" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Destination label<input id="backup-dest" value="offline-backup"></label><label>Copies<input id="backup-copies" type="number" min="1" max="5" value="2"></label><label>Verification<select id="backup-verify"><option>SHA-256 after copy</option><option>Size + SHA-256</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="build-backup" class="btn">BUILD BACKUP MANIFEST</button></div><pre id="backup-output" class="z-log"></pre><p>The browser does not upload or copy files automatically; this is a controlled backup plan and integrity manifest.</p>
+</div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">VERSION</p><h2>0.8.0-alpha</h2><p>Linux · Windows · macOS</p></article><article class="panel"><p class="kicker">NATIVE / WEB</p><h2>PyQt5 native · MediaRecorder web</h2><p>Actual available browser codecs depend on the browser and operating system.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
