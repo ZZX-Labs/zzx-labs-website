@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="R bindings companion for CyberChef-style transforms optimized for data processing and forensic preprocessing workflows, with vectorized transform planning, CSV-oriented recipes, package scaffolding, reproducible test vectors, and exportable scripts.">
+<title>CyberChefR · CyberChefKit · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-cyberchefr-1"><link rel="stylesheet" href="./hook.css?v=20260824-cyberchefr-1">
+<script src="./hook.js?v=20260824-cyberchefr-1" defer></script><script src="./script.js?v=20260824-cyberchefr-1" defer></script>
+<script src="./chef-core.js?v=20260824-cyberchefr-1" defer></script><script src="./cyberchefr.js?v=20260824-cyberchefr-1" defer></script>
+</head><body class="project project-cyberchefr"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="CyberChefR logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // CYBERCHEFKIT</p><h1>CyberChefR</h1><p class="blurb">R bindings companion for CyberChef-style transforms optimized for data processing and forensic preprocessing workflows, with vectorized transform planning, CSV-oriented recipes, package scaffolding, reproducible test vectors, and exportable scripts.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/cyberchefr" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/cyberchefkit/">CYBERCHEFKIT</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">R // DATA + FORENSIC PREPROCESSING</p><h2>CyberChefR Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">REFERENCE ENGINE</span><span class="runtime-badge ok">R CODEGEN</span><span class="runtime-badge ok">VECTOR PIPELINES</span><span class="runtime-badge ok">CSV PREPROCESSING</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="transform">Transform Lab</button><button class="tool-tab mode-tab" data-mode="r">R Functions</button><button class="tool-tab mode-tab" data-mode="data">Data Pipeline</button><button class="tool-tab mode-tab" data-mode="package">Package</button><button class="tool-tab mode-tab" data-mode="vectors">Vectors</button><button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div></aside><section class="tool-workspace"><div id="mode-transform" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-2"><label>Input<textarea id="input" rows="12">CyberChefKit language-port verification payload.</textarea></label><label>Output<textarea id="output" rows="12" readonly></textarea></label></div>
+<div class="button-row" style="justify-content:flex-start">
+<button class="btn ghost quick" data-op="toBase64">BASE64</button>
+<button class="btn ghost quick" data-op="toHex">HEX</button>
+<button class="btn ghost quick" data-op="rot13">ROT13</button>
+<button class="btn ghost quick" data-op="sha256">SHA-256</button>
+<button class="btn ghost quick" data-op="urlEncode">URL ENCODE</button>
+<button class="btn ghost quick" data-op="jsonPretty">JSON PRETTY</button>
+</div>
+<label>Recipe JSON<textarea id="recipe" rows="10">[
+  {"op":"toBase64"},
+  {"op":"sha256"}
+]</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="run" class="btn">RUN RECIPE</button><button id="swap" class="btn ghost">SWAP</button><button id="clear" class="btn ghost">CLEAR</button></div>
+<pre id="trace" class="z-log"></pre>
+</div></div>
+<div id="mode-r" class="z-mode-panel mode-panel"><div class="tool-card"><div class="z-grid-2"><label>Package name<input id="pkg" value="cyberchefr"></label><label>Function prefix<input id="prefix" value="cc"></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-r" class="btn">GENERATE R FUNCTIONS</button></div><pre id="r-output" class="z-log"></pre></div></div>
+<div id="mode-data" class="z-mode-panel mode-panel"><div class="tool-card"><label>Column name<input id="column" value="payload"></label><label>Operations, comma-separated<input id="ops" value="to_hex,sha256"></label><div class="button-row" style="justify-content:flex-start"><button id="gen-data" class="btn">GENERATE DATA.FRAME PIPELINE</button></div><pre id="data-output" class="z-log"></pre></div></div>
+<div id="mode-package" class="z-mode-panel mode-panel"><div class="tool-card"><div class="z-grid-2"><label>Package version<input id="pkg-version" value="0.1.0.9000"></label><label>R dependency<input id="r-version" value=">= 4.3"></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-package" class="btn">GENERATE DESCRIPTION + NAMESPACE</button></div><pre id="package-output" class="z-log"></pre></div></div>
+<div id="mode-vectors" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="vectors" class="btn">RUN VECTORS + TESTTHAT</button></div><pre id="vectors-output" class="z-log"></pre></div></div>
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export" class="btn">EXPORT R BUNDLE JSON</button></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>CyberChefR</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>CLA Apache</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>R</dd></div></dl></article><article class="panel"><p class="kicker">DATA WORKFLOWS</p><h2>Vectorized preprocessing</h2><p>Generated scripts emphasize reproducible transforms across vectors and data-frame columns rather than pretending browser JavaScript is native R execution.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
