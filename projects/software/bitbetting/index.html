@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Provably-fair Bitcoin betting protocol research workbench built around BitContracts-style game commitments, deterministic commit/reveal randomness, prediction-market logic, on-chain proof metadata, and Lightning settlement-provider hooks.">
+  <title>BitBetting · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitbetting-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitbetting-1">
+  <script src="./hook.js?v=20260824-bitbetting-1" defer></script>
+  <script src="./script.js?v=20260824-bitbetting-1" defer></script>
+  <script src="./bitbetting-core.js?v=20260824-bitbetting-1" defer></script>
+  <script src="./bitbetting.js?v=20260824-bitbetting-1" defer></script>
+</head>
+
+<body class="project project-bitbetting">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitBetting logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitBetting</h1>
+    <p class="blurb">Provably-fair Bitcoin betting protocol research workbench built around BitContracts-style game commitments, deterministic commit/reveal randomness, prediction-market logic, on-chain proof metadata, and Lightning settlement-provider hooks.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitbetting" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">PROVABLY-FAIR BETTING PROTOCOL</p><h2>BitBetting Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">COMMIT: SHA-256</span><span class="runtime-badge ok">DRAW: HMAC-SHA256</span><span class="runtime-badge ok">VERIFY: OFFLINE</span><span class="runtime-badge ok">FUNDS: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="game" type="button">Game</button>
+<button class="tool-tab mode-tab" data-mode="commit" type="button">Commit / Reveal</button>
+<button class="tool-tab mode-tab" data-mode="prediction" type="button">Prediction Market</button>
+<button class="tool-tab mode-tab" data-mode="proof" type="button">Proof</button>
+<button class="tool-tab mode-tab" data-mode="settlement" type="button">Settlement</button>
+<button class="tool-tab mode-tab" data-mode="verify" type="button">Verify</button>
+</div><div class="z-sidebar-note"><strong>PROTOCOL DEMO</strong><p>The static page demonstrates fairness proofs and settlement metadata. It does not take wagers, custody Bitcoin, connect to LN wallets, or execute payouts.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-game" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">GAME LOGIC</p><h2>Game</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Game ID<input id="bg-id" value="GAME-001"></label><label>Game type<select id="bg-type"><option value="dice">Dice 1–6</option><option value="coin">Coin flip</option><option value="range">Number range</option></select></label><label>Range max<input id="bg-max" type="number" min="2" value="100"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bg-build" class="btn" type="button">BUILD GAME</button></div><pre id="bg-output" class="z-log"></pre></div></div>
+
+<div id="mode-commit" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SERVER + PLAYER ENTROPY</p><h2>Commit / Reveal</h2><p>Commit to a server seed before accepting a player seed. Reveal later to allow exact third-party replay.</p></div><div class="tool-card">
+<div class="z-grid-2"><label>Server seed<input id="bc-server" type="text"></label><label>Player seed<input id="bc-player" type="text" value="player-seed-001"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bc-random" class="btn ghost" type="button">RANDOM SERVER SEED</button><button id="bc-commit" class="btn" type="button">COMMIT SERVER SEED</button><button id="bc-reveal" class="btn ghost" type="button">REVEAL / DRAW</button></div><pre id="bc-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-prediction" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PREDICTION MARKET LOGIC</p><h2>Prediction Market</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Market question<input id="pm-q" value="Will condition X be true?"></label><label>Outcome A<input id="pm-a" value="YES"></label><label>Outcome B<input id="pm-b" value="NO"></label></div>
+<label style="margin-top:.7rem">Oracle / resolution reference<input id="pm-oracle" value="external-oracle-reference"></label>
+<div class="button-row" style="justify-content:flex-start"><button id="pm-build" class="btn" type="button">BUILD MARKET METADATA</button></div><pre id="pm-output" class="z-log"></pre></div></div>
+
+<div id="mode-proof" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ON-CHAIN PROOF METADATA</p><h2>Proof</h2><p>Attach transaction/block/contract references without claiming they have been independently verified by this page.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>BitContract ID<input id="pf-contract" value="CONTRACT-001"></label><label>TXID / proof ref<input id="pf-txid"></label><label>Block hash<input id="pf-block"></label></div><div class="button-row" style="justify-content:flex-start"><button id="pf-save" class="btn" type="button">SAVE PROOF METADATA</button></div><pre id="pf-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-settlement" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIGHTNING SETTLEMENT CHANNEL</p><h2>Settlement</h2><p>Build a settlement instruction and optionally pass it to an explicitly registered external provider.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Winner reference<input id="st-winner" value="player-001"></label><label>Amount sats<input id="st-sats" type="number" min="0" value="1000"></label><label>LN invoice/payment reference<input id="st-ref"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="st-build" class="btn" type="button">BUILD SETTLEMENT</button><button id="st-send" class="btn ghost" type="button">CALL REGISTERED PROVIDER</button></div><pre id="st-output" class="z-log"></pre>
+<div class="z-note">Provider API: <code>BitBetting.registerSettlementProvider(async instruction =&gt; result)</code>. Wallet credentials stay outside this page.</div></div></div>
+
+<div id="mode-verify" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PLAYER-SIDE VERIFICATION</p><h2>Verify</h2><p>Paste a complete proof archive and recompute the commitment and deterministic result offline.</p></div><div class="tool-card"><label>Proof JSON<textarea id="vr-json" rows="18"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="vr-run" class="btn" type="button">VERIFY</button><button id="vr-export" class="btn ghost" type="button">EXPORT CURRENT PROOF</button></div><pre id="vr-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitBetting</h2><p>Provably-fair betting protocol primitives, prediction-market metadata, proof records, and Lightning settlement hooks.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>PyQt5 · NumPy · SQLAlchemy · cryptography · Flask</dd></div><div><dt>Web</dt><dd>Web Crypto · HMAC-SHA256</dd></div></dl></article><article class="panel"><p class="kicker">FAIRNESS MODEL</p><h2>Commit first, reveal later</h2><p>The server seed is hashed before the player seed is used. After reveal, anyone can verify the commitment and recompute the deterministic result.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
