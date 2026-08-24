@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Encrypted private contact and profile management suite for discreet storage of personal data, medical records, trusted relationship networks, consent/preferences metadata, and external cryptographic identity references.">
+  <title>BlackBook · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blackbook-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blackbook-1">
+  <script src="./hook.js?v=20260824-blackbook-1" defer></script>
+  <script src="./script.js?v=20260824-blackbook-1" defer></script>
+  <script src="./blackbook-crypto.js?v=20260824-blackbook-1" defer></script>
+  <script src="./blackbook.js?v=20260824-blackbook-1" defer></script>
+</head>
+
+<body class="project project-blackbook">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BlackBook logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BlackBook</h1>
+    <p class="blurb">Encrypted private contact and profile management suite for discreet storage of personal data, medical records, trusted relationship networks, consent/preferences metadata, and external cryptographic identity references.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blackbook" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ENCRYPTED PRIVATE CONTACT VAULT</p><h2>BlackBook Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge bad">ADULT // NSFW</span><span class="runtime-badge ok">VAULT: AES-GCM</span><span class="runtime-badge ok">STORAGE: LOCAL</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="vault" type="button">Vault</button><button class="tool-tab mode-tab" data-mode="profiles" type="button">Profiles</button><button class="tool-tab mode-tab" data-mode="medical" type="button">Medical</button><button class="tool-tab mode-tab" data-mode="network" type="button">Relationship Network</button><button class="tool-tab mode-tab" data-mode="crypto" type="button">Crypto IDs</button><button class="tool-tab mode-tab" data-mode="export" type="button">Backup</button>
+</div><div class="z-sidebar-note"><strong>PRIVATE BY DESIGN</strong><p>The page stores an encrypted vault in local browser storage. No server sync is performed. External GPG/PGP fingerprints are references only; private keys are not stored here.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-vault" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">ENCRYPTED LOCAL VAULT</p><h2>Vault</h2></div><div class="tool-card"><div class="z-grid-2"><label>Vault password<input id="bv-pass" type="password" autocomplete="new-password"></label><label>Vault label<input id="bv-label" value="private-blackbook"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bv-create" class="btn">CREATE / RESET VAULT</button><button id="bv-unlock" class="btn ghost">UNLOCK</button><button id="bv-lock" class="btn ghost">LOCK</button></div><pre id="bv-output" class="z-log"></pre></div></div>
+
+<div id="mode-profiles" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CONTACT / PROFILE RECORDS</p><h2>Profiles</h2></div><div class="tool-card"><div class="z-grid-3"><label>Name / alias<input id="bp-name"></label><label>Pronouns<input id="bp-pronouns"></label><label>Relationship / role<input id="bp-role"></label><label>Email / contact<input id="bp-contact"></label><label>Verification status<select id="bp-verified"><option value="unverified">unverified</option><option value="verified">verified</option><option value="trusted">trusted</option></select></label><label>Tags<input id="bp-tags" placeholder="comma,separated"></label></div><label style="margin-top:.7rem">Private notes<textarea id="bp-notes" rows="7"></textarea></label><label style="margin-top:.7rem">Consent / preferences notes<textarea id="bp-consent" rows="6"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="bp-add" class="btn">ADD PROFILE</button></div><div id="bp-list" class="z-list"></div></div></div>
+
+<div id="mode-medical" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PRIVATE MEDICAL RECORD</p><h2>Medical</h2></div><div class="tool-card"><label>Profile<select id="bm-profile"></select></label><div class="z-grid-3" style="margin-top:.7rem"><label>Allergies<input id="bm-allergies"></label><label>Medications<input id="bm-meds"></label><label>Emergency contact<input id="bm-emergency"></label></div><label style="margin-top:.7rem">Medical notes<textarea id="bm-notes" rows="8"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="bm-save" class="btn">SAVE MEDICAL RECORD</button></div><pre id="bm-output" class="z-log"></pre></div></div>
+
+<div id="mode-network" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">VERIFIED RELATIONSHIP GRAPH</p><h2>Relationship Network</h2></div><div class="tool-card"><div class="z-grid-3"><label>From<select id="bn-from"></select></label><label>To<select id="bn-to"></select></label><label>Relationship label<input id="bn-label" value="trusted contact"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bn-add" class="btn">ADD LINK</button></div><canvas id="bn-canvas" class="z-canvas" width="1200" height="380"></canvas><pre id="bn-output" class="z-log"></pre></div></div>
+
+<div id="mode-crypto" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">EXTERNAL CRYPTOGRAPHIC IDENTITY</p><h2>Crypto IDs</h2></div><div class="tool-card"><label>Profile<select id="bc-profile"></select></label><div class="z-grid-2" style="margin-top:.7rem"><label>PGP/GPG fingerprint<input id="bc-pgp"></label><label>Public identity note<input id="bc-note"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bc-save" class="btn">SAVE REFERENCE</button></div><pre id="bc-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ENCRYPTED BACKUP</p><h2>Backup</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bx-export" class="btn">EXPORT ENCRYPTED VAULT</button><label class="file-button">IMPORT ENCRYPTED VAULT<input id="bx-import" type="file" accept=".json,application/json"></label></div><pre id="bx-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BlackBook</h2><p>Encrypted private profiles, medical notes, relationship links, and cryptographic identity references.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Android · iOS</dd></div><div><dt>Native</dt><dd>PyQt5 · SQLite · GnuPG · OpenSSL · Requests</dd></div></dl></article><article class="panel"><p class="kicker">VAULT MODEL</p><h2>Encrypted at rest</h2><p>The static web port persists only an AES-256-GCM encrypted envelope. The decrypted vault exists in memory only while unlocked.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
