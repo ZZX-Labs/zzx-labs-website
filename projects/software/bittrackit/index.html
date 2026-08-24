@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Real-time watch-only Bitcoin monitoring workspace for public addresses, transactions, balances, fee estimates, portfolio aggregation, local alerts, and forensic transaction inspection.">
+  <title>BitTrackIt · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260824-bittrackit-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bittrackit-1">
+  <script src="./hook.js?v=20260824-bittrackit-1" defer></script>
+  <script src="./script.js?v=20260824-bittrackit-1" defer></script>
+  <script src="./bittrackit-core.js?v=20260824-bittrackit-1" defer></script>
+  <script src="./bittrackit.js?v=20260824-bittrackit-1" defer></script>
+</head>
+
+<body class="project project-bittrackit">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitTrackIt logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitTrackIt</h1>
+    <p class="blurb">Real-time watch-only Bitcoin monitoring workspace for public addresses, transactions, balances, fee estimates, portfolio aggregation, local alerts, and forensic transaction inspection.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bittrackit" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">WATCH-ONLY BITCOIN MONITORING</p><h2>BitTrackIt Browser Workbench</h2></div><div class="runtime-status"><span id="bt-net" class="runtime-badge partial">NETWORK: IDLE</span><span class="runtime-badge ok">WATCHLIST: LOCAL</span><span class="runtime-badge ok">KEYS: NONE</span><span class="runtime-badge ok">ALERTS: LOCAL</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="portfolio" type="button">Portfolio</button>
+<button class="tool-tab mode-tab" data-mode="address" type="button">Address Monitor</button>
+<button class="tool-tab mode-tab" data-mode="tx" type="button">Transaction</button>
+<button class="tool-tab mode-tab" data-mode="fees" type="button">Fees</button>
+<button class="tool-tab mode-tab" data-mode="alerts" type="button">Alerts</button>
+<button class="tool-tab mode-tab" data-mode="forensics" type="button">Forensics</button>
+<button class="tool-tab mode-tab" data-mode="source" type="button">Source</button>
+</div><div class="z-sidebar-note"><strong>WATCH-ONLY</strong><p>Never enter seed phrases, private keys, xprvs, wallet passwords, exchange API secrets, or RPC credentials. This browser edition works with public blockchain data only.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-portfolio" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">ADDRESS PORTFOLIO</p><h2>Portfolio</h2><p>Add labeled public Bitcoin addresses and aggregate their known on-chain balances.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Address<input id="pt-address" type="text"></label><label>Label<input id="pt-label" type="text" value="wallet"></label><label>Group<input id="pt-group" type="text" value="default"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="pt-add" class="btn" type="button">ADD</button><button id="pt-refresh" class="btn ghost" type="button">REFRESH ALL</button></div>
+<div class="z-metrics"><div><span>Addresses</span><strong id="pt-count">0</strong></div><div><span>Balance</span><strong id="pt-balance">0 sats</strong></div><div><span>Confirmed txs</span><strong id="pt-txs">0</strong></div><div><span>Last refresh</span><strong id="pt-time">—</strong></div></div>
+<div id="pt-list" class="z-list" style="margin-top:.8rem"></div></div></div>
+
+<div id="mode-address" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SELECTED ADDRESS</p><h2>Address Monitor</h2><p>Inspect chain/mempool counters and recent transactions for the selected watch-only address.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ad-refresh" class="btn" type="button">REFRESH SELECTED</button></div><pre id="ad-output" class="z-log"></pre><div class="z-table-wrap"><table class="z-table"><thead><tr><th>TXID</th><th>Status</th><th>Block</th><th>Fee sats</th></tr></thead><tbody id="ad-tx-body"></tbody></table></div></div></div>
+
+<div id="mode-tx" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TRANSACTION INSPECTOR</p><h2>Transaction</h2><p>Look up a public transaction and summarize inputs, outputs, fee, size, and confirmation state.</p></div><div class="tool-card"><div class="z-grid-2"><label>TXID<input id="txid" type="text"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="tx-run" class="btn" type="button">LOOK UP</button></div></div><pre id="tx-output" class="z-log"></pre></div></div>
+
+<div id="mode-fees" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MEMPOOL FEE ESTIMATES</p><h2>Fees</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="fee-refresh" class="btn" type="button">REFRESH FEES</button></div><div class="z-table-wrap"><table class="z-table"><thead><tr><th>Priority</th><th>sat/vB</th></tr></thead><tbody id="fee-body"></tbody></table></div></div></div>
+
+<div id="mode-alerts" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL THRESHOLDS</p><h2>Alerts</h2><p>Set local balance and fee thresholds.</p></div><div class="tool-card"><div class="z-grid-3"><label>Balance below sats<input id="al-below" type="number" min="0" value="0"></label><label>Balance above sats<input id="al-above" type="number" min="0" value="100000000"></label><label>Fast fee above sat/vB<input id="al-fee" type="number" min="1" value="50"></label></div><div class="button-row" style="justify-content:flex-start"><button id="al-check" class="btn" type="button">CHECK ALERTS</button><button id="al-notify" class="btn ghost" type="button">ENABLE NOTIFICATIONS</button></div><div id="al-list" class="z-list"></div></div></div>
+
+<div id="mode-forensics" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TRANSACTION TRACE VIEW</p><h2>Forensics</h2><p>Summarize one transaction's direct input and output relationships without claiming ownership attribution.</p></div><div class="tool-card"><label>TXID<input id="fx-txid" type="text"></label><div class="button-row" style="justify-content:flex-start"><button id="fx-run" class="btn" type="button">BUILD TRACE</button></div><pre id="fx-output" class="z-log"></pre><div class="z-note">Address clustering and ownership attribution are probabilistic and can be misleading. This page reports direct transaction structure only.</div></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PUBLIC API</p><h2>Source</h2><p>Configure the Esplora/mempool API used by all watch-only queries.</p></div><div class="tool-card"><label>API base<input id="bt-api" type="url" value="https://mempool.space/api"></label><div class="button-row" style="justify-content:flex-start"><button id="bt-save" class="btn" type="button">SAVE</button><button id="bt-reset" class="btn ghost" type="button">RESET</button></div><pre id="bt-source-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitTrackIt</h2><p>Watch-only address, transaction, balance, fee, alert, portfolio, and forensic monitoring.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.2.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Requests · SQLite · Matplotlib · Pandas</dd></div><div><dt>Web</dt><dd>Fetch · localStorage · Esplora</dd></div></dl></article><article class="panel"><p class="kicker">PRIVACY</p><h2>Use your own source when needed</h2><p>Third-party blockchain APIs can observe which addresses and transactions you query. A self-hosted Esplora/mempool instance is preferable for sensitive monitoring.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
