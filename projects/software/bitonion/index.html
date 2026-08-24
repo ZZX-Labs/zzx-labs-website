@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Local Tor gateway and privacy-routing planner for Bitcoin Core/Knots with Tor, I2P, VPN, proxychains profiles, health interpretation, and monitoring-integration planning.">
+  <title>BitOnion · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260823-bitonion-1">
+  <link rel="stylesheet" href="./hook.css?v=20260823-bitonion-1">
+  <script src="./hook.js?v=20260823-bitonion-1" defer></script>
+  <script src="./script.js?v=20260823-bitonion-1" defer></script>
+  <script src="./bitonion-core.js?v=20260823-bitonion-1" defer></script>
+  <script src="./bitonion.js?v=20260823-bitonion-1" defer></script>
+</head>
+
+<body class="project project-bitonion">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitOnion logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitOnion</h1>
+    <p class="blurb">Local Tor gateway and privacy-routing planner for Bitcoin Core/Knots with Tor, I2P, VPN, proxychains profiles, health interpretation, and monitoring-integration planning.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitonion" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN PRIVACY ROUTING</p><h2>BitOnion Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">TOR: PROFILE</span><span class="runtime-badge ok">I2P: PROFILE</span><span class="runtime-badge ok">VPN: PROFILE</span><span class="runtime-badge ok">HOST COMMANDS: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="routes" type="button">Routes</button>
+<button class="tool-tab mode-tab" data-mode="bitcoin" type="button">Bitcoin Config</button>
+<button class="tool-tab mode-tab" data-mode="health" type="button">Health Checks</button>
+<button class="tool-tab mode-tab" data-mode="monitor" type="button">Monitoring</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>SAFE BROWSER LAYER</strong><p>The page builds routing/configuration profiles and interprets user-supplied diagnostics. It does not execute nmap, packet capture, VPN, Tor, or proxychains commands on the host.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-routes" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">ROUTING PROFILE</p><h2>Routes</h2><p>Model Tor, I2P, VPN, and chained proxy routes for Bitcoin node traffic.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Primary route<select id="bo-primary"><option value="tor">Tor</option><option value="i2p">I2P</option><option value="vpn">VPN</option><option value="direct">Direct</option></select></label><label>Tor SOCKS<input id="bo-tor" type="text" value="127.0.0.1:9050"></label><label>I2P SAM/SOCKS<input id="bo-i2p" type="text" value="127.0.0.1:7656"></label><label>VPN profile<input id="bo-vpn" type="text" value="default-vpn"></label><label>Proxy DNS<select id="bo-dns"><option value="1">Enabled</option><option value="0">Disabled</option></select></label><label>Kill-switch policy<select id="bo-kill"><option value="strict">Strict</option><option value="warn">Warn only</option><option value="off">Off</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bo-build-route" class="btn" type="button">BUILD ROUTE PROFILE</button></div><pre id="bo-route-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-bitcoin" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CORE / KNOTS ROUTING CONFIG</p><h2>Bitcoin Config</h2><p>Generate privacy-focused bitcoin.conf fragments from the route profile.</p></div><div class="tool-card"><div class="z-grid-3"><label>Onion peers<select id="bo-onion"><option value="1">Enable</option><option value="0">Disable</option></select></label><label>Clearnet listen<select id="bo-listen"><option value="0">Disable</option><option value="1">Enable</option></select></label><label>DNS seed<select id="bo-dnsseed"><option value="0">Disable</option><option value="1">Enable</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="bo-build-conf" class="btn" type="button">GENERATE CONFIG</button></div><pre id="bo-conf-output" class="z-log"></pre></div></div>
+
+<div id="mode-health" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL DIAGNOSTIC INTERPRETER</p><h2>Health Checks</h2><p>Paste sanitized status JSON from a trusted local helper to evaluate route state without exposing credentials.</p></div><div class="tool-card"><label>Status JSON<textarea id="bo-health-json" rows="14">{"tor":{"running":true,"socks":"127.0.0.1:9050"},"i2p":{"running":false},"vpn":{"running":true,"profile":"default-vpn"},"bitcoin":{"peers":12,"onionPeers":8}}</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="bo-health-run" class="btn" type="button">EVALUATE</button></div><pre id="bo-health-output" class="z-log"></pre></div></div>
+
+<div id="mode-monitor" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MONITORING INTEGRATIONS</p><h2>Monitoring</h2><p>Document intended nmap/Wireshark interfaces and produce non-executing checklists.</p></div><div class="tool-card"><div class="z-grid-3"><label>Interface<input id="bo-iface" type="text" value="eth0"></label><label>Bitcoin P2P port<input id="bo-port" type="number" value="8333"></label><label>Capture filter<input id="bo-filter" type="text" value="tcp port 8333"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bo-monitor-plan" class="btn" type="button">BUILD MONITORING PLAN</button></div><pre id="bo-monitor-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTABLE PROFILE</p><h2>Export</h2><p>Export route, Bitcoin config, and monitoring-plan metadata.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bo-export" class="btn" type="button">EXPORT JSON</button></div><pre id="bo-export-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitOnion</h2><p>Bitcoin privacy-routing profile design for Tor, I2P, VPN, proxychains, and monitoring workflows.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Flask · Paramiko · nmap</dd></div><div><dt>Web</dt><dd>JavaScript · profile generator</dd></div></dl></article><article class="panel"><p class="kicker">HOST BOUNDARY</p><h2>No browser shell execution</h2><p>Actual Tor/I2P/VPN startup, packet capture, proxychains, and nmap integration remain native/local operations.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
