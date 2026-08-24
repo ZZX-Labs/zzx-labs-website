@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Multisig escrow policy and milestone-management workbench with 2-of-3/N-of-M authorization, milestone releases, arbitration state, and AES-GCM encrypted dispute-evidence packs.">
+  <title>BitEscrow · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitescrow-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitescrow-1">
+  <script src="./hook.js?v=20260824-bitescrow-1" defer></script>
+  <script src="./script.js?v=20260824-bitescrow-1" defer></script>
+  <script src="./bitescrow-core.js?v=20260824-bitescrow-1" defer></script>
+  <script src="./bitescrow.js?v=20260824-bitescrow-1" defer></script>
+</head>
+
+<body class="project project-bitescrow">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitEscrow logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitEscrow</h1>
+    <p class="blurb">Multisig escrow policy and milestone-management workbench with 2-of-3/N-of-M authorization, milestone releases, arbitration state, and AES-GCM encrypted dispute-evidence packs.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitescrow" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">MULTISIG ESCROW / ARBITRATION</p><h2>BitEscrow Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">POLICY: LOCAL</span><span class="runtime-badge ok">EVIDENCE: AES-GCM</span><span class="runtime-badge ok">SIGNING: NONE</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="escrow" type="button">Escrow</button><button class="tool-tab mode-tab" data-mode="milestones" type="button">Milestones</button><button class="tool-tab mode-tab" data-mode="arbitration" type="button">Arbitration</button><button class="tool-tab mode-tab" data-mode="evidence" type="button">Evidence Pack</button><button class="tool-tab mode-tab" data-mode="audit" type="button">Audit</button></div><div class="z-sidebar-note"><strong>POLICY / RECORD LAYER</strong><p>The browser models escrow state and evidence. It does not hold private keys or sign funded transactions.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-escrow" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">N-OF-M AUTHORIZATION</p><h2>Escrow</h2></div><div class="tool-card"><div class="z-grid-3"><label>Escrow ID<input id="es-id" type="text" value="ESC-001"></label><label>Required m<input id="es-m" type="number" min="1" value="2"></label><label>Total n<input id="es-n" type="number" min="2" value="3"></label></div><div class="z-grid-3" style="margin-top:.6rem"><label>Buyer role<input id="es-buyer" type="text" value="Buyer signer"></label><label>Seller role<input id="es-seller" type="text" value="Seller signer"></label><label>Arbitrator role<input id="es-arb" type="text" value="Arbitrator signer"></label></div><div class="button-row" style="justify-content:flex-start"><button id="es-build" class="btn" type="button">BUILD ESCROW</button></div><pre id="es-output" class="z-log"></pre></div></div>
+
+<div id="mode-milestones" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MILESTONE RELEASES</p><h2>Milestones</h2></div><div class="tool-card"><div class="z-grid-3"><label>Label<input id="ms-label" type="text" value="Milestone 1"></label><label>Amount sats<input id="ms-sats" type="number" min="1" value="100000"></label><label>Due date<input id="ms-date" type="date"></label></div><div class="button-row" style="justify-content:flex-start"><button id="ms-add" class="btn" type="button">ADD MILESTONE</button></div><div id="ms-list" class="z-list"></div></div></div>
+
+<div id="mode-arbitration" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DISPUTE STATE</p><h2>Arbitration</h2></div><div class="tool-card"><div class="z-grid-2"><label>Status<select id="ar-status"><option value="none">No dispute</option><option value="opened">Opened</option><option value="review">Under review</option><option value="resolved-buyer">Resolved: buyer</option><option value="resolved-seller">Resolved: seller</option></select></label><label>Reason<input id="ar-reason" type="text"></label></div><label style="margin-top:.6rem">Decision / notes<textarea id="ar-notes" rows="8"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="ar-save" class="btn" type="button">SAVE ARBITRATION STATE</button></div><pre id="ar-output" class="z-log"></pre></div></div>
+
+<div id="mode-evidence" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ENCRYPTED DISPUTE PACK</p><h2>Evidence Pack</h2><p>Bundle text evidence metadata and optionally selected files by filename/hash, then encrypt the pack with PBKDF2 + AES-256-GCM.</p></div><div class="tool-card"><label>Evidence narrative<textarea id="ev-notes" rows="8"></textarea></label><div class="button-row" style="justify-content:flex-start"><label class="file-button">SELECT EVIDENCE FILES<input id="ev-files" type="file" multiple></label></div><label>Password<input id="ev-pass" type="password" autocomplete="new-password"></label><div class="button-row" style="justify-content:flex-start"><button id="ev-build" class="btn ghost" type="button">BUILD PACK</button><button id="ev-encrypt" class="btn" type="button">EXPORT ENCRYPTED</button></div><pre id="ev-output" class="z-log"></pre></div></div>
+
+<div id="mode-audit" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">VERIFIABLE RECORD</p><h2>Audit</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="au-hash" class="btn" type="button">HASH ESCROW STATE</button><button id="au-export" class="btn ghost" type="button">EXPORT JSON</button></div><pre id="au-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitEscrow</h2><p>Milestone-based Bitcoin multisig escrow with arbitration and encrypted dispute evidence packs.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>bitcoinlib · PyQt5 · SQLAlchemy · Requests · cryptography</dd></div><div><dt>Web</dt><dd>Web Crypto · local state</dd></div></dl></article><article class="panel"><p class="kicker">TRANSACTION BOUNDARY</p><h2>No private keys</h2><p>Actual multisig setup, PSBT exchange, signing, and broadcast belong in hardened wallet/native workflows.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
