@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Blinkee Optical File System (BOFS) reference implementation for indexing files into deterministic optical sequences with chunking, ordering, redundancy, XOR parity recovery, multi-file volume manifests, and BlinkeeQR-compatible frame playback.">
+  <title>Blinkee Optical File System (BOFS) · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bofs-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bofs-1">
+  <script src="./hook.js?v=20260824-bofs-1" defer></script>
+  <script src="./script.js?v=20260824-bofs-1" defer></script>
+  <script src="./optical-core.js?v=20260824-bofs-1" defer></script>
+  <script src="./bofs.js?v=20260824-bofs-1" defer></script>
+</head>
+
+<body class="project project-bofs">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Blinkee Optical File System (BOFS) logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Blinkee Optical File System (BOFS)</h1>
+    <p class="blurb">Blinkee Optical File System (BOFS) reference implementation for indexing files into deterministic optical sequences with chunking, ordering, redundancy, XOR parity recovery, multi-file volume manifests, and BlinkeeQR-compatible frame playback.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bofs" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BOFS // OPTICAL FILE SYSTEM</p><h2>BOFS Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">FILES: LOCAL</span><span class="runtime-badge ok">INDEX: SHA-256</span><span class="runtime-badge ok">PARITY: ENABLED</span><span class="runtime-badge ok">BQRES: COMPATIBLE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="volume" type="button">Volume</button><button class="tool-tab mode-tab" data-mode="index" type="button">File Index</button><button class="tool-tab mode-tab" data-mode="frames" type="button">Optical Frames</button><button class="tool-tab mode-tab" data-mode="recover" type="button">Recover</button><button class="tool-tab mode-tab" data-mode="archive" type="button">Archive</button><button class="tool-tab mode-tab" data-mode="spec" type="button">Format</button>
+</div><div class="z-sidebar-note"><strong>REFERENCE ALPHA</strong><p>The web build creates a deterministic BOFS JSON container/volume manifest and BQRES-compatible optical frames. It does not claim to generate a standards-compliant ISO-9660 disk image.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-volume" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">MULTI-FILE VOLUME</p><h2>Volume</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><label class="file-button">ADD FILES<input id="ov-files" type="file" multiple></label><button id="ov-clear" class="btn ghost">CLEAR</button></div><div class="z-grid-3"><label>Volume label<input id="ov-label" value="BOFS_VOLUME_001"></label><label>Chunk bytes<input id="ov-size" type="number" min="64" max="4096" value="512"></label><label>Parity group<input id="ov-group" type="number" min="2" max="16" value="4"></label><label>Sequence copies<input id="ov-copies" type="number" min="1" max="4" value="1"></label><label>Container profile<select id="ov-profile"><option value="bofs-json">BOFS JSON volume</option><option value="iso-manifest">ISO-oriented manifest</option></select></label><label>Archive ID<input id="ov-id" value="archive-001"></label></div><div class="button-row" style="justify-content:flex-start"><button id="ov-build" class="btn">BUILD VOLUME</button></div><pre id="ov-output" class="z-log"></pre></div></div>
+
+<div id="mode-index" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DETERMINISTIC FILE TABLE</p><h2>File Index</h2></div><div class="tool-card"><div class="z-table-wrap"><table class="z-table"><thead><tr><th>Path</th><th>Bytes</th><th>SHA-256</th><th>Sequence</th><th>Frames</th></tr></thead><tbody id="oi-body"></tbody></table></div></div></div>
+
+<div id="mode-frames" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ANIMATED VISUAL CARRIER</p><h2>Optical Frames</h2></div><div class="tool-card"><canvas id="of-canvas" class="z-canvas" width="800" height="800"></canvas><div class="z-grid-3"><label>Sequence<select id="of-seq"></select></label><label>Frame<input id="of-frame" type="number" min="0" value="0"></label><label>FPS<input id="of-fps" type="number" min="1" max="60" value="6"></label></div><div class="button-row" style="justify-content:flex-start"><button id="of-toggle" class="btn">PLAY</button></div><pre id="of-output" class="z-log"></pre></div></div>
+
+<div id="mode-recover" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SEQUENCE RECOVERY</p><h2>Recover</h2></div><div class="tool-card"><div class="z-grid-2"><label>Sequence<select id="or-seq"></select></label><label>Drop optical frame index<input id="or-drop" type="number" min="-1" value="-1"></label></div><div class="button-row" style="justify-content:flex-start"><button id="or-run" class="btn">RECOVER FILE</button></div><pre id="or-output" class="z-log"></pre></div></div>
+
+<div id="mode-archive" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTABLE BOFS CONTAINER</p><h2>Archive</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="oa-export" class="btn">EXPORT .BOFS.JSON</button><label class="file-button">IMPORT .BOFS.JSON<input id="oa-import" type="file" accept=".json,application/json"></label></div><pre id="oa-output" class="z-log"></pre></div></div>
+
+<div id="mode-spec" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">VOLUME MODEL</p><h2>Format</h2></div><div class="tool-card"><pre class="z-log">BOFS alpha volume
+- volume descriptor: label, archive id, profile, created time
+- file table: path, byte length, SHA-256, sequence id
+- sequence: fixed-size data frames + XOR parity groups
+- optical carrier: BQRES binary symbol frame
+- ordering: volume index -> file sequence -> frame index
+- redundancy: optional duplicate sequence copies
+- recovery: one missing data frame per parity group
+- ISO-oriented profile: records an ISO volume label / file table intent only;
+  this browser reference does not construct an ISO-9660 binary image.</pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BOFS</h2><p>Frame-sequenced optical file system and multi-sequence archival container.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Category</dt><dd>protocol</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>Python · NumPy</dd></div></dl></article><article class="panel"><p class="kicker">BQRES RELATION</p><h2>Filesystem above the frame layer</h2><p>BOFS supplies file/volume semantics while BQRES supplies the individual optical carrier frames.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
