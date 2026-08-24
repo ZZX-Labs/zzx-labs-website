@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin network-monitoring dashboard for block height, mempool activity, fee rates, epoch/halving context, alerts, live public data polling, and optional hardware-display adapter integration.">
+  <title>BlockClock · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blockclock-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blockclock-1">
+  <script src="./hook.js?v=20260824-blockclock-1" defer></script>
+  <script src="./script.js?v=20260824-blockclock-1" defer></script>
+  <script src="./blockclock-core.js?v=20260824-blockclock-1" defer></script>
+  <script src="./blockclock.js?v=20260824-blockclock-1" defer></script>
+</head>
+
+<body class="project project-blockclock">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BlockClock logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BlockClock</h1>
+    <p class="blurb">Bitcoin network-monitoring dashboard for block height, mempool activity, fee rates, epoch/halving context, alerts, live public data polling, and optional hardware-display adapter integration.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blockclock" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN NETWORK MONITOR</p><h2>BlockClock Browser Workbench</h2></div><div class="runtime-status"><span id="bc-live" class="runtime-badge partial">DATA: MANUAL</span><span class="runtime-badge ok">ALERTS: LOCAL</span><span class="runtime-badge ok">HARDWARE: ADAPTER</span><span class="runtime-badge ok">SECRETS: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="clock" type="button">Clock</button><button class="tool-tab mode-tab" data-mode="mempool" type="button">Mempool</button><button class="tool-tab mode-tab" data-mode="fees" type="button">Fees</button><button class="tool-tab mode-tab" data-mode="alerts" type="button">Alerts</button><button class="tool-tab mode-tab" data-mode="source" type="button">Data Source</button><button class="tool-tab mode-tab" data-mode="hardware" type="button">Hardware</button>
+</div><div class="z-sidebar-note"><strong>PUBLIC NETWORK DATA</strong><p>The default live mode reads public mempool.space-compatible endpoints. Manual mode and custom providers are available for self-hosted deployments.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-clock" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">BLOCK HEIGHT / EPOCH CLOCK</p><h2>Clock</h2></div><div class="tool-card">
+<div class="z-metrics"><div><span>Block height</span><strong id="cl-height">—</strong></div><div><span>Epoch</span><strong id="cl-epoch">—</strong></div><div><span>Epoch progress</span><strong id="cl-progress">—</strong></div><div><span>Subsidy</span><strong id="cl-subsidy">—</strong></div></div>
+<canvas id="cl-canvas" class="z-canvas" width="1200" height="280"></canvas><pre id="cl-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-mempool" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MEMPOOL ACTIVITY</p><h2>Mempool</h2></div><div class="tool-card"><div class="z-metrics"><div><span>Transactions</span><strong id="mp-count">—</strong></div><div><span>Virtual size</span><strong id="mp-vsize">—</strong></div><div><span>Total fees BTC</span><strong id="mp-fees">—</strong></div><div><span>Last update</span><strong id="mp-updated">—</strong></div></div><canvas id="mp-canvas" class="z-canvas" width="1200" height="300"></canvas></div></div>
+
+<div id="mode-fees" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">FEE RATES</p><h2>Fees</h2></div><div class="tool-card"><div class="z-metrics"><div><span>Fastest</span><strong id="fe-fast">—</strong></div><div><span>30 min</span><strong id="fe-half">—</strong></div><div><span>1 hour</span><strong id="fe-hour">—</strong></div><div><span>Economy</span><strong id="fe-econ">—</strong></div></div><canvas id="fe-canvas" class="z-canvas" width="1200" height="300"></canvas></div></div>
+
+<div id="mode-alerts" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL THRESHOLD ALERTS</p><h2>Alerts</h2></div><div class="tool-card"><div class="z-grid-3"><label>Alert when fastest fee ≥ sat/vB<input id="al-fee" type="number" min="0" value="50"></label><label>Alert when mempool count ≥<input id="al-mempool" type="number" min="0" value="200000"></label><label>Alert on new block<select id="al-block"><option value="yes">yes</option><option value="no">no</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="al-permission" class="btn ghost">REQUEST NOTIFICATION PERMISSION</button><button id="al-test" class="btn">TEST ALERT EVALUATION</button></div><pre id="al-output" class="z-log"></pre></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIVE / MANUAL INPUT</p><h2>Data Source</h2></div><div class="tool-card"><div class="z-grid-3"><label>Base API URL<input id="ds-url" value="https://mempool.space/api"></label><label>Polling seconds<input id="ds-sec" type="number" min="2" value="10"></label><label>Mode<select id="ds-mode"><option value="live">Live public API</option><option value="manual">Manual</option></select></label></div>
+<div class="z-grid-3" style="margin-top:.7rem"><label>Manual height<input id="dm-height" type="number" value="910000"></label><label>Manual mempool TXs<input id="dm-count" type="number" value="50000"></label><label>Manual vsize<input id="dm-vsize" type="number" value="120000000"></label><label>Manual fee total BTC<input id="dm-fee-total" type="number" step=".00000001" value="1.25"></label><label>Manual fastest fee<input id="dm-fast" type="number" value="5"></label><label>Manual hour fee<input id="dm-hour" type="number" value="2"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="ds-fetch" class="btn">FETCH / APPLY NOW</button><button id="ds-auto" class="btn ghost">AUTO: OFF</button></div><pre id="ds-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-hardware" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">HARDWARE DISPLAY INTEGRATION</p><h2>Hardware</h2></div><div class="tool-card"><p>Register a trusted page-side adapter to mirror sanitized metrics to a local display bridge, serial layer, or other hardware integration.</p><pre class="z-log">BlockClock.registerHardwareAdapter(async metrics =&gt; {
+  // Example: hand metrics to your trusted local bridge.
+  return { displayed: true };
+});</pre><div class="button-row" style="justify-content:flex-start"><button id="hw-send" class="btn">SEND CURRENT METRICS TO ADAPTER</button></div><pre id="hw-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BlockClock</h2><p>Real-time Bitcoin block, mempool and fee monitoring with hardware integration support.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native dependency</dt><dd>Python · Requests</dd></div></dl></article><article class="panel"><p class="kicker">HARDWARE</p><h2>Adapter boundary</h2><p>The static page exposes sanitized metrics to a registered adapter rather than assuming a specific serial/display device or browser permission model.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
