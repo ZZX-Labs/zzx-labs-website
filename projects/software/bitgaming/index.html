@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Developer-oriented Bitcoin gaming layer for provable odds, verifiable randomness, Lightning micropayment-provider hooks, local leaderboards, and embeddable BTC-native game mechanics.">
+  <title>BitGaming · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitgaming-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitgaming-1">
+  <script src="./hook.js?v=20260824-bitgaming-1" defer></script>
+  <script src="./script.js?v=20260824-bitgaming-1" defer></script>
+  <script src="./bitgaming-core.js?v=20260824-bitgaming-1" defer></script>
+  <script src="./bitgaming.js?v=20260824-bitgaming-1" defer></script>
+</head>
+
+<body class="project project-bitgaming">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitGaming logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitGaming</h1>
+    <p class="blurb">Developer-oriented Bitcoin gaming layer for provable odds, verifiable randomness, Lightning micropayment-provider hooks, local leaderboards, and embeddable BTC-native game mechanics.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitgaming" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN GAMING SDK</p><h2>BitGaming Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">ODDS: LOCAL</span><span class="runtime-badge ok">RNG: WEB CRYPTO</span><span class="runtime-badge ok">LN: PROVIDER HOOK</span><span class="runtime-badge ok">SDK: EMBEDDABLE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="odds" type="button">Odds</button><button class="tool-tab mode-tab" data-mode="rng" type="button">Randomness</button><button class="tool-tab mode-tab" data-mode="payments" type="button">Micropayments</button><button class="tool-tab mode-tab" data-mode="leaderboard" type="button">Leaderboard</button><button class="tool-tab mode-tab" data-mode="sdk" type="button">SDK</button>
+</div><div class="z-sidebar-note"><strong>INDIE-DEVELOPER LAYER</strong><p>The browser API is deliberately wallet-agnostic. Games can consume signed/sanitized payment events from an external provider without embedding wallet secrets.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-odds" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">PROVABLE ODDS</p><h2>Odds</h2></div><div class="tool-card"><div class="z-grid-3"><label>Winning outcomes<input id="go-win" type="number" min="1" value="1"></label><label>Total outcomes<input id="go-total" type="number" min="2" value="100"></label><label>House/platform edge %<input id="go-edge" type="number" min="0" max="50" step=".01" value="1"></label></div><div class="button-row" style="justify-content:flex-start"><button id="go-run" class="btn">CALCULATE</button></div><pre id="go-output" class="z-log"></pre></div></div>
+
+<div id="mode-rng" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">VERIFIABLE RANDOMNESS</p><h2>Randomness</h2></div><div class="tool-card"><div class="z-grid-3"><label>Server seed<input id="gr-server"></label><label>Client seed<input id="gr-client" value="client-001"></label><label>Range max<input id="gr-max" type="number" min="2" value="100"></label></div><div class="button-row" style="justify-content:flex-start"><button id="gr-new" class="btn ghost">NEW SEED</button><button id="gr-run" class="btn">DRAW + PROOF</button></div><pre id="gr-output" class="z-log"></pre></div></div>
+
+<div id="mode-payments" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIGHTNING MICROPAYMENTS</p><h2>Micropayments</h2></div><div class="tool-card"><div class="z-grid-3"><label>Player ID<input id="gp-player" value="player-001"></label><label>Amount sats<input id="gp-sats" type="number" min="1" value="21"></label><label>Reason<input id="gp-reason" value="unlock"></label></div><div class="button-row" style="justify-content:flex-start"><button id="gp-event" class="btn">APPLY SANITIZED PAYMENT EVENT</button><button id="gp-provider" class="btn ghost">POLL REGISTERED PROVIDER</button></div><pre id="gp-output" class="z-log"></pre></div></div>
+
+<div id="mode-leaderboard" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL LEADERBOARD</p><h2>Leaderboard</h2></div><div class="tool-card"><div class="z-grid-2"><label>Player<input id="gl-player" value="player-001"></label><label>Score<input id="gl-score" type="number" value="1000"></label></div><div class="button-row" style="justify-content:flex-start"><button id="gl-add" class="btn">SUBMIT SCORE</button><button id="gl-clear" class="btn ghost">CLEAR</button></div><div class="z-table-wrap"><table class="z-table"><thead><tr><th>Rank</th><th>Player</th><th>Score</th><th>LN sats events</th></tr></thead><tbody id="gl-body"></tbody></table></div></div></div>
+
+<div id="mode-sdk" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">EMBEDDABLE API</p><h2>SDK</h2></div><div class="tool-card"><pre class="z-log">const proof = await BitGaming.draw({
+  serverSeed: "...",
+  clientSeed: "player-001",
+  max: 100
+});
+
+BitGaming.registerPaymentProvider(async () =&gt; [
+  { id: "evt-1", player: "p1", amountSats: 21, reason: "unlock" }
+]);
+
+BitGaming.submitScore("p1", 1200);</pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitGaming</h2><p>Bitcoin-native game mechanics and developer SDK.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Android</dd></div><div><dt>Native</dt><dd>PyQt5 · Requests · NumPy · Flask</dd></div><div><dt>Web</dt><dd>Web Crypto · localStorage</dd></div></dl></article><article class="panel"><p class="kicker">EMBEDDING</p><h2>Wallet-agnostic mechanics</h2><p>Games consume odds, proof objects, score APIs, and sanitized LN events while custody stays in an external wallet/service layer.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
