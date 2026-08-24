@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Screen-time and eye-strain interruption system designed to enforce breaks, log compliance, and quantify fatigue patterns over time in a privacy-first offline workflow."><title>EyeBreaker · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./hook.css">
+<script src="./hook.js" defer></script><script src="./script.js" defer></script><script src="./eyebreaker.js?v=20260824-eyebreaker-1" defer></script></head><body class="project project-eyebreaker"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="EyeBreaker logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE</p><h1>EyeBreaker</h1><p class="blurb">Screen-time and eye-strain interruption system designed to enforce breaks, log compliance, and quantify fatigue patterns over time in a privacy-first offline workflow.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/eyebreaker" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">SCREEN TIME // BREAK ENFORCEMENT</p><h2>EyeBreaker Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">OFFLINE</span><span class="runtime-badge ok">BREAK TIMER</span><span class="runtime-badge ok">COMPLIANCE LOG</span><span class="runtime-badge ok">FATIGUE ANALYTICS</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>EyeBreaker</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="timer">Timer</button>
+<button class="tool-tab mode-tab" data-mode="break">Break</button>
+<button class="tool-tab mode-tab" data-mode="fatigue">Fatigue</button>
+<button class="tool-tab mode-tab" data-mode="logs">Logs</button>
+<button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div><div class="z-sidebar-note"><strong>PRIVACY-FIRST</strong><p>All browser-session data stays local in memory unless you explicitly export it.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-timer" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3"><label>Work minutes<input id="work-minutes" type="number" min="1" max="240" value="20"></label><label>Break seconds<input id="break-seconds" type="number" min="10" max="1800" value="20"></label><label>Long break every N cycles<input id="long-every" type="number" min="1" max="12" value="4"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="start" class="btn">START WORK TIMER</button><button id="pause" class="btn ghost">PAUSE</button><button id="reset" class="btn ghost">RESET</button></div>
+<div class="z-metrics"><div><span>State</span><strong id="state">READY</strong></div><div><span>Remaining</span><strong id="remaining">20:00</strong></div><div><span>Completed cycles</span><strong id="cycles">0</strong></div></div>
+<label><input id="notify" type="checkbox"> Browser notification when a break is due</label>
+</div></div>
+
+<div id="mode-break" class="z-mode-panel mode-panel"><div class="tool-card">
+<div id="break-banner" style="padding:28px;border:1px solid var(--zzx-green);border-radius:8px;text-align:center"><h2 id="break-title">Break not active</h2><p id="break-instruction">When the timer expires, look away from the screen and relax your focus.</p><strong id="break-remaining">—</strong></div>
+<div class="button-row" style="justify-content:flex-start"><button id="begin-break" class="btn">BEGIN BREAK NOW</button><button id="complete-break" class="btn ghost">MARK COMPLETE</button><button id="skip-break" class="btn ghost">SKIP / INTERRUPT</button></div>
+</div></div>
+
+<div id="mode-fatigue" class="z-mode-panel mode-panel"><div class="tool-card">
+<p>Optional subjective check-in. This is not a medical diagnosis.</p>
+<div class="z-grid-3"><label>Eye discomfort 0–10<input id="eye-fatigue" type="number" min="0" max="10" value="2"></label><label>Headache 0–10<input id="headache" type="number" min="0" max="10" value="0"></label><label>Focus fatigue 0–10<input id="focus-fatigue" type="number" min="0" max="10" value="2"></label></div>
+<label>Note<textarea id="fatigue-note" rows="4"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="record-fatigue" class="btn">RECORD CHECK-IN</button></div>
+<div class="z-metrics"><div><span>Mean eye fatigue</span><strong id="mean-eye">—</strong></div><div><span>Mean focus fatigue</span><strong id="mean-focus">—</strong></div><div><span>Check-ins</span><strong id="checkins">0</strong></div></div><canvas id="fatigue-chart" class="z-canvas" width="1000" height="340"></canvas>
+</div></div>
+
+<div id="mode-logs" class="z-mode-panel mode-panel"><div class="tool-card"><div id="log-list" class="z-list"></div></div></div>
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn">EXPORT JSON</button><button id="export-csv" class="btn ghost">EXPORT CSV</button></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">VERSION</p><h2>1.0.0</h2><p>Linux · Windows · macOS</p></article><article class="panel"><p class="kicker">BOUNDARY</p><h2>Wellness timer, not diagnosis</h2><p>Fatigue scores are subjective self-reports intended for personal trend tracking.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
