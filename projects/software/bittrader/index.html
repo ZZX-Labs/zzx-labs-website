@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Algorithmic Bitcoin trading research platform for market-data import, condition analysis, strategy simulation, backtesting, performance metrics, and controlled public live-feed experimentation without order execution.">
+  <title>BitTrader · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bittrader-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bittrader-1">
+  <script src="./hook.js?v=20260824-bittrader-1" defer></script>
+  <script src="./script.js?v=20260824-bittrader-1" defer></script>
+  <script src="./bittrader-core.js?v=20260824-bittrader-1" defer></script>
+  <script src="./bittrader.js?v=20260824-bittrader-1" defer></script>
+</head>
+
+<body class="project project-bittrader">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitTrader logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitTrader</h1>
+    <p class="blurb">Algorithmic Bitcoin trading research platform for market-data import, condition analysis, strategy simulation, backtesting, performance metrics, and controlled public live-feed experimentation without order execution.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bittrader" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN TRADING RESEARCH</p><h2>BitTrader Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">BACKTEST: LOCAL</span><span class="runtime-badge ok">ORDERS: DISABLED</span><span id="tr-live" class="runtime-badge partial">LIVE FEED: IDLE</span><span class="runtime-badge ok">DATA: CSV / SAMPLE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="data" type="button">Market Data</button>
+<button class="tool-tab mode-tab" data-mode="strategy" type="button">Strategy</button>
+<button class="tool-tab mode-tab" data-mode="backtest" type="button">Backtest</button>
+<button class="tool-tab mode-tab" data-mode="analysis" type="button">Analysis</button>
+<button class="tool-tab mode-tab" data-mode="live" type="button">Live Feed</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>RESEARCH ONLY</strong><p>This browser edition does not connect to exchange trading accounts and cannot place orders. Live-feed mode is market-data observation only.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-data" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">OHLCV INPUT</p><h2>Market Data</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">IMPORT CSV<input id="td-file" type="file" accept=".csv,text/csv"></label><button id="td-sample" class="btn ghost" type="button">GENERATE SAMPLE</button><button id="td-clear" class="btn ghost" type="button">CLEAR</button></div>
+<div class="z-metrics"><div><span>Rows</span><strong id="td-rows">0</strong></div><div><span>First close</span><strong id="td-first">—</strong></div><div><span>Last close</span><strong id="td-last">—</strong></div><div><span>Range</span><strong id="td-range">—</strong></div></div><canvas id="td-canvas" class="z-canvas" width="1200" height="340"></canvas>
+</div></div>
+
+<div id="mode-strategy" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">STRATEGY CONFIGURATION</p><h2>Strategy</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Strategy<select id="ts-kind"><option value="sma">SMA crossover</option><option value="rsi">RSI mean reversion</option><option value="buyhold">Buy & hold</option></select></label><label>Fast / RSI period<input id="ts-fast" type="number" min="2" value="10"></label><label>Slow period<input id="ts-slow" type="number" min="3" value="30"></label><label>Initial capital USD<input id="ts-capital" type="number" min="1" value="10000"></label><label>Trading fee bps<input id="ts-fee" type="number" min="0" value="10"></label><label>Position size %<input id="ts-size" type="number" min="1" max="100" value="100"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="ts-preview" class="btn" type="button">PREVIEW SIGNALS</button></div><pre id="ts-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-backtest" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SIMULATION</p><h2>Backtest</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="tb-run" class="btn" type="button">RUN BACKTEST</button></div>
+<div class="z-metrics"><div><span>Final equity</span><strong id="tb-equity">—</strong></div><div><span>Return</span><strong id="tb-return">—</strong></div><div><span>Max drawdown</span><strong id="tb-dd">—</strong></div><div><span>Trades</span><strong id="tb-trades">—</strong></div></div><canvas id="tb-canvas" class="z-canvas" width="1200" height="340"></canvas><pre id="tb-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-analysis" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MARKET CONDITIONS</p><h2>Analysis</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ta-run" class="btn" type="button">ANALYZE</button></div><pre id="ta-output" class="z-log"></pre></div></div>
+
+<div id="mode-live" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CONTROLLED LIVE-FEED EXPERIMENT</p><h2>Live Feed</h2><p>Observe public BTC/USD data without credentials or order placement.</p></div><div class="tool-card"><label>Public ticker URL<input id="tl-url" type="url" value="https://api.kraken.com/0/public/Ticker?pair=XBTUSD"></label><div class="button-row" style="justify-content:flex-start"><button id="tl-fetch" class="btn" type="button">FETCH ONCE</button><button id="tl-auto" class="btn ghost" type="button">AUTO: OFF</button></div><pre id="tl-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">RESEARCH RECORD</p><h2>Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="te-json" class="btn" type="button">EXPORT BACKTEST JSON</button><button id="te-csv" class="btn ghost" type="button">EXPORT EQUITY CSV</button></div></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitTrader</h2><p>Algorithmic Bitcoin trading research, simulation, and backtesting.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.8.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · NumPy · Pandas</dd></div><div><dt>Web</dt><dd>CSV · Canvas · public ticker fetch</dd></div></dl></article><article class="panel"><p class="kicker">EXECUTION BOUNDARY</p><h2>No live trading</h2><p>Exchange-account authentication and order execution are intentionally absent from the static research page.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
