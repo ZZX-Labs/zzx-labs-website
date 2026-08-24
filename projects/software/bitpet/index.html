@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin-integrated virtual pet ecosystem with evolving stats, training interactions, blockchain-linked identity metadata, optional Lightning event hooks, collectible traits, and local progression.">
+  <title>BitPet · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260823-bitpet-1">
+  <link rel="stylesheet" href="./hook.css?v=20260823-bitpet-1">
+  <script src="./hook.js?v=20260823-bitpet-1" defer></script>
+  <script src="./script.js?v=20260823-bitpet-1" defer></script>
+  <script src="./bitpet-core.js?v=20260823-bitpet-1" defer></script>
+  <script src="./bitpet.js?v=20260823-bitpet-1" defer></script>
+</head>
+
+<body class="project project-bitpet">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitPet logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitPet</h1>
+    <p class="blurb">Bitcoin-integrated virtual pet ecosystem with evolving stats, training interactions, blockchain-linked identity metadata, optional Lightning event hooks, collectible traits, and local progression.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitpet" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN-LINKED VIRTUAL PET</p><h2>BitPet Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">PET STATE: LOCAL</span><span class="runtime-badge ok">LIGHTNING: EVENT HOOK</span><span class="runtime-badge ok">BLOCKCHAIN: METADATA</span><span class="runtime-badge ok">WALLET KEYS: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="pet" type="button">Pet</button>
+<button class="tool-tab mode-tab" data-mode="train" type="button">Train</button>
+<button class="tool-tab mode-tab" data-mode="traits" type="button">Traits</button>
+<button class="tool-tab mode-tab" data-mode="lightning" type="button">Lightning Events</button>
+<button class="tool-tab mode-tab" data-mode="history" type="button">History</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Import / Export</button>
+</div><div class="z-sidebar-note"><strong>NON-CUSTODIAL GAME STATE</strong><p>Lightning/wallet integrations are represented as explicit event-provider hooks. This page does not store seeds, private keys, or macaroon credentials.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-pet" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">PET STATE</p><h2>Pet</h2><p>Create and evolve a local BitPet profile.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Name<input id="bp-name" type="text" value="Satoshi"></label><label>Species<select id="bp-species"><option>Bytecat</option><option>Hashhound</option><option>Blockfox</option><option>Satdragon</option></select></label><label>Blockchain ID / reference<input id="bp-chainref" type="text" placeholder="txid, inscription ref, or custom ID"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bp-create" class="btn" type="button">CREATE / RESET PET</button><button id="bp-tick" class="btn ghost" type="button">ADVANCE TIME</button></div>
+<div class="z-metrics"><div><span>Level</span><strong id="bp-level">—</strong></div><div><span>XP</span><strong id="bp-xp">—</strong></div><div><span>Energy</span><strong id="bp-energy">—</strong></div><div><span>Mood</span><strong id="bp-mood">—</strong></div></div><pre id="bp-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-train" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">INTERACTIONS</p><h2>Train</h2><p>Run deterministic local activities that affect XP, energy, happiness, and discipline.</p></div><div class="tool-card"><div class="z-card-grid"><article class="z-card"><h3>Train</h3><p>Spend energy to increase XP and discipline.</p><button class="btn" data-action="train" type="button">TRAIN</button></article><article class="z-card"><h3>Play</h3><p>Increase happiness at modest energy cost.</p><button class="btn" data-action="play" type="button">PLAY</button></article><article class="z-card"><h3>Rest</h3><p>Recover energy.</p><button class="btn" data-action="rest" type="button">REST</button></article></div><pre id="train-output" class="z-log"></pre></div></div>
+
+<div id="mode-traits" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">COLLECTIBLE ATTRIBUTES</p><h2>Traits</h2><p>Generate deterministic traits from the pet's identity seed and blockchain reference.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="traits-generate" class="btn" type="button">GENERATE TRAITS</button></div><div id="traits-list" class="z-list"></div></div></div>
+
+<div id="mode-lightning" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MICROPAYMENT EVENT HOOK</p><h2>Lightning Events</h2><p>Simulate or register sanitized Lightning-payment events that influence pet progression.</p></div><div class="tool-card"><div class="z-grid-3"><label>Amount sats<input id="ln-sats" type="number" min="1" value="21"></label><label>Memo<input id="ln-memo" type="text" value="treat"></label><label>Event type<select id="ln-type"><option value="treat">Treat</option><option value="training">Training boost</option><option value="collectible">Collectible unlock</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="ln-apply" class="btn" type="button">APPLY SANITIZED EVENT</button></div><pre id="ln-output" class="z-log"></pre><div class="z-note">Provider contract: <code>BitPet.registerLightningProvider(async () =&gt; [{{id,amountSats,memo,type}}])</code>. Keep LND macaroons and wallet credentials outside the browser.</div></div></div>
+
+<div id="mode-history" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PROGRESSION LOG</p><h2>History</h2><p>Inspect local pet-state changes and Lightning influence events.</p></div><div class="tool-card"><pre id="history-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTABLE PET</p><h2>Import / Export</h2><p>Save pet state as JSON without wallet secrets.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bp-export" class="btn" type="button">EXPORT PET JSON</button><label class="file-button">IMPORT PET<input id="bp-import" type="file" accept=".json,application/json"></label></div><pre id="export-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitPet</h2><p>Bitcoin-linked virtual-pet progression with training, collectible traits, blockchain identity metadata, and Lightning event hooks.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · SQLAlchemy · SQLite · Pillow · FFmpeg</dd></div><div><dt>Web</dt><dd>JavaScript · localStorage · Web Crypto</dd></div></dl></article><article class="panel"><p class="kicker">BITCOIN BOUNDARY</p><h2>Linked, not custodial</h2><p>Blockchain and Lightning inputs alter game state through metadata/events. The browser never becomes a Bitcoin wallet.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
