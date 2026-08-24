@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="CSS theme and styling system for CyberChefKit interfaces, with live design-token editing, component previews, theme presets, contrast checks, variable import/export, and deployable standalone CSS generation.">
+<title>CyberChefCSS · CyberChefKit · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-cyberchefcss-1"><link rel="stylesheet" href="./hook.css?v=20260824-cyberchefcss-1">
+<script src="./hook.js?v=20260824-cyberchefcss-1" defer></script><script src="./script.js?v=20260824-cyberchefcss-1" defer></script>
+<script src="./chef-core.js?v=20260824-cyberchefcss-1" defer></script><script src="./cyberchefcss.js?v=20260824-cyberchefcss-1" defer></script>
+</head><body class="project project-cyberchefcss"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="CyberChefCSS logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // CYBERCHEFKIT</p><h1>CyberChefCSS</h1><p class="blurb">CSS theme and styling system for CyberChefKit interfaces, with live design-token editing, component previews, theme presets, contrast checks, variable import/export, and deployable standalone CSS generation.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/cyberchefcss" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/cyberchefkit/">CYBERCHEFKIT</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">CSS // UI THEMES</p><h2>CyberChefCSS Theme Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">TOKENS: LIVE</span><span class="runtime-badge ok">PREVIEW: LOCAL</span><span class="runtime-badge ok">CONTRAST CHECK</span><span class="runtime-badge ok">CSS EXPORT</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="theme">Theme Editor</button><button class="tool-tab mode-tab" data-mode="preview">Component Preview</button><button class="tool-tab mode-tab" data-mode="contrast">Contrast</button><button class="tool-tab mode-tab" data-mode="import">Import / Export</button>
+</div></aside><section class="tool-workspace">
+<div id="mode-theme" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3">
+<label>Background<input id="bg" type="color" value="#121212"></label><label>Surface<input id="surface" type="color" value="#181818"></label><label>Surface 2<input id="surface2" type="color" value="#202020"></label>
+<label>Text<input id="text" type="color" value="#e8e8e8"></label><label>Muted<input id="muted" type="color" value="#969696"></label><label>Primary<input id="primary" type="color" value="#c0d674"></label>
+<label>Accent<input id="accent" type="color" value="#e6a42b"></label><label>Danger<input id="danger" type="color" value="#e06c75"></label><label>Border<input id="line" type="color" value="#343434"></label>
+<label>Radius px<input id="radius" type="number" min="0" max="32" value="8"></label><label>Base spacing px<input id="space" type="number" min="2" max="24" value="8"></label><label>Font size px<input id="font-size" type="number" min="10" max="24" value="14"></label>
+</div>
+<div class="button-row" style="justify-content:flex-start"><button id="apply" class="btn">APPLY TOKENS</button><button class="btn ghost preset" data-preset="zzx">ZZX</button><button class="btn ghost preset" data-preset="terminal">TERMINAL</button><button class="btn ghost preset" data-preset="paper">PAPER</button></div>
+<pre id="theme-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-preview" class="z-mode-panel mode-panel"><div class="tool-card">
+<div id="preview-shell" style="padding:24px;border:1px solid var(--zzx-line);border-radius:8px">
+<h3>CyberChefKit Component Preview</h3><p>A live sample of cards, controls, code, status, and data output.</p>
+<div class="button-row" style="justify-content:flex-start"><button class="btn">PRIMARY ACTION</button><button class="btn alt">SECONDARY</button><button class="btn ghost">GHOST</button></div>
+<div class="grid grid-2"><article class="panel"><p class="kicker">INPUT</p><label>Sample field<input value="example payload"></label><pre class="z-log">7b 22 73 74 61 74 75 73 22 3a 22 6f 6b 22 7d</pre></article><article class="panel"><p class="kicker">OUTPUT</p><div class="chips"><span>BASE64</span><span>SHA-256</span><span>LOCAL</span></div><p>Theme variables apply instantly to this preview region.</p></article></div>
+</div></div></div>
+
+<div id="mode-contrast" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-2"><label>Foreground<input id="fg-check" type="color" value="#e8e8e8"></label><label>Background<input id="bg-check" type="color" value="#121212"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="check" class="btn">CHECK WCAG CONTRAST</button></div><div class="z-metrics"><div><span>Ratio</span><strong id="ratio">—</strong></div><div><span>AA normal</span><strong id="aa">—</strong></div><div><span>AAA normal</span><strong id="aaa">—</strong></div></div><pre id="contrast-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-import" class="z-mode-panel mode-panel"><div class="tool-card">
+<label>CSS variable block<textarea id="css-text" rows="18"></textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="export-css" class="btn">BUILD CSS</button><button id="download-css" class="btn ghost">DOWNLOAD .CSS</button><button id="import-css" class="btn ghost">IMPORT VARIABLES</button></div>
+<pre id="import-output" class="z-log"></pre>
+</div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>CyberChefCSS</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>CLA Apache</dd></div><div><dt>Platform</dt><dd>Web</dd></div><div><dt>Dependencies</dt><dd>None</dd></div></dl></article><article class="panel"><p class="kicker">OUTPUT</p><h2>Auditable theme CSS</h2><p>Exports plain CSS custom properties and component rules with no framework dependency.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
