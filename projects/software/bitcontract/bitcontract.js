@@ -1,0 +1,14 @@
+(() => {
+  "use strict";
+  const $=id=>document.getElementById(id),state={multisig:null,timelock:null,htlc:null,dlc:null};
+  function buildMultisig(){const keys=$("mc-keys").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);state.multisig={m:+$("mc-m").value,n:+$("mc-n").value,wrap:$("mc-wrap").value,keys,descriptor:BitContractCore.multisig($("mc-m").value,$("mc-n").value,keys,$("mc-wrap").value)};$("mc-output").textContent=JSON.stringify(state.multisig,null,2);}
+  function buildTimelock(){state.timelock={type:$("tl-type").value,value:+$("tl-value").value,key:$("tl-key").value.trim(),script:BitContractCore.timelock($("tl-type").value,$("tl-value").value,$("tl-key").value.trim())};$("tl-output").textContent=JSON.stringify(state.timelock,null,2);}
+  function buildHtlc(){state.htlc={sha256:$("ht-hash").value.trim(),receiver:$("ht-recv").value.trim(),refund:$("ht-refund").value.trim(),refundHeight:+$("ht-height").value,script:BitContractCore.htlc($("ht-hash").value,$("ht-recv").value,$("ht-refund").value,$("ht-height").value)};$("ht-output").textContent=JSON.stringify(state.htlc,null,2);}
+  function buildDlc(){state.dlc={eventId:$("dlc-event").value.trim(),oraclePubkey:$("dlc-oracle").value.trim(),maturityUnix:+$("dlc-time").value,payouts:JSON.parse($("dlc-payouts").value)};$("dlc-output").textContent=JSON.stringify(state.dlc,null,2);}
+  function snapshot(){return{schema:"zzx.bitcontract.bundle.v1",generatedAt:new Date().toISOString(),...state};}
+  function runTests(){try{if(!state.multisig)buildMultisig();if(!state.timelock)buildTimelock();if(!state.dlc)buildDlc();$("ct-output").textContent=JSON.stringify(BitContractCore.tests(state),null,2);}catch(e){$("ct-output").textContent=`ERROR: ${e.message}`;}}
+  function dl(){const txt=JSON.stringify(snapshot(),null,2),b=new Blob([txt],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`bitcontract-${Date.now()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);$("ct-export-output").textContent=txt;}
+  $("mc-build").addEventListener("click",()=>{try{buildMultisig();}catch(e){$("mc-output").textContent=`ERROR: ${e.message}`;}});$("tl-build").addEventListener("click",()=>{try{buildTimelock();}catch(e){$("tl-output").textContent=`ERROR: ${e.message}`;}});$("ht-build").addEventListener("click",()=>{try{buildHtlc();}catch(e){$("ht-output").textContent=`ERROR: ${e.message}`;}});$("dlc-build").addEventListener("click",()=>{try{buildDlc();}catch(e){$("dlc-output").textContent=`ERROR: ${e.message}`;}});$("ct-tests").addEventListener("click",runTests);$("ct-export").addEventListener("click",dl);buildMultisig();buildTimelock();buildHtlc();buildDlc();
+  window.BitContract=Object.freeze({version:"0.1.0-alpha-web",snapshot,multisig:BitContractCore.multisig,timelock:BitContractCore.timelock,htlc:BitContractCore.htlc,tests:BitContractCore.tests});
+  window.ZZXHooks?.emit("bitcontract:ready",{version:"0.1.0-alpha-web"});
+})();
