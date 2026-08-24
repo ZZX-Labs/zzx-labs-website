@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Cannabinoid content and formulation calculator for estimating active potency, serving concentration, terpene ratios, and extraction recovery from user-supplied lab or cultivation values.">
+  <title>BHOPAL Calc · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-bhopal-calc-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-bhopal-calc-1">
+  <script src="./hook.js?v=20260822-bhopal-calc-1" defer></script>
+  <script src="./script.js?v=20260822-bhopal-calc-1" defer></script>
+  <script src="./chemistry.js?v=20260822-bhopal-calc-1" defer></script>
+  <script src="./bhopal-calc.js?v=20260822-bhopal-calc-1" defer></script>
+</head>
+
+<body class="project project-bhopal-calc">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BHOPAL Calc logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BHOPAL Calc</h1>
+    <p class="blurb">Cannabinoid content and formulation calculator for estimating active potency, serving concentration, terpene ratios, and extraction recovery from user-supplied lab or cultivation values.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bhopal-calc" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+
+<section id="demo" class="demo-section">
+  <div class="container section demo-container">
+    <div class="section-head">
+      <div><p class="kicker">CANNABINOID / TERPENE / EXTRACTION CALCULATOR</p><h2>BHOPAL Calc Browser Workbench</h2></div>
+      <div class="runtime-status">
+        <span class="runtime-badge ok">MATH: LOCAL</span>
+        <span class="runtime-badge ok">LAB VALUES: USER SUPPLIED</span>
+        <span class="runtime-badge ok">FILES: NONE</span>
+        <span class="runtime-badge ok">NETWORK: NONE</span>
+      </div>
+    </div>
+
+    <div class="workbench">
+      <aside class="tool-list-wrap">
+        <h3>Capabilities</h3>
+        <div class="tool-list" role="tablist">
+          <button class="tool-tab mode-tab active" data-mode="potency" type="button">Potency</button>
+          <button class="tool-tab mode-tab" data-mode="servings" type="button">Serving Estimate</button>
+          <button class="tool-tab mode-tab" data-mode="extraction" type="button">Extraction Yield</button>
+          <button class="tool-tab mode-tab" data-mode="terpenes" type="button">Terpene Ratios</button>
+          <button class="tool-tab mode-tab" data-mode="compare" type="button">Batch Compare</button>
+          <button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+        </div>
+        <div class="z-sidebar-note">
+          <strong>EDUCATIONAL CALCULATOR</strong>
+          <p>Outputs are arithmetic estimates from user-entered values, not medical advice or a substitute for verified laboratory analysis.</p>
+        </div>
+      </aside>
+
+      <section class="tool-workspace">
+        <div id="mode-potency" class="z-mode-panel mode-panel active">
+          <div class="z-mode-heading"><p class="kicker">DECARBOXYLATION-AWARE POTENCY</p><h2>Potency</h2><p>Estimate potential active THC/CBD mass from acidic and neutral cannabinoid lab percentages.</p></div>
+          <div class="tool-card">
+            <div class="z-grid-3">
+              <label>Material mass g<input id="pot-mass" type="number" min="0" step="0.01" value="10"></label>
+              <label>THCA %<input id="pot-thca" type="number" min="0" max="100" step="0.01" value="20"></label>
+              <label>THC %<input id="pot-thc" type="number" min="0" max="100" step="0.01" value="1"></label>
+              <label>CBDA %<input id="pot-cbda" type="number" min="0" max="100" step="0.01" value="0.5"></label>
+              <label>CBD %<input id="pot-cbd" type="number" min="0" max="100" step="0.01" value="0.2"></label>
+              <label>Process recovery %<input id="pot-recovery" type="number" min="0" max="100" step="0.1" value="85"></label>
+            </div>
+
+            <div class="button-row" style="justify-content:flex-start"><button id="pot-calc" class="btn" type="button">CALCULATE</button></div>
+
+            <div class="z-metrics">
+              <div><span>Potential THC</span><strong id="pot-thc-mg">—</strong></div>
+              <div><span>Recovered THC</span><strong id="pot-thc-rec">—</strong></div>
+              <div><span>Potential CBD</span><strong id="pot-cbd-mg">—</strong></div>
+              <div><span>Recovered CBD</span><strong id="pot-cbd-rec">—</strong></div>
+            </div>
+            <pre id="pot-output" class="z-log"></pre>
+          </div>
+        </div>
+
+        <div id="mode-servings" class="z-mode-panel mode-panel">
+          <div class="z-mode-heading"><p class="kicker">CONCENTRATION / PORTION MATH</p><h2>Serving Estimate</h2><p>Divide a known or estimated batch cannabinoid total across a defined number of portions.</p></div>
+          <div class="tool-card">
+            <div class="z-grid-3">
+              <label>Total THC mg<input id="serve-thc" type="number" min="0" step="0.1" value="100"></label>
+              <label>Total CBD mg<input id="serve-cbd" type="number" min="0" step="0.1" value="0"></label>
+              <label>Number of portions<input id="serve-count" type="number" min="1" step="1" value="20"></label>
+            </div>
+            <div class="button-row" style="justify-content:flex-start"><button id="serve-calc" class="btn" type="button">CALCULATE PORTIONS</button></div>
+            <div class="z-metrics">
+              <div><span>THC / portion</span><strong id="serve-thc-each">—</strong></div>
+              <div><span>CBD / portion</span><strong id="serve-cbd-each">—</strong></div>
+              <div><span>Portions</span><strong id="serve-count-out">—</strong></div>
+              <div><span>Math basis</span><strong>batch ÷ portions</strong></div>
+            </div>
+            <div id="serve-note" class="z-note">Individual response varies substantially. Use verified labeling/lab data where dosing accuracy matters; do not treat this calculator as medical guidance.</div>
+          </div>
+        </div>
+
+        <div id="mode-extraction" class="z-mode-panel mode-panel">
+          <div class="z-mode-heading"><p class="kicker">MASS-BALANCE ESTIMATE</p><h2>Extraction Yield</h2><p>Estimate recoverable extract mass and cannabinoid content from material mass, total analyte percentage, extraction efficiency, and post-process recovery.</p></div>
+          <div class="tool-card">
+            <div class="z-grid-3">
+              <label>Input material g<input id="ext-mass" type="number" min="0" step="0.01" value="100"></label>
+              <label>Total target compounds %<input id="ext-target" type="number" min="0" max="100" step="0.01" value="20"></label>
+              <label>Extraction efficiency %<input id="ext-eff" type="number" min="0" max="100" step="0.1" value="80"></label>
+              <label>Post-process recovery %<input id="ext-rec" type="number" min="0" max="100" step="0.1" value="90"></label>
+              <label>Final concentrate purity %<input id="ext-purity" type="number" min="0.1" max="100" step="0.1" value="70"></label>
+              <label>Batch label<input id="ext-label" type="text" value="Batch A"></label>
+            </div>
+            <div class="button-row" style="justify-content:flex-start"><button id="ext-calc" class="btn" type="button">CALCULATE YIELD</button><button id="ext-add" class="btn ghost" type="button">ADD TO COMPARE</button></div>
+            <div class="z-metrics">
+              <div><span>Target input</span><strong id="ext-input-mg">—</strong></div>
+              <div><span>Recovered target</span><strong id="ext-target-mg">—</strong></div>
+              <div><span>Estimated concentrate</span><strong id="ext-conc-g">—</strong></div>
+              <div><span>Overall recovery</span><strong id="ext-overall">—</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="mode-terpenes" class="z-mode-panel mode-panel">
+          <div class="z-mode-heading"><p class="kicker">RELATIVE PROFILE</p><h2>Terpene Ratios</h2><p>Normalize user-supplied terpene measurements into a relative profile for comparing batches.</p></div>
+          <div class="tool-card">
+            <div class="z-grid-3">
+              <label>Myrcene<input id="terp-myrcene" type="number" min="0" step="0.001" value="0.7"></label>
+              <label>Limonene<input id="terp-limonene" type="number" min="0" step="0.001" value="0.4"></label>
+              <label>β-Caryophyllene<input id="terp-caryo" type="number" min="0" step="0.001" value="0.3"></label>
+              <label>Linalool<input id="terp-linalool" type="number" min="0" step="0.001" value="0.1"></label>
+              <label>α/β-Pinene<input id="terp-pinene" type="number" min="0" step="0.001" value="0.2"></label>
+              <label>Other<input id="terp-other" type="number" min="0" step="0.001" value="0.1"></label>
+            </div>
+            <div class="button-row" style="justify-content:flex-start"><button id="terp-calc" class="btn" type="button">NORMALIZE PROFILE</button></div>
+            <canvas id="terp-canvas" class="z-canvas" width="1200" height="320"></canvas>
+            <pre id="terp-output" class="z-log"></pre>
+          </div>
+        </div>
+
+        <div id="mode-compare" class="z-mode-panel mode-panel">
+          <div class="z-mode-heading"><p class="kicker">BATCH ANALYSIS</p><h2>Batch Compare</h2><p>Compare extraction scenarios added from the Extraction Yield tab.</p></div>
+          <div class="tool-card">
+            <div class="z-table-wrap"><table class="z-table"><thead><tr><th>Batch</th><th>Input g</th><th>Target %</th><th>Recovered mg</th><th>Concentrate g</th><th>Overall</th></tr></thead><tbody id="compare-body"></tbody></table></div>
+          </div>
+        </div>
+
+        <div id="mode-export" class="z-mode-panel mode-panel">
+          <div class="z-mode-heading"><p class="kicker">LOCAL REPORT</p><h2>Export</h2><p>Export the current calculator state and comparison batches as JSON.</p></div>
+          <div class="tool-card">
+            <div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn" type="button">EXPORT JSON</button><button id="reset-all" class="btn ghost" type="button">RESET SESSION</button></div>
+            <pre id="export-output" class="z-log"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="container section">
+  <div class="grid grid-2">
+    <article class="panel"><p class="kicker">PROJECT</p><h2>BHOPAL Calc</h2><p>Cannabinoid-content, terpene-ratio, formulation, and extraction-yield arithmetic for lab and cultivation workflows.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · NumPy · Pandas · Matplotlib</dd></div><div><dt>Web</dt><dd>JavaScript · Canvas</dd></div></dl></article>
+    <article class="panel"><p class="kicker">CALCULATION BOUNDARY</p><h2>Arithmetic, not lab certification</h2><p>All outputs depend directly on entered assay/recovery assumptions. The page does not infer product identity, legality, medical suitability, or verified potency.</p></article>
+  </div>
+</section>
+</main>
+<footer><div id="zzx-footer"></div></footer>
+</body></html>
