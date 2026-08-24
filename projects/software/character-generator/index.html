@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Promptable structured character builder for games and fiction with reproducible seeded generation, bios, traits, motivations, flaws, hooks, relationships, reusable templates, and JSON/Markdown export."><title>Character Generator · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-character-generator-1"><link rel="stylesheet" href="./hook.css?v=20260824-character-generator-1">
+<script src="./hook.js?v=20260824-character-generator-1" defer></script><script src="./script.js?v=20260824-character-generator-1" defer></script>
+  <script src="./character-generator-core.js?v=20260824-character-generator-1" defer></script>
+  <script src="./character-generator.js?v=20260824-character-generator-1" defer></script></head>
+<body class="project project-character-generator"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="Character Generator logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p><h1>Character Generator</h1><p class="blurb">Promptable structured character builder for games and fiction with reproducible seeded generation, bios, traits, motivations, flaws, hooks, relationships, reusable templates, and JSON/Markdown export.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/character-generator" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">STRUCTURED CHARACTER AUTHORING</p><h2>Character Generator Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">SEED: REPRODUCIBLE</span><span class="runtime-badge ok">JSON: STRUCTURED</span><span class="runtime-badge ok">TEMPLATES: LOCAL</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="builder">Builder</button><button class="tool-tab mode-tab" data-mode="profile">Profile</button><button class="tool-tab mode-tab" data-mode="hooks">Story Hooks</button><button class="tool-tab mode-tab" data-mode="template">Template</button><button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div><div class="z-sidebar-note"><strong>DETERMINISTIC AUTHORING</strong><p>The same seed and settings reproduce the same generated character, making the output useful for game data, dialogue systems, and worldbuilding pipelines.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-builder" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3"><label>Seed<input id="seed" value="ZZX-CHAR-001"></label><label>Name hint<input id="name-hint" placeholder="optional"></label><label>Genre<select id="genre"><option>science-fiction</option><option>fantasy</option><option>cyberpunk</option><option>historical</option><option>modern</option><option>horror</option></select></label><label>Species / ancestry<input id="species" value="human"></label><label>Role / archetype<input id="role" value="explorer"></label><label>Tone<select id="tone"><option>grounded</option><option>heroic</option><option>dark</option><option>comic</option><option>mysterious</option></select></label></div>
+<label>Prompt / constraints<textarea id="prompt" rows="7">Build a memorable supporting character with conflicting loyalties and a practical skill the party needs.</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="generate" class="btn">GENERATE CHARACTER</button><button id="random-seed" class="btn ghost">NEW SEED</button></div><pre id="builder-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-profile" class="z-mode-panel mode-panel"><div class="tool-card"><div class="z-grid-2"><label>Name<input id="edit-name"></label><label>Occupation<input id="edit-job"></label></div><label>Biography<textarea id="edit-bio" rows="9"></textarea></label><label>Traits, comma-separated<input id="edit-traits"></label><label>Skills, comma-separated<input id="edit-skills"></label><label>Goals, comma-separated<input id="edit-goals"></label><label>Flaws, comma-separated<input id="edit-flaws"></label><div class="button-row" style="justify-content:flex-start"><button id="apply-edits" class="btn">APPLY EDITS</button></div><pre id="profile-output" class="z-log"></pre></div></div>
+
+<div id="mode-hooks" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="regen-hooks" class="btn">REGENERATE HOOKS FROM SEED</button></div><div id="hooks-list" class="z-list"></div></div></div>
+
+<div id="mode-template" class="z-mode-panel mode-panel"><div class="tool-card"><label>Output template<textarea id="template" rows="16"># {name}
+Role: {role}
+Species: {species}
+Genre: {genre}
+
+{bio}
+
+Traits: {traits}
+Skills: {skills}
+Goals: {goals}
+Flaws: {flaws}
+
+Hooks:
+{hooks}</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="render-template" class="btn">RENDER TEMPLATE</button></div><pre id="template-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn">EXPORT JSON</button><button id="export-md" class="btn ghost">EXPORT MARKDOWN</button><label class="file-button">IMPORT JSON<input id="import-json" type="file" accept=".json,application/json"></label></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Character Generator</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>Python · PyYAML · Jinja2</dd></div></dl></article><article class="panel"><p class="kicker">WEB</p><h2>Seeded structured output</h2><p>Browser generation is deterministic and exports pipeline-friendly character JSON plus rendered Markdown templates.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
