@@ -1,0 +1,12 @@
+(()=>{"use strict";
+const P={};P.enc=new TextEncoder();P.dec=new TextDecoder();
+P.hex=b=>[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+P.unhex=h=>new Uint8Array((h.match(/../g)||[]).map(x=>parseInt(x,16)));
+P.derive=async(pass,salt)=>crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},await crypto.subtle.importKey("raw",P.enc.encode(pass),"PBKDF2",false,["deriveKey"]),{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+P.encrypt=async(text,pass)=>{const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await P.derive(pass,salt),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,P.enc.encode(text)));return{salt:P.hex(salt),iv:P.hex(iv),ciphertext:P.hex(ct)}};
+P.decrypt=async(pkg,pass)=>{const key=await P.derive(pass,P.unhex(pkg.salt)),pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:P.unhex(pkg.iv)},key,P.unhex(pkg.ciphertext));return P.dec.decode(pt)};
+P.phaseEncode=hex=>{const b=P.unhex(hex);return [...b].map(v=>({byte:v,phase:+(v/256*360).toFixed(6),amplitude:+(.55+.45*((v^0x5a)/255)).toFixed(6)}))};
+P.phaseDecode=syms=>P.hex(new Uint8Array(syms.map(s=>Math.round(((+s.phase%360)+360)%360/360*256)%256)));
+P.download=(text,name)=>{const b=new Blob([text],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),800)};
+window.PCECore=Object.freeze(P);
+})();
