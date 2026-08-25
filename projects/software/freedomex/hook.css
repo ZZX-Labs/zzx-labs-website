@@ -1,0 +1,51 @@
+/*
+ * ZZX-Labs software-page integration hooks.
+ * This file is intentionally generic and shared across projects.
+ */
+
+.project [data-zzx-hidden="true"] {
+  display: none !important;
+}
+
+.project .zzx-hook-message {
+  margin: .7rem 0;
+  padding: .65rem .75rem;
+  border-left: 3px solid var(--zzx-green);
+  background: rgba(192,214,116,.05);
+  color: var(--zzx-muted);
+}
+
+.project .zzx-fallback-header,
+.project .zzx-fallback-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  width: min(1180px, calc(100% - 32px));
+  margin-inline: auto;
+  padding: .78rem 0;
+  color: var(--zzx-muted);
+  font: 700 .7rem/1.4 var(--zzx-mono);
+}
+
+.project body > header,
+.project body > footer,
+body.project > header,
+body.project > footer {
+  border-bottom: 1px solid var(--zzx-line);
+  background: rgba(8,8,8,.96);
+}
+
+body.project > footer {
+  border-top: 1px solid var(--zzx-line);
+  border-bottom: 0;
+}
+
+.project .zzx-fallback-header nav { display: flex; flex-wrap: wrap; gap: .8rem; }
+.project .zzx-fallback-header a { color: var(--zzx-green); text-decoration: none; }
+.project .zzx-fallback-brand { color: var(--zzx-amber) !important; }
+
+@media (max-width: 640px) {
+  .project .zzx-fallback-header,
+  .project .zzx-fallback-footer { align-items: flex-start; flex-direction: column; }
+}
