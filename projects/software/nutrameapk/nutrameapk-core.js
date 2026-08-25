@@ -1,0 +1,11 @@
+(()=>{"use strict";
+const N={};
+N.enc=new TextEncoder();N.dec=new TextDecoder();
+N.hex=b=>[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+N.unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+N.derive=async(pass,salt)=>crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:210000,hash:"SHA-256"},await crypto.subtle.importKey("raw",N.enc.encode(pass),"PBKDF2",false,["deriveKey"]),{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+N.encrypt=async(obj,pass)=>{const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await N.derive(pass,salt),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,N.enc.encode(JSON.stringify(obj))));return{schema:"zzx.nutrameapk.sync.v1",kdf:"PBKDF2-SHA256-210000",cipher:"AES-256-GCM",salt:N.hex(salt),iv:N.hex(iv),ciphertext:N.hex(ct)}};
+N.decrypt=async(pkg,pass)=>{const key=await N.derive(pass,N.unhex(pkg.salt)),pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:N.unhex(pkg.iv)},key,N.unhex(pkg.ciphertext));return JSON.parse(N.dec.decode(pt))};
+N.download=(text,name,type="application/json")=>{const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),800)};
+window.NutraMeAPKCore=Object.freeze(N);
+})();
