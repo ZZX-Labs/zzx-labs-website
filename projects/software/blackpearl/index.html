@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#121212">
+<meta name="description" content="BlackPearl is a privacy-conscious adult creator website and publishing template with local media inspection, metadata sanitization workflows, randomized filenames, blog composition, and BTC-only custom development services.">
+<title>BlackPearl · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css">
+<script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./hook.css">
+<link rel="stylesheet" href="./blackpearl.css">
+<script src="./hook.js" defer></script>
+<script src="./script.js" defer></script>
+<script src="./blackpearl-core.js" defer></script>
+<script src="./blackpearl.js" defer></script>
+</head>
+<body class="project project-blackpearl">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+ <div class="container hero-inner">
+  <img class="project-logo" src="./logo.png" alt="BlackPearl logo">
+  <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // ADULT CREATOR SAFETY</p>
+  <h1>BlackPearl</h1>
+  <p class="blurb">Turnkey adult creator website and publishing template built around creator ownership, privacy, local-first media preparation, randomized public filenames, metadata stripping, malware-scanning workflows, and independent domain/branding control.</p>
+  <div class="cta-row">
+   <a class="btn" href="#demo">OPEN CREATOR WORKBENCH</a>
+   <a class="btn alt" href="./MEDIA-SAFETY.md">MEDIA SAFETY</a>
+   <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+  </div>
+  <div class="bp-warning"><strong>18+ creator infrastructure.</strong> BlackPearl is a publishing/template system, not an adult-content generator. Deployments must use lawful adult content, documented rights/consent, and the operator’s jurisdiction-specific age-verification and recordkeeping requirements.</div>
+ </div>
+</section>
+
+<section id="demo" class="demo-section">
+ <div class="container section demo-container">
+  <div class="section-head">
+   <div><p class="kicker">CREATOR WORKBENCH</p><h2>Prepare media, compose posts, and export a safe publishing package</h2></div>
+   <div class="runtime-status"><span class="runtime-badge ok">LOCAL FIRST</span><span class="runtime-badge ok">RANDOM NAMES</span><span class="runtime-badge ok">IMAGE METADATA STRIP</span><span class="runtime-badge partial">NATIVE AV/FFMPEG FOR FULL PIPELINE</span></div>
+  </div>
+
+  <div class="workbench">
+   <aside class="tool-list-wrap">
+    <h3>BlackPearl</h3>
+    <div class="tool-list">
+     <button class="tool-tab mode-tab active" data-mode="media">Media Intake</button>
+     <button class="tool-tab mode-tab" data-mode="post">Post Composer</button>
+     <button class="tool-tab mode-tab" data-mode="preview">Preview</button>
+     <button class="tool-tab mode-tab" data-mode="site">Site Config</button>
+     <button class="tool-tab mode-tab" data-mode="services">Services</button>
+     <button class="tool-tab mode-tab" data-mode="export">Export</button>
+    </div>
+    <div class="z-sidebar-note"><strong>NEVER PUBLISH ORIGINAL UPLOAD NAMES</strong><p>Public media should use randomized filenames. Keep originals, release records, and source provenance private.</p></div>
+   </aside>
+
+   <section class="tool-workspace">
+    <div id="mode-media" class="z-mode-panel mode-panel active">
+     <div class="tool-card">
+      <h3>Local media safety intake</h3>
+      <p>Select local files. The browser computes SHA-256, detects common JPEG EXIF, proposes cryptographically random public filenames, and can strip JPEG/PNG metadata locally.</p>
+      <label class="file-button">SELECT MEDIA / ATTACHMENTS<input id="media-files" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.txt,.md"></label>
+      <div class="button-row" style="justify-content:flex-start"><button id="sanitize-images" class="btn">SANITIZE JPEG/PNG + DOWNLOAD</button></div>
+      <div class="bp-kpis"><div><span>Files</span><strong id="media-count">0</strong></div><div><span>Randomized</span><strong id="randomized-count">0</strong></div><div><span>Metadata risk</span><strong id="risk-count">0</strong></div><div><span>Total bytes</span><strong id="bytes-total">0 B</strong></div></div>
+      <div id="media-list"></div>
+      <pre id="scan-output" class="z-log bp-code"></pre>
+      <div class="bp-safe">For video, audio, PDF, and arbitrary attachments, use the included native <code>server/sanitize.py</code> pipeline. Production should run malware scanning before publication.</div>
+     </div>
+    </div>
+
+    <div id="mode-post" class="z-mode-panel mode-panel">
+     <div class="tool-card">
+      <div class="z-grid-2"><label>Post title<input id="post-title" value="New BlackPearl post"></label><label>Slug<input id="post-slug" value="new-post"></label></div>
+      <label>Body<textarea id="post-body" rows="10">Creator-owned post content goes here.</textarea></label>
+      <div class="z-grid-3"><label>Tags<input id="post-tags" value="art, studio"></label><label>Release / rights status<select id="release-status"><option>creator-owned</option><option>release-on-file</option><option>licensed</option><option>pending-review</option></select></label><label>Schedule<input id="post-schedule" type="datetime-local"></label></div>
+      <div class="bp-checks"><label><input id="adult-post" type="checkbox"> Post is 18+ / adult content</label><label><input type="checkbox" checked> All depicted participants are adults</label><label><input type="checkbox" checked> Rights / consent basis documented</label><label><input type="checkbox" checked> Public media uses sanitized randomized files</label></div>
+      <div class="button-row" style="justify-content:flex-start"><button id="build-post" class="btn">BUILD POST RECORD</button></div>
+      <pre id="post-output" class="z-log"></pre>
+     </div>
+    </div>
+
+    <div id="mode-preview" class="z-mode-panel mode-panel">
+     <div class="tool-card">
+      <div class="bp-preview"><div class="top"><strong>BLACKPEARL // PRIVATE CREATOR SITE PREVIEW</strong></div><article class="post"><h2 id="preview-title"></h2><div id="preview-meta" class="fx-watermark"></div><p id="preview-body"></p></article></div>
+     </div>
+    </div>
+
+    <div id="mode-site" class="z-mode-panel mode-panel">
+     <div class="tool-card">
+      <div class="z-grid-3"><label>Site name<input id="site-name" value="BlackPearl Creator Site"></label><label>Domain<input id="domain" placeholder="creator.example"></label><label>Creator / studio display name<input id="creator-name"></label></div>
+      <div class="z-grid-2"><label>Primary color<input id="primary-color" type="color" value="#8f0d16"></label><label>Secondary color<input id="secondary-color" type="color" value="#121212"></label></div>
+      <div class="bp-checks"><label><input id="age-gate" type="checkbox" checked> 18+ entry gate</label><label><input id="noindex" type="checkbox" checked> noindex/nofollow by default</label><label><input id="comments" type="checkbox"> Comments enabled</label><label><input type="checkbox" checked disabled> Creator supplies domain, media, text, fonts, colors, icons, logos, and branding</label></div>
+      <div class="button-row" style="justify-content:flex-start"><button id="save-site" class="btn">SAVE SITE CONFIG</button></div><pre id="site-output" class="z-log"></pre>
+     </div>
+    </div>
+
+    <div id="mode-services" class="z-mode-panel mode-panel">
+     <div class="tool-card">
+      <h3>BTC-only creator services</h3>
+      <p>Custom Websites, Custom Software, and Custom Android Applications. Projects use a one-time scoped fee with continuation fees when size, growth, maintenance, or additional scope requires them.</p>
+      <div id="service-list" class="bp-grid"></div>
+      <div class="bp-warning"><strong>Client supplies:</strong> domain, media/content, written copy, fonts, color scheme, icons, logos, branding, and required rights/permissions. ZZX-Labs retains the right to refuse projects.</div>
+     </div>
+    </div>
+
+    <div id="mode-export" class="z-mode-panel mode-panel">
+     <div class="tool-card">
+      <div class="button-row" style="justify-content:flex-start"><button id="build-package" class="btn">EXPORT CREATOR PACKAGE JSON</button><button id="export-post-html" class="btn ghost">EXPORT POST HTML</button></div>
+      <pre id="export-output" class="z-log"></pre>
+     </div>
+    </div>
+   </section>
+  </div>
+ </div>
+</section>
+
+<section class="container section">
+ <div class="grid grid-2">
+  <article class="panel"><p class="kicker">PRIVACY PIPELINE</p><h2>Scan → sanitize → rename → publish</h2><p>The native sanitizer uses allowlisted file handling, randomized names, SHA-256, optional ClamAV, EXIF/image metadata removal, FFmpeg metadata stripping, and PDF metadata removal.</p></article>
+  <article class="panel"><p class="kicker">CREATOR OWNERSHIP</p><h2>Your domain. Your brand. Your files.</h2><p>BlackPearl is designed so creators can move away from platform dependency while keeping publishing and source media under their control.</p></article>
+ </div>
+</section>
+
+</main>
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>
