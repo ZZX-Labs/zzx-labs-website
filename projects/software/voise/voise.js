@@ -1,0 +1,22 @@
+(()=>{"use strict";const $=id=>document.getElementById(id);let ctx=null,stream=null,src=null,inputGain=null,hp=null,lp=null,dist=null,delay=null,delayGain=null,ringOsc=null,ringGain=null,master=null,analyser=null,meterData=null,recorder=null,chunks=[];
+function curve(amount=20){const n=44100,c=new Float32Array(n),k=amount;for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(3+k)*x*20*Math.PI/180/(Math.PI+k*Math.abs(x))}return c}
+async function start(){
+ if(stream)return;stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+ ctx=new (window.AudioContext||window.webkitAudioContext)();src=ctx.createMediaStreamSource(stream);inputGain=ctx.createGain();hp=ctx.createBiquadFilter();lp=ctx.createBiquadFilter();dist=ctx.createWaveShaper();delay=ctx.createDelay(1);delayGain=ctx.createGain();ringGain=ctx.createGain();ringOsc=ctx.createOscillator();master=ctx.createGain();analyser=ctx.createAnalyser();meterData=new Uint8Array(analyser.fftSize);
+ hp.type="highpass";lp.type="lowpass";ringOsc.type="sine";ringOsc.start();ringOsc.connect(ringGain.gain);
+ src.connect(inputGain).connect(hp).connect(lp).connect(dist).connect(delay).connect(ringGain).connect(master).connect(analyser).connect(ctx.destination);
+ delay.connect(delayGain).connect(master);apply();meter();$("state").textContent="LIVE"
+}
+function apply(){if(!ctx)return;inputGain.gain.value=+$("input").value;hp.frequency.value=+$("hp").value;lp.frequency.value=+$("lp").value;dist.curve=curve(+$("drive").value);dist.oversample="4x";delay.delayTime.value=(+$("delay").value)/1000;delayGain.gain.value=+$("echo").value;ringOsc.frequency.value=+$("ring").value;ringGain.gain.value=+$("ring-mix").value;master.gain.value=+$("output").value}
+["input","hp","lp","drive","delay","echo","ring","ring-mix","output"].forEach(id=>$(id).oninput=apply);
+function meter(){if(!analyser)return;analyser.getByteTimeDomainData(meterData);let peak=0;for(const b of meterData)peak=Math.max(peak,Math.abs(b-128)/128);$("meter").style.width=Math.min(100,peak*100)+"%";$("peak").textContent=peak.toFixed(3);requestAnimationFrame(meter)}
+$("start").onclick=()=>start().catch(e=>$("state").textContent="MIC ERROR: "+e.message);
+$("stop").onclick=()=>{stream?.getTracks().forEach(t=>t.stop());stream=null;ctx?.close();ctx=null;$("state").textContent="STOPPED"};
+$("record").onclick=async()=>{if(!stream)await start();chunks=[];recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||"audio/webm"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="voise-input-recording.webm";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};recorder.start();$("rec").textContent="RECORDING"};
+$("record-stop").onclick=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop();$("rec").textContent="IDLE"};
+$("tts").onclick=()=>{const u=new SpeechSynthesisUtterance($("tts-text").value);u.rate=+$("tts-rate").value;u.pitch=+$("tts-pitch").value;speechSynthesis.cancel();speechSynthesis.speak(u)};
+let recognition=null;
+$("stt").onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("stt-output").textContent="SpeechRecognition unavailable in this browser.";return}recognition=new SR();recognition.continuous=false;recognition.interimResults=true;recognition.onresult=e=>{$("stt-output").textContent=[...e.results].map(r=>r[0].transcript).join(" ")};recognition.onerror=e=>$("stt-output").textContent="STT ERROR: "+e.error;recognition.start()};
+$("export").onclick=()=>{const job={schema:"zzx.voise.fx-chain.v1",created:new Date().toISOString(),genericVoiceFX:true,specificIdentityClone:false,fx:{inputGain:+$("input").value,highpassHz:+$("hp").value,lowpassHz:+$("lp").value,drive:+$("drive").value,delayMs:+$("delay").value,echoMix:+$("echo").value,ringHz:+$("ring").value,ringMix:+$("ring-mix").value,outputGain:+$("output").value},nativePipeline:["PyAudio capture","SciPy filters","vocoder/formant/ring-mod FX","FFmpeg multitrack export"]};const t=JSON.stringify(job,null,2),b=new Blob([t],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="voise-fx-chain.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),800)};
+window.Voise=Object.freeze({version:"0.4.0-alpha-web",identityClone:false});
+})();
