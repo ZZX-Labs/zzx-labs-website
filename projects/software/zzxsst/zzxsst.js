@@ -1,0 +1,9 @@
+(()=>{"use strict";const $=id=>document.getElementById(id);let files={};
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+$("readme").onchange=async()=>{const f=$("readme").files[0];if(f){$("readme-text").value=await f.text();$("readme").value=""}};
+$("license-file").onchange=async()=>{const f=$("license-file").files[0];if(f){$("license-text").value=await f.text();$("license-file").value=""}};
+$("build").onclick=()=>{const slug=$("slug").value.trim(),title=$("title").value.trim(),blurb=$("blurb").value.trim();if(!slug)return;const hooks=$("hooks").checked;files={"index.html":`<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="./style.css">${hooks?'<link rel="stylesheet" href="./hook.css">':""}<title>${esc(title)}</title><main><h1>${esc(title)}</h1><p>${esc(blurb)}</p></main>${hooks?'<script src="./hook.js"><\\/script>':""}`,"manifest.json":JSON.stringify({slug,title,blurb,href:`/projects/software/${slug}/`,version:$("version").value,license:$("license").value},null,2),"README.md":$("readme-text").value||`# ${title}\n\n${blurb}\n`,"LICENSE":$("license-text").value||$("license").value+"\n","project.css":`.project-${slug} .zzx-project-hero{background:#121212}`,"project.js":`(()=>{"use strict";window.${slug.replace(/[^a-z0-9]/gi,"_")}={{version:"${$("version").value}"}};})();`};$("tree").textContent=Object.keys(files).map(n=>`${slug}/${n}`).join("\n");$("preview").innerHTML=`<h1>${esc(title)}</h1><p>${esc(blurb)}</p>`};
+function dl(t,n,type="text/plain"){const b=new Blob([t],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(u),800)}
+$("export").onclick=()=>dl(JSON.stringify({schema:"zzx.sst.scaffold.v1",generated:new Date().toISOString(),files},null,2),"zzxsst-scaffold.json","application/json");
+window.ZZXSST=Object.freeze({version:"0.5.0-alpha-web"});
+})();
