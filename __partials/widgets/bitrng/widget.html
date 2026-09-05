@@ -1,57 +1,85 @@
 <!-- __partials/widgets/bitrng/widget.html -->
-<div class="btc-card bitrng" data-widget-root="bitrng">
-  <div class="btc-card__title">BitRNG</div>
+<div class="btc-card bitrng" data-bitrng-root>
+  <header class="bitrng__header">
+    <div>
+      <div class="btc-card__title">BitRNG</div>
+      <div class="bitrng__lede">WebCrypto entropy with optional Bitcoin network context</div>
+    </div>
+    <div class="bitrng__state" data-bitrng-state="idle" aria-live="polite">
+      <span class="bitrng__state-dot" aria-hidden="true"></span>
+      <span data-bitrng-state-text>idle</span>
+    </div>
+  </header>
 
-  <div class="btc-card__value">
-    <span data-bitrng-value>—</span>
-  </div>
+  <section class="bitrng__output" aria-label="Random output">
+    <div class="bitrng__output-head">
+      <span class="bitrng__eyebrow">output</span>
+      <span class="bitrng__output-kind" data-bitrng-output-kind>hex</span>
+    </div>
+    <output class="bitrng__value" data-bitrng-value aria-live="polite">—</output>
+    <div class="bitrng__output-meta">
+      <span data-bitrng-bits>— bits</span>
+      <span aria-hidden="true">·</span>
+      <span data-bitrng-updated>not generated</span>
+    </div>
+  </section>
 
-  <div class="btc-card__sub">
-    <span data-bitrng-sub>entropy · last update —</span>
-  </div>
-
-  <div class="bitrng__controls" aria-label="BitRNG controls">
-    <label class="bitrng__label">
-      engine
-      <select class="bitrng__select" data-bitrng-engine></select>
+  <section class="bitrng__controls" aria-label="BitRNG controls">
+    <label class="bitrng__field">
+      <span>engine</span>
+      <select data-bitrng-engine></select>
     </label>
 
-    <label class="bitrng__label">
-      mode
-      <select class="bitrng__select" data-bitrng-mode></select>
+    <label class="bitrng__field">
+      <span>mode</span>
+      <select data-bitrng-mode></select>
     </label>
 
-    <label class="bitrng__label">
-      output
-      <select class="bitrng__select" data-bitrng-output>
+    <label class="bitrng__field">
+      <span>format</span>
+      <select data-bitrng-format>
         <option value="hex">hex</option>
         <option value="base64">base64</option>
-        <option value="dice">dice</option>
+        <option value="base32">base32</option>
       </select>
     </label>
-  </div>
 
-  <div class="bitrng__meta">
-    <div class="bitrng__row">
-      <span class="bitrng__k">source</span>
-      <span class="bitrng__v" data-bitrng-source>—</span>
+    <label class="bitrng__field">
+      <span>auto</span>
+      <select data-bitrng-auto>
+        <option value="0">off</option>
+        <option value="5000">5 sec</option>
+        <option value="30000">30 sec</option>
+        <option value="60000">60 sec</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="bitrng__meta" aria-label="Entropy status">
+    <div class="bitrng__metric">
+      <span class="bitrng__metric-label">security source</span>
+      <strong data-bitrng-source>Web Crypto API</strong>
     </div>
-    <div class="bitrng__row">
-      <span class="bitrng__k">health</span>
-      <span class="bitrng__v" data-bitrng-health>—</span>
+    <div class="bitrng__metric">
+      <span class="bitrng__metric-label">network context</span>
+      <strong data-bitrng-network>checking…</strong>
     </div>
-    <div class="bitrng__row">
-      <span class="bitrng__k">rate</span>
-      <span class="bitrng__v" data-bitrng-rate>—</span>
+    <div class="bitrng__metric">
+      <span class="bitrng__metric-label">health</span>
+      <strong data-bitrng-health>—</strong>
     </div>
-  </div>
+    <div class="bitrng__metric">
+      <span class="bitrng__metric-label">entropy input</span>
+      <strong data-bitrng-entropy>—</strong>
+    </div>
+  </section>
 
   <div class="bitrng__actions" aria-label="BitRNG actions">
-    <button type="button" class="bitrng__btn" data-bitrng-action="refresh">Refresh</button>
-    <button type="button" class="bitrng__btn" data-bitrng-action="copy" title="Copy latest output">Copy</button>
+    <button type="button" data-bitrng-action="generate">Generate</button>
+    <button type="button" data-bitrng-action="copy">Copy</button>
   </div>
 
-  <div class="bitrng__hint" data-bitrng-hint>
-    engines + entropy are local modules in <code>__partials/widgets/bitrng/</code>
+  <div class="bitrng__notice" data-bitrng-notice>
+    Security comes from the browser Web Crypto API. Bitcoin chain/mempool data is mixed in only as public context and is not treated as secret entropy.
   </div>
 </div>
