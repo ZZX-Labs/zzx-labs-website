@@ -1,88 +1,288 @@
 /* __partials/widgets/block-clock/widget.css */
 
-[data-widget-root="block-clock"]{
+.block-clock{
+  --bc-green:var(--zzx-accent,#c0d674);
+  --bc-gold:var(--zzx-accent-alt,#e6a42b);
+  --bc-muted:var(--zzx-muted,#b7bf9a);
+  --bc-dim:var(--zzx-dim,#777);
+  --bc-error:var(--zzx-error,#d67474);
+  --bc-line:rgba(255,255,255,.09);
+  --bc-panel:rgba(255,255,255,.018);
+
   width:100%;
-  box-sizing:border-box;
+  min-width:0;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__headline{
+.block-clock__header,
+.block-clock__hero,
+.block-clock__target-copy,
+.block-clock__footer,
+.block-clock__row{
   display:flex;
-  align-items:baseline;
-  gap:.55rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  align-items:center;
+  justify-content:space-between;
+  gap:.7rem;
+  min-width:0;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__height{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-variant-numeric: tabular-nums;
-  letter-spacing:.02em;
+.block-clock__header{
+  align-items:flex-start;
+  margin-bottom:.5rem;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__since{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-variant-numeric: tabular-nums;
-  letter-spacing:.03em;
+.block-clock__eyebrow,
+.block-clock__label,
+.block-clock__metric-label,
+.block-clock__note{
+  color:var(--bc-dim);
+  font-size:.68rem;
+  letter-spacing:.055em;
+  text-transform:uppercase;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__sep{
-  color:#b7bf9a;
-  opacity:.85;
+.block-clock__status{
+  flex:0 0 auto;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__grid{
-  margin-top:.45rem;
-  border-top:1px solid rgba(255,255,255,.10);
-  padding-top:.4rem;
+.block-clock__hero{
+  align-items:flex-end;
+  padding:.55rem 0 .6rem;
+  border-top:1px solid var(--bc-line);
+  border-bottom:1px solid var(--bc-line);
 }
 
-[data-widget-root="block-clock"] .zzx-bc__row{
+.block-clock__height-wrap,
+.block-clock__age-wrap{
   display:grid;
-  grid-template-columns: 190px 1fr;
-  gap:.6rem;
-  align-items:center;
-  padding:.16rem 0;
+  gap:.1rem;
+  min-width:0;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__k{
-  color:#b7bf9a;
-  font-size:.92rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-[data-widget-root="block-clock"] .zzx-bc__v{
-  font-size:.92rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+.block-clock__age-wrap{
   text-align:right;
-  font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__sep-row{
-  border-bottom:1px solid rgba(255,255,255,.10);
-  padding-bottom:.25rem;
-  margin-bottom:.25rem;
+.block-clock__height,
+.block-clock__age,
+.block-clock__metric-value,
+.block-clock__row strong{
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-variant-numeric:tabular-nums;
+  font-weight:500;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__controls{
+.block-clock__height{
+  color:var(--bc-gold);
+  font-size:1.55rem;
+  line-height:1;
+  letter-spacing:.025em;
+}
+
+.block-clock__age{
+  color:var(--bc-green);
+  font-size:1.45rem;
+  line-height:1;
+  white-space:nowrap;
+}
+
+.block-clock__age[data-age-state="over"]{
+  color:var(--bc-gold);
+}
+
+.block-clock__age[data-age-state="future"]{
+  color:var(--bc-error);
+}
+
+.block-clock__target{
   margin-top:.55rem;
+}
+
+.block-clock__target-copy{
+  color:var(--bc-muted);
+  font-size:.72rem;
+  margin-bottom:.28rem;
+}
+
+.block-clock__progress{
+  position:relative;
+  width:100%;
+  height:7px;
+  overflow:hidden;
+  border:1px solid #292929;
+  border-radius:999px;
+  background:#151515;
+}
+
+.block-clock__progress-bar{
+  display:block;
+  width:0;
+  height:100%;
+  background:var(--bc-green);
+  transition:width .2s linear, background .2s linear;
+}
+
+.block-clock__progress[data-state="over"] .block-clock__progress-bar{
+  background:var(--bc-gold);
+}
+
+.block-clock__progress[data-state="future"] .block-clock__progress-bar{
+  background:var(--bc-error);
+}
+
+.block-clock__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.4rem;
+  margin-top:.58rem;
+}
+
+.block-clock__metric{
+  min-width:0;
+  padding:.42rem;
+  border:1px solid var(--bc-line);
+  border-radius:6px;
+  background:var(--bc-panel);
+}
+
+.block-clock__metric-label{
+  display:block;
+  margin-bottom:.13rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.block-clock__metric-value{
+  display:block;
+  color:var(--bc-green);
+  font-size:.84rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.block-clock__metric-value[data-tone="positive"]{
+  color:var(--bc-green);
+}
+
+.block-clock__metric-value[data-tone="negative"]{
+  color:var(--bc-error);
+}
+
+.block-clock__metric-value[data-tone="warning"]{
+  color:var(--bc-gold);
+}
+
+.block-clock__details{
+  margin-top:.58rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--bc-line);
+}
+
+.block-clock__row{
+  align-items:baseline;
+  padding:.18rem 0;
+  font-size:.76rem;
+}
+
+.block-clock__row > span{
+  flex:0 0 auto;
+  color:var(--bc-muted);
+}
+
+.block-clock__row strong{
+  min-width:0;
+  color:var(--bc-green);
+  text-align:right;
+  font-size:.74rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.block-clock__hash{
+  max-width:68%;
+}
+
+.block-clock__footer{
+  margin-top:.55rem;
+  padding-top:.45rem;
+  border-top:1px solid var(--bc-line);
+}
+
+.block-clock__source{
   display:flex;
   align-items:center;
-  gap:.45rem;
-  flex-wrap:wrap;
+  gap:.35rem;
+  min-width:0;
+  color:var(--bc-muted);
+  font-size:.7rem;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__status{
-  color:#b7bf9a;
-  font-size:.92rem;
+.block-clock__source > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-[data-widget-root="block-clock"] .zzx-bc__delta-pos{ color:#c0d674; }
-[data-widget-root="block-clock"] .zzx-bc__delta-neg{ color:#ff6b6b; }
-[data-widget-root="block-clock"] .zzx-bc__delta-flat{ color:#b7bf9a; }
+.block-clock__note{
+  margin-top:.42rem;
+  text-transform:none;
+  letter-spacing:.01em;
+  line-height:1.35;
+}
+
+@media (max-width:720px){
+  .block-clock__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:480px){
+  .block-clock__hero{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .block-clock__age-wrap{
+    width:100%;
+    text-align:left;
+  }
+
+  .block-clock__height,
+  .block-clock__age{
+    font-size:1.22rem;
+  }
+
+  .block-clock__row{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:.08rem;
+  }
+
+  .block-clock__row strong{
+    text-align:left;
+  }
+
+  .block-clock__hash{
+    max-width:100%;
+  }
+
+  .block-clock__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
+
+@media (max-width:350px){
+  .block-clock__metrics{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .block-clock__progress-bar{
+    transition:none;
+  }
+}
