@@ -1,84 +1,126 @@
 // __partials/widgets/bitrng/entropy.js
-// Entropy sources (composable)
-// Returns { entropyBytes: Uint8Array, source, health, rate, meta:{} }
+// Security entropy is provided by Web Crypto API.
+// Bitcoin network data is public context only; it is never counted as secret entropy.
 
 "use strict";
 
-function utf8(s) { return new TextEncoder().encode(String(s)); }
+const MEMPOOL = "https://mempool.space/api";
+const enc = new TextEncoder();
 
-function concatBytes(chunks) {
-  let len = 0;
-  for (const c of chunks) len += c.length;
-  const out = new Uint8Array(len);
-  let o = 0;
-  for (const c of chunks) { out.set(c, o); o += c.length; }
+function concatBytes(parts) {
+  const chunks = parts.map((part) => {
+    if (part instanceof Uint8Array) return part;
+    if (part instanceof ArrayBuffer) return new Uint8Array(part);
+    return enc.encode(String(part));
+  });
+
+  const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const out = new Uint8Array(length);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+
   return out;
 }
 
-async function sha256(bytes) {
-  const hash = await crypto.subtle.digest("SHA-256", bytes);
-  return new Uint8Array(hash);
+async function sha512(bytes) {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("Web Crypto digest API unavailable");
+  }
+  const digest = await crypto.subtle.digest("SHA-512", bytes);
+  return new Uint8Array(digest);
 }
 
-// NOTE: we keep direct mempool urls here; later we can route through AllOrigins if needed.
-const MEMPOOL = "https://mempool.space/api";
-
-export async function getEntropySnapshot({ fetchJSON, fetchText }) {
-  // local jitter (always available)
-  const jitter = crypto.getRandomValues(new Uint8Array(32));
-
-  try {
-    const tipTxt = await fetchText(`${MEMPOOL}/blocks/tip/height`);
-    const tip = parseInt(String(tipTxt).trim(), 10);
-
-    // txids endpoint can be heavy; we only want a small slice
-    // If it fails, we still have tip + jitter.
-    let txidsSlice = "";
-    try {
-      const txids = await fetchJSON(`${MEMPOOL}/mempool/txids`);
-      if (Array.isArray(txids) && txids.length) txidsSlice = txids.slice(0, 8).join("");
-    } catch {}
-
-    const seedMaterial = concatBytes([
-      utf8("mempool.space|"),
-      utf8(Number.isFinite(tip) ? String(tip) : "x"),
-      utf8("|"),
-      utf8(txidsSlice),
-      utf8("|"),
-      jitter,
-      utf8("|"),
-      utf8(new Date().toISOString()),
-    ]);
-
-    // compress to fixed entropy bytes
-    const entropyBytes = await sha256(seedMaterial);
-
-    return {
-      entropyBytes,
-      source: "mempool.space + local jitter",
-      health: "ok",
-      rate: "on-demand",
-      meta: { tip: Number.isFinite(tip) ? tip : null, txids: txidsSlice || null },
-    };
-  } catch {
-    // fallback-only mode
-    const seedMaterial = concatBytes([
-      utf8("fallback|"),
-      jitter,
-      utf8("|"),
-      utf8(new Date().toISOString()),
-      utf8("|"),
-      utf8(Math.random().toString()),
-    ]);
-
-    const entropyBytes = await sha256(seedMaterial);
-
-    return {
-      entropyBytes,
-      source: "local fallback",
-      health: "degraded",
-      rate: "on-demand",
-      meta: {},
-    };
+function secureRandomBytes(length) {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error("Web Crypto random source unavailable");
   }
+
+  const out = new Uint8Array(length);
+  crypto.getRandomValues(out);
+  return out;
+}
+
+async function getNetworkContext({ fetchJSON, fetchText } = {}) {
+  const result = {
+    available: false,
+    tipHeight: null,
+    tipHash: null,
+    mempoolCount: null,
+    mempoolVsize: null,
+    mempoolFee: null
+  };
+
+  if (typeof fetchText !== "function" || typeof fetchJSON !== "function") {
+    return result;
+  }
+
+  const [heightResult, hashResult, mempoolResult] = await Promise.allSettled([
+    fetchText(`${MEMPOOL}/blocks/tip/height`),
+    fetchText(`${MEMPOOL}/blocks/tip/hash`),
+    fetchJSON(`${MEMPOOL}/mempool`)
+  ]);
+
+  if (heightResult.status === "fulfilled") {
+    const height = Number.parseInt(String(heightResult.value).trim(), 10);
+    if (Number.isFinite(height)) result.tipHeight = height;
+  }
+
+  if (hashResult.status === "fulfilled") {
+    const hash = String(hashResult.value || "").trim();
+    if (/^[0-9a-f]{64}$/i.test(hash)) result.tipHash = hash;
+  }
+
+  if (mempoolResult.status === "fulfilled" && mempoolResult.value && typeof mempoolResult.value === "object") {
+    const m = mempoolResult.value;
+    if (Number.isFinite(Number(m.count))) result.mempoolCount = Number(m.count);
+    if (Number.isFinite(Number(m.vsize))) result.mempoolVsize = Number(m.vsize);
+    if (Number.isFinite(Number(m.total_fee))) result.mempoolFee = Number(m.total_fee);
+  }
+
+  result.available = Boolean(
+    result.tipHeight !== null ||
+    result.tipHash ||
+    result.mempoolCount !== null
+  );
+
+  return result;
+}
+
+export async function getEntropySnapshot(helpers = {}) {
+  const random = secureRandomBytes(64); // 512 bits from browser CSPRNG
+  const network = await getNetworkContext(helpers);
+
+  const context = JSON.stringify({
+    domain: "zzx-labs.bitrng.v2",
+    generatedAt: new Date().toISOString(),
+    performanceNow: globalThis.performance?.now?.() ?? null,
+    network
+  });
+
+  // Hashing the CSPRNG output together with public context gives a fixed-size,
+  // domain-separated 512-bit seed. Security does not depend on the public context.
+  const entropyBytes = await sha512(concatBytes([
+    "zzx-labs.bitrng.v2|",
+    random,
+    "|",
+    context
+  ]));
+
+  return {
+    entropyBytes,
+    source: "Web Crypto API",
+    health: "secure",
+    rate: "on-demand",
+    bits: 512,
+    network,
+    generatedAt: Date.now(),
+    meta: {
+      networkContextMixed: network.available,
+      securityDependsOnNetwork: false
+    }
+  };
 }
