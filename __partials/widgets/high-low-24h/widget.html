@@ -1,99 +1,85 @@
 <!-- __partials/widgets/high-low-24h/widget.html -->
-<div class="zzx-card highlow24">
-  <div class="highlow24__header">
-    <div>
-      <div class="zzx-card__title">24h High / Low</div>
-      <div class="highlow24__eyebrow">BTC / USD · completed hourly candles</div>
+<div class="zzx-card market24" data-market24-kind="combo">
+  <div class="market24__header">
+    <div class="market24__heading">
+      <div class="zzx-card__title" data-market24-title>24h Market</div>
+      <div class="market24__eyebrow" data-market24-eyebrow>BTC / USD</div>
     </div>
 
-    <label class="highlow24__source">
+    <label class="market24__source">
       <span>exchange</span>
-      <select data-highlow24-source aria-label="Select exchange"></select>
+      <select data-market24-source aria-label="Select exchange"></select>
     </label>
   </div>
 
-  <div class="highlow24__hero">
-    <div class="highlow24__extreme highlow24__extreme--high">
-      <span class="highlow24__label">24h high</span>
-      <strong data-highlow24-high>—</strong>
-      <small data-highlow24-high-time>—</small>
+  <div class="market24__hero">
+    <div class="market24__primary">
+      <span class="market24__label" data-market24-primary-label>primary</span>
+      <strong data-market24-primary>—</strong>
     </div>
 
-    <div class="highlow24__extreme highlow24__extreme--low">
-      <span class="highlow24__label">24h low</span>
-      <strong data-highlow24-low>—</strong>
-      <small data-highlow24-low-time>—</small>
+    <div class="market24__secondary" data-market24-tone="flat">
+      <span class="market24__label" data-market24-secondary-label>secondary</span>
+      <strong data-market24-secondary>—</strong>
     </div>
   </div>
 
-  <div class="highlow24__metrics" aria-label="24 hour high low details">
-    <div class="highlow24__metric">
-      <span>range width</span>
-      <strong data-highlow24-range>—</strong>
+  <div class="market24__metrics" aria-label="24 hour market details">
+    <div class="market24__metric">
+      <span data-market24-metric-label="0">metric</span>
+      <strong data-market24-metric-value="0">—</strong>
     </div>
 
-    <div class="highlow24__metric">
-      <span>latest close</span>
-      <strong data-highlow24-close>—</strong>
+    <div class="market24__metric">
+      <span data-market24-metric-label="1">metric</span>
+      <strong data-market24-metric-value="1">—</strong>
     </div>
 
-    <div class="highlow24__metric">
-      <span>range position</span>
-      <strong data-highlow24-position>—</strong>
+    <div class="market24__metric">
+      <span data-market24-metric-label="2">metric</span>
+      <strong data-market24-metric-value="2">—</strong>
     </div>
 
-    <div class="highlow24__metric">
-      <span>24h change</span>
-      <strong data-highlow24-change data-tone="flat">—</strong>
-    </div>
-  </div>
-
-  <div class="highlow24__range" aria-label="Latest close position inside 24 hour range">
-    <div class="highlow24__range-labels">
-      <span>L</span>
-      <span data-highlow24-position-label>—</span>
-      <span>H</span>
-    </div>
-
-    <div class="highlow24__range-track">
-      <span class="highlow24__range-fill"></span>
-      <span class="highlow24__range-marker" data-highlow24-range-marker></span>
+    <div class="market24__metric">
+      <span data-market24-metric-label="3">metric</span>
+      <strong data-market24-metric-value="3">—</strong>
     </div>
   </div>
 
-  <div class="highlow24__chart-wrap">
+  <div class="market24__chart-wrap">
     <canvas
-      class="highlow24__chart"
-      data-highlow24-chart
+      class="market24__chart"
+      data-market24-chart
       role="img"
-      aria-label="Bitcoin 24 hour price range with volume overlay and high low markers"
+      aria-label="Bitcoin 24 hour market chart"
     ></canvas>
   </div>
 
-  <div class="highlow24__legend" aria-hidden="true">
-    <span><i class="highlow24__legend-price"></i>price</span>
-    <span><i class="highlow24__legend-volume"></i>volume</span>
-    <span><i class="highlow24__legend-high"></i>high</span>
-    <span><i class="highlow24__legend-low"></i>low</span>
+  <div class="market24__legend" aria-hidden="true">
+    <span data-market24-legend="0"><i></i><b>—</b></span>
+    <span data-market24-legend="1"><i></i><b>—</b></span>
+    <span data-market24-legend="2"><i></i><b>—</b></span>
+    <span data-market24-legend="3"><i></i><b>—</b></span>
   </div>
 
-  <div class="highlow24__footer">
-    <div class="highlow24__source-meta">
+  <div class="market24__footer">
+    <div class="market24__source-meta">
       <span
-        class="btc-card__status highlow24__status"
-        data-highlow24-status
+        class="btc-card__status market24__status"
+        data-market24-status
         data-status="offline"
         aria-live="polite"
       >loading</span>
-
-      <span data-highlow24-meta>—</span>
+      <span data-market24-meta>—</span>
     </div>
 
     <button
       type="button"
       class="zzx-widgets__btn"
-      data-highlow24-refresh
-      aria-label="Refresh 24 hour high and low"
+      data-market24-refresh
+      aria-label="Refresh 24 hour market widget"
     >Refresh</button>
   </div>
+
+  <div class="market24__note" data-market24-note></div>
 </div>
