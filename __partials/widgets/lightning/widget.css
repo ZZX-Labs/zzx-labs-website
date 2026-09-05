@@ -1,0 +1,122 @@
+/* __partials/widgets/lightning/widget.css */
+
+.lightning{
+  --ln-green:var(--zzx-accent,#c0d674);
+  --ln-gold:var(--zzx-accent-alt,#e6a42b);
+  --ln-muted:var(--zzx-muted,#b7bf9a);
+  --ln-dim:var(--zzx-dim,#777);
+  --ln-line:rgba(255,255,255,.09);
+  --ln-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.lightning__header,
+.lightning__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.lightning__header{align-items:flex-start}
+
+.lightning__eyebrow,
+.lightning__hero > span,
+.lightning__metrics span{
+  color:var(--ln-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.lightning__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--ln-line);
+  border-bottom:1px solid var(--ln-line);
+}
+
+.lightning__hero strong{
+  color:var(--ln-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.4rem;
+  line-height:1.05;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+
+.lightning__hero small{
+  color:var(--ln-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lightning__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.lightning__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--ln-line);
+  border-radius:6px;
+  background:var(--ln-panel);
+}
+
+.lightning__metrics span,
+.lightning__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lightning__metrics strong{
+  margin-top:.1rem;
+  color:var(--ln-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.lightning__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--ln-line);
+  color:var(--ln-muted);
+  font-size:.67rem;
+}
+
+.lightning__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .lightning__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:460px){
+  .lightning__metrics{
+    grid-template-columns:1fr;
+  }
+
+  .lightning__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
