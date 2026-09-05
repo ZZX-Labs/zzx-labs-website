@@ -1,13 +1,70 @@
 <!-- __partials/widgets/btc-blockexplorer/widget.html -->
-<div class="btc-card" data-widget-root="btc-blockexplorer">
-  <div class="btc-card__title">Block Explorer</div>
-
-  <div class="btc-explorer">
-    <input class="btc-explorer__in" type="text" placeholder="txid / address / block height" data-q />
-    <button class="btc-pager__btn" type="button" data-go>Go</button>
+<div class="btc-card btc-blockexplorer">
+  <div class="btc-blockexplorer__header">
+    <div>
+      <div class="btc-card__title">Bitcoin Block Explorer</div>
+      <div class="btc-blockexplorer__eyebrow">block · transaction · address</div>
+    </div>
+    <span
+      class="btc-card__status"
+      data-bex-status
+      data-status="offline"
+      aria-live="polite"
+    >ready</span>
   </div>
 
-  <div class="btc-list" data-links></div>
+  <form class="btc-blockexplorer__search" data-bex-form>
+    <input
+      class="btc-blockexplorer__input"
+      data-bex-query
+      type="text"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="block height / block hash / txid / Bitcoin address"
+      aria-label="Bitcoin block explorer query"
+    >
+    <button class="zzx-widgets__btn" type="submit">Explore</button>
+  </form>
 
-  <div class="btc-card__sub"><span data-sub>opens mempool.space in new tab</span></div>
+  <div class="btc-blockexplorer__type" data-bex-type>
+    Enter a Bitcoin block height, hash, transaction ID, or address.
+  </div>
+
+  <div class="btc-blockexplorer__hero">
+    <span data-bex-hero-label>result</span>
+    <strong data-bex-hero>—</strong>
+    <small data-bex-hero-sub>—</small>
+  </div>
+
+  <div class="btc-blockexplorer__metrics">
+    <div>
+      <span data-bex-metric-label="0">metric</span>
+      <strong data-bex-metric-value="0">—</strong>
+    </div>
+    <div>
+      <span data-bex-metric-label="1">metric</span>
+      <strong data-bex-metric-value="1">—</strong>
+    </div>
+    <div>
+      <span data-bex-metric-label="2">metric</span>
+      <strong data-bex-metric-value="2">—</strong>
+    </div>
+    <div>
+      <span data-bex-metric-label="3">metric</span>
+      <strong data-bex-metric-value="3">—</strong>
+    </div>
+  </div>
+
+  <div class="btc-blockexplorer__details" data-bex-details></div>
+
+  <div class="btc-blockexplorer__footer">
+    <span data-bex-meta>configured mempool API · no query sent yet</span>
+    <a
+      class="zzx-widgets__btn btc-blockexplorer__external"
+      data-bex-external
+      href="https://mempool.space/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >Open explorer</a>
+  </div>
 </div>
