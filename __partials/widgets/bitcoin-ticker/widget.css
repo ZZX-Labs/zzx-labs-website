@@ -1,234 +1,398 @@
-/* __partials/widgets/bitcoin-ticker/widget.css */
+/* __partials/widgets/bitcoin-ticker/widget.css
+   ZZX-Labs Bitcoin Ticker
+   Full-width HUD widget. No remote fonts or external CSS. */
 
-@font-face{
-  font-family:"IBMPlexMono";
-  src:url("/static/fonts/IBMPlexMono-Regular.ttf") format("truetype");
-  font-weight:400;
-  font-style:normal;
-  font-display:swap;
-}
-
-@font-face{
-  font-family:"AdultSwimFont";
-  src:url("/static/fonts/AdultSwimFont.ttf") format("truetype");
-  font-weight:400;
-  font-style:normal;
-  font-display:swap;
-}
-
-.ticker-shell{
-  background:#000;
-  border:4px solid #e6a42b;
-  border-radius:10px;
-  padding:4px;
-  display:inline-block;
-  max-width:100%;
-  box-sizing:border-box;
-}
-
-.ticker-shell *,
-.bitcoin-ticker-widget *,
-.zzx-ticker *{
-  box-sizing:border-box;
-}
-
-.zzx-ticker{
-  text-align:left;
-  color:#c0d674;
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  max-width:100%;
-}
-
-.ticker-controls-panel{
-  background:#1b1b1b;
-  border:1px solid #333;
-  border-radius:8px;
-  padding:8px;
-  margin:0 0 10px 0;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-}
-
-.ticker-control-group{
-  display:flex;
-  flex-direction:column;
-  gap:3px;
-}
-
-.ticker-control-label{
-  color:#e6a42b;
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  font-size:.62rem;
-  letter-spacing:.12em;
-  line-height:1;
-  text-transform:uppercase;
-}
-
-.ticker-control-select{
+[data-widget-root="bitcoin-ticker"]{
   width:100%;
-  background:#111;
-  color:#c0d674;
-  border:1px solid #3b3b3b;
-  border-radius:6px;
-  padding:4px 6px;
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  font-size:.78rem;
+  min-width:0;
 }
 
-.btc-line{
-  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
-  color:#c0d674;
-  font-size:2rem;
-  line-height:1.1;
-  margin:0 0 10px 0;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+.bitcoin-ticker{
+  --ticker-green:var(--zzx-accent,#c0d674);
+  --ticker-amber:var(--zzx-accent-alt,#e6a42b);
+  --ticker-bg:#050505;
+  --ticker-panel:#0b0b0b;
+  --ticker-panel-2:#111;
+  --ticker-border:#2a2a2a;
+  --ticker-muted:#9aa283;
+  --ticker-dim:#6f7464;
+  --ticker-error:#d67474;
 
-.subunits{
-  background:#333;
-  padding:10px;
-  border-radius:8px;
-  display:grid;
-  gap:6px;
-}
+  width:100%;
+  min-width:0;
+  padding:.7rem .8rem;
 
-.unit{
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  font-size:1.2rem;
-  color:#c0d674;
-  margin:5px 0;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+  color:var(--ticker-green);
+  background:
+    linear-gradient(180deg,rgba(230,164,43,.035),transparent 24%),
+    var(--ticker-bg);
 
-.credit{
-  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
-  color:#c0d674;
-  font-size:.8rem;
-  margin:2px 0;
-  text-align:right;
-}
-
-.ticker-status{
-  color:#e6a42b;
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  font-size:.72rem;
-  line-height:1.35;
-  margin-top:6px;
-  text-align:right;
-}
-
-.bitcoin-ticker-widget{
-  background:#000;
-  border:4px solid #e6a42b;
+  border:1px solid var(--ticker-border);
+  border-top:3px solid var(--ticker-amber);
   border-radius:10px;
-  padding:10px;
-  color:#c0d674;
-  font-family:"IBMPlexMono", ui-monospace, monospace;
+
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+
+  font-family:
+    var(
+      --zzx-font-mono,
+      "IBMPlexMono",
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      "Liberation Mono",
+      monospace
+    );
+
+  box-sizing:border-box;
+  overflow:hidden;
+}
+
+.bitcoin-ticker *,
+.bitcoin-ticker *::before,
+.bitcoin-ticker *::after{
   box-sizing:border-box;
 }
 
-.bitcoin-ticker-widget .zzx-widget-header{
+.bitcoin-ticker__header{
   display:flex;
+  align-items:flex-start;
   justify-content:space-between;
+  gap:1rem;
+  margin-bottom:.55rem;
+}
+
+.bitcoin-ticker__heading{
+  min-width:0;
+}
+
+.bitcoin-ticker__eyebrow{
+  display:block;
+  margin:0 0 .12rem;
+  color:var(--ticker-dim);
+  font-size:.62rem;
+  line-height:1.1;
+  letter-spacing:.13em;
+}
+
+.bitcoin-ticker__title{
+  margin:0;
+  color:var(--ticker-amber);
+  font-family:
+    var(
+      --zzx-font-display,
+      "AdultSwimFont",
+      "IBMPlexMono",
+      ui-monospace,
+      monospace
+    );
+  font-size:1.02rem;
+  font-weight:400;
+  line-height:1.1;
+  letter-spacing:.035em;
+}
+
+.bitcoin-ticker__state{
+  display:inline-flex;
   align-items:center;
-  gap:12px;
-  margin-bottom:10px;
+  gap:.35rem;
+  flex:0 0 auto;
+  color:var(--ticker-muted);
+  font-size:.68rem;
+  white-space:nowrap;
 }
 
-.bitcoin-ticker-widget .zzx-widget-title{
-  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
-  color:#c0d674;
-  font-size:1rem;
-  letter-spacing:.03em;
+.bitcoin-ticker__dot{
+  display:inline-block;
+  width:.48rem;
+  height:.48rem;
+  border-radius:50%;
+  background:var(--ticker-dim);
+  box-shadow:0 0 0 2px rgba(255,255,255,.025);
 }
 
-.bitcoin-ticker-widget .zzx-widget-status{
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  color:#e6a42b;
-  font-size:.8rem;
+.bitcoin-ticker[data-status="ok"] .bitcoin-ticker__dot{
+  background:var(--ticker-green);
+}
+
+.bitcoin-ticker[data-status="stale"] .bitcoin-ticker__dot{
+  background:var(--ticker-amber);
+}
+
+.bitcoin-ticker[data-status="error"] .bitcoin-ticker__dot{
+  background:var(--ticker-error);
+}
+
+.bitcoin-ticker__controls{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:.5rem;
+  margin-bottom:.6rem;
+}
+
+.bitcoin-ticker__control{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:.45rem;
+  min-width:0;
+  padding:.32rem .4rem;
+  background:var(--ticker-panel);
+  border:1px solid #222;
+  border-radius:7px;
+}
+
+.bitcoin-ticker__control > span{
+  color:var(--ticker-dim);
+  font-size:.62rem;
+  letter-spacing:.08em;
   text-transform:uppercase;
 }
 
-.bitcoin-ticker-widget .zzx-widget-primary{
-  font-family:"AdultSwimFont","IBMPlexMono", ui-monospace, monospace;
-  color:#c0d674;
-  font-size:2rem;
-  line-height:1.1;
-  margin-bottom:10px;
+.bitcoin-ticker__control select{
+  width:100%;
+  min-width:0;
+  height:1.85rem;
+  margin:0;
+  padding:.18rem 1.65rem .18rem .4rem;
+
+  color:var(--ticker-green);
+  background:#080808;
+
+  border:1px solid #303030;
+  border-radius:5px;
+  outline:none;
+
+  font:inherit;
+  font-size:.72rem;
+  text-overflow:ellipsis;
+}
+
+.bitcoin-ticker__control select:hover,
+.bitcoin-ticker__control select:focus{
+  border-color:var(--ticker-amber);
+}
+
+.bitcoin-ticker__hero{
+  display:grid;
+  gap:.18rem;
+  padding:.55rem .6rem .6rem;
+  margin-bottom:.5rem;
+
+  background:
+    linear-gradient(90deg,rgba(192,214,116,.045),transparent 56%),
+    #080808;
+
+  border:1px solid #222;
+  border-radius:8px;
+}
+
+.bitcoin-ticker__primary{
+  display:flex;
+  align-items:baseline;
+  gap:.55rem;
+  min-width:0;
+}
+
+.bitcoin-ticker__unit{
+  flex:0 0 auto;
+  color:var(--ticker-amber);
+  font-size:.74rem;
+  letter-spacing:.04em;
+}
+
+.bitcoin-ticker__price{
+  min-width:0;
+  color:var(--ticker-green);
+  font-family:
+    var(
+      --zzx-font-display,
+      "AdultSwimFont",
+      "IBMPlexMono",
+      ui-monospace,
+      monospace
+    );
+  font-size:clamp(1.55rem,4vw,2.35rem);
+  line-height:1;
+  font-variant-numeric:tabular-nums;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
-.bitcoin-ticker-widget .ticker-denoms{
-  background:#333;
-  border-radius:8px;
-  padding:10px;
-  display:grid;
-  gap:8px;
-  margin-bottom:10px;
+.bitcoin-ticker__quote{
+  flex:0 0 auto;
+  color:var(--ticker-muted);
+  font-size:.74rem;
 }
 
-.bitcoin-ticker-widget .ticker-denoms div{
+.bitcoin-ticker__market{
   display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
+  flex-wrap:wrap;
+  gap:.32rem;
+  color:var(--ticker-dim);
+  font-size:.65rem;
+  line-height:1.35;
 }
 
-.bitcoin-ticker-widget .ticker-denoms span,
-.bitcoin-ticker-widget .ticker-denoms strong{
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  color:#c0d674;
+.bitcoin-ticker__denoms{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.4rem;
+  margin-bottom:.5rem;
 }
 
-.bitcoin-ticker-widget .ticker-denoms strong{
+.bitcoin-ticker__denom{
+  min-width:0;
+  padding:.38rem .45rem;
+  background:var(--ticker-panel-2);
+  border:1px solid #242424;
+  border-radius:7px;
+}
+
+.bitcoin-ticker__denom-label{
+  display:block;
+  margin-bottom:.12rem;
+  color:var(--ticker-dim);
+  font-size:.62rem;
+  letter-spacing:.06em;
+}
+
+.bitcoin-ticker__denom strong{
+  display:block;
+  min-width:0;
+  color:var(--ticker-green);
+  font-size:.82rem;
   font-weight:400;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-.bitcoin-ticker-widget .zzx-widget-foot{
-  font-family:"IBMPlexMono", ui-monospace, monospace;
-  color:#e6a42b;
-  font-size:.8rem;
-  line-height:1.4;
-  text-align:right;
+.bitcoin-ticker__stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.4rem;
+  margin-bottom:.5rem;
 }
 
-@media(max-width:640px){
-  .ticker-shell,
-  .bitcoin-ticker-widget{
-    width:100%;
-    padding:8px;
-  }
+.bitcoin-ticker__stat{
+  min-width:0;
+  padding:.36rem .42rem;
+  background:#090909;
+  border-top:1px solid #202020;
+}
 
-  .ticker-controls-panel{
+.bitcoin-ticker__stat span{
+  display:block;
+  margin-bottom:.12rem;
+  color:var(--ticker-dim);
+  font-size:.58rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.bitcoin-ticker__stat strong{
+  display:block;
+  min-width:0;
+  color:var(--ticker-muted);
+  font-size:.74rem;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bitcoin-ticker__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  min-width:0;
+  padding-top:.42rem;
+  border-top:1px solid #1f1f1f;
+  color:var(--ticker-dim);
+  font-size:.62rem;
+  line-height:1.3;
+}
+
+.bitcoin-ticker__footer > span:first-child{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.bitcoin-ticker__credit{
+  flex:0 0 auto;
+  color:var(--ticker-green);
+  white-space:nowrap;
+}
+
+.bitcoin-ticker__credit i{
+  color:var(--ticker-amber);
+  font-style:normal;
+}
+
+@media (max-width:720px){
+  .bitcoin-ticker__controls{
     grid-template-columns:1fr;
   }
 
-  .ticker-control-group{
-    width:100%;
+  .bitcoin-ticker__stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:520px){
+  .bitcoin-ticker{
+    padding:.55rem;
   }
 
-  .ticker-control-select{
-    max-width:100%;
+  .bitcoin-ticker__header{
+    gap:.5rem;
   }
 
-  .btc-line,
-  .bitcoin-ticker-widget .zzx-widget-primary{
-    font-size:1.4rem;
+  .bitcoin-ticker__primary{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:.4rem;
   }
 
-  .unit{
-    font-size:1rem;
+  .bitcoin-ticker__price{
+    font-size:1.48rem;
   }
 
-  .subunits,
-  .bitcoin-ticker-widget .ticker-denoms{
-    padding:8px;
+  .bitcoin-ticker__denoms{
+    grid-template-columns:1fr;
+  }
+
+  .bitcoin-ticker__footer{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:.25rem;
+  }
+}
+
+@media (max-width:360px){
+  .bitcoin-ticker__state{
+    display:none;
+  }
+
+  .bitcoin-ticker__stats{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .bitcoin-ticker *,
+  .bitcoin-ticker *::before,
+  .bitcoin-ticker *::after{
+    scroll-behavior:auto !important;
+    transition:none !important;
   }
 }
