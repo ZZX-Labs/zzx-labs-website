@@ -1,15 +1,26 @@
 /* __partials/bitcoin-ticker-widget.css
    WRAPPER + SHARED PRIMITIVES (drop-in)
-   Canonical HUD modes: full | ticker-only | hidden
 
-   FIXES:
-   - Targets BOTH: data-widget-slot (current) + data-widget (legacy tolerance)
-   - HUD handle visible ONLY when HUD is hidden (CSS-driven via :has()) + safe fallback
-   - Full-width rules for: runtime, bitcoin-ticker, bitrng
-   - Mobile overflow hardening: min-width:0 + wrap fallback for long unbroken strings
+   Canonical HUD modes:
+     full
+     ticker-only
+     hidden
+
+   DESIGN RULES:
+   - Existing widget behavior is preserved.
+   - New widgets inherit the same visual language.
+   - Supports data-widget and data-widget-slot.
+   - Responsive and overflow-safe.
+   - No remote fonts.
+   - No widget IDs are removed or replaced.
+   - Interactive project widgets receive common form/table primitives.
 */
 
-/* ---------- HUD handle ---------- */
+
+/* =========================================================
+   HUD HANDLE
+   ========================================================= */
+
 .zzx-hud-handle{
   position: sticky;
   top: .35rem;
@@ -17,91 +28,179 @@
 
   width: 100%;
   margin: .25rem auto;
+
   pointer-events: none;
 
   display: none;
   justify-content: center;
 }
 
+
 /* Show ONLY when HUD is hidden */
 @supports selector(:has(*)) {
+
   body:has([data-hud-root][data-hud-state="hidden"]) .zzx-hud-handle{
     display: flex;
   }
+
 }
-/* Fallback: if :has() unsupported, keep handle visible so user is never stranded */
+
+
+/* Safe fallback for browsers without :has().
+   JS/HUD state logic may override visibility when available. */
 @supports not selector(:has(*)) {
-  .zzx-hud-handle{ display: flex; }
+
+  .zzx-hud-handle{
+    display: flex;
+  }
+
 }
+
 
 .zzx-hud-handle .zzx-hud-show{
   pointer-events: auto;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   gap: .45rem;
 
   background: #0b0b0b;
+
   border: 1px solid rgba(255,255,255,.14);
   border-radius: 999px;
+
   padding: .35rem .7rem;
 
   color: #c0d674;
+
   cursor: pointer;
 
-  /* keep local/system; no remote font loads */
-  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  font-family:
+    var(
+      --zzx-font-mono,
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      "Liberation Mono",
+      monospace
+    );
+
+  transition:
+    color .15s ease,
+    border-color .15s ease,
+    background .15s ease;
 }
+
 
 .zzx-hud-handle .zzx-hud-show:hover{
   border-color: #e6a42b;
   color: #e6a42b;
 }
 
+
+.zzx-hud-handle .zzx-hud-show:focus-visible{
+  outline: 2px solid #e6a42b;
+  outline-offset: 2px;
+}
+
+
 .zzx-hud-fallback{
   display: none;
+
   font-size: 12px;
   opacity: .9;
   line-height: 1;
 }
 
-/* ---------- HUD root rail ---------- */
+
+
+/* =========================================================
+   HUD ROOT RAIL
+   ========================================================= */
+
 .btc-rail{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:stretch;
-  gap:.6rem;
-  width:100%;
+  display: flex;
+  flex-wrap: wrap;
+
+  justify-content: center;
+  align-items: stretch;
+
+  gap: .6rem;
+
+  width: 100%;
+  min-width: 0;
+
+  box-sizing: border-box;
 }
 
-/* When hidden, hide the entire rail */
+
+/* Hidden mode */
 [data-hud-root][data-hud-state="hidden"]{
-  display:none !important;
+  display: none !important;
 }
 
-/* Slots */
+
+
+/* =========================================================
+   WIDGET SLOTS
+   ========================================================= */
+
 .btc-slot{
-  display:flex;
+  display: flex;
+
   flex: 1 1 240px;
+
   max-width: 360px;
+
   box-sizing: border-box;
 
-  min-width: 0; /* critical: prevents flex children (long hashes) from forcing overflow */
+  min-width: 0;
 }
 
-/* Mobile: force 1-up cards to avoid side spill */
+
+/* Empty or disabled slots consume no space */
+.btc-slot:empty{
+  display: none;
+}
+
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 620px){
+
+  .btc-rail{
+    gap: .5rem;
+  }
+
   .btc-slot{
     flex: 1 1 100%;
     max-width: 100%;
   }
+
 }
 
-/* Full-width slots (supports BOTH conventions) */
+
+
+/* =========================================================
+   FULL-WIDTH WIDGETS
+   ========================================================= */
+
+/*
+   Existing full-width widgets.
+   Supports both historical slot naming conventions.
+*/
+
 .btc-slot[data-widget="bitcoin-ticker"],
 .btc-slot[data-widget="bitrng"],
 .btc-slot[data-widget="runtime"],
+
 .btc-slot[data-widget-slot="bitcoin-ticker"],
 .btc-slot[data-widget-slot="bitrng"],
 .btc-slot[data-widget-slot="runtime"]{
@@ -110,108 +209,801 @@
   justify-content: center;
 }
 
-/* ---------- Card primitives ---------- */
+
+/*
+   Larger interactive/project widgets.
+   These may require horizontal room for forms, history,
+   multiple values or richer visual material.
+*/
+
+.btc-slot[data-widget="iching"],
+.btc-slot[data-widget="btc-gif"],
+
+.btc-slot[data-widget-slot="iching"],
+.btc-slot[data-widget-slot="btc-gif"]{
+  flex: 1 1 480px;
+  max-width: 740px;
+}
+
+
+
+/* =========================================================
+   CARD
+   ========================================================= */
+
 .btc-card{
-  background:#0b0b0b;
-  border:1px solid #2a2a2a;
-  border-radius:10px;
-  box-shadow:0 6px 18px rgba(0,0,0,.25);
-  padding:.55rem .65rem;
+  background: #0b0b0b;
+
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+
+  padding: .55rem .65rem;
 
   width: 100%;
   max-width: 360px;
 
-  color:#c0d674;
-  font-family: var(--zzx-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  color: #c0d674;
+
+  font-family:
+    var(
+      --zzx-font-mono,
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      "Liberation Mono",
+      monospace
+    );
+
   box-sizing: border-box;
 
-  /* containment */
   min-width: 0;
+
   overflow: hidden;
 }
 
-/* Let full-width cards actually be full-width (supports BOTH conventions) */
+
+/* Full-width card contents */
+
 .btc-slot[data-widget="runtime"] .btc-card,
 .btc-slot[data-widget="bitcoin-ticker"] .btc-card,
 .btc-slot[data-widget="bitrng"] .btc-card,
+
 .btc-slot[data-widget-slot="runtime"] .btc-card,
 .btc-slot[data-widget-slot="bitcoin-ticker"] .btc-card,
 .btc-slot[data-widget-slot="bitrng"] .btc-card{
   max-width: 100% !important;
 }
 
-/* Title / value / sub */
-.btc-card__title{
-  color:#e6a42b;
-  font-size:1rem;
-  line-height:1.1;
-  margin-bottom:.35rem;
 
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+/* Wider interactive cards */
+
+.btc-slot[data-widget="iching"] .btc-card,
+.btc-slot[data-widget="btc-gif"] .btc-card,
+
+.btc-slot[data-widget-slot="iching"] .btc-card,
+.btc-slot[data-widget-slot="btc-gif"] .btc-card{
+  max-width: 100%;
+}
+
+
+
+/* =========================================================
+   CARD TYPOGRAPHY
+   ========================================================= */
+
+.btc-card__title{
+  color: #e6a42b;
+
+  font-size: 1rem;
+  line-height: 1.1;
+
+  margin-bottom: .35rem;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   min-width: 0;
 }
+
 
 .btc-card__value{
-  font-size:1.35rem;
-  line-height:1.2;
-  margin-bottom:.15rem;
+  font-size: 1.35rem;
+  line-height: 1.2;
 
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  margin-bottom: .15rem;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   min-width: 0;
 }
+
 
 .btc-card__sub{
-  font-size:.95rem;
-  color:#b7bf9a;
+  font-size: .95rem;
 
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  color: #b7bf9a;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   min-width: 0;
 }
 
-/* ---------- Ticker-only mode ---------- */
-/* Hide all slots… */
+
+.btc-card__label{
+  font-size: .72rem;
+
+  color: #888;
+
+  text-transform: uppercase;
+
+  letter-spacing: .06em;
+}
+
+
+.btc-card__muted{
+  color: #7f856f;
+}
+
+
+.btc-card__accent{
+  color: #e6a42b;
+}
+
+
+.btc-card__mono{
+  font-family: inherit;
+
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+/* =========================================================
+   STATUS STATES
+   ========================================================= */
+
+.btc-card__status{
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: .35rem;
+
+  font-size: .78rem;
+
+  color: #b7bf9a;
+}
+
+
+.btc-card__status::before{
+  content: "";
+
+  display: inline-block;
+
+  width: .5rem;
+  height: .5rem;
+
+  border-radius: 50%;
+
+  background: currentColor;
+}
+
+
+.btc-card__status[data-status="ok"]{
+  color: #c0d674;
+}
+
+
+.btc-card__status[data-status="warn"]{
+  color: #e6a42b;
+}
+
+
+.btc-card__status[data-status="error"]{
+  color: #d67474;
+}
+
+
+.btc-card__status[data-status="offline"]{
+  color: #777;
+}
+
+
+
+/* =========================================================
+   ROWS
+   ========================================================= */
+
+.btc-card__row{
+  display: flex;
+
+  justify-content: space-between;
+  align-items: baseline;
+
+  gap: .65rem;
+
+  min-width: 0;
+
+  padding: .15rem 0;
+}
+
+
+.btc-card__row > :first-child{
+  min-width: 0;
+}
+
+
+.btc-card__row > :last-child{
+  min-width: 0;
+
+  text-align: right;
+
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+/* =========================================================
+   METRIC GRID
+   ========================================================= */
+
+.btc-card__grid{
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(min(120px, 100%), 1fr)
+    );
+
+  gap: .45rem;
+
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+.btc-card__metric{
+  min-width: 0;
+
+  padding: .4rem .45rem;
+
+  background: rgba(255,255,255,.018);
+
+  border: 1px solid rgba(255,255,255,.06);
+
+  border-radius: 6px;
+}
+
+
+.btc-card__metric-label{
+  display: block;
+
+  margin-bottom: .12rem;
+
+  color: #777;
+
+  font-size: .68rem;
+
+  text-transform: uppercase;
+
+  letter-spacing: .04em;
+}
+
+
+.btc-card__metric-value{
+  display: block;
+
+  color: #c0d674;
+
+  font-size: .95rem;
+
+  font-variant-numeric: tabular-nums;
+
+  overflow-wrap: anywhere;
+}
+
+
+
+/* =========================================================
+   FORM CONTROLS
+   Shared by:
+   - currency-converter
+   - I-Ching
+   - BitTrackIt
+   - BitBilling
+   - future project widgets
+   ========================================================= */
+
+.btc-card input,
+.btc-card select,
+.btc-card textarea,
+.btc-card button{
+  font: inherit;
+  box-sizing: border-box;
+}
+
+
+.btc-card input,
+.btc-card select,
+.btc-card textarea{
+  width: 100%;
+  min-width: 0;
+
+  background: #080808;
+
+  border: 1px solid #303030;
+  border-radius: 5px;
+
+  color: #c0d674;
+
+  padding: .38rem .45rem;
+
+  outline: none;
+}
+
+
+.btc-card input::placeholder,
+.btc-card textarea::placeholder{
+  color: #65695b;
+}
+
+
+.btc-card input:hover,
+.btc-card select:hover,
+.btc-card textarea:hover{
+  border-color: #505050;
+}
+
+
+.btc-card input:focus,
+.btc-card select:focus,
+.btc-card textarea:focus{
+  border-color: #e6a42b;
+}
+
+
+.btc-card select{
+  cursor: pointer;
+}
+
+
+.btc-card option{
+  background: #0b0b0b;
+  color: #c0d674;
+}
+
+
+.btc-card button{
+  border: 1px solid #3b3b3b;
+
+  border-radius: 5px;
+
+  background: #111;
+
+  color: #c0d674;
+
+  padding: .38rem .55rem;
+
+  cursor: pointer;
+}
+
+
+.btc-card button:hover{
+  border-color: #e6a42b;
+
+  color: #e6a42b;
+}
+
+
+.btc-card button:focus-visible{
+  outline: 2px solid #e6a42b;
+  outline-offset: 1px;
+}
+
+
+.btc-card button:disabled{
+  opacity: .45;
+
+  cursor: not-allowed;
+}
+
+
+
+/* =========================================================
+   FORM LAYOUT
+   ========================================================= */
+
+.btc-card__form{
+  display: grid;
+
+  gap: .45rem;
+
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+.btc-card__fields{
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(min(130px, 100%), 1fr)
+    );
+
+  gap: .4rem;
+
+  min-width: 0;
+}
+
+
+.btc-card__field{
+  display: flex;
+
+  flex-direction: column;
+
+  gap: .15rem;
+
+  min-width: 0;
+}
+
+
+.btc-card__field label{
+  color: #888;
+
+  font-size: .7rem;
+
+  text-transform: uppercase;
+
+  letter-spacing: .04em;
+}
+
+
+.btc-card__actions{
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: .35rem;
+
+  align-items: center;
+}
+
+
+
+/* =========================================================
+   TABLES
+   Useful for I-Ching purchase history,
+   block history, node distributions, etc.
+   ========================================================= */
+
+.btc-card__table-wrap{
+  width: 100%;
+
+  min-width: 0;
+
+  overflow-x: auto;
+}
+
+
+.btc-card table{
+  width: 100%;
+
+  border-collapse: collapse;
+
+  font-size: .78rem;
+
+  font-variant-numeric: tabular-nums;
+}
+
+
+.btc-card th,
+.btc-card td{
+  padding: .25rem .35rem;
+
+  text-align: left;
+
+  border-bottom: 1px solid #222;
+
+  white-space: nowrap;
+}
+
+
+.btc-card th{
+  color: #e6a42b;
+
+  font-weight: normal;
+}
+
+
+.btc-card td{
+  color: #b7bf9a;
+}
+
+
+
+/* =========================================================
+   PROGRESS / METERS
+   ========================================================= */
+
+.btc-card__progress{
+  position: relative;
+
+  width: 100%;
+  height: 7px;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background: #171717;
+
+  border: 1px solid #292929;
+}
+
+
+.btc-card__progress-bar{
+  display: block;
+
+  width: var(--progress, 0%);
+  max-width: 100%;
+  height: 100%;
+
+  background: #c0d674;
+
+  transition: width .25s ease;
+}
+
+
+.btc-card progress{
+  width: 100%;
+
+  accent-color: #c0d674;
+}
+
+
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.btc-card__badge{
+  display: inline-flex;
+
+  align-items: center;
+
+  padding: .12rem .35rem;
+
+  border: 1px solid #353535;
+  border-radius: 999px;
+
+  background: rgba(255,255,255,.02);
+
+  color: #b7bf9a;
+
+  font-size: .68rem;
+
+  white-space: nowrap;
+}
+
+
+.btc-card__badge--accent{
+  color: #e6a42b;
+
+  border-color: rgba(230,164,43,.35);
+}
+
+
+
+/* =========================================================
+   DIVIDERS
+   ========================================================= */
+
+.btc-card__divider{
+  width: 100%;
+  height: 1px;
+
+  margin: .4rem 0;
+
+  background: #222;
+}
+
+
+
+/* =========================================================
+   ERRORS / LOADING
+   ========================================================= */
+
+.btc-card__loading{
+  color: #7d836d;
+
+  animation: zzx-btc-pulse 1.35s ease-in-out infinite;
+}
+
+
+.btc-card__error{
+  color: #d67474;
+
+  overflow-wrap: anywhere;
+}
+
+
+@keyframes zzx-btc-pulse{
+
+  0%,
+  100%{
+    opacity: .5;
+  }
+
+  50%{
+    opacity: 1;
+  }
+
+}
+
+
+
+/* =========================================================
+   TICKER-ONLY MODE
+   ========================================================= */
+
+/* Hide all widget slots */
 [data-hud-root][data-hud-state="ticker-only"] .btc-slot{
-  display:none !important;
+  display: none !important;
 }
 
-/* …but keep ticker slot visible (supports BOTH conventions) */
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"],
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget-slot="bitcoin-ticker"]{
-  display:flex !important;
+
+/* Keep Bitcoin ticker */
+[data-hud-root][data-hud-state="ticker-only"]
+.btc-slot[data-widget="bitcoin-ticker"],
+
+[data-hud-root][data-hud-state="ticker-only"]
+.btc-slot[data-widget-slot="bitcoin-ticker"]{
+  display: flex !important;
 }
 
-/* …and keep runtime slot visible so you can exit ticker-only (supports BOTH conventions) */
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="runtime"],
-[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget-slot="runtime"]{
-  display:flex !important;
+
+/* Keep runtime controls so ticker-only can be exited */
+[data-hud-root][data-hud-state="ticker-only"]
+.btc-slot[data-widget="runtime"],
+
+[data-hud-root][data-hud-state="ticker-only"]
+.btc-slot[data-widget-slot="runtime"]{
+  display: flex !important;
 }
 
-/* ---------- Global containment helpers (safe, minimal) ---------- */
 
-/* prevents long unbroken strings (hashes) from forcing overflow */
+
+/* =========================================================
+   CONTENT CONTAINMENT
+   ========================================================= */
+
+/* Long hashes, addresses, URLs, etc. */
+
 .btc-card,
 [data-widget-root]{
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-/* keep media from pushing past card edge */
-canvas, svg, img, video{
+
+/*
+   HUD-scoped media containment.
+   Prevents widget graphics from overflowing while avoiding
+   unintended layout changes elsewhere on zzx-labs.io.
+*/
+
+.btc-rail canvas,
+.btc-rail svg,
+.btc-rail img,
+.btc-rail video,
+
+.btc-card canvas,
+.btc-card svg,
+.btc-card img,
+.btc-card video{
+  max-width: 100%;
+  height: auto;
+
+  display: block;
+}
+
+
+.btc-rail pre,
+.btc-rail code,
+
+.btc-card pre,
+.btc-card code{
+  max-width: 100%;
+
+  overflow-x: auto;
+}
+
+
+
+/* =========================================================
+   LEGACY GLOBAL CONTAINMENT
+   Retained for backward compatibility with existing pages/widgets.
+   ========================================================= */
+
+canvas,
+svg,
+img,
+video{
   max-width: 100%;
   height: auto;
   display: block;
 }
 
-pre, code{
+
+pre,
+code{
   max-width: 100%;
   overflow-x: auto;
+}
+
+
+
+/* =========================================================
+   SMALL SCREEN HARDENING
+   ========================================================= */
+
+@media (max-width: 420px){
+
+  .btc-card{
+    padding: .5rem;
+  }
+
+  .btc-card__value{
+    font-size: 1.15rem;
+  }
+
+  .btc-card__sub{
+    font-size: .82rem;
+  }
+
+  .btc-card__row{
+    align-items: flex-start;
+  }
+
+  .btc-card__grid{
+    grid-template-columns: 1fr;
+  }
+
+  .btc-card__fields{
+    grid-template-columns: 1fr;
+  }
+
+}
+
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce){
+
+  .btc-card__loading{
+    animation: none;
+  }
+
+  .btc-card__progress-bar,
+  .zzx-hud-handle .zzx-hud-show{
+    transition: none;
+  }
+
 }
