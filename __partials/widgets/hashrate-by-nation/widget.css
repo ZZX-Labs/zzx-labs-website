@@ -1,0 +1,192 @@
+/* __partials/widgets/hashrate-by-nation/widget.css */
+
+.hashrate-by-nation{
+  --hbn-green:var(--zzx-accent,#c0d674);
+  --hbn-gold:var(--zzx-accent-alt,#e6a42b);
+  --hbn-red:var(--zzx-error,#d67474);
+  --hbn-muted:var(--zzx-muted,#b7bf9a);
+  --hbn-dim:var(--zzx-dim,#777);
+  --hbn-line:rgba(255,255,255,.09);
+  --hbn-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.hashrate-by-nation__header,
+.hashrate-by-nation__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.hashrate-by-nation__header{align-items:flex-start}
+
+.hashrate-by-nation__eyebrow,
+.hashrate-by-nation__hero > span,
+.hashrate-by-nation__metrics span{
+  color:var(--hbn-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.hashrate-by-nation__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--hbn-line);
+  border-bottom:1px solid var(--hbn-line);
+}
+
+.hashrate-by-nation__hero strong{
+  color:var(--hbn-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.25rem;
+  line-height:1.05;
+  font-weight:500;
+}
+
+.hashrate-by-nation__hero small{
+  color:var(--hbn-gold);
+  font-size:.68rem;
+  line-height:1.35;
+}
+
+.hashrate-by-nation__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.hashrate-by-nation__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--hbn-line);
+  border-radius:6px;
+  background:var(--hbn-panel);
+}
+
+.hashrate-by-nation__metrics span,
+.hashrate-by-nation__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.hashrate-by-nation__metrics strong{
+  margin-top:.1rem;
+  color:var(--hbn-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.hashrate-by-nation__chart{
+  margin-top:.5rem;
+  padding:.42rem;
+  border:1px solid var(--hbn-line);
+  border-radius:6px;
+  background:var(--hbn-panel);
+}
+
+.hashrate-by-nation__chart canvas{
+  display:block;
+  width:100%;
+  height:190px;
+}
+
+.hashrate-by-nation__table{
+  margin-top:.5rem;
+  overflow:hidden;
+  border:1px solid var(--hbn-line);
+  border-radius:6px;
+}
+
+.hashrate-by-nation__row{
+  display:grid;
+  grid-template-columns:38px minmax(125px,1fr) 90px 105px minmax(145px,1fr);
+  gap:.4rem;
+  align-items:center;
+  min-width:0;
+  padding:.36rem .42rem;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-size:.66rem;
+}
+
+.hashrate-by-nation__head{
+  border-top:0;
+  background:rgba(0,0,0,.34);
+  color:var(--hbn-gold);
+  text-transform:uppercase;
+}
+
+.hashrate-by-nation__row > div{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.hashrate-by-nation__row:not(.hashrate-by-nation__head) > div{
+  color:var(--hbn-muted);
+}
+
+.hashrate-by-nation__row:not(.hashrate-by-nation__head) > div:nth-child(2),
+.hashrate-by-nation__row:not(.hashrate-by-nation__head) > div:nth-child(4){
+  color:var(--hbn-green);
+}
+
+.hashrate-by-nation__num{text-align:right}
+
+.hashrate-by-nation__empty{
+  padding:.7rem;
+  color:var(--hbn-dim);
+  font-size:.68rem;
+  text-align:center;
+}
+
+.hashrate-by-nation__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--hbn-line);
+  color:var(--hbn-muted);
+  font-size:.67rem;
+}
+
+.hashrate-by-nation__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .hashrate-by-nation__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .hashrate-by-nation__table{
+    overflow:auto;
+  }
+
+  .hashrate-by-nation__row{
+    min-width:650px;
+  }
+}
+
+@media(max-width:460px){
+  .hashrate-by-nation__metrics{
+    grid-template-columns:1fr;
+  }
+
+  .hashrate-by-nation__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
