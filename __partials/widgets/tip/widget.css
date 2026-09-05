@@ -1,0 +1,112 @@
+/* __partials/widgets/tip/widget.css */
+
+.tip{
+  --tip-green:var(--zzx-accent,#c0d674);
+  --tip-gold:var(--zzx-accent-alt,#e6a42b);
+  --tip-muted:var(--zzx-muted,#b7bf9a);
+  --tip-dim:var(--zzx-dim,#777);
+  --tip-line:rgba(255,255,255,.09);
+  width:100%;
+  min-width:0;
+}
+
+.tip__header,
+.tip__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.tip__header{align-items:flex-start}
+
+.tip__eyebrow,
+.tip__hero > span,
+.tip__row > span{
+  color:var(--tip-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.tip__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--tip-line);
+  border-bottom:1px solid var(--tip-line);
+}
+
+.tip__hero strong{
+  color:var(--tip-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.55rem;
+  line-height:1.05;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+
+.tip__hero small{
+  min-width:0;
+  color:var(--tip-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.tip__details{
+  display:grid;
+  gap:.25rem;
+  margin-top:.5rem;
+}
+
+.tip__row{
+  display:grid;
+  grid-template-columns:minmax(105px,.3fr) minmax(0,1fr);
+  gap:.55rem;
+  min-width:0;
+}
+
+.tip__row > strong{
+  min-width:0;
+  color:var(--tip-muted);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.68rem;
+  font-weight:500;
+  text-align:right;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.tip__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--tip-line);
+  color:var(--tip-muted);
+  font-size:.67rem;
+}
+
+.tip__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:460px){
+  .tip__row{
+    grid-template-columns:1fr;
+    gap:.05rem;
+  }
+
+  .tip__row > strong{text-align:left}
+
+  .tip__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
