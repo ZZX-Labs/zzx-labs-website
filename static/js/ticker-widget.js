@@ -1,155 +1,590 @@
 // /static/js/ticker-widget.js
-// ZZX Bitcoin Ticker Widget Loader (UNIFIED + DEPTH-SAFE + HUD-SAFE)
+// ZZX Bitcoin Ticker Widget Loader
+// UNIFIED + DEPTH-SAFE + HUD-SAFE + MANIFEST-CORE-SAFE
 //
-// Fixes the failure modes you described:
-// - Works from ANY subpage depth (uses window.ZZX.PREFIX if present; falls back safely)
-// - Waits until partials/runtime are ready, so it doesn't race header/footer/HUD
-// - Mounts ONLY into the bitcoin-ticker WIDGET SLOT (never into HUD shell unless last resort)
-// - Avoids “disappearing” by re-attaching if the slot is replaced (MutationObserver)
-// - Avoids double-loading ticker core
+// PURPOSE:
+// - Preserve the historical /bitcoin/ticker/ ticker loader as a compatibility path.
+// - Work from any site depth using window.ZZX.PREFIX.
+// - Mount ONLY into the bitcoin-ticker slot.
+// - Support BOTH current and legacy widget-slot conventions.
+// - NEVER overwrite the canonical manifest/widget-core mounted bitcoin-ticker.
+// - Recover if a slot is replaced.
+// - Recover from transient ticker.html / ticker.js load failures.
+// - Avoid duplicate ticker-core scripts.
 //
-// Assumes ticker assets exist at:
-//   <prefix>/bitcoin/ticker/ticker.html
-//   <prefix>/bitcoin/ticker/ticker.js
+// CANONICAL HUD:
+//   /__partials/widgets/manifest.json
+//     -> /__partials/widgets/_core/widget-core.js
+//     -> /__partials/widgets/bitcoin-ticker/
 //
-// NOTE: This file does not change layout/CSS directly; it ensures correct mounting.
-// Centering is controlled by your widget-core layout CSS. If it still left-aligns,
-// that is a CSS rule issue (we will fix in widget-core.css / widget.css next).
+// LEGACY FALLBACK:
+//   /bitcoin/ticker/ticker.html
+//   /bitcoin/ticker/ticker.js
+//
+// The canonical manifest-driven widget always wins.
 
 (function () {
+  "use strict";
+
   const W = window;
+  const D = document;
+
+  if (W.__ZZX_LEGACY_TICKER_WIDGET_BOOTED) return;
+  W.__ZZX_LEGACY_TICKER_WIDGET_BOOTED = true;
+
+  const ID = "bitcoin-ticker";
+
+  const LEGACY_HTML = "/bitcoin/ticker/ticker.html";
+  const LEGACY_JS   = "/bitcoin/ticker/ticker.js";
+
+  const CORE_WAIT_MS = 1800;
+  const RETRY_DELAY_MS = 1500;
+
+  let observer = null;
+  let coreWaitTimer = null;
+  let retryTimer = null;
 
   // ---------------------------------------------------------------------------
-  // Prefix-aware URL builder (GH Pages + deep pages safe)
+  // Asset version
   // ---------------------------------------------------------------------------
-  function prefix() {
-    // Your partials-loader sets window.ZZX.PREFIX; use it if available
-    const p = W.ZZX && typeof W.ZZX.PREFIX === "string" ? W.ZZX.PREFIX : null;
-    if (!p) return "";                // fallback: root-relative
-    if (p === "/") return "";         // hosted at domain root
-    return p.replace(/\/+$/, "");     // strip trailing slash
+
+  function assetVersion() {
+    const el = D.querySelector('meta[name="asset-version"]');
+    return el ? String(el.getAttribute("content") || "").trim() : "";
   }
 
-  function url(path) {
-    // path like "/bitcoin/ticker/ticker.html"
-    const p = prefix();
-    if (!p) return path;
-    return p + path;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Slot discovery (STRICT) + safe mount selection
-  // ---------------------------------------------------------------------------
-  function findSlot() {
-    // Correct mount: the ticker widget slot (preferred)
-    return (
-      document.querySelector('[data-widget-slot="bitcoin-ticker"]') ||
-      document.querySelector('[data-widget-id="bitcoin-ticker"]') ||
-      document.querySelector('[data-w="bitcoin-ticker"]') ||
-      null
-    );
-  }
-
-  function getMount(slot) {
-    // Prefer a dedicated inner mount:
-    // <div data-ticker-mount></div>
-    return slot.querySelector("[data-ticker-mount]") || slot;
-  }
-
-  function renderFail(slot, msg) {
-    try {
-      const mount = getMount(slot);
-      mount.innerHTML =
-        `<div class="btc-card">
-           <div class="btc-card__title">[BTC]</div>
-           <div class="btc-card__value">$—</div>
-           <div class="btc-card__sub">${String(msg || "ticker load failed")}</div>
-         </div>`;
-    } catch (_) {}
-  }
-
-  // ---------------------------------------------------------------------------
-  // Core loader (only once)
-  // ---------------------------------------------------------------------------
-  function ensureTickerCore() {
-    if (document.querySelector('script[data-ticker-core="1"]')) return;
-
-    const s = document.createElement("script");
-    s.src = url("/bitcoin/ticker/ticker.js") + `?v=${Date.now()}`; // cache-bust during stabilization
-    s.defer = true;
-    s.dataset.tickerCore = "1";
-    s.onerror = () => console.warn("[Ticker] ticker.js failed to load:", s.src);
-    document.body.appendChild(s);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Inject ticker fragment into the widget slot
-  // ---------------------------------------------------------------------------
-  async function mountTickerInto(slot) {
-    if (!slot) return;
-
-    // Prevent double-load per SLOT instance
-    if (slot.dataset.tickerLoaded === "1") return;
-    slot.dataset.tickerLoaded = "1";
-
-    const htmlURL = url("/bitcoin/ticker/ticker.html");
+  function withV(path) {
+    const v = assetVersion();
+    if (!v) return path;
 
     try {
-      const r = await fetch(htmlURL, { cache: "no-store" });
-      if (!r.ok) throw new Error(`ticker.html HTTP ${r.status}`);
+      const u = new URL(path, location.href);
 
-      const html = await r.text();
-      const mount = getMount(slot);
+      if (!u.searchParams.has("v")) {
+        u.searchParams.set("v", v);
+      }
 
-      // IMPORTANT: do not wipe the whole slot if it contains the widget wrapper.
-      // Only populate the inner mount if present; else populate slot.
-      mount.innerHTML = html;
-
-      ensureTickerCore();
-    } catch (err) {
-      console.error("[Ticker] widget load failed:", err);
-      renderFail(slot, err && err.message ? err.message : "ticker load failed");
+      return u.href;
+    } catch (_) {
+      return path;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Races: runtime/partials + widget-core may mount after DOMContentLoaded.
-  // We:
-  // - wait for zzx:partials:ready if present
-  // - otherwise mount on DOMContentLoaded
-  // - and observe DOM for the slot being created/replaced (prevents “disappearing”)
+  // Prefix
   // ---------------------------------------------------------------------------
+
+  function prefix() {
+    let p = "";
+
+    if (W.ZZX && typeof W.ZZX.PREFIX === "string") {
+      p = W.ZZX.PREFIX.trim();
+    }
+
+    if (!p) {
+      const hp = D.documentElement
+        ? D.documentElement.getAttribute("data-zzx-prefix")
+        : "";
+
+      if (typeof hp === "string") {
+        p = hp.trim();
+      }
+    }
+
+    // Never allow relative pseudo-prefixes.
+    if (
+      p === "." ||
+      p === "./" ||
+      p === "/"
+    ) {
+      p = "";
+    }
+
+    p = String(p || "").replace(/\/+$/g, "");
+
+    W.ZZX = Object.assign({}, W.ZZX || {}, {
+      PREFIX: p
+    });
+
+    return p;
+  }
+
+  function url(path) {
+    if (!path) return path;
+
+    const s = String(path);
+
+    if (/^https?:\/\//i.test(s)) {
+      return s;
+    }
+
+    if (!s.startsWith("/")) {
+      return s;
+    }
+
+    const p = prefix();
+
+    return p ? p + s : s;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Slot discovery
+  // ---------------------------------------------------------------------------
+
+  function findSlot() {
+    return (
+      // Current canonical wrapper convention
+      D.querySelector('.btc-slot[data-widget="bitcoin-ticker"]') ||
+
+      // Alternate/current core convention
+      D.querySelector('[data-widget-slot="bitcoin-ticker"]') ||
+
+      // Older compatibility conventions
+      D.querySelector('[data-widget-id="bitcoin-ticker"]') ||
+      D.querySelector('[data-w="bitcoin-ticker"]') ||
+
+      null
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Canonical widget-core detection
+  // ---------------------------------------------------------------------------
+
+  function canonicalRoot(slot) {
+    if (!slot) return null;
+
+    return (
+      slot.querySelector(
+        '[data-widget-root="bitcoin-ticker"]'
+      ) ||
+
+      slot.querySelector(
+        '.zzx-widget[data-widget-id="bitcoin-ticker"]'
+      ) ||
+
+      null
+    );
+  }
+
+  function canonicalMounted(slot) {
+    const root = canonicalRoot(slot);
+
+    if (!root) return false;
+
+    // widget-core creates the root before loading HTML.
+    // Its presence is enough to establish ownership.
+    return true;
+  }
+
+  function canonicalCoreExpected() {
+    return Boolean(
+      W.ZZXWidgetsCore ||
+      W.__ZZX_TICKER_LOADER_BOOTED ||
+      D.querySelector('script[data-zzx-ticker-loader="1"]') ||
+      D.querySelector(
+        'script[src*="/static/js/modules/ticker-loader.js"]'
+      )
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mount selection
+  // ---------------------------------------------------------------------------
+
+  function getMount(slot) {
+    if (!slot) return null;
+
+    // Explicit legacy mount container wins if a page supplies one.
+    return (
+      slot.querySelector("[data-ticker-mount]") ||
+      slot
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Error rendering
+  // ---------------------------------------------------------------------------
+
+  function renderFail(slot, msg) {
+    if (!slot) return;
+
+    // Never overwrite canonical widget-core UI with a legacy error.
+    if (canonicalMounted(slot)) return;
+
+    try {
+      const mount = getMount(slot);
+      if (!mount) return;
+
+      mount.textContent = "";
+
+      const card = D.createElement("div");
+      card.className = "btc-card";
+
+      const title = D.createElement("div");
+      title.className = "btc-card__title";
+      title.textContent = "[BTC]";
+
+      const value = D.createElement("div");
+      value.className = "btc-card__value";
+      value.textContent = "$—";
+
+      const sub = D.createElement("div");
+      sub.className = "btc-card__sub";
+      sub.textContent = String(
+        msg || "ticker load failed"
+      );
+
+      card.appendChild(title);
+      card.appendChild(value);
+      card.appendChild(sub);
+
+      mount.appendChild(card);
+    } catch (_) {}
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legacy ticker core
+  // ---------------------------------------------------------------------------
+
+  function findTickerCoreScript() {
+    return (
+      D.querySelector('script[data-ticker-core="1"]') ||
+      D.querySelector(
+        'script[src*="/bitcoin/ticker/ticker.js"]'
+      ) ||
+      null
+    );
+  }
+
+  function ensureTickerCore() {
+    return new Promise((resolve, reject) => {
+      const existing = findTickerCoreScript();
+
+      if (existing) {
+        if (existing.dataset.tickerCoreLoaded === "1") {
+          resolve(existing);
+          return;
+        }
+
+        if (existing.dataset.tickerCoreFailed === "1") {
+          try {
+            existing.remove();
+          } catch (_) {}
+        } else {
+          const loaded = () => {
+            existing.dataset.tickerCoreLoaded = "1";
+            resolve(existing);
+          };
+
+          const failed = () => {
+            existing.dataset.tickerCoreFailed = "1";
+            reject(
+              new Error("ticker.js failed to load")
+            );
+          };
+
+          existing.addEventListener(
+            "load",
+            loaded,
+            { once: true }
+          );
+
+          existing.addEventListener(
+            "error",
+            failed,
+            { once: true }
+          );
+
+          // Script may already have executed before this listener attached.
+          setTimeout(() => {
+            if (
+              existing.dataset.tickerCoreFailed !== "1"
+            ) {
+              existing.dataset.tickerCoreLoaded = "1";
+              resolve(existing);
+            }
+          }, 750);
+
+          return;
+        }
+      }
+
+      const s = D.createElement("script");
+
+      s.src = withV(url(LEGACY_JS));
+      s.defer = true;
+
+      s.dataset.tickerCore = "1";
+
+      s.addEventListener(
+        "load",
+        () => {
+          s.dataset.tickerCoreLoaded = "1";
+          s.dataset.tickerCoreFailed = "0";
+          resolve(s);
+        },
+        { once: true }
+      );
+
+      s.addEventListener(
+        "error",
+        () => {
+          s.dataset.tickerCoreFailed = "1";
+
+          console.warn(
+            "[Ticker] ticker.js failed to load:",
+            s.src
+          );
+
+          reject(
+            new Error("ticker.js failed to load")
+          );
+        },
+        { once: true }
+      );
+
+      (
+        D.body ||
+        D.head ||
+        D.documentElement
+      ).appendChild(s);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Retry
+  // ---------------------------------------------------------------------------
+
+  function scheduleRetry() {
+    if (retryTimer !== null) return;
+
+    retryTimer = W.setTimeout(() => {
+      retryTimer = null;
+
+      const slot = findSlot();
+
+      if (!slot) return;
+      if (canonicalMounted(slot)) return;
+
+      if (
+        slot.dataset.tickerLoaded !== "1" &&
+        slot.dataset.tickerLoading !== "1"
+      ) {
+        mountTickerInto(slot);
+      }
+    }, RETRY_DELAY_MS);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legacy fragment loader
+  // ---------------------------------------------------------------------------
+
+  async function mountTickerInto(slot) {
+    if (!slot) return;
+
+    // Manifest-driven widget-core owns this slot.
+    if (canonicalMounted(slot)) {
+      slot.dataset.tickerLegacySuppressed = "1";
+      return;
+    }
+
+    if (slot.dataset.tickerLoaded === "1") {
+      return;
+    }
+
+    if (slot.dataset.tickerLoading === "1") {
+      return;
+    }
+
+    slot.dataset.tickerLoading = "1";
+    slot.dataset.tickerLoadFailed = "0";
+
+    const htmlURL = withV(url(LEGACY_HTML));
+
+    try {
+      const r = await fetch(
+        htmlURL,
+        {
+          cache: "no-store"
+        }
+      );
+
+      if (!r.ok) {
+        throw new Error(
+          `ticker.html HTTP ${r.status}`
+        );
+      }
+
+      const html = await r.text();
+
+      // widget-core may have mounted while the request was in flight.
+      if (canonicalMounted(slot)) {
+        slot.dataset.tickerLegacySuppressed = "1";
+        return;
+      }
+
+      const mount = getMount(slot);
+
+      if (!mount) {
+        throw new Error(
+          "ticker mount unavailable"
+        );
+      }
+
+      mount.innerHTML = html;
+
+      await ensureTickerCore();
+
+      slot.dataset.tickerLoaded = "1";
+      slot.dataset.tickerLoadFailed = "0";
+    } catch (err) {
+      slot.dataset.tickerLoaded = "0";
+      slot.dataset.tickerLoadFailed = "1";
+
+      console.error(
+        "[Ticker] legacy widget load failed:",
+        err
+      );
+
+      renderFail(
+        slot,
+        err && err.message
+          ? err.message
+          : "ticker load failed"
+      );
+
+      scheduleRetry();
+    } finally {
+      slot.dataset.tickerLoading = "0";
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Slot handling
+  // ---------------------------------------------------------------------------
+
+  function considerSlot(slot) {
+    if (!slot) return;
+
+    // Canonical manifest/core widget always wins.
+    if (canonicalMounted(slot)) {
+      slot.dataset.tickerLegacySuppressed = "1";
+      return;
+    }
+
+    // If the unified ticker loader is present, give widget-core a short
+    // opportunity to claim the slot before invoking the old fallback.
+    if (canonicalCoreExpected()) {
+      if (coreWaitTimer !== null) return;
+
+      coreWaitTimer = W.setTimeout(() => {
+        coreWaitTimer = null;
+
+        const current = findSlot();
+
+        if (!current) return;
+
+        if (canonicalMounted(current)) {
+          current.dataset.tickerLegacySuppressed = "1";
+          return;
+        }
+
+        mountTickerInto(current);
+      }, CORE_WAIT_MS);
+
+      return;
+    }
+
+    mountTickerInto(slot);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Observer
+  // ---------------------------------------------------------------------------
+
+  function installObserver() {
+    if (observer) return;
+
+    observer = new MutationObserver(() => {
+      const slot = findSlot();
+
+      if (!slot) return;
+
+      if (canonicalMounted(slot)) {
+        slot.dataset.tickerLegacySuppressed = "1";
+        return;
+      }
+
+      if (
+        slot.dataset.tickerLoaded !== "1" &&
+        slot.dataset.tickerLoading !== "1"
+      ) {
+        considerSlot(slot);
+      }
+    });
+
+    observer.observe(
+      D.documentElement,
+      {
+        childList: true,
+        subtree: true
+      }
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Start
+  // ---------------------------------------------------------------------------
+
   let started = false;
 
   function start() {
     if (started) return;
     started = true;
 
-    // Try mount immediately if slot exists
+    prefix();
+
+    installObserver();
+
     const slot = findSlot();
-    if (slot) mountTickerInto(slot);
 
-    // Observe for slot insertion/replacement (covers widget-core re-render)
-    const mo = new MutationObserver(() => {
-      const s = findSlot();
-      if (s && s.dataset.tickerLoaded !== "1") {
-        mountTickerInto(s);
-      }
-    });
-
-    mo.observe(document.documentElement, { childList: true, subtree: true });
+    if (slot) {
+      considerSlot(slot);
+    }
   }
 
-  // Prefer partials-ready because that means header/footer/runtime are stable
-  W.addEventListener("zzx:partials:ready", start, { once: true });
+  // Both partial-ready spellings exist historically in this repo.
+  W.addEventListener(
+    "zzx:partials-ready",
+    start,
+    { once: true }
+  );
 
-  // Fallback if event never fires
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      // small defer to let synchronous runtime scripts attach first
-      setTimeout(start, 0);
-    }, { once: true });
+  W.addEventListener(
+    "zzx:partials:ready",
+    start,
+    { once: true }
+  );
+
+  // DOM fallback.
+  if (D.readyState === "loading") {
+    D.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        W.setTimeout(start, 0);
+      },
+      { once: true }
+    );
   } else {
-    setTimeout(start, 0);
+    W.setTimeout(start, 0);
+  }
+
+  // Normalize an already-known prefix immediately.
+  if (
+    W.ZZX &&
+    typeof W.ZZX.PREFIX === "string"
+  ) {
+    prefix();
   }
 })();
