@@ -396,3 +396,259 @@
     transition:none !important;
   }
 }
+
+/* =========================================================
+   COMPARATIVE UNITS
+   ========================================================= */
+
+.bitcoin-ticker__comparatives{
+  display:grid;
+  gap:.5rem;
+  margin:.55rem 0 .5rem;
+  padding:.55rem;
+  background:#070707;
+  border:1px solid #202020;
+  border-radius:8px;
+}
+
+.bitcoin-ticker__comparatives-head,
+.bitcoin-ticker__debt-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.75rem;
+}
+
+.bitcoin-ticker__section-kicker{
+  display:block;
+  margin-bottom:.1rem;
+  color:var(--ticker-dim);
+  font-size:.56rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+
+.bitcoin-ticker__comparatives h3,
+.bitcoin-ticker__debt h3{
+  margin:0;
+  color:var(--ticker-amber);
+  font-family:var(--zzx-font-mono,"IBMPlexMono",ui-monospace,monospace);
+  font-size:.78rem;
+  font-weight:400;
+  letter-spacing:.035em;
+}
+
+.bitcoin-ticker__comparatives-state{
+  flex:0 0 auto;
+  color:var(--ticker-muted);
+  font-size:.62rem;
+  white-space:nowrap;
+}
+
+.bitcoin-ticker__comparative-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.4rem;
+}
+
+.bitcoin-ticker__comparative{
+  min-width:0;
+  padding:.42rem .46rem;
+  background:#0c0c0c;
+  border:1px solid #242424;
+  border-radius:7px;
+}
+
+.bitcoin-ticker__comparative-name{
+  display:block;
+  margin-bottom:.1rem;
+  color:var(--ticker-dim);
+  font-size:.58rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.bitcoin-ticker__comparative strong{
+  display:block;
+  min-width:0;
+  color:var(--ticker-green);
+  font-size:.9rem;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bitcoin-ticker__comparative small{
+  display:block;
+  margin-top:.06rem;
+  color:var(--ticker-muted);
+  font-size:.58rem;
+}
+
+.bitcoin-ticker__comparative--cannabis{
+  grid-column:span 2;
+}
+
+.bitcoin-ticker__reference-input{
+  display:grid;
+  grid-template-columns:auto minmax(90px,150px);
+  align-items:center;
+  gap:.35rem;
+  margin-top:.35rem;
+  padding-top:.3rem;
+  border-top:1px solid #1f1f1f;
+}
+
+.bitcoin-ticker__reference-input span{
+  color:var(--ticker-dim);
+  font-size:.55rem;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+.bitcoin-ticker__reference-input input{
+  width:100%;
+  min-width:0;
+  height:1.55rem;
+  padding:.12rem .35rem;
+  color:var(--ticker-green);
+  background:#070707;
+  border:1px solid #2c2c2c;
+  border-radius:4px;
+  font:inherit;
+  font-size:.66rem;
+  outline:none;
+}
+
+.bitcoin-ticker__reference-input input:focus{
+  border-color:var(--ticker-amber);
+}
+
+.bitcoin-ticker__commodity-meta,
+.bitcoin-ticker__debt-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  min-width:0;
+  color:var(--ticker-dim);
+  font-size:.57rem;
+  line-height:1.35;
+}
+
+.bitcoin-ticker__commodity-meta span,
+.bitcoin-ticker__debt-meta span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* =========================================================
+   U.S. DEBT ABSORPTION
+   ========================================================= */
+
+.bitcoin-ticker__debt{
+  display:grid;
+  gap:.4rem;
+  padding:.5rem;
+  background:
+    linear-gradient(90deg,rgba(214,116,116,.035),transparent 58%),
+    #080808;
+  border:1px solid #292020;
+  border-left:3px solid var(--ticker-error);
+  border-radius:7px;
+}
+
+.bitcoin-ticker__debt-head > strong{
+  flex:0 0 auto;
+  color:var(--ticker-muted);
+  font-size:.75rem;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+.bitcoin-ticker__debt-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.4rem;
+}
+
+.bitcoin-ticker__debt-cell{
+  min-width:0;
+  padding:.42rem .46rem;
+  background:#0b0909;
+  border:1px solid #261f1f;
+  border-radius:6px;
+}
+
+.bitcoin-ticker__debt-cell > span{
+  display:block;
+  margin-bottom:.12rem;
+  color:var(--ticker-dim);
+  font-size:.58rem;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+.bitcoin-ticker__debt-cell > strong{
+  display:block;
+  min-width:0;
+  font-size:.9rem;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bitcoin-ticker__debt-cell > small{
+  display:block;
+  margin-top:.1rem;
+  color:var(--ticker-dim);
+  font-size:.57rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bitcoin-ticker__negative{
+  color:var(--ticker-error);
+}
+
+@media(max-width:760px){
+  .bitcoin-ticker__comparative-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .bitcoin-ticker__comparative--cannabis{
+    grid-column:span 2;
+  }
+}
+
+@media(max-width:520px){
+  .bitcoin-ticker__comparatives-head,
+  .bitcoin-ticker__debt-head,
+  .bitcoin-ticker__commodity-meta,
+  .bitcoin-ticker__debt-meta{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:.25rem;
+  }
+
+  .bitcoin-ticker__comparatives-state,
+  .bitcoin-ticker__debt-head > strong{
+    white-space:normal;
+  }
+
+  .bitcoin-ticker__debt-grid{
+    grid-template-columns:1fr;
+  }
+
+  .bitcoin-ticker__reference-input{
+    grid-template-columns:1fr;
+  }
+}
