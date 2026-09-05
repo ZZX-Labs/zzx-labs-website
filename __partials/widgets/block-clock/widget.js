@@ -1,397 +1,610 @@
 // __partials/widgets/block-clock/widget.js
-// Public GitHub Pages safe. No backend required.
-//
-// Source: mempool.space (direct first; AllOrigins fallback if needed)
-//
-// Endpoints used (text/json):
-// - https://mempool.space/api/blocks/tip/height   (text)
-// - https://mempool.space/api/blocks/tip/hash     (text)
-// - https://mempool.space/api/block/<hash>        (json; includes timestamp + prev block hash)
-//
-// What it shows:
-// - Live block height
-// - A big running timer since last block (HH:MM:SS.mmm)
-// - Last block interval (prev->tip) and the interval before that (prevprev->prev) as a ±% change
-// - Start/end times: UTC + user-local
-//
-// Notes:
-// - “Since last block” is the universal clock face.
-// - Interval change uses the last two completed intervals.
+// Single controller for the Block Clock widget.
+// No local submodules are required.
 
 (function () {
   "use strict";
 
   const W = window;
+  const D = document;
   const ID = "block-clock";
 
-  const CFG = {
-    REFRESH_MS: 15_000,          // poll tip
-    TICK_MS: 50,                 // update running clock
-    TIMEOUT_MS: 20_000,
-    RETRIES: 1,
-    RETRY_DELAY_MS: 650,
+  const CONFIG = Object.freeze({
+    POLL_MS: 15_000,
+    CLOCK_MS: 250,
+    REQUEST_TIMEOUT_MS: 10_000,
+    REQUEST_RETRIES: 1,
+    RETRY_DELAY_MS: 400,
+    TARGET_SEC: 600,
+    DEFAULT_MEMPOOL_BASE: "https://mempool.space/api"
+  });
 
-    MEMPOOL_BASE: "https://mempool.space/api",
-    AO_RAW: "https://api.allorigins.win/raw?url=",
-
-    CACHE_TTL_MS: 5 * 60_000,
-    CACHE_PREFIX: "zzx:block-clock:",
-
-    MIN_RENDER_INTERVAL_MS: 250,
-  };
-
-  let inflight = false;
-
-  function q(root, sel) { return root ? root.querySelector(sel) : null; }
-  function setText(root, sel, text) { const el = q(root, sel); if (el) el.textContent = String(text ?? "—"); }
-
-  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-
-  function withTimeout(p, ms, label) {
-    let t = null;
-    const to = new Promise((_, rej) => {
-      t = setTimeout(() => rej(new Error((label || "timeout") + " after " + ms + "ms")), ms);
-    });
-    return Promise.race([p, to]).finally(() => clearTimeout(t));
+  function q(root, selector) {
+    return root ? root.querySelector(selector) : null;
   }
 
-  function snip(s, n = 180) {
-    const t = String(s ?? "").replace(/\s+/g, " ").trim();
-    return t.length > n ? t.slice(0, n) + "…" : t;
+  function text(root, selector, value) {
+    const el = q(root, selector);
+    if (el) el.textContent = value == null ? "—" : String(value);
   }
 
-  function looksLikeHTML(text) {
-    const s = String(text || "").trim().toLowerCase();
-    return s.startsWith("<!doctype") || s.startsWith("<html") || s.includes("<head") || s.includes("<body");
+  function finite(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : NaN;
   }
 
-  function cacheKey(url) { return CFG.CACHE_PREFIX + encodeURIComponent(String(url || "")); }
+  function unique(values) {
+    return [...new Set(values.filter(Boolean))];
+  }
 
-  function cacheRead(url) {
+  function normalizeBase(value) {
+    return String(value || "").trim().replace(/\/+$/g, "");
+  }
+
+  function configuredBases(core) {
+    return unique([
+      core?.ctx?.api?.MEMPOOL,
+      core?.ctx?.api?.MEMPOOL_API,
+      W.ZZX?.api?.MEMPOOL,
+      W.ZZX?.api?.MEMPOOL_API,
+      W.ZZX?.API?.MEMPOOL,
+      W.ZZX?.API?.MEMPOOL_API,
+      CONFIG.DEFAULT_MEMPOOL_BASE
+    ].map(normalizeBase));
+  }
+
+  function pad2(value) {
+    return String(Math.trunc(Math.abs(value))).padStart(2, "0");
+  }
+
+  function pad3(value) {
+    return String(Math.trunc(Math.abs(value))).padStart(3, "0");
+  }
+
+  function durationClock(milliseconds) {
+    const raw = finite(milliseconds);
+    if (!Number.isFinite(raw)) return "—";
+
+    const sign = raw < 0 ? "−" : "";
+    const ms = Math.abs(Math.trunc(raw));
+    const hours = Math.floor(ms / 3_600_000);
+    const minutes = Math.floor((ms % 3_600_000) / 60_000);
+    const seconds = Math.floor((ms % 60_000) / 1_000);
+    const millis = ms % 1_000;
+
+    return `${sign}${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}.${pad3(millis)}`;
+  }
+
+  function durationShort(seconds) {
+    const raw = finite(seconds);
+    if (!Number.isFinite(raw)) return "—";
+
+    const sign = raw < 0 ? "−" : "";
+    const total = Math.abs(Math.round(raw));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+
+    if (hours) return `${sign}${hours}h ${minutes}m ${secs}s`;
+    return `${sign}${minutes}m ${secs}s`;
+  }
+
+  function percentage(value) {
+    const number = finite(value);
+    if (!Number.isFinite(number)) return "—";
+    const sign = number > 0 ? "+" : "";
+    return `${sign}${number.toFixed(1)}%`;
+  }
+
+  function localTime(epochSeconds) {
+    const seconds = finite(epochSeconds);
+    if (!Number.isFinite(seconds)) return "—";
+
+    const date = new Date(seconds * 1000);
+    if (Number.isNaN(date.getTime())) return "—";
+
     try {
-      const raw = localStorage.getItem(cacheKey(url));
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      if (!obj || typeof obj !== "object") return null;
-      if (!obj.t || (Date.now() - obj.t) > CFG.CACHE_TTL_MS) return null;
-      return obj.v ?? null;
-    } catch { return null; }
-  }
-
-  function cacheWrite(url, value) {
-    try { localStorage.setItem(cacheKey(url), JSON.stringify({ t: Date.now(), v: value })); }
-    catch { }
-  }
-
-  async function fetchText(url) {
-    const r = await fetch(url, { cache: "no-store", credentials: "omit", redirect: "follow" });
-    const t = await r.text();
-    if (!r.ok) {
-      const err = new Error(`HTTP ${r.status} for ${url}: ${snip(t) || "no body"}`);
-      err.status = r.status;
-      err.body = t;
-      throw err;
-    }
-    return t;
-  }
-
-  async function fetchJSON(url) {
-    const t = await fetchText(url);
-    if (looksLikeHTML(t)) throw new Error(`Non-JSON (HTML) from ${url}: ${snip(t)}`);
-    try { return JSON.parse(String(t).trim()); }
-    catch { throw new Error(`JSON.parse failed for ${url}: ${snip(t)}`); }
-  }
-
-  async function fetchTextDirectThenAO(url, label) {
-    try {
-      const txt = await withTimeout(fetchText(url), CFG.TIMEOUT_MS, label ? `${label} (direct)` : "direct");
-      cacheWrite(url, txt);
-      return { text: txt, from: "direct" };
-    } catch (e1) {
-      const ao = CFG.AO_RAW + encodeURIComponent(String(url));
-      try {
-        const txt = await withTimeout(fetchText(ao), CFG.TIMEOUT_MS, label ? `${label} (allorigins)` : "allorigins");
-        cacheWrite(url, txt);
-        return { text: txt, from: "allorigins" };
-      } catch (e2) {
-        const cached = cacheRead(url);
-        if (cached != null) return { text: cached, from: "cache" };
-        throw new Error(
-          `fetch failed for ${url}\n` +
-          `direct: ${String(e1?.message || e1)}\n` +
-          `allorigins: ${String(e2?.message || e2)}`
-        );
-      }
-    }
-  }
-
-  async function fetchJSONDirectThenAO(url, label) {
-    try {
-      const j = await withTimeout(fetchJSON(url), CFG.TIMEOUT_MS, label ? `${label} (direct)` : "direct");
-      cacheWrite(url, j);
-      return { json: j, from: "direct" };
-    } catch (e1) {
-      const ao = CFG.AO_RAW + encodeURIComponent(String(url));
-      try {
-        const j = await withTimeout(fetchJSON(ao), CFG.TIMEOUT_MS, label ? `${label} (allorigins)` : "allorigins");
-        cacheWrite(url, j);
-        return { json: j, from: "allorigins" };
-      } catch (e2) {
-        const cached = cacheRead(url);
-        if (cached != null) return { json: cached, from: "cache" };
-        throw new Error(
-          `fetch failed for ${url}\n` +
-          `direct: ${String(e1?.message || e1)}\n` +
-          `allorigins: ${String(e2?.message || e2)}`
-        );
-      }
-    }
-  }
-
-  function toNum(x) { const v = Number(x); return Number.isFinite(v) ? v : NaN; }
-
-  function fmtHeight(h) { return Number.isFinite(h) ? Math.trunc(h).toLocaleString() : "—"; }
-
-  function pad2(n) { return String(Math.trunc(n)).padStart(2, "0"); }
-  function pad3(n) { return String(Math.trunc(n)).padStart(3, "0"); }
-
-  function fmtDurationMs(ms) {
-    const x = Math.max(0, Math.trunc(toNum(ms) || 0));
-    const hh = Math.floor(x / 3600000);
-    const rem1 = x - hh * 3600000;
-    const mm = Math.floor(rem1 / 60000);
-    const rem2 = rem1 - mm * 60000;
-    const ss = Math.floor(rem2 / 1000);
-    const mmm = rem2 - ss * 1000;
-    return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}.${pad3(mmm)}`;
-  }
-
-  function fmtIntervalSec(sec) {
-    if (!Number.isFinite(sec)) return "—";
-    const s = Math.max(0, Math.trunc(sec));
-    const mm = Math.floor(s / 60);
-    const ss = s - mm * 60;
-    return `${mm}m ${ss}s`;
-  }
-
-  function fmtPct(x) {
-    if (!Number.isFinite(x)) return "—";
-    const sign = x > 0 ? "+" : "";
-    return sign + x.toFixed(2) + "%";
-  }
-
-  function fmtUTC(dt) {
-    if (!(dt instanceof Date) || isNaN(dt.getTime())) return "—";
-    const y = dt.getUTCFullYear();
-    const m = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(dt.getUTCDate()).padStart(2, "0");
-    const hh = String(dt.getUTCHours()).padStart(2, "0");
-    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
-    const ss = String(dt.getUTCSeconds()).padStart(2, "0");
-    return `${y}-${m}-${d} ${hh}:${mm}:${ss} UTC`;
-  }
-
-  function fmtLocal(dt) {
-    if (!(dt instanceof Date) || isNaN(dt.getTime())) return "—";
-    try {
-      return dt.toLocaleString(undefined, {
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      return date.toLocaleString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
       });
-    } catch {
-      return dt.toString();
+    } catch (_) {
+      return date.toString();
     }
   }
 
-  async function fetchTip() {
-    const base = CFG.MEMPOOL_BASE;
-    const hUrl = base + "/blocks/tip/height";
-    const hashUrl = base + "/blocks/tip/hash";
+  function utcTime(epochSeconds) {
+    const seconds = finite(epochSeconds);
+    if (!Number.isFinite(seconds)) return "—";
 
-    const [hRes, hashRes] = await Promise.all([
-      fetchTextDirectThenAO(hUrl, "mempool tip height"),
-      fetchTextDirectThenAO(hashUrl, "mempool tip hash"),
-    ]);
+    const date = new Date(seconds * 1000);
+    if (Number.isNaN(date.getTime())) return "—";
 
-    const height = Math.trunc(toNum(String(hRes.text || "").trim()));
-    const hash = String(hashRes.text || "").trim();
-
-    if (!Number.isFinite(height) || !hash) throw new Error("tip unavailable");
-    return { height, hash, from: `${hRes.from}/${hashRes.from}` };
+    return date.toISOString().replace("T", " ").replace(".000Z", " UTC");
   }
 
-  async function fetchBlock(hash) {
-    const url = CFG.MEMPOOL_BASE + "/block/" + encodeURIComponent(String(hash));
-    const res = await fetchJSONDirectThenAO(url, "mempool block");
-    const j = res.json || {};
-
-    // mempool.space uses `timestamp` (seconds) and `previousblockhash`
-    const ts = Math.trunc(toNum(j.timestamp));
-    const prev = String(j.previousblockhash || "").trim();
-
-    return { ts, prev, from: res.from };
+  function compactHash(hash) {
+    const value = String(hash || "").trim();
+    if (!value) return "—";
+    return value.length > 22
+      ? `${value.slice(0, 10)}…${value.slice(-10)}`
+      : value;
   }
 
-  async function fetch3Timestamps(tipHash) {
-    const b2 = await fetchBlock(tipHash);
-    if (!b2.prev) throw new Error("missing previousblockhash");
+  function freshness(timestampMs) {
+    const ts = finite(timestampMs);
+    if (!Number.isFinite(ts)) return "never updated";
 
-    const b1 = await fetchBlock(b2.prev);
-    if (!b1.prev) throw new Error("missing prevprev hash");
+    const age = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (age < 2) return "updated now";
+    if (age < 60) return `updated ${age}s ago`;
+    return `updated ${Math.floor(age / 60)}m ago`;
+  }
 
-    const b0 = await fetchBlock(b1.prev);
+  function status(root, label, state) {
+    const el = q(root, "[data-bc-status]");
+    if (!el) return;
+    el.textContent = label;
+    el.setAttribute("data-status", state || "offline");
+  }
 
-    if (!Number.isFinite(b2.ts) || !Number.isFinite(b1.ts) || !Number.isFinite(b0.ts)) {
-      throw new Error("missing timestamps");
+  function setTone(root, selector, tone) {
+    const el = q(root, selector);
+    if (!el) return;
+    if (tone) el.setAttribute("data-tone", tone);
+    else el.removeAttribute("data-tone");
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => W.setTimeout(resolve, ms));
+  }
+
+  async function fetchWithTimeout(url, options) {
+    const opts = Object.assign({}, options || {});
+    const timeoutMs = finite(opts.timeoutMs) || CONFIG.REQUEST_TIMEOUT_MS;
+    const retries = Math.max(0, Math.trunc(finite(opts.retries) || 0));
+    delete opts.timeoutMs;
+    delete opts.retries;
+
+    if (W.ZZXAPI && typeof W.ZZXAPI.fetchRaw === "function") {
+      return await W.ZZXAPI.fetchRaw(url, Object.assign({}, opts, {
+        cacheBust: false,
+        timeoutMs,
+        retries,
+        retryDelayMs: CONFIG.RETRY_DELAY_MS,
+        cache: "no-store",
+        credentials: "omit"
+      }));
     }
+
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = typeof AbortController === "function"
+        ? new AbortController()
+        : null;
+
+      const timer = controller
+        ? W.setTimeout(() => controller.abort(), timeoutMs)
+        : null;
+
+      try {
+        const response = await fetch(url, Object.assign({
+          cache: "no-store",
+          credentials: "omit"
+        }, opts, controller ? { signal: controller.signal } : {}));
+
+        if (!response.ok) {
+          const error = new Error(`HTTP ${response.status} for ${url}`);
+          error.status = response.status;
+          throw error;
+        }
+
+        return response;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries) await sleep(CONFIG.RETRY_DELAY_MS);
+      } finally {
+        if (timer) W.clearTimeout(timer);
+      }
+    }
+
+    throw lastError || new Error(`request failed: ${url}`);
+  }
+
+  async function getText(url) {
+    const response = await fetchWithTimeout(url, {
+      timeoutMs: CONFIG.REQUEST_TIMEOUT_MS,
+      retries: CONFIG.REQUEST_RETRIES
+    });
+    return (await response.text()).trim();
+  }
+
+  async function getJSON(url) {
+    const response = await fetchWithTimeout(url, {
+      timeoutMs: CONFIG.REQUEST_TIMEOUT_MS,
+      retries: CONFIG.REQUEST_RETRIES
+    });
+    return await response.json();
+  }
+
+  async function getFromBases(bases, pathname, parser) {
+    let lastError = null;
+
+    for (const base of bases) {
+      const requestURL = `${base}${pathname}`;
+
+      try {
+        const value = await parser(requestURL);
+        return { value, base };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error(`all providers failed for ${pathname}`);
+  }
+
+  async function fetchTipSnapshot(core) {
+    const bases = configuredBases(core);
+
+    const heightResult = await getFromBases(
+      bases,
+      "/blocks/tip/height",
+      getText
+    );
+
+    const chosenBase = heightResult.base;
+    const height = Math.trunc(finite(heightResult.value));
+
+    if (!Number.isFinite(height)) {
+      throw new Error("invalid tip height");
+    }
+
+    const hash = await getText(`${chosenBase}/blocks/tip/hash`);
+
+    if (!hash) {
+      throw new Error("invalid tip hash");
+    }
+
+    async function blockByHash(blockHash) {
+      const block = await getJSON(
+        `${chosenBase}/block/${encodeURIComponent(blockHash)}`
+      );
+
+      const timestamp = Math.trunc(finite(block?.timestamp));
+      const previous = String(block?.previousblockhash || "").trim();
+
+      if (!Number.isFinite(timestamp)) {
+        throw new Error(`missing block timestamp: ${blockHash}`);
+      }
+
+      return {
+        timestamp,
+        previous
+      };
+    }
+
+    const tip = await blockByHash(hash);
+
+    if (!tip.previous) {
+      throw new Error("missing previous block hash");
+    }
+
+    const previous = await blockByHash(tip.previous);
+
+    if (!previous.previous) {
+      throw new Error("missing second previous block hash");
+    }
+
+    const previousPrevious = await blockByHash(previous.previous);
 
     return {
-      tipTs: b2.ts,
-      prevTs: b1.ts,
-      prevPrevTs: b0.ts,
-      from: `block:${b2.from}/${b1.from}/${b0.from}`,
+      height,
+      hash,
+      tipTs: tip.timestamp,
+      prevTs: previous.timestamp,
+      prevPrevTs: previousPrevious.timestamp,
+      provider: chosenBase,
+      fetchedAt: Date.now()
     };
   }
 
-  function renderDelta(root, pct) {
-    const el = q(root, "[data-bc-delta]");
-    if (!el) return;
+  function renderStatic(root, state) {
+    const snapshot = state.snapshot;
 
-    el.classList.remove("zzx-bc__delta-pos", "zzx-bc__delta-neg", "zzx-bc__delta-flat");
+    if (!snapshot) return;
 
-    if (!Number.isFinite(pct)) {
-      el.textContent = "—";
-      el.classList.add("zzx-bc__delta-flat");
+    const lastInterval = snapshot.tipTs - snapshot.prevTs;
+    const priorInterval = snapshot.prevTs - snapshot.prevPrevTs;
+
+    const deltaPct =
+      Number.isFinite(lastInterval) &&
+      Number.isFinite(priorInterval) &&
+      priorInterval !== 0
+        ? ((lastInterval - priorInterval) / Math.abs(priorInterval)) * 100
+        : NaN;
+
+    const vsTargetPct =
+      Number.isFinite(lastInterval)
+        ? ((lastInterval - CONFIG.TARGET_SEC) / CONFIG.TARGET_SEC) * 100
+        : NaN;
+
+    text(root, "[data-bc-height]", snapshot.height.toLocaleString());
+    text(root, "[data-bc-last-interval]", durationShort(lastInterval));
+    text(root, "[data-bc-prior-interval]", durationShort(priorInterval));
+    text(root, "[data-bc-delta]", percentage(deltaPct));
+    text(root, "[data-bc-vs-target]", percentage(vsTargetPct));
+
+    if (deltaPct > 0.05) setTone(root, "[data-bc-delta]", "warning");
+    else if (deltaPct < -0.05) setTone(root, "[data-bc-delta]", "positive");
+    else setTone(root, "[data-bc-delta]", null);
+
+    if (vsTargetPct > 0.05) setTone(root, "[data-bc-vs-target]", "warning");
+    else if (vsTargetPct < -0.05) setTone(root, "[data-bc-vs-target]", "positive");
+    else setTone(root, "[data-bc-vs-target]", null);
+
+    text(root, "[data-bc-prev-local]", localTime(snapshot.prevTs));
+    text(root, "[data-bc-tip-local]", localTime(snapshot.tipTs));
+    text(
+      root,
+      "[data-bc-utc-range]",
+      `${utcTime(snapshot.prevTs)} → ${utcTime(snapshot.tipTs)}`
+    );
+    text(root, "[data-bc-next-target]", localTime(snapshot.tipTs + CONFIG.TARGET_SEC));
+
+    const hashEl = q(root, "[data-bc-hash]");
+    if (hashEl) {
+      hashEl.textContent = compactHash(snapshot.hash);
+      hashEl.title = snapshot.hash;
+    }
+
+    text(
+      root,
+      "[data-bc-source]",
+      snapshot.provider.replace(/^https?:\/\//i, "")
+    );
+
+    status(root, "live", "ok");
+  }
+
+  function renderClock(root, state) {
+    const snapshot = state.snapshot;
+
+    if (!snapshot) {
+      text(root, "[data-bc-age]", "—");
+      text(root, "[data-bc-target-label]", "—");
+      text(root, "[data-bc-freshness]", "never updated");
       return;
     }
 
-    el.textContent = fmtPct(pct);
+    const ageMs = Date.now() - snapshot.tipTs * 1000;
+    const ageSec = ageMs / 1000;
 
-    if (pct > 0.0001) el.classList.add("zzx-bc__delta-pos");
-    else if (pct < -0.0001) el.classList.add("zzx-bc__delta-neg");
-    else el.classList.add("zzx-bc__delta-flat");
-  }
+    text(root, "[data-bc-age]", durationClock(ageMs));
+    text(root, "[data-bc-freshness]", freshness(snapshot.fetchedAt));
 
-  function render(root, state) {
-    const now = Date.now();
+    const ageEl = q(root, "[data-bc-age]");
+    const progress = q(root, "[data-bc-progress]");
+    const bar = q(root, "[data-bc-progress-bar]");
 
-    setText(root, "[data-bc-height]", fmtHeight(state.height));
+    let stateName = "normal";
 
-    // big running clock since tip block (time since last block mined)
-    if (Number.isFinite(state.tipTs)) {
-      const sinceMs = now - (state.tipTs * 1000);
-      setText(root, "[data-bc-since]", fmtDurationMs(sinceMs));
-    } else {
-      setText(root, "[data-bc-since]", "—");
+    if (ageSec < 0) stateName = "future";
+    else if (ageSec > CONFIG.TARGET_SEC) stateName = "over";
+
+    if (ageEl) ageEl.setAttribute("data-age-state", stateName);
+    if (progress) progress.setAttribute("data-state", stateName);
+
+    const bounded = Math.min(CONFIG.TARGET_SEC, Math.max(0, ageSec));
+    const percentageComplete = (bounded / CONFIG.TARGET_SEC) * 100;
+
+    if (bar) {
+      bar.style.width = `${percentageComplete.toFixed(2)}%`;
     }
 
-    setText(root, "[data-bc-interval]", fmtIntervalSec(state.lastIntervalSec));
-    renderDelta(root, state.deltaPct);
+    if (progress) {
+      progress.setAttribute(
+        "aria-valuenow",
+        String(Math.round(Math.max(0, ageSec)))
+      );
+    }
 
-    const start = Number.isFinite(state.prevTs) ? new Date(state.prevTs * 1000) : null;
-    const end = Number.isFinite(state.tipTs) ? new Date(state.tipTs * 1000) : null;
-
-    setText(root, "[data-bc-start]", start ? fmtLocal(start) : "—");
-    setText(root, "[data-bc-end]", end ? fmtLocal(end) : "—");
-
-    const utcRange = (start && end) ? (fmtUTC(start) + " → " + fmtUTC(end)) : "—";
-    setText(root, "[data-bc-utc]", utcRange);
-
-    setText(root, "[data-bc-sub]", state.sub || "—");
+    if (ageSec < 0) {
+      text(root, "[data-bc-target-label]", "tip timestamp is ahead of local clock");
+    } else if (ageSec <= CONFIG.TARGET_SEC) {
+      text(
+        root,
+        "[data-bc-target-label]",
+        `${durationShort(CONFIG.TARGET_SEC - ageSec)} remaining to nominal target`
+      );
+    } else {
+      text(
+        root,
+        "[data-bc-target-label]",
+        `${durationShort(ageSec - CONFIG.TARGET_SEC)} beyond nominal target`
+      );
+    }
   }
 
-  async function update(root, state) {
-    if (!root || inflight) return;
-    inflight = true;
+  async function refresh(root, state, core) {
+    if (!root || !root.isConnected) return false;
+
+    if (state.inflight) {
+      state.refreshQueued = true;
+      return false;
+    }
+
+    state.inflight = true;
+    state.refreshQueued = false;
+    status(root, "refreshing", "warn");
+
+    const refreshButton = q(root, "[data-bc-refresh]");
+    if (refreshButton) refreshButton.disabled = true;
 
     try {
-      setText(root, "[data-bc-status]", "loading");
+      const next = await fetchTipSnapshot(core);
 
-      let lastErr = null;
-      for (let attempt = 0; attempt <= CFG.RETRIES; attempt++) {
-        try {
-          const tip = await fetchTip();
-          const trio = await fetch3Timestamps(tip.hash);
-
-          const lastIntervalSec = (trio.tipTs - trio.prevTs);
-          const priorIntervalSec = (trio.prevTs - trio.prevPrevTs);
-
-          let deltaPct = NaN;
-          if (Number.isFinite(lastIntervalSec) && Number.isFinite(priorIntervalSec) && priorIntervalSec > 0) {
-            deltaPct = ((lastIntervalSec - priorIntervalSec) / priorIntervalSec) * 100;
-          }
-
-          state.height = tip.height;
-          state.tipTs = trio.tipTs;
-          state.prevTs = trio.prevTs;
-          state.prevPrevTs = trio.prevPrevTs;
-          state.lastIntervalSec = Number.isFinite(lastIntervalSec) ? lastIntervalSec : NaN;
-          state.priorIntervalSec = Number.isFinite(priorIntervalSec) ? priorIntervalSec : NaN;
-          state.deltaPct = deltaPct;
-
-          state.sub = `mempool.space (via ${tip.from}, ${trio.from})`;
-
-          render(root, state);
-          setText(root, "[data-bc-status]", "ok");
-          inflight = false;
-          return;
-        } catch (e) {
-          lastErr = e;
-          if (attempt < CFG.RETRIES) await sleep(CFG.RETRY_DELAY_MS);
-        }
+      if (
+        !state.snapshot ||
+        state.snapshot.hash !== next.hash ||
+        state.snapshot.height !== next.height
+      ) {
+        state.snapshot = next;
+        renderStatic(root, state);
+      } else {
+        state.snapshot.fetchedAt = next.fetchedAt;
+        state.snapshot.provider = next.provider;
       }
 
-      throw lastErr || new Error("update failed");
-    } catch (e) {
-      setText(root, "[data-bc-status]", "error");
-      setText(root, "[data-bc-sub]", "error: " + String(e?.message || e));
+      renderClock(root, state);
+      status(root, "live", "ok");
+      return true;
+
+    } catch (error) {
+      console.warn("[block-clock] refresh failed", error);
+
+      status(
+        root,
+        state.snapshot ? "stale" : "offline",
+        state.snapshot ? "warn" : "error"
+      );
+
+      if (!state.snapshot) {
+        text(root, "[data-bc-source]", "mempool unavailable");
+      }
+
+      return false;
+
     } finally {
-      inflight = false;
+      state.inflight = false;
+      if (refreshButton) refreshButton.disabled = false;
+
+      if (state.refreshQueued && root.isConnected) {
+        state.refreshQueued = false;
+        W.setTimeout(() => refresh(root, state, core), 0);
+      }
     }
   }
 
-  function wire(root, state) {
-    const refresh = q(root, "[data-bc-refresh]");
-    if (refresh && refresh.dataset.zzxBound !== "1") {
-      refresh.dataset.zzxBound = "1";
-      refresh.addEventListener("click", () => update(root, state));
+  function clearTimers(state) {
+    if (!state) return;
+
+    if (state.pollTimer) {
+      W.clearTimeout(state.pollTimer);
+      state.pollTimer = null;
+    }
+
+    if (state.clockTimer) {
+      W.clearTimeout(state.clockTimer);
+      state.clockTimer = null;
     }
   }
 
-  function boot(root) {
+  function startLoops(root, state, core) {
+    clearTimers(state);
+
+    const generation = ++state.generation;
+
+    async function pollLoop() {
+      if (
+        generation !== state.generation ||
+        !root.isConnected
+      ) {
+        return;
+      }
+
+      await refresh(root, state, core);
+
+      if (
+        generation === state.generation &&
+        root.isConnected
+      ) {
+        state.pollTimer = W.setTimeout(
+          pollLoop,
+          CONFIG.POLL_MS
+        );
+      }
+    }
+
+    function clockLoop() {
+      if (
+        generation !== state.generation ||
+        !root.isConnected
+      ) {
+        return;
+      }
+
+      renderClock(root, state);
+
+      state.clockTimer = W.setTimeout(
+        clockLoop,
+        CONFIG.CLOCK_MS
+      );
+    }
+
+    pollLoop();
+    clockLoop();
+  }
+
+  function wire(root, state, core) {
+    const button = q(root, "[data-bc-refresh]");
+
+    if (
+      button &&
+      button.dataset.zzxBound !== "1"
+    ) {
+      button.dataset.zzxBound = "1";
+
+      button.addEventListener("click", () => {
+        refresh(root, state, core);
+      });
+    }
+  }
+
+  function boot(root, core) {
     if (!root) return;
 
-    const state = (root.__zzxBCState = root.__zzxBCState || {
-      height: NaN,
-      tipTs: NaN,
-      prevTs: NaN,
-      prevPrevTs: NaN,
-      lastIntervalSec: NaN,
-      priorIntervalSec: NaN,
-      deltaPct: NaN,
-      sub: "—",
-    });
+    if (root.__zzxBlockClockState) {
+      clearTimers(root.__zzxBlockClockState);
+    }
 
-    wire(root, state);
+    const state = {
+      snapshot: null,
+      inflight: false,
+      refreshQueued: false,
+      pollTimer: null,
+      clockTimer: null,
+      generation: 0
+    };
 
-    if (root.__zzxBCTimer) { clearInterval(root.__zzxBCTimer); root.__zzxBCTimer = null; }
-    if (root.__zzxBCTick) { clearInterval(root.__zzxBCTick); root.__zzxBCTick = null; }
+    root.__zzxBlockClockState = state;
 
-    update(root, state);
-    root.__zzxBCTimer = setInterval(() => update(root, state), CFG.REFRESH_MS);
-
-    let lastPaint = 0;
-    root.__zzxBCTick = setInterval(() => {
-      const now = Date.now();
-      if (now - lastPaint < CFG.MIN_RENDER_INTERVAL_MS) return;
-      lastPaint = now;
-      render(root, state);
-    }, CFG.TICK_MS);
+    wire(root, state, core);
+    startLoops(root, state, core);
   }
 
-  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount(ID, (root) => boot(root));
-  } else if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
-    W.ZZXWidgets.register(ID, function (root) { boot(root); });
+  if (
+    W.ZZXAPI &&
+    typeof W.ZZXAPI.register === "function"
+  ) {
+    W.ZZXAPI.register(ID, boot);
+
+  } else if (
+    W.ZZXWidgetsCore &&
+    typeof W.ZZXWidgetsCore.onMount === "function"
+  ) {
+    W.ZZXWidgetsCore.onMount(ID, boot);
+
+  } else if (
+    W.ZZXWidgets &&
+    typeof W.ZZXWidgets.register === "function"
+  ) {
+    W.ZZXWidgets.register(ID, boot);
   }
+
 })();
