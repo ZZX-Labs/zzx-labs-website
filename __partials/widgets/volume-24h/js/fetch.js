@@ -1,450 +1,592 @@
-// Shared full chart renderer for the matched 24h market widget family.
+// Shared by price-24h, volume-24h, high-low-24h.
+// v3: local/direct first, shared de-dup/cache, optional CORS proxy fallback.
 
 (function () {
   "use strict";
 
   const W = window;
-  if (W.ZZXMarket24Plotter?.__version >= 3) return;
 
-  const COLORS = Object.freeze({
-    green: "#c0d674",
-    red: "#d67474",
-    gold: "#e6a42b",
-    muted: "#b7bf9a",
-    grid: "rgba(255,255,255,.055)",
-    border: "rgba(255,255,255,.07)",
-    bg: "#050505"
+  if (W.ZZXMarket24Fetch?.__version >= 3) return;
+
+  const DEFAULTS = Object.freeze({
+    timeoutMs: 10000,
+    retries: 1,
+    retryDelayMs: 450,
+    cacheTtlMs: 7000,
+    proxyFallback: true
   });
 
-  function number(value) {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : NaN;
-  }
-
-  function sizeCanvas(canvas) {
-    const dpr = Math.max(1, number(W.devicePixelRatio) || 1);
-    const cssWidth = Math.max(1, Math.floor(canvas.clientWidth || 320));
-    const cssHeight = Math.max(1, Math.floor(canvas.clientHeight || 118));
-    const width = Math.max(1, Math.floor(cssWidth * dpr));
-    const height = Math.max(1, Math.floor(cssHeight * dpr));
-
-    if (canvas.width !== width) canvas.width = width;
-    if (canvas.height !== height) canvas.height = height;
-
-    return { width, height, dpr };
-  }
-
-  function drawGrid(ctx, width, height, dpr) {
-    ctx.save();
-    ctx.strokeStyle = COLORS.grid;
-    ctx.lineWidth = Math.max(1, dpr);
-
-    for (let i = 1; i < 4; i++) {
-      const y = (height / 4) * i;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    for (let i = 1; i < 6; i++) {
-      const x = (width / 6) * i;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-
-  function range(values, fallbackMin, fallbackMax) {
-    const clean = values.map(number).filter(Number.isFinite);
-
-    if (!clean.length) {
-      return {
-        min: fallbackMin ?? 0,
-        max: fallbackMax ?? 1,
-        span: (fallbackMax ?? 1) - (fallbackMin ?? 0) || 1
-      };
-    }
-
-    let min = Math.min(...clean);
-    let max = Math.max(...clean);
-
-    if (min === max) {
-      const bump = Math.max(1, Math.abs(max) * 0.001);
-      min -= bump;
-      max += bump;
-    }
-
-    return { min, max, span: max - min };
-  }
-
-  function findExtrema(values) {
-    let high = { value: -Infinity, index: -1 };
-    let low = { value: Infinity, index: -1 };
-
-    values.forEach((raw, index) => {
-      const value = number(raw);
-      if (!Number.isFinite(value)) return;
-
-      if (value > high.value) high = { value, index };
-      if (value < low.value) low = { value, index };
-    });
-
-    return { high, low };
-  }
-
-  function marker(ctx, x, y, color, label, dpr, right) {
-    ctx.save();
-
-    ctx.beginPath();
-    ctx.arc(x, y, 3 * dpr, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    if (label) {
-      ctx.font =
-        `${Math.max(9, Math.round(9 * dpr))}px ` +
-        `ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;
-
-      ctx.textBaseline = "middle";
-      ctx.textAlign = right ? "right" : "left";
-
-      const labelX = right ? x - 6 * dpr : x + 6 * dpr;
-
-      ctx.lineWidth = Math.max(2.5 * dpr, 2);
-      ctx.strokeStyle = "rgba(5,5,5,.95)";
-      ctx.fillStyle = color;
-
-      ctx.strokeText(label, labelX, y);
-      ctx.fillText(label, labelX, y);
-    }
-
-    ctx.restore();
-  }
-
-  function drawPriceSegments(ctx, candles, xAt, yPrice, dpr) {
-    for (let i = 1; i < candles.length; i++) {
-      const previous = number(candles[i - 1]?.c);
-      const current = number(candles[i]?.c);
-
-      if (!Number.isFinite(previous) || !Number.isFinite(current)) continue;
-
-      ctx.beginPath();
-      ctx.moveTo(xAt(i - 1), yPrice(previous));
-      ctx.lineTo(xAt(i), yPrice(current));
-      ctx.lineWidth = Math.max(1.6 * dpr, 1);
-      ctx.strokeStyle = current >= previous ? COLORS.green : COLORS.red;
-      ctx.stroke();
-    }
-  }
-
-  function drawVolumeBars(ctx, candles, xAt, padY, innerHeight, dpr, bandScale) {
-    const volumes = candles.map(c => Math.max(0, number(c?.v) || 0));
-    const maxVolume = Math.max(...volumes, 1);
-    const step =
-      candles.length > 1
-        ? xAt(1) - xAt(0)
-        : 10 * dpr;
-
-    const barWidth = Math.max(1.5 * dpr, step * 0.58);
-    const bandHeight = innerHeight * (bandScale || 1);
-    const baseY = padY + innerHeight;
-
-    candles.forEach((candle, index) => {
-      const volume = volumes[index];
-      const previous =
-        index > 0
-          ? volumes[index - 1]
-          : volume;
-
-      const height =
-        Math.min(1, volume / maxVolume) *
-        bandHeight;
-
-      const x =
-        xAt(index) -
-        barWidth / 2;
-
-      const y =
-        baseY -
-        height;
-
-      ctx.fillStyle =
-        volume >= previous
-          ? "rgba(192,214,116,.72)"
-          : "rgba(214,116,116,.70)";
-
-      ctx.fillRect(
-        Math.floor(x),
-        Math.floor(y),
-        Math.ceil(barWidth),
-        Math.max(1, Math.ceil(height))
-      );
-    });
-
-    return { volumes, maxVolume, baseY, bandHeight };
-  }
-
-  function draw(canvas, kind, model) {
-    if (!canvas || !model?.candles?.length) return false;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return false;
-
-    const candles = model.candles;
-    const { width, height, dpr } = sizeCanvas(canvas);
-
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, width, height);
-    drawGrid(ctx, width, height, dpr);
-
-    const padX = 10 * dpr;
-    const padY = 9 * dpr;
-    const innerWidth = Math.max(1, width - padX * 2);
-    const innerHeight = Math.max(1, height - padY * 2);
-
-    const xAt = index =>
-      candles.length <= 1
-        ? padX + innerWidth / 2
-        : padX + (index / (candles.length - 1)) * innerWidth;
-
-    const lows = candles.map(c => number(c?.l));
-    const highs = candles.map(c => number(c?.h));
-    const closes = candles.map(c => number(c?.c));
-    const prices = range(lows.concat(highs));
-
-    const yPrice = value =>
-      padY +
-      (1 - ((value - prices.min) / prices.span)) *
-      innerHeight;
-
-    if (kind === "price") {
-      ctx.beginPath();
-      ctx.moveTo(xAt(0), padY + innerHeight);
-
-      closes.forEach((close, index) => {
-        if (Number.isFinite(close)) ctx.lineTo(xAt(index), yPrice(close));
-      });
-
-      ctx.lineTo(xAt(candles.length - 1), padY + innerHeight);
-      ctx.closePath();
-
-      const first = closes.find(Number.isFinite);
-      const last = [...closes].reverse().find(Number.isFinite);
-
-      ctx.fillStyle =
-        Number.isFinite(first) &&
-        Number.isFinite(last) &&
-        last < first
-          ? "rgba(214,116,116,.075)"
-          : "rgba(192,214,116,.075)";
-
-      ctx.fill();
-      drawPriceSegments(ctx, candles, xAt, yPrice, dpr);
-
-      const hi = findExtrema(highs).high;
-      const lo = findExtrema(lows).low;
-
-      if (hi.index >= 0) {
-        marker(
-          ctx,
-          xAt(hi.index),
-          yPrice(hi.value),
-          COLORS.gold,
-          "H",
-          dpr,
-          hi.index > candles.length * .72
-        );
-      }
-
-      if (lo.index >= 0) {
-        marker(
-          ctx,
-          xAt(lo.index),
-          yPrice(lo.value),
-          COLORS.red,
-          "L",
-          dpr,
-          lo.index > candles.length * .72
-        );
-      }
-    }
-
-    if (kind === "volume") {
-      const volume = drawVolumeBars(
-        ctx,
-        candles,
-        xAt,
-        padY,
-        innerHeight,
-        dpr,
-        1
-      );
-
-      const ext = findExtrema(volume.volumes);
-
-      if (ext.high.index >= 0) {
-        const y =
-          Math.min(
-            volume.baseY - 4 * dpr,
-            Math.max(
-              padY + 4 * dpr,
-              volume.baseY -
-              (ext.high.value / volume.maxVolume) *
-              volume.bandHeight
-            )
-          );
-
-        marker(
-          ctx,
-          xAt(ext.high.index),
-          y,
-          COLORS.gold,
-          "H",
-          dpr,
-          ext.high.index > candles.length * .72
-        );
-      }
-
-      if (ext.low.index >= 0) {
-        const y =
-          Math.min(
-            volume.baseY - 4 * dpr,
-            Math.max(
-              padY + 4 * dpr,
-              volume.baseY -
-              (ext.low.value / volume.maxVolume) *
-              volume.bandHeight
-            )
-          );
-
-        marker(
-          ctx,
-          xAt(ext.low.index),
-          y,
-          COLORS.muted,
-          "L",
-          dpr,
-          ext.low.index > candles.length * .72
-        );
-      }
-    }
-
-    if (kind === "combo") {
-      const volume = drawVolumeBars(
-        ctx,
-        candles,
-        xAt,
-        padY,
-        innerHeight,
-        dpr,
-        .38
-      );
-
-      drawPriceSegments(
-        ctx,
-        candles,
-        xAt,
-        yPrice,
-        dpr
-      );
-
-      const priceHigh = findExtrema(highs).high;
-      const priceLow = findExtrema(lows).low;
-      const volumeExt = findExtrema(volume.volumes);
-
-      if (priceHigh.index >= 0) {
-        marker(
-          ctx,
-          xAt(priceHigh.index),
-          yPrice(priceHigh.value),
-          COLORS.gold,
-          "P-H",
-          dpr,
-          priceHigh.index > candles.length * .72
-        );
-      }
-
-      if (priceLow.index >= 0) {
-        marker(
-          ctx,
-          xAt(priceLow.index),
-          yPrice(priceLow.value),
-          COLORS.red,
-          "P-L",
-          dpr,
-          priceLow.index > candles.length * .72
-        );
-      }
-
-      if (volumeExt.high.index >= 0) {
-        const y =
-          Math.min(
-            volume.baseY - 4 * dpr,
-            Math.max(
-              padY + 4 * dpr,
-              volume.baseY -
-              (volumeExt.high.value / volume.maxVolume) *
-              volume.bandHeight
-            )
-          );
-
-        marker(
-          ctx,
-          xAt(volumeExt.high.index),
-          y,
-          COLORS.green,
-          "V-H",
-          dpr,
-          volumeExt.high.index > candles.length * .72
-        );
-      }
-
-      if (volumeExt.low.index >= 0) {
-        const y =
-          Math.min(
-            volume.baseY - 4 * dpr,
-            Math.max(
-              padY + 4 * dpr,
-              volume.baseY -
-              (volumeExt.low.value / volume.maxVolume) *
-              volume.bandHeight
-            )
-          );
-
-        marker(
-          ctx,
-          xAt(volumeExt.low.index),
-          y,
-          COLORS.muted,
-          "V-L",
-          dpr,
-          volumeExt.low.index > candles.length * .72
-        );
-      }
-    }
-
-    ctx.strokeStyle = COLORS.border;
-    ctx.lineWidth = Math.max(1, dpr);
-    ctx.strokeRect(
-      .5 * dpr,
-      .5 * dpr,
-      width - dpr,
-      height - dpr
+  const AO_RAW = "https://api.allorigins.win/raw?url=";
+
+  const jsonCache = new Map();
+  const textCache = new Map();
+  const inflight = new Map();
+
+  function sleep(ms) {
+    return new Promise(resolve =>
+      W.setTimeout(resolve, Math.max(0, Number(ms) || 0))
     );
-
-    return true;
   }
 
-  W.ZZXMarket24Plotter = {
+  function localize(url) {
+    const value = String(url || "").trim();
+
+    if (
+      value.startsWith("/") &&
+      W.ZZXAPI?.url
+    ) {
+      return W.ZZXAPI.url(value);
+    }
+
+    return value;
+  }
+
+  function isLocal(url) {
+    try {
+      return (
+        new URL(
+          localize(url),
+          W.location.href
+        ).origin ===
+        W.location.origin
+      );
+    } catch (_) {
+      return String(url || "").startsWith("/");
+    }
+  }
+
+  function isAllOrigins(url) {
+    return /^https:\/\/api\.allorigins\.win\/raw\?url=/i
+      .test(String(url || ""));
+  }
+
+  function proxyURL(url) {
+    return AO_RAW + encodeURIComponent(String(url || ""));
+  }
+
+  function retryableStatus(status) {
+    return [
+      408,
+      425,
+      429,
+      500,
+      502,
+      503,
+      504
+    ].includes(Number(status));
+  }
+
+  function canProxyFallback(
+    target,
+    method,
+    error,
+    enabled
+  ) {
+    if (!enabled) return false;
+    if (isLocal(target)) return false;
+    if (isAllOrigins(target)) return false;
+
+    const upper =
+      String(method || "GET")
+        .toUpperCase();
+
+    if (
+      upper !== "GET" &&
+      upper !== "HEAD"
+    ) {
+      return false;
+    }
+
+    // Browser CORS/network failures normally do not expose an HTTP status.
+    // Do not hide a real 4xx/5xx from the direct provider behind a proxy.
+    return !Number.isFinite(Number(error?.status));
+  }
+
+  async function requestDirect(
+    target,
+    options
+  ) {
+    const opts =
+      Object.assign({}, options || {});
+
+    const timeoutMs =
+      Math.max(
+        0,
+        Number(opts.timeoutMs) ||
+        DEFAULTS.timeoutMs
+      );
+
+    const retries =
+      Math.max(
+        0,
+        Math.trunc(
+          Number(opts.retries) || 0
+        )
+      );
+
+    const retryDelayMs =
+      Math.max(
+        0,
+        Number(opts.retryDelayMs) ||
+        DEFAULTS.retryDelayMs
+      );
+
+    const userSignal =
+      opts.signal;
+
+    delete opts.timeoutMs;
+    delete opts.retries;
+    delete opts.retryDelayMs;
+    delete opts.cacheTtlMs;
+    delete opts.proxyFallback;
+    delete opts.signal;
+
+    if (!("method" in opts)) {
+      opts.method = "GET";
+    }
+
+    if (!("cache" in opts)) {
+      opts.cache = "no-store";
+    }
+
+    if (!("credentials" in opts)) {
+      opts.credentials =
+        isLocal(target)
+          ? "same-origin"
+          : "omit";
+    }
+
+    if (W.ZZXAPI?.fetchRaw) {
+      return await W.ZZXAPI.fetchRaw(
+        target,
+        Object.assign({}, opts, {
+          cacheBust: false,
+          timeoutMs,
+          retries,
+          retryDelayMs,
+          signal: userSignal
+        })
+      );
+    }
+
+    let lastError = null;
+
+    for (
+      let attempt = 0;
+      attempt <= retries;
+      attempt++
+    ) {
+      const controller =
+        typeof AbortController ===
+        "function"
+          ? new AbortController()
+          : null;
+
+      let timer = null;
+      let abortHandler = null;
+
+      if (
+        controller &&
+        userSignal
+      ) {
+        abortHandler = () => {
+          try {
+            controller.abort(
+              userSignal.reason
+            );
+          } catch (_) {
+            try {
+              controller.abort();
+            } catch (_) {}
+          }
+        };
+
+        if (userSignal.aborted) {
+          abortHandler();
+        } else {
+          userSignal.addEventListener(
+            "abort",
+            abortHandler,
+            { once: true }
+          );
+        }
+      }
+
+      if (
+        controller &&
+        timeoutMs > 0
+      ) {
+        timer =
+          W.setTimeout(
+            () => {
+              try {
+                controller.abort();
+              } catch (_) {}
+            },
+            timeoutMs
+          );
+      }
+
+      try {
+        const response =
+          await fetch(
+            target,
+            Object.assign(
+              {},
+              opts,
+              {
+                signal:
+                  controller
+                    ? controller.signal
+                    : userSignal
+              }
+            )
+          );
+
+        if (!response.ok) {
+          const error =
+            new Error(
+              `HTTP ${response.status} ${target}`
+            );
+
+          error.status =
+            response.status;
+
+          throw error;
+        }
+
+        return response;
+
+      } catch (error) {
+        lastError = error;
+
+        if (userSignal?.aborted) {
+          throw error;
+        }
+
+        const retryable =
+          attempt < retries &&
+          (
+            !Number.isFinite(
+              Number(error?.status)
+            ) ||
+            retryableStatus(
+              error.status
+            )
+          );
+
+        if (!retryable) {
+          throw error;
+        }
+
+        await sleep(
+          retryDelayMs *
+          Math.pow(2, attempt)
+        );
+
+      } finally {
+        if (timer) {
+          W.clearTimeout(timer);
+        }
+
+        if (
+          userSignal &&
+          abortHandler
+        ) {
+          try {
+            userSignal.removeEventListener(
+              "abort",
+              abortHandler
+            );
+          } catch (_) {}
+        }
+      }
+    }
+
+    throw (
+      lastError ||
+      new Error(
+        `request failed: ${target}`
+      )
+    );
+  }
+
+  async function raw(
+    url,
+    options
+  ) {
+    const opts =
+      Object.assign(
+        {},
+        DEFAULTS,
+        options || {}
+      );
+
+    const target =
+      localize(url);
+
+    const method =
+      String(
+        opts.method || "GET"
+      ).toUpperCase();
+
+    const proxyFallback =
+      opts.proxyFallback !== false;
+
+    try {
+      return await requestDirect(
+        target,
+        opts
+      );
+
+    } catch (error) {
+      if (
+        !canProxyFallback(
+          target,
+          method,
+          error,
+          proxyFallback
+        )
+      ) {
+        throw error;
+      }
+
+      return await requestDirect(
+        proxyURL(target),
+        Object.assign({}, opts, {
+          credentials: "omit",
+          proxyFallback: false,
+          retries: 0
+        })
+      );
+    }
+  }
+
+  function cacheFresh(
+    entry,
+    ttlMs
+  ) {
+    return Boolean(
+      entry &&
+      (
+        Date.now() -
+        entry.at
+      ) <= ttlMs
+    );
+  }
+
+  function requestKey(
+    kind,
+    url,
+    options
+  ) {
+    const method =
+      String(
+        options?.method || "GET"
+      ).toUpperCase();
+
+    return (
+      kind +
+      ":" +
+      method +
+      ":" +
+      localize(url)
+    );
+  }
+
+  async function cachedParsed(
+    kind,
+    cache,
+    url,
+    options,
+    parser
+  ) {
+    const opts =
+      Object.assign(
+        {},
+        DEFAULTS,
+        options || {}
+      );
+
+    const ttlMs =
+      Math.max(
+        0,
+        Number(opts.cacheTtlMs) || 0
+      );
+
+    const key =
+      requestKey(
+        kind,
+        url,
+        opts
+      );
+
+    if (
+      ttlMs > 0 &&
+      cacheFresh(
+        cache.get(key),
+        ttlMs
+      )
+    ) {
+      return cache.get(key).value;
+    }
+
+    const shareable =
+      !opts.signal &&
+      String(
+        opts.method || "GET"
+      ).toUpperCase() === "GET";
+
+    if (
+      shareable &&
+      inflight.has(key)
+    ) {
+      return await inflight.get(key);
+    }
+
+    const task =
+      (async () => {
+        const response =
+          await raw(url, opts);
+
+        const value =
+          await parser(response);
+
+        if (ttlMs > 0) {
+          cache.set(
+            key,
+            {
+              at: Date.now(),
+              value
+            }
+          );
+        }
+
+        return value;
+      })();
+
+    if (shareable) {
+      inflight.set(key, task);
+    }
+
+    try {
+      return await task;
+    } finally {
+      if (
+        shareable &&
+        inflight.get(key) === task
+      ) {
+        inflight.delete(key);
+      }
+    }
+  }
+
+  async function json(
+    url,
+    options
+  ) {
+    return await cachedParsed(
+      "json",
+      jsonCache,
+      url,
+      options,
+      response =>
+        response.json()
+    );
+  }
+
+  async function text(
+    url,
+    options
+  ) {
+    return await cachedParsed(
+      "text",
+      textCache,
+      url,
+      options,
+      response =>
+        response.text()
+    );
+  }
+
+  async function firstJSON(
+    urls,
+    options
+  ) {
+    let lastError = null;
+
+    for (
+      const url of
+      (
+        Array.isArray(urls)
+          ? urls
+          : [urls]
+      )
+    ) {
+      if (!url) continue;
+
+      try {
+        return {
+          data:
+            await json(
+              url,
+              options
+            ),
+          url
+        };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw (
+      lastError ||
+      new Error(
+        "all request candidates failed"
+      )
+    );
+  }
+
+  function invalidate(
+    url
+  ) {
+    if (!url) {
+      jsonCache.clear();
+      textCache.clear();
+      return;
+    }
+
+    const target =
+      localize(url);
+
+    for (
+      const cache of
+      [jsonCache, textCache]
+    ) {
+      for (
+        const key of
+        [...cache.keys()]
+      ) {
+        if (
+          key.endsWith(
+            ":" + target
+          )
+        ) {
+          cache.delete(key);
+        }
+      }
+    }
+  }
+
+  W.ZZXMarket24Fetch = {
     __version: 3,
-    COLORS,
-    draw,
-    sizeCanvas,
-    findExtrema
+    raw,
+    json,
+    text,
+    firstJSON,
+    localize,
+    isLocal,
+    proxyURL,
+    invalidate
   };
 })();
