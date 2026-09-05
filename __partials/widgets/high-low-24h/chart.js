@@ -1,108 +1,283 @@
-// __partials/widgets/high-low-24h/chart.js
-// DROP-IN (module)
-// Orchestrates combined price + volume rendering.
-// Exposes: window.ZZXHLChart.draw(canvas, candles, opts)
+// __partials/widgets/high-low-24h/js/chart.js
+// DPR-aware 24h high/low chart with volume overlay and extrema markers.
+// Registers window.ZZXHighLow24Chart.
 
 (function () {
   "use strict";
 
   const W = window;
-  const NS = (W.ZZXHLChart = W.ZZXHLChart || {});
 
-  NS.draw = function draw(canvas, candles, opts = {}){
-    if (!canvas || !W.ZZXHLPlotter) return;
+  if (W.ZZXHighLow24Chart?.__version >= 1) return;
 
-    const P = W.ZZXHLPlotter;
+  function number(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function sizeCanvas(canvas) {
+    const dpr = Math.max(1, number(W.devicePixelRatio) || 1);
+    const cssWidth = Math.max(1, Math.floor(canvas.clientWidth || 320));
+    const cssHeight = Math.max(1, Math.floor(canvas.clientHeight || 112));
+
+    const width = Math.max(1, Math.floor(cssWidth * dpr));
+    const height = Math.max(1, Math.floor(cssHeight * dpr));
+
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+
+    return { width, height, dpr };
+  }
+
+  function clear(canvas) {
+    if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { w, h } = P.sizeCanvas(canvas);
-    const pad = 10;
+    sizeCanvas(canvas);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 
-    P.drawBackground(ctx, w, h);
+  function drawMarker(ctx, x, y, color, label, dpr, alignRight) {
+    ctx.save();
 
-    const arr = Array.isArray(candles) ? candles : [];
-    if (arr.length < 4){
-      P.border(ctx, w, h);
-      return;
+    ctx.beginPath();
+    ctx.arc(x, y, 3 * dpr, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.font =
+      `${Math.max(9, 9 * dpr)}px ` +
+      `ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;
+
+    ctx.textBaseline = "middle";
+    ctx.textAlign = alignRight ? "right" : "left";
+
+    const labelX =
+      alignRight
+        ? x - 6 * dpr
+        : x + 6 * dpr;
+
+    ctx.lineWidth = Math.max(2.5 * dpr, 2);
+    ctx.strokeStyle = "rgba(5,5,5,.92)";
+    ctx.fillStyle = color;
+
+    ctx.strokeText(label, labelX, y);
+    ctx.fillText(label, labelX, y);
+
+    ctx.restore();
+  }
+
+  function draw(canvas, candles, metrics) {
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const series = (Array.isArray(candles) ? candles : [])
+      .filter(candle =>
+        Number.isFinite(number(candle?.c)) &&
+        Number.isFinite(number(candle?.h)) &&
+        Number.isFinite(number(candle?.l))
+      );
+
+    const { width: w, height: h, dpr } = sizeCanvas(canvas);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, w, h);
+
+    if (series.length < 2) return;
+
+    const padX = 9 * dpr;
+    const padY = 9 * dpr;
+    const innerW = Math.max(1, w - padX * 2);
+    const innerH = Math.max(1, h - padY * 2);
+
+    const lows = series.map(candle => number(candle.l));
+    const highs = series.map(candle => number(candle.h));
+    const closes = series.map(candle => number(candle.c));
+
+    let minPrice = Math.min(...lows);
+    let maxPrice = Math.max(...highs);
+
+    if (maxPrice === minPrice) {
+      maxPrice += 1;
+      minPrice -= 1;
     }
 
-    // Use last 24 candles for “24h” plot
-    const tail = arr.slice(-24);
+    const priceSpan = maxPrice - minPrice;
+    const xAt = index =>
+      padX + (index / (series.length - 1)) * innerW;
 
-    const price = tail.map(x => Number(x.c));
-    const vol   = tail.map(x => Number(x.v));
+    const yPrice = value =>
+      padY + (1 - ((value - minPrice) / priceSpan)) * innerH;
 
-    const projP = P.projectSeries(price, w, h, pad);
-    const projV = P.projectSeries(vol,   w, h, pad);
+    // Grid.
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,.055)";
+    ctx.lineWidth = Math.max(1, dpr);
 
-    // Build points
-    const ptsPrice = [];
-    const xs = [];
-    const ysVol = [];
-
-    for (let i=0;i<tail.length;i++){
-      const x = projP.xAt(i, tail.length);
-      const yP = projP.yAt(price[i]);
-      // volume projected into the same chart space, but we’ll compress it to lower band visually
-      // by mapping volume y to a lower “floor” band.
-      xs.push(x);
-      ptsPrice.push({ x, y: yP });
-
-      // volume band: bottom 55% of chart (visual separation)
-      const bandTop = pad + (projP.ih * 0.55);
-      const bandBot = pad + projP.ih;
-      const vspan = (projV.mx - projV.mn) || 1;
-      const vNorm = (vol[i] - projV.mn) / vspan;
-      const yV = bandBot - (vNorm * (bandBot - bandTop));
-      ysVol.push(yV);
+    for (let i = 1; i < 4; i++) {
+      const y = (h / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
     }
 
-    const baseY = pad + projP.ih;
-
-    // volume overlay first (so price sits above)
-    const volColor = "rgba(106,169,42,0.30)";
-    const volBar   = "rgba(106,169,42,0.55)";
-    // subtle volume area + bars
-    P.fillArea(ctx, xs.map((x,i)=>({x, y: ysVol[i]})), baseY, volColor);
-    P.drawBars(ctx, xs, ysVol, baseY, volBar);
-
-    // price area
-    const priceFill = "rgba(230,164,43,0.10)";
-    P.fillArea(ctx, ptsPrice, baseY, priceFill);
-
-    // price line
-    const priceLine = "rgba(230,164,43,0.95)";
-    P.strokeLine(ctx, ptsPrice, priceLine, 2);
-
-    // extrema markers
-    const exP = P.findExtrema(price);
-    const exV = P.findExtrema(vol);
-
-    // Price hi/lo markers (orange / red)
-    if (exP.hi.i >= 0){
-      const x = xs[exP.hi.i];
-      const y = ptsPrice[exP.hi.i].y;
-      P.drawMarker(ctx, x, y, "#e6a42b", "H");
-    }
-    if (exP.lo.i >= 0){
-      const x = xs[exP.lo.i];
-      const y = ptsPrice[exP.lo.i].y;
-      P.drawMarker(ctx, x, y, "#e05858", "L");
+    for (let i = 1; i < 6; i++) {
+      const x = (w / 6) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
     }
 
-    // Volume hi/lo markers (green / gray)
-    if (exV.hi.i >= 0){
-      const x = xs[exV.hi.i];
-      const y = ysVol[exV.hi.i];
-      P.drawMarker(ctx, x, y, "#6aa92a", "VH");
-    }
-    if (exV.lo.i >= 0){
-      const x = xs[exV.lo.i];
-      const y = ysVol[exV.lo.i];
-      P.drawMarker(ctx, x, y, "#b7bf9a", "VL");
+    ctx.restore();
+
+    // Volume bars in lower 42% of the chart.
+    const volumes = series.map(candle => {
+      const v = number(candle.v);
+      return Number.isFinite(v) && v > 0 ? v : 0;
+    });
+
+    const maxVolume = Math.max(...volumes, 1);
+    const step = innerW / Math.max(1, series.length - 1);
+    const barWidth = Math.max(1.4 * dpr, step * 0.48);
+    const volumeBandHeight = innerH * 0.42;
+    const baseY = padY + innerH;
+
+    series.forEach((candle, index) => {
+      const ratio = Math.min(1, volumes[index] / maxVolume);
+      const barHeight = ratio * volumeBandHeight;
+      const x = xAt(index) - barWidth / 2;
+      const y = baseY - barHeight;
+
+      ctx.fillStyle =
+        number(candle.c) < number(candle.o)
+          ? "rgba(214,116,116,.24)"
+          : "rgba(192,214,116,.30)";
+
+      ctx.fillRect(
+        Math.floor(x),
+        Math.floor(y),
+        Math.ceil(barWidth),
+        Math.max(1, Math.ceil(barHeight))
+      );
+    });
+
+    // High-low envelope.
+    ctx.beginPath();
+
+    series.forEach((candle, index) => {
+      const x = xAt(index);
+      const y = yPrice(number(candle.h));
+
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+
+    for (let index = series.length - 1; index >= 0; index--) {
+      ctx.lineTo(
+        xAt(index),
+        yPrice(number(series[index].l))
+      );
     }
 
-    P.border(ctx, w, h);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(230,164,43,.055)";
+    ctx.fill();
+
+    // Close-price area.
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), baseY);
+
+    closes.forEach((close, index) => {
+      ctx.lineTo(xAt(index), yPrice(close));
+    });
+
+    ctx.lineTo(xAt(closes.length - 1), baseY);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(230,164,43,.06)";
+    ctx.fill();
+
+    // Close-price line.
+    ctx.beginPath();
+
+    closes.forEach((close, index) => {
+      const x = xAt(index);
+      const y = yPrice(close);
+
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+
+    ctx.strokeStyle = "#e6a42b";
+    ctx.lineWidth = Math.max(1.5 * dpr, 1);
+    ctx.stroke();
+
+    // Extrema markers.
+    const highIndex =
+      Number.isInteger(metrics?.highIndex)
+        ? metrics.highIndex
+        : highs.indexOf(maxPrice);
+
+    const lowIndex =
+      Number.isInteger(metrics?.lowIndex)
+        ? metrics.lowIndex
+        : lows.indexOf(minPrice);
+
+    if (highIndex >= 0 && highIndex < series.length) {
+      drawMarker(
+        ctx,
+        xAt(highIndex),
+        yPrice(number(series[highIndex].h)),
+        "#e6a42b",
+        "H",
+        dpr,
+        highIndex > series.length * 0.72
+      );
+    }
+
+    if (lowIndex >= 0 && lowIndex < series.length) {
+      drawMarker(
+        ctx,
+        xAt(lowIndex),
+        yPrice(number(series[lowIndex].l)),
+        "#d67474",
+        "L",
+        dpr,
+        lowIndex > series.length * 0.72
+      );
+    }
+
+    // Latest close marker.
+    ctx.beginPath();
+    ctx.arc(
+      xAt(closes.length - 1),
+      yPrice(closes[closes.length - 1]),
+      2.6 * dpr,
+      0,
+      Math.PI * 2
+    );
+    ctx.fillStyle = "#c0d674";
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,.07)";
+    ctx.lineWidth = Math.max(1, dpr);
+    ctx.strokeRect(
+      0.5 * dpr,
+      0.5 * dpr,
+      w - dpr,
+      h - dpr
+    );
+  }
+
+  W.ZZXHighLow24Chart = {
+    __version: 1,
+    draw,
+    clear,
+    sizeCanvas
   };
 })();
