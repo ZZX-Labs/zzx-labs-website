@@ -1,0 +1,93 @@
+<!-- __partials/widgets/fees/widget.html -->
+<div class="btc-card fees">
+  <div class="fees__header">
+    <div>
+      <div class="btc-card__title">Fees</div>
+      <div class="fees__eyebrow">mempool fee recommendations · transaction estimator</div>
+    </div>
+
+    <div class="fees__header-actions">
+      <button
+        type="button"
+        class="zzx-widgets__btn"
+        data-fees-unit
+        aria-label="Cycle fee display unit"
+      >sat/vB</button>
+
+      <span
+        class="btc-card__status"
+        data-fees-status
+        data-status="offline"
+        aria-live="polite"
+      >loading</span>
+    </div>
+  </div>
+
+  <div class="fees__hero">
+    <span>mean recommendation</span>
+    <strong><span data-fees-fast>—</span> <span data-fees-unit-text>sat/vB</span></strong>
+    <small data-fees-sub>mean of five distinct recommended fee levels</small>
+  </div>
+
+  <div class="fees__metrics">
+    <div><span>instant</span><strong><span data-fees-instant>—</span> <i data-fees-unit-text>sat/vB</i></strong></div>
+    <div><span>fast</span><strong><span data-fees-30m>—</span> <i data-fees-unit-text>sat/vB</i></strong></div>
+    <div><span>low</span><strong><span data-fees-1h>—</span> <i data-fees-unit-text>sat/vB</i></strong></div>
+    <div><span>minimum</span><strong><span data-fees-min>—</span> <i data-fees-unit-text>sat/vB</i></strong></div>
+  </div>
+
+  <div class="fees__table" role="table" aria-label="Bitcoin fee recommendation tiers">
+    <div class="fees__row fees__head" role="row">
+      <div role="columnheader">Tier</div>
+      <div class="fees__num" role="columnheader">Fee</div>
+      <div class="fees__num" role="columnheader">Neighbor range</div>
+      <div class="fees__num" role="columnheader">250 vB TX</div>
+    </div>
+
+    <div data-fees-body></div>
+  </div>
+
+  <div class="fees__estimator">
+    <div class="fees__estimator-head">
+      <span>Transaction fee estimator</span>
+      <span data-fees-price>BTC/USD —</span>
+    </div>
+
+    <div class="fees__estimator-grid">
+      <label>
+        <span>virtual size</span>
+        <input
+          data-fees-vbytes
+          type="number"
+          min="1"
+          step="1"
+          value="250"
+          inputmode="numeric"
+          aria-label="Transaction virtual size in vbytes"
+        >
+      </label>
+
+      <label>
+        <span>fee tier</span>
+        <select data-fees-tier aria-label="Fee tier">
+          <option value="instant">instant</option>
+          <option value="fast" selected>fast</option>
+          <option value="low">low</option>
+          <option value="economy">economy</option>
+          <option value="min">minimum</option>
+        </select>
+      </label>
+
+      <div class="fees__estimate">
+        <span>estimated network fee</span>
+        <strong data-fees-estimate>—</strong>
+        <small data-fees-estimate-usd>—</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="fees__footer">
+    <span data-fees-meta>configured mempool API · recommendations are not guarantees</span>
+    <button type="button" class="zzx-widgets__btn" data-fees-refresh>Refresh</button>
+  </div>
+</div>

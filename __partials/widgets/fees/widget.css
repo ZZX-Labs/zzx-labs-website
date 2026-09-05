@@ -1,0 +1,255 @@
+/* __partials/widgets/fees/widget.css */
+
+.fees{
+  --fees-green:var(--zzx-accent,#c0d674);
+  --fees-gold:var(--zzx-accent-alt,#e6a42b);
+  --fees-red:var(--zzx-error,#d67474);
+  --fees-muted:var(--zzx-muted,#b7bf9a);
+  --fees-dim:var(--zzx-dim,#777);
+  --fees-line:rgba(255,255,255,.09);
+  --fees-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.fees__header,
+.fees__footer,
+.fees__estimator-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.fees__header{align-items:flex-start}
+
+.fees__header-actions{
+  display:flex;
+  align-items:center;
+  gap:.35rem;
+  flex:0 0 auto;
+}
+
+.fees__eyebrow,
+.fees__hero > span,
+.fees__metrics span,
+.fees__estimator-head,
+.fees__estimator label > span,
+.fees__estimate > span{
+  color:var(--fees-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.fees__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--fees-line);
+  border-bottom:1px solid var(--fees-line);
+}
+
+.fees__hero strong{
+  color:var(--fees-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.4rem;
+  line-height:1.05;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+
+.fees__hero small{
+  color:var(--fees-gold);
+  font-size:.68rem;
+}
+
+.fees__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.fees__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--fees-line);
+  border-radius:6px;
+  background:var(--fees-panel);
+}
+
+.fees__metrics span,
+.fees__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.fees__metrics strong{
+  margin-top:.1rem;
+  color:var(--fees-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.fees__metrics i{
+  color:var(--fees-dim);
+  font-style:normal;
+  font-size:.62rem;
+}
+
+.fees__table{
+  margin-top:.5rem;
+  overflow:hidden;
+  border:1px solid var(--fees-line);
+  border-radius:6px;
+}
+
+.fees__row{
+  display:grid;
+  grid-template-columns:minmax(100px,1fr) minmax(95px,.8fr) minmax(120px,1fr) minmax(110px,1fr);
+  gap:.4rem;
+  align-items:center;
+  min-width:0;
+  padding:.36rem .42rem;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.66rem;
+}
+
+.fees__head{
+  border-top:0;
+  background:rgba(0,0,0,.34);
+  color:var(--fees-gold);
+  text-transform:uppercase;
+}
+
+.fees__row > div{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.fees__row:not(.fees__head) > div{
+  color:var(--fees-muted);
+}
+
+.fees__row:not(.fees__head) > div:nth-child(2){
+  color:var(--fees-green);
+}
+
+.fees__num{text-align:right}
+
+.fees__estimator{
+  margin-top:.5rem;
+  padding:.45rem;
+  border:1px solid var(--fees-line);
+  border-radius:6px;
+  background:var(--fees-panel);
+}
+
+.fees__estimator-head{
+  color:var(--fees-gold);
+}
+
+.fees__estimator-grid{
+  display:grid;
+  grid-template-columns:minmax(120px,.8fr) minmax(130px,.8fr) minmax(0,1.4fr);
+  gap:.45rem;
+  align-items:end;
+  margin-top:.4rem;
+}
+
+.fees__estimator label{
+  display:grid;
+  gap:.15rem;
+}
+
+.fees__estimator input,
+.fees__estimator select{
+  width:100%;
+  min-width:0;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--fees-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.fees__estimator input:focus,
+.fees__estimator select:focus{
+  border-color:var(--fees-gold);
+}
+
+.fees__estimate{
+  display:grid;
+  gap:.06rem;
+  min-width:0;
+}
+
+.fees__estimate strong{
+  min-width:0;
+  color:var(--fees-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.82rem;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.fees__estimate small{
+  color:var(--fees-gold);
+  font-size:.64rem;
+}
+
+.fees__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--fees-line);
+  color:var(--fees-muted);
+  font-size:.67rem;
+}
+
+.fees__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .fees__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .fees__table{
+    overflow:auto;
+  }
+
+  .fees__row{
+    min-width:560px;
+  }
+}
+
+@media(max-width:520px){
+  .fees__metrics,
+  .fees__estimator-grid{
+    grid-template-columns:1fr;
+  }
+
+  .fees__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
