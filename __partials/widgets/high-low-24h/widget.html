@@ -1,40 +1,99 @@
-<!-- __partials/widgets/high-low-24h/widget.html
-     DROP-IN REPLACEMENT (24h High/Low + Volume overlay) -->
+<!-- __partials/widgets/high-low-24h/widget.html -->
+<div class="zzx-card highlow24">
+  <div class="highlow24__header">
+    <div>
+      <div class="zzx-card__title">24h High / Low</div>
+      <div class="highlow24__eyebrow">BTC / USD · completed hourly candles</div>
+    </div>
 
-<div class="zzx-card hl24" data-widget-root="high-low-24h">
-  <div class="zzx-card__title">
-    <span>24h High/Low</span>
-
-    <span class="zzx-exchange" aria-label="Exchange selector">
-      <span class="zzx-exchange__label">exchange</span>
-      <select data-exchange aria-label="Select exchange"></select>
-    </span>
+    <label class="highlow24__source">
+      <span>exchange</span>
+      <select data-highlow24-source aria-label="Select exchange"></select>
+    </label>
   </div>
 
-  <div class="zzx-card__value hl24__metrics">
-    <span class="hl24__metric">
-      <span class="hl24__k">H</span>
-      <span class="hl24__v">$<span data-high>—</span></span>
-    </span>
+  <div class="highlow24__hero">
+    <div class="highlow24__extreme highlow24__extreme--high">
+      <span class="highlow24__label">24h high</span>
+      <strong data-highlow24-high>—</strong>
+      <small data-highlow24-high-time>—</small>
+    </div>
 
-    <span class="hl24__metric">
-      <span class="hl24__k">L</span>
-      <span class="hl24__v">$<span data-low>—</span></span>
-    </span>
-
-    <span class="hl24__delta is-flat" data-delta>—%</span>
+    <div class="highlow24__extreme highlow24__extreme--low">
+      <span class="highlow24__label">24h low</span>
+      <strong data-highlow24-low>—</strong>
+      <small data-highlow24-low-time>—</small>
+    </div>
   </div>
 
-  <div class="zzx-card__sub"><span data-sub>loading…</span></div>
+  <div class="highlow24__metrics" aria-label="24 hour high low details">
+    <div class="highlow24__metric">
+      <span>range width</span>
+      <strong data-highlow24-range>—</strong>
+    </div>
 
-  <!-- UNIFORM CHART CONTRACT -->
-  <div class="zzx-chartbox" aria-hidden="true">
-    <canvas data-chart></canvas>
+    <div class="highlow24__metric">
+      <span>latest close</span>
+      <strong data-highlow24-close>—</strong>
+    </div>
+
+    <div class="highlow24__metric">
+      <span>range position</span>
+      <strong data-highlow24-position>—</strong>
+    </div>
+
+    <div class="highlow24__metric">
+      <span>24h change</span>
+      <strong data-highlow24-change data-tone="flat">—</strong>
+    </div>
   </div>
 
-  <div class="hl24__legend" aria-hidden="true">
-    <span class="hl24__tag price">price</span>
-    <span class="hl24__tag vol">volume</span>
-    <span class="hl24__tag mark">markers: 24h hi/lo</span>
+  <div class="highlow24__range" aria-label="Latest close position inside 24 hour range">
+    <div class="highlow24__range-labels">
+      <span>L</span>
+      <span data-highlow24-position-label>—</span>
+      <span>H</span>
+    </div>
+
+    <div class="highlow24__range-track">
+      <span class="highlow24__range-fill"></span>
+      <span class="highlow24__range-marker" data-highlow24-range-marker></span>
+    </div>
+  </div>
+
+  <div class="highlow24__chart-wrap">
+    <canvas
+      class="highlow24__chart"
+      data-highlow24-chart
+      role="img"
+      aria-label="Bitcoin 24 hour price range with volume overlay and high low markers"
+    ></canvas>
+  </div>
+
+  <div class="highlow24__legend" aria-hidden="true">
+    <span><i class="highlow24__legend-price"></i>price</span>
+    <span><i class="highlow24__legend-volume"></i>volume</span>
+    <span><i class="highlow24__legend-high"></i>high</span>
+    <span><i class="highlow24__legend-low"></i>low</span>
+  </div>
+
+  <div class="highlow24__footer">
+    <div class="highlow24__source-meta">
+      <span
+        class="btc-card__status highlow24__status"
+        data-highlow24-status
+        data-status="offline"
+        aria-live="polite"
+      >loading</span>
+
+      <span data-highlow24-meta>—</span>
+    </div>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-highlow24-refresh
+      aria-label="Refresh 24 hour high and low"
+    >Refresh</button>
   </div>
 </div>
