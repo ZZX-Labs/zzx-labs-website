@@ -1,0 +1,138 @@
+/* __partials/widgets/currency-converter/widget.css */
+
+.currency-converter{
+  --cc-green:var(--zzx-accent,#c0d674);
+  --cc-gold:var(--zzx-accent-alt,#e6a42b);
+  --cc-muted:var(--zzx-muted,#b7bf9a);
+  --cc-dim:var(--zzx-dim,#777);
+  --cc-line:rgba(255,255,255,.09);
+  width:100%;
+  min-width:0;
+}
+
+.currency-converter__header,
+.currency-converter__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.7rem;
+  min-width:0;
+}
+
+.currency-converter__header{align-items:flex-start}
+
+.currency-converter__eyebrow,
+.currency-converter label > span,
+.currency-converter__hero-label{
+  color:var(--cc-dim);
+  font-size:.67rem;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+.currency-converter__hero{
+  display:grid;
+  gap:.1rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .6rem;
+  border-top:1px solid var(--cc-line);
+  border-bottom:1px solid var(--cc-line);
+}
+
+.currency-converter__hero strong{
+  color:var(--cc-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.45rem;
+  line-height:1.1;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.currency-converter__rate{
+  color:var(--cc-gold);
+  font-size:.72rem;
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.currency-converter__controls{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto minmax(0,1fr);
+  align-items:end;
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.currency-converter label{
+  display:grid;
+  gap:.18rem;
+  min-width:0;
+}
+
+.currency-converter input,
+.currency-converter select{
+  width:100%;
+  min-width:0;
+  padding:.34rem .42rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--cc-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.76rem;
+}
+
+.currency-converter input:focus,
+.currency-converter select:focus{
+  border-color:var(--cc-gold);
+}
+
+.currency-converter__swap{
+  min-width:2.2rem;
+  height:2rem;
+  padding:.2rem .48rem;
+}
+
+.currency-converter__footer{
+  margin-top:.5rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--cc-line);
+  color:var(--cc-muted);
+  font-size:.68rem;
+}
+
+.currency-converter__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:620px){
+  .currency-converter__controls{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .currency-converter__swap{
+    grid-column:1 / -1;
+    width:100%;
+  }
+}
+
+@media(max-width:390px){
+  .currency-converter__controls{
+    grid-template-columns:1fr;
+  }
+
+  .currency-converter__swap{grid-column:auto}
+  .currency-converter__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}

@@ -1,0 +1,56 @@
+<!-- __partials/widgets/iching/widget.html -->
+<div class="btc-card iching">
+  <div class="iching__header">
+    <div>
+      <div class="btc-card__title">I-Ching · Bitcoin Lots</div>
+      <div class="iching__eyebrow">historical purchase-lot tracker</div>
+    </div>
+    <span class="btc-card__status" data-ich-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="iching__inputs">
+    <label>
+      <span>purchase date</span>
+      <input data-ich-date type="date" aria-label="Historical purchase date">
+    </label>
+
+    <label>
+      <span>USD spent</span>
+      <input data-ich-usd type="number" inputmode="decimal" min="0" step="any" value="100" aria-label="Historical USD amount">
+    </label>
+
+    <button type="button" class="zzx-widgets__btn" data-ich-add>Add lot</button>
+  </div>
+
+  <div class="iching__hero">
+    <span>current portfolio value</span>
+    <strong data-ich-value>—</strong>
+    <small data-ich-current>—</small>
+  </div>
+
+  <div class="iching__metrics">
+    <div><span>BTC accumulated</span><strong data-ich-btc>—</strong></div>
+    <div><span>cost basis</span><strong data-ich-cost>—</strong></div>
+    <div><span>average acquisition</span><strong data-ich-average>—</strong></div>
+    <div><span>return</span><strong data-ich-return>—</strong></div>
+  </div>
+
+  <div class="iching__lots-wrap">
+    <table class="iching__lots">
+      <thead>
+        <tr><th>date</th><th>USD</th><th>BTC/USD</th><th>BTC</th><th></th></tr>
+      </thead>
+      <tbody data-ich-lots></tbody>
+    </table>
+  </div>
+
+  <div class="iching__footer">
+    <span data-ich-meta>No lots yet.</span>
+    <div>
+      <button type="button" class="zzx-widgets__btn" data-ich-refresh>Refresh price</button>
+      <button type="button" class="zzx-widgets__btn" data-ich-clear>Clear all</button>
+    </div>
+  </div>
+
+  <div class="zzx-project-link"><a href="/projects/software/iching/">I-Ching project →</a></div>
+</div>

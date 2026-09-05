@@ -1,0 +1,197 @@
+/* __partials/widgets/iching/widget.css */
+
+.iching{
+  --ich-green:var(--zzx-accent,#c0d674);
+  --ich-gold:var(--zzx-accent-alt,#e6a42b);
+  --ich-red:var(--zzx-error,#d67474);
+  --ich-muted:var(--zzx-muted,#b7bf9a);
+  --ich-dim:var(--zzx-dim,#777);
+  --ich-line:rgba(255,255,255,.09);
+  width:100%;
+  min-width:0;
+}
+
+.iching__header,
+.iching__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
+}
+
+.iching__header{align-items:flex-start}
+
+.iching__eyebrow,
+.iching label > span,
+.iching__hero > span,
+.iching__metrics span{
+  color:var(--ich-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.iching__inputs{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  align-items:end;
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.iching__inputs label{
+  display:grid;
+  gap:.17rem;
+  min-width:0;
+}
+
+.iching input{
+  width:100%;
+  min-width:0;
+  padding:.34rem .42rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--ich-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.76rem;
+}
+
+.iching input:focus{border-color:var(--ich-gold)}
+
+.iching__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--ich-line);
+  border-bottom:1px solid var(--ich-line);
+}
+
+.iching__hero strong{
+  color:var(--ich-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.4rem;
+  line-height:1;
+  font-weight:500;
+}
+
+.iching__hero small{
+  color:var(--ich-gold);
+  font-size:.68rem;
+}
+
+.iching__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.iching__metrics div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--ich-line);
+  border-radius:6px;
+  background:rgba(255,255,255,.018);
+}
+
+.iching__metrics span,
+.iching__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.iching__metrics strong{
+  margin-top:.1rem;
+  color:var(--ich-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.iching__metrics strong[data-tone="down"]{color:var(--ich-red)}
+.iching__metrics strong[data-tone="up"]{color:var(--ich-green)}
+
+.iching__lots-wrap{
+  max-height:190px;
+  margin-top:.5rem;
+  overflow:auto;
+  border:1px solid var(--ich-line);
+  border-radius:6px;
+}
+
+.iching__lots{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.66rem;
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+}
+
+.iching__lots th,
+.iching__lots td{
+  padding:.32rem .36rem;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  text-align:right;
+  white-space:nowrap;
+}
+
+.iching__lots th:first-child,
+.iching__lots td:first-child{text-align:left}
+
+.iching__lots th{
+  color:var(--ich-dim);
+  font-weight:400;
+  text-transform:uppercase;
+}
+
+.iching__lots td{color:var(--ich-muted)}
+.iching__lots td:nth-child(4){color:var(--ich-green)}
+.iching__lots tr:last-child td{border-bottom:0}
+
+.iching__delete{
+  padding:.08rem .3rem;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:4px;
+  background:#080808;
+  color:var(--ich-red);
+  cursor:pointer;
+}
+
+.iching__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--ich-line);
+  color:var(--ich-muted);
+  font-size:.68rem;
+}
+
+.iching__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.iching__footer > div{
+  display:flex;
+  gap:.35rem;
+}
+
+.zzx-project-link{margin-top:.38rem;font-size:.67rem}
+.zzx-project-link a{color:var(--ich-gold)}
+
+@media(max-width:720px){
+  .iching__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:520px){
+  .iching__inputs{grid-template-columns:1fr}
+  .iching__metrics{grid-template-columns:1fr}
+  .iching__footer{align-items:flex-start;flex-direction:column}
+}
