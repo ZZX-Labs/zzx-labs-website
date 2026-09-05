@@ -1,49 +1,114 @@
 <!-- __partials/widgets/block-clock/widget.html -->
-<div class="btc-card" data-widget-root="block-clock">
-  <div class="btc-card__title">Block Clock</div>
+<div class="btc-card block-clock">
+  <div class="block-clock__header">
+    <div>
+      <div class="btc-card__title">Block Clock</div>
+      <div class="block-clock__eyebrow">Bitcoin header-time clock</div>
+    </div>
 
-  <div class="btc-card__value zzx-bc__headline">
-    <span class="zzx-bc__height" data-bc-height>—</span>
-    <span class="zzx-bc__sep">•</span>
-    <span class="zzx-bc__since" data-bc-since>—</span>
+    <span
+      class="btc-card__status block-clock__status"
+      data-bc-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
   </div>
 
-  <div class="btc-card__sub">
-    <span data-bc-sub>—</span>
-  </div>
-
-  <div class="zzx-bc__grid" aria-label="Bitcoin block clock details">
-    <div class="zzx-bc__row">
-      <div class="zzx-bc__k">Last block interval</div>
-      <div class="zzx-bc__v" data-bc-interval>—</div>
+  <div class="block-clock__hero" aria-label="Current Bitcoin block">
+    <div class="block-clock__height-wrap">
+      <span class="block-clock__label">height</span>
+      <strong class="block-clock__height" data-bc-height>—</strong>
     </div>
 
-    <div class="zzx-bc__row">
-      <div class="zzx-bc__k">Change vs prior</div>
-      <div class="zzx-bc__v" data-bc-delta>—</div>
-    </div>
-
-    <div class="zzx-bc__row zzx-bc__sep-row"></div>
-
-    <div class="zzx-bc__row">
-      <div class="zzx-bc__k">Start (prev block)</div>
-      <div class="zzx-bc__v" data-bc-start>—</div>
-    </div>
-
-    <div class="zzx-bc__row">
-      <div class="zzx-bc__k">End (tip block)</div>
-      <div class="zzx-bc__v" data-bc-end>—</div>
-    </div>
-
-    <div class="zzx-bc__row">
-      <div class="zzx-bc__k">UTC range</div>
-      <div class="zzx-bc__v" data-bc-utc>—</div>
+    <div class="block-clock__age-wrap">
+      <span class="block-clock__label">header age</span>
+      <strong class="block-clock__age" data-bc-age>—</strong>
     </div>
   </div>
 
-  <div class="zzx-bc__controls" aria-label="Block clock controls">
-    <button type="button" class="zzx-widgets__btn" data-bc-refresh aria-label="Refresh">Refresh</button>
-    <span class="zzx-widgets__spacer" aria-hidden="true"></span>
-    <span class="zzx-bc__status" data-bc-status>—</span>
+  <div class="block-clock__target" aria-label="Ten minute block target">
+    <div class="block-clock__target-copy">
+      <span>10-minute target</span>
+      <span data-bc-target-label>—</span>
+    </div>
+    <div
+      class="block-clock__progress"
+      role="progressbar"
+      aria-label="Progress through nominal ten minute block interval"
+      aria-valuemin="0"
+      aria-valuemax="600"
+      aria-valuenow="0"
+      data-bc-progress
+    >
+      <span class="block-clock__progress-bar" data-bc-progress-bar></span>
+    </div>
   </div>
-      </div>
+
+  <div class="block-clock__metrics" aria-label="Recent block timing">
+    <div class="block-clock__metric">
+      <span class="block-clock__metric-label">last interval</span>
+      <strong class="block-clock__metric-value" data-bc-last-interval>—</strong>
+    </div>
+
+    <div class="block-clock__metric">
+      <span class="block-clock__metric-label">prior interval</span>
+      <strong class="block-clock__metric-value" data-bc-prior-interval>—</strong>
+    </div>
+
+    <div class="block-clock__metric">
+      <span class="block-clock__metric-label">change vs prior</span>
+      <strong class="block-clock__metric-value" data-bc-delta>—</strong>
+    </div>
+
+    <div class="block-clock__metric">
+      <span class="block-clock__metric-label">vs 10m target</span>
+      <strong class="block-clock__metric-value" data-bc-vs-target>—</strong>
+    </div>
+  </div>
+
+  <div class="block-clock__details">
+    <div class="block-clock__row">
+      <span>Previous header</span>
+      <strong data-bc-prev-local>—</strong>
+    </div>
+
+    <div class="block-clock__row">
+      <span>Tip header</span>
+      <strong data-bc-tip-local>—</strong>
+    </div>
+
+    <div class="block-clock__row">
+      <span>UTC interval</span>
+      <strong data-bc-utc-range>—</strong>
+    </div>
+
+    <div class="block-clock__row">
+      <span>Nominal +10m</span>
+      <strong data-bc-next-target>—</strong>
+    </div>
+
+    <div class="block-clock__row">
+      <span>Tip hash</span>
+      <strong class="block-clock__hash" data-bc-hash title="">—</strong>
+    </div>
+  </div>
+
+  <div class="block-clock__footer">
+    <div class="block-clock__source">
+      <span data-bc-source>mempool.space</span>
+      <span aria-hidden="true">·</span>
+      <span data-bc-freshness>never updated</span>
+    </div>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-bc-refresh
+      aria-label="Refresh Block Clock"
+    >Refresh</button>
+  </div>
+
+  <div class="block-clock__note">
+    Header timestamps are consensus timestamps and can differ from actual block propagation/arrival time.
+  </div>
+</div>
