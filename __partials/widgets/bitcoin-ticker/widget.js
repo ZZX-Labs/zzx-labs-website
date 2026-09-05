@@ -1,816 +1,1035 @@
 // __partials/widgets/bitcoin-ticker/widget.js
 // ZZX-Labs Bitcoin Ticker
-// No-flicker build v3 commodity-unit display: controls are rendered once; only numeric text nodes update per tick.
-// BTC/source updates: 1s from latest.json first, direct APIs as fallback.
-// FX/commodities cache: 30m. Oil metadata interval: 1h. Weed baseline: $2,000/lb.
+//
+// Primary controller for widget.html + widget.css.
+// No local submodules are required for this widget.
+//
+// Data policy:
+// - ZZX /bitcoin/bpi/api/latest.json is authoritative/default.
+// - Exchange choices come from /bitcoin/bpi/api/exchanges.json.
+// - Fiat catalog comes from /bitcoin/bpi/api/currencies.json.
+// - Symbols come from /bitcoin/bpi/api/symbols.json.
+// - ZZXFX resolves fiat rates missing from the local 30-minute snapshot.
+// - Direct exchange calls are fallback-only and never required for normal operation.
 
 (function () {
   "use strict";
 
   const W = window;
+  const D = document;
   const ID = "bitcoin-ticker";
 
-  const BTC_REFRESH_MS = 1000;
-  const FX_REFRESH_MS = 30 * 60 * 1000;
-  const WEED_LB_USD = 125 * 16;
+  const REFRESH_MS = 1000;
+  const CONFIG_TTL_MS = 30 * 60 * 1000;
+  const STALE_AFTER_MS = 5 * 60 * 1000;
 
-  const API = {
+  const STORAGE = {
+    source: "zzx.widget.bitcoin-ticker.source",
+    quote: "zzx.widget.bitcoin-ticker.quote"
+  };
+
+  const ENDPOINTS = {
     latest: "/bitcoin/bpi/api/latest.json",
     exchanges: "/bitcoin/bpi/api/exchanges.json",
     currencies: "/bitcoin/bpi/api/currencies.json",
-    exchangeRates: "/bitcoin/bpi/api/exchange_rates.json",
-    assets: "/bitcoin/bpi/api/assets.json",
-    commodities: "/bitcoin/bpi/api/commodities.json",
-    symbols: "/bitcoin/bpi/api/symbols.json",
-    userValues: "/bitcoin/bpi/api/user_values.json"
+    rates: "/bitcoin/bpi/api/exchange_rates.json",
+    symbols: "/bitcoin/bpi/api/symbols.json"
   };
 
-  const PARSERS = {
-    coinbase_stats: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.volume),
-      high_24h: Number(d && d.high),
-      low_24h: Number(d && d.low)
-    }),
+  const state = {
+    config: null,
+    configAt: 0,
+    latest: null,
+    latestAt: 0,
+    inflightLatest: null,
+    mountedRoots: new WeakSet()
+  };
 
-    coinbase_spot: d => ({
-      price_usd: Number(d && d.data && d.data.amount),
-      volume_24h_btc: 0,
-      high_24h: 0,
-      low_24h: 0
-    }),
+  function api() {
+    return W.ZZXAPI || null;
+  }
 
-    kraken_ticker: d => {
-      const r = d && d.result ? d.result : {};
-      const k = r.XXBTZUSD || r.XBTUSD || r.BTCUSD || Object.values(r)[0] || {};
-      return {
-        price_usd: Number(k && k.c && k.c[0]),
-        volume_24h_btc: Number(k && k.v && k.v[1]),
-        high_24h: Number(k && k.h && k.h[1]),
-        low_24h: Number(k && k.l && k.l[1])
-      };
-    },
+  function rootFor() {
+    return (
+      D.querySelector('[data-widget-root="' + ID + '"]') ||
+      D.querySelector('[data-widget-slot="' + ID + '"]') ||
+      D.querySelector('.btc-slot[data-widget="' + ID + '"]')
+    );
+  }
 
-    gemini_pubticker: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.volume && d.volume.BTC),
-      volume_24h_usd: Number(d && d.volume && d.volume.USD),
-      high_24h: 0,
-      low_24h: 0
-    }),
+  function localURL(path) {
+    const A = api();
+    if (A && typeof A.url === "function") return A.url(path);
+    return path;
+  }
 
-    bitstamp_ticker: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.volume),
-      high_24h: Number(d && d.high),
-      low_24h: Number(d && d.low)
-    }),
+  async function fetchJSON(path, fallback) {
+    const A = api();
 
-    bitfinex_v2_ticker: d => ({
-      price_usd: Array.isArray(d) ? Number(d[6]) : Number(d && (d.last_price || d.last || d.price)),
-      volume_24h_btc: Array.isArray(d) ? Number(d[7]) : Number(d && (d.volume || d.volume_24h_btc)),
-      high_24h: Array.isArray(d) ? Number(d[8]) : Number(d && (d.high || d.high_24h)),
-      low_24h: Array.isArray(d) ? Number(d[9]) : Number(d && (d.low || d.low_24h))
-    }),
+    if (A && typeof A.jsonStrict === "function") {
+      try {
+        return await A.jsonStrict(path, {
+          cacheBust: true,
+          timeoutMs: 10000,
+          retries: 1,
+          retryDelayMs: 350
+        });
+      } catch (error) {
+        if (arguments.length > 1) return fallback;
+        throw error;
+      }
+    }
 
-    okx_ticker: d => {
-      const t = d && d.data && d.data[0] ? d.data[0] : {};
-      const price = Number(t.last);
-      const baseVol = Number(t.volCcy24h || t.vol24h);
-      return {
-        price_usd: price,
-        volume_24h_btc: baseVol,
-        volume_24h_usd: Number(t.vol24h || (baseVol && price ? baseVol * price : 0)),
-        high_24h: Number(t.high24h),
-        low_24h: Number(t.low24h)
-      };
-    },
-
-    crypto_com_ticker: d => {
-      const arr = d && d.result && d.result.data ? d.result.data : [];
-      const t = arr[0] || {};
-      return {
-        price_usd: Number(t.a || t.last || t.price),
-        volume_24h_btc: Number(t.v || t.volume),
-        high_24h: Number(t.h || t.high),
-        low_24h: Number(t.l || t.low)
-      };
-    },
-
-    kucoin_stats: d => {
-      const t = d && d.data ? d.data : {};
-      return {
-        price_usd: Number(t.last),
-        volume_24h_btc: Number(t.vol),
-        volume_24h_usd: Number(t.volValue),
-        high_24h: Number(t.high),
-        low_24h: Number(t.low)
-      };
-    },
-
-    gateio_ticker: d => {
-      const t = Array.isArray(d) ? (d[0] || {}) : (d || {});
-      return {
-        price_usd: Number(t.last),
-        volume_24h_btc: Number(t.base_volume),
-        volume_24h_usd: Number(t.quote_volume),
-        high_24h: Number(t.high_24h),
-        low_24h: Number(t.low_24h)
-      };
-    },
-
-    bitget_ticker: d => {
-      const arr = d && d.data ? d.data : [];
-      const t = Array.isArray(arr) ? (arr[0] || {}) : arr;
-      return {
-        price_usd: Number(t.lastPr || t.close || t.last),
-        volume_24h_btc: Number(t.baseVolume || t.baseVol),
-        volume_24h_usd: Number(t.quoteVolume || t.usdtVolume),
-        high_24h: Number(t.high24h || t.high),
-        low_24h: Number(t.low24h || t.low)
-      };
-    },
-
-    mexc_24hr: d => ({
-      price_usd: Number(d && d.lastPrice),
-      volume_24h_btc: Number(d && d.volume),
-      volume_24h_usd: Number(d && d.quoteVolume),
-      high_24h: Number(d && d.highPrice),
-      low_24h: Number(d && d.lowPrice)
-    }),
-
-    htx_merged: d => {
-      const t = d && d.tick ? d.tick : {};
-      return {
-        price_usd: Number(t.close),
-        volume_24h_btc: Number(t.amount),
-        volume_24h_usd: Number(t.vol),
-        high_24h: Number(t.high),
-        low_24h: Number(t.low)
-      };
-    },
-
-    okcoin_ticker: d => ({
-      price_usd: Number(d && d.last),
-      volume_24h_btc: Number(d && d.base_volume_24h),
-      volume_24h_usd: Number(d && d.quote_volume_24h),
-      high_24h: Number(d && d.high_24h),
-      low_24h: Number(d && d.low_24h)
-    }),
-
-    binance_24hr: d => ({
-      price_usd: Number(d && d.lastPrice),
-      volume_24h_btc: Number(d && d.volume),
-      volume_24h_usd: Number(d && d.quoteVolume),
-      high_24h: Number(d && d.highPrice),
-      low_24h: Number(d && d.lowPrice)
-    }),
-
-    coingecko_bitcoin_tickers: d => {
-      const tickers = d && d.tickers ? d.tickers : [];
-      let weighted = 0;
-      let totalVol = 0;
-      let volUsd = 0;
-      let high = 0;
-      let low = Number.MAX_VALUE;
-
-      tickers.forEach(t => {
-        const p = Number(t && t.converted_last && t.converted_last.usd);
-        const vu = Number(t && t.converted_volume && t.converted_volume.usd);
-        if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(vu) || vu <= 0) return;
-
-        const vb = vu / p;
-        weighted += p * vb;
-        totalVol += vb;
-        volUsd += vu;
-        high = Math.max(high, p);
-        low = Math.min(low, p);
+    try {
+      const u = localURL(path);
+      const sep = u.includes("?") ? "&" : "?";
+      const response = await fetch(u + sep + "t=" + Date.now(), {
+        cache: "no-store",
+        credentials: /^https?:\/\//i.test(u) ? "omit" : "same-origin"
       });
 
-      return {
-        price_usd: totalVol > 0 ? weighted / totalVol : NaN,
-        volume_24h_btc: totalVol,
-        volume_24h_usd: volUsd,
-        high_24h: high,
-        low_24h: low === Number.MAX_VALUE ? NaN : low
-      };
-    }
-  };
-
-  let CONFIG = null;
-  let CONFIG_READY_AT = 0;
-  let FX_READY_AT = 0;
-  let LATEST_CACHE = {};
-  let LATEST_CACHE_AT = 0;
-
-  function localBust(url) {
-    if (!url || !url.startsWith("/")) return url;
-    return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
-  }
-
-  function allOriginsRaw(url) {
-    return "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-  }
-
-  async function fetchJsonDirect(url) {
-    const r = await fetch(localBust(url), { cache: "no-store" });
-    if (!r.ok) throw new Error("HTTP " + r.status + " " + url);
-    return await r.json();
-  }
-
-  async function json(url, opts) {
-    opts = opts || {};
-    try {
-      return await fetchJsonDirect(url);
-    } catch (err) {
-      if (opts.allowCorsProxy && url && !url.startsWith("/")) {
-        return await fetchJsonDirect(allOriginsRaw(url));
-      }
-      throw err;
+      if (!response.ok) throw new Error("HTTP " + response.status + " " + path);
+      return await response.json();
+    } catch (error) {
+      if (arguments.length > 1) return fallback;
+      throw error;
     }
   }
 
-  async function optionalJson(url, fallback) {
+  function finitePositive(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : NaN;
+  }
+
+  function finiteNonNegative(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : NaN;
+  }
+
+  function safeGet(key) {
     try {
-      return await json(url);
+      return W.localStorage.getItem(key);
     } catch (_) {
-      return fallback;
+      return null;
     }
   }
 
-  async function loadConfig(force) {
-    if (CONFIG && !force) return CONFIG;
-
-    CONFIG = {
-      exchanges: await json(API.exchanges),
-      currencies: await json(API.currencies),
-      exchangeRates: await json(API.exchangeRates),
-      assets: await json(API.assets),
-      commodities: await json(API.commodities),
-      symbols: await json(API.symbols),
-      userValues: await optionalJson(API.userValues, { order: [], values: {} })
-    };
-
-    CONFIG_READY_AT = Date.now();
-    FX_READY_AT = CONFIG_READY_AT;
-    normalizeExchangeRates(CONFIG);
-    return CONFIG;
-  }
-
-  async function refreshFxIfNeeded(config, force) {
-    const now = Date.now();
-    if (!force && config.exchangeRates && now - FX_READY_AT < FX_REFRESH_MS) {
-      normalizeExchangeRates(config);
-      return;
-    }
-
-    config.exchangeRates = await optionalJson(API.exchangeRates, config.exchangeRates || {});
-    FX_READY_AT = now;
-    normalizeExchangeRates(config);
-  }
-
-  async function refreshLatest(config) {
-    const now = Date.now();
-    if (LATEST_CACHE && now - LATEST_CACHE_AT < BTC_REFRESH_MS) {
-      config.latest = LATEST_CACHE;
-      return;
-    }
-
-    LATEST_CACHE = await optionalJson(API.latest, LATEST_CACHE || {});
-    LATEST_CACHE_AT = now;
-    config.latest = LATEST_CACHE;
-  }
-
-  function normalizeExchangeRates(config) {
-    if (!config.exchangeRates) config.exchangeRates = {};
-    if (!config.exchangeRates.rates) config.exchangeRates.rates = {};
-    if (!config.exchangeRates.assets_usd) config.exchangeRates.assets_usd = {};
-    if (!config.exchangeRates.commodities_usd) config.exchangeRates.commodities_usd = {};
-    if (!config.exchangeRates.user_values_usd) config.exchangeRates.user_values_usd = {};
-
-    config.exchangeRates.rates.USD = 1;
-    config.exchangeRates.commodities_usd.WEED_LB = WEED_LB_USD;
-  }
-
-  function fmt(n, digits) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "—";
-    return x.toLocaleString("en-US", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits
-    });
-  }
-
-  function compact(n, digits) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "—";
-    return x.toLocaleString("en-US", {
-      notation: "compact",
-      maximumFractionDigits: digits == null ? 2 : digits
-    });
-  }
-
-  function symbolOf(config, code) {
-    return (
-      (config.symbols && config.symbols[code]) ||
-      (config.userValues && config.userValues.values && config.userValues.values[code] && config.userValues.values[code].symbol) ||
-      code + " "
-    );
-  }
-
-  function labelOf(config, code) {
-    return (
-      (config.currencies && config.currencies.names && config.currencies.names[code]) ||
-      (config.assets && config.assets.assets && config.assets.assets[code] && config.assets.assets[code].label) ||
-      (config.commodities && config.commodities.sources && config.commodities.sources[code] && config.commodities.sources[code].label) ||
-      (config.userValues && config.userValues.values && config.userValues.values[code] && config.userValues.values[code].label) ||
-      code
-    );
-  }
-
-  function isNonFiatUnit(config, code) {
-    return Boolean(
-      (config.assets && config.assets.assets && config.assets.assets[code]) ||
-      (config.commodities && config.commodities.sources && config.commodities.sources[code]) ||
-      (config.userValues && config.userValues.values && config.userValues.values[code]) ||
-      (config.exchangeRates && config.exchangeRates.assets_usd && config.exchangeRates.assets_usd[code]) ||
-      (config.exchangeRates && config.exchangeRates.commodities_usd && config.exchangeRates.commodities_usd[code]) ||
-      (config.exchangeRates && config.exchangeRates.user_values_usd && config.exchangeRates.user_values_usd[code])
-    ) && code !== "BTC";
-  }
-
-  function conversionRate(config, unit) {
-    normalizeExchangeRates(config);
-
-    if (unit === "USD") return 1;
-
-    const fiat = Number(config.exchangeRates.rates && config.exchangeRates.rates[unit]);
-    if (Number.isFinite(fiat) && fiat > 0) return fiat;
-
-    const assetUsd = Number(config.exchangeRates.assets_usd && config.exchangeRates.assets_usd[unit]);
-    if (Number.isFinite(assetUsd) && assetUsd > 0) return 1 / assetUsd;
-
-    const commodityUsd = Number(config.exchangeRates.commodities_usd && config.exchangeRates.commodities_usd[unit]);
-    if (Number.isFinite(commodityUsd) && commodityUsd > 0) return 1 / commodityUsd;
-
-    const userUsd = Number(config.exchangeRates.user_values_usd && config.exchangeRates.user_values_usd[unit]);
-    if (Number.isFinite(userUsd) && userUsd > 0) return 1 / userUsd;
-
-    throw new Error("missing exchange_rates value for " + unit);
-  }
-
-  function latestBpiQuote(config) {
-    const latest = config.latest || {};
-    const price = Number(
-      latest.price_usd ||
-      latest.btc_usd ||
-      latest.vwap_usd ||
-      latest.bpi_usd ||
-      (latest.weighted_average && latest.weighted_average.price_usd) ||
-      (latest.global_bpi && latest.global_bpi.price_usd)
-    );
-
-    if (!Number.isFinite(price) || price <= 0) return null;
-
-    return {
-      price_usd: price,
-      volume_24h_btc: Number(latest.volume_24h_btc || 0),
-      volume_24h_usd: Number(latest.volume_24h_usd || 0),
-      high_24h: Number(latest.high_24h || 0),
-      low_24h: Number(latest.low_24h || 0),
-      label: "ZZX Global BPI",
-      mode: latest.mode || "latest.json"
-    };
-  }
-
-  function latestExchangeQuote(config, sourceKey) {
-    const latest = config.latest || {};
-    const ex = latest.exchanges && latest.exchanges[sourceKey];
-
-    if (!ex) return null;
-
-    const price = Number(ex.price_usd);
-    if (!Number.isFinite(price) || price <= 0) return null;
-
-    return {
-      price_usd: price,
-      volume_24h_btc: Number(ex.volume_24h_btc || 0),
-      volume_24h_usd: Number(ex.volume_24h_usd || 0),
-      high_24h: Number(ex.high_24h || 0),
-      low_24h: Number(ex.low_24h || 0),
-      label: ex.label || sourceKey,
-      mode: "latest.json"
-    };
-  }
-
-  function validParsed(p) {
-    return p && Number.isFinite(Number(p.price_usd)) && Number(p.price_usd) > 0;
-  }
-
-  async function liveExchangeQuote(config, sourceKey) {
-    const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
-    if (!src) throw new Error("missing exchange source " + sourceKey);
-
-    const parser = PARSERS[src.parser];
-    if (!parser) throw new Error("missing parser " + src.parser);
-
-    const raw = await json(src.url, { allowCorsProxy: !!src.cors_proxy });
-    const parsed = parser(raw);
-
-    if (!validParsed(parsed)) throw new Error("bad live parse from " + (src.label || sourceKey));
-
-    return {
-      price_usd: Number(parsed.price_usd),
-      volume_24h_btc: Number(parsed.volume_24h_btc || 0),
-      volume_24h_usd: Number(parsed.volume_24h_usd || 0),
-      high_24h: Number(parsed.high_24h || 0),
-      low_24h: Number(parsed.low_24h || 0),
-      label: src.label || sourceKey,
-      mode: "live"
-    };
-  }
-
-  async function sourceQuote(config, sourceKey) {
-    await refreshLatest(config);
-
-    if (sourceKey === "zzx") {
-      const bpi = latestBpiQuote(config);
-      if (bpi) return bpi;
-    }
-
+  function safeSet(key, value) {
     try {
-      return await liveExchangeQuote(config, sourceKey);
-    } catch (_) {
-      const fromLatest = latestExchangeQuote(config, sourceKey);
-      if (fromLatest) return fromLatest;
-
-      const src = config.exchanges && config.exchanges.sources && config.exchanges.sources[sourceKey];
-      if (src && src.fallback === "coingecko" && config.exchanges.sources.coingecko_global) {
-        return await liveExchangeQuote(config, "coingecko_global");
-      }
-
-      throw _;
-    }
-  }
-
-  function ensureControls(root, config) {
-    const host = root.querySelector(".zzx-ticker") || root;
-    let controls = root.querySelector(".ticker-controls");
-
-    if (!controls) {
-      controls = document.createElement("div");
-      controls.className = "ticker-controls ticker-controls-panel";
-      host.insertBefore(controls, host.firstChild);
-    }
-
-    if (controls.__zzxBuilt) {
-      return {
-        sourceSelect: root.querySelector("[data-source-select]"),
-        unitSelect: root.querySelector("[data-currency-select]")
-      };
-    }
-
-    controls.className = "ticker-controls ticker-controls-panel";
-    controls.innerHTML = "";
-
-    const sourceWrap = document.createElement("div");
-    sourceWrap.className = "ticker-control-group ticker-control-source";
-
-    const sourceLabel = document.createElement("label");
-    sourceLabel.className = "ticker-control-label";
-    sourceLabel.textContent = "SRC";
-
-    const sourceSelect = document.createElement("select");
-    sourceSelect.className = "ticker-control-select";
-    sourceSelect.setAttribute("data-source-select", "");
-
-    const sources = (config.exchanges && config.exchanges.sources) || {};
-    const sourceOrder = (config.exchanges && config.exchanges.order) || Object.keys(sources);
-
-    sourceOrder.forEach(function (key) {
-      const src = sources[key];
-      if (!src) return;
-      const opt = document.createElement("option");
-      opt.value = key;
-      opt.textContent = src.label || key;
-      sourceSelect.appendChild(opt);
-    });
-
-    sourceSelect.value = (config.exchanges && config.exchanges.default) || sourceOrder[0] || "";
-
-    sourceWrap.appendChild(sourceLabel);
-    sourceWrap.appendChild(sourceSelect);
-    controls.appendChild(sourceWrap);
-
-    const unitWrap = document.createElement("div");
-    unitWrap.className = "ticker-control-group ticker-control-unit";
-
-    const unitLabel = document.createElement("label");
-    unitLabel.className = "ticker-control-label";
-    unitLabel.textContent = "UNIT";
-
-    const unitSelect = document.createElement("select");
-    unitSelect.className = "ticker-control-select";
-    unitSelect.setAttribute("data-currency-select", "");
-
-    const added = new Set();
-
-    ((config.currencies && config.currencies.order) || []).forEach(function (code) {
-      const opt = document.createElement("option");
-      opt.value = code;
-      opt.textContent = code;
-      unitSelect.appendChild(opt);
-      added.add(code);
-    });
-
-    ((config.assets && config.assets.order) || []).forEach(function (code) {
-      if (code === "BTC" || added.has(code)) return;
-      const opt = document.createElement("option");
-      opt.value = code;
-      opt.textContent = labelOf(config, code);
-      unitSelect.appendChild(opt);
-      added.add(code);
-    });
-
-    Object.keys((config.commodities && config.commodities.sources) || {}).forEach(function (code) {
-      if (added.has(code)) return;
-      const opt = document.createElement("option");
-      opt.value = code;
-      opt.textContent = labelOf(config, code);
-      unitSelect.appendChild(opt);
-      added.add(code);
-    });
-
-    ((config.userValues && config.userValues.order) || []).forEach(function (code) {
-      if (added.has(code)) return;
-      const opt = document.createElement("option");
-      opt.value = code;
-      opt.textContent = labelOf(config, code);
-      unitSelect.appendChild(opt);
-      added.add(code);
-    });
-
-    unitSelect.value = (config.currencies && config.currencies.default) || "USD";
-
-    unitWrap.appendChild(unitLabel);
-    unitWrap.appendChild(unitSelect);
-    controls.appendChild(unitWrap);
-
-    controls.__zzxBuilt = true;
-
-    return { sourceSelect: sourceSelect, unitSelect: unitSelect };
+      W.localStorage.setItem(key, String(value));
+    } catch (_) {}
   }
 
   function setText(root, selector, value) {
-    const el = root.querySelector(selector);
-    if (el && el.textContent !== String(value)) el.textContent = String(value);
+    const element = root.querySelector(selector);
+    if (!element) return;
+    const text = value == null ? "—" : String(value);
+    if (element.textContent !== text) element.textContent = text;
   }
 
-  function ensureValueMarkup(root) {
-    const btcLine = root.querySelector(".btc-line");
-    const units = root.querySelectorAll(".unit");
+  function selectOption(select, value) {
+    if (!select || !value) return false;
+    const wanted = String(value);
 
-    if (btcLine && !btcLine.querySelector("[data-btc]")) {
-      btcLine.innerHTML = '[BTC]: <span data-currency-symbol></span><span data-btc>—</span> (<span data-currency-label></span>)';
+    for (const option of select.options) {
+      if (option.value === wanted) {
+        select.value = wanted;
+        return true;
+      }
     }
 
-    if (units[0] && !units[0].querySelector("[data-mbtc]")) {
-      units[0].innerHTML = '[mBTC]: <span data-currency-symbol></span><span data-mbtc>—</span> (<span data-currency-label></span>)';
-    }
+    return false;
+  }
 
-    if (units[1] && !units[1].querySelector("[data-ubtc]")) {
-      units[1].innerHTML = '[μBTC]: <span data-currency-symbol></span><span data-ubtc>—</span> (<span data-currency-label></span>)';
-    }
+  function numberFormat(value, minDigits, maxDigits) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
 
-    if (units[2] && !units[2].querySelector("[data-sat]")) {
-      units[2].innerHTML = '[sat]: <span data-currency-symbol></span><span data-sat>—</span> (<span data-currency-label></span>)';
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: minDigits,
+      maximumFractionDigits: maxDigits
+    });
+  }
+
+  function quoteDigits(value) {
+    const n = Math.abs(Number(value));
+    if (!Number.isFinite(n)) return 2;
+    if (n >= 1000) return 2;
+    if (n >= 1) return 4;
+    if (n >= 0.01) return 6;
+    if (n >= 0.0001) return 8;
+    return 12;
+  }
+
+  function formatQuote(value) {
+    const digits = quoteDigits(value);
+    return numberFormat(value, digits > 4 ? 0 : 2, digits);
+  }
+
+  function compact(value, digits) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
+
+    try {
+      return n.toLocaleString(undefined, {
+        notation: "compact",
+        maximumFractionDigits: digits == null ? 2 : digits
+      });
+    } catch (_) {
+      return numberFormat(n, 0, digits == null ? 2 : digits);
     }
   }
 
-  const TROY_OZ_TO_G = 31.1034768;
-  const LB_TO_OZ = 16;
-  const LB_TO_G = 453.59237;
-  const WEED_LB_TO_G = 448;
-  const OIL_BBL_TO_GAL = 42;
-  const OIL_GAL_TO_PT = 8;
-  const OIL_BBL_TO_ML = 158987.294928;
+  function formatAge(timestamp) {
+    if (!timestamp) return "time unknown";
 
-  function unitLabel(value, singular, plural) {
-    const x = Math.abs(Number(value));
-    return x === 1 ? singular : plural;
+    const then = new Date(timestamp).getTime();
+    if (!Number.isFinite(then)) return "time unknown";
+
+    const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+
+    if (seconds < 5) return "updated now";
+    if (seconds < 60) return "updated " + seconds + "s ago";
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return "updated " + minutes + "m ago";
+
+    const hours = Math.floor(minutes / 60);
+    return "updated " + hours + "h ago";
   }
 
-  function denomMeta(config, unit, denom, btcQuantity) {
-    const scale = denom === "BTC" ? 1 : denom === "mBTC" ? 1e-3 : denom === "μBTC" ? 1e-6 : 1e-8;
-    const q = btcQuantity * scale;
+  function parseTimestamp(value) {
+    const time = value ? new Date(value).getTime() : NaN;
+    return Number.isFinite(time) ? time : NaN;
+  }
 
-    if (unit === "WEED_LB") {
-      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "lB", "lBs"), digits: 8 };
-      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: unitLabel(q * LB_TO_OZ, "oz", "OZs"), digits: 12 };
-      if (denom === "μBTC") return { value: q * WEED_LB_TO_G, symbol: "", label: unitLabel(q * WEED_LB_TO_G, "g", "gs"), digits: 16 };
-      return { value: q * WEED_LB_TO_G * 1000, symbol: "", label: unitLabel(q * WEED_LB_TO_G * 1000, "mg", "mgs"), digits: 24 };
-    }
+  function quoteTimestamp(latest, exchange) {
+    return (
+      (exchange && exchange.updated_at) ||
+      (latest && latest.updated_at) ||
+      null
+    );
+  }
 
-    if (unit === "OIL_BBL") {
-      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "barrel", "barrels"), digits: 8 };
-      if (denom === "mBTC") return { value: (q * OIL_BBL_TO_GAL) / 5, symbol: "", label: unitLabel((q * OIL_BBL_TO_GAL) / 5, "5 gallon", "5 gallons"), digits: 12 };
-      if (denom === "μBTC") return { value: q * OIL_BBL_TO_GAL * OIL_GAL_TO_PT, symbol: "", label: unitLabel(q * OIL_BBL_TO_GAL * OIL_GAL_TO_PT, "pint", "pints"), digits: 16 };
-      return { value: q * OIL_BBL_TO_ML, symbol: "", label: "mL", digits: 24 };
-    }
+  function sourceConfig(config, sourceId) {
+    return (
+      config &&
+      config.exchanges &&
+      config.exchanges.sources &&
+      config.exchanges.sources[sourceId]
+    ) || null;
+  }
 
-    if (unit === "XCU") {
-      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "lB copper", "lBs copper"), digits: 8 };
-      if (denom === "mBTC") return { value: q * LB_TO_OZ, symbol: "", label: unitLabel(q * LB_TO_OZ, "oz copper", "OZs copper"), digits: 12 };
-      if (denom === "μBTC") return { value: q * LB_TO_G, symbol: "", label: unitLabel(q * LB_TO_G, "g copper", "gs copper"), digits: 16 };
-      return { value: q * LB_TO_G * 1000, symbol: "", label: unitLabel(q * LB_TO_G * 1000, "mg copper", "mgs copper"), digits: 24 };
-    }
+  function sourceLabel(config, sourceId, exchange) {
+    if (exchange && exchange.label) return exchange.label;
 
-    if (unit === "XAU" || unit === "XPT" || unit === "XPD") {
-      const metal = unit === "XAU" ? "gold" : unit === "XPT" ? "platinum" : "palladium";
-      if (denom === "BTC") return { value: q, symbol: "", label: unitLabel(q, "oz " + metal, "OZs " + metal), digits: 8 };
-      if (denom === "sat") return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: unitLabel(q * TROY_OZ_TO_G * 1000, "mg " + metal, "mgs " + metal), digits: 24 };
-      return { value: q * TROY_OZ_TO_G, symbol: "", label: unitLabel(q * TROY_OZ_TO_G, "g " + metal, "gs " + metal), digits: 16 };
-    }
+    const cfg = sourceConfig(config, sourceId);
+    if (cfg && cfg.label) return cfg.label;
 
-    if (unit === "XAG") {
-      if (denom === "BTC" || denom === "mBTC") return { value: q, symbol: "", label: unitLabel(q, "oz silver", "OZs silver"), digits: denom === "BTC" ? 8 : 12 };
-      if (denom === "μBTC") return { value: q * TROY_OZ_TO_G, symbol: "", label: unitLabel(q * TROY_OZ_TO_G, "g silver", "gs silver"), digits: 16 };
-      return { value: q * TROY_OZ_TO_G * 1000, symbol: "", label: unitLabel(q * TROY_OZ_TO_G * 1000, "mg silver", "mgs silver"), digits: 24 };
-    }
+    return sourceId === "zzx" ? "ZZX Global BPI" : sourceId;
+  }
+
+  function globalQuote(latest) {
+    const price = finitePositive(
+      latest && (
+        latest.price_usd ||
+        latest.btc_usd ||
+        latest.vwap_usd ||
+        latest.bpi_usd ||
+        (latest.weighted_average && latest.weighted_average.price_usd) ||
+        (latest.global_bpi && latest.global_bpi.price_usd)
+      )
+    );
+
+    if (!Number.isFinite(price)) return null;
 
     return {
-      value: q,
-      symbol: symbolOf(config, unit),
-      label: labelOf(config, unit),
-      digits: isNonFiatUnit(config, unit)
-        ? (denom === "BTC" ? 8 : denom === "mBTC" ? 12 : denom === "μBTC" ? 16 : 24)
-        : (denom === "BTC" ? 2 : denom === "mBTC" ? 4 : denom === "μBTC" ? 8 : 12)
+      sourceId: "zzx",
+      label: "ZZX Global BPI",
+      priceUsd: price,
+      highUsd: finiteNonNegative(latest.high_24h),
+      lowUsd: finiteNonNegative(latest.low_24h),
+      volumeBtc: finiteNonNegative(latest.volume_24h_btc),
+      volumeUsd: finiteNonNegative(latest.volume_24h_usd),
+      timestamp: latest.updated_at || null,
+      mode: latest.mode || "zzx-bpi",
+      exchangeCount: Number(latest.bpi_exchange_count || latest.exchange_count || 0)
     };
   }
 
-  function updateDenomLabels(root, metas) {
-    const btcLine = root.querySelector(".btc-line");
-    const units = root.querySelectorAll(".unit");
-    const rows = [
-      { host: btcLine, meta: metas.btc },
-      { host: units[0], meta: metas.mbtc },
-      { host: units[1], meta: metas.ubtc },
-      { host: units[2], meta: metas.sat }
-    ];
+  function exchangeQuote(config, latest, sourceId) {
+    const exchange =
+      latest &&
+      latest.exchanges &&
+      latest.exchanges[sourceId];
 
-    rows.forEach(function(row) {
-      if (!row.host || !row.meta) return;
-      const sym = row.host.querySelector("[data-currency-symbol]");
-      const lab = row.host.querySelector("[data-currency-label]");
-      if (sym && sym.textContent !== row.meta.symbol) sym.textContent = row.meta.symbol;
-      if (lab && lab.textContent !== row.meta.label) lab.textContent = row.meta.label;
+    if (!exchange) return null;
+
+    const price = finitePositive(exchange.price_usd);
+    if (!Number.isFinite(price)) return null;
+
+    return {
+      sourceId: sourceId,
+      label: sourceLabel(config, sourceId, exchange),
+      priceUsd: price,
+      highUsd: finiteNonNegative(exchange.high_24h),
+      lowUsd: finiteNonNegative(exchange.low_24h),
+      volumeBtc: finiteNonNegative(exchange.volume_24h_btc),
+      volumeUsd: finiteNonNegative(exchange.volume_24h_usd),
+      timestamp: quoteTimestamp(latest, exchange),
+      mode: exchange.mode || "zzx-cache",
+      exchangeCount: 1
+    };
+  }
+
+  function sourceQuote(config, latest, sourceId) {
+    if (sourceId === "zzx") return globalQuote(latest);
+
+    return (
+      exchangeQuote(config, latest, sourceId) ||
+      globalQuote(latest)
+    );
+  }
+
+  async function loadConfig(force) {
+    const now = Date.now();
+
+    if (
+      !force &&
+      state.config &&
+      now - state.configAt < CONFIG_TTL_MS
+    ) {
+      return state.config;
+    }
+
+    const [exchanges, currencies, rates, symbols] = await Promise.all([
+      fetchJSON(ENDPOINTS.exchanges),
+      fetchJSON(ENDPOINTS.currencies),
+      fetchJSON(ENDPOINTS.rates, { rates: { USD: 1 } }),
+      fetchJSON(ENDPOINTS.symbols, { USD: "$" })
+    ]);
+
+    if (!rates.rates) rates.rates = {};
+    rates.rates.USD = 1;
+
+    state.config = {
+      exchanges,
+      currencies,
+      rates,
+      symbols
+    };
+
+    state.configAt = now;
+    return state.config;
+  }
+
+  async function loadLatest(force) {
+    const now = Date.now();
+
+    if (
+      !force &&
+      state.latest &&
+      now - state.latestAt < REFRESH_MS
+    ) {
+      return state.latest;
+    }
+
+    if (state.inflightLatest) return state.inflightLatest;
+
+    state.inflightLatest = (async function () {
+      const latest = await fetchJSON(ENDPOINTS.latest);
+      state.latest = latest;
+      state.latestAt = Date.now();
+      return latest;
+    })().finally(function () {
+      state.inflightLatest = null;
     });
+
+    return state.inflightLatest;
   }
 
-  function formatDenom(meta) {
-    return fmt(meta.value, meta.digits);
+  function fiatName(config, code) {
+    return (
+      config &&
+      config.currencies &&
+      config.currencies.names &&
+      config.currencies.names[code]
+    ) || code;
   }
 
-  function ensureStatus(root, text) {
-    let el = root.querySelector("[data-ticker-status]");
+  function currencySymbol(config, code) {
+    return (
+      config &&
+      config.symbols &&
+      config.symbols[code]
+    ) || (code + " ");
+  }
 
-    if (!el) {
-      el = document.createElement("div");
-      el.className = "ticker-status";
-      el.setAttribute("data-ticker-status", "");
-      (root.querySelector(".zzx-ticker") || root).appendChild(el);
+  async function fxRate(config, code) {
+    const upper = String(code || "USD").toUpperCase();
+
+    if (upper === "USD") {
+      return {
+        rate: 1,
+        provider: "USD-base",
+        live: false,
+        updated_at: config.rates.updated_at || null
+      };
     }
 
-    if (text && el.textContent !== text) {
-      el.textContent = text;
+    const local = finitePositive(
+      config &&
+      config.rates &&
+      config.rates.rates &&
+      config.rates.rates[upper]
+    );
+
+    if (Number.isFinite(local)) {
+      return {
+        rate: local,
+        provider: "zzx-bpi",
+        live: false,
+        updated_at: config.rates.updated_at || null
+      };
     }
 
-    return el;
+    if (
+      W.ZZXFX &&
+      typeof W.ZZXFX.rate === "function"
+    ) {
+      const result = await W.ZZXFX.rate(upper);
+
+      if (
+        result &&
+        Number.isFinite(finitePositive(result.rate))
+      ) {
+        config.rates.rates[upper] = Number(result.rate);
+        return result;
+      }
+    }
+
+    throw new Error("No FX rate available for " + upper);
   }
 
-  async function draw(root) {
-    try {
-      const config = CONFIG || await loadConfig(false);
-      await refreshFxIfNeeded(config, false);
+  function populateSources(root, config) {
+    const select = root.querySelector("[data-source-select]");
+    if (!select) return;
 
-      const controls = ensureControls(root, config);
-      const source = controls.sourceSelect.value;
-      const unit = controls.unitSelect.value;
+    const sources =
+      (config.exchanges && config.exchanges.sources) ||
+      {};
 
-      ensureValueMarkup(root);
+    const order =
+      (config.exchanges && config.exchanges.order) ||
+      Object.keys(sources);
 
-      const spot = await sourceQuote(config, source);
-      const rate = conversionRate(config, unit);
-      const btcQuantity = spot.price_usd * rate;
+    const current =
+      safeGet(STORAGE.source) ||
+      (config.exchanges && config.exchanges.default) ||
+      "zzx";
 
-      const metas = {
-        btc: denomMeta(config, unit, "BTC", btcQuantity),
-        mbtc: denomMeta(config, unit, "mBTC", btcQuantity),
-        ubtc: denomMeta(config, unit, "μBTC", btcQuantity),
-        sat: denomMeta(config, unit, "sat", btcQuantity)
+    select.replaceChildren();
+
+    for (const id of order) {
+      const source = sources[id];
+      if (!source && id !== "zzx") continue;
+
+      const option = D.createElement("option");
+      option.value = id;
+      option.textContent =
+        (source && source.label) ||
+        (id === "zzx" ? "ZZX Global BPI" : id);
+
+      select.appendChild(option);
+    }
+
+    if (!select.options.length) {
+      const option = D.createElement("option");
+      option.value = "zzx";
+      option.textContent = "ZZX Global BPI";
+      select.appendChild(option);
+    }
+
+    if (!selectOption(select, current)) {
+      select.value =
+        (config.exchanges && config.exchanges.default) ||
+        select.options[0].value;
+    }
+  }
+
+  function populateCurrencies(root, config) {
+    const select = root.querySelector("[data-currency-select]");
+    if (!select) return;
+
+    const order =
+      (config.currencies && config.currencies.order) ||
+      ["USD"];
+
+    const current =
+      safeGet(STORAGE.quote) ||
+      (config.currencies && config.currencies.default) ||
+      "USD";
+
+    select.replaceChildren();
+
+    for (const code of order) {
+      const option = D.createElement("option");
+      option.value = code;
+      option.textContent =
+        code + " — " + fiatName(config, code);
+      select.appendChild(option);
+    }
+
+    if (!selectOption(select, current)) {
+      select.value =
+        (config.currencies && config.currencies.default) ||
+        "USD";
+    }
+  }
+
+  function quoteValue(usdValue, fx) {
+    const usd = Number(usdValue);
+    const rate = Number(fx && fx.rate);
+
+    if (
+      !Number.isFinite(usd) ||
+      !Number.isFinite(rate)
+    ) {
+      return NaN;
+    }
+
+    return usd * rate;
+  }
+
+  function spreadPercent(high, low) {
+    const h = Number(high);
+    const l = Number(low);
+
+    if (
+      !Number.isFinite(h) ||
+      !Number.isFinite(l) ||
+      h <= 0 ||
+      l <= 0
+    ) {
+      return NaN;
+    }
+
+    return ((h - l) / l) * 100;
+  }
+
+  function renderError(root, error) {
+    const widget =
+      root.querySelector("[data-bitcoin-ticker]") ||
+      root;
+
+    widget.dataset.status = "error";
+
+    setText(
+      root,
+      "[data-state-text]",
+      "Offline"
+    );
+
+    setText(
+      root,
+      "[data-provider-detail]",
+      "ERROR: " +
+      (
+        error &&
+        error.message
+          ? error.message
+          : "ticker update failed"
+      )
+    );
+  }
+
+  async function render(root) {
+    const config = await loadConfig(false);
+    const latest = await loadLatest(false);
+
+    const sourceSelect =
+      root.querySelector("[data-source-select]");
+
+    const currencySelect =
+      root.querySelector("[data-currency-select]");
+
+    const sourceId =
+      sourceSelect
+        ? sourceSelect.value
+        : "zzx";
+
+    const currency =
+      currencySelect
+        ? currencySelect.value
+        : "USD";
+
+    const quote =
+      sourceQuote(
+        config,
+        latest,
+        sourceId
+      );
+
+    if (!quote) {
+      throw new Error(
+        "No usable BTC/USD quote"
+      );
+    }
+
+    const fx =
+      await fxRate(
+        config,
+        currency
+      );
+
+    const price =
+      quoteValue(
+        quote.priceUsd,
+        fx
+      );
+
+    const high =
+      quoteValue(
+        quote.highUsd,
+        fx
+      );
+
+    const low =
+      quoteValue(
+        quote.lowUsd,
+        fx
+      );
+
+    if (!Number.isFinite(price)) {
+      throw new Error(
+        "Invalid converted BTC price"
+      );
+    }
+
+    const symbol =
+      currencySymbol(
+        config,
+        currency
+      );
+
+    const mbtc =
+      price / 1000;
+
+    const ubtc =
+      price / 1000000;
+
+    const sat =
+      price / 100000000;
+
+    setText(
+      root,
+      "[data-currency-symbol]",
+      symbol
+    );
+
+    setText(
+      root,
+      "[data-currency-label]",
+      currency
+    );
+
+    setText(
+      root,
+      "[data-btc]",
+      formatQuote(price)
+    );
+
+    setText(
+      root,
+      "[data-mbtc-symbol]",
+      symbol
+    );
+
+    setText(
+      root,
+      "[data-ubtc-symbol]",
+      symbol
+    );
+
+    setText(
+      root,
+      "[data-sat-symbol]",
+      symbol
+    );
+
+    setText(
+      root,
+      "[data-mbtc]",
+      formatQuote(mbtc)
+    );
+
+    setText(
+      root,
+      "[data-ubtc]",
+      formatQuote(ubtc)
+    );
+
+    setText(
+      root,
+      "[data-sat]",
+      formatQuote(sat)
+    );
+
+    setText(
+      root,
+      "[data-high]",
+      Number.isFinite(high)
+        ? symbol + formatQuote(high)
+        : "—"
+    );
+
+    setText(
+      root,
+      "[data-low]",
+      Number.isFinite(low)
+        ? symbol + formatQuote(low)
+        : "—"
+    );
+
+    setText(
+      root,
+      "[data-volume]",
+      Number.isFinite(quote.volumeBtc)
+        ? compact(quote.volumeBtc, 2) +
+          " BTC"
+        : "—"
+    );
+
+    const spread =
+      spreadPercent(
+        quote.highUsd,
+        quote.lowUsd
+      );
+
+    setText(
+      root,
+      "[data-spread]",
+      Number.isFinite(spread)
+        ? spread.toFixed(2) + "%"
+        : "—"
+    );
+
+    setText(
+      root,
+      "[data-source-label]",
+      quote.label
+    );
+
+    setText(
+      root,
+      "[data-update-age]",
+      formatAge(
+        quote.timestamp
+      )
+    );
+
+    const ageMs =
+      quote.timestamp
+        ? Date.now() -
+          parseTimestamp(
+            quote.timestamp
+          )
+        : NaN;
+
+    const stale =
+      Number.isFinite(ageMs) &&
+      ageMs >
+        STALE_AFTER_MS;
+
+    const widget =
+      root.querySelector(
+        "[data-bitcoin-ticker]"
+      ) ||
+      root;
+
+    widget.dataset.status =
+      stale
+        ? "stale"
+        : "ok";
+
+    setText(
+      root,
+      "[data-state-text]",
+      stale
+        ? "Stale"
+        : "Live"
+    );
+
+    const fxProvider =
+      fx.provider ||
+      "unknown FX";
+
+    const sourceMode =
+      quote.mode
+        ? " / " + quote.mode
+        : "";
+
+    const count =
+      quote.sourceId === "zzx" &&
+      quote.exchangeCount > 0
+        ? " / " +
+          quote.exchangeCount +
+          " exchanges"
+        : "";
+
+    setText(
+      root,
+      "[data-provider-detail]",
+      quote.label +
+      sourceMode +
+      count +
+      " / FX " +
+      fxProvider
+    );
+  }
+
+  function bind(root) {
+    if (state.mountedRoots.has(root)) return;
+    state.mountedRoots.add(root);
+
+    const sourceSelect =
+      root.querySelector(
+        "[data-source-select]"
+      );
+
+    const currencySelect =
+      root.querySelector(
+        "[data-currency-select]"
+      );
+
+    const trigger =
+      function () {
+        if (
+          typeof root.__zzxTickerRefresh ===
+          "function"
+        ) {
+          root.__zzxTickerRefresh();
+        }
       };
 
-      updateDenomLabels(root, metas);
+    if (sourceSelect) {
+      sourceSelect.addEventListener(
+        "change",
+        function () {
+          safeSet(
+            STORAGE.source,
+            sourceSelect.value
+          );
 
-      setText(root, "[data-btc]", formatDenom(metas.btc));
-      setText(root, "[data-mbtc]", formatDenom(metas.mbtc));
-      setText(root, "[data-ubtc]", formatDenom(metas.ubtc));
-      setText(root, "[data-sat]", formatDenom(metas.sat));
+          state.latestAt = 0;
+          trigger();
+        }
+      );
+    }
 
-      const vol = spot.volume_24h_btc > 0 ? " · Vol " + compact(spot.volume_24h_btc, 2) + " BTC" : "";
-      const mode = spot.mode ? " · " + spot.mode : "";
-      const fx = config.exchangeRates && config.exchangeRates.updated_at ? " · FX " + config.exchangeRates.updated_at : "";
+    if (currencySelect) {
+      currencySelect.addEventListener(
+        "change",
+        function () {
+          safeSet(
+            STORAGE.quote,
+            currencySelect.value
+          );
 
-      ensureStatus(root, `${spot.label}${mode} · ${labelOf(config, unit)}${vol}${fx}`);
-
-      if (root.__zzxStatus !== "ok") {
-        root.dataset.status = "ok";
-        root.__zzxStatus = "ok";
-      }
-    } catch (err) {
-      if (root.__zzxStatus !== "error") {
-        root.dataset.status = "error";
-        root.__zzxStatus = "error";
-      }
-      ensureStatus(root, "ERROR: " + err.message);
+          trigger();
+        }
+      );
     }
   }
 
-  function boot(root) {
-    if (!root) return;
+  function startPolling(root) {
+    let running = false;
+    let queued = false;
+    let stopped = false;
+    let timer = null;
 
-    if (root.__zzxTickerTimer) {
-      clearTimeout(root.__zzxTickerTimer);
-      clearInterval(root.__zzxTickerTimer);
-      root.__zzxTickerTimer = null;
-    }
+    async function refresh() {
+      if (stopped) return;
 
-    root.__zzxDrawing = false;
-    root.__zzxDrawQueued = false;
-
-    function queueDraw() {
-      if (root.__zzxDrawing) {
-        root.__zzxDrawQueued = true;
+      if (!root.isConnected) {
+        stop();
         return;
       }
 
-      root.__zzxDrawing = true;
-
-      Promise.resolve(draw(root))
-        .catch(function (_) {})
-        .finally(function () {
-          root.__zzxDrawing = false;
-
-          if (root.__zzxDrawQueued) {
-            root.__zzxDrawQueued = false;
-            queueDraw();
-          }
-        });
-    }
-
-    function tickLoop() {
-      queueDraw();
-      root.__zzxTickerTimer = setTimeout(tickLoop, BTC_REFRESH_MS);
-    }
-
-    loadConfig(true).then(function (config) {
-      normalizeExchangeRates(config);
-      ensureControls(root, config);
-      ensureValueMarkup(root);
-
-      const controls = ensureControls(root, config);
-
-      if (controls.sourceSelect) {
-        controls.sourceSelect.addEventListener("change", function () {
-          LATEST_CACHE_AT = 0;
-          queueDraw();
-        });
+      if (running) {
+        queued = true;
+        return;
       }
 
-      if (controls.unitSelect) {
-        controls.unitSelect.addEventListener("change", function () {
-          queueDraw();
-        });
+      running = true;
+
+      try {
+        await render(root);
+      } catch (error) {
+        renderError(root, error);
+      } finally {
+        running = false;
+
+        if (queued) {
+          queued = false;
+          refresh();
+        }
+      }
+    }
+
+    function schedule() {
+      if (stopped) return;
+
+      timer = W.setTimeout(
+        async function tick() {
+          await refresh();
+          schedule();
+        },
+        REFRESH_MS
+      );
+    }
+
+    function stop() {
+      stopped = true;
+
+      if (timer !== null) {
+        W.clearTimeout(timer);
+        timer = null;
       }
 
-      queueDraw();
-      root.__zzxTickerTimer = setTimeout(tickLoop, BTC_REFRESH_MS);
-    }).catch(function (err) {
-      ensureStatus(root, "ERROR loading /bitcoin/bpi/api JSON: " + err.message);
-    });
+      root.__zzxTickerRefresh = null;
+      root.__zzxTickerStop = null;
+    }
+
+    root.__zzxTickerRefresh = refresh;
+    root.__zzxTickerStop = stop;
+
+    refresh();
+    schedule();
+
+    return stop;
   }
 
-  if (W.ZZXWidgetsCore && typeof W.ZZXWidgetsCore.onMount === "function") {
-    W.ZZXWidgetsCore.onMount(ID, boot);
-    return;
+  async function boot(root) {
+    if (!root) return;
+
+    if (
+      typeof root.__zzxTickerStop ===
+      "function"
+    ) {
+      root.__zzxTickerStop();
+    }
+
+    const widget =
+      root.querySelector(
+        "[data-bitcoin-ticker]"
+      );
+
+    if (!widget) {
+      throw new Error(
+        "bitcoin-ticker widget.html is missing [data-bitcoin-ticker]"
+      );
+    }
+
+    widget.dataset.status =
+      "loading";
+
+    setText(
+      root,
+      "[data-state-text]",
+      "Loading"
+    );
+
+    try {
+      const config =
+        await loadConfig(false);
+
+      populateSources(
+        root,
+        config
+      );
+
+      populateCurrencies(
+        root,
+        config
+      );
+
+      bind(root);
+      startPolling(root);
+
+    } catch (error) {
+      renderError(
+        root,
+        error
+      );
+    }
   }
 
-  if (W.ZZXWidgets && typeof W.ZZXWidgets.register === "function") {
-    W.ZZXWidgets.register(ID, boot);
-    return;
+  function register() {
+    if (
+      W.ZZXAPI &&
+      typeof W.ZZXAPI.register ===
+        "function"
+    ) {
+      W.ZZXAPI.register(
+        ID,
+        boot
+      );
+
+      return;
+    }
+
+    if (
+      W.ZZXWidgetsCore &&
+      typeof W.ZZXWidgetsCore.onMount ===
+        "function"
+    ) {
+      W.ZZXWidgetsCore.onMount(
+        ID,
+        boot
+      );
+
+      return;
+    }
+
+    if (
+      W.ZZXWidgets &&
+      typeof W.ZZXWidgets.register ===
+        "function"
+    ) {
+      W.ZZXWidgets.register(
+        ID,
+        boot
+      );
+
+      return;
+    }
+
+    const fallback =
+      function () {
+        const root =
+          rootFor();
+
+        if (root) {
+          boot(root);
+        }
+      };
+
+    if (
+      D.readyState === "loading"
+    ) {
+      D.addEventListener(
+        "DOMContentLoaded",
+        fallback,
+        {
+          once: true
+        }
+      );
+    } else {
+      fallback();
+    }
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll('[data-widget="bitcoin-ticker"], .ticker-shell').forEach(boot);
-  });
+  register();
+
 })();
