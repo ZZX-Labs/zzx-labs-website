@@ -15,11 +15,11 @@
   });
 
   const MODULES = [
-    ["ZZXMarket24Fetch", "fetch.js"],
-    ["ZZXMarket24Sources", "sources.js"],
-    ["ZZXMarket24Plotter", "plotter.js"],
-    ["ZZXMarket24Spark", "spark.js"],
-    ["ZZXMarket24Chart", "chart.js"]
+    ["ZZXMarket24Fetch", "js/fetch.js"],
+    ["ZZXMarket24Sources", "js/sources.js"],
+    ["ZZXMarket24Plotter", "js/plotter.js"],
+    ["ZZXMarket24Spark", "js/spark.js"],
+    ["ZZXMarket24Chart", "js/chart.js"]
   ];
 
   function q(root, selector) {
