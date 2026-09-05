@@ -1,1315 +1,322 @@
 /* __partials/widgets/_core/widget-core.css
-   DROP-IN REPLACEMENT
-
-   ZZX-LABS BITCOIN HUD CORE LAYOUT
-
-   CONTRACT:
-   - Adaptive 2-column HUD on desktop/tablet.
-   - 1-column HUD on narrow/mobile displays.
-   - runtime full-width when present.
-   - bitcoin-ticker full-width.
-   - bitrng full-width.
-   - ALL existing and future manifest widgets remain supported.
-   - BOTH historical slot conventions remain supported:
-       [data-widget-slot="..."]
-       .btc-slot[data-widget="..."]
-   - No display:contents.
-   - No external fonts.
-   - No widget removal or renaming.
-   - No fixed widget-count/row-count assumption.
+   Shared visual primitives for all ZZX-Labs Bitcoin HUD widgets.
+   Outer rail/slot geometry belongs to ../../bitcoin-ticker-widget.css.
 */
 
-
-/* =========================================================
-   TOKENS
-   ========================================================= */
-
-:root{
-  --zzx-accent:#c0d674;
-  --zzx-accent-alt:#e6a42b;
-
-  --zzx-bg:#0b0b0b;
-  --zzx-bg-deep:#070707;
-  --zzx-bg-soft:#111;
-
-  --zzx-muted:#b7bf9a;
-  --zzx-dim:#777;
-  --zzx-error:#d67474;
-
-  --zzx-border:rgba(255,255,255,.14);
-  --zzx-border-soft:rgba(255,255,255,.07);
-  --zzx-border-strong:#2a2a2a;
-
-  --zzx-shadow:
-    0 6px 18px rgba(0,0,0,.25);
-
-  --zzx-font-mono:
-    "IBMPlexMono",
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    "Liberation Mono",
-    "DejaVu Sans Mono",
-    monospace;
-
-  --zzx-rail:
-    min(
-      var(--header-rail, 1100px),
-      100%
-    );
-
-  --zzx-gap:.6rem;
-
-  --zzx-hud-btn-h:34px;
+:root {
+  --zzx-accent: #c0d674;
+  --zzx-accent-alt: #e6a42b;
+  --zzx-bg: #0b0b0b;
+  --zzx-bg-deep: #070707;
+  --zzx-bg-soft: #111;
+  --zzx-muted: #b7bf9a;
+  --zzx-dim: #777;
+  --zzx-error: #d67474;
+  --zzx-border: rgba(255, 255, 255, 0.14);
+  --zzx-border-soft: rgba(255, 255, 255, 0.07);
+  --zzx-border-strong: #2a2a2a;
+  --zzx-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  --zzx-font-mono: "IBMPlexMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
-
-
-/* =========================================================
-   HUD RECOVERY HANDLE
-   ========================================================= */
-
-.zzx-hud-handle{
-  width:100%;
-  max-width:var(--zzx-rail);
-
-  margin:.35rem auto 0;
-  padding-inline:.5rem;
-
-  box-sizing:border-box;
-
-  position:sticky;
-  top:.25rem;
-
-  z-index:9999;
-
-  display:none;
-  justify-content:flex-end;
-
-  pointer-events:none;
-}
-
-
-/* Modern browser state detection */
-@supports selector(:has(*)){
-
-  body:has(
-    [data-hud-root][data-hud-state="hidden"]
-  ) .zzx-hud-handle{
-    display:flex;
-  }
-
-}
-
-
-/* Fallback:
-   hud-state.js also sets the inline display value. */
-@supports not selector(:has(*)){
-
-  .zzx-hud-handle{
-    display:flex;
-  }
-
-}
-
-
-.zzx-hud-show{
-  pointer-events:auto;
-
-  min-height:var(--zzx-hud-btn-h);
-
-  background:#000;
-
-  color:var(--zzx-accent);
-
-  border:
-    1px solid
-    rgba(255,255,255,.18);
-
-  border-radius:10px;
-
-  padding:0 .65rem;
-
-  font-family:var(--zzx-font-mono);
-  font-size:.95rem;
-
-  letter-spacing:.02em;
-
-  white-space:nowrap;
-
-  cursor:pointer;
-
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-
-  transition:
-    color .15s ease,
-    border-color .15s ease,
-    background .15s ease;
-}
-
-
-.zzx-hud-show:hover{
-  border-color:var(--zzx-accent-alt);
-  color:var(--zzx-accent-alt);
-}
-
-
-.zzx-hud-show:focus-visible{
-  outline:
-    2px solid
-    var(--zzx-accent-alt);
-
-  outline-offset:2px;
-}
-
-
-/* =========================================================
-   HUD ROOT
-   ========================================================= */
-
-[data-hud-root]{
-  width:100%;
-  max-width:var(--zzx-rail);
-
-  margin:.45rem auto;
-
-  padding-inline:.5rem;
-
-  box-sizing:border-box;
-
-  min-width:0;
-}
-
-
-/* Hidden means completely hidden.
-   External HUD handle restores it. */
-[data-hud-root][data-hud-state="hidden"]{
-  display:none !important;
-}
-
-
-/* =========================================================
-   RAIL
-   ========================================================= */
-
-.btc-rail{
-  display:flex;
-  flex-wrap:wrap;
-
-  justify-content:center;
-  align-items:stretch;
-
-  gap:var(--zzx-gap);
-
-  width:100%;
-  min-width:0;
-
-  box-sizing:border-box;
-}
-
-
-/* =========================================================
-   HUD CONTROL BAR
-   ========================================================= */
-
-.zzx-widgets__bar{
-  flex:1 1 100%;
-
-  width:100%;
-  max-width:100%;
-
-  display:flex;
-  align-items:center;
-  flex-wrap:wrap;
-
-  gap:.4rem;
-
-  padding:.35rem 0;
-
-  box-sizing:border-box;
-}
-
-
-.zzx-widgets__spacer{
-  flex:1 1 auto;
-  min-width:.5rem;
-}
-
-
-.zzx-widgets__btn{
-  min-height:30px;
-
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-
-  background:var(--zzx-bg);
-
-  color:var(--zzx-accent);
-
-  border:
-    1px solid
-    var(--zzx-border);
-
-  border-radius:8px;
-
-  padding:.3rem .55rem;
-
-  font-family:var(--zzx-font-mono);
-  font-size:.82rem;
-
-  cursor:pointer;
-
-  transition:
-    color .15s ease,
-    border-color .15s ease,
-    background .15s ease;
-}
-
-
-.zzx-widgets__btn:hover{
-  border-color:var(--zzx-accent-alt);
-  color:var(--zzx-accent-alt);
-}
-
-
-.zzx-widgets__btn:focus-visible{
-  outline:
-    2px solid
-    var(--zzx-accent-alt);
-
-  outline-offset:1px;
-}
-
-
-.zzx-widgets__btn[
-  data-hud-active="1"
-],
-.zzx-widgets__btn[
-  aria-pressed="true"
-]{
-  border-color:var(--zzx-accent);
-
-  background:
-    rgba(192,214,116,.07);
-
-  color:var(--zzx-accent);
-}
-
-
-/* =========================================================
-   SLOT LAYOUT
-   ========================================================= */
-
-/*
-   Desktop/tablet contract:
-   two adaptive columns.
-
-   There is deliberately NO assumption about how many widgets
-   or rows exist. Manifest expansion remains additive.
-*/
-
-.btc-rail > .btc-slot{
-  display:flex;
-
-  box-sizing:border-box;
-
-  flex:
-    1 1
-    calc(
-      50% - var(--zzx-gap)
-    );
-
-  max-width:520px;
-
-  min-width:0;
-}
-
-
-/*
-   Empty slots take no space before mounting.
-   Disabled widgets are also hidden by widget-core.js.
-*/
-
-.btc-rail > .btc-slot:empty{
-  display:none;
-}
-
-
-.btc-rail >
-.btc-slot[
-  data-widget-enabled="0"
-]{
-  display:none !important;
-}
-
-
-/* =========================================================
-   FULL-WIDTH SLOTS
-   ========================================================= */
-
-/*
-   Preserve every original full-width treatment.
-
-   runtime is not assumed deleted.
-*/
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="runtime"
-],
-
-.btc-rail >
-.btc-slot[
-  data-widget="runtime"
-],
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitcoin-ticker"
-],
-
-.btc-rail >
-.btc-slot[
-  data-widget="bitcoin-ticker"
-],
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitrng"
-],
-
-.btc-rail >
-.btc-slot[
-  data-widget="bitrng"
-]{
-  flex:1 1 100% !important;
-
-  max-width:100% !important;
-
-  justify-content:center;
-}
-
-
-/* =========================================================
-   ROOT WRAPPERS
-   ========================================================= */
 
 .zzx-widget,
-[data-widget-root]{
-  display:flex;
-
-  width:100%;
-  min-width:0;
-
-  box-sizing:border-box;
+[data-widget-root] {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-
-/* =========================================================
-   CARD PRIMITIVES
-   ========================================================= */
-
-.btc-card,
-.zzx-card{
-  background:var(--zzx-bg);
-
-  border:
-    1px solid
-    var(--zzx-border-strong);
-
-  border-radius:10px;
-
-  box-shadow:var(--zzx-shadow);
-
-  padding:.55rem .65rem;
-
-  color:var(--zzx-accent);
-
-  font-family:var(--zzx-font-mono);
-
-  width:100%;
-  max-width:100%;
-
-  box-sizing:border-box;
-
-  min-width:0;
-
-  overflow:hidden;
-
-  overflow-wrap:anywhere;
-  word-break:break-word;
+/* HUD toolbar inserted by hud-state.js. */
+.zzx-widgets__bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0 0.25rem;
+  box-sizing: border-box;
 }
 
-
-/* Normal two-column cards */
-.btc-rail >
-.btc-slot
-.btc-card,
-
-.btc-rail >
-.btc-slot
-.zzx-card{
-  max-width:520px;
+.zzx-widgets__spacer {
+  flex: 1 1 auto;
+  min-width: 0.5rem;
 }
 
-
-/* Full-width cards */
-.btc-rail >
-.btc-slot[
-  data-widget-slot="runtime"
-]
-.btc-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget="runtime"
-]
-.btc-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitcoin-ticker"
-]
-.btc-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget="bitcoin-ticker"
-]
-.btc-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitrng"
-]
-.btc-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget="bitrng"
-]
-.btc-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="runtime"
-]
-.zzx-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget="runtime"
-]
-.zzx-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitcoin-ticker"
-]
-.zzx-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget="bitcoin-ticker"
-]
-.zzx-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitrng"
-]
-.zzx-card,
-
-.btc-rail >
-.btc-slot[
-  data-widget="bitrng"
-]
-.zzx-card{
-  max-width:100% !important;
+.zzx-widgets__btn,
+.btc-card button,
+.zzx-card button {
+  min-height: 30px;
+  box-sizing: border-box;
+  background: var(--zzx-bg-soft);
+  color: var(--zzx-accent);
+  border: 1px solid var(--zzx-border);
+  border-radius: 6px;
+  padding: 0.32rem 0.55rem;
+  font: inherit;
+  font-family: var(--zzx-font-mono);
+  cursor: pointer;
 }
 
+.zzx-widgets__btn:hover,
+.zzx-widgets__btn:focus-visible,
+.btc-card button:hover,
+.btc-card button:focus-visible,
+.zzx-card button:hover,
+.zzx-card button:focus-visible {
+  color: var(--zzx-accent-alt);
+  border-color: var(--zzx-accent-alt);
+}
 
-/* =========================================================
-   TYPOGRAPHY
-   ========================================================= */
+.zzx-widgets__btn:focus-visible,
+.btc-card button:focus-visible,
+.zzx-card button:focus-visible {
+  outline: 2px solid var(--zzx-accent-alt);
+  outline-offset: 1px;
+}
+
+.zzx-widgets__btn[aria-pressed="true"],
+.zzx-widgets__btn[data-hud-active="1"] {
+  color: var(--zzx-accent);
+  border-color: var(--zzx-accent);
+  background: rgba(192, 214, 116, 0.08);
+}
+
+.btc-card,
+.zzx-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0.6rem 0.7rem;
+  background: var(--zzx-bg);
+  color: var(--zzx-accent);
+  border: 1px solid var(--zzx-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--zzx-shadow);
+  font-family: var(--zzx-font-mono);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
 .btc-card__title,
-.zzx-card__title{
-  color:var(--zzx-accent-alt);
-
-  font-size:1rem;
-  line-height:1.1;
-
-  margin-bottom:.35rem;
-
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-
-  min-width:0;
+.zzx-card__title {
+  min-width: 0;
+  margin-bottom: 0.35rem;
+  color: var(--zzx-accent-alt);
+  font-size: 1rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
 
 .btc-card__value,
-.zzx-card__value{
-  color:var(--zzx-accent);
-
-  font-size:1.35rem;
-  line-height:1.2;
-
-  margin-bottom:.15rem;
-
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-
-  min-width:0;
-
-  font-variant-numeric:
-    tabular-nums;
+.zzx-card__value {
+  min-width: 0;
+  margin-bottom: 0.15rem;
+  color: var(--zzx-accent);
+  font-size: 1.3rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
 
 .btc-card__sub,
-.zzx-card__sub{
-  font-size:.95rem;
-
-  color:var(--zzx-muted);
-
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-
-  min-width:0;
+.zzx-card__sub {
+  min-width: 0;
+  color: var(--zzx-muted);
+  font-size: 0.9rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
 
 .btc-card__label,
-.zzx-card__label{
-  color:var(--zzx-dim);
-
-  font-size:.7rem;
-
-  text-transform:uppercase;
-
-  letter-spacing:.05em;
+.zzx-card__label,
+.btc-card__metric-label,
+.btc-card__field label {
+  color: var(--zzx-dim);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
 }
 
+.btc-card__muted { color: var(--zzx-muted); }
+.btc-card__accent { color: var(--zzx-accent-alt); }
+.btc-card__error { color: var(--zzx-error); white-space: normal; }
+.btc-card__mono { font-family: var(--zzx-font-mono); font-variant-numeric: tabular-nums; }
 
-.btc-card__muted{
-  color:var(--zzx-muted);
+.btc-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0;
 }
 
+.btc-card__row > * { min-width: 0; }
+.btc-card__row > :last-child { text-align: right; font-variant-numeric: tabular-nums; }
 
-.btc-card__accent{
-  color:var(--zzx-accent-alt);
+.btc-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
 }
 
-
-.btc-card__error{
-  color:var(--zzx-error);
-
-  white-space:normal;
-
-  overflow-wrap:anywhere;
+.btc-card__metric {
+  min-width: 0;
+  padding: 0.4rem;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid var(--zzx-border-soft);
+  border-radius: 6px;
 }
 
-
-/* =========================================================
-   ROWS
-   ========================================================= */
-
-.btc-card__row{
-  width:100%;
-
-  display:flex;
-
-  justify-content:space-between;
-  align-items:baseline;
-
-  gap:.65rem;
-
-  min-width:0;
-
-  padding:.15rem 0;
+.btc-card__metric-label { display: block; margin-bottom: 0.12rem; }
+.btc-card__metric-value {
+  display: block;
+  color: var(--zzx-accent);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
-
-.btc-card__row > *{
-  min-width:0;
+.btc-card__form { display: grid; gap: 0.45rem; width: 100%; min-width: 0; }
+.btc-card__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: 0.4rem;
+  min-width: 0;
 }
-
-
-.btc-card__row > :last-child{
-  text-align:right;
-
-  font-variant-numeric:
-    tabular-nums;
-}
-
-
-/* =========================================================
-   METRIC GRIDS
-   ========================================================= */
-
-.btc-card__grid{
-  display:grid;
-
-  grid-template-columns:
-    repeat(
-      auto-fit,
-      minmax(
-        min(120px,100%),
-        1fr
-      )
-    );
-
-  gap:.4rem;
-
-  width:100%;
-  min-width:0;
-}
-
-
-.btc-card__metric{
-  min-width:0;
-
-  padding:.4rem;
-
-  background:
-    rgba(255,255,255,.018);
-
-  border:
-    1px solid
-    var(--zzx-border-soft);
-
-  border-radius:6px;
-}
-
-
-.btc-card__metric-label{
-  display:block;
-
-  margin-bottom:.12rem;
-
-  color:var(--zzx-dim);
-
-  font-size:.67rem;
-
-  text-transform:uppercase;
-
-  letter-spacing:.04em;
-}
-
-
-.btc-card__metric-value{
-  display:block;
-
-  color:var(--zzx-accent);
-
-  font-size:.92rem;
-
-  font-variant-numeric:
-    tabular-nums;
-
-  overflow-wrap:anywhere;
-}
-
-
-/* =========================================================
-   FORMS
-   ========================================================= */
+.btc-card__field { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.btc-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
 
 .btc-card input,
 .btc-card select,
 .btc-card textarea,
-.btc-card button,
-
 .zzx-card input,
 .zzx-card select,
-.zzx-card textarea,
-.zzx-card button{
-  font-family:inherit;
-
-  box-sizing:border-box;
+.zzx-card textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.38rem 0.45rem;
+  background: var(--zzx-bg-deep);
+  color: var(--zzx-accent);
+  border: 1px solid #303030;
+  border-radius: 5px;
+  font: inherit;
+  outline: none;
 }
-
-
-.btc-card input,
-.btc-card select,
-.btc-card textarea,
-
-.zzx-card input,
-.zzx-card select,
-.zzx-card textarea{
-  width:100%;
-  min-width:0;
-
-  background:var(--zzx-bg-deep);
-
-  border:
-    1px solid
-    #303030;
-
-  border-radius:5px;
-
-  color:var(--zzx-accent);
-
-  padding:.38rem .45rem;
-
-  outline:none;
-}
-
 
 .btc-card input:focus,
 .btc-card select:focus,
 .btc-card textarea:focus,
-
 .zzx-card input:focus,
 .zzx-card select:focus,
-.zzx-card textarea:focus{
-  border-color:
-    var(--zzx-accent-alt);
+.zzx-card textarea:focus {
+  border-color: var(--zzx-accent-alt);
 }
 
+.btc-card input::placeholder,
+.btc-card textarea::placeholder,
+.zzx-card input::placeholder,
+.zzx-card textarea::placeholder {
+  color: #65695b;
+}
 
 .btc-card option,
-.zzx-card option{
-  background:var(--zzx-bg);
-
-  color:var(--zzx-accent);
+.zzx-card option {
+  background: var(--zzx-bg);
+  color: var(--zzx-accent);
 }
-
-
-.btc-card button,
-.zzx-card button{
-  background:var(--zzx-bg-soft);
-
-  color:var(--zzx-accent);
-
-  border:
-    1px solid
-    #3b3b3b;
-
-  border-radius:5px;
-
-  padding:.38rem .55rem;
-
-  cursor:pointer;
-}
-
-
-.btc-card button:hover,
-.zzx-card button:hover{
-  border-color:
-    var(--zzx-accent-alt);
-
-  color:
-    var(--zzx-accent-alt);
-}
-
 
 .btc-card button:disabled,
-.zzx-card button:disabled{
-  opacity:.45;
+.zzx-card button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  cursor:not-allowed;
-}
-
-
-/* =========================================================
-   FORM LAYOUT
-   ========================================================= */
-
-.btc-card__form{
-  display:grid;
-
-  gap:.45rem;
-
-  width:100%;
-  min-width:0;
-}
-
-
-.btc-card__fields{
-  display:grid;
-
-  grid-template-columns:
-    repeat(
-      auto-fit,
-      minmax(
-        min(130px,100%),
-        1fr
-      )
-    );
-
-  gap:.4rem;
-
-  min-width:0;
-}
-
-
-.btc-card__field{
-  display:flex;
-
-  flex-direction:column;
-
-  gap:.15rem;
-
-  min-width:0;
-}
-
-
-.btc-card__field label{
-  color:var(--zzx-dim);
-
-  font-size:.68rem;
-
-  text-transform:uppercase;
-
-  letter-spacing:.04em;
-}
-
-
-.btc-card__actions{
-  display:flex;
-
-  flex-wrap:wrap;
-
-  gap:.35rem;
-
-  align-items:center;
-}
-
-
-/* =========================================================
-   TABLES
-   ========================================================= */
-
-.btc-card__table-wrap{
-  width:100%;
-  min-width:0;
-
-  overflow-x:auto;
-}
-
-
-.btc-rail table{
-  width:100%;
-  max-width:100%;
-
-  border-collapse:collapse;
-
-  font-size:.78rem;
-
-  font-variant-numeric:
-    tabular-nums;
-}
-
-
+.btc-card__table-wrap { width: 100%; min-width: 0; overflow-x: auto; }
+.btc-rail table { width: 100%; max-width: 100%; border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .btc-rail th,
-.btc-rail td{
-  padding:.25rem .35rem;
+.btc-rail td { padding: 0.25rem 0.35rem; text-align: left; border-bottom: 1px solid #222; white-space: nowrap; }
+.btc-rail th { color: var(--zzx-accent-alt); font-weight: normal; }
+.btc-rail td { color: var(--zzx-muted); }
 
-  border-bottom:
-    1px solid
-    #222;
+.btc-card__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.35rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--zzx-muted);
+  border: 1px solid #353535;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+.btc-card__badge--accent { color: var(--zzx-accent-alt); border-color: rgba(230, 164, 43, 0.35); }
 
-  text-align:left;
+.btc-card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--zzx-muted);
+  font-size: 0.76rem;
+}
+.btc-card__status::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; }
+.btc-card__status[data-status="ok"] { color: var(--zzx-accent); }
+.btc-card__status[data-status="warn"] { color: var(--zzx-accent-alt); }
+.btc-card__status[data-status="error"] { color: var(--zzx-error); }
+.btc-card__status[data-status="offline"] { color: var(--zzx-dim); }
 
-  white-space:nowrap;
+.btc-card__progress {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  background: #171717;
+  border: 1px solid #292929;
+  border-radius: 999px;
+}
+.btc-card__progress-bar {
+  display: block;
+  width: var(--progress, 0%);
+  max-width: 100%;
+  height: 100%;
+  background: var(--zzx-accent);
+  transition: width 0.25s ease;
+}
+.btc-rail progress { width: 100%; accent-color: var(--zzx-accent); }
+
+.btc-card__divider { width: 100%; height: 1px; margin: 0.4rem 0; background: #222; }
+.btc-card__loading { color: var(--zzx-muted); animation: zzx-widget-pulse 1.35s ease-in-out infinite; }
+
+@keyframes zzx-widget-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
-
-.btc-rail th{
-  color:var(--zzx-accent-alt);
-
-  font-weight:normal;
-}
-
-
-.btc-rail td{
-  color:var(--zzx-muted);
-}
-
-
-/* =========================================================
-   BADGES
-   ========================================================= */
-
-.btc-card__badge{
-  display:inline-flex;
-
-  align-items:center;
-
-  padding:.12rem .35rem;
-
-  border:
-    1px solid
-    #353535;
-
-  border-radius:999px;
-
-  background:
-    rgba(255,255,255,.02);
-
-  color:var(--zzx-muted);
-
-  font-size:.68rem;
-
-  white-space:nowrap;
-}
-
-
-.btc-card__badge--accent{
-  color:var(--zzx-accent-alt);
-
-  border-color:
-    rgba(230,164,43,.35);
-}
-
-
-/* =========================================================
-   STATUS
-   ========================================================= */
-
-.btc-card__status{
-  display:inline-flex;
-
-  align-items:center;
-
-  gap:.35rem;
-
-  color:var(--zzx-muted);
-
-  font-size:.76rem;
-}
-
-
-.btc-card__status::before{
-  content:"";
-
-  display:inline-block;
-
-  width:.45rem;
-  height:.45rem;
-
-  border-radius:50%;
-
-  background:currentColor;
-}
-
-
-.btc-card__status[
-  data-status="ok"
-]{
-  color:var(--zzx-accent);
-}
-
-
-.btc-card__status[
-  data-status="warn"
-]{
-  color:var(--zzx-accent-alt);
-}
-
-
-.btc-card__status[
-  data-status="error"
-]{
-  color:var(--zzx-error);
-}
-
-
-.btc-card__status[
-  data-status="offline"
-]{
-  color:var(--zzx-dim);
-}
-
-
-/* =========================================================
-   PROGRESS
-   ========================================================= */
-
-.btc-card__progress{
-  width:100%;
-  height:7px;
-
-  overflow:hidden;
-
-  border-radius:999px;
-
-  background:#171717;
-
-  border:
-    1px solid
-    #292929;
-}
-
-
-.btc-card__progress-bar{
-  display:block;
-
-  width:var(--progress,0%);
-  max-width:100%;
-
-  height:100%;
-
-  background:
-    var(--zzx-accent);
-
-  transition:
-    width .25s ease;
-}
-
-
-.btc-rail progress{
-  width:100%;
-
-  accent-color:
-    var(--zzx-accent);
-}
-
-
-/* =========================================================
-   DIVIDER
-   ========================================================= */
-
-.btc-card__divider{
-  width:100%;
-  height:1px;
-
-  margin:.4rem 0;
-
-  background:#222;
-}
-
-
-/* =========================================================
-   LOADING
-   ========================================================= */
-
-.btc-card__loading{
-  color:
-    var(--zzx-muted);
-
-  animation:
-    zzx-widget-pulse
-    1.35s
-    ease-in-out
-    infinite;
-}
-
-
-@keyframes zzx-widget-pulse{
-
-  0%,
-  100%{
-    opacity:.5;
-  }
-
-  50%{
-    opacity:1;
-  }
-
-}
-
-
-/* =========================================================
-   TICKER-ONLY MODE
-   ========================================================= */
-
-/*
-   The HUD control bar is NOT a .btc-slot, so it remains
-   available even if runtime is not present.
-*/
-
-[data-hud-root][
-  data-hud-state="ticker-only"
-]
-.btc-rail >
-.btc-slot{
-  display:none !important;
-}
-
-
-/* runtime remains supported */
-[data-hud-root][
-  data-hud-state="ticker-only"
-]
-.btc-rail >
-.btc-slot[
-  data-widget-slot="runtime"
-],
-
-[data-hud-root][
-  data-hud-state="ticker-only"
-]
-.btc-rail >
-.btc-slot[
-  data-widget="runtime"
-]{
-  display:flex !important;
-}
-
-
-/* ticker remains visible */
-[data-hud-root][
-  data-hud-state="ticker-only"
-]
-.btc-rail >
-.btc-slot[
-  data-widget-slot="bitcoin-ticker"
-],
-
-[data-hud-root][
-  data-hud-state="ticker-only"
-]
-.btc-rail >
-.btc-slot[
-  data-widget="bitcoin-ticker"
-]{
-  display:flex !important;
-}
-
-
-/* =========================================================
-   HUD-SCOPED CONTAINMENT
-   ========================================================= */
-
-.btc-rail .btc-slot,
-.btc-rail .zzx-card,
-.btc-rail .btc-card,
-.btc-rail [data-widget-root]{
-  min-width:0;
-}
-
-
-.btc-rail .btc-card,
-.btc-rail .zzx-card,
-.btc-rail [data-widget-root]{
-  overflow-wrap:anywhere;
-
-  word-break:break-word;
-}
-
-
-/*
-   IMPORTANT:
-   These are deliberately scoped to the HUD.
-   widget-core.css must not alter arbitrary media elsewhere
-   on zzx-labs.io.
-*/
-
-.btc-rail canvas,
-.btc-rail svg,
-.btc-rail img,
-.btc-rail video{
-  max-width:100%;
-
-  height:auto;
-
-  display:block;
-}
-
-
-.btc-rail pre,
-.btc-rail code{
-  max-width:100%;
-
-  overflow-x:auto;
-}
-
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width:620px){
-
-  .btc-rail >
-  .btc-slot{
-    flex:
-      1 1
-      100% !important;
-
-    max-width:
-      100% !important;
-
-    min-width:
-      0 !important;
-  }
-
-
-  .zzx-widgets__bar{
-    padding-inline:0;
-  }
-
-}
-
-
-@media (max-width:420px){
-
-  [data-hud-root]{
-    padding-inline:.3rem;
-  }
-
-
+@media (max-width: 420px) {
   .btc-card,
-  .zzx-card{
-    padding:.5rem;
-  }
-
-
+  .zzx-card { padding: 0.5rem; }
   .btc-card__value,
-  .zzx-card__value{
-    font-size:1.15rem;
-  }
-
-
+  .zzx-card__value { font-size: 1.15rem; }
   .btc-card__sub,
-  .zzx-card__sub{
-    font-size:.82rem;
-  }
-
-
+  .zzx-card__sub { font-size: 0.82rem; }
   .btc-card__grid,
-  .btc-card__fields{
-    grid-template-columns:
-      1fr;
-  }
-
-
-  .btc-card__row{
-    align-items:flex-start;
-  }
-
+  .btc-card__fields { grid-template-columns: minmax(0, 1fr); }
+  .btc-card__row { align-items: flex-start; }
 }
 
-
-/* =========================================================
-   REDUCED MOTION
-   ========================================================= */
-
-@media (
-  prefers-reduced-motion:
-  reduce
-){
-
-  .btc-card__loading{
-    animation:none;
-  }
-
-
+@media (prefers-reduced-motion: reduce) {
+  .btc-card__loading { animation: none; }
   .btc-card__progress-bar,
-  .zzx-hud-show,
-  .zzx-widgets__btn{
-    transition:none;
-  }
-
+  .zzx-widgets__btn { transition: none; }
 }
