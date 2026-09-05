@@ -1,0 +1,49 @@
+<!-- __partials/widgets/btc-notabletxs/widget.html -->
+<div class="btc-card btc-notabletxs">
+  <div class="btc-notabletxs__header">
+    <div>
+      <div class="btc-card__title">Notable TXs</div>
+      <div class="btc-notabletxs__eyebrow">large · high-fee · high-rate · high-weight mempool transactions</div>
+    </div>
+    <span class="btc-card__status" data-ntx-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="btc-notabletxs__hero">
+    <span>most notable recent transaction</span>
+    <strong data-ntx-hero>—</strong>
+    <small data-ntx-sub>ranking recent mempool activity</small>
+  </div>
+
+  <div class="btc-notabletxs__controls">
+    <label>
+      <span>rank by</span>
+      <select data-ntx-sort aria-label="Notable transaction ranking">
+        <option value="score">combined notability</option>
+        <option value="value">output value</option>
+        <option value="fee">absolute fee</option>
+        <option value="feerate">fee rate</option>
+        <option value="vsize">virtual size</option>
+      </select>
+    </label>
+    <button class="zzx-widgets__btn" type="button" data-ntx-refresh>Refresh</button>
+  </div>
+
+  <div class="btc-notabletxs__metrics">
+    <div><span>sampled TXs</span><strong data-ntx-count>—</strong></div>
+    <div><span>largest value</span><strong data-ntx-maxvalue>—</strong></div>
+    <div><span>highest fee</span><strong data-ntx-maxfee>—</strong></div>
+    <div><span>highest fee rate</span><strong data-ntx-maxrate>—</strong></div>
+  </div>
+
+  <div class="btc-notabletxs__list" data-ntx-list></div>
+
+  <div class="btc-notabletxs__pager">
+    <button class="zzx-widgets__btn" type="button" data-ntx-prev>Prev</button>
+    <span data-ntx-page>page 1 / 1</span>
+    <button class="zzx-widgets__btn" type="button" data-ntx-next>Next</button>
+  </div>
+
+  <div class="btc-notabletxs__footer">
+    <span data-ntx-meta>configured mempool API · public transaction data</span>
+  </div>
+</div>
