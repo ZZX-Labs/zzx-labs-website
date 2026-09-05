@@ -1,0 +1,89 @@
+<!-- __partials/widgets/mempool-specs/widget.html -->
+<div class="btc-card mempool-specs">
+  <div class="mempool-specs__header">
+    <div>
+      <div class="btc-card__title">Mempool · Specs</div>
+      <div class="mempool-specs__eyebrow">candidate-block construction · square-tile visualization</div>
+    </div>
+
+    <span
+      class="btc-card__status"
+      data-ms-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
+  </div>
+
+  <div class="mempool-specs__hero">
+    <span data-ms-hero-label>candidate block visualization</span>
+    <strong data-ms-summary>loading…</strong>
+    <small data-ms-sub>loading mempool data…</small>
+  </div>
+
+  <div class="mempool-specs__controls">
+    <label>
+      <span>view</span>
+      <select data-ms-view aria-label="Mempool Specs visualization mode">
+        <option value="candidate">candidate block</option>
+        <option value="recent">recent real TX sample</option>
+      </select>
+    </label>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-ms-refresh
+    >Refresh</button>
+  </div>
+
+  <div class="mempool-specs__metrics">
+    <div><span>mempool TXs</span><strong data-ms-count>—</strong></div>
+    <div><span>backlog</span><strong data-ms-backlog>—</strong></div>
+    <div><span>candidate vsize</span><strong data-ms-candidate>—</strong></div>
+    <div><span>candidate TXs</span><strong data-ms-candidate-tx>—</strong></div>
+  </div>
+
+  <div
+    class="ms-block"
+    data-ms-block
+    role="img"
+    aria-label="Bitcoin candidate block construction from mempool fee data"
+  >
+    <canvas data-ms-canvas></canvas>
+    <div class="ms-hitlayer" data-ms-hitlayer></div>
+  </div>
+
+  <div class="mempool-specs__viz-meta">
+    <span data-ms-layout>—</span>
+    <span data-ms-fees>—</span>
+  </div>
+
+  <div class="ms-legend" aria-hidden="true">
+    <div class="ms-legend-item"><span class="ms-swatch low"></span><span>low fee</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch mid"></span><span>medium fee</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch high"></span><span>high fee</span></div>
+  </div>
+
+  <div class="mempool-specs__details">
+    <div class="mempool-specs__row">
+      <span>tip height</span>
+      <strong data-ms-tip>—</strong>
+    </div>
+    <div class="mempool-specs__row">
+      <span>BTC / USD</span>
+      <strong data-ms-price>—</strong>
+    </div>
+    <div class="mempool-specs__row">
+      <span>source</span>
+      <strong data-ms-source>—</strong>
+    </div>
+    <div class="mempool-specs__row">
+      <span>method</span>
+      <strong data-ms-method>—</strong>
+    </div>
+  </div>
+
+  <div class="mempool-specs__footer">
+    <span data-ms-meta>candidate view is an estimate, not a miner commitment</span>
+  </div>
+</div>
