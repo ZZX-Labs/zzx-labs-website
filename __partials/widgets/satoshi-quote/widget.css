@@ -1,0 +1,161 @@
+/* __partials/widgets/satoshi-quote/widget.css */
+
+.satoshi-quote{
+  --sq-green:var(--zzx-accent,#c0d674);
+  --sq-gold:var(--zzx-accent-alt,#e6a42b);
+  --sq-muted:var(--zzx-muted,#b7bf9a);
+  --sq-dim:var(--zzx-dim,#777);
+  --sq-line:rgba(255,255,255,.09);
+  --sq-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.satoshi-quote__header,
+.satoshi-quote__actions,
+.satoshi-quote__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.satoshi-quote__header{
+  align-items:flex-start;
+}
+
+.satoshi-quote__eyebrow,
+.satoshi-quote__controls label > span{
+  color:var(--sq-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.satoshi-quote__quote{
+  position:relative;
+  margin:.55rem 0 0;
+  max-height:240px;
+  overflow:auto;
+  padding:.62rem .68rem;
+  border-top:1px solid var(--sq-line);
+  border-bottom:1px solid var(--sq-line);
+  background:var(--sq-panel);
+  color:var(--sq-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.84rem;
+  line-height:1.52;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+
+.satoshi-quote__quote > span:first-child,
+.satoshi-quote__quote > span:last-child{
+  color:var(--sq-gold);
+}
+
+.satoshi-quote__meta{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  gap:.35rem .7rem;
+  margin-top:.38rem;
+  color:var(--sq-muted);
+  font-size:.68rem;
+}
+
+.satoshi-quote__meta span:first-child{
+  color:var(--sq-gold);
+}
+
+.satoshi-quote__tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.28rem;
+  min-height:1.25rem;
+  margin-top:.38rem;
+}
+
+.satoshi-quote__tag{
+  padding:.12rem .28rem;
+  border:1px solid rgba(192,214,116,.25);
+  border-radius:999px;
+  color:var(--sq-muted);
+  font-size:.61rem;
+  line-height:1.25;
+}
+
+.satoshi-quote__controls{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.4rem;
+  margin-top:.48rem;
+}
+
+.satoshi-quote__controls label{
+  display:grid;
+  gap:.14rem;
+  min-width:0;
+}
+
+.satoshi-quote__controls select{
+  width:100%;
+  min-width:0;
+  padding:.3rem .38rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--sq-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.69rem;
+}
+
+.satoshi-quote__controls select:focus{
+  border-color:var(--sq-gold);
+}
+
+.satoshi-quote__actions{
+  justify-content:flex-start;
+  margin-top:.45rem;
+}
+
+.satoshi-quote__spacer{
+  flex:1;
+}
+
+.satoshi-quote__source-link{
+  color:var(--sq-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.68rem;
+  text-decoration:none;
+}
+
+.satoshi-quote__source-link:hover,
+.satoshi-quote__source-link:focus-visible{
+  text-decoration:underline;
+}
+
+.satoshi-quote__footer{
+  margin-top:.45rem;
+  padding-top:.4rem;
+  border-top:1px solid var(--sq-line);
+  color:var(--sq-dim);
+  font-size:.64rem;
+}
+
+@media(max-width:520px){
+  .satoshi-quote__controls{
+    grid-template-columns:1fr;
+  }
+
+  .satoshi-quote__quote{
+    max-height:210px;
+    font-size:.78rem;
+  }
+
+  .satoshi-quote__actions{
+    flex-wrap:wrap;
+  }
+}
