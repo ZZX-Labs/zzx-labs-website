@@ -1,76 +1,85 @@
 <!-- __partials/widgets/volume-24h/widget.html -->
-<div class="zzx-card volume24">
-  <div class="volume24__header">
-    <div>
-      <div class="zzx-card__title">24h Volume</div>
-      <div class="volume24__eyebrow">BTC / USD · completed hourly candles</div>
+<div class="zzx-card market24" data-market24-kind="volume">
+  <div class="market24__header">
+    <div class="market24__heading">
+      <div class="zzx-card__title" data-market24-title>24h Market</div>
+      <div class="market24__eyebrow" data-market24-eyebrow>BTC / USD</div>
     </div>
 
-    <label class="volume24__source">
+    <label class="market24__source">
       <span>exchange</span>
-      <select data-volume24-source aria-label="Select exchange"></select>
+      <select data-market24-source aria-label="Select exchange"></select>
     </label>
   </div>
 
-  <div class="volume24__hero">
-    <div class="volume24__volume-wrap">
-      <span class="volume24__label">24h BTC volume</span>
-      <strong class="volume24__volume" data-volume24-btc>—</strong>
+  <div class="market24__hero">
+    <div class="market24__primary">
+      <span class="market24__label" data-market24-primary-label>primary</span>
+      <strong data-market24-primary>—</strong>
     </div>
 
-    <div class="volume24__change" data-volume24-tone="flat">
-      <span class="volume24__change-label">vs previous 24h</span>
-      <strong class="volume24__change-pct" data-volume24-change>—</strong>
-    </div>
-  </div>
-
-  <div class="volume24__metrics" aria-label="24 hour volume details">
-    <div class="volume24__metric">
-      <span>USD notional</span>
-      <strong data-volume24-usd>—</strong>
-    </div>
-
-    <div class="volume24__metric">
-      <span>average / hour</span>
-      <strong data-volume24-average>—</strong>
-    </div>
-
-    <div class="volume24__metric">
-      <span>peak hour</span>
-      <strong data-volume24-peak>—</strong>
+    <div class="market24__secondary" data-market24-tone="flat">
+      <span class="market24__label" data-market24-secondary-label>secondary</span>
+      <strong data-market24-secondary>—</strong>
     </div>
   </div>
 
-  <div class="volume24__chart-wrap">
+  <div class="market24__metrics" aria-label="24 hour market details">
+    <div class="market24__metric">
+      <span data-market24-metric-label="0">metric</span>
+      <strong data-market24-metric-value="0">—</strong>
+    </div>
+
+    <div class="market24__metric">
+      <span data-market24-metric-label="1">metric</span>
+      <strong data-market24-metric-value="1">—</strong>
+    </div>
+
+    <div class="market24__metric">
+      <span data-market24-metric-label="2">metric</span>
+      <strong data-market24-metric-value="2">—</strong>
+    </div>
+
+    <div class="market24__metric">
+      <span data-market24-metric-label="3">metric</span>
+      <strong data-market24-metric-value="3">—</strong>
+    </div>
+  </div>
+
+  <div class="market24__chart-wrap">
     <canvas
-      class="volume24__chart"
-      data-volume24-chart
+      class="market24__chart"
+      data-market24-chart
       role="img"
-      aria-label="Bitcoin 24 hour exchange volume chart"
+      aria-label="Bitcoin 24 hour market chart"
     ></canvas>
   </div>
 
-  <div class="volume24__footer">
-    <div class="volume24__source-meta">
+  <div class="market24__legend" aria-hidden="true">
+    <span data-market24-legend="0"><i></i><b>—</b></span>
+    <span data-market24-legend="1"><i></i><b>—</b></span>
+    <span data-market24-legend="2"><i></i><b>—</b></span>
+    <span data-market24-legend="3"><i></i><b>—</b></span>
+  </div>
+
+  <div class="market24__footer">
+    <div class="market24__source-meta">
       <span
-        class="btc-card__status volume24__status"
-        data-volume24-status
+        class="btc-card__status market24__status"
+        data-market24-status
         data-status="offline"
         aria-live="polite"
       >loading</span>
-
-      <span data-volume24-meta>—</span>
+      <span data-market24-meta>—</span>
     </div>
 
     <button
       type="button"
       class="zzx-widgets__btn"
-      data-volume24-refresh
-      aria-label="Refresh 24 hour volume"
+      data-market24-refresh
+      aria-label="Refresh 24 hour market widget"
     >Refresh</button>
   </div>
 
-  <div class="volume24__note">
-    USD notional is estimated from each hourly BTC volume multiplied by that candle's typical USD price.
-  </div>
+  <div class="market24__note" data-market24-note></div>
 </div>
