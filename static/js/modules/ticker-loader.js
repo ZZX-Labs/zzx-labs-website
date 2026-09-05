@@ -1,15 +1,23 @@
 // /static/js/modules/ticker-loader.js
-// DROP-IN REPLACEMENT (SINGLE ORCHESTRATOR: widget-core)
+// ZZX-Labs Bitcoin HUD / Widget Loader
+// DROP-IN REPLACEMENT
 //
-// FIXES (NO new files, no new routes, no runtime.js):
-// 0) LOCAL FONTS ONLY: inject @font-face from /static/fonts/*.ttf
-//    - Uses /static/fonts/fonts.json as the “presence/contract” file (and future mapping hook).
-//    - Does NOT load any remote fonts, woff, or CDN fallbacks.
-// 1) Race-proof remount: if partials/header reinjection replaces #ticker-container AFTER first boot,
-//    we detect it and reinject wrapper + re-run hud-state + core boot.
-// 2) CSS-stability: wait for WRAP_CSS + CORE_CSS to finish loading before injecting wrapper HTML.
-//    This stops the “raw white left-aligned flash / unstyled ticker” behavior.
-// 3) Strict order: FONTS -> CSS -> HTML -> hud-state -> widget-core.
+// SINGLE ORCHESTRATOR:
+//   fonts
+//     -> wrapper/core CSS
+//     -> wrapper HTML
+//     -> HUD state
+//     -> widget-core
+//
+// IMPORTANT:
+// - No runtime.js direct load.
+// - No individual widget IDs are hard-coded here.
+// - manifest.json + widget-core remain authoritative.
+// - Existing widgets are never removed/replaced by this loader.
+// - Prefix-safe for root hosting, GitHub Pages, and deep paths.
+// - Survives ticker-container replacement/reinjection.
+// - Failed CSS/JS assets may be retried.
+// - Existing wrapper HTML does NOT prevent core/HUD recovery.
 
 (function () {
   "use strict";
@@ -17,309 +25,1157 @@
   const W = window;
   const D = document;
 
-  // Allow a single "controller" install, but we still remount on DOM replacement.
+  // Install controller once.
+  // Remounting/recovery is handled internally.
   if (W.__ZZX_TICKER_LOADER_BOOTED) return;
   W.__ZZX_TICKER_LOADER_BOOTED = true;
 
-  // ----------------------------
-  // Prefix-safe URL join
-  // ----------------------------
+
+  // ===========================================================================
+  // PREFIX
+  // ===========================================================================
+
   function getPrefix() {
-    let p = (typeof W.ZZX?.PREFIX === "string") ? W.ZZX.PREFIX : "";
-    if (!p) p = D.documentElement?.getAttribute("data-zzx-prefix") || "";
-    p = String(p || "").trim();
-    // CRITICAL: never allow "." / "./" prefixes
-    if (p === "." || p === "./") p = "";
-    // strip trailing slash
-    p = p.replace(/\/+$/, "");
+    let p = "";
+
+    if (
+      W.ZZX &&
+      typeof W.ZZX.PREFIX === "string"
+    ) {
+      p = W.ZZX.PREFIX.trim();
+    }
+
+    if (!p && D.documentElement) {
+      const hp =
+        D.documentElement.getAttribute(
+          "data-zzx-prefix"
+        );
+
+      if (typeof hp === "string") {
+        p = hp.trim();
+      }
+    }
+
+    // Never permit pseudo-relative prefixes.
+    if (
+      p === "." ||
+      p === "./" ||
+      p === "/"
+    ) {
+      p = "";
+    }
+
+    p = String(p || "")
+      .replace(/\/+$/g, "");
+
+    W.ZZX = Object.assign(
+      {},
+      W.ZZX || {},
+      {
+        PREFIX: p
+      }
+    );
+
     return p;
   }
 
+
   function join(prefix, path) {
     if (!path) return path;
+
     const s = String(path);
-    if (/^https?:\/\//i.test(s)) return s;
-    if (!s.startsWith("/")) return s;
-    const p = String(prefix || "").replace(/\/+$/, "");
-    if (!p || p === "." || p === "/") return s;
+
+    // Absolute external URL.
+    if (/^https?:\/\//i.test(s)) {
+      return s;
+    }
+
+    // Relative/local strings pass through.
+    if (!s.startsWith("/")) {
+      return s;
+    }
+
+    const p = String(prefix || "")
+      .replace(/\/+$/g, "");
+
+    if (
+      !p ||
+      p === "." ||
+      p === "/"
+    ) {
+      return s;
+    }
+
     return p + s;
   }
 
-  const PREFIX = getPrefix();
-  W.ZZX = Object.assign({}, W.ZZX || {}, { PREFIX });
 
-  // ----------------------------
-  // Versioning
-  // ----------------------------
-  function assetVersion() {
-    const v = D.querySelector('meta[name="asset-version"]')?.getAttribute("content");
-    return (v || "").trim();
+  function asset(path) {
+    return join(
+      getPrefix(),
+      path
+    );
   }
 
-  function withV(u) {
+
+  // Normalize immediately if possible.
+  getPrefix();
+
+
+  // ===========================================================================
+  // ASSET VERSION
+  // ===========================================================================
+
+  function assetVersion() {
+    const el =
+      D.querySelector(
+        'meta[name="asset-version"]'
+      );
+
+    return el
+      ? String(
+          el.getAttribute("content") || ""
+        ).trim()
+      : "";
+  }
+
+
+  function withV(url) {
     const v = assetVersion();
-    if (!v) return u;
+
+    if (!v) return url;
+
     try {
-      const U = new URL(u, location.href);
-      if (!U.searchParams.has("v")) U.searchParams.set("v", v);
-      return U.href;
-    } catch {
-      return u;
+      const u = new URL(
+        url,
+        location.href
+      );
+
+      if (!u.searchParams.has("v")) {
+        u.searchParams.set("v", v);
+      }
+
+      return u.href;
+    } catch (_) {
+      return url;
     }
   }
 
-  // ----------------------------
-  // Assets (canonical)
-  // ----------------------------
-  const WRAP_HTML  = join(PREFIX, "/__partials/bitcoin-ticker-widget.html");
-  const WRAP_CSS   = join(PREFIX, "/__partials/bitcoin-ticker-widget.css");
-  const HUD_STATE  = join(PREFIX, "/__partials/widgets/hud-state.js");
 
-  // SINGLE orchestrator:
-  const CORE_CSS   = join(PREFIX, "/__partials/widgets/_core/widget-core.css");
-  const CORE_JS    = join(PREFIX, "/__partials/widgets/_core/widget-core.js");
+  // ===========================================================================
+  // CANONICAL ASSET URLS
+  // ===========================================================================
 
-  // Fonts contract (local)
-  const FONTS_JSON = join(PREFIX, "/static/fonts/fonts.json");
-
-  // Publish manifest URL for core (optional; core can also hardcode it)
-  W.__ZZX_WIDGETS_MANIFEST_URL = join(PREFIX, "/__partials/widgets/manifest.json");
-
-  // ----------------------------
-  // Idempotent injectors
-  // ----------------------------
-  function keyify(s) {
-    return btoa(unescape(encodeURIComponent(String(s)))).replace(/=+$/g, "");
+  function wrapperHTML() {
+    return asset(
+      "/__partials/bitcoin-ticker-widget.html"
+    );
   }
 
-  // IMPORTANT: return a Promise that resolves when CSS is actually loaded.
+  function wrapperCSS() {
+    return asset(
+      "/__partials/bitcoin-ticker-widget.css"
+    );
+  }
+
+  function hudStateJS() {
+    return asset(
+      "/__partials/widgets/hud-state.js"
+    );
+  }
+
+  function coreCSS() {
+    return asset(
+      "/__partials/widgets/_core/widget-core.css"
+    );
+  }
+
+  function coreJS() {
+    return asset(
+      "/__partials/widgets/_core/widget-core.js"
+    );
+  }
+
+  function fontsJSON() {
+    return asset(
+      "/static/fonts/fonts.json"
+    );
+  }
+
+  function manifestURL() {
+    return asset(
+      "/__partials/widgets/manifest.json"
+    );
+  }
+
+
+  function publishManifestURL() {
+    W.__ZZX_WIDGETS_MANIFEST_URL =
+      manifestURL();
+  }
+
+  publishManifestURL();
+
+
+  // ===========================================================================
+  // ASSET KEYS
+  // ===========================================================================
+
+  function keyify(value) {
+    try {
+      return btoa(
+        unescape(
+          encodeURIComponent(
+            String(value)
+          )
+        )
+      ).replace(/=+$/g, "");
+    } catch (_) {
+      return String(value)
+        .replace(
+          /[^a-z0-9_-]/gi,
+          "_"
+        );
+    }
+  }
+
+
+  // ===========================================================================
+  // CSS LOADER
+  // ===========================================================================
+
+  function stylesheetReady(link) {
+    if (!link) return false;
+
+    if (link.dataset.zzxLoaded === "1") {
+      return true;
+    }
+
+    try {
+      if (link.sheet) {
+        return true;
+      }
+    } catch (_) {
+      // Access can theoretically throw.
+      // Presence of sheet is sufficient when accessible.
+    }
+
+    return false;
+  }
+
+
   function loadCSSOnce(href) {
     const h = withV(href);
-    const key = "zzxcss:" + keyify(h);
+    const key =
+      "zzxcss:" + keyify(h);
 
-    const existing = D.querySelector(`link[data-zzx-css="${key}"]`);
+    let existing =
+      D.querySelector(
+        `link[data-zzx-css="${key}"]`
+      );
+
+    if (
+      existing &&
+      existing.dataset.zzxFailed === "1"
+    ) {
+      try {
+        existing.remove();
+      } catch (_) {}
+
+      existing = null;
+    }
+
     if (existing) {
-      if (existing.dataset.zzxLoaded === "1") return Promise.resolve(true);
+      if (stylesheetReady(existing)) {
+        existing.dataset.zzxLoaded = "1";
+        return Promise.resolve(true);
+      }
+
       return new Promise((resolve) => {
-        const done = () => { existing.dataset.zzxLoaded = "1"; resolve(true); };
-        existing.addEventListener("load", done, { once: true });
-        existing.addEventListener("error", () => resolve(false), { once: true });
-        // cached CSS may not fire load consistently
-        setTimeout(() => resolve(true), 800);
+        let settled = false;
+
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+
+          if (ok) {
+            existing.dataset.zzxLoaded = "1";
+            existing.dataset.zzxFailed = "0";
+          } else {
+            existing.dataset.zzxFailed = "1";
+          }
+
+          resolve(Boolean(ok));
+        };
+
+        existing.addEventListener(
+          "load",
+          () => finish(true),
+          { once: true }
+        );
+
+        existing.addEventListener(
+          "error",
+          () => finish(false),
+          { once: true }
+        );
+
+        // Cached stylesheets normally still emit load,
+        // but verify sheet state as an additional fallback.
+        W.setTimeout(() => {
+          finish(
+            stylesheetReady(existing)
+          );
+        }, 1200);
       });
     }
 
     return new Promise((resolve) => {
-      const l = D.createElement("link");
-      l.rel = "stylesheet";
-      l.href = h;
-      l.setAttribute("data-zzx-css", key);
-      l.onload = () => { l.dataset.zzxLoaded = "1"; resolve(true); };
-      l.onerror = () => resolve(false);
-      D.head.appendChild(l);
-      setTimeout(() => resolve(true), 800);
+      const link =
+        D.createElement("link");
+
+      let settled = false;
+
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+
+        if (ok) {
+          link.dataset.zzxLoaded = "1";
+          link.dataset.zzxFailed = "0";
+        } else {
+          link.dataset.zzxFailed = "1";
+        }
+
+        resolve(Boolean(ok));
+      };
+
+      link.rel = "stylesheet";
+      link.href = h;
+
+      link.setAttribute(
+        "data-zzx-css",
+        key
+      );
+
+      link.addEventListener(
+        "load",
+        () => finish(true),
+        { once: true }
+      );
+
+      link.addEventListener(
+        "error",
+        () => finish(false),
+        { once: true }
+      );
+
+      (
+        D.head ||
+        D.documentElement
+      ).appendChild(link);
+
+      W.setTimeout(() => {
+        finish(
+          stylesheetReady(link)
+        );
+      }, 1200);
     });
   }
+
+
+  // ===========================================================================
+  // JS LOADER
+  // ===========================================================================
 
   function loadJSOnce(src) {
     const s0 = withV(src);
-    const key = "zzxjs:" + keyify(s0);
+    const key =
+      "zzxjs:" + keyify(s0);
+
+    let existing =
+      D.querySelector(
+        `script[data-zzx-js="${key}"]`
+      );
+
+    // Failed script must not poison the page forever.
+    if (
+      existing &&
+      existing.dataset.zzxFailed === "1"
+    ) {
+      try {
+        existing.remove();
+      } catch (_) {}
+
+      existing = null;
+    }
+
+    if (existing) {
+      if (
+        existing.dataset.zzxLoaded === "1"
+      ) {
+        return Promise.resolve(true);
+      }
+
+      // Existing script is still loading.
+      return new Promise((resolve) => {
+        let settled = false;
+
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+
+          if (ok) {
+            existing.dataset.zzxLoaded = "1";
+            existing.dataset.zzxFailed = "0";
+          } else {
+            existing.dataset.zzxFailed = "1";
+          }
+
+          resolve(Boolean(ok));
+        };
+
+        existing.addEventListener(
+          "load",
+          () => finish(true),
+          { once: true }
+        );
+
+        existing.addEventListener(
+          "error",
+          () => finish(false),
+          { once: true }
+        );
+
+        // A script inserted by an earlier pass may already have
+        // executed before these listeners were attached.
+        W.setTimeout(() => {
+          if (
+            existing.dataset.zzxFailed !== "1"
+          ) {
+            finish(true);
+          }
+        }, 1000);
+      });
+    }
 
     return new Promise((resolve) => {
-      if (D.querySelector(`script[data-zzx-js="${key}"]`)) return resolve(true);
+      const script =
+        D.createElement("script");
 
-      const s = D.createElement("script");
-      s.src = s0;
-      s.defer = true;
-      s.setAttribute("data-zzx-js", key);
-      s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
-      D.head.appendChild(s);
+      let settled = false;
+
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+
+        if (ok) {
+          script.dataset.zzxLoaded = "1";
+          script.dataset.zzxFailed = "0";
+        } else {
+          script.dataset.zzxFailed = "1";
+        }
+
+        resolve(Boolean(ok));
+      };
+
+      script.src = s0;
+      script.defer = true;
+
+      script.setAttribute(
+        "data-zzx-js",
+        key
+      );
+
+      script.addEventListener(
+        "load",
+        () => finish(true),
+        { once: true }
+      );
+
+      script.addEventListener(
+        "error",
+        () => finish(false),
+        { once: true }
+      );
+
+      (
+        D.head ||
+        D.documentElement
+      ).appendChild(script);
     });
   }
 
+
+  // ===========================================================================
+  // HTML
+  // ===========================================================================
+
   async function fetchHTML(url) {
     const u = withV(url);
-    const r = await fetch(u, { cache: "no-store" });
-    if (!r.ok) throw new Error(`HTML fetch failed ${r.status}: ${u}`);
-    return await r.text();
+
+    const response =
+      await fetch(
+        u,
+        {
+          cache: "no-store"
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `HTML fetch failed ${response.status}: ${u}`
+      );
+    }
+
+    return await response.text();
   }
 
-  function injectHTML(mountEl, htmlText) {
-    mountEl.replaceChildren();
-    const tpl = D.createElement("template");
-    tpl.innerHTML = htmlText;
-    mountEl.appendChild(tpl.content);
+
+  function injectHTML(
+    mount,
+    html
+  ) {
+    mount.replaceChildren();
+
+    const tpl =
+      D.createElement("template");
+
+    tpl.innerHTML = html;
+
+    mount.appendChild(
+      tpl.content
+    );
   }
 
-  // ----------------------------
-  // LOCAL FONTS: inject @font-face (TTF only)
-  // Uses fonts.json as the contract/presence file (and future mapping hook).
-  // ----------------------------
+
+  // ===========================================================================
+  // LOCAL FONTS
+  // ===========================================================================
+
   function ensureLocalFontsOnce() {
-    if (D.getElementById("zzx-local-fonts")) return Promise.resolve(true);
+    const existing =
+      D.getElementById(
+        "zzx-local-fonts"
+      );
 
-    const style = D.createElement("style");
+    if (existing) {
+      return Promise.resolve(true);
+    }
+
+    const style =
+      D.createElement("style");
+
     style.id = "zzx-local-fonts";
     style.type = "text/css";
 
-    // IMPORTANT:
-    // - absolute paths (prefix-safe handled by browser because site is root-hosted or prefixed)
-    // - NO woff/woff2
-    // - NO remote URLs
-    // - font-display swap to reduce “wrong font flash”
+    const f = (filename) =>
+      asset(
+        "/static/fonts/" + filename
+      );
+
     const fontCSS = `
-@font-face{font-family:"AdultSwimFont";src:url("${join(PREFIX,"/static/fonts/Adult-Swim-Font.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
 
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Thin.ttf")}") format("truetype");font-weight:100;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-ThinItalic.ttf")}") format("truetype");font-weight:100;font-style:italic;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-ExtraLight.ttf")}") format("truetype");font-weight:200;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-ExtraLightItalic.ttf")}") format("truetype");font-weight:200;font-style:italic;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Light.ttf")}") format("truetype");font-weight:300;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-LightItalic.ttf")}") format("truetype");font-weight:300;font-style:italic;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Regular.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Italic.ttf")}") format("truetype");font-weight:400;font-style:italic;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Medium.ttf")}") format("truetype");font-weight:500;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-MediumItalic.ttf")}") format("truetype");font-weight:500;font-style:italic;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-SemiBold.ttf")}") format("truetype");font-weight:600;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Bold.ttf")}") format("truetype");font-weight:700;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-BoldItalic.ttf")}") format("truetype");font-weight:700;font-style:italic;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-Text.ttf")}") format("truetype");font-weight:450;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexMono";src:url("${join(PREFIX,"/static/fonts/IBMPlexMono-TextItalic.ttf")}") format("truetype");font-weight:450;font-style:italic;font-display:swap;}
+@font-face{
+  font-family:"AdultSwimFont";
+  src:url("${f("Adult-Swim-Font.ttf")}") format("truetype");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
 
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Thin.ttf")}") format("truetype");font-weight:100;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-ExtraLight.ttf")}") format("truetype");font-weight:200;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Light.ttf")}") format("truetype");font-weight:300;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Regular.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Text.ttf")}") format("truetype");font-weight:450;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Medium.ttf")}") format("truetype");font-weight:500;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-SemiBold.ttf")}") format("truetype");font-weight:600;font-style:normal;font-display:swap;}
-@font-face{font-family:"IBMPlexSansJP";src:url("${join(PREFIX,"/static/fonts/IBMPlexSansJP-Bold.ttf")}") format("truetype");font-weight:700;font-style:normal;font-display:swap;}
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Thin.ttf")}") format("truetype");
+  font-weight:100;
+  font-style:normal;
+  font-display:swap;
+}
 
-@font-face{font-family:"IBMPlexMath";src:url("${join(PREFIX,"/static/fonts/IBMPlexMath-Regular.ttf")}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-ThinItalic.ttf")}") format("truetype");
+  font-weight:100;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-ExtraLight.ttf")}") format("truetype");
+  font-weight:200;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-ExtraLightItalic.ttf")}") format("truetype");
+  font-weight:200;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Light.ttf")}") format("truetype");
+  font-weight:300;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-LightItalic.ttf")}") format("truetype");
+  font-weight:300;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Regular.ttf")}") format("truetype");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Italic.ttf")}") format("truetype");
+  font-weight:400;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Medium.ttf")}") format("truetype");
+  font-weight:500;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-MediumItalic.ttf")}") format("truetype");
+  font-weight:500;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-SemiBold.ttf")}") format("truetype");
+  font-weight:600;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Bold.ttf")}") format("truetype");
+  font-weight:700;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-BoldItalic.ttf")}") format("truetype");
+  font-weight:700;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-Text.ttf")}") format("truetype");
+  font-weight:450;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMono";
+  src:url("${f("IBMPlexMono-TextItalic.ttf")}") format("truetype");
+  font-weight:450;
+  font-style:italic;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-Thin.ttf")}") format("truetype");
+  font-weight:100;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-ExtraLight.ttf")}") format("truetype");
+  font-weight:200;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-Light.ttf")}") format("truetype");
+  font-weight:300;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-Regular.ttf")}") format("truetype");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-Text.ttf")}") format("truetype");
+  font-weight:450;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-Medium.ttf")}") format("truetype");
+  font-weight:500;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-SemiBold.ttf")}") format("truetype");
+  font-weight:600;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexSansJP";
+  src:url("${f("IBMPlexSansJP-Bold.ttf")}") format("truetype");
+  font-weight:700;
+  font-style:normal;
+  font-display:swap;
+}
+
+@font-face{
+  font-family:"IBMPlexMath";
+  src:url("${f("IBMPlexMath-Regular.ttf")}") format("truetype");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
 
 :root{
-  --zzx-font-display:"AdultSwimFont","IBMPlexMono",ui-monospace,monospace;
-  --zzx-font-mono:"IBMPlexMono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
-  --zzx-font-sans:"IBMPlexSansJP",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --zzx-font-display:
+    "AdultSwimFont",
+    "IBMPlexMono",
+    ui-monospace,
+    monospace;
+
+  --zzx-font-mono:
+    "IBMPlexMono",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+
+  --zzx-font-sans:
+    "IBMPlexSansJP",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
 }
 `;
-    style.appendChild(D.createTextNode(fontCSS));
-    (D.head || D.documentElement).appendChild(style);
 
-    // Use fonts.json as the canonical "font set exists" contract.
-    // We do not depend on its contents yet (because it doesn't map filenames),
-    // but we verify it is reachable so we can extend this later without changing architecture.
-    return fetch(withV(FONTS_JSON), { cache: "no-store" })
-      .then((r) => r.ok)
+    style.appendChild(
+      D.createTextNode(fontCSS)
+    );
+
+    (
+      D.head ||
+      D.documentElement
+    ).appendChild(style);
+
+    // fonts.json remains the canonical font-set contract.
+    // Font loading itself does not fail merely because this
+    // optional verification request is unavailable.
+    return fetch(
+      withV(fontsJSON()),
+      {
+        cache: "no-store"
+      }
+    )
+      .then((response) => {
+        if (!response.ok) {
+          console.warn(
+            "[ticker-loader] fonts.json unavailable:",
+            response.status
+          );
+        }
+
+        return response.ok;
+      })
       .catch(() => false);
   }
 
-  // ----------------------------
-  // Wait for partials injection
-  // ----------------------------
-  function waitForPartials(timeoutMs = 3500) {
-    if (W.__zzx_partials_ready) return Promise.resolve(true);
+
+  // ===========================================================================
+  // PARTIALS
+  // ===========================================================================
+
+  function waitForPartials(
+    timeoutMs = 3500
+  ) {
+    if (W.__zzx_partials_ready) {
+      return Promise.resolve(true);
+    }
 
     return new Promise((resolve) => {
       let done = false;
 
       const finish = (ok) => {
         if (done) return;
+
         done = true;
-        resolve(!!ok);
+        resolve(Boolean(ok));
       };
 
-      const onEvt = () => {
+      const onReady = () => {
         W.__zzx_partials_ready = true;
         finish(true);
       };
 
-      W.addEventListener("zzx:partials:ready", onEvt, { once: true });
-      W.addEventListener("zzx:partials-ready", onEvt, { once: true });
+      W.addEventListener(
+        "zzx:partials:ready",
+        onReady,
+        { once: true }
+      );
 
-      const t0 = performance.now();
+      W.addEventListener(
+        "zzx:partials-ready",
+        onReady,
+        { once: true }
+      );
+
+      const started =
+        performance.now();
+
       (function poll() {
         if (done) return;
-        const h = D.getElementById("zzx-header");
-        if (h && h.childNodes && h.childNodes.length) return finish(true);
-        if (performance.now() - t0 >= timeoutMs) return finish(false);
-        setTimeout(poll, 60);
+
+        const header =
+          D.getElementById(
+            "zzx-header"
+          );
+
+        if (
+          header &&
+          header.childNodes &&
+          header.childNodes.length
+        ) {
+          finish(true);
+          return;
+        }
+
+        if (
+          performance.now() - started >=
+          timeoutMs
+        ) {
+          finish(false);
+          return;
+        }
+
+        W.setTimeout(
+          poll,
+          60
+        );
       })();
     });
   }
 
-  // ----------------------------
-  // Remount detection
-  // ----------------------------
-  function needsMount(mount) {
-    if (!mount) return false;
-    return !mount.querySelector("[data-hud-root]") && !mount.querySelector(".btc-rail");
+
+  // ===========================================================================
+  // MOUNT STATE
+  // ===========================================================================
+
+  function getMount() {
+    return D.getElementById(
+      "ticker-container"
+    );
   }
 
-  // ----------------------------
-  // Boot (strict order)
-  // ----------------------------
-  let __booting = false;
+
+  function hasWrapper(mount) {
+    if (!mount) return false;
+
+    return Boolean(
+      mount.querySelector(
+        "[data-hud-root]"
+      ) ||
+      mount.querySelector(
+        ".btc-rail"
+      )
+    );
+  }
+
+
+  // ===========================================================================
+  // INFRASTRUCTURE
+  // ===========================================================================
+
+  async function ensureInfrastructure() {
+    // Re-evaluate prefix AFTER partials are stable.
+    getPrefix();
+    publishManifestURL();
+
+    // Fonts remain first.
+    await ensureLocalFontsOnce();
+
+    // CSS before HTML.
+    const okWrapCSS =
+      await loadCSSOnce(
+        wrapperCSS()
+      );
+
+    if (!okWrapCSS) {
+      console.warn(
+        "[ticker-loader] wrapper CSS failed:",
+        wrapperCSS()
+      );
+    }
+
+    const okCoreCSS =
+      await loadCSSOnce(
+        coreCSS()
+      );
+
+    if (!okCoreCSS) {
+      console.warn(
+        "[ticker-loader] core CSS failed:",
+        coreCSS()
+      );
+    }
+
+    return {
+      okWrapCSS,
+      okCoreCSS
+    };
+  }
+
+
+  async function ensureScripts() {
+    // HUD state must exist before core boots.
+    const okHUD =
+      await loadJSOnce(
+        hudStateJS()
+      );
+
+    if (!okHUD) {
+      console.warn(
+        "[ticker-loader] hud-state failed:",
+        hudStateJS()
+      );
+    }
+
+    const okCore =
+      await loadJSOnce(
+        coreJS()
+      );
+
+    if (!okCore) {
+      console.warn(
+        "[ticker-loader] widget-core failed:",
+        coreJS()
+      );
+    }
+
+    return {
+      okHUD,
+      okCore
+    };
+  }
+
+
+  // ===========================================================================
+  // BOOT
+  // ===========================================================================
+
+  let booting = false;
+  let bootAgain = false;
+
 
   async function bootOnceForCurrentMount() {
-    if (__booting) return;
-    __booting = true;
+    if (booting) {
+      bootAgain = true;
+      return;
+    }
+
+    booting = true;
 
     try {
       await waitForPartials();
 
-      const mount = D.getElementById("ticker-container");
-      if (!mount) return;
+      // Prefix may have changed while partials were loading.
+      getPrefix();
+      publishManifestURL();
 
-      // If already mounted, do nothing (but still allow widget-core boot to re-run safely)
-      if (!needsMount(mount)) {
-        try { W.ZZXWidgetsCore?.boot?.(); } catch (_) {}
+      const mount = getMount();
+
+      if (!mount) {
         return;
       }
 
-      // 0) Fonts FIRST (local TTF only)
-      await ensureLocalFontsOnce();
+      // Always recover infrastructure even when wrapper already exists.
+      await ensureInfrastructure();
 
-      // 1) CSS FIRST and WAIT (prevents raw/unstyled)
-      const okWrapCss = await loadCSSOnce(WRAP_CSS);
-      if (!okWrapCss) console.warn("[ticker-loader] wrapper CSS failed:", WRAP_CSS);
+      // Only replace mount HTML if wrapper is absent.
+      if (!hasWrapper(mount)) {
+        const html =
+          await fetchHTML(
+            wrapperHTML()
+          );
 
-      const okCoreCss = await loadCSSOnce(CORE_CSS);
-      if (!okCoreCss) console.warn("[ticker-loader] core CSS failed:", CORE_CSS);
+        // Mount itself could have been replaced while fetching.
+        const currentMount =
+          getMount();
 
-      // 2) wrapper HTML (slots)
-      const html = await fetchHTML(WRAP_HTML);
-      injectHTML(mount, html);
+        if (!currentMount) {
+          return;
+        }
 
-      // 3) hud-state first (so hide/unhide is correct)
-      const okHud = await loadJSOnce(HUD_STATE);
-      if (!okHud) console.warn("[ticker-loader] hud-state failed:", HUD_STATE);
+        if (!hasWrapper(currentMount)) {
+          injectHTML(
+            currentMount,
+            html
+          );
+        }
+      }
 
-      // 4) core orchestrator (manifest mounts widgets, boots them)
-      const okCore = await loadJSOnce(CORE_JS);
-      if (!okCore) console.warn("[ticker-loader] widget-core failed:", CORE_JS);
+      // CRITICAL:
+      // Existing wrapper does NOT mean scripts are healthy.
+      // Always ensure hud-state and widget-core.
+      await ensureScripts();
 
-      // 5) kick core if it exposes boot (safe)
-      try { W.ZZXWidgetsCore?.boot?.(); } catch (_) {}
+      // Explicit core kick remains idempotent.
+      try {
+        if (
+          W.ZZXWidgetsCore &&
+          typeof W.ZZXWidgetsCore.boot ===
+            "function"
+        ) {
+          await W.ZZXWidgetsCore.boot();
+        }
+      } catch (err) {
+        console.error(
+          "[ticker-loader] widget-core boot failed:",
+          err
+        );
+      }
 
-    } catch (e) {
-      console.error("[ZZX ticker-loader] fatal:", e);
+    } catch (err) {
+      console.error(
+        "[ZZX ticker-loader] fatal:",
+        err
+      );
+
     } finally {
-      __booting = false;
+      booting = false;
+
+      if (bootAgain) {
+        bootAgain = false;
+
+        W.setTimeout(
+          bootOnceForCurrentMount,
+          0
+        );
+      }
     }
   }
 
-  // Initial boot
+
+  // ===========================================================================
+  // INITIAL BOOT
+  // ===========================================================================
+
   bootOnceForCurrentMount();
 
-  // Observe for late reinjection of #ticker-container or its contents being replaced
+
+  // ===========================================================================
+  // PARTIAL READY EVENTS
+  // ===========================================================================
+
+  // These remain useful even after the initial timeout path.
+  W.addEventListener(
+    "zzx:partials:ready",
+    () => {
+      getPrefix();
+      bootOnceForCurrentMount();
+    }
+  );
+
+  W.addEventListener(
+    "zzx:partials-ready",
+    () => {
+      getPrefix();
+      bootOnceForCurrentMount();
+    }
+  );
+
+
+  // ===========================================================================
+  // REMOUNT OBSERVER
+  // ===========================================================================
+
   try {
-    const mo = new MutationObserver(() => {
-      const mount = D.getElementById("ticker-container");
-      if (mount && needsMount(mount)) bootOnceForCurrentMount();
-    });
-    mo.observe(D.documentElement, { childList: true, subtree: true });
-    D.__zzxTickerLoaderObserver = mo;
+    const observer =
+      new MutationObserver(() => {
+        const mount = getMount();
+
+        if (!mount) return;
+
+        // Wrapper was destroyed/replaced.
+        if (!hasWrapper(mount)) {
+          bootOnceForCurrentMount();
+          return;
+        }
+
+        // Wrapper exists but core may have been removed/failed.
+        if (
+          !W.ZZXWidgetsCore ||
+          typeof W.ZZXWidgetsCore.boot !==
+            "function"
+        ) {
+          bootOnceForCurrentMount();
+        }
+      });
+
+    observer.observe(
+      D.documentElement,
+      {
+        childList: true,
+        subtree: true
+      }
+    );
+
+    D.__zzxTickerLoaderObserver =
+      observer;
+
   } catch (_) {}
 })();
