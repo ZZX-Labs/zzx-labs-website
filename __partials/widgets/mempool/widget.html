@@ -1,0 +1,70 @@
+<!-- __partials/widgets/mempool/widget.html -->
+<div class="btc-card mempool">
+  <div class="mempool__header">
+    <div>
+      <div class="btc-card__title">Mempool</div>
+      <div class="mempool__eyebrow">transaction backlog · virtual size · fee pressure</div>
+    </div>
+    <span
+      class="btc-card__status"
+      data-mp-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
+  </div>
+
+  <div class="mempool__hero">
+    <span>virtual backlog</span>
+    <strong><span data-mp-vmb>—</span> vMB</strong>
+    <small data-mp-sub>loading mempool state…</small>
+  </div>
+
+  <div class="mempool__metrics">
+    <div><span>transactions</span><strong data-mp-tx>—</strong></div>
+    <div><span>block equivalents</span><strong data-mp-blocks>—</strong></div>
+    <div><span>total fees</span><strong data-mp-fees-btc>—</strong></div>
+    <div><span>fees value</span><strong data-mp-fees-usd>—</strong></div>
+  </div>
+
+  <div class="mempool__metrics mempool__metrics--secondary">
+    <div><span>mean fee density</span><strong data-mp-mean-rate>—</strong></div>
+    <div><span>median fee density</span><strong data-mp-median-rate>—</strong></div>
+    <div><span>avg virtual TX size</span><strong data-mp-avg-tx>—</strong></div>
+    <div><span>backlog ≥ 10 sat/vB</span><strong data-mp-ge10>—</strong></div>
+  </div>
+
+  <div class="mempool__pressure">
+    <div class="mempool__pressure-head">
+      <span>fee-pressure histogram</span>
+      <span data-mp-hist-note>mempool vbytes by fee rate</span>
+    </div>
+    <canvas
+      data-mp-canvas
+      aria-label="Mempool fee-rate histogram"
+    ></canvas>
+  </div>
+
+  <div class="mempool__details">
+    <div class="mempool__row">
+      <span>backlog condition</span>
+      <strong data-mp-condition>—</strong>
+    </div>
+    <div class="mempool__row">
+      <span>theoretical clear time</span>
+      <strong data-mp-clear>—</strong>
+    </div>
+    <div class="mempool__row">
+      <span>fast recommendation</span>
+      <strong data-mp-fast-fee>—</strong>
+    </div>
+    <div class="mempool__row">
+      <span>source</span>
+      <strong data-mp-source>—</strong>
+    </div>
+  </div>
+
+  <div class="mempool__footer">
+    <span data-mp-meta>virtual-size metrics only · no physical-byte-size substitution</span>
+    <button type="button" class="zzx-widgets__btn" data-mp-refresh>Refresh</button>
+  </div>
+</div>
