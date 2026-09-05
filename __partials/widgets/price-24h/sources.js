@@ -1,119 +1,166 @@
-// __partials/widgets/price-24h/sources.js
-// Candle sources + normalizers (BTC/USD only where possible)
-// NOTE: Binance removed per request.
+// __partials/widgets/price-24h/js/sources.js
+// Exchange definitions + candle normalizers.
+// Registers window.ZZXPrice24Sources.
 
 (function () {
   "use strict";
 
-  const NS = (window.ZZXPriceSources = window.ZZXPriceSources || {});
+  const W = window;
 
-  // Normalized candle format: [{ t, o, h, l, c, v }] ascending by time
+  if (W.ZZXPrice24Sources?.__version >= 1) return;
 
-  NS.list = function listSources() {
-    return [
-      {
-        id: "coinbase",
-        label: "Coinbase Exchange",
-        kind: "candles",
-        url: "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=3600",
-        normalize(json) {
-          const arr = Array.isArray(json) ? json : [];
-          const out = arr.map(r => ({
-            t: Number(r?.[0]) * 1000,
-            l: Number(r?.[1]),
-            h: Number(r?.[2]),
-            o: Number(r?.[3]),
-            c: Number(r?.[4]),
-            v: Number(r?.[5]),
-          })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.c));
-          out.sort((a,b)=>a.t-b.t);
-          return out;
-        }
-      },
+  function number(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : NaN;
+  }
 
-      {
-        id: "kraken",
-        label: "Kraken",
-        kind: "candles",
-        url: "https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=60",
-        normalize(json) {
-          const res = json?.result || {};
-          const key = Object.keys(res).find(k => Array.isArray(res[k])) || null;
-          const rows = key ? res[key] : [];
-          const out = (Array.isArray(rows) ? rows : []).map(r => ({
-            t: Number(r?.[0]) * 1000,
-            o: Number(r?.[1]),
-            h: Number(r?.[2]),
-            l: Number(r?.[3]),
-            c: Number(r?.[4]),
-            v: Number(r?.[6]),
-          })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.c));
-          out.sort((a,b)=>a.t-b.t);
-          return out;
-        }
-      },
+  function normalizeCandles(rows) {
+    const seen = new Map();
 
-      {
-        id: "bitstamp",
-        label: "Bitstamp",
-        kind: "candles",
-        url: "https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=3600&limit=24",
-        normalize(json) {
-          const rows = json?.data?.ohlc;
-          const out = (Array.isArray(rows) ? rows : []).map(r => ({
-            t: Number(r?.timestamp) * 1000,
-            o: Number(r?.open),
-            h: Number(r?.high),
-            l: Number(r?.low),
-            c: Number(r?.close),
-            v: Number(r?.volume),
-          })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.c));
-          out.sort((a,b)=>a.t-b.t);
-          return out;
-        }
-      },
+    for (const raw of Array.isArray(rows) ? rows : []) {
+      if (!raw) continue;
 
-      {
-        id: "gemini",
-        label: "Gemini",
-        kind: "candles",
-        url: "https://api.gemini.com/v2/candles/btcusd/1hr?limit=24",
-        normalize(json) {
-          const rows = Array.isArray(json) ? json : [];
-          const out = rows.map(r => ({
-            t: Number(r?.[0]),
-            o: Number(r?.[1]),
-            h: Number(r?.[2]),
-            l: Number(r?.[3]),
-            c: Number(r?.[4]),
-            v: Number(r?.[5]),
-          })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.c));
-          out.sort((a,b)=>a.t-b.t);
-          return out;
-        }
-      },
+      const candle = {
+        t: number(raw.t),
+        o: number(raw.o),
+        h: number(raw.h),
+        l: number(raw.l),
+        c: number(raw.c),
+        v: number(raw.v)
+      };
 
-      // Bitfinex: BTCUSD 1h candles
-      {
-        id: "bitfinex",
-        label: "Bitfinex",
-        kind: "candles",
-        url: "https://api-pub.bitfinex.com/v2/candles/trade:1h:tBTCUSD/hist?limit=24",
-        // rows: [MTS, OPEN, CLOSE, HIGH, LOW, VOLUME] desc
-        normalize(json) {
-          const rows = Array.isArray(json) ? json : [];
-          const out = rows.map(r => ({
-            t: Number(r?.[0]),
-            o: Number(r?.[1]),
-            c: Number(r?.[2]),
-            h: Number(r?.[3]),
-            l: Number(r?.[4]),
-            v: Number(r?.[5]),
-          })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.c));
-          out.sort((a,b)=>a.t-b.t);
-          return out;
-        }
-      },
-    ];
+      if (
+        !Number.isFinite(candle.t) ||
+        !Number.isFinite(candle.o) ||
+        !Number.isFinite(candle.h) ||
+        !Number.isFinite(candle.l) ||
+        !Number.isFinite(candle.c)
+      ) {
+        continue;
+      }
+
+      seen.set(candle.t, candle);
+    }
+
+    return [...seen.values()].sort((a, b) => a.t - b.t);
+  }
+
+  function trim24h(candles) {
+    const clean = normalizeCandles(candles);
+    if (!clean.length) return [];
+
+    const lastTs = clean[clean.length - 1].t;
+    const cutoff = lastTs - 24 * 60 * 60 * 1000;
+
+    const windowed = clean.filter(c => c.t >= cutoff);
+
+    // Hourly endpoints can yield 25 points when both boundaries are present.
+    return windowed.length > 25 ? windowed.slice(-25) : windowed;
+  }
+
+  const sources = [
+    {
+      id: "coinbase",
+      label: "Coinbase Exchange",
+      url: "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=3600",
+      normalize(payload) {
+        return trim24h((Array.isArray(payload) ? payload : []).map(row => ({
+          t: number(row?.[0]) * 1000,
+          l: row?.[1],
+          h: row?.[2],
+          o: row?.[3],
+          c: row?.[4],
+          v: row?.[5]
+        })));
+      }
+    },
+
+    {
+      id: "kraken",
+      label: "Kraken",
+      url: "https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=60",
+      normalize(payload) {
+        const result = payload?.result || {};
+        const key = Object.keys(result).find(
+          k => k !== "last" && Array.isArray(result[k])
+        );
+
+        const rows = key ? result[key] : [];
+
+        return trim24h(rows.map(row => ({
+          t: number(row?.[0]) * 1000,
+          o: row?.[1],
+          h: row?.[2],
+          l: row?.[3],
+          c: row?.[4],
+          v: row?.[6]
+        })));
+      }
+    },
+
+    {
+      id: "bitstamp",
+      label: "Bitstamp",
+      url: "https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=3600&limit=48",
+      normalize(payload) {
+        const rows = payload?.data?.ohlc;
+
+        return trim24h((Array.isArray(rows) ? rows : []).map(row => ({
+          t: number(row?.timestamp) * 1000,
+          o: row?.open,
+          h: row?.high,
+          l: row?.low,
+          c: row?.close,
+          v: row?.volume
+        })));
+      }
+    },
+
+    {
+      id: "gemini",
+      label: "Gemini",
+      url: "https://api.gemini.com/v2/candles/btcusd/1hr",
+      normalize(payload) {
+        return trim24h((Array.isArray(payload) ? payload : []).map(row => ({
+          t: row?.[0],
+          o: row?.[1],
+          h: row?.[2],
+          l: row?.[3],
+          c: row?.[4],
+          v: row?.[5]
+        })));
+      }
+    },
+
+    {
+      id: "bitfinex",
+      label: "Bitfinex",
+      url: "https://api-pub.bitfinex.com/v2/candles/trade:1h:tBTCUSD/hist?limit=48&sort=1",
+      normalize(payload) {
+        return trim24h((Array.isArray(payload) ? payload : []).map(row => ({
+          t: row?.[0],
+          o: row?.[1],
+          c: row?.[2],
+          h: row?.[3],
+          l: row?.[4],
+          v: row?.[5]
+        })));
+      }
+    }
+  ];
+
+  W.ZZXPrice24Sources = {
+    __version: 1,
+
+    list() {
+      return sources.slice();
+    },
+
+    get(id) {
+      return sources.find(source => source.id === id) || null;
+    },
+
+    normalizeCandles,
+    trim24h
   };
 })();
