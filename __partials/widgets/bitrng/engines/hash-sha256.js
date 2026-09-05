@@ -2,8 +2,11 @@
 "use strict";
 
 async function sha256(bytes) {
-  const hash = await crypto.subtle.digest("SHA-256", bytes);
-  return new Uint8Array(hash);
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("Web Crypto digest API unavailable");
+  }
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return new Uint8Array(digest);
 }
 
 export const engineHashSHA256 = {
@@ -12,12 +15,8 @@ export const engineHashSHA256 = {
   modes: ["single", "double"],
 
   async run({ mode, entropyBytes }) {
-    const m = String(mode || "single");
-    if (m === "double") {
-      const a = await sha256(entropyBytes);
-      const b = await sha256(a);
-      return b; // Uint8Array
-    }
-    return await sha256(entropyBytes);
+    const first = await sha256(entropyBytes);
+    if (String(mode) === "double") return await sha256(first);
+    return first;
   }
 };
