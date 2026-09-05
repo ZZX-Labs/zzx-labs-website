@@ -1,44 +1,187 @@
-// __partials/widgets/volume-24h/chart.js
-// DROP-IN (module)
-// Exports: window.ZZXChartVolume.drawVolume24(canvas, candles, isUp)
+// __partials/widgets/volume-24h/js/chart.js
+// DPR-aware 24h volume bars with a faint normalized price guide.
+// Registers window.ZZXVolume24Chart.
 
 (function () {
   "use strict";
 
   const W = window;
 
-  function sizeCanvas(canvas) {
-    const dpr = W.devicePixelRatio || 1;
-    const cssW = Math.max(1, Math.floor(canvas.clientWidth || 300));
-    const cssH = Math.max(1, Math.floor(canvas.clientHeight || 92));
-    const rw = Math.floor(cssW * dpr);
-    const rh = Math.floor(cssH * dpr);
-    if (canvas.width !== rw) canvas.width = rw;
-    if (canvas.height !== rh) canvas.height = rh;
+  if (W.ZZXVolume24Chart?.__version >= 1) return;
+
+  function number(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : NaN;
   }
 
-  function drawVolume24(canvas, candles, isUp) {
+  function sizeCanvas(canvas) {
+    const dpr = Math.max(1, number(W.devicePixelRatio) || 1);
+    const cssWidth = Math.max(1, Math.floor(canvas.clientWidth || 320));
+    const cssHeight = Math.max(1, Math.floor(canvas.clientHeight || 112));
+
+    const width = Math.max(1, Math.floor(cssWidth * dpr));
+    const height = Math.max(1, Math.floor(cssHeight * dpr));
+
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+
+    return { width, height, dpr };
+  }
+
+  function clear(canvas) {
     if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     sizeCanvas(canvas);
-
-    const theme = W.ZZXTheme?.widgets?.volume24 || {};
-    const opts = {
-      bg: theme.bg || "#000",
-      bgAlpha: Number.isFinite(theme.bgAlpha) ? theme.bgAlpha : 0.25,
-      grid: theme.grid || "rgba(255,255,255,0.06)",
-      bar: isUp ? (theme.upBar || "rgba(106,169,42,0.75)") : (theme.downBar || "rgba(224,88,88,0.65)"),
-      priceLine: true,
-      priceStroke: theme.priceStroke || "rgba(230,164,43,0.55)",
-      border: theme.border || "rgba(255,255,255,0.06)",
-      pad: Number.isFinite(theme.pad) ? theme.pad : 10,
-    };
-
-    W.ZZXPlotterVolume?.drawVolume?.(ctx, candles, opts);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
-  W.ZZXChartVolume = W.ZZXChartVolume || {};
-  W.ZZXChartVolume.drawVolume24 = drawVolume24;
+  function draw(canvas, candles) {
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const series = (Array.isArray(candles) ? candles : [])
+      .filter(candle =>
+        Number.isFinite(number(candle?.v)) &&
+        Number.isFinite(number(candle?.c))
+      );
+
+    const { width: w, height: h, dpr } = sizeCanvas(canvas);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, w, h);
+
+    if (!series.length) return;
+
+    const padX = 8 * dpr;
+    const padY = 8 * dpr;
+    const innerW = Math.max(1, w - padX * 2);
+    const innerH = Math.max(1, h - padY * 2);
+
+    const volumes = series.map(candle => Math.max(0, number(candle.v)));
+    const maxVolume = Math.max(...volumes, 1);
+
+    // Grid.
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,.055)";
+    ctx.lineWidth = Math.max(1, dpr);
+
+    for (let i = 1; i < 4; i++) {
+      const y = (h / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    for (let i = 1; i < 6; i++) {
+      const x = (w / 6) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Volume bars.
+    const step = innerW / Math.max(1, series.length);
+    const barWidth = Math.max(1.5 * dpr, step * 0.62);
+
+    series.forEach((candle, index) => {
+      const volume = Math.max(0, number(candle.v));
+      const ratio = Math.min(1, volume / maxVolume);
+      const barHeight = ratio * innerH;
+
+      const x = padX + index * step + (step - barWidth) / 2;
+      const y = padY + innerH - barHeight;
+
+      const open = number(candle.o);
+      const close = number(candle.c);
+
+      ctx.fillStyle =
+        close < open
+          ? "rgba(214,116,116,.72)"
+          : "rgba(192,214,116,.72)";
+
+      ctx.fillRect(
+        Math.floor(x),
+        Math.floor(y),
+        Math.ceil(barWidth),
+        Math.max(1, Math.ceil(barHeight))
+      );
+    });
+
+    // Faint price guide, independently normalized.
+    if (series.length >= 2) {
+      const closes = series.map(candle => number(candle.c));
+      let minClose = Math.min(...closes);
+      let maxClose = Math.max(...closes);
+
+      if (maxClose === minClose) {
+        maxClose += 1;
+        minClose -= 1;
+      }
+
+      const closeSpan = maxClose - minClose;
+
+      ctx.beginPath();
+
+      closes.forEach((close, index) => {
+        const x =
+          padX +
+          index * step +
+          step / 2;
+
+        const y =
+          padY +
+          (1 - ((close - minClose) / closeSpan)) *
+          innerH;
+
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.strokeStyle = "rgba(230,164,43,.52)";
+      ctx.lineWidth = Math.max(1.1 * dpr, 1);
+      ctx.stroke();
+    }
+
+    // Peak marker.
+    const peakIndex = volumes.indexOf(maxVolume);
+
+    if (peakIndex >= 0) {
+      const x =
+        padX +
+        peakIndex * step +
+        step / 2;
+
+      const y = padY + 3 * dpr;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 2.4 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = "#e6a42b";
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.07)";
+    ctx.lineWidth = Math.max(1, dpr);
+    ctx.strokeRect(
+      0.5 * dpr,
+      0.5 * dpr,
+      w - dpr,
+      h - dpr
+    );
+  }
+
+  W.ZZXVolume24Chart = {
+    __version: 1,
+    draw,
+    clear,
+    sizeCanvas
+  };
 })();
