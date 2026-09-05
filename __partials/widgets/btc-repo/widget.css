@@ -1,0 +1,254 @@
+/* __partials/widgets/btc-repo/widget.css */
+
+.btc-repo{
+  --repo-green:var(--zzx-accent,#c0d674);
+  --repo-gold:var(--zzx-accent-alt,#e6a42b);
+  --repo-red:var(--zzx-error,#d67474);
+  --repo-muted:var(--zzx-muted,#b7bf9a);
+  --repo-dim:var(--zzx-dim,#777);
+  --repo-line:rgba(255,255,255,.09);
+  --repo-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.btc-repo__header,
+.btc-repo__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.btc-repo__header{align-items:flex-start}
+
+.btc-repo__eyebrow,
+.btc-repo__hero > span,
+.btc-repo__controls label > span,
+.btc-repo__metrics span,
+.btc-repo__release > span{
+  color:var(--repo-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.btc-repo__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--repo-line);
+  border-bottom:1px solid var(--repo-line);
+}
+
+.btc-repo__hero strong{
+  min-width:0;
+  color:var(--repo-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.2rem;
+  line-height:1.05;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-repo__hero small{
+  color:var(--repo-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-repo__controls{
+  display:flex;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.btc-repo__controls label{
+  display:grid;
+  gap:.15rem;
+  flex:1 1 210px;
+  min-width:0;
+}
+
+.btc-repo__controls select{
+  width:100%;
+  min-width:0;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--repo-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.btc-repo__controls select:focus{border-color:var(--repo-gold)}
+
+.btc-repo__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.btc-repo__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--repo-line);
+  border-radius:6px;
+  background:var(--repo-panel);
+}
+
+.btc-repo__metrics span,
+.btc-repo__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-repo__metrics strong{
+  margin-top:.1rem;
+  color:var(--repo-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.btc-repo__release{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:.55rem;
+  align-items:center;
+  margin-top:.5rem;
+  padding:.38rem .42rem;
+  border:1px solid var(--repo-line);
+  border-radius:6px;
+  background:var(--repo-panel);
+}
+
+.btc-repo__release a{
+  min-width:0;
+  color:var(--repo-gold);
+  font-size:.68rem;
+  text-decoration:none;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-repo__list{
+  display:grid;
+  gap:.3rem;
+  margin-top:.5rem;
+}
+
+.btc-repo__item{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:.4rem;
+  align-items:start;
+  min-width:0;
+  padding:.36rem .4rem;
+  border:1px solid var(--repo-line);
+  border-radius:6px;
+  background:var(--repo-panel);
+}
+
+.btc-repo__sha{
+  color:var(--repo-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.6rem;
+}
+
+.btc-repo__item-main{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+
+.btc-repo__item-main a{
+  min-width:0;
+  color:var(--repo-green);
+  font-size:.68rem;
+  text-decoration:none;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-repo__item-main a:hover{
+  color:var(--repo-gold);
+  text-decoration:underline;
+}
+
+.btc-repo__item-main small,
+.btc-repo__item time{
+  color:var(--repo-dim);
+  font-size:.61rem;
+}
+
+.btc-repo__item-main small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-repo__item time{white-space:nowrap}
+
+.btc-repo__empty{
+  padding:.7rem;
+  border:1px dashed var(--repo-line);
+  border-radius:6px;
+  color:var(--repo-dim);
+  font-size:.68rem;
+  text-align:center;
+}
+
+.btc-repo__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--repo-line);
+  color:var(--repo-muted);
+  font-size:.67rem;
+}
+
+.btc-repo__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .btc-repo__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:460px){
+  .btc-repo__controls{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .btc-repo__metrics{
+    grid-template-columns:1fr;
+  }
+
+  .btc-repo__item{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+
+  .btc-repo__item time{grid-column:2}
+}
