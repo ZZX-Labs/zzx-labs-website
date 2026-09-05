@@ -1,317 +1,1514 @@
-// /partials-loader.js
-// ZZX Partials Loader — works from any depth, no server rewrites needed.
-// FRAME-FIRST ORDER (required):
-//   1) header + nav (composed)
+// /static/js/modules/partials-loader.js
+// ZZX Partials Loader
+// DEPTH-SAFE + FRAME-FIRST + HUD-SAFE + RETRY-SAFE
+//
+// FRAME-FIRST ORDER:
+//   1) header + nav
 //   2) footer
-//   3) credits controller loaded AFTER footer (binds to #footer-credits-btn)
-//   4) runtime loaded last
-//   5) emit events so widget-core/HUD can safely start AFTER the frame exists
+//   3) credits controller
+//   4) runtime LAST
+//   5) readiness events
+//   6) legacy ticker fallback ONLY if canonical HUD did not claim the mount
 //
-// Events:
-//   - "zzx:frame:ready"    after header/nav/footer + credits controller are ready
-//   - "zzx:partials:ready" after runtime is injected
+// PUBLIC EVENTS:
+//   zzx:frame:ready
+//   zzx:frame-ready
+//   zzx:partials:ready
+//   zzx:partials-ready
 //
-// IMPORTANT (per your requirements):
-// - DOES NOT inject any credits link, panel, host, toggle, or image icon.
-// - DOES NOT touch header/nav/ticker/footer markup besides injecting the partial HTML.
-// - Credits are handled ONLY by __partials/credits/credits.js bound to #footer-credits-btn (ⓘ Credits).
+// IMPORTANT:
+// - Does NOT remove any existing widget.
+// - Does NOT replace clock-drift, tip-drift, drift, runtime, etc.
+// - Does NOT inject credits UI.
+// - Does NOT load runtime.js directly.
+// - Does NOT let "." or "./" escape into window.ZZX.PREFIX.
+// - Preserves legacy /bitcoin/ticker/ as fallback only.
+// - Canonical ticker-loader/widget-core always wins.
 
 (function () {
-  const PARTIALS_DIR = "__partials";
+  "use strict";
 
+  const W = window;
+  const D = document;
+
+  if (W.__ZZX_PARTIALS_LOADER_BOOTED) return;
+  W.__ZZX_PARTIALS_LOADER_BOOTED = true;
+
+  const PARTIALS_DIR = "__partials";
+  const PREFIX_KEY = "zzx.partials.prefix";
+
+  /*
+    IMPORTANT:
+
+    "" replaces the historical "." candidate.
+
+    That means:
+
+      ""      current directory
+      ".."    one directory up
+      "../.." two directories up
+      ...
+      "/"     actual domain root
+
+    "." and "./" are accepted from old sessionStorage values,
+    but normalized to "" before publication.
+  */
   const PATHS = [
-    ".", "..", "../..", "../../..",
-    "../../../..", "../../../../..", "../../../../../..", "../../../../../../..",
-    "/" // final attempt: site root (only works if hosted at domain root)
+    "",
+    "..",
+    "../..",
+    "../../..",
+    "../../../..",
+    "../../../../..",
+    "../../../../../..",
+    "../../../../../../..",
+    "/"
   ];
 
-  // ---------------------------------------------------------------------------
-  // Probe + prefix
-  // ---------------------------------------------------------------------------
+
+  // ===========================================================================
+  // PREFIX NORMALIZATION
+  // ===========================================================================
+
+  function normalizeProbePrefix(value) {
+    let p = String(value || "").trim();
+
+    if (
+      p === "." ||
+      p === "./"
+    ) {
+      p = "";
+    }
+
+    if (p === "/") {
+      return "/";
+    }
+
+    return p.replace(/\/+$/g, "");
+  }
+
+
+  /*
+    Public ZZX prefix contract.
+
+    "/" means the site was found at actual domain root.
+
+    Other modules work with root-relative URLs when PREFIX is "",
+    so publish "" for that case.
+
+    Relative depth prefixes such as "../.." remain intact.
+  */
+  function publicPrefix(probePrefix) {
+    const p =
+      normalizeProbePrefix(probePrefix);
+
+    if (
+      p === "" ||
+      p === "/"
+    ) {
+      return "";
+    }
+
+    return p;
+  }
+
+
+  // ===========================================================================
+  // STORAGE
+  // ===========================================================================
+
+  function sessionGet(key) {
+    try {
+      return W.sessionStorage.getItem(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+
+  function sessionSet(key, value) {
+    try {
+      W.sessionStorage.setItem(
+        key,
+        value
+      );
+    } catch (_) {}
+  }
+
+
+  function sessionDel(key) {
+    try {
+      W.sessionStorage.removeItem(key);
+    } catch (_) {}
+  }
+
+
+  // ===========================================================================
+  // PATH JOIN
+  // ===========================================================================
+
+  /*
+    Do not use a generic Array.join("/") here.
+
+    The historical implementation could turn a "/" prefix into
+    a malformed "//__partials/..." URL.
+
+    This helper deliberately understands the prefix position.
+  */
+  function joinPrefix(prefix, ...parts) {
+    const p =
+      normalizeProbePrefix(prefix);
+
+    const tail = parts
+      .filter(
+        part =>
+          part !== null &&
+          part !== undefined &&
+          String(part) !== ""
+      )
+      .map(
+        part =>
+          String(part)
+            .replace(/^\/+/g, "")
+            .replace(/\/+$/g, "")
+      )
+      .filter(Boolean)
+      .join("/");
+
+    if (p === "/") {
+      return "/" + tail;
+    }
+
+    if (!p) {
+      return tail;
+    }
+
+    if (!tail) {
+      return p;
+    }
+
+    return (
+      p.replace(/\/+$/g, "") +
+      "/" +
+      tail
+    );
+  }
+
+
+  // ===========================================================================
+  // PROBE
+  // ===========================================================================
+
   async function probe(url) {
     try {
-      const r = await fetch(url, { method: "GET", cache: "no-store" });
-      return r.ok;
+      const response =
+        await fetch(
+          url,
+          {
+            method: "GET",
+            cache: "no-store"
+          }
+        );
+
+      return response.ok;
     } catch (_) {
       return false;
     }
   }
 
+
   async function validateOrRecomputePrefix(cached) {
-    if (cached) {
-      const ok = await probe(join(cached, PARTIALS_DIR, "header/header.html"));
-      if (ok) return cached;
-      sessionStorage.removeItem("zzx.partials.prefix");
+    if (cached !== null) {
+      const normalized =
+        normalizeProbePrefix(cached);
+
+      const testURL =
+        joinPrefix(
+          normalized,
+          PARTIALS_DIR,
+          "header/header.html"
+        );
+
+      if (await probe(testURL)) {
+        sessionSet(
+          PREFIX_KEY,
+          normalized
+        );
+
+        return normalized;
+      }
+
+      sessionDel(PREFIX_KEY);
     }
 
-    for (const p of PATHS) {
-      const url = join(p, PARTIALS_DIR, "header/header.html");
-      if (await probe(url)) {
-        sessionStorage.setItem("zzx.partials.prefix", p);
+    for (const candidate of PATHS) {
+      const p =
+        normalizeProbePrefix(candidate);
+
+      const testURL =
+        joinPrefix(
+          p,
+          PARTIALS_DIR,
+          "header/header.html"
+        );
+
+      if (await probe(testURL)) {
+        sessionSet(
+          PREFIX_KEY,
+          p
+        );
+
         return p;
       }
     }
 
-    return ".";
+    /*
+      Safe fallback.
+
+      Historical code returned "." here, which is precisely the
+      prefix value the HUD loaders reject.
+
+      Empty prefix represents current-directory resolution.
+    */
+    return "";
   }
+
 
   async function findPrefix() {
-    const cached = sessionStorage.getItem("zzx.partials.prefix");
-    return await validateOrRecomputePrefix(cached);
+    return await validateOrRecomputePrefix(
+      sessionGet(PREFIX_KEY)
+    );
   }
 
-  function join(...segs) {
-    return segs
-      .filter(Boolean)
-      .map((s, i) => {
-        if (i === 0) return s === "/" ? "/" : s.replace(/\/+$/, "");
-        return s.replace(/^\/+/, "");
-      })
-      .join("/");
-  }
 
-  function absToPrefix(url, prefix) {
-    if (prefix === "/" || !url.startsWith("/")) return url;
-    return prefix.replace(/\/+$/, "") + url;
-  }
+  function publishPrefix(probePrefix) {
+    const p =
+      publicPrefix(probePrefix);
 
-  function rewriteAbsoluteURLs(root, prefix) {
-    if (prefix !== "/") {
-      root.querySelectorAll('[href^="/"]').forEach(a => {
-        const v = a.getAttribute("href");
-        if (v) a.setAttribute("href", absToPrefix(v, prefix));
-      });
-      root.querySelectorAll('[src^="/"]').forEach(el => {
-        const v = el.getAttribute("src");
-        if (v) el.setAttribute("src", absToPrefix(v, prefix));
-      });
-    }
-  }
+    W.ZZX = Object.assign(
+      {},
+      W.ZZX || {},
+      {
+        PREFIX: p
+      }
+    );
 
-  async function loadHTML(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`Failed to fetch ${url}: ${r.status}`);
-    return await r.text();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Compose header + nav
-  // ---------------------------------------------------------------------------
-  function injectNavIntoHeader(headerHTML, navHTML) {
-    const marker = "<!-- navbar Here -->";
-    if (headerHTML.includes(marker)) return headerHTML.replace(marker, navHTML);
-
-    const idx = headerHTML.lastIndexOf("</div>");
-    if (idx !== -1) {
-      return headerHTML.slice(0, idx) + "\n" + navHTML + "\n" + headerHTML.slice(idx);
-    }
-    return headerHTML + "\n" + navHTML;
-  }
-
-  function initNavUX(scope = document) {
-    const toggle = scope.querySelector("#navbar-toggle");
-    const links = scope.querySelector("#navbar-links");
-    const body = document.body;
-
-    if (toggle && links && !toggle.__bound_click) {
-      toggle.__bound_click = true;
-      toggle.addEventListener("click", () => {
-        const isOpen = links.classList.toggle("open");
-        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        links.setAttribute("aria-hidden", isOpen ? "false" : "true");
-        body.classList.toggle("no-scroll", isOpen);
-      });
+    if (D.documentElement) {
+      try {
+        D.documentElement.setAttribute(
+          "data-zzx-prefix",
+          p
+        );
+      } catch (_) {}
     }
 
-    scope.querySelectorAll(".submenu-toggle").forEach(btn => {
-      if (btn.__bound_click) return;
-      btn.__bound_click = true;
-      btn.addEventListener("click", () => {
-        const ul = btn.nextElementSibling;
-        if (ul && ul.classList.contains("submenu")) {
-          ul.classList.toggle("open");
-          btn.classList.toggle("open");
+    return p;
+  }
+
+
+  // ===========================================================================
+  // ABSOLUTE URL REWRITE
+  // ===========================================================================
+
+  function absToPrefix(url, probePrefix) {
+    if (!url) return url;
+
+    const p =
+      normalizeProbePrefix(probePrefix);
+
+    /*
+      If discovery genuinely resolved against domain root,
+      preserve ordinary root-absolute URLs.
+    */
+    if (p === "/") {
+      return url;
+    }
+
+    if (!url.startsWith("/")) {
+      return url;
+    }
+
+    /*
+      Current-directory prefix on the root page.
+
+      Leave root-absolute site URLs alone.
+    */
+    if (!p) {
+      return url;
+    }
+
+    return (
+      p.replace(/\/+$/g, "") +
+      url
+    );
+  }
+
+
+  function rewriteAbsoluteURLs(
+    root,
+    probePrefix
+  ) {
+    if (!root) return;
+
+    root
+      .querySelectorAll('[href^="/"]')
+      .forEach(anchor => {
+        const value =
+          anchor.getAttribute("href");
+
+        if (value) {
+          anchor.setAttribute(
+            "href",
+            absToPrefix(
+              value,
+              probePrefix
+            )
+          );
         }
       });
-    });
+
+    root
+      .querySelectorAll('[src^="/"]')
+      .forEach(element => {
+        const value =
+          element.getAttribute("src");
+
+        if (value) {
+          element.setAttribute(
+            "src",
+            absToPrefix(
+              value,
+              probePrefix
+            )
+          );
+        }
+      });
   }
 
-  function waitForSitewideInit(timeoutMs = 1200, intervalMs = 60) {
+
+  // ===========================================================================
+  // HTML
+  // ===========================================================================
+
+  async function loadHTML(url) {
+    const response =
+      await fetch(
+        url,
+        {
+          cache: "no-store"
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch ${url}: ${response.status}`
+      );
+    }
+
+    return await response.text();
+  }
+
+
+  // ===========================================================================
+  // HEADER + NAV
+  // ===========================================================================
+
+  function injectNavIntoHeader(
+    headerHTML,
+    navHTML
+  ) {
+    const marker =
+      "<!-- navbar Here -->";
+
+    if (headerHTML.includes(marker)) {
+      return headerHTML.replace(
+        marker,
+        navHTML
+      );
+    }
+
+    const index =
+      headerHTML.lastIndexOf(
+        "</div>"
+      );
+
+    if (index !== -1) {
+      return (
+        headerHTML.slice(
+          0,
+          index
+        ) +
+        "\n" +
+        navHTML +
+        "\n" +
+        headerHTML.slice(index)
+      );
+    }
+
+    return (
+      headerHTML +
+      "\n" +
+      navHTML
+    );
+  }
+
+
+  // ===========================================================================
+  // NAV UX FALLBACK
+  // ===========================================================================
+
+  function initNavUX(
+    scope = D
+  ) {
+    const toggle =
+      scope.querySelector(
+        "#navbar-toggle"
+      );
+
+    const links =
+      scope.querySelector(
+        "#navbar-links"
+      );
+
+    const body =
+      D.body;
+
+    if (
+      toggle &&
+      links &&
+      !toggle.__bound_click
+    ) {
+      toggle.__bound_click =
+        true;
+
+      toggle.addEventListener(
+        "click",
+        () => {
+          const isOpen =
+            links.classList.toggle(
+              "open"
+            );
+
+          toggle.setAttribute(
+            "aria-expanded",
+            isOpen
+              ? "true"
+              : "false"
+          );
+
+          links.setAttribute(
+            "aria-hidden",
+            isOpen
+              ? "false"
+              : "true"
+          );
+
+          if (body) {
+            body.classList.toggle(
+              "no-scroll",
+              isOpen
+            );
+          }
+        }
+      );
+    }
+
+    scope
+      .querySelectorAll(
+        ".submenu-toggle"
+      )
+      .forEach(button => {
+        if (
+          button.__bound_click
+        ) {
+          return;
+        }
+
+        button.__bound_click =
+          true;
+
+        button.addEventListener(
+          "click",
+          () => {
+            const list =
+              button.nextElementSibling;
+
+            if (
+              list &&
+              list.classList.contains(
+                "submenu"
+              )
+            ) {
+              list.classList.toggle(
+                "open"
+              );
+
+              button.classList.toggle(
+                "open"
+              );
+            }
+          }
+        );
+      });
+  }
+
+
+  async function waitForSitewideInit(
+    timeoutMs = 1200,
+    intervalMs = 60
+  ) {
     return new Promise(resolve => {
-      const t0 = performance.now();
+      const started =
+        performance.now();
+
       (function poll() {
-        if (window.ZZXSite && typeof window.ZZXSite.initNav === "function") return resolve(true);
-        if (performance.now() - t0 >= timeoutMs) return resolve(false);
-        setTimeout(poll, intervalMs);
+        if (
+          W.ZZXSite &&
+          typeof W.ZZXSite.initNav ===
+            "function"
+        ) {
+          resolve(true);
+          return;
+        }
+
+        if (
+          performance.now() -
+            started >=
+          timeoutMs
+        ) {
+          resolve(false);
+          return;
+        }
+
+        W.setTimeout(
+          poll,
+          intervalMs
+        );
       })();
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Runtime (HUD + widgets) must load LAST
-  // ---------------------------------------------------------------------------
-  async function loadRuntime(prefix) {
+
+  // ===========================================================================
+  // SCRIPT LOADER
+  // ===========================================================================
+
+  function scriptPath(src) {
+    try {
+      return new URL(
+        src,
+        location.href
+      ).pathname;
+    } catch (_) {
+      return String(src || "");
+    }
+  }
+
+
+  function findExistingScript(
+    src,
+    dataAttr
+  ) {
+    if (dataAttr) {
+      const marked =
+        D.querySelector(
+          `script[${dataAttr}="1"]`
+        );
+
+      if (marked) {
+        return marked;
+      }
+    }
+
+    const wantedPath =
+      scriptPath(src);
+
+    for (
+      const script
+      of Array.from(D.scripts)
+    ) {
+      try {
+        if (
+          scriptPath(script.src) ===
+          wantedPath
+        ) {
+          return script;
+        }
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+
+  function loadScriptOnce(
+    src,
+    dataAttr
+  ) {
+    return new Promise(resolve => {
+      const abs =
+        new URL(
+          src,
+          location.href
+        ).href;
+
+      let existing =
+        findExistingScript(
+          abs,
+          dataAttr
+        );
+
+      /*
+        A failed script must not permanently poison dedupe.
+      */
+      if (
+        existing &&
+        existing.dataset.zzxFailed ===
+          "1"
+      ) {
+        try {
+          existing.remove();
+        } catch (_) {}
+
+        existing = null;
+      }
+
+      if (existing) {
+        if (
+          existing.dataset.zzxLoaded ===
+            "1"
+        ) {
+          resolve({
+            ok: true,
+            deduped: true
+          });
+
+          return;
+        }
+
+        let settled = false;
+
+        const finish = result => {
+          if (settled) return;
+          settled = true;
+          resolve(result);
+        };
+
+        existing.addEventListener(
+          "load",
+          () => {
+            existing.dataset.zzxLoaded =
+              "1";
+
+            existing.dataset.zzxFailed =
+              "0";
+
+            finish({
+              ok: true,
+              deduped: true
+            });
+          },
+          {
+            once: true
+          }
+        );
+
+        existing.addEventListener(
+          "error",
+          () => {
+            existing.dataset.zzxFailed =
+              "1";
+
+            finish({
+              ok: false,
+              deduped: true
+            });
+          },
+          {
+            once: true
+          }
+        );
+
+        /*
+          Existing static scripts may already have executed
+          before this controller attached.
+        */
+        W.setTimeout(
+          () => {
+            if (
+              existing.dataset.zzxFailed !==
+              "1"
+            ) {
+              existing.dataset.zzxLoaded =
+                "1";
+
+              finish({
+                ok: true,
+                deduped: true
+              });
+            }
+          },
+          1000
+        );
+
+        return;
+      }
+
+      const script =
+        D.createElement("script");
+
+      script.src = abs;
+      script.defer = true;
+
+      if (dataAttr) {
+        script.setAttribute(
+          dataAttr,
+          "1"
+        );
+      }
+
+      script.addEventListener(
+        "load",
+        () => {
+          script.dataset.zzxLoaded =
+            "1";
+
+          script.dataset.zzxFailed =
+            "0";
+
+          resolve({
+            ok: true
+          });
+        },
+        {
+          once: true
+        }
+      );
+
+      script.addEventListener(
+        "error",
+        () => {
+          script.dataset.zzxFailed =
+            "1";
+
+          resolve({
+            ok: false
+          });
+        },
+        {
+          once: true
+        }
+      );
+
+      (
+        D.head ||
+        D.documentElement
+      ).appendChild(script);
+    });
+  }
+
+
+  // ===========================================================================
+  // RUNTIME
+  // ===========================================================================
+
+  async function loadRuntime(
+    probePrefix
+  ) {
     const candidates = [
-      join(prefix, PARTIALS_DIR, "runtime/runtime.html"),
-      join(prefix, PARTIALS_DIR, "runtime.html"),
-      join(prefix, "runtime.html")
+      joinPrefix(
+        probePrefix,
+        PARTIALS_DIR,
+        "runtime/runtime.html"
+      ),
+
+      joinPrefix(
+        probePrefix,
+        PARTIALS_DIR,
+        "runtime.html"
+      ),
+
+      joinPrefix(
+        probePrefix,
+        "runtime.html"
+      )
     ];
 
-    let runtimeHost = document.getElementById("zzx-runtime");
+    let runtimeHost =
+      D.getElementById(
+        "zzx-runtime"
+      );
+
     if (!runtimeHost) {
-      runtimeHost = document.createElement("div");
-      runtimeHost.id = "zzx-runtime";
-      document.body.appendChild(runtimeHost);
+      runtimeHost =
+        D.createElement("div");
+
+      runtimeHost.id =
+        "zzx-runtime";
+
+      (
+        D.body ||
+        D.documentElement
+      ).appendChild(runtimeHost);
     }
 
     for (const url of candidates) {
       try {
-        const html = await loadHTML(url);
-        const wrap = document.createElement("div");
-        wrap.innerHTML = html;
-        rewriteAbsoluteURLs(wrap, prefix);
-        runtimeHost.replaceChildren(...wrap.childNodes);
-        runtimeHost.setAttribute("data-runtime-source", url);
-        return { ok: true, url };
+        const html =
+          await loadHTML(url);
+
+        const wrap =
+          D.createElement("div");
+
+        wrap.innerHTML =
+          html;
+
+        rewriteAbsoluteURLs(
+          wrap,
+          probePrefix
+        );
+
+        runtimeHost.replaceChildren(
+          ...wrap.childNodes
+        );
+
+        runtimeHost.setAttribute(
+          "data-runtime-source",
+          url
+        );
+
+        return {
+          ok: true,
+          url
+        };
+
       } catch (_) {}
     }
 
-    return { ok: false, reason: "fetch_failed" };
+    return {
+      ok: false,
+      reason: "fetch_failed"
+    };
   }
 
-  // ---------------------------------------------------------------------------
-  // Optional ticker (duplicate-safe)
-  // ---------------------------------------------------------------------------
-  async function maybeLoadTicker(prefix) {
-    if (window.__ZZX_TICKER_LOADED || document.querySelector('script[data-zzx-ticker]')) return;
 
-    const tc = document.getElementById("ticker-container");
-    if (!tc) return;
+  // ===========================================================================
+  // CANONICAL HUD DETECTION
+  // ===========================================================================
 
-    try {
-      const html = await loadHTML(join(prefix, "bitcoin/ticker/ticker.html"));
-      tc.innerHTML = html;
+  function canonicalHUDPresent() {
+    const tickerContainer =
+      D.getElementById(
+        "ticker-container"
+      );
 
-      const s = document.createElement("script");
-      s.src = join(prefix, "bitcoin/ticker/ticker.js") + `?v=${Date.now()}`;
-      s.defer = true;
-      s.setAttribute("data-zzx-ticker", "1");
-      document.body.appendChild(s);
-
-      window.__ZZX_TICKER_LOADED = true;
-      tc.dataset.tickerLoaded = "1";
-    } catch (e) {
-      console.warn("Ticker load failed:", e);
+    if (
+      tickerContainer &&
+      (
+        tickerContainer.querySelector(
+          "[data-hud-root]"
+        ) ||
+        tickerContainer.querySelector(
+          ".btc-rail"
+        )
+      )
+    ) {
+      return true;
     }
+
+    return Boolean(
+      W.__ZZX_TICKER_LOADER_BOOTED ||
+      W.ZZXWidgetsCore ||
+      D.querySelector(
+        'script[data-zzx-ticker-loader="1"]'
+      ) ||
+      D.querySelector(
+        'script[src*="/static/js/modules/ticker-loader.js"]'
+      )
+    );
   }
 
-  // ---------------------------------------------------------------------------
-  // Credits controller loader (AFTER footer)
-  // ---------------------------------------------------------------------------
-  function loadScriptOnce(src, dataAttr) {
-    return new Promise((resolve) => {
-      // De-dupe by marker OR by pathname
-      if (dataAttr && document.querySelector(`script[${dataAttr}="1"]`)) return resolve({ ok: true, deduped: true });
 
-      const abs = new URL(src, location.href).href;
-      const absPath = new URL(abs).pathname;
+  async function waitForCanonicalHUD(
+    timeoutMs = 1800
+  ) {
+    const started =
+      performance.now();
 
-      if ([...document.scripts].some(sc => {
-        try { return new URL(sc.src).pathname === absPath; }
-        catch { return false; }
-      })) return resolve({ ok: true, deduped: true });
+    return await new Promise(resolve => {
+      (function poll() {
+        const container =
+          D.getElementById(
+            "ticker-container"
+          );
 
-      const s = document.createElement("script");
-      s.src = abs;
-      s.defer = true;
-      if (dataAttr) s.setAttribute(dataAttr, "1");
-      s.onload = () => resolve({ ok: true });
-      s.onerror = () => resolve({ ok: false });
-      document.head.appendChild(s);
+        if (
+          container &&
+          (
+            container.querySelector(
+              "[data-hud-root]"
+            ) ||
+            container.querySelector(
+              ".btc-rail"
+            )
+          )
+        ) {
+          resolve(true);
+          return;
+        }
+
+        if (
+          performance.now() -
+            started >=
+          timeoutMs
+        ) {
+          resolve(false);
+          return;
+        }
+
+        W.setTimeout(
+          poll,
+          60
+        );
+      })();
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Boot (STRICT ORDER)
-  // ---------------------------------------------------------------------------
-  async function boot() {
-    const prefix = await findPrefix();
-    window.ZZX = Object.assign({}, window.ZZX || {}, { PREFIX: prefix });
 
-    // Ensure header/footer host nodes exist (frame anchors)
-    let headerHost = document.getElementById("zzx-header");
-    if (!headerHost) {
-      headerHost = document.createElement("div");
-      headerHost.id = "zzx-header";
-      document.body.prepend(headerHost);
+  // ===========================================================================
+  // LEGACY TICKER FALLBACK
+  // ===========================================================================
+
+  async function maybeLoadTickerFallback(
+    probePrefix
+  ) {
+    const tc =
+      D.getElementById(
+        "ticker-container"
+      );
+
+    if (!tc) {
+      return {
+        ok: false,
+        skipped: true,
+        reason: "no_mount"
+      };
     }
 
-    let footerHost = document.getElementById("zzx-footer");
-    if (!footerHost) {
-      footerHost = document.createElement("div");
-      footerHost.id = "zzx-footer";
-      document.body.appendChild(footerHost);
+    /*
+      Canonical HUD already owns the mount.
+    */
+    if (
+      tc.querySelector(
+        "[data-hud-root]"
+      ) ||
+      tc.querySelector(
+        ".btc-rail"
+      )
+    ) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "canonical_hud"
+      };
     }
 
-    // 1) Load header + nav + footer FIRST (strict)
-    const [headerHTML, navHTML, footerHTML] = await Promise.all([
-      loadHTML(join(prefix, PARTIALS_DIR, "header/header.html")),
-      loadHTML(join(prefix, PARTIALS_DIR, "nav/nav.html")),
-      loadHTML(join(prefix, PARTIALS_DIR, "footer/footer.html"))
-    ]);
+    /*
+      If canonical infrastructure exists or is expected,
+      give it time to claim the container.
+    */
+    if (canonicalHUDPresent()) {
+      const claimed =
+        await waitForCanonicalHUD();
 
-    const composedHeader = injectNavIntoHeader(headerHTML, navHTML);
-
-    const headerWrap = document.createElement("div");
-    headerWrap.innerHTML = composedHeader;
-    rewriteAbsoluteURLs(headerWrap, prefix);
-    headerHost.replaceChildren(...headerWrap.childNodes);
-
-    const footerWrap = document.createElement("div");
-    footerWrap.innerHTML = footerHTML;
-    rewriteAbsoluteURLs(footerWrap, prefix);
-    footerHost.replaceChildren(...footerWrap.childNodes);
-
-    // 2) Credits controller AFTER footer exists (binds to #footer-credits-btn)
-    //    IMPORTANT: no panels, no anchors, no injected buttons, no icons here.
-    const creditsSrc = join(prefix, PARTIALS_DIR, "credits/credits.js") + `?v=${Date.now()}`;
-    const creditsLoad = await loadScriptOnce(creditsSrc, "data-zzx-credits");
-
-    // Nav UX (prefer sitewide initializer; fallback if absent)
-    const hasSitewide = await waitForSitewideInit();
-    if (hasSitewide) {
-      window.ZZXSite.initNav(headerHost);
-      if (typeof window.ZZXSite.autoInit === "function") window.ZZXSite.autoInit();
-    } else {
-      initNavUX(headerHost);
-    }
-
-    // Optional ticker can load anytime after header exists (kept here)
-    await maybeLoadTicker(prefix);
-
-    // Signal: frame is stable now (includes credits controller status)
-    window.dispatchEvent(new CustomEvent("zzx:frame:ready", {
-      detail: {
-        prefix,
-        credits: creditsLoad
+      if (claimed) {
+        return {
+          ok: true,
+          skipped: true,
+          reason: "canonical_hud"
+        };
       }
-    }));
+    }
 
-    // 3) Load runtime LAST (HUD + widgets depend on frame)
-    const runtime = await loadRuntime(prefix);
+    /*
+      Another legacy ticker loader may already own this.
+    */
+    if (
+      W.__ZZX_TICKER_LOADED ||
+      tc.dataset.tickerLoaded === "1" ||
+      D.querySelector(
+        'script[data-zzx-ticker="1"]'
+      )
+    ) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "legacy_deduped"
+      };
+    }
 
-    window.dispatchEvent(new CustomEvent("zzx:partials:ready", {
-      detail: { prefix, runtime }
-    }));
+    try {
+      const tickerHTML =
+        joinPrefix(
+          probePrefix,
+          "bitcoin/ticker/ticker.html"
+        );
 
-    // Debug surface
-    window.ZZXPartials = window.ZZXPartials || {};
-    window.ZZXPartials.lastResults = { prefix, credits: creditsLoad, runtime };
+      const tickerJS =
+        joinPrefix(
+          probePrefix,
+          "bitcoin/ticker/ticker.js"
+        );
+
+      const html =
+        await loadHTML(
+          tickerHTML
+        );
+
+      /*
+        Canonical HUD may have claimed the mount while
+        ticker.html was being fetched.
+      */
+      if (
+        tc.querySelector(
+          "[data-hud-root]"
+        ) ||
+        tc.querySelector(
+          ".btc-rail"
+        )
+      ) {
+        return {
+          ok: true,
+          skipped: true,
+          reason: "canonical_claimed_during_fetch"
+        };
+      }
+
+      tc.innerHTML =
+        html;
+
+      const result =
+        await loadScriptOnce(
+          tickerJS,
+          "data-zzx-ticker"
+        );
+
+      if (!result.ok) {
+        throw new Error(
+          "ticker.js failed"
+        );
+      }
+
+      W.__ZZX_TICKER_LOADED =
+        true;
+
+      tc.dataset.tickerLoaded =
+        "1";
+
+      return {
+        ok: true,
+        fallback: true
+      };
+
+    } catch (error) {
+      console.warn(
+        "[partials-loader] legacy ticker fallback failed:",
+        error
+      );
+
+      return {
+        ok: false,
+        reason: "fetch_failed"
+      };
+    }
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => boot().catch(e => console.warn("partials boot failed:", e)));
+
+  // ===========================================================================
+  // EVENTS
+  // ===========================================================================
+
+  function dispatch(
+    name,
+    detail
+  ) {
+    try {
+      W.dispatchEvent(
+        new CustomEvent(
+          name,
+          {
+            detail
+          }
+        )
+      );
+    } catch (_) {}
+  }
+
+
+  function emitFrameReady(
+    detail
+  ) {
+    dispatch(
+      "zzx:frame:ready",
+      detail
+    );
+
+    // Historical compatibility alias.
+    dispatch(
+      "zzx:frame-ready",
+      detail
+    );
+  }
+
+
+  function emitPartialsReady(
+    detail
+  ) {
+    W.__zzx_partials_ready =
+      true;
+
+    dispatch(
+      "zzx:partials:ready",
+      detail
+    );
+
+    /*
+      Several existing HUD files deliberately listen for
+      this historical spelling as well.
+    */
+    dispatch(
+      "zzx:partials-ready",
+      detail
+    );
+  }
+
+
+  // ===========================================================================
+  // HOSTS
+  // ===========================================================================
+
+  function ensureHost(
+    id,
+    placement
+  ) {
+    let host =
+      D.getElementById(id);
+
+    if (host) {
+      return host;
+    }
+
+    host =
+      D.createElement("div");
+
+    host.id =
+      id;
+
+    if (placement === "prepend") {
+      (
+        D.body ||
+        D.documentElement
+      ).prepend(host);
+    } else {
+      (
+        D.body ||
+        D.documentElement
+      ).appendChild(host);
+    }
+
+    return host;
+  }
+
+
+  // ===========================================================================
+  // BOOT
+  // ===========================================================================
+
+  let booting = false;
+
+  async function boot() {
+    if (booting) {
+      return;
+    }
+
+    booting = true;
+
+    try {
+      const probePrefix =
+        await findPrefix();
+
+      const prefix =
+        publishPrefix(
+          probePrefix
+        );
+
+
+      // -----------------------------------------------------------------------
+      // Hosts
+      // -----------------------------------------------------------------------
+
+      const headerHost =
+        ensureHost(
+          "zzx-header",
+          "prepend"
+        );
+
+      const footerHost =
+        ensureHost(
+          "zzx-footer",
+          "append"
+        );
+
+
+      // -----------------------------------------------------------------------
+      // 1) HEADER + NAV + FOOTER
+      // -----------------------------------------------------------------------
+
+      const [
+        headerHTML,
+        navHTML,
+        footerHTML
+      ] = await Promise.all([
+        loadHTML(
+          joinPrefix(
+            probePrefix,
+            PARTIALS_DIR,
+            "header/header.html"
+          )
+        ),
+
+        loadHTML(
+          joinPrefix(
+            probePrefix,
+            PARTIALS_DIR,
+            "nav/nav.html"
+          )
+        ),
+
+        loadHTML(
+          joinPrefix(
+            probePrefix,
+            PARTIALS_DIR,
+            "footer/footer.html"
+          )
+        )
+      ]);
+
+
+      // -----------------------------------------------------------------------
+      // Header + nav composition
+      // -----------------------------------------------------------------------
+
+      const composedHeader =
+        injectNavIntoHeader(
+          headerHTML,
+          navHTML
+        );
+
+      const headerWrap =
+        D.createElement("div");
+
+      headerWrap.innerHTML =
+        composedHeader;
+
+      rewriteAbsoluteURLs(
+        headerWrap,
+        probePrefix
+      );
+
+      headerHost.replaceChildren(
+        ...headerWrap.childNodes
+      );
+
+
+      // -----------------------------------------------------------------------
+      // Footer
+      // -----------------------------------------------------------------------
+
+      const footerWrap =
+        D.createElement("div");
+
+      footerWrap.innerHTML =
+        footerHTML;
+
+      rewriteAbsoluteURLs(
+        footerWrap,
+        probePrefix
+      );
+
+      footerHost.replaceChildren(
+        ...footerWrap.childNodes
+      );
+
+
+      // -----------------------------------------------------------------------
+      // 2) CREDITS CONTROLLER
+      // -----------------------------------------------------------------------
+
+      const creditsSrc =
+        joinPrefix(
+          probePrefix,
+          PARTIALS_DIR,
+          "credits/credits.js"
+        );
+
+      const creditsLoad =
+        await loadScriptOnce(
+          creditsSrc,
+          "data-zzx-credits"
+        );
+
+
+      // -----------------------------------------------------------------------
+      // NAV UX
+      // -----------------------------------------------------------------------
+
+      const hasSitewide =
+        await waitForSitewideInit();
+
+      if (hasSitewide) {
+        try {
+          W.ZZXSite.initNav(
+            headerHost
+          );
+
+          if (
+            typeof W.ZZXSite.autoInit ===
+              "function"
+          ) {
+            W.ZZXSite.autoInit();
+          }
+        } catch (_) {
+          initNavUX(
+            headerHost
+          );
+        }
+
+      } else {
+        initNavUX(
+          headerHost
+        );
+      }
+
+
+      // -----------------------------------------------------------------------
+      // FRAME READY
+      // -----------------------------------------------------------------------
+
+      const frameDetail = {
+        prefix,
+        probePrefix,
+        credits: creditsLoad
+      };
+
+      emitFrameReady(
+        frameDetail
+      );
+
+
+      // -----------------------------------------------------------------------
+      // 3) RUNTIME LAST
+      // -----------------------------------------------------------------------
+
+      const runtime =
+        await loadRuntime(
+          probePrefix
+        );
+
+
+      // -----------------------------------------------------------------------
+      // PARTIALS READY
+      // -----------------------------------------------------------------------
+
+      const partialDetail = {
+        prefix,
+        probePrefix,
+        runtime
+      };
+
+      emitPartialsReady(
+        partialDetail
+      );
+
+
+      // -----------------------------------------------------------------------
+      // 4) LEGACY TICKER FALLBACK
+      //
+      // Canonical ticker-loader has now received partials-ready.
+      // Only use old /bitcoin/ticker/ if canonical mounting fails.
+      // -----------------------------------------------------------------------
+
+      const ticker =
+        await maybeLoadTickerFallback(
+          probePrefix
+        );
+
+
+      // -----------------------------------------------------------------------
+      // DEBUG / STATUS SURFACE
+      // -----------------------------------------------------------------------
+
+      W.ZZXPartials =
+        W.ZZXPartials || {};
+
+      W.ZZXPartials.lastResults = {
+        prefix,
+        probePrefix,
+        credits: creditsLoad,
+        runtime,
+        ticker
+      };
+
+      W.ZZXPartials.prefix =
+        prefix;
+
+      W.ZZXPartials.probePrefix =
+        probePrefix;
+
+      W.ZZXPartials.boot =
+        boot;
+
+    } catch (error) {
+      console.warn(
+        "[partials-loader] boot failed:",
+        error
+      );
+
+    } finally {
+      booting = false;
+    }
+  }
+
+
+  // ===========================================================================
+  // PUBLIC SURFACE
+  // ===========================================================================
+
+  W.ZZXPartials =
+    W.ZZXPartials || {};
+
+  W.ZZXPartials.boot =
+    boot;
+
+
+  // ===========================================================================
+  // START
+  // ===========================================================================
+
+  if (
+    D.readyState === "loading"
+  ) {
+    D.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        boot();
+      },
+      {
+        once: true
+      }
+    );
   } else {
-    boot().catch(e => console.warn("partials boot failed:", e));
+    boot();
   }
+
 })();
