@@ -1,21 +1,26 @@
-/* __partials/widgets/volume-24h/widget.css */
+/* ZZX-Labs matched 24h market widget family
+   Used unchanged by:
+     price-24h
+     volume-24h
+     high-low-24h
+*/
 
-.volume24{
-  --v24-green:var(--zzx-accent,#c0d674);
-  --v24-gold:var(--zzx-accent-alt,#e6a42b);
-  --v24-muted:var(--zzx-muted,#b7bf9a);
-  --v24-dim:var(--zzx-dim,#777);
-  --v24-down:var(--zzx-error,#d67474);
-  --v24-line:rgba(255,255,255,.09);
-  --v24-panel:rgba(255,255,255,.018);
+.market24{
+  --m24-green:var(--zzx-accent,#c0d674);
+  --m24-gold:var(--zzx-accent-alt,#e6a42b);
+  --m24-red:var(--zzx-error,#d67474);
+  --m24-muted:var(--zzx-muted,#b7bf9a);
+  --m24-dim:var(--zzx-dim,#777);
+  --m24-line:rgba(255,255,255,.09);
+  --m24-panel:rgba(255,255,255,.018);
 
   width:100%;
   min-width:0;
 }
 
-.volume24__header,
-.volume24__hero,
-.volume24__footer{
+.market24__header,
+.market24__hero,
+.market24__footer{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -23,36 +28,39 @@
   min-width:0;
 }
 
-.volume24__header{
+.market24__header{
   align-items:flex-start;
   margin-bottom:.48rem;
 }
 
-.volume24__eyebrow,
-.volume24__label,
-.volume24__source > span,
-.volume24__metric > span,
-.volume24__change-label,
-.volume24__note{
-  color:var(--v24-dim);
+.market24__heading{
+  min-width:0;
+}
+
+.market24__eyebrow,
+.market24__label,
+.market24__source > span,
+.market24__metric > span,
+.market24__note{
+  color:var(--m24-dim);
   font-size:.67rem;
   letter-spacing:.055em;
   text-transform:uppercase;
 }
 
-.volume24__source{
-  flex:0 1 175px;
+.market24__source{
+  flex:0 1 180px;
   display:flex;
   align-items:center;
   gap:.35rem;
   min-width:0;
 }
 
-.volume24__source > span{
+.market24__source > span{
   flex:0 0 auto;
 }
 
-.volume24__source select{
+.market24__source select{
   width:100%;
   min-width:0;
   padding:.27rem .42rem;
@@ -60,81 +68,89 @@
   border-radius:6px;
   outline:none;
   background:#080808;
-  color:var(--v24-green);
+  color:var(--m24-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
   font-size:.72rem;
 }
 
-.volume24__source select:hover,
-.volume24__source select:focus{
-  border-color:var(--v24-gold);
+.market24__source select:hover,
+.market24__source select:focus{
+  border-color:var(--m24-gold);
 }
 
-.volume24__hero{
+.market24__hero{
   align-items:flex-end;
   padding:.55rem 0 .58rem;
-  border-top:1px solid var(--v24-line);
-  border-bottom:1px solid var(--v24-line);
+  border-top:1px solid var(--m24-line);
+  border-bottom:1px solid var(--m24-line);
 }
 
-.volume24__volume-wrap{
+.market24__primary,
+.market24__secondary{
   display:grid;
   gap:.08rem;
   min-width:0;
 }
 
-.volume24__volume{
-  color:var(--v24-green);
+.market24__primary{
+  flex:1 1 auto;
+}
+
+.market24__secondary{
+  flex:0 1 46%;
+  text-align:right;
+}
+
+.market24__primary strong,
+.market24__secondary strong{
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:1.45rem;
-  line-height:1;
-  font-weight:500;
   font-variant-numeric:tabular-nums;
+  font-weight:500;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
-.volume24__change{
+.market24__primary strong{
+  color:var(--m24-green);
+  font-size:1.42rem;
+  line-height:1;
+}
+
+.market24__secondary strong{
+  color:var(--m24-muted);
+  font-size:1.02rem;
+}
+
+.market24__secondary[data-market24-tone="up"] strong{
+  color:var(--m24-green);
+}
+
+.market24__secondary[data-market24-tone="down"] strong{
+  color:var(--m24-red);
+}
+
+.market24__secondary[data-market24-tone="gold"] strong{
+  color:var(--m24-gold);
+}
+
+.market24__metrics{
   display:grid;
-  gap:.08rem;
-  min-width:0;
-  text-align:right;
-  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-variant-numeric:tabular-nums;
-}
-
-.volume24__change-pct{
-  color:var(--v24-muted);
-  font-size:1.08rem;
-  font-weight:500;
-}
-
-.volume24__change[data-volume24-tone="up"] .volume24__change-pct{
-  color:var(--v24-green);
-}
-
-.volume24__change[data-volume24-tone="down"] .volume24__change-pct{
-  color:var(--v24-down);
-}
-
-.volume24__metrics{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:.38rem;
   margin-top:.5rem;
 }
 
-.volume24__metric{
+.market24__metric{
   min-width:0;
   padding:.38rem .42rem;
-  border:1px solid var(--v24-line);
+  border:1px solid var(--m24-line);
   border-radius:6px;
-  background:var(--v24-panel);
+  background:var(--m24-panel);
 }
 
-.volume24__metric > span,
-.volume24__metric > strong{
+.market24__metric > span,
+.market24__metric > strong{
   display:block;
   min-width:0;
   white-space:nowrap;
@@ -142,102 +158,184 @@
   text-overflow:ellipsis;
 }
 
-.volume24__metric > span{
+.market24__metric > span{
   margin-bottom:.1rem;
+  color:var(--m24-dim);
+  font-size:.64rem;
+  letter-spacing:.045em;
+  text-transform:uppercase;
 }
 
-.volume24__metric > strong{
-  color:var(--v24-green);
+.market24__metric > strong{
+  color:var(--m24-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.77rem;
+  font-size:.74rem;
   font-weight:500;
   font-variant-numeric:tabular-nums;
 }
 
-.volume24__chart-wrap{
+.market24__metric > strong[data-tone="high"]{
+  color:var(--m24-gold);
+}
+
+.market24__metric > strong[data-tone="low"],
+.market24__metric > strong[data-tone="down"]{
+  color:var(--m24-red);
+}
+
+.market24__metric > strong[data-tone="up"]{
+  color:var(--m24-green);
+}
+
+.market24__chart-wrap{
   width:100%;
-  height:112px;
+  height:118px;
   min-width:0;
   margin-top:.5rem;
   overflow:hidden;
-  border:1px solid var(--v24-line);
+  border:1px solid var(--m24-line);
   border-radius:6px;
   background:#050505;
 }
 
-.volume24__chart{
+.market24__chart{
   display:block;
   width:100%;
   height:100%;
 }
 
-.volume24__footer{
-  margin-top:.48rem;
-  padding-top:.4rem;
-  border-top:1px solid var(--v24-line);
+.market24__legend{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  flex-wrap:wrap;
+  gap:.52rem;
+  margin-top:.32rem;
+  min-width:0;
+  color:var(--m24-muted);
+  font-size:.64rem;
 }
 
-.volume24__source-meta{
+.market24__legend span{
+  display:inline-flex;
+  align-items:center;
+  gap:.23rem;
+  min-width:0;
+}
+
+.market24__legend i{
+  display:inline-block;
+  width:.42rem;
+  height:.42rem;
+  border-radius:50%;
+  background:var(--legend-color,var(--m24-muted));
+}
+
+.market24__legend b{
+  min-width:0;
+  font-weight:400;
+  white-space:nowrap;
+}
+
+.market24__legend span:nth-child(1){
+  --legend-color:var(--m24-green);
+}
+
+.market24__legend span:nth-child(2){
+  --legend-color:var(--m24-red);
+}
+
+.market24__legend span:nth-child(3){
+  --legend-color:var(--m24-gold);
+}
+
+.market24__legend span:nth-child(4){
+  --legend-color:var(--m24-muted);
+}
+
+.market24__footer{
+  margin-top:.46rem;
+  padding-top:.4rem;
+  border-top:1px solid var(--m24-line);
+}
+
+.market24__source-meta{
   display:flex;
   align-items:center;
   gap:.42rem;
   min-width:0;
-  color:var(--v24-muted);
+  color:var(--m24-muted);
   font-size:.68rem;
 }
 
-.volume24__source-meta > span{
+.market24__source-meta > span{
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-.volume24__status{
+.market24__status{
   flex:0 0 auto;
 }
 
-.volume24__note{
+.market24__note{
   margin-top:.4rem;
   text-transform:none;
   letter-spacing:.01em;
   line-height:1.35;
 }
 
+@media(max-width:720px){
+  .market24__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
 @media(max-width:520px){
-  .volume24__header{
+  .market24__header{
     display:grid;
     grid-template-columns:1fr;
   }
 
-  .volume24__source{
+  .market24__source{
     width:100%;
     max-width:none;
     flex-basis:auto;
   }
 
-  .volume24__hero{
+  .market24__hero{
     align-items:flex-start;
     flex-direction:column;
   }
 
-  .volume24__change{
+  .market24__secondary{
     width:100%;
-    grid-template-columns:auto 1fr;
-    align-items:baseline;
+    max-width:100%;
     text-align:left;
   }
 
-  .volume24__metrics{
-    grid-template-columns:1fr;
+  .market24__chart-wrap{
+    height:104px;
   }
 
-  .volume24__chart-wrap{
-    height:100px;
-  }
-
-  .volume24__footer{
+  .market24__footer{
     align-items:flex-start;
     flex-direction:column;
+  }
+}
+
+@media(max-width:360px){
+  .market24__metrics{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .market24 *,
+  .market24 *::before,
+  .market24 *::after{
+    transition:none !important;
+    animation:none !important;
   }
 }
