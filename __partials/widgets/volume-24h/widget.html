@@ -1,31 +1,76 @@
-<!-- __partials/widgets/volume-24h/widget.html
-     DROP-IN REPLACEMENT (24h Volume: BTC + % + USD + exchange selector + chart) -->
+<!-- __partials/widgets/volume-24h/widget.html -->
+<div class="zzx-card volume24">
+  <div class="volume24__header">
+    <div>
+      <div class="zzx-card__title">24h Volume</div>
+      <div class="volume24__eyebrow">BTC / USD · completed hourly candles</div>
+    </div>
 
-<div class="zzx-card vol24" data-widget-root="volume-24h">
-  <div class="zzx-card__title">
-    <span>24h Volume</span>
-
-    <span class="zzx-exchange" aria-label="Exchange selector">
-      <span class="zzx-exchange__label">exchange</span>
-      <select data-exchange aria-label="Select exchange"></select>
-    </span>
+    <label class="volume24__source">
+      <span>exchange</span>
+      <select data-volume24-source aria-label="Select exchange"></select>
+    </label>
   </div>
 
-  <div class="zzx-card__value vol24__metrics">
-    <span class="zzx-metric">
-      <span data-vol-btc>—</span><span class="vol24__unit"> BTC</span>
-    </span>
+  <div class="volume24__hero">
+    <div class="volume24__volume-wrap">
+      <span class="volume24__label">24h BTC volume</span>
+      <strong class="volume24__volume" data-volume24-btc>—</strong>
+    </div>
 
-    <span class="vol24__right">
-      <span class="zzx-delta is-flat" data-delta>—%</span>
-      <span class="vol24__usd" data-vol-usd>$—</span>
-    </span>
+    <div class="volume24__change" data-volume24-tone="flat">
+      <span class="volume24__change-label">vs previous 24h</span>
+      <strong class="volume24__change-pct" data-volume24-change>—</strong>
+    </div>
   </div>
 
-  <div class="zzx-card__sub"><span data-sub>loading…</span></div>
+  <div class="volume24__metrics" aria-label="24 hour volume details">
+    <div class="volume24__metric">
+      <span>USD notional</span>
+      <strong data-volume24-usd>—</strong>
+    </div>
 
-  <!-- UNIFORM CHART CONTRACT -->
-  <div class="zzx-chartbox" aria-hidden="true">
-    <canvas data-chart></canvas>
+    <div class="volume24__metric">
+      <span>average / hour</span>
+      <strong data-volume24-average>—</strong>
+    </div>
+
+    <div class="volume24__metric">
+      <span>peak hour</span>
+      <strong data-volume24-peak>—</strong>
+    </div>
+  </div>
+
+  <div class="volume24__chart-wrap">
+    <canvas
+      class="volume24__chart"
+      data-volume24-chart
+      role="img"
+      aria-label="Bitcoin 24 hour exchange volume chart"
+    ></canvas>
+  </div>
+
+  <div class="volume24__footer">
+    <div class="volume24__source-meta">
+      <span
+        class="btc-card__status volume24__status"
+        data-volume24-status
+        data-status="offline"
+        aria-live="polite"
+      >loading</span>
+
+      <span data-volume24-meta>—</span>
+    </div>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-volume24-refresh
+      aria-label="Refresh 24 hour volume"
+    >Refresh</button>
+  </div>
+
+  <div class="volume24__note">
+    USD notional is estimated from each hourly BTC volume multiplied by that candle's typical USD price.
   </div>
 </div>
