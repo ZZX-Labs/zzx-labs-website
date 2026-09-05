@@ -1,84 +1,537 @@
-// __partials/widgets/price-24h/spark.js
-// Tiny spark renderer: price line + subtle area fill, DPR-aware.
+// Shared fallback renderer for the matched 24h market widget family.
+// v3 preserves up/down colors and H/L semantics if the full plotter fails.
 
 (function () {
   "use strict";
 
-  const NS = (window.ZZXSpark = window.ZZXSpark || {});
+  const W = window;
 
-  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+  if (W.ZZXMarket24Spark?.__version >= 3) return;
 
-  NS.sizeCanvas = function sizeCanvas(canvas) {
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.max(1, Math.floor(canvas.clientWidth || 300));
-    const h = Math.max(1, Math.floor(canvas.clientHeight || 90));
-    const rw = Math.floor(w * dpr);
-    const rh = Math.floor(h * dpr);
-    if (canvas.width !== rw) canvas.width = rw;
-    if (canvas.height !== rh) canvas.height = rh;
-    return { w: rw, h: rh, dpr };
-  };
+  const GREEN = "#c0d674";
+  const RED = "#d67474";
+  const GOLD = "#e6a42b";
+  const MUTED = "#b7bf9a";
 
-  NS.drawPrice = function drawPrice(canvas, closes, deltaIsUp) {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  function number(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : NaN;
+  }
 
-    const { w, h } = NS.sizeCanvas(canvas);
+  function size(canvas) {
+    const dpr =
+      Math.max(
+        1,
+        number(
+          W.devicePixelRatio
+        ) || 1
+      );
 
-    ctx.clearRect(0,0,w,h);
+    const cssW =
+      Math.max(
+        1,
+        Math.floor(
+          canvas.clientWidth || 320
+        )
+      );
 
-    // background
-    ctx.fillStyle = "#000";
-    ctx.globalAlpha = 0.25;
-    ctx.fillRect(0,0,w,h);
-    ctx.globalAlpha = 1;
+    const cssH =
+      Math.max(
+        1,
+        Math.floor(
+          canvas.clientHeight || 118
+        )
+      );
 
-    const arr = Array.isArray(closes) ? closes.filter(Number.isFinite) : [];
-    if (arr.length < 2) return;
+    const w =
+      Math.max(
+        1,
+        Math.floor(cssW * dpr)
+      );
 
-    const min = Math.min(...arr);
-    const max = Math.max(...arr);
-    const span = (max - min) || 1;
+    const h =
+      Math.max(
+        1,
+        Math.floor(cssH * dpr)
+      );
 
-    const pad = 8;
-    const iw = w - pad*2;
-    const ih = h - pad*2;
-
-    const xAt = (i) => pad + (i/(arr.length-1))*iw;
-    const yAt = (v) => pad + (1 - ((v - min)/span))*ih;
-
-    // area fill
-    ctx.beginPath();
-    ctx.moveTo(xAt(0), h - pad);
-    for (let i=0;i<arr.length;i++){
-      ctx.lineTo(xAt(i), yAt(arr[i]));
+    if (canvas.width !== w) {
+      canvas.width = w;
     }
-    ctx.lineTo(xAt(arr.length-1), h - pad);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(192,214,116,0.10)";
-    ctx.fill();
 
-    // line
-    ctx.beginPath();
-    for (let i=0;i<arr.length;i++){
-      const x = xAt(i), y = yAt(arr[i]);
-      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    if (canvas.height !== h) {
+      canvas.height = h;
     }
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = deltaIsUp ? "#6aa92a" : "#e05858";
-    ctx.stroke();
 
-    // end dot
-    const lx = xAt(arr.length-1);
-    const ly = yAt(arr[arr.length-1]);
+    return { w, h, dpr };
+  }
+
+  function extrema(values) {
+    let high =
+      {
+        value: -Infinity,
+        index: -1
+      };
+
+    let low =
+      {
+        value: Infinity,
+        index: -1
+      };
+
+    values.forEach(
+      (raw, index) => {
+        const value =
+          number(raw);
+
+        if (!Number.isFinite(value)) {
+          return;
+        }
+
+        if (value > high.value) {
+          high = { value, index };
+        }
+
+        if (value < low.value) {
+          low = { value, index };
+        }
+      }
+    );
+
+    return { high, low };
+  }
+
+  function dot(
+    ctx,
+    x,
+    y,
+    color,
+    dpr
+  ) {
     ctx.beginPath();
-    ctx.arc(lx, ly, 3.25, 0, Math.PI*2);
-    ctx.fillStyle = "#e6a42b";
+    ctx.arc(
+      x,
+      y,
+      2.7 * dpr,
+      0,
+      Math.PI * 2
+    );
+    ctx.fillStyle = color;
     ctx.fill();
+  }
 
-    // subtle border
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5,0.5,w-1,h-1);
+  function draw(
+    canvas,
+    kind,
+    model
+  ) {
+    if (!canvas) return false;
+
+    const ctx =
+      canvas.getContext("2d");
+
+    if (!ctx) return false;
+
+    const candles =
+      Array.isArray(
+        model?.candles
+      )
+        ? model.candles
+        : [];
+
+    const {
+      w,
+      h,
+      dpr
+    } = size(canvas);
+
+    ctx.clearRect(
+      0,
+      0,
+      w,
+      h
+    );
+
+    ctx.fillStyle =
+      "#050505";
+
+    ctx.fillRect(
+      0,
+      0,
+      w,
+      h
+    );
+
+    if (candles.length < 2) {
+      return true;
+    }
+
+    const pad =
+      8 * dpr;
+
+    const iw =
+      Math.max(
+        1,
+        w - pad * 2
+      );
+
+    const ih =
+      Math.max(
+        1,
+        h - pad * 2
+      );
+
+    const xAt =
+      index =>
+        pad +
+        (
+          index /
+          Math.max(
+            1,
+            candles.length - 1
+          )
+        ) *
+        iw;
+
+    let priceGeometry = null;
+
+    if (
+      kind === "price" ||
+      kind === "combo"
+    ) {
+      const closes =
+        candles.map(
+          candle =>
+            number(candle?.c)
+        );
+
+      const highs =
+        candles.map(
+          candle =>
+            number(candle?.h)
+        );
+
+      const lows =
+        candles.map(
+          candle =>
+            number(candle?.l)
+        );
+
+      const cleanRange =
+        highs
+          .concat(lows)
+          .filter(Number.isFinite);
+
+      let lo =
+        Math.min(...cleanRange);
+
+      let hi =
+        Math.max(...cleanRange);
+
+      if (
+        !Number.isFinite(lo) ||
+        !Number.isFinite(hi)
+      ) {
+        lo = 0;
+        hi = 1;
+      }
+
+      if (lo === hi) {
+        lo -= 1;
+        hi += 1;
+      }
+
+      const yAt =
+        value =>
+          pad +
+          (
+            1 -
+            (
+              (
+                value - lo
+              ) /
+              (hi - lo)
+            )
+          ) *
+          ih;
+
+      for (
+        let i = 1;
+        i < candles.length;
+        i++
+      ) {
+        const a =
+          closes[i - 1];
+
+        const b =
+          closes[i];
+
+        if (
+          !Number.isFinite(a) ||
+          !Number.isFinite(b)
+        ) {
+          continue;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(
+          xAt(i - 1),
+          yAt(a)
+        );
+        ctx.lineTo(
+          xAt(i),
+          yAt(b)
+        );
+
+        ctx.strokeStyle =
+          b >= a
+            ? GREEN
+            : RED;
+
+        ctx.lineWidth =
+          Math.max(
+            1.5 * dpr,
+            1
+          );
+
+        ctx.stroke();
+      }
+
+      const high =
+        extrema(highs).high;
+
+      const low =
+        extrema(lows).low;
+
+      if (high.index >= 0) {
+        dot(
+          ctx,
+          xAt(high.index),
+          yAt(high.value),
+          GOLD,
+          dpr
+        );
+      }
+
+      if (low.index >= 0) {
+        dot(
+          ctx,
+          xAt(low.index),
+          yAt(low.value),
+          RED,
+          dpr
+        );
+      }
+
+      priceGeometry = {
+        yAt
+      };
+    }
+
+    if (
+      kind === "volume" ||
+      kind === "combo"
+    ) {
+      const volumes =
+        candles.map(
+          candle =>
+            Math.max(
+              0,
+              number(candle?.v) || 0
+            )
+        );
+
+      const vmax =
+        Math.max(
+          ...volumes,
+          1
+        );
+
+      const band =
+        kind === "combo"
+          ? ih * .36
+          : ih;
+
+      const base =
+        pad + ih;
+
+      const step =
+        iw /
+        Math.max(
+          1,
+          candles.length
+        );
+
+      const barW =
+        Math.max(
+          1,
+          step * .55
+        );
+
+      candles.forEach(
+        (candle, i) => {
+          const v =
+            volumes[i];
+
+          const previous =
+            i > 0
+              ? volumes[i - 1]
+              : v;
+
+          const bh =
+            (v / vmax) *
+            band;
+
+          ctx.fillStyle =
+            v >= previous
+              ? "rgba(192,214,116,.66)"
+              : "rgba(214,116,116,.64)";
+
+          ctx.fillRect(
+            pad +
+            i * step +
+            (
+              step - barW
+            ) /
+            2,
+            base - bh,
+            barW,
+            bh
+          );
+        }
+      );
+
+      const ext =
+        extrema(volumes);
+
+      if (
+        kind === "volume" &&
+        ext.high.index >= 0
+      ) {
+        dot(
+          ctx,
+          pad +
+          ext.high.index * step +
+          step / 2,
+          Math.min(
+            base - 3 * dpr,
+            Math.max(
+              pad + 3 * dpr,
+              base -
+              (
+                ext.high.value /
+                vmax
+              ) *
+              band
+            )
+          ),
+          GOLD,
+          dpr
+        );
+      }
+
+      if (
+        kind === "volume" &&
+        ext.low.index >= 0
+      ) {
+        dot(
+          ctx,
+          pad +
+          ext.low.index * step +
+          step / 2,
+          Math.min(
+            base - 3 * dpr,
+            Math.max(
+              pad + 3 * dpr,
+              base -
+              (
+                ext.low.value /
+                vmax
+              ) *
+              band
+            )
+          ),
+          MUTED,
+          dpr
+        );
+      }
+
+      if (
+        kind === "combo" &&
+        ext.high.index >= 0
+      ) {
+        dot(
+          ctx,
+          pad +
+          ext.high.index * step +
+          step / 2,
+          Math.min(
+            base - 3 * dpr,
+            Math.max(
+              pad + 3 * dpr,
+              base -
+              (
+                ext.high.value /
+                vmax
+              ) *
+              band
+            )
+          ),
+          GREEN,
+          dpr
+        );
+      }
+
+      if (
+        kind === "combo" &&
+        ext.low.index >= 0
+      ) {
+        dot(
+          ctx,
+          pad +
+          ext.low.index * step +
+          step / 2,
+          Math.min(
+            base - 3 * dpr,
+            Math.max(
+              pad + 3 * dpr,
+              base -
+              (
+                ext.low.value /
+                vmax
+              ) *
+              band
+            )
+          ),
+          MUTED,
+          dpr
+        );
+      }
+    }
+
+    ctx.strokeStyle =
+      "rgba(255,255,255,.07)";
+
+    ctx.lineWidth =
+      Math.max(
+        1,
+        dpr
+      );
+
+    ctx.strokeRect(
+      .5 * dpr,
+      .5 * dpr,
+      w - dpr,
+      h - dpr
+    );
+
+    return true;
+  }
+
+  W.ZZXMarket24Spark = {
+    __version: 3,
+    draw,
+    size,
+    extrema
   };
 })();
