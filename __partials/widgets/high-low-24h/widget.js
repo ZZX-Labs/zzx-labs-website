@@ -1,6 +1,5 @@
 // __partials/widgets/high-low-24h/widget.js
-// Primary controller for the 24h High / Low widget.
-// Loads local js/sources.js and js/chart.js.
+// Primary controller. This is the only JS entry point loaded by widget-core.
 
 (function () {
   "use strict";
@@ -12,13 +11,23 @@
   const CONFIG = Object.freeze({
     STORE_KEY: "zzx.widget.high-low-24h.exchange",
     REFRESH_MS: 30_000,
-    REQUEST_TIMEOUT_MS: 10_000,
-    REQUEST_RETRIES: 1,
-    RETRY_DELAY_MS: 450
+    MODULE_VERSION: 3
   });
+
+  const MODULES = [
+    ["ZZXMarket24Fetch", "fetch.js"],
+    ["ZZXMarket24Sources", "sources.js"],
+    ["ZZXMarket24Plotter", "plotter.js"],
+    ["ZZXMarket24Spark", "spark.js"],
+    ["ZZXMarket24Chart", "chart.js"]
+  ];
 
   function q(root, selector) {
     return root ? root.querySelector(selector) : null;
+  }
+
+  function qa(root, selector) {
+    return root ? [...root.querySelectorAll(selector)] : [];
   }
 
   function finite(value) {
@@ -42,26 +51,64 @@
     }
   }
 
-  function signedPercent(value) {
+  function formatCompactUSD(value) {
     const n = finite(value);
     if (!Number.isFinite(n)) return "—";
 
+    try {
+      return n.toLocaleString(undefined, {
+        style: "currency",
+        currency: "USD",
+        notation: Math.abs(n) >= 1_000_000 ? "compact" : "standard",
+        maximumFractionDigits: Math.abs(n) >= 1_000_000 ? 2 : 0
+      });
+    } catch (_) {
+      return "$" + Math.round(n).toLocaleString();
+    }
+  }
+
+  function formatBTC(value) {
+    const n = finite(value);
+    if (!Number.isFinite(n)) return "—";
+
+    return n.toLocaleString(undefined, {
+      maximumFractionDigits:
+        n >= 10000 ? 0 :
+        n >= 1000 ? 1 :
+        n >= 100 ? 2 :
+        3
+    }) + " BTC";
+  }
+
+  function signedPercent(value) {
+    const n = finite(value);
+    if (!Number.isFinite(n)) return "—";
     const sign = n > 0 ? "+" : n < 0 ? "−" : "";
     return sign + Math.abs(n).toFixed(2) + "%";
   }
 
-  function safeGet(key) {
+  function timeLabel(timestamp) {
+    const ts = finite(timestamp);
+    if (!Number.isFinite(ts)) return "—";
+
     try {
-      return W.localStorage.getItem(key);
+      return new Date(ts).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
     } catch (_) {
-      return null;
+      return new Date(ts).toString();
     }
   }
 
+  function safeGet(key) {
+    try { return W.localStorage.getItem(key); }
+    catch (_) { return null; }
+  }
+
   function safeSet(key, value) {
-    try {
-      W.localStorage.setItem(key, value);
-    } catch (_) {}
+    try { W.localStorage.setItem(key, value); }
+    catch (_) {}
   }
 
   function widgetBase(core) {
@@ -69,34 +116,39 @@
       return String(core.widgetBase(ID)).replace(/\/+$/g, "");
     }
 
-    return "/__partials/widgets/high-low-24h";
+    return "/__partials/widgets/" + ID;
   }
 
   function assetURL(core, relativePath) {
     const path =
-      `${widgetBase(core)}/${String(relativePath).replace(/^\/+/g, "")}`;
+      widgetBase(core) +
+      "/" +
+      String(relativePath).replace(/^\/+/g, "");
 
     if (core?.url) return core.url(path);
     if (W.ZZXAPI?.url) return W.ZZXAPI.url(path);
     return path;
   }
 
-  function scriptKey(value) {
-    return String(value).replace(/[^a-z0-9_-]/gi, "_");
+  function moduleVersion(name) {
+    return Number(W[name]?.__version || 0);
   }
 
-  async function loadScriptOnce(core, relativePath) {
+  async function loadScriptOnce(core, globalName, relativePath) {
+    if (moduleVersion(globalName) >= CONFIG.MODULE_VERSION) return true;
+
     const src = assetURL(core, relativePath);
-    const key = scriptKey(`${ID}:${relativePath}`);
+    const key =
+      ("market24:" + relativePath + ":" + CONFIG.MODULE_VERSION)
+        .replace(/[^a-z0-9:_-]/gi, "_");
 
     if (core?.ensureScriptOnce) {
-      return await core.ensureScriptOnce(key, src);
+      await core.ensureScriptOnce(key, src);
+      return moduleVersion(globalName) >= CONFIG.MODULE_VERSION;
     }
 
     let existing =
-      D.querySelector(`script[data-highlow24-module="${key}"]`);
-
-    if (existing?.dataset.loaded === "1") return true;
+      D.querySelector('script[data-market24-module="' + key + '"]');
 
     if (existing?.dataset.failed === "1") {
       existing.remove();
@@ -104,591 +156,537 @@
     }
 
     if (existing) {
-      return await new Promise(resolve => {
-        existing.addEventListener(
-          "load",
-          () => resolve(true),
-          { once: true }
-        );
+      await new Promise(resolve => {
+        if (existing.dataset.loaded === "1") {
+          resolve();
+          return;
+        }
 
-        existing.addEventListener(
-          "error",
-          () => resolve(false),
-          { once: true }
-        );
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", resolve, { once: true });
       });
+
+      return moduleVersion(globalName) >= CONFIG.MODULE_VERSION;
     }
 
-    return await new Promise(resolve => {
+    await new Promise(resolve => {
       const script = D.createElement("script");
       script.src = src;
       script.defer = true;
-      script.setAttribute("data-highlow24-module", key);
+      script.setAttribute("data-market24-module", key);
 
       script.addEventListener("load", () => {
         script.dataset.loaded = "1";
-        resolve(true);
+        resolve();
       }, { once: true });
 
       script.addEventListener("error", () => {
         script.dataset.failed = "1";
-        resolve(false);
+        resolve();
       }, { once: true });
 
       (D.head || D.documentElement).appendChild(script);
     });
+
+    return moduleVersion(globalName) >= CONFIG.MODULE_VERSION;
   }
 
   async function ensureModules(core) {
-    if (!W.ZZXHighLow24Sources?.list) {
-      const ok =
-        await loadScriptOnce(
-          core,
-          "js/sources.js"
-        );
+    for (const [globalName, relativePath] of MODULES) {
+      const ok = await loadScriptOnce(core, globalName, relativePath);
 
-      if (
-        !ok ||
-        !W.ZZXHighLow24Sources?.list
-      ) {
-        throw new Error(
-          "sources module unavailable"
-        );
-      }
-    }
-
-    if (!W.ZZXHighLow24Chart?.draw) {
-      const ok =
-        await loadScriptOnce(
-          core,
-          "js/chart.js"
-        );
-
-      if (
-        !ok ||
-        !W.ZZXHighLow24Chart?.draw
-      ) {
-        throw new Error(
-          "chart module unavailable"
-        );
+      if (!ok) {
+        throw new Error(relativePath + " unavailable");
       }
     }
   }
 
-  function sleep(ms) {
-    return new Promise(resolve => {
-      W.setTimeout(resolve, ms);
+  function setText(root, selector, value) {
+    const el = q(root, selector);
+    if (el) el.textContent = value == null ? "—" : String(value);
+  }
+
+  function setMetric(root, index, label, value, tone) {
+    const labelEl =
+      q(root, '[data-market24-metric-label="' + index + '"]');
+
+    const valueEl =
+      q(root, '[data-market24-metric-value="' + index + '"]');
+
+    if (labelEl) labelEl.textContent = label;
+    if (valueEl) {
+      valueEl.textContent = value;
+      if (tone) valueEl.setAttribute("data-tone", tone);
+      else valueEl.removeAttribute("data-tone");
+    }
+  }
+
+  function setLegend(root, labels) {
+    qa(root, "[data-market24-legend]").forEach((item, index) => {
+      const label = labels[index] || "";
+      const text = item.querySelector("b");
+
+      item.hidden = !label;
+      if (text) text.textContent = label;
     });
   }
 
-  async function fetchJSON(url) {
-    if (W.ZZXAPI?.fetchRaw) {
-      const response =
-        await W.ZZXAPI.fetchRaw(url, {
-          cacheBust: false,
-          cache: "no-store",
-          credentials: "omit",
-          timeoutMs: CONFIG.REQUEST_TIMEOUT_MS,
-          retries: CONFIG.REQUEST_RETRIES,
-          retryDelayMs: CONFIG.RETRY_DELAY_MS
-        });
-
-      return await response.json();
-    }
-
-    let lastError = null;
-
-    for (
-      let attempt = 0;
-      attempt <= CONFIG.REQUEST_RETRIES;
-      attempt++
-    ) {
-      const controller =
-        typeof AbortController === "function"
-          ? new AbortController()
-          : null;
-
-      const timer =
-        controller
-          ? W.setTimeout(
-              () => controller.abort(),
-              CONFIG.REQUEST_TIMEOUT_MS
-            )
-          : null;
-
-      try {
-        const response =
-          await fetch(url, {
-            cache: "no-store",
-            credentials: "omit",
-            signal: controller?.signal
-          });
-
-        if (!response.ok) {
-          const error =
-            new Error(
-              `HTTP ${response.status} for ${url}`
-            );
-
-          error.status = response.status;
-          throw error;
-        }
-
-        return await response.json();
-
-      } catch (error) {
-        lastError = error;
-
-        if (
-          attempt <
-          CONFIG.REQUEST_RETRIES
-        ) {
-          await sleep(
-            CONFIG.RETRY_DELAY_MS
-          );
-        }
-
-      } finally {
-        if (timer) {
-          W.clearTimeout(timer);
-        }
-      }
-    }
-
-    throw (
-      lastError ||
-      new Error(
-        `request failed: ${url}`
-      )
-    );
+  function tone(value) {
+    const n = finite(value);
+    if (!Number.isFinite(n) || Math.abs(n) < 0.000001) return "flat";
+    return n > 0 ? "up" : "down";
   }
 
-  function calculate(candles) {
-    if (
-      !Array.isArray(candles) ||
-      candles.length < 2
-    ) {
-      throw new Error(
-        "insufficient completed hourly candles"
+  function sumVolume(candles) {
+    return (Array.isArray(candles) ? candles : []).reduce((sum, candle) => {
+      const v = finite(candle?.v);
+      return sum + (Number.isFinite(v) ? Math.max(0, v) : 0);
+    }, 0);
+  }
+
+  function usdNotional(candles) {
+    return (Array.isArray(candles) ? candles : []).reduce((sum, candle) => {
+      const v = finite(candle?.v);
+      const prices = [
+        finite(candle?.o),
+        finite(candle?.h),
+        finite(candle?.l),
+        finite(candle?.c)
+      ].filter(Number.isFinite);
+
+      if (!Number.isFinite(v) || !prices.length) return sum;
+
+      const typical =
+        prices.reduce((a, b) => a + b, 0) /
+        prices.length;
+
+      return sum + Math.max(0, v) * typical;
+    }, 0);
+  }
+
+  function extrema(candles, key) {
+    let high = { value: -Infinity, index: -1, candle: null };
+    let low = { value: Infinity, index: -1, candle: null };
+
+    candles.forEach((candle, index) => {
+      const value = finite(candle?.[key]);
+      if (!Number.isFinite(value)) return;
+
+      if (value > high.value) high = { value, index, candle };
+      if (value < low.value) low = { value, index, candle };
+    });
+
+    return { high, low };
+  }
+
+  function currentWindow(series, volumeMode) {
+    const candles =
+      W.ZZXMarket24Sources.normalizeCandles(
+        Array.isArray(series) ? series : []
       );
+
+    if (!candles.length) {
+      return {
+        current: [],
+        previous: [],
+        priorRolling: null,
+        volumeMode
+      };
     }
 
-    let high = -Infinity;
-    let low = Infinity;
-    let highIndex = -1;
-    let lowIndex = -1;
-
-    candles.forEach(
-      (candle, index) => {
-        const candleHigh =
-          finite(candle?.h);
-
-        const candleLow =
-          finite(candle?.l);
-
-        if (
-          Number.isFinite(candleHigh) &&
-          candleHigh > high
-        ) {
-          high = candleHigh;
-          highIndex = index;
-        }
-
-        if (
-          Number.isFinite(candleLow) &&
-          candleLow < low
-        ) {
-          low = candleLow;
-          lowIndex = index;
-        }
-      }
-    );
-
-    const open =
-      finite(candles[0]?.o);
-
-    const close =
-      finite(
+    if (volumeMode === "rolling24h") {
+      const latestT =
         candles[
           candles.length - 1
-        ]?.c
-      );
+        ].t;
 
-    if (
-      !Number.isFinite(high) ||
-      !Number.isFinite(low) ||
-      !Number.isFinite(open) ||
-      !Number.isFinite(close) ||
-      high < low
-    ) {
-      throw new Error(
-        "invalid high low candle data"
-      );
+      const current =
+        W.ZZXMarket24Sources.sliceByHours(
+          candles,
+          24,
+          latestT
+        );
+
+      const priorTarget =
+        latestT -
+        24 *
+        W.ZZXMarket24Sources.HOUR_MS;
+
+      const priorRolling =
+        W.ZZXMarket24Sources.nearestAtOrBefore(
+          candles,
+          priorTarget
+        );
+
+      const previous =
+        W.ZZXMarket24Sources.sliceByHours(
+          candles,
+          24,
+          priorTarget
+        );
+
+      return {
+        current,
+        previous,
+        priorRolling,
+        volumeMode
+      };
     }
 
-    const rangeAbs =
-      high - low;
+    return {
+      current: candles.slice(-24),
+      previous:
+        candles.length >= 48
+          ? candles.slice(-48, -24)
+          : [],
+      priorRolling: null,
+      volumeMode
+    };
+  }
 
-    const rangePct =
-      low > 0
-        ? (rangeAbs / low) * 100
-        : NaN;
+  function buildModel(kind, seriesResult, summary) {
+    const windows =
+      currentWindow(
+        seriesResult?.candles || [],
+        seriesResult?.volumeMode || "hourly"
+      );
 
-    const positionPct =
-      rangeAbs > 0
-        ? ((close - low) / rangeAbs) * 100
-        : 50;
+    const current = windows.current;
 
-    const changePct =
+    if (current.length < 2) {
+      throw new Error("insufficient 24h series");
+    }
+
+    const first = current[0];
+    const last = current[current.length - 1];
+
+    const open = finite(first?.o);
+    const close = finite(last?.c);
+    const priceHigh = extrema(current, "h");
+    const priceLow = extrema(current, "l");
+    const volumeExt = extrema(current, "v");
+
+    let volume24;
+    let priorVolume24 = NaN;
+    let volumeDelta = NaN;
+
+    if (windows.volumeMode === "rolling24h") {
+      volume24 =
+        Number.isFinite(finite(summary?.volume_24h_btc))
+          ? finite(summary.volume_24h_btc)
+          : finite(last?.v);
+
+      const priorRolling =
+        finite(
+          windows.priorRolling?.v
+        );
+
+      if (
+        Number.isFinite(priorRolling) &&
+        priorRolling > 0
+      ) {
+        priorVolume24 =
+          priorRolling;
+
+        volumeDelta =
+          (
+            (
+              volume24 -
+              priorVolume24
+            ) /
+            priorVolume24
+          ) *
+          100;
+      }
+    } else {
+      volume24 = sumVolume(current);
+
+      if (windows.previous.length === 24) {
+        priorVolume24 = sumVolume(windows.previous);
+
+        if (priorVolume24 > 0) {
+          volumeDelta =
+            ((volume24 - priorVolume24) / priorVolume24) *
+            100;
+        }
+      }
+    }
+
+    const priceDelta =
+      Number.isFinite(open) &&
+      Number.isFinite(close) &&
       open > 0
         ? ((close - open) / open) * 100
         : NaN;
 
-    return {
-      high,
-      low,
-      highIndex,
-      lowIndex,
-      highCandle:
-        candles[highIndex] || null,
-      lowCandle:
-        candles[lowIndex] || null,
+    const model = {
+      kind,
+      candles: current,
+      seriesMode: windows.volumeMode,
+      summary,
       open,
       close,
-      rangeAbs,
-      rangePct,
-      positionPct:
-        Math.min(
-          100,
-          Math.max(
-            0,
-            positionPct
-          )
-        ),
-      changePct
+      priceDelta,
+      priceHigh,
+      priceLow,
+      volume24,
+      priorVolume24,
+      volumeDelta,
+      usdNotional:
+        Number.isFinite(finite(summary?.volume_24h_usd))
+          ? finite(summary.volume_24h_usd)
+          : usdNotional(current),
+      volumeHigh: volumeExt.high,
+      volumeLow: volumeExt.low,
+      averageVolume:
+        windows.volumeMode === "hourly"
+          ? volume24 / current.length
+          : NaN
     };
+
+    return model;
   }
 
-  function toneFor(value) {
-    const n = finite(value);
-
-    if (
-      !Number.isFinite(n) ||
-      Math.abs(n) < 0.000001
-    ) {
-      return "flat";
-    }
-
-    return n > 0 ? "up" : "down";
+  function kindFromRoot(root) {
+    return (
+      q(root, "[data-market24-kind]")?.getAttribute("data-market24-kind") ||
+      "price"
+    );
   }
 
-  function timeLabel(timestampMs) {
-    const ts =
-      finite(timestampMs);
+  function renderPrice(root, model) {
+    setText(root, "[data-market24-title]", "24h Price");
+    setText(root, "[data-market24-eyebrow]", "BTC / USD · same exchange family");
+    setText(root, "[data-market24-primary-label]", "latest price");
+    setText(root, "[data-market24-primary]", formatUSD(model.close));
+    setText(root, "[data-market24-secondary-label]", "24h change");
+    setText(root, "[data-market24-secondary]", signedPercent(model.priceDelta));
 
-    if (!Number.isFinite(ts)) {
-      return "—";
-    }
+    const secondary = q(root, ".market24__secondary");
+    if (secondary) secondary.setAttribute("data-market24-tone", tone(model.priceDelta));
 
-    const date =
-      new Date(ts);
+    const rangeAbs =
+      model.priceHigh.high.value -
+      model.priceLow.low.value;
 
-    try {
-      return date.toLocaleString(
-        undefined,
-        {
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit"
-        }
-      );
-    } catch (_) {
-      return date.toString();
-    }
+    const rangePct =
+      model.priceLow.low.value > 0
+        ? (rangeAbs / model.priceLow.low.value) * 100
+        : NaN;
+
+    setMetric(root, 0, "24h open", formatUSD(model.open));
+    setMetric(root, 1, "24h high", formatUSD(model.priceHigh.high.value), "high");
+    setMetric(root, 2, "24h low", formatUSD(model.priceLow.low.value), "low");
+    setMetric(
+      root,
+      3,
+      "range",
+      Number.isFinite(rangePct)
+        ? formatUSD(rangeAbs) + " · " + rangePct.toFixed(2) + "%"
+        : "—"
+    );
+
+    setLegend(root, [
+      "price up",
+      "price down",
+      "24h high",
+      "24h low"
+    ]);
+
+    setText(
+      root,
+      "[data-market24-note]",
+      "Price segments are green when price rises and red when price falls."
+    );
   }
 
-  function candleFreshness(candle) {
-    const ts =
-      finite(candle?.t);
+  function renderVolume(root, model) {
+    setText(root, "[data-market24-title]", "24h Volume");
+    setText(root, "[data-market24-eyebrow]", "BTC / USD · same exchange family");
+    setText(root, "[data-market24-primary-label]", "24h BTC volume");
+    setText(root, "[data-market24-primary]", formatBTC(model.volume24));
+    setText(root, "[data-market24-secondary-label]", "vs previous 24h");
+    setText(root, "[data-market24-secondary]", signedPercent(model.volumeDelta));
 
-    if (!Number.isFinite(ts)) {
-      return "timestamp unavailable";
-    }
+    const secondary = q(root, ".market24__secondary");
+    if (secondary) secondary.setAttribute("data-market24-tone", tone(model.volumeDelta));
 
-    const completedAt =
-      ts +
-      (
-        W.ZZXHighLow24Sources?.HOUR_MS ||
-        3_600_000
-      );
+    setMetric(root, 0, "USD notional", formatCompactUSD(model.usdNotional));
 
-    const ageSec =
-      Math.max(
-        0,
-        Math.round(
-          (
-            Date.now() -
-            completedAt
-          ) /
-          1000
-        )
-      );
+    setMetric(
+      root,
+      1,
+      model.seriesMode === "hourly" ? "average / hour" : "series mode",
+      model.seriesMode === "hourly"
+        ? formatBTC(model.averageVolume)
+        : "rolling 24h"
+    );
 
-    if (ageSec < 60) {
-      return `${ageSec}s since last completed hour`;
-    }
+    setMetric(
+      root,
+      2,
+      model.seriesMode === "hourly" ? "volume high / hour" : "volume high / sample",
+      formatBTC(model.volumeHigh.value),
+      "high"
+    );
 
-    if (ageSec < 3600) {
-      return `${Math.floor(ageSec / 60)}m since last completed hour`;
-    }
+    setMetric(
+      root,
+      3,
+      model.seriesMode === "hourly" ? "volume low / hour" : "volume low / sample",
+      formatBTC(model.volumeLow.value),
+      "low"
+    );
 
-    return `${Math.floor(ageSec / 3600)}h since last completed hour`;
+    setLegend(root, [
+      "volume up",
+      "volume down",
+      "volume high",
+      "volume low"
+    ]);
+
+    setText(
+      root,
+      "[data-market24-note]",
+      model.seriesMode === "hourly"
+        ? "Each volume bar is green when hourly BTC volume rises versus the prior hour and red when it falls."
+        : "Aggregate sources expose rolling 24h volume samples; green/red compares each sample with the prior sample."
+    );
   }
 
-  function populateSources(
-    root,
-    sources,
-    selected
-  ) {
-    const select =
-      q(
-        root,
-        "[data-highlow24-source]"
-      );
+  function renderCombo(root, model) {
+    setText(root, "[data-market24-title]", "24h High / Low");
+    setText(root, "[data-market24-eyebrow]", "BTC / USD · price + volume extremes");
+    setText(root, "[data-market24-primary-label]", "price H / L");
+    setText(
+      root,
+      "[data-market24-primary]",
+      formatUSD(model.priceHigh.high.value) +
+      " / " +
+      formatUSD(model.priceLow.low.value)
+    );
 
-    if (!select) return;
+    setText(root, "[data-market24-secondary-label]", "volume H / L");
+    setText(
+      root,
+      "[data-market24-secondary]",
+      formatBTC(model.volumeHigh.value) +
+      " / " +
+      formatBTC(model.volumeLow.value)
+    );
 
-    select.replaceChildren();
+    const secondary = q(root, ".market24__secondary");
+    if (secondary) secondary.setAttribute("data-market24-tone", "gold");
 
-    for (const source of sources) {
-      const option =
-        D.createElement("option");
+    setMetric(
+      root,
+      0,
+      "price high",
+      formatUSD(model.priceHigh.high.value) +
+      " · " +
+      timeLabel(model.priceHigh.high.candle?.t),
+      "high"
+    );
 
-      option.value =
-        source.id;
+    setMetric(
+      root,
+      1,
+      "price low",
+      formatUSD(model.priceLow.low.value) +
+      " · " +
+      timeLabel(model.priceLow.low.candle?.t),
+      "low"
+    );
 
-      option.textContent =
-        source.label;
+    setMetric(
+      root,
+      2,
+      model.seriesMode === "hourly" ? "volume high / hour" : "volume high / sample",
+      formatBTC(model.volumeHigh.value) +
+      " · " +
+      timeLabel(model.volumeHigh.candle?.t),
+      "up"
+    );
 
-      select.appendChild(
-        option
-      );
-    }
+    setMetric(
+      root,
+      3,
+      model.seriesMode === "hourly" ? "volume low / hour" : "volume low / sample",
+      formatBTC(model.volumeLow.value) +
+      " · " +
+      timeLabel(model.volumeLow.candle?.t),
+      "low"
+    );
 
-    if (
-      sources.some(
-        source =>
-          source.id === selected
-      )
-    ) {
-      select.value = selected;
-    }
-  }
+    setLegend(root, [
+      "price up / vol up",
+      "price down / vol down",
+      "price H / L",
+      "volume H / L"
+    ]);
 
-  function status(
-    root,
-    label,
-    state
-  ) {
-    const el =
-      q(
-        root,
-        "[data-highlow24-status]"
-      );
-
-    if (!el) return;
-
-    el.textContent =
-      label;
-
-    el.setAttribute(
-      "data-status",
-      state || "offline"
+    setText(
+      root,
+      "[data-market24-note]",
+      "Combined chart uses green/red price segments, green/red volume bars, and separate price/volume H/L markers."
     );
   }
 
   function render(root, state) {
-    const metrics =
-      state.metrics;
+    const model = state.model;
+    if (!model) return;
 
-    const candles =
-      state.candles;
-
-    if (
-      !metrics ||
-      !candles?.length
-    ) {
-      return;
-    }
-
-    const high =
-      q(
-        root,
-        "[data-highlow24-high]"
-      );
-
-    if (high) {
-      high.textContent =
-        formatUSD(metrics.high);
-    }
-
-    const low =
-      q(
-        root,
-        "[data-highlow24-low]"
-      );
-
-    if (low) {
-      low.textContent =
-        formatUSD(metrics.low);
-    }
-
-    const highTime =
-      q(
-        root,
-        "[data-highlow24-high-time]"
-      );
-
-    if (highTime) {
-      highTime.textContent =
-        timeLabel(
-          metrics.highCandle?.t
-        );
-    }
-
-    const lowTime =
-      q(
-        root,
-        "[data-highlow24-low-time]"
-      );
-
-    if (lowTime) {
-      lowTime.textContent =
-        timeLabel(
-          metrics.lowCandle?.t
-        );
-    }
-
-    const range =
-      q(
-        root,
-        "[data-highlow24-range]"
-      );
-
-    if (range) {
-      range.textContent =
-        `${formatUSD(metrics.rangeAbs)} · ${metrics.rangePct.toFixed(2)}%`;
-    }
-
-    const close =
-      q(
-        root,
-        "[data-highlow24-close]"
-      );
-
-    if (close) {
-      close.textContent =
-        formatUSD(metrics.close);
-    }
-
-    const position =
-      q(
-        root,
-        "[data-highlow24-position]"
-      );
-
-    if (position) {
-      position.textContent =
-        metrics.positionPct.toFixed(1) +
-        "%";
-    }
-
-    const positionLabel =
-      q(
-        root,
-        "[data-highlow24-position-label]"
-      );
-
-    if (positionLabel) {
-      positionLabel.textContent =
-        `latest ${metrics.positionPct.toFixed(1)}% through range`;
-    }
-
-    const marker =
-      q(
-        root,
-        "[data-highlow24-range-marker]"
-      );
-
-    if (marker) {
-      marker.style.left =
-        metrics.positionPct.toFixed(2) +
-        "%";
-    }
-
-    const change =
-      q(
-        root,
-        "[data-highlow24-change]"
-      );
-
-    if (change) {
-      change.textContent =
-        signedPercent(
-          metrics.changePct
-        );
-
-      change.setAttribute(
-        "data-tone",
-        toneFor(
-          metrics.changePct
-        )
-      );
-    }
+    if (state.kind === "price") renderPrice(root, model);
+    else if (state.kind === "volume") renderVolume(root, model);
+    else renderCombo(root, model);
 
     const source =
-      state.sources.find(
-        item =>
-          item.id === state.sourceId
-      );
+      state.catalog.find(item => item.id === state.sourceId);
 
-    const latest =
-      candles[
-        candles.length - 1
-      ];
-
-    const meta =
-      q(
-        root,
-        "[data-highlow24-meta]"
-      );
-
-    if (meta) {
-      meta.textContent =
-        `${source?.label || state.sourceId} · ${candles.length} completed hourly candles · ${candleFreshness(latest)}`;
-    }
-
-    const canvas =
-      q(
-        root,
-        "[data-highlow24-chart]"
-      );
-
-    W.ZZXHighLow24Chart?.draw?.(
-      canvas,
-      candles,
-      metrics
+    setText(
+      root,
+      "[data-market24-meta]",
+      (source?.label || state.sourceId) +
+      " · " +
+      model.candles.length +
+      (
+        model.seriesMode === "hourly"
+          ? " completed hourly candles · "
+          : " samples in trailing 24h · "
+      ) +
+      model.seriesMode
     );
+
+    const canvas = q(root, "[data-market24-chart]");
+    W.ZZXMarket24Chart.draw(canvas, state.kind, model);
   }
 
-  async function refresh(
-    root,
-    state
-  ) {
-    if (!root?.isConnected) {
-      return false;
+  function status(root, text, state) {
+    const el = q(root, "[data-market24-status]");
+    if (!el) return;
+
+    el.textContent = text;
+    el.setAttribute("data-status", state || "offline");
+  }
+
+  function populateCatalog(root, state) {
+    const select = q(root, "[data-market24-source]");
+    if (!select) return;
+
+    select.replaceChildren();
+
+    for (const source of state.catalog) {
+      const option = D.createElement("option");
+      option.value = source.id;
+      option.textContent = source.label;
+      select.appendChild(option);
     }
+
+    select.value = state.sourceId;
+  }
+
+  async function refresh(root, state) {
+    if (!root?.isConnected) return false;
 
     if (state.busy) {
       state.queued = true;
@@ -698,319 +696,162 @@
     state.busy = true;
     state.queued = false;
 
-    const button =
-      q(
-        root,
-        "[data-highlow24-refresh]"
-      );
+    const button = q(root, "[data-market24-refresh]");
+    if (button) button.disabled = true;
 
-    if (button) {
-      button.disabled = true;
-    }
-
-    status(
-      root,
-      "refreshing",
-      "warn"
-    );
+    status(root, "refreshing", "warn");
 
     try {
-      const source =
-        state.sources.find(
-          item =>
-            item.id === state.sourceId
-        ) ||
-        state.sources[0];
+      const [latestPayload, seriesResult] = await Promise.all([
+        W.ZZXMarket24Sources.latest(W.ZZXMarket24Fetch).catch(() => null),
+        W.ZZXMarket24Sources.series(state.sourceId, W.ZZXMarket24Fetch)
+      ]);
 
-      if (!source) {
-        throw new Error(
-          "no exchange sources"
-        );
-      }
-
-      const payload =
-        await fetchJSON(
-          source.url
+      const summary =
+        W.ZZXMarket24Sources.summaryFromLatest(
+          latestPayload,
+          state.sourceId
         );
 
-      const candles =
-        source.normalize(
-          payload
+      state.model =
+        buildModel(
+          state.kind,
+          seriesResult,
+          summary
         );
 
-      if (
-        !Array.isArray(candles) ||
-        candles.length < 2
-      ) {
-        throw new Error(
-          "exchange returned no usable completed candles"
-        );
-      }
-
-      state.candles =
-        candles;
-
-      state.metrics =
-        calculate(
-          candles
-        );
-
-      state.lastSuccessAt =
-        Date.now();
-
-      render(
-        root,
-        state
-      );
+      render(root, state);
 
       status(
         root,
-        "live",
-        "ok"
+        summary?.error ? "series live" : "live",
+        summary?.error ? "warn" : "ok"
       );
 
       return true;
-
     } catch (error) {
-      console.warn(
-        "[high-low-24h] refresh failed",
-        error
-      );
+      console.warn("[" + ID + "] refresh failed", error);
 
       status(
         root,
-        state.metrics ? "stale" : "offline",
-        state.metrics ? "warn" : "error"
+        state.model ? "stale" : "offline",
+        state.model ? "warn" : "error"
       );
 
-      const meta =
-        q(
+      if (!state.model) {
+        setText(
           root,
-          "[data-highlow24-meta]"
+          "[data-market24-meta]",
+          error?.message || "market data unavailable"
         );
-
-      if (
-        meta &&
-        !state.metrics
-      ) {
-        meta.textContent =
-          error?.message ||
-          "high low feed unavailable";
       }
 
       return false;
-
     } finally {
       state.busy = false;
+      if (button) button.disabled = false;
 
-      if (button) {
-        button.disabled = false;
-      }
-
-      if (
-        state.queued &&
-        root.isConnected
-      ) {
+      if (state.queued && root.isConnected) {
         state.queued = false;
-
-        W.setTimeout(
-          () => refresh(root, state),
-          0
-        );
+        W.setTimeout(() => refresh(root, state), 0);
       }
     }
   }
 
   function clearRuntime(state) {
     if (state?.timer) {
-      W.clearTimeout(
-        state.timer
-      );
-
+      W.clearTimeout(state.timer);
       state.timer = null;
     }
 
     if (state?.resizeObserver) {
-      try {
-        state.resizeObserver.disconnect();
-      } catch (_) {}
+      try { state.resizeObserver.disconnect(); }
+      catch (_) {}
 
-      state.resizeObserver =
-        null;
+      state.resizeObserver = null;
     }
   }
 
-  function startPolling(
-    root,
-    state
-  ) {
+  function startPolling(root, state) {
     clearRuntime(state);
 
-    const generation =
-      ++state.generation;
+    const generation = ++state.generation;
 
     async function loop() {
       if (
         generation !== state.generation ||
         !root.isConnected
-      ) {
-        return;
-      }
+      ) return;
 
-      await refresh(
-        root,
-        state
-      );
+      await refresh(root, state);
 
       if (
         generation === state.generation &&
         root.isConnected
       ) {
-        state.timer =
-          W.setTimeout(
-            loop,
-            CONFIG.REFRESH_MS
-          );
+        state.timer = W.setTimeout(loop, CONFIG.REFRESH_MS);
       }
     }
 
     loop();
   }
 
-  function bindUI(
-    root,
-    state
-  ) {
-    const select =
-      q(
-        root,
-        "[data-highlow24-source]"
-      );
+  function bindUI(root, state) {
+    const select = q(root, "[data-market24-source]");
 
-    if (
-      select &&
-      select.dataset.highlow24Bound !==
-        "1"
-    ) {
-      select.dataset.highlow24Bound =
-        "1";
+    if (select && select.dataset.market24Bound !== "1") {
+      select.dataset.market24Bound = "1";
 
-      select.addEventListener(
-        "change",
-        () => {
-          state.sourceId =
-            select.value;
+      select.addEventListener("change", () => {
+        state.sourceId = select.value;
+        safeSet(CONFIG.STORE_KEY, state.sourceId);
+        state.model = null;
 
-          safeSet(
-            CONFIG.STORE_KEY,
-            state.sourceId
-          );
+        const canvas = q(root, "[data-market24-chart]");
+        W.ZZXMarket24Chart?.clear?.(canvas);
 
-          state.candles =
-            null;
-
-          state.metrics =
-            null;
-
-          const canvas =
-            q(
-              root,
-              "[data-highlow24-chart]"
-            );
-
-          W.ZZXHighLow24Chart?.clear?.(
-            canvas
-          );
-
-          refresh(
-            root,
-            state
-          );
-        }
-      );
+        refresh(root, state);
+      });
     }
 
-    const button =
-      q(
-        root,
-        "[data-highlow24-refresh]"
-      );
+    const button = q(root, "[data-market24-refresh]");
 
-    if (
-      button &&
-      button.dataset.highlow24Bound !==
-        "1"
-    ) {
-      button.dataset.highlow24Bound =
-        "1";
-
-      button.addEventListener(
-        "click",
-        () => refresh(root, state)
-      );
+    if (button && button.dataset.market24Bound !== "1") {
+      button.dataset.market24Bound = "1";
+      button.addEventListener("click", () => refresh(root, state));
     }
 
-    if (
-      typeof ResizeObserver ===
-        "function" &&
-      !state.resizeObserver
-    ) {
-      const canvas =
-        q(
-          root,
-          "[data-highlow24-chart]"
-        );
+    if (typeof ResizeObserver === "function") {
+      const canvas = q(root, "[data-market24-chart]");
 
       if (canvas) {
-        state.resizeObserver =
-          new ResizeObserver(
-            () => {
-              if (
-                state.candles?.length &&
-                state.metrics
-              ) {
-                W.ZZXHighLow24Chart?.draw?.(
-                  canvas,
-                  state.candles,
-                  state.metrics
-                );
-              }
-            }
-          );
+        state.resizeObserver = new ResizeObserver(() => {
+          if (state.model) {
+            W.ZZXMarket24Chart?.draw?.(
+              canvas,
+              state.kind,
+              state.model
+            );
+          }
+        });
 
-        state.resizeObserver.observe(
-          canvas
-        );
+        state.resizeObserver.observe(canvas);
       }
     }
   }
 
-  async function boot(
-    root,
-    core
-  ) {
+  async function boot(root, core) {
     if (!root) return;
 
-    const previous =
-      root.__zzxHighLow24State;
-
-    if (previous) {
-      clearRuntime(
-        previous
-      );
-    }
+    const old = root.__zzxMarket24State;
+    if (old) clearRuntime(old);
 
     const state = {
-      core:
-        core ||
-        W.ZZXWidgetsCore ||
-        null,
-
-      sources: [],
+      core: core || W.ZZXWidgetsCore || null,
+      kind: kindFromRoot(root),
+      catalog: [],
       sourceId: "",
-      candles: null,
-      metrics: null,
-      lastSuccessAt: 0,
+      model: null,
       busy: false,
       queued: false,
       timer: null,
@@ -1018,99 +859,55 @@
       generation: 0
     };
 
-    root.__zzxHighLow24State =
-      state;
+    root.__zzxMarket24State = state;
 
     try {
-      await ensureModules(
-        state.core
-      );
+      await ensureModules(state.core);
 
-      state.sources =
-        W.ZZXHighLow24Sources.list();
-
-      if (!state.sources.length) {
-        throw new Error(
-          "no exchange sources registered"
+      const result =
+        await W.ZZXMarket24Sources.catalog(
+          W.ZZXMarket24Fetch
         );
+
+      state.catalog = result.catalog;
+
+      if (!state.catalog.length) {
+        throw new Error("exchange catalog unavailable");
       }
 
-      const saved =
-        safeGet(
-          CONFIG.STORE_KEY
-        );
+      const saved = safeGet(CONFIG.STORE_KEY);
 
       state.sourceId =
         saved &&
-        state.sources.some(
-          source =>
-            source.id === saved
-        )
+        state.catalog.some(item => item.id === saved)
           ? saved
-          : state.sources[0].id;
+          : (
+              state.catalog.some(item => item.id === "zzx")
+                ? "zzx"
+                : state.catalog[0].id
+            );
 
-      populateSources(
-        root,
-        state.sources,
-        state.sourceId
-      );
-
-      bindUI(
-        root,
-        state
-      );
-
-      startPolling(
-        root,
-        state
-      );
+      populateCatalog(root, state);
+      bindUI(root, state);
+      startPolling(root, state);
 
     } catch (error) {
-      console.warn(
-        "[high-low-24h] boot failed",
-        error
-      );
+      console.warn("[" + ID + "] boot failed", error);
+      status(root, "offline", "error");
 
-      status(
+      setText(
         root,
-        "offline",
-        "error"
+        "[data-market24-meta]",
+        error?.message || "widget unavailable"
       );
-
-      const meta =
-        q(
-          root,
-          "[data-highlow24-meta]"
-        );
-
-      if (meta) {
-        meta.textContent =
-          error?.message ||
-          "widget unavailable";
-      }
     }
   }
 
   if (W.ZZXAPI?.register) {
-    W.ZZXAPI.register(
-      ID,
-      boot
-    );
-
-  } else if (
-    W.ZZXWidgetsCore?.onMount
-  ) {
-    W.ZZXWidgetsCore.onMount(
-      ID,
-      boot
-    );
-
-  } else if (
-    W.ZZXWidgets?.register
-  ) {
-    W.ZZXWidgets.register(
-      ID,
-      boot
-    );
+    W.ZZXAPI.register(ID, boot);
+  } else if (W.ZZXWidgetsCore?.onMount) {
+    W.ZZXWidgetsCore.onMount(ID, boot);
+  } else if (W.ZZXWidgets?.register) {
+    W.ZZXWidgets.register(ID, boot);
   }
 })();
