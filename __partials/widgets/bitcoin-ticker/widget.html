@@ -5,7 +5,7 @@
       <h2 class="bitcoin-ticker__title">Bitcoin Ticker</h2>
     </div>
 
-    <div class="bitcoin-ticker__state">
+    <div class="bitcoin-ticker__state" aria-live="polite">
       <span class="bitcoin-ticker__dot" data-state-dot aria-hidden="true"></span>
       <span data-state-text>Loading</span>
     </div>
@@ -21,7 +21,7 @@
 
     <label class="bitcoin-ticker__control">
       <span>Quote</span>
-      <select data-currency-select aria-label="Quote currency or unit">
+      <select data-currency-select aria-label="Quote currency">
         <option value="USD">USD — US Dollar</option>
       </select>
     </label>
@@ -81,6 +81,105 @@
       <strong data-spread>—</strong>
     </div>
   </div>
+
+  <section class="bitcoin-ticker__comparatives" aria-labelledby="bitcoin-ticker-comparatives-title">
+    <header class="bitcoin-ticker__comparatives-head">
+      <div>
+        <span class="bitcoin-ticker__section-kicker">Purchasing power</span>
+        <h3 id="bitcoin-ticker-comparatives-title">1 BTC Comparative Units</h3>
+      </div>
+      <span class="bitcoin-ticker__comparatives-state" data-comparatives-state>loading references</span>
+    </header>
+
+    <div class="bitcoin-ticker__comparative-grid" aria-label="Commodity equivalents for one bitcoin">
+      <article class="bitcoin-ticker__comparative" data-comparative="gold">
+        <span class="bitcoin-ticker__comparative-name">Gold</span>
+        <strong data-comp-gold>—</strong>
+        <small>troy oz</small>
+      </article>
+
+      <article class="bitcoin-ticker__comparative" data-comparative="silver">
+        <span class="bitcoin-ticker__comparative-name">Silver</span>
+        <strong data-comp-silver>—</strong>
+        <small>troy oz</small>
+      </article>
+
+      <article class="bitcoin-ticker__comparative" data-comparative="platinum">
+        <span class="bitcoin-ticker__comparative-name">Platinum</span>
+        <strong data-comp-platinum>—</strong>
+        <small>troy oz</small>
+      </article>
+
+      <article class="bitcoin-ticker__comparative" data-comparative="palladium">
+        <span class="bitcoin-ticker__comparative-name">Palladium</span>
+        <strong data-comp-palladium>—</strong>
+        <small>troy oz</small>
+      </article>
+
+      <article class="bitcoin-ticker__comparative" data-comparative="copper">
+        <span class="bitcoin-ticker__comparative-name">Copper</span>
+        <strong data-comp-copper>—</strong>
+        <small>lb</small>
+      </article>
+
+      <article class="bitcoin-ticker__comparative" data-comparative="oil">
+        <span class="bitcoin-ticker__comparative-name">Crude Oil</span>
+        <strong data-comp-oil>—</strong>
+        <small>barrels</small>
+      </article>
+
+      <article class="bitcoin-ticker__comparative bitcoin-ticker__comparative--cannabis" data-comparative="cannabis">
+        <span class="bitcoin-ticker__comparative-name">Cannabis</span>
+        <strong data-comp-cannabis>—</strong>
+        <small>lb</small>
+        <label class="bitcoin-ticker__reference-input">
+          <span>reference USD/lb</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="set reference"
+            data-cannabis-usd-lb
+            aria-label="Cannabis reference price in US dollars per pound">
+        </label>
+      </article>
+    </div>
+
+    <div class="bitcoin-ticker__commodity-meta">
+      <span data-commodity-source>commodity references unavailable</span>
+      <span data-commodity-updated>—</span>
+    </div>
+
+    <section class="bitcoin-ticker__debt" aria-label="United States federal debt absorption per bitcoin">
+      <header class="bitcoin-ticker__debt-head">
+        <div>
+          <span class="bitcoin-ticker__section-kicker">USD liability</span>
+          <h3>U.S. Federal Debt Absorption</h3>
+        </div>
+        <strong data-us-debt-total>—</strong>
+      </header>
+
+      <div class="bitcoin-ticker__debt-grid">
+        <div class="bitcoin-ticker__debt-cell">
+          <span>Per currently-issued BTC</span>
+          <strong class="bitcoin-ticker__negative" data-debt-per-issued>—</strong>
+          <small data-issued-supply>scheduled supply —</small>
+        </div>
+
+        <div class="bitcoin-ticker__debt-cell">
+          <span>Per 21M terminal BTC</span>
+          <strong class="bitcoin-ticker__negative" data-debt-per-terminal>—</strong>
+          <small>21,000,000 BTC denominator</small>
+        </div>
+      </div>
+
+      <div class="bitcoin-ticker__debt-meta">
+        <span data-debt-source>U.S. Treasury Fiscal Data</span>
+        <span data-chain-height>height —</span>
+      </div>
+    </section>
+  </section>
 
   <footer class="bitcoin-ticker__footer">
     <span data-provider-detail>ZZX BPI</span>
