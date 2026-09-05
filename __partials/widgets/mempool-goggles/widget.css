@@ -1,0 +1,253 @@
+/* __partials/widgets/mempool-goggles/widget.css */
+
+.mempool-goggles{
+  --mg-green:var(--zzx-accent,#c0d674);
+  --mg-gold:var(--zzx-accent-alt,#e6a42b);
+  --mg-muted:var(--zzx-muted,#b7bf9a);
+  --mg-dim:var(--zzx-dim,#777);
+  --mg-line:rgba(255,255,255,.09);
+  --mg-panel:rgba(255,255,255,.018);
+  --mg-low:#244052;
+  --mg-mid:#4f8b67;
+  --mg-high:#c0d674;
+  --mg-hot:#e6a42b;
+  width:100%;
+  min-width:0;
+}
+
+.mempool-goggles__header,
+.mempool-goggles__footer,
+.mempool-goggles__block-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.mempool-goggles__header{
+  align-items:flex-start;
+}
+
+.mempool-goggles__eyebrow,
+.mempool-goggles__hero > span,
+.mempool-goggles__metrics span,
+.mempool-goggles__row > span,
+.mempool-goggles__block-head{
+  color:var(--mg-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.mempool-goggles__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--mg-line);
+  border-bottom:1px solid var(--mg-line);
+}
+
+.mempool-goggles__hero strong{
+  min-width:0;
+  color:var(--mg-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.35rem;
+  line-height:1.05;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mempool-goggles__hero small{
+  min-width:0;
+  color:var(--mg-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mempool-goggles__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.mempool-goggles__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--mg-line);
+  border-radius:6px;
+  background:var(--mg-panel);
+}
+
+.mempool-goggles__metrics span,
+.mempool-goggles__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mempool-goggles__metrics strong{
+  margin-top:.1rem;
+  color:var(--mg-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.mempool-goggles__block-wrap{
+  margin-top:.5rem;
+  padding:.42rem;
+  border:1px solid var(--mg-line);
+  border-radius:7px;
+  background:var(--mg-panel);
+}
+
+.mempool-goggles__block-head{
+  color:var(--mg-gold);
+}
+
+.mempool-goggles__block{
+  position:relative;
+  width:min(100%,560px);
+  margin:.42rem auto 0;
+  overflow:hidden;
+  aspect-ratio:1 / 1;
+  border:3px solid var(--mg-gold);
+  border-radius:8px;
+  background:#0a0a0a;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);
+}
+
+.mempool-goggles__block canvas{
+  display:block;
+  width:100%;
+  height:100%;
+  image-rendering:auto;
+}
+
+.mempool-goggles__tooltip{
+  position:absolute;
+  z-index:3;
+  max-width:min(88%,300px);
+  padding:.38rem .45rem;
+  border:1px solid rgba(230,164,43,.65);
+  border-radius:5px;
+  background:rgba(7,7,7,.96);
+  color:var(--mg-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.62rem;
+  line-height:1.4;
+  pointer-events:none;
+  box-shadow:0 10px 24px rgba(0,0,0,.45);
+}
+
+.mempool-goggles__tooltip strong{
+  display:block;
+  margin-bottom:.08rem;
+  color:var(--mg-gold);
+  font-weight:500;
+}
+
+.mempool-goggles__legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.65rem;
+  margin-top:.4rem;
+  color:var(--mg-muted);
+  font-size:.66rem;
+}
+
+.mempool-goggles__legend span{
+  display:inline-flex;
+  align-items:center;
+  gap:.28rem;
+}
+
+.mempool-goggles__legend i{
+  display:inline-block;
+  width:11px;
+  height:11px;
+  border-radius:2px;
+}
+
+.mempool-goggles__legend i[data-tier="low"]{background:var(--mg-low)}
+.mempool-goggles__legend i[data-tier="mid"]{background:var(--mg-mid)}
+.mempool-goggles__legend i[data-tier="high"]{background:var(--mg-high)}
+.mempool-goggles__legend i[data-tier="hot"]{background:var(--mg-hot)}
+
+.mempool-goggles__details{
+  display:grid;
+  gap:.25rem;
+  margin-top:.5rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--mg-line);
+}
+
+.mempool-goggles__row{
+  display:grid;
+  grid-template-columns:minmax(150px,.38fr) minmax(0,1fr);
+  gap:.55rem;
+  min-width:0;
+}
+
+.mempool-goggles__row > strong{
+  min-width:0;
+  color:var(--mg-muted);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.68rem;
+  font-weight:500;
+  text-align:right;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mempool-goggles__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--mg-line);
+  color:var(--mg-muted);
+  font-size:.67rem;
+}
+
+.mempool-goggles__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .mempool-goggles__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:460px){
+  .mempool-goggles__metrics{
+    grid-template-columns:1fr;
+  }
+
+  .mempool-goggles__row{
+    grid-template-columns:1fr;
+    gap:.05rem;
+  }
+
+  .mempool-goggles__row > strong{
+    text-align:left;
+  }
+
+  .mempool-goggles__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
