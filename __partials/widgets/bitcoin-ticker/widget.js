@@ -22,6 +22,7 @@
   const REFRESH_MS = 1000;
   const CONFIG_TTL_MS = 30 * 60 * 1000;
   const STALE_AFTER_MS = 5 * 60 * 1000;
+  const COMPARATIVES_MODULE = "/__partials/widgets/bitcoin-ticker/js/comparatives.js";
 
   const STORAGE = {
     source: "zzx.widget.bitcoin-ticker.source",
@@ -42,6 +43,7 @@
     latest: null,
     latestAt: 0,
     inflightLatest: null,
+    comparativesPromise: null,
     mountedRoots: new WeakSet()
   };
 
@@ -94,6 +96,98 @@
       if (arguments.length > 1) return fallback;
       throw error;
     }
+  }
+
+
+  function versionedURL(path) {
+    const resolved = localURL(path);
+    const meta = D.querySelector('meta[name="asset-version"]');
+    const version = meta ? String(meta.getAttribute("content") || "").trim() : "";
+    if (!version) return resolved;
+
+    try {
+      const u = new URL(resolved, W.location.href);
+      if (!u.searchParams.has("v")) u.searchParams.set("v", version);
+      return u.href;
+    } catch (_) {
+      return resolved;
+    }
+  }
+
+  function ensureComparativesModule() {
+    if (W.ZZXBitcoinTickerComparatives) {
+      return Promise.resolve(W.ZZXBitcoinTickerComparatives);
+    }
+
+    if (state.comparativesPromise) return state.comparativesPromise;
+
+    state.comparativesPromise = new Promise(function (resolve, reject) {
+      const source = versionedURL(COMPARATIVES_MODULE);
+      const existing = D.querySelector('script[data-zzx-bitcoin-ticker-comparatives="1"]');
+
+      function done() {
+        if (W.ZZXBitcoinTickerComparatives) resolve(W.ZZXBitcoinTickerComparatives);
+        else reject(new Error("Bitcoin ticker comparatives module did not initialize"));
+      }
+
+      if (existing) {
+        if (W.ZZXBitcoinTickerComparatives) return done();
+        existing.addEventListener("load", done, { once: true });
+        existing.addEventListener("error", function () {
+          reject(new Error("Failed to load " + COMPARATIVES_MODULE));
+        }, { once: true });
+        return;
+      }
+
+      const script = D.createElement("script");
+      script.src = source;
+      script.defer = true;
+      script.setAttribute("data-zzx-bitcoin-ticker-comparatives", "1");
+      script.addEventListener("load", done, { once: true });
+      script.addEventListener("error", function () {
+        try { script.remove(); } catch (_) {}
+        reject(new Error("Failed to load " + COMPARATIVES_MODULE));
+      }, { once: true });
+      (D.head || D.documentElement).appendChild(script);
+    }).catch(function (error) {
+      state.comparativesPromise = null;
+      throw error;
+    });
+
+    return state.comparativesPromise;
+  }
+
+  function refreshComparatives(root, context) {
+    if (!root || !context) return;
+
+    root.__zzxTickerComparativesContext = context;
+
+    if (root.__zzxTickerComparativesRunning) {
+      root.__zzxTickerComparativesQueued = true;
+      return;
+    }
+
+    root.__zzxTickerComparativesRunning = true;
+
+    ensureComparativesModule()
+      .then(function (module) {
+        if (!root.isConnected) return;
+        if (module && typeof module.mount === "function") module.mount(root);
+        return module && typeof module.update === "function"
+          ? module.update(root, root.__zzxTickerComparativesContext)
+          : null;
+      })
+      .catch(function (error) {
+        setText(root, "[data-comparatives-state]", "references offline");
+        setText(root, "[data-commodity-source]", error && error.message ? error.message : "comparative module unavailable");
+      })
+      .finally(function () {
+        root.__zzxTickerComparativesRunning = false;
+        if (root.__zzxTickerComparativesQueued) {
+          root.__zzxTickerComparativesQueued = false;
+          refreshComparatives(root, root.__zzxTickerComparativesContext);
+        }
+      });
   }
 
   function finitePositive(value) {
@@ -786,6 +880,13 @@
       " / FX " +
       fxProvider
     );
+
+    refreshComparatives(root, {
+      btcUsd: quote.priceUsd,
+      latest: latest,
+      sourceId: quote.sourceId,
+      sourceLabel: quote.label
+    });
   }
 
   function bind(root) {
@@ -953,6 +1054,13 @@
         root,
         config
       );
+
+      try {
+        const comparatives = await ensureComparativesModule();
+        if (comparatives && typeof comparatives.mount === "function") comparatives.mount(root);
+      } catch (error) {
+        setText(root, "[data-comparatives-state]", "references offline");
+      }
 
       bind(root);
       startPolling(root);
