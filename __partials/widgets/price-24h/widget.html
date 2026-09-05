@@ -1,25 +1,72 @@
-<!-- __partials/widgets/price-24h/widget.html
-     DROP-IN REPLACEMENT (24h Price: price + % + exchange selector + chart) -->
+<!-- __partials/widgets/price-24h/widget.html -->
+<div class="zzx-card price24">
+  <div class="price24__header">
+    <div>
+      <div class="zzx-card__title">24h Price</div>
+      <div class="price24__eyebrow">BTC / USD · hourly market candles</div>
+    </div>
 
-<div class="zzx-card price24" data-widget-root="price-24h">
-  <div class="zzx-card__title">
-    <span>24h Price</span>
-
-    <span class="zzx-exchange" aria-label="Exchange selector">
-      <span class="zzx-exchange__label">exchange</span>
-      <select data-exchange aria-label="Select exchange"></select>
-    </span>
+    <label class="price24__source">
+      <span>exchange</span>
+      <select data-price24-source aria-label="Select exchange"></select>
+    </label>
   </div>
 
-  <div class="zzx-card__value zzx-metrics">
-    <span class="zzx-metric">$<span data-price>—</span></span>
-    <span class="zzx-delta is-flat" data-delta>—%</span>
+  <div class="price24__hero">
+    <div class="price24__price-wrap">
+      <span class="price24__label">latest</span>
+      <strong class="price24__price" data-price24-price>—</strong>
+    </div>
+
+    <div class="price24__change" data-price24-tone="flat">
+      <span class="price24__change-abs" data-price24-change-abs>—</span>
+      <strong class="price24__change-pct" data-price24-change-pct>—</strong>
+    </div>
   </div>
 
-  <div class="zzx-card__sub"><span data-sub>loading…</span></div>
+  <div class="price24__metrics" aria-label="24 hour price details">
+    <div class="price24__metric">
+      <span>24h open</span>
+      <strong data-price24-open>—</strong>
+    </div>
 
-  <!-- UNIFORM CHART CONTRACT -->
-  <div class="zzx-chartbox" aria-hidden="true">
-    <canvas data-chart></canvas>
+    <div class="price24__metric">
+      <span>24h close</span>
+      <strong data-price24-close>—</strong>
+    </div>
+
+    <div class="price24__metric">
+      <span>range span</span>
+      <strong data-price24-span>—</strong>
+    </div>
+  </div>
+
+  <div class="price24__chart-wrap">
+    <canvas
+      class="price24__chart"
+      data-price24-chart
+      role="img"
+      aria-label="Bitcoin 24 hour price chart"
+    ></canvas>
+  </div>
+
+  <div class="price24__footer">
+    <div class="price24__source-meta">
+      <span
+        class="btc-card__status price24__status"
+        data-price24-status
+        data-status="offline"
+        aria-live="polite"
+      >loading</span>
+
+      <span data-price24-meta>—</span>
+    </div>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-price24-refresh
+      aria-label="Refresh 24 hour price"
+    >Refresh</button>
   </div>
 </div>
