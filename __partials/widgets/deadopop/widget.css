@@ -1,0 +1,205 @@
+/* __partials/widgets/deadopop/widget.css */
+
+.deadopop{
+  --do-green:var(--zzx-accent,#c0d674);
+  --do-gold:var(--zzx-accent-alt,#e6a42b);
+  --do-red:var(--zzx-error,#d67474);
+  --do-muted:var(--zzx-muted,#b7bf9a);
+  --do-dim:var(--zzx-dim,#777);
+  --do-line:rgba(255,255,255,.09);
+  --do-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.deadopop__header,
+.deadopop__footer,
+.deadopop__pager{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.deadopop__header{align-items:flex-start}
+
+.deadopop__eyebrow,
+.deadopop__hero > span,
+.deadopop__metrics span,
+.deadopop__controls label > span{
+  color:var(--do-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.deadopop__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--do-line);
+  border-bottom:1px solid var(--do-line);
+}
+
+.deadopop__hero strong{
+  min-width:0;
+  color:var(--do-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.35rem;
+  line-height:1.05;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.deadopop__hero small{
+  color:var(--do-gold);
+  font-size:.68rem;
+}
+
+.deadopop__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.deadopop__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--do-line);
+  border-radius:6px;
+  background:var(--do-panel);
+}
+
+.deadopop__metrics span,
+.deadopop__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.deadopop__metrics strong{
+  margin-top:.1rem;
+  color:var(--do-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.deadopop__controls{
+  display:grid;
+  grid-template-columns:minmax(145px,.28fr) minmax(0,1fr) auto;
+  gap:.4rem;
+  align-items:end;
+  margin-top:.5rem;
+}
+
+.deadopop__controls label{
+  display:grid;
+  gap:.15rem;
+}
+
+.deadopop__controls select,
+.deadopop__controls input{
+  width:100%;
+  min-width:0;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--do-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.deadopop__controls select:focus,
+.deadopop__controls input:focus{border-color:var(--do-gold)}
+
+.deadopop__table-wrap{
+  margin-top:.5rem;
+  overflow:auto;
+  border:1px solid var(--do-line);
+  border-radius:6px;
+}
+
+.deadopop__table{min-width:790px}
+
+.deadopop__row{
+  display:grid;
+  grid-template-columns:38px minmax(170px,1fr) 125px 180px 85px 125px;
+  gap:.4rem;
+  align-items:center;
+  min-width:0;
+  padding:.36rem .42rem;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-size:.66rem;
+}
+
+.deadopop__head{
+  border-top:0;
+  background:rgba(0,0,0,.34);
+  color:var(--do-gold);
+  text-transform:uppercase;
+}
+
+.deadopop__row > div{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.deadopop__row:not(.deadopop__head) > div{
+  color:var(--do-muted);
+}
+
+.deadopop__row:not(.deadopop__head) > div:nth-child(2),
+.deadopop__row:not(.deadopop__head) > div:nth-child(6){
+  color:var(--do-green);
+}
+
+.deadopop__num{text-align:right}
+
+.deadopop__badge{
+  margin-left:.3rem;
+  color:var(--do-gold);
+  font-size:.56rem;
+}
+
+.deadopop__empty{
+  padding:.7rem;
+  color:var(--do-dim);
+  font-size:.68rem;
+  text-align:center;
+}
+
+.deadopop__pager{
+  justify-content:center;
+  margin-top:.45rem;
+  color:var(--do-muted);
+  font-size:.68rem;
+}
+
+.deadopop__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--do-line);
+  color:var(--do-muted);
+  font-size:.67rem;
+}
+
+@media(max-width:720px){
+  .deadopop__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:460px){
+  .deadopop__metrics,
+  .deadopop__controls{grid-template-columns:1fr}
+}
