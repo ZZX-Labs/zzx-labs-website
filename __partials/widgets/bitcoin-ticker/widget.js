@@ -73,16 +73,16 @@
       : "/__partials/widgets/bitcoin-ticker";
 
     for(const [globalName,relative,minVersion] of [
-      ["ZZXBitcoinTickerConstants","js/constants.js",7],
+      ["ZZXBitcoinTickerConstants","js/constants.js",8],
       ["ZZXBitcoinTickerDeps","js/deps.js",7],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerFX","js/fx.js"],
       ["ZZXBitcoinTickerSelection","js/selection.js",6],
       ["ZZXBitcoinTickerUnits","js/units.js"],
-      ["ZZXBitcoinTickerReferences","js/references.js",6],
+      ["ZZXBitcoinTickerReferences","js/references.js",7],
       ["ZZXBitcoinTickerDebts","js/debts.js",8],
       ["ZZXBitcoinTickerBalances","js/balances.js",1],
-      ["ZZXBitcoinTickerPanels","js/panels.js",3],
+      ["ZZXBitcoinTickerPanels","js/panels.js",4],
       ["ZZXBitcoinTickerWidgetBridge","js/widget-bridge.js"],
       ["ZZXBitcoinTickerCharts","js/charts.js"]
     ]){
@@ -278,7 +278,12 @@
 
     if(!state.references){
       state.references=await W.ZZXBitcoinTickerReferences.load(false);
-      W.ZZXBitcoinTickerReferences.populateCategories(root,state.references.catalog);
+      W.ZZXBitcoinTickerReferences.populatePages(
+        root,
+        state,
+        state.references,
+        quote.priceUsd
+      );
     }
     W.ZZXBitcoinTickerReferences.render(root,state,quote.priceUsd);
 
@@ -347,7 +352,7 @@
       core:core||W.ZZXWidgetsCore||null,
       config:null,configAt:0,references:null,debts:null,balances:null,
       chainHeight:NaN,issuedSats:null,
-      selection:null,busy:false,queued:false,timer:null,referencePage:0
+      selection:null,busy:false,queued:false,timer:null,referenceType:null
     };
     root.__zzxBitcoinTickerState=state;
 
@@ -393,28 +398,37 @@
       });
 
       let searchTimer=null;
-      q(root,"[data-reference-search]")?.addEventListener("input",()=>{
-        if(searchTimer)W.clearTimeout(searchTimer);
-        searchTimer=W.setTimeout(()=>{
-          state.referencePage=0;
-          if(state.references&&state.selection)W.ZZXBitcoinTickerReferences.render(root,state,state.selection.priceUsd);
-        },120);
-      });
 
-      q(root,"[data-reference-category]")?.addEventListener("change",()=>{
-        state.referencePage=0;
-        if(state.references&&state.selection)W.ZZXBitcoinTickerReferences.render(root,state,state.selection.priceUsd);
-      });
+      q(root,"[data-reference-search]")?.addEventListener(
+        "input",
+        ()=>{
+          if(searchTimer)W.clearTimeout(searchTimer);
 
-      q(root,"[data-reference-prev]")?.addEventListener("click",()=>{
-        state.referencePage=Math.max(0,state.referencePage-1);
-        if(state.references&&state.selection)W.ZZXBitcoinTickerReferences.render(root,state,state.selection.priceUsd);
-      });
+          searchTimer=W.setTimeout(()=>{
+            if(state.references&&state.selection){
+              W.ZZXBitcoinTickerReferences.render(
+                root,
+                state,
+                state.selection.priceUsd
+              );
+            }
+          },120);
+        }
+      );
 
-      q(root,"[data-reference-next]")?.addEventListener("click",()=>{
-        state.referencePage+=1;
-        if(state.references&&state.selection)W.ZZXBitcoinTickerReferences.render(root,state,state.selection.priceUsd);
-      });
+      q(root,"[data-reference-page-select]")?.addEventListener(
+        "change",
+        event=>{
+          if(!state.references||!state.selection)return;
+
+          W.ZZXBitcoinTickerReferences.setPage(
+            root,
+            state,
+            event.currentTarget.value,
+            state.selection.priceUsd
+          );
+        }
+      );
 
       q(root,"[data-debt-country]")?.addEventListener("change",event=>{
         safeSet(
