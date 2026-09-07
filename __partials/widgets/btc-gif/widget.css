@@ -1,5 +1,4 @@
 /* __partials/widgets/btc-gif/widget.css */
-
 .btc-gif{
   --gif-green:var(--zzx-accent,#c0d674);
   --gif-gold:var(--zzx-accent-alt,#e6a42b);
@@ -11,9 +10,16 @@
   min-width:0;
 }
 
+.btc-gif *,
+.btc-gif *::before,
+.btc-gif *::after{
+  box-sizing:border-box;
+}
+
 .btc-gif__header,
 .btc-gif__meta,
-.btc-gif__controls{
+.btc-gif__controls,
+.btc-gif__footer{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -24,18 +30,50 @@
 .btc-gif__header{align-items:flex-start}
 
 .btc-gif__eyebrow,
-.btc-gif__controls label > span{
+.btc-gif__controls label > span,
+.btc-gif__state span{
   color:var(--gif-dim);
-  font-size:.67rem;
+  font-size:.62rem;
   letter-spacing:.055em;
   text-transform:uppercase;
+}
+
+.btc-gif__state{
+  display:grid;
+  grid-template-columns:minmax(0,.8fr) minmax(0,.55fr) minmax(0,1.65fr);
+  gap:.35rem;
+  margin-top:.48rem;
+}
+
+.btc-gif__state > div{
+  min-width:0;
+  padding:.34rem .4rem;
+  border:1px solid var(--gif-line);
+  border-radius:5px;
+  background:#080808;
+}
+
+.btc-gif__state span,
+.btc-gif__state strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-gif__state strong{
+  margin-top:.08rem;
+  color:var(--gif-green);
+  font-size:.66rem;
+  font-weight:500;
 }
 
 .btc-gif__stage{
   position:relative;
   width:100%;
   aspect-ratio:16/9;
-  min-height:120px;
+  min-height:160px;
   margin-top:.5rem;
   overflow:hidden;
   border:1px solid var(--gif-line);
@@ -52,10 +90,11 @@
 .btc-gif__meta{
   margin-top:.34rem;
   color:var(--gif-muted);
-  font-size:.68rem;
+  font-size:.66rem;
 }
 
-.btc-gif__meta span{
+.btc-gif__meta span,
+.btc-gif__footer span{
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -84,7 +123,28 @@
   background:#080808;
   color:var(--gif-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.72rem;
+  font-size:.69rem;
+}
+
+.btc-gif__controls select:focus{
+  border-color:var(--gif-gold);
+}
+
+.btc-gif__footer{
+  margin-top:.36rem;
+  padding-top:.34rem;
+  border-top:1px solid rgba(255,255,255,.05);
+  color:var(--gif-dim);
+  font-size:.57rem;
+}
+
+@media(max-width:620px){
+  .btc-gif__state{
+    grid-template-columns:1fr 1fr;
+  }
+  .btc-gif__state > div:last-child{
+    grid-column:1/-1;
+  }
 }
 
 @media(max-width:430px){
@@ -92,7 +152,10 @@
     display:grid;
     grid-template-columns:1fr;
   }
-
   .btc-gif__controls > *{width:100%}
   .btc-gif__controls label{justify-content:space-between}
+  .btc-gif__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
 }
