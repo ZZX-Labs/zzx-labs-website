@@ -1,0 +1,215 @@
+name: Update BPI Sovereign Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */6 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-sovereign-data
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  update-sovereign-data:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync repository before generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Validate sovereign updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            tools/bpi/update_sovereign_data.py
+          python tools/bpi/update_sovereign_data.py \
+            --self-test
+          python -m json.tool \
+            bitcoin/bpi/api/sovereign-countries.json \
+            >/dev/null
+          python -m json.tool \
+            bitcoin/bpi/api/sovereign_source_urls.json \
+            >/dev/null
+
+      - name: Update sovereign debt and reserve assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bpi/update_sovereign_data.py \
+            --minimum-available 10
+
+      - name: Validate sovereign contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          api = Path("bitcoin/bpi/api")
+
+          registry = json.loads(
+              (api / "sovereign-countries.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          debts = json.loads(
+              (api / "national_debts.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          balances = json.loads(
+              (api / "national_balances.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          countries = registry.get("countries")
+          debt_rows = debts.get("countries")
+          balance_rows = balances.get("countries")
+
+          if not isinstance(countries, list) or len(countries) < 200:
+              raise SystemExit(
+                  "sovereign country registry is incomplete"
+              )
+
+          codes = [
+              str(row.get("code") or "")
+              for row in countries
+              if isinstance(row, dict)
+          ]
+
+          if len(codes) != len(set(codes)):
+              raise SystemExit(
+                  "sovereign country registry contains duplicate codes"
+              )
+
+          if not isinstance(debt_rows, list):
+              raise SystemExit(
+                  "national_debts.json countries must be an array"
+              )
+
+          if not isinstance(balance_rows, list):
+              raise SystemExit(
+                  "national_balances.json countries must be an array"
+              )
+
+          if len(debt_rows) != len(countries):
+              raise SystemExit(
+                  "national_debts.json must retain every registry country"
+              )
+
+          if len(balance_rows) != len(countries):
+              raise SystemExit(
+                  "national_balances.json must retain every registry country"
+              )
+
+          debt_available = [
+              row for row in debt_rows
+              if row.get("available") is True
+              and isinstance(row.get("debt_usd"), (int, float))
+              and math.isfinite(float(row["debt_usd"]))
+              and float(row["debt_usd"]) > 0
+          ]
+
+          balance_available = [
+              row for row in balance_rows
+              if row.get("available") is True
+              and isinstance(
+                  row.get("balance_assets_usd"),
+                  (int, float)
+              )
+              and math.isfinite(
+                  float(row["balance_assets_usd"])
+              )
+              and float(row["balance_assets_usd"]) > 0
+          ]
+
+          if len(debt_available) < 10:
+              raise SystemExit(
+                  "too few usable sovereign debt estimates"
+              )
+
+          if len(balance_available) < 10:
+              raise SystemExit(
+                  "too few usable sovereign reserve-asset estimates"
+              )
+
+          print(
+              "Sovereign contracts valid: "
+              f"registry={len(countries)} "
+              f"debt={len(debt_available)} "
+              f"balances={len(balance_available)}"
+          )
+          PY
+
+      - name: Commit and push sovereign mirrors
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "zzx-bpi-bot"
+          git config user.email "actions@github.com"
+
+          git add -- \
+            bitcoin/bpi/api/sovereign-countries.json \
+            bitcoin/bpi/api/national_debts.json \
+            bitcoin/bpi/api/national_balances.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' \
+              "No sovereign-data changes."
+            exit 0
+          fi
+
+          git commit \
+            -m "Update BPI sovereign data"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main && \
+               git push origin HEAD:main; then
+              printf '%s\n' \
+                "BPI sovereign data pushed."
+              exit 0
+            fi
+
+            git rebase --abort || true
+
+            printf '%s\n' \
+              "Sovereign-data push attempt ${attempt} failed; retrying without force."
+
+            sleep 5
+          done
+
+          printf '%s\n' \
+            "Failed to push sovereign data without rewriting main."
+
+          exit 1
