@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXHistoryClient?.__version>=2)return;
+  if(W.ZZXHistoryClient?.__version>=3)return;
 
   const dynamicBase="/bitcoin/bpi/history";
   const staticLive="/bitcoin/bpi/api/history-live.json";
@@ -51,6 +51,12 @@
     );
     if(!Number.isFinite(t)||!(price>0))return null;
     const open=finite(row?.open),high=finite(row?.high),low=finite(row?.low),close=finite(row?.close);
+    const volume=finite(row?.volume_24h_btc);
+    const volumeOpen=finite(row?.volume_open_24h_btc);
+    const volumeHigh=finite(row?.volume_high_24h_btc);
+    const volumeLow=finite(row?.volume_low_24h_btc);
+    const volumeClose=finite(row?.volume_close_24h_btc);
+
     return {
       t,
       open:Number.isFinite(open)?open:price,
@@ -58,7 +64,27 @@
       low:Number.isFinite(low)?low:price,
       close:Number.isFinite(close)?close:price,
       price,
-      volume_24h_btc:Number.isFinite(finite(row?.volume_24h_btc))?finite(row.volume_24h_btc):null,
+      volume_24h_btc:Number.isFinite(volume)?volume:null,
+      volume_open_24h_btc:Number.isFinite(volumeOpen)
+        ? volumeOpen
+        : Number.isFinite(volume)
+          ? volume
+          : null,
+      volume_high_24h_btc:Number.isFinite(volumeHigh)
+        ? volumeHigh
+        : Number.isFinite(volume)
+          ? volume
+          : null,
+      volume_low_24h_btc:Number.isFinite(volumeLow)
+        ? volumeLow
+        : Number.isFinite(volume)
+          ? volume
+          : null,
+      volume_close_24h_btc:Number.isFinite(volumeClose)
+        ? volumeClose
+        : Number.isFinite(volume)
+          ? volume
+          : null,
       change:Number.isFinite(finite(row?.change))?finite(row.change):null,
       change_pct:Number.isFinite(finite(row?.change_pct))?finite(row.change_pct):null,
       market:row?.market??null,
@@ -94,12 +120,91 @@
       const b=Math.floor(p.t/ms)*ms;
       let x=map.get(b);
       if(!x){
-        x={t:b,open:p.open??p.price,high:p.high??p.price,low:p.low??p.price,close:p.close??p.price,price:p.price,volume_24h_btc:p.volume_24h_btc,quote:p.quote,market:p.market,_last:p.t};
+        const volumeClose=finite(
+          p.volume_close_24h_btc ??
+          p.volume_24h_btc
+        );
+        const volumeOpen=finite(
+          p.volume_open_24h_btc ??
+          volumeClose
+        );
+        const volumeHigh=finite(
+          p.volume_high_24h_btc ??
+          volumeClose
+        );
+        const volumeLow=finite(
+          p.volume_low_24h_btc ??
+          volumeClose
+        );
+
+        x={
+          t:b,
+          open:p.open??p.price,
+          high:p.high??p.price,
+          low:p.low??p.price,
+          close:p.close??p.price,
+          price:p.price,
+          volume_24h_btc:Number.isFinite(volumeClose)?volumeClose:null,
+          volume_open_24h_btc:Number.isFinite(volumeOpen)?volumeOpen:null,
+          volume_high_24h_btc:Number.isFinite(volumeHigh)?volumeHigh:null,
+          volume_low_24h_btc:Number.isFinite(volumeLow)?volumeLow:null,
+          volume_close_24h_btc:Number.isFinite(volumeClose)?volumeClose:null,
+          quote:p.quote,
+          market:p.market,
+          _last:p.t
+        };
         map.set(b,x);
       }else{
         x.high=Math.max(x.high,p.high??p.price);
         x.low=Math.min(x.low,p.low??p.price);
-        if(p.t>=x._last){x.close=p.close??p.price;x.price=x.close;x.volume_24h_btc=p.volume_24h_btc;x.quote=p.quote;x.market=p.market;x._last=p.t}
+
+        const volumeOpen=finite(
+          p.volume_open_24h_btc ??
+          p.volume_24h_btc
+        );
+        const volumeHigh=finite(
+          p.volume_high_24h_btc ??
+          p.volume_24h_btc
+        );
+        const volumeLow=finite(
+          p.volume_low_24h_btc ??
+          p.volume_24h_btc
+        );
+        const volumeClose=finite(
+          p.volume_close_24h_btc ??
+          p.volume_24h_btc
+        );
+
+        if(
+          x.volume_open_24h_btc==null &&
+          Number.isFinite(volumeOpen)
+        ){
+          x.volume_open_24h_btc=volumeOpen;
+        }
+
+        if(Number.isFinite(volumeHigh)){
+          x.volume_high_24h_btc=
+            x.volume_high_24h_btc==null
+              ? volumeHigh
+              : Math.max(x.volume_high_24h_btc,volumeHigh);
+        }
+
+        if(Number.isFinite(volumeLow)){
+          x.volume_low_24h_btc=
+            x.volume_low_24h_btc==null
+              ? volumeLow
+              : Math.min(x.volume_low_24h_btc,volumeLow);
+        }
+
+        if(p.t>=x._last){
+          x.close=p.close??p.price;
+          x.price=x.close;
+          x.volume_24h_btc=Number.isFinite(volumeClose)?volumeClose:null;
+          x.volume_close_24h_btc=Number.isFinite(volumeClose)?volumeClose:null;
+          x.quote=p.quote;
+          x.market=p.market;
+          x._last=p.t;
+        }
       }
     }
     let prev=null;
@@ -209,5 +314,5 @@
     return {sources:[...values.values()]};
   }
 
-  W.ZZXHistoryClient=Object.freeze({__version:2,series,sources,spanMs});
+  W.ZZXHistoryClient=Object.freeze({__version:3,series,sources,spanMs});
 })();
