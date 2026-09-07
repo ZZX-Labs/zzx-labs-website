@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXLiveBPI?.__version>=2)return;
+  if(W.ZZXLiveBPI?.__version>=4)return;
 
   const CYCLE_MS=2500;
   const FX_TTL_MS=60_000;
@@ -104,6 +104,84 @@
     return row;
   }
 
+
+  const PRICE_BAND_MIN_PCT=7.5;
+  const PRICE_BAND_MAX_PCT=20;
+  const PRICE_MAD_MULTIPLIER=8;
+  const VOLUME_MEDIAN_MULTIPLIER=100;
+  const VOLUME_FLOOR_BTC=100000;
+  const VOLUME_HARD_CEILING_BTC=1000000;
+
+  function median(values){
+    const rows=values.filter(Number.isFinite).slice().sort((a,b)=>a-b);
+    if(!rows.length)return NaN;
+    const mid=Math.floor(rows.length/2);
+    return rows.length%2?rows[mid]:(rows[mid-1]+rows[mid])/2;
+  }
+
+  function sanity(rows){
+    const prices=rows.map(r=>positive(r.price_usd)).filter(Number.isFinite);
+    const center=median(prices);
+    if(!Number.isFinite(center))return {accepted:[],quarantined:[],center:NaN,madPct:NaN,bandPct:NaN,medianVolume:NaN,volumeLimit:VOLUME_FLOOR_BTC};
+
+    const deviations=prices.map(p=>Math.abs(p-center));
+    const mad=median(deviations);
+    const madPct=prices.length>=3&&Number.isFinite(mad)&&center>0?mad/center*100:0;
+    const bandPct=prices.length<3
+      ? PRICE_BAND_MAX_PCT
+      : Math.min(PRICE_BAND_MAX_PCT,Math.max(PRICE_BAND_MIN_PCT,PRICE_MAD_MULTIPLIER*madPct));
+
+    const plausibleVolumes=[];
+    for(const row of rows){
+      const price=positive(row.price_usd);
+      if(!Number.isFinite(price))continue;
+      const dev=Math.abs(price-center)/center*100;
+      if(dev<=bandPct){
+        const vol=positive(row.volume_24h_btc);
+        if(Number.isFinite(vol))plausibleVolumes.push(vol);
+      }
+    }
+
+    const medianVolume=median(plausibleVolumes);
+    const volumeLimit=Math.min(
+      VOLUME_HARD_CEILING_BTC,
+      Math.max(
+        VOLUME_FLOOR_BTC,
+        Number.isFinite(medianVolume)?medianVolume*VOLUME_MEDIAN_MULTIPLIER:VOLUME_FLOOR_BTC
+      )
+    );
+
+    const accepted=[],quarantined=[];
+    for(const source of rows){
+      const row={...source};
+      const price=positive(row.price_usd);
+      const volume=nonnegative(row.volume_24h_btc);
+      const reasons=[];
+      let deviation=NaN;
+
+      if(!Number.isFinite(price))reasons.push("invalid_price");
+      else{
+        deviation=(price-center)/center*100;
+        if(Math.abs(deviation)>bandPct)reasons.push("price_consensus_outlier");
+      }
+
+      if(!Number.isFinite(volume))reasons.push("invalid_volume");
+      else if(volume>volumeLimit)reasons.push("volume_outlier");
+
+      row.consensus_price_usd=center;
+      row.consensus_deviation_pct=Number.isFinite(deviation)?deviation:null;
+      row.consensus_price_band_pct=bandPct;
+      row.volume_sanity_limit_btc=volumeLimit;
+      row.index_eligible=!reasons.length;
+      row.exclusion_reason=reasons.length?reasons.join(","):null;
+      row.weight=0;
+
+      (reasons.length?quarantined:accepted).push(row);
+    }
+
+    return {accepted,quarantined,center,madPct,bandPct,medianVolume,volumeLimit};
+  }
+
   function calc(rows){
     const weighted=rows.filter(r=>positive(r.price_usd)>0&&positive(r.volume_24h_btc)>0);
     const total=weighted.reduce((a,r)=>a+r.volume_24h_btc,0);
@@ -136,25 +214,91 @@
   function publish(){
     const rows=[...state.markets.values()].filter(r=>Date.now()-new Date(r.updated_at).getTime()<30_000);
     const cfg=state.config?.exchanges?.sources||{};
-    const core=rows.filter(r=>cfg?.[r.exchange]?.include_in_bpi===true);
-    const coreIndex=calc(core.length?core:rows);
-    const globalIndex=calc(rows);
+
+    const checked=sanity(rows);
+    const accepted=checked.accepted;
+    const quarantined=checked.quarantined;
+
+    if(accepted.length<2)return;
+
+    const policyAllowed=accepted.filter(r=>{
+      const policy=cfg?.[r.exchange]||{};
+      const status=String(policy.status||"");
+      return policy.enabled!==false&&!status.startsWith("quarantined-");
+    });
+
+    const core=policyAllowed.filter(r=>cfg?.[r.exchange]?.include_in_bpi===true);
+    const coreIndex=calc(core.length?core:policyAllowed);
+    const globalIndex=calc(policyAllowed);
+
     if(!Number.isFinite(globalIndex.price)&&!Number.isFinite(coreIndex.price))return;
 
-    const exchanges={};
-    for(const r of rows){
-      exchanges[r.exchange]={label:r.label,price_usd:r.price_usd,quote:r.quote,fiat_quotes:[r.quote],market_count:1,volume_24h_btc:r.volume_24h_btc,high_24h:r.high_24h_usd,low_24h:r.low_24h_usd,updated_at:r.updated_at,mode:"browser-live-btc-fiat"};
-      pushHistory(r.exchange,r.price_usd,r.volume_24h_btc);
+    for(const r of quarantined){
+      const prev=state.health.get(r.exchange)||{};
+      state.health.set(r.exchange,{
+        ...prev,
+        ok:true,
+        index_eligible:false,
+        quarantined:true,
+        exclusion_reason:r.exclusion_reason,
+        consensus_deviation_pct:r.consensus_deviation_pct,
+        updated_at:new Date().toISOString()
+      });
     }
+
+    const acceptedByExchange=new Map(accepted.map(r=>[r.exchange,r]));
+    const exchanges={};
+
+    for(const raw of rows){
+      const acceptedRow=acceptedByExchange.get(raw.exchange);
+      const isEligible=!!acceptedRow && policyAllowed.some(r=>r.exchange===raw.exchange);
+      exchanges[raw.exchange]={
+        label:raw.label,
+        price_usd:isEligible?raw.price_usd:null,
+        raw_price_usd:raw.price_usd,
+        quote:raw.quote,
+        fiat_quotes:[raw.quote],
+        market_count:1,
+        eligible_market_count:isEligible?1:0,
+        volume_24h_btc:isEligible?raw.volume_24h_btc:0,
+        raw_volume_24h_btc:raw.volume_24h_btc,
+        high_24h:isEligible?raw.high_24h_usd:null,
+        low_24h:isEligible?raw.low_24h_usd:null,
+        index_eligible:isEligible,
+        exclusion_reason:acceptedRow
+          ? (isEligible?null:"registry_quarantine")
+          : quarantined.find(r=>r.exchange===raw.exchange)?.exclusion_reason||"consensus_rejected",
+        updated_at:raw.updated_at,
+        mode:"browser-live-btc-fiat-sanity"
+      };
+      if(isEligible)pushHistory(raw.exchange,raw.price_usd,raw.volume_24h_btc);
+    }
+
     const now=new Date().toISOString();
     const latest={
-      schema:"zzx-bpi-browser-live-v2",updated_at:now,mode:"browser-live",
+      schema:"zzx-bpi-browser-live-v3-sanity",updated_at:now,mode:"browser-live",
       price_usd:Number.isFinite(coreIndex.price)?coreIndex.price:globalIndex.price,
       bpi_usd:Number.isFinite(coreIndex.price)?coreIndex.price:globalIndex.price,
       volume_24h_btc:coreIndex.volume,
       high_24h:coreIndex.high,low_24h:coreIndex.low,
-      bpi_exchange_count:(core.length||rows.length),
-      global_bpi:{price_usd:globalIndex.price,volume_24h_btc:globalIndex.volume,high_24h:globalIndex.high,low_24h:globalIndex.low,market_count:rows.length,method:"browser-live-volume-weighted-btc-fiat"},
+      bpi_exchange_count:(core.length||policyAllowed.length),
+      quarantined_exchange_count:rows.length-policyAllowed.length,
+      sanity:{
+        consensus_price_usd:checked.center,
+        median_absolute_deviation_pct:checked.madPct,
+        price_band_pct:checked.bandPct,
+        median_positive_volume_btc:checked.medianVolume,
+        volume_limit_btc:checked.volumeLimit
+      },
+      global_bpi:{
+        price_usd:globalIndex.price,
+        volume_24h_btc:globalIndex.volume,
+        high_24h:globalIndex.high,
+        low_24h:globalIndex.low,
+        market_count:policyAllowed.length,
+        quarantined_market_count:rows.length-policyAllowed.length,
+        method:"browser-live-consensus-gated-volume-weighted-btc-fiat"
+      },
       global_bpi_usd:globalIndex.price,
       exchanges
     };
@@ -236,5 +380,5 @@
   function health(){return Object.fromEntries(state.health)}
   function markets(){return [...state.markets.values()].map(row=>({...row}))}
 
-  W.ZZXLiveBPI=Object.freeze({__version:2,start,stop,cycle,snapshot,history,health,markets});
+  W.ZZXLiveBPI=Object.freeze({__version:4,start,stop,cycle,snapshot,history,health,markets,sanity});
 })();
