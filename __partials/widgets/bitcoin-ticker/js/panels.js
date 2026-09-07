@@ -1,24 +1,29 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPanels?.__version>=3)return;
+  if(W.ZZXBitcoinTickerPanels?.__version>=4)return;
 
   const KEY="zzx.widget.bitcoin-ticker.panels.v1";
   const categoryButtons=[
     {id:"exchanges",label:"Exchanges",panel:"exchanges"},
     {id:"fx",label:"Exchange Rates",panel:"fx"},
-    {id:"allrefs",label:"Commodities / References",panel:"references",category:"all"},
-    {id:"precious-metals",label:"Precious Metals",panel:"references",category:"Precious Metals"},
-    {id:"industrial-metals",label:"Metals",panel:"references",category:"Industrial Metals"},
-    {id:"precious-stones",label:"Precious Stones",panel:"references",category:"Precious Stones"},
-    {id:"collectibles",label:"Collectibles",panel:"references",category:"Collectibles"},
-    {id:"crops",label:"Crops",panel:"references",category:"Crops"},
-    {id:"livestock",label:"Livestock / Poultry",panel:"references",category:"Livestock / Poultry"},
-    {id:"cannabis",label:"Cannabis",panel:"references",category:"Cannabis"},
-    {id:"alcohol",label:"Alcohol",panel:"references",category:"Alcohol"},
-    {id:"tobacco",label:"Tobacco",panel:"references",category:"Tobacco"},
-    {id:"energy",label:"Energy / Utilities",panel:"references",category:"Energy / Utilities"},
-    {id:"arms",label:"Arms / Ammo",panel:"references",category:"Arms / Ammo"},
+    {id:"reference-markets",label:"Purchasing Power",panel:"references",referencePage:"tobacco"},
+    {id:"ref-tobacco",label:"Tobacco",panel:"references",referencePage:"tobacco"},
+    {id:"ref-alcohol",label:"Alcohol",panel:"references",referencePage:"alcohol"},
+    {id:"ref-cannabis",label:"Cannabis",panel:"references",referencePage:"cannabis"},
+    {id:"ref-kief-hash",label:"Kief & Hash",panel:"references",referencePage:"kief-hash"},
+    {id:"ref-concentrates",label:"Concentrates",panel:"references",referencePage:"concentrates"},
+    {id:"ref-commodities",label:"Commodities",panel:"references",referencePage:"commodities"},
+    {id:"ref-precious-metals",label:"Precious Metals",panel:"references",referencePage:"precious-metals"},
+    {id:"ref-semi-precious-metals",label:"Semi Precious Metals",panel:"references",referencePage:"semi-precious-metals"},
+    {id:"ref-precious-gemstones",label:"Precious Gem Stones",panel:"references",referencePage:"precious-gemstones"},
+    {id:"ref-semi-precious-gemstones",label:"Semi Precious Gemstones",panel:"references",referencePage:"semi-precious-gemstones"},
+    {id:"ref-collectibles",label:"Collectibles",panel:"references",referencePage:"collectibles"},
+    {id:"ref-water",label:"Water",panel:"references",referencePage:"water"},
+    {id:"ref-oil",label:"Oil",panel:"references",referencePage:"oil"},
+    {id:"ref-fuels",label:"Fuels",panel:"references",referencePage:"fuels"},
+    {id:"ref-arms",label:"Arms",panel:"references",referencePage:"arms"},
+    {id:"ref-ammo",label:"Ammo",panel:"references",referencePage:"ammo"},
     {id:"debts",label:"National Debts",panel:"debts"},
     {id:"balances",label:"National Balances",panel:"balances"},
     {id:"widgets",label:"Widget Modules",panel:"widgets"},
@@ -56,12 +61,39 @@
     }
   }
 
-  function openReferenceCategory(root,category){
+  function openReferencePage(root,pageId){
     setPanel(root,"references",true);
-    const select=root.querySelector("[data-reference-category]");
-    if(select&&[...select.options].some(o=>o.value===category)){
-      select.value=category;
-      select.dispatchEvent(new Event("change",{bubbles:true}));
+
+    const state=root.__zzxBitcoinTickerState;
+    const btcUsd=Number(state?.selection?.priceUsd);
+
+    if(
+      state?.references &&
+      W.ZZXBitcoinTickerReferences?.setPage
+    ){
+      W.ZZXBitcoinTickerReferences.setPage(
+        root,
+        state,
+        pageId,
+        btcUsd
+      );
+      return;
+    }
+
+    const select=root.querySelector(
+      "[data-reference-page-select]"
+    );
+
+    if(
+      select &&
+      [...select.options].some(
+        option=>option.value===pageId
+      )
+    ){
+      select.value=pageId;
+      select.dispatchEvent(
+        new Event("change",{bubbles:true})
+      );
     }
   }
 
@@ -78,14 +110,16 @@
       b.className="bitcoin-ticker__panel-toggle";
       b.textContent=spec.label;
       b.dataset.openPanel=spec.panel;
-      if(spec.category)b.dataset.referenceCategory=spec.category;
+      if(spec.referencePage){
+        b.dataset.referencePage=spec.referencePage;
+      }
 
       const open=!!saved[spec.panel];
       b.setAttribute("aria-expanded",open?"true":"false");
 
       b.addEventListener("click",()=>{
-        if(spec.category){
-          openReferenceCategory(root,spec.category);
+        if(spec.referencePage){
+          openReferencePage(root,spec.referencePage);
           return;
         }
         const panel=root.querySelector(`[data-panel="${spec.panel}"]`);
@@ -266,10 +300,10 @@
   }
 
   W.ZZXBitcoinTickerPanels=Object.freeze({
-    __version:3,
+    __version:4,
     mount,
     update,
     setPanel,
-    openReferenceCategory
+    openReferencePage
   });
 })();
