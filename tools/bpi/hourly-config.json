@@ -1,0 +1,34 @@
+{
+  "schema": "zzx-bpi-hourly-config-v1",
+  "capture_seconds": 3120,
+  "finalize_margin_seconds": 180,
+  "chunk_rows": 50000,
+  "schedule": "approximately once per UTC hour",
+  "collector_cycle_ms": 2500,
+  "archive": {
+    "path": "bitcoin/bpi/archive/hourly/YYYY/MM/DD/HH/",
+    "json": "gzip JSON Lines",
+    "mariadb": "gzip SQL INSERT shards",
+    "immutable_hour_partitions": true,
+    "retain_all_hours": true
+  },
+  "pipeline_order": [
+    "continuous price/volume collector",
+    "latest BPI snapshot",
+    "reference-market + national-reference refresh",
+    "national-reference aggregate refresh",
+    "sovereign debt/balance refresh",
+    "final latest BPI snapshot",
+    "hourly archive sharding",
+    "current/archive validation"
+  ],
+  "orderbook_policy": {
+    "ticker_ticks_are_not_orderbook_history": true,
+    "full_orderbook_history_requires": [
+      "exchange-specific L2/L3 snapshot and/or websocket delta source",
+      "sequence continuity",
+      "per-market order-book adapter",
+      "persistent capture outside ephemeral GitHub-hosted runners"
+    ]
+  }
+}
