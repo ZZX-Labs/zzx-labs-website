@@ -109,6 +109,10 @@
         <button type="button" class="zzx-widgets__btn" data-panel-close="debts">Collapse</button>
       </header>
 
+      <p class="bitcoin-ticker__panel-note">
+        All ISO country/territory entries remain selectable. Official public debt is preferred; otherwise a same-year World Bank central-government-debt/GDP estimate is shown. Missing values remain unavailable.
+      </p>
+
       <div class="bitcoin-ticker__debt">
         <header class="bitcoin-ticker__debt-head">
           <select data-debt-country aria-label="National debt country"><option value="US">United States</option></select>
@@ -140,6 +144,74 @@
         <div class="bitcoin-ticker__debt-meta">
           <span data-debt-source>national debt data unavailable</span>
           <span data-chain-height>height —</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="balances" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div>
+          <span class="bitcoin-ticker__section-kicker">sovereign reserve assets</span>
+          <h3>National Balance Assets</h3>
+        </div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="balances">Collapse</button>
+      </header>
+
+      <p class="bitcoin-ticker__panel-note">
+        Public reserve-assets proxy for each ISO country/territory. This is not a complete sovereign balance sheet or a measure of private-sector assets.
+      </p>
+
+      <div class="bitcoin-ticker__balance">
+        <header class="bitcoin-ticker__balance-head">
+          <select data-balance-country aria-label="National reserve-assets country">
+            <option value="US">United States</option>
+          </select>
+        </header>
+
+        <strong class="bitcoin-ticker__balance-total" data-balance-total>—</strong>
+
+        <div class="bitcoin-ticker__balance-grid">
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Reserve assets excluding gold</span>
+            <strong data-balance-ex-gold>—</strong>
+            <small>World Bank current USD where available</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Implied gold reserve component</span>
+            <strong data-balance-gold>—</strong>
+            <small>Total reserves minus reserves excluding gold</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Reserve assets ÷ issued BTC</span>
+            <strong data-balance-per-issued>—</strong>
+            <small>USD reserve assets per currently-issued BTC</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Reserve assets ÷ terminal BTC</span>
+            <strong data-balance-per-terminal>—</strong>
+            <small>USD reserve assets per terminal consensus BTC</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Issued BTC ÷ $1 reserve assets</span>
+            <strong data-issued-per-balance-dollar>—</strong>
+            <small>BTC per USD reserve asset</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Terminal BTC ÷ $1 reserve assets</span>
+            <strong data-terminal-per-balance-dollar>—</strong>
+            <small>BTC per USD reserve asset</small>
+          </div>
+        </div>
+
+        <div class="bitcoin-ticker__balance-meta">
+          <span data-balance-source>sovereign reserve-assets data unavailable</span>
+          <span data-balance-proxy-note>Reserve-assets proxy only</span>
+          <span data-balance-chain-height>height —</span>
         </div>
       </div>
     </section>
