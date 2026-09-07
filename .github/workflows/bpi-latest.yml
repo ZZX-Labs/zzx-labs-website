@@ -201,6 +201,47 @@ jobs:
               )
           )
 
+          sanity = latest.get("sanity")
+
+          if not isinstance(sanity, dict):
+              raise SystemExit(
+                  "latest.json must contain sanity metadata"
+              )
+
+          consensus_price = finite_positive(
+              sanity.get("consensus_price_usd"),
+              "BPI consensus price"
+          )
+
+          price_band_pct = finite_positive(
+              sanity.get("price_band_pct"),
+              "BPI consensus price band"
+          )
+
+          deviation_pct = abs(
+              price - consensus_price
+          ) / consensus_price * 100.0
+
+          if deviation_pct > price_band_pct:
+              raise SystemExit(
+                  "generated BPI lies outside its own "
+                  f"consensus band: {deviation_pct:.4f}% "
+                  f"> {price_band_pct:.4f}%"
+              )
+
+          for exchange_id, row in exchanges.items():
+              if not isinstance(row, dict):
+                  continue
+
+              if row.get("index_eligible") is False:
+                  weight = float(row.get("weight") or 0)
+
+                  if abs(weight) > 0.0000001:
+                      raise SystemExit(
+                          f"quarantined exchange {exchange_id} "
+                          f"has non-zero BPI weight: {weight}"
+                      )
+
           if source_count < 2:
               raise SystemExit(
                   "refusing BPI built from too few sources: "
