@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPanels?.__version>=2)return;
+  if(W.ZZXBitcoinTickerPanels?.__version>=3)return;
 
   const KEY="zzx.widget.bitcoin-ticker.panels.v1";
   const categoryButtons=[
@@ -20,6 +20,7 @@
     {id:"energy",label:"Energy / Utilities",panel:"references",category:"Energy / Utilities"},
     {id:"arms",label:"Arms / Ammo",panel:"references",category:"Arms / Ammo"},
     {id:"debts",label:"National Debts",panel:"debts"},
+    {id:"balances",label:"National Balances",panel:"balances"},
     {id:"widgets",label:"Widget Modules",panel:"widgets"},
     {id:"charts",label:"Charts",panel:"charts"}
   ];
@@ -265,7 +266,7 @@
   }
 
   W.ZZXBitcoinTickerPanels=Object.freeze({
-    __version:2,
+    __version:3,
     mount,
     update,
     setPanel,
