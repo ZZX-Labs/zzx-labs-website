@@ -185,7 +185,10 @@
 
   async function render(root,state,force=false){
     const config=await loadConfig(state,force);
-    config.latest=await W.ZZXBitcoinTickerFetch.json(W.ZZXBitcoinTickerConstants.endpoints.latest);
+    const staticLatest=await W.ZZXBitcoinTickerFetch.json(W.ZZXBitcoinTickerConstants.endpoints.latest);
+    const liveLatest=W.ZZXLiveBPI?.snapshot?.();
+    const liveAge=liveLatest?.updated_at?Date.now()-new Date(liveLatest.updated_at).getTime():Infinity;
+    config.latest=(liveLatest&&Number.isFinite(liveAge)&&liveAge<15_000)?liveLatest:staticLatest;
 
     const sourceId=q(root,"[data-source-select]")?.value||"bpi";
     const currency=q(root,"[data-currency-select]")?.value||"USD";
@@ -304,6 +307,7 @@
     try{
       await ensureModules(state.core);
       await W.ZZXBitcoinTickerDeps.ensureShared();
+      W.ZZXLiveBPI.start().catch(()=>{});
 
       const config=await loadConfig(state,false);
       populateSources(root,config);
@@ -322,6 +326,14 @@
       }catch(error){
         set(root,"[data-chart-status]",`chart engine: ${String(error?.message||error)}`);
       }
+
+      W.addEventListener("zzx:live-bpi",event=>{
+        if(event?.detail&&state.config){
+          state.config.latest=event.detail;
+          populateSources(root,state.config);
+        }
+        refresh(root,state,false);
+      });
 
       q(root,"[data-source-select]")?.addEventListener("change",event=>{
         safeSet(W.ZZXBitcoinTickerConstants.storage.source,event.currentTarget.value);
