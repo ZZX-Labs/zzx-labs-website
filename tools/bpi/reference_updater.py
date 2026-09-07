@@ -160,6 +160,11 @@ def main()->int:
     parser.add_argument("--root",default=str(Path(__file__).resolve().parents[2]))
     parser.add_argument("--proxy",default=os.environ.get("ZZX_BPI_PROXY"))
     parser.add_argument("--once",action="store_true")
+    parser.add_argument(
+        "--references-only",
+        action="store_true",
+        help="Update only commodity/reference-market mirrors."
+    )
     args=parser.parse_args()
 
     signal.signal(signal.SIGINT,handler)
@@ -172,6 +177,10 @@ def main()->int:
     next_debt=0.0
     next_mempool=0.0
     next_nodes=0.0
+
+    if args.references_only:
+        update_commodities(root,client)
+        return 0
 
     while not STOP:
         now=time.monotonic()
