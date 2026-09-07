@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXHistoryClient?.__version>=3)return;
+  if(W.ZZXHistoryClient?.__version>=4)return;
 
   const dynamicBase="/bitcoin/bpi/history";
   const staticLive="/bitcoin/bpi/api/history-live.json";
@@ -51,6 +51,17 @@
     );
     if(!Number.isFinite(t)||!(price>0))return null;
     const open=finite(row?.open),high=finite(row?.high),low=finite(row?.low),close=finite(row?.close);
+    const high24=finite(
+      row?.high_24h ??
+      row?.high_24h_usd ??
+      row?.rolling_high_24h_usd
+    );
+    const low24=finite(
+      row?.low_24h ??
+      row?.low_24h_usd ??
+      row?.rolling_low_24h_usd
+    );
+
     const volume=finite(row?.volume_24h_btc);
     const volumeOpen=finite(row?.volume_open_24h_btc);
     const volumeHigh=finite(row?.volume_high_24h_btc);
@@ -64,6 +75,8 @@
       low:Number.isFinite(low)?low:price,
       close:Number.isFinite(close)?close:price,
       price,
+      high_24h:Number.isFinite(high24)?high24:null,
+      low_24h:Number.isFinite(low24)?low24:null,
       volume_24h_btc:Number.isFinite(volume)?volume:null,
       volume_open_24h_btc:Number.isFinite(volumeOpen)
         ? volumeOpen
@@ -144,6 +157,12 @@
           low:p.low??p.price,
           close:p.close??p.price,
           price:p.price,
+          high_24h:Number.isFinite(finite(p.high_24h))
+            ? finite(p.high_24h)
+            : null,
+          low_24h:Number.isFinite(finite(p.low_24h))
+            ? finite(p.low_24h)
+            : null,
           volume_24h_btc:Number.isFinite(volumeClose)?volumeClose:null,
           volume_open_24h_btc:Number.isFinite(volumeOpen)?volumeOpen:null,
           volume_high_24h_btc:Number.isFinite(volumeHigh)?volumeHigh:null,
@@ -201,6 +220,18 @@
           x.price=x.close;
           x.volume_24h_btc=Number.isFinite(volumeClose)?volumeClose:null;
           x.volume_close_24h_btc=Number.isFinite(volumeClose)?volumeClose:null;
+
+          const high24=finite(p.high_24h);
+          const low24=finite(p.low_24h);
+
+          if(Number.isFinite(high24)){
+            x.high_24h=high24;
+          }
+
+          if(Number.isFinite(low24)){
+            x.low_24h=low24;
+          }
+
           x.quote=p.quote;
           x.market=p.market;
           x._last=p.t;
@@ -314,5 +345,5 @@
     return {sources:[...values.values()]};
   }
 
-  W.ZZXHistoryClient=Object.freeze({__version:3,series,sources,spanMs});
+  W.ZZXHistoryClient=Object.freeze({__version:4,series,sources,spanMs});
 })();
