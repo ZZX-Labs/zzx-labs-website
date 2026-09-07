@@ -1,0 +1,1442 @@
+ZZX Bitcoin Ticker / BitAvg Price + Volume API Registry
+=======================================================
+
+Fields:
+  price_volume_url = combined ticker endpoint when available
+  discovery_url    = market catalog used to discover all BTC/XBT-fiat books
+  ADAPTER_REQUIRED = source is catalogued but intentionally disabled until validated
+
+coinbase                     | Coinbase
+  quote:      USD
+  ticker:     https://api.exchange.coinbase.com/products/BTC-USD/ticker
+  discovery:  https://api.exchange.coinbase.com/products
+  adapter:    coinbase_exchange
+  poll:       enabled
+
+kraken                       | Kraken
+  quote:      USD
+  ticker:     https://api.kraken.com/0/public/Ticker?pair=XBTUSD
+  discovery:  https://api.kraken.com/0/public/AssetPairs
+  adapter:    kraken
+  poll:       enabled
+
+gemini                       | Gemini
+  quote:      USD
+  ticker:     https://api.gemini.com/v1/pubticker/btcusd
+  discovery:  https://api.gemini.com/v1/symbols
+  adapter:    gemini
+  poll:       enabled
+
+bitstamp                     | Bitstamp
+  quote:      USD
+  ticker:     https://www.bitstamp.net/api/v2/ticker/btcusd/
+  discovery:  https://www.bitstamp.net/api/v2/markets/
+  adapter:    bitstamp
+  poll:       enabled
+
+bitfinex                     | Bitfinex
+  quote:      USD
+  ticker:     https://api-pub.bitfinex.com/v2/ticker/tBTCUSD
+  discovery:  —
+  adapter:    bitfinex
+  poll:       enabled
+
+okx                          | OKX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+crypto_com                   | Crypto.com Exchange
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+kucoin                       | KuCoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+gateio                       | Gate.io
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitget                       | Bitget
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+mexc                         | MEXC
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+htx                          | HTX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+okcoin                       | OKCoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+binance_us                   | Binance.US
+  quote:      USD
+  ticker:     https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSD
+  discovery:  https://api.binance.us/api/v3/exchangeInfo
+  adapter:    binance_24h
+  poll:       enabled
+
+coingecko_global             | CoinGecko Global BTC Aggregate
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+binance                      | Binance
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bybit                        | Bybit
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+upbit                        | Upbit
+  quote:      KRW
+  ticker:     https://api.upbit.com/v1/ticker?markets=KRW-BTC
+  discovery:  https://api.upbit.com/v1/market/all
+  adapter:    upbit
+  poll:       enabled
+
+bithumb                      | Bithumb
+  quote:      KRW
+  ticker:     https://api.bithumb.com/public/ticker/BTC_KRW
+  discovery:  —
+  adapter:    bithumb
+  poll:       enabled
+
+coinone                      | Coinone
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+korbit                       | Korbit
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitflyer                     | bitFlyer
+  quote:      JPY
+  ticker:     https://api.bitflyer.com/v1/ticker?product_code=BTC_JPY
+  discovery:  https://api.bitflyer.com/v1/markets
+  adapter:    bitflyer
+  poll:       enabled
+
+coincheck                    | Coincheck
+  quote:      JPY
+  ticker:     https://coincheck.com/api/ticker
+  discovery:  —
+  adapter:    coincheck
+  poll:       enabled
+
+bitbank                      | bitbank
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+gmo_coin                     | GMO Coin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+sbi_vc_trade                 | SBI VC Trade
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+zaif                         | Zaif
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+liquid                       | Liquid
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+independent_reserve          | Independent Reserve
+  quote:      AUD
+  ticker:     https://api.independentreserve.com/Public/GetMarketSummary?primaryCurrencyCode=xbt&secondaryCurrencyCode=aud
+  discovery:  —
+  adapter:    independent_reserve
+  poll:       enabled
+
+btc_markets                  | BTC Markets
+  quote:      AUD
+  ticker:     https://api.btcmarkets.net/v3/markets/BTC-AUD/ticker
+  discovery:  https://api.btcmarkets.net/v3/markets
+  adapter:    btcmarkets
+  poll:       enabled
+
+coinjar                      | CoinJar Exchange
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+swyftx                       | Swyftx
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinspot                     | CoinSpot
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+easy_crypto                  | Easy Crypto
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+cexio                        | CEX.IO
+  quote:      USD
+  ticker:     https://cex.io/api/ticker/BTC/USD
+  discovery:  —
+  adapter:    cexio
+  poll:       enabled
+
+luno                         | Luno
+  quote:      ZAR
+  ticker:     https://api.luno.com/api/1/ticker?pair=XBTZAR
+  discovery:  —
+  adapter:    luno
+  poll:       enabled
+
+bitso                        | Bitso
+  quote:      MXN
+  ticker:     https://api.bitso.com/v3/ticker/?book=btc_mxn
+  discovery:  —
+  adapter:    bitso
+  poll:       enabled
+
+mercado_bitcoin              | Mercado Bitcoin
+  quote:      BRL
+  ticker:     https://www.mercadobitcoin.net/api/BTC/ticker/
+  discovery:  —
+  adapter:    mercado_bitcoin
+  poll:       disabled
+
+foxbit                       | Foxbit
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+novadax                      | NovaDAX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitcointrade                 | BitcoinTrade
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ripio                        | Ripio
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+buda                         | Buda.com
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+lemon_cash                   | Lemon Cash
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+satoshitango                 | SatoshiTango
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+buenbit                      | Buenbit
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bit2me                       | Bit2Me
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinmotion                   | Coinmotion
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitpanda                     | Bitpanda
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitvavo                      | Bitvavo
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinmetro                    | CoinMetro
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+paymium                      | Paymium
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitonic                      | Bitonic
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+anycoin_direct               | Anycoin Direct
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+btc_direct                   | BTC Direct
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+the_rock_trading             | The Rock Trading
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+young_platform               | Young Platform
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinmerce                    | Coinmerce
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+zonda                        | Zonda
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinmate                     | Coinmate
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+lykke                        | Lykke
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+swissborg                    | SwissBorg
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+relai                        | Relai
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitcoin_suisse               | Bitcoin Suisse
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bity                         | Bity
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitwala                      | Bitwala
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bsdex                        | BSDEX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bison                        | BISON
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinfinity                   | Coinfinity
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+safello                      | Safello
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+btcx                         | BTCX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+nbx                          | NBX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+firi                         | Firi
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+kuna                         | Kuna
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+whitebit                     | WhiteBIT
+  quote:      USD
+  ticker:     https://whitebit.com/api/v4/public/ticker?market=BTC_USD
+  discovery:  —
+  adapter:    whitebit
+  poll:       disabled
+
+exmo                         | EXMO
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+currency_com                 | Currency.com
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitbay                       | BitBay
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinsquare                   | Coinsquare
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ndax                         | NDAX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+newton                       | Newton
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitbuy                       | Bitbuy
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+virgocx                      | VirgoCX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bull_bitcoin                 | Bull Bitcoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+shakepay                     | Shakepay
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinberry                    | Coinberry
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+river                        | River
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+strike                       | Strike
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+cash_app                     | Cash App Bitcoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+robinhood_crypto             | Robinhood Crypto
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+fidelity_crypto              | Fidelity Crypto
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+etoro                        | eToro
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+public_com                   | Public.com Crypto
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+paxos                        | Paxos
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+itbit                        | itBit
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bakkt                        | Bakkt
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bullish                      | Bullish
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitmart                      | BitMart
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ascendex                     | AscendEX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+phemex                       | Phemex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bingx                        | BingX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinex                       | CoinEx
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+digifinex                    | DigiFinex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+latoken                      | LATOKEN
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+xt_com                       | XT.COM
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+lbank                        | LBank
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitrue                       | Bitrue
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitrue_spot                  | Bitrue Spot
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+deepcoin                     | Deepcoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+tapbit                       | Tapbit
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinw                        | CoinW
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+pionex                       | Pionex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+weex                         | WEEX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+blofin                       | BloFin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitvenus                     | BitVenus
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bigone                       | BigONE
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+poloniex                     | Poloniex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+probit_global                | ProBit Global
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+cointr                       | CoinTR
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+btcturk                      | BtcTurk
+  quote:      TRY
+  ticker:     https://api.btcturk.com/api/v2/ticker?pairSymbol=BTCTRY
+  discovery:  —
+  adapter:    btcturk
+  poll:       enabled
+
+paribu                       | Paribu
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitlo                        | Bitlo
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinzo                       | Coinzo
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+wazirx                       | WazirX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coindcx                      | CoinDCX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+zebpay                       | ZebPay
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+unocoin                      | Unocoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitbns                       | Bitbns
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+giottus                      | Giottus
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+mudrex                       | Mudrex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinswitch                   | CoinSwitch
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+suncrypto                    | SunCrypto
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+flitpay                      | Flitpay
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitkub                       | Bitkub
+  quote:      THB
+  ticker:     https://api.bitkub.com/api/market/ticker?sym=THB_BTC
+  discovery:  —
+  adapter:    bitkub
+  poll:       enabled
+
+satang                       | Satang Pro
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coins_th                     | Coins.co.th
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coins_ph                     | Coins.ph
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+pdax                         | PDAX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coins_pro                    | Coins Pro
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+indodax                      | Indodax
+  quote:      IDR
+  ticker:     https://indodax.com/api/ticker/btcidr
+  discovery:  —
+  adapter:    indodax
+  poll:       enabled
+
+tokocrypto                   | Tokocrypto
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+pintu                        | Pintu
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+reku                         | Reku
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+triv                         | Triv
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+zipmex                       | Zipmex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinhako                     | Coinhako
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+independent_reserve_sg       | Independent Reserve Singapore
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+crypto_sg                    | Crypto.com Singapore
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+luno_my                      | Luno Malaysia
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+sinegy                       | SINEGY
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+mx_global                    | MX Global
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+hata                         | Hata
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+tokenize_xchange             | Tokenize Xchange
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+korbit_global                | Korbit Global
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitopro                      | BitoPro
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+maicoin                      | MaiCoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+max_exchange                 | MAX Exchange
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ace_exchange                 | ACE Exchange
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+hashkey_exchange             | HashKey Exchange
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+osl                          | OSL
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinsuper                    | CoinSuper
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+rain                         | Rain
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinmena                     | CoinMENA
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitoasis                     | BitOasis
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bahrain_bourse_crypto        | Bahrain Crypto Market
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+valr                         | VALR
+  quote:      ZAR
+  ticker:     https://api.valr.com/v1/public/BTCZAR/marketsummary
+  discovery:  —
+  adapter:    valr
+  poll:       enabled
+
+luno_za                      | Luno South Africa
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+altcointrader                | AltCoinTrader
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ovex                         | OVEX
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ice3x                        | ICE3X
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+yellow_card                  | Yellow Card
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+quidax                       | Quidax
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bundle_africa                | Bundle Africa
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+busha                        | Busha
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+roqqu                        | Roqqu
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+nobitex                      | Nobitex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+wallex_ir                    | Wallex Iran
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ramzinex                     | Ramzinex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+exir                         | EXIR
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+tabdeal                      | Tabdeal
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitpin                       | Bitpin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+coinmama                     | Coinmama
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+changelly_pro                | Changelly PRO
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+changehero                   | ChangeHero
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+simplex                      | Simplex
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+moonpay                      | MoonPay
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+banxa                        | Banxa
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+transak                      | Transak
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+ramp_network                 | Ramp Network
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+mercuryo                     | Mercuryo
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bisq                         | Bisq
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bisq2                        | Bisq 2
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+hodlhodl                     | Hodl Hodl
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+peach_bitcoin                | Peach Bitcoin
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+robosats                     | RoboSats
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+vexl                         | Vexl
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+mostro                       | Mostro
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+lnp2pbot                     | LNP2PBot
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+localcoinswap                | LocalCoinSwap
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+paxful                       | Paxful
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+noones                       | NoOnes
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+bitvalve                     | BitValve
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+agoradesk                    | AgoraDesk
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+localcryptos                 | LocalCryptos
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
+
+localbitcoins                | LocalBitcoins
+  quote:      dynamic / unknown
+  ticker:     ADAPTER_REQUIRED
+  discovery:  —
+  adapter:    —
+  poll:       disabled
