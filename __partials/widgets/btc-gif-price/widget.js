@@ -1,148 +1,307 @@
-(function () {
+(function(){
   "use strict";
-  const W=window,D=document,ID="btc-gif-price";
-  const LIBRARY="/static/media/widgets/btc-gif/gifs.json";
-  const AUTO_KEY="zzx.widget.btc-gif-price.auto";
-  const q=(root,selector)=>root?root.querySelector(selector):null;
-  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
-  function safeGet(key){try{return W.localStorage.getItem(key)}catch(_){return null}}
-  function safeSet(key,value){try{W.localStorage.setItem(key,value)}catch(_){}}
-  function status(root,label,state){const el=q(root,"[data-btcgif-status]");if(!el)return;el.textContent=label;el.setAttribute("data-status",state||"offline")}
-  async function localJSON(path){
-    if(W.ZZXAPI?.jsonStrict)return await W.ZZXAPI.jsonStrict(path,{cacheBust:false,timeoutMs:8000,retries:1});
-    const response=await fetch(path,{cache:"no-store"});
-    if(!response.ok)throw new Error(`HTTP ${response.status} ${path}`);
-    return await response.json();
+
+  const W=window;
+  const D=document;
+  const ID="btc-gif-price";
+  const AUTO_KEY="zzx.widget.btc-gif-price.auto.v3";
+  const SIGNAL_REFRESH_MS=2500;
+
+  const MODULES=Object.freeze([
+    {global:"ZZXBTCGifPriceTelemetry",path:"js/telemetry.js",version:2},
+    {global:"ZZXBTCGifPriceConditions",path:"js/conditions.js",version:2},
+    {global:"ZZXBTCGifPriceRenderer",path:"js/renderer.js",version:3}
+  ]);
+
+  function q(root,selector){
+    return root?.querySelector?.(selector)||null;
   }
-  function randomIndex(length){
-    if(!(length>0))return -1;
-    if(W.crypto?.getRandomValues){
-      const max=Math.floor(0x100000000/length)*length;
-      const buf=new Uint32Array(1);
-      do{W.crypto.getRandomValues(buf)}while(buf[0]>=max);
-      return buf[0]%length;
+  function set(root,selector,value){
+    const el=q(root,selector);
+    if(el)el.textContent=value==null?"—":String(value);
+  }
+  function finite(v){
+    const n=Number(v);
+    return Number.isFinite(n)?n:NaN;
+  }
+  function safeGet(key){
+    try{return W.localStorage.getItem(key)}catch(_){return null}
+  }
+  function safeSet(key,value){
+    try{W.localStorage.setItem(key,String(value))}catch(_){}
+  }
+  function status(root,label,state){
+    const el=q(root,"[data-gif-status]");
+    if(!el)return;
+    el.textContent=label;
+    el.setAttribute("data-status",state||"offline");
+  }
+  function widgetBase(core){
+    return core?.widgetBase
+      ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
+      : `/__partials/widgets/${ID}`;
+  }
+  function assetURL(base,relative){
+    const raw=`${base}/${String(relative||"").replace(/^\/+/, "")}`;
+    return W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+  }
+  async function localJSON(url){
+    if(W.ZZXAPI?.jsonStrict){
+      return await W.ZZXAPI.jsonStrict(url,{
+        cacheBust:false,
+        timeoutMs:8000,
+        retries:1
+      });
     }
-    return 0;
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok)throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.json();
   }
-  async function ensureRenderer(core){
-    if(W.ZZXBTCGifPriceRenderer?.draw)return;
-    const base=core?.widgetBase?String(core.widgetBase(ID)).replace(/\/+$/g,""):"/__partials/widgets/btc-gif-price";
-    const src=W.ZZXAPI?.url?W.ZZXAPI.url(`${base}/js/renderer.js`):`${base}/js/renderer.js`;
-    await new Promise((resolve,reject)=>{
-      const existing=D.querySelector('script[data-btcgif-price-renderer="1"]');
-      if(existing){
-        if(W.ZZXBTCGifPriceRenderer?.draw)return resolve();
-        existing.addEventListener("load",resolve,{once:true});
-        existing.addEventListener("error",reject,{once:true});
-        return;
+  function moduleVersion(name){
+    return Number(W[name]?.__version||0);
+  }
+  async function ensureModules(core){
+    const base=widgetBase(core);
+    for(const spec of MODULES){
+      if(moduleVersion(spec.global)>=spec.version)continue;
+      let src=assetURL(base,spec.path);
+      try{
+        const u=new URL(src,W.location.href);
+        u.searchParams.set("gifdep",String(spec.version));
+        src=u.href;
+      }catch(_){}
+
+      await new Promise((resolve,reject)=>{
+        const existing=[...D.scripts].find(s=>s.src===src);
+        if(existing){
+          if(moduleVersion(spec.global)>=spec.version)return resolve();
+          existing.addEventListener("load",resolve,{once:true});
+          existing.addEventListener("error",reject,{once:true});
+          W.setTimeout(resolve,1200);
+          return;
+        }
+        const script=D.createElement("script");
+        script.src=src;
+        script.defer=true;
+        script.dataset.gifDependency=spec.global;
+        script.addEventListener("load",resolve,{once:true});
+        script.addEventListener("error",reject,{once:true});
+        (D.head||D.documentElement).appendChild(script);
+      });
+
+      if(moduleVersion(spec.global)<spec.version){
+        throw new Error(`${spec.path} did not register compatible ${spec.global}`);
       }
-      const script=D.createElement("script");
-      script.src=src;script.defer=true;script.dataset.btcgifPriceRenderer="1";
-      script.addEventListener("load",resolve,{once:true});
-      script.addEventListener("error",reject,{once:true});
-      (D.head||D.documentElement).appendChild(script);
-    });
-    if(!W.ZZXBTCGifPriceRenderer?.draw)throw new Error("GIF renderer unavailable");
-  }
-  function find24hReference(history,latest){
-    const now=Date.parse(latest?.updated_at||"")||Date.now();
-    const target=now-24*60*60*1000;
-    let best=null,bestDistance=Infinity;
-    for(const row of Array.isArray(history)?history:[]){
-      const ts=Date.parse(row?.updated_at||"");
-      const price=finite(row?.price_usd);
-      if(!Number.isFinite(ts)||!Number.isFinite(price)||price<=0)continue;
-      const distance=Math.abs(ts-target);
-      if(distance<bestDistance){bestDistance=distance;best={ts,price}}
-    }
-    return bestDistance<=6*60*60*1000?best:null;
-  }
-  function marketOverlay(latest,history){
-    const price=finite(latest?.price_usd??latest?.btc_usd??latest?.bpi_usd);
-    const ref=find24hReference(history,latest);
-    let delta=NaN;
-    if(ref&&Number.isFinite(price)&&ref.price>0)delta=((price-ref.price)/ref.price)*100;
-    return {
-      priceText:Number.isFinite(price)?`$${price.toLocaleString(undefined,{maximumFractionDigits:2})} / BTC`:"BTC —",
-      deltaText:Number.isFinite(delta)?`${delta>=0?"+":""}${delta.toFixed(2)}% / 24h`:"24h —",
-      deltaTone:Number.isFinite(delta)?(delta>0?"up":delta<0?"down":"flat"):"flat",
-      detailText:`H ${Number.isFinite(finite(latest?.high_24h))?"$"+finite(latest.high_24h).toLocaleString(undefined,{maximumFractionDigits:0}):"—"} · L ${Number.isFinite(finite(latest?.low_24h))?"$"+finite(latest.low_24h).toLocaleString(undefined,{maximumFractionDigits:0}):"—"} · block ${Number.isFinite(finite(latest?.block_height))?Math.trunc(finite(latest.block_height)).toLocaleString():"—"}`
-    };
-  }
-  async function refreshMarket(root,state){
-    try{
-      const [latest,history]=await Promise.all([
-        localJSON("/bitcoin/bpi/api/latest.json"),
-        localJSON("/bitcoin/bpi/api/history.json").catch(()=>[])
-      ]);
-      state.market=marketOverlay(latest,history);
-      const market=q(root,"[data-btcgif-market]");
-      if(market)market.textContent=`${state.market.deltaText} · ${latest?.source||"ZZX BPI"}`;
-      status(root,"live","ok");
-    }catch(error){
-      status(root,state.market?"stale":"offline",state.market?"warn":"error");
-      const market=q(root,"[data-btcgif-market]");
-      if(market)market.textContent=String(error?.message||error);
     }
   }
-  function choose(root,state){
-    if(!state.items.length)return;
-    let index=randomIndex(state.items.length);
-    if(state.items.length>1&&index===state.index)index=(index+1)%state.items.length;
-    state.index=index;
-    const item=state.items[index],img=q(root,"[data-btcgif-image]");
+
+  function conditionSummary(result){
+    const c=result?.categories||{};
+    return [
+      `P:${c.price||"?"}`,
+      `V:${c.volume||"?"}`,
+      `MP:${c.mempool||"?"}`,
+      `F:${c.fees||"?"}`,
+      `HR:${c.hashrate||"?"}`,
+      `LN:${c.lightning||"?"}`
+    ].join(" · ");
+  }
+
+  function poolSize(state){
+    const id=state.condition?.winner?.id||"neutral";
+    return W.ZZXBTCGifPriceConditions.pool(state.library,id).length;
+  }
+
+  function choose(root,state,{force=false}={}){
+    if(!state.condition||!state.library)return;
+    const id=state.condition.winner?.id||"neutral";
+    const item=W.ZZXBTCGifPriceConditions.pick(
+      state.library,
+      id,
+      force?state.item?.id:null
+    );
+    if(!item)return;
+
+    state.item=item;
+    const img=q(root,"[data-gif-image]");
     if(img){
-      img.onload=()=>{const name=q(root,"[data-btcgif-name]");if(name)name.textContent=item.id||`GIF ${index+1}`};
-      img.src=item.src;
+      img.onload=()=>{
+        set(root,"[data-gif-name]",item.id||"GIF");
+        const canvas=q(root,"[data-gif-canvas]");
+        if(canvas){
+          canvas.setAttribute(
+            "aria-label",
+            `${state.condition.winner?.label||id} Bitcoin GIF · ${item.id||"GIF"}`
+          );
+        }
+      };
+      img.src=assetURL(state.base,item.src);
+    }
+
+    set(
+      root,
+      "[data-gif-pool]",
+      `${poolSize(state)} GIF${poolSize(state)===1?"":"s"}`
+    );
+  }
+
+  function renderMeta(root,state){
+    const winner=state.condition?.winner;
+    set(root,"[data-gif-condition]",winner?.label||winner?.id||"Neutral");
+    set(root,"[data-gif-signals]",conditionSummary(state.condition));
+    set(root,"[data-gif-pool]",`${poolSize(state)} GIF${poolSize(state)===1?"":"s"}`);
+    set(
+      root,
+      "[data-gif-source]",
+      `${state.telemetry?.source||"ZZX BPI"} · ${(state.telemetry?.availability||[]).join("+")||"partial"}`
+    );
+    set(
+      root,
+      "[data-gif-updated]",
+      `updated ${new Date(state.telemetry?.fetchedAt||Date.now()).toLocaleTimeString()}`
+    );
+  }
+
+  async function refreshSignals(root,state,{force=false}={}){
+    if(state.busy||!root.isConnected)return;
+    state.busy=true;
+    try{
+      const previous=state.condition?.winner?.id||null;
+      state.telemetry=await W.ZZXBTCGifPriceTelemetry.load(state.core,{force});
+      state.condition=W.ZZXBTCGifPriceConditions.evaluate(state.telemetry,state.policy);
+      const current=state.condition?.winner?.id||"neutral";
+
+      renderMeta(root,state);
+
+      if(!state.item||current!==previous){
+        choose(root,state,{force:true});
+      }
+
+      const available=state.telemetry?.availability?.length||0;
+      status(
+        root,
+        available>=3?"live":available>0?"partial":"offline",
+        available>=3?"ok":available>0?"warn":"error"
+      );
+    }catch(error){
+      status(root,state.telemetry?"stale":"offline",state.telemetry?"warn":"error");
+      set(root,"[data-gif-source]",String(error?.message||error));
+    }finally{
+      state.busy=false;
     }
   }
+
   function scheduleAuto(root,state){
     if(state.autoTimer)W.clearTimeout(state.autoTimer);
     state.autoTimer=null;
-    const seconds=finite(q(root,"[data-btcgif-auto]")?.value);
+    const seconds=finite(q(root,"[data-gif-auto]")?.value);
     if(!(seconds>0))return;
     state.autoTimer=W.setTimeout(()=>{
       if(!root.isConnected)return;
-      choose(root,state);scheduleAuto(root,state);
+      choose(root,state,{force:true});
+      scheduleAuto(root,state);
     },seconds*1000);
   }
+
   function animationLoop(root,state){
     if(!root.isConnected)return;
-    const canvas=q(root,"[data-btcgif-canvas]"),img=q(root,"[data-btcgif-image]");
-    if(!D.hidden)W.ZZXBTCGifPriceRenderer?.draw?.(canvas,img,state.market);
+    const canvas=q(root,"[data-gif-canvas]");
+    const img=q(root,"[data-gif-image]");
+    if(!D.hidden){
+      W.ZZXBTCGifPriceRenderer?.draw?.(
+        canvas,
+        img
+        , state.telemetry, state.condition
+      );
+    }
     state.raf=W.requestAnimationFrame(()=>animationLoop(root,state));
   }
+
+  function destroyOld(root){
+    const old=root.__zzxBTCGifPriceState;
+    if(!old)return;
+    if(old.raf)W.cancelAnimationFrame(old.raf);
+    if(old.autoTimer)W.clearTimeout(old.autoTimer);
+    if(old.signalTimer)W.clearTimeout(old.signalTimer);
+    old.abortController?.abort?.();
+  }
+
   async function boot(root,core){
     if(!root)return;
-    const old=root.__zzxBTCGifPriceState;
-    if(old?.raf)W.cancelAnimationFrame(old.raf);
-    if(old?.autoTimer)W.clearTimeout(old.autoTimer);
-    if(old?.marketTimer)W.clearTimeout(old.marketTimer);
-    const state={items:[],index:-1,market:null,raf:0,autoTimer:null,marketTimer:null};
+    destroyOld(root);
+
+    const abortController=typeof AbortController==="function"?new AbortController():null;
+    const options=abortController?{signal:abortController.signal}:undefined;
+    const state={
+      core:core||W.ZZXWidgetsCore||null,
+      base:"",
+      library:null,
+      policy:null,
+      telemetry:null,
+      condition:null,
+      item:null,
+      busy:false,
+      raf:0,
+      autoTimer:null,
+      signalTimer:null,
+      abortController
+    };
     root.__zzxBTCGifPriceState=state;
+
     try{
-      await ensureRenderer(core||W.ZZXWidgetsCore||null);
-      const library=await localJSON(LIBRARY);
-      state.items=Array.isArray(library?.items)?library.items.filter(x=>x?.src):[];
-      if(!state.items.length)throw new Error("GIF library is empty");
-      const auto=q(root,"[data-btcgif-auto]"),saved=safeGet(AUTO_KEY);
-      if(saved&&auto&&[...auto.options].some(o=>o.value===saved))auto.value=saved;
-      q(root,"[data-btcgif-random]")?.addEventListener("click",()=>choose(root,state));
-      q(root,"[data-btcgif-refresh]")?.addEventListener("click",()=>refreshMarket(root,state));
-      auto?.addEventListener("change",()=>{safeSet(AUTO_KEY,auto.value);scheduleAuto(root,state)});
-      choose(root,state);await refreshMarket(root,state);scheduleAuto(root,state);animationLoop(root,state);
-      async function marketLoop(){
-        if(!root.isConnected)return;
-        await refreshMarket(root,state);
-        state.marketTimer=W.setTimeout(marketLoop,15000);
+      state.base=widgetBase(state.core);
+      await ensureModules(state.core);
+
+      [state.library,state.policy]=await Promise.all([
+        localJSON(assetURL(state.base,"gifs.json")),
+        localJSON(assetURL(state.base,"conditions.json"))
+      ]);
+
+      if(!Array.isArray(state.library?.items)||!state.library.items.length){
+        throw new Error("widget-local GIF library is empty");
       }
-      state.marketTimer=W.setTimeout(marketLoop,15000);
+
+      const auto=q(root,"[data-gif-auto]");
+      const saved=safeGet(AUTO_KEY);
+      if(auto&&saved&&[...auto.options].some(o=>o.value===saved))auto.value=saved;
+
+      q(root,"[data-gif-random]")?.addEventListener(
+        "click",
+        ()=>choose(root,state,{force:true}),
+        options
+      );
+
+      q(root,"[data-gif-refresh]")?.addEventListener(
+        "click",
+        ()=>refreshSignals(root,state,{force:true}),
+        options
+      );
+
+      auto?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(AUTO_KEY,auto.value);
+          scheduleAuto(root,state);
+        },
+        options
+      );
+
+      await refreshSignals(root,state,{force:true});
+      scheduleAuto(root,state);
+      animationLoop(root,state);
+
+      async function signalLoop(){
+        if(!root.isConnected||abortController?.signal?.aborted)return;
+        await refreshSignals(root,state);
+        state.signalTimer=W.setTimeout(signalLoop,SIGNAL_REFRESH_MS);
+      }
+      state.signalTimer=W.setTimeout(signalLoop,SIGNAL_REFRESH_MS);
     }catch(error){
       status(root,"offline","error");
-      const market=q(root,"[data-btcgif-market]");
-      if(market)market.textContent=String(error?.message||error);
+      set(root,"[data-gif-source]",String(error?.message||error));
     }
   }
+
   if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
   else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
   else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
