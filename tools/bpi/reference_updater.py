@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from collector import HttpClient, atomic_json, load_json, positive, finite, utcnow
+from update_sovereign_data import update_sovereign_data
 
 STOP=False
 
@@ -109,53 +110,15 @@ def update_commodities(root: Path, client: HttpClient) -> None:
 
 
 def update_debts(root: Path, client: HttpClient) -> None:
-    api=root/"bitcoin/bpi/api"
-    cfg=load_json(api/"national_debt_source_urls.json",{})
-    countries=[]
-
-    for src in cfg.get("sources",[]):
-        if not src.get("enabled",True):
-            continue
-        result=client.get(src["id"],src["url"])
-        if not result.ok:
-            continue
-        try:
-            if src.get("adapter")=="us_treasury":
-                row=(result.payload.get("data") or [None])[0] or {}
-                debt=positive(row.get("tot_pub_debt_out_amt"))
-                if math.isfinite(debt):
-                    countries.append({
-                        "code":"US",
-                        "name":"United States",
-                        "debt_usd":debt,
-                        "source":"U.S. Treasury Fiscal Data",
-                        "record_date":row.get("record_date")
-                    })
-        except Exception:
-            continue
-
-    overrides=load_json(api/"national_debt_overrides.json",{}).get("countries",[])
-    by_code={str(r.get("code") or r.get("name")):r for r in countries}
-    for row in overrides:
-        if not isinstance(row,dict):
-            continue
-        debt=positive(row.get("debt_usd"))
-        if not math.isfinite(debt):
-            continue
-        key=str(row.get("code") or row.get("name"))
-        by_code[key]={
-            "code":row.get("code"),
-            "name":row.get("name") or row.get("code"),
-            "debt_usd":debt,
-            "source":row.get("source") or "local curated national debt reference",
-            "record_date":row.get("record_date") or row.get("updated_at")
-        }
-
-    atomic_json(api/"national_debts.json",{
-        "schema":"zzx-national-debts-v1",
-        "updated_at":utcnow(),
-        "countries":sorted(by_code.values(),key=lambda r:str(r.get("name")))
-    })
+    try:
+        update_sovereign_data(
+            root,
+            client,
+            minimum_available=10,
+        )
+    except Exception as exc:
+        # Preserve the last valid sovereign mirrors on transient public-API failure.
+        print(f"SOVEREIGN_UPDATE_FAIL: {exc}")
 
 
 def update_mempool_mirror(root: Path, client: HttpClient) -> None:
@@ -219,7 +182,7 @@ def main()->int:
 
         if now>=next_debt:
             update_debts(root,client)
-            next_debt=now+1800
+            next_debt=now+21600
 
         if now>=next_mempool:
             update_mempool_mirror(root,client)
