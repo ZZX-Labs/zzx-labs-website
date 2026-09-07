@@ -85,10 +85,19 @@ class HistoryStore:
                 clean,
             )
 
-    def append_index(self, ts_ms: int, source: str, price_usd: float, volume_btc: float|None=None) -> None:
+    def append_index(
+        self,
+        ts_ms: int,
+        source: str,
+        price_usd: float,
+        volume_btc: float|None=None,
+        high_usd: float|None=None,
+        low_usd: float|None=None,
+    ) -> None:
         p=finite(price_usd)
         if not (math.isfinite(p) and p>0):
             return
+
         row={
             "exchange":source,
             "market_key":source,
@@ -97,7 +106,10 @@ class HistoryStore:
             "price_usd":p,
             "native_price":p,
             "volume_24h_btc":volume_btc,
+            "high_24h_usd":high_usd,
+            "low_24h_usd":low_usd,
         }
+
         self.append_market(ts_ms,row)
 
     def commit(self) -> None:
@@ -200,13 +212,13 @@ class HistoryStore:
             raise ValueError(f"unknown resolution {resolution}")
 
         # SQLite has no portable first/last aggregate; fetch rows ordered and bucket in Python.
-        sql=f"""SELECT ts_ms,price_usd,volume_24h_btc,weight,market,quote
+        sql=f"""SELECT ts_ms,price_usd,volume_24h_btc,high_usd,low_usd,weight,market,quote
                 FROM ticks WHERE {clause} ORDER BY ts_ms"""
         with self._lock:
             rows=self.db.execute(sql,args).fetchall()
 
         buckets={}
-        for ts,price,volume,weight,mkt,quote in rows:
+        for ts,price,volume,rolling_high,rolling_low,weight,mkt,quote in rows:
             b=(int(ts)//bucket_ms)*bucket_ms
             x=buckets.get(b)
             if x is None:
@@ -221,6 +233,8 @@ class HistoryStore:
                     "volume_high_24h_btc":volume,
                     "volume_low_24h_btc":volume,
                     "volume_close_24h_btc":volume,
+                    "high_24h":rolling_high,
+                    "low_24h":rolling_low,
                     "weight":weight,
                     "market":mkt,
                     "quote":quote,
@@ -254,6 +268,8 @@ class HistoryStore:
                     x["close"]=price
                     x["volume_24h_btc"]=volume
                     x["volume_close_24h_btc"]=volume
+                    x["high_24h"]=rolling_high
+                    x["low_24h"]=rolling_low
                     x["weight"]=weight
                     x["market"]=mkt
                     x["quote"]=quote
