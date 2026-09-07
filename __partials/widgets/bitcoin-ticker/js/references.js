@@ -1,12 +1,21 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerReferences?.__version>=5)return;
+  if(W.ZZXBitcoinTickerReferences?.__version>=6)return;
 
   const C=()=>W.ZZXBitcoinTickerConstants;
   const cache={catalog:null,prices:null,at:0};
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
+  const q=(root,selector)=>root?.querySelector?.(selector)||null;
+  const set=(root,selector,value)=>{
+    const el=q(root,selector);
+    if(el)el.textContent=value==null?"—":String(value);
+  };
+  const disabled=(root,selector,value)=>{
+    const el=q(root,selector);
+    if(el)el.disabled=!!value;
+  };
 
   function normalizePrices(data){
     const out=new Map();
@@ -133,11 +142,11 @@
     const data=state.references;
     if(!data)return;
 
-    const grid=root.querySelector("[data-comparative-grid]");
+    const grid=q(root,"[data-comparative-grid]");
     if(!grid)return;
 
-    const search=String(root.querySelector("[data-reference-search]")?.value||"").trim().toLowerCase();
-    const category=String(root.querySelector("[data-reference-category]")?.value||"all");
+    const search=String(q(root,"[data-reference-search]")?.value||"").trim().toLowerCase();
+    const category=String(q(root,"[data-reference-category]")?.value||"all");
 
     const filtered=data.catalog.filter(item=>{
       const categoryOk=category==="all"||item.category===category;
@@ -156,21 +165,32 @@
     }
 
     const priced=data.catalog.filter(item=>data.prices.has(item.id)).length;
-    root.querySelector("[data-comparatives-state]").textContent=`${priced}/${data.catalog.length} priced`;
-    root.querySelector("[data-reference-page]").textContent=`Page ${state.referencePage+1} / ${pages} · ${filtered.length} items`;
 
-    root.querySelector("[data-reference-prev]").disabled=state.referencePage<=0;
-    root.querySelector("[data-reference-next]").disabled=state.referencePage>=pages-1;
+    set(root,"[data-comparatives-state]",`${priced}/${data.catalog.length} priced`);
+    set(root,"[data-reference-page]",`Page ${state.referencePage+1} / ${pages} · ${filtered.length} items`);
 
-    root.querySelector("[data-commodity-source]").textContent=
-      priced?`${priced} locally sourced reference prices · unavailable items are not guessed`:"reference prices unavailable";
+    disabled(root,"[data-reference-prev]",state.referencePage<=0);
+    disabled(root,"[data-reference-next]",state.referencePage>=pages-1);
 
-    root.querySelector("[data-commodity-updated]").textContent=
-      data.updatedAt?`updated ${new Date(data.updatedAt).toLocaleString()}`:"reference timestamp unavailable";
+    set(
+      root,
+      "[data-commodity-source]",
+      priced
+        ? `${priced} locally sourced reference prices · unavailable items are not guessed`
+        : "reference prices unavailable"
+    );
+
+    set(
+      root,
+      "[data-commodity-updated]",
+      data.updatedAt
+        ? `updated ${new Date(data.updatedAt).toLocaleString()}`
+        : "reference timestamp unavailable"
+    );
   }
 
   function populateCategories(root,catalog){
-    const select=root.querySelector("[data-reference-category]");
+    const select=q(root,"[data-reference-category]");
     if(!select)return;
     const current=select.value||"all";
 
@@ -189,6 +209,6 @@
   }
 
   W.ZZXBitcoinTickerReferences=Object.freeze({
-    __version:5,load,render,populateCategories
+    __version:6,load,render,populateCategories
   });
 })();
