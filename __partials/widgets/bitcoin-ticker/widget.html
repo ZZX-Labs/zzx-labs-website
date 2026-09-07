@@ -1,0 +1,204 @@
+<section class="bitcoin-ticker" data-bitcoin-ticker aria-label="Bitcoin price ticker">
+  <header class="bitcoin-ticker__header">
+    <div class="bitcoin-ticker__heading">
+      <span class="bitcoin-ticker__eyebrow">ZZX-LABS / BITCOIN</span>
+      <h2 class="bitcoin-ticker__title">Bitcoin Ticker</h2>
+    </div>
+    <div class="bitcoin-ticker__state" aria-live="polite">
+      <span class="bitcoin-ticker__dot" data-state-dot aria-hidden="true"></span>
+      <span data-state-text>Loading</span>
+    </div>
+  </header>
+
+  <div class="bitcoin-ticker__controls" aria-label="Ticker controls">
+    <label class="bitcoin-ticker__control">
+      <span>Source</span>
+      <select data-source-select aria-label="Bitcoin price source">
+        <option value="bpi">BPI</option>
+        <option value="global-bpi">Global BPI</option>
+      </select>
+    </label>
+
+    <label class="bitcoin-ticker__control">
+      <span>Quote</span>
+      <select data-currency-select aria-label="Quote currency">
+        <option value="USD">USD — US Dollar</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="bitcoin-ticker__hero" aria-live="polite">
+    <div class="bitcoin-ticker__primary">
+      <span class="bitcoin-ticker__unit">1 BTC</span>
+      <span class="bitcoin-ticker__price"><span data-currency-symbol>$</span><span data-btc>—</span></span>
+      <span class="bitcoin-ticker__quote" data-currency-label>USD</span>
+    </div>
+    <div class="bitcoin-ticker__market">
+      <span data-source-label>BPI</span><span aria-hidden="true">·</span><span data-update-age>waiting for data</span>
+    </div>
+  </div>
+
+  <div class="bitcoin-ticker__denoms" aria-label="Bitcoin denomination values" data-denom-grid></div>
+
+  <div class="bitcoin-ticker__stats" aria-label="24 hour market statistics">
+    <div class="bitcoin-ticker__stat"><span>24h High</span><strong data-high>—</strong></div>
+    <div class="bitcoin-ticker__stat"><span>24h Low</span><strong data-low>—</strong></div>
+    <div class="bitcoin-ticker__stat"><span>24h Volume</span><strong data-volume>—</strong></div>
+    <div class="bitcoin-ticker__stat"><span>Spread</span><strong data-spread>—</strong></div>
+  </div>
+
+  <nav class="bitcoin-ticker__panel-nav" aria-label="Ticker data panels" data-panel-nav></nav>
+
+  <div class="bitcoin-ticker__panel-stack">
+    <section class="bitcoin-ticker__panel" data-panel="fx" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">conversion matrix</span><h3>Exchange Rates</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="fx">Collapse</button>
+      </header>
+      <div class="bitcoin-ticker__fx-tools">
+        <input type="search" data-fx-search placeholder="filter fiat code / currency" aria-label="Filter exchange rates">
+        <span data-fx-count>—</span>
+      </div>
+      <div class="bitcoin-ticker__fx-grid" data-fx-grid></div>
+    </section>
+
+
+    <section class="bitcoin-ticker__panel" data-panel="exchanges" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">live market inputs</span><h3>Exchange Markets</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="exchanges">Collapse</button>
+      </header>
+      <div class="bitcoin-ticker__exchange-table-wrap">
+        <table class="bitcoin-ticker__exchange-table">
+          <thead><tr><th>exchange</th><th>quote</th><th>USD price</th><th>24h BTC volume</th><th>weight</th><th>updated</th></tr></thead>
+          <tbody data-exchange-market-rows></tbody>
+        </table>
+      </div>
+      <div class="bitcoin-ticker__panel-note" data-exchange-market-meta>live local BPI mirror</div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="references" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">purchasing power</span><h3>Reference Markets</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="references">Collapse</button>
+      </header>
+
+      <div class="bitcoin-ticker__reference-controls">
+        <input type="search" data-reference-search placeholder="filter reference items" aria-label="Filter reference items">
+        <select data-reference-category aria-label="Reference category"><option value="all">all categories</option></select>
+      </div>
+
+      <div class="bitcoin-ticker__comparative-grid" data-comparative-grid></div>
+
+      <div class="bitcoin-ticker__pager">
+        <button type="button" class="zzx-widgets__btn" data-reference-prev>Prev</button>
+        <span data-reference-page>Page 1 / 1</span>
+        <button type="button" class="zzx-widgets__btn" data-reference-next>Next</button>
+      </div>
+
+      <div class="bitcoin-ticker__commodity-meta">
+        <span data-commodity-source>reference prices unavailable</span>
+        <span data-commodity-updated>—</span>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="debts" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">sovereign liability</span><h3>National Debts</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="debts">Collapse</button>
+      </header>
+
+      <div class="bitcoin-ticker__debt">
+        <header class="bitcoin-ticker__debt-head">
+          <select data-debt-country aria-label="National debt country"><option value="US">United States</option></select>
+        </header>
+        <strong class="bitcoin-ticker__debt-total" data-debt-total>—</strong>
+
+        <div class="bitcoin-ticker__debt-grid">
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Debt ÷ currently-issued BTC</span>
+            <strong class="bitcoin-ticker__negative" data-debt-per-issued>—</strong>
+            <small data-issued-supply>issued supply —</small>
+          </div>
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Debt ÷ terminal consensus BTC</span>
+            <strong class="bitcoin-ticker__negative" data-debt-per-terminal>—</strong>
+            <small data-terminal-supply>20,999,999.9769 BTC denominator</small>
+          </div>
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Issued BTC ÷ $1 debt</span>
+            <strong data-issued-per-debt-dollar>—</strong>
+            <small>BTC per USD liability</small>
+          </div>
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Terminal BTC ÷ $1 debt</span>
+            <strong data-terminal-per-debt-dollar>—</strong>
+            <small>BTC per USD liability</small>
+          </div>
+        </div>
+        <div class="bitcoin-ticker__debt-meta">
+          <span data-debt-source>national debt data unavailable</span>
+          <span data-chain-height>height —</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="widgets" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">HUD integration</span><h3>Widget Modules</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="widgets">Collapse</button>
+      </header>
+      <p class="bitcoin-ticker__panel-note">
+        Toggle existing HUD widgets without changing the Bitcoin Ticker price-selection authority.
+      </p>
+      <div class="bitcoin-ticker__widget-groups" data-widget-groups></div>
+    </section>
+
+    <section class="bitcoin-ticker__panel bitcoin-ticker__panel--chart" data-panel="charts" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">history / live analytics</span><h3>Chart Lab</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="charts">Collapse</button>
+      </header>
+
+      <div class="bitcoin-ticker__chart-controls">
+        <label><span>Source</span><select data-chart-source></select></label>
+        <label><span>Timeframe</span>
+          <select data-chart-timeframe>
+            <option>10s</option><option>30s</option><option>1m</option><option>5m</option><option>15m</option>
+            <option>1h</option><option>4h</option><option selected>24h</option><option>7d</option><option>30d</option>
+            <option>90d</option><option>1y</option><option>5y</option><option>all</option>
+          </select>
+        </label>
+        <label><span>Resolution</span>
+          <select data-chart-resolution>
+            <option selected>auto</option><option>raw</option><option>1s</option><option>5s</option><option>15s</option>
+            <option>30s</option><option>1m</option><option>5m</option><option>15m</option><option>1h</option>
+            <option>4h</option><option>1d</option><option>1w</option>
+          </select>
+        </label>
+        <label><span>Chart recipe</span><select data-chart-recipe></select></label>
+        <button type="button" class="zzx-widgets__btn" data-chart-refresh>Refresh</button>
+        <button type="button" class="zzx-widgets__btn" data-chart-reset>Reset zoom</button>
+      </div>
+
+      <div class="bitcoin-ticker__chart-meta">
+        <span data-chart-status>history idle</span>
+        <span data-chart-range>—</span>
+      </div>
+
+      <div class="bitcoin-ticker__chart-stage">
+        <canvas data-chart-canvas aria-label="Interactive Bitcoin chart"></canvas>
+        <div class="bitcoin-ticker__chart-tooltip" data-chart-tooltip hidden></div>
+      </div>
+
+      <div class="bitcoin-ticker__chart-help">
+        Wheel: zoom · drag: pan · hover: timestamp/OHLC/volume/change · double-click: reset.
+      </div>
+    </section>
+  </div>
+
+  <footer class="bitcoin-ticker__footer">
+    <span data-provider-detail>ZZX BPI</span>
+    <span class="bitcoin-ticker__credit">Made by: <i>[0xdeadbeef]</i></span>
+  </footer>
+</section>

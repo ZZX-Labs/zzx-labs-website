@@ -1,0 +1,35 @@
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXBitcoinTickerConstants?.__version>=5)return;
+
+  W.ZZXBitcoinTickerConstants=Object.freeze({
+    __version:5,
+    refreshMs:1000,
+    configTtlMs:60*1000,
+    staleAfterMs:5*60*1000,
+    referenceTtlMs:5*60*1000,
+    debtTtlMs:30*60*1000,
+    referencePageSize:12,
+    terminalSupplyBtc:20999999.9769,
+    storage:Object.freeze({
+      source:"zzx.widget.bitcoin-ticker.source.v5",
+      quote:"zzx.widget.bitcoin-ticker.quote.v5",
+      debtCountry:"zzx.widget.bitcoin-ticker.debt-country.v1"
+    }),
+    endpoints:Object.freeze({
+      latest:"/bitcoin/bpi/api/latest.json",
+      exchanges:"/bitcoin/bpi/api/exchanges.json",
+      currencies:"/bitcoin/bpi/api/currencies.json",
+      rates:"/bitcoin/bpi/api/exchange_rates.json",
+      symbols:"/bitcoin/bpi/api/symbols.json",
+      references:"/bitcoin/bpi/api/reference_prices.json",
+      legacyCommodities:"/bitcoin/bpi/api/commodities.json",
+      debts:"/bitcoin/bpi/api/national_debts.json",
+      usDebt:"/bitcoin/bpi/api/us_debt.json",
+      referenceCatalog:"/__partials/widgets/bitcoin-ticker/reference-catalog.json"
+    }),
+    sharedFxPath:"/__partials/widgets/_shared/zzx-fx.js",
+    sharedChainPath:"/__partials/widgets/_shared/zzx-chain.js"
+  });
+})();
