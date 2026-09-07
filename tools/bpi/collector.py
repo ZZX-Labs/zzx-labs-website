@@ -442,7 +442,11 @@ class Collector:
     def __init__(self, root: Path, proxy_url: str | None = None):
         self.root = root
         self.api = root / "bitcoin/bpi/api"
-        self.client = HttpClient(proxy_url=proxy_url)
+        self.config = load_json(root / "tools/bpi/collector-config.json", {})
+        self.cycle_ms = max(1000, int(self.config.get("exchange_cycle_ms") or CYCLE_MS))
+        self.max_workers = max(1, int(self.config.get("max_workers") or MAX_WORKERS))
+        timeout = float(self.config.get("request_timeout_seconds") or 8.0)
+        self.client = HttpClient(proxy_url=proxy_url, timeout=timeout)
         self.providers = load_json(self.api / "provider_urls.json", {}).get("providers", {})
         self.exchange_registry = load_json(self.api / "exchanges.json", {})
         self.fx_source_cfg = load_json(self.api / "fx_source_urls.json", {})
@@ -641,7 +645,7 @@ class Collector:
             return [m for m in latest if isinstance(m, dict)]
 
         fresh: list[dict[str, Any]] = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_WORKERS, max(1, len(due)))) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, max(1, len(due)))) as pool:
             jobs = {pool.submit(self.client.get, cfg["id"], cfg["price_volume_url"]): cfg for cfg in due}
             for future in concurrent.futures.as_completed(jobs):
                 cfg = jobs[future]
@@ -649,7 +653,7 @@ class Collector:
                 key = cfg.get("market_key") or pid
                 result = future.result()
 
-                interval = max(2500, int(cfg.get("poll_interval_ms") or CYCLE_MS)) / 1000.0
+                interval = max(self.cycle_ms, int(cfg.get("poll_interval_ms") or self.cycle_ms)) / 1000.0
                 if result.retry_after:
                     interval = max(interval, float(result.retry_after))
 
@@ -1370,15 +1374,48 @@ class Collector:
         markets = self.fetch_due_markets(now)
         self.write_price_snapshots(markets)
 
-    def run(self) -> None:
+    def run(self, duration_seconds: float | None = None, status_file: Path | None = None) -> dict[str, Any]:
         global STOP
+        started_wall = time.time()
+        started_mono = time.monotonic()
+        deadline = (started_mono + max(0.0, float(duration_seconds))) if duration_seconds is not None else None
+        cycles = 0
+        errors = 0
+
         while not STOP:
-            started = time.monotonic()
-            self.run_once()
-            elapsed = time.monotonic() - started
-            remaining = max(0.0, CYCLE_MS / 1000.0 - elapsed)
+            if deadline is not None and time.monotonic() >= deadline:
+                break
+
+            cycle_started = time.monotonic()
+            try:
+                self.run_once()
+                cycles += 1
+            except Exception as exc:
+                errors += 1
+                print(f"COLLECTOR_CYCLE_ERROR: {exc}", file=sys.stderr, flush=True)
+
+            elapsed = time.monotonic() - cycle_started
+            remaining = max(0.0, self.cycle_ms / 1000.0 - elapsed)
+            if deadline is not None:
+                remaining = min(remaining, max(0.0, deadline - time.monotonic()))
             if remaining:
                 time.sleep(remaining)
+
+        result = {
+            "schema": "zzx-bpi-collector-run-v1",
+            "started_at_epoch": started_wall,
+            "ended_at_epoch": time.time(),
+            "duration_seconds": round(time.monotonic() - started_mono, 3),
+            "cycle_ms": self.cycle_ms,
+            "cycles": cycles,
+            "errors": errors,
+            "markets_discovered": len(self.market_configs),
+            "provider_health_rows": len(self.health),
+            "stopped_by_signal": STOP,
+        }
+        if status_file is not None:
+            atomic_json(status_file, result)
+        return result
 
 
 def handle_signal(_signum: int, _frame: Any) -> None:
@@ -1391,6 +1428,15 @@ def main() -> int:
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[2]))
     parser.add_argument("--once", action="store_true")
     parser.add_argument(
+        "--duration-seconds",
+        type=float,
+        help="Run serialized collection for this many seconds, then exit cleanly.",
+    )
+    parser.add_argument(
+        "--status-file",
+        help="Optional JSON status output for the completed collector run.",
+    )
+    parser.add_argument(
         "--proxy",
         default=os.environ.get("ZZX_BPI_PROXY"),
         help="Optional operator-configured HTTP/HTTPS proxy URL. HTTP_PROXY/HTTPS_PROXY are otherwise honored.",
@@ -1400,11 +1446,27 @@ def main() -> int:
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
-    collector = Collector(Path(args.root).resolve(), proxy_url=args.proxy)
+    root = Path(args.root).resolve()
+    collector = Collector(root, proxy_url=args.proxy)
     if args.once:
         collector.run_once()
+        result = {
+            "schema": "zzx-bpi-collector-run-v1",
+            "duration_seconds": 0.0,
+            "cycle_ms": collector.cycle_ms,
+            "cycles": 1,
+            "errors": 0,
+            "markets_discovered": len(collector.market_configs),
+            "provider_health_rows": len(collector.health),
+            "stopped_by_signal": False,
+        }
+        if args.status_file:
+            atomic_json(Path(args.status_file), result)
     else:
-        collector.run()
+        collector.run(
+            duration_seconds=args.duration_seconds,
+            status_file=Path(args.status_file) if args.status_file else None,
+        )
     return 0
 
 
