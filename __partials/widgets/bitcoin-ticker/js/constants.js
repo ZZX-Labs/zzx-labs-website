@@ -1,21 +1,23 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerConstants?.__version>=6)return;
+  if(W.ZZXBitcoinTickerConstants?.__version>=7)return;
 
   W.ZZXBitcoinTickerConstants=Object.freeze({
-    __version:6,
+    __version:7,
     refreshMs:1000,
     configTtlMs:60*1000,
     staleAfterMs:5*60*1000,
     referenceTtlMs:5*60*1000,
-    debtTtlMs:30*60*1000,
+    debtTtlMs:6*60*60*1000,
+    sovereignTtlMs:6*60*60*1000,
     referencePageSize:12,
     terminalSupplyBtc:20999999.9769,
     storage:Object.freeze({
       source:"zzx.widget.bitcoin-ticker.source.v5",
       quote:"zzx.widget.bitcoin-ticker.quote.v5",
-      debtCountry:"zzx.widget.bitcoin-ticker.debt-country.v1"
+      debtCountry:"zzx.widget.bitcoin-ticker.debt-country.v2",
+      balanceCountry:"zzx.widget.bitcoin-ticker.balance-country.v1"
     }),
     endpoints:Object.freeze({
       latest:"/bitcoin/bpi/api/latest.json",
@@ -25,7 +27,9 @@
       symbols:"/bitcoin/bpi/api/symbols.json",
       references:"/bitcoin/bpi/api/reference_prices.json",
       legacyCommodities:"/bitcoin/bpi/api/commodities.json",
+      sovereignCountries:"/bitcoin/bpi/api/sovereign-countries.json",
       debts:"/bitcoin/bpi/api/national_debts.json",
+      balances:"/bitcoin/bpi/api/national_balances.json",
       usDebt:"/bitcoin/bpi/api/us_debt.json",
       referenceCatalog:"/__partials/widgets/bitcoin-ticker/reference-catalog.json"
     }),
