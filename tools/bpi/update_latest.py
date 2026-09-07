@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from index_sanity import classify_markets
+
 ROOT = Path(__file__).resolve().parents[2]
 API_DIR = ROOT / "bitcoin" / "bpi" / "api"
 
@@ -851,13 +853,53 @@ def build_once(fetch_source_fn=fetch_source, fetch_height_fn=fetch_block_height)
 
         raise RuntimeError(
             "refusing to replace BPI output with only "
-            f"{len(bpi_rows)} valid source(s)"
+            f"{len(bpi_rows)} fetched source(s)"
             + (f"; diagnostics: {detail}" if detail else "")
+        )
+
+    sanity = classify_markets(
+        bpi_rows,
+        minimum_sources=MIN_BPI_SOURCES,
+    )
+    eligible_rows = sanity["accepted"]
+    quarantined_rows = sanity["quarantined"]
+
+    # Mirror consensus/quarantine annotations back into the canonical exchange
+    # row map and health map. Quarantined providers remain observable but can
+    # never receive BPI weight.
+    for checked in eligible_rows + quarantined_rows:
+        source_id = checked.get("source")
+        if source_id in rows:
+            rows[source_id].update({
+                "index_eligible": checked.get("index_eligible"),
+                "consensus_price_usd": checked.get("consensus_price_usd"),
+                "consensus_deviation_pct": checked.get("consensus_deviation_pct"),
+                "consensus_price_band_pct": checked.get("consensus_price_band_pct"),
+                "volume_sanity_limit_btc": checked.get("volume_sanity_limit_btc"),
+                "exclusion_reason": checked.get("exclusion_reason"),
+            })
+
+        if source_id in health:
+            health[source_id].update({
+                "index_eligible": checked.get("index_eligible"),
+                "quarantined": not bool(checked.get("index_eligible")),
+                "exclusion_reason": checked.get("exclusion_reason"),
+                "consensus_deviation_pct": checked.get("consensus_deviation_pct"),
+            })
+
+    for checked in quarantined_rows:
+        source_id = checked.get("source") or "?"
+        print(
+            "SOURCE_QUARANTINED "
+            f"{source_id}: price=${checked.get('price_usd', 0):,.8f} "
+            f"volume={checked.get('volume_24h_btc', 0):,.8f} BTC "
+            f"reason={checked.get('exclusion_reason')} "
+            f"consensus=${sanity['consensus_price_usd']:,.2f}"
         )
 
     weighted_rows = [
         row
-        for row in bpi_rows
+        for row in eligible_rows
         if row["price_usd"] > 0 and row["volume_24h_btc"] > 0
     ]
     total_volume_btc = sum(
@@ -883,32 +925,46 @@ def build_once(fetch_source_fn=fetch_source, fetch_height_fn=fetch_block_height)
         )
 
     else:
-        equal_weight = 1.0 / len(bpi_rows)
-        for row in bpi_rows:
+        equal_weight = 1.0 / len(eligible_rows)
+
+        for row in eligible_rows:
             row["weight"] = equal_weight
 
         price = sum(
             row["price_usd"] * row["weight"]
-            for row in bpi_rows
+            for row in eligible_rows
         )
-        high = max(row["high_24h"] for row in bpi_rows)
-        low = min(row["low_24h"] for row in bpi_rows)
+        high = max(row["high_24h"] for row in eligible_rows)
+        low = min(row["low_24h"] for row in eligible_rows)
 
     total_volume_btc = sum(
         row.get("volume_24h_btc", 0)
-        for row in bpi_rows
+        for row in weighted_rows
     )
     total_volume_usd = sum(
         row.get("volume_24h_usd", 0)
+        for row in weighted_rows
+    )
+
+    raw_total_volume_btc = sum(
+        row.get("volume_24h_btc", 0)
         for row in bpi_rows
     )
 
     for market in markets:
         matching = rows.get(market["source"]) or {}
-        market["weight"] = matching.get("weight", 0.0)
+        market.update({
+            "weight": matching.get("weight", 0.0),
+            "index_eligible": matching.get("index_eligible"),
+            "consensus_price_usd": matching.get("consensus_price_usd"),
+            "consensus_deviation_pct": matching.get("consensus_deviation_pct"),
+            "consensus_price_band_pct": matching.get("consensus_price_band_pct"),
+            "volume_sanity_limit_btc": matching.get("volume_sanity_limit_btc"),
+            "exclusion_reason": matching.get("exclusion_reason"),
+        })
 
     latest = {
-        "schema": "zzx-bpi-latest-v5.4",
+        "schema": "zzx-bpi-latest-v5.5-sanity",
         "source": "zzx-global-bpi",
         "mode": "generated",
         "base": "USD",
@@ -928,31 +984,44 @@ def build_once(fetch_source_fn=fetch_source, fetch_height_fn=fetch_block_height)
         "exchange_count": len(
             [row for row in rows.values() if row.get("price_usd", 0) > 0]
         ),
-        "bpi_exchange_count": len(bpi_rows),
+        "bpi_exchange_count": len(eligible_rows),
+        "quarantined_exchange_count": len(quarantined_rows),
         "weighted_average": {
             "method": "volume_weighted_eligible_btc_fiat_markets",
             "sources": len(weighted_rows),
+            "consensus_source_count": len(eligible_rows),
+            "quarantined_source_count": len(quarantined_rows),
             "price_usd": price,
             "vwap_usd": price,
             "formula": "weight_i=volume_24h_btc_i/sum(volume_24h_btc); bpi=sum(price_usd_i*weight_i)",
-            "policy": "BTC/XBT base + recognized fiat quote only; stablecoins/altcoins excluded",
+            "policy": "BTC/XBT base + recognized fiat quote only; stablecoins/altcoins excluded; consensus/outlier gated",
         },
         "global_bpi": {
             "price_usd": price,
             "vwap_usd": price,
             "volume_24h_btc": total_volume_btc,
-            "market_count": len(bpi_rows),
-            "method": "volume_weighted_eligible_btc_fiat_markets",
+            "market_count": len(eligible_rows),
+            "quarantined_market_count": len(quarantined_rows),
+            "method": "consensus_gated_volume_weighted_btc_fiat_markets",
+        },
+                "sanity": {
+            "consensus_price_usd": sanity["consensus_price_usd"],
+            "median_absolute_deviation_pct": sanity["median_absolute_deviation_pct"],
+            "price_band_pct": sanity["price_band_pct"],
+            "median_positive_volume_btc": sanity["median_positive_volume_btc"],
+            "volume_limit_btc": sanity["volume_limit_btc"],
+            "raw_total_volume_24h_btc": raw_total_volume_btc,
         },
         "exchanges": rows,
     }
 
     write_json(LATEST, latest)
     write_json(MARKETS, {
-        "schema": "zzx-bpi-markets-v5.4",
+        "schema": "zzx-bpi-markets-v5.5-sanity",
         "updated_at": updated_at,
         "markets": markets,
-        "eligible_market_count": len(bpi_rows),
+        "eligible_market_count": len(eligible_rows),
+        "quarantined_market_count": len(quarantined_rows),
     })
     write_json(PROVIDER_HEALTH, {
         "schema": "zzx-bpi-provider-health-v1",
@@ -991,7 +1060,9 @@ def build_once(fetch_source_fn=fetch_source, fetch_height_fn=fetch_block_height)
         f"BPI updated ${price:,.2f}; "
         f"exchanges={latest['exchange_count']}; "
         f"bpi_sources={latest['bpi_exchange_count']}; "
+        f"quarantined={len(quarantined_rows)}; "
         f"weighted={len(weighted_rows)}; "
+        f"consensus=${sanity['consensus_price_usd']:,.2f}; "
         f"total_volume_btc={total_volume_btc:,.4f}; "
         f"mined_supply={supply:,.8f} BTC"
     )
@@ -1057,7 +1128,53 @@ def self_test():
     assert merged["quote"] == "EUR"
     assert merged["price_volume_url"].startswith("https://")
 
-    print("update_latest.py self-test: PASS")
+    # Regression: one malformed exchange must never dominate the index.
+    fixture_rows = [
+        {
+            "source": f"peer-{index}",
+            "price_usd": price,
+            "volume_24h_btc": 1000 + index * 50,
+        }
+        for index, price in enumerate(
+            [
+                78950, 79010, 78980, 79040, 78970,
+                79020, 78990, 79030, 78960, 79000,
+                79015, 78985, 79025, 78975, 79005,
+                78995, 79012, 78988, 79018,
+            ]
+        )
+    ]
+    fixture_rows.append({
+        "source": "whitebit-regression-fixture",
+        "price_usd": 0.19,
+        "volume_24h_btc": 4_590_000,
+    })
+
+    gate = classify_markets(fixture_rows)
+
+    assert len(gate["accepted"]) == 19
+    assert len(gate["quarantined"]) == 1
+
+    rejected = gate["quarantined"][0]
+    assert rejected["source"] == "whitebit-regression-fixture"
+    assert "price_consensus_outlier" in rejected["exclusion_reason"]
+    assert "volume_outlier" in rejected["exclusion_reason"]
+
+    weighted_fixture = sum(
+        row["price_usd"] * row["volume_24h_btc"]
+        for row in gate["accepted"]
+    ) / sum(
+        row["volume_24h_btc"]
+        for row in gate["accepted"]
+    )
+
+    assert 78_000 < weighted_fixture < 80_000
+
+    print(
+        "update_latest.py self-test: PASS; "
+        f"outlier fixture index=${weighted_fixture:,.2f}; "
+        f"quarantined={len(gate['quarantined'])}"
+    )
 
 
 def main():
