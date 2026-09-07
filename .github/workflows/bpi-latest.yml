@@ -1,25 +1,36 @@
-name: Update BPI Latest
+name: BPI Hourly Master
 
 on:
   workflow_dispatch:
+    inputs:
+      capture_seconds:
+        description: "Maximum live price/volume collection time inside this hourly run"
+        required: false
+        default: "3120"
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "0 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: bpi-latest
+  group: bpi-hourly-master
   cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
+  BPI_CAPTURE_SECONDS: ${{ github.event.inputs.capture_seconds || '3120' }}
+  ZZX_MARIADB_HOST: ${{ secrets.BPI_MARIADB_HOST }}
+  ZZX_MARIADB_PORT: ${{ secrets.BPI_MARIADB_PORT }}
+  ZZX_MARIADB_USER: ${{ secrets.BPI_MARIADB_USER }}
+  ZZX_MARIADB_PASSWORD: ${{ secrets.BPI_MARIADB_PASSWORD }}
+  ZZX_MARIADB_DATABASE: ${{ secrets.BPI_MARIADB_DATABASE }}
 
 jobs:
-  update-latest:
+  hourly-bpi:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 65
 
     steps:
       - name: Checkout repository
@@ -33,324 +44,84 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Sync repository before generation
+      - name: Sync repository before hourly capture
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
 
-      - name: Validate BPI updater inputs
+      - name: Validate hourly BPI stack
         shell: bash
         run: |
           set -euo pipefail
 
-          test -f tools/bpi/update_latest.py
-          python -m py_compile tools/bpi/update_latest.py
+          test -f tools/bpi/run-bpi-master.py
+          test -f tools/bpi/bpi_hourly_master.py
+          test -f tools/bpi/bpi_hourly_shard.py
+          test -f tools/bpi/bpi_archive_rehydrate.py
+          test -f tools/bpi/bpi_hourly_validate.py
+          test -f tools/bpi/collector.py
+          test -f tools/bpi/history_store.py
+
+          python -m py_compile \
+            tools/bpi/run-bpi-master.py \
+            tools/bpi/bpi_hourly_master.py \
+            tools/bpi/bpi_hourly_shard.py \
+            tools/bpi/bpi_archive_rehydrate.py \
+            tools/bpi/bpi_hourly_validate.py \
+            tools/bpi/bpi_mariadb_sync.py \
+            tools/bpi/orderbook_store.py \
+            tools/bpi/bpi_orderbook_ingest.py \
+            tools/bpi/collector.py \
+            tools/bpi/history_store.py \
+            tools/bpi/update_latest.py \
+            tools/bpi/reference_updater.py \
+            tools/bpi/update_reference_national_averages.py \
+            tools/bpi/update_sovereign_data.py
+
+          python tools/bpi/run-bpi-master.py --hourly --self-test
           python tools/bpi/update_latest.py --self-test
+          python tools/bpi/update_sovereign_data.py --self-test
+          python tools/bpi/update_reference_national_averages.py --self-test
 
-          for file in \
-            bitcoin/bpi/api/exchanges.json \
-            bitcoin/bpi/api/currencies.json \
-            bitcoin/bpi/api/exchange_rates.json
-          do
-            if [[ -f "${file}" ]]; then
-              python -m json.tool "${file}" >/dev/null
-            fi
-          done
+          python -m json.tool tools/bpi/hourly-config.json >/dev/null
+          python -m json.tool tools/bpi/collector-config.json >/dev/null
+          python -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
+          python -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+          python -m json.tool bitcoin/bpi/api/bpi_index_policy.json >/dev/null
+          python -m json.tool bitcoin/bpi/api/orderbook_source_registry.json >/dev/null
 
-          if [[ -f bitcoin/bpi/api/provider_urls.json ]]; then
-            python -m json.tool \
-              bitcoin/bpi/api/provider_urls.json \
-              >/dev/null
-          fi
-
-      - name: Update latest BPI data
-        shell: bash
-        run: |
-          set -euo pipefail
-          python tools/bpi/update_latest.py
-
-      - name: Validate generated BPI contract
+      - name: Run hourly BPI acquisition and sequential finalization
         shell: bash
         run: |
           set -euo pipefail
 
-          python - <<'PY'
-          import json
-          import math
-          from datetime import datetime, timezone
-          from pathlib import Path
+          python tools/bpi/run-bpi-master.py \
+            --hourly \
+            --capture-seconds "${BPI_CAPTURE_SECONDS}" \
+            --finalize-margin-seconds 180 \
+            --chunk-rows 50000
 
-          api = Path("bitcoin/bpi/api")
+      - name: Validate finalized BPI and archive shards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bpi/bpi_hourly_validate.py --root .
 
-          def load_required(name):
-              path = api / name
+          python -m json.tool bitcoin/bpi/api/hourly_status.json >/dev/null
+          python -m json.tool bitcoin/bpi/archive/archive-index.json >/dev/null
 
-              if not path.is_file():
-                  raise SystemExit(
-                      f"required generated file missing: {path}"
-                  )
+      - name: Optionally sync finalized SQL shards to MariaDB
+        if: ${{ env.ZZX_MARIADB_HOST != '' && env.ZZX_MARIADB_USER != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mariadb-client
+          python tools/bpi/bpi_mariadb_sync.py --root .
 
-              try:
-                  return json.loads(
-                      path.read_text(encoding="utf-8")
-                  )
-              except Exception as exc:
-                  raise SystemExit(
-                      f"invalid JSON in {path}: {exc}"
-                  )
-
-          def finite_positive(value, label):
-              try:
-                  number = float(value)
-              except (TypeError, ValueError):
-                  raise SystemExit(
-                      f"{label} is not numeric: {value!r}"
-                  )
-
-              if not math.isfinite(number) or number <= 0:
-                  raise SystemExit(
-                      f"{label} must be finite and > 0: {number}"
-                  )
-
-              return number
-
-          def finite_nonnegative(value, label):
-              try:
-                  number = float(value)
-              except (TypeError, ValueError):
-                  raise SystemExit(
-                      f"{label} is not numeric: {value!r}"
-                  )
-
-              if not math.isfinite(number) or number < 0:
-                  raise SystemExit(
-                      f"{label} must be finite and >= 0: {number}"
-                  )
-
-              return number
-
-          def rows_from_contract(value, names):
-              if isinstance(value, list):
-                  return value
-
-              if isinstance(value, dict):
-                  for name in names:
-                      rows = value.get(name)
-
-                      if isinstance(rows, list):
-                          return rows
-
-              raise SystemExit(
-                  "contract must be an array or an object "
-                  f"containing one of: {', '.join(names)}"
-              )
-
-          latest = load_required("latest.json")
-          changes_raw = load_required("changes.json")
-          history_raw = load_required("history.json")
-
-          if not isinstance(latest, dict):
-              raise SystemExit(
-                  "latest.json must be an object"
-              )
-
-          price = finite_positive(
-              latest.get("price_usd", latest.get("bpi_usd")),
-              "latest BPI price"
-          )
-
-          exchanges = latest.get("exchanges")
-
-          if not isinstance(exchanges, dict):
-              raise SystemExit(
-                  "latest.json exchanges must be an object"
-              )
-
-          active_rows = 0
-
-          for exchange_id, row in exchanges.items():
-              if not isinstance(row, dict):
-                  raise SystemExit(
-                      f"exchange {exchange_id} must be an object"
-                  )
-
-              exchange_price = row.get("price_usd")
-
-              if exchange_price is None:
-                  continue
-
-              finite_positive(
-                  exchange_price,
-                  f"{exchange_id}.price_usd"
-              )
-
-              if row.get("volume_24h_btc") is not None:
-                  finite_nonnegative(
-                      row.get("volume_24h_btc"),
-                      f"{exchange_id}.volume_24h_btc"
-                  )
-
-              active_rows += 1
-
-          source_count = int(
-              latest.get(
-                  "bpi_exchange_count",
-                  active_rows
-              )
-          )
-
-          sanity = latest.get("sanity")
-
-          if not isinstance(sanity, dict):
-              raise SystemExit(
-                  "latest.json must contain sanity metadata"
-              )
-
-          consensus_price = finite_positive(
-              sanity.get("consensus_price_usd"),
-              "BPI consensus price"
-          )
-
-          price_band_pct = finite_positive(
-              sanity.get("price_band_pct"),
-              "BPI consensus price band"
-          )
-
-          deviation_pct = abs(
-              price - consensus_price
-          ) / consensus_price * 100.0
-
-          if deviation_pct > price_band_pct:
-              raise SystemExit(
-                  "generated BPI lies outside its own "
-                  f"consensus band: {deviation_pct:.4f}% "
-                  f"> {price_band_pct:.4f}%"
-              )
-
-          for exchange_id, row in exchanges.items():
-              if not isinstance(row, dict):
-                  continue
-
-              if row.get("index_eligible") is False:
-                  weight = float(row.get("weight") or 0)
-
-                  if abs(weight) > 0.0000001:
-                      raise SystemExit(
-                          f"quarantined exchange {exchange_id} "
-                          f"has non-zero BPI weight: {weight}"
-                      )
-
-          if source_count < 2:
-              raise SystemExit(
-                  "refusing BPI built from too few sources: "
-                  f"{source_count}"
-              )
-
-          if active_rows < 2:
-              raise SystemExit(
-                  "latest.json contains fewer than two "
-                  f"active exchange rows: {active_rows}"
-              )
-
-          global_bpi = latest.get("global_bpi")
-
-          if global_bpi is not None:
-              if not isinstance(global_bpi, dict):
-                  raise SystemExit(
-                      "latest.json global_bpi must be an object"
-                  )
-
-              global_price = finite_positive(
-                  global_bpi.get("price_usd"),
-                  "Global BPI price"
-              )
-
-              if global_bpi.get("volume_24h_btc") is not None:
-                  finite_nonnegative(
-                      global_bpi.get("volume_24h_btc"),
-                      "Global BPI volume"
-                  )
-          else:
-              global_price = None
-
-          changes = rows_from_contract(
-              changes_raw,
-              ("changes", "rows", "history")
-          )
-
-          history = rows_from_contract(
-              history_raw,
-              ("history", "rows", "records")
-          )
-
-          if not history:
-              raise SystemExit(
-                  "history.json must contain at least one record"
-              )
-
-          updated_at = latest.get("updated_at")
-
-          if updated_at:
-              try:
-                  stamp = datetime.fromisoformat(
-                      str(updated_at).replace("Z", "+00:00")
-                  )
-              except ValueError:
-                  raise SystemExit(
-                      f"invalid latest.updated_at: {updated_at!r}"
-                  )
-
-              if stamp.tzinfo is None:
-                  stamp = stamp.replace(tzinfo=timezone.utc)
-
-              age = (
-                  datetime.now(timezone.utc)
-                  - stamp.astimezone(timezone.utc)
-              ).total_seconds()
-
-              if age < -300:
-                  raise SystemExit(
-                      f"latest.updated_at is in the future: {age}s"
-                  )
-
-              if age > 1800:
-                  raise SystemExit(
-                      "generated BPI is unexpectedly stale: "
-                      f"{age:.0f}s"
-                  )
-
-          optional_generated = (
-              "markets.json",
-              "provider_health.json",
-          )
-
-          for name in optional_generated:
-              path = api / name
-
-              if path.exists():
-                  try:
-                      json.loads(path.read_text(encoding="utf-8"))
-                  except Exception as exc:
-                      raise SystemExit(
-                          f"invalid optional generated JSON "
-                          f"{path}: {exc}"
-                      )
-
-          print(
-              "BPI contract valid: "
-              f"price={price:.2f} "
-              f"sources={source_count} "
-              f"active_rows={active_rows} "
-              f"global_bpi="
-              f"{global_price if global_price is not None else 'n/a'} "
-              f"history={len(history)} "
-              f"changes={len(changes)}"
-          )
-          PY
-
-      - name: Commit and push BPI latest data
+      - name: Commit hourly BPI mirrors and archive shards
         shell: bash
         run: |
           set -euo pipefail
@@ -358,48 +129,41 @@ jobs:
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
 
-          paths=(
-            bitcoin/bpi/api/latest.json
-            bitcoin/bpi/api/changes.json
-            bitcoin/bpi/api/history.json
-            bitcoin/bpi/api/markets.json
-            bitcoin/bpi/api/provider_health.json
-          )
+          # history.sqlite3 is an ephemeral working database on hosted runners.
+          # Long-term recovery is provided by immutable JSONL + MariaDB SQL shards.
+          git add -- \
+            bitcoin/bpi/api \
+            bitcoin/bpi/archive
 
-          for path in "${paths[@]}"; do
-            if [[ -f "${path}" ]]; then
-              git add -- "${path}"
-            fi
-          done
+          git reset -- \
+            bitcoin/bpi/history.sqlite3 \
+            bitcoin/bpi/history.sqlite3-wal \
+            bitcoin/bpi/history.sqlite3-shm \
+            bitcoin/bpi/orderbooks.sqlite3 \
+            bitcoin/bpi/orderbooks.sqlite3-wal \
+            bitcoin/bpi/orderbooks.sqlite3-shm \
+            2>/dev/null || true
 
           if git diff --cached --quiet; then
-            printf '%s\n' \
-              "No BPI latest changes."
+            printf '%s\n' "No BPI/archive changes to commit."
             exit 0
           fi
 
-          git commit \
-            -m "Update BPI latest data"
+          hour_id="$(date -u +'%Y-%m-%dT%H:00Z')"
+          git commit -m "Archive BPI hour ${hour_id}"
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase origin/main && \
-               git push origin HEAD:main; then
-              printf '%s\n' \
-                "BPI latest data pushed."
+            if git rebase origin/main && git push origin HEAD:main; then
+              printf '%s\n' "Hourly BPI archive pushed."
               exit 0
             fi
 
             git rebase --abort || true
-
-            printf '%s\n' \
-              "BPI latest push attempt ${attempt} failed; retrying without force."
-
+            printf '%s\n' "Push attempt ${attempt} failed; retrying without force."
             sleep 5
           done
 
-          printf '%s\n' \
-            "Failed to push BPI latest data without rewriting main."
-
+          printf '%s\n' "Failed to push hourly BPI archive without rewriting main."
           exit 1
