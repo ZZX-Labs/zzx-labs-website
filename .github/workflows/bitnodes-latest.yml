@@ -1,0 +1,121 @@
+name: Bitnodes Snapshot Mirror
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bitnodes-snapshot-mirror
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONUNBUFFERED: "1"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+
+      - name: Validate collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/bitnodes/collector.py tools/bitnodes/update_snapshot.py
+          python -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
+
+      - name: Update shared Bitnodes snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bitnodes/update_snapshot.py
+
+      - name: Validate generated API
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          required = [
+              Path("bitcoin/bitnodes/api/originalbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/api/zzxbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json"),
+              Path("bitcoin/bitnodes/api/snapshots/latest.json"),
+              Path("bitcoin/bitnodes/api/history.json"),
+          ]
+
+          for path in required:
+              if not path.exists():
+                  raise SystemExit(f"missing {path}")
+              json.loads(path.read_text(encoding="utf-8"))
+
+          latest = json.loads(
+              Path("bitcoin/bitnodes/api/zzxbitnodes/latest.json").read_text(encoding="utf-8")
+          )
+          total = latest.get("reachable_nodes") or latest.get("total_nodes") or latest.get("node_count")
+          if not isinstance(total, int) or total <= 0:
+              raise SystemExit("generated Bitnodes snapshot has no usable node count")
+
+          print(
+              f"Bitnodes mirror OK: source={latest.get('source')} "
+              f"reachable={latest.get('reachable_nodes')} rows={latest.get('node_count')}"
+          )
+          PY
+
+      - name: Commit generated mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          paths=(
+            bitcoin/bitnodes/api/originalbitnodes/latest.json
+            bitcoin/bitnodes/api/zzxbitnodes/latest.json
+            bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json
+            bitcoin/bitnodes/api/snapshots/latest.json
+            bitcoin/bitnodes/api/history.json
+          )
+
+          git add "${paths[@]}"
+
+          if git diff --cached --quiet; then
+            echo "No Bitnodes mirror changes."
+            exit 0
+          fi
+
+          git config user.name "zzx-bitnodes-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "Update shared Bitnodes snapshot"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            git fetch origin main
+            git rebase origin/main
+            sleep "$attempt"
+          done
+
+          echo "Unable to push Bitnodes mirror update after retries." >&2
+          exit 1
