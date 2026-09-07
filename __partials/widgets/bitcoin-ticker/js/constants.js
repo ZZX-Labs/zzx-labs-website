@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerConstants?.__version>=7)return;
+  if(W.ZZXBitcoinTickerConstants?.__version>=8)return;
 
   W.ZZXBitcoinTickerConstants=Object.freeze({
-    __version:7,
+    __version:8,
     refreshMs:1000,
     configTtlMs:60*1000,
     staleAfterMs:5*60*1000,
@@ -17,7 +17,8 @@
       source:"zzx.widget.bitcoin-ticker.source.v5",
       quote:"zzx.widget.bitcoin-ticker.quote.v5",
       debtCountry:"zzx.widget.bitcoin-ticker.debt-country.v2",
-      balanceCountry:"zzx.widget.bitcoin-ticker.balance-country.v1"
+      balanceCountry:"zzx.widget.bitcoin-ticker.balance-country.v1",
+      referencePage:"zzx.widget.bitcoin-ticker.reference-page.v1"
     }),
     endpoints:Object.freeze({
       latest:"/bitcoin/bpi/api/latest.json",
