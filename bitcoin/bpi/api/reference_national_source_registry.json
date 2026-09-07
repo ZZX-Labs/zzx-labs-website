@@ -1,0 +1,350 @@
+{
+  "schema": "zzx-reference-national-source-registry-v1",
+  "updated_at": null,
+  "default_country": "US",
+  "aggregation": {
+    "item_average": "weighted mean when observation weights exist; otherwise arithmetic mean",
+    "diagnostics": [
+      "mean",
+      "median",
+      "minimum",
+      "maximum",
+      "sample_count",
+      "source_count"
+    ],
+    "category_summary": "equal item-class mean of available item national averages; heterogeneous declared units are explicitly flagged",
+    "missing": "unavailable; never use a global spot quote as a national average unless source scope is national"
+  },
+  "api_classes": [
+    {
+      "id": "bls_public_data",
+      "pages": [
+        "tobacco",
+        "alcohol",
+        "commodities",
+        "water",
+        "fuels"
+      ],
+      "base_url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+      "adapter": "bls_timeseries",
+      "scope": "US",
+      "enabled": false,
+      "requires": "validated BLS average-price series IDs per item class",
+      "source_class": "government statistical series"
+    },
+    {
+      "id": "eia_v2",
+      "pages": [
+        "oil",
+        "fuels"
+      ],
+      "base_url": "https://api.eia.gov/v2/",
+      "adapter": "eia_v2",
+      "scope": "US",
+      "enabled": false,
+      "requires_env": "EIA_API_KEY",
+      "requires": "validated national retail/wholesale series routes per fuel class",
+      "source_class": "government statistical series"
+    },
+    {
+      "id": "usda_nass_quickstats",
+      "pages": [
+        "commodities"
+      ],
+      "base_url": "https://quickstats.nass.usda.gov/api/api_GET/",
+      "adapter": "usda_quickstats",
+      "scope": "US",
+      "enabled": false,
+      "requires_env": "USDA_NASS_API_KEY",
+      "requires": "validated national commodity query mapping",
+      "source_class": "government statistical series"
+    },
+    {
+      "id": "fred",
+      "pages": [
+        "commodities",
+        "precious-metals",
+        "semi-precious-metals",
+        "oil",
+        "fuels"
+      ],
+      "base_url": "https://api.stlouisfed.org/fred/series/observations",
+      "adapter": "fred_series",
+      "scope": "US",
+      "enabled": false,
+      "requires_env": "FRED_API_KEY",
+      "requires": "validated series IDs with price-unit normalization",
+      "source_class": "validated public API"
+    },
+    {
+      "id": "state_open_data",
+      "pages": [
+        "cannabis",
+        "kief-hash",
+        "concentrates"
+      ],
+      "adapter": "socrata_or_state_json",
+      "scope": "country/state",
+      "enabled": false,
+      "requires": "operator-configured regulated-market state/province open-data endpoints and product taxonomy mapping",
+      "source_class": "regulated-market public aggregate"
+    },
+    {
+      "id": "official_alcohol_tobacco_statistics",
+      "pages": [
+        "tobacco",
+        "alcohol"
+      ],
+      "adapter": "government_json_csv",
+      "scope": "country",
+      "enabled": false,
+      "requires": "country-specific public average-price or expenditure/quantity datasets",
+      "source_class": "government statistical series"
+    },
+    {
+      "id": "gemstone_price_index",
+      "pages": [
+        "precious-gemstones",
+        "semi-precious-gemstones"
+      ],
+      "adapter": "licensed_or_public_price_index",
+      "scope": "country",
+      "enabled": false,
+      "requires": "validated public/licensed national aggregate gemstone price observations; no single-stone asking prices",
+      "source_class": "validated aggregate dataset"
+    },
+    {
+      "id": "collectible_auction_aggregates",
+      "pages": [
+        "collectibles"
+      ],
+      "adapter": "auction_aggregate",
+      "scope": "country",
+      "enabled": false,
+      "requires": "public auction-results API or licensed aggregate dataset with grade/condition metadata",
+      "source_class": "public auction/price guide"
+    },
+    {
+      "id": "arms_msrp_aggregate",
+      "pages": [
+        "arms"
+      ],
+      "adapter": "official_msrp_aggregate",
+      "scope": "country",
+      "enabled": false,
+      "requires": "official manufacturer/public MSRP observations only; informational reference; no vendor/procurement links",
+      "source_class": "official manufacturer/public MSRP"
+    },
+    {
+      "id": "ammo_public_price_aggregate",
+      "pages": [
+        "ammo"
+      ],
+      "adapter": "validated_aggregate_dataset",
+      "scope": "country",
+      "enabled": false,
+      "requires": "validated national aggregate box/round price dataset; informational only; no vendor/procurement links",
+      "source_class": "validated aggregate dataset"
+    }
+  ],
+  "notes": [
+    "The registry intentionally leaves unverified API mappings disabled.",
+    "Current global commodity/metal spot feeds may remain useful as global benchmarks but do not become national averages automatically.",
+    "A national reference observation must declare country_code, item_id, usd value, source and reference unit.",
+    "Arms/ammunition observations are informational price references only and must not include vendor/procurement URLs."
+  ],
+  "sources": [
+    {
+      "id": "us_tobacco",
+      "label": "US Tobacco national aggregate",
+      "page": "tobacco",
+      "country_code": "US",
+      "adapter": "bls_timeseries",
+      "url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated average-price series IDs",
+      "series": {}
+    },
+    {
+      "id": "us_alcohol",
+      "label": "US Alcohol national aggregate",
+      "page": "alcohol",
+      "country_code": "US",
+      "adapter": "bls_timeseries",
+      "url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated average-price series IDs",
+      "series": {}
+    },
+    {
+      "id": "us_cannabis",
+      "label": "US Cannabis national aggregate",
+      "page": "cannabis",
+      "country_code": "US",
+      "adapter": "socrata_or_state_json",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "regulated state/province open-data endpoint mappings",
+      "series": null
+    },
+    {
+      "id": "us_kief-hash",
+      "label": "US Kief & Hash national aggregate",
+      "page": "kief-hash",
+      "country_code": "US",
+      "adapter": "socrata_or_state_json",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "regulated state/province open-data endpoint mappings",
+      "series": null
+    },
+    {
+      "id": "us_concentrates",
+      "label": "US Concentrates national aggregate",
+      "page": "concentrates",
+      "country_code": "US",
+      "adapter": "socrata_or_state_json",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "regulated state/province open-data endpoint mappings",
+      "series": null
+    },
+    {
+      "id": "us_commodities",
+      "label": "US Commodities national aggregate",
+      "page": "commodities",
+      "country_code": "US",
+      "adapter": "usda_quickstats",
+      "url": "https://quickstats.nass.usda.gov/api/api_GET/?key={API_KEY}",
+      "enabled": false,
+      "source_class": "public commodity exchange",
+      "requires": "USDA_NASS_API_KEY + validated national query mappings",
+      "series": null
+    },
+    {
+      "id": "us_precious-metals",
+      "label": "US Precious Metals national aggregate",
+      "page": "precious-metals",
+      "country_code": "US",
+      "adapter": "fred_series",
+      "url": "https://api.stlouisfed.org/fred/series/observations",
+      "enabled": false,
+      "source_class": "public commodity exchange",
+      "requires": "FRED_API_KEY + validated national/market series IDs",
+      "series": {}
+    },
+    {
+      "id": "us_semi-precious-metals",
+      "label": "US Semi Precious Metals national aggregate",
+      "page": "semi-precious-metals",
+      "country_code": "US",
+      "adapter": "fred_series",
+      "url": "https://api.stlouisfed.org/fred/series/observations",
+      "enabled": false,
+      "source_class": "public commodity exchange",
+      "requires": "FRED_API_KEY + validated national/market series IDs",
+      "series": {}
+    },
+    {
+      "id": "us_precious-gemstones",
+      "label": "US Precious Gem Stones national aggregate",
+      "page": "precious-gemstones",
+      "country_code": "US",
+      "adapter": "licensed_or_public_price_index",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated aggregate gemstone price API",
+      "series": null
+    },
+    {
+      "id": "us_semi-precious-gemstones",
+      "label": "US Semi Precious Gemstones national aggregate",
+      "page": "semi-precious-gemstones",
+      "country_code": "US",
+      "adapter": "licensed_or_public_price_index",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated aggregate gemstone price API",
+      "series": null
+    },
+    {
+      "id": "us_collectibles",
+      "label": "US Collectibles national aggregate",
+      "page": "collectibles",
+      "country_code": "US",
+      "adapter": "auction_aggregate",
+      "url": null,
+      "enabled": false,
+      "source_class": "official manufacturer/public MSRP",
+      "requires": "validated auction-results aggregate API",
+      "series": null
+    },
+    {
+      "id": "us_water",
+      "label": "US Water national aggregate",
+      "page": "water",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "public commodity exchange",
+      "requires": "validated national/public utility price dataset",
+      "series": null
+    },
+    {
+      "id": "us_oil",
+      "label": "US Oil national aggregate",
+      "page": "oil",
+      "country_code": "US",
+      "adapter": "eia_v2",
+      "url": "https://api.eia.gov/v2/?api_key={API_KEY}",
+      "enabled": false,
+      "source_class": "public commodity exchange",
+      "requires": "EIA_API_KEY + validated national price series routes",
+      "series": null
+    },
+    {
+      "id": "us_fuels",
+      "label": "US Fuels national aggregate",
+      "page": "fuels",
+      "country_code": "US",
+      "adapter": "eia_v2",
+      "url": "https://api.eia.gov/v2/?api_key={API_KEY}",
+      "enabled": false,
+      "source_class": "public commodity exchange",
+      "requires": "EIA_API_KEY + validated national price series routes",
+      "series": null
+    },
+    {
+      "id": "us_arms",
+      "label": "US Arms national aggregate",
+      "page": "arms",
+      "country_code": "US",
+      "adapter": "official_msrp_aggregate",
+      "url": null,
+      "enabled": false,
+      "source_class": "official manufacturer/public MSRP",
+      "requires": "official public MSRP aggregate only; no vendor/procurement links",
+      "series": null
+    },
+    {
+      "id": "us_ammo",
+      "label": "US Ammo national aggregate",
+      "page": "ammo",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official manufacturer/public MSRP",
+      "requires": "validated national aggregate price dataset only; no vendor/procurement links",
+      "series": null
+    }
+  ]
+}
