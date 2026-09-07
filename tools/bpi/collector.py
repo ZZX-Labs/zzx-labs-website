@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from history_store import HistoryStore
+from index_sanity import classify_markets
 
 CYCLE_MS = 2500
 FX_MS = 60_000
@@ -780,11 +781,49 @@ class Collector:
                     clean[key] = None
             valid.append(clean)
 
-        global_bpi, total_volume = calculate_index(valid)
+        sanity = classify_markets(valid, minimum_sources=2)
+        consensus_valid = sanity["accepted"]
+        quarantined = sanity["quarantined"]
+
+        # Propagate the gate result back into the retained raw rows.
+        by_market_key = {
+            str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair")))): row
+            for row in sanity["accepted"] + sanity["quarantined"]
+        }
+        for row in valid:
+            key = str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair"))))
+            checked = by_market_key.get(key)
+            if checked:
+                row.update({
+                    "index_eligible": checked.get("index_eligible"),
+                    "consensus_price_usd": checked.get("consensus_price_usd"),
+                    "consensus_deviation_pct": checked.get("consensus_deviation_pct"),
+                    "consensus_price_band_pct": checked.get("consensus_price_band_pct"),
+                    "volume_sanity_limit_btc": checked.get("volume_sanity_limit_btc"),
+                    "exclusion_reason": checked.get("exclusion_reason"),
+                })
+
+        for row in quarantined:
+            key = str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair"))))
+            health = self.health.setdefault(key, {})
+            health.update({
+                "index_eligible": False,
+                "quarantined": True,
+                "exclusion_reason": row.get("exclusion_reason"),
+                "consensus_deviation_pct": row.get("consensus_deviation_pct"),
+                "updated_at": utcnow(),
+            })
 
         registry_sources = self.exchange_registry.get("sources", {})
+        global_markets = [
+            m for m in consensus_valid
+            if (registry_sources.get(m.get("exchange")) or {}).get("enabled") is not False
+            and not str((registry_sources.get(m.get("exchange")) or {}).get("status") or "").startswith("quarantined-")
+        ]
+        global_bpi, total_volume = calculate_index(global_markets)
+
         core_markets = [
-            m for m in valid
+            m for m in global_markets
             if (registry_sources.get(m.get("exchange")) or {}).get("include_in_bpi") is True
         ]
         core_bpi, core_volume = calculate_index(core_markets)
@@ -793,10 +832,10 @@ class Collector:
             core_bpi = global_bpi
             core_volume = total_volume
 
-        global_high = weighted_metric(valid, "high_24h_usd")
-        global_low = weighted_metric(valid, "low_24h_usd")
-        core_high = weighted_metric(core_markets or valid, "high_24h_usd")
-        core_low = weighted_metric(core_markets or valid, "low_24h_usd")
+        global_high = weighted_metric(global_markets, "high_24h_usd")
+        global_low = weighted_metric(global_markets, "low_24h_usd")
+        core_high = weighted_metric(core_markets or global_markets, "high_24h_usd")
+        core_low = weighted_metric(core_markets or global_markets, "low_24h_usd")
 
         exchanges = {}
         grouped: dict[str, list[dict[str, Any]]] = {}
@@ -804,50 +843,93 @@ class Collector:
             grouped.setdefault(str(m["exchange"]), []).append(m)
 
         for exchange_id, rows in grouped.items():
-            volume = sum(float(r["volume_24h_btc"]) for r in rows if positive(r.get("volume_24h_btc")) > 0)
-            if volume > 0:
-                price = sum(float(r["price_usd"]) * float(r["volume_24h_btc"]) for r in rows if positive(r.get("volume_24h_btc")) > 0) / volume
+            eligible_rows = [r for r in rows if r.get("index_eligible") is not False]
+            quarantined_rows = [r for r in rows if r.get("index_eligible") is False]
+            basis_rows = eligible_rows or rows
+
+            volume = sum(
+                float(r["volume_24h_btc"])
+                for r in eligible_rows
+                if positive(r.get("volume_24h_btc")) > 0
+            )
+
+            if eligible_rows and volume > 0:
+                price = sum(
+                    float(r["price_usd"]) * float(r["volume_24h_btc"])
+                    for r in eligible_rows
+                    if positive(r.get("volume_24h_btc")) > 0
+                ) / volume
+            elif eligible_rows:
+                price = sum(float(r["price_usd"]) for r in eligible_rows) / len(eligible_rows)
             else:
-                price = sum(float(r["price_usd"]) for r in rows) / len(rows)
+                price = math.nan
+
+            raw_price = sum(float(r["price_usd"]) for r in rows) / len(rows)
 
             exchanges[exchange_id] = {
                 "label": rows[0].get("label", exchange_id),
-                "price_usd": price,
+                "price_usd": price if math.isfinite(price) else None,
+                "raw_price_usd": raw_price,
+                "index_eligible": bool(eligible_rows),
+                "quarantined_market_count": len(quarantined_rows),
+                "exclusion_reason": ",".join(sorted({
+                    str(r.get("exclusion_reason"))
+                    for r in quarantined_rows
+                    if r.get("exclusion_reason")
+                })) or None,
                 "quote": "MULTI" if len({r.get("quote") for r in rows}) > 1 else rows[0].get("quote"),
                 "fiat_quotes": sorted({str(r.get("quote")) for r in rows}),
                 "market_count": len(rows),
+                "eligible_market_count": len(eligible_rows),
                 "volume_24h_btc": volume,
-                "high_24h": weighted_metric(rows, "high_24h_usd"),
-                "low_24h": weighted_metric(rows, "low_24h_usd"),
-                "weight": sum(float(r.get("weight") or 0.0) for r in rows),
+                "high_24h": weighted_metric(eligible_rows, "high_24h_usd") if eligible_rows else None,
+                "low_24h": weighted_metric(eligible_rows, "low_24h_usd") if eligible_rows else None,
+                "weight": sum(float(r.get("weight") or 0.0) for r in eligible_rows),
                 "updated_at": max((str(r.get("updated_at") or "") for r in rows), default=None),
                 "mode": "exchange-volume-weighted-btc-fiat",
             }
 
         now = utcnow()
         atomic_json(self.api / "markets.json", {
-            "schema": "zzx-bpi-markets-v5-master",
+            "schema": "zzx-bpi-markets-v5.5-sanity",
             "updated_at": now,
             "markets": valid,
-            "eligible_market_count": len(valid),
+            "eligible_market_count": len(consensus_valid),
+            "quarantined_market_count": len(quarantined),
+            "sanity": {
+                "consensus_price_usd": sanity["consensus_price_usd"],
+                "median_absolute_deviation_pct": sanity["median_absolute_deviation_pct"],
+                "price_band_pct": sanity["price_band_pct"],
+                "median_positive_volume_btc": sanity["median_positive_volume_btc"],
+                "volume_limit_btc": sanity["volume_limit_btc"],
+            },
         })
 
         atomic_json(self.api / "latest.json", {
-            "schema": "zzx-bpi-latest-v5-master",
+            "schema": "zzx-bpi-latest-v5.5-sanity",
             "updated_at": now,
             "price_usd": core_bpi if math.isfinite(core_bpi) else None,
             "bpi_usd": core_bpi if math.isfinite(core_bpi) else None,
             "volume_24h_btc": core_volume,
             "high_24h": core_high if math.isfinite(core_high) else None,
             "low_24h": core_low if math.isfinite(core_low) else None,
-            "bpi_exchange_count": len(core_markets) if core_markets else len(valid),
+            "bpi_exchange_count": len(core_markets) if core_markets else len(consensus_valid),
+            "quarantined_market_count": len(quarantined),
+            "sanity": {
+                "consensus_price_usd": sanity["consensus_price_usd"],
+                "median_absolute_deviation_pct": sanity["median_absolute_deviation_pct"],
+                "price_band_pct": sanity["price_band_pct"],
+                "median_positive_volume_btc": sanity["median_positive_volume_btc"],
+                "volume_limit_btc": sanity["volume_limit_btc"],
+            },
             "global_bpi": {
                 "price_usd": global_bpi if math.isfinite(global_bpi) else None,
                 "volume_24h_btc": total_volume,
                 "high_24h": global_high if math.isfinite(global_high) else None,
                 "low_24h": global_low if math.isfinite(global_low) else None,
-                "market_count": len(valid),
-                "method": "volume_weighted_all_btc_fiat_markets",
+                                "market_count": len(global_markets),
+                "quarantined_market_count": len(quarantined),
+                "method": "consensus_gated_volume_weighted_all_btc_fiat_markets",
             },
             "global_bpi_usd": global_bpi if math.isfinite(global_bpi) else None,
             "exchanges": exchanges,
