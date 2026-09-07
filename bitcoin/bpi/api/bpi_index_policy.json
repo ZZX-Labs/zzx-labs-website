@@ -1,0 +1,53 @@
+{
+  "schema": "zzx-bpi-index-policy-v1",
+  "updated_at": null,
+  "default_country": "US",
+  "weights_enabled_default": true,
+  "weight_basis": "eligible market 24h BTC volume / eligible global 24h BTC volume",
+  "weight_fields": {
+    "weight_ratio": "decimal numeric ratio of eligible global 24h BTC volume; 0..1",
+    "weight_decimal": "alias of weight_ratio",
+    "weight_percent_decimal": "percentage expressed as decimal; alias of weight_ratio",
+    "weight_percent": "weight_ratio * 100",
+    "weighted_price_contribution_usd": "price_usd * weight_ratio"
+  },
+  "global_bpi": {
+    "weighted": "sum(price_usd * weight_ratio) across all eligible global BTC/fiat markets",
+    "unweighted": "arithmetic mean price_usd across all eligible global BTC/fiat markets"
+  },
+  "national_bpi": {
+    "membership": "market quote currency matches selected country's national currency",
+    "global_weight_preserved": true,
+    "weighted": "sum(price_usd * global_weight_ratio) / sum(global_weight_ratio) within selected national subset",
+    "unweighted": "arithmetic mean price_usd within selected national subset",
+    "reason": "preserves each market's share of world BTC volume while renormalizing the national subset to a valid price"
+  },
+  "sanity_gate": {
+    "order": [
+      "exchange policy gate",
+      "backend index_eligible gate",
+      "price consensus gate",
+      "catastrophic price-ratio gate",
+      "24h BTC-volume outlier gate",
+      "weight assignment"
+    ],
+    "price_consensus": "median USD-normalized eligible BTC/fiat market price",
+    "price_band": {
+      "minimum_pct": 7.5,
+      "maximum_pct": 20.0,
+      "mad_multiplier": 8.0
+    },
+    "catastrophic_price_ratio": {
+      "minimum_of_consensus": 0.25,
+      "maximum_of_consensus": 4.0
+    },
+    "volume_limit": {
+      "basis": "median sane 24h BTC volume * 100",
+      "floor_btc": 100000,
+      "hard_ceiling_btc": 1000000
+    },
+    "quarantined_weight": 0,
+    "quarantined_in_unweighted_index": false,
+    "note": "No market receives any Global BPI or BitAvg weight until every sanity gate passes."
+  }
+}
