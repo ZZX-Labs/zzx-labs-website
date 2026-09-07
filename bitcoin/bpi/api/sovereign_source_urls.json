@@ -1,0 +1,48 @@
+{
+  "schema": "zzx-sovereign-source-urls-v1",
+  "refresh_interval_ms": 21600000,
+  "sources": [
+    {
+      "id": "world_bank_country_metadata",
+      "url": "https://api.worldbank.org/v2/country?format=json&per_page=400",
+      "adapter": "world_bank_country_metadata",
+      "enabled": true
+    },
+    {
+      "id": "world_bank_gdp_usd",
+      "indicator": "NY.GDP.MKTP.CD",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
+    {
+      "id": "world_bank_central_government_debt_pct_gdp",
+      "indicator": "GC.DOD.TOTL.GD.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/GC.DOD.TOTL.GD.ZS?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
+    {
+      "id": "world_bank_reserves_total_usd",
+      "indicator": "FI.RES.TOTL.CD",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/FI.RES.TOTL.CD?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
+    {
+      "id": "world_bank_reserves_ex_gold_usd",
+      "indicator": "FI.RES.XGLD.CD",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/FI.RES.XGLD.CD?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
+    {
+      "id": "us_treasury_debt_to_penny",
+      "country_code": "US",
+      "url": "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page[size]=1",
+      "adapter": "us_treasury",
+      "enabled": true
+    }
+  ],
+  "notes": "World Bank WDI series provide broad cross-country estimates. U.S. Treasury supersedes the World Bank estimate for U.S. debt. Missing values remain unavailable."
+}
