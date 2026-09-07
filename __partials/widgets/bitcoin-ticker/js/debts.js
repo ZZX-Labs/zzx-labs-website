@@ -114,8 +114,8 @@
     const terminal=W.ZZXBitcoinTickerConstants.terminalSupplyBtc;
 
     if(!row){
-      root.querySelector("[data-debt-total]").textContent="—";
-      root.querySelector("[data-debt-source]").textContent="national debt data unavailable";
+      set(root,"[data-debt-total]","—");
+      set(root,"[data-debt-source]","national debt data unavailable");
       return;
     }
 
@@ -124,17 +124,38 @@
     const issuedPerDollar=issuedBtc>0?issuedBtc/row.debtUsd:NaN;
     const terminalPerDollar=terminal/row.debtUsd;
 
-    root.querySelector("[data-debt-total]").textContent=`${row.name}: ${fmtUsd(row.debtUsd)}`;
-    root.querySelector("[data-debt-per-issued]").textContent=fmtUsd(perIssued,true);
-    root.querySelector("[data-debt-per-terminal]").textContent=fmtUsd(perTerminal,true);
-    root.querySelector("[data-issued-per-debt-dollar]").textContent=
-      Number.isFinite(issuedPerDollar)?`${issuedPerDollar.toExponential(8)} BTC / $1`:"—";
-    root.querySelector("[data-terminal-per-debt-dollar]").textContent=
-      Number.isFinite(terminalPerDollar)?`${terminalPerDollar.toExponential(8)} BTC / $1`:"—";
-    root.querySelector("[data-issued-supply]").textContent=
-      Number.isFinite(issuedBtc)?`issued ${issuedBtc.toLocaleString(undefined,{maximumFractionDigits:8})} BTC`:"issued supply unavailable";
-    root.querySelector("[data-debt-source]").textContent=`${row.source}${row.recordDate?` · ${row.recordDate}`:""}`;
-    root.querySelector("[data-chain-height]").textContent=Number.isFinite(Number(height))?`height ${Number(height).toLocaleString()}`:"height unavailable";
+    set(root,"[data-debt-total]",`${row.name}: ${fmtUsd(row.debtUsd)}`);
+    set(root,"[data-debt-per-issued]",fmtUsd(perIssued,true));
+    set(root,"[data-debt-per-terminal]",fmtUsd(perTerminal,true));
+    set(
+      root,
+      "[data-issued-per-debt-dollar]",
+      Number.isFinite(issuedPerDollar)
+        ? `${issuedPerDollar.toExponential(8)} BTC / $1`
+        : "—"
+    );
+    set(
+      root,
+      "[data-terminal-per-debt-dollar]",
+      Number.isFinite(terminalPerDollar)
+        ? `${terminalPerDollar.toExponential(8)} BTC / $1`
+        : "—"
+    );
+    set(
+      root,
+      "[data-issued-supply]",
+      Number.isFinite(issuedBtc)
+        ? `issued ${issuedBtc.toLocaleString(undefined,{maximumFractionDigits:8})} BTC`
+        : "issued supply unavailable"
+    );
+    set(root,"[data-debt-source]",`${row.source}${row.recordDate?` · ${row.recordDate}`:""}`);
+    set(
+      root,
+      "[data-chain-height]",
+      Number.isFinite(Number(height))
+        ? `height ${Number(height).toLocaleString()}`
+        : "height unavailable"
+    );
   }
 
   W.ZZXBitcoinTickerDebts=Object.freeze({__version:5,load,populate,render});
