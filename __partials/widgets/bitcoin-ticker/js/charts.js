@@ -137,7 +137,7 @@
       state.chart.setData(data.points||[],recipe);
 
       if(status){
-        status.textContent=`${data.points?.length||0} points · ${data.resolution||resolution} · ${recipe.label}`;
+        status.textContent=`${data.points?.length||0} points · ${data.resolution||resolution} · ${recipe.label} · ${data.transport||"history"}`;
       }
 
       const range=root.querySelector("[data-chart-range]");
