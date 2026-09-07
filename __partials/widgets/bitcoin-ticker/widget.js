@@ -66,7 +66,7 @@
       ["ZZXBitcoinTickerSelection","js/selection.js",6],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerReferences","js/references.js",6],
-      ["ZZXBitcoinTickerDebts","js/debts.js"],
+      ["ZZXBitcoinTickerDebts","js/debts.js",6],
       ["ZZXBitcoinTickerPanels","js/panels.js",2],
       ["ZZXBitcoinTickerWidgetBridge","js/widget-bridge.js"],
       ["ZZXBitcoinTickerCharts","js/charts.js"]
