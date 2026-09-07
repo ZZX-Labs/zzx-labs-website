@@ -321,3 +321,51 @@
     gap:.25rem
   }
 }
+
+
+.bitcoin-ticker__reference-page-nav{
+  display:flex;
+  gap:.28rem;
+  overflow-x:auto;
+  padding:.12rem 0 .28rem;
+  scrollbar-width:thin
+}
+.bitcoin-ticker__reference-page-button{
+  flex:0 0 auto;
+  appearance:none;
+  border:1px solid #242424;
+  border-radius:5px;
+  background:#080808;
+  color:var(--ticker-dim);
+  padding:.28rem .42rem;
+  font:inherit;
+  font-size:.59rem;
+  line-height:1.2;
+  cursor:pointer
+}
+.bitcoin-ticker__reference-page-button:hover{
+  border-color:#3a3f33;
+  color:var(--ticker-muted)
+}
+.bitcoin-ticker__reference-page-button[aria-pressed="true"]{
+  border-color:var(--ticker-green);
+  color:var(--ticker-green);
+  background:rgba(192,214,116,.045)
+}
+.bitcoin-ticker__reference-page-status{
+  color:var(--ticker-dim);
+  font-size:.59rem;
+  letter-spacing:.03em;
+  text-transform:uppercase
+}
+.bitcoin-ticker__comparative[data-reference-policy="informational-only"]{
+  border-style:dashed
+}
+.bitcoin-ticker__comparative[data-reference-policy="informational-only"] .bitcoin-ticker__comparative-name{
+  color:var(--ticker-amber)
+}
+@media(max-width:760px){
+  .bitcoin-ticker__reference-page-nav{
+    margin-right:-.2rem
+  }
+}
