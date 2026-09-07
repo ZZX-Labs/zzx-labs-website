@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=5)return;
+  if(W.ZZXBitAvgModel?.__version>=7)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -192,7 +192,17 @@
       volumeBtc:volumeBtc>=0?volumeBtc:NaN,
       providedWeight:providedWeight>=0?providedWeight:NaN,
       source:sourceName,
-      priority
+      priority,
+
+      backendIndexEligible:
+        row.index_eligible!==false,
+
+      backendExclusionReason:
+        text(
+          row.exclusion_reason||
+          row.quarantine_reason||
+          ""
+        )||null
     };
   }
 
@@ -322,6 +332,390 @@
     return [...map.values()];
   }
 
+
+  const PRICE_BAND_MIN_PCT=7.5;
+  const PRICE_BAND_MAX_PCT=20;
+  const PRICE_MAD_MULTIPLIER=8;
+  const VOLUME_MEDIAN_MULTIPLIER=100;
+  const VOLUME_FLOOR_BTC=100000;
+  const VOLUME_HARD_CEILING_BTC=1000000;
+
+  function median(values){
+    const rows=values
+      .map(finite)
+      .filter(Number.isFinite)
+      .sort((a,b)=>a-b);
+
+    if(!rows.length)return NaN;
+
+    const middle=
+      Math.floor(
+        rows.length/2
+      );
+
+    return rows.length%2
+      ? rows[middle]
+      : (
+          rows[middle-1]+
+          rows[middle]
+        )/2;
+  }
+
+  function exchangePolicy(
+    config,
+    exchange
+  ){
+    const sources=
+      config?.sources &&
+      typeof config.sources==="object"
+        ? config.sources
+        : {};
+
+    const row=
+      sources?.[exchange];
+
+    if(
+      !row ||
+      typeof row!=="object"
+    ){
+      return {
+        allowed:true,
+        reason:null
+      };
+    }
+
+    const status=
+      text(
+        row.status
+      ).toLowerCase();
+
+    if(row.enabled===false){
+      return {
+        allowed:false,
+        reason:"policy_disabled"
+      };
+    }
+
+    if(row.include_in_bpi===false){
+      return {
+        allowed:false,
+        reason:"policy_excluded_from_bpi"
+      };
+    }
+
+    if(
+      status.startsWith(
+        "quarantined-"
+      )
+    ){
+      return {
+        allowed:false,
+        reason:
+          status||
+          "policy_quarantined"
+      };
+    }
+
+    return {
+      allowed:true,
+      reason:null
+    };
+  }
+
+  function sanityGate(
+    rows,
+    exchangeConfig
+  ){
+    const annotated=
+      rows.map(
+        source=>{
+          const row={
+            ...source
+          };
+
+          const reasons=[];
+
+          const policy=
+            exchangePolicy(
+              exchangeConfig,
+              row.exchange
+            );
+
+          if(!policy.allowed){
+            reasons.push(
+              policy.reason
+            );
+          }
+
+          if(
+            row.backendIndexEligible===
+            false
+          ){
+            reasons.push(
+              row.backendExclusionReason||
+              "backend_index_ineligible"
+            );
+          }
+
+          row.policyAllowed=
+            policy.allowed;
+
+          row.indexEligible=false;
+          row.exclusionReason=
+            reasons.length
+              ? [...new Set(reasons)]
+                  .join(",")
+              : null;
+
+          return row;
+        }
+      );
+
+    const consensusCandidates=
+      annotated.filter(
+        row=>
+          !row.exclusionReason &&
+          Number.isFinite(
+            finite(row.usdPrice)
+          ) &&
+          row.usdPrice>0
+      );
+
+    const center=
+      median(
+        consensusCandidates.map(
+          row=>row.usdPrice
+        )
+      );
+
+    if(!Number.isFinite(center)){
+      return {
+        rows:annotated,
+        accepted:[],
+        quarantined:annotated,
+        center:NaN,
+        madPct:NaN,
+        bandPct:NaN,
+        medianVolume:NaN,
+        volumeLimit:VOLUME_FLOOR_BTC
+      };
+    }
+
+    const deviations=
+      consensusCandidates.map(
+        row=>
+          Math.abs(
+            row.usdPrice-center
+          )
+      );
+
+    const mad=
+      median(deviations);
+
+    const madPct=
+      consensusCandidates.length>=3 &&
+      Number.isFinite(mad) &&
+      center>0
+        ? mad/center*100
+        : 0;
+
+    const bandPct=
+      consensusCandidates.length<3
+        ? PRICE_BAND_MAX_PCT
+        : Math.min(
+            PRICE_BAND_MAX_PCT,
+            Math.max(
+              PRICE_BAND_MIN_PCT,
+              PRICE_MAD_MULTIPLIER*
+              madPct
+            )
+          );
+
+    const plausibleVolumes=[];
+
+    for(const row of annotated){
+      if(row.exclusionReason)continue;
+
+      const price=
+        finite(row.usdPrice);
+
+      const volume=
+        finite(row.volumeBtc);
+
+      if(
+        !Number.isFinite(price) ||
+        price<=0
+      ){
+        continue;
+      }
+
+      const deviation=
+        Math.abs(
+          price-center
+        )/
+        center*
+        100;
+
+      if(
+        deviation<=bandPct &&
+        Number.isFinite(volume) &&
+        volume>0
+      ){
+        plausibleVolumes.push(
+          volume
+        );
+      }
+    }
+
+    const medianVolume=
+      median(
+        plausibleVolumes
+      );
+
+    const volumeLimit=
+      Math.min(
+        VOLUME_HARD_CEILING_BTC,
+        Math.max(
+          VOLUME_FLOOR_BTC,
+          Number.isFinite(
+            medianVolume
+          )
+            ? (
+                medianVolume*
+                VOLUME_MEDIAN_MULTIPLIER
+              )
+            : VOLUME_FLOOR_BTC
+        )
+      );
+
+    const accepted=[];
+    const quarantined=[];
+
+    for(const row of annotated){
+      const reasons=
+        row.exclusionReason
+          ? row.exclusionReason
+              .split(",")
+              .filter(Boolean)
+          : [];
+
+      const price=
+        finite(row.usdPrice);
+
+      const volume=
+        finite(row.volumeBtc);
+
+      let deviationPct=NaN;
+
+      if(
+        !Number.isFinite(price) ||
+        price<=0
+      ){
+        reasons.push(
+          "invalid_price"
+        );
+      }else{
+        deviationPct=
+          (
+            price-center
+          )/
+          center*
+          100;
+
+        if(
+          Math.abs(
+            deviationPct
+          )>
+          bandPct
+        ){
+          reasons.push(
+            "price_consensus_outlier"
+          );
+        }
+
+        // Independent catastrophic-price ratio gate.
+        // This is intentionally much wider than the consensus band;
+        // it exists so obviously nonsensical BTC quotes can never
+        // become index-eligible even in a sparse sample.
+        if(
+          price<
+            center*0.25 ||
+          price>
+            center*4
+        ){
+          reasons.push(
+            "catastrophic_price_ratio"
+          );
+        }
+      }
+
+      if(
+        !Number.isFinite(volume) ||
+        volume<0
+      ){
+        reasons.push(
+          "invalid_volume"
+        );
+      }else if(
+        volume>
+        volumeLimit
+      ){
+        reasons.push(
+          "volume_outlier"
+        );
+      }
+
+      row.consensusPriceUsd=
+        center;
+
+      row.consensusDeviationPct=
+        Number.isFinite(
+          deviationPct
+        )
+          ? deviationPct
+          : NaN;
+
+      row.consensusPriceBandPct=
+        bandPct;
+
+      row.volumeSanityLimitBtc=
+        volumeLimit;
+
+      row.indexEligible=
+        reasons.length===0;
+
+      row.exclusionReason=
+        reasons.length
+          ? [...new Set(reasons)]
+              .join(",")
+          : null;
+
+      row.weight=0;
+      row.weightRatio=0;
+      row.weightDecimal=0;
+      row.weightPercentDecimal=0;
+      row.weightPercent=0;
+      row.weightedPriceContributionUsd=0;
+
+      (
+        row.indexEligible
+          ? accepted
+          : quarantined
+      ).push(row);
+    }
+
+    return {
+      rows:annotated,
+      accepted,
+      quarantined,
+      center,
+      madPct,
+      bandPct,
+      medianVolume,
+      volumeLimit
+    };
+  }
+
   function build({latest,markets,exchangeRates,currencies,exchangeConfig}){
     const fiats=W.ZZXBitAvgFX.fiatCodes(currencies);
     const rates=W.ZZXBitAvgFX.ratesPerUsd(exchangeRates);
@@ -343,54 +737,249 @@
 
     if(!rows.length)throw new Error("no BTC/fiat markets found");
 
-    const volumeRows=rows.filter(row=>Number.isFinite(row.volumeBtc)&&row.volumeBtc>0);
-    const totalVolume=volumeRows.reduce((sum,row)=>sum+row.volumeBtc,0);
+    const checked=
+      sanityGate(
+        rows,
+        exchangeConfig
+      );
 
-    let bpi=NaN;
-    let method="";
+    rows=
+      checked.rows;
+
+    const accepted=
+      checked.accepted;
+
+    const quarantined=
+      checked.quarantined;
+
+    if(
+      accepted.length<2
+    ){
+      throw new Error(
+        `BitAvg refusing index: only ${accepted.length} sane BTC/fiat market(s); `+
+        `${quarantined.length} quarantined`
+      );
+    }
+
+    const volumeRows=
+      accepted.filter(
+        row=>
+          Number.isFinite(
+            row.volumeBtc
+          ) &&
+          row.volumeBtc>0
+      );
+
+    const totalVolume=
+      volumeRows.reduce(
+        (sum,row)=>
+          sum+
+          row.volumeBtc,
+        0
+      );
+
+    let weightedBpi=NaN;
+    let methodWeighted="";
 
     if(totalVolume>0){
-      bpi=volumeRows.reduce((sum,row)=>sum+row.usdPrice*row.volumeBtc,0)/totalVolume;
-      method="volume_weighted_all_btc_fiat_markets";
-      for(const row of rows){
-        row.weight=Number.isFinite(row.volumeBtc)&&row.volumeBtc>0
-          ? row.volumeBtc/totalVolume
-          : 0;
+      weightedBpi=
+        volumeRows.reduce(
+          (sum,row)=>
+            sum+
+            row.usdPrice*
+            row.volumeBtc,
+          0
+        )/
+        totalVolume;
+
+      methodWeighted=
+        "sanity_gated_global_24h_btc_volume_weighted";
+
+      for(const row of accepted){
+        const ratio=
+          Number.isFinite(
+            row.volumeBtc
+          ) &&
+          row.volumeBtc>0
+            ? row.volumeBtc/
+              totalVolume
+            : 0;
+
+        row.weight=ratio;
+        row.weightRatio=ratio;
+        row.weightDecimal=ratio;
+        row.weightPercentDecimal=ratio;
+        row.weightPercent=
+          ratio*100;
+
+        row.weightedPriceContributionUsd=
+          row.usdPrice*
+          ratio;
       }
     }else{
-      const weighted=rows.filter(row=>Number.isFinite(row.providedWeight)&&row.providedWeight>0);
-      const sum=weighted.reduce((s,row)=>s+row.providedWeight,0);
+      const weighted=
+        accepted.filter(
+          row=>
+            Number.isFinite(
+              row.providedWeight
+            ) &&
+            row.providedWeight>0
+        );
 
-      if(sum<=0)throw new Error("BTC/fiat markets found but no usable 24h BTC volume");
+      const sum=
+        weighted.reduce(
+          (total,row)=>
+            total+
+            row.providedWeight,
+          0
+        );
 
-      bpi=weighted.reduce((s,row)=>s+row.usdPrice*row.providedWeight,0)/sum;
-      method="compatibility_weighted_normalized_markets";
+      if(sum<=0){
+        throw new Error(
+          "sane BTC/fiat markets found but no usable 24h BTC volume"
+        );
+      }
 
-      for(const row of rows){
-        row.weight=Number.isFinite(row.providedWeight)&&row.providedWeight>0
-          ? row.providedWeight/sum
-          : 0;
+      weightedBpi=
+        weighted.reduce(
+          (total,row)=>
+            total+
+            row.usdPrice*
+            row.providedWeight,
+          0
+        )/
+        sum;
+
+      methodWeighted=
+        "sanity_gated_compatibility_weighted_normalized_markets";
+
+      for(const row of accepted){
+        const ratio=
+          Number.isFinite(
+            row.providedWeight
+          ) &&
+          row.providedWeight>0
+            ? row.providedWeight/
+              sum
+            : 0;
+
+        row.weight=ratio;
+        row.weightRatio=ratio;
+        row.weightDecimal=ratio;
+        row.weightPercentDecimal=ratio;
+        row.weightPercent=
+          ratio*100;
+
+        row.weightedPriceContributionUsd=
+          row.usdPrice*
+          ratio;
       }
     }
 
+    const unweightedBpi=
+      accepted.reduce(
+        (sum,row)=>
+          sum+
+          row.usdPrice,
+        0
+      )/
+      accepted.length;
+
+    const weightsEnabled=(()=>{
+      try{
+        const raw=W.localStorage.getItem(
+          "zzx.bpi.weights.enabled.v1"
+        );
+
+        return raw==null
+          ? true
+          : raw!=="false";
+      }catch(_){
+        return true;
+      }
+    })();
+
+    const bpi=
+      weightsEnabled
+        ? weightedBpi
+        : unweightedBpi;
+
+    const method=
+      weightsEnabled
+        ? methodWeighted
+        : "global_unweighted_arithmetic_mean";
+
     for(const row of rows){
-      row.deviationPct=((row.usdPrice-bpi)/bpi)*100;
+      row.deviationPct=
+        Number.isFinite(
+          row.usdPrice
+        ) &&
+        Number.isFinite(
+          bpi
+        ) &&
+        bpi>0
+          ? (
+              (
+                row.usdPrice-
+                bpi
+              )/
+              bpi*
+              100
+            )
+          : NaN;
     }
 
-    rows.sort((a,b)=>b.weight-a.weight||a.label.localeCompare(b.label)||a.quote.localeCompare(b.quote));
+    rows.sort(
+      (a,b)=>
+        Number(b.indexEligible)-
+        Number(a.indexEligible) ||
+        b.weight-a.weight ||
+        a.label.localeCompare(
+          b.label
+        ) ||
+        a.quote.localeCompare(
+          b.quote
+        )
+    );
 
-    const exchangeWeight=new Map();
-    for(const row of rows){
-      exchangeWeight.set(row.exchange,(exchangeWeight.get(row.exchange)||0)+row.weight);
+    const exchangeWeight=
+      new Map();
+
+    for(const row of accepted){
+      exchangeWeight.set(
+        row.exchange,
+        (
+          exchangeWeight.get(
+            row.exchange
+          )||
+          0
+        )+
+        row.weight
+      );
     }
 
-    const exchanges=[...new Set(rows.map(row=>row.exchange))];
-    const currenciesUsed=[...new Set(rows.map(row=>row.quote))].sort();
+    const exchanges=[
+      ...new Set(
+        accepted.map(
+          row=>row.exchange
+        )
+      )
+    ];
+
+    const currenciesUsed=[
+      ...new Set(
+        accepted.map(
+          row=>row.quote
+        )
+      )
+    ].sort();
 
     const topExchange=[...exchangeWeight.entries()]
       .sort((a,b)=>b[1]-a[1])[0]||null;
 
-    const prices=rows.map(row=>row.usdPrice).filter(Number.isFinite);
+    const prices=accepted
+      .map(row=>row.usdPrice)
+      .filter(Number.isFinite);
     const high=prices.length?Math.max(...prices):NaN;
     const low=prices.length?Math.min(...prices):NaN;
     const spread=Number.isFinite(high)&&Number.isFinite(low)?high-low:NaN;
@@ -407,11 +996,18 @@
 
     return {
       bpi,
+      weightedBpi,
+      unweightedBpi,
+      weightsEnabled,
       rows,
+      acceptedRows:accepted,
+      quarantinedRows:quarantined,
       exchanges,
       currencies:currenciesUsed,
-      markets:rows.length,
-      weightedMarkets:rows.filter(row=>row.weight>0).length,
+      markets:accepted.length,
+      observedMarkets:rows.length,
+      quarantinedMarkets:quarantined.length,
+      weightedMarkets:accepted.filter(row=>row.weight>0).length,
       volume:totalVolume>0?totalVolume:NaN,
       spread,
       spreadPct,
@@ -424,15 +1020,40 @@
         : null,
       weightSum:rows.reduce((sum,row)=>sum+row.weight,0),
       method,
+      methodWeighted,
+      methodUnweighted:"global_unweighted_arithmetic_mean",
       configuredCount:configured.size,
       configuredCovered:[...configured].filter(id=>exchanges.includes(id)).length,
       updatedAt,
       fxRateCount:rates.size,
       fiatCatalogCount:fiats.size,
       eligibility:"BTC_or_XBT_base_and_recognized_fiat_quote_only",
-      weighting:"btc_24h_volume_decimal_ratio"
+      weighting:"sane_eligible_market_24h_btc_volume_over_sane_eligible_global_24h_btc_volume",
+      sanity:{
+        consensusPriceUsd:
+          checked.center,
+        consensusMadPct:
+          checked.madPct,
+        consensusBandPct:
+          checked.bandPct,
+        medianVolumeBtc:
+          checked.medianVolume,
+        volumeLimitBtc:
+          checked.volumeLimit,
+        accepted:
+          accepted.length,
+        quarantined:
+          quarantined.length
+      },
+      weightFields:{
+        ratio:"weightRatio",
+        decimal:"weightDecimal",
+        percentDecimal:"weightPercentDecimal",
+        percent:"weightPercent",
+        weightedContributionUsd:"weightedPriceContributionUsd"
+      }
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:5,build});
+  W.ZZXBitAvgModel=Object.freeze({__version:7,build,sanityGate});
 })();
