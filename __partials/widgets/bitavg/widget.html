@@ -1,0 +1,76 @@
+<!-- __partials/widgets/bitavg/widget.html -->
+<div class="btc-card bitavg">
+  <div class="bitavg__header">
+    <div>
+      <div class="btc-card__title">BitAvg · ZZX Global BPI</div>
+      <div class="bitavg__eyebrow">all configured BTC/fiat markets · normalized to USD</div>
+    </div>
+    <span class="btc-card__status" data-bitavg-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="bitavg__hero">
+    <span>global volume-weighted BTC / USD</span>
+    <strong data-bitavg-price>—</strong>
+    <small data-bitavg-method>—</small>
+  </div>
+
+  <div class="bitavg__metrics">
+    <div><span>exchanges</span><strong data-bitavg-exchanges>—</strong></div>
+    <div><span>fiat currencies</span><strong data-bitavg-currencies>—</strong></div>
+    <div><span>BTC/fiat markets</span><strong data-bitavg-markets>—</strong></div>
+    <div><span>24h BTC volume</span><strong data-bitavg-volume>—</strong></div>
+    <div><span>USD price spread</span><strong data-bitavg-spread>—</strong></div>
+    <div><span>largest exchange weight</span><strong data-bitavg-top>—</strong></div>
+  </div>
+
+  <div class="bitavg__controls">
+    <input
+      type="search"
+      data-bitavg-search
+      placeholder="filter exchange / pair / fiat"
+      aria-label="Filter BitAvg markets"
+    >
+    <select data-bitavg-currency aria-label="Filter BitAvg by fiat currency">
+      <option value="all">all fiat</option>
+    </select>
+    <button type="button" class="zzx-widgets__btn" data-bitavg-refresh>Refresh</button>
+  </div>
+
+  <div class="bitavg__table-wrap">
+    <table class="bitavg__table">
+      <thead>
+        <tr>
+          <th>exchange</th>
+          <th>pair</th>
+          <th>native price</th>
+          <th>USD normalized</th>
+          <th>24h volume</th>
+          <th>weight</th>
+          <th>vs BPI</th>
+        </tr>
+      </thead>
+      <tbody data-bitavg-rows></tbody>
+    </table>
+  </div>
+
+  <div class="bitavg__pager">
+    <button type="button" class="zzx-widgets__btn" data-bitavg-prev>Prev</button>
+    <span data-bitavg-page>Page 1 / 1</span>
+    <button type="button" class="zzx-widgets__btn" data-bitavg-next>Next</button>
+  </div>
+
+  <div class="bitavg__details">
+    <div><span>FX convention</span><strong data-bitavg-fx>—</strong></div>
+    <div><span>configured exchange coverage</span><strong data-bitavg-coverage>—</strong></div>
+    <div><span>snapshot</span><strong data-bitavg-updated>—</strong></div>
+    <div><span>sources</span><strong data-bitavg-sources>—</strong></div>
+  </div>
+
+  <div class="bitavg__footer">
+    <span data-bitavg-meta>local BPI market feed + local FX normalization</span>
+  </div>
+
+  <div class="zzx-project-link">
+    <a data-bitavg-project-link href="/projects/software/bitavg/">BitAvg project →</a>
+  </div>
+</div>
