@@ -1,15 +1,28 @@
 {
-  "schema": "zzx-national-debt-source-urls-v1",
-  "refresh_interval_ms": 1800000,
+  "schema": "zzx-national-debt-source-urls-v2",
+  "refresh_interval_ms": 21600000,
   "sources": [
+    {
+      "id": "world_bank_gdp_usd",
+      "indicator": "NY.GDP.MKTP.CD",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
+    {
+      "id": "world_bank_central_government_debt_pct_gdp",
+      "indicator": "GC.DOD.TOTL.GD.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/GC.DOD.TOTL.GD.ZS?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
     {
       "id": "us_treasury_debt_to_penny",
       "country_code": "US",
-      "country_name": "United States",
       "url": "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page[size]=1",
       "adapter": "us_treasury",
       "enabled": true
     }
   ],
-  "notes": "Additional countries may be populated by validated sovereign/IMF/official feeds or national_debt_overrides.json. Missing debt values are never fabricated."
+  "notes": "Debt updater uses same-year World Bank GDP and central-government-debt percent-GDP rows for broad estimates; official national overrides supersede estimates."
 }
