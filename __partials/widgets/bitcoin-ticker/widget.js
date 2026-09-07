@@ -58,20 +58,23 @@
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/bitcoin-ticker";
 
-    for(const [globalName,relative] of [
+    for(const [globalName,relative,minVersion] of [
       ["ZZXBitcoinTickerConstants","js/constants.js"],
       ["ZZXBitcoinTickerDeps","js/deps.js"],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerFX","js/fx.js"],
       ["ZZXBitcoinTickerSelection","js/selection.js"],
       ["ZZXBitcoinTickerUnits","js/units.js"],
-      ["ZZXBitcoinTickerReferences","js/references.js"],
+      ["ZZXBitcoinTickerReferences","js/references.js",6],
       ["ZZXBitcoinTickerDebts","js/debts.js"],
       ["ZZXBitcoinTickerPanels","js/panels.js"],
       ["ZZXBitcoinTickerWidgetBridge","js/widget-bridge.js"],
       ["ZZXBitcoinTickerCharts","js/charts.js"]
     ]){
-      if(W[globalName])continue;
+      if(
+        W[globalName] &&
+        (!minVersion || Number(W[globalName].__version||0)>=minVersion)
+      )continue;
       const raw=`${base}/${relative}`;
       const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
 
@@ -83,7 +86,12 @@
         (D.head||D.documentElement).appendChild(s);
       });
 
-      if(!W[globalName])throw new Error(`${relative} did not register ${globalName}`);
+      if(
+        !W[globalName] ||
+        (minVersion && Number(W[globalName].__version||0)<minVersion)
+      ){
+        throw new Error(`${relative} did not register compatible ${globalName}`);
+      }
     }
   }
 
