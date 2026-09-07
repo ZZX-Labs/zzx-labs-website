@@ -1,11 +1,16 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerDebts?.__version>=5)return;
+  if(W.ZZXBitcoinTickerDebts?.__version>=6)return;
 
   const cache={data:null,at:0};
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
+  const q=(root,selector)=>root?.querySelector?.(selector)||null;
+  const set=(root,selector,value)=>{
+    const el=q(root,selector);
+    if(el)el.textContent=value==null?"—":String(value);
+  };
 
   function normalize(data){
     const rows=Array.isArray(data)
@@ -158,5 +163,5 @@
     );
   }
 
-  W.ZZXBitcoinTickerDebts=Object.freeze({__version:5,load,populate,render});
+  W.ZZXBitcoinTickerDebts=Object.freeze({__version:6,load,populate,render});
 })();
