@@ -1,0 +1,270 @@
+{
+  "schema": "zzx-btc-gif-conditions-v2",
+  "version": 2,
+  "evaluation": "highest-priority active condition; cryptographic random item from that condition pool",
+  "fallback": "neutral",
+  "conditions": [
+    {
+      "id": "rally",
+      "label": "Rally",
+      "priority": 100,
+      "requires": {
+        "price": [
+          "up",
+          "strong-up"
+        ],
+        "volume": [
+          "high",
+          "spike"
+        ]
+      }
+    },
+    {
+      "id": "selloff",
+      "label": "Selloff",
+      "priority": 100,
+      "requires": {
+        "price": [
+          "down",
+          "strong-down"
+        ],
+        "volume": [
+          "high",
+          "spike"
+        ]
+      }
+    },
+    {
+      "id": "congestion",
+      "label": "Congestion",
+      "priority": 95,
+      "requires": {
+        "mempool": [
+          "congested",
+          "severe"
+        ],
+        "fees": [
+          "high",
+          "extreme"
+        ]
+      }
+    },
+    {
+      "id": "fee-shock",
+      "label": "Fee Shock",
+      "priority": 92,
+      "requires": {
+        "fees": [
+          "extreme"
+        ]
+      }
+    },
+    {
+      "id": "mempool-severe",
+      "label": "Mempool Severe",
+      "priority": 90,
+      "requires": {
+        "mempool": [
+          "severe"
+        ]
+      }
+    },
+    {
+      "id": "volatile",
+      "label": "Volatile",
+      "priority": 88,
+      "requires": {
+        "volatility": [
+          "high",
+          "extreme"
+        ]
+      }
+    },
+    {
+      "id": "price-strong-up",
+      "label": "Price Strong Up",
+      "priority": 84,
+      "requires": {
+        "price": [
+          "strong-up"
+        ]
+      }
+    },
+    {
+      "id": "price-strong-down",
+      "label": "Price Strong Down",
+      "priority": 84,
+      "requires": {
+        "price": [
+          "strong-down"
+        ]
+      }
+    },
+    {
+      "id": "volume-spike",
+      "label": "Volume Spike",
+      "priority": 82,
+      "requires": {
+        "volume": [
+          "spike"
+        ]
+      }
+    },
+    {
+      "id": "hashrate-surge",
+      "label": "Hashrate Surge",
+      "priority": 80,
+      "requires": {
+        "hashrate": [
+          "surge"
+        ]
+      }
+    },
+    {
+      "id": "hashrate-drop",
+      "label": "Hashrate Drop",
+      "priority": 80,
+      "requires": {
+        "hashrate": [
+          "drop"
+        ]
+      }
+    },
+    {
+      "id": "lightning-growth",
+      "label": "Lightning Growth",
+      "priority": 78,
+      "requires": {
+        "lightning": [
+          "growing"
+        ]
+      }
+    },
+    {
+      "id": "lightning-shrink",
+      "label": "Lightning Shrink",
+      "priority": 78,
+      "requires": {
+        "lightning": [
+          "shrinking"
+        ]
+      }
+    },
+    {
+      "id": "price-up",
+      "label": "Price Up",
+      "priority": 70,
+      "requires": {
+        "price": [
+          "up"
+        ]
+      }
+    },
+    {
+      "id": "price-down",
+      "label": "Price Down",
+      "priority": 70,
+      "requires": {
+        "price": [
+          "down"
+        ]
+      }
+    },
+    {
+      "id": "mempool-busy",
+      "label": "Mempool Busy",
+      "priority": 66,
+      "requires": {
+        "mempool": [
+          "busy",
+          "congested"
+        ]
+      }
+    },
+    {
+      "id": "fees-high",
+      "label": "Fees High",
+      "priority": 64,
+      "requires": {
+        "fees": [
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "volume-high",
+      "label": "Volume High",
+      "priority": 62,
+      "requires": {
+        "volume": [
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "quiet",
+      "label": "Quiet Market",
+      "priority": 60,
+      "requires": {
+        "price": [
+          "flat"
+        ],
+        "volume": [
+          "low",
+          "normal"
+        ],
+        "mempool": [
+          "clear",
+          "normal"
+        ],
+        "fees": [
+          "low",
+          "normal"
+        ]
+      }
+    },
+    {
+      "id": "neutral",
+      "label": "Neutral",
+      "priority": 0,
+      "requires": {}
+    }
+  ],
+  "thresholds": {
+    "price_change_pct": {
+      "strong_up": 5.0,
+      "up": 1.5,
+      "down": -1.5,
+      "strong_down": -5.0
+    },
+    "volatility_range_pct": {
+      "high": 5.0,
+      "extreme": 10.0
+    },
+    "volume_ratio_to_24h_median": {
+      "spike": 2.0,
+      "high": 1.25,
+      "low": 0.6
+    },
+    "mempool_block_equivalents": {
+      "busy": 2.0,
+      "congested": 8.0,
+      "severe": 20.0
+    },
+    "fees_fast_sat_vb": {
+      "low": 5.0,
+      "high": 40.0,
+      "extreme": 100.0
+    },
+    "hashrate_change_pct": {
+      "surge": 5.0,
+      "rising": 1.0,
+      "falling": -1.0,
+      "drop": -5.0
+    },
+    "lightning_channel_change_pct": {
+      "growing": 0.1,
+      "shrinking": -0.1
+    }
+  }
+}
