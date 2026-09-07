@@ -1,0 +1,25 @@
+.btc-commits{
+  --bc-green:var(--zzx-accent,#c0d674);--bc-gold:var(--zzx-accent-alt,#e6a42b);
+  --bc-muted:var(--zzx-muted,#b7bf9a);--bc-dim:var(--zzx-dim,#777);
+  --bc-line:rgba(255,255,255,.09);--bc-panel:rgba(255,255,255,.018);width:100%;min-width:0
+}
+.btc-commits__header,.btc-commits__footer{display:flex;align-items:center;justify-content:space-between;gap:.6rem;min-width:0}
+.btc-commits__header{align-items:flex-start}
+.btc-commits__eyebrow,.btc-commits__hero>span,.btc-commits__metrics span{color:var(--bc-dim);font-size:.64rem;letter-spacing:.055em;text-transform:uppercase}
+.btc-commits__hero{display:grid;gap:.08rem;margin-top:.5rem;padding:.55rem 0 .58rem;border-top:1px solid var(--bc-line);border-bottom:1px solid var(--bc-line)}
+.btc-commits__hero strong{color:var(--bc-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:1.15rem;line-height:1.05;font-weight:500}
+.btc-commits__hero small{color:var(--bc-gold);font-size:.68rem;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btc-commits__metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.38rem;margin-top:.5rem}
+.btc-commits__metrics>div{min-width:0;padding:.38rem .42rem;border:1px solid var(--bc-line);border-radius:6px;background:var(--bc-panel)}
+.btc-commits__metrics span,.btc-commits__metrics strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btc-commits__metrics strong{margin-top:.1rem;color:var(--bc-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.72rem;font-weight:500}
+.btc-commits__list{display:grid;gap:.3rem;max-height:230px;margin-top:.5rem;overflow:auto}
+.btc-commits__row{display:grid;grid-template-columns:5.5rem minmax(0,1fr) auto;gap:.45rem;align-items:start;padding:.34rem .4rem;border:1px solid rgba(255,255,255,.06);border-radius:5px;background:#080808}
+.btc-commits__row code{color:var(--bc-green);font-size:.62rem}
+.btc-commits__row-main{min-width:0}.btc-commits__row-message{color:var(--bc-muted);font-size:.62rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btc-commits__row-author{margin-top:.08rem;color:var(--bc-dim);font-size:.56rem}.btc-commits__row-time{color:var(--bc-dim);font-size:.56rem;white-space:nowrap}
+.btc-commits__footer{margin-top:.46rem;padding-top:.42rem;border-top:1px solid var(--bc-line);color:var(--bc-muted);font-size:.65rem}
+.btc-commits__footer>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:720px){.btc-commits__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.btc-commits__row{grid-template-columns:4.8rem minmax(0,1fr)}.btc-commits__row-time{grid-column:2}}
+@media(max-width:420px){.btc-commits__metrics{grid-template-columns:1fr}.btc-commits__footer{align-items:flex-start;flex-direction:column}}
