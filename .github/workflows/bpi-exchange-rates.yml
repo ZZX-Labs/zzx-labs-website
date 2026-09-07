@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: bpi-exchange-rates
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -37,27 +37,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           git fetch origin main
           git reset --hard origin/main
 
-      - name: Validate exchange-rate updater
+      - name: Validate exchange-rate updater inputs
         shell: bash
         run: |
           set -euo pipefail
 
+          test -f tools/bpi/update_exchange_rates.py
           python -m py_compile \
             tools/bpi/update_exchange_rates.py
 
-          python -m json.tool \
+          for file in \
+            bitcoin/bpi/api/currencies.json \
             bitcoin/bpi/api/exchange_rates.json \
-            >/dev/null
+            bitcoin/bpi/api/fx_source_urls.json
+          do
+            if [[ -f "${file}" ]]; then
+              python -m json.tool "${file}" >/dev/null
+            fi
+          done
 
       - name: Update exchange rates
         shell: bash
         run: |
           set -euo pipefail
-
           python tools/bpi/update_exchange_rates.py
 
       - name: Validate generated exchange-rate contract
@@ -68,15 +73,26 @@ jobs:
           python - <<'PY'
           import json
           import math
+          import re
+          from datetime import datetime, timezone
           from pathlib import Path
 
-          path = Path(
-              "bitcoin/bpi/api/exchange_rates.json"
-          )
+          api = Path("bitcoin/bpi/api")
+          path = api / "exchange_rates.json"
 
-          data = json.loads(
-              path.read_text(encoding="utf-8")
-          )
+          if not path.is_file():
+              raise SystemExit(
+                  f"generated file missing: {path}"
+              )
+
+          try:
+              data = json.loads(
+                  path.read_text(encoding="utf-8")
+              )
+          except Exception as exc:
+              raise SystemExit(
+                  f"invalid JSON in {path}: {exc}"
+              )
 
           if not isinstance(data, dict):
               raise SystemExit(
@@ -87,8 +103,7 @@ jobs:
 
           if not isinstance(rates, dict):
               raise SystemExit(
-                  "exchange_rates.json must contain "
-                  "a rates object"
+                  "exchange_rates.json must contain a rates object"
               )
 
           if "USD" not in rates:
@@ -96,21 +111,14 @@ jobs:
                   "exchange_rates.json is missing USD"
               )
 
-          usd = float(rates["USD"])
-
-          if not math.isfinite(usd) or usd <= 0:
-              raise SystemExit(
-                  "USD exchange rate is invalid"
-              )
-
-          if abs(usd - 1.0) > 0.000001:
-              raise SystemExit(
-                  f"USD base rate must equal 1, got {usd}"
-              )
-
           valid_rates = 0
 
           for code, value in rates.items():
+              if not re.fullmatch(r"[A-Z]{3}", str(code)):
+                  raise SystemExit(
+                      f"invalid fiat currency code: {code!r}"
+                  )
+
               try:
                   rate = float(value)
               except (TypeError, ValueError):
@@ -120,10 +128,18 @@ jobs:
 
               if not math.isfinite(rate) or rate <= 0:
                   raise SystemExit(
-                      f"non-positive rate for {code}: {rate}"
+                      f"non-positive/non-finite rate "
+                      f"for {code}: {rate}"
                   )
 
               valid_rates += 1
+
+          usd = float(rates["USD"])
+
+          if abs(usd - 1.0) > 0.000001:
+              raise SystemExit(
+                  f"USD base rate must equal 1, got {usd}"
+              )
 
           if valid_rates < 5:
               raise SystemExit(
@@ -131,8 +147,75 @@ jobs:
                   f"with only {valid_rates} valid rates"
               )
 
+          currencies_path = api / "currencies.json"
+
+          if currencies_path.exists():
+              currencies = json.loads(
+                  currencies_path.read_text(encoding="utf-8")
+              )
+
+              if isinstance(currencies, dict):
+                  order = currencies.get("order")
+
+                  if isinstance(order, list):
+                      available = {
+                          str(code)
+                          for code in order
+                          if re.fullmatch(
+                              r"[A-Z]{3}",
+                              str(code)
+                          )
+                      }
+
+                      if "USD" not in available:
+                          raise SystemExit(
+                              "currencies.json order is missing USD"
+                          )
+
+                      overlap = available.intersection(rates)
+
+                      if len(overlap) < 5:
+                          raise SystemExit(
+                              "too little overlap between "
+                              "currencies.json and exchange_rates.json: "
+                              f"{len(overlap)}"
+                          )
+
+          updated_at = data.get("updated_at")
+
+          if updated_at:
+              try:
+                  stamp = datetime.fromisoformat(
+                      str(updated_at).replace("Z", "+00:00")
+                  )
+              except ValueError:
+                  raise SystemExit(
+                      f"invalid exchange_rates.updated_at: "
+                      f"{updated_at!r}"
+                  )
+
+              if stamp.tzinfo is None:
+                  stamp = stamp.replace(tzinfo=timezone.utc)
+
+              age = (
+                  datetime.now(timezone.utc)
+                  - stamp.astimezone(timezone.utc)
+              ).total_seconds()
+
+              if age < -300:
+                  raise SystemExit(
+                      "exchange-rate updated_at is in "
+                      f"the future: {age}s"
+                  )
+
+              if age > 7200:
+                  raise SystemExit(
+                      "generated exchange rates are unexpectedly stale: "
+                      f"{age:.0f}s"
+                  )
+
           print(
-              f"Exchange-rate contract valid: "
+              "Exchange-rate contract valid: "
               f"{valid_rates} rates"
           )
           PY
@@ -145,7 +228,7 @@ jobs:
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
 
-          git add \
+          git add -- \
             bitcoin/bpi/api/exchange_rates.json
 
           if git diff --cached --quiet; then
@@ -162,17 +245,15 @@ jobs:
 
             if git rebase origin/main && \
                git push origin HEAD:main; then
-
               printf '%s\n' \
                 "BPI exchange rates pushed."
-
               exit 0
             fi
 
             git rebase --abort || true
 
             printf '%s\n' \
-              "BPI exchange-rate push attempt ${attempt} failed; retrying."
+              "BPI exchange-rate push attempt ${attempt} failed; retrying without force."
 
             sleep 5
           done
