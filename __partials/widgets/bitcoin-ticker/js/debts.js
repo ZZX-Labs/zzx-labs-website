@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerDebts?.__version>=6)return;
+  if(W.ZZXBitcoinTickerDebts?.__version>=7)return;
 
   const cache={data:null,at:0};
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
@@ -163,5 +163,5 @@
     );
   }
 
-  W.ZZXBitcoinTickerDebts=Object.freeze({__version:6,load,populate,render});
+  W.ZZXBitcoinTickerDebts=Object.freeze({__version:7,load,populate,render});
 })();
