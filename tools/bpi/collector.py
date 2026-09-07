@@ -35,6 +35,7 @@ from typing import Any
 
 from history_store import HistoryStore
 from index_sanity import classify_markets
+from bpi_index_engine import build_indexes, aggregate_exchanges
 
 CYCLE_MS = 2500
 FX_MS = 60_000
@@ -711,7 +712,15 @@ class Collector:
 
         return list(by_market.values())
 
-    def append_static_history(self, source: str, price: float, volume: float | None, ts_ms: int) -> None:
+    def append_static_history(
+        self,
+        source: str,
+        price: float,
+        volume: float | None,
+        ts_ms: int,
+        high_24h: float | None = None,
+        low_24h: float | None = None,
+    ) -> None:
         p = positive(price)
         if not math.isfinite(p):
             return
@@ -721,14 +730,48 @@ class Collector:
         v = nonnegative(volume)
         volume_value = float(v) if math.isfinite(v) else None
 
+        high_value = positive(high_24h)
+        high_value = float(high_value) if math.isfinite(high_value) else None
+
+        low_value = positive(low_24h)
+        low_value = float(low_value) if math.isfinite(low_value) else None
+
         if rows and int(rows[-1].get("t") or -1) == bucket:
             row = rows[-1]
             row["high"] = max(float(row.get("high") or p), p)
             row["low"] = min(float(row.get("low") or p), p)
             previous_close = float(row.get("close") or p)
+
+            if volume_value is not None:
+                if row.get("volume_open_24h_btc") is None:
+                    row["volume_open_24h_btc"] = volume_value
+
+                current_high = row.get("volume_high_24h_btc")
+                current_low = row.get("volume_low_24h_btc")
+
+                row["volume_high_24h_btc"] = (
+                    volume_value
+                    if current_high is None
+                    else max(float(current_high), volume_value)
+                )
+
+                row["volume_low_24h_btc"] = (
+                    volume_value
+                    if current_low is None
+                    else min(float(current_low), volume_value)
+                )
+
             row["close"] = p
             row["price"] = p
             row["volume_24h_btc"] = volume_value
+            row["volume_close_24h_btc"] = volume_value
+
+            if high_value is not None:
+                row["high_24h"] = high_value
+
+            if low_value is not None:
+                row["low_24h"] = low_value
+
             row["change"] = p - previous_close
             row["change_pct"] = ((p - previous_close) / previous_close * 100.0) if previous_close else None
         else:
@@ -742,6 +785,12 @@ class Collector:
                 "close": p,
                 "price": p,
                 "volume_24h_btc": volume_value,
+                "volume_open_24h_btc": volume_value,
+                "volume_high_24h_btc": volume_value,
+                "volume_low_24h_btc": volume_value,
+                "volume_close_24h_btc": volume_value,
+                "high_24h": high_value,
+                "low_24h": low_value,
                 "change": change,
                 "change_pct": (change / previous_close * 100.0) if previous_close not in (None, 0) else None,
             })
@@ -749,16 +798,50 @@ class Collector:
         if len(rows) > 1_440:
             del rows[:-1_440]
 
-    def write_static_history(self, ts_ms: int, core_bpi: float, core_volume: float, global_bpi: float, total_volume: float, exchanges: dict[str, Any]) -> None:
+    def write_static_history(
+        self,
+        ts_ms: int,
+        core_bpi: float,
+        core_volume: float,
+        global_bpi: float,
+        total_volume: float,
+        exchanges: dict[str, Any],
+        core_high_24h: float | None = None,
+        core_low_24h: float | None = None,
+        global_high_24h: float | None = None,
+        global_low_24h: float | None = None,
+    ) -> None:
         if math.isfinite(core_bpi):
-            self.append_static_history("bpi", core_bpi, core_volume, ts_ms)
+            self.append_static_history(
+                "bpi",
+                core_bpi,
+                core_volume,
+                ts_ms,
+                core_high_24h,
+                core_low_24h,
+            )
+
         if math.isfinite(global_bpi):
-            self.append_static_history("global-bpi", global_bpi, total_volume, ts_ms)
+            self.append_static_history(
+                "global-bpi",
+                global_bpi,
+                total_volume,
+                ts_ms,
+                global_high_24h,
+                global_low_24h,
+            )
 
         for exchange_id, row in exchanges.items():
             p = positive(row.get("price_usd"))
             if math.isfinite(p):
-                self.append_static_history(exchange_id, p, row.get("volume_24h_btc"), ts_ms)
+                self.append_static_history(
+                    exchange_id,
+                    p,
+                    row.get("volume_24h_btc"),
+                    ts_ms,
+                    row.get("high_24h"),
+                    row.get("low_24h"),
+                )
 
         atomic_json(self.static_history_path, {
             "schema": "zzx-bpi-history-live-v1",
@@ -770,186 +853,516 @@ class Collector:
     def write_price_snapshots(self, markets: list[dict[str, Any]]) -> None:
         # Remove invalid/non-finite values before JSON serialization.
         valid = []
+
         for row in markets:
             price = positive(row.get("price_usd"))
             volume = nonnegative(row.get("volume_24h_btc"))
+
             if not math.isfinite(price) or not math.isfinite(volume):
                 continue
+
             clean = dict(row)
-            for key in ("high_24h_native", "low_24h_native", "deviation_pct"):
+
+            for key in (
+                "high_24h_native",
+                "low_24h_native",
+                "deviation_pct",
+            ):
                 if key in clean and not math.isfinite(finite(clean[key])):
                     clean[key] = None
+
             valid.append(clean)
 
-        sanity = classify_markets(valid, minimum_sources=2)
-        consensus_valid = sanity["accepted"]
-        quarantined = sanity["quarantined"]
+        sanity = classify_markets(
+            valid,
+            minimum_sources=2,
+        )
 
-        # Propagate the gate result back into the retained raw rows.
+        checked_rows = (
+            sanity["accepted"]
+            + sanity["quarantined"]
+        )
+
         by_market_key = {
-            str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair")))): row
-            for row in sanity["accepted"] + sanity["quarantined"]
+            str(
+                row.get("market_key")
+                or (
+                    str(row.get("exchange"))
+                    + "::"
+                    + str(
+                        row.get("pair")
+                        or row.get("quote")
+                        or ""
+                    )
+                )
+            ): row
+            for row in checked_rows
         }
+
         for row in valid:
-            key = str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair"))))
+            key = str(
+                row.get("market_key")
+                or (
+                    str(row.get("exchange"))
+                    + "::"
+                    + str(
+                        row.get("pair")
+                        or row.get("quote")
+                        or ""
+                    )
+                )
+            )
+
             checked = by_market_key.get(key)
+
             if checked:
                 row.update({
-                    "index_eligible": checked.get("index_eligible"),
-                    "consensus_price_usd": checked.get("consensus_price_usd"),
-                    "consensus_deviation_pct": checked.get("consensus_deviation_pct"),
-                    "consensus_price_band_pct": checked.get("consensus_price_band_pct"),
-                    "volume_sanity_limit_btc": checked.get("volume_sanity_limit_btc"),
-                    "exclusion_reason": checked.get("exclusion_reason"),
+                    "index_eligible":
+                        checked.get("index_eligible"),
+                    "consensus_price_usd":
+                        checked.get("consensus_price_usd"),
+                    "consensus_deviation_pct":
+                        checked.get("consensus_deviation_pct"),
+                    "consensus_price_band_pct":
+                        checked.get("consensus_price_band_pct"),
+                    "volume_sanity_limit_btc":
+                        checked.get("volume_sanity_limit_btc"),
+                    "exclusion_reason":
+                        checked.get("exclusion_reason"),
                 })
 
-        for row in quarantined:
-            key = str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair"))))
+        for row in sanity["quarantined"]:
+            key = str(
+                row.get("market_key")
+                or (
+                    str(row.get("exchange"))
+                    + "::"
+                    + str(
+                        row.get("pair")
+                        or row.get("quote")
+                        or ""
+                    )
+                )
+            )
+
             health = self.health.setdefault(key, {})
+
             health.update({
                 "index_eligible": False,
                 "quarantined": True,
-                "exclusion_reason": row.get("exclusion_reason"),
-                "consensus_deviation_pct": row.get("consensus_deviation_pct"),
+                "exclusion_reason":
+                    row.get("exclusion_reason"),
+                "consensus_deviation_pct":
+                    row.get("consensus_deviation_pct"),
                 "updated_at": utcnow(),
             })
 
-        registry_sources = self.exchange_registry.get("sources", {})
-        global_markets = [
-            m for m in consensus_valid
-            if (registry_sources.get(m.get("exchange")) or {}).get("enabled") is not False
-            and not str((registry_sources.get(m.get("exchange")) or {}).get("status") or "").startswith("quarantined-")
+        registry_sources = self.exchange_registry.get(
+            "sources",
+            {},
+        )
+
+        eligible_policy_rows = [
+            row for row in valid
+            if row.get("index_eligible") is not False
+            and (
+                registry_sources
+                .get(row.get("exchange"), {})
+                .get("enabled") is not False
+            )
+            and not str(
+                registry_sources
+                .get(row.get("exchange"), {})
+                .get("status")
+                or ""
+            ).startswith("quarantined-")
         ]
-        global_bpi, total_volume = calculate_index(global_markets)
 
-        core_markets = [
-            m for m in global_markets
-            if (registry_sources.get(m.get("exchange")) or {}).get("include_in_bpi") is True
-        ]
-        core_bpi, core_volume = calculate_index(core_markets)
+        country_currency_cfg = load_json(
+            self.api / "bpi_country_currencies.json",
+            {},
+        )
 
-        if not math.isfinite(core_bpi):
-            core_bpi = global_bpi
-            core_volume = total_volume
+        indexes = build_indexes(
+            eligible_policy_rows,
+            country_currency_cfg,
+        )
 
-        global_high = weighted_metric(global_markets, "high_24h_usd")
-        global_low = weighted_metric(global_markets, "low_24h_usd")
-        core_high = weighted_metric(core_markets or global_markets, "high_24h_usd")
-        core_low = weighted_metric(core_markets or global_markets, "low_24h_usd")
+        annotated = indexes["markets"]
+        global_bpi = indexes["global_bpi"]
+        national_bpi = indexes["national_bpi"]
+        default_country = indexes["default_country"]
+        default_bpi = indexes["default_bpi"]
 
-        exchanges = {}
-        grouped: dict[str, list[dict[str, Any]]] = {}
-        for m in valid:
-            grouped.setdefault(str(m["exchange"]), []).append(m)
+        # Preserve rejected rows in markets.json for diagnostics, but give them
+        # explicit zero weight so they can never influence BPI.
+        annotated_by_key = {
+            str(
+                row.get("market_key")
+                or (
+                    str(row.get("exchange"))
+                    + "::"
+                    + str(
+                        row.get("pair")
+                        or row.get("quote")
+                        or ""
+                    )
+                )
+            ): row
+            for row in annotated
+        }
 
-        for exchange_id, rows in grouped.items():
-            eligible_rows = [r for r in rows if r.get("index_eligible") is not False]
-            quarantined_rows = [r for r in rows if r.get("index_eligible") is False]
-            basis_rows = eligible_rows or rows
+        output_markets = []
 
-            volume = sum(
-                float(r["volume_24h_btc"])
-                for r in eligible_rows
-                if positive(r.get("volume_24h_btc")) > 0
+        for raw in valid:
+            key = str(
+                raw.get("market_key")
+                or (
+                    str(raw.get("exchange"))
+                    + "::"
+                    + str(
+                        raw.get("pair")
+                        or raw.get("quote")
+                        or ""
+                    )
+                )
             )
 
-            if eligible_rows and volume > 0:
-                price = sum(
-                    float(r["price_usd"]) * float(r["volume_24h_btc"])
-                    for r in eligible_rows
-                    if positive(r.get("volume_24h_btc")) > 0
-                ) / volume
-            elif eligible_rows:
-                price = sum(float(r["price_usd"]) for r in eligible_rows) / len(eligible_rows)
+            weighted = annotated_by_key.get(key)
+
+            if weighted is not None:
+                row = dict(raw)
+                row.update(weighted)
             else:
-                price = math.nan
+                row = dict(raw)
+                row.update({
+                    "weight_ratio": 0.0,
+                    "weight_decimal": 0.0,
+                    "weight_percent_decimal": 0.0,
+                    "weight_percent": 0.0,
+                    "weighted_price_contribution_usd": 0.0,
+                    "global_volume_24h_btc":
+                        indexes["global_volume_24h_btc"],
+                })
 
-            raw_price = sum(float(r["price_usd"]) for r in rows) / len(rows)
+            output_markets.append(row)
 
-            exchanges[exchange_id] = {
-                "label": rows[0].get("label", exchange_id),
-                "price_usd": price if math.isfinite(price) else None,
-                "raw_price_usd": raw_price,
-                "index_eligible": bool(eligible_rows),
-                "quarantined_market_count": len(quarantined_rows),
-                "exclusion_reason": ",".join(sorted({
-                    str(r.get("exclusion_reason"))
-                    for r in quarantined_rows
-                    if r.get("exclusion_reason")
-                })) or None,
-                "quote": "MULTI" if len({r.get("quote") for r in rows}) > 1 else rows[0].get("quote"),
-                "fiat_quotes": sorted({str(r.get("quote")) for r in rows}),
-                "market_count": len(rows),
-                "eligible_market_count": len(eligible_rows),
-                "volume_24h_btc": volume,
-                "high_24h": weighted_metric(eligible_rows, "high_24h_usd") if eligible_rows else None,
-                "low_24h": weighted_metric(eligible_rows, "low_24h_usd") if eligible_rows else None,
-                "weight": sum(float(r.get("weight") or 0.0) for r in eligible_rows),
-                "updated_at": max((str(r.get("updated_at") or "") for r in rows), default=None),
-                "mode": "exchange-volume-weighted-btc-fiat",
-            }
+        exchanges = aggregate_exchanges(
+            output_markets
+        )
+
+        # Add quarantine counts/reasons to exchange summaries.
+        grouped: dict[str, list[dict[str, Any]]] = {}
+
+        for row in output_markets:
+            grouped.setdefault(
+                str(row.get("exchange") or ""),
+                [],
+            ).append(row)
+
+        for exchange_id, rows in grouped.items():
+            if exchange_id not in exchanges:
+                continue
+
+            quarantined = [
+                row for row in rows
+                if row.get("index_eligible") is False
+            ]
+
+            exchanges[exchange_id][
+                "quarantined_market_count"
+            ] = len(quarantined)
+
+            exchanges[exchange_id][
+                "exclusion_reason"
+            ] = (
+                ",".join(
+                    sorted({
+                        str(row.get("exclusion_reason"))
+                        for row in quarantined
+                        if row.get("exclusion_reason")
+                    })
+                )
+                or None
+            )
 
         now = utcnow()
-        atomic_json(self.api / "markets.json", {
-            "schema": "zzx-bpi-markets-v5.5-sanity",
-            "updated_at": now,
-            "markets": valid,
-            "eligible_market_count": len(consensus_valid),
-            "quarantined_market_count": len(quarantined),
-            "sanity": {
-                "consensus_price_usd": sanity["consensus_price_usd"],
-                "median_absolute_deviation_pct": sanity["median_absolute_deviation_pct"],
-                "price_band_pct": sanity["price_band_pct"],
-                "median_positive_volume_btc": sanity["median_positive_volume_btc"],
-                "volume_limit_btc": sanity["volume_limit_btc"],
-            },
-        })
 
-        atomic_json(self.api / "latest.json", {
-            "schema": "zzx-bpi-latest-v5.5-sanity",
-            "updated_at": now,
-            "price_usd": core_bpi if math.isfinite(core_bpi) else None,
-            "bpi_usd": core_bpi if math.isfinite(core_bpi) else None,
-            "volume_24h_btc": core_volume,
-            "high_24h": core_high if math.isfinite(core_high) else None,
-            "low_24h": core_low if math.isfinite(core_low) else None,
-            "bpi_exchange_count": len(core_markets) if core_markets else len(consensus_valid),
-            "quarantined_market_count": len(quarantined),
-            "sanity": {
-                "consensus_price_usd": sanity["consensus_price_usd"],
-                "median_absolute_deviation_pct": sanity["median_absolute_deviation_pct"],
-                "price_band_pct": sanity["price_band_pct"],
-                "median_positive_volume_btc": sanity["median_positive_volume_btc"],
-                "volume_limit_btc": sanity["volume_limit_btc"],
+        atomic_json(
+            self.api / "markets.json",
+            {
+                "schema":
+                    "zzx-bpi-markets-v6-national-global-weighted",
+                "updated_at": now,
+                "markets": output_markets,
+                "eligible_market_count":
+                    sum(
+                        1 for row in output_markets
+                        if row.get("index_eligible") is not False
+                    ),
+                "quarantined_market_count":
+                    len(sanity["quarantined"]),
+                "global_volume_24h_btc":
+                    indexes["global_volume_24h_btc"],
+                "weight_basis":
+                    "eligible market 24h BTC volume / eligible global 24h BTC volume",
+                "sanity": {
+                    "consensus_price_usd":
+                        sanity["consensus_price_usd"],
+                    "median_absolute_deviation_pct":
+                        sanity[
+                            "median_absolute_deviation_pct"
+                        ],
+                    "price_band_pct":
+                        sanity["price_band_pct"],
+                    "median_positive_volume_btc":
+                        sanity[
+                            "median_positive_volume_btc"
+                        ],
+                    "volume_limit_btc":
+                        sanity["volume_limit_btc"],
+                },
             },
-            "global_bpi": {
-                "price_usd": global_bpi if math.isfinite(global_bpi) else None,
-                "volume_24h_btc": total_volume,
-                "high_24h": global_high if math.isfinite(global_high) else None,
-                "low_24h": global_low if math.isfinite(global_low) else None,
-                                "market_count": len(global_markets),
-                "quarantined_market_count": len(quarantined),
-                "method": "consensus_gated_volume_weighted_all_btc_fiat_markets",
-            },
-            "global_bpi_usd": global_bpi if math.isfinite(global_bpi) else None,
-            "exchanges": exchanges,
-        })
+        )
 
-        atomic_json(self.api / "provider_health.json", {
-            "schema": "zzx-bpi-provider-health-v1",
-            "updated_at": now,
-            "providers": self.health,
-        })
+        default_weighted = (
+            default_bpi.get("weighted_price_usd")
+            if default_bpi
+            else None
+        )
+
+        default_unweighted = (
+            default_bpi.get("unweighted_price_usd")
+            if default_bpi
+            else None
+        )
+
+        atomic_json(
+            self.api / "latest.json",
+            {
+                "schema":
+                    "zzx-bpi-latest-v6-national-global-weighted",
+                "updated_at": now,
+                "default_country": default_country,
+                "weights_enabled_default": True,
+                "weight_basis":
+                    "eligible 24h BTC volume / eligible global 24h BTC volume",
+                "price_usd": default_weighted,
+                "bpi_usd": default_weighted,
+                "unweighted_bpi_usd": default_unweighted,
+                "volume_24h_btc":
+                    default_bpi.get("volume_24h_btc")
+                    if default_bpi
+                    else None,
+                "high_24h":
+                    default_bpi.get("high_24h")
+                    if default_bpi
+                    else None,
+                "low_24h":
+                    default_bpi.get("low_24h")
+                    if default_bpi
+                    else None,
+                "bpi_country": default_country,
+                "bpi_exchange_count":
+                    default_bpi.get("exchange_count")
+                    if default_bpi
+                    else 0,
+                "bpi_market_count":
+                    default_bpi.get("market_count")
+                    if default_bpi
+                    else 0,
+                "bpi": {
+                    "country_code": default_country,
+                    **(
+                        default_bpi
+                        if default_bpi
+                        else {}
+                    ),
+                },
+                "national_bpi": national_bpi,
+                "global_bpi": {
+                    **global_bpi,
+                    "price_usd":
+                        global_bpi.get(
+                            "weighted_price_usd"
+                        ),
+                    "method":
+                        "consensus_gated_global_24h_btc_volume_weighted",
+                },
+                "global_bpi_usd":
+                    global_bpi.get(
+                        "weighted_price_usd"
+                    ),
+                "global_bpi_unweighted_usd":
+                    global_bpi.get(
+                        "unweighted_price_usd"
+                    ),
+                "quarantined_market_count":
+                    len(sanity["quarantined"]),
+                "sanity": {
+                    "consensus_price_usd":
+                        sanity["consensus_price_usd"],
+                    "median_absolute_deviation_pct":
+                        sanity[
+                            "median_absolute_deviation_pct"
+                        ],
+                    "price_band_pct":
+                        sanity["price_band_pct"],
+                    "median_positive_volume_btc":
+                        sanity[
+                            "median_positive_volume_btc"
+                        ],
+                    "volume_limit_btc":
+                        sanity["volume_limit_btc"],
+                },
+                "exchanges": exchanges,
+            },
+        )
+
+        atomic_json(
+            self.api / "provider_health.json",
+            {
+                "schema":
+                    "zzx-bpi-provider-health-v1",
+                "updated_at": now,
+                "providers": self.health,
+            },
+        )
 
         ts_ms = int(time.time() * 1000)
-        for row in valid:
-            self.history.append_market(ts_ms, row)
-        if math.isfinite(core_bpi):
-            self.history.append_index(ts_ms, "bpi", core_bpi, core_volume)
-        if math.isfinite(global_bpi):
-            self.history.append_index(ts_ms, "global-bpi", global_bpi, total_volume)
+
+        for row in output_markets:
+            self.history.append_market(
+                ts_ms,
+                row,
+            )
+
+        if default_weighted is not None:
+            self.history.append_index(
+                ts_ms,
+                "bpi",
+                default_weighted,
+                default_bpi.get("volume_24h_btc")
+                if default_bpi
+                else None,
+                default_bpi.get("high_24h")
+                if default_bpi
+                else None,
+                default_bpi.get("low_24h")
+                if default_bpi
+                else None,
+            )
+
+        for country_code, national_index in national_bpi.items():
+            national_weighted = positive(
+                national_index.get("weighted_price_usd")
+            )
+
+            if math.isfinite(national_weighted):
+                self.history.append_index(
+                    ts_ms,
+                    f"bpi:{country_code}",
+                    national_weighted,
+                    national_index.get("volume_24h_btc"),
+                    national_index.get("high_24h"),
+                    national_index.get("low_24h"),
+                )
+
+                self.append_static_history(
+                    f"bpi:{country_code}",
+                    national_weighted,
+                    national_index.get("volume_24h_btc"),
+                    ts_ms,
+                    national_index.get("high_24h"),
+                    national_index.get("low_24h"),
+                )
+
+            national_unweighted = positive(
+                national_index.get("unweighted_price_usd")
+            )
+
+            if math.isfinite(national_unweighted):
+                self.history.append_index(
+                    ts_ms,
+                    f"bpi-unweighted:{country_code}",
+                    national_unweighted,
+                    national_index.get("volume_24h_btc"),
+                    national_index.get("high_24h"),
+                    national_index.get("low_24h"),
+                )
+
+                self.append_static_history(
+                    f"bpi-unweighted:{country_code}",
+                    national_unweighted,
+                    national_index.get("volume_24h_btc"),
+                    ts_ms,
+                    national_index.get("high_24h"),
+                    national_index.get("low_24h"),
+                )
+
+        global_weighted = global_bpi.get(
+            "weighted_price_usd"
+        )
+
+        if global_weighted is not None:
+            self.history.append_index(
+                ts_ms,
+                "global-bpi",
+                global_weighted,
+                global_bpi.get(
+                    "volume_24h_btc"
+                ),
+                global_bpi.get("high_24h"),
+                global_bpi.get("low_24h"),
+            )
+
+        global_unweighted = positive(
+            global_bpi.get("unweighted_price_usd")
+        )
+
+        if math.isfinite(global_unweighted):
+            self.history.append_index(
+                ts_ms,
+                "global-bpi-unweighted",
+                global_unweighted,
+                global_bpi.get("volume_24h_btc"),
+                global_bpi.get("high_24h"),
+                global_bpi.get("low_24h"),
+            )
+
+            self.append_static_history(
+                "global-bpi-unweighted",
+                global_unweighted,
+                global_bpi.get("volume_24h_btc"),
+                ts_ms,
+                global_bpi.get("high_24h"),
+                global_bpi.get("low_24h"),
+            )
+
         self.history.commit()
-        self.write_static_history(ts_ms, core_bpi, core_volume, global_bpi, total_volume, exchanges)
+
+        self.write_static_history(
+            ts_ms,
+            default_weighted
+            if default_weighted is not None
+            else math.nan,
+            default_bpi.get("volume_24h_btc")
+            if default_bpi
+            else math.nan,
+            global_weighted
+            if global_weighted is not None
+            else math.nan,
+            global_bpi.get("volume_24h_btc"),
+            exchanges,
+            default_bpi.get("high_24h")
+            if default_bpi
+            else None,
+            default_bpi.get("low_24h")
+            if default_bpi
+            else None,
+            global_bpi.get("high_24h"),
+            global_bpi.get("low_24h"),
+        )
 
     def run_once(self) -> None:
         now = time.monotonic()
