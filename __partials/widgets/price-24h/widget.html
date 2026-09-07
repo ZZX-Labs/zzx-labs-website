@@ -3,16 +3,124 @@
   <div class="mini-history__head">
     <div>
       <div class="mini-history__title">Price · 24h</div>
-      <div class="mini-history__eyebrow">interactive BTC price history</div>
+      <div class="mini-history__eyebrow" data-price24-eyebrow>
+        interactive BTC price history · follows Bitcoin Ticker
+      </div>
     </div>
+
     <div class="mini-history__actions">
       <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
       <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset zoom</button>
+      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
     </div>
   </div>
-  <div class="mini-history__stage">
-    <canvas data-mini-canvas aria-label="Price · 24h interactive chart"></canvas>
-    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+
+  <div class="mini-history__toolbar">
+    <div class="mini-history__source">
+      <span>source</span>
+      <strong data-price24-source>—</strong>
+    </div>
+
+    <label>
+      <span>resolution</span>
+      <select data-price24-resolution aria-label="Price history resolution">
+        <option value="auto">auto</option>
+        <option value="5s">5 sec</option>
+        <option value="15s">15 sec</option>
+        <option value="30s">30 sec</option>
+        <option value="1m">1 min</option>
+        <option value="5m">5 min</option>
+      </select>
+    </label>
+
+    <label>
+      <span>chart</span>
+      <select data-price24-renderer aria-label="Price chart style">
+        <option value="area">area</option>
+        <option value="line">line</option>
+        <option value="candles">candles</option>
+      </select>
+    </label>
+
+    <label class="mini-history__check">
+      <input type="checkbox" data-price24-sma checked>
+      <span>SMA 20</span>
+    </label>
+
+    <label class="mini-history__check">
+      <input type="checkbox" data-price24-ema>
+      <span>EMA 50</span>
+    </label>
+
+    <label class="mini-history__check">
+      <input type="checkbox" data-price24-follow checked>
+      <span>follow live edge</span>
+    </label>
   </div>
-  <span class="mini-history__status" data-mini-status>history idle</span>
+
+  <div class="mini-history__stats" aria-label="24 hour price statistics">
+    <div>
+      <span>current</span>
+      <strong data-price24-current>—</strong>
+    </div>
+    <div>
+      <span>24h open</span>
+      <strong data-price24-open>—</strong>
+    </div>
+    <div>
+      <span>24h change</span>
+      <strong data-price24-change data-tone="flat">—</strong>
+    </div>
+    <div>
+      <span>24h high</span>
+      <strong data-price24-high>—</strong>
+    </div>
+    <div>
+      <span>24h low</span>
+      <strong data-price24-low>—</strong>
+    </div>
+    <div>
+      <span>24h range</span>
+      <strong data-price24-range>—</strong>
+    </div>
+  </div>
+
+  <div class="mini-history__stage" data-price24-stage>
+    <canvas
+      data-mini-canvas
+      tabindex="0"
+      role="img"
+      aria-label="Price · 24h interactive chart"
+      aria-describedby="price24-help"
+    ></canvas>
+
+    <div class="mini-history__legend" aria-hidden="true">
+      <span><i class="mini-history__legend-price"></i>price</span>
+      <span data-price24-sma-legend><i class="mini-history__legend-sma"></i>SMA 20</span>
+      <span data-price24-ema-legend hidden><i class="mini-history__legend-ema"></i>EMA 50</span>
+    </div>
+
+    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+
+    <div class="mini-history__empty" data-price24-empty hidden>
+      <strong>No 24h history yet</strong>
+      <span data-price24-empty-detail>Waiting for history collector data.</span>
+    </div>
+  </div>
+
+  <div class="mini-history__diagnostics">
+    <span data-price24-points>0 points</span>
+    <span data-price24-coverage>0% coverage</span>
+    <span data-price24-cadence>cadence —</span>
+    <span data-price24-age>age —</span>
+  </div>
+
+  <div class="mini-history__footer">
+    <span class="mini-history__status" data-mini-status aria-live="polite">history idle</span>
+    <span class="mini-history__transport" data-price24-transport>transport —</span>
+  </div>
+
+  <span class="mini-history__sr" id="price24-help">
+    Mouse wheel or plus and minus keys zoom. Drag or left and right arrow keys pan. Double click, Escape, or zero resets zoom.
+  </span>
 </div>
