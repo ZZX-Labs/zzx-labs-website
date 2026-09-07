@@ -38,32 +38,152 @@
 
   async function ensureModules(core){
     const base=core?.widgetBase
-      ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
+      ? String(
+          core.widgetBase(ID)
+        ).replace(/\/+$/g,"")
       : "/__partials/widgets/bitavg";
 
-    for(const [globalName,relative] of [
-      ["ZZXBitAvgConstants","js/constants.js"],
-      ["ZZXBitAvgFetch","js/fetch.js"],
-      ["ZZXBitAvgFX","js/fx.js"],
-      ["ZZXBitAvgModel","js/model.js"],
-      ["ZZXBitAvgProvider","js/provider.js"],
-      ["ZZXBitAvgPublisher","js/publisher.js"]
-    ]){
-      if(W[globalName])continue;
-      const raw=`${base}/${relative}`;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+    const modules=[
+      ["ZZXBitAvgConstants","js/constants.js",5],
+      ["ZZXBitAvgFetch","js/fetch.js",5],
+      ["ZZXBitAvgFX","js/fx.js",5],
+      ["ZZXBitAvgModel","js/model.js",7],
+      ["ZZXBitAvgProvider","js/provider.js",7],
+      ["ZZXBitAvgPublisher","js/publisher.js",7]
+    ];
 
-      await new Promise((done,fail)=>{
-        const s=D.createElement("script");
-        s.src=src;s.defer=true;
-        s.addEventListener("load",done,{once:true});
-        s.addEventListener("error",fail,{once:true});
-        (D.head||D.documentElement).appendChild(s);
-      });
+    for(
+      const [
+        globalName,
+        relative,
+        minVersion
+      ]
+      of modules
+    ){
+      if(
+        W[globalName] &&
+        Number(
+          W[globalName].__version||0
+        )>=minVersion
+      ){
+        continue;
+      }
 
-      if(!W[globalName])throw new Error(`${relative} did not register ${globalName}`);
+      const raw=
+        `${base}/${relative}`;
+
+      const baseSrc=
+        W.ZZXAPI?.url
+          ? W.ZZXAPI.url(raw)
+          : raw;
+
+      let src;
+
+      try{
+        const url=new URL(
+          baseSrc,
+          W.location.href
+        );
+
+        url.searchParams.set(
+          "bitavgmod",
+          String(minVersion)
+        );
+
+        src=url.href;
+      }catch(_){
+        src=
+          `${baseSrc}`+
+          `${baseSrc.includes("?")?"&":"?"}`+
+          `bitavgmod=${encodeURIComponent(minVersion)}`;
+      }
+
+      const existing=[
+        ...D.scripts
+      ].find(
+        script=>script.src===src
+      );
+
+      if(existing){
+        const started=Date.now();
+
+        while(
+          (
+            !W[globalName] ||
+            Number(
+              W[globalName].__version||0
+            )<minVersion
+          ) &&
+          Date.now()-started<1500
+        ){
+          await new Promise(
+            done=>
+              W.setTimeout(
+                done,
+                25
+              )
+          );
+        }
+
+        if(
+          W[globalName] &&
+          Number(
+            W[globalName].__version||0
+          )>=minVersion
+        ){
+          continue;
+        }
+      }
+
+      await new Promise(
+        (done,fail)=>{
+          const script=
+            D.createElement(
+              "script"
+            );
+
+          script.src=src;
+          script.defer=true;
+
+          script.addEventListener(
+            "load",
+            done,
+            {once:true}
+          );
+
+          script.addEventListener(
+            "error",
+            ()=>fail(
+              new Error(
+                `failed to load ${relative}`
+              )
+            ),
+            {once:true}
+          );
+
+          (
+            D.head||
+            D.documentElement
+          ).appendChild(
+            script
+          );
+        }
+      );
+
+      if(
+        !W[globalName] ||
+        Number(
+          W[globalName].__version||0
+        )<minVersion
+      ){
+        throw new Error(
+          `${relative} did not register compatible ${globalName} `+
+          `(required >= ${minVersion}, got ${Number(W[globalName]?.__version||0)})`
+        );
+      }
     }
   }
+
 
   function filtered(root,state){
     const model=state.result?.model;
@@ -117,7 +237,7 @@
     if(!slice.length){
       const tr=D.createElement("tr");
       const td=D.createElement("td");
-      td.colSpan=7;
+      td.colSpan=10;
       td.className="bitavg__empty";
       td.textContent="No BTC/fiat markets match this filter.";
       tr.appendChild(td);
@@ -132,7 +252,10 @@
           native(row.nativePrice,row.quote),
           usd(row.usdPrice),
           btc(row.volumeBtc),
-          `${(row.weight*100).toFixed(3)}%`,
+          Number(row.weightRatio||0).toFixed(8),
+          Number(row.weightPercentDecimal||0).toFixed(8),
+          `${Number(row.weightPercent||0).toFixed(4)}%`,
+          usd(row.weightedPriceContributionUsd),
           pct(row.deviationPct,3,true)
         ];
 
@@ -141,10 +264,23 @@
           td.textContent=value;
 
           if(index===0){
-            td.title=`${row.exchange} · ${row.source}`;
+            td.title=
+              `${row.exchange} · ${row.source}`+
+              (
+                row.indexEligible
+                  ? " · INDEX ELIGIBLE"
+                  : ` · QUARANTINED · ${row.exclusionReason||"sanity gate"}`
+              );
+
+            if(!row.indexEligible){
+              tr.setAttribute(
+                "data-quarantined",
+                "true"
+              );
+            }
           }
 
-          if(index===6){
+          if(index===9){
             td.setAttribute("data-tone",row.deviationPct>0?"up":row.deviationPct<0?"down":"flat");
           }
 
@@ -164,9 +300,32 @@
     const m=state.result.model;
 
     set(root,"[data-bitavg-price]",usd(m.bpi));
+    set(
+      root,
+      "[data-bitavg-hero-label]",
+      m.weightsEnabled
+        ? "Global BPI · weighted BTC / USD"
+        : "Global BPI · unweighted BTC / USD"
+    );
+    set(
+      root,
+      "[data-bitavg-weight-mode]",
+      m.weightsEnabled
+        ? `weights ON · ${usd(m.weightedBpi)} weighted · ${usd(m.unweightedBpi)} unweighted`
+        : `weights OFF · ${usd(m.unweightedBpi)} unweighted · ${usd(m.weightedBpi)} weighted`
+    );
+
+    const weightToggle=q(root,"[data-bitavg-weight-toggle]");
+    if(weightToggle)weightToggle.checked=!!m.weightsEnabled;
     set(root,"[data-bitavg-exchanges]",String(m.exchanges.length));
     set(root,"[data-bitavg-currencies]",String(m.currencies.length));
-    set(root,"[data-bitavg-markets]",`${m.markets} · ${m.weightedMarkets} weighted`);
+    set(
+      root,
+      "[data-bitavg-markets]",
+      `${m.markets} eligible · `+
+      `${m.weightedMarkets} weighted · `+
+      `${m.quarantinedMarkets} quarantined`
+    );
     set(root,"[data-bitavg-volume]",btc(m.volume));
 
     set(root,"[data-bitavg-spread]",
@@ -179,6 +338,22 @@
       m.topExchange
         ? `${m.topExchange.label} ${(m.topExchange.weight*100).toFixed(2)}%`
         : "—"
+    );
+
+    set(
+      root,
+      "[data-bitavg-consensus]",
+      Number.isFinite(m.sanity?.consensusPriceUsd)
+        ? `${usd(m.sanity.consensusPriceUsd)} · ±${Number(m.sanity.consensusBandPct||0).toFixed(2)}%`
+        : "—"
+    );
+
+    set(
+      root,
+      "[data-bitavg-sanity]",
+      `${m.sanity?.accepted||0} accepted · `+
+      `${m.sanity?.quarantined||0} quarantined · `+
+      `volume cap ${btc(m.sanity?.volumeLimitBtc)}`
     );
 
     set(root,"[data-bitavg-method]",m.method.replaceAll("_"," "));
@@ -199,14 +374,16 @@
         : "local snapshot timestamp unavailable"
     );
 
-    set(root,"[data-bitavg-sources]",
+    set(
+      root,
+      "[data-bitavg-sources]",
       state.result.stale
-        ? "cached local BPI bundle"
-        : "markets.json + latest.json + exchanges/currencies/FX"
+        ? "cached local BPI bundle · sanity gate reapplied"
+        : "markets.json + latest.json + exchanges/currencies/FX · policy + consensus sanity gate"
     );
 
     set(root,"[data-bitavg-meta]",
-      `${m.markets} BTC/fiat markets only · ${m.currencies.length} fiat currencies · BTC-volume weights ${(m.weightSum*100).toFixed(3)}% · ${state.result.transport}`
+      `${m.markets} eligible BTC/fiat markets · ${m.quarantinedMarkets} quarantined · ${m.currencies.length} fiat currencies · BTC-volume weights ${(m.weightSum*100).toFixed(3)}% · ${state.result.transport}`
     );
 
     populateCurrencies(root,state);
@@ -214,6 +391,9 @@
 
     W.ZZXBitAvgLatest={
       bpi_usd:m.bpi,
+      weighted_bpi_usd:m.weightedBpi,
+      unweighted_bpi_usd:m.unweightedBpi,
+      weights_enabled:!!m.weightsEnabled,
       method:m.method,
       exchanges:m.exchanges.length,
       currencies:[...m.currencies],
@@ -224,6 +404,13 @@
       spread_percent:m.spreadPct,
       weight_sum:m.weightSum,
       rows:m.rows.map(row=>({...row})),
+      weight_fields:{
+        ratio:"weightRatio",
+        decimal:"weightDecimal",
+        percent_decimal:"weightPercentDecimal",
+        percent:"weightPercent",
+        weighted_price_contribution_usd:"weightedPriceContributionUsd"
+      },
       stale:!!state.result.stale,
       transport:state.result.transport,
       rendered_at:Date.now()
@@ -272,6 +459,39 @@
       if(project&&W.ZZXAPI?.url)project.href=W.ZZXAPI.url(W.ZZXBitAvgConstants.projectPath);
 
       q(root,"[data-bitavg-refresh]")?.addEventListener("click",()=>refresh(root,state));
+      q(root,"[data-bitavg-weight-toggle]")?.addEventListener("change",event=>{
+        const enabled=!!event.currentTarget.checked;
+
+        try{
+          W.localStorage.setItem(
+            "zzx.bpi.weights.enabled.v1",
+            enabled?"true":"false"
+          );
+        }catch(_){}
+
+        try{
+          W.dispatchEvent(
+            new CustomEvent(
+              "zzx:bpi-weighting",
+              {detail:{enabled}}
+            )
+          );
+        }catch(_){}
+
+        refresh(root,state);
+      });
+
+      W.addEventListener(
+        "zzx:bpi-weighting",
+        event=>{
+          const toggle=q(root,"[data-bitavg-weight-toggle]");
+          if(toggle&&typeof event?.detail?.enabled==="boolean"){
+            toggle.checked=event.detail.enabled;
+          }
+          refresh(root,state);
+        }
+      );
+
 
       q(root,"[data-bitavg-prev]")?.addEventListener("click",()=>{
         state.page=Math.max(0,state.page-1);
