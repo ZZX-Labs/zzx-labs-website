@@ -1,0 +1,218 @@
+<!-- __partials/widgets/currency-converter/widget.html -->
+<div class="btc-card currency-converter">
+  <div class="currency-converter__header">
+    <div>
+      <div class="btc-card__title">Currency Converter</div>
+      <div class="currency-converter__eyebrow" data-cc-eyebrow>
+        fiat catalog + BTC + purchasing-power references
+      </div>
+    </div>
+    <span
+      class="btc-card__status"
+      data-cc-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
+  </div>
+
+  <div class="currency-converter__hero">
+    <span class="currency-converter__hero-label">converted value</span>
+    <strong data-cc-output>—</strong>
+    <span class="currency-converter__rate" data-cc-rate>—</span>
+  </div>
+
+  <div class="currency-converter__controls">
+    <label>
+      <span>amount</span>
+      <input
+        data-cc-amount
+        type="number"
+        inputmode="decimal"
+        step="any"
+        min="0"
+        value="1"
+        aria-label="Amount"
+      >
+    </label>
+
+    <label>
+      <span>from</span>
+      <select
+        data-cc-from
+        aria-label="From unit"
+      ></select>
+    </label>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn currency-converter__swap"
+      data-cc-swap
+      aria-label="Swap units"
+    >⇄</button>
+
+    <label>
+      <span>to</span>
+      <select
+        data-cc-to
+        aria-label="To unit"
+      ></select>
+    </label>
+  </div>
+
+  <section
+    class="currency-converter__equivalents"
+    aria-label="Simultaneous equivalent values"
+  >
+    <div class="currency-converter__equivalent">
+      <span>USD equivalent</span>
+      <strong data-cc-usd>—</strong>
+    </div>
+
+    <div class="currency-converter__equivalent">
+      <span data-cc-home-label>home equivalent</span>
+      <strong data-cc-home>—</strong>
+    </div>
+
+    <div class="currency-converter__equivalent">
+      <span>BTC equivalent</span>
+      <strong data-cc-btc>—</strong>
+    </div>
+
+    <div class="currency-converter__equivalent">
+      <span>ticker source</span>
+      <strong data-cc-bpi>—</strong>
+    </div>
+  </section>
+
+  <section class="currency-converter__home">
+    <div class="currency-converter__home-head">
+      <div>
+        <span class="currency-converter__section-kicker">retained default</span>
+        <strong data-cc-home-title>Home currency</strong>
+      </div>
+      <span data-cc-home-origin>—</span>
+    </div>
+
+    <div class="currency-converter__home-controls">
+      <select
+        data-cc-home-select
+        aria-label="Default home currency"
+      ></select>
+
+      <button
+        type="button"
+        class="zzx-widgets__btn"
+        data-cc-home-save
+      >Set default</button>
+    </div>
+
+    <small data-cc-home-meta>
+      Saved locally until you explicitly replace it.
+    </small>
+  </section>
+
+  <section class="currency-converter__bitcoin">
+    <div class="currency-converter__section-head">
+      <div>
+        <span class="currency-converter__section-kicker">
+          Bitcoin denomination ladder
+        </span>
+        <strong>
+          same value expressed in Bitcoin units
+        </strong>
+      </div>
+      <span data-cc-btc-usd>BTC/USD —</span>
+    </div>
+
+    <div
+      class="currency-converter__denoms"
+      data-cc-denoms
+    ></div>
+  </section>
+
+  <details
+    class="currency-converter__matrix"
+    data-cc-fiat-details
+  >
+    <summary>
+      <span>All fiat equivalents</span>
+      <small data-cc-fiat-count>—</small>
+    </summary>
+
+    <div
+      class="currency-converter__matrix-grid"
+      data-cc-fiat-grid
+    ></div>
+  </details>
+
+  <details
+    class="currency-converter__matrix"
+    data-cc-reference-details
+  >
+    <summary>
+      <span>Purchasing-power equivalents</span>
+      <small data-cc-reference-count>—</small>
+    </summary>
+
+    <div class="currency-converter__matrix-tools">
+      <label>
+        <span>reference page</span>
+        <select
+          data-cc-reference-page
+          aria-label="Purchasing power reference page"
+        ></select>
+      </label>
+    </div>
+
+    <div
+      class="currency-converter__matrix-grid"
+      data-cc-reference-grid
+    ></div>
+  </details>
+
+  <section class="currency-converter__basis">
+    <div class="currency-converter__section-head">
+      <div>
+        <span class="currency-converter__section-kicker">
+          conversion basis
+        </span>
+        <strong>USD pivot</strong>
+      </div>
+      <span data-cc-basis-state>—</span>
+    </div>
+
+    <div class="currency-converter__basis-grid">
+      <div>
+        <span>from USD/unit</span>
+        <strong data-cc-from-usd>—</strong>
+      </div>
+
+      <div>
+        <span>to USD/unit</span>
+        <strong data-cc-to-usd>—</strong>
+      </div>
+
+      <div>
+        <span>home USD/unit</span>
+        <strong data-cc-home-usd>—</strong>
+      </div>
+
+      <div>
+        <span>FX / reference updated</span>
+        <strong data-cc-updated>—</strong>
+      </div>
+    </div>
+  </section>
+
+  <div class="currency-converter__footer">
+    <span data-cc-meta>
+      Bitcoin Ticker / BPI / FX / reference provider chain
+    </span>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-cc-refresh
+    >Refresh rates</button>
+  </div>
+</div>
