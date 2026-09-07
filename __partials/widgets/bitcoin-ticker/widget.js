@@ -53,6 +53,20 @@
     set(root,"[data-state-text]",label);
   }
 
+  function helperModuleSrc(raw,minVersion){
+    const resolved=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+    if(!minVersion)return resolved;
+
+    try{
+      const url=new URL(resolved,W.location.href);
+      url.searchParams.set("zzxmod",String(minVersion));
+      return url.href;
+    }catch(_){
+      const sep=resolved.includes("?")?"&":"?";
+      return `${resolved}${sep}zzxmod=${encodeURIComponent(minVersion)}`;
+    }
+  }
+
   async function ensureModules(core){
     const base=core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -66,7 +80,7 @@
       ["ZZXBitcoinTickerSelection","js/selection.js",6],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerReferences","js/references.js",6],
-      ["ZZXBitcoinTickerDebts","js/debts.js",6],
+      ["ZZXBitcoinTickerDebts","js/debts.js",7],
       ["ZZXBitcoinTickerPanels","js/panels.js",2],
       ["ZZXBitcoinTickerWidgetBridge","js/widget-bridge.js"],
       ["ZZXBitcoinTickerCharts","js/charts.js"]
@@ -76,13 +90,17 @@
         (!minVersion || Number(W[globalName].__version||0)>=minVersion)
       )continue;
       const raw=`${base}/${relative}`;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+      const src=helperModuleSrc(raw,minVersion);
 
       await new Promise((done,fail)=>{
         const s=D.createElement("script");
         s.src=src;s.defer=true;
         s.addEventListener("load",done,{once:true});
-        s.addEventListener("error",fail,{once:true});
+        s.addEventListener(
+          "error",
+          ()=>fail(new Error(`failed to load ${relative} from ${src}`)),
+          {once:true}
+        );
         (D.head||D.documentElement).appendChild(s);
       });
 
@@ -90,7 +108,11 @@
         !W[globalName] ||
         (minVersion && Number(W[globalName].__version||0)<minVersion)
       ){
-        throw new Error(`${relative} did not register compatible ${globalName}`);
+        const actual=W[globalName]?.__version??"missing";
+        throw new Error(
+          `${relative} did not register compatible ${globalName}`+
+          (minVersion?` (required >= ${minVersion}, got ${actual})`:"")
+        );
       }
     }
   }
