@@ -73,15 +73,16 @@
       : "/__partials/widgets/bitcoin-ticker";
 
     for(const [globalName,relative,minVersion] of [
-      ["ZZXBitcoinTickerConstants","js/constants.js"],
+      ["ZZXBitcoinTickerConstants","js/constants.js",7],
       ["ZZXBitcoinTickerDeps","js/deps.js",7],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerFX","js/fx.js"],
       ["ZZXBitcoinTickerSelection","js/selection.js",6],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerReferences","js/references.js",6],
-      ["ZZXBitcoinTickerDebts","js/debts.js",7],
-      ["ZZXBitcoinTickerPanels","js/panels.js",2],
+      ["ZZXBitcoinTickerDebts","js/debts.js",8],
+      ["ZZXBitcoinTickerBalances","js/balances.js",1],
+      ["ZZXBitcoinTickerPanels","js/panels.js",3],
       ["ZZXBitcoinTickerWidgetBridge","js/widget-bridge.js"],
       ["ZZXBitcoinTickerCharts","js/charts.js"]
     ]){
@@ -291,6 +292,20 @@
     }
     W.ZZXBitcoinTickerDebts.render(root,state.debts,height,issued);
 
+    if(!state.balances){
+      state.balances=await W.ZZXBitcoinTickerBalances.load(false);
+      W.ZZXBitcoinTickerBalances.populate(root,state.balances);
+    }
+    W.ZZXBitcoinTickerBalances.render(
+      root,
+      state.balances,
+      height,
+      issued
+    );
+
+    state.chainHeight=height;
+    state.issuedSats=issued;
+
     W.ZZXBitcoinTickerPanels?.update?.(root,state);
 
     status(root,stale?"Stale":"Live",stale?"stale":"ok");
@@ -310,6 +325,7 @@
         state.configAt=0;
         state.references=null;
         state.debts=null;
+        state.balances=null;
       }
       await render(root,state,force);
     }catch(error){
@@ -329,7 +345,8 @@
 
     const state={
       core:core||W.ZZXWidgetsCore||null,
-      config:null,configAt:0,references:null,debts:null,
+      config:null,configAt:0,references:null,debts:null,balances:null,
+      chainHeight:NaN,issuedSats:null,
       selection:null,busy:false,queued:false,timer:null,referencePage:0
     };
     root.__zzxBitcoinTickerState=state;
@@ -400,13 +417,35 @@
       });
 
       q(root,"[data-debt-country]")?.addEventListener("change",event=>{
-        safeSet(W.ZZXBitcoinTickerConstants.storage.debtCountry,event.currentTarget.value);
+        safeSet(
+          W.ZZXBitcoinTickerConstants.storage.debtCountry,
+          event.currentTarget.value
+        );
+
         if(state.debts){
-          const height=Number(W.ZZXTipLatest?.height);
-          const issued=Number.isFinite(height)?W.ZZXChain.issuedSatsAtHeight(height):null;
-          W.ZZXBitcoinTickerDebts.render(root,state.debts,height,issued);
+          W.ZZXBitcoinTickerDebts.render(
+            root,
+            state.debts,
+            state.chainHeight,
+            state.issuedSats
+          );
         }
-        refresh(root,state,false);
+      });
+
+      q(root,"[data-balance-country]")?.addEventListener("change",event=>{
+        safeSet(
+          W.ZZXBitcoinTickerConstants.storage.balanceCountry,
+          event.currentTarget.value
+        );
+
+        if(state.balances){
+          W.ZZXBitcoinTickerBalances.render(
+            root,
+            state.balances,
+            state.chainHeight,
+            state.issuedSats
+          );
+        }
       });
 
       await refresh(root,state,false);
