@@ -1,0 +1,185 @@
+name: Update BPI Reference Markets
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-reference-markets
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  update-reference-markets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync repository before generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Validate reference-market updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            tools/bpi/reference_updater.py \
+            tools/bpi/collector.py
+          python -m json.tool \
+            __partials/widgets/bitcoin-ticker/reference-catalog.json \
+            >/dev/null
+          python -m json.tool \
+            bitcoin/bpi/api/commodity_source_urls.json \
+            >/dev/null
+          python -m json.tool \
+            bitcoin/bpi/api/reference_market_source_policy.json \
+            >/dev/null
+
+      - name: Update public reference markets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bpi/reference_updater.py \
+            --references-only
+
+      - name: Validate generated reference contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          catalog_path = Path(
+              "__partials/widgets/bitcoin-ticker/reference-catalog.json"
+          )
+          prices_path = Path(
+              "bitcoin/bpi/api/reference_prices.json"
+          )
+
+          catalog = json.loads(
+              catalog_path.read_text(encoding="utf-8")
+          )
+          prices = json.loads(
+              prices_path.read_text(encoding="utf-8")
+          )
+
+          pages = catalog.get("pages")
+          items = catalog.get("items")
+          values = prices.get("prices")
+
+          if not isinstance(pages, list) or len(pages) != 16:
+              raise SystemExit(
+                  "reference catalog must contain exactly 16 pages"
+              )
+
+          if not isinstance(items, list) or len(items) < 100:
+              raise SystemExit(
+                  "reference catalog is unexpectedly small"
+              )
+
+          page_ids = {
+              str(page.get("id") or "")
+              for page in pages
+              if isinstance(page, dict)
+          }
+
+          for index, item in enumerate(items):
+              if not isinstance(item, dict):
+                  raise SystemExit(
+                      f"reference item {index} is not an object"
+                  )
+
+              if item.get("page") not in page_ids:
+                  raise SystemExit(
+                      f"reference item {item.get('id')} has invalid page"
+                  )
+
+          if not isinstance(values, dict):
+              raise SystemExit(
+                  "reference_prices.json prices must be an object"
+              )
+
+          for item_id, row in values.items():
+              if not isinstance(row, dict):
+                  raise SystemExit(
+                      f"reference price {item_id} must be an object"
+                  )
+
+              value = float(row.get("usd"))
+
+              if not math.isfinite(value) or value <= 0:
+                  raise SystemExit(
+                      f"invalid reference price for {item_id}: {value}"
+                  )
+
+          print(
+              "Reference contracts valid: "
+              f"pages={len(pages)} "
+              f"items={len(items)} "
+              f"priced={len(values)}"
+          )
+          PY
+
+      - name: Commit and push reference markets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "zzx-bpi-bot"
+          git config user.email "actions@github.com"
+
+          git add -- \
+            bitcoin/bpi/api/commodities.json \
+            bitcoin/bpi/api/reference_prices.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' \
+              "No reference-market changes."
+            exit 0
+          fi
+
+          git commit \
+            -m "Update BPI reference markets"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+
+            if git rebase origin/main && \
+               git push origin HEAD:main; then
+              printf '%s\n' \
+                "BPI reference markets pushed."
+              exit 0
+            fi
+
+            git rebase --abort || true
+            sleep 5
+          done
+
+          printf '%s\n' \
+            "Failed to push BPI reference markets without rewriting main."
+          exit 1
