@@ -171,11 +171,26 @@ class HistoryStore:
             for r in rows:
                 change=(r[1]-prev) if prev is not None else None
                 change_pct=(change/prev*100.0) if prev not in (None,0) else None
+                volume=r[2]
                 points.append({
-                    "t":r[0],"open":r[1],"high":r[1],"low":r[1],"close":r[1],
-                    "price":r[1],"volume_24h_btc":r[2],"high_24h":r[3],"low_24h":r[4],
-                    "weight":r[5],"market":r[6],"quote":r[7],
-                    "change":change,"change_pct":change_pct,
+                    "t":r[0],
+                    "open":r[1],
+                    "high":r[1],
+                    "low":r[1],
+                    "close":r[1],
+                    "price":r[1],
+                    "volume_24h_btc":volume,
+                    "volume_open_24h_btc":volume,
+                    "volume_high_24h_btc":volume,
+                    "volume_low_24h_btc":volume,
+                    "volume_close_24h_btc":volume,
+                    "high_24h":r[3],
+                    "low_24h":r[4],
+                    "weight":r[5],
+                    "market":r[6],
+                    "quote":r[7],
+                    "change":change,
+                    "change_pct":change_pct,
                 })
                 prev=r[1]
             return {"source":source,"market":market,"resolution":"raw","points":points}
@@ -196,17 +211,49 @@ class HistoryStore:
             x=buckets.get(b)
             if x is None:
                 x={
-                    "t":b,"open":price,"high":price,"low":price,"close":price,
-                    "volume_24h_btc":volume,"weight":weight,"market":mkt,"quote":quote,
+                    "t":b,
+                    "open":price,
+                    "high":price,
+                    "low":price,
+                    "close":price,
+                    "volume_24h_btc":volume,
+                    "volume_open_24h_btc":volume,
+                    "volume_high_24h_btc":volume,
+                    "volume_low_24h_btc":volume,
+                    "volume_close_24h_btc":volume,
+                    "weight":weight,
+                    "market":mkt,
+                    "quote":quote,
                     "_last_ts":ts,
                 }
                 buckets[b]=x
             else:
                 x["high"]=max(x["high"],price)
                 x["low"]=min(x["low"],price)
+
+                if volume is not None:
+                    if x.get("volume_open_24h_btc") is None:
+                        x["volume_open_24h_btc"]=volume
+
+                    previous_high=x.get("volume_high_24h_btc")
+                    previous_low=x.get("volume_low_24h_btc")
+
+                    x["volume_high_24h_btc"]=(
+                        volume
+                        if previous_high is None
+                        else max(previous_high,volume)
+                    )
+
+                    x["volume_low_24h_btc"]=(
+                        volume
+                        if previous_low is None
+                        else min(previous_low,volume)
+                    )
+
                 if ts>=x["_last_ts"]:
                     x["close"]=price
                     x["volume_24h_btc"]=volume
+                    x["volume_close_24h_btc"]=volume
                     x["weight"]=weight
                     x["market"]=mkt
                     x["quote"]=quote
