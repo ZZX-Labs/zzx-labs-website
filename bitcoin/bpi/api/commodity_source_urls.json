@@ -1,0 +1,83 @@
+{
+  "schema": "zzx-commodity-source-urls-v1",
+  "refresh_interval_ms": 60000,
+  "sources": [
+    {
+      "id": "goldprice",
+      "url": "https://data-asg.goldprice.org/dbXRates/USD",
+      "adapter": "goldprice",
+      "enabled": true,
+      "items": [
+        "gold",
+        "silver"
+      ]
+    },
+    {
+      "id": "metals_live",
+      "url": "https://api.metals.live/v1/spot",
+      "adapter": "metals_live",
+      "enabled": true,
+      "items": [
+        "gold",
+        "silver",
+        "platinum",
+        "palladium"
+      ]
+    },
+    {
+      "id": "stooq_gold",
+      "url": "https://stooq.com/q/l/?s=gc.f&i=d",
+      "adapter": "stooq_csv",
+      "enabled": true,
+      "items": [
+        "gold"
+      ]
+    },
+    {
+      "id": "stooq_silver",
+      "url": "https://stooq.com/q/l/?s=si.f&i=d",
+      "adapter": "stooq_csv",
+      "enabled": true,
+      "items": [
+        "silver"
+      ]
+    },
+    {
+      "id": "stooq_platinum",
+      "url": "https://stooq.com/q/l/?s=pl.f&i=d",
+      "adapter": "stooq_csv",
+      "enabled": true,
+      "items": [
+        "platinum"
+      ]
+    },
+    {
+      "id": "stooq_palladium",
+      "url": "https://stooq.com/q/l/?s=pa.f&i=d",
+      "adapter": "stooq_csv",
+      "enabled": true,
+      "items": [
+        "palladium"
+      ]
+    },
+    {
+      "id": "stooq_copper",
+      "url": "https://stooq.com/q/l/?s=hg.f&i=d",
+      "adapter": "stooq_csv",
+      "enabled": true,
+      "items": [
+        "copper"
+      ]
+    },
+    {
+      "id": "stooq_oil",
+      "url": "https://stooq.com/q/l/?s=cl.f&i=d",
+      "adapter": "stooq_csv",
+      "enabled": true,
+      "items": [
+        "oil"
+      ]
+    }
+  ],
+  "notes": "Retail/niche reference items are merged from reference_overrides.json or separately validated feeds; missing values are never invented."
+}

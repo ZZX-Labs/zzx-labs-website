@@ -1,0 +1,30 @@
+{
+  "schema": "zzx-fx-source-urls-v1",
+  "base": "USD",
+  "refresh_interval_ms": 60000,
+  "sources": [
+    {
+      "id": "frankfurter",
+      "url": "https://api.frankfurter.app/latest?from=USD",
+      "adapter": "frankfurter",
+      "priority": 10,
+      "enabled": true,
+      "notes": "ECB-derived fiat rates where available."
+    },
+    {
+      "id": "open_er_api",
+      "url": "https://open.er-api.com/v6/latest/USD",
+      "adapter": "er_api",
+      "priority": 20,
+      "enabled": true
+    },
+    {
+      "id": "floatrates",
+      "url": "https://www.floatrates.com/daily/usd.json",
+      "adapter": "floatrates",
+      "priority": 30,
+      "enabled": true
+    }
+  ],
+  "convention": "1 USD = rates[CODE] CODE"
+}
