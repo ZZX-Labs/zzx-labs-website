@@ -281,6 +281,94 @@ def parse_market(provider: dict[str, Any], payload: Any) -> dict[str, Any]:
         row = next(iter(payload.values())) if isinstance(payload, dict) else payload
         return market(pid, label, quote, row["last_price"], row.get("base_volume") or row.get("volume"), row.get("high"), row.get("low"))
 
+    if adapter == "bitbank":
+        row = payload.get("data") or payload
+        return market(pid, label, quote, row.get("last"), row.get("vol"), row.get("high"), row.get("low"))
+
+    if adapter == "zaif":
+        return market(pid, label, quote, payload.get("last"), payload.get("volume"), payload.get("high"), payload.get("low"))
+
+    if adapter == "gmo_coin":
+        rows = payload.get("data") or []
+        row = rows[0] if isinstance(rows, list) and rows else {}
+        return market(pid, label, quote, row.get("last"), row.get("volume"), row.get("high"), row.get("low"))
+
+    if adapter == "coinone":
+        rows = payload.get("tickers") or payload.get("ticker") or payload.get("data") or []
+        row = rows[0] if isinstance(rows, list) and rows else rows if isinstance(rows, dict) else {}
+        return market(
+            pid, label, quote,
+            first_value(row, "last", "last_price", "close"),
+            first_value(row, "target_volume", "volume", "yesterday_last_volume"),
+            first_value(row, "high", "high_price"),
+            first_value(row, "low", "low_price"),
+        )
+
+    if adapter == "korbit":
+        return market(pid, label, quote, payload.get("last"), payload.get("volume"), payload.get("high"), payload.get("low"))
+
+    if adapter == "buda":
+        row = payload.get("ticker") or {}
+        last = row.get("last_price")
+        volume = row.get("volume")
+        if isinstance(last, list):
+            last = last[0] if last else None
+        if isinstance(volume, list):
+            volume = volume[0] if volume else None
+        return market(pid, label, quote, last, volume)
+
+    if adapter == "bitvavo":
+        row = payload[0] if isinstance(payload, list) and payload else payload
+        return market(pid, label, quote, row.get("last"), row.get("volume"), row.get("high"), row.get("low"))
+
+    if adapter == "paymium":
+        return market(pid, label, quote, first_value(payload, "price", "last", "midpoint", "vwap"), payload.get("volume"), payload.get("high"), payload.get("low"))
+
+    if adapter == "max_exchange":
+        row = payload.get("ticker") or payload
+        return market(pid, label, quote, row.get("last"), row.get("volume"), row.get("high"), row.get("low"))
+
+    if adapter == "bitopro":
+        row = payload.get("data") or payload
+        return market(
+            pid, label, quote,
+            first_value(row, "lastPrice", "last_price", "last"),
+            first_value(row, "volume24hr", "volume24h", "volume"),
+            first_value(row, "high24hr", "high24h", "high"),
+            first_value(row, "low24hr", "low24h", "low"),
+        )
+
+    if adapter == "novadax":
+        rows = payload.get("data") or []
+        row = next((x for x in rows if str(x.get("symbol") or "").upper() in ("BTC_BRL", "BTCBRL")), rows[0] if rows else {})
+        return market(
+            pid, label, quote,
+            first_value(row, "lastPrice", "last_price", "last"),
+            first_value(row, "amount24h", "baseVolume", "volume"),
+            first_value(row, "high24h", "high"),
+            first_value(row, "low24h", "low"),
+        )
+
+    if adapter == "coindcx":
+        rows = payload if isinstance(payload, list) else payload.get("data") or []
+        row = next((x for x in rows if str(x.get("market") or x.get("symbol") or "").replace("_", "").upper() == "BTCINR"), {})
+        return market(
+            pid, label, quote,
+            first_value(row, "last_price", "lastPrice", "last"),
+            first_value(row, "volume", "base_volume", "baseVolume"),
+            first_value(row, "high", "high24h"),
+            first_value(row, "low", "low24h"),
+        )
+
+    if adapter == "coins_ph":
+        return market(
+            pid, label, quote,
+            first_value(payload, "lastPrice", "last_price", "last"),
+            first_value(payload, "volume", "baseVolume", "base_volume"),
+            first_value(payload, "highPrice", "high24h", "high"),
+            first_value(payload, "lowPrice", "low24h", "low"),
+        )
+
     raise ValueError(f"unsupported adapter {adapter!r}")
 
 
@@ -338,6 +426,16 @@ def calculate_index(markets: list[dict[str, Any]]) -> tuple[float, float]:
     return price, total_volume
 
 
+def weighted_metric(markets: list[dict[str, Any]], key: str, fallback_key: str = "price_usd") -> float:
+    weighted = [m for m in markets if positive(m.get("volume_24h_btc")) > 0 and positive(m.get(key) or m.get(fallback_key)) > 0]
+    total = sum(float(m["volume_24h_btc"]) for m in weighted)
+    if weighted and total > 0:
+        return sum(float(m.get(key) or m.get(fallback_key)) * float(m["volume_24h_btc"]) for m in weighted) / total
+    values = [positive(m.get(key) or m.get(fallback_key)) for m in markets]
+    values = [v for v in values if math.isfinite(v)]
+    return sum(values) / len(values) if values else math.nan
+
+
 class Collector:
     def __init__(self, root: Path, proxy_url: str | None = None):
         self.root = root
@@ -355,6 +453,13 @@ class Collector:
         self.provider_due: dict[str, float] = {}
         self.health: dict[str, Any] = {}
         self.history = HistoryStore(root / "bitcoin/bpi/history.sqlite3")
+        self.static_history_path = self.api / "history-live.json"
+        previous_static = load_json(self.static_history_path, {})
+        self.static_history: dict[str, list[dict[str, Any]]] = (
+            previous_static.get("series", {})
+            if isinstance(previous_static, dict) and isinstance(previous_static.get("series"), dict)
+            else {}
+        )
 
     def refresh_fx(self, now: float) -> None:
         if now < self.next_fx:
@@ -565,6 +670,10 @@ class Collector:
                         raise ValueError(f"missing/invalid USD FX normalization for {row['quote']}")
 
                     row["price_usd"] = usd
+                    hi_native = positive(row.get("high_24h_native"))
+                    lo_native = positive(row.get("low_24h_native"))
+                    row["high_24h_usd"] = normalize_usd(float(hi_native), row["quote"], self.fx_rates) if math.isfinite(hi_native) else usd
+                    row["low_24h_usd"] = normalize_usd(float(lo_native), row["quote"], self.fx_rates) if math.isfinite(lo_native) else usd
                     if cfg.get("market_id"):
                         row["pair"] = str(cfg["market_id"])
                     row["market_key"] = key
@@ -601,6 +710,62 @@ class Collector:
 
         return list(by_market.values())
 
+    def append_static_history(self, source: str, price: float, volume: float | None, ts_ms: int) -> None:
+        p = positive(price)
+        if not math.isfinite(p):
+            return
+
+        bucket = (int(ts_ms) // 60_000) * 60_000
+        rows = self.static_history.setdefault(str(source), [])
+        v = nonnegative(volume)
+        volume_value = float(v) if math.isfinite(v) else None
+
+        if rows and int(rows[-1].get("t") or -1) == bucket:
+            row = rows[-1]
+            row["high"] = max(float(row.get("high") or p), p)
+            row["low"] = min(float(row.get("low") or p), p)
+            previous_close = float(row.get("close") or p)
+            row["close"] = p
+            row["price"] = p
+            row["volume_24h_btc"] = volume_value
+            row["change"] = p - previous_close
+            row["change_pct"] = ((p - previous_close) / previous_close * 100.0) if previous_close else None
+        else:
+            previous_close = float(rows[-1].get("close") or p) if rows else None
+            change = (p - previous_close) if previous_close is not None else None
+            rows.append({
+                "t": bucket,
+                "open": p,
+                "high": p,
+                "low": p,
+                "close": p,
+                "price": p,
+                "volume_24h_btc": volume_value,
+                "change": change,
+                "change_pct": (change / previous_close * 100.0) if previous_close not in (None, 0) else None,
+            })
+
+        if len(rows) > 1_440:
+            del rows[:-1_440]
+
+    def write_static_history(self, ts_ms: int, core_bpi: float, core_volume: float, global_bpi: float, total_volume: float, exchanges: dict[str, Any]) -> None:
+        if math.isfinite(core_bpi):
+            self.append_static_history("bpi", core_bpi, core_volume, ts_ms)
+        if math.isfinite(global_bpi):
+            self.append_static_history("global-bpi", global_bpi, total_volume, ts_ms)
+
+        for exchange_id, row in exchanges.items():
+            p = positive(row.get("price_usd"))
+            if math.isfinite(p):
+                self.append_static_history(exchange_id, p, row.get("volume_24h_btc"), ts_ms)
+
+        atomic_json(self.static_history_path, {
+            "schema": "zzx-bpi-history-live-v1",
+            "updated_at": utcnow(),
+            "resolution": "1m-live-close",
+            "series": self.static_history,
+        })
+
     def write_price_snapshots(self, markets: list[dict[str, Any]]) -> None:
         # Remove invalid/non-finite values before JSON serialization.
         valid = []
@@ -628,6 +793,11 @@ class Collector:
             core_bpi = global_bpi
             core_volume = total_volume
 
+        global_high = weighted_metric(valid, "high_24h_usd")
+        global_low = weighted_metric(valid, "low_24h_usd")
+        core_high = weighted_metric(core_markets or valid, "high_24h_usd")
+        core_low = weighted_metric(core_markets or valid, "low_24h_usd")
+
         exchanges = {}
         grouped: dict[str, list[dict[str, Any]]] = {}
         for m in valid:
@@ -647,6 +817,8 @@ class Collector:
                 "fiat_quotes": sorted({str(r.get("quote")) for r in rows}),
                 "market_count": len(rows),
                 "volume_24h_btc": volume,
+                "high_24h": weighted_metric(rows, "high_24h_usd"),
+                "low_24h": weighted_metric(rows, "low_24h_usd"),
                 "weight": sum(float(r.get("weight") or 0.0) for r in rows),
                 "updated_at": max((str(r.get("updated_at") or "") for r in rows), default=None),
                 "mode": "exchange-volume-weighted-btc-fiat",
@@ -666,10 +838,14 @@ class Collector:
             "price_usd": core_bpi if math.isfinite(core_bpi) else None,
             "bpi_usd": core_bpi if math.isfinite(core_bpi) else None,
             "volume_24h_btc": core_volume,
+            "high_24h": core_high if math.isfinite(core_high) else None,
+            "low_24h": core_low if math.isfinite(core_low) else None,
             "bpi_exchange_count": len(core_markets) if core_markets else len(valid),
             "global_bpi": {
                 "price_usd": global_bpi if math.isfinite(global_bpi) else None,
                 "volume_24h_btc": total_volume,
+                "high_24h": global_high if math.isfinite(global_high) else None,
+                "low_24h": global_low if math.isfinite(global_low) else None,
                 "market_count": len(valid),
                 "method": "volume_weighted_all_btc_fiat_markets",
             },
@@ -691,6 +867,7 @@ class Collector:
         if math.isfinite(global_bpi):
             self.history.append_index(ts_ms, "global-bpi", global_bpi, total_volume)
         self.history.commit()
+        self.write_static_history(ts_ms, core_bpi, core_volume, global_bpi, total_volume, exchanges)
 
     def run_once(self) -> None:
         now = time.monotonic()
