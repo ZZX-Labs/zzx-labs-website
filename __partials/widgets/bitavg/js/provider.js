@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgProvider?.__version>=6)return;
+  if(W.ZZXBitAvgProvider?.__version>=7)return;
 
 
   async function browserLive(){
@@ -68,5 +68,5 @@
     }
   }
 
-  W.ZZXBitAvgProvider=Object.freeze({__version:6,load});
+  W.ZZXBitAvgProvider=Object.freeze({__version:7,load});
 })();
