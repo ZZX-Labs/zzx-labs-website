@@ -1,36 +1,57 @@
 <!-- __partials/widgets/btc-gif-price/widget.html -->
-<div class="btc-card btc-gif">
-  <div class="btc-gif__header">
+<div class="btc-card btc-gif-price">
+  <div class="btc-gif-price__header">
     <div>
       <div class="btc-card__title">BTC GIF Price</div>
-      <div class="btc-gif__eyebrow">animated price overlay · ZZX BPI</div>
+      <div class="btc-gif-price__eyebrow">condition-driven GIF + live Bitcoin telemetry overlay</div>
     </div>
-    <span class="btc-card__status" data-btcgif-status data-status="offline" aria-live="polite">loading</span>
+    <span class="btc-card__status" data-gif-status data-status="offline" aria-live="polite">loading</span>
   </div>
 
-  <div class="btc-gif__stage">
-    <canvas data-btcgif-canvas role="img" aria-label="Animated Bitcoin GIF with live Bitcoin price overlay"></canvas>
-    <img data-btcgif-image alt="" hidden>
+  <div class="btc-gif-price__state">
+    <div>
+      <span>trigger</span>
+      <strong data-gif-condition>—</strong>
+    </div>
+    <div>
+      <span>pool</span>
+      <strong data-gif-pool>—</strong>
+    </div>
+    <div>
+      <span>signals</span>
+      <strong data-gif-signals>—</strong>
+    </div>
   </div>
 
-  <div class="btc-gif__meta">
-    <span data-btcgif-name>—</span>
-    <span data-btcgif-market>—</span>
+  <div class="btc-gif-price__stage">
+    <canvas data-gif-canvas role="img" aria-label="Condition-driven Bitcoin GIF with live telemetry overlay"></canvas>
+    <img data-gif-image alt="" hidden>
   </div>
 
-  <div class="btc-gif__controls">
-    <button type="button" class="zzx-widgets__btn" data-btcgif-random>Random GIF</button>
+  <div class="btc-gif-price__meta">
+    <span data-gif-name>—</span>
+    <span data-gif-source>—</span>
+  </div>
+
+  <div class="btc-gif-price__controls">
+    <button type="button" class="zzx-widgets__btn" data-gif-random>Random current condition</button>
 
     <label>
-      <span>auto</span>
-      <select data-btcgif-auto aria-label="GIF auto-cycle interval">
+      <span>auto pool cycle</span>
+      <select data-gif-auto aria-label="GIF condition-pool auto-cycle interval">
         <option value="0">off</option>
-        <option value="30">30 sec</option>
+        <option value="15">15 sec</option>
+        <option value="30" selected>30 sec</option>
         <option value="60">60 sec</option>
         <option value="300">5 min</option>
       </select>
     </label>
 
-    <button type="button" class="zzx-widgets__btn" data-btcgif-refresh>Refresh price</button>
+    <button type="button" class="zzx-widgets__btn" data-gif-refresh>Refresh telemetry</button>
+  </div>
+
+  <div class="btc-gif-price__footer">
+    <span data-gif-updated>updated —</span>
+    <span>widget-local GIF library</span>
   </div>
 </div>
