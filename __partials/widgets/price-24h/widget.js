@@ -59,7 +59,7 @@
       });
       state.chart.setData(data.points||[],state.recipe);
       q(root,"[data-mini-status]").textContent=
-        `${data.points?.length||0} points · ${data.resolution||"auto"} · ${source()}`;
+        `${data.points?.length||0} points · ${data.resolution||"auto"} · ${source()} · ${data.transport||"history"}`;
     }catch(error){
       q(root,"[data-mini-status]").textContent=`history error: ${String(error?.message||error)}`;
       state.chart.setData([],state.recipe);
