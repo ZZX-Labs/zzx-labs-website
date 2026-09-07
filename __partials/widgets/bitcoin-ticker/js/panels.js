@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPanels?.__version>=1)return;
+  if(W.ZZXBitcoinTickerPanels?.__version>=2)return;
 
   const KEY="zzx.widget.bitcoin-ticker.panels.v1";
   const categoryButtons=[
@@ -155,40 +155,95 @@
       ? Object.entries(latest.exchanges)
       : [];
 
-    rows.sort((a,b)=>Number(b[1]?.weight||0)-Number(a[1]?.weight||0));
+    const checked=rows.map(([id,row])=>{
+      const eligible=W.ZZXBitcoinTickerSelection?.exchangeEligible
+        ? W.ZZXBitcoinTickerSelection.exchangeEligible(
+            state?.config,
+            id,
+            row
+          )
+        : row?.index_eligible!==false;
+
+      const safeWeight=
+        eligible&&Number.isFinite(Number(row?.weight))
+          ? Number(row.weight)
+          : 0;
+
+      return {id,row,eligible,safeWeight};
+    });
+
+    checked.sort((a,b)=>{
+      if(a.eligible!==b.eligible)return a.eligible?-1:1;
+      return b.safeWeight-a.safeWeight;
+    });
 
     body.replaceChildren();
 
-    for(const [id,row] of rows){
+    let activeCount=0;
+    let quarantinedCount=0;
+
+    for(const {id,row,eligible,safeWeight} of checked){
       const tr=D.createElement("tr");
 
-      const values=[
-        row.label||id,
-        Array.isArray(row.fiat_quotes)?row.fiat_quotes.join(", "):(row.quote||"—"),
-        Number.isFinite(Number(row.price_usd))
-          ? Number(row.price_usd).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2})
-          : "—",
-        Number.isFinite(Number(row.volume_24h_btc))
-          ? `${Number(row.volume_24h_btc).toLocaleString(undefined,{maximumFractionDigits:2})} BTC`
-          : "—",
-        Number.isFinite(Number(row.weight))
-          ? `${(Number(row.weight)*100).toFixed(3)}%`
-          : "—",
-        row.updated_at?new Date(row.updated_at).toLocaleTimeString():"—"
-      ];
+      if(eligible){
+        activeCount+=1;
+      }else{
+        quarantinedCount+=1;
+        tr.dataset.marketState="quarantined";
+        tr.title=String(
+          row.exclusion_reason ||
+          state?.config?.exchangesData?.sources?.[id]?.notes ||
+          "Excluded from BPI by market sanity policy"
+        );
+      }
 
-      values.forEach(v=>{
+      const label=eligible
+        ? (row.label||id)
+        : `${row.label||id} · QUARANTINED`;
+
+      const quote=Array.isArray(row.fiat_quotes)
+        ? row.fiat_quotes.join(", ")
+        : (row.quote||"—");
+
+      const price=
+        eligible&&Number.isFinite(Number(row.price_usd))
+          ? Number(row.price_usd).toLocaleString(undefined,{
+              style:"currency",
+              currency:"USD",
+              maximumFractionDigits:2
+            })
+          : "—";
+
+      const volume=
+        eligible&&Number.isFinite(Number(row.volume_24h_btc))
+          ? `${Number(row.volume_24h_btc).toLocaleString(undefined,{maximumFractionDigits:2})} BTC`
+          : "—";
+
+      const weight=eligible
+        ? `${(safeWeight*100).toFixed(3)}%`
+        : "0.000%";
+
+      const updated=row.updated_at
+        ? new Date(row.updated_at).toLocaleTimeString()
+        : "—";
+
+      for(const value of [label,quote,price,volume,weight,updated]){
         const td=D.createElement("td");
-        td.textContent=String(v);
+        td.textContent=String(value);
         tr.appendChild(td);
-      });
+      }
 
       body.appendChild(tr);
     }
 
     const meta=root.querySelector("[data-exchange-market-meta]");
     if(meta){
-      meta.textContent=`${rows.length} active exchange sources · local BPI mirror`;
+      meta.textContent=
+        `${activeCount} active exchange sources`+
+        (quarantinedCount
+          ? ` · ${quarantinedCount} quarantined`
+          : "")+
+        " · BPI sanity gated";
     }
   }
 
@@ -210,7 +265,7 @@
   }
 
   W.ZZXBitcoinTickerPanels=Object.freeze({
-    __version:1,
+    __version:2,
     mount,
     update,
     setPanel,
