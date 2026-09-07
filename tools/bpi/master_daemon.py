@@ -34,7 +34,10 @@ def main()->int:
 
     CHILDREN.append(subprocess.Popen([sys.executable,str(here/"collector.py"),*common]))
     CHILDREN.append(subprocess.Popen([sys.executable,str(here/"reference_updater.py"),*common]))
-    CHILDREN.append(subprocess.Popen([sys.executable,str(here/"history_api.py")]))
+    CHILDREN.append(subprocess.Popen([
+        sys.executable,str(here/"history_api.py"),
+        "--db",str(Path(args.root).resolve()/"bitcoin/bpi/history.sqlite3")
+    ]))
 
     try:
         while CHILDREN:
