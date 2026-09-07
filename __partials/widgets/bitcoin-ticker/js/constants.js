@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerConstants?.__version>=5)return;
+  if(W.ZZXBitcoinTickerConstants?.__version>=6)return;
 
   W.ZZXBitcoinTickerConstants=Object.freeze({
-    __version:5,
+    __version:6,
     refreshMs:1000,
     configTtlMs:60*1000,
     staleAfterMs:5*60*1000,
@@ -30,6 +30,7 @@
       referenceCatalog:"/__partials/widgets/bitcoin-ticker/reference-catalog.json"
     }),
     sharedFxPath:"/__partials/widgets/_shared/zzx-fx.js",
-    sharedChainPath:"/__partials/widgets/_shared/zzx-chain.js"
+    sharedChainPath:"/__partials/widgets/_shared/zzx-chain.js",
+    sharedLiveBpiPath:"/__partials/widgets/_shared/zzx-live-bpi.js"
   });
 })();
