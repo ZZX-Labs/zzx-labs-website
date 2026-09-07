@@ -2,14 +2,12 @@ name: Update BPI Reference Markets
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: bpi-reference-markets
+  group: bpi-hourly-master
   cancel-in-progress: false
 
 env:
@@ -88,9 +86,16 @@ jobs:
               prices_path.read_text(encoding="utf-8")
           )
 
+          national = json.loads(
+              Path(
+                  "bitcoin/bpi/api/reference_national_averages.json"
+              ).read_text(encoding="utf-8")
+          )
+
           pages = catalog.get("pages")
           items = catalog.get("items")
           values = prices.get("prices")
+          national_countries = national.get("countries")
 
           if not isinstance(pages, list) or len(pages) != 16:
               raise SystemExit(
@@ -137,11 +142,54 @@ jobs:
                       f"invalid reference price for {item_id}: {value}"
                   )
 
+          if not isinstance(national_countries, dict):
+              raise SystemExit(
+                  "reference_national_averages.json countries must be an object"
+              )
+
+          for country_code, country in national_countries.items():
+              if not isinstance(country, dict):
+                  raise SystemExit(
+                      f"national reference country {country_code} must be an object"
+                  )
+
+              item_rows = country.get("items")
+
+              if not isinstance(item_rows, dict):
+                  raise SystemExit(
+                      f"national reference country {country_code} items must be an object"
+                  )
+
+              for item_id, row in item_rows.items():
+                  if item_id not in {
+                      str(item.get("id"))
+                      for item in items
+                      if isinstance(item, dict)
+                  }:
+                      raise SystemExit(
+                          f"unknown national reference item {item_id}"
+                      )
+
+                  value = float(
+                      row.get("national_average_usd")
+                  )
+
+                  if not math.isfinite(value) or value <= 0:
+                      raise SystemExit(
+                          f"invalid national average {country_code}/{item_id}"
+                      )
+
+                  if int(row.get("sample_count") or 0) < 1:
+                      raise SystemExit(
+                          f"national average {country_code}/{item_id} has no samples"
+                      )
+
           print(
               "Reference contracts valid: "
               f"pages={len(pages)} "
               f"items={len(items)} "
-              f"priced={len(values)}"
+              f"global_priced={len(values)} "
+              f"national_countries={len(national_countries)}"
           )
           PY
 
