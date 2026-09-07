@@ -60,14 +60,14 @@
 
     for(const [globalName,relative,minVersion] of [
       ["ZZXBitcoinTickerConstants","js/constants.js"],
-      ["ZZXBitcoinTickerDeps","js/deps.js"],
+      ["ZZXBitcoinTickerDeps","js/deps.js",7],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerFX","js/fx.js"],
-      ["ZZXBitcoinTickerSelection","js/selection.js"],
+      ["ZZXBitcoinTickerSelection","js/selection.js",6],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerReferences","js/references.js",6],
       ["ZZXBitcoinTickerDebts","js/debts.js"],
-      ["ZZXBitcoinTickerPanels","js/panels.js"],
+      ["ZZXBitcoinTickerPanels","js/panels.js",2],
       ["ZZXBitcoinTickerWidgetBridge","js/widget-bridge.js"],
       ["ZZXBitcoinTickerCharts","js/charts.js"]
     ]){
