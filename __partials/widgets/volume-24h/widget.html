@@ -3,16 +3,146 @@
   <div class="mini-history__head">
     <div>
       <div class="mini-history__title">Volume · 24h</div>
-      <div class="mini-history__eyebrow">interactive 24h BTC volume history</div>
+      <div class="mini-history__eyebrow" data-volume24-eyebrow>
+        rolling 24h BTC volume · candlesticks + close line
+      </div>
     </div>
+
     <div class="mini-history__actions">
       <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
       <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset zoom</button>
+      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
     </div>
   </div>
-  <div class="mini-history__stage">
-    <canvas data-mini-canvas aria-label="Volume · 24h interactive chart"></canvas>
-    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+
+  <div class="mini-history__toolbar">
+    <div class="mini-history__source">
+      <span>source</span>
+      <strong data-volume24-source>—</strong>
+    </div>
+
+    <label>
+      <span>resolution</span>
+      <select data-volume24-resolution aria-label="Volume history resolution">
+        <option value="auto">auto</option>
+        <option value="5s">5 sec</option>
+        <option value="15s">15 sec</option>
+        <option value="30s">30 sec</option>
+        <option value="1m">1 min</option>
+        <option value="5m">5 min</option>
+      </select>
+    </label>
+
+    <label>
+      <span>plot</span>
+      <select data-volume24-mode aria-label="Volume chart plotting mode">
+        <option value="candles-line">candles + line</option>
+        <option value="candles">candles</option>
+        <option value="line">line</option>
+      </select>
+    </label>
+
+    <label class="mini-history__check">
+      <input type="checkbox" data-volume24-follow checked>
+      <span>follow live edge</span>
+    </label>
   </div>
-  <span class="mini-history__status" data-mini-status>history idle</span>
+
+  <div class="mini-history__stats" aria-label="24 hour rolling BTC volume statistics">
+    <div>
+      <span>current 24h</span>
+      <strong data-volume24-current>—</strong>
+    </div>
+
+    <div>
+      <span>24h ago</span>
+      <strong data-volume24-open>—</strong>
+    </div>
+
+    <div>
+      <span>change</span>
+      <strong data-volume24-change data-tone="flat">—</strong>
+    </div>
+
+    <div>
+      <span>highest</span>
+      <strong data-volume24-high>—</strong>
+    </div>
+
+    <div>
+      <span>lowest</span>
+      <strong data-volume24-low>—</strong>
+    </div>
+
+    <div>
+      <span>range</span>
+      <strong data-volume24-range>—</strong>
+    </div>
+
+    <div>
+      <span>average</span>
+      <strong data-volume24-average>—</strong>
+    </div>
+
+    <div>
+      <span>median</span>
+      <strong data-volume24-median>—</strong>
+    </div>
+  </div>
+
+  <div class="mini-history__stage" data-volume24-stage>
+    <canvas
+      data-mini-canvas
+      tabindex="0"
+      role="img"
+      aria-label="Volume · 24h rolling BTC-volume candlestick and line chart"
+      aria-describedby="volume24-help"
+    ></canvas>
+
+    <div class="mini-history__legend" aria-hidden="true">
+      <span>
+        <i class="mini-history__legend-up"></i>
+        rising volume candle
+      </span>
+
+      <span>
+        <i class="mini-history__legend-down"></i>
+        falling volume candle
+      </span>
+
+      <span data-volume24-line-legend>
+        <i class="mini-history__legend-line"></i>
+        closing volume
+      </span>
+    </div>
+
+    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+
+    <div class="mini-history__empty" data-volume24-empty hidden>
+      <strong>No 24h volume history yet</strong>
+      <span data-volume24-empty-detail>
+        Waiting for rolling-volume history collector data.
+      </span>
+    </div>
+  </div>
+
+  <div class="mini-history__diagnostics">
+    <span data-volume24-points>0 points</span>
+    <span data-volume24-coverage>0% coverage</span>
+    <span data-volume24-cadence>cadence —</span>
+    <span data-volume24-age>age —</span>
+  </div>
+
+  <div class="mini-history__footer">
+    <span class="mini-history__status" data-mini-status aria-live="polite">
+      history idle
+    </span>
+    <span class="mini-history__transport" data-volume24-transport>
+      transport —
+    </span>
+  </div>
+
+  <span class="mini-history__sr" id="volume24-help">
+    Candles show the open, high, low, and close of the rolling 24 hour BTC-volume value inside each selected time bucket. The gold line plots the closing rolling-volume value. Mouse wheel or plus and minus keys zoom. Drag or left and right arrow keys pan. Double click, Escape, or zero resets zoom.
+  </span>
 </div>
