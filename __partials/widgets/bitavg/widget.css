@@ -80,3 +80,41 @@
   .bitavg__details>div{grid-template-columns:1fr;gap:.05rem}
   .bitavg__details strong{text-align:left}
 }
+
+
+.bitavg__weighting{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.65rem;
+  margin-top:.45rem;
+  padding:.38rem .42rem;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:6px;
+  background:rgba(255,255,255,.018);
+  color:var(--bitavg-muted,#b7bf9a);
+  font-size:.62rem;
+}
+.bitavg__toggle{
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  cursor:pointer;
+}
+.bitavg__toggle input{
+  accent-color:var(--bitavg-green,#c0d674);
+}
+@media(max-width:700px){
+  .bitavg__weighting{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
+
+.bitavg__table tr[data-quarantined="true"] td{
+  color:var(--ba-dim);
+  opacity:.72;
+}
+.bitavg__table tr[data-quarantined="true"] td:first-child{
+  color:var(--ba-red);
+}
