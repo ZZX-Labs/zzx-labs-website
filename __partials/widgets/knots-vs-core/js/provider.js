@@ -1,80 +1,35 @@
-// __partials/widgets/knots-vs-core/js/provider.js
 (function(){
   "use strict";
-
   const W=window;
-  if(W.ZZXKnotsCoreProvider?.__version>=3)return;
+  if(W.ZZXKnotsCoreProvider?.__version>=4)return;
 
-  async function load(){
-    if(!W.ZZXBitnodesData)throw new Error("ZZXBitnodesData unavailable");
+  async function load(force=false){
+    if(!W.ZZXBitnodes?.load)throw new Error("ZZXBitnodes v5 unavailable");
+    if(!W.ZZXNodesByVersionModel?.build)throw new Error("ZZXNodesByVersionModel unavailable");
+    if(!W.ZZXKnotsCoreModel?.build)throw new Error("ZZXKnotsCoreModel unavailable");
 
-    const [latestResult,aggregateResult]=await Promise.allSettled([
-      W.ZZXBitnodesData.latest?.(),
-      W.ZZXBitnodesData.aggregate?.()
-    ]);
+    const shared=await W.ZZXBitnodes.load(force);
+    const snapshot=shared?.snapshot;
+    if(!snapshot)throw new Error("shared Bitnodes snapshot unavailable");
 
-    const latest=latestResult.status==="fulfilled"?latestResult.value:null;
-    const aggregate=aggregateResult.status==="fulfilled"?aggregateResult.value:null;
-
-    let counts=null;
-    let sourceParts=[];
-
-    if(latest?.nodes && typeof latest.nodes==="object"){
-      counts=W.ZZXKnotsCoreModel.parseSnapshotNodes(latest.nodes);
-      sourceParts.push("latest snapshot nodes");
+    let versionData=W.ZZXNodesByVersionLatest||W.ZZXNodesByVersion||null;
+    if(!Array.isArray(versionData?.rows)||!versionData.rows.length){
+      versionData=W.ZZXNodesByVersionModel.build(snapshot);
     }
 
-    if((!counts || !(counts.total>0)) && W.ZZXBitnodesData.deriveAgentRows){
-      try{
-        const rows=W.ZZXBitnodesData.deriveAgentRows(latest||aggregate);
-        const parsed=W.ZZXKnotsCoreModel.parseAgentRows(rows);
+    const model=W.ZZXKnotsCoreModel.build(versionData,snapshot,shared.raw);
+    if(!(Number(model.total)>0))throw new Error("no reachable/versioned node population available");
 
-        if(parsed.total>0){
-          counts=parsed;
-          sourceParts.push("deriveAgentRows");
-        }
-      }catch(_){}
-    }
-
-    if(!counts || !(counts.total>0)){
-      const topAgents=
-        aggregate?.top?.agents ||
-        aggregate?.agents ||
-        [];
-
-      const parsed=W.ZZXKnotsCoreModel.parseAgentRows(topAgents);
-      if(parsed.total>0){
-        counts=parsed;
-        sourceParts.push("aggregate agents");
-      }
-    }
-
-    if(!counts || !(counts.total>0)){
-      throw new Error("no user-agent/client counts available in local Bitnodes data");
-    }
-
-    const network={
-      unreachable:Number(
-        aggregate?.counts?.unreachable ??
-        aggregate?.unreachable_nodes
-      )
-    };
-
-    const generated=
-      aggregate?.generated_at ||
-      latest?.generated_at ||
-      latest?.timestamp ||
-      null;
-
-    return {
-      model:W.ZZXKnotsCoreModel.finalize(counts,network),
-      generated,
-      source:sourceParts.join(" + ") || "ZZXBitnodesData"
-    };
+    return Object.freeze({
+      model,
+      versionData,
+      snapshot,
+      generated:Number(snapshot.updatedMs)||null,
+      source:shared.source||snapshot.source||"ZZXBitnodes",
+      transport:shared.transport||"shared",
+      stale:!!shared.stale
+    });
   }
 
-  W.ZZXKnotsCoreProvider=Object.freeze({
-    __version:3,
-    load
-  });
+  W.ZZXKnotsCoreProvider=Object.freeze({__version:4,load});
 })();
