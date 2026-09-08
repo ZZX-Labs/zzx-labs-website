@@ -1,5 +1,5 @@
 {
-  "schema": "zzx-bpi-hourly-config-v1",
+  "schema": "zzx-bpi-hourly-config-v2",
   "capture_seconds": 3120,
   "finalize_margin_seconds": 180,
   "chunk_rows": 50000,
@@ -14,13 +14,16 @@
   },
   "pipeline_order": [
     "continuous price/volume collector",
+    "exchange-rate refresh when updater is installed",
     "latest BPI snapshot",
-    "reference-market + national-reference refresh",
+    "reference-market refresh",
     "national-reference aggregate refresh",
     "sovereign debt/balance refresh",
+    "optional legacy BPI statistics when installed",
     "final latest BPI snapshot",
     "hourly archive sharding",
-    "current/archive validation"
+    "current/archive validation",
+    "conflict-resistant replay publication onto newest main"
   ],
   "orderbook_policy": {
     "ticker_ticks_are_not_orderbook_history": true,
@@ -30,5 +33,14 @@
       "per-market order-book adapter",
       "persistent capture outside ephemeral GitHub-hosted runners"
     ]
+  },
+  "publication": {
+    "strategy": "snapshot changed generated files; fetch/reset newest main; overlay; fresh commit; push; replay on rejection",
+    "rebase_generated_commit": false,
+    "generated_scopes": [
+      "bitcoin/bpi/api",
+      "bitcoin/bpi/archive"
+    ],
+    "shared_actions_concurrency_group": "bpi-hourly-master"
   }
 }

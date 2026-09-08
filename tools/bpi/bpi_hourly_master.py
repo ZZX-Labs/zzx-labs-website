@@ -172,13 +172,38 @@ def main() -> int:
 
     # Sequential BPI maintenance. Reference/sovereign failures are recorded but
     # do not discard successfully captured market history.
-    stage_specs = [
+    stage_specs: list[tuple[str, list[str], bool, int]] = []
+
+    # FX belongs to the hourly BPI cycle. If the repository carries the
+    # exchange-rate updater, run it before index calculation so quote
+    # normalization and every downstream reference stage see the same FX state.
+    exchange_rates = here / "update_exchange_rates.py"
+    if exchange_rates.is_file():
+        stage_specs.append(
+            ("exchange-rates", [str(exchange_rates)], False, 180)
+        )
+
+    stage_specs.extend([
         ("latest-bpi", [str(here / "update_latest.py")], True, 120),
         ("reference-markets", [str(here / "reference_updater.py"), "--root", str(root), "--references-only"], False, 180),
         ("reference-national-averages", [str(here / "update_reference_national_averages.py"), "--root", str(root)], False, 60),
         ("sovereign-debt-balances", [str(here / "update_sovereign_data.py"), "--root", str(root), "--minimum-available", "10"], False, 240),
-        ("latest-bpi-final", [str(here / "update_latest.py")], True, 120),
-    ]
+    ])
+
+    # Preserve older BPI-derived statistics when those modules exist in a
+    # deployment. They remain optional because newer branches may fold them
+    # into the main collector/reference pipeline.
+    for stage_id, filename, timeout in [
+        ("deadopop", "update_deadopop.py", 180),
+        ("themarketbtccreated", "update_themarketbtccreated.py", 180),
+    ]:
+        module = here / filename
+        if module.is_file():
+            stage_specs.append((stage_id, [str(module)], False, timeout))
+
+    stage_specs.append(
+        ("latest-bpi-final", [str(here / "update_latest.py")], True, 120)
+    )
 
     critical_failed = False
     for stage_id, argv, critical, timeout in stage_specs:
@@ -220,11 +245,23 @@ def main() -> int:
         stage["critical"] = True
         status["stages"].append(stage)
         if stage["ok"]:
-            try:
-                payload = json.loads(stage["stdout"])
-                status["archive_manifests"].append(payload.get("manifest_path"))
-            except Exception:
-                status["warnings"].append("archive stage succeeded but manifest path could not be parsed")
+            # The sharder prints a large provider-coverage object. run_command()
+            # deliberately truncates captured stdout for status size, so parsing
+            # that truncated text is not reliable. The hourly manifest location
+            # is deterministic; record it directly and verify that it exists.
+            dt = datetime.fromtimestamp(window_start / 1000, timezone.utc)
+            manifest_rel = (
+                Path("bitcoin/bpi/archive/hourly")
+                / dt.strftime("%Y/%m/%d/%H")
+                / "manifest.json"
+            ).as_posix()
+            if (root / manifest_rel).is_file():
+                status["archive_manifests"].append(manifest_rel)
+            else:
+                status["warnings"].append(
+                    f"archive stage succeeded but manifest is missing: {manifest_rel}"
+                )
+                critical_failed = True
         else:
             critical_failed = True
 
