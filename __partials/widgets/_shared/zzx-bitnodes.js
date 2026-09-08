@@ -4,7 +4,7 @@
   const W=window;
   const D=document;
 
-  if(W.ZZXBitnodes?.__version>=4)return;
+  if(W.ZZXBitnodes?.__version>=5)return;
 
   const DEFAULT_REFRESH_MS=60_000;
   const DEFAULT_STALE_MS=24*60*60*1000;
@@ -210,8 +210,10 @@
           ? Math.max(60_000,finite(payload.stale_ms))
           : DEFAULT_STALE_MS,
         localFreshMs:Number.isFinite(finite(payload?.local_fresh_ms))
-          ? Math.max(15_000,finite(payload.local_fresh_ms))
-          : 120_000,
+          ? Math.max(60_000,finite(payload.local_fresh_ms))
+          : 900_000,
+        browserDirectUpstream:
+          payload?.browser_direct_upstream===true,
         localCandidates:Array.isArray(payload?.local_candidates)
           ? payload.local_candidates.filter(Boolean)
           : localCandidates,
@@ -583,7 +585,7 @@
     }
 
     const snapshot=Object.freeze({
-      schema:"zzx-bitnodes-normalized-v4",
+      schema:"zzx-bitnodes-normalized-v5",
       source,
       reachableNodes:Number.isFinite(reachable)?reachable:null,
       totalNodes:Number.isFinite(total)?total:null,
@@ -648,13 +650,15 @@
       });
     }
 
-    for(const upstream of cfg.upstreams){
-      rows.push({
-        id:upstream.id,
-        url:`${upstream.base}/snapshots/latest/`,
-        local:false,
-        transport:"upstream"
-      });
+    if(cfg.browserDirectUpstream){
+      for(const upstream of cfg.upstreams){
+        rows.push({
+          id:upstream.id,
+          url:`${upstream.base}/snapshots/latest/`,
+          local:false,
+          transport:"upstream"
+        });
+      }
     }
 
     return rows;
@@ -675,6 +679,7 @@
 
     state.inflight=(async()=>{
       let lastError=null;
+      let staleLocal=null;
 
       for(const candidate of await candidateList()){
         try{
@@ -692,16 +697,31 @@
             throw new Error(`${candidate.id} contained no usable node snapshot`);
           }
 
-          if(candidate.local){
-            const stamp=finite(snapshot.updatedMs);
+          const stamp=finite(snapshot.updatedMs);
+          const snapshotAge=
+            Number.isFinite(stamp)
+              ? Math.max(0,Date.now()-stamp)
+              : NaN;
+
+          if(
+            candidate.local &&
+            Number.isFinite(snapshotAge) &&
+            snapshotAge>cfg.localFreshMs
+          ){
             if(
-              Number.isFinite(stamp) &&
-              Date.now()-stamp>cfg.localFreshMs
+              snapshotAge<=cfg.staleMs &&
+              (
+                !staleLocal ||
+                stamp>finite(staleLocal.snapshot?.updatedMs)
+              )
             ){
-              throw new Error(
-                `${candidate.id} local snapshot is older than ${Math.round(cfg.localFreshMs/1000)}s`
-              );
+              staleLocal={snapshot,payload,candidate};
             }
+
+            lastError=new Error(
+              `${candidate.id} local snapshot is ${Math.round(snapshotAge/1000)}s old`
+            );
+            continue;
           }
 
           state.snapshot=snapshot;
@@ -721,6 +741,21 @@
         }
       }
 
+      if(staleLocal){
+        state.snapshot=staleLocal.snapshot;
+        state.raw=staleLocal.payload;
+        state.source=staleLocal.candidate.id;
+        state.transport="local-mirror-stale";
+        state.stale=true;
+        state.updatedAt=finite(staleLocal.snapshot.updatedMs)||0;
+        state.fetchedAt=Date.now();
+
+        addHistoryPoint(staleLocal.snapshot);
+        cacheWrite();
+        publish();
+        return stateView();
+      }
+
       const cached=cacheRead();
       if(cached?.snapshot){
         state.snapshot=cached.snapshot;
@@ -731,6 +766,13 @@
         state.fetchedAt=finite(cached.fetchedAt)||0;
         publish();
         return stateView();
+      }
+
+      if(!cfg.browserDirectUpstream){
+        throw new Error(
+          "Local Bitnodes mirror is not seeded. Run ZZX Data Mirror Master once to generate " +
+          "/bitcoin/bitnodes/api/zzxbitnodes/latest.json."
+        );
       }
 
       throw lastError||new Error("all Bitnodes sources unavailable");
@@ -826,7 +868,7 @@
   }
 
   W.ZZXBitnodes=Object.freeze({
-    __version:4,
+    __version:5,
     EVENT,
     load,
     current,
