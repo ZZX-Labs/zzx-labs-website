@@ -11,11 +11,77 @@ from typing import Any, Mapping
 THIS=Path(__file__).resolve()
 REPO_ROOT=THIS.parents[3]
 TOOLS=REPO_ROOT/'tools'/'bitnodes'
+MAP_TOOLS=TOOLS/'map'
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
+if str(MAP_TOOLS) not in sys.path:
+    sys.path.insert(0,str(MAP_TOOLS))
 
 import geo_contract  # noqa: E402
 import merge_sources  # noqa: E402
+import ensure_geo_data  # noqa: E402
+
+
+
+def required_geodata(geoip_dir: Path, geo_root: Path) -> list[Path]:
+    return [
+        geoip_dir / "dbip-city-lite.mmdb",
+        geoip_dir / "dbip-country-lite.mmdb",
+        geoip_dir / "dbip-asn-lite.mmdb",
+        geo_root / "sources" / "admin1CodesASCII.txt",
+        geo_root / "sources" / "admin2Codes.txt",
+        geo_root / "sources" / "cities500.txt",
+    ]
+
+
+def geodata_ready(geoip_dir: Path, geo_root: Path) -> bool:
+    return all(path.is_file() and path.stat().st_size > 0 for path in required_geodata(geoip_dir, geo_root))
+
+
+def bootstrap_geodata(
+    geoip_dir: Path,
+    geo_root: Path,
+    *,
+    months_back: int = 6,
+    timeout: int = 60,
+    retries: int = 3,
+) -> dict[str, Any]:
+    """Ensure Map Host geolocation assets exist before opening the lookup layer.
+
+    This is intentionally part of prepare_canonical itself. The workflow also
+    runs ensure_geo_data.py explicitly, but keeping the bootstrap here removes
+    any ordering dependency between workflow revisions.
+    """
+    if geodata_ready(geoip_dir, geo_root):
+        return {
+            "schema": "zzx-bitnodes-map-geodata-bootstrap-v1",
+            "mode": "existing",
+            "verified": ensure_geo_data.verify(geoip_dir, geo_root),
+        }
+
+    geoip_dir.mkdir(parents=True, exist_ok=True)
+    (geo_root / "sources").mkdir(parents=True, exist_ok=True)
+
+    dbip = ensure_geo_data.ensure_dbip(
+        geoip_dir,
+        months_back=max(1, int(months_back)),
+        timeout=max(5, int(timeout)),
+        retries=max(1, int(retries)),
+    )
+    geonames = ensure_geo_data.ensure_geonames(
+        geo_root,
+        timeout=max(5, int(timeout)),
+        retries=max(1, int(retries)),
+    )
+    verified = ensure_geo_data.verify(geoip_dir, geo_root)
+
+    return {
+        "schema": "zzx-bitnodes-map-geodata-bootstrap-v1",
+        "mode": "download",
+        "dbip": dbip,
+        "geonames": geonames,
+        "verified": verified,
+    }
 
 
 def read_json(path: Path) -> Any:
@@ -92,12 +158,46 @@ def enrich_source(source: str, path: Path, *, lookup: Any, work_dir: Path, compa
     return out,{"source":source,"input":str(path),"before":before,"after":{k:int(report.get(k) or 0) for k in ('country','city','county','coordinates')},"public_ip":int(report.get('public_ip') or 0),"overlay_or_non_ip":int(report.get('overlay_or_non_ip') or 0),"non_public_ip":int(report.get('non_public_ip') or 0)}
 
 
-def prepare(repo_root: Path, output: Path, report_path: Path|None, include_original: bool, compact: bool, *, geoip_dir: Path, geo_root: Path, minimum_country: int=1, minimum_coordinates: int=1) -> dict[str,Any]:
+def prepare(
+    repo_root: Path,
+    output: Path,
+    report_path: Path|None,
+    include_original: bool,
+    compact: bool,
+    *,
+    geoip_dir: Path,
+    geo_root: Path,
+    minimum_country: int=1,
+    minimum_coordinates: int=1,
+    bootstrap_geo: bool=True,
+    geo_months_back: int=6,
+    geo_timeout: int=60,
+    geo_retries: int=3,
+) -> dict[str,Any]:
     inputs=discover(repo_root,include_original=include_original)
-    if not inputs: raise RuntimeError('Map Host found no usable full-node source to canonicalize')
-    for required in (geoip_dir/'dbip-city-lite.mmdb',geoip_dir/'dbip-country-lite.mmdb',geoip_dir/'dbip-asn-lite.mmdb'):
-        if not required.is_file() or required.stat().st_size<=0:
-            raise RuntimeError(f'Map Host geolocation database missing: {required}')
+    if not inputs:
+        raise RuntimeError('Map Host found no usable full-node source to canonicalize')
+
+    geodata_report = None
+    if bootstrap_geo:
+        geodata_report = bootstrap_geodata(
+            geoip_dir,
+            geo_root,
+            months_back=geo_months_back,
+            timeout=geo_timeout,
+            retries=geo_retries,
+        )
+
+    missing = [
+        str(path)
+        for path in required_geodata(geoip_dir, geo_root)
+        if not path.is_file() or path.stat().st_size <= 0
+    ]
+    if missing:
+        raise RuntimeError(
+            "Map Host geolocation data unavailable after bootstrap: "
+            + ", ".join(missing)
+        )
 
     source_details=[]
     with tempfile.TemporaryDirectory(prefix='zzx-maphost-geo-') as td:
@@ -122,7 +222,15 @@ def prepare(repo_root: Path, output: Path, report_path: Path|None, include_origi
     output.parent.mkdir(parents=True,exist_ok=True)
     kwargs={"ensure_ascii":False,"separators":(',',':')} if compact else {"ensure_ascii":False,"indent":2}
     output.write_text(json.dumps(payload,**kwargs)+'\n',encoding='utf-8')
-    report={"schema":"zzx-bitnodes-maphost-canonical-prep-v2","mode":"enriched-canonical","output_schema":schema,"node_rows":len(rows),"sources":source_details,"geolocation":counts}
+    report={
+        "schema":"zzx-bitnodes-maphost-canonical-prep-v3",
+        "mode":"enriched-canonical",
+        "output_schema":schema,
+        "node_rows":len(rows),
+        "sources":source_details,
+        "geodata":geodata_report,
+        "geolocation":counts,
+    }
     if report_path:
         report_path.parent.mkdir(parents=True,exist_ok=True); report_path.write_text(json.dumps(report,**kwargs)+'\n',encoding='utf-8')
     return report
@@ -130,9 +238,36 @@ def prepare(repo_root: Path, output: Path, report_path: Path|None, include_origi
 
 def main()->int:
     ap=argparse.ArgumentParser(description='Enrich current Bitnodes sources from public IPs and prepare canonical v2 for Map Host.')
-    ap.add_argument('--repo-root',default=str(REPO_ROOT)); ap.add_argument('--output',required=True); ap.add_argument('--report',default=''); ap.add_argument('--include-original',action='store_true'); ap.add_argument('--minimum-nodes',type=int,default=1); ap.add_argument('--minimum-country',type=int,default=1); ap.add_argument('--minimum-coordinates',type=int,default=1); ap.add_argument('--geoip-dir',default=str(REPO_ROOT/'bitcoin'/'bitnodes'/'data'/'geoip')); ap.add_argument('--geo-root',default=str(REPO_ROOT/'bitcoin'/'bitnodes'/'data'/'geo')); ap.add_argument('--compact',action='store_true')
+    ap.add_argument('--repo-root',default=str(REPO_ROOT))
+    ap.add_argument('--output',required=True)
+    ap.add_argument('--report',default='')
+    ap.add_argument('--include-original',action='store_true')
+    ap.add_argument('--minimum-nodes',type=int,default=1)
+    ap.add_argument('--minimum-country',type=int,default=1)
+    ap.add_argument('--minimum-coordinates',type=int,default=1)
+    ap.add_argument('--geoip-dir',default=str(REPO_ROOT/'bitcoin'/'bitnodes'/'data'/'geoip'))
+    ap.add_argument('--geo-root',default=str(REPO_ROOT/'bitcoin'/'bitnodes'/'data'/'geo'))
+    ap.add_argument('--geo-months-back',type=int,default=6)
+    ap.add_argument('--geo-timeout',type=int,default=60)
+    ap.add_argument('--geo-retries',type=int,default=3)
+    ap.add_argument('--no-bootstrap-geodata',action='store_true')
+    ap.add_argument('--compact',action='store_true')
     args=ap.parse_args()
-    report=prepare(Path(args.repo_root).resolve(),Path(args.output),Path(args.report) if args.report else None,bool(args.include_original),bool(args.compact),geoip_dir=Path(args.geoip_dir),geo_root=Path(args.geo_root),minimum_country=args.minimum_country,minimum_coordinates=args.minimum_coordinates)
+    report=prepare(
+        Path(args.repo_root).resolve(),
+        Path(args.output),
+        Path(args.report) if args.report else None,
+        bool(args.include_original),
+        bool(args.compact),
+        geoip_dir=Path(args.geoip_dir),
+        geo_root=Path(args.geo_root),
+        minimum_country=args.minimum_country,
+        minimum_coordinates=args.minimum_coordinates,
+        bootstrap_geo=not bool(args.no_bootstrap_geodata),
+        geo_months_back=args.geo_months_back,
+        geo_timeout=args.geo_timeout,
+        geo_retries=args.geo_retries,
+    )
     if int(report['node_rows'])<max(1,int(args.minimum_nodes)): raise SystemExit(f'prepared canonical snapshot has too few nodes: {report["node_rows"]}')
     print(json.dumps(report,ensure_ascii=False)); return 0
 
