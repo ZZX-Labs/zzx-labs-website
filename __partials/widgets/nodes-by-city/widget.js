@@ -1,89 +1,130 @@
-// __partials/widgets/nodes-by-city/widget.js
 (function(){
   "use strict";
 
-  const W=window,D=document,ID="nodes-by-city";
+  const W=window;
+  const D=document;
+  const ID="nodes-by-city";
+  const PAGE_KEY="zzx.widget.nodes-by-city.page-size.v5";
 
-  function q(root,sel){
-    return root?root.querySelector(sel):null;
+  function q(root,selector){return root?.querySelector?.(selector)||null}
+  function set(root,selector,value){
+    const el=q(root,selector);
+    if(el)el.textContent=value==null?"—":String(value);
   }
-
-  function int(v){
-    const n=Number(v);
+  function finite(value){
+    const n=Number(value);
+    return Number.isFinite(n)?n:NaN;
+  }
+  function integer(value){
+    const n=finite(value);
     return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
   }
-
-  function pct(v){
-    const n=Number(v);
+  function pct(value){
+    const n=finite(value);
     return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
   }
-
+  function width(el,value){
+    if(!el)return;
+    const n=finite(value);
+    el.style.width=Number.isFinite(n)
+      ? `${Math.max(0,Math.min(100,n*100)).toFixed(2)}%`
+      : "0%";
+  }
+  function safeGet(key){
+    try{return W.localStorage.getItem(key)}catch(_){return null}
+  }
+  function safeSet(key,value){
+    try{W.localStorage.setItem(key,String(value))}catch(_){}
+  }
   function status(root,label,state){
     const el=q(root,"[data-nbc-status]");
     if(!el)return;
     el.textContent=label;
     el.setAttribute("data-status",state||"offline");
   }
-
-  async function ensureModules(core){
-    const base=core?.widgetBase
+  function base(core){
+    return core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/nodes-by-city";
+  }
+  function resolve(path){
+    return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
+  }
+  async function loadScript(path,test,tag){
+    if(test())return;
 
-    for(const [globalName,relative] of [
-      ["ZZXNodesByCitySources","js/sources.js"],
-      ["ZZXNodesByCityFetch","js/fetch.js"],
-      ["ZZXNodesByCityAdapter","js/adapter.js"],
-      ["ZZXNodesByCityProvider","js/provider.js"]
-    ]){
-      if(W[globalName])continue;
+    const src=new URL(resolve(path),W.location.href).href;
+    const existing=[...D.scripts].find(script=>script.src===src);
 
-      const raw=`${base}/${relative}`;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
-
-      await new Promise((resolve,reject)=>{
-        const s=D.createElement("script");
-        s.src=src;
-        s.defer=true;
-        s.addEventListener("load",resolve,{once:true});
-        s.addEventListener("error",reject,{once:true});
-        (D.head||D.documentElement).appendChild(s);
-      });
-
-      if(!W[globalName]){
-        throw new Error(`${relative} did not register ${globalName}`);
+    if(existing){
+      const started=Date.now();
+      while(!test()&&Date.now()-started<1800){
+        await new Promise(done=>W.setTimeout(done,25));
       }
+      if(test())return;
     }
+
+    await new Promise((done,fail)=>{
+      const script=D.createElement("script");
+      script.src=src;
+      script.defer=true;
+      script.dataset.nbcDependency=tag;
+      script.addEventListener("load",done,{once:true});
+      script.addEventListener("error",fail,{once:true});
+      (D.head||D.documentElement).appendChild(script);
+    });
+
+    if(!test())throw new Error(`${path} did not register ${tag}`);
+  }
+
+  async function ensureModules(core){
+    await loadScript(
+      "/__partials/widgets/_shared/zzx-bitnodes.js",
+      ()=>Number(W.ZZXBitnodes?.__version||0)>=5,
+      "ZZXBitnodes"
+    );
+
+    await loadScript(
+      `${base(core)}/js/model.js`,
+      ()=>Number(W.ZZXNodesByCityModel?.__version||0)>=1,
+      "ZZXNodesByCityModel"
+    );
+  }
+
+  function pageSize(root){
+    const n=Number(q(root,"[data-nbc-page-size]")?.value);
+    return [5,10,20,50].includes(n)?n:10;
   }
 
   function filtered(root,state){
-    const needle=String(
-      q(root,"[data-nbc-search]")?.value||""
-    ).trim().toLowerCase();
+    const needle=String(q(root,"[data-nbc-search]")?.value||"")
+      .trim()
+      .toLowerCase();
 
-    if(!needle)return state.result?.rows||[];
+    if(!needle)return state.model?.rows||[];
 
-    return (state.result?.rows||[]).filter(item=>
-      `${item.city} ${item.country} ${item.label}`
-        .toLowerCase()
-        .includes(needle)
+    return (state.model?.rows||[]).filter(row=>
+      [
+        row.city,
+        row.country,
+        row.countryName,
+        row.label
+      ].join(" ").toLowerCase().includes(needle)
     );
   }
 
   function renderTable(root,state){
     const rows=filtered(root,state);
-    const pageSize=W.ZZXNodesByCitySources.pageSize;
-    const pages=Math.max(1,Math.ceil(rows.length/pageSize));
+    const size=pageSize(root);
+    const pages=Math.max(1,Math.ceil(rows.length/size));
 
     state.page=Math.max(0,Math.min(state.page,pages-1));
 
     const body=q(root,"[data-nbc-body]");
+    if(!body)return;
     body.replaceChildren();
 
-    const slice=rows.slice(
-      state.page*pageSize,
-      state.page*pageSize+pageSize
-    );
+    const slice=rows.slice(state.page*size,state.page*size+size);
 
     if(!slice.length){
       const empty=D.createElement("div");
@@ -97,16 +138,20 @@
         row.setAttribute("role","row");
 
         const values=[
-          String(state.page*pageSize+index+1),
-          item.label,
-          int(item.nodes),
-          pct(item.share)
+          String(state.page*size+index+1),
+          item.city,
+          item.country
+            ? `${item.country} · ${item.countryName||item.country}`
+            : "—",
+          integer(item.nodes),
+          pct(item.share),
+          pct(item.geoShare)
         ];
 
         values.forEach((value,i)=>{
           const cell=D.createElement("div");
           cell.setAttribute("role","cell");
-          if(i>=2)cell.classList.add("nodes-by-city__num");
+          if(i>=3)cell.classList.add("nodes-by-city__num");
           cell.textContent=value;
           if(i===1)cell.title=item.label;
           row.appendChild(cell);
@@ -116,90 +161,116 @@
       });
     }
 
-    q(root,"[data-nbc-page]").textContent=
-      `Page ${state.page+1} / ${pages} · ${rows.length} cities`;
+    set(
+      root,
+      "[data-nbc-page]",
+      `Page ${state.page+1} / ${pages} · ${rows.length.toLocaleString()} cit${rows.length===1?"y":"ies"}`
+    );
 
-    q(root,"[data-nbc-prev]").disabled=state.page<=0;
-    q(root,"[data-nbc-next]").disabled=state.page>=pages-1;
+    const prev=q(root,"[data-nbc-prev]");
+    const next=q(root,"[data-nbc-next]");
+    if(prev)prev.disabled=state.page<=0;
+    if(next)next.disabled=state.page>=pages-1;
   }
 
   function render(root,state){
-    const r=state.result;
-    const top=r.rows[0]||null;
+    const result=state.result;
+    const snapshot=result?.snapshot;
+    const m=state.model;
 
-    const coverage=
-      Number.isFinite(r.networkTotal)&&r.networkTotal>0
-        ? r.geolocatedTotal/r.networkTotal
-        : NaN;
+    if(!snapshot||!m)return;
 
-    q(root,"[data-nbc-summary]").textContent=
-      `${int(r.geolocatedTotal)} nodes`;
+    set(root,"[data-nbc-summary]",`${integer(m.geolocatedTotal)} nodes`);
+    set(
+      root,
+      "[data-nbc-sub]",
+      `${m.cityCount.toLocaleString()} distinct city/country row${m.cityCount===1?"":"s"} · ${pct(m.coverage)} reachable coverage`
+    );
+    set(root,"[data-nbc-city-count]",m.cityCount.toLocaleString());
+    set(root,"[data-nbc-top-city]",m.top?.label||"—");
+    set(root,"[data-nbc-top-share]",m.top?pct(m.top.share):"—");
+    set(root,"[data-nbc-coverage]",pct(m.coverage));
 
-    q(root,"[data-nbc-sub]").textContent=
-      `${r.rows.length.toLocaleString()} geolocated cities · ${
-        Number.isFinite(coverage)
-          ? `${pct(coverage)} of reachable-node total`
-          : "network coverage unavailable"
-      }`;
+    width(q(root,"[data-nbc-bar-known]"),m.coverage);
+    width(
+      q(root,"[data-nbc-bar-unknown]"),
+      Number.isFinite(finite(m.coverage))?1-m.coverage:NaN
+    );
 
-    q(root,"[data-nbc-city-count]").textContent=
-      r.rows.length.toLocaleString();
+    set(root,"[data-nbc-known]",`${integer(m.geolocatedTotal)} · ${pct(m.coverage)}`);
+    set(
+      root,
+      "[data-nbc-unknown]",
+      Number.isFinite(finite(m.unidentified))
+        ? `${integer(m.unidentified)} · ${pct(m.denominator>0?m.unidentified/m.denominator:NaN)}`
+        : "—"
+    );
 
-    q(root,"[data-nbc-top-city]").textContent=
-      top?.label||"—";
+    set(root,"[data-nbc-network-total]",integer(m.reachable));
+    set(root,"[data-nbc-decoded]",integer(m.decoded));
+    set(root,"[data-nbc-unlocated]",integer(m.unidentified));
 
-    q(root,"[data-nbc-top-share]").textContent=
-      top?pct(top.share):"—";
-
-    q(root,"[data-nbc-coverage]").textContent=
-      pct(coverage);
-
-    q(root,"[data-nbc-network-total]").textContent=
-      int(r.networkTotal);
-
-    q(root,"[data-nbc-updated]").textContent=
-      Number.isFinite(r.updatedMs)
-        ? new Date(r.updatedMs).toLocaleString()
-        : "—";
-
-    q(root,"[data-nbc-source]").textContent=
-      `${r.source} · ${r.transport}`;
-
-    q(root,"[data-nbc-meta]").textContent=
-      "local ZZX Bitnodes data first · public fallback btcnodes.io · city counts cover only geolocated reachable nodes";
+    const updated=finite(snapshot.updatedMs);
+    set(
+      root,
+      "[data-nbc-updated]",
+      Number.isFinite(updated)?new Date(updated).toLocaleString():"—"
+    );
+    set(
+      root,
+      "[data-nbc-source]",
+      `${result.source||snapshot.source||"—"} · ${result.transport||"shared"}${result.stale?" · stale":""}`
+    );
+    set(
+      root,
+      "[data-nbc-meta]",
+      "ZZXBitnodes v5 shared snapshot · city+country keys · zero per-widget node API calls"
+    );
 
     renderTable(root,state);
-    status(root,"live","ok");
+
+    status(root,result.stale?"cached":"live",result.stale?"warn":"ok");
+
+    const rows=m.rows.map(row=>Object.freeze({
+      city:row.city,
+      country:row.country,
+      countryName:row.countryName,
+      label:row.label,
+      nodes:row.nodes,
+      share:row.share,
+      geoShare:row.geoShare
+    }));
+
+    W.ZZXNodesByCity=Object.freeze({
+      schema:"zzx-nodes-by-city-export-v1",
+      rows:Object.freeze(rows),
+      networkTotal:m.reachable,
+      decoded:m.decoded,
+      geolocatedTotal:m.geolocatedTotal,
+      unidentified:m.unidentified,
+      coverage:m.coverage,
+      updatedMs:updated,
+      source:result.source,
+      transport:result.transport
+    });
+
+    W.ZZXNodesByCityLatest=W.ZZXNodesByCity;
   }
 
-  async function refresh(root,state){
+  async function refresh(root,state,force=false){
     if(state.busy||!root.isConnected)return;
 
     state.busy=true;
     status(root,"refreshing","warn");
 
     try{
-      state.result=await W.ZZXNodesByCityProvider.load();
+      state.result=await W.ZZXBitnodes.load(force);
+      state.model=W.ZZXNodesByCityModel.build(state.result.snapshot);
       state.page=0;
       render(root,state);
-
-      W.ZZXNodesByCityLatest={
-        rows:state.result.rows.map(item=>({...item})),
-        network_total:Number(state.result.networkTotal),
-        geolocated_total:Number(state.result.geolocatedTotal),
-        updated_ms:Number(state.result.updatedMs),
-        source:state.result.source,
-        transport:state.result.transport
-      };
     }catch(error){
-      status(
-        root,
-        state.result?"stale":"offline",
-        state.result?"warn":"error"
-      );
-
-      q(root,"[data-nbc-meta]").textContent=
-        String(error?.message||error);
+      status(root,state.result?"stale":"offline",state.result?"warn":"error");
+      set(root,"[data-nbc-meta]",String(error?.message||error));
     }finally{
       state.busy=false;
     }
@@ -208,12 +279,25 @@
   async function boot(root,core){
     if(!root)return;
 
+    const old=root.__zzxNodesByCityState;
+    old?.unsubscribe?.();
+    old?.abortController?.abort?.();
+    if(old?.searchTimer)W.clearTimeout(old.searchTimer);
+
+    const abortController=typeof AbortController==="function"
+      ? new AbortController()
+      : null;
+    const options=abortController?{signal:abortController.signal}:undefined;
+
     const state={
       core:core||W.ZZXWidgetsCore||null,
       result:null,
+      model:null,
       page:0,
       busy:false,
-      timer:null
+      searchTimer:null,
+      unsubscribe:null,
+      abortController
     };
 
     root.__zzxNodesByCityState=state;
@@ -221,71 +305,55 @@
     try{
       await ensureModules(state.core);
 
-      q(root,"[data-nbc-prev]")?.addEventListener(
-        "click",
-        ()=>{
-          state.page=Math.max(0,state.page-1);
+      const size=q(root,"[data-nbc-page-size]");
+      const saved=Number(safeGet(PAGE_KEY));
+      if(size&&[5,10,20,50].includes(saved))size.value=String(saved);
+
+      q(root,"[data-nbc-prev]")?.addEventListener("click",()=>{
+        state.page=Math.max(0,state.page-1);
+        renderTable(root,state);
+      },options);
+
+      q(root,"[data-nbc-next]")?.addEventListener("click",()=>{
+        state.page+=1;
+        renderTable(root,state);
+      },options);
+
+      q(root,"[data-nbc-search]")?.addEventListener("input",()=>{
+        if(state.searchTimer)W.clearTimeout(state.searchTimer);
+        state.searchTimer=W.setTimeout(()=>{
+          state.page=0;
           renderTable(root,state);
-        }
-      );
+        },120);
+      },options);
 
-      q(root,"[data-nbc-next]")?.addEventListener(
-        "click",
-        ()=>{
-          state.page+=1;
-          renderTable(root,state);
-        }
-      );
-
-      let searchTimer=null;
-
-      q(root,"[data-nbc-search]")?.addEventListener(
-        "input",
-        ()=>{
-          if(searchTimer)W.clearTimeout(searchTimer);
-
-          searchTimer=W.setTimeout(()=>{
-            state.page=0;
-            renderTable(root,state);
-          },120);
-        }
-      );
+      size?.addEventListener("change",()=>{
+        safeSet(PAGE_KEY,pageSize(root));
+        state.page=0;
+        renderTable(root,state);
+      },options);
 
       q(root,"[data-nbc-refresh]")?.addEventListener(
         "click",
-        ()=>refresh(root,state)
+        ()=>refresh(root,state,true),
+        options
       );
 
-      await refresh(root,state);
+      state.unsubscribe=W.ZZXBitnodes.subscribe(detail=>{
+        if(!detail?.snapshot||!root.isConnected)return;
+        state.result=detail;
+        state.model=W.ZZXNodesByCityModel.build(detail.snapshot);
+        render(root,state);
+      },{immediate:false});
 
-      async function loop(){
-        if(!root.isConnected)return;
-
-        await refresh(root,state);
-
-        state.timer=W.setTimeout(
-          loop,
-          W.ZZXNodesByCitySources.refreshMs
-        );
-      }
-
-      state.timer=W.setTimeout(
-        loop,
-        W.ZZXNodesByCitySources.refreshMs
-      );
+      await refresh(root,state,false);
     }catch(error){
       status(root,"offline","error");
-
-      q(root,"[data-nbc-meta]").textContent=
-        String(error?.message||error);
+      set(root,"[data-nbc-meta]",String(error?.message||error));
     }
   }
 
-  if(W.ZZXAPI?.register){
-    W.ZZXAPI.register(ID,boot);
-  }else if(W.ZZXWidgetsCore?.onMount){
-    W.ZZXWidgetsCore.onMount(ID,boot);
-  }else if(W.ZZXWidgets?.register){
-    W.ZZXWidgets.register(ID,boot);
-  }
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
+  else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
+  else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
 })();
