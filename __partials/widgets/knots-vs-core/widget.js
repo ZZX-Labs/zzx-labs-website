@@ -1,153 +1,106 @@
-// __partials/widgets/knots-vs-core/widget.js
 (function(){
   "use strict";
-
   const W=window,D=document,ID="knots-vs-core";
 
-  function q(root,sel){return root?root.querySelector(sel):null}
+  function q(root,sel){return root?.querySelector?.(sel)||null}
+  function set(root,sel,v){const el=q(root,sel);if(el)el.textContent=v==null?"—":String(v)}
+  function finite(v){const n=Number(v);return Number.isFinite(n)?n:NaN}
+  function int(v){const n=finite(v);return Number.isFinite(n)?Math.round(n).toLocaleString():"—"}
+  function pct(v){const n=finite(v);return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—"}
+  function width(el,fraction){if(!el)return;const n=finite(fraction);el.style.width=Number.isFinite(n)?`${Math.max(0,Math.min(100,n*100)).toFixed(2)}%`:"0%"}
+  function status(root,label,state){const el=q(root,"[data-kvc-status]");if(!el)return;el.textContent=label;el.setAttribute("data-status",state||"offline")}
+  function resolve(path){return W.ZZXAPI?.url?W.ZZXAPI.url(path):path}
+  function base(core){return core?.widgetBase?String(core.widgetBase(ID)).replace(/\/+$/g,""):"/__partials/widgets/knots-vs-core"}
 
-  function int(v){
-    const n=Number(v);
-    return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
-  }
-
-  function pct(v){
-    const n=Number(v);
-    return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
-  }
-
-  function width(el,fraction){
-    if(!el)return;
-    const n=Number(fraction);
-    el.style.width=Number.isFinite(n)?`${Math.max(0,Math.min(100,n*100)).toFixed(2)}%`:"0%";
-  }
-
-  function status(root,label,state){
-    const el=q(root,"[data-kvc-status]");
-    if(!el)return;
-    el.textContent=label;
-    el.setAttribute("data-status",state||"offline");
+  async function loadScript(path,test,tag){
+    if(test())return;
+    const src=new URL(resolve(path),W.location.href).href;
+    const existing=[...D.scripts].find(s=>s.src===src);
+    if(existing){
+      const started=Date.now();
+      while(!test()&&Date.now()-started<1800)await new Promise(done=>W.setTimeout(done,25));
+      if(test())return;
+    }
+    await new Promise((done,fail)=>{
+      const s=D.createElement("script");s.src=src;s.defer=true;s.dataset.kvcDependency=tag;
+      s.addEventListener("load",done,{once:true});s.addEventListener("error",fail,{once:true});
+      (D.head||D.documentElement).appendChild(s);
+    });
+    if(!test())throw new Error(`${path} did not register ${tag}`);
   }
 
   async function ensureModules(core){
-    const base=core?.widgetBase
-      ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
-      : "/__partials/widgets/knots-vs-core";
+    await loadScript("/__partials/widgets/_shared/zzx-bitnodes.js",()=>Number(W.ZZXBitnodes?.__version||0)>=5,"ZZXBitnodes");
+    await loadScript("/__partials/widgets/nodes-by-version/js/model.js",()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=1,"ZZXNodesByVersionModel");
+    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXKnotsCoreModel?.__version||0)>=4,"ZZXKnotsCoreModel");
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXKnotsCoreProvider?.__version||0)>=4,"ZZXKnotsCoreProvider");
+  }
 
-    for(const [globalName,relative] of [
-      ["ZZXKnotsCoreModel","js/model.js"],
-      ["ZZXKnotsCoreProvider","js/provider.js"]
-    ]){
-      if(W[globalName])continue;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(`${base}/${relative}`):`${base}/${relative}`;
-      await new Promise((resolve,reject)=>{
-        const s=D.createElement("script");
-        s.src=src;s.defer=true;
-        s.onload=resolve;s.onerror=reject;
-        (D.head||D.documentElement).appendChild(s);
-      });
-    }
+  function filteredVersionRows(root,state){
+    const needle=String(q(root,"[data-kvc-search]")?.value||"").trim().toLowerCase();
+    const client=String(q(root,"[data-kvc-client]")?.value||"all");
+    const sort=String(q(root,"[data-kvc-sort]")?.value||"count-desc");
+    let rows=[...(state.result?.model?.exactRows||[])];
+    if(client!=="all")rows=rows.filter(row=>row.family===client);
+    if(needle)rows=rows.filter(row=>`${row.family} ${row.version} ${row.userAgent}`.toLowerCase().includes(needle));
+    if(sort==="client-version")rows.sort((a,b)=>a.family.localeCompare(b.family)||String(a.version).localeCompare(String(b.version),undefined,{numeric:true})||a.userAgent.localeCompare(b.userAgent));
+    else if(sort==="share-desc")rows.sort((a,b)=>(b.shareIdentified||0)-(a.shareIdentified||0)||b.count-a.count);
+    else rows.sort((a,b)=>b.count-a.count||a.userAgent.localeCompare(b.userAgent));
+    return rows;
+  }
+
+  function renderVersions(root,state){
+    const rows=filteredVersionRows(root,state);
+    set(root,"[data-kvc-version-count]",`${rows.length.toLocaleString()} matching version${rows.length===1?"":"s"}`);
+    const body=q(root,"[data-kvc-version-body]");if(!body)return;body.replaceChildren();
+    if(!rows.length){const empty=D.createElement("div");empty.className="knots-vs-core__empty";empty.textContent="No Core/Knots version rows match this filter.";body.appendChild(empty);return}
+    rows.slice(0,100).forEach(item=>{
+      const row=D.createElement("div");row.className="knots-vs-core__version-row";row.setAttribute("role","row");row.dataset.family=item.family;
+      const vals=[item.family,item.userAgent,int(item.count),pct(item.shareIdentified)];
+      vals.forEach((value,i)=>{const cell=D.createElement("div");cell.setAttribute("role","cell");if(i>=2)cell.classList.add("knots-vs-core__num");cell.textContent=value;if(i===1)cell.title=`${item.family} · ${item.version} · ${item.userAgent}`;row.appendChild(cell)});
+      body.appendChild(row);
+    });
   }
 
   function render(root,state){
-    const m=state.result.model;
-
-    q(root,"[data-kvc-summary]").textContent=
-      `Core ${pct(m.coreVsKnots)} · Knots ${pct(m.knotsVsCore)}`;
-
-    q(root,"[data-kvc-sub]").textContent=
-      "Core-vs-Knots ratio uses only explicitly identified Core and Knots agents; other clients stay separate";
-
-    q(root,"[data-kvc-total-reach]").textContent=int(m.total);
-    q(root,"[data-kvc-core-reach]").textContent=int(m.core);
-    q(root,"[data-kvc-knots-reach]").textContent=int(m.knots);
-    q(root,"[data-kvc-other-reach]").textContent=int(m.other);
-
-    q(root,"[data-kvc-core-pct]").textContent=pct(m.corePct);
-    q(root,"[data-kvc-knots-pct]").textContent=pct(m.knotsPct);
-    q(root,"[data-kvc-other-pct]").textContent=pct(m.otherPct);
-
-    width(q(root,"[data-kvc-bar-core]"),m.corePct);
-    width(q(root,"[data-kvc-bar-knots]"),m.knotsPct);
-    width(q(root,"[data-kvc-bar-other]"),m.otherPct);
-
-    q(root,"[data-kvc-core-row]").textContent=int(m.core);
-    q(root,"[data-kvc-knots-row]").textContent=int(m.knots);
-    q(root,"[data-kvc-other-row]").textContent=int(m.other);
-
-    q(root,"[data-kvc-core-tor]").textContent=int(m.torCore);
-    q(root,"[data-kvc-knots-tor]").textContent=int(m.torKnots);
-    q(root,"[data-kvc-other-tor]").textContent=int(m.torOther);
-
-    q(root,"[data-kvc-core-row-pct]").textContent=pct(m.corePct);
-    q(root,"[data-kvc-knots-row-pct]").textContent=pct(m.knotsPct);
-    q(root,"[data-kvc-other-row-pct]").textContent=pct(m.otherPct);
-
-    q(root,"[data-kvc-unreachable]").textContent=
-      Number.isFinite(m.unreachable)
-        ? `${int(m.unreachable)} network-wide · not attributed to client`
-        : "not supplied by current source";
-
-    q(root,"[data-kvc-generated]").textContent=
-      state.result.generated
-        ? new Date(state.result.generated).toLocaleString()
-        : "—";
-
-    q(root,"[data-kvc-source]").textContent=state.result.source;
-
-    q(root,"[data-kvc-note]").textContent=
-      "local ZZX Bitnodes data · explicit UA buckets · non-Knots nodes are never silently relabeled as Core";
-
-    status(root,"live","ok");
+    const r=state.result,m=r.model;
+    set(root,"[data-kvc-summary]",`Core ${pct(m.coreVsKnots)} · Knots ${pct(m.knotsVsCore)}`);
+    set(root,"[data-kvc-sub]",`Core-vs-Knots uses only explicit Core + Knots UAs · ${int(m.identified)} identified of ${int(m.total)} reachable`);
+    set(root,"[data-kvc-total-reach]",int(m.total));set(root,"[data-kvc-core-reach]",int(m.core));set(root,"[data-kvc-knots-reach]",int(m.knots));set(root,"[data-kvc-other-reach]",int(m.other));
+    set(root,"[data-kvc-core-pct]",pct(m.corePct));set(root,"[data-kvc-knots-pct]",pct(m.knotsPct));set(root,"[data-kvc-other-pct]",pct(m.otherPct));set(root,"[data-kvc-coverage]",`${pct(m.coverage)} identified`);
+    width(q(root,"[data-kvc-bar-core]"),m.corePct);width(q(root,"[data-kvc-bar-knots]"),m.knotsPct);width(q(root,"[data-kvc-bar-other]"),m.otherPct);
+    set(root,"[data-kvc-core-row]",int(m.core));set(root,"[data-kvc-knots-row]",int(m.knots));set(root,"[data-kvc-other-row]",int(m.other));
+    set(root,"[data-kvc-core-tor]",int(m.torCore));set(root,"[data-kvc-knots-tor]",int(m.torKnots));set(root,"[data-kvc-other-tor]",int(m.torOther));
+    set(root,"[data-kvc-core-row-pct]",pct(m.corePct));set(root,"[data-kvc-knots-row-pct]",pct(m.knotsPct));set(root,"[data-kvc-other-row-pct]",pct(m.otherPct));
+    set(root,"[data-kvc-identification]",`${int(m.identified)} / ${int(m.total)} · ${pct(m.coverage)} · ${int(m.unidentifiedReachable)} reachable without decoded UA`);
+    set(root,"[data-kvc-unreachable]",Number.isFinite(m.unreachable)?`${int(m.unreachable)} network-wide · not attributed to client`:"not supplied by current snapshot");
+    set(root,"[data-kvc-generated]",r.generated?new Date(r.generated).toLocaleString():"—");
+    set(root,"[data-kvc-source]",`${r.source} · ${r.transport}${r.stale?" · stale":""}`);
+    set(root,"[data-kvc-note]","shared ZZXBitnodes v5 + Nodes by Version · exact UA classification · zero duplicate node API calls");
+    renderVersions(root,state);
+    status(root,r.stale?"cached":"live",r.stale?"warn":"ok");
+    W.ZZXKnotsVsCoreLatest=Object.freeze({schema:"zzx-knots-vs-core-export-v1",...m,source:r.source,transport:r.transport,generated:r.generated});
   }
 
-  async function refresh(root,state){
-    if(state.busy||!root.isConnected)return;
-    state.busy=true;
-    status(root,"refreshing","warn");
-
-    try{
-      state.result=await W.ZZXKnotsCoreProvider.load();
-      render(root,state);
-    }catch(error){
-      status(root,state.result?"stale":"offline",state.result?"warn":"error");
-      q(root,"[data-kvc-note]").textContent=String(error?.message||error);
-    }finally{
-      state.busy=false;
-    }
+  async function refresh(root,state,force=false){
+    if(state.busy||!root.isConnected)return;state.busy=true;status(root,"refreshing","warn");
+    try{state.result=await W.ZZXKnotsCoreProvider.load(force);render(root,state)}catch(error){status(root,state.result?"stale":"offline",state.result?"warn":"error");set(root,"[data-kvc-note]",String(error?.message||error))}finally{state.busy=false}
   }
 
   async function boot(root,core){
     if(!root)return;
-
-    const state={
-      core:core||W.ZZXWidgetsCore||null,
-      result:null,
-      busy:false,
-      timer:null
-    };
-
-    root.__zzxKnotsCoreState=state;
-
+    const old=root.__zzxKnotsCoreState;old?.unsubscribe?.();old?.abortController?.abort?.();if(old?.searchTimer)W.clearTimeout(old.searchTimer);
+    const abortController=typeof AbortController==="function"?new AbortController():null;const options=abortController?{signal:abortController.signal}:undefined;
+    const state={core:core||W.ZZXWidgetsCore||null,result:null,busy:false,unsubscribe:null,abortController,searchTimer:null};root.__zzxKnotsCoreState=state;
     try{
       await ensureModules(state.core);
-      q(root,"[data-kvc-refresh]")?.addEventListener("click",()=>refresh(root,state));
-      await refresh(root,state);
-
-      async function loop(){
-        if(!root.isConnected)return;
-        await refresh(root,state);
-        state.timer=W.setTimeout(loop,600000);
-      }
-
-      state.timer=W.setTimeout(loop,600000);
-    }catch(error){
-      status(root,"offline","error");
-      q(root,"[data-kvc-note]").textContent=String(error?.message||error);
-    }
+      q(root,"[data-kvc-refresh]")?.addEventListener("click",()=>refresh(root,state,true),options);
+      for(const selector of ["[data-kvc-client]","[data-kvc-sort]"]){q(root,selector)?.addEventListener("change",()=>renderVersions(root,state),options)}
+      q(root,"[data-kvc-search]")?.addEventListener("input",()=>{if(state.searchTimer)W.clearTimeout(state.searchTimer);state.searchTimer=W.setTimeout(()=>renderVersions(root,state),100)},options);
+      state.unsubscribe=W.ZZXBitnodes.subscribe(detail=>{if(!detail?.snapshot||!root.isConnected)return;refresh(root,state,false)},{immediate:false});
+      await refresh(root,state,false);
+    }catch(error){status(root,"offline","error");set(root,"[data-kvc-note]",String(error?.message||error))}
   }
 
-  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
-  else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
-  else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
 })();
