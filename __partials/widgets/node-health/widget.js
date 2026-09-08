@@ -1,31 +1,14 @@
 (function(){
   "use strict";
-  const W=window,ID="node-health";
-  const q=(r,s)=>r?r.querySelector(s):null;
-  const i=v=>Number.isFinite(Number(v))?Math.round(Number(v)).toLocaleString():"—";
-  const p=(v,t)=>Number.isFinite(Number(v))&&Number(t)>0?(100*Number(v)/Number(t)).toFixed(2)+"%":"—";
-  function status(r,l,s){const e=q(r,"[data-node-health-status]");if(e){e.textContent=l;e.setAttribute("data-status",s||"offline")}}
-  async function refresh(root,state){
-    if(state.busy||!root.isConnected)return;state.busy=true;status(root,"refreshing","warn");
-    try{
-      const x=await W.ZZXBitnodesData.aggregate(false),d=x.data||{},c=d.counts||{},t=Number(c.total??d.total_nodes),reach=Number(c.reachable??d.reachable_nodes);
-      q(root,"[data-node-health-reach]").textContent=`${i(reach)} · ${p(reach,t)}`;
-      q(root,"[data-node-health-now]").textContent=`${i(c.reachable_now??d.reachable_now)} · ${p(c.reachable_now??d.reachable_now,t)}`;
-      q(root,"[data-node-health-24h]").textContent=`${i(c.reachable_24h??d.reachable_24h)} · ${p(c.reachable_24h??d.reachable_24h,t)}`;
-      q(root,"[data-node-health-sync]").textContent=`${i(c.synced)} / ${i(c.not_synced)}`;
-      q(root,"[data-node-health-dup]").textContent=i(c.duplicates);
-      const knownSync=Number(c.synced||0)+Number(c.not_synced||0);
-      q(root,"[data-node-health-sub]").textContent=`sync coverage ${p(c.synced,knownSync)} · median latency ${Number(d.latency_ms?.p50||0).toFixed(1)} ms`;
-      q(root,"[data-node-health-meta]").textContent=`${x.source} · height p50 ${i(d.height?.summary?.p50)}`;
-      status(root,"local","ok");
-    }catch(e){status(root,"offline","error");q(root,"[data-node-health-meta]").textContent=String(e?.message||e)}
-    finally{state.busy=false}
-  }
-  async function boot(root){
-    const state={busy:false,timer:null};root.__zzxNodeHealthState=state;
-    q(root,"[data-node-health-refresh]")?.addEventListener("click",()=>refresh(root,state));
-    await refresh(root,state);
-    async function loop(){if(!root.isConnected)return;await refresh(root,state);state.timer=W.setTimeout(loop,600000)}state.timer=W.setTimeout(loop,600000);
-  }
-  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);else W.ZZXWidgetsCore?.onMount?.(ID,boot);
+  const W=window,D=document,ID="node-health";
+  function q(root,sel){return root?.querySelector?.(sel)||null}
+  function s(root,sel,v){const e=q(root,sel);if(e)e.textContent=String(v==null?"—":v)}
+  function n(v){const x=Number(v);return Number.isFinite(x)?Math.round(x).toLocaleString():"—"}
+  function pct(v){const x=Number(v);return Number.isFinite(x)?`${(x*100).toFixed(2)}%`:"—"}
+  function resolve(path){return W.ZZXAPI?.url?W.ZZXAPI.url(path):path}
+  async function ensure(){if(Number(W.ZZXBitnodes?.__version||0)>=5)return;const src=resolve('/__partials/widgets/_shared/zzx-bitnodes.js');await new Promise((done,fail)=>{const sc=D.createElement('script');sc.src=src;sc.defer=true;sc.addEventListener('load',done,{once:true});sc.addEventListener('error',fail,{once:true});(D.head||D.documentElement).appendChild(sc);});if(Number(W.ZZXBitnodes?.__version||0)<5)throw new Error('ZZXBitnodes unavailable');}
+  function render(root,detail){const snap=detail?.snapshot;const raw=detail?.raw||{};if(!snap)return;const total=Number(snap.totalNodes??snap.reachableNodes??0);const reachable=Number(snap.reachableNodes??snap.totalNodes??0);const coverage=total>0?reachable/total:NaN;const nodes=Array.isArray(snap.nodes)?snap.nodes:[];const latest=Number(snap.latestHeight);let synced=0;let behind=0;for(const node of nodes){const h=Number(node?.height);if(!Number.isFinite(h)||!Number.isFinite(latest))continue;if(h>=latest-2)synced+=1;else behind+=1;}const reach24=Number(raw?.reachable_nodes_24h ?? raw?.counts?.reachable_24h ?? raw?.data?.reachable_nodes_24h);s(root,'[data-nh-reach]',`${pct(coverage)} reachable`);s(root,'[data-nh-now]',n(reachable));s(root,'[data-nh-24h]',Number.isFinite(reach24)?n(reach24):n(reachable));s(root,'[data-nh-sync]',`${n(synced)} / ${n(behind)}`);s(root,'[data-nh-status]',`${detail.source||snap.source||'ZZXBitnodes'} · ${detail.stale?'stale cache':'live'}${Number.isFinite(latest)?` · height ${n(latest)}`:''}`);}
+  async function refresh(root,force=false){const detail=await W.ZZXBitnodes.load(force);render(root,detail);}
+  async function boot(root){if(!root)return;const old=root.__zzxNodeHealthState;old?.unsubscribe?.();try{await ensure();const state={unsubscribe:null};root.__zzxNodeHealthState=state;state.unsubscribe=W.ZZXBitnodes.subscribe(detail=>{if(root.isConnected)render(root,detail)},{immediate:true});if(!W.ZZXBitnodes.current()?.snapshot)await refresh(root,false);}catch(e){s(root,'[data-nh-status]','error: '+String(e?.message||e));}}
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
 })();
