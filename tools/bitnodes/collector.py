@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 API_DIR = ROOT / "bitcoin" / "bitnodes" / "api"
 DB_PATH = ROOT / "bitcoin" / "bitnodes" / "bitnodes.sqlite3"
 SOURCES_PATH = API_DIR / "sources.json"
-UA = "ZZX-Labs-Bitnodes/4 (+https://zzx-labs.io/bitcoin/bitnodes/)"
+UA = "ZZX-Labs-Bitnodes/5 (+https://zzx-labs.io/bitcoin/bitnodes/)"
 
 def finite(value: Any) -> float:
     try:
@@ -238,12 +238,27 @@ def inc(mapping: dict[str, int], key: str | None) -> None:
 def normalize(payload: Any, source: str) -> dict[str, Any]:
     obj = unwrap(payload)
     root = {"nodes": obj} if isinstance(obj, list) else (obj if isinstance(obj, dict) else {})
-    nodes = normalize_nodes(
+    raw_nodes = (
         root.get("nodes")
         or root.get("node_map")
         or root.get("peers")
         or root.get("entries")
     )
+
+    # Some compatible mirrors expose the legacy address -> tuple map directly
+    # rather than wrapping it under a "nodes" key. Detect that shape without
+    # treating normal metadata dictionaries as node maps.
+    if raw_nodes is None and isinstance(root, dict):
+        sample_keys = [str(key) for key in list(root.keys())[:32]]
+        addressish = sum(
+            1
+            for key in sample_keys
+            if ":" in key or ".onion" in key.lower() or ".i2p" in key.lower()
+        )
+        if sample_keys and addressish >= max(1, len(sample_keys) // 2):
+            raw_nodes = root
+
+    nodes = normalize_nodes(raw_nodes)
 
     by_network: dict[str, int] = {}
     by_version: dict[str, int] = {}
@@ -292,7 +307,7 @@ def normalize(payload: Any, source: str) -> dict[str, Any]:
     ) or now_ms()
 
     return {
-        "schema": "zzx-bitnodes-normalized-v4",
+        "schema": "zzx-bitnodes-normalized-v5",
         "source": source,
         "reachable_nodes": int(reachable) if math.isfinite(reachable) else None,
         "total_nodes": int(total) if math.isfinite(total) else None,
@@ -393,30 +408,67 @@ def store_db(db: sqlite3.Connection, normalized: dict[str, Any], raw: Any) -> No
     db.commit()
 
 def write_api(normalized: dict[str, Any], raw: Any) -> None:
-    API_DIR.mkdir(parents=True, exist_ok=True)
-    (API_DIR / "originalbitnodes").mkdir(exist_ok=True)
-    (API_DIR / "zzxbitnodes").mkdir(exist_ok=True)
-    (API_DIR / "aggregate" / "zzxbitnodes").mkdir(parents=True, exist_ok=True)
-    (API_DIR / "snapshots").mkdir(exist_ok=True)
+    """Publish the external btcnodes.io mirror without impersonating another crawler.
 
-    (API_DIR / "originalbitnodes" / "latest.json").write_text(
-        json.dumps(raw, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    (API_DIR / "zzxbitnodes" / "latest.json").write_text(
-        json.dumps(normalized, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    Source ownership is deliberately explicit:
+      * api/btcnodes/latest.json                raw upstream-compatible snapshot
+      * api/btcnodes/normalized/latest.json     normalized ZZX view of that snapshot
+      * api/aggregate/btcnodes/latest.json      compact summary without node rows
+      * api/snapshots/btcnodes/latest.json      normalized source snapshot
+      * api/snapshots/latest.json               fast canonical fallback used between full crawls
+
+    The collector MUST NOT write api/originalbitnodes/latest.json. That path belongs
+    exclusively to the optional Ayeowch/original compatibility crawler.
+    The collector MUST NOT write api/zzxbitnodes/latest.json either. That path belongs
+    exclusively to the ZZX active crawler.
+    """
+    API_DIR.mkdir(parents=True, exist_ok=True)
+
+    raw_dir = API_DIR / "btcnodes"
+    normalized_dir = raw_dir / "normalized"
+    aggregate_dir = API_DIR / "aggregate" / "btcnodes"
+    source_snapshot_dir = API_DIR / "snapshots" / "btcnodes"
+    snapshots_dir = API_DIR / "snapshots"
+
+    for directory in (
+        raw_dir,
+        normalized_dir,
+        aggregate_dir,
+        source_snapshot_dir,
+        snapshots_dir,
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    raw_text = json.dumps(raw, indent=2, sort_keys=True) + "\n"
+    normalized_text = json.dumps(normalized, indent=2, sort_keys=True) + "\n"
+
+    (raw_dir / "latest.json").write_text(raw_text, encoding="utf-8")
+    (normalized_dir / "latest.json").write_text(normalized_text, encoding="utf-8")
+    (source_snapshot_dir / "latest.json").write_text(normalized_text, encoding="utf-8")
 
     aggregate = {k: v for k, v in normalized.items() if k != "nodes"}
-    (API_DIR / "aggregate" / "zzxbitnodes" / "latest.json").write_text(
+    (aggregate_dir / "latest.json").write_text(
         json.dumps(aggregate, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    (API_DIR / "snapshots" / "latest.json").write_text(
-        json.dumps(normalized, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+
+    # Seed the browser canonical pointer only when no full merged canonical
+    # snapshot exists yet. A lightweight btcnodes.io refresh must never
+    # overwrite the richer hourly ZZX+btcnodes enriched canonical dataset.
+    canonical_path = snapshots_dir / "latest.json"
+    preserve_canonical = False
+    if canonical_path.exists():
+        try:
+            current = json.loads(canonical_path.read_text(encoding="utf-8"))
+            preserve_canonical = (
+                isinstance(current, dict)
+                and str(current.get("schema") or "").startswith("zzx-bitnodes-canonical-")
+            )
+        except Exception:
+            preserve_canonical = False
+
+    if not preserve_canonical:
+        canonical_path.write_text(normalized_text, encoding="utf-8")
 
     history_path = API_DIR / "history.json"
     try:
