@@ -7,9 +7,24 @@ on:
         description: "Maximum live price/volume collection time inside this hourly run"
         required: false
         default: "3120"
-  schedule:
-    - cron: "0 * * * *"
-
+  workflow_call:
+    inputs:
+      capture_seconds:
+        description: "Maximum live price/volume collection time inside this hourly run"
+        required: false
+        type: string
+        default: "3120"
+    secrets:
+      BPI_MARIADB_HOST:
+        required: false
+      BPI_MARIADB_PORT:
+        required: false
+      BPI_MARIADB_USER:
+        required: false
+      BPI_MARIADB_PASSWORD:
+        required: false
+      BPI_MARIADB_DATABASE:
+        required: false
 permissions:
   contents: write
 
@@ -20,7 +35,7 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
-  BPI_CAPTURE_SECONDS: ${{ github.event.inputs.capture_seconds || '3120' }}
+  BPI_CAPTURE_SECONDS: ${{ inputs.capture_seconds || '3120' }}
   ZZX_MARIADB_HOST: ${{ secrets.BPI_MARIADB_HOST }}
   ZZX_MARIADB_PORT: ${{ secrets.BPI_MARIADB_PORT }}
   ZZX_MARIADB_USER: ${{ secrets.BPI_MARIADB_USER }}
