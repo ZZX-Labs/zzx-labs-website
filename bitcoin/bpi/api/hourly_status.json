@@ -1,0 +1,190 @@
+{
+  "schema": "zzx-bpi-hourly-run-v1",
+  "run_id": "20260908T010340Z",
+  "started_at": "2026-09-08T01:03:40.055896Z",
+  "capture_requested_seconds": 3120.0,
+  "capture_effective_seconds": 3120.0,
+  "finalize_margin_seconds": 180.0,
+  "chunk_rows": 50000,
+  "stages": [
+    {
+      "id": "collect-price-volume",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/collector.py",
+        "--root",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website",
+        "--duration-seconds",
+        "3120.0",
+        "--status-file",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/bitcoin/bpi/api/collector_run_status.json"
+      ],
+      "returncode": 0,
+      "duration_seconds": 3120.137,
+      "stdout": "",
+      "stderr": "",
+      "ok": true
+    },
+    {
+      "id": "exchange-rates",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_exchange_rates.py"
+      ],
+      "returncode": 0,
+      "duration_seconds": 2.09,
+      "stdout": "Frankfurter unsupported currencies; using fallback provider: AED,AFN,ALL,AMD,ANG,AOA,ARS,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BOV,BSD,BTN,BWP,BYN,BZD,CDF,CHE,CHW,CLF,CLP,COP,COU,CRC,CUC,CUP,CVE,DJF,DOP,DZD,EGP,ERN,ETB,FJD,FKP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HNL,HRK,HTG,IQD,IRR,JMD,JOD,KES,KGS,KHR,KMF,KPW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXV,MZN,NAD,NGN,NIO,NPR,OMR,PAB,PEN,PGK,PKR,PYG,QAR,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,TJS,TMT,TND,TOP,TTD,TWD,TZS,UAH,UGX,USN,UYI,UYU,UYW,UZS,VED,VES,VND,VUV,WST,XAF,XAG,XAU,XBA,XBB,XBC,XBD,XCD,XDR,XOF,XPD,XPF,XPT,XSU,XTS,XUA,XXX,YER,ZMW,ZWL\npreserved previous exchange rate: SVC\nexchange_rates updated: 158 fiat rates; 7 commodity units; WEED_LB = 2000.0\n",
+      "stderr": "",
+      "ok": true,
+      "critical": false
+    },
+    {
+      "id": "latest-bpi",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_latest.py"
+      ],
+      "returncode": 0,
+      "duration_seconds": 10.713,
+      "stdout": "SOURCE_FAIL okx: missing price/volume endpoint\nSOURCE_FAIL crypto_com: missing price/volume endpoint\nSOURCE_FAIL kucoin: missing price/volume endpoint\nSOURCE_FAIL gateio: missing price/volume endpoint\nSOURCE_FAIL bitget: missing price/volume endpoint\nSOURCE_FAIL mexc: missing price/volume endpoint\nSOURCE_FAIL htx: missing price/volume endpoint\nSOURCE_FAIL okcoin: missing price/volume endpoint\nSOURCE_FAIL coingecko_global: missing price/volume endpoint\nSOURCE_FAIL coinone: unsupported adapter/parser: coinone\nSOURCE_FAIL korbit: unsupported adapter/parser: korbit\nSOURCE_FAIL bitbank: unsupported adapter/parser: bitbank\nSOURCE_FAIL gmo_coin: unsupported adapter/parser: gmo_coin\nSOURCE_FAIL zaif: unsupported adapter/parser: zaif\nSOURCE_FAIL novadax: <urlopen error [Errno -2] Name or service not known>\nSOURCE_FAIL buda: unsupported adapter/parser: buda\nSOURCE_FAIL bitvavo: unsupported adapter/parser: bitvavo\nSOURCE_FAIL paymium: unsupported adapter/parser: paymium\nSOURCE_FAIL coindcx: unsupported adapter/parser: coindcx\nSOURCE_FAIL bitkub: 'int' object has no attribute 'get'\nSOURCE_FAIL coins_ph: unsupported adapter/parser: coins_ph\nSOURCE_FAIL bitopro: unsupported adapter/parser: bitopro\nSOURCE_FAIL max_exchange: unsupported adapter/parser: max_exchange\nBPI updated $79,397.26; exchanges=20; bpi_sources=19; quarantined=0; weighted=19; consensus=$79,368.23; total_volume_btc=8,668.4248; mined_supply=20,081,268.75000000 BTC\n",
+      "stderr": "",
+      "ok": true,
+      "critical": true
+    },
+    {
+      "id": "reference-markets",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/reference_updater.py",
+        "--root",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website",
+        "--references-only"
+      ],
+      "returncode": 0,
+      "duration_seconds": 4.652,
+      "stdout": "",
+      "stderr": "",
+      "ok": true,
+      "critical": false
+    },
+    {
+      "id": "reference-national-averages",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_reference_national_averages.py",
+        "--root",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website"
+      ],
+      "returncode": 0,
+      "duration_seconds": 0.092,
+      "stdout": "National reference averages updated: countries=0 observations=0\n",
+      "stderr": "",
+      "ok": true,
+      "critical": false
+    },
+    {
+      "id": "sovereign-debt-balances",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_sovereign_data.py",
+        "--root",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website",
+        "--minimum-available",
+        "10"
+      ],
+      "returncode": 0,
+      "duration_seconds": 1.321,
+      "stdout": "Sovereign data updated: registry=249 debts=55 balances=172\n",
+      "stderr": "",
+      "ok": true,
+      "critical": false
+    },
+    {
+      "id": "deadopop",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_deadopop.py"
+      ],
+      "returncode": 2,
+      "duration_seconds": 0.037,
+      "stdout": "",
+      "stderr": "usage: update_deadopop.py [-h] --registry REGISTRY --output OUTPUT [--top TOP]\nupdate_deadopop.py: error: the following arguments are required: --registry, --output\n",
+      "ok": false,
+      "critical": false
+    },
+    {
+      "id": "themarketbtccreated",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_themarketbtccreated.py"
+      ],
+      "returncode": 2,
+      "duration_seconds": 0.06,
+      "stdout": "",
+      "stderr": "usage: update_themarketbtccreated.py [-h] --deadopop DEADOPOP --output OUTPUT\n                                     [--global-market-cap-usd GLOBAL_MARKET_CAP_USD]\n                                     [--btc-market-cap-usd BTC_MARKET_CAP_USD]\n                                     [--btc-price-usd BTC_PRICE_USD]\n                                     [--btc-circulating-supply BTC_CIRCULATING_SUPPLY]\n                                     [--block-height BLOCK_HEIGHT]\nupdate_themarketbtccreated.py: error: the following arguments are required: --deadopop, --output\n",
+      "ok": false,
+      "critical": false
+    },
+    {
+      "id": "latest-bpi-final",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/update_latest.py"
+      ],
+      "returncode": 0,
+      "duration_seconds": 9.452,
+      "stdout": "SOURCE_FAIL okx: missing price/volume endpoint\nSOURCE_FAIL crypto_com: missing price/volume endpoint\nSOURCE_FAIL kucoin: missing price/volume endpoint\nSOURCE_FAIL gateio: missing price/volume endpoint\nSOURCE_FAIL bitget: missing price/volume endpoint\nSOURCE_FAIL mexc: missing price/volume endpoint\nSOURCE_FAIL htx: missing price/volume endpoint\nSOURCE_FAIL okcoin: missing price/volume endpoint\nSOURCE_FAIL coingecko_global: missing price/volume endpoint\nSOURCE_FAIL coinone: unsupported adapter/parser: coinone\nSOURCE_FAIL korbit: unsupported adapter/parser: korbit\nSOURCE_FAIL bitbank: unsupported adapter/parser: bitbank\nSOURCE_FAIL gmo_coin: unsupported adapter/parser: gmo_coin\nSOURCE_FAIL zaif: unsupported adapter/parser: zaif\nSOURCE_FAIL novadax: <urlopen error [Errno -2] Name or service not known>\nSOURCE_FAIL buda: unsupported adapter/parser: buda\nSOURCE_FAIL bitvavo: unsupported adapter/parser: bitvavo\nSOURCE_FAIL paymium: unsupported adapter/parser: paymium\nSOURCE_FAIL coindcx: unsupported adapter/parser: coindcx\nSOURCE_FAIL bitkub: 'int' object has no attribute 'get'\nSOURCE_FAIL coins_ph: unsupported adapter/parser: coins_ph\nSOURCE_FAIL bitopro: unsupported adapter/parser: bitopro\nSOURCE_FAIL max_exchange: unsupported adapter/parser: max_exchange\nBPI updated $79,391.53; exchanges=20; bpi_sources=19; quarantined=0; weighted=19; consensus=$79,366.50; total_volume_btc=8,670.1159; mined_supply=20,081,268.75000000 BTC\n",
+      "stderr": "",
+      "ok": true,
+      "critical": true
+    },
+    {
+      "id": "archive-20260908T01",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/bpi_hourly_shard.py",
+        "--root",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website",
+        "--start",
+        "1788829420055",
+        "--end",
+        "1788832568611",
+        "--chunk-rows",
+        "50000"
+      ],
+      "returncode": 0,
+      "duration_seconds": 1.6,
+      "stdout": "poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"moonpay\",\n        \"label\": \"MoonPay\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"mostro\",\n        \"label\": \"Mostro\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"mudrex\",\n        \"label\": \"Mudrex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"mx_global\",\n        \"label\": \"MX Global\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"nbx\",\n        \"label\": \"NBX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"ndax\",\n        \"label\": \"NDAX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"newton\",\n        \"label\": \"Newton\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"nobitex\",\n        \"label\": \"Nobitex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"noones\",\n        \"label\": \"NoOnes\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"novadax\",\n        \"label\": \"NovaDAX\",\n        \"enabled_poll\": true,\n        \"adapter\": \"novadax\",\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"okcoin\",\n        \"label\": \"OKCoin\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"okx\",\n        \"label\": \"OKX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"osl\",\n        \"label\": \"OSL\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"ovex\",\n        \"label\": \"OVEX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"paribu\",\n        \"label\": \"Paribu\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"paxful\",\n        \"label\": \"Paxful\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"paxos\",\n        \"label\": \"Paxos\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"paymium\",\n        \"label\": \"Paymium\",\n        \"enabled_poll\": true,\n        \"adapter\": \"paymium\",\n        \"rows\": 1245,\n        \"markets\": 1,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"pdax\",\n        \"label\": \"PDAX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"peach_bitcoin\",\n        \"label\": \"Peach Bitcoin\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"phemex\",\n        \"label\": \"Phemex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"pintu\",\n        \"label\": \"Pintu\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"pionex\",\n        \"label\": \"Pionex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"poloniex\",\n        \"label\": \"Poloniex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"probit_global\",\n        \"label\": \"ProBit Global\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"public_com\",\n        \"label\": \"Public.com Crypto\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"quidax\",\n        \"label\": \"Quidax\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"rain\",\n        \"label\": \"Rain\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"ramp_network\",\n        \"label\": \"Ramp Network\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"ramzinex\",\n        \"label\": \"Ramzinex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"reku\",\n        \"label\": \"Reku\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"relai\",\n        \"label\": \"Relai\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"ripio\",\n        \"label\": \"Ripio\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"river\",\n        \"label\": \"River\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"robinhood_crypto\",\n        \"label\": \"Robinhood Crypto\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"robosats\",\n        \"label\": \"RoboSats\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"roqqu\",\n        \"label\": \"Roqqu\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"safello\",\n        \"label\": \"Safello\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"satang\",\n        \"label\": \"Satang Pro\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"satoshitango\",\n        \"label\": \"SatoshiTango\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"sbi_vc_trade\",\n        \"label\": \"SBI VC Trade\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"shakepay\",\n        \"label\": \"Shakepay\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"simplex\",\n        \"label\": \"Simplex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"sinegy\",\n        \"label\": \"SINEGY\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"strike\",\n        \"label\": \"Strike\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"suncrypto\",\n        \"label\": \"SunCrypto\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"swissborg\",\n        \"label\": \"SwissBorg\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"swyftx\",\n        \"label\": \"Swyftx\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"tabdeal\",\n        \"label\": \"Tabdeal\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"tapbit\",\n        \"label\": \"Tapbit\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"the_rock_trading\",\n        \"label\": \"The Rock Trading\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"tokenize_xchange\",\n        \"label\": \"Tokenize Xchange\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"tokocrypto\",\n        \"label\": \"Tokocrypto\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"transak\",\n        \"label\": \"Transak\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"triv\",\n        \"label\": \"Triv\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"unknown\",\n        \"label\": \"unknown\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 11205,\n        \"markets\": 9,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"unocoin\",\n        \"label\": \"Unocoin\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"upbit\",\n        \"label\": \"Upbit\",\n        \"enabled_poll\": true,\n        \"adapter\": \"upbit\",\n        \"rows\": 1245,\n        \"markets\": 1,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"valr\",\n        \"label\": \"VALR\",\n        \"enabled_poll\": true,\n        \"adapter\": \"valr\",\n        \"rows\": 1245,\n        \"markets\": 1,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"vexl\",\n        \"label\": \"Vexl\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"virgocx\",\n        \"label\": \"VirgoCX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"wallex_ir\",\n        \"label\": \"Wallex Iran\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"wazirx\",\n        \"label\": \"WazirX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"weex\",\n        \"label\": \"WEEX\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"whitebit\",\n        \"label\": \"WhiteBIT\",\n        \"enabled_poll\": true,\n        \"adapter\": \"whitebit\",\n        \"rows\": 1245,\n        \"markets\": 1,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"xt_com\",\n        \"label\": \"XT.COM\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"yellow_card\",\n        \"label\": \"Yellow Card\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"young_platform\",\n        \"label\": \"Young Platform\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"zaif\",\n        \"label\": \"Zaif\",\n        \"enabled_poll\": true,\n        \"adapter\": \"zaif\",\n        \"rows\": 1245,\n        \"markets\": 1,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"zebpay\",\n        \"label\": \"ZebPay\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"zipmex\",\n        \"label\": \"Zipmex\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      },\n      {\n        \"source\": \"zonda\",\n        \"label\": \"Zonda\",\n        \"enabled_poll\": false,\n        \"adapter\": null,\n        \"rows\": 0,\n        \"markets\": 0,\n        \"orderbook_snapshot_configured\": false,\n        \"orderbook_backfill_configured\": false\n      }\n    ]\n  },\n  \"orderbook_history\": {\n    \"status\": \"adapter-required-or-no-records\",\n    \"note\": \"Price/volume ticks are never used to fabricate L2/L3 history. Order-book shards contain only separately ingested provider snapshots/deltas with source/market/sequence metadata.\",\n    \"snapshot_rows\": 0,\n    \"event_rows\": 0,\n    \"chunks\": [],\n    \"coverage\": {\n      \"registry_providers\": 205,\n      \"capture_enabled\": 0,\n      \"verified\": 0,\n      \"snapshot_sources_with_rows\": 0,\n      \"event_sources_with_rows\": 0\n    }\n  },\n  \"manifest_path\": \"bitcoin/bpi/archive/hourly/2026/09/08/01/manifest.json\"\n}\n",
+      "stderr": "",
+      "ok": true,
+      "critical": true
+    },
+    {
+      "id": "validate-current-and-archive",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website/tools/bpi/bpi_hourly_validate.py",
+        "--root",
+        "/home/runner/work/zzx-labs-website/zzx-labs-website",
+        "--allow-empty-current"
+      ],
+      "returncode": 0,
+      "duration_seconds": 0.372,
+      "stdout": "{\n  \"current\": {\n    \"price_usd\": 79391.53429020706,\n    \"global_bpi_usd\": 79391.53429020706,\n    \"markets\": 20,\n    \"eligible\": 20,\n    \"quarantined\": 0,\n    \"weight_sum\": 0.0\n  },\n  \"archive\": {\n    \"manifest\": \"/home/runner/work/zzx-labs-website/zzx-labs-website/bitcoin/bpi/archive/hourly/2026/09/08/01/manifest.json\",\n    \"rows\": 72210,\n    \"chunks\": 4,\n    \"orderbook_snapshot_rows\": 0,\n    \"orderbook_event_rows\": 0,\n    \"orderbook_chunks\": 0\n  }\n}\n",
+      "stderr": "",
+      "ok": true,
+      "critical": true
+    }
+  ],
+  "archive_manifests": [
+    "bitcoin/bpi/archive/hourly/2026/09/08/01/manifest.json"
+  ],
+  "warnings": [
+    "stage failed: deadopop",
+    "stage failed: themarketbtccreated"
+  ],
+  "ended_at": "2026-09-08T01:56:10.583291Z",
+  "duration_seconds": 3150.527,
+  "ok": true,
+  "critical_failed": false
+}
