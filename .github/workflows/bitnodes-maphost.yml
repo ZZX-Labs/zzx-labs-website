@@ -2,13 +2,24 @@ name: ZZX-Labs Bitnodes Map Host
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "15 * * * *"
+    inputs:
+      max_points:
+        description: "Maximum real-coordinate node points published to each public map"
+        required: false
+        default: "5000"
+      include_ayeowch_compat:
+        description: "Also build optional Ayeowch/original compatibility map when a real-coordinate snapshot exists"
+        required: false
+        type: boolean
+        default: false
   workflow_run:
     workflows:
       - ZZX-Labs Bitnodes Global Node Crawler
     types:
       - completed
+  schedule:
+    # Fallback rebuild. Normal publication is event-driven after the crawler.
+    - cron: "37 */6 * * *"
 
 permissions:
   contents: write
@@ -19,6 +30,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
 
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
@@ -30,9 +42,7 @@ env:
   MAX_COMMIT_FILES: "700"
   MAX_DELETIONS: "2500000"
   MIN_MAP_FEATURES: "1"
-
-  PYTHONUNBUFFERED: "1"
-  BITNODES_REQUIRE_GEO_COORDINATES: "true"
+  MAP_MAX_POINTS: ${{ inputs.max_points || '5000' }}
 
 jobs:
   maps:
@@ -46,7 +56,7 @@ jobs:
         github.event.workflow_run.head_repository.full_name == github.repository
       )
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 35
 
     steps:
       - name: Checkout repository
@@ -55,20 +65,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Sync repo before map build
+      - name: Sync main before map build
         shell: bash
         run: |
           set -euo pipefail
-
           git fetch origin main
           git reset --hard origin/main
           git clean -fdx
 
-          printf '%s\n' "Available Bitnodes latest/index/map files:"
-          find bitcoin/bitnodes -maxdepth 7 -type f \
-            \( -name 'latest.json' -o -name 'index.json' -o -name '*.geojson' -o -name 'map-vectors.json' -o -name '*.sql.gz' \) \
+          printf '%s\n' "Canonical Bitnodes sources available to Map Host:"
+          find "${BITNODES_API}" -maxdepth 4 -type f \
+            \( -name 'latest.json' -o -name '*report.json' -o -name 'index.json' \) \
             | sort \
-            | sed -n '1,320p'
+            | sed -n '1,260p'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -77,23 +86,24 @@ jobs:
           cache: pip
           cache-dependency-path: tools/bitnodes/requirements.txt
 
-      - name: Install requirements
+      - name: Install map requirements
         shell: bash
         run: |
           set -euo pipefail
-
           python -m pip install --upgrade pip
           python -m pip install -r tools/bitnodes/requirements.txt
 
-      - name: Verify map tools
+      - name: Validate canonical map stack
         shell: bash
         run: |
           set -euo pipefail
 
-          REQUIRED_MAP_TOOLS=(
+          REQUIRED=(
             tools/bitnodes/map/map.py
             tools/bitnodes/map/maps.py
             tools/bitnodes/map/live-map.py
+            tools/bitnodes/map/map_source.py
+            tools/bitnodes/map/map_source_selftest.py
             tools/bitnodes/map/mapvectors.py
             tools/bitnodes/map/vector_types.py
             tools/bitnodes/map/mapnodes.py
@@ -119,920 +129,192 @@ jobs:
             tools/bitnodes/map/mapbuildings.py
           )
 
-          for FILE in "${REQUIRED_MAP_TOOLS[@]}"; do
-            if [ ! -f "${FILE}" ]; then
-              printf '%s\n' "MISSING REQUIRED MAP TOOL: ${FILE}"
-              find tools/bitnodes/map -maxdepth 2 -type f | sort
-              exit 1
-            fi
-
+          for FILE in "${REQUIRED[@]}"; do
+            test -f "${FILE}"
             python -m py_compile "${FILE}"
           done
 
-          python tools/bitnodes/map/map.py --help
-          python tools/bitnodes/map/maps.py --help
-          python tools/bitnodes/map/live-map.py --help
-          python tools/bitnodes/map/mapvectors.py --help
-          python tools/bitnodes/map/mapnodes.py --help
-          python tools/bitnodes/map/mapplotter.py --help
+          python tools/bitnodes/map/map.py --help >/dev/null
+          python tools/bitnodes/map/map_source.py --help >/dev/null
+          python tools/bitnodes/map/map_source_selftest.py
+          test -s "${BITNODES_API}/snapshots/latest.json"
 
-      - name: Prepare map directories
+      - name: Validate canonical geography before mapping
         shell: bash
         run: |
           set -euo pipefail
 
-          mkdir -p \
-            "${BITNODES_MAPS}/zzxbitnodes/data" \
-            "${BITNODES_MAPS}/originalbitnodes/data" \
-            "${BITNODES_MAPS}/data" \
-            "${BITNODES_LIVE_MAP}/zzxbitnodes/data" \
-            "${BITNODES_LIVE_MAP}/originalbitnodes/data" \
-            "${BITNODES_LIVE_MAP}/data" \
-            "${BITNODES_API}/data/map-source"
-
-      - name: Select node-level map sources
-        id: sources
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python - <<'PY' >> "${GITHUB_OUTPUT}"
-          import gzip
+          python - <<'PY'
           import json
           import math
           import re
           from pathlib import Path
 
-          API = Path("bitcoin/bitnodes/api")
-          DATA = API / "data"
-          TMP = DATA / "map-source"
-          TMP.mkdir(parents=True, exist_ok=True)
-
-          INSERT_RE = re.compile(
-              r"INSERT INTO\s+`?bitnodes_nodes`?\s+\((?P<cols>.*?)\)\s+VALUES\s+(?P<vals>.*?);",
-              re.S | re.I,
-          )
-
-          TUPLE_RE = re.compile(r"\((.*?)\)(?:,|$)", re.S)
-
-          def read_json(path: Path):
-              try:
-                  return json.loads(path.read_text(encoding="utf-8"))
-              except Exception:
-                  return None
-
-          def deep_get(obj, dotted):
-              cur = obj
-              for part in dotted.split("."):
-                  if not isinstance(cur, dict):
-                      return None
-                  cur = cur.get(part)
-              return cur
-
-          def first(obj, keys):
-              if not isinstance(obj, dict):
-                  return None
-              for key in keys:
-                  value = deep_get(obj, key) if "." in key else obj.get(key)
-                  if value not in ("", None):
-                      return value
-              return None
-
-          def valid_coord(lat, lon):
-              try:
-                  lat = float(lat)
-                  lon = float(lon)
-              except Exception:
-                  return False
-
-              return (
-                  math.isfinite(lat)
-                  and math.isfinite(lon)
-                  and -90 <= lat <= 90
-                  and -180 <= lon <= 180
-              )
-
-          def count_nodes(path: Path) -> int:
-              payload = read_json(path)
-
-              if isinstance(payload, dict):
-                  nodes = payload.get("nodes")
-
-                  if isinstance(nodes, dict):
-                      return len(nodes)
-
-                  if isinstance(nodes, list):
-                      return len(nodes)
-
-                  vectors = payload.get("vectors")
-
-                  if isinstance(vectors, dict):
-                      points = vectors.get("points")
-
-                      if isinstance(points, list):
-                          return len(points)
-
-                  points = payload.get("points")
-
-                  if isinstance(points, list):
-                      return len(points)
-
-                  features = payload.get("features")
-
-                  if isinstance(features, list):
-                      return len(features)
-
-                  for key in (
-                      "reachable_nodes",
-                      "data",
-                      "results",
-                      "rows",
-                      "peers",
-                      "node_records",
-                  ):
-                      value = payload.get(key)
-
-                      if isinstance(value, dict):
-                          return len(value)
-
-                      if isinstance(value, list):
-                          return len(value)
-
-              if isinstance(payload, list):
-                  return len(payload)
-
-              return 0
-
-          def coord_count(path: Path) -> int:
-              payload = read_json(path)
-              rows = []
-
-              if isinstance(payload, dict):
-                  nodes = payload.get("nodes")
-                  if isinstance(nodes, dict):
-                      rows = list(nodes.values())
-                  elif isinstance(nodes, list):
-                      rows = nodes
-                  elif isinstance(payload.get("vectors"), dict) and isinstance(payload["vectors"].get("points"), list):
-                      rows = payload["vectors"]["points"]
-                  elif isinstance(payload.get("points"), list):
-                      rows = payload["points"]
-                  elif isinstance(payload.get("features"), list):
-                      rows = [
-                          {
-                              **(feature.get("properties") if isinstance(feature.get("properties"), dict) else {}),
-                              "latitude": (
-                                  feature.get("geometry", {}).get("coordinates", [None, None])[1]
-                                  if isinstance(feature.get("geometry"), dict)
-                                  and isinstance(feature.get("geometry", {}).get("coordinates"), list)
-                                  and len(feature.get("geometry", {}).get("coordinates")) >= 2
-                                  else None
-                              ),
-                              "longitude": (
-                                  feature.get("geometry", {}).get("coordinates", [None, None])[0]
-                                  if isinstance(feature.get("geometry"), dict)
-                                  and isinstance(feature.get("geometry", {}).get("coordinates"), list)
-                                  and len(feature.get("geometry", {}).get("coordinates")) >= 2
-                                  else None
-                              ),
-                          }
-                          for feature in payload["features"]
-                          if isinstance(feature, dict)
-                      ]
-              elif isinstance(payload, list):
-                  rows = payload
-
-              total = 0
-
-              for row in rows:
-                  if isinstance(row, dict):
-                      lat = first(row, (
-                          "latitude",
-                          "lat",
-                          "geo.latitude",
-                          "geoip.latitude",
-                          "geoip_data.latitude",
-                          "geoloc.latitude",
-                          "location.latitude",
-                          "metadata.latitude",
-                      ))
-                      lon = first(row, (
-                          "longitude",
-                          "lon",
-                          "lng",
-                          "geo.longitude",
-                          "geoip.longitude",
-                          "geoip_data.longitude",
-                          "geoloc.longitude",
-                          "location.longitude",
-                          "metadata.longitude",
-                      ))
-                      if valid_coord(lat, lon):
-                          total += 1
-
-                  elif isinstance(row, list):
-                      lat = row[8] if len(row) > 8 else None
-                      lon = row[9] if len(row) > 9 else None
-                      if valid_coord(lat, lon):
-                          total += 1
-
-              return total
-
-          def choose_existing_json(candidates, label):
-              best = None
-              best_nodes = 0
-              best_coords = -1
-
-              for item in candidates:
-                  path = Path(item)
-
-                  if not path.exists() or path.stat().st_size <= 0:
-                      continue
-
-                  nodes = count_nodes(path)
-                  coords = coord_count(path)
-
-                  print(f"{label}_{path.name}_node_count={nodes}")
-                  print(f"{label}_{path.name}_coordinate_count={coords}")
-
-                  if nodes > 0 and (coords > best_coords or best is None):
-                      best = path
-                      best_nodes = nodes
-                      best_coords = coords
-
-              if best is not None:
-                  print(f"{label}_selected_node_count={best_nodes}")
-                  print(f"{label}_selected_coordinate_count={best_coords}")
-
-              return best
-
-          def fnum(value):
-              try:
-                  if value in ("", None):
-                      return None
-                  return float(value)
-              except Exception:
-                  return None
-
-          def split_sql_values(text):
-              values = []
-              buf = []
-              quote = False
-              escape = False
-              i = 0
-
-              while i < len(text):
-                  ch = text[i]
-
-                  if quote:
-                      if escape:
-                          buf.append(ch)
-                          escape = False
-                      elif ch == "\\":
-                          escape = True
-                      elif ch == "'" and i + 1 < len(text) and text[i + 1] == "'":
-                          buf.append("'")
-                          i += 1
-                      elif ch == "'":
-                          quote = False
-                      else:
-                          buf.append(ch)
-                  else:
-                      if ch == "'":
-                          quote = True
-                      elif ch == ",":
-                          values.append("".join(buf).strip())
-                          buf = []
-                      else:
-                          buf.append(ch)
-
-                  i += 1
-
-              values.append("".join(buf).strip())
-              return values
-
-          def sql_clean(value):
-              value = value.strip()
-
-              if value.upper() == "NULL":
-                  return None
-
-              if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
-                  value = value[1:-1]
-                  value = value.replace("\\'", "'").replace("\\\\", "\\")
-
-              return value
-
-          def build_from_mariadb(source_name):
-              shard_dirs = [
-                  DATA / "mariadb",
-                  DATA,
-              ]
-
-              rows = {}
-
-              for shard_dir in shard_dirs:
-                  if not shard_dir.exists():
-                      continue
-
-                  for shard in sorted(shard_dir.glob("*.sql.gz")):
-                      if "control" in shard.name:
-                          continue
-
-                      try:
-                          with gzip.open(shard, "rt", encoding="utf-8", errors="replace") as handle:
-                              sql_text = handle.read()
-                      except Exception:
-                          continue
-
-                      for match in INSERT_RE.finditer(sql_text):
-                          cols = [x.strip().strip("`") for x in match.group("cols").split(",")]
-                          values_block = match.group("vals")
-
-                          for tuple_match in TUPLE_RE.finditer(values_block):
-                              vals = split_sql_values(tuple_match.group(1))
-
-                              if len(cols) != len(vals):
-                                  continue
-
-                              row = dict(zip(cols, [sql_clean(v) for v in vals]))
-
-                              if row.get("source_name") != source_name and row.get("source") != source_name:
-                                  continue
-
-                              lat = fnum(row.get("latitude") or row.get("lat"))
-                              lon = fnum(row.get("longitude") or row.get("lon") or row.get("lng"))
-
-                              if lat is None or lon is None:
-                                  continue
-
-                              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                                  continue
-
-                              address = row.get("address") or row.get("node_id") or row.get("host")
-                              if not address:
-                                  continue
-
-                              rows[address] = {
-                                  "address": address,
-                                  "node_id": row.get("node_id"),
-                                  "source": row.get("source_name") or row.get("source"),
-                                  "host": row.get("host"),
-                                  "port": row.get("port"),
-                                  "network": row.get("network"),
-                                  "agent": row.get("agent") or row.get("user_agent"),
-                                  "protocol": row.get("protocol"),
-                                  "services": row.get("services"),
-                                  "height": row.get("height") or row.get("block_height"),
-                                  "city": row.get("city"),
-                                  "country": row.get("country") or row.get("country_code"),
-                                  "country_code": row.get("country_code"),
-                                  "territory": row.get("territory") or row.get("territory_code"),
-                                  "county": row.get("county") or row.get("county_code"),
-                                  "zip_code": row.get("zip_code") or row.get("postal_code"),
-                                  "timezone": row.get("timezone"),
-                                  "latitude": lat,
-                                  "longitude": lon,
-                                  "lat": lat,
-                                  "lon": lon,
-                                  "asn": row.get("asn"),
-                                  "organization": row.get("organization") or row.get("org"),
-                                  "provider": row.get("provider"),
-                                  "w3w": row.get("w3w"),
-                                  "zzxgcs": row.get("zzxgcs"),
-                                  "geohash": row.get("geohash"),
-                                  "geohashid": row.get("geohashid"),
-                                  "reachable": row.get("reachable"),
-                                  "reachable_now": row.get("reachable_now"),
-                                  "reachable_24h": row.get("reachable_24h"),
-                                  "status": row.get("status"),
-                                  "latency_ms": row.get("latency_ms"),
-                                  "last_seen": row.get("last_seen"),
-                              }
-
-              if not rows:
-                  return None
-
-              out = TMP / f"{source_name}.latest.json"
-              out.write_text(
-                  json.dumps(
-                      {
-                          "schema": "zzx-bitnodes-map-source-from-db-v6",
-                          "source": source_name,
-                          "nodes": rows,
-                      },
-                      ensure_ascii=False,
-                      separators=(",", ":"),
-                  ) + "\n",
-                  encoding="utf-8",
-              )
-
-              print(f"{source_name}_db_node_count={len(rows)}")
-              print(f"{source_name}_db_coordinate_count={len(rows)}")
-              return out
-
-          zzx = choose_existing_json([
-              API / "enriched" / "zzxbitnodes" / "latest.json",
-              API / "zzxbitnodes" / "latest.json",
-              API / "data" / "latest.json",
-          ], "zzx") or build_from_mariadb("zzxbitnodes")
-
-          original = choose_existing_json([
-              API / "enriched" / "originalbitnodes" / "latest.json",
-              API / "originalbitnodes" / "latest.json",
-          ], "original") or build_from_mariadb("originalbitnodes")
-
-          if zzx is None:
-              print("map_ready=false")
-              print("zzx_input=")
-              print("original_input=")
-          else:
-              print("map_ready=true")
-              print(f"zzx_input={zzx}")
-              print(f"original_input={original or ''}")
-          PY
-
-      - name: Skip maphost when no node source exists
-        if: steps.sources.outputs.map_ready != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s\n' "No node-level ZZX map source exists yet. Skipping map build."
-
-      - name: Validate selected map source
-        if: steps.sources.outputs.map_ready == 'true'
-        shell: bash
-        env:
-          INPUT: ${{ steps.sources.outputs.zzx_input }}
-        run: |
-          set -euo pipefail
-
-          test -f "${INPUT}"
-
-          python - <<'PY'
-          import json
-          import math
-          import os
-
-          path = os.environ["INPUT"]
-
-          with open(path, "r", encoding="utf-8") as handle:
-              payload = json.load(handle)
-
-          def deep_get(obj, dotted):
-              cur = obj
-              for part in dotted.split("."):
-                  if not isinstance(cur, dict):
-                      return None
-                  cur = cur.get(part)
-              return cur
-
-          def first(obj, keys):
-              if not isinstance(obj, dict):
-                  return None
-              for key in keys:
-                  value = deep_get(obj, key) if "." in key else obj.get(key)
-                  if value not in ("", None):
-                      return value
-              return None
-
-          def valid_coord(lat, lon):
-              try:
-                  lat = float(lat)
-                  lon = float(lon)
-              except Exception:
-                  return False
-
-              return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
-
-          rows = []
-
-          if isinstance(payload, dict):
-              nodes = payload.get("nodes")
-
-              if isinstance(nodes, dict):
-                  rows = list(nodes.values())
-              elif isinstance(nodes, list):
-                  rows = nodes
-              elif isinstance(payload.get("vectors"), dict) and isinstance(payload["vectors"].get("points"), list):
-                  rows = payload["vectors"]["points"]
-              elif isinstance(payload.get("points"), list):
-                  rows = payload["points"]
-              elif isinstance(payload.get("features"), list):
-                  rows = payload["features"]
-
-          elif isinstance(payload, list):
-              rows = payload
-
-          count = len(rows)
-          coords = 0
+          path = Path("bitcoin/bitnodes/api/snapshots/latest.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+
+          if not str(payload.get("schema") or "").startswith("zzx-bitnodes-canonical-v"):
+              raise SystemExit(f"Map Host requires canonical snapshot; got schema={payload.get('schema')!r}")
+
+          rows = payload.get("nodes")
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit("canonical snapshot has no normalized node rows")
+
+          counts = {
+              "country": 0,
+              "city": 0,
+              "county": 0,
+              "coordinates": 0,
+              "synthetic": 0,
+          }
 
           for row in rows:
-              if isinstance(row, dict) and row.get("type") == "Feature":
-                  geom = row.get("geometry") if isinstance(row.get("geometry"), dict) else {}
-                  coordinates = geom.get("coordinates")
-                  if isinstance(coordinates, list) and len(coordinates) >= 2 and valid_coord(coordinates[1], coordinates[0]):
-                      coords += 1
+              if not isinstance(row, dict):
                   continue
 
-              if isinstance(row, dict):
-                  lat = first(row, (
-                      "latitude",
-                      "lat",
-                      "geo.latitude",
-                      "geoip.latitude",
-                      "geoip_data.latitude",
-                      "geoloc.latitude",
-                      "location.latitude",
-                      "metadata.latitude",
-                  ))
-                  lon = first(row, (
-                      "longitude",
-                      "lon",
-                      "lng",
-                      "geo.longitude",
-                      "geoip.longitude",
-                      "geoip_data.longitude",
-                      "geoloc.longitude",
-                      "location.longitude",
-                      "metadata.longitude",
-                  ))
-                  if valid_coord(lat, lon):
-                      coords += 1
+              country = str(row.get("country") or row.get("country_code") or "").upper()
+              if re.fullmatch(r"[A-Z]{2}", country):
+                  counts["country"] += 1
+              if row.get("city") and re.fullmatch(r"[A-Z]{2}", country):
+                  counts["city"] += 1
+              if row.get("county") and row.get("admin2_code") and re.fullmatch(r"[A-Z]{2}", country):
+                  counts["county"] += 1
 
-              elif isinstance(row, list):
-                  lat = row[8] if len(row) > 8 else None
-                  lon = row[9] if len(row) > 9 else None
-                  if valid_coord(lat, lon):
-                      coords += 1
+              markers = " ".join(str(row.get(key) or "").lower() for key in (
+                  "geoip_confidence", "geoip_source", "geo_confidence", "geo_source"
+              ))
+              if any(token in markers for token in (
+                  "synthetic", "deterministic-fallback", "workflow-map-ready-fallback"
+              )):
+                  counts["synthetic"] += 1
 
-          print(f"selected_input={path}")
-          print(f"selected_count={count}")
-          print(f"selected_coordinate_count={coords}")
+              try:
+                  lat = float(row.get("latitude"))
+                  lon = float(row.get("longitude"))
+              except Exception:
+                  continue
 
-          if count < 1:
-              raise SystemExit("selected map source contains no nodes or points")
+              if math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180:
+                  counts["coordinates"] += 1
+
+          print("canonical geography:", counts)
+
+          if counts["country"] < 1:
+              raise SystemExit("canonical snapshot contains no country geolocation")
+          if counts["city"] < 1:
+              raise SystemExit("canonical snapshot contains no city geolocation")
+          if counts["county"] < 1:
+              raise SystemExit("canonical snapshot contains no county/admin2 geolocation")
+          if counts["coordinates"] < 1:
+              raise SystemExit("canonical snapshot contains no real coordinates")
+          if counts["synthetic"] != 0:
+              raise SystemExit("canonical snapshot still contains synthetic-coordinate markers")
           PY
 
-      - name: Build ZZX Bitnodes maps
-        if: steps.sources.outputs.map_ready == 'true'
+      - name: Build real-coordinate-only map input
+        id: map_source
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/map/map.py maps \
-            --input "${{ steps.sources.outputs.zzx_input }}" \
+          MAP_SOURCE="${RUNNER_TEMP}/zzx-bitnodes-map-source.json"
+          MAP_REPORT="${RUNNER_TEMP}/zzx-bitnodes-map-source-report.json"
+
+          python tools/bitnodes/map/map_source.py \
+            --input "${BITNODES_API}/snapshots/latest.json" \
+            --output "${MAP_SOURCE}" \
+            --report "${MAP_REPORT}" \
+            --max-points "${MAP_MAX_POINTS}" \
+            --minimum-points "${MIN_MAP_FEATURES}" \
+            --compact
+
+          test -s "${MAP_SOURCE}"
+          test -s "${MAP_REPORT}"
+
+          printf '%s\n' "map_source=${MAP_SOURCE}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "map_report=${MAP_REPORT}" >> "${GITHUB_OUTPUT}"
+
+          cat "${MAP_REPORT}"
+
+      - name: Build canonical maps and live-map
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p \
+            "${BITNODES_MAPS}/data" \
+            "${BITNODES_LIVE_MAP}/data"
+
+          python tools/bitnodes/map/map.py both \
+            --input "${{ steps.map_source.outputs.map_source }}" \
             --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            --map-dir "${BITNODES_MAPS}/zzxbitnodes" \
-            --live-map-dir "${BITNODES_LIVE_MAP}/zzxbitnodes" \
-            --source zzxbitnodes \
+            --state-dir "${RUNNER_TEMP}/map-state" \
+            --map-dir "${BITNODES_MAPS}" \
+            --live-map-dir "${BITNODES_LIVE_MAP}" \
+            --source zzx-canonical \
             --theme zzx_dark_olive \
-            --settings default \
+            --settings live \
             --tile-provider cartodb_dark \
+            --limit "${MAP_MAX_POINTS}" \
             --compact \
+            --no-db \
             --fail-empty \
             --vectors-fallback
 
-      - name: Build Original Bitnodes maps
-        if: steps.sources.outputs.map_ready == 'true' && steps.sources.outputs.original_input != ''
+      - name: Mirror canonical data into zzxbitnodes compatibility paths
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/map/map.py maps \
-            --input "${{ steps.sources.outputs.original_input }}" \
+          for ROOT in "${BITNODES_MAPS}" "${BITNODES_LIVE_MAP}"; do
+            mkdir -p "${ROOT}/zzxbitnodes/data"
+            rm -rf "${ROOT}/zzxbitnodes/data"/*
+            cp -a "${ROOT}/data/." "${ROOT}/zzxbitnodes/data/"
+          done
+
+      - name: Build optional Ayeowch compatibility map
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_ayeowch_compat }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          INPUT="${BITNODES_API}/originalbitnodes/latest.json"
+
+          if [ ! -s "${INPUT}" ]; then
+            printf '%s\n' "No optional originalbitnodes/latest.json exists; compatibility map skipped."
+            exit 0
+          fi
+
+          SOURCE="${RUNNER_TEMP}/original-bitnodes-map-source.json"
+
+          if ! python tools/bitnodes/map/map_source.py \
+            --input "${INPUT}" \
+            --output "${SOURCE}" \
+            --max-points "${MAP_MAX_POINTS}" \
+            --minimum-points 1 \
+            --compact
+          then
+            printf '%s\n' "Optional Ayeowch snapshot contains no real-coordinate rows; compatibility map skipped."
+            exit 0
+          fi
+
+          python tools/bitnodes/map/map.py both \
+            --input "${SOURCE}" \
             --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/originalbitnodes" \
+            --state-dir "${RUNNER_TEMP}/original-map-state" \
             --map-dir "${BITNODES_MAPS}/originalbitnodes" \
             --live-map-dir "${BITNODES_LIVE_MAP}/originalbitnodes" \
             --source originalbitnodes \
             --theme zzx_dark_olive \
-            --settings default \
-            --tile-provider cartodb_dark \
-            --compact \
-            --fail-empty \
-            --vectors-fallback
-
-      - name: Build canonical map-ready source
-        if: steps.sources.outputs.map_ready == 'true'
-        shell: bash
-        env:
-          MAP_INPUT: ${{ steps.sources.outputs.zzx_input }}
-          MAP_READY_INPUT: ${{ env.BITNODES_API }}/enriched/zzxbitnodes/latest.map-ready.json
-        run: |
-          set -euo pipefail
-
-          python - <<'PY'
-          import json
-          import math
-          import os
-          from pathlib import Path
-
-          src = Path(os.environ["MAP_INPUT"])
-          dst = Path(os.environ["MAP_READY_INPUT"])
-
-          payload = json.loads(src.read_text(encoding="utf-8"))
-
-          def valid_coord(lat, lon):
-              try:
-                  lat = float(lat)
-                  lon = float(lon)
-              except Exception:
-                  return False
-
-              return (
-                  math.isfinite(lat)
-                  and math.isfinite(lon)
-                  and -90 <= lat <= 90
-                  and -180 <= lon <= 180
-              )
-
-
-          def deep_get(obj, dotted):
-              cur = obj
-              for part in dotted.split("."):
-                  if not isinstance(cur, dict):
-                      return None
-                  cur = cur.get(part)
-              return cur
-
-          def first(obj, keys):
-              if not isinstance(obj, dict):
-                  return None
-              for key in keys:
-                  value = deep_get(obj, key) if "." in key else obj.get(key)
-                  if value not in ("", None):
-                      return value
-              return None
-
-          def normalize_from_features(data):
-              nodes = {}
-
-              for index, feature in enumerate(data.get("features", [])):
-                  if not isinstance(feature, dict):
-                      continue
-
-                  props = feature.get("properties") if isinstance(feature.get("properties"), dict) else {}
-                  geom = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
-                  coordinates = geom.get("coordinates")
-
-                  row = dict(props)
-                  address = row.get("address") or row.get("node") or row.get("id") or feature.get("id") or f"feature-{index:08d}"
-
-                  if isinstance(coordinates, list) and len(coordinates) >= 2:
-                      row["longitude"] = coordinates[0]
-                      row["latitude"] = coordinates[1]
-                      row["lon"] = coordinates[0]
-                      row["lat"] = coordinates[1]
-
-                  row["address"] = address
-                  nodes[address] = row
-
-              return {
-                  "schema": "zzx-bitnodes-map-ready-from-geojson-v1",
-                  "source": "zzxbitnodes",
-                  "nodes": nodes,
-              }
-
-          def normalize_from_vectors(data):
-              points = []
-
-              if isinstance(data.get("vectors"), dict) and isinstance(data["vectors"].get("points"), list):
-                  points = data["vectors"]["points"]
-              elif isinstance(data.get("points"), list):
-                  points = data["points"]
-
-              nodes = {}
-
-              for index, point in enumerate(points):
-                  if not isinstance(point, dict):
-                      continue
-
-                  row = dict(point)
-                  address = row.get("address") or row.get("node") or row.get("id") or row.get("host") or f"point-{index:08d}"
-                  row["address"] = address
-                  nodes[address] = row
-
-              return {
-                  "schema": "zzx-bitnodes-map-ready-from-vectors-v1",
-                  "source": "zzxbitnodes",
-                  "nodes": nodes,
-              }
-
-          if isinstance(payload, dict) and isinstance(payload.get("nodes"), dict):
-              out = payload
-          elif isinstance(payload, dict) and isinstance(payload.get("nodes"), list):
-              out = dict(payload)
-              out["nodes"] = {
-                  (node.get("address") or node.get("node") or node.get("id") or f"node-{index:08d}"): node
-                  for index, node in enumerate(payload["nodes"])
-                  if isinstance(node, dict)
-              }
-          elif isinstance(payload, dict) and payload.get("type") == "FeatureCollection":
-              out = normalize_from_features(payload)
-          elif isinstance(payload, dict) and (
-              isinstance(payload.get("points"), list)
-              or isinstance(payload.get("vectors"), dict)
-          ):
-              out = normalize_from_vectors(payload)
-          else:
-              raise SystemExit("map source payload cannot be normalized into nodes dict")
-
-          nodes = out.get("nodes", {})
-
-          if not isinstance(nodes, dict):
-              raise SystemExit("map-ready normalized payload has no nodes dict")
-
-          total = 0
-          real = 0
-
-          for address, node in list(nodes.items()):
-              total += 1
-
-              if isinstance(node, list):
-                  while len(node) < 20:
-                      node.append(None)
-
-                  lat = node[8]
-                  lon = node[9]
-
-                  if not valid_coord(lat, lon):
-                      meta = node[19] if isinstance(node[19], dict) else {}
-                      geo = meta.get("geoip") or meta.get("geoip_data") or {}
-
-                      if isinstance(geo, dict):
-                          lat = geo.get("latitude")
-                          lon = geo.get("longitude")
-
-                      if not valid_coord(lat, lon):
-                          del nodes[address]
-                          continue
-                      else:
-                          real += 1
-
-                      node[8] = float(lat)
-                      node[9] = float(lon)
-                      meta["latitude"] = float(lat)
-                      meta["longitude"] = float(lon)
-                      node[19] = meta
-                  else:
-                      real += 1
-
-              elif isinstance(node, dict):
-                  lat = first(node, (
-                      "latitude",
-                      "lat",
-                      "geo.latitude",
-                      "geoip.latitude",
-                      "geoip_data.latitude",
-                      "geoloc.latitude",
-                      "location.latitude",
-                      "metadata.latitude",
-                  ))
-                  lon = first(node, (
-                      "longitude",
-                      "lon",
-                      "lng",
-                      "geo.longitude",
-                      "geoip.longitude",
-                      "geoip_data.longitude",
-                      "geoloc.longitude",
-                      "location.longitude",
-                      "metadata.longitude",
-                  ))
-
-                  if not valid_coord(lat, lon):
-                      geo = node.get("geoip") or node.get("geoip_data") or node.get("geoloc") or {}
-
-                      if isinstance(geo, dict):
-                          lat = geo.get("latitude")
-                          lon = geo.get("longitude")
-
-                      if not valid_coord(lat, lon):
-                          del nodes[address]
-                          continue
-                      else:
-                          real += 1
-                  else:
-                      real += 1
-
-                  node["address"] = node.get("address") or address
-                  node["latitude"] = float(lat)
-                  node["longitude"] = float(lon)
-                  node["lat"] = float(lat)
-                  node["lon"] = float(lon)
-
-          out.setdefault("metadata", {})
-          out["metadata"]["map_ready"] = True
-          out["metadata"]["map_ready_total_nodes"] = total
-          out["metadata"]["map_ready_real_coordinates"] = real
-          out["metadata"]["map_ready_synthetic_coordinates"] = 0
-          out["metadata"]["coordinate_policy"] = "real_coordinates_only"
-          out["metadata"]["map_ready_excluded_without_real_coordinates"] = total - real
-
-          dst.parent.mkdir(parents=True, exist_ok=True)
-          dst.write_text(
-              json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n",
-              encoding="utf-8",
-          )
-
-          print(f"map-ready input written: {dst}")
-          print(f"map-ready total={total} real={real} synthetic=0 excluded={total - real}")
-
-          if total < 1:
-              raise SystemExit("map-ready source has zero nodes")
-
-          if real < 1:
-              raise SystemExit("map-ready source has zero real coordinates; synthetic coordinates are prohibited")
-          PY
-
-      - name: Build canonical live-map data from map-ready input
-        if: steps.sources.outputs.map_ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python tools/bitnodes/map/map.py both \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
-            --api-dir "${BITNODES_API}" \
-            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            --map-dir "${BITNODES_MAPS}" \
-            --live-map-dir "${BITNODES_LIVE_MAP}" \
-            --source zzxbitnodes \
-            --theme zzx_dark_olive \
             --settings live \
             --tile-provider cartodb_dark \
+            --limit "${MAP_MAX_POINTS}" \
             --compact \
+            --no-db \
             --fail-empty \
             --vectors-fallback
 
-          test -f "${BITNODES_LIVE_MAP}/data/map-points.geojson"
-          test -f "${BITNODES_LIVE_MAP}/data/map-vectors.json"
-          test -f "${BITNODES_LIVE_MAP}/data/map-settings.json"
-          test -f "${BITNODES_LIVE_MAP}/data/map-theme.json"
-          test -f "${BITNODES_LIVE_MAP}/data/vector-types.json"
-
-
-      - name: Validate canonical live-map output
-        if: steps.sources.outputs.map_ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          min_features = int(os.environ.get("MIN_MAP_FEATURES", "1"))
-
-          geojson_path = Path("bitcoin/bitnodes/live-map/data/map-points.geojson")
-          vectors_path = Path("bitcoin/bitnodes/live-map/data/map-vectors.json")
-
-          required = [
-              geojson_path,
-              vectors_path,
-              Path("bitcoin/bitnodes/live-map/data/map-settings.json"),
-              Path("bitcoin/bitnodes/live-map/data/map-theme.json"),
-              Path("bitcoin/bitnodes/live-map/data/vector-types.json"),
-          ]
-
-          for path in required:
-              if not path.exists():
-                  raise SystemExit(f"missing {path}")
-
-          geojson = json.loads(geojson_path.read_text(encoding="utf-8"))
-          vectors = json.loads(vectors_path.read_text(encoding="utf-8"))
-
-          if geojson.get("type") != "FeatureCollection":
-              raise SystemExit("map-points.geojson is not a GeoJSON FeatureCollection")
-
-          features = geojson.get("features")
-          points = vectors.get("points")
-
-          if not isinstance(features, list):
-              raise SystemExit("map-points.geojson features is not a list")
-
-          if not isinstance(points, list):
-              raise SystemExit("map-vectors.json points is not a list")
-
-          print(f"live-map canonical feature count: {len(features)}")
-          print(f"live-map canonical vector point count: {len(points)}")
-
-          if len(features) < min_features:
-              raise SystemExit(
-                  f"map-points.geojson has too few plotted features: {len(features)} < {min_features}"
-              )
-
-          if len(points) < min_features:
-              raise SystemExit(
-                  f"map-vectors.json has too few points: {len(points)} < {min_features}"
-              )
-          PY
-
-      - name: Verify real-coordinate provenance
-        if: steps.sources.outputs.map_ready == 'true'
+      - name: Validate canonical map output and provenance
         shell: bash
         run: |
           set -euo pipefail
@@ -1040,298 +322,106 @@ jobs:
           python - <<'PY'
           import json
           import math
+          import os
           from pathlib import Path
 
-          source_path = Path(
-              "bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.map-ready.json"
-          )
-
-          geojson_path = Path(
-              "bitcoin/bitnodes/live-map/data/map-points.geojson"
-          )
-
-          source = json.loads(
-              source_path.read_text(encoding="utf-8")
-          )
-
-          metadata = (
-              source.get("metadata")
-              if isinstance(
-                  source.get("metadata"),
-                  dict,
-              )
-              else {}
-          )
-
-          if metadata.get("coordinate_policy") != "real_coordinates_only":
-              raise SystemExit(
-                  "map-ready source is not marked real-coordinates-only"
-              )
-
-          if int(
-              metadata.get(
-                  "map_ready_synthetic_coordinates",
-                  -1,
-              )
-          ) != 0:
-              raise SystemExit(
-                  "map-ready source reports synthetic coordinates"
-              )
-
-          def valid_coord(lat, lon):
-              try:
-                  lat = float(lat)
-                  lon = float(lon)
-              except Exception:
-                  return False
-
-              return (
-                  math.isfinite(lat)
-                  and math.isfinite(lon)
-                  and -90 <= lat <= 90
-                  and -180 <= lon <= 180
-              )
-
-          def key(lat, lon):
-              return (
-                  round(float(lat), 6),
-                  round(float(lon), 6),
-              )
-
+          source = json.loads(Path(os.environ["MAP_SOURCE"]).read_text(encoding="utf-8"))
           nodes = source.get("nodes")
+          if not isinstance(nodes, dict) or not nodes:
+              raise SystemExit("map source has no nodes")
 
-          if not isinstance(nodes, dict):
-              raise SystemExit(
-                  "map-ready source has no nodes dictionary"
-              )
+          source_coords = set()
+          source_addresses = set()
 
-          source_coordinates = set()
-
-          for address, node in nodes.items():
-              if isinstance(node, dict):
-                  if (
-                      str(
-                          node.get(
-                              "geoip_confidence",
-                              "",
-                          )
-                      ).lower()
-                      == "synthetic"
-                  ):
-                      raise SystemExit(
-                          "synthetic coordinate marker found in source: "
-                          f"{address}"
-                      )
-
-                  if (
-                      str(
-                          node.get(
-                              "geoip_source",
-                              "",
-                          )
-                      )
-                      == "workflow-map-ready-fallback"
-                  ):
-                      raise SystemExit(
-                          "legacy synthetic coordinate source found: "
-                          f"{address}"
-                      )
-
-                  lat = (
-                      node.get("latitude")
-                      if node.get("latitude") is not None
-                      else node.get("lat")
-                  )
-
-                  lon = (
-                      node.get("longitude")
-                      if node.get("longitude") is not None
-                      else (
-                          node.get("lon")
-                          if node.get("lon") is not None
-                          else node.get("lng")
-                      )
-                  )
-
-              elif isinstance(node, list):
-                  lat = (
-                      node[8]
-                      if len(node) > 8
-                      else None
-                  )
-
-                  lon = (
-                      node[9]
-                      if len(node) > 9
-                      else None
-                  )
-
-                  metadata_row = (
-                      node[19]
-                      if (
-                          len(node) > 19
-                          and isinstance(
-                              node[19],
-                              dict,
-                          )
-                      )
-                      else {}
-                  )
-
-                  if (
-                      str(
-                          metadata_row.get(
-                              "geoip_confidence",
-                              "",
-                          )
-                      ).lower()
-                      == "synthetic"
-                  ):
-                      raise SystemExit(
-                          "synthetic coordinate marker found in list source: "
-                          f"{address}"
-                      )
-
-              else:
+          for address, row in nodes.items():
+              if not isinstance(row, dict):
                   continue
+              lat = float(row["latitude"])
+              lon = float(row["longitude"])
+              source_coords.add((round(lat, 6), round(lon, 6)))
+              source_addresses.add(str(row.get("address") or address))
 
-              if not valid_coord(lat, lon):
-                  raise SystemExit(
-                      "invalid coordinate in real-only source: "
-                      f"{address}"
-                  )
+          for base in (
+              Path("bitcoin/bitnodes/maps/data"),
+              Path("bitcoin/bitnodes/live-map/data"),
+          ):
+              geo_path = base / "map-points.geojson"
+              vector_path = base / "map-vectors.json"
 
-              source_coordinates.add(
-                  key(
-                      lat,
-                      lon,
-                  )
-              )
+              for path in (geo_path, vector_path):
+                  if not path.exists() or path.stat().st_size <= 0:
+                      raise SystemExit(f"missing generated map artifact: {path}")
 
-          if not source_coordinates:
-              raise SystemExit(
-                  "real-only source contains zero coordinates"
-              )
+              geo = json.loads(geo_path.read_text(encoding="utf-8"))
+              vectors = json.loads(vector_path.read_text(encoding="utf-8"))
+              features = geo.get("features")
+              points = vectors.get("points")
 
-          geojson = json.loads(
-              geojson_path.read_text(encoding="utf-8")
-          )
+              if not isinstance(features, list) or not features:
+                  raise SystemExit(f"empty GeoJSON: {geo_path}")
+              if not isinstance(points, list) or not points:
+                  raise SystemExit(f"empty map vectors: {vector_path}")
 
-          if geojson.get("type") != "FeatureCollection":
-              raise SystemExit(
-                  "canonical map-points.geojson is not a FeatureCollection"
-              )
+              for feature in features:
+                  if not isinstance(feature, dict):
+                      raise SystemExit(f"invalid feature in {geo_path}")
+                  props = feature.get("properties") if isinstance(feature.get("properties"), dict) else {}
+                  marker_text = " ".join(str(props.get(key) or "").lower() for key in (
+                      "geoip_confidence", "geoip_source", "geo_confidence", "geo_source"
+                  ))
+                  if "synthetic" in marker_text or "deterministic-fallback" in marker_text:
+                      raise SystemExit(f"synthetic marker in {geo_path}")
 
-          features = geojson.get("features")
+                  geometry = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
+                  coordinates = geometry.get("coordinates")
+                  if not isinstance(coordinates, list) or len(coordinates) < 2:
+                      raise SystemExit(f"invalid geometry in {geo_path}")
+                  lon = float(coordinates[0])
+                  lat = float(coordinates[1])
+                  if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+                      raise SystemExit(f"invalid coordinate in {geo_path}")
+                  if (round(lat, 6), round(lon, 6)) not in source_coords:
+                      raise SystemExit(f"map emitted coordinate absent from canonical map source: {(lat, lon)}")
 
-          if not isinstance(features, list) or not features:
-              raise SystemExit(
-                  "canonical map-points.geojson has no features"
-              )
-
-          for index, feature in enumerate(features):
-              if not isinstance(feature, dict):
-                  raise SystemExit(
-                      f"invalid GeoJSON feature at index {index}"
-                  )
-
-              props = (
-                  feature.get("properties")
-                  if isinstance(
-                      feature.get("properties"),
-                      dict,
-                  )
-                  else {}
-              )
-
-              if (
-                  str(
-                      props.get(
-                          "geoip_confidence",
-                          "",
-                      )
-                  ).lower()
-                  == "synthetic"
-              ):
-                  raise SystemExit(
-                      f"synthetic map feature at index {index}"
-                  )
-
-              if (
-                  str(
-                      props.get(
-                          "geoip_source",
-                          "",
-                      )
-                  )
-                  == "workflow-map-ready-fallback"
-              ):
-                  raise SystemExit(
-                      f"legacy synthetic map feature at index {index}"
-                  )
-
-              geometry = (
-                  feature.get("geometry")
-                  if isinstance(
-                      feature.get("geometry"),
-                      dict,
-                  )
-                  else {}
-              )
-
-              coordinates = geometry.get("coordinates")
-
-              if (
-                  not isinstance(coordinates, list)
-                  or len(coordinates) < 2
-                  or not valid_coord(
-                      coordinates[1],
-                      coordinates[0],
-                  )
-              ):
-                  raise SystemExit(
-                      f"invalid GeoJSON coordinate at feature {index}"
-                  )
-
-              coordinate = key(
-                  coordinates[1],
-                  coordinates[0],
-              )
-
-              if coordinate not in source_coordinates:
-                  raise SystemExit(
-                      "canonical map contains a coordinate that did not "
-                      "exist in the real-coordinate input: "
-                      f"{coordinate}"
-                  )
-
-          print(
-              "real-coordinate provenance passed:",
-              f"source_coordinates={len(source_coordinates)}",
-              f"features={len(features)}",
-              "synthetic=0",
-          )
+              print(base, "features=", len(features), "vectors=", len(points))
           PY
+        env:
+          MAP_SOURCE: ${{ steps.map_source.outputs.map_source }}
 
-      - name: Mirror validated canonical map outputs
-        if: steps.sources.outputs.map_ready == 'true'
+      - name: Write Map Host status contract
         shell: bash
         run: |
           set -euo pipefail
 
-          mkdir -p "${BITNODES_MAPS}/data"
+          python - <<'PY'
+          import json
+          import time
+          from pathlib import Path
 
-          cp -f "${BITNODES_LIVE_MAP}/data/map-points.geojson" \
-                "${BITNODES_MAPS}/data/map-points.geojson"
+          report = json.loads(Path("${{ steps.map_source.outputs.map_report }}").read_text(encoding="utf-8"))
+          status = {
+              "schema": "zzx-bitnodes-maphost-status-v1",
+              "generated_at": int(time.time()),
+              "source": "bitcoin/bitnodes/api/snapshots/latest.json",
+              "source_schema": "zzx-bitnodes-canonical-v2",
+              "real_coordinates_only": True,
+              "synthetic_coordinates": 0,
+              "max_points": int("${MAP_MAX_POINTS}"),
+              "map_source": report,
+          }
 
-          cp -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" \
-                "${BITNODES_MAPS}/data/map-vectors.json"
+          text = json.dumps(status, ensure_ascii=False, separators=(",", ":")) + "\n"
+          for path in (
+              Path("bitcoin/bitnodes/maps/data/maphost-status.json"),
+              Path("bitcoin/bitnodes/live-map/data/maphost-status.json"),
+              Path("bitcoin/bitnodes/maps/zzxbitnodes/data/maphost-status.json"),
+              Path("bitcoin/bitnodes/live-map/zzxbitnodes/data/maphost-status.json"),
+          ):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(text, encoding="utf-8")
+          PY
 
-          cp -f "${BITNODES_LIVE_MAP}/data/nodes.geojson" \
-                "${BITNODES_MAPS}/data/nodes.geojson" || true
-
-      - name: Enforce map artifact size policy
-        if: steps.sources.outputs.map_ready == 'true'
+      - name: Enforce Map Host artifact policy
         shell: bash
         run: |
           set -euo pipefail
@@ -1341,88 +431,58 @@ jobs:
           from pathlib import Path
 
           max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
-          roots = [
-              Path(os.environ["BITNODES_MAPS"]),
-              Path(os.environ["BITNODES_LIVE_MAP"]),
-          ]
-
           bad = []
 
-          for root in roots:
+          for root in (
+              Path(os.environ["BITNODES_MAPS"]),
+              Path(os.environ["BITNODES_LIVE_MAP"]),
+          ):
               for path in root.rglob("*"):
                   if not path.is_file():
                       continue
-
                   if path.suffix.lower() not in {".json", ".geojson", ".css", ".js", ".html", ".svg", ".png", ".webp"}:
                       continue
-
                   if path.stat().st_size > max_bytes:
                       bad.append((path.stat().st_size, path))
 
           if bad:
               for size, path in bad:
-                  print(f"oversized map artifact: {size} {path}")
+                  print("oversized Map Host artifact:", size, path)
               raise SystemExit(1)
 
-          print("map artifact size policy passed")
+          print("Map Host artifact size policy passed")
           PY
 
-      - name: Prune map runtime cache
-        if: steps.sources.outputs.map_ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          rm -rf "${BITNODES_API}/data/map-source" || true
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" || true
-
-          find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
-          find bitcoin/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
-          find . -type f -name '*.pyc' -delete || true
-
-      - name: Stage map outputs only
-        if: steps.sources.outputs.map_ready == 'true'
+      - name: Stage Map Host-owned outputs only
         shell: bash
         run: |
           set -euo pipefail
 
           git reset
-
           git add -A \
             "${BITNODES_MAPS}" \
             "${BITNODES_LIVE_MAP}"
 
-          STAGED_OUTSIDE_MAPHOST="$(
-            git diff --cached --name-only \
-              | grep -Ev '^bitcoin/bitnodes/(maps|live-map)/' \
-              || true
-          )"
-
-          if [ -n "${STAGED_OUTSIDE_MAPHOST}" ]; then
-            printf '%s\n' \
-              "Refusing Map Host commit containing non-Map-Host paths:"
-            printf '%s\n' "${STAGED_OUTSIDE_MAPHOST}"
-            exit 1
-          fi
-
-          if git diff --cached --name-only | grep -E '/(cities|asns|countries|agents|geohashes|providers|organizations|versions)/.+\.json$'; then
-            printf '%s\n' "Refusing exploded map/API fanout files."
+          OUTSIDE="$({ git diff --cached --name-only || true; } | grep -Ev '^bitcoin/bitnodes/(maps|live-map)/' || true)"
+          if [ -n "${OUTSIDE}" ]; then
+            printf '%s\n' "Refusing Map Host commit containing non-Map-Host paths:"
+            printf '%s\n' "${OUTSIDE}"
             exit 1
           fi
 
           if git grep --cached -n -E \
-            'workflow-map-ready-fallback|"geoip_confidence"[[:space:]]*:[[:space:]]*"synthetic"' \
-            -- "${BITNODES_MAPS}" "${BITNODES_LIVE_MAP}"; then
-            printf '%s\n' \
-              "Refusing staged map artifacts containing synthetic-coordinate markers."
+            'workflow-map-ready-fallback|deterministic-fallback|"synthetic"[[:space:]]*:[[:space:]]*true|"geoip_confidence"[[:space:]]*:[[:space:]]*"synthetic"' \
+            -- "${BITNODES_MAPS}" "${BITNODES_LIVE_MAP}"
+          then
+            printf '%s\n' "Refusing staged Map Host artifacts containing synthetic geography."
             exit 1
           fi
 
           CHANGED="$(git diff --cached --name-only | wc -l | tr -d ' ')"
           DELETIONS="$(git diff --cached --numstat | awk '{d += $2} END {print d + 0}')"
 
-          printf '%s\n' "Staged files: ${CHANGED}"
-          printf '%s\n' "Staged deletions: ${DELETIONS}"
+          printf '%s\n' "Map Host staged files: ${CHANGED}"
+          printf '%s\n' "Map Host staged deletions: ${DELETIONS}"
 
           if [ "${CHANGED}" -gt "${MAX_COMMIT_FILES}" ]; then
             git diff --cached --name-only | sed -n '1,320p'
@@ -1434,28 +494,7 @@ jobs:
             exit 1
           fi
 
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          for path in [
-              Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
-              Path("bitcoin/bitnodes/maps/data/map-points.geojson"),
-          ]:
-              if not path.exists():
-                  raise SystemExit(f"missing staged map file: {path}")
-
-              payload = json.loads(path.read_text(encoding="utf-8"))
-              features = payload.get("features", [])
-
-              if not isinstance(features, list) or len(features) < 1:
-                  raise SystemExit(f"refusing to stage empty GeoJSON: {path}")
-
-              print(f"staging verified: {path} features={len(features)}")
-          PY
-
-      - name: Commit and push map outputs
-        if: steps.sources.outputs.map_ready == 'true'
+      - name: Commit and push Map Host outputs
         shell: bash
         run: |
           set -euo pipefail
@@ -1468,65 +507,24 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update Bitnodes map host outputs"
-
-          printf '%s\n' \
-            "Discarding non-public runtime/cache files before publication."
-
+          git commit -m "Update canonical Bitnodes maps"
           git reset --hard HEAD
           git clean -fdx
-
-          if [ -n "$(git status --porcelain)" ]; then
-            printf '%s\n' \
-              "Refusing to rebase Map Host commit from a dirty worktree."
-            git status --short
-            exit 1
-          fi
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if ! git rebase origin/main; then
-              git rebase --abort || true
-
-              printf '%s\n' \
-                "Map rebase attempt ${attempt} failed; retrying without force."
-
-              git reset --hard HEAD
-              git clean -fdx
-
-              if [ -n "$(git status --porcelain)" ]; then
-                printf '%s\n' \
-                  "Map Host worktree remained dirty after rebase cleanup."
-                git status --short
-                exit 1
-              fi
-
-              sleep 10
-              continue
-            fi
-
-            if git push origin HEAD:main; then
-              printf '%s\n' "Map outputs pushed."
+            if git rebase origin/main && git push origin HEAD:main; then
+              printf '%s\n' "Canonical Bitnodes maps pushed."
               exit 0
             fi
 
-            printf '%s\n' \
-              "Map push attempt ${attempt} failed; retrying without force."
-
+            git rebase --abort || true
             git reset --hard HEAD
             git clean -fdx
-
-            if [ -n "$(git status --porcelain)" ]; then
-              printf '%s\n' \
-                "Map Host worktree remained dirty after push cleanup."
-              git status --short
-              exit 1
-            fi
-
+            printf '%s\n' "Map Host publish attempt ${attempt} failed; retrying without force."
             sleep 10
           done
 
-          printf '%s\n' \
-            "Failed to push map outputs without rewriting main."
+          printf '%s\n' "Failed to publish Map Host outputs without rewriting main."
           exit 1
