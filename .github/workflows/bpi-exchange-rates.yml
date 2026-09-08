@@ -2,14 +2,12 @@ name: Update BPI Exchange Rates
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/30 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: bpi-exchange-rates
+  group: bpi-hourly-master
   cancel-in-progress: false
 
 env:
@@ -46,8 +44,11 @@ jobs:
           set -euo pipefail
 
           test -f tools/bpi/update_exchange_rates.py
+          test -f tools/bpi/bpi_git_publish.py
+
           python -m py_compile \
-            tools/bpi/update_exchange_rates.py
+            tools/bpi/update_exchange_rates.py \
+            tools/bpi/bpi_git_publish.py
 
           for file in \
             bitcoin/bpi/api/currencies.json \
@@ -220,7 +221,7 @@ jobs:
           )
           PY
 
-      - name: Commit and push exchange rates
+      - name: Publish exchange rates
         shell: bash
         run: |
           set -euo pipefail
@@ -228,37 +229,9 @@ jobs:
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
 
-          git add -- \
-            bitcoin/bpi/api/exchange_rates.json
-
-          if git diff --cached --quiet; then
-            printf '%s\n' \
-              "No BPI exchange-rate changes."
-            exit 0
-          fi
-
-          git commit \
-            -m "Update BPI exchange rates"
-
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main && \
-               git push origin HEAD:main; then
-              printf '%s\n' \
-                "BPI exchange rates pushed."
-              exit 0
-            fi
-
-            git rebase --abort || true
-
-            printf '%s\n' \
-              "BPI exchange-rate push attempt ${attempt} failed; retrying without force."
-
-            sleep 5
-          done
-
-          printf '%s\n' \
-            "Failed to push BPI exchange rates without rewriting main."
-
-          exit 1
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update BPI exchange rates" \
+            --path bitcoin/bpi/api/exchange_rates.json \
+            --attempts 5 \
+            --sleep-seconds 5
