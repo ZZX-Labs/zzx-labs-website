@@ -193,41 +193,16 @@ jobs:
           )
           PY
 
-      - name: Commit and push reference markets
+      - name: Publish generated data
         shell: bash
         run: |
           set -euo pipefail
-
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
-
-          git add -- \
-            bitcoin/bpi/api/commodities.json \
-            bitcoin/bpi/api/reference_prices.json
-
-          if git diff --cached --quiet; then
-            printf '%s\n' \
-              "No reference-market changes."
-            exit 0
-          fi
-
-          git commit \
-            -m "Update BPI reference markets"
-
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main && \
-               git push origin HEAD:main; then
-              printf '%s\n' \
-                "BPI reference markets pushed."
-              exit 0
-            fi
-
-            git rebase --abort || true
-            sleep 5
-          done
-
-          printf '%s\n' \
-            "Failed to push BPI reference markets without rewriting main."
-          exit 1
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update BPI reference markets" \
+            --path bitcoin/bpi/api/commodities.json \
+            --path bitcoin/bpi/api/reference_prices.json \
+            --attempts 5 \
+            --sleep-seconds 5
