@@ -1,143 +1,112 @@
-// __partials/widgets/mempool-goggles/widget.js
 (function(){
   "use strict";
-
   const W=window,D=document,ID="mempool-goggles";
 
-  function q(root,sel){return root?root.querySelector(sel):null;}
+  function q(root,sel){return root?.querySelector?.(sel)||null;}
+  function set(root,sel,v){const el=q(root,sel);if(el)el.textContent=v==null?"—":String(v);}
   function int(v){const n=Number(v);return Number.isFinite(n)?Math.round(n).toLocaleString():"—";}
   function num(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:d}):"—";}
   function btc(v){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(undefined,{maximumFractionDigits:8})} BTC`:"—";}
   function usd(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2}):"—";}
   function status(root,label,state){const el=q(root,"[data-mg-status]");if(!el)return;el.textContent=label;el.setAttribute("data-status",state||"offline");}
+  function resolve(path){return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;}
+  function base(core){return core?.widgetBase?String(core.widgetBase(ID)).replace(/\/+$/g,""):"/__partials/widgets/mempool-goggles";}
+
+  async function loadScript(path,test,tag){
+    if(test())return;
+    const src=new URL(resolve(path),W.location.href).href;
+    const existing=[...D.scripts].find(s=>s.src===src);
+    if(existing){const start=Date.now();while(!test()&&Date.now()-start<1800)await new Promise(done=>W.setTimeout(done,25));if(test())return;}
+    await new Promise((done,fail)=>{const s=D.createElement("script");s.src=src;s.defer=true;s.dataset.mgDependency=tag;s.addEventListener("load",done,{once:true});s.addEventListener("error",fail,{once:true});(D.head||D.documentElement).appendChild(s);});
+    if(!test())throw new Error(`${path} did not register ${tag}`);
+  }
 
   async function ensureModules(core){
-    const base=core?.widgetBase?String(core.widgetBase(ID)).replace(/\/+$/g,""):"/__partials/widgets/mempool-goggles";
-    for(const [globalName,relative] of [
-      ["ZZXMempoolGogglesSources","js/sources.js"],
-      ["ZZXMempoolGogglesFetch","js/fetch.js"],
-      ["ZZXMempoolGogglesProvider","js/provider.js"],
-      ["ZZXMempoolGogglesModel","js/model.js"],
-      ["ZZXMempoolGogglesTreemap","js/treemap.js"],
-      ["ZZXMempoolGogglesRenderer","js/renderer.js"]
-    ]){
-      if(W[globalName])continue;
-      const raw=`${base}/${relative}`;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
-      await new Promise((resolve,reject)=>{
-        const s=D.createElement("script");
-        s.src=src;s.defer=true;
-        s.addEventListener("load",resolve,{once:true});
-        s.addEventListener("error",reject,{once:true});
-        (D.head||D.documentElement).appendChild(s);
-      });
-      if(!W[globalName])throw new Error(`${relative} did not register ${globalName}`);
-    }
-  }
-
-  function pageUrlFromPayload(payload){
-    const raw=String(payload?.base||"https://mempool.space/api").replace(/\/+$/g,"");
-    return raw.replace(/\/api$/i,"")+"/mempool-block/0";
-  }
-
-  function setMode(root,state,mode){
-    state.mode=mode;
-    const stage=q(root,"[data-mg-stage]");
-    if(stage)stage.dataset.mode=mode;
-    const live=q(root,"[data-mg-live]");
-    const fallback=q(root,"[data-mg-fallback]");
-    if(live)live.hidden=mode!=="live";
-    if(fallback)fallback.hidden=mode!=="local";
-    const liveBtn=q(root,"[data-mg-show-live]");
-    const localBtn=q(root,"[data-mg-show-local]");
-    if(liveBtn)liveBtn.setAttribute("aria-pressed",mode==="live"?"true":"false");
-    if(localBtn)localBtn.setAttribute("aria-pressed",mode==="local"?"true":"false");
-    if(mode==="local"&&state.model)draw(root,state);
-  }
-
-  function draw(root,state){
-    if(!state.model)return;
-    const canvas=q(root,"[data-mg-canvas]");
-    if(!canvas)return;
-    state.hits=W.ZZXMempoolGogglesRenderer.draw(canvas,state.model.tiles,state.model);
+    await loadScript("/__partials/widgets/_shared/zzx-mempool-live.js",()=>Number(W.ZZXMempoolLive?.__version||0)>=2,"ZZXMempoolLive");
+    for(const [globalName,relative,version] of [
+      ["ZZXMempoolGogglesSources","js/sources.js",2],
+      ["ZZXMempoolGogglesFetch","js/fetch.js",2],
+      ["ZZXMempoolGogglesProvider","js/provider.js",2],
+      ["ZZXMempoolGogglesModel","js/model.js",2],
+      ["ZZXMempoolGogglesTreemap","js/treemap.js",2],
+      ["ZZXMempoolGogglesRenderer","js/renderer.js",2]
+    ])await loadScript(`${base(core)}/${relative}`,()=>Number(W[globalName]?.__version||0)>=version,globalName);
   }
 
   function tooltipText(root,item){
-    const tip=q(root,"[data-mg-tooltip]");if(!tip)return;
-    tip.replaceChildren();
-    const title=D.createElement("strong");title.textContent=`${num(item.feeRate,1)} sat/vB`;
-    const body=D.createElement("span");const txText=Number.isFinite(Number(item.estimatedTx))?` · ≈${Math.max(.1,Number(item.estimatedTx)).toFixed(1)} tx`:"";
-    body.textContent=`${int(item.vbytes)} vB fee-band volume${txText}`;
-    tip.append(title,body);
+    const tip=q(root,"[data-mg-tooltip]");if(!tip)return;tip.replaceChildren();
+    const title=D.createElement("strong");title.textContent=item.txid?`${String(item.txid).slice(0,16)}…`:`${item.kind}`;
+    const lines=[];
+    lines.push(`${num(item.feeRate,2)} sat/vB · ${int(item.vbytes)} vB`);
+    if(Number.isFinite(Number(item.fee)))lines.push(`${int(item.fee)} sats fee`);
+    if(Number.isFinite(Number(item.value)))lines.push(`${int(item.value)} sats output value`);
+    if(item.kind==="aggregate-overflow")lines.push(`${int(item.count)} transactions coalesced`);
+    const body=D.createElement("span");body.textContent=lines.join(" · ");tip.append(title,body);
   }
 
   function placeTooltip(root,event,hit){
-    const block=q(root,"[data-mg-fallback]");const tip=q(root,"[data-mg-tooltip]");if(!block||!tip)return;
+    const block=q(root,"[data-mg-block]"),tip=q(root,"[data-mg-tooltip]");if(!block||!tip)return;
     const rect=block.getBoundingClientRect();tooltipText(root,hit.item);tip.hidden=false;
-    const left=Math.max(6,Math.min(rect.width-220,event.clientX-rect.left+12));
-    const top=Math.max(6,Math.min(rect.height-68,event.clientY-rect.top+12));
-    tip.style.left=`${left}px`;tip.style.top=`${top}px`;
+    tip.style.left=`${Math.max(6,Math.min(rect.width-250,event.clientX-rect.left+12))}px`;
+    tip.style.top=`${Math.max(6,Math.min(rect.height-78,event.clientY-rect.top+12))}px`;
   }
   function hideTooltip(root){const tip=q(root,"[data-mg-tooltip]");if(tip)tip.hidden=true;}
 
-  function syncFrame(root,state,payload,forceReload=false){
-    const iframe=q(root,"[data-mg-iframe]");const open=q(root,"[data-mg-open]");if(!iframe)return;
-    const baseUrl=pageUrlFromPayload(payload);const src=forceReload?`${baseUrl}?ts=${Date.now()}`:baseUrl;
-    if(forceReload||state.frameUrl!==baseUrl||!iframe.src){iframe.src=src;state.frameUrl=baseUrl;}
-    if(open)open.href=baseUrl;
+  function draw(root,state,animate=true){
+    if(!state.model)return;
+    const canvas=q(root,"[data-mg-canvas]");
+    state.hits=W.ZZXMempoolGogglesRenderer.draw(canvas,state.model.tiles,state.model,{animate});
   }
 
-  function render(root,state,payload){
-    const m=state.model;
-    q(root,"[data-mg-height]").textContent=Number.isFinite(m.nextHeight)?`#${int(m.nextHeight)}`:"next block";
-    q(root,"[data-mg-sub]").textContent=`${int(m.candidateTx)} candidate TXs · ${num(m.candidateVbytes/1e6,3)} vMB · live page feed + API summary`;
-    q(root,"[data-mg-vsize]").textContent=Number.isFinite(m.candidateVbytes)?`${num(m.candidateVbytes/1e6,3)} vMB`:"—";
-    q(root,"[data-mg-tx]").textContent=int(m.candidateTx);
-    q(root,"[data-mg-fees]").textContent=`${btc(m.totalFeesBTC)}${Number.isFinite(m.totalFeesUSD)?` · ${usd(m.totalFeesUSD)}`:""}`;
-    q(root,"[data-mg-median]").textContent=Number.isFinite(m.medianFee)?`${num(m.medianFee,1)} sat/vB`:"—";
-    q(root,"[data-mg-tip]").textContent=Number.isFinite(m.tipHeight)?`#${int(m.tipHeight)} → candidate #${int(m.nextHeight)}`:"—";
-    q(root,"[data-mg-range]").textContent=Number.isFinite(m.feeMin)&&Number.isFinite(m.feeMax)?`${num(m.feeMin,1)}–${num(m.feeMax,1)} sat/vB`:"—";
-    q(root,"[data-mg-backlog]").textContent=Number.isFinite(m.backlogVMB)?`${num(m.backlogVMB,2)} vMB · ${int(m.mempoolTx)} TXs`:"—";
-    q(root,"[data-mg-source]").textContent=m.source||"configured mempool API";
-    q(root,"[data-mg-updated]").textContent=`updated ${new Date(m.fetchedAt).toLocaleTimeString()}`;
-    q(root,"[data-mg-block-label]").textContent=`literal remote page feed · local fallback has ${m.tiles.length.toLocaleString()} fee-band tiles`;
-    q(root,"[data-mg-meta]").textContent=`Default mode is the literal mempool.space page viewport. If the remote site blocks embedding, switch to Local fallback for the clean-room renderer.`;
-    syncFrame(root,state,payload,false);
-    if(state.mode==="local")draw(root,state);
-    status(root,state.mode==="live"?"live frame":"local fallback",state.mode==="live"?"ok":"warn");
+  function render(root,state){
+    const m=state.model;if(!m)return;
+    set(root,"[data-mg-height]",Number.isFinite(m.nextHeight)?`#${int(m.nextHeight)}`:"next block");
+    set(root,"[data-mg-sub]",`${int(m.candidateTx)} candidate TXs · ${num(m.candidateVbytes/1e6,3)} vMB · ${m.bandMethod}`);
+    set(root,"[data-mg-vsize]",Number.isFinite(m.candidateVbytes)?`${num(m.candidateVbytes/1e6,3)} vMB`:"—");
+    set(root,"[data-mg-tx]",int(m.candidateTx));
+    set(root,"[data-mg-fees]",`${btc(m.totalFeesBTC)}${Number.isFinite(m.totalFeesUSD)?` · ${usd(m.totalFeesUSD)}`:""}`);
+    set(root,"[data-mg-median]",Number.isFinite(m.medianFee)?`${num(m.medianFee,1)} sat/vB`:"—");
+    set(root,"[data-mg-tip]",Number.isFinite(m.tipHeight)?`#${int(m.tipHeight)} → candidate #${int(m.nextHeight)}`:"—");
+    set(root,"[data-mg-range]",Number.isFinite(m.feeMin)&&Number.isFinite(m.feeMax)?`${num(m.feeMin,1)}–${num(m.feeMax,1)} sat/vB`:"—");
+    set(root,"[data-mg-backlog]",Number.isFinite(m.backlogVMB)?`${num(m.backlogVMB,2)} vMB · ${int(m.mempoolTx)} TXs`:"—");
+    set(root,"[data-mg-transport]",`${m.liveConnected?"WebSocket live":"REST/poll fallback"}${m.transport?` · ${m.transport}`:""}`);
+    set(root,"[data-mg-source]",m.wsUrl||m.source||"configured mempool source");
+    set(root,"[data-mg-updated]",`updated ${new Date(m.fetchedAt).toLocaleTimeString()}`);
+    set(root,"[data-mg-block-label]",m.mode==="transactions"?`${m.realTransactionTiles.toLocaleString()} stable transaction tiles · projected block 0`:`${m.tiles.length.toLocaleString()} aggregate fallback tiles`);
+    set(root,"[data-mg-meta]",m.mode==="transactions"?"real projected-block transaction rows · txid-stable animated layout · tiles slide as ordering changes":"transaction-level stream not present · deterministic aggregate fee-band fallback; no fake txids");
+    draw(root,state,true);
+    status(root,m.liveConnected?"live ws":m.mode==="transactions"?"live data":"fallback",m.liveConnected?"ok":"warn");
   }
 
-  async function refresh(root,state,forceFrameReload=false){
-    if(state.busy||!root.isConnected)return;state.busy=true;status(root,"refreshing","warn");
+  function consume(root,state,payload){
     try{
-      const payload=await W.ZZXMempoolGogglesProvider.load(state.core);
-      state.payload=payload;state.model=W.ZZXMempoolGogglesModel.build(payload);
-      if(!state.model.tiles.length)throw new Error("candidate fee distribution produced no visual tiles");
-      render(root,state,payload);if(forceFrameReload)syncFrame(root,state,payload,true);
-    }catch(error){status(root,state.model?"stale":"offline",state.model?"warn":"error");q(root,"[data-mg-meta]").textContent=String(error?.message||error);}finally{state.busy=false;}
+      const next=W.ZZXMempoolGogglesModel.build(payload);
+      if(!next.tiles.length)return;
+      state.model=next;render(root,state);
+    }catch(error){set(root,"[data-mg-meta]",String(error?.message||error));}
+  }
+
+  async function refresh(root,state,force=false){
+    if(state.busy||!root.isConnected)return;state.busy=true;status(root,"refreshing","warn");
+    try{const payload=await W.ZZXMempoolGogglesProvider.load(state.core,force);consume(root,state,payload);if(force)W.ZZXMempoolGogglesProvider.reconnect(state.core);}catch(error){status(root,state.model?"stale":"offline",state.model?"warn":"error");set(root,"[data-mg-meta]",String(error?.message||error));}finally{state.busy=false;}
   }
 
   async function boot(root,core){
     if(!root)return;
-    const old=root.__zzxStateMempoolGoggles;old?.timer&&W.clearTimeout(old.timer);old?.resize?.disconnect?.();
-    const state={core:core||W.ZZXWidgetsCore||null,model:null,payload:null,hits:[],busy:false,timer:null,resize:null,mode:"live",frameUrl:""};
-    root.__zzxStateMempoolGoggles=state;
+    const old=root.__zzxMempoolGogglesState;old?.unsubscribe?.();old?.resize?.disconnect?.();old?.abortController?.abort?.();
+    const abortController=typeof AbortController==="function"?new AbortController():null;const opts=abortController?{signal:abortController.signal}:undefined;
+    const state={core:core||W.ZZXWidgetsCore||null,model:null,hits:[],busy:false,unsubscribe:null,resize:null,abortController};root.__zzxMempoolGogglesState=state;
     try{
       await ensureModules(state.core);
       const canvas=q(root,"[data-mg-canvas]");
-      canvas?.addEventListener("pointermove",event=>{if(state.mode!=="local")return;const rect=canvas.getBoundingClientRect();const x=event.clientX-rect.left;const y=event.clientY-rect.top;const hit=W.ZZXMempoolGogglesRenderer.hitTest(state.hits,x,y);if(hit){canvas.style.cursor="crosshair";placeTooltip(root,event,hit);}else{canvas.style.cursor="default";hideTooltip(root);}});
-      canvas?.addEventListener("pointerleave",()=>{if(canvas)canvas.style.cursor="default";hideTooltip(root);});
-      q(root,"[data-mg-show-live]")?.addEventListener("click",()=>setMode(root,state,"live"));
-      q(root,"[data-mg-show-local]")?.addEventListener("click",()=>setMode(root,state,"local"));
-      q(root,"[data-mg-refresh]")?.addEventListener("click",()=>refresh(root,state,true));
-      if("ResizeObserver" in W){state.resize=new ResizeObserver(()=>{W.requestAnimationFrame(()=>{if(state.model&&state.mode==="local"&&!state.busy)draw(root,state);});});state.resize.observe(q(root,"[data-mg-stage]"));}
-      await refresh(root,state,true);
-      async function loop(){if(!root.isConnected)return;await refresh(root,state,false);state.timer=W.setTimeout(loop,W.ZZXMempoolGogglesSources.refreshMs);}
-      state.timer=W.setTimeout(loop,W.ZZXMempoolGogglesSources.refreshMs);
-    }catch(error){status(root,"offline","error");q(root,"[data-mg-meta]").textContent=String(error?.message||error);}
+      canvas?.addEventListener("pointermove",event=>{const rect=canvas.getBoundingClientRect();const hit=W.ZZXMempoolGogglesRenderer.hitTest(state.hits,event.clientX-rect.left,event.clientY-rect.top);if(hit){canvas.style.cursor="crosshair";placeTooltip(root,event,hit);}else{canvas.style.cursor="default";hideTooltip(root);}},opts);
+      canvas?.addEventListener("pointerleave",()=>{canvas.style.cursor="default";hideTooltip(root);},opts);
+      q(root,"[data-mg-refresh]")?.addEventListener("click",()=>refresh(root,state,true),opts);
+      if("ResizeObserver" in W){state.resize=new ResizeObserver(()=>W.requestAnimationFrame(()=>{if(state.model)draw(root,state,false);}));state.resize.observe(q(root,"[data-mg-block]"));}
+      state.unsubscribe=W.ZZXMempoolGogglesProvider.subscribe(state.core,payload=>{if(root.isConnected)consume(root,state,payload);},{immediate:true});
+      await refresh(root,state,false);
+    }catch(error){status(root,"offline","error");set(root,"[data-mg-meta]",String(error?.message||error));}
   }
 
-  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
-  else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
-  else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
 })();
