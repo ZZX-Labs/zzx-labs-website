@@ -1,5 +1,5 @@
 {
-  "schema": "zzx-bitnodes-sources-v1",
+  "schema": "zzx-bitnodes-sources-v2",
   "refresh_ms": 60000,
   "stale_ms": 86400000,
   "local_candidates": [
@@ -19,5 +19,14 @@
     "required_latest_path": "/api/v1/snapshots/latest/",
     "note": "Any third-party mirror implementing the btcnodes.io/legacy Bitnodes snapshot naming contract can be added here without changing widget code."
   },
-  "local_fresh_ms": 120000
+  "local_fresh_ms": 900000,
+  "browser_direct_upstream": false,
+  "browser_contract": {
+    "mode": "local-mirror-only",
+    "note": "Browser widgets never call btcnodes.io directly. Python/GitHub Actions acquire upstream data and publish local JSON."
+  },
+  "collector_contract": {
+    "primary": "https://btcnodes.io/api/v1/snapshots/latest/",
+    "compatible_mirror_path": "/api/v1/snapshots/latest/"
+  }
 }
