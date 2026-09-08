@@ -3,15 +3,15 @@
   <div class="knots-vs-core__header">
     <div>
       <div class="btc-card__title">Knots vs Core</div>
-      <div class="knots-vs-core__eyebrow">reachable-node client mix · explicit user-agent classification</div>
+      <div class="knots-vs-core__eyebrow">reachable-node client mix · shared Nodes by Version dataset</div>
     </div>
     <span class="btc-card__status" data-kvc-status data-status="offline" aria-live="polite">loading</span>
   </div>
 
   <div class="knots-vs-core__hero">
-    <span>identified Core + Knots share</span>
+    <span>explicit Core + Knots ratio</span>
     <strong data-kvc-summary>—</strong>
-    <small data-kvc-sub>loading local Bitnodes data…</small>
+    <small data-kvc-sub>loading shared Bitnodes version data…</small>
   </div>
 
   <div class="knots-vs-core__metrics">
@@ -22,7 +22,11 @@
   </div>
 
   <div class="knots-vs-core__share">
-    <div class="knots-vs-core__bar" aria-label="Reachable client share">
+    <div class="knots-vs-core__share-head">
+      <span>network-wide reachable-client share</span>
+      <strong data-kvc-coverage>— identified</strong>
+    </div>
+    <div class="knots-vs-core__bar" aria-label="Reachable Bitcoin client share">
       <span class="knots-vs-core__bar-core" data-kvc-bar-core></span>
       <span class="knots-vs-core__bar-knots" data-kvc-bar-knots></span>
       <span class="knots-vs-core__bar-other" data-kvc-bar-other></span>
@@ -31,45 +35,84 @@
     <div class="knots-vs-core__legend">
       <span>Core <strong data-kvc-core-pct>—</strong></span>
       <span>Knots <strong data-kvc-knots-pct>—</strong></span>
-      <span>Other <strong data-kvc-other-pct>—</strong></span>
+      <span>Other / unknown <strong data-kvc-other-pct>—</strong></span>
     </div>
   </div>
 
-  <div class="knots-vs-core__table" role="table" aria-label="Bitcoin Core and Knots node comparison">
-    <div class="knots-vs-core__row knots-vs-core__head" role="row">
-      <div role="columnheader">Client</div>
-      <div class="knots-vs-core__num" role="columnheader">Reachable</div>
-      <div class="knots-vs-core__num" role="columnheader">Tor-visible</div>
-      <div class="knots-vs-core__num" role="columnheader">Share</div>
-      <div role="columnheader">Classification</div>
+  <div class="knots-vs-core__table-wrap">
+    <div class="knots-vs-core__table" role="table" aria-label="Bitcoin Core and Knots node comparison">
+      <div class="knots-vs-core__row knots-vs-core__head" role="row">
+        <div role="columnheader">Client</div>
+        <div class="knots-vs-core__num" role="columnheader">Reachable</div>
+        <div class="knots-vs-core__num" role="columnheader">Tor-visible</div>
+        <div class="knots-vs-core__num" role="columnheader">Network share</div>
+        <div role="columnheader">Classification</div>
+      </div>
+
+      <div class="knots-vs-core__row" role="row">
+        <div>Bitcoin Core</div>
+        <div class="knots-vs-core__num" data-kvc-core-row>—</div>
+        <div class="knots-vs-core__num" data-kvc-core-tor>—</div>
+        <div class="knots-vs-core__num" data-kvc-core-row-pct>—</div>
+        <div>/Satoshi:/ or explicit Bitcoin Core UA</div>
+      </div>
+
+      <div class="knots-vs-core__row" role="row">
+        <div>Bitcoin Knots</div>
+        <div class="knots-vs-core__num" data-kvc-knots-row>—</div>
+        <div class="knots-vs-core__num" data-kvc-knots-tor>—</div>
+        <div class="knots-vs-core__num" data-kvc-knots-row-pct>—</div>
+        <div>UA explicitly containing Knots</div>
+      </div>
+
+      <div class="knots-vs-core__row" role="row">
+        <div>Other / Unknown</div>
+        <div class="knots-vs-core__num" data-kvc-other-row>—</div>
+        <div class="knots-vs-core__num" data-kvc-other-tor>—</div>
+        <div class="knots-vs-core__num" data-kvc-other-row-pct>—</div>
+        <div>other UAs + reachable UA remainder</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="knots-vs-core__versions-head">
+    <div>
+      <span>Core / Knots exact versions</span>
+      <strong data-kvc-version-count>—</strong>
     </div>
 
-    <div class="knots-vs-core__row" role="row">
-      <div>Bitcoin Core</div>
-      <div class="knots-vs-core__num" data-kvc-core-row>—</div>
-      <div class="knots-vs-core__num" data-kvc-core-tor>—</div>
-      <div class="knots-vs-core__num" data-kvc-core-row-pct>—</div>
-      <div>/Satoshi:/ or Bitcoin Core UA</div>
+    <div class="knots-vs-core__controls">
+      <input type="search" data-kvc-search placeholder="filter Core / Knots version" aria-label="Filter Core and Knots versions" autocomplete="off" spellcheck="false">
+      <select data-kvc-client aria-label="Filter client family">
+        <option value="all">Core + Knots</option>
+        <option value="Bitcoin Core">Core only</option>
+        <option value="Bitcoin Knots">Knots only</option>
+      </select>
+      <select data-kvc-sort aria-label="Sort version rows">
+        <option value="count-desc">Nodes ↓</option>
+        <option value="share-desc">Share ↓</option>
+        <option value="client-version">Client / version</option>
+      </select>
     </div>
+  </div>
 
-    <div class="knots-vs-core__row" role="row">
-      <div>Bitcoin Knots</div>
-      <div class="knots-vs-core__num" data-kvc-knots-row>—</div>
-      <div class="knots-vs-core__num" data-kvc-knots-tor>—</div>
-      <div class="knots-vs-core__num" data-kvc-knots-row-pct>—</div>
-      <div>UA containing Knots</div>
-    </div>
-
-    <div class="knots-vs-core__row" role="row">
-      <div>Other / Unknown</div>
-      <div class="knots-vs-core__num" data-kvc-other-row>—</div>
-      <div class="knots-vs-core__num" data-kvc-other-tor>—</div>
-      <div class="knots-vs-core__num" data-kvc-other-row-pct>—</div>
-      <div>not silently counted as Core</div>
+  <div class="knots-vs-core__version-table-wrap">
+    <div class="knots-vs-core__version-table" role="table" aria-label="Bitcoin Core and Knots exact user-agent versions">
+      <div class="knots-vs-core__version-row knots-vs-core__version-head" role="row">
+        <div role="columnheader">Client</div>
+        <div role="columnheader">Version / User Agent</div>
+        <div class="knots-vs-core__num" role="columnheader">Nodes</div>
+        <div class="knots-vs-core__num" role="columnheader">Identified share</div>
+      </div>
+      <div data-kvc-version-body></div>
     </div>
   </div>
 
   <div class="knots-vs-core__details">
+    <div class="knots-vs-core__detail-row">
+      <span>identified UA coverage</span>
+      <strong data-kvc-identification>—</strong>
+    </div>
     <div class="knots-vs-core__detail-row">
       <span>network unreachable</span>
       <strong data-kvc-unreachable>—</strong>
@@ -85,7 +128,7 @@
   </div>
 
   <div class="knots-vs-core__footer">
-    <span data-kvc-note>local ZZX Bitnodes data preferred · no “non-Knots = Core” shortcut</span>
-    <button type="button" class="zzx-widgets__btn" data-kvc-refresh>Refresh</button>
+    <span data-kvc-note>shared ZZXBitnodes + Nodes by Version · zero duplicate node API calls</span>
+    <button type="button" class="zzx-widgets__btn" data-kvc-refresh>Refresh shared snapshot</button>
   </div>
 </div>
