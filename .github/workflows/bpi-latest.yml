@@ -30,7 +30,7 @@ env:
 jobs:
   hourly-bpi:
     runs-on: ubuntu-24.04
-    timeout-minutes: 65
+    timeout-minutes: 70
 
     steps:
       - name: Checkout repository
@@ -61,6 +61,7 @@ jobs:
           test -f tools/bpi/bpi_hourly_shard.py
           test -f tools/bpi/bpi_archive_rehydrate.py
           test -f tools/bpi/bpi_hourly_validate.py
+          test -f tools/bpi/bpi_git_publish.py
           test -f tools/bpi/collector.py
           test -f tools/bpi/history_store.py
 
@@ -75,10 +76,23 @@ jobs:
             tools/bpi/bpi_orderbook_ingest.py \
             tools/bpi/collector.py \
             tools/bpi/history_store.py \
+            tools/bpi/bpi_git_publish.py \
             tools/bpi/update_latest.py \
             tools/bpi/reference_updater.py \
             tools/bpi/update_reference_national_averages.py \
             tools/bpi/update_sovereign_data.py
+
+          if test -f tools/bpi/update_exchange_rates.py; then
+            python -m py_compile tools/bpi/update_exchange_rates.py
+          fi
+
+          if test -f tools/bpi/update_deadopop.py; then
+            python -m py_compile tools/bpi/update_deadopop.py
+          fi
+
+          if test -f tools/bpi/update_themarketbtccreated.py; then
+            python -m py_compile tools/bpi/update_themarketbtccreated.py
+          fi
 
           python tools/bpi/run-bpi-master.py --hourly --self-test
           python tools/bpi/update_latest.py --self-test
@@ -107,6 +121,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python tools/bpi/bpi_hourly_validate.py --root .
 
           python -m json.tool bitcoin/bpi/api/hourly_status.json >/dev/null
@@ -117,11 +132,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           sudo apt-get update -qq
           sudo apt-get install -y -qq mariadb-client
+
           python tools/bpi/bpi_mariadb_sync.py --root .
 
-      - name: Commit hourly BPI mirrors and archive shards
+      - name: Publish hourly BPI mirrors and archive shards
         shell: bash
         run: |
           set -euo pipefail
@@ -129,41 +146,12 @@ jobs:
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
 
-          # history.sqlite3 is an ephemeral working database on hosted runners.
-          # Long-term recovery is provided by immutable JSONL + MariaDB SQL shards.
-          git add -- \
-            bitcoin/bpi/api \
-            bitcoin/bpi/archive
-
-          git reset -- \
-            bitcoin/bpi/history.sqlite3 \
-            bitcoin/bpi/history.sqlite3-wal \
-            bitcoin/bpi/history.sqlite3-shm \
-            bitcoin/bpi/orderbooks.sqlite3 \
-            bitcoin/bpi/orderbooks.sqlite3-wal \
-            bitcoin/bpi/orderbooks.sqlite3-shm \
-            2>/dev/null || true
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "No BPI/archive changes to commit."
-            exit 0
-          fi
-
           hour_id="$(date -u +'%Y-%m-%dT%H:00Z')"
-          git commit -m "Archive BPI hour ${hour_id}"
 
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main && git push origin HEAD:main; then
-              printf '%s\n' "Hourly BPI archive pushed."
-              exit 0
-            fi
-
-            git rebase --abort || true
-            printf '%s\n' "Push attempt ${attempt} failed; retrying without force."
-            sleep 5
-          done
-
-          printf '%s\n' "Failed to push hourly BPI archive without rewriting main."
-          exit 1
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Archive BPI hour ${hour_id}" \
+            --path bitcoin/bpi/api \
+            --path bitcoin/bpi/archive \
+            --attempts 5 \
+            --sleep-seconds 5
