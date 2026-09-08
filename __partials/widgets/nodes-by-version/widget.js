@@ -89,7 +89,7 @@
   async function ensureModules(core){
     await loadScript(
       "/__partials/widgets/_shared/zzx-bitnodes.js",
-      ()=>Number(W.ZZXBitnodes?.__version||0)>=4,
+      ()=>Number(W.ZZXBitnodes?.__version||0)>=5,
       "ZZXBitnodes"
     );
 
@@ -251,7 +251,7 @@
     set(
       root,
       "[data-nbv-meta]",
-      "ZZXBitnodes v4 shared snapshot · exact user-agent strings retained · zero per-widget node API calls"
+      "ZZXBitnodes v5 shared snapshot · exact user-agent strings retained · zero per-widget node API calls"
     );
 
     renderTable(root,state);
