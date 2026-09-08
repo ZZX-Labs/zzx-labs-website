@@ -1,14 +1,20 @@
 /* __partials/widgets/nodes-by-version/widget.css */
-
 .nodes-by-version{
   --nbv-green:var(--zzx-accent,#c0d674);
   --nbv-gold:var(--zzx-accent-alt,#e6a42b);
   --nbv-muted:var(--zzx-muted,#b7bf9a);
   --nbv-dim:var(--zzx-dim,#777);
+  --nbv-red:var(--zzx-error,#d67474);
   --nbv-line:rgba(255,255,255,.09);
   --nbv-panel:rgba(255,255,255,.018);
   width:100%;
   min-width:0;
+}
+
+.nodes-by-version *,
+.nodes-by-version *::before,
+.nodes-by-version *::after{
+  box-sizing:border-box;
 }
 
 .nodes-by-version__header,
@@ -23,11 +29,13 @@
 .nodes-by-version__header{align-items:flex-start}
 
 .nodes-by-version__eyebrow,
-.nodes-by-version__hero > span,
+.nodes-by-version__hero>span,
 .nodes-by-version__metrics span,
-.nodes-by-version__detail-row > span{
+.nodes-by-version__families span,
+.nodes-by-version__detail-row>span,
+.nodes-by-version__controls label>span{
   color:var(--nbv-dim);
-  font-size:.67rem;
+  font-size:.63rem;
   letter-spacing:.05em;
   text-transform:uppercase;
 }
@@ -44,7 +52,7 @@
 .nodes-by-version__hero strong{
   color:var(--nbv-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:1.3rem;
+  font-size:1.35rem;
   line-height:1.05;
   font-weight:500;
   font-variant-numeric:tabular-nums;
@@ -53,20 +61,22 @@
 .nodes-by-version__hero small{
   min-width:0;
   color:var(--nbv-gold);
-  font-size:.68rem;
+  font-size:.67rem;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-.nodes-by-version__metrics{
+.nodes-by-version__metrics,
+.nodes-by-version__families{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:.38rem;
   margin-top:.5rem;
 }
 
-.nodes-by-version__metrics > div{
+.nodes-by-version__metrics>div,
+.nodes-by-version__families>div{
   min-width:0;
   padding:.38rem .42rem;
   border:1px solid var(--nbv-line);
@@ -75,7 +85,9 @@
 }
 
 .nodes-by-version__metrics span,
-.nodes-by-version__metrics strong{
+.nodes-by-version__metrics strong,
+.nodes-by-version__families span,
+.nodes-by-version__families strong{
   display:block;
   min-width:0;
   overflow:hidden;
@@ -83,22 +95,26 @@
   white-space:nowrap;
 }
 
-.nodes-by-version__metrics strong{
+.nodes-by-version__metrics strong,
+.nodes-by-version__families strong{
   margin-top:.1rem;
   color:var(--nbv-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.72rem;
+  font-size:.7rem;
   font-weight:500;
+  font-variant-numeric:tabular-nums;
 }
 
 .nodes-by-version__controls{
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:end;
   gap:.4rem;
   margin-top:.5rem;
 }
 
-.nodes-by-version__controls input{
+.nodes-by-version__controls input,
+.nodes-by-version__controls select{
   width:100%;
   min-width:0;
   padding:.32rem .4rem;
@@ -108,10 +124,18 @@
   background:#080808;
   color:var(--nbv-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.72rem;
+  font-size:.7rem;
 }
 
-.nodes-by-version__controls input:focus{border-color:var(--nbv-gold)}
+.nodes-by-version__controls input:focus,
+.nodes-by-version__controls select:focus{
+  border-color:var(--nbv-gold);
+}
+
+.nodes-by-version__controls label{
+  display:grid;
+  gap:.12rem;
+}
 
 .nodes-by-version__table-wrap{
   margin-top:.5rem;
@@ -121,41 +145,48 @@
 }
 
 .nodes-by-version__table{
-  min-width:520px;
+  min-width:680px;
 }
 
 .nodes-by-version__row{
   display:grid;
-  grid-template-columns:38px minmax(245px,1fr) 100px 80px;
+  grid-template-columns:40px minmax(260px,1fr) 120px 90px 78px;
   gap:.4rem;
   align-items:center;
   min-width:0;
   padding:.36rem .42rem;
   border-top:1px solid rgba(255,255,255,.06);
-  font-size:.68rem;
+  font-size:.67rem;
 }
 
 .nodes-by-version__head{
+  position:sticky;
+  top:0;
+  z-index:1;
   border-top:0;
-  background:rgba(0,0,0,.34);
+  background:#090909;
   color:var(--nbv-gold);
   text-transform:uppercase;
 }
 
-.nodes-by-version__row > div{
+.nodes-by-version__row>div{
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-.nodes-by-version__row:not(.nodes-by-version__head) > div{
+.nodes-by-version__row:not(.nodes-by-version__head)>div{
   color:var(--nbv-muted);
 }
 
-.nodes-by-version__row:not(.nodes-by-version__head) > div:nth-child(2),
-.nodes-by-version__row:not(.nodes-by-version__head) > div:nth-child(3){
+.nodes-by-version__row:not(.nodes-by-version__head)>div:nth-child(2),
+.nodes-by-version__row:not(.nodes-by-version__head)>div:nth-child(4){
   color:var(--nbv-green);
+}
+
+.nodes-by-version__row[data-family="Bitcoin Knots"]>div:nth-child(3){
+  color:var(--nbv-gold);
 }
 
 .nodes-by-version__num{
@@ -164,7 +195,7 @@
 }
 
 .nodes-by-version__empty{
-  padding:.75rem;
+  padding:.8rem;
   color:var(--nbv-dim);
   font-size:.68rem;
   text-align:center;
@@ -177,7 +208,7 @@
   gap:.45rem;
   margin-top:.45rem;
   color:var(--nbv-muted);
-  font-size:.68rem;
+  font-size:.67rem;
 }
 
 .nodes-by-version__details{
@@ -199,7 +230,7 @@
   min-width:0;
   color:var(--nbv-muted);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.68rem;
+  font-size:.67rem;
   font-weight:500;
   text-align:right;
   overflow:hidden;
@@ -212,18 +243,43 @@
   padding-top:.42rem;
   border-top:1px solid var(--nbv-line);
   color:var(--nbv-muted);
-  font-size:.67rem;
+  font-size:.64rem;
 }
 
-@media(max-width:720px){
-  .nodes-by-version__metrics{
+.nodes-by-version__footer>span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:760px){
+  .nodes-by-version__metrics,
+  .nodes-by-version__families{
     grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .nodes-by-version__controls{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+
+  .nodes-by-version__controls>button{
+    grid-column:1/-1;
   }
 }
 
 @media(max-width:460px){
-  .nodes-by-version__metrics{
+  .nodes-by-version__metrics,
+  .nodes-by-version__families{
     grid-template-columns:1fr;
+  }
+
+  .nodes-by-version__controls{
+    grid-template-columns:1fr;
+  }
+
+  .nodes-by-version__controls>button{
+    grid-column:auto;
   }
 
   .nodes-by-version__detail-row{
@@ -232,4 +288,9 @@
   }
 
   .nodes-by-version__detail-row strong{text-align:left}
+
+  .nodes-by-version__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
 }
