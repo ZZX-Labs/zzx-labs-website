@@ -146,6 +146,8 @@ jobs:
             tools/bitnodes/collector.py
             tools/bitnodes/update_snapshot.py
             tools/bitnodes/merge_sources.py
+            tools/bitnodes/geo_contract.py
+            tools/bitnodes/geo_contract_selftest.py
             tools/bitnodes/enrich.py
             tools/bitnodes/aggregate.py
             tools/bitnodes/ip_db.py
@@ -187,6 +189,8 @@ jobs:
           python tools/bitnodes/crawl.py --help >/dev/null
           python tools/bitnodes/collector.py --help >/dev/null
           python tools/bitnodes/merge_sources.py --help >/dev/null
+          python tools/bitnodes/geo_contract.py --help >/dev/null
+          python tools/bitnodes/geo_contract_selftest.py
           python -m json.tool "${BITNODES_API}/sources.json" >/dev/null
 
       - name: Prepare Bitnodes directories
@@ -406,7 +410,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          MODULES="geoip,geoloc,boundary_zone,continent,region,country,territory,county,city,zip,timezone,land_parcel,building_perimeter,asn_footprint,isp,organization,provider,datacenter,government,military,sanctioned_nodes,knownmalactor,tagattribution,w3w_lookup,geohashid_lookup,peers,peer_index,peer_health,dns_seeder_health"
+          # City must run before county: the GeoNames city resolver supplies
+          # admin2_code, which the county resolver then maps to the proper
+          # county/district/admin-2 name.
+          MODULES="geoip,geoloc,boundary_zone,continent,region,country,territory,city,county,zip,timezone,land_parcel,building_perimeter,asn_footprint,isp,organization,provider,datacenter,government,military,sanctioned_nodes,knownmalactor,tagattribution,w3w_lookup,geohashid_lookup,peers,peer_index,peer_health,dns_seeder_health"
 
           enrich_source() {
             SOURCE="$1"
@@ -430,6 +437,32 @@ jobs:
 
           enrich_source zzxbitnodes "${BITNODES_API}/zzxbitnodes/latest.json"
           enrich_source btcnodes "${BITNODES_API}/btcnodes/normalized/latest.json"
+
+      - name: Normalize real IP geolocation contract
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          normalize_geo() {
+            SOURCE="$1"
+
+            python tools/bitnodes/geo_contract.py \
+              --input "${BITNODES_API}/enriched/${SOURCE}/latest.json" \
+              --output "${BITNODES_API}/enriched/${SOURCE}/latest.geo.json" \
+              --report "${BITNODES_API}/enriched/${SOURCE}/geo-contract-report.json" \
+              --city-db "${BITNODES_GEOIP}/dbip-city-lite.mmdb" \
+              --country-db "${BITNODES_GEOIP}/dbip-country-lite.mmdb" \
+              --asn-db "${BITNODES_GEOIP}/dbip-asn-lite.mmdb" \
+              --geo-root "${BITNODES_GEO}" \
+              --minimum-country 1 \
+              --minimum-city 0 \
+              --minimum-county 0 \
+              --minimum-coordinates 1 \
+              --compact
+          }
+
+          normalize_geo zzxbitnodes
+          normalize_geo btcnodes
 
       - name: Validate enriched production sources
         shell: bash
@@ -461,35 +494,64 @@ jobs:
               return None
 
           for source in ("zzxbitnodes", "btcnodes"):
-              path = Path(f"bitcoin/bitnodes/api/enriched/{source}/latest.json")
+              path = Path(f"bitcoin/bitnodes/api/enriched/{source}/latest.geo.json")
               payload = json.loads(path.read_text(encoding="utf-8"))
               rows = nodes(payload)
               if not rows:
                   raise SystemExit(f"{source} enrichment contains zero nodes")
 
               countries = 0
+              cities = 0
+              counties = 0
               coordinates = 0
+              synthetic = 0
+
               for row in rows:
                   if not isinstance(row, dict):
                       continue
-                  country = get(row, "country", "country_code", "geo.country", "geo.country_code", "geoip.country", "geoip.country_code")
-                  lat = get(row, "latitude", "lat", "geo.latitude", "geoip.latitude", "geoloc.latitude")
-                  lon = get(row, "longitude", "lon", "lng", "geo.longitude", "geoip.longitude", "geoloc.longitude")
-                  if country:
+
+                  contract = row.get("geo_contract") if isinstance(row.get("geo_contract"), dict) else {}
+                  country = get(row, "country", "country_code", "geo_contract.country_code")
+                  city = get(row, "city", "geo_contract.city")
+                  county = get(row, "county", "geo_contract.county")
+                  admin2 = get(row, "admin2_code", "geo_contract.admin2_code")
+                  lat = get(row, "latitude", "lat", "geo_contract.latitude")
+                  lon = get(row, "longitude", "lon", "lng", "geo_contract.longitude")
+
+                  if contract.get("synthetic") is True:
+                      synthetic += 1
+                  if isinstance(country, str) and len(country.strip()) == 2:
                       countries += 1
+                  if city and country:
+                      cities += 1
+                  if county and admin2 and country:
+                      counties += 1
+
                   try:
                       lat = float(lat)
                       lon = float(lon)
                   except Exception:
                       continue
+
                   if -90 <= lat <= 90 and -180 <= lon <= 180:
                       coordinates += 1
 
-              print(source, "nodes=", len(rows), "countries=", countries, "coordinates=", coordinates)
+              print(
+                  source,
+                  "nodes=", len(rows),
+                  "countries=", countries,
+                  "cities=", cities,
+                  "counties=", counties,
+                  "coordinates=", coordinates,
+                  "synthetic=", synthetic,
+              )
+
               if countries == 0:
-                  raise SystemExit(f"{source} enrichment produced zero country-bearing rows")
+                  raise SystemExit(f"{source} geo contract produced zero country-bearing rows")
               if coordinates == 0:
-                  raise SystemExit(f"{source} enrichment produced zero coordinate-bearing rows")
+                  raise SystemExit(f"{source} geo contract produced zero coordinate-bearing rows")
+              if synthetic != 0:
+                  raise SystemExit(f"{source} geo contract retained synthetic rows")
           PY
 
       - name: Aggregate production sources
@@ -498,7 +560,7 @@ jobs:
           set -euo pipefail
 
           python tools/bitnodes/aggregate.py \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.geo.json" \
             --output "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
             --api-dir "${BITNODES_API}" \
             --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
@@ -508,7 +570,7 @@ jobs:
           # Keep the enriched external aggregate separate from the 5-minute
           # mirror-owned aggregate/btcnodes/latest.json path.
           python tools/bitnodes/aggregate.py \
-            --input "${BITNODES_API}/enriched/btcnodes/latest.json" \
+            --input "${BITNODES_API}/enriched/btcnodes/latest.geo.json" \
             --output "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" \
             --api-dir "${BITNODES_API}" \
             --state-dir "${BITNODES_DATA}/runtime/state/btcnodes" \
@@ -521,8 +583,8 @@ jobs:
           set -euo pipefail
 
           python tools/bitnodes/merge_sources.py \
-            --input "zzxbitnodes=${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            --input "btcnodes.io=${BITNODES_API}/enriched/btcnodes/latest.json" \
+            --input "zzxbitnodes=${BITNODES_API}/enriched/zzxbitnodes/latest.geo.json" \
+            --input "btcnodes.io=${BITNODES_API}/enriched/btcnodes/latest.geo.json" \
             --output "${BITNODES_API}/snapshots/latest.json" \
             --aggregate-output "${BITNODES_API}/aggregate/canonical/latest.json" \
             --compact
@@ -544,10 +606,19 @@ jobs:
               raise SystemExit("canonical snapshot contains duplicate or missing node addresses")
 
           countries = sum(1 for row in rows if isinstance(row, dict) and row.get("country"))
+          cities = sum(1 for row in rows if isinstance(row, dict) and row.get("city"))
+          counties = sum(1 for row in rows if isinstance(row, dict) and row.get("county") and row.get("admin2_code"))
+          coordinates = sum(1 for row in rows if isinstance(row, dict) and row.get("latitude") is not None and row.get("longitude") is not None)
           uas = sum(1 for row in rows if isinstance(row, dict) and row.get("user_agent"))
 
           if countries <= 0:
               raise SystemExit("canonical snapshot contains no country-geolocated nodes")
+          if cities <= 0:
+              raise SystemExit("canonical snapshot contains no city-geolocated nodes")
+          if counties <= 0:
+              raise SystemExit("canonical snapshot contains no county/admin2-geolocated nodes")
+          if coordinates <= 0:
+              raise SystemExit("canonical snapshot contains no real-coordinate nodes")
           if uas <= 0:
               raise SystemExit("canonical snapshot contains no user-agent rows")
 
@@ -555,6 +626,9 @@ jobs:
               "canonical snapshot valid:",
               f"nodes={len(rows)}",
               f"countries={countries}",
+              f"cities={cities}",
+              f"counties={counties}",
+              f"coordinates={coordinates}",
               f"user_agents={uas}",
               f"sources={data.get('source_counts')}",
           )
@@ -733,6 +807,8 @@ jobs:
                   "zzxbitnodes_latest": "zzxbitnodes/latest.json",
                   "btcnodes_enrichment_report": "enriched/btcnodes/enrichment-report.json",
                   "zzxbitnodes_enrichment_report": "enriched/zzxbitnodes/enrichment-report.json",
+                  "btcnodes_geo_contract_report": "enriched/btcnodes/geo-contract-report.json",
+                  "zzxbitnodes_geo_contract_report": "enriched/zzxbitnodes/geo-contract-report.json",
                   "btcnodes_mirror_aggregate": "aggregate/btcnodes/latest.json",
                   "btcnodes_enriched_aggregate": "aggregate/btcnodes-enriched/latest.json",
                   "zzxbitnodes_aggregate": "aggregate/zzxbitnodes/latest.json",
@@ -767,6 +843,8 @@ jobs:
           rm -f "${BITNODES_API}/snapshots/latest.ipdb-enriched.json" || true
           rm -f "${BITNODES_API}/enriched/btcnodes/latest.json" || true
           rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
+          rm -f "${BITNODES_API}/enriched/btcnodes/latest.geo.json" || true
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.geo.json" || true
           find "${BITNODES_ROOT}" -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
@@ -822,6 +900,8 @@ jobs:
             "${BITNODES_API}/snapshots/latest.json" \
             "${BITNODES_API}/enriched/btcnodes/enrichment-report.json" \
             "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
+            "${BITNODES_API}/enriched/btcnodes/geo-contract-report.json" \
+            "${BITNODES_API}/enriched/zzxbitnodes/geo-contract-report.json" \
             "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" \
             "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
             "${BITNODES_API}/aggregate/canonical/latest.json" \
