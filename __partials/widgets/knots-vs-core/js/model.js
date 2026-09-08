@@ -1,133 +1,127 @@
-// __partials/widgets/knots-vs-core/js/model.js
 (function(){
   "use strict";
-
   const W=window;
-  if(W.ZZXKnotsCoreModel?.__version>=3)return;
+  if(W.ZZXKnotsCoreModel?.__version>=4)return;
 
-  function finite(v){
-    const n=Number(v);
-    return Number.isFinite(n)?n:NaN;
-  }
+  function finite(v){const n=Number(v);return Number.isFinite(n)?n:NaN}
+  function text(v){return String(v??"").trim()}
 
-  function classifyAgent(agent){
-    const s=String(agent||"").toLowerCase();
-
+  function classifyAgent(agent,familyHint=""){
+    const hint=text(familyHint);
+    if(hint==="Bitcoin Knots")return "knots";
+    if(hint==="Bitcoin Core")return "core";
+    const s=text(agent).toLowerCase();
     if(s.includes("knots"))return "knots";
-
-    if(
-      s.includes("/satoshi:") ||
-      s.includes("satoshi:") ||
-      s.includes("bitcoin core")
-    ){
-      return "core";
-    }
-
+    if(s.includes("/satoshi:")||s.includes("satoshi:")||s.includes("bitcoin core"))return "core";
     return "other";
   }
 
-  function parseAgentRows(rows){
-    const out={core:0,knots:0,other:0,total:0};
-
-    for(const row of Array.isArray(rows)?rows:[]){
-      if(!row)continue;
-
-      const agent=String(
-        row.agent ??
-        row.name ??
-        row.user_agent ??
-        row.label ??
-        row[0] ??
-        ""
-      );
-
-      const count=finite(
-        row.count ??
-        row.nodes ??
-        row.value ??
-        row[1]
-      );
-
-      if(!Number.isFinite(count)||count<=0)continue;
-
-      const bucket=classifyAgent(agent);
-      out[bucket]+=count;
-      out.total+=count;
+  function normalizeVersionRows(versionData,snapshot){
+    const direct=Array.isArray(versionData?.rows)?versionData.rows:[];
+    if(direct.length){
+      return direct.map(row=>({
+        userAgent:text(row.userAgent??row.label)||"Unknown",
+        family:text(row.family)||null,
+        version:text(row.version)||"Unknown",
+        count:finite(row.count)
+      })).filter(row=>Number.isFinite(row.count)&&row.count>0);
     }
 
+    const byVersion=snapshot?.byVersion;
+    if(byVersion&&typeof byVersion==="object"&&!Array.isArray(byVersion)){
+      return Object.entries(byVersion).map(([ua,count])=>({
+        userAgent:text(ua)||"Unknown",
+        family:null,
+        version:"Unknown",
+        count:finite(count)
+      })).filter(row=>Number.isFinite(row.count)&&row.count>0);
+    }
+    return [];
+  }
+
+  function torCounts(snapshot){
+    const out={core:0,knots:0,other:0,total:0,available:false};
+    const nodes=Array.isArray(snapshot?.nodes)?snapshot.nodes:[];
+    if(!nodes.length)return out;
+    out.available=true;
+    for(const node of nodes){
+      const network=text(node?.network).toLowerCase();
+      const address=text(node?.address).toLowerCase();
+      if(network!=="tor"&&!address.includes(".onion"))continue;
+      const bucket=classifyAgent(node?.userAgent);
+      out[bucket]+=1;out.total+=1;
+    }
     return out;
   }
 
-  function parseSnapshotNodes(nodes){
-    const out={
-      core:0,knots:0,other:0,total:0,
-      torCore:0,torKnots:0,torOther:0,torTotal:0
-    };
-
-    for(const [address,entry] of Object.entries(nodes||{})){
-      let ua="";
-
-      if(Array.isArray(entry)){
-        ua=String(entry[1]||entry[2]||"");
-      }else if(entry&&typeof entry==="object"){
-        ua=String(entry.user_agent||entry.agent||entry.subver||"");
-      }
-
-      const bucket=classifyAgent(ua);
-      out[bucket]+=1;
-      out.total+=1;
-
-      if(String(address).toLowerCase().includes(".onion")){
-        out.torTotal+=1;
-        if(bucket==="core")out.torCore+=1;
-        else if(bucket==="knots")out.torKnots+=1;
-        else out.torOther+=1;
-      }
+  function unreachableFromRaw(raw){
+    const candidates=[
+      raw?.unreachable_nodes,
+      raw?.unreachable,
+      raw?.counts?.unreachable,
+      raw?.network_counts?.unreachable,
+      raw?.data?.unreachable_nodes,
+      raw?.data?.counts?.unreachable
+    ];
+    for(const value of candidates){
+      const n=finite(value);
+      if(Number.isFinite(n)&&n>=0)return n;
     }
-
-    return out;
+    return NaN;
   }
 
-  function finalize(counts,network){
-    const c={
-      core:finite(counts?.core)||0,
-      knots:finite(counts?.knots)||0,
-      other:finite(counts?.other)||0,
-      total:finite(counts?.total)||0,
-      torCore:finite(counts?.torCore),
-      torKnots:finite(counts?.torKnots),
-      torOther:finite(counts?.torOther),
-      torTotal:finite(counts?.torTotal)
-    };
+  function build(versionData,snapshot,raw){
+    const rows=normalizeVersionRows(versionData,snapshot);
+    const identified=rows.reduce((sum,row)=>sum+row.count,0);
+    const reachable=finite(snapshot?.reachableNodes??snapshot?.totalNodes??versionData?.reachable);
+    const denominator=Number.isFinite(reachable)&&reachable>0?reachable:identified;
 
-    if(!(c.total>0)){
-      c.total=c.core+c.knots+c.other;
+    let core=0,knots=0,otherIdentified=0;
+    const exact=[];
+    for(const row of rows){
+      const bucket=classifyAgent(row.userAgent,row.family);
+      if(bucket==="core")core+=row.count;
+      else if(bucket==="knots")knots+=row.count;
+      else otherIdentified+=row.count;
+
+      if(bucket!=="other"){
+        exact.push(Object.freeze({
+          ...row,
+          family:bucket==="core"?"Bitcoin Core":"Bitcoin Knots",
+          bucket,
+          shareIdentified:identified>0?row.count/identified:NaN,
+          shareNetwork:denominator>0?row.count/denominator:NaN
+        }));
+      }
     }
 
-    if(c.other===0 && c.total>c.core+c.knots){
-      c.other=Math.max(0,c.total-c.core-c.knots);
-    }
+    const unidentifiedReachable=denominator>identified?denominator-identified:0;
+    const other=otherIdentified+unidentifiedReachable;
+    const identifiedCoreKnots=core+knots;
+    const tor=torCounts(snapshot);
 
-    const denom=c.total>0?c.total:NaN;
-    const identified=c.core+c.knots;
-    const identifiedDenom=identified>0?identified:NaN;
+    exact.sort((a,b)=>b.count-a.count||a.family.localeCompare(b.family)||a.userAgent.localeCompare(b.userAgent));
 
-    return {
-      ...c,
-      corePct:Number.isFinite(denom)?c.core/denom:NaN,
-      knotsPct:Number.isFinite(denom)?c.knots/denom:NaN,
-      otherPct:Number.isFinite(denom)?c.other/denom:NaN,
-      coreVsKnots:Number.isFinite(identifiedDenom)?c.core/identifiedDenom:NaN,
-      knotsVsCore:Number.isFinite(identifiedDenom)?c.knots/identifiedDenom:NaN,
-      unreachable:finite(network?.unreachable)
-    };
+    return Object.freeze({
+      schema:"zzx-knots-vs-core-model-v4",
+      total:denominator,
+      reachable:Number.isFinite(reachable)?reachable:denominator,
+      identified,
+      coverage:denominator>0?Math.min(1,identified/denominator):NaN,
+      core,knots,other,otherIdentified,unidentifiedReachable,
+      corePct:denominator>0?core/denominator:NaN,
+      knotsPct:denominator>0?knots/denominator:NaN,
+      otherPct:denominator>0?other/denominator:NaN,
+      coreVsKnots:identifiedCoreKnots>0?core/identifiedCoreKnots:NaN,
+      knotsVsCore:identifiedCoreKnots>0?knots/identifiedCoreKnots:NaN,
+      torCore:tor.available?tor.core:NaN,
+      torKnots:tor.available?tor.knots:NaN,
+      torOther:tor.available?tor.other:NaN,
+      torTotal:tor.available?tor.total:NaN,
+      unreachable:unreachableFromRaw(raw),
+      exactRows:Object.freeze(exact)
+    });
   }
 
-  W.ZZXKnotsCoreModel=Object.freeze({
-    __version:3,
-    classifyAgent,
-    parseAgentRows,
-    parseSnapshotNodes,
-    finalize
-  });
+  W.ZZXKnotsCoreModel=Object.freeze({__version:4,classifyAgent,normalizeVersionRows,torCounts,build});
 })();
