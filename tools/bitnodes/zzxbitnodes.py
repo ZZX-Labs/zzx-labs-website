@@ -92,6 +92,7 @@ UPDATE_DAILY_INDEX = TOOLS_DIR / "update_daily_index.py"
 PUSH_SNAPSHOTS = TOOLS_DIR / "push_snapshots.py"
 MAP_WRAPPER = MAP_TOOLS_DIR / "map.py"
 MAPS = MAP_TOOLS_DIR / "maps.py"
+GEO_CONTRACT = TOOLS_DIR / "geo_contract.py"
 
 DNS_SEEDS = [
     "seed.bitcoin.sipa.be",
@@ -559,7 +560,7 @@ def crawl_address(address: str, timeout: float) -> tuple[str, list[Any]] | None:
         metadata["last_seen"] = utc_now()
         metadata["crawler"] = SOURCE
         metadata["source"] = SOURCE
-        metadata["crawler_version"] = "zzxbitnodes-enhanced-v4"
+        metadata["crawler_version"] = "zzxbitnodes-enhanced-v5"
         metadata["crawl_observed_at"] = iso_now()
 
         row[19] = metadata
@@ -715,16 +716,48 @@ def enrich_state_records(state: BitnodesState, geoip_enabled: bool, city_db: Pat
         while len(row) < 20:
             row.append(None)
 
-        record["city"] = row[6]
-        record["country"] = row[7]
-        record["latitude"] = row[8]
-        record["longitude"] = row[9]
-        record["timezone"] = row[10]
+        metadata = row[19] if isinstance(row[19], dict) else {}
+        marker_text = " ".join(
+            str(metadata.get(key) or "").lower()
+            for key in (
+                "geoip_confidence",
+                "geoip_source",
+                "geo_confidence",
+                "geo_source",
+            )
+        )
+        synthetic = any(
+            token in marker_text
+            for token in (
+                "synthetic",
+                "deterministic-fallback",
+                "workflow-map-ready-fallback",
+            )
+        )
+
+        if synthetic:
+            record["city"] = None
+            record["country"] = None
+            record["latitude"] = None
+            record["longitude"] = None
+            record["timezone"] = None
+            record["county"] = None
+            record["zip"] = None
+            metadata["geoip_confidence"] = "unavailable"
+            metadata["geoip_source"] = "zzx-real-ip-contract-filter"
+            metadata["synthetic_geo_removed"] = True
+        else:
+            record["city"] = row[6]
+            record["country"] = row[7]
+            record["latitude"] = row[8]
+            record["longitude"] = row[9]
+            record["timezone"] = row[10]
+            record["county"] = row[14]
+            record["zip"] = row[15]
+
         record["asn"] = row[11]
         record["organization"] = row[12]
         record["provider"] = row[13]
-        record["county"] = row[14]
-        record["zip"] = row[15]
         record["w3w"] = row[16]
         record["geohash"] = row[17]
         record["asn_location"] = row[18]
@@ -742,7 +775,7 @@ def export_state_direct(
     payload = state.build_export_payload(mode=mode)
     payload["source"] = SOURCE
     payload["crawler"] = SOURCE
-    payload["crawler_version"] = "zzxbitnodes-enhanced-v4"
+    payload["crawler_version"] = "zzxbitnodes-enhanced-v5"
     payload["changes"] = changes
     payload["generated_at"] = iso_now()
     payload["dataplane"] = {
@@ -850,6 +883,49 @@ def run_enrichment(
 
     if strict:
         command.append("--strict")
+
+    return run_command(command).returncode
+
+
+
+def run_geo_contract(
+    *,
+    input_path: Path,
+    output_path: Path,
+    report_path: Path,
+    geoip_dir: Path,
+    geo_root: Path,
+    compact: bool,
+    minimum_country: int = 0,
+    minimum_coordinates: int = 0,
+) -> int:
+    """Normalize one Bitnodes payload into the real-public-IP geography contract.
+
+    The contract is intentionally applied after raw crawler export and again
+    after the enrichment pipeline. This prevents legacy/synthetic geography
+    from leaking into either public interchange artifact.
+    """
+    if not GEO_CONTRACT.exists():
+        printf(f"[geo-contract] missing {GEO_CONTRACT}")
+        return 1
+
+    command = py(
+        GEO_CONTRACT,
+        "--input", str(input_path),
+        "--output", str(output_path),
+        "--report", str(report_path),
+        "--city-db", str(geoip_dir / "dbip-city-lite.mmdb"),
+        "--country-db", str(geoip_dir / "dbip-country-lite.mmdb"),
+        "--asn-db", str(geoip_dir / "dbip-asn-lite.mmdb"),
+        "--geo-root", str(geo_root),
+        "--minimum-country", str(max(0, int(minimum_country))),
+        "--minimum-city", "0",
+        "--minimum-county", "0",
+        "--minimum-coordinates", str(max(0, int(minimum_coordinates))),
+    )
+
+    if compact:
+        command.append("--compact")
 
     return run_command(command).returncode
 
@@ -1106,6 +1182,7 @@ def crawl_once(
     pretty: bool,
     mirror_legacy: bool,
     run_enrich_after: bool,
+    run_geo_contract_after: bool,
     run_aggregate_after: bool,
     run_exports_after: bool,
     run_ipdb_after: bool,
@@ -1180,7 +1257,7 @@ def crawl_once(
         {
             "crawler": SOURCE,
             "source": SOURCE,
-            "crawler_version": "zzxbitnodes-enhanced-v4",
+            "crawler_version": "zzxbitnodes-enhanced-v5",
             "last_crawl": now,
             "last_crawl_iso": utc_iso(now),
             "last_candidate_count": len(candidates),
@@ -1225,6 +1302,27 @@ def crawl_once(
 
     latest_path = output_dir / "latest.json"
 
+    if run_geo_contract_after:
+        geo_report = output_dir / "geo-contract-report.json"
+        code = run_geo_contract(
+            input_path=latest_path,
+            output_path=latest_path,
+            report_path=geo_report,
+            geoip_dir=geoip_dir,
+            geo_root=geo_root,
+            compact=not pretty,
+            minimum_country=0,
+            minimum_coordinates=0,
+        )
+        if code != 0:
+            printf(f"[geo-contract/raw] exited with code {code}")
+            if strict:
+                raise RuntimeError("raw geo contract failed")
+        else:
+            normalized_payload = read_json_any(latest_path, fallback={})
+            if isinstance(normalized_payload, dict) and normalized_payload:
+                payload = normalized_payload
+
     if raw_output:
         write_json_file(raw_output, payload, pretty=pretty)
 
@@ -1250,6 +1348,21 @@ def crawl_once(
             printf(f"[enrich] exited with code {code}")
             if strict:
                 raise RuntimeError("enrichment failed")
+        elif run_geo_contract_after and DEFAULT_ENRICHED_LATEST.exists():
+            code = run_geo_contract(
+                input_path=DEFAULT_ENRICHED_LATEST,
+                output_path=DEFAULT_ENRICHED_LATEST,
+                report_path=DEFAULT_ENRICHED_DIR / "geo-contract-report.json",
+                geoip_dir=geoip_dir,
+                geo_root=geo_root,
+                compact=not pretty,
+                minimum_country=0,
+                minimum_coordinates=0,
+            )
+            if code != 0:
+                printf(f"[geo-contract/enriched] exited with code {code}")
+                if strict:
+                    raise RuntimeError("enriched geo contract failed")
 
     aggregate_input = DEFAULT_ENRICHED_LATEST if DEFAULT_ENRICHED_LATEST.exists() else latest_path
 
@@ -1441,6 +1554,7 @@ def build_parser(description: str = "ZZX-Labs persistent enhanced Bitnodes globa
     add_argument_if_missing(parser, "--mirror-legacy-api", action="store_true")
 
     add_argument_if_missing(parser, "--no-enrich-after", action="store_true")
+    add_argument_if_missing(parser, "--no-geo-contract-after", action="store_true")
     add_argument_if_missing(parser, "--no-aggregate-after", action="store_true")
     add_argument_if_missing(parser, "--no-export-all-after", action="store_true")
     add_argument_if_missing(parser, "--no-ipdb-after", action="store_true")
@@ -1516,6 +1630,7 @@ def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
         "git_push": False,
         "mirror_legacy_api": False,
         "no_enrich_after": False,
+        "no_geo_contract_after": False,
         "no_aggregate_after": False,
         "no_export_all_after": False,
         "no_ipdb_after": False,
@@ -1579,6 +1694,7 @@ def run_from_args(args: argparse.Namespace) -> int:
         "pretty": not bool(args.compact),
         "mirror_legacy": bool(args.mirror_legacy_api),
         "run_enrich_after": not bool(args.no_enrich_after),
+        "run_geo_contract_after": not bool(args.no_geo_contract_after),
         "run_aggregate_after": not bool(args.no_aggregate_after),
         "run_exports_after": not bool(args.no_export_all_after),
         "run_ipdb_after": not bool(args.no_ipdb_after),
