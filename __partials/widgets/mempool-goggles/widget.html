@@ -1,23 +1,16 @@
-<!-- __partials/widgets/mempool-goggles/widget.html -->
 <div class="btc-card mempool-goggles">
   <div class="mempool-goggles__header">
     <div>
       <div class="btc-card__title">Mempool Goggles</div>
-      <div class="mempool-goggles__eyebrow">live next-block candidate · tip + 1</div>
+      <div class="mempool-goggles__eyebrow">literal live mempool.space viewport · tip + 1 candidate</div>
     </div>
-
-    <span
-      class="btc-card__status"
-      data-mg-status
-      data-status="offline"
-      aria-live="polite"
-    >loading</span>
+    <span class="btc-card__status" data-mg-status data-status="offline" aria-live="polite">loading</span>
   </div>
 
   <div class="mempool-goggles__hero">
-    <span>next candidate block</span>
+    <span>mempool.space live next-block feed</span>
     <strong data-mg-height>—</strong>
-    <small data-mg-sub>waiting for mempool candidate data…</small>
+    <small data-mg-sub>waiting for candidate block + live frame…</small>
   </div>
 
   <div class="mempool-goggles__metrics">
@@ -27,24 +20,36 @@
     <div><span>median fee</span><strong data-mg-median>—</strong></div>
   </div>
 
-  <div class="mempool-goggles__block-wrap">
+  <div class="mempool-goggles__frame-wrap">
     <div class="mempool-goggles__block-head">
-      <span data-mg-block-label>candidate block mosaic</span>
+      <span data-mg-block-label>live mempool.space mempool-block/0 visual feed</span>
       <span data-mg-updated>—</span>
     </div>
 
-    <div
-      class="mempool-goggles__block"
-      data-mg-block
-      role="img"
-      aria-label="Live Bitcoin next-block candidate visualization"
-    >
-      <canvas data-mg-canvas></canvas>
-      <div class="mempool-goggles__tooltip" data-mg-tooltip hidden></div>
+    <div class="mempool-goggles__modebar">
+      <button type="button" class="zzx-widgets__btn" data-mg-show-live aria-pressed="true">Live feed</button>
+      <button type="button" class="zzx-widgets__btn" data-mg-show-local aria-pressed="false">Local fallback</button>
+      <a class="zzx-widgets__btn" data-mg-open href="https://mempool.space/mempool-block/0" target="_blank" rel="noopener noreferrer">Open source</a>
+    </div>
+
+    <div class="mempool-goggles__stage" data-mg-stage data-mode="live">
+      <div class="mempool-goggles__live" data-mg-live>
+        <iframe data-mg-iframe loading="lazy" referrerpolicy="no-referrer"></iframe>
+        <div class="mempool-goggles__glass">
+          <span>cropped live page viewport</span>
+          <strong>mempool.space/mempool-block/0</strong>
+        </div>
+      </div>
+
+      <div class="mempool-goggles__fallback" data-mg-fallback hidden>
+        <canvas data-mg-canvas></canvas>
+        <div class="mempool-goggles__tooltip" data-mg-tooltip hidden></div>
+      </div>
     </div>
   </div>
 
   <div class="mempool-goggles__legend" aria-hidden="true">
+    <span><i data-tier="live"></i>live frame</span>
     <span><i data-tier="low"></i>low fee</span>
     <span><i data-tier="mid"></i>medium fee</span>
     <span><i data-tier="high"></i>high fee</span>
@@ -52,32 +57,14 @@
   </div>
 
   <div class="mempool-goggles__details">
-    <div class="mempool-goggles__row">
-      <span>current tip</span>
-      <strong data-mg-tip>—</strong>
-    </div>
-    <div class="mempool-goggles__row">
-      <span>candidate fee range</span>
-      <strong data-mg-range>—</strong>
-    </div>
-    <div class="mempool-goggles__row">
-      <span>mempool backlog</span>
-      <strong data-mg-backlog>—</strong>
-    </div>
-    <div class="mempool-goggles__row">
-      <span>source</span>
-      <strong data-mg-source>—</strong>
-    </div>
+    <div class="mempool-goggles__row"><span>current tip</span><strong data-mg-tip>—</strong></div>
+    <div class="mempool-goggles__row"><span>candidate fee range</span><strong data-mg-range>—</strong></div>
+    <div class="mempool-goggles__row"><span>mempool backlog</span><strong data-mg-backlog>—</strong></div>
+    <div class="mempool-goggles__row"><span>source</span><strong data-mg-source>—</strong></div>
   </div>
 
   <div class="mempool-goggles__footer">
-    <span data-mg-meta>
-      live aggregate candidate · tiles represent fee-band volume, not guaranteed miner-selected transactions
-    </span>
-    <button
-      type="button"
-      class="zzx-widgets__btn"
-      data-mg-refresh
-    >Refresh</button>
+    <span data-mg-meta>default is a literal live remote page feed; the local fallback renderer remains available if the remote site refuses iframe rendering.</span>
+    <button type="button" class="zzx-widgets__btn" data-mg-refresh>Refresh</button>
   </div>
 </div>
