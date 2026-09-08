@@ -2,8 +2,7 @@ name: Bitnodes Snapshot Mirror
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
+  workflow_call:
 
 permissions:
   contents: write
@@ -16,17 +15,20 @@ jobs:
   update:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -35,13 +37,22 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin main
-          git checkout -B main origin/main
+          git reset --hard origin/main
 
-      - name: Validate collector
+      - name: Validate Bitnodes collector
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile tools/bitnodes/collector.py tools/bitnodes/update_snapshot.py
+
+          test -f tools/bitnodes/collector.py
+          test -f tools/bitnodes/update_snapshot.py
+          test -f tools/bpi/bpi_git_publish.py
+
+          python -m py_compile \
+            tools/bitnodes/collector.py \
+            tools/bitnodes/update_snapshot.py \
+            tools/bpi/bpi_git_publish.py
+
           python -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
 
       - name: Update shared Bitnodes snapshot
@@ -50,72 +61,81 @@ jobs:
           set -euo pipefail
           python tools/bitnodes/update_snapshot.py
 
-      - name: Validate generated API
+      - name: Validate generated Bitnodes API
         shell: bash
         run: |
           set -euo pipefail
+
           python - <<'PY'
           import json
           from pathlib import Path
 
+          api = Path("bitcoin/bitnodes/api")
+
           required = [
-              Path("bitcoin/bitnodes/api/originalbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/api/zzxbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/api/snapshots/latest.json"),
-              Path("bitcoin/bitnodes/api/history.json"),
+              api / "originalbitnodes/latest.json",
+              api / "zzxbitnodes/latest.json",
+              api / "aggregate/zzxbitnodes/latest.json",
+              api / "snapshots/latest.json",
+              api / "history.json",
           ]
 
           for path in required:
-              if not path.exists():
-                  raise SystemExit(f"missing {path}")
-              json.loads(path.read_text(encoding="utf-8"))
+              if not path.is_file():
+                  raise SystemExit(f"missing generated Bitnodes file: {path}")
+
+              try:
+                  json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  raise SystemExit(f"invalid JSON {path}: {exc}")
 
           latest = json.loads(
-              Path("bitcoin/bitnodes/api/zzxbitnodes/latest.json").read_text(encoding="utf-8")
+              (api / "zzxbitnodes/latest.json").read_text(encoding="utf-8")
           )
-          total = latest.get("reachable_nodes") or latest.get("total_nodes") or latest.get("node_count")
+
+          total = (
+              latest.get("reachable_nodes")
+              or latest.get("total_nodes")
+              or latest.get("node_count")
+          )
+
           if not isinstance(total, int) or total <= 0:
-              raise SystemExit("generated Bitnodes snapshot has no usable node count")
+              raise SystemExit(
+                  "generated Bitnodes snapshot has no usable node count"
+              )
+
+          nodes = latest.get("nodes")
+          if not isinstance(nodes, list):
+              raise SystemExit(
+                  "zzxbitnodes/latest.json must contain normalized nodes array"
+              )
+
+          by_version = latest.get("by_version")
+          if not isinstance(by_version, dict):
+              raise SystemExit(
+                  "zzxbitnodes/latest.json must contain by_version"
+              )
 
           print(
-              f"Bitnodes mirror OK: source={latest.get('source')} "
-              f"reachable={latest.get('reachable_nodes')} rows={latest.get('node_count')}"
+              "Bitnodes mirror valid: "
+              f"source={latest.get('source')} "
+              f"reachable={latest.get('reachable_nodes')} "
+              f"rows={latest.get('node_count')} "
+              f"versions={len(by_version)}"
           )
           PY
 
-      - name: Commit generated mirror
+      - name: Publish shared Bitnodes mirror
         shell: bash
         run: |
           set -euo pipefail
 
-          paths=(
-            bitcoin/bitnodes/api/originalbitnodes/latest.json
-            bitcoin/bitnodes/api/zzxbitnodes/latest.json
-            bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json
-            bitcoin/bitnodes/api/snapshots/latest.json
-            bitcoin/bitnodes/api/history.json
-          )
-
-          git add "${paths[@]}"
-
-          if git diff --cached --quiet; then
-            echo "No Bitnodes mirror changes."
-            exit 0
-          fi
-
           git config user.name "zzx-bitnodes-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git commit -m "Update shared Bitnodes snapshot"
+          git config user.email "actions@github.com"
 
-          for attempt in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            git fetch origin main
-            git rebase origin/main
-            sleep "$attempt"
-          done
-
-          echo "Unable to push Bitnodes mirror update after retries." >&2
-          exit 1
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update shared Bitnodes snapshot" \
+            --path bitcoin/bitnodes/api \
+            --attempts 5 \
+            --sleep-seconds 3
