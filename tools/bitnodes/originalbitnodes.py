@@ -77,6 +77,7 @@ def run_command(
     *,
     cwd: Path = APP_ROOT,
     check: bool = False,
+    timeout_seconds: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     printf("$ " + " ".join(str(part) for part in command))
 
@@ -87,6 +88,7 @@ def run_command(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
+        timeout=timeout_seconds,
     )
 
     if result.stdout.strip():
@@ -238,7 +240,17 @@ def run_classic_original_crawler(args: argparse.Namespace) -> int:
     if getattr(args, "strict", False):
         command.append("--strict")
 
-    return run_command(command).returncode
+    try:
+        return run_command(
+            command,
+            timeout_seconds=max(30.0, float(args.classic_timeout_seconds)),
+        ).returncode
+    except subprocess.TimeoutExpired:
+        printf(
+            "[originalbitnodes] classic Ayeowch compatibility crawl exceeded "
+            f"{args.classic_timeout_seconds}s and was terminated."
+        )
+        return 124
 
 
 def run_redis_export(args: argparse.Namespace) -> int:
@@ -570,6 +582,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--original-mode",
         choices=["hybrid", "classic", "redis", "zzx-compatible"],
         default="hybrid",
+    )
+    add_argument_if_missing(
+        parser,
+        "--classic-timeout-seconds",
+        type=float,
+        default=1200.0,
+        help="Hard wall-clock limit for the optional Ayeowch classic crawler path.",
     )
 
     add_argument_if_missing(parser, "--redis-scan-pattern", default="*")
