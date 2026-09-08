@@ -1,29 +1,14 @@
 (function(){
   "use strict";
-  const W=window,ID="node-latency";
-  const q=(r,s)=>r?r.querySelector(s):null;
-  const ms=v=>Number.isFinite(Number(v))?Number(v).toFixed(1)+" ms":"—";
-  function status(r,l,s){const e=q(r,"[data-node-latency-status]");if(e){e.textContent=l;e.setAttribute("data-status",s||"offline")}}
-  async function refresh(root,state){
-    if(state.busy||!root.isConnected)return;state.busy=true;status(root,"refreshing","warn");
-    try{
-      const x=await W.ZZXBitnodesData.aggregate(false),d=x.data||{},l=d.latency_ms||{};
-      q(root,"[data-node-latency-p50]").textContent=ms(l.p50);
-      q(root,"[data-node-latency-avg]").textContent=ms(l.avg);
-      q(root,"[data-node-latency-p90]").textContent=ms(l.p90);
-      q(root,"[data-node-latency-p95]").textContent=ms(l.p95);
-      q(root,"[data-node-latency-p99]").textContent=ms(l.p99);
-      q(root,"[data-node-latency-sub]").textContent=`${Number(l.count||0).toLocaleString()} samples · min ${ms(l.min)} · max ${ms(l.max)}`;
-      q(root,"[data-node-latency-meta]").textContent=`${x.source} · generated ${d.generated_at?new Date(d.generated_at).toLocaleString():"—"}`;
-      status(root,"local","ok");
-    }catch(e){status(root,"offline","error");q(root,"[data-node-latency-meta]").textContent=String(e?.message||e)}
-    finally{state.busy=false}
-  }
-  async function boot(root){
-    const state={busy:false,timer:null};root.__zzxNodeLatencyState=state;
-    q(root,"[data-node-latency-refresh]")?.addEventListener("click",()=>refresh(root,state));
-    await refresh(root,state);
-    async function loop(){if(!root.isConnected)return;await refresh(root,state);state.timer=W.setTimeout(loop,600000)}state.timer=W.setTimeout(loop,600000);
-  }
-  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);else W.ZZXWidgetsCore?.onMount?.(ID,boot);
+  const W=window,D=document,ID="node-latency";
+  function q(root,sel){return root?.querySelector?.(sel)||null}
+  function s(root,sel,v){const e=q(root,sel);if(e)e.textContent=String(v==null?"—":v)}
+  function f(v){const x=Number(v);return Number.isFinite(x)?x.toFixed(1):"—"}
+  function resolve(path){return W.ZZXAPI?.url?W.ZZXAPI.url(path):path}
+  async function ensure(){if(Number(W.ZZXBitnodes?.__version||0)>=5)return;const src=resolve('/__partials/widgets/_shared/zzx-bitnodes.js');await new Promise((done,fail)=>{const sc=D.createElement('script');sc.src=src;sc.defer=true;sc.addEventListener('load',done,{once:true});sc.addEventListener('error',fail,{once:true});(D.head||D.documentElement).appendChild(sc);});if(Number(W.ZZXBitnodes?.__version||0)<5)throw new Error('ZZXBitnodes unavailable');}
+  function extract(raw){return raw?.latency_ms||raw?.latency||raw?.counts?.latency_ms||raw?.data?.latency_ms||null}
+  function render(root,detail){const snap=detail?.snapshot;const raw=detail?.raw||{};if(!snap)return;const lat=extract(raw);if(lat&&typeof lat==='object'){s(root,'[data-nl-p50]',f(lat.p50));s(root,'[data-nl-avg]',`${f(lat.avg)} ms`);s(root,'[data-nl-p95]',`${f(lat.p95)} ms`);s(root,'[data-nl-p99]',`${f(lat.p99)} ms`);s(root,'[data-nl-status]',`${detail.source||snap.source||'ZZXBitnodes'} · ${detail.stale?'stale cache':'live'} · ${(Number(lat.count)||0).toLocaleString()} samples`);}else{s(root,'[data-nl-p50]','—');s(root,'[data-nl-avg]','mirror did not publish');s(root,'[data-nl-p95]','latency percentiles');s(root,'[data-nl-p99]','for this snapshot');s(root,'[data-nl-status]',`${detail.source||snap.source||'ZZXBitnodes'} · no latency_ms object in current payload`);}}
+  async function refresh(root,force=false){const detail=await W.ZZXBitnodes.load(force);render(root,detail);}
+  async function boot(root){if(!root)return;const old=root.__zzxNodeLatencyState;old?.unsubscribe?.();try{await ensure();const state={unsubscribe:null};root.__zzxNodeLatencyState=state;state.unsubscribe=W.ZZXBitnodes.subscribe(detail=>{if(root.isConnected)render(root,detail)},{immediate:true});if(!W.ZZXBitnodes.current()?.snapshot)await refresh(root,false);}catch(e){s(root,'[data-nl-status]','error: '+String(e?.message||e));}}
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
 })();
