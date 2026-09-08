@@ -1,4 +1,4 @@
-name: Bitnodes Snapshot Mirror
+name: btcnodes.io Snapshot Mirror
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: bitnodes-snapshot-mirror
+  group: btcnodes-snapshot-mirror
   cancel-in-progress: false
 
 jobs:
@@ -38,8 +38,9 @@ jobs:
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
+          git clean -fdx
 
-      - name: Validate Bitnodes collector
+      - name: Validate btcnodes.io mirror collector
         shell: bash
         run: |
           set -euo pipefail
@@ -55,13 +56,13 @@ jobs:
 
           python -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
 
-      - name: Update shared Bitnodes snapshot
+      - name: Mirror btcnodes.io snapshot
         shell: bash
         run: |
           set -euo pipefail
           python tools/bitnodes/update_snapshot.py
 
-      - name: Validate generated Bitnodes API
+      - name: Validate generated local mirror
         shell: bash
         run: |
           set -euo pipefail
@@ -71,61 +72,39 @@ jobs:
           from pathlib import Path
 
           api = Path("bitcoin/bitnodes/api")
-
           required = [
-              api / "originalbitnodes/latest.json",
-              api / "zzxbitnodes/latest.json",
-              api / "aggregate/zzxbitnodes/latest.json",
+              api / "btcnodes/latest.json",
+              api / "btcnodes/normalized/latest.json",
+              api / "aggregate/btcnodes/latest.json",
+              api / "snapshots/btcnodes/latest.json",
               api / "snapshots/latest.json",
               api / "history.json",
           ]
 
           for path in required:
               if not path.is_file():
-                  raise SystemExit(f"missing generated Bitnodes file: {path}")
-
-              try:
-                  json.loads(path.read_text(encoding="utf-8"))
-              except Exception as exc:
-                  raise SystemExit(f"invalid JSON {path}: {exc}")
+                  raise SystemExit(f"missing generated btcnodes.io mirror file: {path}")
+              json.loads(path.read_text(encoding="utf-8"))
 
           latest = json.loads(
-              (api / "zzxbitnodes/latest.json").read_text(encoding="utf-8")
+              (api / "btcnodes/normalized/latest.json").read_text(encoding="utf-8")
           )
-
-          total = (
-              latest.get("reachable_nodes")
-              or latest.get("total_nodes")
-              or latest.get("node_count")
-          )
-
-          if not isinstance(total, int) or total <= 0:
-              raise SystemExit(
-                  "generated Bitnodes snapshot has no usable node count"
-              )
-
-          nodes = latest.get("nodes")
-          if not isinstance(nodes, list):
-              raise SystemExit(
-                  "zzxbitnodes/latest.json must contain normalized nodes array"
-              )
-
-          by_version = latest.get("by_version")
-          if not isinstance(by_version, dict):
-              raise SystemExit(
-                  "zzxbitnodes/latest.json must contain by_version"
-              )
+          rows = latest.get("nodes")
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit("normalized btcnodes.io mirror has zero node rows")
+          if not latest.get("source"):
+              raise SystemExit("normalized btcnodes.io mirror lacks source provenance")
 
           print(
-              "Bitnodes mirror valid: "
-              f"source={latest.get('source')} "
-              f"reachable={latest.get('reachable_nodes')} "
-              f"rows={latest.get('node_count')} "
-              f"versions={len(by_version)}"
+              "btcnodes.io mirror valid:",
+              f"source={latest.get('source')}",
+              f"reachable={latest.get('reachable_nodes')}",
+              f"rows={len(rows)}",
+              f"versions={len(latest.get('by_version') or {})}",
           )
           PY
 
-      - name: Publish shared Bitnodes mirror
+      - name: Publish fast btcnodes.io mirror
         shell: bash
         run: |
           set -euo pipefail
@@ -135,7 +114,11 @@ jobs:
 
           python tools/bpi/bpi_git_publish.py \
             --root . \
-            --message "Update shared Bitnodes snapshot" \
-            --path bitcoin/bitnodes/api \
+            --message "Update btcnodes.io local snapshot mirror" \
+            --path bitcoin/bitnodes/api/btcnodes \
+            --path bitcoin/bitnodes/api/aggregate/btcnodes/latest.json \
+            --path bitcoin/bitnodes/api/snapshots/btcnodes/latest.json \
+            --path bitcoin/bitnodes/api/snapshots/latest.json \
+            --path bitcoin/bitnodes/api/history.json \
             --attempts 5 \
             --sleep-seconds 3
