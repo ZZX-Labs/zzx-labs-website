@@ -11,9 +11,25 @@ on:
         options:
           - hourly
           - deep
+      run_ayeowch_compat:
+        description: "Also run the optional Ayeowch/Bitnodes compatibility crawler after production publication"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      crawl_profile:
+        required: false
+        type: string
+        default: "hourly"
+      run_ayeowch_compat:
+        required: false
+        type: boolean
+        default: false
   schedule:
-    # Hourly crawl except 03:00 UTC, which is reserved for the deep crawl.
-    - cron: "7 0-2,4-23 * * *"
+    # Hourly production crawls. 03:00 and 04:00 UTC are reserved for the deep run.
+    - cron: "7 0-2,5-23 * * *"
+    # Daily deep crawl. It has ~104 minutes before the next hourly production crawl.
     - cron: "23 3 * * *"
 
 permissions:
@@ -25,7 +41,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  ACTIONS_STEP_DEBUG: "false"
+  PYTHONUNBUFFERED: "1"
 
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
@@ -42,13 +58,10 @@ env:
   MIN_MAP_FEATURES: "1"
   PUBLIC_MAP_MAX_POINTS: "5000"
 
-  PYTHONUNBUFFERED: "1"
-  BITNODES_REQUIRE_GEO_COORDINATES: "true"
-
 jobs:
   crawl-bitnodes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 110
 
     steps:
       - name: Checkout website repo
@@ -87,22 +100,18 @@ jobs:
 
           if [ "${PROFILE}" = "deep" ]; then
             printf '%s\n' "run_seconds=3000" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "workers=768" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "batch_size=8192" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "getaddr_rounds=64" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "workers=256" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "batch_size=4096" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "getaddr_rounds=48" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "dns_seed_limit=12000" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "archive_replay_files=1500" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "original_workers=192" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "original_batch_size=4096" >> "${GITHUB_OUTPUT}"
           else
             printf '%s\n' "run_seconds=1500" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "workers=384" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "batch_size=4096" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "workers=192" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "batch_size=2048" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "getaddr_rounds=24" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "dns_seed_limit=8192" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "archive_replay_files=500" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "original_workers=96" >> "${GITHUB_OUTPUT}"
-            printf '%s\n' "original_batch_size=2048" >> "${GITHUB_OUTPUT}"
           fi
 
           printf '%s\n' "Using crawl profile: ${PROFILE}"
@@ -126,16 +135,18 @@ jobs:
           print("geoip2/maxminddb imports OK")
           PY
 
-      - name: Validate Bitnodes tools
+      - name: Validate production Bitnodes tools
         shell: bash
         run: |
           set -euo pipefail
 
           REQUIRED=(
             tools/bitnodes/crawl.py
+            tools/bitnodes/zzxbitnodes.py
+            tools/bitnodes/collector.py
+            tools/bitnodes/update_snapshot.py
+            tools/bitnodes/merge_sources.py
             tools/bitnodes/enrich.py
-            tools/bitnodes/geoloc/geoloc.py
-            tools/bitnodes/geoloc/geoip.py
             tools/bitnodes/aggregate.py
             tools/bitnodes/ip_db.py
             tools/bitnodes/push_ipdb.py
@@ -147,9 +158,10 @@ jobs:
             tools/bitnodes/map/mapplotter.py
             tools/bitnodes/map/mapvectors.py
             tools/bitnodes/map/mapnodes.py
+            tools/bpi/bpi_git_publish.py
           )
 
-          MOVED_MODULES=(
+          MODULES=(
             tools/bitnodes/network/ipv4.py
             tools/bitnodes/network/ipv6.py
             tools/bitnodes/network/tor.py
@@ -167,41 +179,15 @@ jobs:
             tools/bitnodes/threat-detection/tagattribution.py
           )
 
-          OPTIONAL_NEW_MODULES=(
-            tools/bitnodes/geoclass/boundary_zone.py
-            tools/bitnodes/geoclass/land_parcel.py
-            tools/bitnodes/geoclass/building_perimeter.py
-            tools/bitnodes/geoclass/asn_footprint.py
-          )
-
-          for FILE in "${REQUIRED[@]}" "${MOVED_MODULES[@]}"; do
-            if [ ! -f "${FILE}" ]; then
-              printf '%s\n' "MISSING REQUIRED FILE: ${FILE}"
-              find tools/bitnodes -maxdepth 4 -type f | sort
-              exit 1
-            fi
+          for FILE in "${REQUIRED[@]}" "${MODULES[@]}"; do
+            test -f "${FILE}"
             python -m py_compile "${FILE}"
           done
 
-          for FILE in "${OPTIONAL_NEW_MODULES[@]}"; do
-            if [ -f "${FILE}" ]; then
-              python -m py_compile "${FILE}"
-            else
-              printf '%s\n' "optional missing: ${FILE}"
-            fi
-          done
-
-          python tools/bitnodes/crawl.py --help
-          python tools/bitnodes/enrich.py --help
-          python tools/bitnodes/geoloc/geoip.py --help
-          python tools/bitnodes/aggregate.py --help
-          python tools/bitnodes/ip_db.py --help
-          python tools/bitnodes/push_ipdb.py --help
-          python tools/bitnodes/export_db.py --help
-          python tools/bitnodes/build_geo_indexes.py --help
-          python tools/bitnodes/map/map.py --help
-          python tools/bitnodes/map/mapplotter.py --help
-          python tools/bitnodes/map/mapvectors.py --help
+          python tools/bitnodes/crawl.py --help >/dev/null
+          python tools/bitnodes/collector.py --help >/dev/null
+          python tools/bitnodes/merge_sources.py --help >/dev/null
+          python -m json.tool "${BITNODES_API}/sources.json" >/dev/null
 
       - name: Prepare Bitnodes directories
         shell: bash
@@ -209,15 +195,18 @@ jobs:
           set -euo pipefail
 
           mkdir -p \
+            "${BITNODES_API}/btcnodes/normalized" \
             "${BITNODES_API}/zzxbitnodes" \
-            "${BITNODES_API}/originalbitnodes" \
+            "${BITNODES_API}/enriched/btcnodes" \
             "${BITNODES_API}/enriched/zzxbitnodes" \
-            "${BITNODES_API}/enriched/originalbitnodes" \
+            "${BITNODES_API}/aggregate/btcnodes" \
+            "${BITNODES_API}/aggregate/btcnodes-enriched" \
             "${BITNODES_API}/aggregate/zzxbitnodes" \
-            "${BITNODES_API}/aggregate/originalbitnodes" \
+            "${BITNODES_API}/aggregate/canonical" \
+            "${BITNODES_API}/snapshots/btcnodes" \
             "${BITNODES_API}/data" \
+            "${BITNODES_DATA}/runtime/state/btcnodes" \
             "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            "${BITNODES_DATA}/runtime/state/originalbitnodes" \
             "${BITNODES_DATA}/runtime/seeders/zzxbitnodes" \
             "${BITNODES_DATA}/runtime/snapshots/24h/zzxbitnodes" \
             "${BITNODES_DATA}/geo/manifests" \
@@ -225,7 +214,6 @@ jobs:
             "${BITNODES_GEOIP}/archive" \
             "${BITNODES_GEOIP}/published" \
             "${BITNODES_ARCHIVE}/runtime/zzxbitnodes" \
-            "${BITNODES_ARCHIVE}/runtime/originalbitnodes" \
             "${BITNODES_MAPS}/data" \
             "${BITNODES_LIVE_MAP}/data"
 
@@ -240,8 +228,7 @@ jobs:
             python - <<'PY'
           from datetime import datetime, timezone
           now = datetime.now(timezone.utc)
-          year = now.year
-          month = now.month
+          year, month = now.year, now.month
           for _ in range(6):
               print(f"{year:04d}-{month:02d}")
               month -= 1
@@ -253,7 +240,6 @@ jobs:
 
           for DB in city asn country; do
             OK="0"
-
             for DBIP_MONTH in ${MONTHS}; do
               URL="https://download.db-ip.com/free/dbip-${DB}-lite-${DBIP_MONTH}.mmdb.gz"
               OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb.gz"
@@ -290,38 +276,29 @@ jobs:
             "${BITNODES_GEOIP}/dbip-country-lite.mmdb"
           do
             test -s "${DB}"
-            ls -lh "${DB}"
           done
 
       - name: Verify DB-IP GeoIP databases
         shell: bash
         run: |
           set -euo pipefail
-
           python - <<'PY'
           import geoip2.database
           from pathlib import Path
 
-          paths = [
-              Path("bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb"),
-              Path("bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb"),
-              Path("bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb"),
-          ]
+          city = Path("bitcoin/bitnodes/data/geoip/dbip-city-lite.mmdb")
+          asn = Path("bitcoin/bitnodes/data/geoip/dbip-asn-lite.mmdb")
+          country = Path("bitcoin/bitnodes/data/geoip/dbip-country-lite.mmdb")
 
-          for path in paths:
-              if not path.exists() or path.stat().st_size <= 0:
-                  raise SystemExit(f"missing or empty MMDB: {path}")
-              print(f"MMDB OK: {path} {path.stat().st_size} bytes")
-
-          with geoip2.database.Reader(str(paths[0])) as reader:
+          with geoip2.database.Reader(str(city)) as reader:
               result = reader.city("8.8.8.8")
               print("city smoke:", result.country.iso_code, result.location.latitude, result.location.longitude)
 
-          with geoip2.database.Reader(str(paths[1])) as reader:
+          with geoip2.database.Reader(str(asn)) as reader:
               result = reader.asn("8.8.8.8")
               print("asn smoke:", result.autonomous_system_number, result.autonomous_system_organization)
 
-          with geoip2.database.Reader(str(paths[2])) as reader:
+          with geoip2.database.Reader(str(country)) as reader:
               result = reader.country("8.8.8.8")
               print("country smoke:", result.country.iso_code)
           PY
@@ -331,13 +308,49 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           timeout 540 python tools/bitnodes/build_geo_indexes.py \
             --geo-root "${BITNODES_GEO}" \
             --download \
             --download-timeout 60 \
             --download-retries 3 \
             --copy-source-manifest
+
+      - name: Mirror btcnodes.io and seed ZZX crawler
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/update_snapshot.py
+
+          test -s "${BITNODES_API}/btcnodes/latest.json"
+          test -s "${BITNODES_API}/btcnodes/normalized/latest.json"
+
+          cp -f \
+            "${BITNODES_API}/btcnodes/latest.json" \
+            "${BITNODES_DATA}/runtime/seeders/zzxbitnodes/btcnodes-latest.json"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          raw = Path("bitcoin/bitnodes/api/btcnodes/latest.json")
+          normalized = Path("bitcoin/bitnodes/api/btcnodes/normalized/latest.json")
+          data = json.loads(normalized.read_text(encoding="utf-8"))
+          nodes = data.get("nodes")
+          count = len(nodes) if isinstance(nodes, list) else 0
+
+          if data.get("source") != "btcnodes.io" and not str(data.get("source", "")).strip():
+              raise SystemExit("btcnodes normalized snapshot has no source provenance")
+          if count <= 0:
+              raise SystemExit("btcnodes.io mirror normalized to zero node rows")
+
+          print(
+              "btcnodes.io mirror seeded:",
+              f"nodes={count}",
+              f"reachable={data.get('reachable_nodes')}",
+              f"raw_bytes={raw.stat().st_size}",
+          )
+          PY
 
       - name: Run ZZX Bitnodes crawler window
         shell: bash
@@ -364,7 +377,6 @@ jobs:
             --dns-seed-limit "${{ steps.profile.outputs.dns_seed_limit }}" \
             --archive-replay-files "${{ steps.profile.outputs.archive_replay_files }}" \
             --export-mode reachable_24h \
-            --mirror-legacy-api \
             --no-enrich-after \
             --no-aggregate-after \
             --no-export-all-after \
@@ -374,80 +386,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f "${BITNODES_API}/zzxbitnodes/latest.json"
+          test -s "${BITNODES_API}/zzxbitnodes/latest.json"
 
           python - <<'PY'
           import json
-          import os
           from pathlib import Path
 
-          path = Path(os.environ["BITNODES_API"]) / "zzxbitnodes" / "latest.json"
+          path = Path("bitcoin/bitnodes/api/zzxbitnodes/latest.json")
           payload = json.loads(path.read_text(encoding="utf-8"))
           nodes = payload.get("nodes") if isinstance(payload, dict) else None
           count = len(nodes) if isinstance(nodes, (dict, list)) else 0
-
           print(f"ZZX latest node count: {count}")
-
           if count <= 0:
               raise SystemExit("ZZX crawler produced zero nodes")
           PY
 
-      - name: Run Original Bitnodes-compatible crawler
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          set +e
-          python tools/bitnodes/crawl.py \
-            --crawler originalbitnodes \
-            --original-mode hybrid \
-            --run-seconds 0 \
-            --output "${BITNODES_API}/originalbitnodes" \
-            --state-dir "${BITNODES_DATA}/runtime/state/originalbitnodes" \
-            --geoip-dir "${BITNODES_GEOIP}" \
-            --timeout 5 \
-            --limit 250000 \
-            --batch-size "${{ steps.profile.outputs.original_batch_size }}" \
-            --workers "${{ steps.profile.outputs.original_workers }}" \
-            --getaddr-rounds 16 \
-            --dns-seed-limit 4096 \
-            --archive-replay-files 0 \
-            --disable-archive-replay \
-            --export-mode reachable \
-            --no-enrich-after \
-            --no-aggregate-after \
-            --no-export-all-after \
-            --compact
-          RC="$?"
-          set -e
-
-          if [ "${RC}" -ne 0 ]; then
-            printf '%s\n' "Original-compatible crawler exited ${RC}; checking whether latest.json was still produced."
-          fi
-
-          if [ ! -s "${BITNODES_API}/originalbitnodes/latest.json" ]; then
-            printf '%s\n' "Original-compatible crawler failed and produced no latest.json."
-            exit "${RC}"
-          fi
-
-          printf '%s\n' "Original-compatible latest.json exists; continuing."
-
-      - name: Validate Original crawler output
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f "${BITNODES_API}/originalbitnodes/latest.json"
-
-      - name: Enrich node datasets with GeoIP and GeoLoc classification
+      - name: Enrich production node sources
         shell: bash
         run: |
           set -euo pipefail
 
           MODULES="geoip,geoloc,boundary_zone,continent,region,country,territory,county,city,zip,timezone,land_parcel,building_perimeter,asn_footprint,isp,organization,provider,datacenter,government,military,sanctioned_nodes,knownmalactor,tagattribution,w3w_lookup,geohashid_lookup,peers,peer_index,peer_health,dns_seeder_health"
 
-          for SOURCE in zzxbitnodes originalbitnodes; do
+          enrich_source() {
+            SOURCE="$1"
+            INPUT="$2"
+
             python tools/bitnodes/enrich.py \
-              --input "${BITNODES_API}/${SOURCE}/latest.json" \
+              --input "${INPUT}" \
               --output "${BITNODES_API}/enriched/${SOURCE}/latest.json" \
               --report "${BITNODES_API}/enriched/${SOURCE}/enrichment-report.json" \
               --source "${SOURCE}" \
@@ -460,197 +426,141 @@ jobs:
               --geo-root "${BITNODES_GEO}" \
               --modules "${MODULES}" \
               --compact
+          }
 
-            python - <<PY
-          import json
-          from pathlib import Path
+          enrich_source zzxbitnodes "${BITNODES_API}/zzxbitnodes/latest.json"
+          enrich_source btcnodes "${BITNODES_API}/btcnodes/normalized/latest.json"
 
-          report_path = Path("${BITNODES_API}/enriched/${SOURCE}/enrichment-report.json")
-          report = json.loads(report_path.read_text(encoding="utf-8"))
-
-          print("${SOURCE} enrichment coordinate report:")
-          for module in report.get("modules", []):
-              print(
-                  f"  {module.get('name')}: "
-                  f"{module.get('coordinate_count_before')} -> "
-                  f"{module.get('coordinate_count_after')} "
-                  f"{module.get('status')} "
-                  f"{module.get('message', '')}"
-              )
-
-          if int(report.get("final_coordinate_count") or 0) == 0:
-              raise SystemExit("${SOURCE} enrichment produced zero coordinates")
-          PY
-          done
-
-      - name: Validate enriched datasets
+      - name: Validate enriched production sources
         shell: bash
         run: |
           set -euo pipefail
 
           python - <<'PY'
           import json
-          import os
           from pathlib import Path
 
-          def deep_get(obj, path):
-              cur = obj
-              for part in path.split("."):
-                  if not isinstance(cur, dict):
-                      return None
-                  cur = cur.get(part)
-              return cur
-
-          def first(obj, keys):
-              for key in keys:
-                  value = deep_get(obj, key) if "." in key else obj.get(key)
-                  if value not in ("", None):
-                      return value
-              return None
-
-          def node_items(payload):
-              nodes = payload.get("nodes") if isinstance(payload, dict) else None
-              if isinstance(nodes, dict):
-                  return list(nodes.values())
-              if isinstance(nodes, list):
-                  return nodes
+          def nodes(payload):
+              rows = payload.get("nodes") if isinstance(payload, dict) else None
+              if isinstance(rows, dict):
+                  return list(rows.values())
+              if isinstance(rows, list):
+                  return rows
               return []
 
-          def coord_pair(item):
-              if isinstance(item, dict):
-                  return (
-                      first(item, ("latitude", "lat", "geo.latitude", "geoip.latitude", "geoip_data.latitude", "geoloc.latitude", "location.latitude", "metadata.latitude")),
-                      first(item, ("longitude", "lon", "lng", "geo.longitude", "geoip.longitude", "geoip_data.longitude", "geoloc.longitude", "location.longitude", "metadata.longitude")),
-                  )
+          def get(obj, *names):
+              for name in names:
+                  cur = obj
+                  for part in name.split("."):
+                      if not isinstance(cur, dict):
+                          cur = None
+                          break
+                      cur = cur.get(part)
+                  if cur not in (None, ""):
+                      return cur
+              return None
 
-              if isinstance(item, list):
-                  return (
-                      item[8] if len(item) > 8 else None,
-                      item[9] if len(item) > 9 else None,
-                  )
-
-              return None, None
-
-          total_coordinate_count = 0
-
-          for rel in (
-              "enriched/zzxbitnodes/latest.json",
-              "enriched/originalbitnodes/latest.json",
-          ):
-              path = Path(os.environ["BITNODES_API"]) / rel
-
-              if not path.exists():
-                  raise SystemExit(f"{rel} is missing")
-
+          for source in ("zzxbitnodes", "btcnodes"):
+              path = Path(f"bitcoin/bitnodes/api/enriched/{source}/latest.json")
               payload = json.loads(path.read_text(encoding="utf-8"))
-              nodes = node_items(payload)
+              rows = nodes(payload)
+              if not rows:
+                  raise SystemExit(f"{source} enrichment contains zero nodes")
 
-              if not nodes:
-                  raise SystemExit(f"{rel} contains zero nodes")
-
-              coords = 0
-
-              for item in nodes:
-                  lat, lon = coord_pair(item)
-
+              countries = 0
+              coordinates = 0
+              for row in rows:
+                  if not isinstance(row, dict):
+                      continue
+                  country = get(row, "country", "country_code", "geo.country", "geo.country_code", "geoip.country", "geoip.country_code")
+                  lat = get(row, "latitude", "lat", "geo.latitude", "geoip.latitude", "geoloc.latitude")
+                  lon = get(row, "longitude", "lon", "lng", "geo.longitude", "geoip.longitude", "geoloc.longitude")
+                  if country:
+                      countries += 1
                   try:
                       lat = float(lat)
                       lon = float(lon)
                   except Exception:
                       continue
-
                   if -90 <= lat <= 90 and -180 <= lon <= 180:
-                      coords += 1
+                      coordinates += 1
 
-              print(f"{rel}: nodes={len(nodes)} coordinates={coords}")
-
-              if coords == 0:
-                  print(json.dumps(nodes[0], ensure_ascii=False, indent=2)[:5000])
-                  raise SystemExit(f"{rel} has zero coordinate-bearing nodes")
-
-              total_coordinate_count += coords
-
-          print(f"total coordinate-bearing nodes={total_coordinate_count}")
+              print(source, "nodes=", len(rows), "countries=", countries, "coordinates=", coordinates)
+              if countries == 0:
+                  raise SystemExit(f"{source} enrichment produced zero country-bearing rows")
+              if coordinates == 0:
+                  raise SystemExit(f"{source} enrichment produced zero coordinate-bearing rows")
           PY
 
-      - name: Aggregate public summaries
+      - name: Aggregate production sources
         shell: bash
         run: |
           set -euo pipefail
 
-          for SOURCE in zzxbitnodes originalbitnodes; do
-            python tools/bitnodes/aggregate.py \
-              --input "${BITNODES_API}/enriched/${SOURCE}/latest.json" \
-              --output "${BITNODES_API}/aggregate/${SOURCE}/latest.json" \
-              --api-dir "${BITNODES_API}" \
-              --state-dir "${BITNODES_DATA}/runtime/state/${SOURCE}" \
-              --source "${SOURCE}" \
-              --compact
-          done
+          python tools/bitnodes/aggregate.py \
+            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            --output "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
+            --source zzxbitnodes \
+            --compact
 
-          # Preserve the aggregate's designed node-bearing behavior.
-          # Compact JSON is a serialization change only; it must not strip nodes.
+          # Keep the enriched external aggregate separate from the 5-minute
+          # mirror-owned aggregate/btcnodes/latest.json path.
+          python tools/bitnodes/aggregate.py \
+            --input "${BITNODES_API}/enriched/btcnodes/latest.json" \
+            --output "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/runtime/state/btcnodes" \
+            --source btcnodes.io \
+            --compact
+
+      - name: Build canonical merged widget snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/merge_sources.py \
+            --input "zzxbitnodes=${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
+            --input "btcnodes.io=${BITNODES_API}/enriched/btcnodes/latest.json" \
+            --output "${BITNODES_API}/snapshots/latest.json" \
+            --aggregate-output "${BITNODES_API}/aggregate/canonical/latest.json" \
+            --compact
+
           python - <<'PY'
           import json
-          import os
           from pathlib import Path
 
-          api = Path(os.environ["BITNODES_API"])
-          ceiling = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          path = Path("bitcoin/bitnodes/api/snapshots/latest.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          rows = data.get("nodes")
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit("canonical snapshot has zero normalized node rows")
 
-          for source in (
-              "zzxbitnodes",
-              "originalbitnodes",
-          ):
-              path = (
-                  api
-                  / "aggregate"
-                  / source
-                  / "latest.json"
-              )
+          addresses = {str(row.get("address") or "") for row in rows if isinstance(row, dict)}
+          if "" in addresses:
+              addresses.remove("")
+          if len(addresses) != len(rows):
+              raise SystemExit("canonical snapshot contains duplicate or missing node addresses")
 
-              payload = json.loads(
-                  path.read_text(encoding="utf-8")
-              )
+          countries = sum(1 for row in rows if isinstance(row, dict) and row.get("country"))
+          uas = sum(1 for row in rows if isinstance(row, dict) and row.get("user_agent"))
 
-              nodes = (
-                  payload.get("nodes")
-                  if isinstance(payload, dict)
-                  else None
-              )
+          if countries <= 0:
+              raise SystemExit("canonical snapshot contains no country-geolocated nodes")
+          if uas <= 0:
+              raise SystemExit("canonical snapshot contains no user-agent rows")
 
-              if not isinstance(nodes, (dict, list)):
-                  raise SystemExit(
-                      "aggregate lost its node collection: "
-                      f"{path}"
-                  )
-
-              if len(nodes) < 1:
-                  raise SystemExit(
-                      "aggregate contains zero nodes: "
-                      f"{path}"
-                  )
-
-              size = path.stat().st_size
-
-              print(
-                  "full aggregate preserved:",
-                  f"source={source}",
-                  f"nodes={len(nodes)}",
-                  f"bytes={size}",
-                  f"ceiling={ceiling}",
-              )
-
-              if size > ceiling:
-                  raise SystemExit(
-                      "compact full aggregate still exceeds "
-                      "the 24 MB publication ceiling; "
-                      "do not strip nodes automatically. "
-                      f"size={size} path={path}"
-                  )
+          print(
+              "canonical snapshot valid:",
+              f"nodes={len(rows)}",
+              f"countries={countries}",
+              f"user_agents={uas}",
+              f"sources={data.get('source_counts')}",
+          )
           PY
 
-      - name: Update IPDB artifacts
+      - name: Update IPDB artifacts from canonical snapshot
         shell: bash
         run: |
           set -euo pipefail
@@ -658,22 +568,18 @@ jobs:
           mkdir -p "${BITNODES_GEOIP}/current" "${BITNODES_GEOIP}/archive" "${BITNODES_GEOIP}/published"
 
           python tools/bitnodes/ip_db.py \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            --output "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
+            --input "${BITNODES_API}/snapshots/latest.json" \
+            --output "${BITNODES_API}/snapshots/latest.ipdb-enriched.json" \
             --ipdb-dir "${BITNODES_GEOIP}" \
             --latest "${BITNODES_GEOIP}/current/ip_db.latest.json" \
             --index "${BITNODES_GEOIP}/current/ip_db.index.json" \
             --stats "${BITNODES_GEOIP}/current/ip_db.stats.json" \
             --archive-dir "${BITNODES_GEOIP}/archive" \
             --max-segment-bytes "${MAX_PUBLIC_JSON_BYTES}" \
-            --source zzxbitnodes \
+            --source zzx-canonical \
             --update-db \
             --compact \
             --report "${BITNODES_GEOIP}/ip_db.run-report.json"
-
-          test -f "${BITNODES_GEOIP}/current/ip_db.latest.json"
-          test -f "${BITNODES_GEOIP}/current/ip_db.index.json"
-          test -f "${BITNODES_GEOIP}/current/ip_db.stats.json"
 
           python tools/bitnodes/push_ipdb.py \
             --ipdb-dir "${BITNODES_GEOIP}" \
@@ -687,18 +593,14 @@ jobs:
             --copy-only \
             --compact
 
-      - name: Export MariaDB gzip shards
+      - name: Export canonical MariaDB gzip shards
         timeout-minutes: 20
         shell: bash
         run: |
           set -euo pipefail
 
-          date
-          printf '%s\n' "Starting export_db.py"
-
           python tools/bitnodes/export_db.py \
-            --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            --input "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
+            --input "${BITNODES_API}/snapshots/latest.json" \
             --output-dir "${BITNODES_API}/data" \
             --database zzx_bitnodes \
             --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
@@ -706,14 +608,20 @@ jobs:
             --strict \
             --no-sqlite
 
-          printf '%s\n' "Finished export_db.py"
-          date
+          shopt -s nullglob
+          SHARDS=("${BITNODES_API}/data/"*.sql.gz)
+          shopt -u nullglob
+          if [ "${#SHARDS[@]}" -eq 0 ]; then
+            printf '%s\n' "No MariaDB SQL shards were generated."
+            exit 1
+          fi
+          for SHARD in "${SHARDS[@]}"; do
+            gzip -t "${SHARD}"
+            test "$(stat -c '%s' "${SHARD}")" -le "${MAX_PUBLIC_JSON_BYTES}"
+          done
 
-          du -sh "${BITNODES_API}/data" || true
-          find "${BITNODES_API}/data" -type f -printf "%s %p\n" | sort -nr | head -20 || true
-
-      - name: Detect private MariaDB backup credentials
-        id: backup_gate
+      - name: Backup MariaDB shards to private repo when configured
+        continue-on-error: true
         shell: bash
         env:
           BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
@@ -721,37 +629,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -n "${BITNODES_BACKUP_REPO:-}" ] && [ -n "${BITNODES_BACKUP_TOKEN:-}" ]; then
-            printf '%s\n' "enabled=true" >> "${GITHUB_OUTPUT}"
-          else
-            printf '%s\n' "enabled=false" >> "${GITHUB_OUTPUT}"
+          if [ -z "${BITNODES_BACKUP_REPO:-}" ] || [ -z "${BITNODES_BACKUP_TOKEN:-}" ]; then
+            printf '%s\n' "Private Bitnodes backup not configured; skipping."
+            exit 0
           fi
 
-      - name: Backup MariaDB shards to private repo
-        if: ${{ steps.backup_gate.outputs.enabled == 'true' }}
-        shell: bash
-        env:
-          BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
-          BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
-        run: |
-          set -euo pipefail
-
           if ! [[ "${BITNODES_BACKUP_REPO}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
-            printf '%s\n' "BITNODES_BACKUP_REPO must be in owner/repository form."
+            printf '%s\n' "BITNODES_BACKUP_REPO must be owner/repository."
             exit 1
           fi
 
           TODAY="$(date -u +%Y-%m-%d)"
           RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          SOURCE_SHA="$(git rev-parse HEAD)"
-          BACKUP_ROOT="$(mktemp -d)"
+          TMP="$(mktemp -d)"
           ASKPASS="$(mktemp)"
-
-          cleanup() {
-            rm -f "${ASKPASS}"
-            rm -rf "${BACKUP_ROOT}"
-          }
-          trap cleanup EXIT
+          trap 'rm -rf "${TMP}"; rm -f "${ASKPASS}"' EXIT
 
           cat > "${ASKPASS}" <<'ASKPASS'
           #!/usr/bin/env bash
@@ -762,231 +654,63 @@ jobs:
           esac
           ASKPASS
           chmod 700 "${ASKPASS}"
-
           export GIT_ASKPASS="${ASKPASS}"
           export GIT_TERMINAL_PROMPT=0
 
-          git clone \
-            --filter=blob:none \
-            --single-branch \
-            --branch main \
-            "https://github.com/${BITNODES_BACKUP_REPO}.git" \
-            "${BACKUP_ROOT}"
+          git clone --filter=blob:none --single-branch --branch main \
+            "https://github.com/${BITNODES_BACKUP_REPO}.git" "${TMP}"
 
-          REMOTE_URL="$(git -C "${BACKUP_ROOT}" remote get-url origin)"
-          if printf '%s' "${REMOTE_URL}" | grep -Fq "${BITNODES_BACKUP_TOKEN}"; then
-            printf '%s\n' "Refusing backup remote containing embedded credentials."
-            exit 1
-          fi
+          mkdir -p "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}" "${TMP}/bitnodes/latest"
+          cp -av "${BITNODES_API}/data/"*.sql.gz "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}/"
+          cp -av "${BITNODES_API}/data/"*.json "${TMP}/bitnodes/latest/" || true
 
-          mkdir -p \
-            "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}" \
-            "${BACKUP_ROOT}/bitnodes/latest" \
-            "${BACKUP_ROOT}/bitnodes/manifests"
+          git -C "${TMP}" config user.name "zzx-labs-bitnodes-bot"
+          git -C "${TMP}" config user.email "actions@github.com"
+          git -C "${TMP}" add bitnodes
 
-          shopt -s nullglob
-          SQL_SHARDS=("${BITNODES_API}/data/"*.sql.gz)
-          JSON_ARTIFACTS=("${BITNODES_API}/data/"*.json)
-          shopt -u nullglob
-
-          if [ "${#SQL_SHARDS[@]}" -eq 0 ]; then
-            printf '%s\n' "No MariaDB SQL gzip shards were produced; refusing empty private backup."
-            exit 1
-          fi
-
-          if [ "${#JSON_ARTIFACTS[@]}" -eq 0 ]; then
-            printf '%s\n' "No MariaDB JSON metadata artifacts were produced; refusing incomplete private backup."
-            exit 1
-          fi
-
-          for SHARD in "${SQL_SHARDS[@]}"; do
-            gzip -t "${SHARD}"
-            SIZE="$(stat -c '%s' "${SHARD}")"
-            if [ "${SIZE}" -gt "${MAX_PUBLIC_JSON_BYTES}" ]; then
-              printf '%s\n' "SQL shard exceeds configured shard ceiling: ${SIZE} ${SHARD}"
-              exit 1
-            fi
-          done
-
-          cp -av \
-            "${SQL_SHARDS[@]}" \
-            "${BACKUP_ROOT}/bitnodes/mariadb/${TODAY}/${RUN_ID}/"
-
-          cp -av \
-            "${JSON_ARTIFACTS[@]}" \
-            "${BACKUP_ROOT}/bitnodes/latest/"
-
-          python - <<PY
-          import hashlib
-          import json
-          import time
-          from pathlib import Path
-
-          root = Path("${BACKUP_ROOT}")
-          run_dir = root / "bitnodes" / "mariadb" / "${TODAY}" / "${RUN_ID}"
-          manifest_dir = root / "bitnodes" / "manifests"
-          manifest_dir.mkdir(parents=True, exist_ok=True)
-
-          files = []
-          for path in sorted(run_dir.glob("*.sql.gz")):
-              files.append({
-                  "path": str(path.relative_to(root)),
-                  "size_bytes": path.stat().st_size,
-                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-              })
-
-          if not files:
-              raise SystemExit("private backup manifest would contain zero SQL shards")
-
-          manifest = {
-              "schema": "zzx-bitnodes-private-mariadb-backup-v2",
-              "generated_at": int(time.time()),
-              "date": "${TODAY}",
-              "run_id": "${RUN_ID}",
-              "source_repo": "${GITHUB_REPOSITORY}",
-              "source_sha": "${SOURCE_SHA}",
-              "files": files,
-          }
-
-          manifest_text = json.dumps(
-              manifest,
-              ensure_ascii=False,
-              indent=2,
-          ) + "\n"
-
-          (manifest_dir / f"${TODAY}-${RUN_ID}.json").write_text(
-              manifest_text,
-              encoding="utf-8",
-          )
-
-          (root / "bitnodes" / "latest" / "private-backup-latest.json").write_text(
-              manifest_text,
-              encoding="utf-8",
-          )
-          PY
-
-          cd "${BACKUP_ROOT}"
-
-          git config user.name "zzx-labs-bitnodes-bot"
-          git config user.email "actions@github.com"
-          git add bitnodes
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "No private MariaDB backup changes."
+          if git -C "${TMP}" diff --cached --quiet; then
+            printf '%s\n' "No private backup changes."
             exit 0
           fi
 
-          git commit -m "Backup Bitnodes MariaDB shards ${TODAY} ${RUN_ID}"
+          git -C "${TMP}" commit -m "Backup Bitnodes MariaDB shards ${TODAY} ${RUN_ID}"
+          git -C "${TMP}" push origin HEAD:main
 
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main && git push origin HEAD:main; then
-              printf '%s\n' "Private MariaDB backup pushed."
-              exit 0
-            fi
-
-            git rebase --abort || true
-            printf '%s\n' "Private backup push attempt ${attempt} failed; retrying without force."
-            sleep 10
-          done
-
-          printf '%s\n' "Failed to push private MariaDB backup without rewriting main."
-          exit 1
-
-      - name: Build maps and live-map from real coordinate data
+      - name: Build and validate maps from canonical node data
         shell: bash
         run: |
           set -euo pipefail
 
-            python tools/bitnodes/map/map.py both \
-              --input "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-              --api-dir "${BITNODES_API}" \
-              --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-              --map-dir "${BITNODES_MAPS}" \
-              --live-map-dir "${BITNODES_LIVE_MAP}" \
-              --source zzxbitnodes \
-              --theme zzx_dark_olive \
-              --settings live \
-              --tile-provider cartodb_dark \
-              --public-safe \
-              --max-points 5000 \
-              --compact \
-              --fail-empty
-
-      - name: Validate generated maps
-        shell: bash
-        run: |
-          set -euo pipefail
+          python tools/bitnodes/map/map.py both \
+            --input "${BITNODES_API}/snapshots/latest.json" \
+            --api-dir "${BITNODES_API}" \
+            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
+            --map-dir "${BITNODES_MAPS}" \
+            --live-map-dir "${BITNODES_LIVE_MAP}" \
+            --source zzx-canonical \
+            --theme zzx_dark_olive \
+            --settings live \
+            --tile-provider cartodb_dark \
+            --public-safe \
+            --max-points "${PUBLIC_MAP_MAX_POINTS}" \
+            --compact \
+            --fail-empty
 
           python - <<'PY'
           import json
-          import os
           from pathlib import Path
 
-          min_features = int(os.environ.get("MIN_MAP_FEATURES", "1"))
-
-          required = [
-              Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
-              Path("bitcoin/bitnodes/live-map/data/map-vectors.json"),
-              Path("bitcoin/bitnodes/live-map/data/map-settings.json"),
-              Path("bitcoin/bitnodes/live-map/data/map-theme.json"),
-              Path("bitcoin/bitnodes/live-map/data/vector-types.json"),
+          minimum = 1
+          for path in (
               Path("bitcoin/bitnodes/maps/data/map-points.geojson"),
-              Path("bitcoin/bitnodes/maps/data/map-vectors.json"),
-          ]
-
-          for path in required:
-              if not path.exists():
-                  raise SystemExit(f"missing generated map artifact: {path}")
-
-          geojson = json.loads(required[0].read_text(encoding="utf-8"))
-          vectors = json.loads(required[1].read_text(encoding="utf-8"))
-
-          features = geojson.get("features", [])
-          points = vectors.get("points", [])
-
-          print(f"live-map features={len(features)}")
-          print(f"live-map vector points={len(points)}")
-
-          if not isinstance(features, list) or len(features) < min_features:
-              raise SystemExit(f"map-points.geojson contains too few features: {len(features)} < {min_features}")
-
-          if not isinstance(points, list) or len(points) < min_features:
-              raise SystemExit(f"map-vectors.json contains too few points: {len(points)} < {min_features}")
+              Path("bitcoin/bitnodes/live-map/data/map-points.geojson"),
+          ):
+              data = json.loads(path.read_text(encoding="utf-8"))
+              features = data.get("features")
+              if not isinstance(features, list) or len(features) < minimum:
+                  raise SystemExit(f"map contains too few features: {path}")
+              print(path, "features=", len(features))
           PY
-
-      - name: Prune private runtime, raw archives, MMDBs, and legacy fanout
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          rm -f "${BITNODES_GEOIP}"/*.mmdb "${BITNODES_GEOIP}"/*.mmdb.gz || true
-          rm -rf "${BITNODES_ROOT}/src" || true
-          rm -rf "${BITNODES_DATA}/runtime" || true
-          rm -rf "${BITNODES_ARCHIVE}/runtime" || true
-
-          rm -f "${BITNODES_API}/original-latest.json" || true
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" || true
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" || true
-          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json" || true
-
-          for SOURCE in zzxbitnodes originalbitnodes; do
-            find "${BITNODES_API}/${SOURCE}" -mindepth 1 -maxdepth 1 -type f -name '*.json' ! -name 'latest.json' -delete || true
-
-            for DIR in \
-              agents apt-attribution asns cities cjdns continents counties countries \
-              datacenter geohashes government i2p ipv4 ipv6 known-malactor military \
-              maps organizations providers regions sanctioned tag-attribution territories \
-              timezones tor versions w3w zip
-            do
-              rm -rf "${BITNODES_API}/${SOURCE}/${DIR}" || true
-            done
-          done
-
-          find "${BITNODES_ROOT}" -type d -name '__pycache__' -prune -exec rm -rf {} + || true
-          find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
-          find . -type f -name '*.pyc' -delete || true
 
       - name: Build public API index
         shell: bash
@@ -995,63 +719,93 @@ jobs:
 
           python - <<'PY'
           import json
-          import os
           import time
           from pathlib import Path
 
-          api = Path(os.environ["BITNODES_API"])
-
+          api = Path("bitcoin/bitnodes/api")
           index = {
-              "schema": "zzx-bitnodes-public-api-index-v1",
+              "schema": "zzx-bitnodes-public-api-index-v2",
               "generated_at": int(time.time()),
+              "canonical": "snapshots/latest.json",
               "sources": {
+                  "btcnodes_raw": "btcnodes/latest.json",
+                  "btcnodes_normalized": "btcnodes/normalized/latest.json",
                   "zzxbitnodes_latest": "zzxbitnodes/latest.json",
-                  "originalbitnodes_latest": "originalbitnodes/latest.json",
+                  "btcnodes_enrichment_report": "enriched/btcnodes/enrichment-report.json",
                   "zzxbitnodes_enrichment_report": "enriched/zzxbitnodes/enrichment-report.json",
-                  "originalbitnodes_enrichment_report": "enriched/originalbitnodes/enrichment-report.json",
+                  "btcnodes_mirror_aggregate": "aggregate/btcnodes/latest.json",
+                  "btcnodes_enriched_aggregate": "aggregate/btcnodes-enriched/latest.json",
                   "zzxbitnodes_aggregate": "aggregate/zzxbitnodes/latest.json",
-                  "originalbitnodes_aggregate": "aggregate/originalbitnodes/latest.json",
+                  "canonical_aggregate": "aggregate/canonical/latest.json",
                   "database_latest": "data/latest.json",
                   "database_index": "data/index.json",
                   "database_manifest": "data/mariadb_manifest.json",
-                  "maps_public_geojson": "../maps/data/map-points.geojson",
-                  "maps_public_vectors": "../maps/data/map-vectors-public.json",
-                  "live_map_public_geojson": "../live-map/data/map-points.geojson",
-                  "live_map_public_vectors": "../live-map/data/map-vectors-public.json"
+              },
+              "optional_sources": {
+                  "ayeowch_original": "originalbitnodes/latest.json"
               },
               "policy": {
-                  "json": "rolling latest only; no historical JSON fanout",
+                  "primary_external": "btcnodes.io",
+                  "primary_crawler": "zzxbitnodes",
+                  "ayeowch": "optional/manual compatibility crawler; never gates production publication",
+                  "browser": "local canonical JSON only; no direct btcnodes.io widget fetches",
                   "database": "24MB-safe gzipped MariaDB SQL shards",
-                  "private_backup": "MariaDB shards are optionally mirrored to private backup repo",
-                  "ipdb": "current index/latest/stats only",
-                  "no_credentials": True,
-                  "map_coordinates": "public map files are capped; full coordinate data lives in MariaDB gz shards/private backup"
-              }
+              },
           }
-
           api.mkdir(parents=True, exist_ok=True)
-          (api / "index.json").write_text(
-              json.dumps(index, ensure_ascii=False, separators=(",", ":")) + "\n",
-              encoding="utf-8"
-          )
+          (api / "index.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+          PY
 
-          manifest = {
-              "schema": "zzx-bitnodes-public-file-manifest-v1",
-              "generated_at": int(time.time()),
-              "files": []
-          }
+      - name: Prune private and transient crawler data
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          for path in sorted(api.rglob("*")):
-              if path.is_file():
-                  manifest["files"].append({
-                      "path": str(path.relative_to(api)),
-                      "size_bytes": path.stat().st_size
-                  })
+          rm -f "${BITNODES_GEOIP}"/*.mmdb "${BITNODES_GEOIP}"/*.mmdb.gz || true
+          rm -rf "${BITNODES_DATA}/runtime" || true
+          rm -rf "${BITNODES_ARCHIVE}/runtime" || true
+          rm -f "${BITNODES_API}/snapshots/latest.ipdb-enriched.json" || true
+          rm -f "${BITNODES_API}/enriched/btcnodes/latest.json" || true
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
+          find "${BITNODES_ROOT}" -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f -name '*.pyc' -delete || true
 
-          (api / "manifest.json").write_text(
-              json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n",
-              encoding="utf-8"
-          )
+      - name: Validate public artifact policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          roots = [
+              Path(os.environ["BITNODES_API"]),
+              Path(os.environ["BITNODES_GEOIP"]) / "current",
+          ]
+          bad = []
+
+          for root in roots:
+              if not root.exists():
+                  bad.append((0, root, "missing artifact root"))
+                  continue
+              for path in root.rglob("*"):
+                  if not path.is_file():
+                      continue
+                  if path.suffix == ".gz":
+                      if path.stat().st_size > max_bytes:
+                          bad.append((path.stat().st_size, path, "gzip shard too large"))
+                  elif path.suffix in {".json", ".geojson"} and path.stat().st_size > max_bytes:
+                      bad.append((path.stat().st_size, path, "public JSON too large"))
+
+          if bad:
+              for size, path, reason in bad:
+                  print(reason, size, path)
+              raise SystemExit(1)
+
+          print("public artifact filesystem policy passed")
           PY
 
       - name: Stage crawler-owned public Bitnodes outputs
@@ -1059,147 +813,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          limit = max(1, int(os.environ["PUBLIC_MAP_MAX_POINTS"]))
-          bases = [
-              Path(os.environ["BITNODES_MAPS"]) / "data",
-              Path(os.environ["BITNODES_LIVE_MAP"]) / "data",
-          ]
-
-          for base in bases:
-              base.mkdir(parents=True, exist_ok=True)
-              geo = base / "map-points.geojson"
-
-              if not geo.exists():
-                  continue
-
-              data = json.loads(geo.read_text(encoding="utf-8"))
-              features = data.get("features", [])
-
-              if not isinstance(features, list):
-                  raise SystemExit(f"invalid GeoJSON features array: {geo}")
-
-              original_count = len(features)
-              data["features"] = features[:limit]
-              data.setdefault("metadata", {})
-              data["metadata"]["public_capped"] = True
-              data["metadata"]["public_feature_limit"] = limit
-              data["metadata"]["original_feature_count"] = original_count
-
-              geo.write_text(
-                  json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
-                  encoding="utf-8",
-              )
-
-              points = []
-
-              for feature in data["features"]:
-                  if not isinstance(feature, dict):
-                      continue
-
-                  props = feature.get("properties")
-                  geom = feature.get("geometry")
-
-                  if not isinstance(props, dict):
-                      props = {}
-
-                  if not isinstance(geom, dict):
-                      geom = {}
-
-                  coords = geom.get("coordinates")
-
-                  if isinstance(coords, list) and len(coords) >= 2:
-                      row = dict(props)
-                      row["longitude"] = coords[0]
-                      row["latitude"] = coords[1]
-                      points.append(row)
-
-              vectors = base / "map-vectors-public.json"
-              vectors.write_text(
-                  json.dumps(
-                      {
-                          "schema": "zzx-bitnodes-public-capped-map-vectors-v1",
-                          "public_capped": True,
-                          "point_count": len(points),
-                          "points": points,
-                      },
-                      ensure_ascii=False,
-                      separators=(",", ":"),
-                  ) + "\n",
-                  encoding="utf-8",
-              )
-
-              print(
-                  f"public map capped: {geo} original={original_count} "
-                  f"emitted={len(data['features'])} vectors={len(points)}"
-              )
-          PY
-
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
-          rm -f "${BITNODES_API}/enriched/originalbitnodes/latest.json" || true
-          rm -f "${BITNODES_MAPS}/data/map-vectors.json" || true
-          rm -f "${BITNODES_LIVE_MAP}/data/map-vectors.json" || true
-
-          python - <<'PY'
-          import json
-          import os
-          import time
-          from pathlib import Path
-
-          api = Path(os.environ["BITNODES_API"])
-          manifest = {
-              "schema": "zzx-bitnodes-public-file-manifest-v2",
-              "generated_at": int(time.time()),
-              "files": [],
-          }
-
-          for path in sorted(api.rglob("*")):
-              if not path.is_file():
-                  continue
-
-              rel = path.relative_to(api)
-              if rel.as_posix() == "manifest.json":
-                  continue
-
-              manifest["files"].append({
-                  "path": rel.as_posix(),
-                  "size_bytes": path.stat().st_size,
-              })
-
-          (api / "manifest.json").write_text(
-              json.dumps(
-                  manifest,
-                  ensure_ascii=False,
-                  separators=(",", ":"),
-              ) + "\n",
-              encoding="utf-8",
-          )
-
-          print(
-              f"public API manifest rebuilt: "
-              f"{len(manifest['files'])} files"
-          )
-          PY
-
-          printf '%s\n' "Largest files in public API data:"
-          du -sh "${BITNODES_API}/data" || true
-          find "${BITNODES_API}/data" -type f -printf "%s %p\n" | sort -nr | head -20 || true
-
           git reset
 
           git add -A \
             "${BITNODES_API}/index.json" \
-            "${BITNODES_API}/manifest.json" \
+            "${BITNODES_API}/sources.json" \
             "${BITNODES_API}/zzxbitnodes/latest.json" \
-            "${BITNODES_API}/originalbitnodes/latest.json" \
+            "${BITNODES_API}/snapshots/latest.json" \
+            "${BITNODES_API}/enriched/btcnodes/enrichment-report.json" \
             "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
-            "${BITNODES_API}/enriched/originalbitnodes/enrichment-report.json" \
+            "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" \
             "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
-            "${BITNODES_API}/aggregate/originalbitnodes/latest.json" \
+            "${BITNODES_API}/aggregate/canonical/latest.json" \
             "${BITNODES_API}/data" \
             "${BITNODES_DATA}/geo/manifests" \
             "${BITNODES_GEOIP}/current/ip_db.latest.json" \
@@ -1208,123 +833,13 @@ jobs:
             "${BITNODES_GEOIP}/ip_db.run-report.json" \
             "${BITNODES_GEOIP}/ip_db.push-report.json"
 
-          # Single-writer policy:
-          #   crawler      -> API/dataplane/GeoIP public artifacts
-          #   Map Host     -> bitcoin/bitnodes/maps/** and live-map/**
-          #
-          # The crawler may still generate and validate map files above, but it
-          # must never stage them. The dedicated Map Host workflow publishes
-          # those directories after a successful crawler run.
-
-          git ls-files -z -- \
-            "${BITNODES_ROOT}/src" \
-            "${BITNODES_DATA}/runtime" \
-            "${BITNODES_ARCHIVE}/runtime" \
-            "${BITNODES_API}/original-latest.json" \
-            "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-            "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
-            "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
-            "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
-            "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json" \
-            | xargs -0 -r git add -u --
-
-      - name: Validate public artifact policy
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          printf '%s\n' "Oversized crawler-owned JSON candidates in API data:"
-          find "${BITNODES_API}/data" \
-            -type f \
-            -name '*.json' \
-            -size +24M \
-            -print || true
-
-          python - <<'PY'
-          import os
-          from pathlib import Path
-
-          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
-
-          # Publication-size policy is scoped to crawler-owned/staged roots.
-          #
-          # The map pipeline above is intentionally retained in full so every
-          # crawler run still exercises map generation, validation, public-safe
-          # projection, feature capping, and vector creation. However, the
-          # crawler's single-writer staging guard below explicitly forbids
-          # maps/** and live-map/** from entering this commit. Their publication
-          # and size policy belongs to the dedicated Map Host workflow.
-          roots = [
-              Path(os.environ["BITNODES_API"]),
-              Path(os.environ["BITNODES_GEOIP"]) / "current",
-          ]
-
-          forbidden = {
-              Path("bitcoin/bitnodes/api/enriched/zzxbitnodes/latest.json"),
-              Path("bitcoin/bitnodes/api/enriched/originalbitnodes/latest.json"),
-          }
-
-          bad = []
-
-          for path in forbidden:
-              if path.exists():
-                  bad.append((path.stat().st_size, path, "forbidden full public artifact"))
-
-          for root in roots:
-              if not root.exists():
-                  bad.append((0, root, "missing artifact root"))
-                  continue
-
-              for path in root.rglob("*"):
-                  if not path.is_file():
-                      continue
-
-                  p = path.as_posix()
-
-                  if p.endswith(".ipdb-enriched.json"):
-                      continue
-
-                  if path.suffix == ".gz":
-                      if path.stat().st_size > max_bytes:
-                          bad.append((path.stat().st_size, path, "gz too large"))
-                      continue
-
-                  if path.suffix in {".json", ".geojson"}:
-                      if path.name.endswith(".map-ready.json"):
-                          bad.append((path.stat().st_size, path, "transient map-ready json was not pruned"))
-                          continue
-
-                      if path.stat().st_size > max_bytes:
-                          bad.append((path.stat().st_size, path, "json too large"))
-
-          if bad:
-              for size, path, reason in bad:
-                  print(f"{reason}: {size} {path}")
-              raise SystemExit(1)
-
-          print("public artifact filesystem policy passed")
-          PY
-
-          FORBIDDEN_TRACKED="$(
-            git ls-files -- \
-              "${BITNODES_DATA}/runtime" \
-              "${BITNODES_ARCHIVE}/runtime" \
-              "${BITNODES_ROOT}/src" \
-              "${BITNODES_API}/original-latest.json" \
-              "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
-              "${BITNODES_API}/enriched/originalbitnodes/latest.json" \
-              "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" \
-              "${BITNODES_API}/enriched/zzxbitnodes/latest.map-ready.json" \
-              "${BITNODES_API}/enriched/originalbitnodes/latest.map-ready.json"
-          )"
-
-          if [ -n "${FORBIDDEN_TRACKED}" ]; then
-            printf '%s\n' "Refusing tracked private/transient Bitnodes artifacts:"
-            printf '%s\n' "${FORBIDDEN_TRACKED}"
+          # Map Host owns maps/** and live-map/** publication.
+          MAP_STAGE_VIOLATIONS="$(git diff --cached --name-only | grep -E '^bitcoin/bitnodes/(maps|live-map)/' || true)"
+          if [ -n "${MAP_STAGE_VIOLATIONS}" ]; then
+            printf '%s\n' "Refusing crawler commit that overlaps Map Host-owned paths:"
+            printf '%s\n' "${MAP_STAGE_VIOLATIONS}"
             exit 1
           fi
-
-          printf '%s\n' "public artifact index policy passed"
 
       - name: Guard against destructive or bloated commit
         shell: bash
@@ -1337,43 +852,15 @@ jobs:
           printf '%s\n' "Staged files: ${CHANGED}"
           printf '%s\n' "Staged deletions: ${DELETIONS}"
 
-          if [ "${CHANGED}" -gt "${MAX_COMMIT_FILES}" ]; then
-            git diff --cached --name-only | sed -n '1,240p'
-            exit 1
-          fi
-
-          if [ "${DELETIONS}" -gt "${MAX_DELETIONS}" ]; then
-            git diff --cached --stat
-            exit 1
-          fi
+          test "${CHANGED}" -le "${MAX_COMMIT_FILES}"
+          test "${DELETIONS}" -le "${MAX_DELETIONS}"
 
           if git diff --cached --name-only | grep -E '/(cities|asns|countries|agents|geohashes|providers|organizations|versions)/.+\.json$'; then
             printf '%s\n' "Refusing exploded JSON fanout."
             exit 1
           fi
 
-          if git diff --cached --name-only | grep -E '^bitcoin/bitnodes/data/geoip/archive/ip_db\.[0-9]+\.json$'; then
-            printf '%s\n' "Refusing public segmented IPDB archive."
-            exit 1
-          fi
-
-          MAP_STAGE_VIOLATIONS="$(
-            git diff --cached --name-only \
-              | grep -E '^bitcoin/bitnodes/(maps|live-map)/' \
-              || true
-          )"
-
-          if [ -n "${MAP_STAGE_VIOLATIONS}" ]; then
-            printf '%s\n' \
-              "Refusing crawler commit that overlaps Map Host-owned paths:"
-            printf '%s\n' "${MAP_STAGE_VIOLATIONS}"
-            exit 1
-          fi
-
-          printf '%s\n' \
-            "crawler/map-host single-writer staging policy passed"
-
-      - name: Commit and push generated Bitnodes artifacts
+      - name: Commit and push production Bitnodes artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -1386,59 +873,133 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update Bitnodes public artifacts"
+          git commit -m "Update btcnodes.io mirror and ZZX Bitnodes crawler artifacts"
 
-          # Everything owned by the crawler is now inside HEAD. Map Host-owned
-          # maps/live-map output plus runtime/download/generated files remain
-          # intentionally unstaged. Git refuses to rebase while
-          # tracked leftovers are modified, so make the post-commit worktree
-          # pristine before synchronizing with origin/main.
-          printf '%s\n' "Post-commit leftover worktree state:"
-          git status --short || true
-
+          # Generated maps/runtime are intentionally unstaged. Clean before rebase.
           git reset --hard HEAD
           git clean -fdx
-
-          if [ -n "$(git status --porcelain)" ]; then
-            printf '%s\n' "Refusing to publish from a dirty worktree after cleanup."
-            git status --short
-            exit 1
-          fi
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
 
-            if git rebase origin/main; then
-              if git push origin HEAD:main; then
-                printf '%s\n' "Bitnodes public artifacts pushed."
-                exit 0
-              fi
-
-              printf '%s\n' \
-                "Bitnodes push attempt ${attempt} raced with main; refetching."
-            else
-              git rebase --abort || true
-              printf '%s\n' \
-                "Bitnodes rebase attempt ${attempt} failed; refetching without force."
+            if git rebase origin/main && git push origin HEAD:main; then
+              printf '%s\n' "Production Bitnodes artifacts pushed."
+              exit 0
             fi
 
-            # A failed/conflicted rebase or helper process must not poison the
-            # next attempt. HEAD already contains the generated public commit
-            # (or its successfully rebased equivalent), so cleaning the
-            # worktree here does not discard intended publication data.
+            git rebase --abort || true
             git reset --hard HEAD
             git clean -fdx
-
-            if [ -n "$(git status --porcelain)" ]; then
-              printf '%s\n' \
-                "Worktree remained dirty after retry cleanup; refusing publication."
-              git status --short
-              exit 1
-            fi
-
             sleep 10
           done
 
-          printf '%s\n' \
-            "Failed to push Bitnodes public artifacts without rewriting main."
+          printf '%s\n' "Failed to push production Bitnodes artifacts without rewriting main."
+          exit 1
+
+  ayeowch-compat:
+    name: Optional Ayeowch compatibility crawl
+    needs: crawl-bitnodes
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') &&
+        inputs.run_ayeowch_compat == true
+      }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    continue-on-error: true
+
+    steps:
+      - name: Checkout newly published main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Sync main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fdx
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ZZX Bitnodes dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/bitnodes/requirements.txt
+          python -m py_compile tools/bitnodes/originalbitnodes.py tools/bitnodes/run_original_bitnodes.py
+
+      - name: Run time-bounded Ayeowch compatibility crawler
+        id: compat
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p \
+            bitcoin/bitnodes/api/originalbitnodes \
+            bitcoin/bitnodes/archive/runtime/originalbitnodes \
+            bitcoin/bitnodes/data/runtime/state/originalbitnodes \
+            bitcoin/bitnodes/data/runtime/seeders/originalbitnodes \
+            bitcoin/bitnodes/data/runtime/snapshots/24h/originalbitnodes
+
+          timeout --signal=TERM --kill-after=30s 1200s \
+            python tools/bitnodes/originalbitnodes.py \
+              --original-mode classic \
+              --classic-timeout-seconds 1100 \
+              --run-seconds 0 \
+              --timeout 5 \
+              --limit 250000 \
+              --batch-size 2048 \
+              --workers 96 \
+              --getaddr-rounds 16 \
+              --dns-seed-limit 4096 \
+              --archive-replay-files 0 \
+              --disable-archive-replay \
+              --export-mode reachable \
+              --no-enrich-after \
+              --no-aggregate-after \
+              --no-export-all-after \
+              --compact
+
+      - name: Publish Ayeowch compatibility snapshot when available
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -s bitcoin/bitnodes/api/originalbitnodes/latest.json ]; then
+            printf '%s\n' "Ayeowch compatibility crawler produced no latest.json; production data is unaffected."
+            exit 0
+          fi
+
+          python -m json.tool bitcoin/bitnodes/api/originalbitnodes/latest.json >/dev/null
+
+          git config user.name "zzx-labs-bitnodes-bot"
+          git config user.email "actions@github.com"
+          git add -- bitcoin/bitnodes/api/originalbitnodes/latest.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "No Ayeowch compatibility changes."
+            exit 0
+          fi
+
+          git commit -m "Update optional Ayeowch Bitnodes compatibility snapshot"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort || true
+            sleep 5
+          done
+
+          printf '%s\n' "Optional Ayeowch compatibility publication raced with main; production crawler remains valid."
           exit 1
