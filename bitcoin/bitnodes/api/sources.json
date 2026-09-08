@@ -1,12 +1,12 @@
 {
-  "schema": "zzx-bitnodes-sources-v2",
+  "schema": "zzx-bitnodes-sources-v3",
   "refresh_ms": 60000,
   "stale_ms": 86400000,
   "local_candidates": [
-    "/bitcoin/bitnodes/api/zzxbitnodes/latest.json",
     "/bitcoin/bitnodes/api/snapshots/latest.json",
-    "/bitcoin/bitnodes/api/originalbitnodes/latest.json",
-    "/bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json"
+    "/bitcoin/bitnodes/api/zzxbitnodes/latest.json",
+    "/bitcoin/bitnodes/api/btcnodes/normalized/latest.json",
+    "/bitcoin/bitnodes/api/aggregate/canonical/latest.json"
   ],
   "primary": {
     "id": "btcnodes.io",
@@ -23,10 +23,19 @@
   "browser_direct_upstream": false,
   "browser_contract": {
     "mode": "local-mirror-only",
-    "note": "Browser widgets never call btcnodes.io directly. Python/GitHub Actions acquire upstream data and publish local JSON."
+    "note": "Browser widgets consume only locally published canonical/normalized JSON. btcnodes.io is acquired by Python/GitHub Actions, never by widget fetch code."
   },
   "collector_contract": {
     "primary": "https://btcnodes.io/api/v1/snapshots/latest/",
+    "raw_output": "/bitcoin/bitnodes/api/btcnodes/latest.json",
+    "normalized_output": "/bitcoin/bitnodes/api/btcnodes/normalized/latest.json",
+    "canonical_fast_fallback": "/bitcoin/bitnodes/api/snapshots/latest.json",
     "compatible_mirror_path": "/api/v1/snapshots/latest/"
+  },
+  "source_ownership": {
+    "btcnodes": "external btcnodes.io raw/normalized mirror",
+    "zzxbitnodes": "ZZX active Bitcoin P2P crawler",
+    "originalbitnodes": "optional Ayeowch/Bitnodes compatibility crawler only",
+    "snapshots/latest.json": "canonical merged/enriched widget snapshot after full crawl; btcnodes normalized fallback between full crawls"
   }
 }
