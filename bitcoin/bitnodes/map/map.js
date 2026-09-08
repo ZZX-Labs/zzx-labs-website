@@ -1,19 +1,15 @@
 (() => {
     "use strict";
 
-    const SOURCES = {
-        zzxbitnodes: "../api/latest.json",
-        originalbitnodes: "../api/originalbitnodes/latest.json",
-        aggregate: "../api/aggregate/zzxbitnodes/latest.json",
-        enriched: "../api/enriched/zzxbitnodes/latest.json",
-        local: "../api/latest.json",
-        nodes: "../api/nodes.json",
-        external: "https://bitnodes.io/api/v1/snapshots/latest/"
-    };
+    const SOURCES = Object.freeze({
+        map: "../maps/data/map-vectors.json",
+        live: "../live-map/data/map-vectors.json",
+        canonical: "../api/snapshots/latest.json"
+    });
 
     let ROWS = [];
 
-    const $ = q => document.querySelector(q);
+    const $ = selector => document.querySelector(selector);
 
     function fmt(value) {
         if (value === null || value === undefined || value === "") return "—";
@@ -21,111 +17,134 @@
         return String(value);
     }
 
-    function esc(value) {
-        return String(value ?? "")
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#39;");
-    }
-
     function num(value) {
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
     }
 
+    function flag(code) {
+        const iso = String(code || "").trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(iso)) return "";
+        return String.fromCodePoint(...[...iso].map(ch => 127397 + ch.charCodeAt(0)));
+    }
+
+    function countryLabel(row) {
+        const code = String(row.countryCode || "").trim().toUpperCase();
+        const name = String(row.countryName || row.country || "").trim();
+        const f = row.countryFlag || flag(code);
+        return [f, code, name && name !== code ? name : ""].filter(Boolean).join(" ") || "Unknown";
+    }
+
     function setStatus(message, mode = "") {
         const el = $("#bn-status");
-
         if (!el) return;
-
         el.className = `bn-status container ${mode}`.trim();
         el.textContent = message;
     }
 
     async function getJson(url) {
-        const response = await fetch(`${url}?t=${Date.now()}`, {
-            cache: "no-store"
+        const join = url.includes("?") ? "&" : "?";
+        const response = await fetch(`${url}${join}t=${Date.now()}`, {
+            cache: "no-store",
+            credentials: "same-origin"
         });
-
-        if (!response.ok) {
-            throw new Error(`${response.status} ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
         return response.json();
     }
 
-    function extractNodes(data) {
-        if (!data || typeof data !== "object") return {};
-
-        if (data.nodes && typeof data.nodes === "object") return data.nodes;
-        if (data.reachable_nodes && typeof data.reachable_nodes === "object") return data.reachable_nodes;
-        if (data.data && data.data.nodes && typeof data.data.nodes === "object") return data.data.nodes;
-
-        if (Array.isArray(data.results)) {
-            const out = {};
-
-            for (const row of data.results) {
-                const address = row.address || row.node || row.addr || row.host;
-
-                if (address) {
-                    out[address] = row;
-                }
-            }
-
-            return out;
-        }
-
-        return {};
+    function networkFromAddress(address, explicit) {
+        const value = String(explicit || "").trim().toLowerCase();
+        if (value) return value;
+        const text = String(address || "").toLowerCase();
+        if (text.includes(".onion")) return "tor";
+        if (text.includes(".i2p")) return "i2p";
+        if (text.includes(":")) return "ipv6";
+        return "ipv4";
     }
 
-    function normalize(nodes) {
-        return Object.entries(nodes || {}).map(([node, row]) => {
-            if (Array.isArray(row)) {
-                return {
-                    node,
-                    agent: row?.[1] || "Unknown",
-                    city: row?.[6] || "Unknown",
-                    country: row?.[7] || "Unknown",
-                    lat: num(row?.[8]),
-                    lon: num(row?.[9]),
-                    asn: row?.[11] || "Unknown",
-                    org: row?.[12] || "Unknown",
-                    provider: row?.[13] || "Unknown",
-                    network: String(node).includes(".onion")
-                        ? "Tor"
-                        : String(node).includes(".i2p")
-                            ? "I2P"
-                            : String(node).includes(":")
-                                ? "IPv6"
-                                : "IPv4"
-                };
-            }
+    function normalizedRow(address, row) {
+        if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+        const geo = row.geo_contract && typeof row.geo_contract === "object" ? row.geo_contract : {};
+        const lat = num(row.latitude ?? row.lat ?? geo.latitude);
+        const lon = num(row.longitude ?? row.lon ?? row.lng ?? geo.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+        if (geo.synthetic === true) return null;
 
-            const meta = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
-            const address = row?.address || row?.node || row?.addr || node;
-            const text = String(address || "").toLowerCase();
+        const countryCode = String(
+            row.country_code ?? row.country ?? geo.country_code ?? ""
+        ).trim().toUpperCase();
 
-            return {
-                node: address,
-                agent: row?.agent || row?.user_agent || row?.subver || "Unknown",
-                city: row?.city || meta.city || "Unknown",
-                country: row?.country || row?.country_code || meta.country || "Unknown",
-                lat: num(row?.latitude ?? row?.lat ?? meta.latitude),
-                lon: num(row?.longitude ?? row?.lon ?? row?.lng ?? meta.longitude),
-                asn: row?.asn || meta.asn || "Unknown",
-                org: row?.organization || row?.org || meta.organization || meta.org || "Unknown",
-                provider: row?.provider || meta.provider || "Unknown",
-                network: text.includes(".onion") || row?.is_tor || meta?.is_tor
-                    ? "Tor"
-                    : text.includes(".i2p") || row?.is_i2p || meta?.is_i2p
-                        ? "I2P"
-                        : text.includes(":") || row?.is_ipv6 || meta?.is_ipv6
-                            ? "IPv6"
-                            : "IPv4"
-            };
-        }).filter(row => Number.isFinite(row.lat) && Number.isFinite(row.lon));
+        return {
+            node: row.address || row.node || row.addr || address || "Unknown",
+            ip: row.ip || "",
+            agent: row.user_agent || row.agent || row.subver || "Unknown",
+            city: row.city || geo.city || "",
+            county: row.county || row.admin2 || geo.county || "",
+            region: row.region || geo.region || "",
+            countryCode: /^[A-Z]{2}$/.test(countryCode) ? countryCode : "",
+            countryName: row.country_name || geo.country_name || "",
+            countryFlag: row.country_flag || geo.country_flag || flag(countryCode),
+            lat,
+            lon,
+            asn: row.asn || "",
+            org: row.organization || row.org || "",
+            provider: row.provider || "",
+            network: networkFromAddress(row.address || address, row.network),
+            height: num(row.height),
+            geoSource: row.geo_source || geo.source || "",
+            countySource: geo.county_source || row.county_source || ""
+        };
+    }
+
+    function rowsFromCanonical(data) {
+        const raw = data?.nodes;
+        const rows = [];
+        if (Array.isArray(raw)) {
+            raw.forEach((row, index) => {
+                const normalized = normalizedRow(row?.address || `node-${index}`, row);
+                if (normalized) rows.push(normalized);
+            });
+        } else if (raw && typeof raw === "object") {
+            Object.entries(raw).forEach(([address, row]) => {
+                const normalized = normalizedRow(address, row);
+                if (normalized) rows.push(normalized);
+            });
+        }
+        return rows;
+    }
+
+    function rowsFromVectors(data) {
+        const points = Array.isArray(data?.points)
+            ? data.points
+            : Array.isArray(data?.vectors?.points)
+                ? data.vectors.points
+                : [];
+        return points.map((row, index) => normalizedRow(row?.address || row?.node || `point-${index}`, row)).filter(Boolean);
+    }
+
+    function rowsFromGeoJson(data) {
+        if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) return [];
+        return data.features.map((feature, index) => {
+            if (!feature || typeof feature !== "object") return null;
+            const props = feature.properties && typeof feature.properties === "object" ? feature.properties : {};
+            const coords = feature.geometry?.coordinates;
+            if (!Array.isArray(coords) || coords.length < 2) return null;
+            return normalizedRow(feature.id || props.address || `feature-${index}`, {
+                ...props,
+                longitude: coords[0],
+                latitude: coords[1]
+            });
+        }).filter(Boolean);
+    }
+
+    function normalize(data) {
+        if (!data || typeof data !== "object") return [];
+        const vectorRows = rowsFromVectors(data);
+        if (vectorRows.length) return vectorRows;
+        const geoRows = rowsFromGeoJson(data);
+        if (geoRows.length) return geoRows;
+        return rowsFromCanonical(data);
     }
 
     function project(lat, lon) {
@@ -137,21 +156,12 @@
 
     function filteredRows() {
         const search = ($("#bn-search")?.value || "").trim().toLowerCase();
-
-        return ROWS.filter(row => {
-            if (!search) return true;
-
-            return [
-                row.node,
-                row.city,
-                row.country,
-                row.asn,
-                row.org,
-                row.provider,
-                row.agent,
-                row.network
-            ].join(" ").toLowerCase().includes(search);
-        });
+        if (!search) return ROWS;
+        return ROWS.filter(row => [
+            row.node, row.ip, row.city, row.county, row.region,
+            row.countryCode, row.countryName, row.asn, row.org,
+            row.provider, row.agent, row.network, row.geoSource
+        ].join(" ").toLowerCase().includes(search));
     }
 
     function groupRows(rows) {
@@ -159,10 +169,12 @@
         const map = new Map();
 
         for (const row of rows) {
+            const country = countryLabel(row);
             const key =
-                group === "city" ? `${row.city}, ${row.country}` :
-                group === "asn" ? row.asn :
-                row.country;
+                group === "city" ? `${row.city || "Unknown city"}, ${country}` :
+                group === "county" ? `${row.county || "Unknown county"}, ${row.region || "Unknown region"}, ${country}` :
+                group === "asn" ? (row.asn || "Unknown ASN") :
+                country;
 
             if (!map.has(key)) {
                 map.set(key, {
@@ -178,13 +190,11 @@
             }
 
             const item = map.get(key);
-
             item.count += 1;
             item.lat += row.lat;
             item.lon += row.lon;
-
             if (row.agent) item.agents.add(row.agent);
-            if (row.country) item.countries.add(row.country);
+            if (row.countryCode) item.countries.add(row.countryCode);
             if (row.network) item.networks.add(row.network);
             if (row.provider) item.providers.add(row.provider);
         }
@@ -197,107 +207,111 @@
             countries: item.countries.size,
             networks: [...item.networks].join(", "),
             providers: item.providers.size
-        })).sort((a, b) => b.count - a.count);
+        })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+    }
+
+    function addSummaryCard(target, label, value) {
+        const card = document.createElement("article");
+        card.className = "bn-card";
+        const span = document.createElement("span");
+        span.textContent = label;
+        const strong = document.createElement("strong");
+        strong.textContent = fmt(value);
+        card.append(span, strong);
+        target.appendChild(card);
     }
 
     function renderSummary(rows) {
         const target = $("#bn-summary");
-
         if (!target) return;
-
-        const countries = new Set(rows.map(row => row.country).filter(Boolean));
-        const cities = new Set(rows.map(row => `${row.city}|${row.country}`).filter(Boolean));
-        const asns = new Set(rows.map(row => row.asn).filter(Boolean));
-        const networks = new Set(rows.map(row => row.network).filter(Boolean));
-
-        target.innerHTML = `
-            <article class="bn-card"><span>Mapped Nodes</span><strong>${fmt(rows.length)}</strong></article>
-            <article class="bn-card"><span>Countries</span><strong>${fmt(countries.size)}</strong></article>
-            <article class="bn-card"><span>Cities</span><strong>${fmt(cities.size)}</strong></article>
-            <article class="bn-card"><span>Networks</span><strong>${fmt(networks.size)}</strong></article>
-        `;
+        const countries = new Set(rows.map(row => row.countryCode).filter(Boolean));
+        const cities = new Set(rows.filter(row => row.city).map(row => `${row.city}|${row.countryCode}`));
+        const counties = new Set(rows.filter(row => row.county).map(row => `${row.county}|${row.region}|${row.countryCode}`));
+        target.replaceChildren();
+        addSummaryCard(target, "Mapped Nodes", rows.length);
+        addSummaryCard(target, "Countries", countries.size);
+        addSummaryCard(target, "Cities", cities.size);
+        addSummaryCard(target, "Counties / Admin-2", counties.size);
     }
 
     function renderMap(groups) {
         const map = $("#bn-map");
-
         if (!map) return;
+        map.replaceChildren();
+        for (const item of groups.slice(0, 1500)) {
+            const point = project(item.lat, item.lon);
+            const dot = document.createElement("span");
+            dot.className = "bn-map-dot";
+            dot.dataset.density = item.count >= 25 ? "high" : "normal";
+            dot.style.left = `${point.x}%`;
+            dot.style.top = `${point.y}%`;
+            dot.title = `${item.key} | ${item.count.toLocaleString()} nodes`;
+            map.appendChild(dot);
+        }
+    }
 
-        map.innerHTML = groups.slice(0, 1500).map(item => {
-            const p = project(item.lat, item.lon);
-            const density =
-                item.count >= 100 ? "high" :
-                item.count >= 25 ? "high" :
-                "normal";
-
-            return `
-                <span
-                    class="bn-map-dot"
-                    data-density="${density}"
-                    style="left:${p.x}%;top:${p.y}%"
-                    title="${esc(fmt(item.key))} | ${fmt(item.count)} nodes"
-                ></span>
-            `;
-        }).join("");
+    function addCardLine(card, label, value) {
+        const span = document.createElement("span");
+        span.textContent = `${label}: ${fmt(value)}`;
+        card.appendChild(span);
     }
 
     function renderRows(groups) {
         const view = $("#bn-view");
-
         if (!view) return;
-
+        view.replaceChildren();
         if (!groups.length) {
-            view.innerHTML = `<div class="bn-empty">No map groups matched current filters.</div>`;
+            const empty = document.createElement("div");
+            empty.className = "bn-empty";
+            empty.textContent = "No map groups matched current filters.";
+            view.appendChild(empty);
             return;
         }
-
-        view.innerHTML = `
-            <div class="bn-map-list">
-                ${groups.slice(0, 100).map(item => `
-                    <article class="bn-map-card">
-                        <strong>${esc(fmt(item.key))}</strong>
-                        <span>Nodes: ${fmt(item.count)}</span>
-                        <span>Agents: ${fmt(item.agents)}</span>
-                        <span>Countries: ${fmt(item.countries)}</span>
-                        <span>Providers: ${fmt(item.providers)}</span>
-                        <span>Networks: ${esc(fmt(item.networks))}</span>
-                        <span>Lat/Lon: ${fmt(item.lat.toFixed(4))}, ${fmt(item.lon.toFixed(4))}</span>
-                    </article>
-                `).join("")}
-            </div>
-        `;
+        const list = document.createElement("div");
+        list.className = "bn-map-list";
+        for (const item of groups.slice(0, 100)) {
+            const card = document.createElement("article");
+            card.className = "bn-map-card";
+            const title = document.createElement("strong");
+            title.textContent = item.key;
+            card.appendChild(title);
+            addCardLine(card, "Nodes", item.count);
+            addCardLine(card, "Agents", item.agents);
+            addCardLine(card, "Countries", item.countries);
+            addCardLine(card, "Providers", item.providers);
+            addCardLine(card, "Networks", item.networks);
+            addCardLine(card, "Lat/Lon", `${item.lat.toFixed(4)}, ${item.lon.toFixed(4)}`);
+            list.appendChild(card);
+        }
+        view.appendChild(list);
     }
 
     function rerender() {
         const rows = filteredRows();
         const groups = groupRows(rows);
-
         renderSummary(rows);
         renderMap(groups);
         renderRows(groups);
     }
 
+    async function readSource(source) {
+        if (source === "map") return getJson(SOURCES.map);
+        if (source === "live") return getJson(SOURCES.live);
+        return getJson(SOURCES.canonical);
+    }
+
     async function loadMap() {
-        const source = $("#bn-source")?.value || "zzxbitnodes";
-        const url = SOURCES[source] || SOURCES.zzxbitnodes;
-
-        setStatus(`Loading map telemetry from ${source}...`);
-
+        const source = $("#bn-source")?.value || "map";
+        setStatus(`Loading local Bitnodes map telemetry from ${source}…`);
         try {
-            const data = await getJson(url);
-
-            ROWS = normalize(extractNodes(data));
-
+            const data = await readSource(source);
+            ROWS = normalize(data);
             rerender();
-
-            setStatus(`Loaded ${fmt(ROWS.length)} mapped nodes.`, "ok");
+            const geoText = ROWS.length ? "real coordinate rows" : "no real coordinates";
+            setStatus(`Loaded ${fmt(ROWS.length)} ${geoText} from local ${source} data.`, ROWS.length ? "ok" : "warn");
         } catch (err) {
             ROWS = [];
-
-            renderSummary([]);
-            renderMap([]);
-            renderRows([]);
-
+            rerender();
             setStatus(`Map telemetry unavailable: ${err.message}`, "warn");
         }
     }
@@ -307,7 +321,6 @@
         $("#bn-source")?.addEventListener("change", loadMap);
         $("#bn-search")?.addEventListener("input", rerender);
         $("#bn-group")?.addEventListener("change", rerender);
-
         loadMap();
     });
 })();
