@@ -2,7 +2,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXNodesByNationModel?.__version>=1)return;
+  if(W.ZZXNodesByNationModel?.__version>=2)return;
 
   function finite(value){
     const n=Number(value);
@@ -11,6 +11,12 @@
 
   function clean(value){
     return String(value??"").trim();
+  }
+
+  function flag(code){
+    const iso=clean(code).toUpperCase();
+    if(!/^[A-Z]{2}$/.test(iso))return "🏴";
+    return String.fromCodePoint(...[...iso].map(ch=>127397+ch.charCodeAt(0)));
   }
 
   function displayName(code){
@@ -23,7 +29,7 @@
         const label=names.of(iso);
         if(label&&label!==iso)return label;
       }
-    }catch(_){}
+    }catch(_){ }
 
     return iso;
   }
@@ -36,6 +42,7 @@
       .map(([code,count])=>({
         code:clean(code).toUpperCase(),
         name:displayName(code),
+        flag:flag(code),
         nodes:finite(count)
       }))
       .filter(row=>Number.isFinite(row.nodes)&&row.nodes>0);
@@ -58,6 +65,7 @@
     return [...counts.entries()].map(([code,nodes])=>({
       code,
       name:displayName(code),
+      flag:flag(code),
       nodes
     }));
   }
@@ -76,6 +84,7 @@
       const current=merged.get(key)||{
         code,
         name:row.name||displayName(code),
+        flag:row.flag||flag(code),
         nodes:0
       };
 
@@ -120,7 +129,7 @@
         : NaN;
 
     return Object.freeze({
-      schema:"zzx-nodes-by-nation-model-v1",
+      schema:"zzx-nodes-by-nation-model-v2",
       rows:Object.freeze(rows.map(Object.freeze)),
       nationCount:rows.length,
       geolocatedTotal,
@@ -134,7 +143,8 @@
   }
 
   W.ZZXNodesByNationModel=Object.freeze({
-    __version:1,
+    __version:2,
+    flag,
     displayName,
     build
   });
