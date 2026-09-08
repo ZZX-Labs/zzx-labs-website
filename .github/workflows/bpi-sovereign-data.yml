@@ -167,47 +167,17 @@ jobs:
           )
           PY
 
-      - name: Commit and push sovereign mirrors
+      - name: Publish generated data
         shell: bash
         run: |
           set -euo pipefail
-
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
-
-          git add -- \
-            bitcoin/bpi/api/sovereign-countries.json \
-            bitcoin/bpi/api/national_debts.json \
-            bitcoin/bpi/api/national_balances.json
-
-          if git diff --cached --quiet; then
-            printf '%s\n' \
-              "No sovereign-data changes."
-            exit 0
-          fi
-
-          git commit \
-            -m "Update BPI sovereign data"
-
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main && \
-               git push origin HEAD:main; then
-              printf '%s\n' \
-                "BPI sovereign data pushed."
-              exit 0
-            fi
-
-            git rebase --abort || true
-
-            printf '%s\n' \
-              "Sovereign-data push attempt ${attempt} failed; retrying without force."
-
-            sleep 5
-          done
-
-          printf '%s\n' \
-            "Failed to push sovereign data without rewriting main."
-
-          exit 1
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update BPI sovereign data" \
+            --path bitcoin/bpi/api/sovereign-countries.json \
+            --path bitcoin/bpi/api/national_debts.json \
+            --path bitcoin/bpi/api/national_balances.json \
+            --attempts 5 \
+            --sleep-seconds 5
