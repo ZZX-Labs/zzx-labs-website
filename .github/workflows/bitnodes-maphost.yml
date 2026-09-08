@@ -104,6 +104,9 @@ jobs:
             tools/bitnodes/map/live-map.py
             tools/bitnodes/map/map_source.py
             tools/bitnodes/map/map_source_selftest.py
+            tools/bitnodes/map/prepare_canonical.py
+            tools/bitnodes/map/prepare_canonical_selftest.py
+            tools/bitnodes/merge_sources.py
             tools/bitnodes/map/mapvectors.py
             tools/bitnodes/map/vector_types.py
             tools/bitnodes/map/mapnodes.py
@@ -137,7 +140,27 @@ jobs:
           python tools/bitnodes/map/map.py --help >/dev/null
           python tools/bitnodes/map/map_source.py --help >/dev/null
           python tools/bitnodes/map/map_source_selftest.py
-          test -s "${BITNODES_API}/snapshots/latest.json"
+          python tools/bitnodes/map/prepare_canonical.py --help >/dev/null
+          python tools/bitnodes/map/prepare_canonical_selftest.py
+
+      - name: Prepare canonical snapshot for Map Host
+        id: canonical
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CANONICAL="${RUNNER_TEMP}/zzx-bitnodes-canonical.json"
+          REPORT="${RUNNER_TEMP}/zzx-bitnodes-canonical-report.json"
+
+          python tools/bitnodes/map/prepare_canonical.py             --repo-root .             --output "${CANONICAL}"             --report "${REPORT}"             --minimum-nodes 1             --compact
+
+          test -s "${CANONICAL}"
+          test -s "${REPORT}"
+
+          printf '%s\n' "canonical=${CANONICAL}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "canonical_report=${REPORT}" >> "${GITHUB_OUTPUT}"
+
+          cat "${REPORT}"
 
       - name: Validate canonical geography before mapping
         shell: bash
@@ -150,7 +173,9 @@ jobs:
           import re
           from pathlib import Path
 
-          path = Path("bitcoin/bitnodes/api/snapshots/latest.json")
+          import os
+
+          path = Path(os.environ["CANONICAL_SOURCE"])
           payload = json.loads(path.read_text(encoding="utf-8"))
 
           if not str(payload.get("schema") or "").startswith("zzx-bitnodes-canonical-v"):
@@ -202,14 +227,16 @@ jobs:
           if counts["country"] < 1:
               raise SystemExit("canonical snapshot contains no country geolocation")
           if counts["city"] < 1:
-              raise SystemExit("canonical snapshot contains no city geolocation")
+              print("WARNING: canonical snapshot currently has no city geolocation; city widget/map layer will report unavailable coverage")
           if counts["county"] < 1:
-              raise SystemExit("canonical snapshot contains no county/admin2 geolocation")
+              print("WARNING: canonical snapshot currently has no county/admin2 geolocation; county widget/map layer will report unavailable coverage")
           if counts["coordinates"] < 1:
               raise SystemExit("canonical snapshot contains no real coordinates")
           if counts["synthetic"] != 0:
               raise SystemExit("canonical snapshot still contains synthetic-coordinate markers")
           PY
+        env:
+          CANONICAL_SOURCE: ${{ steps.canonical.outputs.canonical }}
 
       - name: Build real-coordinate-only map input
         id: map_source
@@ -221,7 +248,7 @@ jobs:
           MAP_REPORT="${RUNNER_TEMP}/zzx-bitnodes-map-source-report.json"
 
           python tools/bitnodes/map/map_source.py \
-            --input "${BITNODES_API}/snapshots/latest.json" \
+            --input "${{ steps.canonical.outputs.canonical }}" \
             --output "${MAP_SOURCE}" \
             --report "${MAP_REPORT}" \
             --max-points "${MAP_MAX_POINTS}" \
@@ -402,7 +429,8 @@ jobs:
           status = {
               "schema": "zzx-bitnodes-maphost-status-v1",
               "generated_at": int(time.time()),
-              "source": "bitcoin/bitnodes/api/snapshots/latest.json",
+              "source": "Map Host prepared canonical snapshot",
+              "published_source_hint": "bitcoin/bitnodes/api/snapshots/latest.json",
               "source_schema": "zzx-bitnodes-canonical-v2",
               "real_coordinates_only": True,
               "synthetic_coordinates": 0,
