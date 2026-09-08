@@ -1,23 +1,16 @@
-<!-- __partials/widgets/mempool-mosaic/widget.html -->
 <div class="btc-card mempool-mosaic">
   <div class="mempool-mosaic__header">
     <div>
       <div class="btc-card__title">Mempool Mosaic</div>
-      <div class="mempool-mosaic__eyebrow">live next-block candidate · tip + 1</div>
+      <div class="mempool-mosaic__eyebrow">live projected next-block transaction mosaic · mempool.space block 0</div>
     </div>
-
-    <span
-      class="btc-card__status"
-      data-mm-status
-      data-status="offline"
-      aria-live="polite"
-    >loading</span>
+    <span class="btc-card__status" data-mm-status data-status="offline" aria-live="polite">loading</span>
   </div>
 
   <div class="mempool-mosaic__hero">
     <span>next candidate block</span>
     <strong data-mm-height>—</strong>
-    <small data-mm-sub>waiting for mempool candidate data…</small>
+    <small data-mm-sub>waiting for projected-block transaction stream…</small>
   </div>
 
   <div class="mempool-mosaic__metrics">
@@ -29,16 +22,10 @@
 
   <div class="mempool-mosaic__block-wrap">
     <div class="mempool-mosaic__block-head">
-      <span data-mm-block-label>candidate block mosaic</span>
+      <span data-mm-block-label>transaction mosaic</span>
       <span data-mm-updated>—</span>
     </div>
-
-    <div
-      class="mempool-mosaic__block"
-      data-mm-block
-      role="img"
-      aria-label="Live Bitcoin next-block candidate visualization"
-    >
+    <div class="mempool-mosaic__block" data-mm-block role="img" aria-label="Live Bitcoin projected next-block transaction mosaic">
       <canvas data-mm-canvas></canvas>
       <div class="mempool-mosaic__tooltip" data-mm-tooltip hidden></div>
     </div>
@@ -52,32 +39,15 @@
   </div>
 
   <div class="mempool-mosaic__details">
-    <div class="mempool-mosaic__row">
-      <span>current tip</span>
-      <strong data-mm-tip>—</strong>
-    </div>
-    <div class="mempool-mosaic__row">
-      <span>candidate fee range</span>
-      <strong data-mm-range>—</strong>
-    </div>
-    <div class="mempool-mosaic__row">
-      <span>mempool backlog</span>
-      <strong data-mm-backlog>—</strong>
-    </div>
-    <div class="mempool-mosaic__row">
-      <span>source</span>
-      <strong data-mm-source>—</strong>
-    </div>
+    <div class="mempool-mosaic__row"><span>current tip</span><strong data-mm-tip>—</strong></div>
+    <div class="mempool-mosaic__row"><span>candidate fee range</span><strong data-mm-range>—</strong></div>
+    <div class="mempool-mosaic__row"><span>mempool backlog</span><strong data-mm-backlog>—</strong></div>
+    <div class="mempool-mosaic__row"><span>transport</span><strong data-mm-transport>—</strong></div>
+    <div class="mempool-mosaic__row"><span>source</span><strong data-mm-source>—</strong></div>
   </div>
 
   <div class="mempool-mosaic__footer">
-    <span data-mm-meta>
-      live aggregate candidate · tiles represent fee-band volume, not guaranteed miner-selected transactions
-    </span>
-    <button
-      type="button"
-      class="zzx-widgets__btn"
-      data-mm-refresh
-    >Refresh</button>
+    <span data-mm-meta>projected block 0 · stable txid tiles slide/re-sort on live updates · aggregate fallback is explicitly labeled</span>
+    <button type="button" class="zzx-widgets__btn" data-mm-refresh>Reconnect / Refresh</button>
   </div>
 </div>
