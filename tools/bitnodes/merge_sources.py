@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import math
 import re
@@ -82,6 +83,70 @@ def flag(code: Any) -> str:
     return "".join(chr(127397 + ord(ch)) for ch in iso)
 
 
+
+def endpoint_host(address: str, obj: Mapping[str, Any] | None = None) -> str:
+    candidates = []
+    if isinstance(obj, Mapping):
+        candidates.extend([
+            obj.get("ip"),
+            obj.get("host"),
+            obj.get("hostname"),
+            obj.get("address"),
+            obj.get("node"),
+            obj.get("addr"),
+        ])
+    candidates.append(address)
+
+    for candidate in candidates:
+        raw = text(candidate)
+        if not raw:
+            continue
+
+        lower = raw.lower()
+        if lower.endswith(".onion") or lower.endswith(".i2p"):
+            return raw
+        if ".onion:" in lower or ".i2p:" in lower:
+            return raw.rsplit(":", 1)[0]
+
+        if raw.startswith("[") and "]" in raw:
+            return raw[1:raw.index("]")]
+
+        if raw.count(":") == 1 and "." in raw:
+            host, port = raw.rsplit(":", 1)
+            if port.isdigit():
+                return host
+
+        stripped = raw.strip("[]")
+        try:
+            ipaddress.ip_address(stripped)
+            return stripped
+        except ValueError:
+            pass
+
+        if raw.count(":") > 1:
+            host, maybe_port = raw.rsplit(":", 1)
+            if maybe_port.isdigit():
+                host = host.strip("[]")
+                try:
+                    ipaddress.ip_address(host)
+                    return host
+                except ValueError:
+                    pass
+
+        return raw
+
+    return ""
+
+
+def public_endpoint_ip(address: str, obj: Mapping[str, Any] | None = None) -> str | None:
+    host = endpoint_host(address, obj)
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return None
+    return str(ip) if ip.is_global else None
+
+
 def network_from_address(address: str) -> str:
     value = text(address).lower()
     if ".onion" in value:
@@ -125,6 +190,9 @@ def node_from(address: str, value: Any) -> dict[str, Any]:
     protocol = finite(first(obj, "protocol_version", "protocolVersion", "version") if obj else list_value(value, 0))
     height = finite(first(obj, "height", "block_height", "latest_height") if obj else list_value(value, 4))
 
+    public_ip = public_endpoint_ip(address, obj if obj else None)
+    real_geo_allowed = bool(public_ip) and not (bool(obj) and synthetic(obj))
+
     country = text(first(
         obj,
         "country_code", "country", "geo_contract.country_code",
@@ -134,7 +202,7 @@ def node_from(address: str, value: Any) -> dict[str, Any]:
         country = ""
 
     city = text(first(obj, "city", "geo_contract.city", "geo.city", "geoip.city", "location.city") if obj else list_value(value, 6))
-    county = text(first(obj, "county", "county_name", "admin2", "geo_contract.county", "geo.county", "geoip.county", "location.county")) if obj else ""
+    county = text(first(obj, "county", "county_name", "admin2", "geo_contract.county", "geo.county", "geoip.county", "location.county")) if obj else text(list_value(value, 14))
     region = text(first(obj, "region", "region_name", "state", "geo_contract.region", "geo.region", "geoip.region", "location.region")) if obj else ""
     admin1 = text(first(obj, "admin1_code", "region_code", "state_code", "geo_contract.admin1_code", "geo.admin1_code", "geoip.admin1_code")) if obj else ""
     admin2 = text(first(obj, "admin2_code", "county_code", "district_code", "geo_contract.admin2_code", "geo.admin2_code", "geoip.admin2_code")) if obj else ""
@@ -142,15 +210,28 @@ def node_from(address: str, value: Any) -> dict[str, Any]:
     lat_raw = first(obj, "latitude", "lat", "geo_contract.latitude", "geo.latitude", "geoip.latitude", "geoloc.latitude", "location.latitude") if obj else list_value(value, 8)
     lon_raw = first(obj, "longitude", "lon", "lng", "geo_contract.longitude", "geo.longitude", "geoip.longitude", "geoloc.longitude", "location.longitude") if obj else list_value(value, 9)
     lat, lon = valid_latlon(lat_raw, lon_raw)
-    if obj and synthetic(obj):
+
+    if not real_geo_allowed:
+        country = ""
+        city = ""
+        county = ""
+        region = ""
+        admin1 = ""
+        admin2 = ""
         lat, lon = None, None
 
     geo_available = bool(country)
-    if isinstance(obj.get("geo_contract"), Mapping):
+    if real_geo_allowed and isinstance(obj.get("geo_contract"), Mapping):
         geo_available = bool(obj["geo_contract"].get("country_available"))
 
     asn = text(first(obj, "asn", "geo_contract.asn", "geo.asn", "geoip.asn")) if obj else text(list_value(value, 11))
     organization = text(first(obj, "organization", "org", "isp", "geo.organization", "geoip.organization")) if obj else text(list_value(value, 12))
+
+    geo_source = ""
+    geo_confidence = ""
+    if real_geo_allowed:
+        geo_source = text(first(obj, "geo_source", "geo_contract.source", "geoip_source")) if obj else ""
+        geo_confidence = text(first(obj, "geo_confidence", "geoip_confidence")) if obj else ""
 
     return {
         "address": text(address),
@@ -158,11 +239,17 @@ def node_from(address: str, value: Any) -> dict[str, Any]:
         "protocol_version": int(protocol) if math.isfinite(protocol) else None,
         "user_agent": text(user_agent) or None,
         "height": int(height) if math.isfinite(height) else None,
-        "ip": text(first(obj, "ip", "geo_contract.ip")) or None if obj else None,
+        "ip": public_ip,
         "country": country or None,
         "country_code": country or None,
-        "country_name": text(first(obj, "country_name", "geo_contract.country_name", "geo.country_name", "geoip.country_name")) or None if obj else None,
-        "country_flag": text(first(obj, "country_flag", "geo_contract.country_flag")) or flag(country) if obj else flag(country),
+        "country_name": (
+            text(first(obj, "country_name", "geo_contract.country_name", "geo.country_name", "geoip.country_name")) or None
+            if obj and real_geo_allowed else None
+        ),
+        "country_flag": (
+            text(first(obj, "country_flag", "geo_contract.country_flag")) or flag(country)
+            if obj and real_geo_allowed else (flag(country) if real_geo_allowed else "")
+        ),
         "region": region or None,
         "admin1_code": admin1 or None,
         "county": county or None,
@@ -172,9 +259,9 @@ def node_from(address: str, value: Any) -> dict[str, Any]:
         "longitude": lon,
         "asn": asn or None,
         "organization": organization or None,
-        "geo_source": text(first(obj, "geo_source", "geo_contract.source", "geoip_source")) or None if obj else None,
-        "geo_confidence": text(first(obj, "geo_confidence", "geoip_confidence")) or None if obj else None,
-        "geo_available": geo_available,
+        "geo_source": geo_source or None,
+        "geo_confidence": geo_confidence or None,
+        "geo_available": geo_available if real_geo_allowed else False,
     }
 
 
