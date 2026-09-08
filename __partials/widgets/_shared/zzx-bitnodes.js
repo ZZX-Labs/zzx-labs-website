@@ -171,10 +171,10 @@
       }catch(_){}
 
       const localCandidates=[
-        "/bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json",
         "/bitcoin/bitnodes/api/zzxbitnodes/latest.json",
+        "/bitcoin/bitnodes/api/snapshots/latest.json",
         "/bitcoin/bitnodes/api/originalbitnodes/latest.json",
-        "/bitcoin/bitnodes/api/snapshots/latest.json"
+        "/bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json"
       ];
 
       const upstreams=[
