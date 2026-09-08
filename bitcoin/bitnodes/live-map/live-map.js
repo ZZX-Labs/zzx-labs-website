@@ -50,44 +50,47 @@
 
     function scheduleRefresh() {
         if (refreshTimer) {
-            window.clearInterval(refreshTimer);
+            window.clearTimeout(refreshTimer);
         }
 
-        refreshTimer = window.setInterval(async () => {
+        async function refreshLoop() {
             if (!window.ZZXBitnodesMap?.reload) {
                 status("Live refresh waiting: map engine reload() API unavailable.", "warn");
-                return;
+            } else {
+                try {
+                    await window.ZZXBitnodesMap.reload();
+
+                    const s = window.ZZXBitnodesMap.state;
+                    const count = visiblePointCount(s);
+
+                    status(
+                        `Live map refreshed. Loaded ${count.toLocaleString()} visible point records from ${s?.latestSource || "selected source"}.`,
+                        count ? "live" : "warn"
+                    );
+
+                    invalidateAndRender();
+                } catch (error) {
+                    console.error(error);
+                    status(`Live refresh failed: ${error.message}`, "warn");
+                }
             }
 
-            try {
-                await window.ZZXBitnodesMap.reload();
+            refreshTimer = window.setTimeout(refreshLoop, LIVE_REFRESH_MS);
+        }
 
-                const s = window.ZZXBitnodesMap.state;
-                const count = visiblePointCount(s);
-
-                status(
-                    `Live map refreshed. Loaded ${count.toLocaleString()} visible point records from ${s?.latestSource || "selected source"}.`,
-                    count ? "live" : "warn"
-                );
-
-                invalidateAndRender();
-            } catch (error) {
-                console.error(error);
-                status(`Live refresh failed: ${error.message}`, "warn");
-            }
-        }, LIVE_REFRESH_MS);
+        refreshTimer = window.setTimeout(refreshLoop, LIVE_REFRESH_MS);
     }
 
     function bootLiveMap() {
         document.body.classList.add("bn-live-map-page");
 
         if (bootTimer) {
-            window.clearInterval(bootTimer);
+            window.clearTimeout(bootTimer);
         }
 
         let attempts = 0;
 
-        bootTimer = window.setInterval(() => {
+        function tryBoot() {
             attempts += 1;
 
             if (!window.ZZXBitnodesMap) {
@@ -96,14 +99,15 @@
                 }
 
                 if (attempts > 80) {
-                    window.clearInterval(bootTimer);
                     status("Live map failed: map engine missing. Load ./map.js before ./live-map.js.", "error");
+                    return;
                 }
 
+                bootTimer = window.setTimeout(tryBoot, 100);
                 return;
             }
 
-            window.clearInterval(bootTimer);
+            bootTimer = null;
 
             if (typeof window.ZZXBitnodesMap.init !== "function") {
                 status("Live map failed: map engine has no init() API. Replace ./map.js with the API-enabled engine.", "error");
@@ -260,16 +264,18 @@
                 console.error(error);
                 status(`Live map failed: ${error.message}`, "error");
             });
-        }, 100);
+        }
+
+        bootTimer = window.setTimeout(tryBoot, 100);
     }
 
     window.addEventListener("beforeunload", () => {
         if (refreshTimer) {
-            window.clearInterval(refreshTimer);
+            window.clearTimeout(refreshTimer);
         }
 
         if (bootTimer) {
-            window.clearInterval(bootTimer);
+            window.clearTimeout(bootTimer);
         }
     });
 
