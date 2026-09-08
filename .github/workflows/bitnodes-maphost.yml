@@ -35,6 +35,8 @@ env:
   BITNODES_ROOT: bitcoin/bitnodes
   BITNODES_API: bitcoin/bitnodes/api
   BITNODES_DATA: bitcoin/bitnodes/data
+  BITNODES_GEOIP: bitcoin/bitnodes/data/geoip
+  BITNODES_GEO: bitcoin/bitnodes/data/geo
   BITNODES_MAPS: bitcoin/bitnodes/maps
   BITNODES_LIVE_MAP: bitcoin/bitnodes/live-map
 
@@ -106,6 +108,8 @@ jobs:
             tools/bitnodes/map/map_source_selftest.py
             tools/bitnodes/map/prepare_canonical.py
             tools/bitnodes/map/prepare_canonical_selftest.py
+            tools/bitnodes/map/ensure_geo_data.py
+            tools/bitnodes/geo_contract.py
             tools/bitnodes/merge_sources.py
             tools/bitnodes/map/mapvectors.py
             tools/bitnodes/map/vector_types.py
@@ -142,6 +146,51 @@ jobs:
           python tools/bitnodes/map/map_source_selftest.py
           python tools/bitnodes/map/prepare_canonical.py --help >/dev/null
           python tools/bitnodes/map/prepare_canonical_selftest.py
+          python tools/bitnodes/map/geodata_bootstrap_selftest.py
+          python tools/bitnodes/map/ensure_geo_data.py --help >/dev/null
+          python tools/bitnodes/geo_contract.py --help >/dev/null
+
+      - name: Ensure Map Host IP geolocation datasets
+        shell: bash
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${BITNODES_GEOIP}" "${BITNODES_GEO}/sources"
+
+          python tools/bitnodes/map/ensure_geo_data.py \
+            --geoip-dir "${BITNODES_GEOIP}" \
+            --geo-root "${BITNODES_GEO}" \
+            --months-back 6 \
+            --timeout 60 \
+            --retries 3 \
+            --report "${RUNNER_TEMP}/map-geodata-report.json"
+
+          python tools/bitnodes/map/ensure_geo_data.py \
+            --geoip-dir "${BITNODES_GEOIP}" \
+            --geo-root "${BITNODES_GEO}" \
+            --verify-only
+
+          python - <<'PY'
+          from pathlib import Path
+          import geoip2.database
+          root=Path("bitcoin/bitnodes/data/geoip")
+          city=root/"dbip-city-lite.mmdb"
+          country=root/"dbip-country-lite.mmdb"
+          asn=root/"dbip-asn-lite.mmdb"
+          with geoip2.database.Reader(str(city)) as reader:
+              row=reader.city("8.8.8.8")
+              if not row.country.iso_code:
+                  raise SystemExit("DB-IP city smoke test returned no country")
+              print("DB-IP city smoke:",row.country.iso_code,row.city.name,row.location.latitude,row.location.longitude)
+          with geoip2.database.Reader(str(country)) as reader:
+              row=reader.country("1.1.1.1")
+              if not row.country.iso_code:
+                  raise SystemExit("DB-IP country smoke test returned no country")
+          with geoip2.database.Reader(str(asn)) as reader:
+              row=reader.asn("8.8.8.8")
+              print("DB-IP ASN smoke:",row.autonomous_system_number,row.autonomous_system_organization)
+          PY
 
       - name: Prepare canonical snapshot for Map Host
         id: canonical
@@ -152,7 +201,33 @@ jobs:
           CANONICAL="${RUNNER_TEMP}/zzx-bitnodes-canonical.json"
           REPORT="${RUNNER_TEMP}/zzx-bitnodes-canonical-report.json"
 
-          python tools/bitnodes/map/prepare_canonical.py             --repo-root .             --output "${CANONICAL}"             --report "${REPORT}"             --minimum-nodes 1             --compact
+          # Defense-in-depth: the preparer can bootstrap by itself, but verify
+          # here too so the job log makes missing/stale geodata obvious.
+          python tools/bitnodes/map/ensure_geo_data.py \
+            --geoip-dir "${BITNODES_GEOIP}" \
+            --geo-root "${BITNODES_GEO}" \
+            --verify-only \
+          || python tools/bitnodes/map/ensure_geo_data.py \
+            --geoip-dir "${BITNODES_GEOIP}" \
+            --geo-root "${BITNODES_GEO}" \
+            --months-back 6 \
+            --timeout 60 \
+            --retries 3 \
+            --report "${RUNNER_TEMP}/map-geodata-report-recovery.json"
+
+          python tools/bitnodes/map/prepare_canonical.py \
+            --repo-root . \
+            --output "${CANONICAL}" \
+            --report "${REPORT}" \
+            --geoip-dir "${BITNODES_GEOIP}" \
+            --geo-root "${BITNODES_GEO}" \
+            --geo-months-back 6 \
+            --geo-timeout 60 \
+            --geo-retries 3 \
+            --minimum-nodes 1 \
+            --minimum-country 1 \
+            --minimum-coordinates 1 \
+            --compact
 
           test -s "${CANONICAL}"
           test -s "${REPORT}"
