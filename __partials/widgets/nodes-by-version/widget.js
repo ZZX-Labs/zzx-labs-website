@@ -1,25 +1,43 @@
-// __partials/widgets/nodes-by-version/widget.js
 (function(){
   "use strict";
 
-  const W=window,D=document,ID="nodes-by-version";
+  const W=window;
+  const D=document;
+  const ID="nodes-by-version";
+  const PAGE_KEY="zzx.widget.nodes-by-version.page-size.v4";
 
-  function q(root,sel){
-    return root?root.querySelector(sel):null;
+  function q(root,selector){
+    return root?.querySelector?.(selector)||null;
   }
 
-  function int(v){
-    const n=Number(v);
-    return Number.isFinite(n)
-      ? Math.round(n).toLocaleString()
-      : "—";
+  function set(root,selector,value){
+    const el=q(root,selector);
+    if(el)el.textContent=value==null?"—":String(value);
   }
 
-  function pct(v){
-    const n=Number(v);
-    return Number.isFinite(n)
-      ? `${(n*100).toFixed(2)}%`
-      : "—";
+  function finite(value){
+    const n=Number(value);
+    return Number.isFinite(n)?n:NaN;
+  }
+
+  function integer(value){
+    const n=finite(value);
+    return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
+  }
+
+  function pct(value){
+    const n=finite(value);
+    return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
+  }
+
+  function safeGet(key){
+    try{return W.localStorage.getItem(key)}
+    catch(_){return null}
+  }
+
+  function safeSet(key,value){
+    try{W.localStorage.setItem(key,String(value))}
+    catch(_){}
   }
 
   function status(root,label,state){
@@ -29,98 +47,125 @@
     el.setAttribute("data-status",state||"offline");
   }
 
-  async function ensureModules(core){
-    const base=core?.widgetBase
+  function base(core){
+    return core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/nodes-by-version";
+  }
 
-    for(const [globalName,relative] of [
-      ["ZZXNodesByVersionSources","js/sources.js"],
-      ["ZZXNodesByVersionFetch","js/fetch.js"],
-      ["ZZXNodesByVersionAdapter","js/adapter.js"],
-      ["ZZXNodesByVersionProvider","js/provider.js"]
-    ]){
-      if(W[globalName])continue;
+  function resolve(path){
+    return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
+  }
 
-      const raw=`${base}/${relative}`;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+  async function loadScript(path,test,tag){
+    if(test())return;
 
-      await new Promise((resolve,reject)=>{
-        const s=D.createElement("script");
-        s.src=src;
-        s.defer=true;
-        s.addEventListener("load",resolve,{once:true});
-        s.addEventListener("error",reject,{once:true});
-        (D.head||D.documentElement).appendChild(s);
-      });
+    const src=new URL(resolve(path),W.location.href).href;
+    const existing=[...D.scripts].find(script=>script.src===src);
 
-      if(!W[globalName]){
-        throw new Error(
-          `${relative} did not register ${globalName}`
-        );
+    if(existing){
+      const started=Date.now();
+      while(!test()&&Date.now()-started<1800){
+        await new Promise(done=>W.setTimeout(done,25));
       }
+      if(test())return;
+    }
+
+    await new Promise((done,fail)=>{
+      const script=D.createElement("script");
+      script.src=src;
+      script.defer=true;
+      script.dataset.nbvDependency=tag;
+      script.addEventListener("load",done,{once:true});
+      script.addEventListener("error",fail,{once:true});
+      (D.head||D.documentElement).appendChild(script);
+    });
+
+    if(!test()){
+      throw new Error(`${path} did not register ${tag}`);
     }
   }
 
+  async function ensureModules(core){
+    await loadScript(
+      "/__partials/widgets/_shared/zzx-bitnodes.js",
+      ()=>Number(W.ZZXBitnodes?.__version||0)>=4,
+      "ZZXBitnodes"
+    );
+
+    await loadScript(
+      `${base(core)}/js/model.js`,
+      ()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=1,
+      "ZZXNodesByVersionModel"
+    );
+  }
+
+  function pageSize(root){
+    const n=Number(q(root,"[data-nbv-page-size]")?.value);
+    return [5,10,20,50].includes(n)?n:10;
+  }
+
   function filtered(root,state){
-    const needle=String(
-      q(root,"[data-nbv-search]")?.value||""
-    ).trim().toLowerCase();
+    const needle=String(q(root,"[data-nbv-search]")?.value||"")
+      .trim()
+      .toLowerCase();
 
-    if(!needle)return state.result?.rows||[];
+    if(!needle)return state.model?.rows||[];
 
-    return (state.result?.rows||[]).filter(item=>
-      `${item.label} ${W.ZZXNodesByVersionAdapter.family(item.label)}`
-        .toLowerCase()
-        .includes(needle)
+    return (state.model?.rows||[]).filter(row=>
+      [
+        row.userAgent,
+        row.family,
+        row.version
+      ].join(" ").toLowerCase().includes(needle)
     );
   }
 
   function renderTable(root,state){
     const rows=filtered(root,state);
-    const pageSize=W.ZZXNodesByVersionSources.pageSize;
-    const pages=Math.max(1,Math.ceil(rows.length/pageSize));
+    const size=pageSize(root);
+    const pages=Math.max(1,Math.ceil(rows.length/size));
 
-    state.page=Math.max(
-      0,
-      Math.min(state.page,pages-1)
-    );
+    state.page=Math.max(0,Math.min(state.page,pages-1));
 
     const body=q(root,"[data-nbv-body]");
+    if(!body)return;
+
     body.replaceChildren();
 
     const slice=rows.slice(
-      state.page*pageSize,
-      state.page*pageSize+pageSize
+      state.page*size,
+      state.page*size+size
     );
 
     if(!slice.length){
       const empty=D.createElement("div");
       empty.className="nodes-by-version__empty";
-      empty.textContent="No user-agent records match this filter.";
+      empty.textContent="No user-agent/version rows match this filter.";
       body.appendChild(empty);
     }else{
       slice.forEach((item,index)=>{
         const row=D.createElement("div");
         row.className="nodes-by-version__row";
         row.setAttribute("role","row");
+        row.dataset.family=item.family;
 
         const values=[
-          String(state.page*pageSize+index+1),
-          item.label,
-          int(item.count),
+          String(state.page*size+index+1),
+          item.userAgent,
+          item.family,
+          integer(item.count),
           pct(item.share)
         ];
 
         values.forEach((value,i)=>{
           const cell=D.createElement("div");
           cell.setAttribute("role","cell");
-          if(i>=2)cell.classList.add("nodes-by-version__num");
+          if(i>=3)cell.classList.add("nodes-by-version__num");
           cell.textContent=value;
 
           if(i===1){
-            cell.title=
-              `${item.label} · ${W.ZZXNodesByVersionAdapter.family(item.label)}`;
+            cell.title=`${item.userAgent} · ${item.family} · version ${item.version}`;
           }
 
           row.appendChild(cell);
@@ -130,93 +175,122 @@
       });
     }
 
-    q(root,"[data-nbv-page]").textContent=
-      `Page ${state.page+1} / ${pages} · ${rows.length} versions`;
+    set(
+      root,
+      "[data-nbv-page]",
+      `Page ${state.page+1} / ${pages} · ${rows.length.toLocaleString()} row${rows.length===1?"":"s"}`
+    );
 
-    q(root,"[data-nbv-prev]").disabled=
-      state.page<=0;
-
-    q(root,"[data-nbv-next]").disabled=
-      state.page>=pages-1;
+    const prev=q(root,"[data-nbv-prev]");
+    const next=q(root,"[data-nbv-next]");
+    if(prev)prev.disabled=state.page<=0;
+    if(next)next.disabled=state.page>=pages-1;
   }
 
   function render(root,state){
-    const r=state.result;
-    const top=r.rows[0]||null;
+    const result=state.result;
+    const snapshot=result?.snapshot;
+    const m=state.model;
 
-    const coverage=
-      Number.isFinite(r.networkTotal)&&r.networkTotal>0
-        ? r.identifiedTotal/r.networkTotal
-        : NaN;
+    if(!snapshot||!m)return;
 
-    q(root,"[data-nbv-summary]").textContent=
-      `${int(r.identifiedTotal)} nodes`;
+    const coverage=finite(m.coverage);
+    const top=m.topAgent;
 
-    q(root,"[data-nbv-sub]").textContent=
-      `${r.rows.length.toLocaleString()} user-agent/version strings · ${
-        Number.isFinite(coverage)
-          ? `${pct(coverage)} identified`
-          : "coverage unavailable"
-      }`;
+    set(root,"[data-nbv-summary]",`${integer(m.totalObserved)} nodes`);
 
-    q(root,"[data-nbv-version-count]").textContent=
-      r.rows.length.toLocaleString();
+    set(
+      root,
+      "[data-nbv-sub]",
+      `${m.distinctAgents.toLocaleString()} exact user-agent string${m.distinctAgents===1?"":"s"} · `+
+      `${Number.isFinite(coverage)?pct(coverage):"coverage unavailable"}`
+    );
 
-    q(root,"[data-nbv-top-agent]").textContent=
-      top?.label||"—";
+    set(root,"[data-nbv-version-count]",m.distinctAgents.toLocaleString());
+    set(root,"[data-nbv-top-agent]",top?.userAgent||"—");
+    set(root,"[data-nbv-top-share]",top?pct(top.share):"—");
+    set(root,"[data-nbv-coverage]",Number.isFinite(coverage)?pct(coverage):"—");
 
-    q(root,"[data-nbv-top-share]").textContent=
-      top?pct(top.share):"—";
+    set(
+      root,
+      "[data-nbv-core]",
+      `${integer(m.core)} · ${pct(m.coreShare)}`
+    );
 
-    q(root,"[data-nbv-coverage]").textContent=
-      pct(coverage);
+    set(
+      root,
+      "[data-nbv-knots]",
+      `${integer(m.knots)} · ${pct(m.knotsShare)}`
+    );
 
-    q(root,"[data-nbv-network-total]").textContent=
-      int(r.networkTotal);
+    set(
+      root,
+      "[data-nbv-other]",
+      `${integer(m.other)} · ${pct(m.otherShare)}`
+    );
 
-    q(root,"[data-nbv-height]").textContent=
-      int(r.latestHeight);
+    set(root,"[data-nbv-family-count]",m.distinctFamilies.toLocaleString());
 
-    q(root,"[data-nbv-updated]").textContent=
-      Number.isFinite(r.updatedMs)
-        ? new Date(r.updatedMs).toLocaleString()
-        : "—";
+    set(root,"[data-nbv-network-total]",integer(m.reachable));
+    set(root,"[data-nbv-decoded]",integer(m.decoded));
+    set(root,"[data-nbv-height]",integer(snapshot.latestHeight));
 
-    q(root,"[data-nbv-source]").textContent=
-      `${r.source} · ${r.transport}`;
+    const updated=finite(snapshot.updatedMs);
+    set(
+      root,
+      "[data-nbv-updated]",
+      Number.isFinite(updated)?new Date(updated).toLocaleString():"—"
+    );
 
-    q(root,"[data-nbv-meta]").textContent=
-      "local ZZX Bitnodes data first · public fallback btcnodes.io · exact user-agent strings remain distinct";
+    set(
+      root,
+      "[data-nbv-source]",
+      `${result.source||snapshot.source||"—"} · ${result.transport||"shared"}${result.stale?" · stale":""}`
+    );
+
+    set(
+      root,
+      "[data-nbv-meta]",
+      "ZZXBitnodes v4 shared snapshot · exact user-agent strings retained · zero per-widget node API calls"
+    );
 
     renderTable(root,state);
-    status(root,"live","ok");
+
+    status(
+      root,
+      result.stale?"cached":"live",
+      result.stale?"warn":"ok"
+    );
+
+    W.ZZXNodesByVersion=Object.freeze({
+      schema:"zzx-nodes-by-version-export-v1",
+      rows:m.rows,
+      families:m.families,
+      totalObserved:m.totalObserved,
+      reachable:m.reachable,
+      decoded:m.decoded,
+      core:m.core,
+      knots:m.knots,
+      other:m.other,
+      source:result.source,
+      transport:result.transport,
+      updatedMs:updated
+    });
+
+    W.ZZXNodesByVersionLatest=W.ZZXNodesByVersion;
   }
 
-  async function refresh(root,state){
+  async function refresh(root,state,force=false){
     if(state.busy||!root.isConnected)return;
 
     state.busy=true;
     status(root,"refreshing","warn");
 
     try{
-      state.result=await W.ZZXNodesByVersionProvider.load();
+      state.result=await W.ZZXBitnodes.load(force);
+      state.model=W.ZZXNodesByVersionModel.build(state.result.snapshot);
       state.page=0;
       render(root,state);
-
-      W.ZZXNodesByVersion={
-        rows:state.result.rows.map(item=>({
-          ...item,
-          family:W.ZZXNodesByVersionAdapter.family(item.label)
-        })),
-        network_total:Number(state.result.networkTotal),
-        identified_total:Number(state.result.identifiedTotal),
-        latest_height:Number(state.result.latestHeight),
-        updated_ms:Number(state.result.updatedMs),
-        source:state.result.source,
-        transport:state.result.transport
-      };
-
-      W.ZZXNodesByVersionLatest=W.ZZXNodesByVersion;
     }catch(error){
       status(
         root,
@@ -224,8 +298,7 @@
         state.result?"warn":"error"
       );
 
-      q(root,"[data-nbv-meta]").textContent=
-        String(error?.message||error);
+      set(root,"[data-nbv-meta]",String(error?.message||error));
     }finally{
       state.busy=false;
     }
@@ -234,12 +307,26 @@
   async function boot(root,core){
     if(!root)return;
 
+    const old=root.__zzxNodesByVersionState;
+    old?.unsubscribe?.();
+    old?.abortController?.abort?.();
+    if(old?.searchTimer)W.clearTimeout(old.searchTimer);
+
+    const abortController=typeof AbortController==="function"
+      ? new AbortController()
+      : null;
+
+    const options=abortController?{signal:abortController.signal}:undefined;
+
     const state={
       core:core||W.ZZXWidgetsCore||null,
       result:null,
+      model:null,
       page:0,
       busy:false,
-      timer:null
+      searchTimer:null,
+      unsubscribe:null,
+      abortController
     };
 
     root.__zzxNodesByVersionState=state;
@@ -247,12 +334,19 @@
     try{
       await ensureModules(state.core);
 
+      const size=q(root,"[data-nbv-page-size]");
+      const savedSize=Number(safeGet(PAGE_KEY));
+      if(size&&[5,10,20,50].includes(savedSize)){
+        size.value=String(savedSize);
+      }
+
       q(root,"[data-nbv-prev]")?.addEventListener(
         "click",
         ()=>{
           state.page=Math.max(0,state.page-1);
           renderTable(root,state);
-        }
+        },
+        options
       );
 
       q(root,"[data-nbv-next]")?.addEventListener(
@@ -260,58 +354,56 @@
         ()=>{
           state.page+=1;
           renderTable(root,state);
-        }
+        },
+        options
       );
-
-      let searchTimer=null;
 
       q(root,"[data-nbv-search]")?.addEventListener(
         "input",
         ()=>{
-          if(searchTimer)W.clearTimeout(searchTimer);
-
-          searchTimer=W.setTimeout(()=>{
+          if(state.searchTimer)W.clearTimeout(state.searchTimer);
+          state.searchTimer=W.setTimeout(()=>{
             state.page=0;
             renderTable(root,state);
           },120);
-        }
+        },
+        options
+      );
+
+      size?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(PAGE_KEY,pageSize(root));
+          state.page=0;
+          renderTable(root,state);
+        },
+        options
       );
 
       q(root,"[data-nbv-refresh]")?.addEventListener(
         "click",
-        ()=>refresh(root,state)
+        ()=>refresh(root,state,true),
+        options
       );
 
-      await refresh(root,state);
-
-      async function loop(){
-        if(!root.isConnected)return;
-
-        await refresh(root,state);
-
-        state.timer=W.setTimeout(
-          loop,
-          W.ZZXNodesByVersionSources.refreshMs
-        );
-      }
-
-      state.timer=W.setTimeout(
-        loop,
-        W.ZZXNodesByVersionSources.refreshMs
+      state.unsubscribe=W.ZZXBitnodes.subscribe(
+        detail=>{
+          if(!detail?.snapshot||!root.isConnected)return;
+          state.result=detail;
+          state.model=W.ZZXNodesByVersionModel.build(detail.snapshot);
+          render(root,state);
+        },
+        {immediate:false}
       );
+
+      await refresh(root,state,false);
     }catch(error){
       status(root,"offline","error");
-
-      q(root,"[data-nbv-meta]").textContent=
-        String(error?.message||error);
+      set(root,"[data-nbv-meta]",String(error?.message||error));
     }
   }
 
-  if(W.ZZXAPI?.register){
-    W.ZZXAPI.register(ID,boot);
-  }else if(W.ZZXWidgetsCore?.onMount){
-    W.ZZXWidgetsCore.onMount(ID,boot);
-  }else if(W.ZZXWidgets?.register){
-    W.ZZXWidgets.register(ID,boot);
-  }
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
+  else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
+  else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
 })();
