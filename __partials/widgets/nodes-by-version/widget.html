@@ -3,7 +3,9 @@
   <div class="nodes-by-version__header">
     <div>
       <div class="btc-card__title">Nodes by Version</div>
-      <div class="nodes-by-version__eyebrow">reachable-node user agents · local ZZX mirror first</div>
+      <div class="nodes-by-version__eyebrow">
+        reachable-node user agents · shared ZZX Bitnodes snapshot
+      </div>
     </div>
 
     <span
@@ -27,26 +29,51 @@
     <div><span>identified share</span><strong data-nbv-coverage>—</strong></div>
   </div>
 
+  <div class="nodes-by-version__families">
+    <div><span>Bitcoin Core</span><strong data-nbv-core>—</strong></div>
+    <div><span>Bitcoin Knots</span><strong data-nbv-knots>—</strong></div>
+    <div><span>Other clients</span><strong data-nbv-other>—</strong></div>
+    <div><span>families</span><strong data-nbv-family-count>—</strong></div>
+  </div>
+
   <div class="nodes-by-version__controls">
     <input
       type="search"
       data-nbv-search
       placeholder="filter client / version / user agent"
       aria-label="Filter nodes by version"
+      autocomplete="off"
+      spellcheck="false"
     >
+
+    <label>
+      <span>rows</span>
+      <select data-nbv-page-size aria-label="Rows per page">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+
     <button
       type="button"
       class="zzx-widgets__btn"
       data-nbv-refresh
-      aria-label="Refresh nodes by version"
+      aria-label="Refresh shared nodes snapshot"
     >Refresh</button>
   </div>
 
   <div class="nodes-by-version__table-wrap">
-    <div class="nodes-by-version__table" role="table" aria-label="Reachable Bitcoin nodes by user agent and version">
+    <div
+      class="nodes-by-version__table"
+      role="table"
+      aria-label="Reachable Bitcoin nodes by user agent and version"
+    >
       <div class="nodes-by-version__row nodes-by-version__head" role="row">
         <div role="columnheader">#</div>
         <div role="columnheader">User Agent / Version</div>
+        <div role="columnheader">Family</div>
         <div class="nodes-by-version__num" role="columnheader">Nodes</div>
         <div class="nodes-by-version__num" role="columnheader">Share</div>
       </div>
@@ -79,6 +106,10 @@
       <strong data-nbv-network-total>—</strong>
     </div>
     <div class="nodes-by-version__detail-row">
+      <span>decoded node rows</span>
+      <strong data-nbv-decoded>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
       <span>latest height</span>
       <strong data-nbv-height>—</strong>
     </div>
@@ -93,6 +124,8 @@
   </div>
 
   <div class="nodes-by-version__footer">
-    <span data-nbv-meta>local ZZX aggregate/latest preferred · btcnodes.io public fallback</span>
+    <span data-nbv-meta>
+      one shared node snapshot · no duplicate btcnodes.io calls
+    </span>
   </div>
 </div>
