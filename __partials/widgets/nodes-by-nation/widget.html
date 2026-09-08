@@ -3,7 +3,9 @@
   <div class="nodes-by-nation__header">
     <div>
       <div class="btc-card__title">Nodes by Nation</div>
-      <div class="nodes-by-nation__eyebrow">reachable-node geography · local ZZX mirror first</div>
+      <div class="nodes-by-nation__eyebrow">
+        reachable-node geography · shared ZZX Bitnodes snapshot
+      </div>
     </div>
 
     <span
@@ -17,14 +19,25 @@
   <div class="nodes-by-nation__hero">
     <span>geolocated reachable nodes</span>
     <strong data-nbn-summary>—</strong>
-    <small data-nbn-sub>loading nation distribution…</small>
+    <small data-nbn-sub>loading shared nation distribution…</small>
   </div>
 
   <div class="nodes-by-nation__metrics">
     <div><span>nations</span><strong data-nbn-country-count>—</strong></div>
     <div><span>top nation</span><strong data-nbn-top-country>—</strong></div>
-    <div><span>top-nation share</span><strong data-nbn-top-share>—</strong></div>
+    <div><span>top-network share</span><strong data-nbn-top-share>—</strong></div>
     <div><span>geolocated share</span><strong data-nbn-coverage>—</strong></div>
+  </div>
+
+  <div class="nodes-by-nation__coverage">
+    <div class="nodes-by-nation__coverage-bar" aria-label="Node geolocation coverage">
+      <span data-nbn-bar-known></span>
+      <span data-nbn-bar-unknown></span>
+    </div>
+    <div class="nodes-by-nation__coverage-legend">
+      <span>geolocated <strong data-nbn-known>—</strong></span>
+      <span>unknown / hidden <strong data-nbn-unknown>—</strong></span>
+    </div>
   </div>
 
   <div class="nodes-by-nation__controls">
@@ -33,12 +46,25 @@
       data-nbn-search
       placeholder="filter nation / ISO"
       aria-label="Filter nodes by nation"
+      autocomplete="off"
+      spellcheck="false"
     >
+
+    <label>
+      <span>rows</span>
+      <select data-nbn-page-size aria-label="Rows per page">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+
     <button
       type="button"
       class="zzx-widgets__btn"
       data-nbn-refresh
-      aria-label="Refresh nodes by nation"
+      aria-label="Refresh shared nodes snapshot"
     >Refresh</button>
   </div>
 
@@ -48,7 +74,8 @@
         <div role="columnheader">#</div>
         <div role="columnheader">Nation</div>
         <div class="nodes-by-nation__num" role="columnheader">Nodes</div>
-        <div class="nodes-by-nation__num" role="columnheader">Share</div>
+        <div class="nodes-by-nation__num" role="columnheader">Network Share</div>
+        <div class="nodes-by-nation__num" role="columnheader">Geo Share</div>
       </div>
 
       <div data-nbn-body></div>
@@ -56,27 +83,23 @@
   </div>
 
   <div class="nodes-by-nation__pager" aria-label="Nodes by nation pagination">
-    <button
-      type="button"
-      class="zzx-widgets__btn"
-      data-nbn-prev
-      aria-label="Previous page"
-    >Prev</button>
-
+    <button type="button" class="zzx-widgets__btn" data-nbn-prev aria-label="Previous page">Prev</button>
     <span data-nbn-page>Page 1 / 1</span>
-
-    <button
-      type="button"
-      class="zzx-widgets__btn"
-      data-nbn-next
-      aria-label="Next page"
-    >Next</button>
+    <button type="button" class="zzx-widgets__btn" data-nbn-next aria-label="Next page">Next</button>
   </div>
 
   <div class="nodes-by-nation__details">
     <div class="nodes-by-nation__detail-row">
-      <span>network total</span>
+      <span>reachable total</span>
       <strong data-nbn-network-total>—</strong>
+    </div>
+    <div class="nodes-by-nation__detail-row">
+      <span>decoded node rows</span>
+      <strong data-nbn-decoded>—</strong>
+    </div>
+    <div class="nodes-by-nation__detail-row">
+      <span>unlocated remainder</span>
+      <strong data-nbn-unlocated>—</strong>
     </div>
     <div class="nodes-by-nation__detail-row">
       <span>snapshot</span>
@@ -89,6 +112,6 @@
   </div>
 
   <div class="nodes-by-nation__footer">
-    <span data-nbn-meta>local ZZX aggregate/latest preferred · btcnodes.io public fallback</span>
+    <span data-nbn-meta>one shared ZZXBitnodes snapshot · zero per-widget API calls</span>
   </div>
 </div>
