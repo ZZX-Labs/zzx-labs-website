@@ -57,6 +57,13 @@ AGGREGATE = TOOLS_DIR / "aggregate.py"
 CHUNK_REGISTRY_BACKUP = TOOLS_DIR / "chunk_registry_backup.py"
 UPDATE_DAILY_INDEX = TOOLS_DIR / "update_daily_index.py"
 PUSH_SNAPSHOTS = TOOLS_DIR / "push_snapshots.py"
+GEO_CONTRACT = TOOLS_DIR / "geo_contract.py"
+GEO_ROOT = DATA_DIR / "geo"
+
+DEFAULT_ENRICH_MODULES = (
+    "geoip,geoloc,boundary_zone,continent,region,country,territory,"
+    "city,county,zip,timezone"
+)
 
 DEFAULT_REPO = "https://github.com/ayeowch/bitnodes"
 DEFAULT_BRANCH = "master"
@@ -156,6 +163,7 @@ def run(
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
     check: bool = False,
+    timeout_seconds: int | None = None,
 ) -> int:
     merged_env = os.environ.copy()
 
@@ -164,15 +172,28 @@ def run(
 
     printf(f"RUNNING: {' '.join(str(item) for item in command)}")
 
-    result = subprocess.run(
-        command,
-        cwd=str(cwd) if cwd else None,
-        env=merged_env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            env=merged_env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=(max(1, int(timeout_seconds)) if timeout_seconds else None),
+        )
+    except subprocess.TimeoutExpired as exc:
+        printf(
+            "TIMEOUT: "
+            + " ".join(str(item) for item in command)
+            + f" after {timeout_seconds}s"
+        )
+        if exc.stdout:
+            printf(str(exc.stdout).strip())
+        if exc.stderr:
+            printf(str(exc.stderr).strip())
+        return 124
 
     if result.stdout.strip():
         printf(result.stdout.strip())
@@ -288,9 +309,6 @@ def locate_start_target() -> Path | None:
         SRC_DIR / "bitnodes.py",
         SRC_DIR / "manage.py",
         SRC_DIR / "main.py",
-        SRC_DIR / "docker-compose.yml",
-        SRC_DIR / "compose.yaml",
-        SRC_DIR / "compose.yml",
     )
 
     for candidate in candidates:
@@ -309,6 +327,7 @@ def start_original(
     getaddr_rounds: int,
     dns_seed_limit: int,
     compact: bool,
+    max_runtime_seconds: int = 1100,
 ) -> int:
     ensure_dirs()
 
@@ -332,16 +351,19 @@ def start_original(
     )
 
     if target.name in {"start.sh", "run.sh"}:
-        return run(["bash", str(target)], cwd=SRC_DIR, env=env)
-
-    if target.suffix == ".py":
-        return run([sys.executable, str(target)], cwd=SRC_DIR, env=env)
-
-    if target.name in {"docker-compose.yml", "compose.yaml", "compose.yml"}:
         return run(
-            ["docker", "compose", "-f", str(target), "up", "--abort-on-container-exit"],
+            ["bash", str(target)],
             cwd=SRC_DIR,
             env=env,
+            timeout_seconds=max_runtime_seconds,
+        )
+
+    if target.suffix == ".py":
+        return run(
+            [sys.executable, str(target)],
+            cwd=SRC_DIR,
+            env=env,
+            timeout_seconds=max_runtime_seconds,
         )
 
     printf("Unsupported original Bitnodes startup target.")
@@ -407,10 +429,19 @@ def enrich_original(
         str(API_DIR),
         "--state-dir",
         str(ORIGINAL_STATE_DIR),
+        "--geoip-dir",
+        str(GEOIP_DIR),
+        "--geo-root",
+        str(GEO_ROOT),
+        "--city-db",
+        str(GEOIP_DIR / "dbip-city-lite.mmdb"),
+        "--asn-db",
+        str(GEOIP_DIR / "dbip-asn-lite.mmdb"),
+        "--country-db",
+        str(GEOIP_DIR / "dbip-country-lite.mmdb"),
     )
 
-    if modules:
-        command.extend(["--modules", modules])
+    command.extend(["--modules", modules or DEFAULT_ENRICH_MODULES])
 
     if strict:
         command.append("--strict")
@@ -418,6 +449,35 @@ def enrich_original(
     if compact:
         command.append("--compact")
 
+    return run(command, cwd=APP_ROOT)
+
+
+
+def normalize_original_geo(path: Path, compact: bool = False) -> int:
+    """Apply the same real-public-IP geography contract used by ZZX production."""
+    if not path.exists():
+        return 0
+    if not GEO_CONTRACT.exists():
+        printf(f"Original geo contract skipped; missing {GEO_CONTRACT}")
+        return 1
+
+    report = path.parent / "geo-contract-report.json"
+    command = py(
+        GEO_CONTRACT,
+        "--input", str(path),
+        "--output", str(path),
+        "--report", str(report),
+        "--city-db", str(GEOIP_DIR / "dbip-city-lite.mmdb"),
+        "--country-db", str(GEOIP_DIR / "dbip-country-lite.mmdb"),
+        "--asn-db", str(GEOIP_DIR / "dbip-asn-lite.mmdb"),
+        "--geo-root", str(GEO_ROOT),
+        "--minimum-country", "0",
+        "--minimum-city", "0",
+        "--minimum-county", "0",
+        "--minimum-coordinates", "0",
+    )
+    if compact:
+        command.append("--compact")
     return run(command, cwd=APP_ROOT)
 
 
@@ -662,6 +722,7 @@ def pipeline_once(args: argparse.Namespace) -> int:
             getaddr_rounds=args.getaddr_rounds,
             dns_seed_limit=args.dns_seed_limit,
             compact=args.compact,
+            max_runtime_seconds=args.max_runtime_seconds,
         )
 
         if code and args.mode == "classic":
@@ -686,6 +747,17 @@ def pipeline_once(args: argparse.Namespace) -> int:
 
     mirror_original_latest(pretty=not args.compact)
 
+    geo_code = normalize_original_geo(
+        ORIGINAL_API_DIR / "latest.json",
+        compact=args.compact,
+    )
+    if geo_code and args.strict:
+        write_status("geo-contract-failed", {"exit_code": geo_code})
+        return geo_code
+
+    # Refresh the legacy mirror from the normalized raw payload.
+    mirror_original_latest(pretty=not args.compact)
+
     if not args.no_enrich:
         code = enrich_original(
             modules=args.enrich_modules,
@@ -696,6 +768,15 @@ def pipeline_once(args: argparse.Namespace) -> int:
         if code and args.strict:
             write_status("enrichment-failed", {"exit_code": code})
             return code
+
+        if code == 0 and ORIGINAL_ENRICHED_LATEST.exists():
+            geo_code = normalize_original_geo(
+                ORIGINAL_ENRICHED_LATEST,
+                compact=args.compact,
+            )
+            if geo_code and args.strict:
+                write_status("enriched-geo-contract-failed", {"exit_code": geo_code})
+                return geo_code
 
     if not args.no_aggregate:
         code = aggregate_original()
@@ -815,6 +896,12 @@ def build_parser() -> argparse.ArgumentParser:
         child.add_argument("--workers", type=int, default=256)
         child.add_argument("--getaddr-rounds", type=int, default=16)
         child.add_argument("--dns-seed-limit", type=int, default=4096)
+        child.add_argument(
+            "--max-runtime-seconds",
+            type=int,
+            default=1100,
+            help="Hard ceiling for the optional Ayeowch startup target; 124 on timeout.",
+        )
 
         child.add_argument("--compact", action="store_true")
         child.add_argument("--redis-scan-pattern", default="*")
@@ -862,6 +949,7 @@ def main() -> int:
             getaddr_rounds=args.getaddr_rounds,
             dns_seed_limit=args.dns_seed_limit,
             compact=args.compact,
+            max_runtime_seconds=args.max_runtime_seconds,
         )
 
     if args.command == "export":
