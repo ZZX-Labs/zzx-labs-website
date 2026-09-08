@@ -4,7 +4,7 @@
   const W=window;
   const D=document;
 
-  if(W.ZZXBitnodes?.__version>=5)return;
+  if(W.ZZXBitnodes?.__version>=6)return;
 
   const DEFAULT_REFRESH_MS=60_000;
   const DEFAULT_STALE_MS=24*60*60*1000;
@@ -171,10 +171,10 @@
       }catch(_){}
 
       const localCandidates=[
-        "/bitcoin/bitnodes/api/zzxbitnodes/latest.json",
         "/bitcoin/bitnodes/api/snapshots/latest.json",
-        "/bitcoin/bitnodes/api/originalbitnodes/latest.json",
-        "/bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json"
+        "/bitcoin/bitnodes/api/zzxbitnodes/latest.json",
+        "/bitcoin/bitnodes/api/btcnodes/normalized/latest.json",
+        "/bitcoin/bitnodes/api/aggregate/canonical/latest.json"
       ];
 
       const upstreams=[
@@ -315,6 +315,50 @@
       valueAt(value,7)
     ).toUpperCase();
 
+    const countryName=text(
+      object.country_name ??
+      object.geo?.country_name ??
+      object.geo_contract?.country_name
+    );
+
+    const countryFlag=text(
+      object.country_flag ??
+      object.geo?.country_flag ??
+      object.geo_contract?.country_flag
+    );
+
+    const admin1Code=text(
+      object.admin1_code ??
+      object.region_code ??
+      object.geo?.admin1_code ??
+      object.geo_contract?.admin1_code
+    ).toUpperCase();
+
+    const admin2Code=text(
+      object.admin2_code ??
+      object.county_code ??
+      object.geo?.admin2_code ??
+      object.geo_contract?.admin2_code
+    ).toUpperCase();
+
+    const ip=text(
+      object.ip ??
+      object.geo_contract?.ip
+    );
+
+    const geoSource=text(
+      object.geo_source ??
+      object.geo?.source ??
+      object.geo_contract?.source
+    );
+
+    const geoSynthetic=(
+      object.geo_contract?.synthetic===true ||
+      /synthetic|deterministic-fallback|workflow-map-ready-fallback/i.test(
+        `${object.geo_confidence??""} ${object.geo_source??""} ${object.geoip_confidence??""} ${object.geoip_source??""}`
+      )
+    );
+
     const latitude=finite(
       object.latitude ??
       object.lat ??
@@ -394,8 +438,15 @@
       county:county||null,
       region:region||null,
       country:country||null,
-      latitude:Number.isFinite(latitude)?latitude:null,
-      longitude:Number.isFinite(longitude)?longitude:null,
+      countryName:countryName||null,
+      countryFlag:countryFlag||null,
+      admin1Code:admin1Code||null,
+      admin2Code:admin2Code||null,
+      ip:ip||null,
+      geoSource:geoSource||null,
+      geoSynthetic,
+      latitude:!geoSynthetic&&Number.isFinite(latitude)?latitude:null,
+      longitude:!geoSynthetic&&Number.isFinite(longitude)?longitude:null,
       timezone:timezone||null,
       asn:asn||null,
       organization:organization||null
@@ -458,16 +509,12 @@
       inc(byNetwork,node.network||"other");
       inc(byVersion,node.userAgent||"Unknown");
 
-      if(node.country)inc(byNation,node.country);
-      if(node.city){
-        inc(
-          byCity,
-          node.country
-            ? `${node.city}, ${node.country}`
-            : node.city
-        );
+      const validCountry=/^[A-Z]{2}$/.test(node.country||"")&&!node.geoSynthetic;
+      if(validCountry)inc(byNation,node.country);
+      if(validCountry&&node.city){
+        inc(byCity,`${node.city}, ${node.country}`);
       }
-      if(node.county){
+      if(validCountry&&node.county&&node.admin2Code){
         const location=[
           node.county,
           node.region,
@@ -585,7 +632,7 @@
     }
 
     const snapshot=Object.freeze({
-      schema:"zzx-bitnodes-normalized-v5",
+      schema:"zzx-bitnodes-normalized-v6",
       source,
       reachableNodes:Number.isFinite(reachable)?reachable:null,
       totalNodes:Number.isFinite(total)?total:null,
@@ -868,7 +915,7 @@
   }
 
   W.ZZXBitnodes=Object.freeze({
-    __version:5,
+    __version:6,
     EVENT,
     load,
     current,
