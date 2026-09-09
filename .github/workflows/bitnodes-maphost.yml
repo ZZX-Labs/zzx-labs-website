@@ -24,9 +24,12 @@ on:
 permissions:
   contents: write
 
+# Map generation is intentionally non-preemptive. A complete build is expensive
+# and the publication step already verifies the canonical snapshot SHA-256 before
+# pushing, so newer invocations should queue instead of killing an active run.
 concurrency:
   group: zzx-bitnodes-maphost
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
