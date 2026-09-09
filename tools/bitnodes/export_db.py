@@ -6,6 +6,7 @@ import csv
 import gzip
 import hashlib
 import ipaddress
+import io
 import json
 import math
 import re
@@ -22,7 +23,7 @@ APP_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
 DEFAULT_DATA_DIR = DEFAULT_API_DIR / "data"
 
-SCHEMA = "zzx-bitnodes-export-db-v3"
+SCHEMA = "zzx-bitnodes-export-db-v4"
 DEFAULT_DATABASE = "zzx_bitnodes"
 DEFAULT_MAX_BYTES = 24_000_000
 SAFE_DB_RE = re.compile(r"^[a-zA-Z0-9_]+$")
@@ -145,6 +146,64 @@ def write_gzip_json(path: Path, payload: Any, compact: bool = True) -> int:
         handle.write("\n")
 
     return path.stat().st_size
+
+
+class HashingWriter:
+    """Binary sink that hashes compressed bytes while they are written."""
+
+    def __init__(self, raw):
+        self.raw = raw
+        self.hash = hashlib.sha256()
+        self.bytes_written = 0
+
+    def write(self, data: bytes) -> int:
+        written = self.raw.write(data)
+        if written:
+            chunk = data[:written]
+            self.hash.update(chunk)
+            self.bytes_written += written
+        return written
+
+    def flush(self) -> None:
+        self.raw.flush()
+
+    def tell(self) -> int:
+        return self.raw.tell()
+
+    def writable(self) -> bool:
+        return True
+
+
+def write_gzip_lines(path: Path, lines, *, compresslevel: int = 6) -> dict[str, Any]:
+    """Stream UTF-8 lines into gzip without constructing one giant SQL string."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    level = max(1, min(9, int(compresslevel)))
+
+    with path.open("wb") as raw:
+        hashing = HashingWriter(raw)
+        with gzip.GzipFile(
+            filename="",
+            mode="wb",
+            compresslevel=level,
+            fileobj=hashing,
+            mtime=0,
+        ) as gz:
+            text = io.TextIOWrapper(gz, encoding="utf-8", newline="\n")
+            try:
+                for line in lines:
+                    text.write(str(line))
+                    if not str(line).endswith("\n"):
+                        text.write("\n")
+                text.flush()
+            finally:
+                text.detach()
+
+        raw.flush()
+
+    return {
+        "size_bytes": path.stat().st_size,
+        "sha256": hashing.hash.hexdigest(),
+    }
 
 
 def gzip_text(path: Path, text: str) -> int:
@@ -744,7 +803,16 @@ def insert_export_sql(export_id: str, source_count: int, node_count: int, shard_
     )
 
 
-def export_mariadb_shards(records: list[dict[str, Any]], output_dir: Path, database: str, max_bytes: int, compact: bool) -> dict[str, Any]:
+def export_mariadb_shards(
+    records: list[dict[str, Any]],
+    output_dir: Path,
+    database: str,
+    max_bytes: int,
+    compact: bool,
+    *,
+    gzip_level: int = 6,
+    plain_factor: int = 4,
+) -> dict[str, Any]:
     if not SAFE_DB_RE.match(database):
         raise SystemExit(f"unsafe database name: {database}")
 
@@ -754,94 +822,125 @@ def export_mariadb_shards(records: list[dict[str, Any]], output_dir: Path, datab
     for old in shard_dir.glob("*.sql.gz"):
         old.unlink()
 
-    export_id = "export:" + sha256_text(f"{SCHEMA}:{utc_now()}:{len(records)}")[:24]
+    generated = utc_now()
+    export_id = "export:" + sha256_text(f"{SCHEMA}:{generated}:{len(records)}")[:24]
 
-    header = "\n".join([
+    header_lines = [
         "-- ZZX-Labs Bitnodes MariaDB shard",
         f"-- schema: {SCHEMA}",
-        f"-- generated_at_utc: {utc_now()}",
+        f"-- generated_at_utc: {generated}",
         "SET NAMES utf8mb4;",
         "SET FOREIGN_KEY_CHECKS=0;",
         schema_sql(database),
         "",
-    ])
-    footer = "\nSET FOREIGN_KEY_CHECKS=1;\n"
+    ]
+    footer_lines = ["SET FOREIGN_KEY_CHECKS=1;"]
 
-    shards = []
-    lines = [header]
-    plain_estimate = len(header.encode("utf-8"))
-    current_count = 0
+    header_bytes = sum(len((line + "\n").encode("utf-8")) for line in header_lines)
+    footer_bytes = sum(len((line + "\n").encode("utf-8")) for line in footer_lines)
+    plain_limit = max(1_000_000, int(max_bytes) * max(2, int(plain_factor)))
+
+    shards: list[dict[str, Any]] = []
     shard_no = 0
-    plain_limit = max_bytes * 5
+    current: list[str] = []
+    current_plain = header_bytes + footer_bytes
 
     def flush() -> None:
-        nonlocal lines, plain_estimate, current_count, shard_no
-
-        if current_count <= 0:
+        nonlocal current, current_plain, shard_no
+        if not current:
             return
 
-        text = "\n".join(lines) + footer
         path = shard_dir / f"bitnodes_mariadb_{shard_no:04d}.sql.gz"
-        size = gzip_text(path, text)
+
+        def lines():
+            yield from header_lines
+            yield from current
+            yield from footer_lines
+
+        meta = write_gzip_lines(path, lines(), compresslevel=gzip_level)
+        size = int(meta["size_bytes"])
+        if size > max_bytes:
+            raise SystemExit(
+                f"MariaDB shard exceeds max-bytes after compression: {path} size={size} limit={max_bytes}"
+            )
 
         shards.append({
             "file": path.name,
             "path": path.relative_to(output_dir).as_posix(),
             "size_bytes": size,
-            "node_count": current_count,
-            "sha256": sha256_bytes(path.read_bytes()),
+            "plain_estimate_bytes": current_plain,
+            "node_count": len(current),
+            "sha256": meta["sha256"],
         })
-
+        print(
+            f"mariadb shard {shard_no:04d}: "
+            f"nodes={len(current)} plain≈{current_plain} gzip={size}"
+        )
         shard_no += 1
-        lines = [header]
-        plain_estimate = len(header.encode("utf-8"))
-        current_count = 0
+        current = []
+        current_plain = header_bytes + footer_bytes
 
     for row in records:
         line = insert_node_sql(row)
-        line_size = len(line.encode("utf-8")) + 1
+        line_size = len((line + "\n").encode("utf-8"))
 
-        if current_count > 0 and plain_estimate + line_size >= plain_limit:
+        if current and current_plain + line_size >= plain_limit:
             flush()
 
-        lines.append(line)
-        plain_estimate += line_size
-        current_count += 1
+        # One pathological record should fail explicitly rather than creating
+        # an invalid oversize shard or consuming unbounded memory.
+        if not current and header_bytes + footer_bytes + line_size >= plain_limit:
+            current.append(line)
+            current_plain += line_size
+            flush()
+            continue
+
+        current.append(line)
+        current_plain += line_size
 
     flush()
 
     control_path = shard_dir / "bitnodes_mariadb_control.sql.gz"
-    control_text = "\n".join([
+    control_lines = [
         "-- ZZX-Labs Bitnodes MariaDB control file",
-        f"-- generated_at_utc: {utc_now()}",
+        f"-- generated_at_utc: {generated}",
         "SET NAMES utf8mb4;",
         "SET FOREIGN_KEY_CHECKS=0;",
         schema_sql(database),
         insert_export_sql(export_id, len(source_counts(records)), len(records), len(shards)),
         "SET FOREIGN_KEY_CHECKS=1;",
-        "",
-    ])
-    control_size = gzip_text(control_path, control_text)
+    ]
+    control_meta = write_gzip_lines(control_path, control_lines, compresslevel=gzip_level)
+    control_size = int(control_meta["size_bytes"])
+    if control_size > max_bytes:
+        raise SystemExit(
+            f"MariaDB control shard exceeds max-bytes: {control_size} > {max_bytes}"
+        )
 
     manifest = {
         "schema": SCHEMA,
-        "generated_at": utc_now(),
+        "generated_at": generated,
         "generated_unix": unix_now(),
         "database": database,
         "export_id": export_id,
-        "format": "mariadb-sql-gzip-shards",
+        "format": "mariadb-sql-gzip-streaming-shards",
         "max_bytes": max_bytes,
+        "plain_factor": max(2, int(plain_factor)),
+        "gzip_level": max(1, min(9, int(gzip_level))),
         "node_count": len(records),
         "source_counts": source_counts(records),
         "control": {
             "file": control_path.name,
             "path": control_path.relative_to(output_dir).as_posix(),
             "size_bytes": control_size,
-            "sha256": sha256_bytes(control_path.read_bytes()),
+            "sha256": control_meta["sha256"],
         },
         "shard_count": len(shards),
         "shards": shards,
-        "import_order": [f"mariadb/{control_path.name}", *[f"mariadb/{item['file']}" for item in shards]],
+        "import_order": [
+            f"mariadb/{control_path.name}",
+            *[f"mariadb/{item['file']}" for item in shards],
+        ],
     }
 
     write_json(output_dir / "mariadb_manifest.json", manifest, compact=compact)
@@ -1535,6 +1634,13 @@ def main() -> int:
     parser.add_argument("--output-dir", default=str(DEFAULT_DATA_DIR))
     parser.add_argument("--database", default=DEFAULT_DATABASE)
     parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    parser.add_argument("--gzip-level", type=int, default=6)
+    parser.add_argument("--sql-plain-factor", type=int, default=4)
+    parser.add_argument(
+        "--mariadb-only",
+        action="store_true",
+        help="Export only streaming MariaDB shards plus the minimal data/index contracts.",
+    )
     parser.add_argument("--sqlite", action="store_true")
     parser.add_argument("--no-sqlite", action="store_true")
     parser.add_argument("--duckdb", action="store_true")
@@ -1559,16 +1665,36 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    mariadb_manifest = export_mariadb_shards(records, output_dir, args.database, args.max_bytes, args.compact)
-    sqlite_manifest = export_sqlite(records, output_dir, args.compact) if not args.no_sqlite else None
-    duckdb_manifest = export_duckdb(records, output_dir, args.compact) if args.duckdb else None
-    parquet_manifest = export_parquet(records, output_dir, args.compact) if args.parquet else None
-    json_manifest = export_json_artifacts(records, output_dir, args.compact)
-    csv_manifest = export_csv_artifacts(records, output_dir)
-    xml_manifest = export_xml_artifacts(records, output_dir)
-    redis_manifest = export_redis_artifacts(records, output_dir)
-    geo_manifest = export_geo_indexes(records, output_dir, args.compact)
-    map_manifest = export_map_artifacts(records, output_dir, args.compact)
+    mariadb_manifest = export_mariadb_shards(
+        records,
+        output_dir,
+        args.database,
+        args.max_bytes,
+        args.compact,
+        gzip_level=args.gzip_level,
+        plain_factor=args.sql_plain_factor,
+    )
+
+    if args.mariadb_only:
+        sqlite_manifest = None
+        duckdb_manifest = None
+        parquet_manifest = None
+        json_manifest = None
+        csv_manifest = None
+        xml_manifest = None
+        redis_manifest = None
+        geo_manifest = None
+        map_manifest = None
+    else:
+        sqlite_manifest = export_sqlite(records, output_dir, args.compact) if not args.no_sqlite else None
+        duckdb_manifest = export_duckdb(records, output_dir, args.compact) if args.duckdb else None
+        parquet_manifest = export_parquet(records, output_dir, args.compact) if args.parquet else None
+        json_manifest = export_json_artifacts(records, output_dir, args.compact)
+        csv_manifest = export_csv_artifacts(records, output_dir)
+        xml_manifest = export_xml_artifacts(records, output_dir)
+        redis_manifest = export_redis_artifacts(records, output_dir)
+        geo_manifest = export_geo_indexes(records, output_dir, args.compact)
+        map_manifest = export_map_artifacts(records, output_dir, args.compact)
 
     manifest = write_latest_and_index(
         output_dir,
