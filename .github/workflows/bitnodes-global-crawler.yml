@@ -152,6 +152,8 @@ jobs:
             tools/bitnodes/export_db_selftest.py
             tools/bitnodes/public_artifacts.py
             tools/bitnodes/public_artifacts_selftest.py
+            tools/bitnodes/publish_generated_commit.py
+            tools/bitnodes/publish_generated_commit_selftest.py
             tools/bitnodes/build_geo_indexes.py
             tools/bpi/bpi_git_publish.py
           )
@@ -186,6 +188,7 @@ jobs:
           python tools/bitnodes/geo_contract_selftest.py
           python tools/bitnodes/export_db_selftest.py
           python tools/bitnodes/public_artifacts_selftest.py
+          python tools/bitnodes/publish_generated_commit_selftest.py
           python -m json.tool "${BITNODES_API}/sources.json" >/dev/null
 
       - name: Prepare Bitnodes directories
@@ -1008,28 +1011,31 @@ jobs:
             exit 0
           fi
 
+          # First commit freezes the exact generated artifact payload in the local Git object store.
+          # We do NOT rebase this machine-generated commit: generated JSON/DB files have no useful
+          # line-level merge semantics and a concurrent main update can make the same rebase conflict
+          # forever.  publish_generated_commit.py replays only these crawler-owned paths on top of
+          # the newest origin/main and performs a normal fast-forward push.
           git commit -m "Update btcnodes.io mirror and ZZX Bitnodes crawler artifacts"
+          PAYLOAD_COMMIT="$(git rev-parse HEAD)"
+          printf '%s\n' "Frozen crawler publication payload: ${PAYLOAD_COMMIT}"
 
-          # Runtime/private working data are intentionally unstaged. Map Host is the sole map writer. Clean before rebase.
-          git reset --hard HEAD
-          git clean -fdx
-
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main && git push origin HEAD:main; then
-              printf '%s\n' "Production Bitnodes artifacts pushed."
-              exit 0
-            fi
-
-            git rebase --abort || true
-            git reset --hard HEAD
-            git clean -fdx
-            sleep 10
-          done
-
-          printf '%s\n' "Failed to push production Bitnodes artifacts without rewriting main."
-          exit 1
+          python tools/bitnodes/publish_generated_commit.py \
+            --payload-commit "${PAYLOAD_COMMIT}" \
+            --remote origin \
+            --branch main \
+            --message "Update btcnodes.io mirror and ZZX Bitnodes crawler artifacts" \
+            --attempts 5 \
+            --sleep-seconds 10 \
+            --allowed-prefix "${BITNODES_API}" \
+            --allowed-prefix "${BITNODES_DATA}/geo/manifests" \
+            --allowed-prefix "${BITNODES_GEOIP}/current" \
+            --allowed-prefix "${BITNODES_GEOIP}/ip_db.run-report.json" \
+            --allowed-prefix "${BITNODES_GEOIP}/ip_db.push-report.json" \
+            --allowed-prefix "${BITNODES_GEOIP}/public-artifacts-report.json" \
+            --forbidden-prefix "${BITNODES_ROOT}/maps" \
+            --forbidden-prefix "${BITNODES_ROOT}/live-map" \
+            --clean
 
   ayeowch-compat:
     name: Optional Ayeowch compatibility crawl
@@ -1126,15 +1132,16 @@ jobs:
           fi
 
           git commit -m "Update optional Ayeowch Bitnodes compatibility snapshot"
+          PAYLOAD_COMMIT="$(git rev-parse HEAD)"
 
-          for attempt in 1 2 3; do
-            git fetch origin main
-            if git rebase origin/main && git push origin HEAD:main; then
-              exit 0
-            fi
-            git rebase --abort || true
-            sleep 5
-          done
-
-          printf '%s\n' "Optional Ayeowch compatibility publication raced with main; production crawler remains valid."
-          exit 1
+          python tools/bitnodes/publish_generated_commit.py \
+            --payload-commit "${PAYLOAD_COMMIT}" \
+            --remote origin \
+            --branch main \
+            --message "Update optional Ayeowch Bitnodes compatibility snapshot" \
+            --attempts 3 \
+            --sleep-seconds 5 \
+            --allowed-prefix "bitcoin/bitnodes/api/originalbitnodes/latest.json" \
+            --forbidden-prefix "${BITNODES_ROOT}/maps" \
+            --forbidden-prefix "${BITNODES_ROOT}/live-map" \
+            --clean
