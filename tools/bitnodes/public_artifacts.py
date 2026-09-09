@@ -220,11 +220,17 @@ def shard_ipdb(
     max_bytes: int,
     rows_per_shard: int,
     gzip_level: int,
-    remove_source: bool,
+    pointer_path: Path | None = None,
+    write_pointer: bool = True,
 ) -> dict[str, Any]:
     payload = read_json(source)
     if not isinstance(payload, Mapping):
         raise RuntimeError(f"IPDB input must be an object: {source}")
+    if payload.get("schema") == IPDB_LATEST_SCHEMA:
+        raise RuntimeError(
+            "IPDB source is already the bounded latest-pointer contract; "
+            "pass the node-bearing IPDB snapshot via --ipdb-source"
+        )
 
     mode, rows = nodes_container(payload)
     if not rows:
@@ -299,8 +305,9 @@ def shard_ipdb(
         raise RuntimeError(f"IPDB public manifest exceeds public limit: {len(data)} > {max_bytes}")
     atomic_write(manifest_path, data)
 
-    source_replaced = False
-    if remove_source:
+    pointer_written = False
+    pointer_target = pointer_path if pointer_path is not None else source
+    if write_pointer:
         latest_stub = {
             "schema": IPDB_LATEST_SCHEMA,
             "source_schema": payload.get("schema"),
@@ -314,16 +321,19 @@ def shard_ipdb(
         stub_data = compact_json_bytes(latest_stub)
         if len(stub_data) > max_bytes:
             raise RuntimeError(f"IPDB latest pointer exceeds public limit: {len(stub_data)} > {max_bytes}")
-        atomic_write(source, stub_data)
-        source_replaced = True
+        atomic_write(pointer_target, stub_data)
+        pointer_written = True
 
     return {
         "schema": IPDB_MANIFEST_SCHEMA,
+        "source": str(source),
         "manifest": str(manifest_path),
+        "latest_pointer": str(pointer_target),
         "node_count": len(rows),
         "shard_count": len(manifest_shards),
         "largest_shard_bytes": max(item["bytes"] for item in manifest_shards),
-        "latest_replaced_with_pointer": source_replaced,
+        "latest_replaced_with_pointer": pointer_written and pointer_target == source,
+        "latest_pointer_written": pointer_written,
     }
 
 
@@ -331,7 +341,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build bounded public Bitnodes aggregate/IPDB contracts.")
     parser.add_argument("--aggregate", required=True)
     parser.add_argument("--canonical-url", default="/bitcoin/bitnodes/api/snapshots/latest.json")
-    parser.add_argument("--ipdb-latest", required=True)
+    parser.add_argument(
+        "--ipdb-source",
+        default="",
+        help="Node-bearing IPDB snapshot to shard. Defaults to --ipdb-latest for backward compatibility.",
+    )
+    parser.add_argument(
+        "--ipdb-latest",
+        required=True,
+        help="Bounded latest-pointer contract written after sharding.",
+    )
     parser.add_argument("--ipdb-shard-dir", required=True)
     parser.add_argument("--ipdb-manifest", required=True)
     parser.add_argument("--max-bytes", type=int, default=24_000_000)
@@ -348,14 +367,24 @@ def main() -> int:
         canonical_url=args.canonical_url,
         max_bytes=args.max_bytes,
     )
+    ipdb_source = Path(args.ipdb_source) if args.ipdb_source else Path(args.ipdb_latest)
+    ipdb_latest = Path(args.ipdb_latest)
+    if ipdb_source.resolve() == ipdb_latest.resolve() and not args.keep_ipdb_latest:
+        # Backward-compatible mode: consume a node-bearing latest and replace it
+        # with the public pointer. Production should use --ipdb-source explicitly.
+        pointer_path = ipdb_latest
+    else:
+        pointer_path = ipdb_latest
+
     ipdb_report = shard_ipdb(
-        Path(args.ipdb_latest),
+        ipdb_source,
         Path(args.ipdb_shard_dir),
         Path(args.ipdb_manifest),
         max_bytes=args.max_bytes,
         rows_per_shard=args.rows_per_shard,
         gzip_level=args.gzip_level,
-        remove_source=not args.keep_ipdb_latest,
+        pointer_path=pointer_path,
+        write_pointer=not args.keep_ipdb_latest,
     )
     report = {
         "schema": "zzx-bitnodes-public-artifacts-report-v1",
