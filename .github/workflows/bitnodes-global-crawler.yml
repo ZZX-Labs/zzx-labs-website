@@ -153,6 +153,7 @@ jobs:
             tools/bitnodes/ip_db.py
             tools/bitnodes/push_ipdb.py
             tools/bitnodes/export_db.py
+            tools/bitnodes/export_db_selftest.py
             tools/bitnodes/build_geo_indexes.py
             tools/bitnodes/map/map.py
             tools/bitnodes/map/maps.py
@@ -191,6 +192,7 @@ jobs:
           python tools/bitnodes/merge_sources.py --help >/dev/null
           python tools/bitnodes/geo_contract.py --help >/dev/null
           python tools/bitnodes/geo_contract_selftest.py
+          python tools/bitnodes/export_db_selftest.py
           python -m json.tool "${BITNODES_API}/sources.json" >/dev/null
 
       - name: Prepare Bitnodes directories
@@ -668,18 +670,19 @@ jobs:
             --compact
 
       - name: Export canonical MariaDB gzip shards
-        timeout-minutes: 35
+        timeout-minutes: 15
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/export_db.py \
+          timeout --signal=TERM --kill-after=30s 12m python tools/bitnodes/export_db.py \
             --input "${BITNODES_API}/snapshots/latest.json" \
             --output-dir "${BITNODES_API}/data" \
             --database zzx_bitnodes \
             --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
             --gzip-level 6 \
             --sql-plain-factor 4 \
+            --sql-rows-per-shard 5000 \
             --mariadb-only \
             --compact \
             --strict \
