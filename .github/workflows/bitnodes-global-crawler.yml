@@ -668,7 +668,7 @@ jobs:
             --compact
 
       - name: Export canonical MariaDB gzip shards
-        timeout-minutes: 20
+        timeout-minutes: 35
         shell: bash
         run: |
           set -euo pipefail
@@ -678,12 +678,18 @@ jobs:
             --output-dir "${BITNODES_API}/data" \
             --database zzx_bitnodes \
             --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
+            --gzip-level 6 \
+            --sql-plain-factor 4 \
+            --mariadb-only \
             --compact \
             --strict \
             --no-sqlite
 
+          test -s "${BITNODES_API}/data/mariadb_manifest.json"
+          python -m json.tool "${BITNODES_API}/data/mariadb_manifest.json" >/dev/null
+
           shopt -s nullglob
-          SHARDS=("${BITNODES_API}/data/"*.sql.gz)
+          SHARDS=("${BITNODES_API}/data/mariadb/"*.sql.gz)
           shopt -u nullglob
           if [ "${#SHARDS[@]}" -eq 0 ]; then
             printf '%s\n' "No MariaDB SQL shards were generated."
@@ -735,7 +741,7 @@ jobs:
             "https://github.com/${BITNODES_BACKUP_REPO}.git" "${TMP}"
 
           mkdir -p "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}" "${TMP}/bitnodes/latest"
-          cp -av "${BITNODES_API}/data/"*.sql.gz "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}/"
+          cp -av "${BITNODES_API}/data/mariadb/"*.sql.gz "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}/"
           cp -av "${BITNODES_API}/data/"*.json "${TMP}/bitnodes/latest/" || true
 
           git -C "${TMP}" config user.name "zzx-labs-bitnodes-bot"
