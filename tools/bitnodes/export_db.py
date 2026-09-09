@@ -23,7 +23,7 @@ APP_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_API_DIR = APP_ROOT / "bitcoin" / "bitnodes" / "api"
 DEFAULT_DATA_DIR = DEFAULT_API_DIR / "data"
 
-SCHEMA = "zzx-bitnodes-export-db-v4"
+SCHEMA = "zzx-bitnodes-export-db-v5"
 DEFAULT_DATABASE = "zzx_bitnodes"
 DEFAULT_MAX_BYTES = 24_000_000
 SAFE_DB_RE = re.compile(r"^[a-zA-Z0-9_]+$")
@@ -100,6 +100,18 @@ def sha256_text(value: str) -> str:
 
 def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
+    """Hash one input file exactly once without re-serializing its payload per node."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(max(64 * 1024, int(chunk_size)))
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def read_json(path: Path) -> Any:
@@ -204,6 +216,81 @@ def write_gzip_lines(path: Path, lines, *, compresslevel: int = 6) -> dict[str, 
         "size_bytes": path.stat().st_size,
         "sha256": hashing.hash.hexdigest(),
     }
+
+
+class StreamingSqlGzipShard:
+    """True streaming SQL gzip writer; never buffers an entire shard in memory."""
+
+    def __init__(
+        self,
+        path: Path,
+        header_lines: list[str],
+        footer_lines: list[str],
+        *,
+        compresslevel: int,
+    ) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.header_lines = header_lines
+        self.footer_lines = footer_lines
+        self.raw = self.path.open("wb")
+        self.hashing = HashingWriter(self.raw)
+        self.gz = gzip.GzipFile(
+            filename="",
+            mode="wb",
+            compresslevel=max(1, min(9, int(compresslevel))),
+            fileobj=self.hashing,
+            mtime=0,
+        )
+        self.text = io.TextIOWrapper(
+            self.gz,
+            encoding="utf-8",
+            newline="\n",
+        )
+        self.node_count = 0
+        self.plain_bytes = 0
+        self.closed = False
+
+        for line in self.header_lines:
+            self.write_text_line(line, count_node=False)
+
+    def write_text_line(self, line: str, *, count_node: bool) -> int:
+        if self.closed:
+            raise RuntimeError("cannot write to closed SQL shard")
+
+        rendered = str(line)
+        if not rendered.endswith("\n"):
+            rendered += "\n"
+
+        encoded_size = len(rendered.encode("utf-8"))
+        self.text.write(rendered)
+        self.plain_bytes += encoded_size
+
+        if count_node:
+            self.node_count += 1
+
+        return encoded_size
+
+    def close(self) -> dict[str, Any]:
+        if self.closed:
+            raise RuntimeError("SQL shard already closed")
+
+        for line in self.footer_lines:
+            self.write_text_line(line, count_node=False)
+
+        self.text.flush()
+        self.text.detach()
+        self.gz.close()
+        self.raw.flush()
+        self.raw.close()
+        self.closed = True
+
+        return {
+            "size_bytes": self.path.stat().st_size,
+            "sha256": self.hashing.hash.hexdigest(),
+            "plain_bytes": self.plain_bytes,
+            "node_count": self.node_count,
+        }
 
 
 def gzip_text(path: Path, text: str) -> int:
@@ -501,7 +588,15 @@ def normalize_array(address: str, row: list[Any]) -> dict[str, Any]:
     return record
 
 
-def normalize_record(source: str, address: str, value: Any, payload: Any, input_path: Path) -> dict[str, Any]:
+def normalize_record(
+    source: str,
+    address: str,
+    value: Any,
+    payload: Any,
+    input_path: Path,
+    *,
+    payload_hash: str | None = None,
+) -> dict[str, Any]:
     if isinstance(value, dict):
         row = dict(value)
     elif isinstance(value, list):
@@ -515,8 +610,13 @@ def normalize_record(source: str, address: str, value: Any, payload: Any, input_
     canon = canonical_address(address, host, port)
     network = infer_network(canon, row)
 
-    raw_json = json.dumps(row, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)
-    payload_hash = sha256_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)) if isinstance(payload, dict) else None
+    raw_json = json.dumps(
+        row,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+        default=str,
+    )
 
     node_id = clean(first(row, ("node_id", "id", "map_node")))
     if not node_id:
@@ -598,25 +698,58 @@ def normalize_record(source: str, address: str, value: Any, payload: Any, input_
         "last_failure": first(row, ("last_failure", "metadata.last_failure")),
         "raw_hash": sha256_text(raw_json),
         "raw_json": raw_json,
+        "updated_at_utc": utc_now(),
         "_input_path": str(input_path),
     }
 
 
 def load_records(inputs: list[Path]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    phase_started = time.monotonic()
 
     for path in inputs:
         if not path.exists():
             continue
 
+        input_started = time.monotonic()
         payload = read_json(path)
         source = infer_source(path, payload)
+        payload_hash = sha256_file(path)
+        items = node_items(payload)
 
-        for address, value in node_items(payload):
-            record = normalize_record(source, address, value, payload, path)
+        print(
+            f"load_records input={path} source={source} "
+            f"nodes={len(items)} bytes={path.stat().st_size} "
+            f"sha256={payload_hash[:12]}"
+        )
+
+        accepted = 0
+        for index, (address, value) in enumerate(items, start=1):
+            record = normalize_record(
+                source,
+                address,
+                value,
+                payload,
+                path,
+                payload_hash=payload_hash,
+            )
             if record["canonical_address"]:
                 records.append(record)
+                accepted += 1
 
+            if index % 5000 == 0:
+                print(
+                    f"load_records progress source={source} "
+                    f"processed={index}/{len(items)} accepted={accepted} "
+                    f"elapsed={time.monotonic() - input_started:.2f}s"
+                )
+
+        print(
+            f"load_records complete source={source} accepted={accepted} "
+            f"elapsed={time.monotonic() - input_started:.2f}s"
+        )
+
+    dedupe_started = time.monotonic()
     deduped: dict[tuple[str, str], dict[str, Any]] = {}
 
     for row in records:
@@ -627,13 +760,25 @@ def load_records(inputs: list[Path]) -> list[dict[str, Any]]:
             continue
 
         old = deduped[key]
-        old_score = sum(1 for field in PUBLIC_FIELDS if old.get(field) not in ("", None))
-        new_score = sum(1 for field in PUBLIC_FIELDS if row.get(field) not in ("", None))
+        old_score = sum(
+            1 for field in PUBLIC_FIELDS
+            if old.get(field) not in ("", None)
+        )
+        new_score = sum(
+            1 for field in PUBLIC_FIELDS
+            if row.get(field) not in ("", None)
+        )
 
         if new_score >= old_score:
             deduped[key] = row
 
-    return list(deduped.values())
+    output = list(deduped.values())
+    print(
+        f"load_records dedupe input={len(records)} output={len(output)} "
+        f"elapsed={time.monotonic() - dedupe_started:.2f}s "
+        f"total={time.monotonic() - phase_started:.2f}s"
+    )
+    return output
 
 
 def source_counts(records: list[dict[str, Any]]) -> dict[str, int]:
@@ -812,6 +957,7 @@ def export_mariadb_shards(
     *,
     gzip_level: int = 6,
     plain_factor: int = 4,
+    rows_per_shard: int = 5000,
 ) -> dict[str, Any]:
     if not SAFE_DB_RE.match(database):
         raise SystemExit(f"unsafe database name: {database}")
@@ -823,7 +969,9 @@ def export_mariadb_shards(
         old.unlink()
 
     generated = utc_now()
-    export_id = "export:" + sha256_text(f"{SCHEMA}:{generated}:{len(records)}")[:24]
+    export_id = "export:" + sha256_text(
+        f"{SCHEMA}:{generated}:{len(records)}"
+    )[:24]
 
     header_lines = [
         "-- ZZX-Labs Bitnodes MariaDB shard",
@@ -836,85 +984,120 @@ def export_mariadb_shards(
     ]
     footer_lines = ["SET FOREIGN_KEY_CHECKS=1;"]
 
-    header_bytes = sum(len((line + "\n").encode("utf-8")) for line in header_lines)
-    footer_bytes = sum(len((line + "\n").encode("utf-8")) for line in footer_lines)
-    plain_limit = max(1_000_000, int(max_bytes) * max(2, int(plain_factor)))
+    footer_bytes = sum(
+        len((line + "\n").encode("utf-8"))
+        for line in footer_lines
+    )
+    plain_limit = max(
+        1_000_000,
+        int(max_bytes) * max(2, int(plain_factor)),
+    )
+    row_limit = max(100, int(rows_per_shard))
 
     shards: list[dict[str, Any]] = []
     shard_no = 0
-    current: list[str] = []
-    current_plain = header_bytes + footer_bytes
+    writer: StreamingSqlGzipShard | None = None
+    export_started = time.monotonic()
 
-    def flush() -> None:
-        nonlocal current, current_plain, shard_no
-        if not current:
+    def open_writer() -> StreamingSqlGzipShard:
+        path = shard_dir / f"bitnodes_mariadb_{shard_no:04d}.sql.gz"
+        return StreamingSqlGzipShard(
+            path,
+            header_lines,
+            footer_lines,
+            compresslevel=gzip_level,
+        )
+
+    def close_writer() -> None:
+        nonlocal writer, shard_no
+        if writer is None:
             return
 
-        path = shard_dir / f"bitnodes_mariadb_{shard_no:04d}.sql.gz"
-
-        def lines():
-            yield from header_lines
-            yield from current
-            yield from footer_lines
-
-        meta = write_gzip_lines(path, lines(), compresslevel=gzip_level)
+        meta = writer.close()
         size = int(meta["size_bytes"])
+
         if size > max_bytes:
             raise SystemExit(
-                f"MariaDB shard exceeds max-bytes after compression: {path} size={size} limit={max_bytes}"
+                "MariaDB shard exceeds max-bytes after compression: "
+                f"{writer.path} size={size} limit={max_bytes}"
             )
 
         shards.append({
-            "file": path.name,
-            "path": path.relative_to(output_dir).as_posix(),
+            "file": writer.path.name,
+            "path": writer.path.relative_to(output_dir).as_posix(),
             "size_bytes": size,
-            "plain_estimate_bytes": current_plain,
-            "node_count": len(current),
+            "plain_estimate_bytes": int(meta["plain_bytes"]),
+            "node_count": int(meta["node_count"]),
             "sha256": meta["sha256"],
         })
+
         print(
             f"mariadb shard {shard_no:04d}: "
-            f"nodes={len(current)} plain≈{current_plain} gzip={size}"
+            f"nodes={meta['node_count']} "
+            f"plain={meta['plain_bytes']} gzip={size} "
+            f"elapsed={time.monotonic() - export_started:.2f}s"
         )
-        shard_no += 1
-        current = []
-        current_plain = header_bytes + footer_bytes
 
-    for row in records:
+        shard_no += 1
+        writer = None
+
+    for index, row in enumerate(records, start=1):
         line = insert_node_sql(row)
         line_size = len((line + "\n").encode("utf-8"))
 
-        if current and current_plain + line_size >= plain_limit:
-            flush()
+        if writer is None:
+            writer = open_writer()
 
-        # One pathological record should fail explicitly rather than creating
-        # an invalid oversize shard or consuming unbounded memory.
-        if not current and header_bytes + footer_bytes + line_size >= plain_limit:
-            current.append(line)
-            current_plain += line_size
-            flush()
-            continue
+        would_exceed_plain = (
+            writer.node_count > 0
+            and writer.plain_bytes + line_size + footer_bytes >= plain_limit
+        )
+        would_exceed_rows = writer.node_count >= row_limit
 
-        current.append(line)
-        current_plain += line_size
+        if would_exceed_plain or would_exceed_rows:
+            close_writer()
+            writer = open_writer()
 
-    flush()
+        writer.write_text_line(line, count_node=True)
+
+        if index % 5000 == 0:
+            print(
+                f"mariadb progress processed={index}/{len(records)} "
+                f"shards_closed={len(shards)} "
+                f"current_nodes={writer.node_count if writer else 0} "
+                f"elapsed={time.monotonic() - export_started:.2f}s"
+            )
+
+    close_writer()
 
     control_path = shard_dir / "bitnodes_mariadb_control.sql.gz"
+    counts = source_counts(records)
     control_lines = [
         "-- ZZX-Labs Bitnodes MariaDB control file",
         f"-- generated_at_utc: {generated}",
         "SET NAMES utf8mb4;",
         "SET FOREIGN_KEY_CHECKS=0;",
         schema_sql(database),
-        insert_export_sql(export_id, len(source_counts(records)), len(records), len(shards)),
+        insert_export_sql(
+            export_id,
+            len(counts),
+            len(records),
+            len(shards),
+        ),
         "SET FOREIGN_KEY_CHECKS=1;",
     ]
-    control_meta = write_gzip_lines(control_path, control_lines, compresslevel=gzip_level)
+
+    control_meta = write_gzip_lines(
+        control_path,
+        control_lines,
+        compresslevel=gzip_level,
+    )
     control_size = int(control_meta["size_bytes"])
+
     if control_size > max_bytes:
         raise SystemExit(
-            f"MariaDB control shard exceeds max-bytes: {control_size} > {max_bytes}"
+            f"MariaDB control shard exceeds max-bytes: "
+            f"{control_size} > {max_bytes}"
         )
 
     manifest = {
@@ -923,12 +1106,13 @@ def export_mariadb_shards(
         "generated_unix": unix_now(),
         "database": database,
         "export_id": export_id,
-        "format": "mariadb-sql-gzip-streaming-shards",
+        "format": "mariadb-sql-gzip-true-streaming-shards",
         "max_bytes": max_bytes,
         "plain_factor": max(2, int(plain_factor)),
+        "rows_per_shard": row_limit,
         "gzip_level": max(1, min(9, int(gzip_level))),
         "node_count": len(records),
-        "source_counts": source_counts(records),
+        "source_counts": counts,
         "control": {
             "file": control_path.name,
             "path": control_path.relative_to(output_dir).as_posix(),
@@ -941,9 +1125,17 @@ def export_mariadb_shards(
             f"mariadb/{control_path.name}",
             *[f"mariadb/{item['file']}" for item in shards],
         ],
+        "elapsed_seconds": round(
+            time.monotonic() - export_started,
+            3,
+        ),
     }
 
-    write_json(output_dir / "mariadb_manifest.json", manifest, compact=compact)
+    write_json(
+        output_dir / "mariadb_manifest.json",
+        manifest,
+        compact=compact,
+    )
     return manifest
 
 
@@ -1636,6 +1828,7 @@ def main() -> int:
     parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     parser.add_argument("--gzip-level", type=int, default=6)
     parser.add_argument("--sql-plain-factor", type=int, default=4)
+    parser.add_argument("--sql-rows-per-shard", type=int, default=5000)
     parser.add_argument(
         "--mariadb-only",
         action="store_true",
@@ -1657,7 +1850,13 @@ def main() -> int:
         print("no input files found")
         return 0
 
+    total_started = time.monotonic()
+    load_started = time.monotonic()
     records = load_records(inputs)
+    print(
+        f"phase load_records nodes={len(records)} "
+        f"elapsed={time.monotonic() - load_started:.2f}s"
+    )
 
     if not records and args.strict:
         raise SystemExit("no records found")
@@ -1665,6 +1864,7 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    mariadb_started = time.monotonic()
     mariadb_manifest = export_mariadb_shards(
         records,
         output_dir,
@@ -1673,28 +1873,34 @@ def main() -> int:
         args.compact,
         gzip_level=args.gzip_level,
         plain_factor=args.sql_plain_factor,
+        rows_per_shard=args.sql_rows_per_shard,
+    )
+    print(
+        f"phase mariadb_export "
+        f"shards={mariadb_manifest['shard_count']} "
+        f"elapsed={time.monotonic() - mariadb_started:.2f}s"
     )
 
     if args.mariadb_only:
-        sqlite_manifest = None
-        duckdb_manifest = None
-        parquet_manifest = None
-        json_manifest = None
-        csv_manifest = None
-        xml_manifest = None
-        redis_manifest = None
-        geo_manifest = None
-        map_manifest = None
-    else:
-        sqlite_manifest = export_sqlite(records, output_dir, args.compact) if not args.no_sqlite else None
-        duckdb_manifest = export_duckdb(records, output_dir, args.compact) if args.duckdb else None
-        parquet_manifest = export_parquet(records, output_dir, args.compact) if args.parquet else None
-        json_manifest = export_json_artifacts(records, output_dir, args.compact)
-        csv_manifest = export_csv_artifacts(records, output_dir)
-        xml_manifest = export_xml_artifacts(records, output_dir)
-        redis_manifest = export_redis_artifacts(records, output_dir)
-        geo_manifest = export_geo_indexes(records, output_dir, args.compact)
-        map_manifest = export_map_artifacts(records, output_dir, args.compact)
+        print(
+            "export_db complete: "
+            f"{len(records)} nodes, "
+            f"{mariadb_manifest['shard_count']} mariadb shards, "
+            f"mariadb-only=yes, "
+            f"elapsed={time.monotonic() - total_started:.2f}s, "
+            f"output={output_dir}"
+        )
+        return 0
+
+    sqlite_manifest = export_sqlite(records, output_dir, args.compact) if not args.no_sqlite else None
+    duckdb_manifest = export_duckdb(records, output_dir, args.compact) if args.duckdb else None
+    parquet_manifest = export_parquet(records, output_dir, args.compact) if args.parquet else None
+    json_manifest = export_json_artifacts(records, output_dir, args.compact)
+    csv_manifest = export_csv_artifacts(records, output_dir)
+    xml_manifest = export_xml_artifacts(records, output_dir)
+    redis_manifest = export_redis_artifacts(records, output_dir)
+    geo_manifest = export_geo_indexes(records, output_dir, args.compact)
+    map_manifest = export_map_artifacts(records, output_dir, args.compact)
 
     manifest = write_latest_and_index(
         output_dir,
@@ -1721,6 +1927,7 @@ def main() -> int:
         f"sqlite={'yes' if sqlite_manifest else 'no'}, "
         f"duckdb={'yes' if duckdb_manifest else 'no'}, "
         f"parquet={'yes' if parquet_manifest else 'no'}, "
+        f"elapsed={time.monotonic() - total_started:.2f}s, "
         f"output={output_dir}"
     )
 
