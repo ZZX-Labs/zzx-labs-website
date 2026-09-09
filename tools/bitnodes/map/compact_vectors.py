@@ -141,7 +141,7 @@ def compact_one(vector_path: Path, *, max_bytes: int) -> dict[str, Any]:
     geo = json.loads(geo_path.read_text(encoding="utf-8"))
     features = geo.get("features") if isinstance(geo, dict) else None
     if not isinstance(features, list) or not features:
-        raise ValueError(f"empty or invalid GeoJSON features: {geo_path}")
+        raise ValueError(f"empty or invalid current-run GeoJSON features: {geo_path}")
 
     old_points = original.get("points") if isinstance(original, dict) else None
     if not isinstance(old_points, list):
