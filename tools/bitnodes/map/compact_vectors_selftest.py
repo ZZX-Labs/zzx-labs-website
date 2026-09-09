@@ -100,6 +100,27 @@ def main() -> int:
 
         assert len(digests) == 1, "compatibility copies must be deterministic"
 
+        invalid_dir = root / "maps" / "invalid-current" / "data"
+        invalid_dir.mkdir(parents=True, exist_ok=True)
+        (invalid_dir / "map-points.geojson").write_text(
+            json.dumps({"type": "FeatureCollection", "features": []}),
+            encoding="utf-8",
+        )
+        (invalid_dir / "map-vectors.json").write_text(
+            json.dumps({"schema": "invalid", "points": []}),
+            encoding="utf-8",
+        )
+        try:
+            compact_vectors.compact_one(
+                invalid_dir / "map-vectors.json",
+                max_bytes=24_000_000,
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid current-run GeoJSON must remain a hard failure")
+
+
     print("compact_vectors_selftest: PASS")
     return 0
 
