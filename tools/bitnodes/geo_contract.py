@@ -598,11 +598,14 @@ def apply_geo(row: dict[str, Any], geo: dict[str, Any], host: str, ip: str | Non
         "confidence": out["geo_confidence"],
         "synthetic": False,
     }
+    # Keep one canonical nested alias for compatibility. Older crawler
+    # revisions duplicated the same geography object into geo, geoloc,
+    # location, geoip and geoip_data. At tens of thousands of nodes those
+    # aliases multiplied public JSON size and made canonical merging needlessly
+    # expensive. Top-level fields + geo_contract are authoritative.
+    for legacy_key in ("geoloc", "location", "geoip", "geoip_data"):
+        out.pop(legacy_key, None)
     out["geo"] = dict(canonical_geo)
-    out["geoloc"] = dict(canonical_geo)
-    out["location"] = dict(canonical_geo)
-    out["geoip"] = dict(canonical_geo)
-    out["geoip_data"] = dict(canonical_geo)
     out["geoip_source"] = contract["source"]
     out["geoip_confidence"] = out["geo_confidence"]
     return out
