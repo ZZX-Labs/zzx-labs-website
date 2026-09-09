@@ -108,6 +108,8 @@ jobs:
             tools/bitnodes/map/map_source_selftest.py
             tools/bitnodes/map/compact_vectors.py
             tools/bitnodes/map/compact_vectors_selftest.py
+            tools/bitnodes/map/cleanup_optional_maps.py
+            tools/bitnodes/map/cleanup_optional_maps_selftest.py
             tools/bitnodes/map/prepare_canonical.py
             tools/bitnodes/map/prepare_canonical_selftest.py
             tools/bitnodes/map/ensure_geo_data.py
@@ -148,6 +150,8 @@ jobs:
           python tools/bitnodes/map/map_source_selftest.py
           python tools/bitnodes/map/compact_vectors.py --help >/dev/null
           python tools/bitnodes/map/compact_vectors_selftest.py
+          python tools/bitnodes/map/cleanup_optional_maps.py --help >/dev/null
+          python tools/bitnodes/map/cleanup_optional_maps_selftest.py
           python tools/bitnodes/map/prepare_canonical.py --help >/dev/null
           python tools/bitnodes/map/prepare_canonical_selftest.py
           python tools/bitnodes/map/geodata_bootstrap_selftest.py
@@ -378,6 +382,19 @@ jobs:
             rm -rf "${ROOT}/zzxbitnodes/data"/*
             cp -a "${ROOT}/data/." "${ROOT}/zzxbitnodes/data/"
           done
+
+      - name: Reset stale optional Ayeowch map outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/map/cleanup_optional_maps.py \
+            --root "${BITNODES_MAPS}" \
+            --root "${BITNODES_LIVE_MAP}" \
+            --subtree originalbitnodes \
+            --report "${RUNNER_TEMP}/original-map-cleanup-report.json"
+
+          cat "${RUNNER_TEMP}/original-map-cleanup-report.json"
 
       - name: Build optional Ayeowch compatibility map
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_ayeowch_compat }}
