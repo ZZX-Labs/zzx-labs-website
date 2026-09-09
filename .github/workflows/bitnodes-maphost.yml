@@ -147,6 +147,7 @@ jobs:
           python tools/bitnodes/map/prepare_canonical.py --help >/dev/null
           python tools/bitnodes/map/prepare_canonical_selftest.py
           python tools/bitnodes/map/geodata_bootstrap_selftest.py
+          python tools/bitnodes/map/maphost_status_selftest.py
           python tools/bitnodes/map/ensure_geo_data.py --help >/dev/null
           python tools/bitnodes/geo_contract.py --help >/dev/null
 
@@ -497,23 +498,44 @@ jobs:
 
           python - <<'PY'
           import json
+          import os
           import time
           from pathlib import Path
 
-          report = json.loads(Path("${{ steps.map_source.outputs.map_report }}").read_text(encoding="utf-8"))
+          map_report_path = Path(os.environ["MAP_REPORT"])
+          if not map_report_path.is_file() or map_report_path.stat().st_size <= 0:
+              raise SystemExit(f"missing Map Host map-source report: {map_report_path}")
+
+          report = json.loads(map_report_path.read_text(encoding="utf-8"))
+
+          try:
+              max_points = int(os.environ["MAP_MAX_POINTS"])
+          except (KeyError, TypeError, ValueError) as exc:
+              raise SystemExit(
+                  f"invalid MAP_MAX_POINTS: {os.environ.get('MAP_MAX_POINTS')!r}"
+              ) from exc
+
+          if max_points < 1:
+              raise SystemExit(f"MAP_MAX_POINTS must be positive, got {max_points}")
+
           status = {
-              "schema": "zzx-bitnodes-maphost-status-v1",
+              "schema": "zzx-bitnodes-maphost-status-v2",
               "generated_at": int(time.time()),
               "source": "Map Host prepared canonical snapshot",
               "published_source_hint": "bitcoin/bitnodes/api/snapshots/latest.json",
               "source_schema": "zzx-bitnodes-canonical-v2",
               "real_coordinates_only": True,
               "synthetic_coordinates": 0,
-              "max_points": int("${MAP_MAX_POINTS}"),
+              "max_points": max_points,
               "map_source": report,
           }
 
-          text = json.dumps(status, ensure_ascii=False, separators=(",", ":")) + "\n"
+          text = json.dumps(
+              status,
+              ensure_ascii=False,
+              separators=(",", ":"),
+          ) + "\n"
+
           for path in (
               Path("bitcoin/bitnodes/maps/data/maphost-status.json"),
               Path("bitcoin/bitnodes/live-map/data/maphost-status.json"),
@@ -523,6 +545,9 @@ jobs:
               path.parent.mkdir(parents=True, exist_ok=True)
               path.write_text(text, encoding="utf-8")
           PY
+        env:
+          MAP_REPORT: ${{ steps.map_source.outputs.map_report }}
+          MAP_MAX_POINTS: ${{ env.MAP_MAX_POINTS }}
 
       - name: Enforce Map Host artifact policy
         shell: bash
