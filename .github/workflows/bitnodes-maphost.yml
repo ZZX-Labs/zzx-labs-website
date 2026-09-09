@@ -26,7 +26,7 @@ permissions:
 
 concurrency:
   group: zzx-bitnodes-maphost
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -68,12 +68,21 @@ jobs:
           persist-credentials: true
 
       - name: Sync main before map build
+        id: baseline
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
           git clean -fdx
+
+          CANONICAL_PUBLISHED="${BITNODES_API}/snapshots/latest.json"
+          test -s "${CANONICAL_PUBLISHED}"
+          BASE_HEAD="$(git rev-parse HEAD)"
+          SOURCE_SHA256="$(sha256sum "${CANONICAL_PUBLISHED}" | awk '{print $1}')"
+          printf '%s\n' "base_head=${BASE_HEAD}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "source_sha256=${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "Map Host baseline: head=${BASE_HEAD} canonical_sha256=${SOURCE_SHA256}"
 
           printf '%s\n' "Canonical Bitnodes sources available to Map Host:"
           find "${BITNODES_API}" -maxdepth 4 -type f \
@@ -617,6 +626,8 @@ jobs:
               "generated_at": int(time.time()),
               "source": "Map Host prepared canonical snapshot",
               "published_source_hint": "bitcoin/bitnodes/api/snapshots/latest.json",
+              "published_source_sha256": os.environ["PUBLISHED_SOURCE_SHA256"],
+              "source_repository_head": os.environ["SOURCE_REPOSITORY_HEAD"],
               "source_schema": "zzx-bitnodes-canonical-v2",
               "real_coordinates_only": True,
               "synthetic_coordinates": 0,
@@ -642,6 +653,8 @@ jobs:
         env:
           MAP_REPORT: ${{ steps.map_source.outputs.map_report }}
           MAP_MAX_POINTS: ${{ env.MAP_MAX_POINTS }}
+          PUBLISHED_SOURCE_SHA256: ${{ steps.baseline.outputs.source_sha256 }}
+          SOURCE_REPOSITORY_HEAD: ${{ steps.baseline.outputs.base_head }}
 
       - name: Enforce Map Host artifact policy
         shell: bash
@@ -692,11 +705,14 @@ jobs:
             exit 1
           fi
 
+          # Derived display geometry (for example a square footprint centered on a
+          # real IP geolocation) may legitimately be marked synthetic. What is
+          # forbidden is synthetic provenance on the node coordinates themselves.
           if git grep --cached -n -E \
-            'workflow-map-ready-fallback|deterministic-fallback|"synthetic"[[:space:]]*:[[:space:]]*true|"geoip_confidence"[[:space:]]*:[[:space:]]*"synthetic"' \
+            'workflow-map-ready-fallback|deterministic-fallback|"(geoip_confidence|geoip_source|geo_confidence|geo_source)"[[:space:]]*:[[:space:]]*"[^"]*synthetic[^"]*"' \
             -- "${BITNODES_MAPS}" "${BITNODES_LIVE_MAP}"
           then
-            printf '%s\n' "Refusing staged Map Host artifacts containing synthetic geography."
+            printf '%s\n' "Refusing staged Map Host artifacts containing synthetic node-coordinate provenance."
             exit 1
           fi
 
@@ -735,6 +751,19 @@ jobs:
 
           for attempt in 1 2 3 4 5; do
             git fetch origin main
+
+            EXPECTED_SOURCE_SHA256="${{ steps.baseline.outputs.source_sha256 }}"
+            REMOTE_SOURCE_SHA256="$(
+              git show "origin/main:${BITNODES_API}/snapshots/latest.json" | sha256sum | awk '{print $1}'
+            )"
+
+            if [ "${REMOTE_SOURCE_SHA256}" != "${EXPECTED_SOURCE_SHA256}" ]; then
+              printf '%s\n' \
+                "Canonical snapshot changed while Map Host was building; refusing stale publication." \
+                "expected=${EXPECTED_SOURCE_SHA256}" \
+                "remote=${REMOTE_SOURCE_SHA256}"
+              exit 1
+            fi
 
             if git rebase origin/main && git push origin HEAD:main; then
               printf '%s\n' "Canonical Bitnodes maps pushed."
