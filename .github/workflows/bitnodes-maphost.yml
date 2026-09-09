@@ -117,6 +117,8 @@ jobs:
             tools/bitnodes/map/map_source_selftest.py
             tools/bitnodes/map/compact_vectors.py
             tools/bitnodes/map/compact_vectors_selftest.py
+            tools/bitnodes/map/compact_public_map_contracts.py
+            tools/bitnodes/map/compact_public_map_contracts_selftest.py
             tools/bitnodes/map/cleanup_optional_maps.py
             tools/bitnodes/map/cleanup_optional_maps_selftest.py
             tools/bitnodes/map/prepare_canonical.py
@@ -159,6 +161,8 @@ jobs:
           python tools/bitnodes/map/map_source_selftest.py
           python tools/bitnodes/map/compact_vectors.py --help >/dev/null
           python tools/bitnodes/map/compact_vectors_selftest.py
+          python tools/bitnodes/map/compact_public_map_contracts.py --help >/dev/null
+          python tools/bitnodes/map/compact_public_map_contracts_selftest.py
           python tools/bitnodes/map/cleanup_optional_maps.py --help >/dev/null
           python tools/bitnodes/map/cleanup_optional_maps_selftest.py
           python tools/bitnodes/map/prepare_canonical.py --help >/dev/null
@@ -496,6 +500,61 @@ jobs:
           PY
         env:
           VECTOR_REPORT: ${{ runner.temp }}/map-vector-compaction-report.json
+          MAX_PUBLIC_JSON_BYTES: ${{ env.MAX_PUBLIC_JSON_BYTES }}
+
+      - name: Compact public points and live-map contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/map/compact_public_map_contracts.py \
+            --root "${BITNODES_MAPS}" \
+            --root "${BITNODES_LIVE_MAP}" \
+            --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
+            --report "${RUNNER_TEMP}/map-public-contract-compaction-report.json"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path(os.environ["PUBLIC_CONTRACT_REPORT"])
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          rows = report.get("files")
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit("public map contract compaction report contains no files")
+
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          for row in rows:
+              path = Path(row["path"])
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(f"missing compacted public map contract: {path}")
+              if path.stat().st_size > max_bytes:
+                  raise SystemExit(f"public map contract still oversized: {path}")
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              if digest != row.get("sha256"):
+                  raise SystemExit(f"public map contract digest mismatch: {path}")
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              points = payload.get("points")
+              if not isinstance(points, list) or not points:
+                  raise SystemExit(f"compacted public map contract has no points: {path}")
+              if int(payload.get("point_count") or payload.get("total_points") or 0) != len(points):
+                  raise SystemExit(f"public map contract point-count mismatch: {path}")
+              if path.name == "points.json" and "results" in payload:
+                  raise SystemExit(f"points.json still duplicates points as results: {path}")
+              if path.name == "live-map.json" and "nodes" in payload:
+                  raise SystemExit(f"live-map.json still duplicates points as nodes: {path}")
+
+          print(
+              "Public map contract compaction passed:",
+              "files=", len(rows),
+              "before=", report.get("total_before_bytes"),
+              "after=", report.get("total_after_bytes"),
+          )
+          PY
+        env:
+          PUBLIC_CONTRACT_REPORT: ${{ runner.temp }}/map-public-contract-compaction-report.json
           MAX_PUBLIC_JSON_BYTES: ${{ env.MAX_PUBLIC_JSON_BYTES }}
 
       - name: Validate canonical map output and provenance
