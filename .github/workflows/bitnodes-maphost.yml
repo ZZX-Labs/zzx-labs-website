@@ -106,6 +106,8 @@ jobs:
             tools/bitnodes/map/live-map.py
             tools/bitnodes/map/map_source.py
             tools/bitnodes/map/map_source_selftest.py
+            tools/bitnodes/map/compact_vectors.py
+            tools/bitnodes/map/compact_vectors_selftest.py
             tools/bitnodes/map/prepare_canonical.py
             tools/bitnodes/map/prepare_canonical_selftest.py
             tools/bitnodes/map/ensure_geo_data.py
@@ -144,6 +146,8 @@ jobs:
           python tools/bitnodes/map/map.py --help >/dev/null
           python tools/bitnodes/map/map_source.py --help >/dev/null
           python tools/bitnodes/map/map_source_selftest.py
+          python tools/bitnodes/map/compact_vectors.py --help >/dev/null
+          python tools/bitnodes/map/compact_vectors_selftest.py
           python tools/bitnodes/map/prepare_canonical.py --help >/dev/null
           python tools/bitnodes/map/prepare_canonical_selftest.py
           python tools/bitnodes/map/geodata_bootstrap_selftest.py
@@ -417,6 +421,57 @@ jobs:
             --fail-empty \
             --vectors-fallback
 
+      - name: Compact public map vectors
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/map/compact_vectors.py \
+            --root "${BITNODES_MAPS}" \
+            --root "${BITNODES_LIVE_MAP}" \
+            --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
+            --report "${RUNNER_TEMP}/map-vector-compaction-report.json"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path(os.environ["VECTOR_REPORT"])
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          files = report.get("files")
+          if not isinstance(files, list) or not files:
+              raise SystemExit("vector compaction report contains no files")
+
+          max_bytes = int(os.environ["MAX_PUBLIC_JSON_BYTES"])
+          for row in files:
+              path = Path(row["path"])
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(f"missing compacted vector file: {path}")
+              if path.stat().st_size > max_bytes:
+                  raise SystemExit(f"compacted vector file still oversized: {path}")
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              if digest != row.get("sha256"):
+                  raise SystemExit(f"vector digest mismatch: {path}")
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              points = payload.get("points")
+              if not isinstance(points, list) or not points:
+                  raise SystemExit(f"compacted vector file has no points: {path}")
+              if int(payload.get("point_count") or 0) != len(points):
+                  raise SystemExit(f"vector point_count mismatch: {path}")
+
+          print(
+              "Map vector compaction passed:",
+              "files=", len(files),
+              "before=", report.get("total_before_bytes"),
+              "after=", report.get("total_after_bytes"),
+          )
+          PY
+        env:
+          VECTOR_REPORT: ${{ runner.temp }}/map-vector-compaction-report.json
+          MAX_PUBLIC_JSON_BYTES: ${{ env.MAX_PUBLIC_JSON_BYTES }}
+
       - name: Validate canonical map output and provenance
         shell: bash
         run: |
@@ -464,6 +519,28 @@ jobs:
                   raise SystemExit(f"empty GeoJSON: {geo_path}")
               if not isinstance(points, list) or not points:
                   raise SystemExit(f"empty map vectors: {vector_path}")
+              if len(points) != len(features):
+                  raise SystemExit(
+                      f"vector/GeoJSON point-count mismatch in {base}: "
+                      f"vectors={len(points)} features={len(features)}"
+                  )
+
+              for point in points:
+                  if not isinstance(point, dict):
+                      raise SystemExit(f"invalid point in {vector_path}")
+                  coords = point.get("coordinates")
+                  if isinstance(coords, list) and len(coords) >= 2:
+                      lon = float(coords[0])
+                      lat = float(coords[1])
+                  else:
+                      lat = float(point.get("lat", point.get("latitude")))
+                      lon = float(point.get("lon", point.get("longitude")))
+                  if not (math.isfinite(lat) and math.isfinite(lon)):
+                      raise SystemExit(f"invalid vector coordinate in {vector_path}")
+                  if (round(lat, 6), round(lon, 6)) not in source_coords:
+                      raise SystemExit(
+                          f"vector emitted coordinate absent from canonical map source: {(lat, lon)}"
+                      )
 
               for feature in features:
                   if not isinstance(feature, dict):
