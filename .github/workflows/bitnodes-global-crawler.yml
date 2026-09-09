@@ -154,6 +154,8 @@ jobs:
             tools/bitnodes/push_ipdb.py
             tools/bitnodes/export_db.py
             tools/bitnodes/export_db_selftest.py
+            tools/bitnodes/public_artifacts.py
+            tools/bitnodes/public_artifacts_selftest.py
             tools/bitnodes/build_geo_indexes.py
             tools/bitnodes/map/map.py
             tools/bitnodes/map/maps.py
@@ -193,6 +195,7 @@ jobs:
           python tools/bitnodes/geo_contract.py --help >/dev/null
           python tools/bitnodes/geo_contract_selftest.py
           python tools/bitnodes/export_db_selftest.py
+          python tools/bitnodes/public_artifacts_selftest.py
           python -m json.tool "${BITNODES_API}/sources.json" >/dev/null
 
       - name: Prepare Bitnodes directories
@@ -217,6 +220,7 @@ jobs:
             "${BITNODES_DATA}/runtime/snapshots/24h/zzxbitnodes" \
             "${BITNODES_DATA}/geo/manifests" \
             "${BITNODES_GEOIP}/current" \
+            "${BITNODES_GEOIP}/current/shards" \
             "${BITNODES_GEOIP}/archive" \
             "${BITNODES_GEOIP}/published" \
             "${BITNODES_ARCHIVE}/runtime/zzxbitnodes" \
@@ -669,6 +673,53 @@ jobs:
             --copy-only \
             --compact
 
+      - name: Build bounded public aggregate and IPDB contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/public_artifacts.py \
+            --aggregate "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" \
+            --canonical-url "/bitcoin/bitnodes/api/snapshots/latest.json" \
+            --ipdb-latest "${BITNODES_GEOIP}/current/ip_db.latest.json" \
+            --ipdb-shard-dir "${BITNODES_GEOIP}/current/shards" \
+            --ipdb-manifest "${BITNODES_GEOIP}/current/ip_db.public-manifest.json" \
+            --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
+            --rows-per-shard 5000 \
+            --gzip-level 6 \
+            --report "${BITNODES_GEOIP}/public-artifacts-report.json"
+
+          test -s "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json"
+          test -s "${BITNODES_GEOIP}/current/ip_db.public-manifest.json"
+          test -s "${BITNODES_GEOIP}/current/ip_db.latest.json"
+          python -m json.tool "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" >/dev/null
+          python -m json.tool "${BITNODES_GEOIP}/current/ip_db.public-manifest.json" >/dev/null
+          python -m json.tool "${BITNODES_GEOIP}/current/ip_db.latest.json" >/dev/null
+
+          python - <<'PY'
+          import gzip
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("bitcoin/bitnodes/data/geoip/current")
+          manifest = json.loads((root / "ip_db.public-manifest.json").read_text(encoding="utf-8"))
+          seen = 0
+          for item in manifest.get("shards", []):
+              path = root / item["path"]
+              blob = path.read_bytes()
+              if hashlib.sha256(blob).hexdigest() != item["sha256"]:
+                  raise SystemExit(f"IPDB shard digest mismatch: {path}")
+              payload = json.loads(gzip.decompress(blob).decode("utf-8"))
+              nodes = payload.get("nodes")
+              if not isinstance(nodes, (list, dict)):
+                  raise SystemExit(f"IPDB shard has invalid nodes contract: {path}")
+              seen += len(nodes)
+          if seen != int(manifest.get("node_count") or 0):
+              raise SystemExit(f"IPDB public shard row mismatch: {seen} != {manifest.get('node_count')}")
+          print(f"bounded public contracts valid: ipdb_nodes={seen} shards={manifest.get('shard_count')}")
+          PY
+
       - name: Export canonical MariaDB gzip shards
         timeout-minutes: 15
         shell: bash
@@ -887,6 +938,23 @@ jobs:
                   elif path.suffix in {".json", ".geojson"} and path.stat().st_size > max_bytes:
                       bad.append((path.stat().st_size, path, "public JSON too large"))
 
+          required = [
+              Path(os.environ["BITNODES_API"]) / "aggregate" / "btcnodes-enriched" / "latest.json",
+              Path(os.environ["BITNODES_GEOIP"]) / "current" / "ip_db.public-manifest.json",
+          ]
+          for path in required:
+              if not path.is_file() or path.stat().st_size <= 0:
+                  bad.append((0, path, "required bounded public contract missing"))
+
+          latest = Path(os.environ["BITNODES_GEOIP"]) / "current" / "ip_db.latest.json"
+          try:
+              import json
+              latest_payload = json.loads(latest.read_text(encoding="utf-8"))
+              if latest_payload.get("schema") != "zzx-bitnodes-ipdb-public-latest-v1":
+                  bad.append((latest.stat().st_size, latest, "IPDB latest must be bounded pointer contract"))
+          except Exception:
+              bad.append((latest.stat().st_size if latest.exists() else 0, latest, "invalid IPDB latest pointer contract"))
+
           if bad:
               for size, path, reason in bad:
                   print(reason, size, path)
@@ -916,11 +984,10 @@ jobs:
             "${BITNODES_API}/aggregate/canonical/latest.json" \
             "${BITNODES_API}/data" \
             "${BITNODES_DATA}/geo/manifests" \
-            "${BITNODES_GEOIP}/current/ip_db.latest.json" \
-            "${BITNODES_GEOIP}/current/ip_db.index.json" \
-            "${BITNODES_GEOIP}/current/ip_db.stats.json" \
+            "${BITNODES_GEOIP}/current" \
             "${BITNODES_GEOIP}/ip_db.run-report.json" \
-            "${BITNODES_GEOIP}/ip_db.push-report.json"
+            "${BITNODES_GEOIP}/ip_db.push-report.json" \
+            "${BITNODES_GEOIP}/public-artifacts-report.json"
 
           # Map Host owns maps/** and live-map/** publication.
           MAP_STAGE_VIOLATIONS="$(git diff --cached --name-only | grep -E '^bitcoin/bitnodes/(maps|live-map)/' || true)"
