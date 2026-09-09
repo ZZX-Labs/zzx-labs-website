@@ -1,0 +1,179 @@
+{
+  "schema": "zzx-bitnodes-map-settings-profile-v2",
+  "id": "offline_archive",
+  "name": "Offline Archive",
+  "description": "Static historical archive mode for snapshots, reports, exported datasets, forensics, investigations, and offline review.",
+  "generated_at": "2026-05-29T01:55:25+00:00",
+  "theme": {
+    "selected": "paper_light",
+    "allow_user_override": true
+  },
+  "tiles": {
+    "provider": "cartodb_voyager"
+  },
+  "view": {
+    "latitude": 20.0,
+    "longitude": 0.0,
+    "zoom": 2,
+    "min_zoom": 2,
+    "max_zoom": 20,
+    "remember_last_position": true,
+    "remember_last_zoom": true,
+    "world_wrap": true,
+    "fit_bounds_on_load": false
+  },
+  "refresh": {
+    "enabled": false,
+    "interval_seconds": 0,
+    "interval_ms": 0,
+    "auto_reload_theme": false,
+    "auto_reload_settings": false,
+    "auto_reload_vectors": false,
+    "auto_reload_overlays": false,
+    "auto_reload_layers": false
+  },
+  "interaction": {
+    "drag_pan": true,
+    "scroll_wheel_zoom": true,
+    "double_click_zoom": true,
+    "box_zoom": true,
+    "keyboard": true,
+    "touch_zoom": true,
+    "middle_mouse_reserved_for_network_map": true,
+    "allow_marker_selection": true,
+    "allow_multi_selection": true,
+    "allow_popup_pinning": true
+  },
+  "controls": {
+    "zoom": true,
+    "zoom_position": "bottomleft",
+    "scale": true,
+    "scale_position": "bottomleft",
+    "theme_select": true,
+    "settings_select": true,
+    "reset_view": true,
+    "filters": true,
+    "map_key": true,
+    "hud": true,
+    "node_panel": true,
+    "status_bar": true,
+    "timeline": true,
+    "timeline_play_pause": false,
+    "timeline_step_forward": true,
+    "timeline_step_back": true,
+    "timeline_speed_select": false
+  },
+  "node_panel": {
+    "enabled": true,
+    "position": "topright",
+    "max_rows": 128,
+    "auto_close": false,
+    "show_timeline_state": true
+  },
+  "status_bar": {
+    "enabled": true,
+    "show_visible_points": true,
+    "show_total_points": true,
+    "show_source": true,
+    "show_theme": true,
+    "show_snapshot_timestamp": true,
+    "show_dataset_size": true
+  },
+  "timeline": {
+    "enabled": true,
+    "mode": "archive",
+    "window": "all",
+    "autoplay": false,
+    "loop": false,
+    "allow_scrubber": true,
+    "allow_snapshot_selection": true,
+    "allow_date_selection": true,
+    "show_snapshot_markers": true,
+    "show_block_height_markers": true,
+    "show_day_markers": true,
+    "show_month_markers": true,
+    "show_year_markers": true
+  },
+  "markers": {
+    "cluster_enabled": true,
+    "heatmap_enabled": false,
+    "radius_min": 4,
+    "radius_max": 12,
+    "stroke_weight": 1,
+    "opacity": 0.90,
+    "fill_opacity": 0.75,
+    "animate_new_nodes": false,
+    "animate_lost_nodes": false,
+    "pulse_new_nodes": false,
+    "flash_changed_nodes": false,
+    "show_labels": false
+  },
+  "legend": {
+    "enabled": true,
+    "show_duplicate_location": true,
+    "show_not_yet_synced": true,
+    "show_synced_10m": true,
+    "show_synced_48h": true,
+    "show_synced_1w": true,
+    "show_tor": true,
+    "show_i2p": true,
+    "show_vpn": true,
+    "show_proxy": true,
+    "show_unknown": true,
+    "show_unreachable": true
+  },
+  "filters": {
+    "default_filter": "all",
+    "multi_select": true,
+    "allow_saved_filter_sets": true,
+    "allow_export_filter_results": true
+  },
+  "performance": {
+    "prefer_canvas_renderer": true,
+    "chunked_loading": true,
+    "max_points_before_clustering": 10000,
+    "max_points_before_canvas_required": 2000,
+    "max_points_public_default": 500000,
+    "max_popup_rows": 128,
+    "debounce_filter_ms": 250
+  },
+  "exports": {
+    "allow_png_export": true,
+    "allow_svg_export": true,
+    "allow_geojson_export": true,
+    "allow_json_export": true,
+    "allow_csv_export": true,
+    "allow_report_generation": true
+  },
+  "data_sources": {
+    "preferred": "archive",
+    "fallback_order": [
+      "archive",
+      "zzxbitnodes",
+      "global",
+      "originalbitnodes"
+    ],
+    "timeline_archive_paths": [
+      "../archive/hourly/",
+      "../archive/daily/",
+      "../archive/weekly/",
+      "../archive/monthly/",
+      "../archive/yearly/",
+      "./archive/hourly/",
+      "./archive/daily/",
+      "./archive/weekly/",
+      "./archive/monthly/",
+      "./archive/yearly/"
+    ]
+  },
+  "future_features": {
+    "network_map": false,
+    "network_map_3d": false,
+    "historical_timeline": true,
+    "timeline_scrubber": true,
+    "block_replay": true,
+    "node_birth_death_animation": false,
+    "report_builder": true,
+    "research_mode": true
+  }
+}

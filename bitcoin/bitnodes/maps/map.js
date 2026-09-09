@@ -71,7 +71,7 @@
                 <div>City: ${escapeHtml(point.city || "—")}</div>
                 <div>County: ${escapeHtml(point.county || "—")}</div>
                 <div>Territory: ${escapeHtml(point.territory || "—")}</div>
-                <div>Country: ${escapeHtml([point.country_flag, point.country_code || point.country, point.country_name].filter(Boolean).join(" ") || "—")}</div>
+                <div>Country: ${escapeHtml(point.country_name || point.country || "—")}</div>
                 <div>ASN: ${escapeHtml(point.asn || "—")}</div>
                 <div>Provider: ${escapeHtml(point.provider || "—")}</div>
                 <div>Sanctioned: ${point.is_sanctioned_node ? "yes" : "no"}</div>
