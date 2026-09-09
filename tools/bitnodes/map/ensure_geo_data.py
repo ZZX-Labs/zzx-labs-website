@@ -1,130 +1,159 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import gzip
-import hashlib
-import importlib.util
+import io
 import json
-import tempfile
+import shutil
+import time
+import urllib.request
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Iterable
+
+DBIP_BASE = "https://download.db-ip.com/free"
+GEONAMES_BASE = "https://download.geonames.org/export/dump"
+DBIP_NAMES = ("city", "asn", "country")
+GEONAMES_TEXT = ("admin1CodesASCII.txt", "admin2Codes.txt")
+GEONAMES_ZIP = "cities500.zip"
+GEONAMES_CITY = "cities500.txt"
 
 
-HERE = Path(__file__).resolve().parent
-EXPORTER = HERE / "export_db.py"
+def month_candidates(back: int) -> list[str]:
+    now = datetime.now(timezone.utc)
+    year, month = now.year, now.month
+    out=[]
+    for _ in range(max(1,int(back))):
+        out.append(f"{year:04d}-{month:02d}")
+        month -= 1
+        if month == 0:
+            month = 12
+            year -= 1
+    return out
 
 
-def load_module():
-    spec = importlib.util.spec_from_file_location("zzx_export_db_selftest", EXPORTER)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load export_db.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def fetch_bytes(url: str, *, timeout: int, retries: int) -> bytes:
+    last=None
+    for attempt in range(1,max(1,retries)+1):
+        try:
+            req=urllib.request.Request(url,headers={"User-Agent":"ZZX-Labs-Bitnodes-MapHost/10.4"})
+            with urllib.request.urlopen(req,timeout=timeout) as resp:
+                data=resp.read()
+            if not data:
+                raise RuntimeError("empty response")
+            return data
+        except Exception as exc:
+            last=exc
+            if attempt < max(1,retries):
+                time.sleep(min(5,attempt))
+    raise RuntimeError(f"download failed: {url}: {last}")
 
 
-def fixture(path: Path, count: int = 2000) -> None:
-    rows = []
-    for i in range(count):
-        rows.append({
-            "address": f"8.8.{i // 250}.{(i % 250) + 1}:8333",
-            "network": "ipv4",
-            "user_agent": "/Satoshi:27.0.0/" if i % 5 else "/Knots:27.1/",
-            "protocol_version": 70016,
-            "services": 1033,
-            "height": 900000 + (i % 12),
-            "country": "US",
-            "country_name": "United States",
-            "region": "Pennsylvania",
-            "county": "Lackawanna County" if i % 2 else None,
-            "city": "Scranton",
-            "latitude": 41.4,
-            "longitude": -75.66,
-            "asn": f"AS{15000 + (i % 100)}",
-            "organization": "Fixture Network",
-            "reachable_now": True,
-            "reachable_24h": True,
-            "metadata": {"note": "x" * 96},
-        })
+def atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True,exist_ok=True)
+    tmp=path.with_suffix(path.suffix+".tmp")
+    tmp.write_bytes(data)
+    tmp.replace(path)
 
-    payload = {
-        "schema": "zzx-bitnodes-canonical-v2",
-        "source": "selftest",
-        "reachable_nodes": count,
-        "nodes": rows,
-    }
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
+
+def ensure_dbip(geoip_dir: Path, *, months_back: int, timeout: int, retries: int) -> list[dict]:
+    geoip_dir.mkdir(parents=True,exist_ok=True)
+    results=[]
+    for name in DBIP_NAMES:
+        out=geoip_dir/f"dbip-{name}-lite.mmdb"
+        if out.is_file() and out.stat().st_size > 65536:
+            results.append({"name":name,"path":str(out),"mode":"existing","bytes":out.stat().st_size})
+            continue
+        last=None
+        for month in month_candidates(months_back):
+            url=f"{DBIP_BASE}/dbip-{name}-lite-{month}.mmdb.gz"
+            try:
+                compressed=fetch_bytes(url,timeout=timeout,retries=retries)
+                data=gzip.decompress(compressed)
+                if len(data) <= 65536:
+                    raise RuntimeError(f"decompressed MMDB unexpectedly small: {len(data)}")
+                atomic_write(out,data)
+                results.append({"name":name,"path":str(out),"mode":"download","month":month,"url":url,"bytes":len(data)})
+                break
+            except Exception as exc:
+                last=exc
+        else:
+            raise RuntimeError(f"could not obtain DB-IP {name} Lite database: {last}")
+    return results
+
+
+def ensure_geonames(geo_root: Path, *, timeout: int, retries: int) -> list[dict]:
+    source=geo_root/'sources'
+    source.mkdir(parents=True,exist_ok=True)
+    results=[]
+    for filename in GEONAMES_TEXT:
+        out=source/filename
+        if out.is_file() and out.stat().st_size > 1000:
+            results.append({"name":filename,"path":str(out),"mode":"existing","bytes":out.stat().st_size})
+            continue
+        url=f"{GEONAMES_BASE}/{filename}"
+        data=fetch_bytes(url,timeout=timeout,retries=retries)
+        if len(data) <= 1000:
+            raise RuntimeError(f"GeoNames file unexpectedly small: {filename}")
+        atomic_write(out,data)
+        results.append({"name":filename,"path":str(out),"mode":"download","url":url,"bytes":len(data)})
+
+    city=source/GEONAMES_CITY
+    if city.is_file() and city.stat().st_size > 10000:
+        results.append({"name":GEONAMES_CITY,"path":str(city),"mode":"existing","bytes":city.stat().st_size})
+    else:
+        url=f"{GEONAMES_BASE}/{GEONAMES_ZIP}"
+        data=fetch_bytes(url,timeout=timeout,retries=retries)
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            member=next((n for n in zf.namelist() if n.endswith('/'+GEONAMES_CITY) or n==GEONAMES_CITY),None)
+            if not member:
+                raise RuntimeError(f"{GEONAMES_ZIP} did not contain {GEONAMES_CITY}")
+            raw=zf.read(member)
+        if len(raw) <= 10000:
+            raise RuntimeError(f"GeoNames city file unexpectedly small: {len(raw)}")
+        atomic_write(city,raw)
+        results.append({"name":GEONAMES_CITY,"path":str(city),"mode":"download","url":url,"bytes":len(raw)})
+    return results
+
+
+def verify(geoip_dir: Path, geo_root: Path) -> dict:
+    required=[
+        geoip_dir/'dbip-city-lite.mmdb',
+        geoip_dir/'dbip-asn-lite.mmdb',
+        geoip_dir/'dbip-country-lite.mmdb',
+        geo_root/'sources'/'admin1CodesASCII.txt',
+        geo_root/'sources'/'admin2Codes.txt',
+        geo_root/'sources'/'cities500.txt',
+    ]
+    missing=[str(p) for p in required if not p.is_file() or p.stat().st_size <= 0]
+    if missing:
+        raise RuntimeError(f"geodata verification failed: {missing}")
+    return {"schema":"zzx-bitnodes-map-geodata-v1","files":[{"path":str(p),"bytes":p.stat().st_size} for p in required]}
 
 
 def main() -> int:
-    module = load_module()
-
-    with tempfile.TemporaryDirectory() as td:
-        root = Path(td)
-        source = root / "canonical.json"
-        output = root / "data"
-        fixture(source)
-
-        original_hash = module.sha256_file
-        hash_calls = {"count": 0}
-
-        def counted_hash(path: Path, chunk_size: int = 1024 * 1024) -> str:
-            hash_calls["count"] += 1
-            return original_hash(path, chunk_size)
-
-        module.sha256_file = counted_hash
-        records = module.load_records([source])
-
-        assert len(records) == 2000
-        assert hash_calls["count"] == 1, (
-            "input payload must be hashed exactly once; "
-            f"got {hash_calls['count']} calls"
-        )
-
-        manifest = module.export_mariadb_shards(
-            records,
-            output,
-            "zzx_bitnodes",
-            24_000_000,
-            True,
-            gzip_level=6,
-            plain_factor=4,
-            rows_per_shard=500,
-        )
-
-        assert manifest["node_count"] == 2000
-        assert manifest["shard_count"] == 4
-        assert manifest["format"] == "mariadb-sql-gzip-true-streaming-shards"
-
-        for item in manifest["shards"]:
-            path = output / item["path"]
-            assert path.is_file()
-            assert path.stat().st_size <= 24_000_000
-            assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
-            with gzip.open(path, "rt", encoding="utf-8") as handle:
-                for _ in handle:
-                    pass
-
-        first = output / manifest["shards"][0]["path"]
-        insert = None
-        with gzip.open(first, "rt", encoding="utf-8") as handle:
-            for line in handle:
-                if line.startswith("INSERT INTO bitnodes_nodes"):
-                    insert = line
-                    break
-
-        assert insert is not None
-        prefix = insert.split(" ON DUPLICATE KEY UPDATE ", 1)[0]
-        values = prefix.rsplit(" VALUES (", 1)[1].rsplit(")", 1)[0]
-        updated_at = values.rsplit(", ", 1)[1]
-        assert updated_at.startswith("'20") and "T" in updated_at and updated_at.endswith("'")
-        assert updated_at != "NULL"
-
-    print("export_db_selftest: PASS")
+    ap=argparse.ArgumentParser(description="Ensure DB-IP Lite + GeoNames files required by Bitnodes Map Host IP geolocation.")
+    ap.add_argument('--geoip-dir',required=True)
+    ap.add_argument('--geo-root',required=True)
+    ap.add_argument('--months-back',type=int,default=6)
+    ap.add_argument('--timeout',type=int,default=60)
+    ap.add_argument('--retries',type=int,default=3)
+    ap.add_argument('--report',default='')
+    ap.add_argument('--verify-only',action='store_true')
+    args=ap.parse_args()
+    geoip=Path(args.geoip_dir); geo=Path(args.geo_root)
+    if args.verify_only:
+        report=verify(geoip,geo)
+    else:
+        report={"schema":"zzx-bitnodes-map-geodata-v1","dbip":ensure_dbip(geoip,months_back=args.months_back,timeout=args.timeout,retries=args.retries),"geonames":ensure_geonames(geo,timeout=args.timeout,retries=args.retries)}
+        report.update(verify(geoip,geo))
+    if args.report:
+        Path(args.report).parent.mkdir(parents=True,exist_ok=True)
+        Path(args.report).write_text(json.dumps(report,indent=2)+"\n",encoding='utf-8')
+    print(json.dumps(report))
     return 0
 
-
-if __name__ == "__main__":
+if __name__=='__main__':
     raise SystemExit(main())
