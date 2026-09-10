@@ -112,6 +112,11 @@
       "ZZXNodesUI"
     );
     await loadScript(
+      `${base(core)}/js/ipaddresses.js`,
+      ()=>Number(W.ZZXNodeIPAddresses?.__version||0)>=1,
+      "ZZXNodeIPAddresses"
+    );
+    await loadScript(
       `${base(core)}/js/chart.js`,
       ()=>Number(W.ZZXNodesChart?.__version||0)>=5,
       "ZZXNodesChart"
@@ -128,11 +133,121 @@
     return `${integer(value)} · ${pct(m.total>0?value/m.total:NaN)}`;
   }
 
+  function filteredIPRows(root,state){
+    let rows=state.ipAddresses?.rows||[];
+
+    const version=String(q(root,"[data-nodes-ip-version]")?.value||"all");
+    if(version==="4")rows=rows.filter(row=>row.version===4);
+    else if(version==="6")rows=rows.filter(row=>row.version===6);
+
+    const needle=String(q(root,"[data-nodes-ip-search]")?.value||"")
+      .trim()
+      .toLowerCase();
+
+    if(needle){
+      rows=rows.filter(row=>
+        [
+          row.ip,
+          row.address,
+          row.network,
+          row.port
+        ].join(" ").toLowerCase().includes(needle)
+      );
+    }
+
+    return rows;
+  }
+
+  function renderIPRows(root,state){
+    const body=q(root,"[data-nodes-ip-body]");
+    if(!body)return;
+
+    const rows=filteredIPRows(root,state);
+    body.replaceChildren();
+
+    set(
+      root,
+      "[data-nodes-ip-count]",
+      `${rows.length.toLocaleString()} visible / ${(state.ipAddresses?.count||0).toLocaleString()} total`
+    );
+
+    if(!rows.length){
+      const empty=D.createElement("div");
+      empty.className="nodes__ip-empty";
+      empty.textContent="No IP addresses match this filter.";
+      body.appendChild(empty);
+      return;
+    }
+
+    const fragment=D.createDocumentFragment();
+
+    rows.forEach((item,index)=>{
+      const row=D.createElement("div");
+      row.className="nodes__ip-row";
+      row.setAttribute("role","row");
+
+      const rank=D.createElement("div");
+      rank.textContent=String(index+1);
+
+      const ip=D.createElement("div");
+      ip.className="nodes__ip-address";
+      ip.textContent=item.ip;
+      ip.title=item.address;
+
+      const network=D.createElement("div");
+      const badge=D.createElement("span");
+      badge.className="nodes__ip-badge";
+      badge.textContent=item.version===6?"IPv6":"IPv4";
+      network.appendChild(badge);
+
+      const port=D.createElement("div");
+      port.className="nodes__num";
+      port.textContent=item.port==null?"—":String(item.port);
+
+      const count=D.createElement("div");
+      count.className="nodes__num";
+      count.textContent=Number(item.count||1).toLocaleString();
+
+      row.append(rank,ip,network,port,count);
+      fragment.appendChild(row);
+    });
+
+    body.appendChild(fragment);
+  }
+
+  async function copyVisibleIPs(root,state){
+    const rows=filteredIPRows(root,state);
+    if(!rows.length)return;
+
+    const text=rows.map(row=>row.ip).join("\\n");
+    const button=q(root,"[data-nodes-ip-copy]");
+
+    try{
+      await W.navigator.clipboard.writeText(text);
+      if(button){
+        const prior=button.textContent;
+        button.textContent=`Copied ${rows.length.toLocaleString()}`;
+        W.setTimeout(()=>{button.textContent=prior;},1200);
+      }
+    }catch(_){
+      if(button){
+        button.textContent="Copy failed";
+        W.setTimeout(()=>{button.textContent="Copy visible";},1200);
+      }
+    }
+  }
+
   function render(root,state){
     const detail=state.detail;
     const snapshot=detail?.snapshot;
     const m=state.model;
     if(!snapshot||!m)return;
+
+    state.ipAddresses=W.ZZXNodeIPAddresses.build(snapshot);
+    set(root,"[data-nodes-ipv4-count]",integer(state.ipAddresses.ipv4Count));
+    set(root,"[data-nodes-ipv6-count]",integer(state.ipAddresses.ipv6Count));
+    set(root,"[data-nodes-ip-overlay]",integer(state.ipAddresses.overlayOrHostname));
+    renderIPRows(root,state);
 
     set(root,"[data-nodes-total]",integer(m.total));
     set(root,"[data-nodes-height]",integer(m.latestHeight));
@@ -218,8 +333,9 @@
     status(root,detail.stale?"cached":"live",detail.stale?"warn":"ok");
 
     W.ZZXNodesOverview=Object.freeze({
-      schema:"zzx-nodes-overview-export-v5",
+      schema:"zzx-nodes-overview-export-v6",
       ...m,
+      ipAddresses:state.ipAddresses,
       source:detail.source,
       transport:detail.transport,
       updatedMs:Number.isFinite(updated)?updated:null
@@ -297,6 +413,7 @@
       detail:null,
       model:null,
       history:[],
+      ipAddresses:null,
       busy:false,
       unsubscribe:null,
       abortController,
@@ -315,6 +432,28 @@
       q(root,"[data-nodes-refresh]")?.addEventListener(
         "click",
         ()=>refresh(root,state,true),
+        options
+      );
+
+      q(root,"[data-nodes-ip-search]")?.addEventListener(
+        "input",
+        ()=>renderIPRows(root,state),
+        options
+      );
+
+      q(root,"[data-nodes-ip-version]")?.addEventListener(
+        "change",
+        ()=>{
+          const scroller=q(root,"[data-nodes-ip-scroll]");
+          if(scroller)scroller.scrollTop=0;
+          renderIPRows(root,state);
+        },
+        options
+      );
+
+      q(root,"[data-nodes-ip-copy]")?.addEventListener(
+        "click",
+        ()=>copyVisibleIPs(root,state),
         options
       );
 
