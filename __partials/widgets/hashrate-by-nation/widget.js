@@ -114,7 +114,7 @@
 
     await loadScript(
       `${base(core)}/js/charts.js`,
-      ()=>Number(W.ZZXHashrateNationCharts?.__version||0)>=4,
+      ()=>Number(W.ZZXHashrateNationCharts?.__version||0)>=5,
       "ZZXHashrateNationCharts"
     );
 
