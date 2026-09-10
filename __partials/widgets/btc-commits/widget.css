@@ -1,25 +1,236 @@
-.btc-commits{
-  --bc-green:var(--zzx-accent,#c0d674);--bc-gold:var(--zzx-accent-alt,#e6a42b);
-  --bc-muted:var(--zzx-muted,#b7bf9a);--bc-dim:var(--zzx-dim,#777);
-  --bc-line:rgba(255,255,255,.09);--bc-panel:rgba(255,255,255,.018);width:100%;min-width:0
+/* __partials/widgets/btc-commits/widget.css */
+[data-widget-root="btc-commits"]{
+  --g:#c0d674;
+  --a:#e6a42b;
+  --m:#aab294;
+  --d:#646a5d;
+  --line:rgba(192,214,116,.14);
+  --line2:rgba(255,255,255,.06);
+
+  display:block !important;
+  flex:none !important;
+  grid-template-columns:none !important;
+  grid-template-rows:none !important;
+  grid-auto-flow:initial !important;
+  align-items:initial !important;
+  justify-content:initial !important;
+
+  width:100% !important;
+  min-width:0 !important;
+  overflow:hidden;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+
+  position:relative;
+  background:#090a09;
 }
-.btc-commits__header,.btc-commits__footer{display:flex;align-items:center;justify-content:space-between;gap:.6rem;min-width:0}
-.btc-commits__header{align-items:flex-start}
-.btc-commits__eyebrow,.btc-commits__hero>span,.btc-commits__metrics span{color:var(--bc-dim);font-size:.64rem;letter-spacing:.055em;text-transform:uppercase}
-.btc-commits__hero{display:grid;gap:.08rem;margin-top:.5rem;padding:.55rem 0 .58rem;border-top:1px solid var(--bc-line);border-bottom:1px solid var(--bc-line)}
-.btc-commits__hero strong{color:var(--bc-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:1.15rem;line-height:1.05;font-weight:500}
-.btc-commits__hero small{color:var(--bc-gold);font-size:.68rem;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btc-commits__metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.38rem;margin-top:.5rem}
-.btc-commits__metrics>div{min-width:0;padding:.38rem .42rem;border:1px solid var(--bc-line);border-radius:6px;background:var(--bc-panel)}
-.btc-commits__metrics span,.btc-commits__metrics strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btc-commits__metrics strong{margin-top:.1rem;color:var(--bc-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.72rem;font-weight:500}
-.btc-commits__list{display:grid;gap:.3rem;max-height:230px;margin-top:.5rem;overflow:auto}
-.btc-commits__row{display:grid;grid-template-columns:5.5rem minmax(0,1fr) auto;gap:.45rem;align-items:start;padding:.34rem .4rem;border:1px solid rgba(255,255,255,.06);border-radius:5px;background:#080808}
-.btc-commits__row code{color:var(--bc-green);font-size:.62rem}
-.btc-commits__row-main{min-width:0}.btc-commits__row-message{color:var(--bc-muted);font-size:.62rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btc-commits__row-author{margin-top:.08rem;color:var(--bc-dim);font-size:.56rem}.btc-commits__row-time{color:var(--bc-dim);font-size:.56rem;white-space:nowrap}
-.btc-commits__footer{margin-top:.46rem;padding-top:.42rem;border-top:1px solid var(--bc-line);color:var(--bc-muted);font-size:.65rem}
-.btc-commits__footer>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(max-width:720px){.btc-commits__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:520px){.btc-commits__row{grid-template-columns:4.8rem minmax(0,1fr)}.btc-commits__row-time{grid-column:2}}
-@media(max-width:420px){.btc-commits__metrics{grid-template-columns:1fr}.btc-commits__footer{align-items:flex-start;flex-direction:column}}
+
+[data-widget-root="btc-commits"]::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto;
+  height:2px;
+  background:linear-gradient(90deg,var(--a) 0 9%,var(--g) 9% 25%,transparent 25%);
+}
+
+[data-widget-root="btc-commits"] *{box-sizing:border-box}
+
+.btc-commits__topline,
+.btc-commits__footer,
+.btc-commits__readout-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
+}
+
+.btc-commits__topline{align-items:flex-start}
+
+.btc-commits__identity{
+  display:grid;
+  gap:.06rem;
+  min-width:0;
+}
+
+.btc-commits__kicker,
+.btc-commits__latest>span,
+.btc-commits__rail span,
+.btc-commits__readout-head span{
+  color:var(--d);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.49rem;
+  letter-spacing:.085em;
+  text-transform:uppercase;
+}
+
+.btc-commits__identity>a{
+  width:max-content;
+  max-width:100%;
+  color:#70786a;
+  text-decoration:none;
+  font-size:.54rem;
+}
+
+.btc-commits__identity>a:hover{color:var(--g)}
+
+.btc-commits__latest{
+  margin-top:.58rem;
+  padding:.48rem 0;
+  border-top:1px solid var(--line2);
+  border-bottom:1px solid var(--line);
+}
+
+.btc-commits__latest>span{display:block}
+
+.btc-commits__latest>a{
+  display:grid;
+  gap:.08rem;
+  margin-top:.15rem;
+  min-width:0;
+  color:inherit;
+  text-decoration:none;
+}
+
+.btc-commits__latest strong{
+  color:var(--g);
+  font-size:.67rem;
+  font-weight:500;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.btc-commits__latest small{
+  color:#70786a;
+  font-size:.51rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.btc-commits__rail{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  padding:.4rem 0;
+  border-bottom:1px solid var(--line2);
+}
+
+.btc-commits__rail>div{
+  min-width:0;
+  padding:0 .55rem;
+  border-right:1px solid var(--line2);
+}
+
+.btc-commits__rail>div:first-child{padding-left:0}
+.btc-commits__rail>div:last-child{border-right:0}
+
+.btc-commits__rail span,
+.btc-commits__rail strong{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.btc-commits__rail strong{
+  margin-top:.08rem;
+  color:var(--m);
+  font-size:.64rem;
+  font-weight:500;
+}
+
+.btc-commits__rail>div:first-child strong{color:var(--g)}
+.btc-commits__rail>div:nth-child(2) strong{color:var(--a)}
+
+.btc-commits__toolbar{margin-top:.4rem}
+
+.btc-commits__toolbar input{
+  width:100%;
+  min-width:0;
+  padding:.28rem .34rem;
+  border:0;
+  border-bottom:1px solid #30342f;
+  background:#070807;
+  color:var(--g);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.55rem;
+  outline:none;
+}
+
+.btc-commits__toolbar input:focus{border-bottom-color:var(--a)}
+
+.btc-commits__readout-head{
+  margin-top:.42rem;
+  padding-top:.34rem;
+  border-top:1px solid var(--line2);
+}
+
+.btc-commits__readout-head strong{
+  color:var(--g);
+  font-size:.54rem;
+  font-weight:500;
+}
+
+.btc-commits__scroll{
+  max-height:460px;
+  margin-top:.2rem;
+  overflow:auto;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  scrollbar-width:thin;
+}
+
+.btc-commits__item{
+  display:grid;
+  grid-template-columns:72px minmax(0,1fr) 115px;
+  gap:.45rem;
+  min-width:0;
+  padding:.34rem .36rem;
+  border-bottom:1px solid rgba(255,255,255,.045);
+}
+
+.btc-commits__item:last-child{border-bottom:0}
+.btc-commits__item:hover{background:rgba(192,214,116,.025)}
+
+.btc-commits__sha{
+  color:var(--a);
+  text-decoration:none;
+  font-size:.53rem;
+}
+
+.btc-commits__message{
+  min-width:0;
+  color:#aab294;
+  font-size:.57rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.btc-commits__who{
+  color:#656c61;
+  font-size:.49rem;
+  text-align:right;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.btc-commits__footer{
+  margin-top:.38rem;
+  color:#5e655a;
+  font-size:.47rem;
+}
+
+.btc-commits__footer>span{
+  min-width:0;
+  overflow-wrap:anywhere !important;
+  word-break:break-word !important;
+}
+
+@media(max-width:620px){
+  .btc-commits__rail{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .btc-commits__item{grid-template-columns:62px minmax(0,1fr)}
+  .btc-commits__who{grid-column:2;text-align:left}
+}
