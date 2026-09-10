@@ -89,13 +89,13 @@
   async function ensureModules(core){
     await loadScript(
       "/__partials/widgets/_shared/zzx-bitnodes.js",
-      ()=>Number(W.ZZXBitnodes?.__version||0)>=5,
+      ()=>Number(W.ZZXBitnodes?.__version||0)>=7,
       "ZZXBitnodes"
     );
 
     await loadScript(
       `${base(core)}/js/model.js`,
-      ()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=1,
+      ()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=2,
       "ZZXNodesByVersionModel"
     );
   }
@@ -116,7 +116,10 @@
       [
         row.userAgent,
         row.family,
-        row.version
+        row.version,
+        row.country,
+        row.countryName,
+        row.flag
       ].join(" ").toLowerCase().includes(needle)
     );
   }
@@ -154,6 +157,7 @@
           String(state.page*size+index+1),
           item.userAgent,
           item.family,
+          item.nationLabel||`${item.flag||"🏴"} ${item.countryName||"Unlocated"} · ${item.country||"--"}`,
           integer(item.count),
           pct(item.share)
         ];
@@ -161,11 +165,11 @@
         values.forEach((value,i)=>{
           const cell=D.createElement("div");
           cell.setAttribute("role","cell");
-          if(i>=3)cell.classList.add("nodes-by-version__num");
+          if(i>=4)cell.classList.add("nodes-by-version__num");
           cell.textContent=value;
 
           if(i===1){
-            cell.title=`${item.userAgent} · ${item.family} · version ${item.version}`;
+            cell.title=`${item.userAgent} · ${item.family} · version ${item.version} · ${item.nationLabel||item.countryName||"Unlocated"}`;
           }
 
           row.appendChild(cell);
@@ -202,7 +206,7 @@
     set(
       root,
       "[data-nbv-sub]",
-      `${m.distinctAgents.toLocaleString()} exact user-agent string${m.distinctAgents===1?"":"s"} · `+
+      `${m.distinctAgents.toLocaleString()} exact user-agent string${m.distinctAgents===1?"":"s"} across ${m.rowCount.toLocaleString()} version × nation rows · `+
       `${Number.isFinite(coverage)?pct(coverage):"coverage unavailable"}`
     );
 
@@ -245,13 +249,13 @@
     set(
       root,
       "[data-nbv-source]",
-      `${result.source||snapshot.source||"—"} · ${result.transport||"shared"}${result.stale?" · stale":""}`
+      `${result.source||snapshot.source||"—"} · ${result.transport||"shared"}${result.stale?" · stale":""} · geo ${snapshot.geography?.source||"unavailable"}`
     );
 
     set(
       root,
       "[data-nbv-meta]",
-      "ZZXBitnodes v5 shared snapshot · exact user-agent strings retained · zero per-widget node API calls"
+      `ZZXBitnodes v7 · version × nation rows · ${integer(m.locatedObserved)} located / ${integer(m.unlocatedObserved)} unlocated · zero duplicate node API calls`
     );
 
     renderTable(root,state);
@@ -263,10 +267,14 @@
     );
 
     W.ZZXNodesByVersion=Object.freeze({
-      schema:"zzx-nodes-by-version-export-v1",
+      schema:"zzx-nodes-by-version-export-v2",
       rows:m.rows,
+      agents:m.agents,
       families:m.families,
       totalObserved:m.totalObserved,
+      locatedObserved:m.locatedObserved,
+      unlocatedObserved:m.unlocatedObserved,
+      geographySource:m.geographySource,
       reachable:m.reachable,
       decoded:m.decoded,
       core:m.core,
