@@ -16,7 +16,7 @@
   }
   async function ensure(core){
     await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXBitcoinPRModel?.__version||0)>=1);
-    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinPRProvider?.__version||0)>=1);
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinPRProvider?.__version||0)>=2);
     await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXBitcoinPRUI?.__version||0)>=1);
   }
   function filtered(root,state){
