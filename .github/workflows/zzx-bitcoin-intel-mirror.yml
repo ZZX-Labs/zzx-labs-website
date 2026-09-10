@@ -1,0 +1,66 @@
+
+name: ZZX Bitcoin Intel Mirror
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-bitcoin-intel-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Mirror Bitcoin engineering and public-reporting sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bitcoin-intel/sync.py --root .
+
+      - name: Validate generated JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          find bitcoin/intel/api bitcoin/github/api/repos \
+            -type f -name '*.json' -print0 |
+          while IFS= read -r -d '' file; do
+            python -m json.tool "$file" >/dev/null
+          done
+
+      - name: Commit mirrors
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-bitcoin-intel-bot"
+          git config user.email "actions@users.noreply.github.com"
+
+          git add bitcoin/intel/api bitcoin/github/api/repos
+
+          if git diff --cached --quiet; then
+            printf '%s\n' "Bitcoin Intel mirrors already current."
+            exit 0
+          fi
+
+          git commit -m "data: sync Bitcoin Intel mirrors"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
