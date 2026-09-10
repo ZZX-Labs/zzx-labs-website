@@ -2,7 +2,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXNodesByVersionModel?.__version>=2)return;
+  if(W.ZZXNodesByVersionModel?.__version>=3)return;
 
   function finite(value){const n=Number(value);return Number.isFinite(n)?n:NaN;}
   function text(value){return String(value??"").trim();}
@@ -86,7 +86,7 @@
     const locatedObserved=rows.filter(row=>row.located).reduce((sum,row)=>sum+row.count,0);
 
     return Object.freeze({
-      schema:"zzx-nodes-by-version-model-v2",
+      schema:"zzx-nodes-by-version-model-v3",
       rows:Object.freeze(rows.map(Object.freeze)),
       agents:Object.freeze(agents.map(Object.freeze)),
       families:Object.freeze(familyRows.map(Object.freeze)),
@@ -109,5 +109,5 @@
     });
   }
 
-  W.ZZXNodesByVersionModel=Object.freeze({__version:2,family,version,countryMeta,build});
+  W.ZZXNodesByVersionModel=Object.freeze({__version:3,family,version,countryMeta,build});
 })();
