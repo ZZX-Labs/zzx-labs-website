@@ -1,18 +1,44 @@
-<div class="btc-card btc-commits">
-  <div class="btc-commits__header">
-    <div><div class="btc-card__title">BTC Commits</div><div class="btc-commits__eyebrow">Bitcoin Core repository activity</div></div>
-    <span class="btc-card__status" data-commits-status data-status="offline" aria-live="polite">loading</span>
+<!-- __partials/widgets/btc-commits/widget.html -->
+<div class="btc-card btc-commits" data-widget-root="btc-commits">
+  <header class="btc-commits__topline">
+    <div class="btc-commits__identity">
+      <span class="btc-commits__kicker">GITHUB / BITCOIN CORE</span>
+      <div class="btc-card__title">BTC Commits</div>
+      <a href="https://github.com/bitcoin/bitcoin/commits/master/" target="_blank" rel="noopener noreferrer">bitcoin / bitcoin · master</a>
+    </div>
+    <span class="btc-card__status" data-btc-commits-status data-status="offline">loading</span>
+  </header>
+
+  <section class="btc-commits__latest">
+    <span>LATEST COMMIT</span>
+    <a data-btc-commits-latest-link href="#" target="_blank" rel="noopener noreferrer">
+      <strong data-btc-commits-latest-title>—</strong>
+      <small data-btc-commits-latest-meta>—</small>
+    </a>
+  </section>
+
+  <div class="btc-commits__rail">
+    <div><span>24H</span><strong data-btc-commits-24h>—</strong></div>
+    <div><span>7D</span><strong data-btc-commits-7d>—</strong></div>
+    <div><span>AUTHORS</span><strong data-btc-commits-authors>—</strong></div>
+    <div><span>FEED</span><strong data-btc-commits-size>—</strong></div>
   </div>
-  <div class="btc-commits__hero"><span>latest commit</span><strong data-commits-sha>—</strong><small data-commits-message>—</small></div>
-  <div class="btc-commits__metrics">
-    <div><span>24h commits</span><strong data-commits-24h>—</strong></div>
-    <div><span>7d commits</span><strong data-commits-7d>—</strong></div>
-    <div><span>sample authors</span><strong data-commits-authors>—</strong></div>
-    <div><span>sample size</span><strong data-commits-count>—</strong></div>
+
+  <div class="btc-commits__toolbar">
+    <input type="search" data-btc-commits-search placeholder="FILTER SHA / MESSAGE / AUTHOR" aria-label="Filter Bitcoin Core commits" autocomplete="off" spellcheck="false">
   </div>
-  <div class="btc-commits__list" data-commits-list aria-label="Recent Bitcoin Core commits"></div>
-  <div class="btc-commits__footer">
-    <span data-commits-meta>local mirror → GitHub Bitcoin Core fallback</span>
-    <button type="button" class="zzx-widgets__btn" data-commits-refresh>Refresh</button>
+
+  <div class="btc-commits__readout-head">
+    <span>RECENT COMMITS</span>
+    <strong data-btc-commits-visible>—</strong>
   </div>
+
+  <div class="btc-commits__scroll" data-btc-commits-scroll>
+    <div data-btc-commits-list></div>
+  </div>
+
+  <footer class="btc-commits__footer">
+    <span data-btc-commits-source>source —</span>
+    <button type="button" class="zzx-widgets__btn" data-btc-commits-refresh>REFRESH</button>
+  </footer>
 </div>
