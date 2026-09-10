@@ -1,76 +1,155 @@
+<!-- __partials/widgets/nodes-by-city/widget.html -->
 <div class="btc-card nodes-by-city">
   <div class="nodes-by-city__header">
     <div>
       <div class="btc-card__title">Nodes by City</div>
-      <div class="nodes-by-city__eyebrow">reachable-node geography · shared ZZX Bitnodes snapshot</div>
+      <div class="nodes-by-city__eyebrow">
+        reachable-node geography · shared ZZX Bitnodes + Map Host enrichment
+      </div>
     </div>
-    <span class="btc-card__status" data-nbc-status data-status="offline" aria-live="polite">loading</span>
+
+    <span
+      class="btc-card__status"
+      data-nbc-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
   </div>
 
   <div class="nodes-by-city__hero">
     <span>city-geolocated reachable nodes</span>
     <strong data-nbc-summary>—</strong>
-    <small data-nbc-sub>loading shared city distribution…</small>
+    <small data-nbc-sub>loading city distribution…</small>
   </div>
 
   <div class="nodes-by-city__metrics">
-    <div><span>cities</span><strong data-nbc-city-count>—</strong></div>
+    <div><span>city rows</span><strong data-nbc-city-count>—</strong></div>
     <div><span>top city</span><strong data-nbc-top-city>—</strong></div>
-    <div><span>top-network share</span><strong data-nbc-top-share>—</strong></div>
+    <div><span>top network share</span><strong data-nbc-top-share>—</strong></div>
     <div><span>city coverage</span><strong data-nbc-coverage>—</strong></div>
   </div>
 
   <div class="nodes-by-city__coverage">
+    <div class="nodes-by-city__coverage-head">
+      <span>city geolocation coverage</span>
+      <strong data-nbc-coverage-label>—</strong>
+    </div>
+
     <div class="nodes-by-city__coverage-bar" aria-label="City geolocation coverage">
       <span data-nbc-bar-known></span>
       <span data-nbc-bar-unknown></span>
     </div>
+
     <div class="nodes-by-city__coverage-legend">
       <span>city known <strong data-nbc-known>—</strong></span>
       <span>city unknown <strong data-nbc-unknown>—</strong></span>
+      <span>Map Host joins <strong data-nbc-geo-joins>—</strong></span>
     </div>
   </div>
 
-  <div class="nodes-by-city__controls">
-    <input type="search" data-nbc-search placeholder="filter city / country" aria-label="Filter nodes by city" autocomplete="off" spellcheck="false">
-    <label>
-      <span>rows</span>
-      <select data-nbc-page-size aria-label="Rows per page">
-        <option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="50">50</option>
-      </select>
-    </label>
-    <button type="button" class="zzx-widgets__btn" data-nbc-refresh>Refresh</button>
+  <div class="nodes-by-city__leaders">
+    <div class="nodes-by-city__section-head">
+      <div class="nodes-by-city__section-title">
+        <span>Largest observed city populations</span>
+        <strong data-nbc-leader-count>—</strong>
+      </div>
+    </div>
+
+    <div class="nodes-by-city__leader-list" data-nbc-leaders></div>
   </div>
 
-  <div class="nodes-by-city__table-wrap">
-    <div class="nodes-by-city__table" role="table" aria-label="Reachable Bitcoin nodes by city">
+  <div class="nodes-by-city__section-head">
+    <div class="nodes-by-city__section-title">
+      <span>City readout</span>
+      <strong data-nbc-visible-count>—</strong>
+    </div>
+    <span class="nodes-by-city__scroll-hint">all matching cities · scroll to browse</span>
+  </div>
+
+  <div class="nodes-by-city__controls">
+    <input
+      type="search"
+      data-nbc-search
+      placeholder="filter city / region / nation / ISO"
+      aria-label="Filter nodes by city"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <label>
+      <span>sort</span>
+      <select data-nbc-sort aria-label="Sort cities">
+        <option value="nodes">Nodes ↓</option>
+        <option value="city">City A–Z</option>
+        <option value="region">Region A–Z</option>
+        <option value="nation">Nation A–Z</option>
+        <option value="iso">ISO A–Z</option>
+        <option value="share">Geo share ↓</option>
+      </select>
+    </label>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-nbc-refresh
+      aria-label="Refresh shared nodes snapshot"
+    >Refresh</button>
+  </div>
+
+  <div class="nodes-by-city__table-wrap" data-nbc-scroll>
+    <div
+      class="nodes-by-city__table"
+      role="table"
+      aria-label="Reachable Bitcoin nodes by city, region, and nation"
+    >
       <div class="nodes-by-city__row nodes-by-city__head" role="row">
         <div role="columnheader">#</div>
         <div role="columnheader">City</div>
+        <div role="columnheader">Region</div>
         <div role="columnheader">Nation</div>
         <div class="nodes-by-city__num" role="columnheader">Nodes</div>
         <div class="nodes-by-city__num" role="columnheader">Network Share</div>
         <div class="nodes-by-city__num" role="columnheader">Geo Share</div>
       </div>
+
       <div data-nbc-body></div>
     </div>
   </div>
 
-  <div class="nodes-by-city__pager">
-    <button type="button" class="zzx-widgets__btn" data-nbc-prev>Prev</button>
-    <span data-nbc-page>Page 1 / 1</span>
-    <button type="button" class="zzx-widgets__btn" data-nbc-next>Next</button>
-  </div>
-
   <div class="nodes-by-city__details">
-    <div class="nodes-by-city__detail-row"><span>reachable total</span><strong data-nbc-network-total>—</strong></div>
-    <div class="nodes-by-city__detail-row"><span>decoded node rows</span><strong data-nbc-decoded>—</strong></div>
-    <div class="nodes-by-city__detail-row"><span>city-unknown remainder</span><strong data-nbc-unlocated>—</strong></div>
-    <div class="nodes-by-city__detail-row"><span>snapshot</span><strong data-nbc-updated>—</strong></div>
-    <div class="nodes-by-city__detail-row"><span>source</span><strong data-nbc-source>—</strong></div>
+    <div class="nodes-by-city__detail-row">
+      <span>reachable total</span>
+      <strong data-nbc-network-total>—</strong>
+    </div>
+    <div class="nodes-by-city__detail-row">
+      <span>decoded node rows</span>
+      <strong data-nbc-decoded>—</strong>
+    </div>
+    <div class="nodes-by-city__detail-row">
+      <span>city-unknown remainder</span>
+      <strong data-nbc-unlocated>—</strong>
+    </div>
+    <div class="nodes-by-city__detail-row">
+      <span>distinct nations represented</span>
+      <strong data-nbc-nation-count>—</strong>
+    </div>
+    <div class="nodes-by-city__detail-row">
+      <span>geography source</span>
+      <strong data-nbc-geo-source>—</strong>
+    </div>
+    <div class="nodes-by-city__detail-row">
+      <span>snapshot</span>
+      <strong data-nbc-updated>—</strong>
+    </div>
+    <div class="nodes-by-city__detail-row">
+      <span>source</span>
+      <strong data-nbc-source>—</strong>
+    </div>
   </div>
 
   <div class="nodes-by-city__footer">
-    <span data-nbc-meta>one shared ZZXBitnodes snapshot · zero per-widget API calls</span>
+    <span data-nbc-meta>
+      shared normalized snapshot · full city readout · no pagination
+    </span>
   </div>
 </div>
