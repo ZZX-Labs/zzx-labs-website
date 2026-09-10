@@ -43,7 +43,7 @@
   }
 
   async function ensureProvider(core) {
-    if (W.ZZXRepoProvider?.load) return;
+    if (Number(W.ZZXRepoProvider?.__version||0) >= 2 && W.ZZXRepoProvider?.load) return;
 
     const base=core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -62,7 +62,7 @@
       (D.head||D.documentElement).appendChild(s);
     });
 
-    if (!W.ZZXRepoProvider?.load) throw new Error("repository provider unavailable");
+    if (Number(W.ZZXRepoProvider?.__version||0) < 2 || !W.ZZXRepoProvider?.load) throw new Error("repository provider unavailable");
   }
 
   function repoFor(state) {
@@ -81,7 +81,7 @@
 
     q(root,"[data-repo-name]").textContent=spec.label;
     q(root,"[data-repo-sub]").textContent=
-      `${spec.repo} · ${data?.partial ? "partial GitHub response" : "repository + commits + release"}`;
+      `${spec.repo} · ${data?.transport || "local mirror"} · ${data?.partial ? "partial response" : "repository + commits + release"}`;
 
     q(root,"[data-repo-stars]").textContent=count(data?.meta?.stars);
     q(root,"[data-repo-forks]").textContent=count(data?.meta?.forks);
@@ -144,7 +144,7 @@
     }
 
     q(root,"[data-repo-meta]").textContent=
-      `${spec.repo} · GitHub public API · refreshed ${new Date().toLocaleTimeString()}`;
+      `${spec.repo} · ${data?.transport || "local mirror"} · refreshed ${new Date().toLocaleTimeString()}`;
 
     status(root,data?.partial ? "partial" : "live",data?.partial ? "warn" : "ok");
   }
@@ -179,6 +179,10 @@
 
   async function boot(root,core) {
     if (!root) return;
+
+    const old=root.__zzxRepoState;
+    if(old?.rotateTimer)W.clearTimeout(old.rotateTimer);
+    if(old?.refreshTimer)W.clearTimeout(old.refreshTimer);
 
     const state={
       index:0,
