@@ -1,42 +1,58 @@
+
 <!-- __partials/widgets/btc-prs/widget.html -->
-<div class="btc-card btc-prs btc-prs--ledger" data-widget-root="btc-prs">
-  <header class="btc-prs__topline">
-    <div class="btc-prs__identity">
-      <span class="btc-prs__kicker">GITHUB / BITCOIN CORE</span>
-      <div class="btc-card__title">Pull Requests</div>
-      <a class="btc-prs__repo" href="https://github.com/bitcoin/bitcoin/pulls" target="_blank" rel="noopener noreferrer">bitcoin / bitcoin</a>
+<div class="btc-card btc-prs" data-widget-root="btc-prs">
+  <div class="btc-prs__header">
+    <div>
+      <div class="btc-card__title">BTC Pull Requests</div>
+      <div class="btc-prs__eyebrow">Bitcoin Core · bitcoin/bitcoin</div>
     </div>
-    <span class="btc-card__status" data-btc-prs-status data-status="offline">loading</span>
-  </header>
-
-  <div class="btc-prs__activity">
-    <div><span>OPEN</span><strong data-btc-prs-open>—</strong></div>
-    <div><span>MERGED</span><strong data-btc-prs-merged>—</strong></div>
-    <div><span>CLOSED</span><strong data-btc-prs-closed>—</strong></div>
-    <div><span>UPDATED / 24H</span><strong data-btc-prs-24h>—</strong></div>
+    <span class="btc-card__status" data-btc-prs-status data-status="offline" aria-live="polite">loading</span>
   </div>
 
-  <div class="btc-prs__toolbar">
-    <input type="search" data-btc-prs-search placeholder="FILTER # / TITLE / AUTHOR / BRANCH" aria-label="Filter pull requests" autocomplete="off" spellcheck="false">
-    <select data-btc-prs-filter aria-label="Filter pull request state">
-      <option value="all">All activity</option>
-      <option value="open">Open</option>
-      <option value="merged">Merged</option>
-      <option value="closed">Closed</option>
-    </select>
+  <div class="btc-prs__hero">
+    <span>latest pull request</span>
+    <a data-btc-prs-latest-link href="https://github.com/bitcoin/bitcoin/pulls" target="_blank" rel="noopener noreferrer">
+      <strong data-btc-prs-latest>—</strong>
+    </a>
+    <small data-btc-prs-latest-meta>loading pull-request activity…</small>
   </div>
 
-  <div class="btc-prs__readout-head">
-    <span>RECENT ACTIVITY</span>
-    <strong data-btc-prs-visible>—</strong>
+  <div class="btc-prs__controls">
+    <label>
+      <span>search</span>
+      <input type="search" data-btc-prs-search placeholder="PR / title / author / branch" aria-label="Filter pull requests" autocomplete="off" spellcheck="false">
+    </label>
+
+    <label>
+      <span>state</span>
+      <select data-btc-prs-filter aria-label="Pull request state">
+        <option value="all">all activity</option>
+        <option value="open">open</option>
+        <option value="merged">merged</option>
+        <option value="closed">closed</option>
+      </select>
+    </label>
+
+    <button class="zzx-widgets__btn" type="button" data-btc-prs-refresh>Refresh</button>
   </div>
 
-  <div class="btc-prs__scroll" data-btc-prs-scroll>
-    <div class="btc-prs__list" data-btc-prs-list></div>
+  <div class="btc-prs__metrics">
+    <div><span>open</span><strong data-btc-prs-open>—</strong></div>
+    <div><span>merged</span><strong data-btc-prs-merged>—</strong></div>
+    <div><span>closed</span><strong data-btc-prs-closed>—</strong></div>
+    <div><span>updated 24h</span><strong data-btc-prs-24h>—</strong></div>
   </div>
 
-  <footer class="btc-prs__footer">
-    <span data-btc-prs-source>source —</span>
-    <button type="button" class="zzx-widgets__btn" data-btc-prs-refresh>REFRESH</button>
-  </footer>
+  <div class="btc-prs__meta-line">
+    <span data-btc-prs-visible>—</span>
+    <span>pull-request feed</span>
+  </div>
+
+  <div class="btc-prs__list" data-btc-prs-scroll>
+    <div data-btc-prs-list></div>
+  </div>
+
+  <div class="btc-prs__footer">
+    <span data-btc-prs-source>Bitcoin Core first-party activity mirror</span>
+  </div>
 </div>
