@@ -2,6 +2,19 @@ name: ZZX World Factbook Archive Sync
 
 on:
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Discard legacy/unverified ledger and rebuild from public archives"
+        required: false
+        type: boolean
+        default: true
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/worldfactbook/factbook_archive_sync.py"
+      - ".github/workflows/zzx-worldfactbook-archive-sync.yml"
+      - "__partials/widgets/global-power-grid/data/worldfactbook-source-catalog.json"
   schedule:
     - cron: "17 4 1 * *"
 
@@ -15,7 +28,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 210
 
     steps:
       - name: Checkout
@@ -28,57 +41,101 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Restore World Factbook download cache
+      - name: Restore public archive cache
         uses: actions/cache@v4
         with:
-          path: .cache/worldfactbook
-          key: worldfactbook-public-archive-v1-${{ runner.os }}
+          path: .cache/worldfactbook-v2
+          key: worldfactbook-public-archive-v2-${{ runner.os }}
           restore-keys: |
-            worldfactbook-public-archive-v1-
+            worldfactbook-public-archive-v2-
 
-      - name: Synchronize public World Factbook editions
+      - name: Synchronize World Factbook electricity history
+        shell: bash
+        env:
+          REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild || github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+
+          ARGS=(
+            --country-registry __partials/widgets/global-power-grid/data/countries.json
+            --electricity-output worldfactbook/api/electricity-history.json
+            --reference-output worldfactbook/api/reference-index.json
+            --power-grid-output bitcoin/power-grid/api/factbook-history.json
+            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json
+            --cache-dir .cache/worldfactbook-v2
+            --start-year 1962
+            --end-year 2025
+            --max-ia-items 6
+            --min-records-per-edition 20
+            --workers 6
+            --max-wayback-pages 320
+            --sleep 0.15
+          )
+
+          if [ "${REBUILD}" = "true" ]; then
+            ARGS+=(--rebuild)
+          fi
+
+          python tools/worldfactbook/factbook_archive_sync.py "${ARGS[@]}"
+
+      - name: Validate archive integrity
         shell: bash
         run: |
           set -euo pipefail
-          python tools/worldfactbook/factbook_archive_sync.py \
-            --country-registry __partials/widgets/global-power-grid/data/countries.json \
-            --electricity-output worldfactbook/api/electricity-history.json \
-            --reference-output worldfactbook/api/reference-index.json \
-            --power-grid-output bitcoin/power-grid/api/factbook-history.json \
-            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json \
-            --cache-dir .cache/worldfactbook \
-            --start-year 1962 \
-            --end-year 2025 \
-            --max-ia-items 6 \
-            --min-records-per-edition 25 \
-            --workers 4 \
-            --max-wayback-pages 300 \
-            --sleep 0.20
 
-      - name: Validate JSON outputs
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = [
+              Path("worldfactbook/api/electricity-history.json"),
+              Path("worldfactbook/api/reference-index.json"),
+              Path("bitcoin/power-grid/api/factbook-history.json"),
+              Path("__partials/widgets/global-power-grid/data/factbook-history.json"),
+          ]
+
+          for path in paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              print(path, payload.get("schema"), len(payload.get("records", [])))
+
+          ledger = json.loads(paths[0].read_text(encoding="utf-8"))
+          if ledger.get("schema") != "zzx-global-power-grid-factbook-history-v2":
+              raise SystemExit("wrong Factbook ledger schema")
+
+          bad = []
+          for row in ledger.get("records", []):
+              quality = row.get("quality") or {}
+              if quality.get("status") != "verified" or int(quality.get("parser_version") or 0) < 2:
+                  bad.append((row.get("country"), row.get("edition_year"), quality))
+
+          if bad:
+              print("unverified records:")
+              for row in bad[:30]:
+                  print(row)
+              raise SystemExit("refusing unverified Factbook records")
+
+          print("Factbook v2 integrity gate passed")
+          PY
+
+      - name: Commit updated archive ledgers
         shell: bash
         run: |
           set -euo pipefail
-          python -m json.tool worldfactbook/api/electricity-history.json >/dev/null
-          python -m json.tool worldfactbook/api/reference-index.json >/dev/null
-          python -m json.tool bitcoin/power-grid/api/factbook-history.json >/dev/null
-          python -m json.tool __partials/widgets/global-power-grid/data/factbook-history.json >/dev/null
 
-      - name: Commit updated archive indexes
-        shell: bash
-        run: |
-          set -euo pipefail
           git config user.name "zzx-worldfactbook-bot"
           git config user.email "actions@users.noreply.github.com"
+
           git add \
             worldfactbook/api/electricity-history.json \
             worldfactbook/api/reference-index.json \
             bitcoin/power-grid/api/factbook-history.json \
             __partials/widgets/global-power-grid/data/factbook-history.json
+
           if git diff --cached --quiet; then
             printf '%s\n' "World Factbook archive already current."
             exit 0
           fi
-          git commit -m "data: sync public World Factbook archive"
+
+          git commit -m "data: rebuild verified World Factbook electricity archive"
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
