@@ -96,13 +96,13 @@
   async function ensureModules(core){
     await loadScript(
       `${base(core)}/js/model.js`,
-      ()=>Number(W.ZZXHashrateNationModel?.__version||0)>=5,
+      ()=>Number(W.ZZXHashrateNationModel?.__version||0)>=6,
       "ZZXHashrateNationModel"
     );
 
     await loadScript(
       `${base(core)}/js/provider.js`,
-      ()=>Number(W.ZZXHashrateNationProvider?.__version||0)>=5,
+      ()=>Number(W.ZZXHashrateNationProvider?.__version||0)>=6,
       "ZZXHashrateNationProvider"
     );
 
@@ -257,7 +257,7 @@
     set(
       root,
       "[data-hbn-sub]",
-      `pool geo ${sourceList.poolEvidence||"unavailable"} · mining grid ${sourceList.grid||"unavailable"} · power grid ${sourceList.powerGrid||"unavailable"} · nodes ${sourceList.nodes||"unavailable"} · uncertainty bands are heuristic model ranges, not statistical confidence intervals`
+      `nation model ${sourceList.estimates||"unavailable"} · pool geo ${sourceList.poolEvidence||"unavailable"} · mining grid ${sourceList.grid||"unavailable"} · power grid ${sourceList.powerGrid||"unavailable"} · nodes ${sourceList.nodes||"unavailable"} · uncertainty bands are heuristic model ranges, not statistical confidence intervals`
     );
 
     renderTable(root,state);
@@ -273,6 +273,7 @@
       global24hEH:m.globalEH,
       rows:m.rows,
       confidence:m.confidence,
+      directCoverage:m.direct?.coverage||0,
       poolCoverage:m.pool.coverage,
       gridCoverage:m.grid.coverage,
       capacityPriorCoverage:m.capacity?.coverage||0,
