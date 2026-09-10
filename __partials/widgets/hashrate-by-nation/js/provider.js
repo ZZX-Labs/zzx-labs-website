@@ -3,9 +3,9 @@
   "use strict";
 
   const W=window,D=document;
-  if(Number(W.ZZXHashrateNationProvider?.__version||0)>=5)return;
+  if(Number(W.ZZXHashrateNationProvider?.__version||0)>=6)return;
 
-  const CACHE_KEY="zzx.hashrate-by-nation.inputs.v10.42";
+  const CACHE_KEY="zzx.hashrate-by-nation.inputs.v10.46";
   const TTL_MS=10*60*1000;
 
   function finite(value){
@@ -19,25 +19,23 @@
     try{
       const parsed=JSON.parse(W.localStorage.getItem(CACHE_KEY)||"null");
       return parsed&&typeof parsed==="object"?parsed:null;
-    }catch(_){
-      return null;
-    }
+    }catch(_){return null;}
   }
 
   function safeWrite(value){
-    try{W.localStorage.setItem(CACHE_KEY,JSON.stringify(value))}catch(_){}
+    try{W.localStorage.setItem(CACHE_KEY,JSON.stringify(value));}catch(_){}
   }
 
   async function ensureScript(path,test){
     if(test())return;
 
-    const src=new URL(path,location.href).href;
+    const src=new URL(path,W.location.href).href;
     const existing=[...D.scripts].find(script=>script.src===src);
 
     if(existing){
       const started=Date.now();
       while(!test()&&Date.now()-started<3000){
-        await new Promise(resolve=>setTimeout(resolve,25));
+        await new Promise(resolve=>W.setTimeout(resolve,25));
       }
       if(test())return;
     }
@@ -57,8 +55,9 @@
   async function ensureTransport(){
     await ensureScript(
       "/__partials/widgets/hashrate-by-nation/js/sources.js",
-      ()=>Number(W.ZZXHashrateNationSources?.__version||0)>=4
+      ()=>Number(W.ZZXHashrateNationSources?.__version||0)>=5
     );
+
     await ensureScript(
       "/__partials/widgets/hashrate-by-nation/js/fetch.js",
       ()=>Number(W.ZZXHashrateNationFetch?.__version||0)>=4
@@ -72,6 +71,7 @@
       S.model,
       ()=>Number(W.ZZXHashrateModel?.__version||0)>=2
     );
+
     await ensureScript(
       S.provider,
       ()=>Number(W.ZZXHashrateProvider?.__version||0)>=2
@@ -83,15 +83,20 @@
 
     await ensureScript(
       S.model,
-      ()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=2
+      ()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=3
     );
+
     await ensureScript(
       S.provider,
-      ()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=2
+      ()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=3
     );
   }
 
   async function loadHashrate(signal){
+    // Always make sure the shared Hashrate model exists before invoking an
+    // optional HBN source hook. Older code could call build() on undefined.
+    await ensureHashrate();
+
     if(typeof W.ZZXHashrateNationSource?.hashrate==="function"){
       const payload=await W.ZZXHashrateNationSource.hashrate({signal});
       return {
@@ -99,8 +104,6 @@
         source:"ZZXHashrateNationSource.hashrate"
       };
     }
-
-    await ensureHashrate();
 
     const result=await W.ZZXHashrateProvider.load(
       "1m",
@@ -113,6 +116,40 @@
     };
   }
 
+  function shareCount(payload){
+    const raw=payload?.shares??payload?.countries??payload?.rows??payload?.data;
+    if(Array.isArray(raw))return raw.length;
+    if(raw&&typeof raw==="object")return Object.keys(raw).length;
+    return 0;
+  }
+
+  async function loadEstimates(signal){
+    if(typeof W.ZZXHashrateNationSource?.estimates==="function"){
+      return {
+        data:await W.ZZXHashrateNationSource.estimates({signal}),
+        source:"ZZXHashrateNationSource.estimates"
+      };
+    }
+
+    const candidates=W.ZZXHashrateNationSources.estimates||[];
+    const errors=[];
+    let fallback=null;
+
+    for(const url of candidates){
+      const result=await W.ZZXHashrateNationFetch.firstJson([url],{signal});
+      if(result.data&&!fallback)fallback=result;
+      if(result.data&&shareCount(result.data)>0)return result;
+      if(result.error)errors.push(result.error);
+    }
+
+    return fallback||{
+      data:{shares:[]},
+      source:null,
+      transport:"unavailable",
+      error:errors.join(" | ")
+    };
+  }
+
   async function loadPools(signal){
     if(typeof W.ZZXHashrateNationSource?.pools==="function"){
       return {
@@ -122,7 +159,6 @@
     }
 
     const S=W.ZZXHashrateNationSources.pools;
-
     return W.ZZXHashrateNationFetch.firstJson(
       [S.localPrimary,S.localFallback,S.direct],
       {signal}
@@ -138,7 +174,6 @@
     }
 
     const S=W.ZZXHashrateNationSources.poolEvidence;
-
     return W.ZZXHashrateNationFetch.firstJson(
       [S.localPrimary,S.localFallback,S.bundled],
       {signal}
@@ -154,7 +189,6 @@
     }
 
     const S=W.ZZXHashrateNationSources.miningGrid;
-
     return W.ZZXHashrateNationFetch.firstJson(
       [S.localPrimary,S.localFallback,S.bundled],
       {signal}
@@ -164,7 +198,7 @@
   function modelToPowerGrid(model,source){
     return {
       data:{
-        schema:"zzx-global-power-grid-hbn-bridge-v1",
+        schema:"zzx-global-power-grid-hbn-bridge-v2",
         nations:(model?.rows||[]).map(row=>({
           country:row.country,
           countryName:row.countryName,
@@ -178,6 +212,7 @@
           headroomMiningCeilingEH:Number.isFinite(row.headroomMiningCeilingEH)
             ? row.headroomMiningCeilingEH
             : null,
+          ceilingBasis:row.ceilingBasis||"unavailable",
           editionYear:row.editionYear??null,
           observationYear:row.observationYear??null,
           source:row.source||"unavailable",
@@ -185,10 +220,20 @@
         })),
         registryCount:model?.registryCount||0,
         coverage:model?.coverage||0,
-        historySummary:model?.historySummary||null
+        historySummary:model?.historySummary||null,
+        qualitySummary:model?.qualitySummary||null
       },
       source
     };
+  }
+
+  function usefulPowerGrid(rows){
+    return Array.isArray(rows)&&rows.some(row=>{
+      const g=finite(row?.generationMW??row?.generation_mw);
+      const c=finite(row?.capacityMW??row?.capacity_mw);
+      const ceiling=finite(row?.absoluteMiningCeilingEH);
+      return g>0||c>0||ceiling>0;
+    });
   }
 
   async function loadPowerGrid(signal){
@@ -199,17 +244,13 @@
       };
     }
 
-    // Fastest path when Global Power Grid has already mounted.
-    if(Array.isArray(W.ZZXGlobalPowerGridLatest?.nations)){
+    if(usefulPowerGrid(W.ZZXGlobalPowerGridLatest?.nations)){
       return {
         data:W.ZZXGlobalPowerGridLatest,
         source:"ZZXGlobalPowerGridLatest"
       };
     }
 
-    // Important v10.42 behavior:
-    // HBN mounts before Global Power Grid in the HUD. Load the GPG provider/model
-    // directly instead of depending on widget mount order.
     try{
       await ensurePowerGrid();
 
@@ -232,8 +273,8 @@
     }catch(error){
       if(error?.name==="AbortError")throw error;
 
-      // Last-resort static projection. This still uses the same canonical
-      // GPG files rather than inventing a second electricity data contract.
+      // Last-resort static projection through the same GPG model. The model's
+      // integrity gate still rejects unverified legacy Factbook rows.
       const S=W.ZZXHashrateNationSources.powerGrid;
       const [registry,factbook,live]=await Promise.all([
         W.ZZXHashrateNationFetch.firstJson(S.registry,{signal}),
@@ -277,45 +318,117 @@
     }
   }
 
+  function aggregateGeoJSON(payload){
+    const features=Array.isArray(payload?.features)?payload.features:[];
+    const counts=new Map();
+    const names=new Map();
+    let total=0,located=0;
+
+    for(const feature of features){
+      const p=feature?.properties||{};
+      const syntheticRaw=p.geoSynthetic??p.geo_synthetic??p.synthetic??false;
+      const synthetic=syntheticRaw===true||
+        ["true","1","yes"].includes(String(syntheticRaw).toLowerCase());
+      if(synthetic)continue;
+
+      total++;
+      const country=String(
+        p.country_code??p.country??p.countryCode??""
+      ).trim().toUpperCase();
+      if(!/^[A-Z]{2}$/.test(country))continue;
+
+      located++;
+      counts.set(country,(counts.get(country)||0)+1);
+      names.set(country,String(p.country_name??p.countryName??country));
+    }
+
+    const rows=[...counts.entries()].map(([country,count])=>({
+      country,
+      countryName:names.get(country)||country,
+      count
+    }));
+
+    return {rows,total,located};
+  }
+
+  function normalizeSharedNodes(detail){
+    const value=detail?.snapshot||detail;
+    if(!value)return null;
+
+    if(Array.isArray(value))return value.length?value:null;
+    if(Array.isArray(value.nodes)&&value.nodes.length)return value;
+
+    const byCountry=value.byCountry??value.by_country;
+    if(byCountry&&typeof byCountry==="object"){
+      const rows=Object.entries(byCountry).map(([country,v])=>({
+        country,
+        count:typeof v==="number"?v:(v?.count??v?.nodes??v?.value??0),
+        countryName:typeof v==="object"?(v?.countryName??v?.name??country):country
+      })).filter(row=>finite(row.count)>0);
+      if(rows.length)return rows;
+    }
+
+    return null;
+  }
+
   async function loadNodes(signal){
     if(typeof W.ZZXHashrateNationSource?.nodes==="function"){
-      return {
-        data:await W.ZZXHashrateNationSource.nodes({signal}),
-        source:"ZZXHashrateNationSource.nodes"
-      };
+      const data=await W.ZZXHashrateNationSource.nodes({signal});
+      const normalized=normalizeSharedNodes(data);
+      if(normalized){
+        return {data:normalized,source:"ZZXHashrateNationSource.nodes"};
+      }
     }
 
     if(typeof W.ZZXBitnodes?.load==="function"){
-      const detail=await W.ZZXBitnodes.load(false);
-      return {
-        data:detail?.snapshot||detail,
-        source:"ZZXBitnodes"
-      };
+      try{
+        const detail=await W.ZZXBitnodes.load(false);
+        const normalized=normalizeSharedNodes(detail);
+        if(normalized){
+          return {data:normalized,source:"ZZXBitnodes"};
+        }
+      }catch(error){
+        if(error?.name==="AbortError")throw error;
+      }
     }
 
     const S=W.ZZXHashrateNationSources.nodes;
 
-    const local=await W.ZZXHashrateNationFetch.firstJson(
+    const aggregate=await W.ZZXHashrateNationFetch.firstJson(
       S.countryAggregates,
       {signal}
     );
 
-    if(local.data){
+    if(aggregate.data){
       const rows=
-        local.data?.countries ??
-        local.data?.rows ??
-        local.data;
+        aggregate.data?.countries ??
+        aggregate.data?.rows ??
+        aggregate.data;
 
-      return {
-        data:Array.isArray(rows)?rows:[],
-        source:local.source
-      };
+      if(Array.isArray(rows)&&rows.length){
+        return {data:rows,source:aggregate.source};
+      }
+    }
+
+    const geo=await W.ZZXHashrateNationFetch.firstJson(
+      S.geojson,
+      {signal}
+    );
+
+    if(geo.data){
+      const aggregated=aggregateGeoJSON(geo.data);
+      if(aggregated.rows.length){
+        return {
+          data:aggregated.rows,
+          source:`${geo.source} · aggregated ${aggregated.located}/${aggregated.total} real-geography nodes`
+        };
+      }
     }
 
     return {
       data:[],
       source:null,
-      error:local.error
+      error:[aggregate.error,geo.error].filter(Boolean).join(" | ")
     };
   }
 
@@ -326,22 +439,19 @@
     const now=Date.now();
 
     if(
-      !force &&
-      cached?.inputs &&
-      Number.isFinite(Number(cached.cachedAt)) &&
+      !force&&
+      cached?.inputs&&
+      Number.isFinite(Number(cached.cachedAt))&&
       now-Number(cached.cachedAt)<TTL_MS
     ){
-      return {
-        ...cached,
-        transport:"cache",
-        stale:false
-      };
+      return {...cached,transport:"cache",stale:false};
     }
 
     try{
-      const [hashrate,pools,poolEvidence,miningGrid,powerGrid,nodes]=
+      const [hashrate,estimates,pools,poolEvidence,miningGrid,powerGrid,nodes]=
         await Promise.all([
           loadHashrate(signal),
+          loadEstimates(signal),
           loadPools(signal),
           loadPoolEvidence(signal),
           loadMiningGrid(signal),
@@ -349,11 +459,10 @@
           loadNodes(signal)
         ]);
 
-      if(!hashrate?.model){
-        throw new Error("global hashrate unavailable");
-      }
+      if(!hashrate?.model)throw new Error("global hashrate unavailable");
 
       const errors=[
+        estimates?.error,
         pools?.error,
         poolEvidence?.error,
         miningGrid?.error,
@@ -364,33 +473,28 @@
       const result={
         inputs:{
           hashrate:hashrate.model,
+          estimates:estimates?.data||{shares:[]},
           pools:pools?.data||{},
           poolEvidence:poolEvidence?.data||{},
           grid:miningGrid?.data||{},
           powerGrid:powerGrid?.data||{},
           nodes:nodes?.data||[]
         },
-
         sources:{
           hashrate:hashrate.source||"—",
+          estimates:estimates?.source||"unavailable",
           pools:pools?.source||"unavailable",
           poolEvidence:poolEvidence?.source||"unavailable",
           grid:miningGrid?.source||"unavailable",
           powerGrid:powerGrid?.source||"unavailable",
           nodes:nodes?.source||"unavailable"
         },
-
         cachedAt:now,
         errors
       };
 
       safeWrite(result);
-
-      return {
-        ...result,
-        transport:"live",
-        stale:false
-      };
+      return {...result,transport:"live",stale:false};
     }catch(error){
       if(error?.name==="AbortError")throw error;
 
@@ -399,10 +503,7 @@
           ...cached,
           transport:"cache",
           stale:true,
-          errors:[
-            ...(cached.errors||[]),
-            String(error?.message||error)
-          ]
+          errors:[...(cached.errors||[]),String(error?.message||error)]
         };
       }
 
@@ -411,7 +512,8 @@
   }
 
   W.ZZXHashrateNationProvider=Object.freeze({
-    __version:5,
-    load
+    __version:6,
+    load,
+    aggregateGeoJSON
   });
 })();
