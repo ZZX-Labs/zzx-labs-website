@@ -3,12 +3,15 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXHashrateNationModel?.__version||0)>=3)return;
+  if(Number(W.ZZXHashrateNationModel?.__version||0)>=5)return;
 
+  // Direct mining geography remains dominant.
+  // Generic national electricity generation is only a low-confidence prior.
   const BASE_WEIGHTS=Object.freeze({
-    pool:0.60,
-    grid:0.30,
-    nodes:0.10
+    pool:0.55,
+    grid:0.25,
+    capacity:0.15,
+    nodes:0.05
   });
 
   function finite(value){
@@ -31,21 +34,12 @@
   function flag(code){
     const cc=iso(code);
     if(!cc)return "🏴";
-    return String.fromCodePoint(
-      ...[...cc].map(ch=>127397+ch.charCodeAt(0))
-    );
+    return String.fromCodePoint(...[...cc].map(ch=>127397+ch.charCodeAt(0)));
   }
 
   function countryMeta(code,name=""){
     const cc=iso(code);
-    if(!cc){
-      return {
-        code:"",
-        name:"Unlocated",
-        flag:"🏴",
-        located:false
-      };
-    }
+    if(!cc)return {code:"",name:"Unlocated",flag:"🏴",located:false};
 
     if(typeof W.ZZXBitnodes?.countryMeta==="function"){
       const meta=W.ZZXBitnodes.countryMeta(cc,name);
@@ -59,12 +53,7 @@
       }
     }
 
-    return {
-      code:cc,
-      name:String(name||cc),
-      flag:flag(cc),
-      located:true
-    };
+    return {code:cc,name:String(name||cc),flag:flag(cc),located:true};
   }
 
   function poolName(row){
@@ -79,29 +68,16 @@
   }
 
   function poolBlocks(row){
-    const n=finite(
-      row?.blockCount ??
-      row?.block_count ??
-      row?.blocks ??
-      row?.count
-    );
+    const n=finite(row?.blockCount??row?.block_count??row?.blocks??row?.count);
     return Number.isFinite(n)&&n>=0?n:0;
   }
 
   function parsePools(payload){
-    const raw=
-      payload?.pools ??
-      payload?.data ??
-      payload?.rows ??
-      (Array.isArray(payload)?payload:[]);
-
+    const raw=payload?.pools??payload?.data??payload?.rows??(Array.isArray(payload)?payload:[]);
     if(!Array.isArray(raw))return [];
 
     return raw
-      .map(row=>({
-        name:poolName(row),
-        blocks:poolBlocks(row)
-      }))
+      .map(row=>({name:poolName(row),blocks:poolBlocks(row)}))
       .filter(row=>row.name&&row.blocks>0);
   }
 
@@ -110,7 +86,6 @@
     if(!raw)return new Map();
 
     const map=new Map();
-
     if(Array.isArray(raw)){
       for(const row of raw){
         const name=poolName(row);
@@ -124,7 +99,6 @@
         });
       }
     }
-
     return map;
   }
 
@@ -135,52 +109,25 @@
     const scores=new Map();
 
     if(totalBlocks<=0){
-      return {
-        scores,
-        coverage:0,
-        mappedPools:0,
-        pools:pools.length,
-        totalBlocks:0
-      };
+      return {scores,coverage:0,mappedPools:0,pools:pools.length,totalBlocks:0};
     }
 
-    let coverage=0;
-    let mappedPools=0;
+    let coverage=0,mappedPools=0;
 
     for(const pool of pools){
       const share=pool.blocks/totalBlocks;
       const ev=evidence.get(pool.name.toLowerCase());
-      const allocations=Array.isArray(ev?.allocations)
-        ? ev.allocations
-        : [];
+      const allocations=Array.isArray(ev?.allocations)?ev.allocations:[];
 
-      let mappedFraction=0;
-      let mappedThisPool=false;
-
+      let mappedFraction=0,mappedThisPool=false;
       for(const allocation of allocations){
-        const country=iso(
-          allocation?.country ??
-          allocation?.country_code ??
-          allocation?.iso
-        );
-
-        const fraction=clamp(
-          allocation?.fraction ??
-          allocation?.share
-        );
-
-        const confidence=clamp(
-          allocation?.confidence ?? 0.5
-        );
-
+        const country=iso(allocation?.country??allocation?.country_code??allocation?.iso);
+        const fraction=clamp(allocation?.fraction??allocation?.share);
+        const confidence=clamp(allocation?.confidence??0.5);
         if(!country||fraction<=0||confidence<=0)continue;
 
         const contribution=share*fraction*confidence;
-        scores.set(
-          country,
-          (scores.get(country)||0)+contribution
-        );
-
+        scores.set(country,(scores.get(country)||0)+contribution);
         mappedFraction+=fraction*confidence;
         mappedThisPool=true;
       }
@@ -198,38 +145,22 @@
     };
   }
 
-  function gridRows(payload){
-    const raw=
-      payload?.countries ??
-      payload?.rows ??
-      payload?.data ??
-      (Array.isArray(payload)?payload:[]);
-
+  function rawRows(payload){
+    const raw=payload?.countries??payload?.nations??payload?.rows??payload?.data??(Array.isArray(payload)?payload:[]);
     return Array.isArray(raw)?raw:[];
   }
 
   function gridComponent(payload,globalEH){
-    const scores=new Map();
-    const names=new Map();
-    let totalMiningMW=0;
-    let accepted=0;
+    const scores=new Map(),names=new Map();
+    let totalMiningMW=0,accepted=0;
 
     const defaultEfficiency=finite(payload?.efficiency_j_per_th);
-    const fallbackEfficiency=
-      Number.isFinite(defaultEfficiency)&&defaultEfficiency>0
-        ? defaultEfficiency
-        : 30;
+    const fallbackEfficiency=Number.isFinite(defaultEfficiency)&&defaultEfficiency>0?defaultEfficiency:30;
 
-    for(const row of gridRows(payload)){
-      const country=iso(
-        row?.country ??
-        row?.country_code ??
-        row?.iso
-      );
+    for(const row of rawRows(payload)){
+      const country=iso(row?.country??row?.country_code??row?.iso);
       if(!country)continue;
 
-      // Only mining-specific power fields are accepted as estimator evidence.
-      // Generic grid generation/load alone does not become Bitcoin hashrate.
       const miningMW=finite(
         row?.bitcoinMiningPowerMW ??
         row?.bitcoin_mining_power_mw ??
@@ -240,97 +171,85 @@
         row?.estimatedBitcoinLoadMW ??
         row?.estimated_bitcoin_load_mw
       );
-
       if(!(miningMW>0))continue;
 
-      const efficiency=finite(
-        row?.efficiencyJTH ??
-        row?.efficiency_j_per_th
-      );
-
-      const jth=
-        Number.isFinite(efficiency)&&efficiency>0
-          ? efficiency
-          : fallbackEfficiency;
-
-      const quality=clamp(row?.confidence ?? row?.quality ?? 0.65);
+      const efficiency=finite(row?.efficiencyJTH??row?.efficiency_j_per_th);
+      const jth=Number.isFinite(efficiency)&&efficiency>0?efficiency:fallbackEfficiency;
+      const quality=clamp(row?.confidence??row?.quality??0.65);
       const equivalentEH=(miningMW/jth)*quality;
-
       if(!(equivalentEH>0))continue;
 
-      scores.set(
-        country,
-        (scores.get(country)||0)+equivalentEH
-      );
-
-      names.set(
-        country,
-        String(row?.countryName ?? row?.country_name ?? "")
-      );
-
+      scores.set(country,(scores.get(country)||0)+equivalentEH);
+      names.set(country,String(row?.countryName??row?.country_name??""));
       totalMiningMW+=miningMW;
       accepted++;
     }
 
-    const equivalentTotal=[...scores.values()]
-      .reduce((sum,value)=>sum+value,0);
+    const equivalentTotal=[...scores.values()].reduce((sum,value)=>sum+value,0);
+    const coverage=globalEH>0?clamp(equivalentTotal/globalEH):0;
 
-    const coverage=
-      globalEH>0
-        ? clamp(equivalentTotal/globalEH)
-        : 0;
+    return {scores,names,coverage,accepted,totalMiningMW,equivalentTotalEH:equivalentTotal};
+  }
+
+  function capacityComponent(payload){
+    const rows=rawRows(payload);
+    const scores=new Map(),names=new Map();
+    let accepted=0,totalGenerationMW=0;
+
+    for(const row of rows){
+      const country=iso(row?.country??row?.country_code??row?.iso);
+      if(!country)continue;
+
+      const generation=finite(row?.generationMW??row?.generation_mw);
+      const capacity=finite(row?.capacityMW??row?.capacity_mw);
+      const ceiling=finite(row?.absoluteMiningCeilingEH);
+      let basis=Number.isFinite(generation)&&generation>0?generation:capacity;
+
+      // If only a precomputed physical ceiling is present, convert it back to
+      // an equivalent 30 J/TH power basis for relative weighting.
+      if(!(basis>0)&&ceiling>0)basis=ceiling*30;
+      if(!(basis>0))continue;
+
+      scores.set(country,basis);
+      names.set(country,String(row?.countryName??row?.country_name??""));
+      totalGenerationMW+=basis;
+      accepted++;
+    }
+
+    const registryCount=finite(payload?.registryCount??payload?.registry_count);
+    const denominator=Number.isFinite(registryCount)&&registryCount>0?registryCount:Math.max(rows.length,accepted);
+    const coverage=denominator>0?clamp(accepted/denominator):0;
 
     return {
       scores,
       names,
       coverage,
       accepted,
-      totalMiningMW,
-      equivalentTotalEH:equivalentTotal
+      totalGenerationMW,
+      registryCount:denominator
     };
   }
 
   function nodeComponent(input){
-    const scores=new Map();
-    const names=new Map();
+    const scores=new Map(),names=new Map();
 
     if(Array.isArray(input)){
-      let located=0;
-      let total=0;
+      let located=0,total=0;
 
       for(const row of input){
-        const count=finite(
-          row?.count ??
-          row?.nodes ??
-          row?.value
-        );
-
+        const count=finite(row?.count??row?.nodes??row?.value);
         if(!(count>0))continue;
         total+=count;
 
-        const country=iso(
-          row?.country ??
-          row?.country_code ??
-          row?.iso
-        );
-
+        const country=iso(row?.country??row?.country_code??row?.iso);
         if(!country)continue;
 
         located+=count;
         scores.set(country,(scores.get(country)||0)+count);
-        names.set(
-          country,
-          String(row?.countryName ?? row?.country_name ?? row?.name ?? "")
-        );
+        names.set(country,String(row?.countryName??row?.country_name??row?.name??""));
       }
 
-      return {
-        scores,
-        names,
-        coverage:total>0?clamp(located/total):0,
-        located,
-        total
-      };
+      return {scores,names,coverage:total>0?clamp(located/total):0,located,total};
     }
 
     const snapshot=input?.snapshot||input||{};
@@ -344,63 +263,33 @@
     );
 
     let located=0;
-
     for(const row of nodes){
-      const country=iso(
-        row?.country ??
-        row?.countryCode ??
-        row?.country_code
-      );
+      const country=iso(row?.country??row?.countryCode??row?.country_code);
       if(!country)continue;
-
       located++;
       scores.set(country,(scores.get(country)||0)+1);
-      names.set(
-        country,
-        String(row?.countryName ?? row?.country_name ?? "")
-      );
+      names.set(country,String(row?.countryName??row?.country_name??""));
     }
 
-    const total=
-      Number.isFinite(denominator)&&denominator>0
-        ? denominator
-        : nodes.length;
-
-    return {
-      scores,
-      names,
-      coverage:total>0?clamp(located/total):0,
-      located,
-      total
-    };
+    const total=Number.isFinite(denominator)&&denominator>0?denominator:nodes.length;
+    return {scores,names,coverage:total>0?clamp(located/total):0,located,total};
   }
 
   function normalizeScores(map){
-    const total=[...map.values()]
-      .reduce((sum,value)=>sum+(value>0?value:0),0);
-
+    const total=[...map.values()].reduce((sum,value)=>sum+(value>0?value:0),0);
     const normalized=new Map();
-
     if(total<=0)return normalized;
-
     for(const [country,value] of map.entries()){
       if(value>0)normalized.set(country,value/total);
     }
-
     return normalized;
   }
 
   function global24h(hashrateModel){
-    const history=Array.isArray(hashrateModel?.history)
-      ? hashrateModel.history
-      : [];
+    const history=Array.isArray(hashrateModel?.history)?hashrateModel.history:[];
 
     if(!history.length){
-      const current=finite(
-        hashrateModel?.currentEH ??
-        hashrateModel?.current
-      );
-
+      const current=finite(hashrateModel?.currentEH??hashrateModel?.current);
       return {
         averageEH:Number.isFinite(current)&&current>0?current:NaN,
         history:[]
@@ -411,21 +300,17 @@
     const cutoff=end-24*60*60*1000;
     const windowed=history.filter(row=>row.t>=cutoff&&row.eh>=0);
     const used=windowed.length?windowed:history.slice(-24);
-
     const average=used.reduce((sum,row)=>sum+row.eh,0)/used.length;
 
-    return {
-      averageEH:average,
-      history:used
-    };
+    return {averageEH:average,history:used};
   }
-
 
   function gridCeilingMap(inputs){
     const map=new Map();
     const explicit=inputs?.powerGrid?.nations;
     const runtime=W.ZZXGlobalPowerGridLatest?.nations;
     const rows=Array.isArray(explicit)?explicit:(Array.isArray(runtime)?runtime:[]);
+
     for(const row of rows){
       const country=iso(row?.country);
       const ceiling=finite(row?.absoluteMiningCeilingEH);
@@ -436,26 +321,32 @@
 
   function applyPhysicalCeilings(rows,globalEH,ceilings){
     if(!ceilings?.size)return {rows,constrained:false,unallocatedEH:0};
+
     const work=rows.map(r=>({...r}));
     let constrained=false;
     let remaining=globalEH;
-    let active=new Set(work.map((_,i)=>i));
+    const active=new Set(work.map((_,i)=>i));
 
     for(let pass=0;pass<work.length+2;pass++){
       const weightTotal=[...active].reduce((s,i)=>s+work[i].share,0);
       if(!(weightTotal>0))break;
+
       let changed=false;
       for(const i of [...active]){
-        const r=work[i], ceiling=ceilings.get(r.country);
+        const r=work[i];
+        const ceiling=ceilings.get(r.country);
         const proposed=remaining*(r.share/weightTotal);
+
         if(Number.isFinite(ceiling)&&proposed>ceiling){
           r.estimateEH=ceiling;
           r.physicalCeilingEH=ceiling;
-          remaining-=ceiling;
+          remaining=Math.max(0,remaining-ceiling);
           active.delete(i);
-          constrained=changed=true;
+          changed=true;
+          constrained=true;
         }
       }
+
       if(!changed){
         for(const i of active){
           const r=work[i];
@@ -481,50 +372,42 @@
     const global=global24h(inputs?.hashrate);
     const globalEH=global.averageEH;
 
-    if(!(globalEH>0)){
-      throw new Error("24h global hashrate unavailable");
-    }
+    if(!(globalEH>0))throw new Error("24h global hashrate unavailable");
 
-    const pool=poolComponent(
-      inputs?.pools,
-      inputs?.poolEvidence
-    );
-
-    const grid=gridComponent(
-      inputs?.grid,
-      globalEH
-    );
-
-    const nodes=nodeComponent(
-      inputs?.nodes
-    );
+    const pool=poolComponent(inputs?.pools,inputs?.poolEvidence);
+    const grid=gridComponent(inputs?.grid,globalEH);
+    const capacity=capacityComponent(inputs?.powerGrid);
+    const nodes=nodeComponent(inputs?.nodes);
 
     const poolNorm=normalizeScores(pool.scores);
     const gridNorm=normalizeScores(grid.scores);
+    const capacityNorm=normalizeScores(capacity.scores);
     const nodeNorm=normalizeScores(nodes.scores);
 
     const effective=Object.freeze({
       pool:BASE_WEIGHTS.pool*pool.coverage,
       grid:BASE_WEIGHTS.grid*grid.coverage,
+      capacity:BASE_WEIGHTS.capacity*capacity.coverage,
       nodes:BASE_WEIGHTS.nodes*nodes.coverage
     });
 
-    const effectiveTotal=
-      effective.pool+
-      effective.grid+
-      effective.nodes;
+    const effectiveTotal=effective.pool+effective.grid+effective.capacity+effective.nodes;
 
     if(!(effectiveTotal>0)){
       return Object.freeze({
-        schema:"zzx-hashrate-by-nation-model-v3",
+        schema:"zzx-hashrate-by-nation-model-v5",
         globalEH,
         history:Object.freeze(global.history.map(Object.freeze)),
+        timeline:Object.freeze([]),
         rows:Object.freeze([]),
-        pool,
-        grid,
-        nodes,
+        pool:Object.freeze(pool),
+        grid:Object.freeze(grid),
+        capacity:Object.freeze(capacity),
+        nodes:Object.freeze(nodes),
         effective,
         confidence:0,
+        physicalCeilingsApplied:false,
+        physicallyUnallocatedEH:0,
         mode:"no geographic evidence"
       });
     }
@@ -532,10 +415,12 @@
     const countries=new Set([
       ...poolNorm.keys(),
       ...gridNorm.keys(),
+      ...capacityNorm.keys(),
       ...nodeNorm.keys()
     ]);
 
     const names=new Map([
+      ...capacity.names.entries(),
       ...grid.names.entries(),
       ...nodes.names.entries()
     ]);
@@ -545,11 +430,13 @@
     for(const country of countries){
       const p=poolNorm.get(country)||0;
       const g=gridNorm.get(country)||0;
+      const c=capacityNorm.get(country)||0;
       const n=nodeNorm.get(country)||0;
 
       const score=
         effective.pool*p+
         effective.grid*g+
+        effective.capacity*c+
         effective.nodes*n;
 
       if(!(score>0))continue;
@@ -558,54 +445,40 @@
         country,
         poolShare:p,
         gridShare:g,
+        capacityShare:c,
         nodeShare:n,
         score
       });
     }
 
-    const scoreTotal=preliminary.reduce(
-      (sum,row)=>sum+row.score,
-      0
-    );
-
+    const scoreTotal=preliminary.reduce((sum,row)=>sum+row.score,0);
     const globalConfidence=clamp(effectiveTotal);
 
-    const rows=preliminary.map(row=>{
+    let rows=preliminary.map(row=>{
       const share=row.score/scoreTotal;
       const estimateEH=globalEH*share;
 
       const localEvidenceMass=
         (row.poolShare>0?BASE_WEIGHTS.pool*pool.coverage:0)+
         (row.gridShare>0?BASE_WEIGHTS.grid*grid.coverage:0)+
+        (row.capacityShare>0?BASE_WEIGHTS.capacity*capacity.coverage:0)+
         (row.nodeShare>0?BASE_WEIGHTS.nodes*nodes.coverage:0);
 
       const diversity=
         (row.poolShare>0?1:0)+
         (row.gridShare>0?1:0)+
+        (row.capacityShare>0?1:0)+
         (row.nodeShare>0?1:0);
 
-      const localBoost=
-        0.72+
-        0.08*Math.max(0,diversity-1);
+      const localBoost=0.70+0.07*Math.max(0,diversity-1);
+      const confidence=clamp(Math.min(globalConfidence,localEvidenceMass)*localBoost);
 
-      const confidence=clamp(
-        Math.min(globalConfidence,localEvidenceMass)*localBoost
-      );
-
-      // Heuristic model range. This is deliberately not called a statistical CI.
-      const halfWidth=clamp(
-        0.12+0.78*(1-confidence),
-        0.12,
-        0.90
-      );
-
+      // Broad heuristic band, not a statistical confidence interval.
+      const halfWidth=clamp(0.15+0.82*(1-confidence),0.15,0.95);
       const lowEH=Math.max(0,estimateEH*(1-halfWidth));
       const highEH=estimateEH*(1+halfWidth);
 
-      const meta=countryMeta(
-        row.country,
-        names.get(row.country)||""
-      );
+      const meta=countryMeta(row.country,names.get(row.country)||"");
 
       return {
         ...row,
@@ -618,68 +491,56 @@
         confidence,
         diversity
       };
-    }).sort(
-      (a,b)=>
-        b.estimateEH-a.estimateEH ||
-        a.countryName.localeCompare(b.countryName)
-    );
+    }).sort((a,b)=>b.estimateEH-a.estimateEH||a.countryName.localeCompare(b.countryName));
 
-
-    const physical=applyPhysicalCeilings(
-      rows,
-      globalEH,
-      gridCeilingMap(inputs)
-    );
-
-    rows=physical.rows.sort(
-      (a,b)=>
-        b.estimateEH-a.estimateEH ||
-        a.countryName.localeCompare(b.countryName)
-    );
+    // v10.40: rows is intentionally mutable here. v10.39 used `const rows`
+    // and then reassigned it, which threw whenever geographic evidence existed.
+    const physical=applyPhysicalCeilings(rows,globalEH,gridCeilingMap(inputs));
+    rows=physical.rows.sort((a,b)=>b.estimateEH-a.estimateEH||a.countryName.localeCompare(b.countryName));
 
     const timeline=global.history.map(point=>{
       const nations={};
       for(const row of rows.slice(0,5)){
         nations[row.country]=point.eh*row.share;
       }
-      return {
-        t:point.t,
-        globalEH:point.eh,
-        nations
-      };
+      return {t:point.t,globalEH:point.eh,nations};
     });
 
     const mode=[
-      pool.coverage>0?"pool geo":"",
+      pool.coverage>0?"pool geography":"",
       grid.coverage>0?"mining power":"",
+      capacity.coverage>0?"grid capacity prior":"",
       nodes.coverage>0?"node prior":""
     ].filter(Boolean).join(" + ")||"none";
 
     return Object.freeze({
-      schema:"zzx-hashrate-by-nation-model-v3",
+      schema:"zzx-hashrate-by-nation-model-v5",
       globalEH,
       history:Object.freeze(global.history.map(Object.freeze)),
       timeline:Object.freeze(timeline.map(Object.freeze)),
       rows:Object.freeze(rows.map(Object.freeze)),
       pool:Object.freeze(pool),
       grid:Object.freeze(grid),
+      capacity:Object.freeze(capacity),
       nodes:Object.freeze(nodes),
       effective,
       confidence:globalConfidence,
-      physicalCeilingsApplied:physical?.constrained||false,
-      physicallyUnallocatedEH:physical?.unallocatedEH||0,
+      physicalCeilingsApplied:physical.constrained,
+      physicallyUnallocatedEH:physical.unallocatedEH,
       mode
     });
   }
 
   W.ZZXHashrateNationModel=Object.freeze({
-    __version:3,
+    __version:5,
     BASE_WEIGHTS,
     parsePools,
     poolComponent,
     gridComponent,
+    capacityComponent,
     nodeComponent,
     global24h,
+    applyPhysicalCeilings,
     build
   });
 })();
