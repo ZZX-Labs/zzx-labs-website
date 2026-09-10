@@ -2,33 +2,56 @@
 (function(){
   "use strict";
 
-  const W=window;
-  if(Number(W.ZZXBitcoinCommitProvider?.__version||0)>=1)return;
+  const W=window,D=document;
+  if(Number(W.ZZXBitcoinCommitProvider?.__version||0)>=2)return;
 
-  const CACHE_KEY="zzx.bitcoin-core.commits.v1";
+  const CACHE_KEY="zzx.bitcoin-core.commits.v2";
   const TTL=5*60*1000;
 
   function readCache(){
     try{return JSON.parse(localStorage.getItem(CACHE_KEY)||"null")}catch(_){return null}
   }
 
-  function writeCache(v){
-    try{localStorage.setItem(CACHE_KEY,JSON.stringify(v))}catch(_){}
+  function writeCache(value){
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify(value))}catch(_){}
   }
 
-  async function json(url,signal,github=false){
-    const headers={Accept:github?"application/vnd.github+json":"application/json"};
-    if(github)headers["X-GitHub-Api-Version"]="2022-11-28";
+  async function ensureScript(path,test){
+    if(test())return;
 
-    const r=await fetch(url,{
-      cache:"no-store",
-      credentials:"omit",
-      signal,
-      headers
+    const src=new URL(path,location.href).href;
+    const existing=[...D.scripts].find(s=>s.src===src);
+
+    if(existing){
+      const start=Date.now();
+      while(!test()&&Date.now()-start<2500){
+        await new Promise(resolve=>setTimeout(resolve,25));
+      }
+      if(test())return;
+    }
+
+    await new Promise((resolve,reject)=>{
+      const s=D.createElement("script");
+      s.src=path;
+      s.defer=true;
+      s.onload=resolve;
+      s.onerror=()=>reject(new Error(`Failed to load ${path}`));
+      (D.head||D.documentElement).appendChild(s);
     });
 
-    if(!r.ok)throw new Error(`HTTP ${r.status} ${url}`);
-    return r.json();
+    if(!test())throw new Error(`${path} did not register`);
+  }
+
+  async function ensureCompatibilityLayer(){
+    await ensureScript(
+      "/__partials/widgets/btc-commits/js/sources.js",
+      ()=>Number(W.ZZXBTCCommitsSources?.__version||0)>=2
+    );
+
+    await ensureScript(
+      "/__partials/widgets/btc-commits/js/fetch.js",
+      ()=>Number(W.ZZXBTCCommitsFetch?.__version||0)>=2
+    );
   }
 
   async function load({force=false,signal=null}={}){
@@ -39,51 +62,44 @@
       return {...cached,transport:"cache",stale:false};
     }
 
-    const errors=[];
-    for(const url of [
-      "/bitcoin/github/api/bitcoin-core/commits.json",
-      "/bitcoin/github/bitcoin-core/commits.json"
-    ]){
-      try{
-        const payload=await json(url,signal,false);
-        const rows=Array.isArray(payload)?payload:(payload?.commits||payload?.rows||[]);
-        if(!Array.isArray(rows))throw new Error("invalid commit mirror payload");
+    try{
+      await ensureCompatibilityLayer();
 
-        const result={
-          rows,
-          source:url,
-          generatedAt:payload?.generated_at||null,
-          cachedAt:now
+      const result=await W.ZZXBTCCommitsFetch.load({signal});
+      const rows=result.rows||[];
+
+      const saved={
+        rows,
+        source:result.source,
+        generatedAt:result.generatedAt||null,
+        cachedAt:now
+      };
+
+      writeCache(saved);
+
+      return {
+        ...saved,
+        transport:result.transport||"local",
+        stale:false
+      };
+    }catch(error){
+      if(error?.name==="AbortError")throw error;
+
+      if(cached?.rows){
+        return {
+          ...cached,
+          transport:"cache",
+          stale:true,
+          error:String(error?.message||error)
         };
-        writeCache(result);
-        return {...result,transport:"local",stale:false};
-      }catch(error){
-        if(error?.name==="AbortError")throw error;
-        errors.push(String(error?.message||error));
       }
-    }
 
-    if(W.ZZXGitHubDirectFallback===true){
-      try{
-        const url="https://api.github.com/repos/bitcoin/bitcoin/commits?sha=master&per_page=100";
-        const rows=await json(url,signal,true);
-        const result={rows,source:"GitHub REST API",cachedAt:now};
-        writeCache(result);
-        return {...result,transport:"direct",stale:false};
-      }catch(error){
-        if(error?.name==="AbortError")throw error;
-        errors.push(String(error?.message||error));
-      }
+      throw error;
     }
-
-    if(cached?.rows){
-      return {...cached,transport:"cache",stale:true,error:errors.join(" | ")};
-    }
-
-    throw new Error(
-      "Bitcoin Core commit mirror unavailable. Run the Bitcoin Core GitHub Activity workflow."
-    );
   }
 
-  W.ZZXBitcoinCommitProvider=Object.freeze({__version:1,load});
+  W.ZZXBitcoinCommitProvider=Object.freeze({
+    __version:2,
+    load
+  });
 })();
