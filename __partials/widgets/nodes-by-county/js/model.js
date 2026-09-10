@@ -2,15 +2,56 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXNodesByCountyModel?.__version>=2)return;
+  if(W.ZZXNodesByCountyModel?.__version>=3)return;
 
   function finite(value){const n=Number(value);return Number.isFinite(n)?n:NaN;}
   function clean(value){return String(value??"").trim();}
-  function flag(code){const iso=clean(code).toUpperCase();if(!/^[A-Z]{2}$/.test(iso))return "🏴";return String.fromCodePoint(...[...iso].map(ch=>127397+ch.charCodeAt(0)));}
-  function displayCountry(code){const iso=clean(code).toUpperCase();if(!/^[A-Z]{2}$/.test(iso))return iso;try{if(typeof Intl?.DisplayNames==="function"){const names=new Intl.DisplayNames(undefined,{type:"region"});return names.of(iso)||iso;}}catch(_){ }return iso;}
-  function makeLabel(county,region,country){const parts=[clean(county),clean(region),clean(country).toUpperCase()].filter(Boolean);return parts.join(", ")||"Unknown";}
-  function fromNodes(snapshot){const map=new Map();for(const node of Array.isArray(snapshot?.nodes)?snapshot.nodes:[]){const county=clean(node?.county);const region=clean(node?.region);const country=clean(node?.country).toUpperCase();if(!county)continue;const key=[county.toLowerCase(),region.toLowerCase(),country];const flat=`${county.toLowerCase()}|${region.toLowerCase()}|${country}`;const row=map.get(flat)||{county,region,country,flag:flag(country),countryName:displayCountry(country),label:makeLabel(county,region,country),nodes:0};row.nodes+=1;map.set(flat,row);}return [...map.values()];}
-  function fromMap(snapshot){const source=snapshot?.byCounty;if(!source||typeof source!=="object"||Array.isArray(source))return [];return Object.entries(source).map(([label,count])=>{const nodes=finite(count);if(!(nodes>0))return null;const parts=clean(label).split(",").map(clean).filter(Boolean);let country="";let region="";let county="";if(parts.length>=1){const last=parts.at(-1)?.toUpperCase()||"";if(/^[A-Z]{2}$/.test(last)){country=last;parts.pop();}}if(parts.length>=2){region=parts.pop();}county=parts.join(", ")||clean(label);return {county,region,country,flag:flag(country),countryName:displayCountry(country),label:makeLabel(county,region,country),nodes};}).filter(Boolean);}
-  function build(snapshot){let rows=fromNodes(snapshot);if(!rows.length)rows=fromMap(snapshot);const merged=new Map();for(const row of rows){if(!(Number(row.nodes)>0))continue;const county=clean(row.county);const region=clean(row.region);const country=clean(row.country).toUpperCase();const key=[county.toLowerCase(),region.toLowerCase(),country].join("|");const current=merged.get(key)||{county:county||"Unknown",region,country,flag:row.flag||flag(country),countryName:row.countryName||displayCountry(country),label:row.label||makeLabel(county,region,country),nodes:0};current.nodes+=Number(row.nodes);merged.set(key,current);}rows=[...merged.values()].sort((a,b)=>b.nodes-a.nodes||a.country.localeCompare(b.country)||a.region.localeCompare(b.region)||a.county.localeCompare(b.county));const geolocatedTotal=rows.reduce((sum,row)=>sum+row.nodes,0);const reachable=finite(snapshot?.reachableNodes??snapshot?.totalNodes);const decoded=finite(snapshot?.nodeCount);const denominator=Number.isFinite(reachable)&&reachable>0?reachable:Number.isFinite(decoded)&&decoded>0?decoded:geolocatedTotal;for(const row of rows){row.share=Number.isFinite(denominator)&&denominator>0?row.nodes/denominator:NaN;row.geoShare=geolocatedTotal>0?row.nodes/geolocatedTotal:NaN;}const coverage=Number.isFinite(denominator)&&denominator>0?Math.min(1,geolocatedTotal/denominator):NaN;const unidentified=Number.isFinite(denominator)&&denominator>0?Math.max(0,denominator-geolocatedTotal):NaN;return Object.freeze({schema:"zzx-nodes-by-county-model-v2",rows:Object.freeze(rows.map(Object.freeze)),countyCount:rows.length,geolocatedTotal,reachable:Number.isFinite(reachable)?reachable:null,decoded:Number.isFinite(decoded)?decoded:null,denominator:Number.isFinite(denominator)?denominator:null,coverage:Number.isFinite(coverage)?coverage:null,unidentified:Number.isFinite(unidentified)?unidentified:null,top:rows[0]||null});}
-  W.ZZXNodesByCountyModel=Object.freeze({__version:2,build,makeLabel,displayCountry,flag});
+  function meta(code,name="",flag=""){
+    if(W.ZZXBitnodes?.countryMeta)return W.ZZXBitnodes.countryMeta(code,name,flag);
+    const iso=clean(code).toUpperCase();const valid=/^[A-Z]{2}$/.test(iso);
+    let n=valid?iso:"Unlocated";try{if(valid&&typeof Intl?.DisplayNames==="function")n=new Intl.DisplayNames(["en"],{type:"region"}).of(iso)||iso;}catch(_){}
+    return {code:valid?iso:"--",name:clean(name)||n,flag:valid?String.fromCodePoint(...[...iso].map(ch=>127397+ch.charCodeAt(0))):"🏴",located:valid,label:valid?`${valid?String.fromCodePoint(...[...iso].map(ch=>127397+ch.charCodeAt(0))):"🏴"} ${clean(name)||n} · ${iso}`:"🏴 Unlocated · --"};
+  }
+  function makeLabel(county,region,countryName,country){return [clean(county),clean(region),clean(countryName),clean(country)].filter(Boolean).join(" · ")||"Unknown";}
+
+  function fromNodes(snapshot){
+    const map=new Map();
+    for(const node of Array.isArray(snapshot?.nodes)?snapshot.nodes:[]){
+      const county=clean(node?.county);const region=clean(node?.region);const country=meta(node?.country,node?.countryName,node?.countryFlag);
+      if(!county||!country.located||node?.geoSynthetic===true)continue;
+      const key=`${county.toLowerCase()}|${region.toLowerCase()}|${country.code}`;
+      const row=map.get(key)||{county,region,country:country.code,countryName:country.name,flag:country.flag,nationLabel:country.label,label:makeLabel(county,region,country.name,country.code),nodes:0};
+      row.nodes+=1;map.set(key,row);
+    }
+    return [...map.values()];
+  }
+
+  function fromMap(snapshot){
+    const source=snapshot?.byCounty;if(!source||typeof source!=="object"||Array.isArray(source))return [];
+    return Object.entries(source).map(([label,count])=>{
+      const nodes=finite(count);if(!(nodes>0))return null;
+      const parts=clean(label).split(",").map(clean).filter(Boolean);const rawCountry=parts.at(-1)||"";const country=meta(rawCountry);if(!country.located)return null;parts.pop();
+      const region=parts.length>1?parts.pop():"";const county=parts.join(", ");if(!county)return null;
+      return {county,region,country:country.code,countryName:country.name,flag:country.flag,nationLabel:country.label,label:makeLabel(county,region,country.name,country.code),nodes};
+    }).filter(Boolean);
+  }
+
+  function build(snapshot){
+    let rows=fromNodes(snapshot);if(!rows.length)rows=fromMap(snapshot);
+    const merged=new Map();
+    for(const row of rows){
+      const county=clean(row.county);const region=clean(row.region);const country=meta(row.country,row.countryName,row.flag);
+      if(!county||!country.located||!(Number(row.nodes)>0))continue;
+      const key=`${county.toLowerCase()}|${region.toLowerCase()}|${country.code}`;
+      const current=merged.get(key)||{county,region,country:country.code,countryName:country.name,flag:country.flag,nationLabel:country.label,label:makeLabel(county,region,country.name,country.code),nodes:0};
+      current.nodes+=Number(row.nodes);merged.set(key,current);
+    }
+    rows=[...merged.values()].sort((a,b)=>b.nodes-a.nodes||a.countryName.localeCompare(b.countryName)||a.region.localeCompare(b.region)||a.county.localeCompare(b.county));
+    const geolocatedTotal=rows.reduce((sum,row)=>sum+row.nodes,0);const reachable=finite(snapshot?.reachableNodes??snapshot?.totalNodes);const decoded=finite(snapshot?.nodeCount);
+    const denominator=Number.isFinite(reachable)&&reachable>0?reachable:Number.isFinite(decoded)&&decoded>0?decoded:geolocatedTotal;
+    for(const row of rows){row.share=denominator>0?row.nodes/denominator:NaN;row.geoShare=geolocatedTotal>0?row.nodes/geolocatedTotal:NaN;}
+    const coverage=denominator>0?Math.min(1,geolocatedTotal/denominator):NaN;const unidentified=denominator>0?Math.max(0,denominator-geolocatedTotal):NaN;
+    return Object.freeze({schema:"zzx-nodes-by-county-model-v3",rows:Object.freeze(rows.map(Object.freeze)),countyCount:rows.length,geolocatedTotal,reachable:Number.isFinite(reachable)?reachable:null,decoded:Number.isFinite(decoded)?decoded:null,denominator:Number.isFinite(denominator)?denominator:null,coverage:Number.isFinite(coverage)?coverage:null,unidentified:Number.isFinite(unidentified)?unidentified:null,geographySource:snapshot?.geography?.source||null,top:rows[0]||null});
+  }
+  W.ZZXNodesByCountyModel=Object.freeze({__version:3,build,makeLabel,countryMeta:meta});
 })();
