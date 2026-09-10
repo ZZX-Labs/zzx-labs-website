@@ -7,7 +7,7 @@
   function render(container,rows){
     container.replaceChildren();
     for(const row of rows){
-      const item=D.createElement("article");item.className="btc-prs__item";
+      const item=D.createElement("article");item.className="btc-prs__item";item.dataset.prState=row.state;
 
       const num=D.createElement("span");num.className="btc-prs__number";num.textContent=`#${row.number}`;
 
