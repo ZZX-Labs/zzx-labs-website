@@ -2,13 +2,43 @@
 (function(){
   "use strict";
 
-  const W=window,D=document,ID="hashrate-by-nation";
+  const W=window;
+  const D=document;
+  const ID="hashrate-by-nation";
+  const SORT_KEY="zzx.widget.hashrate-by-nation.sort.v10.34";
 
-  function q(root,sel){return root?root.querySelector(sel):null}
+  function q(root,selector){return root?.querySelector?.(selector)||null;}
 
-  function pct(v){
-    const n=Number(v);
+  function set(root,selector,value){
+    const el=q(root,selector);
+    if(el)el.textContent=value==null?"—":String(value);
+  }
+
+  function finite(value){
+    if(value===null||value===undefined)return NaN;
+    if(typeof value==="string"&&!value.trim())return NaN;
+    const n=Number(value);
+    return Number.isFinite(n)?n:NaN;
+  }
+
+  function pct(value){
+    const n=finite(value);
     return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
+  }
+
+  function fmtEH(value){
+    const n=finite(value);
+    if(!Number.isFinite(n))return "—";
+    if(n>=1000)return `${(n/1000).toFixed(3)} ZH/s`;
+    return `${n.toFixed(n>=100?1:2)} EH/s`;
+  }
+
+  function safeGet(key){
+    try{return W.localStorage.getItem(key);}catch(_){return null;}
+  }
+
+  function safeSet(key,value){
+    try{W.localStorage.setItem(key,String(value));}catch(_){}
   }
 
   function status(root,label,state){
@@ -18,113 +48,272 @@
     el.setAttribute("data-status",state||"offline");
   }
 
-  async function ensureModules(core){
-    const base=core?.widgetBase
+  function resolve(path){
+    return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
+  }
+
+  function base(core){
+    return core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/hashrate-by-nation";
+  }
 
-    for(const [globalName,relative] of [
-      ["ZZXHashrateNationModel","js/model.js"],
-      ["ZZXHashrateNationProvider","js/provider.js"],
-      ["ZZXHashrateNationChart","js/chart.js"]
-    ]){
-      if(W[globalName])continue;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(`${base}/${relative}`):`${base}/${relative}`;
-      await new Promise((resolve,reject)=>{
-        const s=D.createElement("script");
-        s.src=src;s.defer=true;
-        s.onload=resolve;s.onerror=reject;
-        (D.head||D.documentElement).appendChild(s);
-      });
+  async function loadScript(path,test,tag){
+    if(test())return;
+
+    const src=new URL(resolve(path),W.location.href).href;
+    const existing=[...D.scripts].find(script=>script.src===src);
+
+    if(existing){
+      const started=Date.now();
+
+      while(!test()&&Date.now()-started<2500){
+        await new Promise(done=>W.setTimeout(done,25));
+      }
+
+      if(test())return;
+    }
+
+    await new Promise((done,fail)=>{
+      const script=D.createElement("script");
+      script.src=src;
+      script.defer=true;
+      script.dataset.hbnDependency=tag;
+      script.addEventListener("load",done,{once:true});
+      script.addEventListener(
+        "error",
+        ()=>fail(new Error(`Failed to load ${path}`)),
+        {once:true}
+      );
+      (D.head||D.documentElement).appendChild(script);
+    });
+
+    if(!test()){
+      throw new Error(`${path} did not register ${tag}`);
     }
   }
 
-  function draw(root,state){
-    if(!state.result)return;
-    W.ZZXHashrateNationChart.draw(
-      q(root,"[data-hbn-canvas]"),
-      state.result.model.rows
+  async function ensureModules(core){
+    await loadScript(
+      `${base(core)}/js/model.js`,
+      ()=>Number(W.ZZXHashrateNationModel?.__version||0)>=3,
+      "ZZXHashrateNationModel"
+    );
+
+    await loadScript(
+      `${base(core)}/js/provider.js`,
+      ()=>Number(W.ZZXHashrateNationProvider?.__version||0)>=3,
+      "ZZXHashrateNationProvider"
+    );
+
+    await loadScript(
+      `${base(core)}/js/ui.js`,
+      ()=>Number(W.ZZXHashrateNationUI?.__version||0)>=3,
+      "ZZXHashrateNationUI"
+    );
+
+    await loadScript(
+      `${base(core)}/js/charts.js`,
+      ()=>Number(W.ZZXHashrateNationCharts?.__version||0)>=3,
+      "ZZXHashrateNationCharts"
+    );
+
+    await loadScript(
+      `${base(core)}/js/viewport.js`,
+      ()=>Number(W.ZZXHashrateNationViewport?.__version||0)>=3,
+      "ZZXHashrateNationViewport"
     );
   }
 
-  function renderTable(root,state){
-    const body=q(root,"[data-hbn-body]");
-    body.replaceChildren();
+  function filtered(root,state){
+    let rows=[...(state.model?.rows||[])];
 
-    const rows=state.result.model.rows;
+    const needle=String(q(root,"[data-hbn-search]")?.value||"")
+      .trim()
+      .toLowerCase();
 
-    if(!rows.length){
-      const empty=D.createElement("div");
-      empty.className="hashrate-by-nation__empty";
-      empty.textContent="No geographic allocation rows.";
-      body.appendChild(empty);
-      return;
+    if(needle){
+      rows=rows.filter(row=>
+        [
+          row.country,
+          row.countryName
+        ].join(" ").toLowerCase().includes(needle)
+      );
     }
 
-    rows.forEach((row,index)=>{
-      const line=D.createElement("div");
-      line.className="hashrate-by-nation__row";
-      line.setAttribute("role","row");
+    const sort=String(q(root,"[data-hbn-sort]")?.value||"hash-desc");
 
-      const basis=row.source||row.basis||state.result.model.mode;
-      const values=[
-        String(index+1),
-        `${row.name||row.iso} (${row.iso})`,
-        pct(row.share),
-        `${row.estimatedEH.toFixed(2)} EH/s`,
-        basis
-      ];
+    switch(sort){
+      case "share-desc":
+        rows.sort((a,b)=>
+          b.share-a.share ||
+          a.countryName.localeCompare(b.countryName)
+        );
+        break;
 
-      values.forEach((value,i)=>{
-        const cell=D.createElement("div");
-        cell.setAttribute("role","cell");
-        if(i===2||i===3)cell.classList.add("hashrate-by-nation__num");
-        cell.textContent=value;
-        line.appendChild(cell);
-      });
+      case "confidence-desc":
+        rows.sort((a,b)=>
+          b.confidence-a.confidence ||
+          b.estimateEH-a.estimateEH
+        );
+        break;
 
-      body.appendChild(line);
-    });
+      case "nation":
+        rows.sort((a,b)=>
+          a.countryName.localeCompare(b.countryName)
+        );
+        break;
+
+      default:
+        rows.sort((a,b)=>
+          b.estimateEH-a.estimateEH ||
+          a.countryName.localeCompare(b.countryName)
+        );
+    }
+
+    return rows;
+  }
+
+  function renderTable(root,state,{resetScroll=false}={}){
+    const rows=filtered(root,state);
+    const total=state.model?.rows?.length||0;
+    const body=q(root,"[data-hbn-body]");
+
+    if(body){
+      W.ZZXHashrateNationUI.renderRows(body,rows);
+    }
+
+    set(
+      root,
+      "[data-hbn-visible-count]",
+      `${rows.length.toLocaleString()} visible / ${total.toLocaleString()} total`
+    );
+
+    if(resetScroll){
+      const scroller=q(root,"[data-hbn-scroll]");
+      if(scroller)scroller.scrollTop=0;
+    }
   }
 
   function render(root,state){
-    const r=state.result;
-    const m=r.model;
+    const m=state.model;
+    const detail=state.detail;
 
-    q(root,"[data-hbn-mode]").textContent=m.mode;
-    q(root,"[data-hbn-global]").textContent=`${m.globalEH.toFixed(2)} EH/s`;
-    q(root,"[data-hbn-count]").textContent=String(m.rows.length);
-    q(root,"[data-hbn-share]").textContent=pct(m.shownShare);
-    q(root,"[data-hbn-other]").textContent=pct(m.unallocatedShare);
+    if(!m||!detail)return;
 
-    q(root,"[data-hbn-sub]").textContent=
-      m.mode==="node-geography proxy"
-        ? "proxy only: node-country distribution is not measured mining-country distribution"
-        : "local mining-share estimates scaled to current global hashrate";
+    set(root,"[data-hbn-global]",fmtEH(m.globalEH));
+    set(root,"[data-hbn-window]","last 24 hours");
+    set(root,"[data-hbn-nations]",m.rows.length.toLocaleString());
+    set(root,"[data-hbn-confidence]",pct(m.confidence));
+    set(root,"[data-hbn-pool-coverage]",pct(m.pool.coverage));
+    set(root,"[data-hbn-grid-coverage]",pct(m.grid.coverage));
 
-    q(root,"[data-hbn-meta]").textContent=
-      `${r.source} · ${r.updated?`updated ${new Date(r.updated).toLocaleString()} · `:""}${
-        m.mode==="node-geography proxy"
-          ? "explicit proxy; no Tor redistribution or uncertainty band fabricated"
-          : "local estimated mining shares"
-      }`;
+    const rankResult=W.ZZXHashrateNationCharts.renderRank(root,m.rows);
+    const timeResult=W.ZZXHashrateNationCharts.renderTimeline(root,m);
+
+    set(
+      root,
+      "[data-hbn-ranked-count]",
+      `${rankResult.rows} shown / ${m.rows.length} estimated`
+    );
+
+    set(
+      root,
+      "[data-hbn-timeline-count]",
+      `${timeResult.series} nations · ${timeResult.points} global samples`
+    );
+
+    const legend=q(root,"[data-hbn-legend]");
+    if(legend){
+      W.ZZXHashrateNationUI.renderLegend(legend,m.rows);
+    }
+
+    set(
+      root,
+      "[data-hbn-pool-evidence]",
+      `${m.pool.mappedPools}/${m.pool.pools} pools mapped · ${pct(m.pool.coverage)} weighted block share`
+    );
+
+    set(
+      root,
+      "[data-hbn-grid-evidence]",
+      `${m.grid.accepted} nations · ${m.grid.totalMiningMW.toLocaleString(undefined,{maximumFractionDigits:1})} MW mining-specific input`
+    );
+
+    set(
+      root,
+      "[data-hbn-node-evidence]",
+      `${Math.round(m.nodes.located||0).toLocaleString()} located / ${Math.round(m.nodes.total||0).toLocaleString()} · ${pct(m.nodes.coverage)}`
+    );
+
+    set(root,"[data-hbn-model-mode]",m.mode);
+
+    const sourceList=detail.sources||{};
+
+    set(
+      root,
+      "[data-hbn-sub]",
+      `pool geo ${sourceList.poolEvidence||"unavailable"} · grid ${sourceList.grid||"unavailable"} · nodes ${sourceList.nodes||"unavailable"} · uncertainty bands are heuristic model ranges, not statistical confidence intervals`
+    );
 
     renderTable(root,state);
-    draw(root,state);
-    status(root,m.mode==="node-geography proxy"?"proxy":"live",m.mode==="node-geography proxy"?"warn":"ok");
+
+    status(
+      root,
+      detail.stale?"cached":"live",
+      detail.stale?"warn":"ok"
+    );
+
+    W.ZZXHashrateByNationLatest=Object.freeze({
+      schema:"zzx-hashrate-by-nation-export-v3",
+      global24hEH:m.globalEH,
+      rows:m.rows,
+      confidence:m.confidence,
+      poolCoverage:m.pool.coverage,
+      gridCoverage:m.grid.coverage,
+      nodeCoverage:m.nodes.coverage,
+      effectiveWeights:m.effective,
+      modelMode:m.mode,
+      sources:detail.sources,
+      stale:!!detail.stale
+    });
   }
 
-  async function refresh(root,state){
+  async function refresh(root,state,force=false){
     if(state.busy||!root.isConnected)return;
+
     state.busy=true;
     status(root,"refreshing","warn");
 
+    state.controller?.abort?.();
+
+    state.controller=
+      typeof AbortController==="function"
+        ? new AbortController()
+        : null;
+
     try{
-      state.result=await W.ZZXHashrateNationProvider.load(state.core);
+      const detail=await W.ZZXHashrateNationProvider.load({
+        force,
+        signal:state.controller?.signal||null
+      });
+
+      const model=W.ZZXHashrateNationModel.build(detail.inputs);
+
+      state.detail=detail;
+      state.model=model;
+
       render(root,state);
     }catch(error){
-      status(root,state.result?"stale":"offline",state.result?"warn":"error");
-      q(root,"[data-hbn-meta]").textContent=String(error?.message||error);
+      if(error?.name==="AbortError")return;
+
+      status(
+        root,
+        state.detail?"stale":"offline",
+        state.detail?"warn":"error"
+      );
+
+      set(root,"[data-hbn-sub]",String(error?.message||error));
     }finally{
       state.busy=false;
     }
@@ -133,38 +322,86 @@
   async function boot(root,core){
     if(!root)return;
 
+    const old=root.__zzxHashrateNationState;
+    old?.abortController?.abort?.();
+    old?.controller?.abort?.();
+    old?.detachViewport?.();
+
+    if(old?.searchTimer){
+      W.clearTimeout(old.searchTimer);
+    }
+
+    const abortController=
+      typeof AbortController==="function"
+        ? new AbortController()
+        : null;
+
+    const options=
+      abortController
+        ? {signal:abortController.signal}
+        : undefined;
+
     const state={
       core:core||W.ZZXWidgetsCore||null,
-      result:null,
+      detail:null,
+      model:null,
       busy:false,
-      timer:null,
-      resize:null
+      searchTimer:null,
+      abortController,
+      controller:null,
+      detachViewport:null
     };
 
     root.__zzxHashrateNationState=state;
 
     try{
       await ensureModules(state.core);
+      state.detachViewport=W.ZZXHashrateNationViewport.attach(root);
 
-      q(root,"[data-hbn-refresh]")?.addEventListener("click",()=>refresh(root,state));
+      const sort=q(root,"[data-hbn-sort]");
+      const savedSort=safeGet(SORT_KEY);
 
-      if("ResizeObserver" in W){
-        state.resize=new ResizeObserver(()=>W.requestAnimationFrame(()=>draw(root,state)));
-        state.resize.observe(q(root,"[data-hbn-canvas]"));
+      if(
+        sort &&
+        ["hash-desc","share-desc","confidence-desc","nation"].includes(savedSort)
+      ){
+        sort.value=savedSort;
       }
 
-      await refresh(root,state);
+      q(root,"[data-hbn-search]")?.addEventListener(
+        "input",
+        ()=>{
+          if(state.searchTimer){
+            W.clearTimeout(state.searchTimer);
+          }
 
-      async function loop(){
-        if(!root.isConnected)return;
-        await refresh(root,state);
-        state.timer=W.setTimeout(loop,60000);
-      }
+          state.searchTimer=W.setTimeout(
+            ()=>renderTable(root,state,{resetScroll:true}),
+            100
+          );
+        },
+        options
+      );
 
-      state.timer=W.setTimeout(loop,60000);
+      sort?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(SORT_KEY,sort.value);
+          renderTable(root,state,{resetScroll:true});
+        },
+        options
+      );
+
+      q(root,"[data-hbn-refresh]")?.addEventListener(
+        "click",
+        ()=>refresh(root,state,true),
+        options
+      );
+
+      await refresh(root,state,false);
     }catch(error){
       status(root,"offline","error");
-      q(root,"[data-hbn-meta]").textContent=String(error?.message||error);
+      set(root,"[data-hbn-sub]",String(error?.message||error));
     }
   }
 
