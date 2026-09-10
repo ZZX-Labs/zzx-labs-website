@@ -30,10 +30,12 @@
   }
 
   async function ensureModules(core){
-    await loadScript("/__partials/widgets/_shared/zzx-bitnodes.js",()=>Number(W.ZZXBitnodes?.__version||0)>=7,"ZZXBitnodes");
+    await loadScript("/__partials/widgets/_shared/zzx-bitnodes.js",()=>Number(W.ZZXBitnodes?.__version||0)>=8,"ZZXBitnodes");
     await loadScript("/__partials/widgets/nodes-by-version/js/model.js",()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=2,"ZZXNodesByVersionModel");
     await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXKnotsCoreModel?.__version||0)>=5,"ZZXKnotsCoreModel");
     await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXKnotsCoreProvider?.__version||0)>=5,"ZZXKnotsCoreProvider");
+    await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXKnotsCoreUI?.__version||0)>=6,"ZZXKnotsCoreUI");
+    await loadScript(`${base(core)}/js/viewport.js`,()=>Number(W.ZZXKnotsCoreViewport?.__version||0)>=6,"ZZXKnotsCoreViewport");
   }
 
   function filteredVersionRows(root,state){
@@ -51,28 +53,31 @@
 
   function renderNations(root,state){
     const rows=state.result?.model?.nationRows||[];
-    set(root,"[data-kvc-nation-count]",`${rows.length.toLocaleString()} nation${rows.length===1?"":"s"}`);
-    const body=q(root,"[data-kvc-nation-body]");if(!body)return;body.replaceChildren();
-    if(!rows.length){const empty=D.createElement("div");empty.className="knots-vs-core__empty";empty.textContent="No nation-tagged client rows are available.";body.appendChild(empty);return;}
-    rows.forEach(item=>{
-      const row=D.createElement("div");row.className="knots-vs-core__nation-row";row.setAttribute("role","row");
-      const values=[item.nationLabel||`${item.flag||"🏴"} ${item.countryName||"Unlocated"} · ${item.country||"--"}`,int(item.core),int(item.knots),int(item.other),int(item.total)];
-      values.forEach((value,i)=>{const cell=D.createElement("div");cell.setAttribute("role","cell");if(i>0)cell.classList.add("knots-vs-core__num");cell.textContent=value;if(i===0)cell.title=value;row.appendChild(cell);});
-      body.appendChild(row);
-    });
+    set(
+      root,
+      "[data-kvc-nation-count]",
+      `${rows.length.toLocaleString()} nation${rows.length===1?"":"s"}`
+    );
+
+    const body=q(root,"[data-kvc-nation-body]");
+    if(!body)return;
+
+    W.ZZXKnotsCoreUI.renderNationRows(body,rows);
   }
 
   function renderVersions(root,state){
     const rows=filteredVersionRows(root,state);
-    set(root,"[data-kvc-version-count]",`${rows.length.toLocaleString()} matching version${rows.length===1?"":"s"}`);
-    const body=q(root,"[data-kvc-version-body]");if(!body)return;body.replaceChildren();
-    if(!rows.length){const empty=D.createElement("div");empty.className="knots-vs-core__empty";empty.textContent="No Core/Knots version rows match this filter.";body.appendChild(empty);return}
-    rows.slice(0,100).forEach(item=>{
-      const row=D.createElement("div");row.className="knots-vs-core__version-row";row.setAttribute("role","row");row.dataset.family=item.family;
-      const vals=[item.family,item.userAgent,item.nationLabel||`${item.flag||"🏴"} ${item.countryName||"Unlocated"} · ${item.country||"--"}`,int(item.count),pct(item.shareIdentified)];
-      vals.forEach((value,i)=>{const cell=D.createElement("div");cell.setAttribute("role","cell");if(i>=3)cell.classList.add("knots-vs-core__num");cell.textContent=value;if(i===1)cell.title=`${item.family} · ${item.version} · ${item.userAgent} · ${item.nationLabel||item.countryName||"Unlocated"}`;row.appendChild(cell)});
-      body.appendChild(row);
-    });
+
+    set(
+      root,
+      "[data-kvc-version-count]",
+      `${rows.length.toLocaleString()} matching version${rows.length===1?"":"s"}`
+    );
+
+    const body=q(root,"[data-kvc-version-body]");
+    if(!body)return;
+
+    W.ZZXKnotsCoreUI.renderVersionRows(body,rows);
   }
 
   function render(root,state){
@@ -89,7 +94,7 @@
     set(root,"[data-kvc-unreachable]",Number.isFinite(m.unreachable)?`${int(m.unreachable)} network-wide · not attributed to client`:"not supplied by current snapshot");
     set(root,"[data-kvc-generated]",r.generated?new Date(r.generated).toLocaleString():"—");
     set(root,"[data-kvc-source]",`${r.source} · ${r.transport}${r.stale?" · stale":""}`);
-    set(root,"[data-kvc-note]","shared ZZXBitnodes v7 + version × nation rows · exact UA classification · verified Map Host geography");
+    set(root,"[data-kvc-note]","shared ZZXBitnodes v8 · scrollable nation + exact-version matrices · exact UA classification · verified Map Host geography");
     renderNations(root,state);
     renderVersions(root,state);
     status(root,r.stale?"cached":"live",r.stale?"warn":"ok");
@@ -103,11 +108,12 @@
 
   async function boot(root,core){
     if(!root)return;
-    const old=root.__zzxKnotsCoreState;old?.unsubscribe?.();old?.abortController?.abort?.();if(old?.searchTimer)W.clearTimeout(old.searchTimer);
+    const old=root.__zzxKnotsCoreState;old?.unsubscribe?.();old?.abortController?.abort?.();old?.detachViewport?.();if(old?.searchTimer)W.clearTimeout(old.searchTimer);
     const abortController=typeof AbortController==="function"?new AbortController():null;const options=abortController?{signal:abortController.signal}:undefined;
-    const state={core:core||W.ZZXWidgetsCore||null,result:null,busy:false,unsubscribe:null,abortController,searchTimer:null};root.__zzxKnotsCoreState=state;
+    const state={core:core||W.ZZXWidgetsCore||null,result:null,busy:false,unsubscribe:null,abortController,searchTimer:null,detachViewport:null};root.__zzxKnotsCoreState=state;
     try{
       await ensureModules(state.core);
+      state.detachViewport=W.ZZXKnotsCoreViewport.attach(root);
       q(root,"[data-kvc-refresh]")?.addEventListener("click",()=>refresh(root,state,true),options);
       for(const selector of ["[data-kvc-client]","[data-kvc-sort]"]){q(root,selector)?.addEventListener("change",()=>renderVersions(root,state),options)}
       q(root,"[data-kvc-search]")?.addEventListener("input",()=>{if(state.searchTimer)W.clearTimeout(state.searchTimer);state.searchTimer=W.setTimeout(()=>renderVersions(root,state),100)},options);
