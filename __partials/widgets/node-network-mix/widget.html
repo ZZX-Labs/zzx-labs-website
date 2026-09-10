@@ -3,29 +3,123 @@
   <div class="node-network-mix__header">
     <div>
       <div class="btc-card__title">Node Network Mix</div>
-      <div class="node-network-mix__eyebrow">transport / address-family composition</div>
+      <div class="node-network-mix__eyebrow">
+        IPv4 · IPv6 · Tor · I2P · CJDNS · other
+      </div>
     </div>
-    <span class="btc-card__status" data-node-network-mix-status data-status="offline" aria-live="polite">loading</span>
+
+    <span
+      class="btc-card__status"
+      data-node-network-mix-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
   </div>
 
   <div class="node-network-mix__hero">
-    <span>known nodes</span>
+    <span>reachable network population</span>
     <strong data-node-network-mix-total>—</strong>
-    <small data-node-network-mix-sub>ZZX /bitcoin/bitnodes/ aggregate API</small>
+    <small data-node-network-mix-sub>loading transport distribution…</small>
   </div>
 
   <div class="node-network-mix__metrics">
     <div><span>IPv4</span><strong data-node-network-mix-ipv4>—</strong></div>
     <div><span>IPv6</span><strong data-node-network-mix-ipv6>—</strong></div>
-    <div><span>Tor</span><strong data-node-network-mix-tor>—</strong></div>
+    <div><span>Tor / Onion</span><strong data-node-network-mix-tor>—</strong></div>
     <div><span>I2P / CJDNS</span><strong data-node-network-mix-overlay>—</strong></div>
   </div>
 
+  <div class="node-network-mix__coverage">
+    <div class="node-network-mix__coverage-head">
+      <span>network classification coverage</span>
+      <strong data-node-network-mix-coverage-label>—</strong>
+    </div>
+
+    <div class="node-network-mix__stack" aria-label="Reachable node network distribution">
+      <span data-node-network-mix-stack-ipv4 data-network="ipv4"></span>
+      <span data-node-network-mix-stack-ipv6 data-network="ipv6"></span>
+      <span data-node-network-mix-stack-tor data-network="tor"></span>
+      <span data-node-network-mix-stack-i2p data-network="i2p"></span>
+      <span data-node-network-mix-stack-cjdns data-network="cjdns"></span>
+      <span data-node-network-mix-stack-other data-network="other"></span>
+    </div>
+
+    <div class="node-network-mix__coverage-legend">
+      <span>classified <strong data-node-network-mix-classified>—</strong></span>
+      <span>other / hidden <strong data-node-network-mix-other>—</strong></span>
+      <span>dominant <strong data-node-network-mix-dominant>—</strong></span>
+    </div>
+  </div>
+
+  <div class="node-network-mix__section-head">
+    <div class="node-network-mix__section-title">
+      <span>Transport distribution</span>
+      <strong data-node-network-mix-network-count>—</strong>
+    </div>
+    <span class="node-network-mix__hint">share of reachable nodes</span>
+  </div>
 
   <div class="node-network-mix__bars" data-node-network-mix-bars></div>
 
+  <div class="node-network-mix__section-head">
+    <div class="node-network-mix__section-title">
+      <span>Transport matrix</span>
+      <strong data-node-network-mix-table-count>—</strong>
+    </div>
+    <span class="node-network-mix__hint">compact sorted network rows</span>
+  </div>
+
+  <div class="node-network-mix__table-wrap" data-node-network-mix-scroll>
+    <div
+      class="node-network-mix__table"
+      role="table"
+      aria-label="Bitcoin node transport distribution"
+    >
+      <div class="node-network-mix__row node-network-mix__head" role="row">
+        <div role="columnheader">Network</div>
+        <div class="node-network-mix__num" role="columnheader">Nodes</div>
+        <div class="node-network-mix__num" role="columnheader">Share</div>
+        <div class="node-network-mix__num" role="columnheader">Rank</div>
+      </div>
+      <div data-node-network-mix-body></div>
+    </div>
+  </div>
+
+  <div class="node-network-mix__details">
+    <div class="node-network-mix__detail-row">
+      <span>reachable population</span>
+      <strong data-node-network-mix-reachable>—</strong>
+    </div>
+    <div class="node-network-mix__detail-row">
+      <span>decoded node rows</span>
+      <strong data-node-network-mix-decoded>—</strong>
+    </div>
+    <div class="node-network-mix__detail-row">
+      <span>classified rows</span>
+      <strong data-node-network-mix-classified-count>—</strong>
+    </div>
+    <div class="node-network-mix__detail-row">
+      <span>unclassified remainder</span>
+      <strong data-node-network-mix-unclassified>—</strong>
+    </div>
+    <div class="node-network-mix__detail-row">
+      <span>snapshot</span>
+      <strong data-node-network-mix-updated>—</strong>
+    </div>
+    <div class="node-network-mix__detail-row">
+      <span>source</span>
+      <strong data-node-network-mix-source>—</strong>
+    </div>
+  </div>
+
   <div class="node-network-mix__footer">
-    <span data-node-network-mix-meta>local Bitnodes aggregate</span>
-    <button class="zzx-widgets__btn" type="button" data-node-network-mix-refresh>Refresh</button>
+    <span data-node-network-mix-meta>
+      shared normalized transport classification · no duplicate API calls
+    </span>
+    <button
+      class="zzx-widgets__btn"
+      type="button"
+      data-node-network-mix-refresh
+    >Refresh</button>
   </div>
 </div>
