@@ -61,7 +61,7 @@
   }
 
   async function ensureSources(core) {
-    if (W.ZZXBTCIntelSources?.feed) return;
+    if (Number(W.ZZXBTCIntelSources?.__version||0) >= 2 && W.ZZXBTCIntelSources?.feed) return;
 
     const base = core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -80,7 +80,7 @@
       (D.head || D.documentElement).appendChild(script);
     });
 
-    if (!W.ZZXBTCIntelSources?.feed) {
+    if (Number(W.ZZXBTCIntelSources?.__version||0) < 2 || !W.ZZXBTCIntelSources?.feed) {
       throw new Error("BTC Intel source module unavailable");
     }
   }
@@ -152,7 +152,10 @@
     const price = finite(
       data.price_usd ??
       data.bpi_usd ??
-      data.vwap_usd
+      data.vwap_usd ??
+      data.price?.usd ??
+      data.bpi?.USD?.rate_float ??
+      data.usd
     );
 
     const high = finite(data.high_24h);
@@ -295,13 +298,18 @@
   async function boot(root,core) {
     if (!root) return;
 
+    const old=root.__zzxBTCIntelState;
+    for(const key of ["refreshTimer","rotateTimer","ageTimer"]){
+      if(old?.[key])W.clearTimeout(old[key]);
+    }
+
     const state = {
       busy:false,
       market:null,
       items:[],
       liveSources:[],
       failedSources:[],
-      sourceCount:5,
+      sourceCount:0,
       filter:"all",
       rotationIndex:-1,
       rotationSource:null,
@@ -315,6 +323,7 @@
 
     try {
       await ensureSources(core || W.ZZXWidgetsCore || null);
+      state.sourceCount=Number(W.ZZXBTCIntelSources.SOURCE_COUNT||W.ZZXBTCIntelSources.REPOS?.length+1||0);
 
       const filter = q(root,"[data-btc-intel-filter]");
       const saved = safeGet(FILTER_KEY);
