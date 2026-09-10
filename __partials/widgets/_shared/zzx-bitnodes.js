@@ -4,16 +4,26 @@
   const W=window;
   const D=document;
 
-  if(W.ZZXBitnodes?.__version>=6)return;
+  if(W.ZZXBitnodes?.__version>=8)return;
 
   const DEFAULT_REFRESH_MS=60_000;
   const DEFAULT_STALE_MS=24*60*60*1000;
   const CONFIG_URL="/bitcoin/bitnodes/api/sources.json";
   const HISTORY_URL="/bitcoin/bitnodes/api/history.json";
   const EVENT="zzx:bitnodes:update";
-  const CACHE_KEY="zzx.bitnodes.shared.snapshot.v4";
+  const CACHE_KEY="zzx.bitnodes.shared.snapshot.v8";
   const HISTORY_KEY="zzx.bitnodes.shared.history.v4";
   const HISTORY_MAX=1440;
+  const GEOGRAPHY_CANDIDATES=[
+    "/bitcoin/bitnodes/maps/data/nodes.geojson",
+    "/bitcoin/bitnodes/live-map/data/nodes.geojson",
+    "/bitcoin/bitnodes/maps/zzxbitnodes/data/nodes.geojson",
+    "/bitcoin/bitnodes/live-map/zzxbitnodes/data/nodes.geojson",
+    "/bitcoin/bitnodes/maps/data/map-points.geojson",
+    "/bitcoin/bitnodes/live-map/data/map-points.geojson",
+    "/bitcoin/bitnodes/maps/data/map-nodes.json",
+    "/bitcoin/bitnodes/live-map/data/map-nodes.json"
+  ];
 
   const state={
     snapshot:null,
@@ -27,6 +37,10 @@
     config:null,
     configInflight:null,
     history:null,
+    geographyPayload:null,
+    geographySource:null,
+    geographyFetchedAt:0,
+    geographyInflight:null,
     subscribers:new Set()
   };
 
@@ -37,6 +51,50 @@
 
   function text(value){
     return String(value??"").trim();
+  }
+
+  function normalizeCountryCode(value){
+    const iso=text(value).toUpperCase();
+    return /^[A-Z]{2}$/.test(iso)?iso:"";
+  }
+
+  function countryFlag(value){
+    const iso=normalizeCountryCode(value);
+    if(!iso)return "🏴";
+    return String.fromCodePoint(...[...iso].map(ch=>127397+ch.charCodeAt(0)));
+  }
+
+  function countryName(value,hint=""){
+    const iso=normalizeCountryCode(value);
+    const supplied=text(hint);
+    if(supplied&&!/^(unknown|n\/?a|null|none|--)$/i.test(supplied))return supplied;
+    if(!iso)return "Unlocated";
+    if(iso==="XK")return "Kosovo";
+    try{
+      if(typeof Intl?.DisplayNames==="function"){
+        const names=new Intl.DisplayNames(["en"],{type:"region"});
+        const label=names.of(iso);
+        if(label&&label!==iso)return label;
+      }
+    }catch(_){}
+    return iso;
+  }
+
+  function countryMeta(code,nameHint="",flagHint=""){
+    const iso=normalizeCountryCode(code);
+    const name=countryName(iso,nameHint);
+    const flag=iso?(text(flagHint)||countryFlag(iso)):"🏴";
+    return Object.freeze({
+      code:iso||"--",
+      name:iso?name:"Unlocated",
+      flag,
+      located:!!iso,
+      label:iso?`${flag} ${name} · ${iso}`:`${flag} Unlocated · --`
+    });
+  }
+
+  function addressKey(value){
+    return text(value).toLowerCase();
   }
 
   function parseTime(value){
@@ -307,25 +365,30 @@
       valueAt(value,6)
     );
 
-    const country=text(
+    const rawCountry=(
       object.country ??
       object.country_code ??
       object.geo?.country ??
       object.geo?.country_code ??
       valueAt(value,7)
-    ).toUpperCase();
+    );
 
-    const countryName=text(
+    const rawCountryName=text(
       object.country_name ??
       object.geo?.country_name ??
       object.geo_contract?.country_name
     );
 
-    const countryFlag=text(
+    const rawCountryFlag=text(
       object.country_flag ??
       object.geo?.country_flag ??
       object.geo_contract?.country_flag
     );
+
+    const countryInfo=countryMeta(rawCountry,rawCountryName,rawCountryFlag);
+    const country=countryInfo.located?countryInfo.code:"";
+    const resolvedCountryName=countryInfo.located?countryInfo.name:"";
+    const resolvedCountryFlag=countryInfo.located?countryInfo.flag:"";
 
     const admin1Code=text(
       object.admin1_code ??
@@ -425,6 +488,27 @@
       valueAt(value,2)
     );
 
+    const latencyMs=finite(
+      object.latency_ms ??
+      object.latencyMs ??
+      object.ping_ms ??
+      object.pingMs
+    );
+
+    const reachableNowRaw=
+      object.reachable_now ??
+      object.reachableNow ??
+      object.reachable;
+
+    const reachable24hRaw=
+      object.reachable_24h ??
+      object.reachable24h;
+
+    const duplicateCount=finite(
+      object.duplicate_count ??
+      object.duplicateCount
+    );
+
     return Object.freeze({
       address:text(address),
       network:text(object.network)||networkFromAddress(address),
@@ -438,8 +522,8 @@
       county:county||null,
       region:region||null,
       country:country||null,
-      countryName:countryName||null,
-      countryFlag:countryFlag||null,
+      countryName:resolvedCountryName||null,
+      countryFlag:resolvedCountryFlag||null,
       admin1Code:admin1Code||null,
       admin2Code:admin2Code||null,
       ip:ip||null,
@@ -449,7 +533,11 @@
       longitude:!geoSynthetic&&Number.isFinite(longitude)?longitude:null,
       timezone:timezone||null,
       asn:asn||null,
-      organization:organization||null
+      organization:organization||null,
+      latencyMs:Number.isFinite(latencyMs)?latencyMs:null,
+      reachableNow:typeof reachableNowRaw==="boolean"?reachableNowRaw:null,
+      reachable24h:typeof reachable24hRaw==="boolean"?reachable24hRaw:null,
+      duplicateCount:Number.isFinite(duplicateCount)?Math.max(1,duplicateCount):1
     });
   }
 
@@ -497,13 +585,28 @@
     return NaN;
   }
 
+  function percentile(sorted,p){
+    if(!Array.isArray(sorted)||!sorted.length)return NaN;
+    const rank=(sorted.length-1)*p;
+    const lo=Math.floor(rank);
+    const hi=Math.ceil(rank);
+    if(lo===hi)return sorted[lo];
+    const w=rank-lo;
+    return sorted[lo]*(1-w)+sorted[hi]*w;
+  }
+
   function aggregate(nodes){
     const byNetwork={};
     const byVersion={};
     const byNation={};
     const byCity={};
     const byCounty={};
+    const byAsn={};
+    const latencies=[];
     let latestHeight=NaN;
+    let reachableNow=0;
+    let reachable24h=0;
+    let duplicateExtra=0;
 
     for(const node of nodes){
       inc(byNetwork,node.network||"other");
@@ -511,25 +614,32 @@
 
       const validCountry=/^[A-Z]{2}$/.test(node.country||"")&&!node.geoSynthetic;
       if(validCountry)inc(byNation,node.country);
-      if(validCountry&&node.city){
-        inc(byCity,`${node.city}, ${node.country}`);
+      if(validCountry&&node.city)inc(byCity,`${node.city}, ${node.country}`);
+      if(validCountry&&node.county&&(node.admin2Code||/^maphost-/i.test(node.geoSource||""))){
+        inc(byCounty,[node.county,node.region,node.country].filter(Boolean).join(", "));
       }
-      if(validCountry&&node.county&&node.admin2Code){
-        const location=[
-          node.county,
-          node.region,
-          node.country
-        ].filter(Boolean).join(", ");
-        inc(byCounty,location);
+
+      if(node.asn){
+        const key=`${node.asn}|${node.organization||"Unknown organization"}|${validCountry?node.country:"--"}`;
+        inc(byAsn,key);
       }
 
       const h=finite(node.height);
       if(Number.isFinite(h)){
-        latestHeight=Number.isFinite(latestHeight)
-          ? Math.max(latestHeight,h)
-          : h;
+        latestHeight=Number.isFinite(latestHeight)?Math.max(latestHeight,h):h;
       }
+
+      const latency=finite(node.latencyMs);
+      if(Number.isFinite(latency)&&latency>=0)latencies.push(latency);
+
+      if(node.reachableNow===true)reachableNow+=1;
+      if(node.reachable24h===true)reachable24h+=1;
+      duplicateExtra+=Math.max(0,(finite(node.duplicateCount)||1)-1);
     }
+
+    latencies.sort((a,b)=>a-b);
+    const latencyCount=latencies.length;
+    const latencyAvg=latencyCount?latencies.reduce((a,b)=>a+b,0)/latencyCount:NaN;
 
     return {
       byNetwork,
@@ -537,7 +647,21 @@
       byNation,
       byCity,
       byCounty,
-      latestHeight
+      byAsn,
+      latestHeight,
+      latency:Object.freeze({
+        count:latencyCount,
+        avg:Number.isFinite(latencyAvg)?latencyAvg:null,
+        p50:Number.isFinite(percentile(latencies,.50))?percentile(latencies,.50):null,
+        p90:Number.isFinite(percentile(latencies,.90))?percentile(latencies,.90):null,
+        p95:Number.isFinite(percentile(latencies,.95))?percentile(latencies,.95):null,
+        p99:Number.isFinite(percentile(latencies,.99))?percentile(latencies,.99):null
+      }),
+      health:Object.freeze({
+        reachableNow,
+        reachable24h,
+        duplicateExtra
+      })
     };
   }
 
@@ -632,7 +756,7 @@
     }
 
     const snapshot=Object.freeze({
-      schema:"zzx-bitnodes-normalized-v6",
+      schema:"zzx-bitnodes-normalized-v8",
       source,
       reachableNodes:Number.isFinite(reachable)?reachable:null,
       totalNodes:Number.isFinite(total)?total:null,
@@ -644,10 +768,195 @@
       byVersion:Object.freeze(agg.byVersion),
       byNation:Object.freeze(agg.byNation),
       byCity:Object.freeze(agg.byCity),
-      byCounty:Object.freeze(agg.byCounty)
+      byCounty:Object.freeze(agg.byCounty),
+      byAsn:Object.freeze(agg.byAsn),
+      latency:agg.latency,
+      health:agg.health
     });
 
     return snapshot;
+  }
+
+  function geographyRows(payload){
+    const rows=[];
+    if(Array.isArray(payload?.features)){
+      for(const feature of payload.features){
+        if(!feature||typeof feature!=="object")continue;
+        const props=feature.properties&&typeof feature.properties==="object"?feature.properties:{};
+        const address=text(props.address??props.id??feature.id);
+        if(address)rows.push({address,props});
+      }
+      return rows;
+    }
+
+    const nodes=payload?.nodes;
+    if(nodes&&typeof nodes==="object"&&!Array.isArray(nodes)){
+      for(const [key,value] of Object.entries(nodes)){
+        if(!value||typeof value!=="object")continue;
+        const address=text(value.address??value.id??key);
+        if(address)rows.push({address,props:value});
+      }
+    }else if(Array.isArray(nodes)){
+      for(const value of nodes){
+        if(!value||typeof value!=="object")continue;
+        const address=text(value.address??value.id);
+        if(address)rows.push({address,props:value});
+      }
+    }
+    return rows;
+  }
+
+  function syntheticGeography(props){
+    if(props?.synthetic===true||props?.geo_synthetic===true)return true;
+    const marker=[
+      props?.coordinate_source,props?.geo_source,props?.geoip_source,
+      props?.geo_confidence,props?.geoip_confidence
+    ].map(text).join(" ").toLowerCase();
+    return /synthetic|deterministic-fallback|workflow-map-ready-fallback/.test(marker);
+  }
+
+  function geographyUsable(payload){
+    for(const row of geographyRows(payload)){
+      const props=row.props||{};
+      if(syntheticGeography(props))continue;
+      const meta=countryMeta(
+        props.country_code??props.countryCode??props.country,
+        props.country_name??props.countryName,
+        props.country_flag??props.countryFlag
+      );
+      if(meta.located)return true;
+    }
+    return false;
+  }
+
+  function hydrateGeography(snapshot,payload,source="maphost-local"){
+    if(!snapshot||!Array.isArray(snapshot.nodes)||!snapshot.nodes.length)return snapshot;
+
+    const index=new Map();
+    for(const row of geographyRows(payload)){
+      const props=row.props||{};
+      if(syntheticGeography(props))continue;
+      const meta=countryMeta(
+        props.country_code??props.countryCode??props.country,
+        props.country_name??props.countryName,
+        props.country_flag??props.countryFlag
+      );
+      if(!meta.located)continue;
+      index.set(addressKey(row.address),{props,meta});
+    }
+
+    let joined=0;
+    let located=0;
+    let city=0;
+    let county=0;
+    const nodes=snapshot.nodes.map(node=>{
+      const existing=countryMeta(node?.country,node?.countryName,node?.countryFlag);
+      const match=index.get(addressKey(node?.address));
+      const selected=match?.meta?.located?match.meta:existing;
+      if(!selected.located)return node;
+
+      const props=match?.props||{};
+      const nextCity=text(props.city)||text(node.city);
+      const nextCounty=text(props.county??props.admin2)||text(node.county);
+      const nextRegion=text(props.region??props.state??props.admin1)||text(node.region);
+      const nextAdmin1=text(props.admin1_code??props.region_code)||text(node.admin1Code);
+      const nextAdmin2=text(props.admin2_code??props.county_code)||text(node.admin2Code);
+      if(match)joined+=1;
+      located+=1;
+      if(nextCity)city+=1;
+      if(nextCounty)county+=1;
+
+      const nextAsn=text(props.asn??props.as_number)||text(node.asn);
+      const nextOrganization=text(props.organization??props.org??props.isp)||text(node.organization);
+      const nextLatency=finite(props.latency_ms??props.latencyMs??node.latencyMs);
+      const nextDuplicate=finite(props.duplicate_count??props.duplicateCount??node.duplicateCount);
+      const nextReachableNow=
+        typeof props.reachable_now==="boolean" ? props.reachable_now :
+        typeof props.reachable==="boolean" ? props.reachable :
+        node.reachableNow;
+      const nextReachable24h=
+        typeof props.reachable_24h==="boolean" ? props.reachable_24h :
+        node.reachable24h;
+
+      return Object.freeze({
+        ...node,
+        city:nextCity||null,
+        county:nextCounty||null,
+        region:nextRegion||null,
+        country:selected.code,
+        countryName:selected.name,
+        countryFlag:selected.flag,
+        admin1Code:nextAdmin1||null,
+        admin2Code:nextAdmin2||null,
+        asn:nextAsn||null,
+        organization:nextOrganization||null,
+        latencyMs:Number.isFinite(nextLatency)?nextLatency:node.latencyMs,
+        duplicateCount:Number.isFinite(nextDuplicate)?Math.max(1,nextDuplicate):(node.duplicateCount||1),
+        reachableNow:typeof nextReachableNow==="boolean"?nextReachableNow:node.reachableNow,
+        reachable24h:typeof nextReachable24h==="boolean"?nextReachable24h:node.reachable24h,
+        geoSource:match?`maphost-${source}`:(node.geoSource||"canonical"),
+        geoSynthetic:false
+      });
+    });
+
+    const agg=aggregate(nodes);
+    return Object.freeze({
+      ...snapshot,
+      schema:"zzx-bitnodes-normalized-v8",
+      nodes:Object.freeze(nodes),
+      byVersion:Object.freeze(agg.byVersion),
+      byNation:Object.freeze(agg.byNation),
+      byCity:Object.freeze(agg.byCity),
+      byCounty:Object.freeze(agg.byCounty),
+      byAsn:Object.freeze(agg.byAsn),
+      latency:agg.latency,
+      health:agg.health,
+      geography:Object.freeze({
+        source:text(source)||"maphost-local",
+        indexed:index.size,
+        joined,
+        located,
+        city,
+        county
+      })
+    });
+  }
+
+  async function loadGeography(force=false){
+    if(
+      !force &&
+      state.geographyFetchedAt>0 &&
+      Date.now()-state.geographyFetchedAt<DEFAULT_REFRESH_MS
+    ){
+      return state.geographyPayload
+        ? {payload:state.geographyPayload,source:state.geographySource}
+        : null;
+    }
+    if(state.geographyInflight&&!force)return await state.geographyInflight;
+
+    state.geographyInflight=(async()=>{
+      for(const path of GEOGRAPHY_CANDIDATES){
+        try{
+          const payload=await fetchJSON(path,{local:true,timeoutMs:12_000});
+          if(!geographyUsable(payload))continue;
+          state.geographyPayload=payload;
+          state.geographySource=path;
+          state.geographyFetchedAt=Date.now();
+          return {payload,source:path};
+        }catch(_){}
+      }
+      state.geographyPayload=null;
+      state.geographySource=null;
+      state.geographyFetchedAt=Date.now();
+      return null;
+    })().finally(()=>{state.geographyInflight=null;});
+
+    return await state.geographyInflight;
+  }
+
+  async function withGeography(snapshot,force=false){
+    const geo=await loadGeography(force);
+    return geo?hydrateGeography(snapshot,geo.payload,geo.source):snapshot;
   }
 
   function usable(snapshot){
@@ -662,21 +971,13 @@
   }
 
   function publish(){
-    const detail=Object.freeze({
-      snapshot:state.snapshot,
-      source:state.source,
-      transport:state.transport,
-      stale:state.stale,
-      fetchedAt:state.fetchedAt
-    });
+    const detail=stateView();
 
     W.ZZXBitnodesLatest=state.snapshot;
     W.ZZXNodesLatest=state.snapshot;
 
     try{
-      W.dispatchEvent(
-        new CustomEvent(EVENT,{detail})
-      );
+      W.dispatchEvent(new CustomEvent(EVENT,{detail}));
     }catch(_){}
 
     for(const fn of state.subscribers){
@@ -738,7 +1039,8 @@
             }
           );
 
-          const snapshot=normalize(payload,candidate.id);
+          let snapshot=normalize(payload,candidate.id);
+          snapshot=await withGeography(snapshot,force);
 
           if(!usable(snapshot)){
             throw new Error(`${candidate.id} contained no usable node snapshot`);
@@ -890,7 +1192,9 @@
       transport:state.transport,
       stale:state.stale,
       updatedAt:state.updatedAt,
-      fetchedAt:state.fetchedAt
+      fetchedAt:state.fetchedAt,
+      geographySource:state.snapshot?.geography?.source||state.geographySource||null,
+      geographyJoined:Number(state.snapshot?.geography?.joined||0)
     });
   }
 
@@ -915,12 +1219,19 @@
   }
 
   W.ZZXBitnodes=Object.freeze({
-    __version:6,
+    __version:8,
     EVENT,
     load,
     current,
     history,
     normalize,
+    hydrateGeography,
+    geographyRows,
+    geographyUsable,
+    countryMeta,
+    normalizeCountryCode,
+    countryFlag,
+    countryName,
     config,
     subscribe
   });
