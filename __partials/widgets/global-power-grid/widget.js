@@ -4,6 +4,7 @@
   const W=window,D=document,ID="global-power-grid";
   const SORT_KEY="zzx.widget.global-power-grid.sort.v10.35";
   const PERIOD_KEY="zzx.widget.global-power-grid.period.v10.35";
+  const HISTORY_COUNTRY_KEY="zzx.widget.global-power-grid.history-country.v10.40";
   function q(r,s){return r?.querySelector?.(s)||null}
   function set(r,s,v){const e=q(r,s);if(e)e.textContent=v==null?"—":String(v)}
   function safeGet(k){try{return localStorage.getItem(k)}catch(_){return null}}
@@ -19,10 +20,10 @@
     if(!test())throw new Error(`${tag} failed to register`)
   }
   async function ensure(core){
-    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=1,"model");
+    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=2,"model");
     await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=2,"provider");
-    await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXGlobalPowerGridUI?.__version||0)>=1,"ui");
-    await loadScript(`${base(core)}/js/charts.js`,()=>Number(W.ZZXGlobalPowerGridCharts?.__version||0)>=1,"charts");
+    await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXGlobalPowerGridUI?.__version||0)>=2,"ui");
+    await loadScript(`${base(core)}/js/charts.js`,()=>Number(W.ZZXGlobalPowerGridCharts?.__version||0)>=2,"charts");
     await loadScript(`${base(core)}/js/viewport.js`,()=>Number(W.ZZXGlobalPowerGridViewport?.__version||0)>=1,"viewport");
   }
   function period(root){return q(root,"[data-gpg-period]")?.value||"day"}
@@ -48,6 +49,30 @@
     set(root,"[data-gpg-visible-count]",`${rows.length} visible / ${state.model.rows.length} ISO countries`);
     if(reset){const s=q(root,"[data-gpg-scroll]");if(s)s.scrollTop=0}
   }
+  function renderHistory(root,state,preferred=null){
+    const m=state.model,ui=W.ZZXGlobalPowerGridUI;
+    const select=q(root,"[data-gpg-history-country]");
+    if(!select)return;
+
+    const available=new Set(m.historyCountries.map(r=>r.country));
+    let selected=preferred||select.value||safeGet(HISTORY_COUNTRY_KEY)||m.historyCountries[0]?.country||"";
+    if(!available.has(selected))selected=m.historyCountries[0]?.country||"";
+
+    ui.renderHistoryOptions(select,m.historyCountries,selected);
+    if(selected)select.value=selected;
+
+    const history=m.histories[selected]||[];
+    const chart=W.ZZXGlobalPowerGridCharts.renderHistory(root,history);
+    ui.renderHistoryRows(q(root,"[data-gpg-history-body]"),history);
+
+    const country=m.historyCountries.find(r=>r.country===selected);
+    const span=history.length
+      ? `${country?.countryName||selected} · ${history.length} Factbook records · ${chart.first}–${chart.last}`
+      : "no historical records";
+
+    set(root,"[data-gpg-history-span]",span);
+  }
+
   function render(root,state){
     const m=state.model,ui=W.ZZXGlobalPowerGridUI;
     set(root,"[data-gpg-global-load]",ui.fmtPower(m.global.loadMW));
@@ -58,9 +83,18 @@
     set(root,"[data-gpg-coverage]",`${(m.coverage*100).toFixed(1)}%`);
     set(root,"[data-gpg-mix-total]",`${m.mix.length} generation sources`);
     set(root,"[data-gpg-timezone-count]",`${m.timezones.length} zones`);
+    const hs=m.historySummary;
+    set(
+      root,
+      "[data-gpg-history-summary]",
+      hs.records
+        ? `${hs.records.toLocaleString()} records · ${hs.countries} nations · ${hs.earliestEdition}–${hs.latestEdition}`
+        : "no archived records"
+    );
     W.ZZXGlobalPowerGridCharts.renderProfile(root,m.profile);
     W.ZZXGlobalPowerGridCharts.renderTimezones(root,m.timezones);
     ui.renderMix(q(root,"[data-gpg-mix]"),m.mix);
+    renderHistory(root,state);
     renderTable(root,state);
     const src=state.detail.source||{};
     set(root,"[data-gpg-sub]",`CIA historical ${src.factbook||"unavailable"} · live grid ${src.live||"unavailable"} · ${m.availableCount}/${m.registryCount} countries currently have verified electricity observations`);
@@ -72,6 +106,9 @@
       mix:m.mix,
       profile:m.profile,
       timezones:m.timezones,
+      histories:m.histories,
+      historyCountries:m.historyCountries,
+      historySummary:m.historySummary,
       coverage:m.coverage,
       miningEfficiencyJTH:30,
       source:state.detail.source
@@ -102,6 +139,11 @@
       q(root,"[data-gpg-search]")?.addEventListener("input",()=>{if(state.timer)clearTimeout(state.timer);state.timer=setTimeout(()=>renderTable(root,state,true),100)},opts);
       sort?.addEventListener("change",()=>{safeSet(SORT_KEY,sort.value);renderTable(root,state,true)},opts);
       per?.addEventListener("change",()=>{safeSet(PERIOD_KEY,per.value);renderTable(root,state,true)},opts);
+      q(root,"[data-gpg-history-country]")?.addEventListener("change",e=>{
+        const cc=String(e.currentTarget.value||"");
+        safeSet(HISTORY_COUNTRY_KEY,cc);
+        renderHistory(root,state,cc);
+      },opts);
       q(root,"[data-gpg-refresh]")?.addEventListener("click",()=>refresh(root,state,true),opts);
       await refresh(root,state,false)
     }catch(e){status(root,"offline","error");set(root,"[data-gpg-sub]",e?.message||e)}
