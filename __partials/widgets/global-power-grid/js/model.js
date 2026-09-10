@@ -7,7 +7,7 @@
   const HOURS={hour:1,day:24,week:168,month:730.5,year:8766};
   const MIX_KEYS=[
     "coal","naturalGas","oil","nuclear","hydro","solar","wind",
-    "geothermal","biomass","waste","tidal","other"
+    "geothermal","biomass","waste","tidal","fossilFuels","renewablesOther","other"
   ];
 
   function finite(v){
@@ -52,7 +52,10 @@
         consumptionKWh:Number.isFinite(consumptionKWh)?consumptionKWh:null,
         capacityMW:Number.isFinite(capacityKW)?capacityKW/1000:null,
         mix,
-        source:String(row.source||"CIA World Factbook")
+        source:String(row.source||"CIA World Factbook"),
+        sourceUrl:String(row.source_url||row.sourceUrl||""),
+        editionYear:Number.isFinite(finite(row.edition_year))?Math.round(finite(row.edition_year)):null,
+        observationYear:Number.isFinite(finite(row.observation_year))?Math.round(finite(row.observation_year)):null
       };
     }).filter(row=>row.country);
   }
@@ -151,7 +154,9 @@
         hourly,
         profileSource,
         source:l?.source||h?.source||"unavailable",
-        sourceYear:l?.updatedAt||(h?.year??null),
+        sourceYear:l?.updatedAt||(h?.editionYear??h?.year??null),
+        sourceUrl:l?.sourceUrl||h?.sourceUrl||"",
+        observationYear:h?.observationYear??null,
         dataAvailable:[generationMW,loadMW,capacityMW].some(Number.isFinite)
       });
     }
