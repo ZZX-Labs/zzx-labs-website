@@ -30,10 +30,10 @@
   }
 
   async function ensureModules(core){
-    await loadScript("/__partials/widgets/_shared/zzx-bitnodes.js",()=>Number(W.ZZXBitnodes?.__version||0)>=5,"ZZXBitnodes");
-    await loadScript("/__partials/widgets/nodes-by-version/js/model.js",()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=1,"ZZXNodesByVersionModel");
-    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXKnotsCoreModel?.__version||0)>=4,"ZZXKnotsCoreModel");
-    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXKnotsCoreProvider?.__version||0)>=4,"ZZXKnotsCoreProvider");
+    await loadScript("/__partials/widgets/_shared/zzx-bitnodes.js",()=>Number(W.ZZXBitnodes?.__version||0)>=7,"ZZXBitnodes");
+    await loadScript("/__partials/widgets/nodes-by-version/js/model.js",()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=2,"ZZXNodesByVersionModel");
+    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXKnotsCoreModel?.__version||0)>=5,"ZZXKnotsCoreModel");
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXKnotsCoreProvider?.__version||0)>=5,"ZZXKnotsCoreProvider");
   }
 
   function filteredVersionRows(root,state){
@@ -42,11 +42,24 @@
     const sort=String(q(root,"[data-kvc-sort]")?.value||"count-desc");
     let rows=[...(state.result?.model?.exactRows||[])];
     if(client!=="all")rows=rows.filter(row=>row.family===client);
-    if(needle)rows=rows.filter(row=>`${row.family} ${row.version} ${row.userAgent}`.toLowerCase().includes(needle));
+    if(needle)rows=rows.filter(row=>`${row.family} ${row.version} ${row.userAgent} ${row.country} ${row.countryName} ${row.flag}`.toLowerCase().includes(needle));
     if(sort==="client-version")rows.sort((a,b)=>a.family.localeCompare(b.family)||String(a.version).localeCompare(String(b.version),undefined,{numeric:true})||a.userAgent.localeCompare(b.userAgent));
     else if(sort==="share-desc")rows.sort((a,b)=>(b.shareIdentified||0)-(a.shareIdentified||0)||b.count-a.count);
     else rows.sort((a,b)=>b.count-a.count||a.userAgent.localeCompare(b.userAgent));
     return rows;
+  }
+
+  function renderNations(root,state){
+    const rows=state.result?.model?.nationRows||[];
+    set(root,"[data-kvc-nation-count]",`${rows.length.toLocaleString()} nation${rows.length===1?"":"s"}`);
+    const body=q(root,"[data-kvc-nation-body]");if(!body)return;body.replaceChildren();
+    if(!rows.length){const empty=D.createElement("div");empty.className="knots-vs-core__empty";empty.textContent="No nation-tagged client rows are available.";body.appendChild(empty);return;}
+    rows.forEach(item=>{
+      const row=D.createElement("div");row.className="knots-vs-core__nation-row";row.setAttribute("role","row");
+      const values=[item.nationLabel||`${item.flag||"🏴"} ${item.countryName||"Unlocated"} · ${item.country||"--"}`,int(item.core),int(item.knots),int(item.other),int(item.total)];
+      values.forEach((value,i)=>{const cell=D.createElement("div");cell.setAttribute("role","cell");if(i>0)cell.classList.add("knots-vs-core__num");cell.textContent=value;if(i===0)cell.title=value;row.appendChild(cell);});
+      body.appendChild(row);
+    });
   }
 
   function renderVersions(root,state){
@@ -56,8 +69,8 @@
     if(!rows.length){const empty=D.createElement("div");empty.className="knots-vs-core__empty";empty.textContent="No Core/Knots version rows match this filter.";body.appendChild(empty);return}
     rows.slice(0,100).forEach(item=>{
       const row=D.createElement("div");row.className="knots-vs-core__version-row";row.setAttribute("role","row");row.dataset.family=item.family;
-      const vals=[item.family,item.userAgent,int(item.count),pct(item.shareIdentified)];
-      vals.forEach((value,i)=>{const cell=D.createElement("div");cell.setAttribute("role","cell");if(i>=2)cell.classList.add("knots-vs-core__num");cell.textContent=value;if(i===1)cell.title=`${item.family} · ${item.version} · ${item.userAgent}`;row.appendChild(cell)});
+      const vals=[item.family,item.userAgent,item.nationLabel||`${item.flag||"🏴"} ${item.countryName||"Unlocated"} · ${item.country||"--"}`,int(item.count),pct(item.shareIdentified)];
+      vals.forEach((value,i)=>{const cell=D.createElement("div");cell.setAttribute("role","cell");if(i>=3)cell.classList.add("knots-vs-core__num");cell.textContent=value;if(i===1)cell.title=`${item.family} · ${item.version} · ${item.userAgent} · ${item.nationLabel||item.countryName||"Unlocated"}`;row.appendChild(cell)});
       body.appendChild(row);
     });
   }
@@ -76,10 +89,11 @@
     set(root,"[data-kvc-unreachable]",Number.isFinite(m.unreachable)?`${int(m.unreachable)} network-wide · not attributed to client`:"not supplied by current snapshot");
     set(root,"[data-kvc-generated]",r.generated?new Date(r.generated).toLocaleString():"—");
     set(root,"[data-kvc-source]",`${r.source} · ${r.transport}${r.stale?" · stale":""}`);
-    set(root,"[data-kvc-note]","shared ZZXBitnodes v5 + Nodes by Version · exact UA classification · zero duplicate node API calls");
+    set(root,"[data-kvc-note]","shared ZZXBitnodes v7 + version × nation rows · exact UA classification · verified Map Host geography");
+    renderNations(root,state);
     renderVersions(root,state);
     status(root,r.stale?"cached":"live",r.stale?"warn":"ok");
-    W.ZZXKnotsVsCoreLatest=Object.freeze({schema:"zzx-knots-vs-core-export-v1",...m,source:r.source,transport:r.transport,generated:r.generated});
+    W.ZZXKnotsVsCoreLatest=Object.freeze({schema:"zzx-knots-vs-core-export-v2",...m,source:r.source,transport:r.transport,generated:r.generated});
   }
 
   async function refresh(root,state,force=false){
