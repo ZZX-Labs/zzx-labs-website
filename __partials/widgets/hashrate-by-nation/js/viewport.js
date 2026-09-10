@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXHashrateNationViewport?.__version||0)>=3)return;
+  if(Number(W.ZZXHashrateNationViewport?.__version||0)>=4)return;
 
   function attach(root){
     if(!root)return ()=>{};
@@ -50,7 +50,7 @@
   }
 
   W.ZZXHashrateNationViewport=Object.freeze({
-    __version:3,
+    __version:4,
     attach
   });
 })();
