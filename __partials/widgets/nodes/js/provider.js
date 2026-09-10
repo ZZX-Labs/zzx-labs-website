@@ -3,139 +3,33 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXNodesProvider?.__version>=3)return;
+  if(Number(W.ZZXNodesProvider?.__version||0)>=5)return;
 
-  function localUrl(path){
-    return W.ZZXAPI?.url
-      ? W.ZZXAPI.url(path)
-      : path;
-  }
-
-  async function fromShared(){
-    if(!W.ZZXBitnodesData)return null;
-
-    try{
-      const aggregate=await W.ZZXBitnodesData.aggregate?.();
-
-      if(aggregate){
-        const model=W.ZZXNodesAdapter.normalize(
-          aggregate,
-          "ZZXBitnodesData.aggregate"
-        );
-
-        if(model.totalNodes>0||model.reachableNodes>0){
-          return {
-            model,
-            source:"ZZXBitnodesData.aggregate()",
-            transport:"shared-local",
-            stale:false
-          };
-        }
-      }
-    }catch(_){}
-
-    try{
-      const latest=await W.ZZXBitnodesData.latest?.();
-
-      if(latest){
-        const model=W.ZZXNodesAdapter.normalize(
-          latest,
-          "ZZXBitnodesData.latest"
-        );
-
-        if(model.totalNodes>0||model.reachableNodes>0){
-          return {
-            model,
-            source:"ZZXBitnodesData.latest()",
-            transport:"shared-local",
-            stale:false
-          };
-        }
-      }
-    }catch(_){}
-
-    return null;
-  }
-
-  async function fetchCandidate(url,kind,ttlMs,local){
-    const res=await W.ZZXNodesFetch.json(
-      local?localUrl(url):url,
-      {
-        local,
-        ttlMs,
-        allowProxy:!local
-      }
-    );
-
-    const model=W.ZZXNodesAdapter.normalize(
-      res.data,
-      kind
-    );
-
-    if(!(model.totalNodes>0||model.reachableNodes>0)){
-      throw new Error(`${kind} contained no usable node total`);
+  async function load(force=false){
+    if(!W.ZZXBitnodes?.load){
+      throw new Error("ZZXBitnodes shared data service is unavailable");
     }
 
-    return {
-      model,
-      source:local?url:W.ZZXNodesSources.upstreamLatest,
-      transport:res.source,
-      stale:!!res.stale,
-      cachedAt:res.cachedAt
-    };
-  }
-
-  async function load(){
-    const shared=await fromShared();
-    if(shared)return shared;
-
-    const candidates=[
-      {
-        url:W.ZZXNodesSources.localAggregate,
-        kind:"local aggregate",
-        ttl:W.ZZXNodesSources.localCacheTtlMs,
-        local:true
-      },
-      {
-        url:W.ZZXNodesSources.localLatest,
-        kind:"local latest snapshot",
-        ttl:W.ZZXNodesSources.localCacheTtlMs,
-        local:true
-      },
-      {
-        url:W.ZZXNodesSources.localOriginalLatest,
-        kind:"local mirrored upstream snapshot",
-        ttl:W.ZZXNodesSources.localCacheTtlMs,
-        local:true
-      },
-      {
-        url:W.ZZXNodesSources.upstreamLatest,
-        kind:"btcnodes.io latest snapshot",
-        ttl:W.ZZXNodesSources.upstreamCacheTtlMs,
-        local:false
-      }
-    ];
-
-    let lastError=null;
-
-    for(const candidate of candidates){
-      try{
-        return await fetchCandidate(
-          candidate.url,
-          candidate.kind,
-          candidate.ttl,
-          candidate.local
-        );
-      }catch(error){
-        lastError=error;
-      }
+    const detail=await W.ZZXBitnodes.load(Boolean(force));
+    if(!detail?.snapshot){
+      throw new Error("ZZXBitnodes returned no normalized snapshot");
     }
 
-    throw lastError||new Error("all node data sources unavailable");
+    return Object.freeze({
+      detail,
+      model:W.ZZXNodesModel.build(detail.snapshot)
+    });
+  }
+
+  async function history(force=false){
+    if(!W.ZZXBitnodes?.history)return [];
+    const rows=await W.ZZXBitnodes.history(Boolean(force));
+    return Array.isArray(rows)?rows:[];
   }
 
   W.ZZXNodesProvider=Object.freeze({
-    __version:3,
-    load
+    __version:5,
+    load,
+    history
   });
 })();
