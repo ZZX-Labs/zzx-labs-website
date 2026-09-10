@@ -20,7 +20,7 @@
   }
   async function ensure(core){
     await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=1,"model");
-    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=1,"provider");
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=2,"provider");
     await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXGlobalPowerGridUI?.__version||0)>=1,"ui");
     await loadScript(`${base(core)}/js/charts.js`,()=>Number(W.ZZXGlobalPowerGridCharts?.__version||0)>=1,"charts");
     await loadScript(`${base(core)}/js/viewport.js`,()=>Number(W.ZZXGlobalPowerGridViewport?.__version||0)>=1,"viewport");
