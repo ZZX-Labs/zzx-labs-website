@@ -3,15 +3,23 @@
   <div class="node-latency__header">
     <div>
       <div class="btc-card__title">Node Latency</div>
-      <div class="node-latency__eyebrow">snapshot percentile distribution</div>
+      <div class="node-latency__eyebrow">
+        latency telemetry · percentiles · shared ZZX Bitnodes snapshot
+      </div>
     </div>
-    <span class="btc-card__status" data-node-latency-status data-status="offline" aria-live="polite">loading</span>
+
+    <span
+      class="btc-card__status"
+      data-node-latency-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
   </div>
 
   <div class="node-latency__hero">
     <span>median latency</span>
     <strong data-node-latency-p50>—</strong>
-    <small data-node-latency-sub>ZZX /bitcoin/bitnodes/ aggregate API</small>
+    <small data-node-latency-sub>loading latency telemetry…</small>
   </div>
 
   <div class="node-latency__metrics">
@@ -21,8 +29,136 @@
     <div><span>p99</span><strong data-node-latency-p99>—</strong></div>
   </div>
 
+  <div class="node-latency__coverage">
+    <div class="node-latency__coverage-head">
+      <span>latency sample coverage</span>
+      <strong data-node-latency-coverage-label>—</strong>
+    </div>
+
+    <div class="node-latency__coverage-bar" aria-label="Latency sample coverage">
+      <span class="node-latency__coverage-known" data-node-latency-bar-known></span>
+      <span class="node-latency__coverage-unknown" data-node-latency-bar-unknown></span>
+    </div>
+
+    <div class="node-latency__coverage-legend">
+      <span>samples <strong data-node-latency-samples>—</strong></span>
+      <span>without sample <strong data-node-latency-unsampled>—</strong></span>
+      <span>mode <strong data-node-latency-mode>—</strong></span>
+    </div>
+  </div>
+
+  <div class="node-latency__section-head">
+    <div class="node-latency__section-title">
+      <span>Latency distribution</span>
+      <strong data-node-latency-bucket-total>—</strong>
+    </div>
+    <span class="node-latency__hint">share of observed latency samples</span>
+  </div>
+
+  <div class="node-latency__buckets" data-node-latency-buckets>
+    <div class="node-latency__bucket">
+      <div class="node-latency__bucket-label">
+        <span>&lt; 50 ms</span>
+        <strong data-node-latency-bucket-fast>—</strong>
+      </div>
+      <div class="node-latency__bucket-track"><i data-node-latency-bucket-fast-bar></i></div>
+    </div>
+
+    <div class="node-latency__bucket">
+      <div class="node-latency__bucket-label">
+        <span>50–99 ms</span>
+        <strong data-node-latency-bucket-good>—</strong>
+      </div>
+      <div class="node-latency__bucket-track"><i data-node-latency-bucket-good-bar></i></div>
+    </div>
+
+    <div class="node-latency__bucket">
+      <div class="node-latency__bucket-label">
+        <span>100–249 ms</span>
+        <strong data-node-latency-bucket-moderate>—</strong>
+      </div>
+      <div class="node-latency__bucket-track"><i data-node-latency-bucket-moderate-bar></i></div>
+    </div>
+
+    <div class="node-latency__bucket">
+      <div class="node-latency__bucket-label">
+        <span>250–499 ms</span>
+        <strong data-node-latency-bucket-slow>—</strong>
+      </div>
+      <div class="node-latency__bucket-track"><i data-node-latency-bucket-slow-bar></i></div>
+    </div>
+
+    <div class="node-latency__bucket">
+      <div class="node-latency__bucket-label">
+        <span>500+ ms</span>
+        <strong data-node-latency-bucket-very-slow>—</strong>
+      </div>
+      <div class="node-latency__bucket-track"><i data-node-latency-bucket-very-slow-bar></i></div>
+    </div>
+  </div>
+
+  <div class="node-latency__section-head">
+    <div class="node-latency__section-title">
+      <span>Latency by network</span>
+      <strong data-node-latency-network-count>—</strong>
+    </div>
+    <span class="node-latency__hint">per-node telemetry only</span>
+  </div>
+
+  <div class="node-latency__table-wrap" data-node-latency-scroll>
+    <div
+      class="node-latency__table"
+      role="table"
+      aria-label="Bitcoin node latency by network"
+    >
+      <div class="node-latency__row node-latency__head" role="row">
+        <div role="columnheader">Network</div>
+        <div class="node-latency__num" role="columnheader">Nodes</div>
+        <div class="node-latency__num" role="columnheader">Samples</div>
+        <div class="node-latency__num" role="columnheader">Coverage</div>
+        <div class="node-latency__num" role="columnheader">P50</div>
+        <div class="node-latency__num" role="columnheader">Average</div>
+        <div class="node-latency__num" role="columnheader">P95</div>
+      </div>
+      <div data-node-latency-body></div>
+    </div>
+  </div>
+
+  <div class="node-latency__details">
+    <div class="node-latency__detail-row">
+      <span>reachable population</span>
+      <strong data-node-latency-total>—</strong>
+    </div>
+    <div class="node-latency__detail-row">
+      <span>minimum observed</span>
+      <strong data-node-latency-min>—</strong>
+    </div>
+    <div class="node-latency__detail-row">
+      <span>maximum observed</span>
+      <strong data-node-latency-max>—</strong>
+    </div>
+    <div class="node-latency__detail-row">
+      <span>invalid samples rejected</span>
+      <strong data-node-latency-invalid>—</strong>
+    </div>
+    <div class="node-latency__detail-row">
+      <span>snapshot</span>
+      <strong data-node-latency-updated>—</strong>
+    </div>
+    <div class="node-latency__detail-row">
+      <span>source</span>
+      <strong data-node-latency-source>—</strong>
+    </div>
+  </div>
+
   <div class="node-latency__footer">
-    <span data-node-latency-meta>local Bitnodes aggregate</span>
-    <button class="zzx-widgets__btn" type="button" data-node-latency-refresh>Refresh</button>
+    <span data-node-latency-meta>
+      real latency samples only · missing telemetry remains unavailable
+    </span>
+    <button
+      class="zzx-widgets__btn"
+      type="button"
+      data-node-latency-refresh
+    >Refresh</button>
   </div>
 </div>
