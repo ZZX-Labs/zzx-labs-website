@@ -298,62 +298,62 @@
   height:100%!important;
 }
 
-.hbn__rank-grid line,
-.hbn__time-grid line{
+[data-hbn-rank-grid] line,
+[data-hbn-time-grid] line{
   stroke:rgba(255,255,255,.065);
   stroke-width:1;
   vector-effect:non-scaling-stroke;
 }
 
-.hbn__rank-grid text,
-.hbn__rank-rows text,
-.hbn__time-y-labels text,
-.hbn__time-x-labels text{
+[data-hbn-rank-grid] text,
+[data-hbn-rank-rows] text,
+[data-hbn-time-y-labels] text,
+[data-hbn-time-x-labels] text{
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
 }
 
-.hbn__rank-grid text,
-.hbn__time-y-labels text,
-.hbn__time-x-labels text{
+[data-hbn-rank-grid] text,
+[data-hbn-time-y-labels] text,
+[data-hbn-time-x-labels] text{
   fill:#737a6d;
   font-size:9px;
 }
 
-.hbn__rank-rows .hbn-rank__label{
+[data-hbn-rank-rows] .hbn-rank__label{
   fill:#a9b09d;
   font-size:9px;
 }
 
-.hbn__rank-rows .hbn-rank__value{
+[data-hbn-rank-rows] .hbn-rank__value{
   fill:var(--hbn-green);
   font-size:9px;
 }
 
-.hbn__rank-rows .hbn-rank__band{
+[data-hbn-rank-rows] .hbn-rank__band{
   fill:rgba(230,164,43,.15);
 }
 
-.hbn__rank-rows .hbn-rank__bar{
+[data-hbn-rank-rows] .hbn-rank__bar{
   fill:rgba(192,214,116,.62);
 }
 
-.hbn__rank-rows .hbn-rank__mid{
+[data-hbn-rank-rows] .hbn-rank__mid{
   stroke:var(--hbn-gold);
   stroke-width:1.15;
   vector-effect:non-scaling-stroke;
 }
 
-.hbn__time-lines path{
+[data-hbn-time-lines] path{
   fill:none;
   stroke-width:1.7;
   vector-effect:non-scaling-stroke;
 }
 
-.hbn__time-lines path:nth-child(1){stroke:var(--hbn-green);opacity:1}
-.hbn__time-lines path:nth-child(2){stroke:var(--hbn-gold);opacity:.9}
-.hbn__time-lines path:nth-child(3){stroke:var(--hbn-green);opacity:.70;stroke-dasharray:7 3}
-.hbn__time-lines path:nth-child(4){stroke:var(--hbn-gold);opacity:.62;stroke-dasharray:4 3}
-.hbn__time-lines path:nth-child(5){stroke:var(--hbn-green);opacity:.48;stroke-dasharray:2 3}
+[data-hbn-time-lines] path:nth-child(1){stroke:var(--hbn-green);opacity:1}
+[data-hbn-time-lines] path:nth-child(2){stroke:var(--hbn-gold);opacity:.9}
+[data-hbn-time-lines] path:nth-child(3){stroke:var(--hbn-green);opacity:.70;stroke-dasharray:7 3}
+[data-hbn-time-lines] path:nth-child(4){stroke:var(--hbn-gold);opacity:.62;stroke-dasharray:4 3}
+[data-hbn-time-lines] path:nth-child(5){stroke:var(--hbn-green);opacity:.48;stroke-dasharray:2 3}
 
 .hbn__timeline [data-hbn-crosshair]{
   stroke:var(--hbn-gold);
@@ -711,4 +711,82 @@
     align-items:flex-start;
     flex-direction:column;
   }
+}
+
+/* v10.53 — SVG DOM contract correction.
+   widget.html uses data-* groups, not hbn__rank-grid / hbn__rank-rows /
+   hbn__time-lines classes. Explicit paint below also prevents a host-level
+   SVG rule from reverting generated elements to black. */
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-grid] line,
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-grid] line{
+  stroke:rgba(255,255,255,.065)!important;
+  fill:none!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-grid] text,
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-y-labels] text,
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-x-labels] text{
+  fill:#737a6d!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-rows] .hbn-rank__label{
+  fill:#a9b09d!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-rows] .hbn-rank__value{
+  fill:var(--hbn-green)!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-rows] .hbn-rank__band{
+  fill:rgba(230,164,43,.15)!important;
+  stroke:none!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-rows] .hbn-rank__bar{
+  fill:rgba(192,214,116,.62)!important;
+  stroke:none!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-rank-rows] .hbn-rank__mid{
+  stroke:var(--hbn-gold)!important;
+  fill:none!important;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-lines] path{
+  fill:none!important;
+  stroke-width:1.7!important;
+  vector-effect:non-scaling-stroke;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-lines] path:nth-child(1){
+  stroke:var(--hbn-green)!important;
+  opacity:1;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-lines] path:nth-child(2){
+  stroke:var(--hbn-gold)!important;
+  opacity:.90;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-lines] path:nth-child(3){
+  stroke:var(--hbn-green)!important;
+  opacity:.70;
+  stroke-dasharray:7 3;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-lines] path:nth-child(4){
+  stroke:var(--hbn-gold)!important;
+  opacity:.62;
+  stroke-dasharray:4 3;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-time-lines] path:nth-child(5){
+  stroke:var(--hbn-green)!important;
+  opacity:.48;
+  stroke-dasharray:2 3;
+}
+
+[data-widget-root="hashrate-by-nation"] [data-hbn-crosshair]{
+  stroke:var(--hbn-gold)!important;
+  fill:none!important;
 }
