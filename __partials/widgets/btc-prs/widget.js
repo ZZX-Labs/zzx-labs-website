@@ -16,7 +16,9 @@
   }
   async function ensure(core){
     await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXBitcoinPRModel?.__version||0)>=1);
-    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinPRProvider?.__version||0)>=2);
+    await loadScript(`${base(core)}/js/sources.js`,()=>Number(W.ZZXBitcoinPRSources?.__version||0)>=2);
+    await loadScript(`${base(core)}/js/fetch.js`,()=>Number(W.ZZXBitcoinPRFetch?.__version||0)>=2);
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinPRProvider?.__version||0)>=3);
     await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXBitcoinPRUI?.__version||0)>=1);
   }
   function filtered(root,state){
@@ -35,6 +37,20 @@
   }
   function render(root,state){
     const c=state.model.counts;
+    const latest=state.model.rows[0]||null;
+    if(latest){
+      set(root,"[data-btc-prs-latest]",`#${latest.number} · ${latest.title}`);
+      set(
+        root,
+        "[data-btc-prs-latest-meta]",
+        `${latest.state} · ${latest.author} · ${latest.updatedAt?new Date(latest.updatedAt).toLocaleString():"unknown time"}`
+      );
+      const latestLink=q(root,"[data-btc-prs-latest-link]");
+      if(latestLink)latestLink.href=latest.url||"https://github.com/bitcoin/bitcoin/pulls";
+    }else{
+      set(root,"[data-btc-prs-latest]","No pull requests in local mirror");
+      set(root,"[data-btc-prs-latest-meta]","Run ZZX Bitcoin Core GitHub Activity");
+    }
     set(root,"[data-btc-prs-open]",c.open);
     set(root,"[data-btc-prs-merged]",c.merged);
     set(root,"[data-btc-prs-closed]",c.closed);
