@@ -6,27 +6,33 @@
   const D=document;
   const ID="nodes-by-asn";
 
-  const PAGE_KEY="zzx.widget.nodes-by-asn.page-size.v10.21";
-  const GEO_KEY="zzx.widget.nodes-by-asn.geo.v10.21";
-  const SORT_KEY="zzx.widget.nodes-by-asn.sort.v10.21";
+  const GEO_KEY="zzx.widget.nodes-by-asn.geo.v10.30";
+  const SORT_KEY="zzx.widget.nodes-by-asn.sort.v10.30";
 
   function q(root,selector){return root?.querySelector?.(selector)||null;}
+
   function set(root,selector,value){
     const el=q(root,selector);
     if(el)el.textContent=value==null?"—":String(value);
   }
+
   function finite(value){
+    if(value===null||value===undefined)return NaN;
+    if(typeof value==="string"&&!value.trim())return NaN;
     const n=Number(value);
     return Number.isFinite(n)?n:NaN;
   }
+
   function integer(value){
     const n=finite(value);
     return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
   }
+
   function pct(value){
     const n=finite(value);
     return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
   }
+
   function width(el,value){
     if(!el)return;
     const n=finite(value);
@@ -34,21 +40,26 @@
       ? `${Math.max(0,Math.min(100,n*100)).toFixed(2)}%`
       : "0%";
   }
+
   function safeGet(key){
     try{return W.localStorage.getItem(key);}catch(_){return null;}
   }
+
   function safeSet(key,value){
     try{W.localStorage.setItem(key,String(value));}catch(_){}
   }
+
   function status(root,label,state){
     const el=q(root,"[data-nbasn-status]");
     if(!el)return;
     el.textContent=label;
     el.setAttribute("data-status",state||"offline");
   }
+
   function resolve(path){
     return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
   }
+
   function base(core){
     return core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -92,31 +103,30 @@
       ()=>Number(W.ZZXBitnodes?.__version||0)>=8,
       "ZZXBitnodes"
     );
+
     await loadScript(
       `${base(core)}/js/model.js`,
       ()=>Number(W.ZZXNodesByAsnModel?.__version||0)>=2,
       "ZZXNodesByAsnModel"
     );
+
     await loadScript(
       `${base(core)}/js/provider.js`,
       ()=>Number(W.ZZXNodesByAsnProvider?.__version||0)>=2,
       "ZZXNodesByAsnProvider"
     );
+
     await loadScript(
       `${base(core)}/js/ui.js`,
       ()=>Number(W.ZZXNodesByAsnUI?.__version||0)>=2,
       "ZZXNodesByAsnUI"
     );
+
     await loadScript(
       `${base(core)}/js/viewport.js`,
       ()=>Number(W.ZZXNodesByAsnViewport?.__version||0)>=2,
       "ZZXNodesByAsnViewport"
     );
-  }
-
-  function pageSize(root){
-    const n=Number(q(root,"[data-nbasn-page-size]")?.value);
-    return [10,20,50,100].includes(n)?n:20;
   }
 
   function geoFilter(root){
@@ -131,8 +141,11 @@
     let rows=[...(state.model?.rows||[])];
 
     const geo=geoFilter(root);
-    if(geo==="located")rows=rows.filter(row=>row.located);
-    else if(geo==="unlocated")rows=rows.filter(row=>!row.located);
+    if(geo==="located"){
+      rows=rows.filter(row=>row.located);
+    }else if(geo==="unlocated"){
+      rows=rows.filter(row=>!row.located);
+    }
 
     const needle=String(q(root,"[data-nbasn-search]")?.value||"")
       .trim()
@@ -158,6 +171,7 @@
           a.organization.localeCompare(b.organization)
         );
         break;
+
       case "organization":
         rows.sort((a,b)=>
           a.organization.localeCompare(b.organization) ||
@@ -165,6 +179,7 @@
           a.asnNumber-b.asnNumber
         );
         break;
+
       case "nation":
         rows.sort((a,b)=>
           (a.countryName||"Unlocated").localeCompare(b.countryName||"Unlocated") ||
@@ -172,6 +187,7 @@
           a.asnNumber-b.asnNumber
         );
         break;
+
       default:
         rows.sort((a,b)=>
           b.nodes-a.nodes ||
@@ -183,39 +199,24 @@
     return rows;
   }
 
-  function renderTable(root,state){
+  function renderReadout(root,state,{resetScroll=false}={}){
     const rows=filtered(root,state);
-    const size=pageSize(root);
-    const pages=Math.max(1,Math.ceil(rows.length/size));
-
-    state.page=Math.max(0,Math.min(state.page,pages-1));
-
-    const start=state.page*size;
-    const visible=rows.slice(start,start+size);
 
     const body=q(root,"[data-nbasn-body]");
-    if(body)W.ZZXNodesByAsnUI.renderRows(body,visible,start);
+    if(body){
+      W.ZZXNodesByAsnUI.renderRows(body,rows,0);
+    }
 
-    set(
-      root,
-      "[data-nbasn-page]",
-      `Page ${state.page+1} / ${pages} · ${rows.length.toLocaleString()} matching ASN/nation row${rows.length===1?"":"s"}`
-    );
+    const total=state.model?.rows?.length||0;
     set(
       root,
       "[data-nbasn-visible-count]",
-      `${rows.length.toLocaleString()} matching row${rows.length===1?"":"s"}`
+      `${rows.length.toLocaleString()} visible / ${total.toLocaleString()} total ASN/nation row${total===1?"":"s"}`
     );
 
-    const prev=q(root,"[data-nbasn-prev]");
-    const next=q(root,"[data-nbasn-next]");
-    if(prev)prev.disabled=state.page<=0;
-    if(next)next.disabled=state.page>=pages-1;
-
-    if(state.scrollToTop){
+    if(resetScroll){
       const scroller=q(root,"[data-nbasn-scroll]");
       if(scroller)scroller.scrollTop=0;
-      state.scrollToTop=false;
     }
   }
 
@@ -227,6 +228,7 @@
     if(!snapshot||!m)return;
 
     set(root,"[data-nbasn-summary]",`${integer(m.observed)} nodes`);
+
     set(
       root,
       "[data-nbasn-sub]",
@@ -235,11 +237,13 @@
 
     set(root,"[data-nbasn-count]",integer(m.asnCount));
     set(root,"[data-nbasn-org-count]",integer(m.organizationCount));
+
     set(
       root,
       "[data-nbasn-top]",
       m.top?`${m.top.asn} · ${m.top.organization}`:"—"
     );
+
     set(root,"[data-nbasn-coverage]",pct(m.coverage));
 
     set(
@@ -247,12 +251,19 @@
       "[data-nbasn-coverage-label]",
       `${integer(m.observed)} / ${integer(m.denominator)} identified`
     );
-    set(root,"[data-nbasn-known]",`${integer(m.observed)} · ${pct(m.coverage)}`);
+
+    set(
+      root,
+      "[data-nbasn-known]",
+      `${integer(m.observed)} · ${pct(m.coverage)}`
+    );
+
     set(
       root,
       "[data-nbasn-unknown]",
       `${integer(m.unidentified)} · ${pct(m.denominator>0?m.unidentified/m.denominator:NaN)}`
     );
+
     set(
       root,
       "[data-nbasn-located]",
@@ -266,7 +277,10 @@
     );
 
     const leaders=q(root,"[data-nbasn-leaders]");
-    if(leaders)W.ZZXNodesByAsnUI.renderLeaders(leaders,m.leaders);
+    if(leaders){
+      W.ZZXNodesByAsnUI.renderLeaders(leaders,m.leaders);
+    }
+
     set(
       root,
       "[data-nbasn-leader-count]",
@@ -277,6 +291,7 @@
     set(root,"[data-nbasn-decoded]",integer(snapshot.nodeCount));
     set(root,"[data-nbasn-identified]",integer(m.observed));
     set(root,"[data-nbasn-unidentified]",integer(m.unidentified));
+
     set(
       root,
       "[data-nbasn-nation-located]",
@@ -291,31 +306,35 @@
       snapshot.updated_at ??
       snapshot.timestamp
     );
-    const updated=Number.isFinite(rawUpdated)&&rawUpdated>0&&rawUpdated<2e12
-      ? rawUpdated*1000
-      : rawUpdated;
+
+    const updated=
+      Number.isFinite(rawUpdated)&&rawUpdated>0&&rawUpdated<2e12
+        ? rawUpdated*1000
+        : rawUpdated;
 
     set(
       root,
       "[data-nbasn-updated]",
       Number.isFinite(updated)?new Date(updated).toLocaleString():"—"
     );
+
     set(
       root,
       "[data-nbasn-source]",
       `${detail.source||snapshot.source||"shared ZZX Bitnodes"} · ${detail.transport||"shared"}${detail.stale?" · stale":""} · geo ${snapshot.geography?.source||"unavailable"}`
     );
+
     set(
       root,
       "[data-nbasn-meta]",
-      "DB-IP ASN via Map Host exact-address join · structured ASN/organization + flag/nation/ISO · no synthetic ASN attribution"
+      "DB-IP ASN via Map Host exact-address join · full scrollable ASN/nation readout · structured ASN/organization + flag/nation/ISO · no pagination"
     );
 
-    renderTable(root,state);
+    renderReadout(root,state);
     status(root,detail.stale?"cached":"live",detail.stale?"warn":"ok");
 
     W.ZZXNodesByAsn=Object.freeze({
-      schema:"zzx-nodes-by-asn-export-v2",
+      schema:"zzx-nodes-by-asn-export-v3",
       rows:m.rows,
       leaders:m.leaders,
       asnCount:m.asnCount,
@@ -331,13 +350,12 @@
       transport:detail.transport,
       updatedMs:Number.isFinite(updated)?updated:null
     });
+
     W.ZZXNodesByAsnLatest=W.ZZXNodesByAsn;
   }
 
   function rerenderFiltered(root,state){
-    state.page=0;
-    state.scrollToTop=true;
-    renderTable(root,state);
+    renderReadout(root,state,{resetScroll:true});
   }
 
   async function refresh(root,state,force=false){
@@ -350,8 +368,6 @@
       const loaded=await W.ZZXNodesByAsnProvider.load(force);
       state.detail=loaded.detail;
       state.model=loaded.model;
-      state.page=0;
-      state.scrollToTop=true;
       render(root,state);
     }catch(error){
       status(root,state.detail?"stale":"offline",state.detail?"warn":"error");
@@ -368,93 +384,102 @@
     old?.unsubscribe?.();
     old?.abortController?.abort?.();
     old?.detachViewport?.();
-    if(old?.searchTimer)W.clearTimeout(old.searchTimer);
 
-    const abortController=typeof AbortController==="function"
-      ? new AbortController()
-      : null;
-    const options=abortController?{signal:abortController.signal}:undefined;
+    if(old?.searchTimer){
+      W.clearTimeout(old.searchTimer);
+    }
+
+    const abortController=
+      typeof AbortController==="function"
+        ? new AbortController()
+        : null;
+
+    const options=
+      abortController
+        ? {signal:abortController.signal}
+        : undefined;
 
     const state={
       core:core||W.ZZXWidgetsCore||null,
       detail:null,
       model:null,
-      page:0,
       busy:false,
       searchTimer:null,
       unsubscribe:null,
       abortController,
-      detachViewport:null,
-      scrollToTop:false
+      detachViewport:null
     };
+
     root.__zzxNodesByAsnState=state;
 
     try{
       await ensureModules(state.core);
       state.detachViewport=W.ZZXNodesByAsnViewport.attach(root);
 
-      const page=q(root,"[data-nbasn-page-size]");
-      const savedPage=Number(safeGet(PAGE_KEY));
-      if(page&&[10,20,50,100].includes(savedPage)){
-        page.value=String(savedPage);
-      }
-
       const geo=q(root,"[data-nbasn-geo]");
       const savedGeo=safeGet(GEO_KEY);
+
       if(geo&&["all","located","unlocated"].includes(savedGeo)){
         geo.value=savedGeo;
       }
 
       const sort=q(root,"[data-nbasn-sort]");
       const savedSort=safeGet(SORT_KEY);
+
       if(sort&&["nodes","asn","organization","nation"].includes(savedSort)){
         sort.value=savedSort;
       }
 
-      q(root,"[data-nbasn-prev]")?.addEventListener("click",()=>{
-        state.page=Math.max(0,state.page-1);
-        state.scrollToTop=true;
-        renderTable(root,state);
-      },options);
+      q(root,"[data-nbasn-search]")?.addEventListener(
+        "input",
+        ()=>{
+          if(state.searchTimer){
+            W.clearTimeout(state.searchTimer);
+          }
 
-      q(root,"[data-nbasn-next]")?.addEventListener("click",()=>{
-        state.page+=1;
-        state.scrollToTop=true;
-        renderTable(root,state);
-      },options);
+          state.searchTimer=W.setTimeout(
+            ()=>rerenderFiltered(root,state),
+            100
+          );
+        },
+        options
+      );
 
-      q(root,"[data-nbasn-search]")?.addEventListener("input",()=>{
-        if(state.searchTimer)W.clearTimeout(state.searchTimer);
-        state.searchTimer=W.setTimeout(()=>rerenderFiltered(root,state),100);
-      },options);
+      geo?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(GEO_KEY,geoFilter(root));
+          rerenderFiltered(root,state);
+        },
+        options
+      );
 
-      geo?.addEventListener("change",()=>{
-        safeSet(GEO_KEY,geoFilter(root));
-        rerenderFiltered(root,state);
-      },options);
+      sort?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(SORT_KEY,sortMode(root));
+          rerenderFiltered(root,state);
+        },
+        options
+      );
 
-      sort?.addEventListener("change",()=>{
-        safeSet(SORT_KEY,sortMode(root));
-        rerenderFiltered(root,state);
-      },options);
-
-      page?.addEventListener("change",()=>{
-        safeSet(PAGE_KEY,pageSize(root));
-        rerenderFiltered(root,state);
-      },options);
-
-      q(root,"[data-nbasn-refresh]")?.addEventListener("click",()=>{
-        refresh(root,state,true);
-      },options);
+      q(root,"[data-nbasn-refresh]")?.addEventListener(
+        "click",
+        ()=>refresh(root,state,true),
+        options
+      );
 
       if(typeof W.ZZXBitnodes?.subscribe==="function"){
-        state.unsubscribe=W.ZZXBitnodes.subscribe(detail=>{
-          if(!detail?.snapshot||!root.isConnected)return;
-          state.detail=detail;
-          state.model=W.ZZXNodesByAsnModel.build(detail.snapshot);
-          state.page=0;
-          render(root,state);
-        },{immediate:false});
+        state.unsubscribe=W.ZZXBitnodes.subscribe(
+          detail=>{
+            if(!detail?.snapshot||!root.isConnected)return;
+
+            state.detail=detail;
+            state.model=W.ZZXNodesByAsnModel.build(detail.snapshot);
+            render(root,state);
+          },
+          {immediate:false}
+        );
       }
 
       await refresh(root,state,false);
