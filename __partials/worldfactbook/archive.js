@@ -3,99 +3,67 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXWorldFactbookArchive?.__version||0)>=1)return;
+  if(Number(W.ZZXWorldFactbookArchive?.__version||0)>=2)return;
 
-  const DB_NAME="zzx-worldfactbook-archive-v1";
-  const DB_STORE="kv";
-  const LEDGER_KEY="electricity-ledger-v1";
-  const EDITION_KEY="electricity-editions-v1";
+  const DB_NAME="zzx-worldfactbook-archive-v2";
+  const STORE="kv";
+  const LEDGER_KEY="electricity-ledger-v2";
+  const EDITIONS_KEY="electricity-editions-v2";
   const START_YEAR=1962;
   const END_YEAR=2025;
 
-  const STATIC_LEDGER_URLS=[
-    "/worldfactbook/api/electricity-history.json",
-    "/bitcoin/power-grid/api/factbook-history.json",
-    "/__partials/widgets/global-power-grid/data/factbook-history.json"
-  ];
+  const IA_SEARCH="https://archive.org/advancedsearch.php";
+  const IA_METADATA="https://archive.org/metadata/";
+  const IA_DOWNLOAD="https://archive.org/download/";
 
   const REGISTRY_URLS=[
     "/bitcoin/power-grid/api/countries.json",
     "/__partials/widgets/global-power-grid/data/countries.json"
   ];
 
-  const IA_SEARCH="https://archive.org/advancedsearch.php";
-  const IA_METADATA="https://archive.org/metadata/";
-  const IA_DOWNLOAD="https://archive.org/download/";
+  const ALIASES={
+    US:["United States","United States of America"],
+    RU:["Russia","Russian Federation"],
+    KR:["South Korea","Korea South","Republic of Korea"],
+    KP:["North Korea","Korea North","Democratic People's Republic of Korea"],
+    CZ:["Czech Republic","Czechia"],
+    MM:["Burma","Myanmar"],
+    SZ:["Swaziland","Eswatini"],
+    MK:["Macedonia","North Macedonia"],
+    CV:["Cape Verde","Cabo Verde"],
+    TL:["East Timor","Timor-Leste"],
+    TR:["Turkey","Turkiye","Türkiye"],
+    CI:["Cote d'Ivoire","Côte d'Ivoire","Ivory Coast"]
+  };
+
+  const STRUCTURE=[
+    "background","geography","people","government","economy",
+    "communications","transportation","military","electricity"
+  ];
 
   function finite(value){
     if(value===null||value===undefined)return NaN;
-    if(typeof value==="string"&&!value.trim())return NaN;
-    const n=Number(value);
+    const n=Number(String(value).replace(/,/g,"").trim());
     return Number.isFinite(n)?n:NaN;
   }
 
-  async function fetchJson(url,signal){
-    const r=await fetch(url,{cache:"no-store",credentials:"omit",signal,headers:{Accept:"application/json"}});
-    if(!r.ok)throw new Error(`HTTP ${r.status} ${url}`);
-    return r.json();
+  function normalize(value){
+    return String(value||"")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^A-Za-z0-9]+/g," ")
+      .trim()
+      .toLowerCase();
   }
 
-  async function fetchText(url,signal){
-    const r=await fetch(url,{cache:"no-store",credentials:"omit",signal,headers:{Accept:"text/plain,text/html,*/*"}});
-    if(!r.ok)throw new Error(`HTTP ${r.status} ${url}`);
-    return r.text();
+  function scale(word){
+    return ({trillion:1e12,billion:1e9,million:1e6,thousand:1e3})[
+      String(word||"").toLowerCase()
+    ]||1;
   }
 
-  async function firstJson(urls,signal){
-    const errors=[];
-    for(const url of urls){
-      try{return {data:await fetchJson(url,signal),source:url}}
-      catch(error){errors.push(`${url}: ${error?.message||error}`)}
-    }
-    return {data:null,source:null,error:errors.join(" | ")};
-  }
-
-  function openDb(){
-    return new Promise((resolve,reject)=>{
-      if(!("indexedDB" in W)){resolve(null);return}
-      const req=indexedDB.open(DB_NAME,1);
-      req.onupgradeneeded=()=>{
-        const db=req.result;
-        if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE);
-      };
-      req.onsuccess=()=>resolve(req.result);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-
-  async function idbGet(key){
-    const db=await openDb();
-    if(!db)return null;
-    return new Promise(resolve=>{
-      const tx=db.transaction(DB_STORE,"readonly");
-      const req=tx.objectStore(DB_STORE).get(key);
-      req.onsuccess=()=>resolve(req.result??null);
-      req.onerror=()=>resolve(null);
-    });
-  }
-
-  async function idbSet(key,value){
-    const db=await openDb();
-    if(!db)return;
-    await new Promise(resolve=>{
-      const tx=db.transaction(DB_STORE,"readwrite");
-      tx.objectStore(DB_STORE).put(value,key);
-      tx.oncomplete=()=>resolve();
-      tx.onerror=()=>resolve();
-    });
-  }
-
-  function multiplier(word){
-    return ({trillion:1e12,billion:1e9,million:1e6,thousand:1e3})[String(word||"").toLowerCase()]||1;
-  }
-
-  function energyToKWh(number,scale,unit){
-    let n=finite(String(number||"").replace(/,/g,""))*multiplier(scale);
+  function energyKWh(number,magnitude,unit){
+    let n=finite(number)*scale(magnitude);
     if(!Number.isFinite(n))return NaN;
     const u=String(unit||"kwh").toLowerCase();
     if(u==="twh")n*=1e9;
@@ -105,8 +73,8 @@
     return n;
   }
 
-  function powerToKW(number,scale,unit){
-    let n=finite(String(number||"").replace(/,/g,""))*multiplier(scale);
+  function powerKW(number,magnitude,unit){
+    let n=finite(number)*scale(magnitude);
     if(!Number.isFinite(n))return NaN;
     const u=String(unit||"kw").toLowerCase();
     if(u==="tw")n*=1e9;
@@ -116,29 +84,35 @@
     return n;
   }
 
+  function yearFrom(raw){
+    const years=[...String(raw||"").matchAll(/\b((?:19|20)\d{2})\b/g)]
+      .map(match=>Number(match[1]));
+    return years.length?years.at(-1):null;
+  }
+
   function findEnergy(text,label){
     const re=new RegExp(
       `(?:electricity\\s*[-–—:]?\\s*)?${label}\\s*:?\\s*`+
       `([0-9][0-9,.]*)\\s*(trillion|billion|million|thousand)?\\s*`+
-      `(TWh|GWh|MWh|kWh|Wh)\\b[^\\n]{0,100}`,
+      `(TWh|GWh|MWh|kWh|Wh)\\b[^\\n]{0,120}`,
       "i"
     );
-    const m=re.exec(text);
-    if(!m)return null;
-    const value=energyToKWh(m[1],m[2],m[3]);
-    if(!Number.isFinite(value))return null;
-    const ym=m[0].match(/\b(?:19|20)\d{2}\b/);
-    return {value,raw:m[0].trim(),observationYear:ym?Number(ym[0]):null};
+    const match=re.exec(text);
+    if(!match)return null;
+    const value=energyKWh(match[1],match[2],match[3]);
+    return Number.isFinite(value)
+      ? {value,raw:match[0].trim(),observationYear:yearFrom(match[0])}
+      : null;
   }
 
   function findCapacity(text){
-    const re=/(?:electricity\s*[-–—:]?\s*)?(?:installed\s+(?:generating\s+)?capacity|installed\s+generating\s+capacity)\s*:?\s*([0-9][0-9,.]*)\s*(trillion|billion|million|thousand)?\s*(TW|GW|MW|kW|W)\b[^\n]{0,100}/i;
-    const m=re.exec(text);
-    if(!m)return null;
-    const value=powerToKW(m[1],m[2],m[3]);
-    if(!Number.isFinite(value))return null;
-    const ym=m[0].match(/\b(?:19|20)\d{2}\b/);
-    return {value,raw:m[0].trim(),observationYear:ym?Number(ym[0]):null};
+    const re=/(?:electricity\s*[-–—:]?\s*)?(?:installed\s+(?:generating\s+)?capacity|installed\s+generating\s+capacity)\s*:?\s*([0-9][0-9,.]*)\s*(trillion|billion|million|thousand)?\s*(TW|GW|MW|kW|W)\b[^\n]{0,120}/i;
+    const match=re.exec(text);
+    if(!match)return null;
+    const value=powerKW(match[1],match[2],match[3]);
+    return Number.isFinite(value)
+      ? {value,raw:match[0].trim(),observationYear:yearFrom(match[0])}
+      : null;
   }
 
   const MIX_TERMS=[
@@ -159,327 +133,379 @@
 
   function findMix(text){
     const out={};
-    const i=text.toLowerCase().indexOf("electricity");
-    const scope=i>=0?text.slice(i,i+18000):text.slice(0,18000);
+    const lower=text.toLowerCase();
+    const index=lower.search(/electricity\s*(?:-|—|–|:)?\s*(?:from|generation sources|source)/i);
+    const scope=index>=0?text.slice(index,index+9000):text.slice(0,9000);
+
     for(const [key,term] of MIX_TERMS){
-      const m=new RegExp(`${term}\\s*:?\\s*([0-9]{1,3}(?:\\.[0-9]+)?)\\s*%`,"i").exec(scope);
-      if(m){
-        const n=finite(m[1]);
-        if(Number.isFinite(n)&&n>=0&&n<=100)out[key]=n;
-      }
+      const match=new RegExp(`${term}\\s*:?\\s*([0-9]{1,3}(?:\\.[0-9]+)?)\\s*%`,"i").exec(scope);
+      if(!match)continue;
+      const n=finite(match[1]);
+      if(Number.isFinite(n)&&n>=0&&n<=100)out[key]=n;
     }
     return out;
   }
 
-  function normalizeLine(value){
-    return String(value||"")
-      .normalize("NFKD")
-      .replace(/[\u0300-\u036f]/g,"")
-      .replace(/[^A-Za-z0-9]+/g," ")
-      .trim()
+  function openDb(){
+    return new Promise(resolve=>{
+      if(!("indexedDB" in W)){resolve(null);return;}
+      const request=indexedDB.open(DB_NAME,1);
+      request.onupgradeneeded=()=>{
+        const db=request.result;
+        if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE);
+      };
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>resolve(null);
+    });
+  }
+
+  async function idbGet(key){
+    const db=await openDb();
+    if(!db)return null;
+    return new Promise(resolve=>{
+      const tx=db.transaction(STORE,"readonly");
+      const request=tx.objectStore(STORE).get(key);
+      request.onsuccess=()=>resolve(request.result??null);
+      request.onerror=()=>resolve(null);
+    });
+  }
+
+  async function idbSet(key,value){
+    const db=await openDb();
+    if(!db)return;
+    await new Promise(resolve=>{
+      const tx=db.transaction(STORE,"readwrite");
+      tx.objectStore(STORE).put(value,key);
+      tx.oncomplete=resolve;
+      tx.onerror=resolve;
+    });
+  }
+
+  async function fetchJson(url,signal){
+    const response=await fetch(url,{
+      cache:"no-store",
+      credentials:/^https?:/i.test(url)?"omit":"same-origin",
+      signal,
+      headers:{Accept:"application/json"}
+    });
+    if(!response.ok)throw new Error(`HTTP ${response.status} ${url}`);
+    return response.json();
+  }
+
+  async function fetchText(url,signal){
+    const response=await fetch(url,{
+      cache:"no-store",
+      credentials:/^https?:/i.test(url)?"omit":"same-origin",
+      signal,
+      headers:{Accept:"text/plain,*/*"}
+    });
+    if(!response.ok)throw new Error(`HTTP ${response.status} ${url}`);
+    return response.text();
+  }
+
+  async function registry(signal){
+    const errors=[];
+    for(const url of REGISTRY_URLS){
+      try{
+        const payload=await fetchJson(url,signal);
+        if(Array.isArray(payload?.countries)&&payload.countries.length)return payload.countries;
+      }catch(error){errors.push(String(error?.message||error));}
+    }
+    throw new Error(errors.join(" | ")||"country registry unavailable");
+  }
+
+  function aliases(row){
+    const values=new Set([
+      row.countryName,
+      row.officialName,
+      ...(ALIASES[String(row.country||"").toUpperCase()]||[])
+    ].filter(Boolean));
+    return [...values].map(normalize).filter(Boolean);
+  }
+
+  function structureScore(lines,index){
+    const scope=lines.slice(index,Math.min(lines.length,index+2200))
+      .join("\n")
       .toLowerCase();
+    if(!scope.includes("electricity"))return 0;
+    let score=0;
+    for(const marker of STRUCTURE){
+      if(scope.includes(marker))score++;
+    }
+    return score;
   }
 
-  function aliasesForCountry(row){
-    const values=new Set([row.countryName,row.officialName].filter(Boolean));
-    const extras={
-      US:["United States","United States of America"],
-      RU:["Russia","Russian Federation"],
-      KR:["South Korea","Korea South","Republic of Korea"],
-      KP:["North Korea","Korea North","Democratic People's Republic of Korea"],
-      CZ:["Czech Republic","Czechia"],
-      MM:["Burma","Myanmar"],
-      SZ:["Swaziland","Eswatini"],
-      MK:["Macedonia","North Macedonia"],
-      CV:["Cape Verde","Cabo Verde"],
-      TL:["East Timor","Timor-Leste"],
-      TR:["Turkey","Turkiye","Türkiye"]
-    };
-    for(const x of extras[row.country]||[])values.add(x);
-    return [...values].map(normalizeLine).filter(Boolean);
-  }
+  function sections(text,registryRows){
+    const lines=String(text||"")
+      .replace(/\r/g,"")
+      .split("\n")
+      .map(line=>line.replace(/\s+/g," ").trim());
 
-  function countrySections(text,registry){
-    const lines=String(text||"").replace(/\r/g,"").split("\n");
-    const anchors=[];
-    for(const row of registry){
-      const aliases=aliasesForCountry(row);
-      let found=-1;
-      for(let i=0;i<lines.length;i++){
-        const normalized=normalizeLine(lines[i]);
-        if(aliases.includes(normalized)){found=i;break}
+    const aliasMap=new Map();
+    for(const row of registryRows){
+      for(const alias of aliases(row)){
+        if(alias.length>=3)aliasMap.set(alias,row);
       }
-      if(found>=0)anchors.push({i:found,row});
     }
-    anchors.sort((a,b)=>a.i-b.i);
 
-    const sections=[];
+    const best=new Map();
+    for(let index=0;index<lines.length;index++){
+      const row=aliasMap.get(normalize(lines[index]));
+      if(!row)continue;
+      const score=structureScore(lines,index);
+      if(score<4)continue;
+      const current=best.get(row.country);
+      if(!current||score>current.score)best.set(row.country,{index,row,score});
+    }
+
+    const anchors=[...best.values()].sort((a,b)=>a.index-b.index);
+    const result=[];
+
     for(let i=0;i<anchors.length;i++){
-      const start=anchors[i].i;
-      const end=i+1<anchors.length?anchors[i+1].i:Math.min(lines.length,start+3000);
-      const body=lines.slice(start,Math.min(end,start+3000)).join("\n");
-      if(/electricity/i.test(body))sections.push({row:anchors[i].row,body});
+      const start=anchors[i].index;
+      const end=i+1<anchors.length?anchors[i+1].index:lines.length;
+      const body=lines.slice(start,end).join("\n");
+      if(/electricity/i.test(body))result.push({row:anchors[i].row,body});
     }
-    return sections;
+
+    return result;
   }
 
-  function parseEditionText(text,registry,editionYear,source){
-    const records=[];
-    for(const section of countrySections(text,registry)){
-      const generation=findEnergy(section.body,"(?:production|generation)(?!\\s+sources)");
-      const consumption=findEnergy(section.body,"consumption");
-      const capacity=findCapacity(section.body);
-      const mix=findMix(section.body);
-      if(!generation&&!consumption&&!capacity&&!Object.keys(mix).length)continue;
+  function parseSection(section,editionYear,source){
+    const generation=findEnergy(section.body,"(?:production|generation)(?!\\s+sources)");
+    const consumption=findEnergy(section.body,"consumption");
+    const capacity=findCapacity(section.body);
+    const mix=findMix(section.body);
 
-      records.push({
-        country:section.row.country,
-        country_name:section.row.countryName,
-        edition_year:editionYear,
-        year:editionYear,
-        observation_year:generation?.observationYear??consumption?.observationYear??capacity?.observationYear??editionYear,
-        electricity_generation_kwh:generation?.value??null,
-        electricity_consumption_kwh:consumption?.value??null,
-        installed_capacity_kw:capacity?.value??null,
-        generation_by_source_pct:mix,
-        source:"CIA World Factbook public archive",
-        source_provider:source.provider,
-        source_url:source.url,
-        source_identifier:source.identifier||null,
-        source_file:source.file||null,
-        field_provenance:{
-          electricity_generation_kwh:generation?.raw||null,
-          electricity_consumption_kwh:consumption?.raw||null,
-          installed_capacity_kw:capacity?.raw||null
-        }
-      });
-    }
-    return records;
+    if(!generation&&!consumption&&!capacity&&!Object.keys(mix).length)return null;
+
+    const observations=[
+      generation?.observationYear,
+      consumption?.observationYear,
+      capacity?.observationYear
+    ].filter(Number.isFinite);
+
+    return {
+      country:section.row.country,
+      country_name:section.row.countryName,
+      edition_year:editionYear,
+      year:editionYear,
+      observation_year:observations.length?Math.max(...observations):editionYear,
+      field_observation_years:{
+        electricity_generation_kwh:generation?.observationYear??null,
+        electricity_consumption_kwh:consumption?.observationYear??null,
+        installed_capacity_kw:capacity?.observationYear??null
+      },
+      electricity_generation_kwh:generation?.value??null,
+      electricity_consumption_kwh:consumption?.value??null,
+      installed_capacity_kw:capacity?.value??null,
+      generation_by_source_pct:mix,
+      source:"CIA World Factbook public archive",
+      source_provider:"internet-archive",
+      source_url:source.url,
+      source_identifier:source.identifier,
+      source_file:source.file,
+      field_provenance:{
+        electricity_generation_kwh:generation?.raw??null,
+        electricity_consumption_kwh:consumption?.raw??null,
+        installed_capacity_kw:capacity?.raw??null
+      },
+      quality:{
+        status:"verified",
+        parser_version:2,
+        country_basis:"book-section-heading",
+        field_basis:"explicit-electricity-label"
+      }
+    };
   }
 
-  function iaQuery(year){
-    const q=`(title:"World Factbook" OR title:"The World Factbook" OR title:"CIA World Factbook") AND year:${year}`;
+  function parseEditionText(text,registryRows,editionYear,source){
+    return sections(text,registryRows)
+      .map(section=>parseSection(section,editionYear,source))
+      .filter(Boolean);
+  }
+
+  function queryUrl(year){
     const params=new URLSearchParams();
-    params.set("q",q);
-    for(const field of ["identifier","title","date","year","mediatype","downloads"])params.append("fl[]",field);
+    params.set("q",`(title:\"World Factbook\" OR title:\"The World Factbook\" OR title:\"CIA World Factbook\") AND year:${year}`);
+    for(const field of ["identifier","title","date","year","downloads"]){
+      params.append("fl[]",field);
+    }
     params.set("rows","20");
     params.set("page","1");
     params.set("output","json");
-    return `${IA_SEARCH}?${params.toString()}`;
+    return `${IA_SEARCH}?${params}`;
   }
 
   async function discoverInternetArchive(year,signal){
-    const payload=await fetchJson(iaQuery(year),signal);
+    const payload=await fetchJson(queryUrl(year),signal);
     return (payload?.response?.docs||[])
-      .filter(doc=>doc?.identifier)
-      .map(doc=>({
-        identifier:String(doc.identifier),
-        title:String(doc.title||doc.identifier),
-        year,
-        downloads:Number(doc.downloads||0)
-      }))
-      .sort((a,b)=>b.downloads-a.downloads);
+      .filter(row=>row?.identifier)
+      .sort((a,b)=>Number(b.downloads||0)-Number(a.downloads||0));
   }
 
   function fileScore(file,year){
     const name=String(file?.name||"");
     const lower=name.toLowerCase();
     const size=finite(file?.size);
-    if(Number.isFinite(size)&&size>32*1024*1024)return -Infinity;
-    let score=0;
-    if(lower.endsWith("_djvu.txt"))score+=500;
-    else if(lower.endsWith(".txt"))score+=300;
-    else return -Infinity;
+    if(Number.isFinite(size)&&size>40*1024*1024)return -Infinity;
+
+    let score=-Infinity;
+    if(lower.endsWith("_djvu.txt"))score=500;
+    else if(lower.endsWith(".txt"))score=300;
+    if(!Number.isFinite(score))return score;
+
     if(lower.includes("factbook"))score+=80;
     if(lower.includes(String(year)))score+=30;
-    if(lower.includes("meta")||lower.includes("files"))score-=150;
+    if(lower.includes("meta")||lower.includes("files"))score-=200;
     return score;
   }
 
-  async function bestTextFile(identifier,year,signal){
+  async function editionFromItem(item,year,registryRows,signal){
+    const identifier=String(item.identifier);
     const metadata=await fetchJson(`${IA_METADATA}${encodeURIComponent(identifier)}`,signal);
     const files=(metadata?.files||[])
       .map(file=>({...file,_score:fileScore(file,year)}))
       .filter(file=>Number.isFinite(file._score)&&file._score>0)
       .sort((a,b)=>b._score-a._score);
-    return files[0]||null;
+
+    for(const file of files.slice(0,3)){
+      const encoded=String(file.name).split("/").map(encodeURIComponent).join("/");
+      const url=`${IA_DOWNLOAD}${encodeURIComponent(identifier)}/${encoded}`;
+      const text=await fetchText(url,signal);
+      const records=parseEditionText(text,registryRows,year,{
+        identifier,
+        file:file.name,
+        url
+      });
+
+      if(records.length){
+        return {
+          records,
+          reference:{
+            edition_year:year,
+            provider:"internet-archive",
+            identifier,
+            item_url:`https://archive.org/details/${identifier}`,
+            artifact_url:url,
+            file:file.name,
+            extracted_records:records.length
+          }
+        };
+      }
+    }
+
+    return null;
   }
 
-  async function browserEdition(year,registry,signal){
-    const candidates=await discoverInternetArchive(year,signal);
-    for(const item of candidates.slice(0,5)){
+  async function browserEdition(year,registryRows,signal){
+    const items=await discoverInternetArchive(year,signal);
+    let best=null;
+
+    for(const item of items.slice(0,5)){
       try{
-        const file=await bestTextFile(item.identifier,year,signal);
-        if(!file)continue;
-        const url=`${IA_DOWNLOAD}${encodeURIComponent(item.identifier)}/${String(file.name).split("/").map(encodeURIComponent).join("/")}`;
-        const text=await fetchText(url,signal);
-        const records=parseEditionText(text,registry,year,{
-          provider:"internet-archive",
-          identifier:item.identifier,
-          file:file.name,
-          url
-        });
-        if(records.length){
-          return {
-            editionYear:year,
-            records,
-            reference:{
-              edition_year:year,
-              provider:"internet-archive",
-              identifier:item.identifier,
-              item_url:`https://archive.org/details/${item.identifier}`,
-              artifact_url:url,
-              file:file.name,
-              extracted_records:records.length
-            }
-          };
-        }
-      }catch(_){}
+        const result=await editionFromItem(item,year,registryRows,signal);
+        if(result&&(!best||result.records.length>best.records.length))best=result;
+        if(best?.records?.length>=25)break;
+      }catch(error){
+        if(error?.name==="AbortError")throw error;
+      }
     }
-    return null;
+
+    return best;
   }
 
   function mergeRecords(a,b){
     const map=new Map();
+
     for(const row of [...(a||[]),...(b||[])]){
       const key=`${row.country}|${row.edition_year??row.year}`;
       const completeness=[
         row.electricity_generation_kwh,
         row.electricity_consumption_kwh,
         row.installed_capacity_kw
-      ].filter(v=>v!==null&&v!==undefined).length+Object.keys(row.generation_by_source_pct||{}).length/10;
+      ].filter(value=>value!==null&&value!==undefined).length+
+        Object.keys(row.generation_by_source_pct||{}).length/10;
       const prev=map.get(key);
-      if(!prev||completeness>prev._completeness)map.set(key,{...row,_completeness:completeness});
+      if(!prev||completeness>prev._completeness){
+        map.set(key,{...row,_completeness:completeness});
+      }
     }
+
     return [...map.values()]
       .map(({_completeness,...row})=>row)
-      .sort((x,y)=>(x.edition_year??x.year)-(y.edition_year??y.year)||x.country.localeCompare(y.country));
+      .sort((a,b)=>(a.edition_year??a.year)-(b.edition_year??b.year)||a.country.localeCompare(b.country));
   }
 
-  async function staticLedger(signal){
-    const result=await firstJson(STATIC_LEDGER_URLS,signal);
-    return {
-      records:Array.isArray(result.data?.records)?result.data.records:[],
-      source:result.source,
-      error:result.error
-    };
-  }
+  async function expandHistory({signal=null,onProgress=null,maxYears=6}={}){
+    const registryRows=await registry(signal);
+    let records=(await idbGet(LEDGER_KEY))||[];
+    let editions=(await idbGet(EDITIONS_KEY))||[];
+    const done=new Set(editions.map(row=>row.edition_year));
+    let scanned=0;
 
-  async function registry(signal){
-    const result=await firstJson(REGISTRY_URLS,signal);
-    const rows=result.data?.countries||[];
-    if(!Array.isArray(rows)||!rows.length)throw new Error(result.error||"WorldFactbook country registry unavailable");
-    return rows;
-  }
-
-  async function bootstrapNewest(signal){
-    const reg=await registry(signal);
-    let ledger=(await idbGet(LEDGER_KEY))||[];
-    let editions=(await idbGet(EDITION_KEY))||[];
-
-    for(let year=END_YEAR;year>=Math.max(START_YEAR,END_YEAR-5);year--){
-      if(editions.some(e=>e.edition_year===year))continue;
-      try{
-        const result=await browserEdition(year,reg,signal);
-        if(result){
-          ledger=mergeRecords(ledger,result.records);
-          editions=[...editions,result.reference];
-          await idbSet(LEDGER_KEY,ledger);
-          await idbSet(EDITION_KEY,editions);
-          if(result.records.length>=25)break;
-        }
-      }catch(error){
-        if(error?.name==="AbortError")throw error;
-      }
-    }
-    return {records:ledger,editions};
-  }
-
-  async function expandHistory({signal=null,onProgress=null}={}){
-    const reg=await registry(signal);
-    let ledger=(await idbGet(LEDGER_KEY))||[];
-    let editions=(await idbGet(EDITION_KEY))||[];
-    const done=new Set(editions.map(e=>e.edition_year));
-
-    for(let year=END_YEAR;year>=START_YEAR;year--){
-      if(signal?.aborted)throw new DOMException("Aborted","AbortError");
+    for(let year=END_YEAR;year>=START_YEAR&&scanned<maxYears;year--){
       if(done.has(year))continue;
+      if(signal?.aborted)throw new DOMException("Aborted","AbortError");
+      scanned++;
 
-      let found=false;
-      try{
-        const result=await browserEdition(year,reg,signal);
-        if(result){
-          ledger=mergeRecords(ledger,result.records);
-          editions=[...editions,result.reference];
-          done.add(year);
-          found=true;
-          await idbSet(LEDGER_KEY,ledger);
-          await idbSet(EDITION_KEY,editions);
-        }
-      }catch(error){
-        if(error?.name==="AbortError")throw error;
+      let result=null;
+      try{result=await browserEdition(year,registryRows,signal);}
+      catch(error){if(error?.name==="AbortError")throw error;}
+
+      if(result){
+        records=mergeRecords(records,result.records);
+        editions=[...editions,result.reference];
+        await idbSet(LEDGER_KEY,records);
+        await idbSet(EDITIONS_KEY,editions);
       }
 
-      onProgress?.({year,found,records:ledger.length,editions:editions.length});
-      await new Promise(resolve=>setTimeout(resolve,150));
+      onProgress?.({
+        year,
+        found:Boolean(result),
+        records:records.length,
+        editions:editions.length
+      });
+
+      await new Promise(resolve=>W.setTimeout(resolve,175));
     }
 
     return {
-      schema:"zzx-global-power-grid-factbook-history-v1",
-      source:"Internet Archive browser bootstrap",
-      records:ledger,
+      schema:"zzx-global-power-grid-factbook-history-v2",
+      source:"CIA World Factbook public copies · browser Internet Archive fallback",
+      transport:"archive-browser",
+      records,
       editions
     };
   }
 
   async function loadElectricityHistory({force=false,signal=null,expand=true}={}){
-    const staticResult=await staticLedger(signal);
-    if(staticResult.records.length&&!force){
-      return {
-        schema:"zzx-global-power-grid-factbook-history-v1",
-        records:staticResult.records,
-        source:staticResult.source,
-        transport:"static"
-      };
-    }
-
     const cached=(await idbGet(LEDGER_KEY))||[];
+
     if(cached.length&&!force){
-      if(expand)setTimeout(()=>{expandHistory({}).catch(()=>{})},0);
+      if(expand)W.setTimeout(()=>expandHistory({maxYears:2}).catch(()=>{}),0);
       return {
-        schema:"zzx-global-power-grid-factbook-history-v1",
-        records:cached,
+        schema:"zzx-global-power-grid-factbook-history-v2",
         source:"browser archive cache",
-        transport:"indexeddb"
+        transport:"indexeddb",
+        records:cached
       };
     }
 
-    const boot=await bootstrapNewest(signal);
-    if(expand)setTimeout(()=>{expandHistory({}).catch(()=>{})},0);
-
-    return {
-      schema:"zzx-global-power-grid-factbook-history-v1",
-      records:boot.records,
-      source:boot.records.length?"Internet Archive bootstrap":"unavailable",
-      transport:"archive-bootstrap"
-    };
+    const result=await expandHistory({signal,maxYears:force?6:3});
+    if(expand)W.setTimeout(()=>expandHistory({maxYears:2}).catch(()=>{}),0);
+    return result;
   }
 
-  async function loadReferenceIndex({signal=null}={}){
-    const result=await firstJson([
-      "/worldfactbook/api/reference-index.json",
-      "/__partials/worldfactbook/reference-index.json"
-    ],signal);
-    if(result.data)return result.data;
+  async function loadReferenceIndex(){
     return {
-      schema:"zzx-worldfactbook-reference-index-v1",
-      editions:(await idbGet(EDITION_KEY))||[],
-      pages:[]
+      schema:"zzx-worldfactbook-reference-index-v2",
+      editions:(await idbGet(EDITIONS_KEY))||[]
     };
   }
 
   W.ZZXWorldFactbookArchive=Object.freeze({
-    __version:1,
+    __version:2,
     START_YEAR,
     END_YEAR,
     parseEditionText,
