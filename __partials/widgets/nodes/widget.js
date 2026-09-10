@@ -84,7 +84,7 @@
   async function ensureModules(core){
     await loadScript(
       "/__partials/widgets/_shared/zzx-bitnodes.js",
-      ()=>Number(W.ZZXBitnodes?.__version||0)>=5,
+      ()=>Number(W.ZZXBitnodes?.__version||0)>=8,
       "ZZXBitnodes"
     );
 
@@ -142,7 +142,7 @@
     set(
       root,
       "[data-nodes-meta]",
-      "shared ZZXBitnodes v5 · local /bitcoin/bitnodes/ mirror first · btcnodes.io / compatible mirror fallback"
+      `${snapshot.geography?.joined||0} geography joins · ${Object.keys(snapshot.byAsn||{}).length} ASN groups · shared ZZXBitnodes v8`
     );
 
     status(
