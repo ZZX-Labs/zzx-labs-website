@@ -1,13 +1,11 @@
-/* Global Power Grid v10.48 — structural geometry preserved from v10.37/v10.40.
-   Visual normalization only: no decorative top rail, no radial/grid background
-   effects, and no blue third-accent identity treatment. */
+/* Global Power Grid v10.37 — world-grid console */
 .gpg--console{
   --g:#c0d674;--a:#e6a42b;--b:#8f9788;--m:#aab294;--d:#646a5d;
   --line:rgba(192,214,116,.14);--line2:rgba(255,255,255,.06);
   position:relative;min-width:0;overflow:hidden;
   background:#090a09
 }
-.gpg--console::before{content:none;display:none}
+.gpg--console::before{content:none!important;display:none!important}
 .gpg--console *{box-sizing:border-box}
 .gpg__topline{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding-top:.12rem}
 .gpg__identity{display:grid;gap:.07rem;min-width:0}
@@ -52,7 +50,11 @@
 
 .gpg__chart,.gpg__timezone-chart{
   position:relative;margin-top:.28rem;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  background:#070807
+  background:
+    linear-gradient(rgba(192,214,116,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(192,214,116,.018) 1px,transparent 1px),
+    #070807;
+  background-size:30px 30px
 }
 .gpg__chart{height:300px}
 .gpg__timezone-chart{height:335px}
@@ -243,7 +245,11 @@
   overflow:hidden;
   border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);
-  background:#070807;
+  background:
+    linear-gradient(rgba(192,214,116,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(192,214,116,.018) 1px,transparent 1px),
+    #070807;
+  background-size:30px 30px;
 }
 
 .gpg__history-chart svg{
@@ -380,4 +386,96 @@
   .gpg__history-controls{grid-template-columns:1fr}
   .gpg__history-controls>span{text-align:left}
   .gpg__history-chart{height:245px}
+}
+
+/* v10.55 — widget surface ownership.
+   Prevent the host/card container from replacing the grid's own dark surface. */
+.btc-card[data-widget-root="global-power-grid"],
+.zzx-card[data-widget-root="global-power-grid"],
+[data-widget-root="global-power-grid"]{
+  background:#090a09!important;
+}
+
+/* v10.55 — actual SVG DOM contract.
+   Explicit paint prevents host-level SVG rules from rendering grid elements
+   black or otherwise overriding the widget palette. */
+[data-widget-root="global-power-grid"] [data-gpg-profile-grid] line,
+[data-widget-root="global-power-grid"] [data-gpg-history-grid] line,
+[data-widget-root="global-power-grid"] [data-gpg-tz-grid] line{
+  stroke:rgba(255,255,255,.065)!important;
+  fill:none!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-profile-y] text,
+[data-widget-root="global-power-grid"] [data-gpg-profile-x] text,
+[data-widget-root="global-power-grid"] [data-gpg-history-y] text,
+[data-widget-root="global-power-grid"] [data-gpg-history-x] text,
+[data-widget-root="global-power-grid"] [data-gpg-tz-x] text{
+  fill:#737a6d!important;
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace)!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-generation-line],
+[data-widget-root="global-power-grid"] [data-gpg-history-generation]{
+  fill:none!important;
+  stroke:var(--g)!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-load-line],
+[data-widget-root="global-power-grid"] [data-gpg-history-load]{
+  fill:none!important;
+  stroke:var(--a)!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-spare-line],
+[data-widget-root="global-power-grid"] [data-gpg-history-capacity]{
+  fill:none!important;
+  stroke:var(--b)!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-crosshair],
+[data-widget-root="global-power-grid"] [data-gpg-history-crosshair]{
+  fill:none!important;
+  stroke:var(--a)!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-tz-rows] .gpg-tz__label{
+  fill:#9da595!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-tz-rows] .gpg-tz__cell{
+  stroke:#070807!important;
+}
+
+[data-widget-root="global-power-grid"] [data-gpg-tz-rows] .gpg-tz__peak{
+  fill:none!important;
+  stroke:var(--a)!important;
+}
+
+/* Standard Bitcoin-widget controls; existing grid dimensions are unchanged. */
+.gpg__controls input,
+.gpg__controls select,
+.gpg__history-controls select{
+  border:1px solid #343434;
+  border-radius:6px;
+  background:#070807;
+}
+
+.gpg__controls input:focus,
+.gpg__controls select:focus,
+.gpg__history-controls select:focus{
+  border-color:var(--a);
+}
+
+.gpg__chart,
+.gpg__timezone-chart,
+.gpg__history-chart,
+.gpg__table-wrap,
+.gpg__history-table-wrap{
+  border-color:var(--line);
+}
+
+.gpg__table-wrap,
+.gpg__history-table-wrap{
+  background:#080908;
 }
