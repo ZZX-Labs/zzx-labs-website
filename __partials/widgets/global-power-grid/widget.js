@@ -20,8 +20,11 @@
     if(!test())throw new Error(`${tag} failed to register`)
   }
   async function ensure(core){
-    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=2,"model");
-    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=2,"provider");
+    await loadScript(`${base(core)}/js/quality.js`,()=>Number(W.ZZXGlobalPowerGridQuality?.__version||0)>=1,"quality");
+    await loadScript(`${base(core)}/js/sources.js`,()=>Number(W.ZZXGlobalPowerGridSources?.__version||0)>=3,"sources");
+    await loadScript(`${base(core)}/js/fetch.js`,()=>Number(W.ZZXGlobalPowerGridFetch?.__version||0)>=3,"fetch");
+    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=3,"model");
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=3,"provider");
     await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXGlobalPowerGridUI?.__version||0)>=2,"ui");
     await loadScript(`${base(core)}/js/charts.js`,()=>Number(W.ZZXGlobalPowerGridCharts?.__version||0)>=2,"charts");
     await loadScript(`${base(core)}/js/viewport.js`,()=>Number(W.ZZXGlobalPowerGridViewport?.__version||0)>=1,"viewport");
@@ -83,13 +86,14 @@
     set(root,"[data-gpg-coverage]",`${(m.coverage*100).toFixed(1)}%`);
     set(root,"[data-gpg-mix-total]",`${m.mix.length} generation sources`);
     set(root,"[data-gpg-timezone-count]",`${m.timezones.length} zones`);
+    set(root,"[data-gpg-profile-label]",m.profile.length?`hourly UTC aggregate · ${Math.max(...m.profile.map(r=>r.loadCountryCount||r.generationCountryCount||0))} countries`:"no verified hourly feed");
     const hs=m.historySummary;
     set(
       root,
       "[data-gpg-history-summary]",
       hs.records
-        ? `${hs.records.toLocaleString()} records · ${hs.countries} nations · ${hs.earliestEdition}–${hs.latestEdition}`
-        : "no archived records"
+        ? `${hs.records.toLocaleString()} verified records · ${hs.countries} nations · ${hs.earliestEdition}–${hs.latestEdition}${hs.rejectedRecords?` · ${hs.rejectedRecords} rejected legacy rows`:""}`
+        : `no verified archived records${hs.rejectedRecords?` · ${hs.rejectedRecords} rejected legacy rows`:""}`
     );
     W.ZZXGlobalPowerGridCharts.renderProfile(root,m.profile);
     W.ZZXGlobalPowerGridCharts.renderTimezones(root,m.timezones);
@@ -97,10 +101,11 @@
     renderHistory(root,state);
     renderTable(root,state);
     const src=state.detail.source||{};
-    set(root,"[data-gpg-sub]",`CIA historical ${src.factbook||"unavailable"} · live grid ${src.live||"unavailable"} · ${m.availableCount}/${m.registryCount} countries currently have verified electricity observations`);
+    const qs=m.qualitySummary||{};
+    set(root,"[data-gpg-sub]",`CIA historical ${src.factbook||"unavailable"} · ${qs.acceptedRecords||0} verified Factbook records${qs.rejectedRecords?` · ${qs.rejectedRecords} rejected legacy rows`:""} · live grid ${src.live||"unavailable"} · ${m.availableCount}/${m.registryCount} countries currently have verified electricity observations`);
     status(root,state.detail.stale?"cached":"live",state.detail.stale?"warn":"ok");
     W.ZZXGlobalPowerGridLatest=Object.freeze({
-      schema:"zzx-global-power-grid-export-v1",
+      schema:"zzx-global-power-grid-export-v2",
       nations:m.rows,
       global:m.global,
       mix:m.mix,
@@ -110,6 +115,8 @@
       historyCountries:m.historyCountries,
       historySummary:m.historySummary,
       coverage:m.coverage,
+      mixCoverage:m.mixCoverage,
+      qualitySummary:m.qualitySummary,
       miningEfficiencyJTH:30,
       source:state.detail.source
     })
