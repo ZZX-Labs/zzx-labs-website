@@ -39,7 +39,7 @@
 
   async function ensure(core){
     await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXBitcoinCommitModel?.__version||0)>=1);
-    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinCommitProvider?.__version||0)>=1);
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinCommitProvider?.__version||0)>=2);
     await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXBitcoinCommitUI?.__version||0)>=1);
   }
 
