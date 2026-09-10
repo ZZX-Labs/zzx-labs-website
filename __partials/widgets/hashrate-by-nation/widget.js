@@ -96,31 +96,31 @@
   async function ensureModules(core){
     await loadScript(
       `${base(core)}/js/model.js`,
-      ()=>Number(W.ZZXHashrateNationModel?.__version||0)>=3,
+      ()=>Number(W.ZZXHashrateNationModel?.__version||0)>=5,
       "ZZXHashrateNationModel"
     );
 
     await loadScript(
       `${base(core)}/js/provider.js`,
-      ()=>Number(W.ZZXHashrateNationProvider?.__version||0)>=3,
+      ()=>Number(W.ZZXHashrateNationProvider?.__version||0)>=5,
       "ZZXHashrateNationProvider"
     );
 
     await loadScript(
       `${base(core)}/js/ui.js`,
-      ()=>Number(W.ZZXHashrateNationUI?.__version||0)>=3,
+      ()=>Number(W.ZZXHashrateNationUI?.__version||0)>=4,
       "ZZXHashrateNationUI"
     );
 
     await loadScript(
       `${base(core)}/js/charts.js`,
-      ()=>Number(W.ZZXHashrateNationCharts?.__version||0)>=3,
+      ()=>Number(W.ZZXHashrateNationCharts?.__version||0)>=4,
       "ZZXHashrateNationCharts"
     );
 
     await loadScript(
       `${base(core)}/js/viewport.js`,
-      ()=>Number(W.ZZXHashrateNationViewport?.__version||0)>=3,
+      ()=>Number(W.ZZXHashrateNationViewport?.__version||0)>=4,
       "ZZXHashrateNationViewport"
     );
   }
@@ -210,7 +210,7 @@
       confidenceFill.style.width=`${Math.max(0,Math.min(100,(Number(m.confidence)||0)*100)).toFixed(1)}%`;
     }
     set(root,"[data-hbn-pool-coverage]",pct(m.pool.coverage));
-    set(root,"[data-hbn-grid-coverage]",pct(m.grid.coverage));
+    set(root,"[data-hbn-grid-coverage]",pct(Math.max(m.grid.coverage,m.capacity?.coverage||0)));
 
     const rankResult=W.ZZXHashrateNationCharts.renderRank(root,m.rows);
     const timeResult=W.ZZXHashrateNationCharts.renderTimeline(root,m);
@@ -241,7 +241,7 @@
     set(
       root,
       "[data-hbn-grid-evidence]",
-      `${m.grid.accepted} nations · ${m.grid.totalMiningMW.toLocaleString(undefined,{maximumFractionDigits:1})} MW mining-specific input`
+      `${m.grid.accepted} mining-power nations · ${m.capacity?.accepted||0} capacity-prior nations · ${pct(m.capacity?.coverage||0)} grid coverage`
     );
 
     set(
@@ -257,7 +257,7 @@
     set(
       root,
       "[data-hbn-sub]",
-      `pool geo ${sourceList.poolEvidence||"unavailable"} · grid ${sourceList.grid||"unavailable"} · nodes ${sourceList.nodes||"unavailable"} · uncertainty bands are heuristic model ranges, not statistical confidence intervals`
+      `pool geo ${sourceList.poolEvidence||"unavailable"} · mining grid ${sourceList.grid||"unavailable"} · power grid ${sourceList.powerGrid||"unavailable"} · nodes ${sourceList.nodes||"unavailable"} · uncertainty bands are heuristic model ranges, not statistical confidence intervals`
     );
 
     renderTable(root,state);
@@ -275,6 +275,7 @@
       confidence:m.confidence,
       poolCoverage:m.pool.coverage,
       gridCoverage:m.grid.coverage,
+      capacityPriorCoverage:m.capacity?.coverage||0,
       nodeCoverage:m.nodes.coverage,
       effectiveWeights:m.effective,
       modelMode:m.mode,
