@@ -1,3 +1,4 @@
+// __partials/widgets/nodes/widget.js
 (function(){
   "use strict";
 
@@ -5,25 +6,25 @@
   const D=document;
   const ID="nodes";
 
-  function q(root,selector){
-    return root?.querySelector?.(selector)||null;
-  }
-
+  function q(root,selector){return root?.querySelector?.(selector)||null;}
   function set(root,selector,value){
     const el=q(root,selector);
     if(el)el.textContent=value==null?"—":String(value);
   }
-
   function finite(value){
+    if(value===null||value===undefined)return NaN;
+    if(typeof value==="string"&&!value.trim())return NaN;
     const n=Number(value);
     return Number.isFinite(n)?n:NaN;
   }
-
   function integer(value){
     const n=finite(value);
     return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
   }
-
+  function pct(value){
+    const n=finite(value);
+    return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
+  }
   function age(timestamp){
     const ms=finite(timestamp);
     if(!Number.isFinite(ms)||ms<=0)return "—";
@@ -36,49 +37,57 @@
     if(hr<24)return `${hr}h`;
     return `${Math.floor(hr/24)}d`;
   }
-
+  function width(el,value){
+    if(!el)return;
+    const n=finite(value);
+    el.style.width=Number.isFinite(n)
+      ? `${Math.max(0,Math.min(100,n*100)).toFixed(2)}%`
+      : "0%";
+  }
   function status(root,label,state){
     const el=q(root,"[data-nodes-status]");
     if(!el)return;
     el.textContent=label;
     el.setAttribute("data-status",state||"offline");
   }
-
+  function resolve(path){
+    return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
+  }
   function base(core){
     return core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/nodes";
   }
 
-  function resolve(path){
-    return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
-  }
-
-  async function loadScript(src,test,tag){
+  async function loadScript(path,test,tag){
     if(test())return;
 
-    const target=new URL(resolve(src),W.location.href).href;
-    const existing=[...D.scripts].find(s=>s.src===target);
+    const src=new URL(resolve(path),W.location.href).href;
+    const existing=[...D.scripts].find(script=>script.src===src);
 
     if(existing){
       const started=Date.now();
-      while(!test()&&Date.now()-started<1800){
+      while(!test()&&Date.now()-started<2500){
         await new Promise(done=>W.setTimeout(done,25));
       }
       if(test())return;
     }
 
-    await new Promise((resolveLoad,reject)=>{
+    await new Promise((done,fail)=>{
       const script=D.createElement("script");
-      script.src=target;
+      script.src=src;
       script.defer=true;
       script.dataset.nodesDependency=tag;
-      script.addEventListener("load",resolveLoad,{once:true});
-      script.addEventListener("error",reject,{once:true});
+      script.addEventListener("load",done,{once:true});
+      script.addEventListener(
+        "error",
+        ()=>fail(new Error(`Failed to load ${path}`)),
+        {once:true}
+      );
       (D.head||D.documentElement).appendChild(script);
     });
 
-    if(!test())throw new Error(`${src} did not register ${tag}`);
+    if(!test())throw new Error(`${path} did not register ${tag}`);
   }
 
   async function ensureModules(core){
@@ -87,37 +96,97 @@
       ()=>Number(W.ZZXBitnodes?.__version||0)>=8,
       "ZZXBitnodes"
     );
-
+    await loadScript(
+      `${base(core)}/js/model.js`,
+      ()=>Number(W.ZZXNodesModel?.__version||0)>=5,
+      "ZZXNodesModel"
+    );
+    await loadScript(
+      `${base(core)}/js/provider.js`,
+      ()=>Number(W.ZZXNodesProvider?.__version||0)>=5,
+      "ZZXNodesProvider"
+    );
+    await loadScript(
+      `${base(core)}/js/ui.js`,
+      ()=>Number(W.ZZXNodesUI?.__version||0)>=5,
+      "ZZXNodesUI"
+    );
     await loadScript(
       `${base(core)}/js/chart.js`,
-      ()=>Number(W.ZZXNodesChart?.__version||0)>=4,
+      ()=>Number(W.ZZXNodesChart?.__version||0)>=5,
       "ZZXNodesChart"
+    );
+    await loadScript(
+      `${base(core)}/js/viewport.js`,
+      ()=>Number(W.ZZXNodesViewport?.__version||0)>=5,
+      "ZZXNodesViewport"
     );
   }
 
-  function network(snapshot,key){
-    return finite(snapshot?.byNetwork?.[key]);
+  function countShare(m,key){
+    const value=Number(m.networkCounts?.[key]||0);
+    return `${integer(value)} · ${pct(m.total>0?value/m.total:NaN)}`;
   }
 
   function render(root,state){
-    const result=state.result;
-    const snapshot=result?.snapshot;
+    const detail=state.detail;
+    const snapshot=detail?.snapshot;
+    const m=state.model;
+    if(!snapshot||!m)return;
 
-    if(!snapshot)return;
+    set(root,"[data-nodes-total]",integer(m.total));
+    set(root,"[data-nodes-height]",integer(m.latestHeight));
+    set(root,"[data-nodes-decoded]",integer(m.nodeCount));
+    set(
+      root,
+      "[data-nodes-dominant]",
+      m.dominant
+        ? `${W.ZZXNodesUI.label(m.dominant.network)} · ${pct(m.dominant.share)}`
+        : "—"
+    );
+    set(root,"[data-nodes-network-coverage]",pct(m.networkCoverage));
 
-    const total=finite(snapshot.reachableNodes);
-    const fallbackTotal=finite(snapshot.totalNodes);
-    const reachable=Number.isFinite(total)?total:fallbackTotal;
+    set(
+      root,
+      "[data-nodes-sub]",
+      `${integer(m.nodeCount)} decoded rows · height ${integer(m.latestHeight)} · ${m.networkMode} transport classification`
+    );
 
-    set(root,"[data-nodes-total]",integer(reachable));
-    set(root,"[data-nodes-height]",integer(snapshot.latestHeight));
-    set(root,"[data-nodes-tor]",integer(network(snapshot,"tor")));
-    set(root,"[data-nodes-ipv4]",integer(network(snapshot,"ipv4")));
-    set(root,"[data-nodes-ipv6]",integer(network(snapshot,"ipv6")));
-    set(root,"[data-nodes-i2p]",integer(network(snapshot,"i2p")));
-    set(root,"[data-nodes-cjdns]",integer(network(snapshot,"cjdns")));
-    set(root,"[data-nodes-other]",integer(network(snapshot,"other")));
-    set(root,"[data-nodes-decoded]",integer(snapshot.nodeCount));
+    set(root,"[data-nodes-ipv4]",countShare(m,"ipv4"));
+    set(root,"[data-nodes-ipv6]",countShare(m,"ipv6"));
+    set(root,"[data-nodes-tor]",countShare(m,"tor"));
+    set(root,"[data-nodes-i2p]",countShare(m,"i2p"));
+    set(root,"[data-nodes-cjdns]",countShare(m,"cjdns"));
+    set(root,"[data-nodes-other]",countShare(m,"other"));
+
+    set(
+      root,
+      "[data-nodes-network-count]",
+      `${m.networkRows.length.toLocaleString()} observed network${m.networkRows.length===1?"":"s"}`
+    );
+
+    for(const key of ["ipv4","ipv6","tor","i2p","cjdns","other"]){
+      width(
+        q(root,`[data-nodes-stack-${key}]`),
+        m.total>0?Number(m.networkCounts[key]||0)/m.total:NaN
+      );
+    }
+
+    set(
+      root,
+      "[data-nodes-coverage-summary]",
+      `${integer(m.geoKnown)} geo · ${integer(m.asnKnown)} ASN · ${integer(m.latencyKnown)} latency · ${integer(m.heightKnown)} height`
+    );
+
+    set(root,"[data-nodes-geo-coverage]",`${integer(m.geoKnown)} · ${pct(m.geoCoverage)}`);
+    set(root,"[data-nodes-asn-coverage]",`${integer(m.asnKnown)} · ${pct(m.asnCoverage)}`);
+    set(root,"[data-nodes-latency-coverage]",`${integer(m.latencyKnown)} · ${pct(m.latencyCoverage)}`);
+    set(root,"[data-nodes-height-coverage]",`${integer(m.heightKnown)} · ${pct(m.heightCoverage)}`);
+
+    width(q(root,"[data-nodes-geo-bar]"),m.geoCoverage);
+    width(q(root,"[data-nodes-asn-bar]"),m.asnCoverage);
+    width(q(root,"[data-nodes-latency-bar]"),m.latencyCoverage);
+    width(q(root,"[data-nodes-height-bar]"),m.heightCoverage);
 
     const updated=finite(snapshot.updatedMs);
     set(
@@ -130,26 +199,32 @@
       "[data-nodes-updated]",
       Number.isFinite(updated)?new Date(updated).toLocaleString():"—"
     );
-    set(root,"[data-nodes-transport]",`${result.transport}${result.stale?" · stale":""}`);
-    set(root,"[data-nodes-source]",result.source||snapshot.source||"—");
 
+    set(root,"[data-nodes-geo-joins]",integer(m.geoJoined));
+    set(root,"[data-nodes-asn-groups]",integer(m.asnGroups));
     set(
       root,
-      "[data-nodes-sub]",
-      `height ${integer(snapshot.latestHeight)} · ${integer(snapshot.nodeCount)} decoded node record${Number(snapshot.nodeCount)===1?"":"s"}`
+      "[data-nodes-transport]",
+      `${detail.transport||"shared"}${detail.stale?" · stale":""}`
     );
+    set(root,"[data-nodes-source]",detail.source||snapshot.source||"—");
 
     set(
       root,
       "[data-nodes-meta]",
-      `${snapshot.geography?.joined||0} geography joins · ${Object.keys(snapshot.byAsn||{}).length} ASN groups · shared ZZXBitnodes v8`
+      "ZZXBitnodes v8 · one canonical browser snapshot · no browser-level direct upstream or proxy requests"
     );
 
-    status(
-      root,
-      result.stale?"cached":"live",
-      result.stale?"warn":"ok"
-    );
+    status(root,detail.stale?"cached":"live",detail.stale?"warn":"ok");
+
+    W.ZZXNodesOverview=Object.freeze({
+      schema:"zzx-nodes-overview-export-v5",
+      ...m,
+      source:detail.source,
+      transport:detail.transport,
+      updatedMs:Number.isFinite(updated)?updated:null
+    });
+    W.ZZXNodesLatest=W.ZZXNodesOverview;
   }
 
   function draw(root,state){
@@ -159,25 +234,45 @@
     );
   }
 
+  function renderHistoryLabel(root,state){
+    const rows=Array.isArray(state.history)?state.history:[];
+    if(rows.length<2){
+      set(
+        root,
+        "[data-nodes-history]",
+        `${rows.length.toLocaleString()} point${rows.length===1?"":"s"}`
+      );
+      return;
+    }
+
+    const first=Number(rows[0]?.total ?? rows[0]?.v ?? rows[0]?.[1]);
+    const last=Number(rows[rows.length-1]?.total ?? rows[rows.length-1]?.v ?? rows[rows.length-1]?.[1]);
+    const delta=Number.isFinite(first)&&Number.isFinite(last)?last-first:NaN;
+
+    set(
+      root,
+      "[data-nodes-history]",
+      `${rows.length.toLocaleString()} points${Number.isFinite(delta)?` · Δ ${delta>=0?"+":""}${Math.round(delta).toLocaleString()}`:""}`
+    );
+  }
+
   async function refresh(root,state,force=false){
     if(state.busy||!root.isConnected)return;
+
     state.busy=true;
     status(root,"refreshing","warn");
 
     try{
-      state.result=await W.ZZXBitnodes.load(force);
-      state.history=await W.ZZXBitnodes.history(force);
+      const loaded=await W.ZZXNodesProvider.load(force);
+      state.detail=loaded.detail;
+      state.model=loaded.model;
+      state.history=await W.ZZXNodesProvider.history(force);
+
       render(root,state);
-
-      set(
-        root,
-        "[data-nodes-history]",
-        `${state.history.length.toLocaleString()} point${state.history.length===1?"":"s"}`
-      );
-
+      renderHistoryLabel(root,state);
       draw(root,state);
     }catch(error){
-      status(root,state.result?"stale":"offline",state.result?"warn":"error");
+      status(root,state.detail?"stale":"offline",state.detail?"warn":"error");
       set(root,"[data-nodes-meta]",String(error?.message||error));
     }finally{
       state.busy=false;
@@ -189,48 +284,52 @@
 
     const old=root.__zzxNodesState;
     old?.unsubscribe?.();
-    old?.resize?.disconnect?.();
+    old?.abortController?.abort?.();
+    old?.detachViewport?.();
+
+    const abortController=typeof AbortController==="function"
+      ? new AbortController()
+      : null;
+    const options=abortController?{signal:abortController.signal}:undefined;
 
     const state={
       core:core||W.ZZXWidgetsCore||null,
-      result:null,
+      detail:null,
+      model:null,
       history:[],
       busy:false,
       unsubscribe:null,
-      resize:null
+      abortController,
+      detachViewport:null
     };
-
     root.__zzxNodesState=state;
 
     try{
       await ensureModules(state.core);
 
+      state.detachViewport=W.ZZXNodesViewport.attach(
+        root,
+        ()=>draw(root,state)
+      );
+
       q(root,"[data-nodes-refresh]")?.addEventListener(
         "click",
-        ()=>refresh(root,state,true)
+        ()=>refresh(root,state,true),
+        options
       );
 
-      state.unsubscribe=W.ZZXBitnodes.subscribe(
-        async detail=>{
-          state.result=detail;
-          state.history=await W.ZZXBitnodes.history();
+      if(typeof W.ZZXBitnodes?.subscribe==="function"){
+        state.unsubscribe=W.ZZXBitnodes.subscribe(async detail=>{
+          if(!detail?.snapshot||!root.isConnected)return;
+
+          state.detail=detail;
+          state.model=W.ZZXNodesModel.build(detail.snapshot);
+          state.history=await W.ZZXNodesProvider.history(false);
+
           render(root,state);
-          set(
-            root,
-            "[data-nodes-history]",
-            `${state.history.length.toLocaleString()} point${state.history.length===1?"":"s"}`
-          );
+          renderHistoryLabel(root,state);
           draw(root,state);
-        },
-        {immediate:false}
-      );
-
-      if("ResizeObserver" in W){
-        state.resize=new ResizeObserver(()=>{
-          W.requestAnimationFrame(()=>draw(root,state));
-        });
-        const canvas=q(root,"[data-nodes-canvas]");
-        if(canvas)state.resize.observe(canvas);
+        },{immediate:false});
       }
 
       await refresh(root,state,false);
