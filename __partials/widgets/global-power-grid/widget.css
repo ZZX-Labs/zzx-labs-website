@@ -207,3 +207,189 @@
   overflow-wrap:anywhere !important;
   word-break:break-word !important;
 }
+
+
+/* v10.40 — historical World Factbook timeline */
+.gpg__history-controls{
+  display:grid;
+  grid-template-columns:minmax(260px,.9fr) minmax(0,1.1fr);
+  gap:.45rem;
+  align-items:center;
+  margin-top:.3rem;
+}
+
+.gpg__history-controls select{
+  min-width:0;
+  width:100%;
+  padding:.29rem .34rem;
+  border:0;
+  border-bottom:1px solid #30342f;
+  background:#070807;
+  color:var(--g);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.56rem;
+  outline:none;
+}
+
+.gpg__history-controls select:focus{border-bottom-color:var(--a)}
+
+.gpg__history-controls>span{
+  min-width:0;
+  color:#70786a;
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.51rem;
+  text-align:right;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.gpg__history-chart{
+  position:relative;
+  height:300px;
+  margin-top:.28rem;
+  overflow:hidden;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  background:
+    linear-gradient(rgba(192,214,116,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(192,214,116,.018) 1px,transparent 1px),
+    #070807;
+  background-size:30px 30px;
+}
+
+.gpg__history-chart svg{
+  display:block;
+  width:100%!important;
+  height:100%!important;
+}
+
+.gpg__history-chart [data-gpg-history-grid] line{
+  stroke:rgba(192,214,116,.075);
+  stroke-width:1;
+  vector-effect:non-scaling-stroke;
+}
+
+.gpg__history-chart [data-gpg-history-generation]{
+  fill:none;
+  stroke:var(--g);
+  stroke-width:1.8;
+  vector-effect:non-scaling-stroke;
+}
+
+.gpg__history-chart [data-gpg-history-load]{
+  fill:none;
+  stroke:var(--a);
+  stroke-width:1.7;
+  vector-effect:non-scaling-stroke;
+}
+
+.gpg__history-chart [data-gpg-history-capacity]{
+  fill:none;
+  stroke:var(--b);
+  stroke-width:1.45;
+  stroke-dasharray:4 3;
+  vector-effect:non-scaling-stroke;
+}
+
+.gpg__history-chart text{
+  fill:#6e7668;
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:9px;
+}
+
+.gpg__history-chart [data-gpg-history-crosshair]{
+  stroke:var(--a);
+  stroke-width:1;
+  stroke-dasharray:2 3;
+  vector-effect:non-scaling-stroke;
+  opacity:0;
+}
+
+.gpg__history-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.2rem .72rem;
+  margin-top:.24rem;
+  color:#747c6e;
+  font-size:.52rem;
+}
+
+.gpg__history-legend span{
+  display:flex;
+  align-items:center;
+  gap:.22rem;
+}
+
+.gpg__history-legend i{
+  width:14px;
+  height:2px;
+  background:var(--g);
+}
+
+.gpg__history-legend span:nth-child(2) i{background:var(--a)}
+.gpg__history-legend span:nth-child(3) i{background:var(--b)}
+
+.gpg__history-table-wrap{
+  max-height:280px;
+  margin-top:.3rem;
+  overflow:auto;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  scrollbar-width:thin;
+}
+
+.gpg__history-table{
+  width:100%;
+  min-width:760px;
+  border-collapse:collapse;
+  table-layout:fixed;
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.53rem;
+}
+
+.gpg__history-table th,
+.gpg__history-table td{
+  padding:.24rem .29rem;
+  border-bottom:1px solid rgba(255,255,255,.043);
+  text-align:right;
+  white-space:nowrap;
+}
+
+.gpg__history-table th:first-child,
+.gpg__history-table td:first-child,
+.gpg__history-table th:last-child,
+.gpg__history-table td:last-child{
+  text-align:left;
+}
+
+.gpg__history-table thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#080908;
+  color:var(--a);
+  font-size:.48rem;
+  font-weight:500;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+.gpg__history-table tbody tr:nth-child(even){background:rgba(255,255,255,.009)}
+.gpg__history-table tbody tr:hover{background:rgba(192,214,116,.03)}
+
+.gpg__source-link{
+  color:#7f8778;
+  text-decoration:none;
+}
+
+.gpg__source-link:hover{
+  color:var(--g);
+  text-decoration:underline;
+}
+
+@media(max-width:560px){
+  .gpg__history-controls{grid-template-columns:1fr}
+  .gpg__history-controls>span{text-align:left}
+  .gpg__history-chart{height:245px}
+}
