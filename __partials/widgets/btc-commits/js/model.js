@@ -1,36 +1,42 @@
+// __partials/widgets/btc-commits/js/model.js
 (function(){
   "use strict";
+
   const W=window;
-  if(W.ZZXBTCCommitsModel?.__version>=1)return;
-  const firstLine=m=>String(m||"").split(/\r?\n/,1)[0].trim()||"(no commit message)";
-  function one(row){
-    const c=row?.commit||row||{},a=c?.author||{},cm=c?.committer||{};
-    return {
-      sha:String(row?.sha||row?.id||""),
-      shortSha:String(row?.sha||row?.id||"").slice(0,12),
-      message:firstLine(c.message??row?.message),
-      author:String(row?.author?.login||row?.committer?.login||a.name||cm.name||"unknown"),
-      date:a.date||cm.date||row?.date||row?.committed_at||null,
-      url:row?.html_url||row?.url||null
-    };
+  if(Number(W.ZZXBitcoinCommitModel?.__version||0)>=1)return;
+
+  function build(input){
+    const now=Date.now();
+
+    const rows=(input||[]).map(row=>{
+      const commit=row.commit||row;
+      const author=commit.author||{};
+      const ghAuthor=row.author||{};
+
+      return {
+        sha:String(row.sha||commit.sha||""),
+        shortSha:String(row.sha||commit.sha||"").slice(0,8),
+        message:String(commit.message||row.message||"").split("\n")[0],
+        url:String(row.html_url||row.url||""),
+        author:String(ghAuthor.login||author.name||row.author_name||"unknown"),
+        date:Date.parse(author.date||row.date||row.timestamp||"")||0
+      };
+    }).filter(row=>row.sha).sort((a,b)=>b.date-a.date);
+
+    const authors=new Set(rows.map(row=>row.author).filter(Boolean));
+
+    return Object.freeze({
+      schema:"zzx-bitcoin-core-commit-model-v1",
+      rows:Object.freeze(rows.map(Object.freeze)),
+      latest:rows[0]||null,
+      counts:Object.freeze({
+        h24:rows.filter(row=>row.date&&now-row.date<=86400000).length,
+        d7:rows.filter(row=>row.date&&now-row.date<=7*86400000).length,
+        authors:authors.size,
+        size:rows.length
+      })
+    });
   }
-  function rows(payload){
-    if(Array.isArray(payload))return payload.map(one);
-    if(Array.isArray(payload?.commits))return payload.commits.map(one);
-    if(Array.isArray(payload?.items))return payload.items.map(one);
-    return [];
-  }
-  function build(payload,now=Date.now()){
-    const list=rows(payload).filter(x=>x.sha&&x.date&&Number.isFinite(new Date(x.date).getTime())).sort((a,b)=>new Date(b.date)-new Date(a.date));
-    if(!list.length)throw new Error("no Bitcoin Core commits available");
-    const day=86400000;
-    return {
-      rows:list,latest:list[0],
-      count24:list.filter(x=>now-new Date(x.date).getTime()<=day).length,
-      count7d:list.filter(x=>now-new Date(x.date).getTime()<=7*day).length,
-      authorCount:new Set(list.map(x=>x.author).filter(Boolean)).size,
-      sampleSize:list.length,sampleLimited:list.length>=100
-    };
-  }
-  W.ZZXBTCCommitsModel=Object.freeze({__version:1,build});
+
+  W.ZZXBitcoinCommitModel=Object.freeze({__version:1,build});
 })();
