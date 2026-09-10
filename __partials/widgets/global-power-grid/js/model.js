@@ -3,33 +3,30 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXGlobalPowerGridModel?.__version||0)>=2)return;
+  if(Number(W.ZZXGlobalPowerGridModel?.__version||0)>=3)return;
 
-  const HOURS={hour:1,day:24,week:168,month:730.5,year:8766};
-  const MIX_KEYS=[
+  const HOURS=Object.freeze({hour:1,day:24,week:168,month:730.5,year:8766});
+  const MIX_KEYS=Object.freeze([
     "coal","naturalGas","oil","nuclear","hydro","solar","wind",
     "geothermal","biomass","waste","tidal","fossilFuels","renewablesOther","other"
-  ];
+  ]);
 
-  function finite(v){
-    if(v===null||v===undefined)return NaN;
-    if(typeof v==="string"&&!v.trim())return NaN;
-    const n=Number(v);
+  function finite(value){
+    if(value===null||value===undefined)return NaN;
+    if(typeof value==="string"&&!value.trim())return NaN;
+    const n=Number(value);
     return Number.isFinite(n)?n:NaN;
   }
 
-  function clamp(v,min=0,max=1){
-    const n=finite(v);
-    return Number.isFinite(n)?Math.max(min,Math.min(max,n)):min;
-  }
-
-  function iso(v){
-    const s=String(v||"").trim().toUpperCase();
-    return /^[A-Z]{2}$/.test(s)?s:"";
+  function iso(value){
+    const text=String(value||"").trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(text)?text:"";
   }
 
   function flag(cc){
-    return cc?String.fromCodePoint(...[...cc].map(ch=>127397+ch.charCodeAt(0))):"🏴";
+    return cc
+      ? String.fromCodePoint(...[...cc].map(ch=>127397+ch.charCodeAt(0)))
+      : "🏴";
   }
 
   function normalizeRegistry(payload){
@@ -37,7 +34,7 @@
       country:iso(row.country),
       countryName:String(row.countryName||row.name||row.country||""),
       officialName:String(row.officialName||row.countryName||""),
-      timezones:Array.isArray(row.timezones)?row.timezones:[]
+      timezones:Array.isArray(row.timezones)?row.timezones.filter(Boolean):[]
     })).filter(row=>row.country);
   }
 
@@ -57,6 +54,7 @@
         year:Number.isFinite(edition)?Math.round(edition):null,
         editionYear:Number.isFinite(edition)?Math.round(edition):null,
         observationYear:Number.isFinite(observation)?Math.round(observation):null,
+        fieldObservationYears:row.field_observation_years||{},
         generationKWh:Number.isFinite(generationKWh)?generationKWh:null,
         consumptionKWh:Number.isFinite(consumptionKWh)?consumptionKWh:null,
         capacityMW:Number.isFinite(capacityKW)?capacityKW/1000:null,
@@ -65,20 +63,25 @@
         sourceUrl:String(row.source_url||row.sourceUrl||""),
         sourceProvider:String(row.source_provider||row.sourceProvider||""),
         sourceIdentifier:String(row.source_identifier||row.sourceIdentifier||""),
-        sourceFile:String(row.source_file||row.sourceFile||"")
+        sourceFile:String(row.source_file||row.sourceFile||""),
+        quality:row.quality||null
       };
     }).filter(row=>row.country&&Number.isFinite(row.year));
   }
 
   function normalizeLive(payload){
     const rows=Array.isArray(payload?.countries)?payload.countries:[];
+
     return rows.map(row=>{
-      const hourly=Array.isArray(row.hourly)?row.hourly.map(h=>({
-        timestamp:Number(new Date(h.timestamp||h.time).getTime()),
-        generationMW:finite(h.generationMW??h.generation_mw),
-        loadMW:finite(h.loadMW??h.load_mw),
-        mix:h.mix||{}
-      })).filter(h=>Number.isFinite(h.timestamp)):[];
+      const hourly=Array.isArray(row.hourly)
+        ? row.hourly.map(sample=>({
+            timestamp:Number(new Date(sample.timestamp||sample.time).getTime()),
+            generationMW:finite(sample.generationMW??sample.generation_mw),
+            loadMW:finite(sample.loadMW??sample.load_mw),
+            mix:sample.mix||{}
+          })).filter(sample=>Number.isFinite(sample.timestamp))
+          .sort((a,b)=>a.timestamp-b.timestamp)
+        : [];
 
       return {
         country:iso(row.country||row.iso),
@@ -111,7 +114,7 @@
   }
 
   function buildHistories(records,registry){
-    const names=new Map(registry.map(r=>[r.country,r.countryName]));
+    const names=new Map(registry.map(row=>[row.country,row.countryName]));
     const grouped=new Map();
 
     for(const row of records){
@@ -120,6 +123,7 @@
         countryName:names.get(row.country)||row.countryName||row.country,
         editionYear:row.editionYear,
         observationYear:row.observationYear,
+        fieldObservationYears:row.fieldObservationYears||{},
         generationMW:averageMWFromKWh(row.generationKWh),
         loadMW:averageMWFromKWh(row.consumptionKWh),
         capacityMW:Number.isFinite(row.capacityMW)?row.capacityMW:NaN,
@@ -128,100 +132,137 @@
         sourceUrl:row.sourceUrl,
         sourceProvider:row.sourceProvider,
         sourceIdentifier:row.sourceIdentifier,
-        sourceFile:row.sourceFile
+        sourceFile:row.sourceFile,
+        quality:row.quality||null
       };
 
-      if(![
-        point.generationMW,
-        point.loadMW,
-        point.capacityMW
-      ].some(Number.isFinite))continue;
+      if(![point.generationMW,point.loadMW,point.capacityMW].some(Number.isFinite))continue;
 
-      const arr=grouped.get(row.country)||[];
-      arr.push(point);
-      grouped.set(row.country,arr);
+      const list=grouped.get(row.country)||[];
+      list.push(point);
+      grouped.set(row.country,list);
     }
 
     const histories={};
     for(const [country,rows] of grouped.entries()){
-      // Keep one best record per edition year, preferring more populated fields.
       const byYear=new Map();
+
       for(const row of rows){
         const score=[row.generationMW,row.loadMW,row.capacityMW].filter(Number.isFinite).length;
         const prev=byYear.get(row.editionYear);
-        const prevScore=prev?[prev.generationMW,prev.loadMW,prev.capacityMW].filter(Number.isFinite).length:-1;
+        const prevScore=prev
+          ? [prev.generationMW,prev.loadMW,prev.capacityMW].filter(Number.isFinite).length
+          : -1;
+
         if(!prev||score>prevScore)byYear.set(row.editionYear,row);
       }
+
       histories[country]=[...byYear.values()].sort((a,b)=>a.editionYear-b.editionYear);
     }
 
     return histories;
   }
 
-  function hourlyFromAnnual(avgMW){
-    if(!Number.isFinite(avgMW))return [];
-    return Array.from({length:24},(_,hour)=>({
-      hour,
-      generationMW:avgMW,
-      loadMW:avgMW,
-      derived:true
-    }));
+  function miningCeilingEH(powerMW,jth=30){
+    const mw=finite(powerMW),eff=finite(jth);
+    return Number.isFinite(mw)&&mw>=0&&Number.isFinite(eff)&&eff>0
+      ? mw/eff
+      : NaN;
   }
 
   function combine(registry,factbook,live){
-    const hist=latestHistorical(factbook);
+    const historical=latestHistorical(factbook);
     const liveMap=new Map(live.map(row=>[row.country,row]));
-    const out=[];
+    const rows=[];
 
     for(const meta of registry){
-      const h=hist.get(meta.country);
+      const h=historical.get(meta.country);
       const l=liveMap.get(meta.country);
 
-      const histGeneration=averageMWFromKWh(h?.generationKWh);
-      const histLoad=averageMWFromKWh(h?.consumptionKWh);
+      const historicalGeneration=averageMWFromKWh(h?.generationKWh);
+      const historicalLoad=averageMWFromKWh(h?.consumptionKWh);
 
-      const generationMW=Number.isFinite(l?.generationMW)?l.generationMW:histGeneration;
-      const loadMW=Number.isFinite(l?.loadMW)?l.loadMW:histLoad;
-      const capacityMW=Number.isFinite(l?.capacityMW)?l.capacityMW:h?.capacityMW;
-      const peakMW=Number.isFinite(l?.peakMW)?l.peakMW:loadMW;
+      const liveGeneration=finite(l?.generationMW);
+      const liveLoad=finite(l?.loadMW);
+      const liveCapacity=finite(l?.capacityMW);
 
-      let hourly=l?.hourly?.length?l.hourly:[];
-      let profileSource="live-hourly";
+      const generationMW=Number.isFinite(liveGeneration)?liveGeneration:historicalGeneration;
+      const loadMW=Number.isFinite(liveLoad)?liveLoad:historicalLoad;
+      const capacityMW=Number.isFinite(liveCapacity)?liveCapacity:h?.capacityMW;
 
-      if(!hourly.length){
-        const derivedBase=Number.isFinite(loadMW)?loadMW:generationMW;
-        hourly=hourlyFromAnnual(derivedBase);
-        profileSource=hourly.length?"annual-average-flat":"unavailable";
-      }
+      const hasLiveGeneration=Number.isFinite(liveGeneration);
+      const hasLiveLoad=Number.isFinite(liveLoad);
+      const hourly=Array.isArray(l?.hourly)&&l.hourly.length?l.hourly:[];
+      const profileSource=hourly.length?"live-hourly":"unavailable";
 
-      const headroomMW=
+      const annualHeadroom=
         Number.isFinite(generationMW)&&Number.isFinite(loadMW)
           ? Math.max(0,generationMW-loadMW)
           : NaN;
 
-      out.push({
+      const liveHeadroom=
+        hasLiveGeneration&&hasLiveLoad
+          ? Math.max(0,liveGeneration-liveLoad)
+          : NaN;
+
+      let ceilingBasis="unavailable";
+      let ceilingPowerMW=NaN;
+
+      if(hasLiveGeneration&&liveGeneration>=0){
+        ceilingBasis="observed_generation";
+        ceilingPowerMW=liveGeneration;
+      }else if(Number.isFinite(historicalGeneration)&&historicalGeneration>=0){
+        ceilingBasis="annual_avg_generation";
+        ceilingPowerMW=historicalGeneration;
+      }else if(Number.isFinite(capacityMW)&&capacityMW>=0){
+        ceilingBasis="installed_capacity";
+        ceilingPowerMW=capacityMW;
+      }
+
+      const liveSourcePresent=Boolean(
+        l&&(
+          Number.isFinite(liveGeneration)||
+          Number.isFinite(liveLoad)||
+          Number.isFinite(liveCapacity)||
+          hourly.length
+        )
+      );
+
+      const profileTimezones=l?.timezone
+        ? [l.timezone]
+        : meta.timezones.length===1
+          ? [meta.timezones[0]]
+          : [];
+
+      rows.push({
         country:meta.country,
         countryName:meta.countryName,
         flag:flag(meta.country),
         timezones:meta.timezones,
+        profileTimezones,
+        liveTimezone:l?.timezone||"",
         generationMW,
         loadMW,
-        peakMW,
+        peakMW:Number.isFinite(l?.peakMW)?l.peakMW:NaN,
         capacityMW:Number.isFinite(capacityMW)?capacityMW:NaN,
-        headroomMW,
+        headroomMW:annualHeadroom,
+        headroomBasis:hasLiveGeneration&&hasLiveLoad?"observed":"annual-average",
         mix:l?.mix&&Object.keys(l.mix).length?l.mix:(h?.mix||{}),
         hourly,
         profileSource,
-        source:l?.source||h?.source||"unavailable",
-        sourceYear:l?.updatedAt||(h?.editionYear??null),
-        sourceUrl:l?.sourceUrl||h?.sourceUrl||"",
+        source:liveSourcePresent?(l?.source||"live grid"):(h?.source||"unavailable"),
+        sourceYear:liveSourcePresent?(l?.updatedAt||null):(h?.editionYear??null),
+        sourceUrl:liveSourcePresent?(l?.sourceUrl||""):(h?.sourceUrl||""),
         editionYear:h?.editionYear??null,
         observationYear:h?.observationYear??null,
+        ceilingBasis,
+        absoluteMiningCeilingEH:miningCeilingEH(ceilingPowerMW),
+        headroomMiningCeilingEH:miningCeilingEH(liveHeadroom),
         dataAvailable:[generationMW,loadMW,capacityMW].some(Number.isFinite)
       });
     }
 
-    return out;
+    return rows;
   }
 
   function periodEnergyMWh(powerMW,period){
@@ -229,35 +270,46 @@
     return Number.isFinite(powerMW)?powerMW*hours:NaN;
   }
 
-  function miningCeilingEH(powerMW,jth=30){
-    const mw=finite(powerMW),eff=finite(jth);
-    return Number.isFinite(mw)&&mw>=0&&Number.isFinite(eff)&&eff>0?mw/eff:NaN;
-  }
-
   function aggregateMix(rows){
     const totals=new Map();
-    let denominator=0;
+    let mappedMW=0,totalGenerationMW=0;
 
     for(const row of rows){
       if(!Number.isFinite(row.generationMW)||row.generationMW<=0)continue;
+      totalGenerationMW+=row.generationMW;
+
       const mix=row.mix||{};
-      let accepted=0;
+      let rowMapped=0;
 
       for(const key of MIX_KEYS){
         const pct=finite(mix[key]??mix[`${key}_pct`]);
-        if(Number.isFinite(pct)&&pct>0){
-          const f=pct>1?pct/100:pct;
-          const mw=row.generationMW*f;
-          totals.set(key,(totals.get(key)||0)+mw);
-          accepted+=mw;
-        }
+        if(!Number.isFinite(pct)||pct<=0)continue;
+
+        const fraction=pct>1?pct/100:pct;
+        if(!(fraction>0&&fraction<=1))continue;
+
+        const mw=row.generationMW*fraction;
+        totals.set(key,(totals.get(key)||0)+mw);
+        rowMapped+=mw;
       }
-      denominator+=accepted;
+
+      mappedMW+=Math.min(row.generationMW,rowMapped);
     }
 
-    return [...totals.entries()]
-      .map(([source,mw])=>({source,mw,share:denominator>0?mw/denominator:NaN}))
+    const rowsOut=[...totals.entries()]
+      .map(([source,mw])=>({
+        source,
+        mw,
+        share:mappedMW>0?mw/mappedMW:NaN
+      }))
       .sort((a,b)=>b.mw-a.mw);
+
+    return {
+      rows:rowsOut,
+      mappedMW,
+      totalGenerationMW,
+      coverage:totalGenerationMW>0?Math.min(1,mappedMW/totalGenerationMW):0
+    };
   }
 
   function globalProfile(rows){
@@ -265,128 +317,187 @@
     if(!liveRows.length)return [];
 
     const buckets=new Map();
+
     for(const row of liveRows){
-      for(const h of row.hourly){
-        const hour=Math.floor(h.timestamp/3600000)*3600000;
-        const b=buckets.get(hour)||{t:hour,generationMW:0,loadMW:0,generationN:0,loadN:0};
-        if(Number.isFinite(h.generationMW)){b.generationMW+=h.generationMW;b.generationN++}
-        if(Number.isFinite(h.loadMW)){b.loadMW+=h.loadMW;b.loadN++}
-        buckets.set(hour,b);
+      for(const sample of row.hourly){
+        const hour=Math.floor(sample.timestamp/3600000)*3600000;
+        const bucket=buckets.get(hour)||{
+          t:hour,
+          generationMW:0,
+          loadMW:0,
+          generationCountries:new Set(),
+          loadCountries:new Set()
+        };
+
+        if(Number.isFinite(sample.generationMW)){
+          bucket.generationMW+=sample.generationMW;
+          bucket.generationCountries.add(row.country);
+        }
+
+        if(Number.isFinite(sample.loadMW)){
+          bucket.loadMW+=sample.loadMW;
+          bucket.loadCountries.add(row.country);
+        }
+
+        buckets.set(hour,bucket);
       }
     }
 
-    return [...buckets.values()].sort((a,b)=>a.t-b.t).slice(-24).map(b=>({
-      t:b.t,
-      generationMW:b.generationN?b.generationMW:NaN,
-      loadMW:b.loadN?b.loadMW:NaN,
-      spareMW:b.generationN&&b.loadN?Math.max(0,b.generationMW-b.loadMW):NaN
-    }));
+    return [...buckets.values()]
+      .sort((a,b)=>a.t-b.t)
+      .slice(-24)
+      .map(bucket=>({
+        t:bucket.t,
+        generationMW:bucket.generationCountries.size?bucket.generationMW:NaN,
+        loadMW:bucket.loadCountries.size?bucket.loadMW:NaN,
+        spareMW:bucket.generationCountries.size&&bucket.loadCountries.size
+          ? Math.max(0,bucket.generationMW-bucket.loadMW)
+          : NaN,
+        generationCountryCount:bucket.generationCountries.size,
+        loadCountryCount:bucket.loadCountries.size
+      }));
   }
 
   function timezoneRows(rows){
     const zones=new Map();
 
     for(const row of rows){
-      if(!row.hourly.length||!row.timezones.length)continue;
-      const tz=row.timezones[0];
-      const entry=zones.get(tz)||{
-        timezone:tz,
+      if(row.profileSource!=="live-hourly"||!row.hourly.length)continue;
+      if(!Array.isArray(row.profileTimezones)||row.profileTimezones.length!==1)continue;
+
+      const timezone=row.profileTimezones[0];
+      const entry=zones.get(timezone)||{
+        timezone,
         countries:new Set(),
         hours:Array.from({length:24},()=>({sum:0,n:0}))
       };
+
       entry.countries.add(row.country);
 
-      if(row.profileSource==="live-hourly"){
-        for(const h of row.hourly){
-          if(!Number.isFinite(h.loadMW))continue;
-          let hour;
-          try{
-            const parts=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour:"2-digit",hour12:false}).formatToParts(new Date(h.timestamp));
-            hour=Number(parts.find(p=>p.type==="hour")?.value);
-            if(hour===24)hour=0;
-          }catch(_){continue}
+      for(const sample of row.hourly){
+        if(!Number.isFinite(sample.loadMW))continue;
 
-          if(Number.isInteger(hour)&&hour>=0&&hour<24){
-            entry.hours[hour].sum+=h.loadMW;
-            entry.hours[hour].n++;
-          }
-        }
-      }else{
-        for(let hour=0;hour<24;hour++){
-          const sample=row.hourly[hour];
-          if(Number.isFinite(sample?.loadMW)){
-            entry.hours[hour].sum+=sample.loadMW;
-            entry.hours[hour].n++;
-          }
+        let hour;
+        try{
+          const parts=new Intl.DateTimeFormat("en-US",{
+            timeZone:timezone,
+            hour:"2-digit",
+            hour12:false
+          }).formatToParts(new Date(sample.timestamp));
+
+          hour=Number(parts.find(part=>part.type==="hour")?.value);
+          if(hour===24)hour=0;
+        }catch(_){continue;}
+
+        if(Number.isInteger(hour)&&hour>=0&&hour<24){
+          entry.hours[hour].sum+=sample.loadMW;
+          entry.hours[hour].n++;
         }
       }
 
-      zones.set(tz,entry);
+      zones.set(timezone,entry);
     }
 
-    return [...zones.values()].map(z=>{
-      const curve=z.hours.map(x=>x.n?x.sum/x.n:NaN);
-      const finiteVals=curve.filter(Number.isFinite);
-      const max=finiteVals.length?Math.max(...finiteVals):NaN;
-      const min=finiteVals.length?Math.min(...finiteVals):NaN;
-      const peakHours=[],offPeakHours=[];
+    return [...zones.values()].map(zone=>{
+      const curve=zone.hours.map(hour=>hour.n?hour.sum/hour.n:NaN);
+      const values=curve.filter(Number.isFinite);
+      const max=values.length?Math.max(...values):NaN;
+      const min=values.length?Math.min(...values):NaN;
+      const peakHours=[];
+      const offPeakHours=[];
 
       if(Number.isFinite(max)&&Number.isFinite(min)&&max>min){
-        curve.forEach((v,h)=>{
-          if(!Number.isFinite(v))return;
-          const f=(v-min)/(max-min);
-          if(f>=0.8)peakHours.push(h);
-          if(f<=0.2)offPeakHours.push(h);
+        curve.forEach((value,hour)=>{
+          if(!Number.isFinite(value))return;
+          const fraction=(value-min)/(max-min);
+          if(fraction>=0.8)peakHours.push(hour);
+          if(fraction<=0.2)offPeakHours.push(hour);
         });
       }
 
       return {
-        timezone:z.timezone,
-        countryCount:z.countries.size,
+        timezone:zone.timezone,
+        countryCount:zone.countries.size,
         curve,
         peakHours,
         offPeakHours,
         measuredDynamic:Number.isFinite(max)&&Number.isFinite(min)&&max>min
       };
     }).sort((a,b)=>{
-      const aa=a.curve.filter(Number.isFinite).reduce((s,v)=>s+v,0);
-      const bb=b.curve.filter(Number.isFinite).reduce((s,v)=>s+v,0);
+      const aa=a.curve.filter(Number.isFinite).reduce((sum,value)=>sum+value,0);
+      const bb=b.curve.filter(Number.isFinite).reduce((sum,value)=>sum+value,0);
       return bb-aa;
     });
   }
 
-  function historySummary(histories){
+  function historySummary(histories,qualitySummary){
     const all=Object.values(histories).flat();
-    const years=all.map(r=>r.editionYear).filter(Number.isFinite);
+    const years=all.map(row=>row.editionYear).filter(Number.isFinite);
+
     return {
       records:all.length,
       countries:Object.keys(histories).length,
       earliestEdition:years.length?Math.min(...years):null,
-      latestEdition:years.length?Math.max(...years):null
+      latestEdition:years.length?Math.max(...years):null,
+      rejectedRecords:Number(qualitySummary?.rejectedRecords||0)
+    };
+  }
+
+  function qualityFilter(payload){
+    if(typeof W.ZZXGlobalPowerGridQuality?.filterFactbook==="function"){
+      return W.ZZXGlobalPowerGridQuality.filterFactbook(payload);
+    }
+
+    // Conservative fallback if the quality module is unavailable: only rows
+    // explicitly marked verified are allowed through.
+    const input=Array.isArray(payload?.records)?payload.records:[];
+    const records=input.filter(row=>{
+      const status=String(row?.quality?.status??row?.quality_status??"").toLowerCase();
+      return row?.verified===true||status==="verified"||status==="accepted";
+    });
+
+    return {
+      payload:{...(payload||{}),records},
+      summary:{
+        inputRecords:input.length,
+        acceptedRecords:records.length,
+        rejectedRecords:input.length-records.length,
+        reasons:{"quality-module-unavailable":input.length-records.length},
+        rejected:[]
+      }
     };
   }
 
   function build(registryPayload,factbookPayload,livePayload){
     const registry=normalizeRegistry(registryPayload);
-    const factbook=normalizeFactbook(factbookPayload);
+    const quality=qualityFilter(factbookPayload);
+    const factbook=normalizeFactbook(quality.payload);
     const live=normalizeLive(livePayload);
     const histories=buildHistories(factbook,registry);
     const rows=combine(registry,factbook,live);
+    const available=rows.filter(row=>row.dataAvailable);
+    const profile=globalProfile(rows);
+    const timezone=timezoneRows(rows);
+    const mixResult=aggregateMix(rows);
 
-    const available=rows.filter(r=>r.dataAvailable);
-    const generationMW=available.reduce((s,r)=>s+(Number.isFinite(r.generationMW)?r.generationMW:0),0);
-    const loadMW=available.reduce((s,r)=>s+(Number.isFinite(r.loadMW)?r.loadMW:0),0);
-    const peakMW=available.reduce((s,r)=>s+(Number.isFinite(r.peakMW)?r.peakMW:0),0);
-    const loads=available.map(r=>r.loadMW).filter(Number.isFinite);
-    const lowMW=loads.length?Math.min(...loads):NaN;
+    const generationMW=available.reduce(
+      (sum,row)=>sum+(Number.isFinite(row.generationMW)?row.generationMW:0),
+      0
+    );
+    const loadMW=available.reduce(
+      (sum,row)=>sum+(Number.isFinite(row.loadMW)?row.loadMW:0),
+      0
+    );
+    const nationalReportedPeakMW=available.reduce(
+      (sum,row)=>sum+(Number.isFinite(row.peakMW)?row.peakMW:0),
+      0
+    );
 
-    for(const row of rows){
-      row.absoluteMiningCeilingEH=miningCeilingEH(
-        Number.isFinite(row.generationMW)?row.generationMW:row.capacityMW
-      );
-      row.headroomMiningCeilingEH=miningCeilingEH(row.headroomMW);
-      Object.freeze(row);
-    }
+    const profileLoads=profile.map(row=>row.loadMW).filter(Number.isFinite);
+    const coincidentPeakMW=profileLoads.length?Math.max(...profileLoads):NaN;
+    const coincidentLowMW=profileLoads.length?Math.min(...profileLoads):NaN;
+
+    for(const row of rows)Object.freeze(row);
 
     const historyCountries=rows
       .filter(row=>histories[row.country]?.length)
@@ -404,26 +515,41 @@
         lastEdition:histories[row.country].at(-1)?.editionYear??null
       }));
 
+    const hs=historySummary(histories,quality.summary);
+
     return Object.freeze({
-      schema:"zzx-global-power-grid-model-v2",
+      schema:"zzx-global-power-grid-model-v3",
       rows:Object.freeze(rows),
       availableCount:available.length,
       registryCount:registry.length,
       coverage:registry.length?available.length/registry.length:0,
-      global:Object.freeze({generationMW,loadMW,peakMW,lowCountryLoadMW:lowMW}),
-      mix:Object.freeze(aggregateMix(rows)),
-      profile:Object.freeze(globalProfile(rows).map(Object.freeze)),
-      timezones:Object.freeze(timezoneRows(rows).map(Object.freeze)),
+      global:Object.freeze({
+        generationMW,
+        loadMW,
+        peakMW:coincidentPeakMW,
+        lowMW:coincidentLowMW,
+        lowCountryLoadMW:coincidentLowMW,
+        sumNationalReportedPeakMW:nationalReportedPeakMW,
+        aggregateBasis:"mixed-latest-national-observations"
+      }),
+      mix:Object.freeze(mixResult.rows.map(Object.freeze)),
+      mixCoverage:mixResult.coverage,
+      profile:Object.freeze(profile.map(Object.freeze)),
+      timezones:Object.freeze(timezone.map(Object.freeze)),
       histories:Object.freeze(Object.fromEntries(
-        Object.entries(histories).map(([cc,h])=>[cc,Object.freeze(h.map(Object.freeze))])
+        Object.entries(histories).map(([cc,history])=>[
+          cc,
+          Object.freeze(history.map(Object.freeze))
+        ])
       )),
       historyCountries:Object.freeze(historyCountries.map(Object.freeze)),
-      historySummary:Object.freeze(historySummary(histories))
+      historySummary:Object.freeze(hs),
+      qualitySummary:Object.freeze({...quality.summary})
     });
   }
 
   W.ZZXGlobalPowerGridModel=Object.freeze({
-    __version:2,
+    __version:3,
     HOURS,
     MIX_KEYS,
     normalizeRegistry,
