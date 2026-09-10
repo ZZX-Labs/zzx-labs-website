@@ -769,57 +769,40 @@
 }
 
 /* =========================================================
-   v10.57 CARD GEOMETRY FIX
-   Same rounded shell + same desktop vertical footprint.
+   v10.58 SCROLL CONTRACT
+   The outer widget never scrolls. Only bounded readouts do.
    ========================================================= */
 
 [data-widget-root="hashrate-by-nation"]{
-  --pm-card-height:1080px;
-  height:var(--pm-card-height)!important;
-  min-height:var(--pm-card-height)!important;
-  max-height:var(--pm-card-height)!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
   border-radius:10px!important;
-  overflow-x:hidden!important;
-  overflow-y:auto!important;
-  scrollbar-width:thin;
-  scrollbar-color:rgba(192,214,116,.38) rgba(255,255,255,.025);
+  overflow-x:clip!important;
+  overflow-y:visible!important;
 }
 
-[data-widget-root="hashrate-by-nation"]::-webkit-scrollbar{
-  width:8px;
-  height:8px;
-}
-
-[data-widget-root="hashrate-by-nation"]::-webkit-scrollbar-track{
-  background:rgba(255,255,255,.025);
-}
-
-[data-widget-root="hashrate-by-nation"]::-webkit-scrollbar-thumb{
-  background:rgba(192,214,116,.28);
-  border-radius:999px;
-}
-
-/* Large bounded regions use the same rounded nodes-by-* framing. */
+/* Charts may scroll horizontally if their internal SVG is wider than the card. */
 [data-widget-root="hashrate-by-nation"] .hbn__rank-chart,
-[data-widget-root="hashrate-by-nation"] .hbn__timeline,
-[data-widget-root="hashrate-by-nation"] .hbn__table-wrap{
+[data-widget-root="hashrate-by-nation"] .hbn__timeline{
   border-radius:10px!important;
-  overflow:auto!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
 }
 
-/* Metric tiles stay slightly tighter, like mining-rewards. */
-[data-widget-root="hashrate-by-nation"] .hbn__confidence-block,
-[data-widget-root="hashrate-by-nation"] .hbn__evidence-inline span,
-[data-widget-root="hashrate-by-nation"] .hbn__evidence>div,
-[data-widget-root="hashrate-by-nation"] .hbn__controls input,
-[data-widget-root="hashrate-by-nation"] .hbn__controls select{
-  border-radius:6px!important;
+/* Nation ledger is the vertically scrollable readout. */
+[data-widget-root="hashrate-by-nation"] .hbn__table-wrap{
+  max-height:520px!important;
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  border-radius:10px!important;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(192,214,116,.40) rgba(255,255,255,.025);
 }
 
-@media(max-width:720px){
-  [data-widget-root="hashrate-by-nation"]{
-    height:auto!important;
-    min-height:0!important;
-    max-height:none!important;
-  }
+[data-widget-root="hashrate-by-nation"] .hbn__table thead th{
+  position:sticky!important;
+  top:0!important;
+  z-index:4!important;
+  background:#090a09!important;
 }
