@@ -5,47 +5,58 @@
   const W=window;
   const D=document;
   const ID="nodes-by-version";
-  const PAGE_KEY="zzx.widget.nodes-by-version.page-size.v10.20";
-  const FAMILY_KEY="zzx.widget.nodes-by-version.family.v10.20";
-  const GEO_KEY="zzx.widget.nodes-by-version.geo.v10.20";
+  const FAMILY_KEY="zzx.widget.nodes-by-version.family.v10.31";
+  const GEO_KEY="zzx.widget.nodes-by-version.geo.v10.31";
 
   function q(root,selector){return root?.querySelector?.(selector)||null;}
+
   function set(root,selector,value){
     const el=q(root,selector);
     if(el)el.textContent=value==null?"—":String(value);
   }
+
   function finite(value){
+    if(value===null||value===undefined)return NaN;
+    if(typeof value==="string"&&!value.trim())return NaN;
     const n=Number(value);
     return Number.isFinite(n)?n:NaN;
   }
+
   function integer(value){
     const n=finite(value);
     return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
   }
+
   function pct(value){
     const n=finite(value);
     return Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
   }
+
   function safeGet(key){
     try{return W.localStorage.getItem(key);}catch(_){return null;}
   }
+
   function safeSet(key,value){
     try{W.localStorage.setItem(key,String(value));}catch(_){}
   }
+
   function status(root,label,state){
     const el=q(root,"[data-nbv-status]");
     if(!el)return;
     el.textContent=label;
     el.setAttribute("data-status",state||"offline");
   }
+
   function base(core){
     return core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/nodes-by-version";
   }
+
   function resolve(path){
     return W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
   }
+
   function width(el,value){
     if(!el)return;
     const n=finite(value);
@@ -74,7 +85,11 @@
       script.defer=true;
       script.dataset.nbvDependency=tag;
       script.addEventListener("load",done,{once:true});
-      script.addEventListener("error",()=>fail(new Error(`Failed to load ${path}`)),{once:true});
+      script.addEventListener(
+        "error",
+        ()=>fail(new Error(`Failed to load ${path}`)),
+        {once:true}
+      );
       (D.head||D.documentElement).appendChild(script);
     });
 
@@ -87,26 +102,24 @@
       ()=>Number(W.ZZXBitnodes?.__version||0)>=8,
       "ZZXBitnodes"
     );
+
     await loadScript(
       `${base(core)}/js/model.js`,
       ()=>Number(W.ZZXNodesByVersionModel?.__version||0)>=3,
       "ZZXNodesByVersionModel"
     );
+
     await loadScript(
       `${base(core)}/js/ui.js`,
       ()=>Number(W.ZZXNodesByVersionUI?.__version||0)>=3,
       "ZZXNodesByVersionUI"
     );
+
     await loadScript(
       `${base(core)}/js/viewport.js`,
       ()=>Number(W.ZZXNodesByVersionViewport?.__version||0)>=3,
       "ZZXNodesByVersionViewport"
     );
-  }
-
-  function pageSize(root){
-    const n=Number(q(root,"[data-nbv-page-size]")?.value);
-    return [10,20,50,100].includes(n)?n:20;
   }
 
   function familyFilter(root){
@@ -119,14 +132,16 @@
 
   function familyMatches(row,filter){
     if(filter==="all")return true;
+
     if(filter==="Other"){
       return row.family!=="Bitcoin Core"&&row.family!=="Bitcoin Knots";
     }
+
     return row.family===filter;
   }
 
   function filtered(root,state){
-    let rows=state.model?.rows||[];
+    let rows=[...(state.model?.rows||[])];
 
     const family=familyFilter(root);
     const geo=geoFilter(root);
@@ -136,8 +151,11 @@
 
     rows=rows.filter(row=>familyMatches(row,family));
 
-    if(geo==="located")rows=rows.filter(row=>row.located);
-    else if(geo==="unlocated")rows=rows.filter(row=>!row.located);
+    if(geo==="located"){
+      rows=rows.filter(row=>row.located);
+    }else if(geo==="unlocated"){
+      rows=rows.filter(row=>!row.located);
+    }
 
     if(needle){
       rows=rows.filter(row=>
@@ -155,39 +173,25 @@
     return rows;
   }
 
-  function renderTable(root,state){
+  function renderReadout(root,state,{resetScroll=false}={}){
     const rows=filtered(root,state);
-    const size=pageSize(root);
-    const pages=Math.max(1,Math.ceil(rows.length/size));
-    state.page=Math.max(0,Math.min(state.page,pages-1));
-
     const body=q(root,"[data-nbv-body]");
-    if(!body)return;
 
-    const start=state.page*size;
-    const slice=rows.slice(start,start+size);
-    W.ZZXNodesByVersionUI.renderRows(body,slice,start);
+    if(body){
+      W.ZZXNodesByVersionUI.renderRows(body,rows,0);
+    }
 
-    set(
-      root,
-      "[data-nbv-page]",
-      `Page ${state.page+1} / ${pages} · ${rows.length.toLocaleString()} matching row${rows.length===1?"":"s"}`
-    );
+    const total=state.model?.rowCount||0;
+
     set(
       root,
       "[data-nbv-visible-count]",
-      `${rows.length.toLocaleString()} matching row${rows.length===1?"":"s"}`
+      `${rows.length.toLocaleString()} visible / ${total.toLocaleString()} total version/nation row${total===1?"":"s"}`
     );
 
-    const prev=q(root,"[data-nbv-prev]");
-    const next=q(root,"[data-nbv-next]");
-    if(prev)prev.disabled=state.page<=0;
-    if(next)next.disabled=state.page>=pages-1;
-
-    const scroller=q(root,"[data-nbv-scroll]");
-    if(scroller&&state.scrollToTop){
-      scroller.scrollTop=0;
-      state.scrollToTop=false;
+    if(resetScroll){
+      const scroller=q(root,"[data-nbv-scroll]");
+      if(scroller)scroller.scrollTop=0;
     }
   }
 
@@ -195,12 +199,14 @@
     const result=state.result;
     const snapshot=result?.snapshot;
     const m=state.model;
+
     if(!snapshot||!m)return;
 
     const coverage=finite(m.coverage);
     const top=m.topAgent;
 
     set(root,"[data-nbv-summary]",`${integer(m.totalObserved)} nodes`);
+
     set(
       root,
       "[data-nbv-sub]",
@@ -224,6 +230,7 @@
       "[data-nbv-mix-label]",
       `Core ${pct(m.coreShare)} · Knots ${pct(m.knotsShare)} · Other ${pct(m.otherShare)}`
     );
+
     width(q(root,"[data-nbv-mix-core]"),m.coreShare);
     width(q(root,"[data-nbv-mix-knots]"),m.knotsShare);
     width(q(root,"[data-nbv-mix-other]"),m.otherShare);
@@ -231,6 +238,7 @@
     set(root,"[data-nbv-network-total]",integer(m.reachable));
     set(root,"[data-nbv-decoded]",integer(m.decoded));
     set(root,"[data-nbv-height]",integer(snapshot.latestHeight));
+
     set(
       root,
       "[data-nbv-location-summary]",
@@ -245,31 +253,35 @@
       snapshot.updated_at ??
       snapshot.timestamp
     );
-    const updated=Number.isFinite(rawUpdated)&&rawUpdated>0&&rawUpdated<2e12
-      ? rawUpdated*1000
-      : rawUpdated;
+
+    const updated=
+      Number.isFinite(rawUpdated)&&rawUpdated>0&&rawUpdated<2e12
+        ? rawUpdated*1000
+        : rawUpdated;
 
     set(
       root,
       "[data-nbv-updated]",
       Number.isFinite(updated)?new Date(updated).toLocaleString():"—"
     );
+
     set(
       root,
       "[data-nbv-source]",
       `${result.source||snapshot.source||"—"} · ${result.transport||"shared"}${result.stale?" · stale":""} · geo ${snapshot.geography?.source||"unavailable"}`
     );
+
     set(
       root,
       "[data-nbv-meta]",
-      `ZZXBitnodes v8 · compact version × nation matrix · structured client family + flag/nation/ISO`
+      "ZZXBitnodes v8 · full scrollable version × nation matrix · structured client family + flag/nation/ISO · no pagination"
     );
 
-    renderTable(root,state);
+    renderReadout(root,state);
     status(root,result.stale?"cached":"live",result.stale?"warn":"ok");
 
     W.ZZXNodesByVersion=Object.freeze({
-      schema:"zzx-nodes-by-version-export-v3",
+      schema:"zzx-nodes-by-version-export-v4",
       rows:m.rows,
       agents:m.agents,
       families:m.families,
@@ -291,21 +303,18 @@
   }
 
   function rerenderFiltered(root,state){
-    state.page=0;
-    state.scrollToTop=true;
-    renderTable(root,state);
+    renderReadout(root,state,{resetScroll:true});
   }
 
   async function refresh(root,state,force=false){
     if(state.busy||!root.isConnected)return;
+
     state.busy=true;
     status(root,"refreshing","warn");
 
     try{
       state.result=await W.ZZXBitnodes.load(force);
       state.model=W.ZZXNodesByVersionModel.build(state.result.snapshot);
-      state.page=0;
-      state.scrollToTop=true;
       render(root,state);
     }catch(error){
       status(root,state.result?"stale":"offline",state.result?"warn":"error");
@@ -322,22 +331,30 @@
     old?.unsubscribe?.();
     old?.abortController?.abort?.();
     old?.detachViewport?.();
-    if(old?.searchTimer)W.clearTimeout(old.searchTimer);
 
-    const abortController=typeof AbortController==="function"?new AbortController():null;
-    const options=abortController?{signal:abortController.signal}:undefined;
+    if(old?.searchTimer){
+      W.clearTimeout(old.searchTimer);
+    }
+
+    const abortController=
+      typeof AbortController==="function"
+        ? new AbortController()
+        : null;
+
+    const options=
+      abortController
+        ? {signal:abortController.signal}
+        : undefined;
 
     const state={
       core:core||W.ZZXWidgetsCore||null,
       result:null,
       model:null,
-      page:0,
       busy:false,
       searchTimer:null,
       unsubscribe:null,
       abortController,
-      detachViewport:null,
-      scrollToTop:false
+      detachViewport:null
     };
 
     root.__zzxNodesByVersionState=state;
@@ -346,66 +363,73 @@
       await ensureModules(state.core);
       state.detachViewport=W.ZZXNodesByVersionViewport.attach(root);
 
-      const size=q(root,"[data-nbv-page-size]");
-      const savedSize=Number(safeGet(PAGE_KEY));
-      if(size&&[10,20,50,100].includes(savedSize))size.value=String(savedSize);
-
       const family=q(root,"[data-nbv-family]");
       const savedFamily=safeGet(FAMILY_KEY);
-      if(family&&["all","Bitcoin Core","Bitcoin Knots","Other"].includes(savedFamily)){
+
+      if(
+        family &&
+        ["all","Bitcoin Core","Bitcoin Knots","Other"].includes(savedFamily)
+      ){
         family.value=savedFamily;
       }
 
       const geo=q(root,"[data-nbv-geo]");
       const savedGeo=safeGet(GEO_KEY);
+
       if(geo&&["all","located","unlocated"].includes(savedGeo)){
         geo.value=savedGeo;
       }
 
-      q(root,"[data-nbv-prev]")?.addEventListener("click",()=>{
-        state.page=Math.max(0,state.page-1);
-        state.scrollToTop=true;
-        renderTable(root,state);
-      },options);
+      q(root,"[data-nbv-search]")?.addEventListener(
+        "input",
+        ()=>{
+          if(state.searchTimer){
+            W.clearTimeout(state.searchTimer);
+          }
 
-      q(root,"[data-nbv-next]")?.addEventListener("click",()=>{
-        state.page+=1;
-        state.scrollToTop=true;
-        renderTable(root,state);
-      },options);
+          state.searchTimer=W.setTimeout(
+            ()=>rerenderFiltered(root,state),
+            100
+          );
+        },
+        options
+      );
 
-      q(root,"[data-nbv-search]")?.addEventListener("input",()=>{
-        if(state.searchTimer)W.clearTimeout(state.searchTimer);
-        state.searchTimer=W.setTimeout(()=>rerenderFiltered(root,state),100);
-      },options);
+      family?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(FAMILY_KEY,familyFilter(root));
+          rerenderFiltered(root,state);
+        },
+        options
+      );
 
-      family?.addEventListener("change",()=>{
-        safeSet(FAMILY_KEY,familyFilter(root));
-        rerenderFiltered(root,state);
-      },options);
+      geo?.addEventListener(
+        "change",
+        ()=>{
+          safeSet(GEO_KEY,geoFilter(root));
+          rerenderFiltered(root,state);
+        },
+        options
+      );
 
-      geo?.addEventListener("change",()=>{
-        safeSet(GEO_KEY,geoFilter(root));
-        rerenderFiltered(root,state);
-      },options);
-
-      size?.addEventListener("change",()=>{
-        safeSet(PAGE_KEY,pageSize(root));
-        rerenderFiltered(root,state);
-      },options);
-
-      q(root,"[data-nbv-refresh]")?.addEventListener("click",()=>{
-        refresh(root,state,true);
-      },options);
+      q(root,"[data-nbv-refresh]")?.addEventListener(
+        "click",
+        ()=>refresh(root,state,true),
+        options
+      );
 
       if(typeof W.ZZXBitnodes?.subscribe==="function"){
-        state.unsubscribe=W.ZZXBitnodes.subscribe(detail=>{
-          if(!detail?.snapshot||!root.isConnected)return;
-          state.result=detail;
-          state.model=W.ZZXNodesByVersionModel.build(detail.snapshot);
-          state.page=0;
-          render(root,state);
-        },{immediate:false});
+        state.unsubscribe=W.ZZXBitnodes.subscribe(
+          detail=>{
+            if(!detail?.snapshot||!root.isConnected)return;
+
+            state.result=detail;
+            state.model=W.ZZXNodesByVersionModel.build(detail.snapshot);
+            render(root,state);
+          },
+          {immediate:false}
+        );
       }
 
       await refresh(root,state,false);
