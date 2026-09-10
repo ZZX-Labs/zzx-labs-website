@@ -3,7 +3,9 @@
   <div class="nodes__header">
     <div>
       <div class="btc-card__title">Bitcoin Nodes</div>
-      <div class="nodes__eyebrow">shared ZZX Bitnodes snapshot · local mirror → btcnodes.io → compatible mirrors</div>
+      <div class="nodes__eyebrow">
+        canonical reachable-node overview · shared ZZX Bitnodes snapshot
+      </div>
     </div>
 
     <span
@@ -22,13 +24,87 @@
 
   <div class="nodes__metrics">
     <div><span>latest height</span><strong data-nodes-height>—</strong></div>
-    <div><span>Tor / Onion</span><strong data-nodes-tor>—</strong></div>
-    <div><span>IPv4</span><strong data-nodes-ipv4>—</strong></div>
-    <div><span>IPv6</span><strong data-nodes-ipv6>—</strong></div>
-    <div><span>I2P</span><strong data-nodes-i2p>—</strong></div>
-    <div><span>CJDNS</span><strong data-nodes-cjdns>—</strong></div>
-    <div><span>other / hidden</span><strong data-nodes-other>—</strong></div>
-    <div><span>decoded node rows</span><strong data-nodes-decoded>—</strong></div>
+    <div><span>decoded rows</span><strong data-nodes-decoded>—</strong></div>
+    <div><span>dominant network</span><strong data-nodes-dominant>—</strong></div>
+    <div><span>transport coverage</span><strong data-nodes-network-coverage>—</strong></div>
+  </div>
+
+  <div class="nodes__section-head">
+    <div class="nodes__section-title">
+      <span>Transport mix</span>
+      <strong data-nodes-network-count>—</strong>
+    </div>
+    <span class="nodes__hint">share of reachable population</span>
+  </div>
+
+  <div class="nodes__network">
+    <div class="nodes__network-stack" aria-label="Reachable Bitcoin node transport mix">
+      <span data-nodes-stack-ipv4 data-network="ipv4"></span>
+      <span data-nodes-stack-ipv6 data-network="ipv6"></span>
+      <span data-nodes-stack-tor data-network="tor"></span>
+      <span data-nodes-stack-i2p data-network="i2p"></span>
+      <span data-nodes-stack-cjdns data-network="cjdns"></span>
+      <span data-nodes-stack-other data-network="other"></span>
+    </div>
+
+    <div class="nodes__network-grid">
+      <div><span>IPv4</span><strong data-nodes-ipv4>—</strong></div>
+      <div><span>IPv6</span><strong data-nodes-ipv6>—</strong></div>
+      <div><span>Tor</span><strong data-nodes-tor>—</strong></div>
+      <div><span>I2P</span><strong data-nodes-i2p>—</strong></div>
+      <div><span>CJDNS</span><strong data-nodes-cjdns>—</strong></div>
+      <div><span>Other</span><strong data-nodes-other>—</strong></div>
+    </div>
+  </div>
+
+  <div class="nodes__section-head">
+    <div class="nodes__section-title">
+      <span>Enrichment & telemetry coverage</span>
+      <strong data-nodes-coverage-summary>—</strong>
+    </div>
+    <span class="nodes__hint">known rows / reachable population</span>
+  </div>
+
+  <div class="nodes__coverage">
+    <div class="nodes__coverage-row">
+      <div class="nodes__coverage-label">
+        <span>geography</span>
+        <strong data-nodes-geo-coverage>—</strong>
+      </div>
+      <div class="nodes__coverage-bar">
+        <span data-nodes-geo-bar></span>
+      </div>
+    </div>
+
+    <div class="nodes__coverage-row">
+      <div class="nodes__coverage-label">
+        <span>ASN</span>
+        <strong data-nodes-asn-coverage>—</strong>
+      </div>
+      <div class="nodes__coverage-bar">
+        <span data-nodes-asn-bar></span>
+      </div>
+    </div>
+
+    <div class="nodes__coverage-row">
+      <div class="nodes__coverage-label">
+        <span>latency</span>
+        <strong data-nodes-latency-coverage>—</strong>
+      </div>
+      <div class="nodes__coverage-bar">
+        <span data-nodes-latency-bar></span>
+      </div>
+    </div>
+
+    <div class="nodes__coverage-row">
+      <div class="nodes__coverage-label">
+        <span>block height</span>
+        <strong data-nodes-height-coverage>—</strong>
+      </div>
+      <div class="nodes__coverage-bar">
+        <span data-nodes-height-bar></span>
+      </div>
+    </div>
   </div>
 
   <div class="nodes__chart">
@@ -52,6 +128,14 @@
       <strong data-nodes-updated>—</strong>
     </div>
     <div class="nodes__row">
+      <span>geography joins</span>
+      <strong data-nodes-geo-joins>—</strong>
+    </div>
+    <div class="nodes__row">
+      <span>ASN groups</span>
+      <strong data-nodes-asn-groups>—</strong>
+    </div>
+    <div class="nodes__row">
       <span>transport</span>
       <strong data-nodes-transport>—</strong>
     </div>
@@ -62,7 +146,9 @@
   </div>
 
   <div class="nodes__footer">
-    <span data-nodes-meta>one shared fetch / one normalized snapshot / all node widgets</span>
+    <span data-nodes-meta>
+      one shared fetch · one normalized snapshot · all Bitnodes widgets
+    </span>
     <button
       type="button"
       class="zzx-widgets__btn"
