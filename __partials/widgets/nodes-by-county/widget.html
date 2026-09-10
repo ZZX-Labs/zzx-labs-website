@@ -1,53 +1,110 @@
+<!-- __partials/widgets/nodes-by-county/widget.html -->
 <div class="btc-card nodes-by-county">
   <div class="nodes-by-county__header">
     <div>
       <div class="btc-card__title">Nodes by County</div>
-      <div class="nodes-by-county__eyebrow">county / admin-2 geography · shared ZZX Bitnodes snapshot</div>
+      <div class="nodes-by-county__eyebrow">
+        county / admin-2 geography · shared ZZX Bitnodes + Map Host enrichment
+      </div>
     </div>
-    <span class="btc-card__status" data-nbco-status data-status="offline" aria-live="polite">loading</span>
+
+    <span
+      class="btc-card__status"
+      data-nbco-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
   </div>
 
   <div class="nodes-by-county__hero">
-    <span>county-geolocated reachable nodes</span>
+    <span>county / admin-2 geolocated reachable nodes</span>
     <strong data-nbco-summary>—</strong>
-    <small data-nbco-sub>loading shared county/admin-2 distribution…</small>
+    <small data-nbco-sub>loading county/admin-2 distribution…</small>
   </div>
 
   <div class="nodes-by-county__metrics">
-    <div><span>counties / admin-2</span><strong data-nbco-county-count>—</strong></div>
-    <div><span>top county</span><strong data-nbco-top-county>—</strong></div>
-    <div><span>top-network share</span><strong data-nbco-top-share>—</strong></div>
+    <div><span>county / admin-2 rows</span><strong data-nbco-county-count>—</strong></div>
+    <div><span>top county / admin-2</span><strong data-nbco-top-county>—</strong></div>
+    <div><span>top network share</span><strong data-nbco-top-share>—</strong></div>
     <div><span>county coverage</span><strong data-nbco-coverage>—</strong></div>
   </div>
 
   <div class="nodes-by-county__coverage">
-    <div class="nodes-by-county__coverage-bar" aria-label="County geolocation coverage">
+    <div class="nodes-by-county__coverage-head">
+      <span>county / admin-2 geolocation coverage</span>
+      <strong data-nbco-coverage-label>—</strong>
+    </div>
+
+    <div class="nodes-by-county__coverage-bar" aria-label="County/admin-2 geolocation coverage">
       <span data-nbco-bar-known></span>
       <span data-nbco-bar-unknown></span>
     </div>
+
     <div class="nodes-by-county__coverage-legend">
       <span>county known <strong data-nbco-known>—</strong></span>
       <span>county unknown <strong data-nbco-unknown>—</strong></span>
+      <span>Map Host joins <strong data-nbco-geo-joins>—</strong></span>
     </div>
   </div>
 
-  <div class="nodes-by-county__controls">
-    <input type="search" data-nbco-search placeholder="filter county / region / country" aria-label="Filter nodes by county" autocomplete="off" spellcheck="false">
-    <label>
-      <span>rows</span>
-      <select data-nbco-page-size aria-label="Rows per page">
-        <option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="50">50</option>
-      </select>
-    </label>
-    <button type="button" class="zzx-widgets__btn" data-nbco-refresh>Refresh</button>
+  <div class="nodes-by-county__leaders">
+    <div class="nodes-by-county__section-head">
+      <div class="nodes-by-county__section-title">
+        <span>Largest observed county populations</span>
+        <strong data-nbco-leader-count>—</strong>
+      </div>
+    </div>
+    <div class="nodes-by-county__leader-list" data-nbco-leaders></div>
   </div>
 
-  <div class="nodes-by-county__table-wrap">
-    <div class="nodes-by-county__table" role="table" aria-label="Reachable Bitcoin nodes by county or admin-2 geography">
+  <div class="nodes-by-county__section-head">
+    <div class="nodes-by-county__section-title">
+      <span>County / admin-2 readout</span>
+      <strong data-nbco-visible-count>—</strong>
+    </div>
+    <span class="nodes-by-county__scroll-hint">all matching rows · scroll to browse</span>
+  </div>
+
+  <div class="nodes-by-county__controls">
+    <input
+      type="search"
+      data-nbco-search
+      placeholder="filter county / admin code / region / nation / ISO"
+      aria-label="Filter nodes by county or admin-2"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <label>
+      <span>sort</span>
+      <select data-nbco-sort aria-label="Sort county rows">
+        <option value="nodes">Nodes ↓</option>
+        <option value="county">County A–Z</option>
+        <option value="region">Region A–Z</option>
+        <option value="nation">Nation A–Z</option>
+        <option value="iso">ISO A–Z</option>
+        <option value="share">Geo share ↓</option>
+      </select>
+    </label>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-nbco-refresh
+      aria-label="Refresh shared nodes snapshot"
+    >Refresh</button>
+  </div>
+
+  <div class="nodes-by-county__table-wrap" data-nbco-scroll>
+    <div
+      class="nodes-by-county__table"
+      role="table"
+      aria-label="Reachable Bitcoin nodes by county/admin-2, region/admin-1, and nation"
+    >
       <div class="nodes-by-county__row nodes-by-county__head" role="row">
         <div role="columnheader">#</div>
         <div role="columnheader">County / Admin-2</div>
-        <div role="columnheader">Region</div>
+        <div role="columnheader">Region / Admin-1</div>
         <div role="columnheader">Nation</div>
         <div class="nodes-by-county__num" role="columnheader">Nodes</div>
         <div class="nodes-by-county__num" role="columnheader">Network Share</div>
@@ -57,21 +114,44 @@
     </div>
   </div>
 
-  <div class="nodes-by-county__pager">
-    <button type="button" class="zzx-widgets__btn" data-nbco-prev>Prev</button>
-    <span data-nbco-page>Page 1 / 1</span>
-    <button type="button" class="zzx-widgets__btn" data-nbco-next>Next</button>
-  </div>
-
   <div class="nodes-by-county__details">
-    <div class="nodes-by-county__detail-row"><span>reachable total</span><strong data-nbco-network-total>—</strong></div>
-    <div class="nodes-by-county__detail-row"><span>decoded node rows</span><strong data-nbco-decoded>—</strong></div>
-    <div class="nodes-by-county__detail-row"><span>county-unknown remainder</span><strong data-nbco-unlocated>—</strong></div>
-    <div class="nodes-by-county__detail-row"><span>snapshot</span><strong data-nbco-updated>—</strong></div>
-    <div class="nodes-by-county__detail-row"><span>source</span><strong data-nbco-source>—</strong></div>
+    <div class="nodes-by-county__detail-row">
+      <span>reachable total</span>
+      <strong data-nbco-network-total>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>decoded node rows</span>
+      <strong data-nbco-decoded>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>county-unknown remainder</span>
+      <strong data-nbco-unlocated>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>regions represented</span>
+      <strong data-nbco-region-count>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>nations represented</span>
+      <strong data-nbco-nation-count>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>geography source</span>
+      <strong data-nbco-geo-source>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>snapshot</span>
+      <strong data-nbco-updated>—</strong>
+    </div>
+    <div class="nodes-by-county__detail-row">
+      <span>source</span>
+      <strong data-nbco-source>—</strong>
+    </div>
   </div>
 
   <div class="nodes-by-county__footer">
-    <span data-nbco-meta>one shared ZZXBitnodes snapshot · zero per-widget API calls</span>
+    <span data-nbco-meta>
+      shared normalized snapshot · full county/admin-2 readout · no pagination
+    </span>
   </div>
 </div>
