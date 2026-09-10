@@ -4,7 +4,7 @@
 
   const W=window;
   const D=document;
-  if(Number(W.ZZXHashrateNationUI?.__version||0)>=3)return;
+  if(Number(W.ZZXHashrateNationUI?.__version||0)>=4)return;
 
   function fmtEH(value){
     const n=Number(value);
@@ -87,7 +87,7 @@
   }
 
   W.ZZXHashrateNationUI=Object.freeze({
-    __version:3,
+    __version:4,
     fmtEH,
     pct,
     renderRows,
