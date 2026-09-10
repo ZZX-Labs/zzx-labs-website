@@ -30,10 +30,42 @@
   </div>
 
   <div class="nodes-by-version__families">
-    <div><span>Bitcoin Core</span><strong data-nbv-core>—</strong></div>
-    <div><span>Bitcoin Knots</span><strong data-nbv-knots>—</strong></div>
-    <div><span>Other clients</span><strong data-nbv-other>—</strong></div>
-    <div><span>families</span><strong data-nbv-family-count>—</strong></div>
+    <div data-nbv-family-card="Bitcoin Core">
+      <span>Bitcoin Core</span>
+      <strong data-nbv-core>—</strong>
+    </div>
+    <div data-nbv-family-card="Bitcoin Knots">
+      <span>Bitcoin Knots</span>
+      <strong data-nbv-knots>—</strong>
+    </div>
+    <div data-nbv-family-card="Other">
+      <span>Other clients</span>
+      <strong data-nbv-other>—</strong>
+    </div>
+    <div>
+      <span>families</span>
+      <strong data-nbv-family-count>—</strong>
+    </div>
+  </div>
+
+  <div class="nodes-by-version__mix" aria-label="Client family distribution">
+    <div class="nodes-by-version__mix-head">
+      <span>client-family mix</span>
+      <strong data-nbv-mix-label>—</strong>
+    </div>
+    <div class="nodes-by-version__mix-bar">
+      <span class="nodes-by-version__mix-core" data-nbv-mix-core></span>
+      <span class="nodes-by-version__mix-knots" data-nbv-mix-knots></span>
+      <span class="nodes-by-version__mix-other" data-nbv-mix-other></span>
+    </div>
+  </div>
+
+  <div class="nodes-by-version__section-head">
+    <div class="nodes-by-version__section-title">
+      <span>Version × nation rows</span>
+      <strong data-nbv-visible-count>—</strong>
+    </div>
+    <span class="nodes-by-version__scroll-hint">compact scrollable matrix</span>
   </div>
 
   <div class="nodes-by-version__controls">
@@ -47,12 +79,31 @@
     >
 
     <label>
+      <span>family</span>
+      <select data-nbv-family aria-label="Filter client family">
+        <option value="all">All families</option>
+        <option value="Bitcoin Core">Bitcoin Core</option>
+        <option value="Bitcoin Knots">Bitcoin Knots</option>
+        <option value="Other">Other clients</option>
+      </select>
+    </label>
+
+    <label>
+      <span>geography</span>
+      <select data-nbv-geo aria-label="Filter version rows by geography">
+        <option value="all">All rows</option>
+        <option value="located">Located only</option>
+        <option value="unlocated">Unlocated only</option>
+      </select>
+    </label>
+
+    <label>
       <span>rows</span>
       <select data-nbv-page-size aria-label="Rows per page">
-        <option value="5">5</option>
-        <option value="10" selected>10</option>
-        <option value="20">20</option>
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
         <option value="50">50</option>
+        <option value="100">100</option>
       </select>
     </label>
 
@@ -64,11 +115,11 @@
     >Refresh</button>
   </div>
 
-  <div class="nodes-by-version__table-wrap">
+  <div class="nodes-by-version__table-wrap" data-nbv-scroll>
     <div
       class="nodes-by-version__table"
       role="table"
-      aria-label="Reachable Bitcoin nodes by user agent, version, and nation"
+      aria-label="Reachable Bitcoin nodes by user agent, version, family, and nation"
     >
       <div class="nodes-by-version__row nodes-by-version__head" role="row">
         <div role="columnheader">#</div>
@@ -84,21 +135,9 @@
   </div>
 
   <div class="nodes-by-version__pager" aria-label="Nodes by version pagination">
-    <button
-      type="button"
-      class="zzx-widgets__btn"
-      data-nbv-prev
-      aria-label="Previous page"
-    >Prev</button>
-
+    <button type="button" class="zzx-widgets__btn" data-nbv-prev aria-label="Previous page">Prev</button>
     <span data-nbv-page>Page 1 / 1</span>
-
-    <button
-      type="button"
-      class="zzx-widgets__btn"
-      data-nbv-next
-      aria-label="Next page"
-    >Next</button>
+    <button type="button" class="zzx-widgets__btn" data-nbv-next aria-label="Next page">Next</button>
   </div>
 
   <div class="nodes-by-version__details">
@@ -115,6 +154,10 @@
       <strong data-nbv-height>—</strong>
     </div>
     <div class="nodes-by-version__detail-row">
+      <span>located / unlocated</span>
+      <strong data-nbv-location-summary>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
       <span>snapshot</span>
       <strong data-nbv-updated>—</strong>
     </div>
@@ -125,8 +168,6 @@
   </div>
 
   <div class="nodes-by-version__footer">
-    <span data-nbv-meta>
-      one shared node snapshot · no duplicate btcnodes.io calls
-    </span>
+    <span data-nbv-meta>one shared normalized snapshot · no duplicate node API calls</span>
   </div>
 </div>
