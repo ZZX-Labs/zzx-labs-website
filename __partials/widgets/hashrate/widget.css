@@ -1,4 +1,4 @@
-/* Hashrate v10.37 — ZZX instrument layout */
+/* Hashrate v10.60 — v10.37 instrument layout, normalized eyebrow treatment */
 .hashrate--instrument{
   --g:#c0d674;
   --a:#e6a42b;
@@ -14,12 +14,8 @@
     #0a0a0a;
 }
 .hashrate--instrument::before{
-  content:"";
-  position:absolute;
-  inset:0 0 auto;
-  height:2px;
-  background:linear-gradient(90deg,var(--g) 0 22%,var(--a) 22% 31%,transparent 31%);
-  pointer-events:none;
+  content:none;
+  display:none;
 }
 .hashrate--instrument *{box-sizing:border-box}
 
@@ -38,7 +34,7 @@
   letter-spacing:.09em;
   text-transform:uppercase;
 }
-.hashrate__kicker{color:var(--a);font-size:.5rem}
+.hashrate__kicker{color:var(--d);font-size:.5rem}
 .hashrate__scope{color:var(--d);font-size:.54rem}
 .hashrate__status{margin-top:.08rem}
 
@@ -264,7 +260,6 @@
   .hashrate__chart{height:230px}
   .hashrate__source-line{grid-template-columns:auto minmax(0,1fr)}
 }
-
 
 /* =========================================================
    v10.39 HOST LAYOUT ISOLATION
