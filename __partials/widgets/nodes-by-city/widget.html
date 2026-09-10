@@ -1,3 +1,4 @@
+<!-- __partials/widgets/nodes-by-city/widget.html -->
 <div class="btc-card nodes-by-city">
   <div class="nodes-by-city__header">
     <div>
@@ -32,14 +33,24 @@
   </div>
 
   <div class="nodes-by-city__controls">
-    <input type="search" data-nbc-search placeholder="filter city / country" aria-label="Filter nodes by city" autocomplete="off" spellcheck="false">
+    <input
+      type="search"
+      data-nbc-search
+      placeholder="filter city / region / nation / ISO"
+      aria-label="Filter nodes by city"
+      autocomplete="off"
+      spellcheck="false"
+    >
     <label>
       <span>rows</span>
       <select data-nbc-page-size aria-label="Rows per page">
-        <option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="50">50</option>
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
       </select>
     </label>
-    <button type="button" class="zzx-widgets__btn" data-nbc-refresh>Refresh</button>
+    <button type="button" class="zzx-widgets__btn" data-nbc-refresh aria-label="Refresh shared nodes snapshot">Refresh</button>
   </div>
 
   <div class="nodes-by-city__table-wrap">
@@ -56,10 +67,10 @@
     </div>
   </div>
 
-  <div class="nodes-by-city__pager">
-    <button type="button" class="zzx-widgets__btn" data-nbc-prev>Prev</button>
+  <div class="nodes-by-city__pager" aria-label="Nodes by city pagination">
+    <button type="button" class="zzx-widgets__btn" data-nbc-prev aria-label="Previous page">Prev</button>
     <span data-nbc-page>Page 1 / 1</span>
-    <button type="button" class="zzx-widgets__btn" data-nbc-next>Next</button>
+    <button type="button" class="zzx-widgets__btn" data-nbc-next aria-label="Next page">Next</button>
   </div>
 
   <div class="nodes-by-city__details">
@@ -71,6 +82,6 @@
   </div>
 
   <div class="nodes-by-city__footer">
-    <span data-nbc-meta>one shared ZZXBitnodes snapshot · zero per-widget API calls</span>
+    <span data-nbc-meta>shared canonical snapshot · no per-row network requests</span>
   </div>
 </div>
