@@ -3,14 +3,16 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXHashrateNationModel?.__version||0)>=5)return;
+  if(Number(W.ZZXHashrateNationModel?.__version||0)>=6)return;
 
-  // Direct mining geography remains dominant.
-  // Generic national electricity generation is only a low-confidence prior.
+  // Effective weights are multiplied by each source's measured coverage.
+  // Direct/local nation-share estimates and mining-specific evidence dominate.
+  // Generic grid and node geography remain deliberately weak priors.
   const BASE_WEIGHTS=Object.freeze({
+    direct:0.70,
     pool:0.55,
     grid:0.25,
-    capacity:0.15,
+    capacity:0.05,
     nodes:0.05
   });
 
@@ -54,6 +56,54 @@
     }
 
     return {code:cc,name:String(name||cc),flag:flag(cc),located:true};
+  }
+
+  function directRows(payload){
+    const raw=payload?.shares??payload?.countries??payload?.rows??payload?.data??[];
+
+    if(Array.isArray(raw))return raw;
+
+    if(raw&&typeof raw==="object"){
+      return Object.entries(raw).map(([country,value])=>{
+        if(value&&typeof value==="object")return {country,...value};
+        return {country,share:value};
+      });
+    }
+
+    return [];
+  }
+
+  function directComponent(payload){
+    const scores=new Map(),names=new Map();
+    let accepted=0,declaredShare=0,confidenceMass=0;
+
+    for(const row of directRows(payload)){
+      const country=iso(row?.country??row?.country_code??row?.iso);
+      if(!country)continue;
+
+      let share=finite(row?.share??row?.fraction??row?.weight??row?.percent);
+      if(!Number.isFinite(share)||share<=0)continue;
+      if(share>1&&share<=100)share/=100;
+      if(!(share>0&&share<=1))continue;
+
+      const confidence=clamp(row?.confidence??row?.quality??payload?.confidence??0.75);
+      if(!(confidence>0))continue;
+
+      scores.set(country,(scores.get(country)||0)+share*confidence);
+      names.set(country,String(row?.countryName??row?.country_name??row?.name??""));
+      accepted++;
+      declaredShare+=share;
+      confidenceMass+=share*confidence;
+    }
+
+    return {
+      scores,
+      names,
+      coverage:clamp(declaredShare),
+      accepted,
+      declaredShare,
+      confidenceMass
+    };
   }
 
   function poolName(row){
@@ -205,8 +255,6 @@
       const ceiling=finite(row?.absoluteMiningCeilingEH);
       let basis=Number.isFinite(generation)&&generation>0?generation:capacity;
 
-      // If only a precomputed physical ceiling is present, convert it back to
-      // an equivalent 30 J/TH power basis for relative weighting.
       if(!(basis>0)&&ceiling>0)basis=ceiling*30;
       if(!(basis>0))continue;
 
@@ -217,7 +265,9 @@
     }
 
     const registryCount=finite(payload?.registryCount??payload?.registry_count);
-    const denominator=Number.isFinite(registryCount)&&registryCount>0?registryCount:Math.max(rows.length,accepted);
+    const denominator=Number.isFinite(registryCount)&&registryCount>0
+      ? registryCount
+      : Math.max(rows.length,accepted);
     const coverage=denominator>0?clamp(accepted/denominator):0;
 
     return {
@@ -296,10 +346,20 @@
       };
     }
 
-    const end=history.at(-1).t;
+    const ordered=history
+      .map(row=>({t:finite(row?.t??row?.timestamp),eh:finite(row?.eh??row?.hashrateEH)}))
+      .filter(row=>Number.isFinite(row.t)&&Number.isFinite(row.eh)&&row.eh>=0)
+      .sort((a,b)=>a.t-b.t);
+
+    if(!ordered.length){
+      const current=finite(hashrateModel?.currentEH??hashrateModel?.current);
+      return {averageEH:Number.isFinite(current)&&current>0?current:NaN,history:[]};
+    }
+
+    const end=ordered.at(-1).t;
     const cutoff=end-24*60*60*1000;
-    const windowed=history.filter(row=>row.t>=cutoff&&row.eh>=0);
-    const used=windowed.length?windowed:history.slice(-24);
+    const windowed=ordered.filter(row=>row.t>=cutoff);
+    const used=windowed.length?windowed:ordered.slice(-24);
     const average=used.reduce((sum,row)=>sum+row.eh,0)/used.length;
 
     return {averageEH:average,history:used};
@@ -322,47 +382,47 @@
   function applyPhysicalCeilings(rows,globalEH,ceilings){
     if(!ceilings?.size)return {rows,constrained:false,unallocatedEH:0};
 
-    const work=rows.map(r=>({...r}));
+    const work=rows.map(row=>({...row}));
     let constrained=false;
     let remaining=globalEH;
-    const active=new Set(work.map((_,i)=>i));
+    const active=new Set(work.map((_,index)=>index));
 
     for(let pass=0;pass<work.length+2;pass++){
-      const weightTotal=[...active].reduce((s,i)=>s+work[i].share,0);
+      const weightTotal=[...active].reduce((sum,index)=>sum+work[index].share,0);
       if(!(weightTotal>0))break;
 
       let changed=false;
-      for(const i of [...active]){
-        const r=work[i];
-        const ceiling=ceilings.get(r.country);
-        const proposed=remaining*(r.share/weightTotal);
+      for(const index of [...active]){
+        const row=work[index];
+        const ceiling=ceilings.get(row.country);
+        const proposed=remaining*(row.share/weightTotal);
 
         if(Number.isFinite(ceiling)&&proposed>ceiling){
-          r.estimateEH=ceiling;
-          r.physicalCeilingEH=ceiling;
+          row.estimateEH=ceiling;
+          row.physicalCeilingEH=ceiling;
           remaining=Math.max(0,remaining-ceiling);
-          active.delete(i);
+          active.delete(index);
           changed=true;
           constrained=true;
         }
       }
 
       if(!changed){
-        for(const i of active){
-          const r=work[i];
-          r.estimateEH=remaining*(r.share/weightTotal);
-          r.physicalCeilingEH=ceilings.get(r.country)??null;
+        for(const index of active){
+          const row=work[index];
+          row.estimateEH=remaining*(row.share/weightTotal);
+          row.physicalCeilingEH=ceilings.get(row.country)??null;
         }
         remaining=0;
         break;
       }
     }
 
-    for(const r of work){
-      r.share=globalEH>0?r.estimateEH/globalEH:0;
-      const width=Math.max(0,r.highEH-r.lowEH);
-      r.lowEH=Math.min(r.estimateEH,Math.max(0,r.estimateEH-width/2));
-      r.highEH=Math.max(r.estimateEH,r.estimateEH+width/2);
+    for(const row of work){
+      row.share=globalEH>0?row.estimateEH/globalEH:0;
+      const width=Math.max(0,row.highEH-row.lowEH);
+      row.lowEH=Math.min(row.estimateEH,Math.max(0,row.estimateEH-width/2));
+      row.highEH=Math.max(row.estimateEH,row.estimateEH+width/2);
     }
 
     return {rows:work,constrained,unallocatedEH:Math.max(0,remaining)};
@@ -374,32 +434,41 @@
 
     if(!(globalEH>0))throw new Error("24h global hashrate unavailable");
 
+    const direct=directComponent(inputs?.estimates);
     const pool=poolComponent(inputs?.pools,inputs?.poolEvidence);
     const grid=gridComponent(inputs?.grid,globalEH);
     const capacity=capacityComponent(inputs?.powerGrid);
     const nodes=nodeComponent(inputs?.nodes);
 
+    const directNorm=normalizeScores(direct.scores);
     const poolNorm=normalizeScores(pool.scores);
     const gridNorm=normalizeScores(grid.scores);
     const capacityNorm=normalizeScores(capacity.scores);
     const nodeNorm=normalizeScores(nodes.scores);
 
     const effective=Object.freeze({
+      direct:BASE_WEIGHTS.direct*direct.coverage,
       pool:BASE_WEIGHTS.pool*pool.coverage,
       grid:BASE_WEIGHTS.grid*grid.coverage,
       capacity:BASE_WEIGHTS.capacity*capacity.coverage,
       nodes:BASE_WEIGHTS.nodes*nodes.coverage
     });
 
-    const effectiveTotal=effective.pool+effective.grid+effective.capacity+effective.nodes;
+    const effectiveTotal=
+      effective.direct+
+      effective.pool+
+      effective.grid+
+      effective.capacity+
+      effective.nodes;
 
     if(!(effectiveTotal>0)){
       return Object.freeze({
-        schema:"zzx-hashrate-by-nation-model-v5",
+        schema:"zzx-hashrate-by-nation-model-v6",
         globalEH,
         history:Object.freeze(global.history.map(Object.freeze)),
         timeline:Object.freeze([]),
         rows:Object.freeze([]),
+        direct:Object.freeze(direct),
         pool:Object.freeze(pool),
         grid:Object.freeze(grid),
         capacity:Object.freeze(capacity),
@@ -413,6 +482,7 @@
     }
 
     const countries=new Set([
+      ...directNorm.keys(),
       ...poolNorm.keys(),
       ...gridNorm.keys(),
       ...capacityNorm.keys(),
@@ -421,19 +491,22 @@
 
     const names=new Map([
       ...capacity.names.entries(),
+      ...nodes.names.entries(),
       ...grid.names.entries(),
-      ...nodes.names.entries()
+      ...direct.names.entries()
     ]);
 
     const preliminary=[];
 
     for(const country of countries){
+      const d=directNorm.get(country)||0;
       const p=poolNorm.get(country)||0;
       const g=gridNorm.get(country)||0;
       const c=capacityNorm.get(country)||0;
       const n=nodeNorm.get(country)||0;
 
       const score=
+        effective.direct*d+
         effective.pool*p+
         effective.grid*g+
         effective.capacity*c+
@@ -443,6 +516,7 @@
 
       preliminary.push({
         country,
+        directShare:d,
         poolShare:p,
         gridShare:g,
         capacityShare:c,
@@ -459,12 +533,14 @@
       const estimateEH=globalEH*share;
 
       const localEvidenceMass=
+        (row.directShare>0?BASE_WEIGHTS.direct*direct.coverage:0)+
         (row.poolShare>0?BASE_WEIGHTS.pool*pool.coverage:0)+
         (row.gridShare>0?BASE_WEIGHTS.grid*grid.coverage:0)+
         (row.capacityShare>0?BASE_WEIGHTS.capacity*capacity.coverage:0)+
         (row.nodeShare>0?BASE_WEIGHTS.nodes*nodes.coverage:0);
 
       const diversity=
+        (row.directShare>0?1:0)+
         (row.poolShare>0?1:0)+
         (row.gridShare>0?1:0)+
         (row.capacityShare>0?1:0)+
@@ -473,7 +549,6 @@
       const localBoost=0.70+0.07*Math.max(0,diversity-1);
       const confidence=clamp(Math.min(globalConfidence,localEvidenceMass)*localBoost);
 
-      // Broad heuristic band, not a statistical confidence interval.
       const halfWidth=clamp(0.15+0.82*(1-confidence),0.15,0.95);
       const lowEH=Math.max(0,estimateEH*(1-halfWidth));
       const highEH=estimateEH*(1+halfWidth);
@@ -493,8 +568,6 @@
       };
     }).sort((a,b)=>b.estimateEH-a.estimateEH||a.countryName.localeCompare(b.countryName));
 
-    // v10.40: rows is intentionally mutable here. v10.39 used `const rows`
-    // and then reassigned it, which threw whenever geographic evidence existed.
     const physical=applyPhysicalCeilings(rows,globalEH,gridCeilingMap(inputs));
     rows=physical.rows.sort((a,b)=>b.estimateEH-a.estimateEH||a.countryName.localeCompare(b.countryName));
 
@@ -507,6 +580,7 @@
     });
 
     const mode=[
+      direct.coverage>0?"direct nation model":"",
       pool.coverage>0?"pool geography":"",
       grid.coverage>0?"mining power":"",
       capacity.coverage>0?"grid capacity prior":"",
@@ -514,11 +588,12 @@
     ].filter(Boolean).join(" + ")||"none";
 
     return Object.freeze({
-      schema:"zzx-hashrate-by-nation-model-v5",
+      schema:"zzx-hashrate-by-nation-model-v6",
       globalEH,
       history:Object.freeze(global.history.map(Object.freeze)),
       timeline:Object.freeze(timeline.map(Object.freeze)),
       rows:Object.freeze(rows.map(Object.freeze)),
+      direct:Object.freeze(direct),
       pool:Object.freeze(pool),
       grid:Object.freeze(grid),
       capacity:Object.freeze(capacity),
@@ -532,8 +607,9 @@
   }
 
   W.ZZXHashrateNationModel=Object.freeze({
-    __version:5,
+    __version:6,
     BASE_WEIGHTS,
+    directComponent,
     parsePools,
     poolComponent,
     gridComponent,
