@@ -4,7 +4,7 @@
   if(W.ZZXKnotsCoreProvider?.__version>=5)return;
 
   async function load(force=false){
-    if(!W.ZZXBitnodes?.load)throw new Error("ZZXBitnodes v7 unavailable");
+    if(!W.ZZXBitnodes?.load)throw new Error("ZZXBitnodes v8 unavailable");
     if(!W.ZZXNodesByVersionModel?.build)throw new Error("ZZXNodesByVersionModel unavailable");
     if(!W.ZZXKnotsCoreModel?.build)throw new Error("ZZXKnotsCoreModel unavailable");
 
