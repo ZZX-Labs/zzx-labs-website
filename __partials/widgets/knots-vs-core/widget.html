@@ -80,7 +80,25 @@
       <span>Core / Knots by nation</span>
       <strong data-kvc-nation-count>—</strong>
     </div>
-    <span class="knots-vs-core__scroll-hint">scrollable nation matrix</span>
+    <span class="knots-vs-core__scroll-hint">all matching nations · scroll to browse</span>
+  </div>
+
+  <div class="knots-vs-core__nation-controls">
+    <input
+      type="search"
+      data-kvc-nation-search
+      placeholder="filter nation / ISO"
+      aria-label="Filter Core and Knots nation rows"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <select data-kvc-nation-sort aria-label="Sort Core and Knots nation rows">
+      <option value="total-desc">Total ↓</option>
+      <option value="core-desc">Core ↓</option>
+      <option value="knots-desc">Knots ↓</option>
+      <option value="nation">Nation A–Z</option>
+    </select>
   </div>
 
   <div class="knots-vs-core__nation-table-wrap" data-kvc-nation-scroll>
@@ -96,6 +114,14 @@
     </div>
   </div>
 
+    <div class="knots-vs-core__section-head knots-vs-core__version-readout-head">
+    <div class="knots-vs-core__section-title">
+      <span>Exact-version readout</span>
+      <strong data-kvc-version-visible>—</strong>
+    </div>
+    <span class="knots-vs-core__scroll-hint">all matching version/nation rows · scroll to browse</span>
+  </div>
+
   <div class="knots-vs-core__versions-head">
     <div class="knots-vs-core__section-title knots-vs-core__versions-title">
       <span>Core / Knots exact versions</span>
@@ -108,6 +134,11 @@
         <option value="all">Core + Knots</option>
         <option value="Bitcoin Core">Core only</option>
         <option value="Bitcoin Knots">Knots only</option>
+      </select>
+      <select data-kvc-geo aria-label="Filter version geography">
+        <option value="all">All rows</option>
+        <option value="located">Located only</option>
+        <option value="unlocated">Unlocated only</option>
       </select>
       <select data-kvc-sort aria-label="Sort version rows">
         <option value="count-desc">Nodes ↓</option>
