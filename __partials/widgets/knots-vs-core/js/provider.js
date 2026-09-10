@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXKnotsCoreProvider?.__version>=4)return;
+  if(W.ZZXKnotsCoreProvider?.__version>=5)return;
 
   async function load(force=false){
-    if(!W.ZZXBitnodes?.load)throw new Error("ZZXBitnodes v5 unavailable");
+    if(!W.ZZXBitnodes?.load)throw new Error("ZZXBitnodes v7 unavailable");
     if(!W.ZZXNodesByVersionModel?.build)throw new Error("ZZXNodesByVersionModel unavailable");
     if(!W.ZZXKnotsCoreModel?.build)throw new Error("ZZXKnotsCoreModel unavailable");
 
@@ -13,7 +13,11 @@
     if(!snapshot)throw new Error("shared Bitnodes snapshot unavailable");
 
     let versionData=W.ZZXNodesByVersionLatest||W.ZZXNodesByVersion||null;
-    if(!Array.isArray(versionData?.rows)||!versionData.rows.length){
+    if(
+      !Array.isArray(versionData?.rows) ||
+      !versionData.rows.length ||
+      versionData.schema!=="zzx-nodes-by-version-export-v2"
+    ){
       versionData=W.ZZXNodesByVersionModel.build(snapshot);
     }
 
@@ -31,5 +35,5 @@
     });
   }
 
-  W.ZZXKnotsCoreProvider=Object.freeze({__version:4,load});
+  W.ZZXKnotsCoreProvider=Object.freeze({__version:5,load});
 })();
