@@ -3,27 +3,26 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXNodesByCityProvider?.__version||0)>=7)return;
+  if(Number(W.ZZXNodesByCityProvider?.__version||0)>=4)return;
 
   async function load(force=false){
     if(!W.ZZXBitnodes?.load){
       throw new Error("ZZXBitnodes shared data service is unavailable");
     }
 
-    const result=await W.ZZXBitnodes.load(Boolean(force));
-
-    if(!result?.snapshot){
-      throw new Error("ZZXBitnodes returned no snapshot");
+    const detail=await W.ZZXBitnodes.load(Boolean(force));
+    if(!detail?.snapshot){
+      throw new Error("ZZXBitnodes returned no normalized snapshot");
     }
 
-    return {
-      result,
-      model:W.ZZXNodesByCityModel.build(result.snapshot)
-    };
+    return Object.freeze({
+      detail,
+      model:W.ZZXNodesByCityModel.build(detail.snapshot)
+    });
   }
 
   W.ZZXNodesByCityProvider=Object.freeze({
-    __version:7,
+    __version:4,
     load
   });
 })();
