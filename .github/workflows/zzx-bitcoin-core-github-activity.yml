@@ -1,0 +1,115 @@
+name: ZZX Bitcoin Core GitHub Activity
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-bitcoin-core-github-activity
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch bitcoin/bitcoin repository activity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p bitcoin/github/api/bitcoin-core
+
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          token = os.environ["GH_TOKEN"]
+          base = "https://api.github.com/repos/bitcoin/bitcoin"
+          out = Path("bitcoin/github/api/bitcoin-core")
+
+          def get(path):
+              req = urllib.request.Request(
+                  base + path,
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "ZZX-Labs-Bitcoin-Core-Activity-Mirror/1.0",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=45) as r:
+                  return json.load(r)
+
+          now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          pulls = get("/pulls?state=all&sort=updated&direction=desc&per_page=100")
+          commits = get("/commits?sha=master&per_page=100")
+          repo = get("")
+
+          (out / "pulls.json").write_text(
+              json.dumps({
+                  "schema": "zzx-bitcoin-core-pr-mirror-v1",
+                  "generated_at": now,
+                  "repository": "bitcoin/bitcoin",
+                  "pulls": pulls,
+              }, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          (out / "commits.json").write_text(
+              json.dumps({
+                  "schema": "zzx-bitcoin-core-commit-mirror-v1",
+                  "generated_at": now,
+                  "repository": "bitcoin/bitcoin",
+                  "commits": commits,
+              }, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          (out / "repo.json").write_text(
+              json.dumps({
+                  "schema": "zzx-bitcoin-core-repo-mirror-v1",
+                  "generated_at": now,
+                  "repository": repo,
+              }, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate generated JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m json.tool bitcoin/github/api/bitcoin-core/pulls.json >/dev/null
+          python -m json.tool bitcoin/github/api/bitcoin-core/commits.json >/dev/null
+          python -m json.tool bitcoin/github/api/bitcoin-core/repo.json >/dev/null
+
+      - name: Commit mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-bitcoin-github-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add bitcoin/github/api/bitcoin-core
+          if git diff --cached --quiet; then
+            printf '%s\n' "Bitcoin Core GitHub mirror already current."
+            exit 0
+          fi
+          git commit -m "data: mirror bitcoin/bitcoin GitHub activity"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
