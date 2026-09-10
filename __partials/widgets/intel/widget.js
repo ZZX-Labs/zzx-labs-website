@@ -45,7 +45,7 @@
   }
 
   async function ensureSources(core) {
-    if (W.ZZXIntelSources?.load) return;
+    if (Number(W.ZZXIntelSources?.__version||0) >= 2 && W.ZZXIntelSources?.load) return;
 
     const base = core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -64,7 +64,7 @@
       (D.head || D.documentElement).appendChild(s);
     });
 
-    if (!W.ZZXIntelSources?.load) throw new Error("intel source module unavailable");
+    if (Number(W.ZZXIntelSources?.__version||0) < 2 || !W.ZZXIntelSources?.load) throw new Error("intel source module unavailable");
   }
 
   function sourceFor(state) {
@@ -171,6 +171,10 @@
 
   async function boot(root,core) {
     if (!root) return;
+
+    const old=root.__zzxIntelState;
+    if(old?.rotateTimer)W.clearTimeout(old.rotateTimer);
+    if(old?.ageTimer)W.clearTimeout(old.ageTimer);
 
     const state = {
       index:0,
