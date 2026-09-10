@@ -163,3 +163,47 @@
   .gpg__chart{height:235px}
   .gpg__timezone-chart{height:270px}
 }
+
+
+/* =========================================================
+   v10.39 HOST LAYOUT ISOLATION
+   The ZZX widget core globally sets [data-widget-root] to flex
+   and .btc-card to aggressive word wrapping. This widget is
+   internally composed and must own its top-level layout.
+   ========================================================= */
+[data-widget-root="global-power-grid"]{
+  display:block !important;
+  flex:none !important;
+  grid-template-columns:none !important;
+  grid-template-rows:none !important;
+  grid-auto-flow:initial !important;
+  align-items:initial !important;
+  justify-content:initial !important;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+  min-width:0 !important;
+  width:100% !important;
+}
+
+[data-widget-root="global-power-grid"] > *{
+  min-width:0;
+  max-width:100%;
+}
+
+/* Host containment sets svg height:auto; charts own their viewport height. */
+[data-widget-root="global-power-grid"] svg{
+  width:100% !important;
+  max-width:100% !important;
+  height:100% !important;
+  display:block !important;
+}
+
+/* Long provenance/source strings may wrap, but ordinary instrument labels do not. */
+[data-widget-root="global-power-grid"] [data-hr-sub],
+[data-widget-root="global-power-grid"] [data-hbn-sub],
+[data-widget-root="global-power-grid"] [data-gpg-sub],
+[data-widget-root="global-power-grid"] [data-btc-prs-source],
+[data-widget-root="global-power-grid"] [data-btc-commits-source]{
+  overflow-wrap:anywhere !important;
+  word-break:break-word !important;
+}
