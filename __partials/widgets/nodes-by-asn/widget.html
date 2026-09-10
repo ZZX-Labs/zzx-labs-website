@@ -1,7 +1,173 @@
+<!-- __partials/widgets/nodes-by-asn/widget.html -->
 <div class="btc-card nodes-by-asn">
-  <div class="nodes-by-asn__header"><div><div class="btc-card__title">Nodes by ASN</div><div class="nodes-by-asn__eyebrow">autonomous systems · shared ZZX Bitnodes + Map Host DB-IP ASN</div></div><span class="btc-card__status" data-nba-status data-status="offline">loading</span></div>
-  <div class="nodes-by-asn__hero"><span>ASN-geolocated nodes</span><strong data-nba-total>—</strong><small data-nba-sub>loading ASN distribution…</small></div>
-  <div class="nodes-by-asn__controls"><input data-nba-search type="search" placeholder="filter ASN / organization / nation"><button class="zzx-widgets__btn" type="button" data-nba-refresh>Refresh</button></div>
-  <div class="nodes-by-asn__table"><div class="nodes-by-asn__row nodes-by-asn__head"><div>#</div><div>ASN / Organization</div><div>Nation</div><div class="nodes-by-asn__num">Nodes</div><div class="nodes-by-asn__num">Share</div></div><div data-nba-body></div></div>
-  <div class="nodes-by-asn__footer"><span data-nba-meta>shared normalized v8</span></div>
+  <div class="nodes-by-asn__header">
+    <div>
+      <div class="btc-card__title">Nodes by ASN</div>
+      <div class="nodes-by-asn__eyebrow">
+        autonomous systems · shared ZZX Bitnodes + Map Host DB-IP ASN
+      </div>
+    </div>
+
+    <span
+      class="btc-card__status"
+      data-nbasn-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
+  </div>
+
+  <div class="nodes-by-asn__hero">
+    <span>ASN-identified reachable nodes</span>
+    <strong data-nbasn-summary>—</strong>
+    <small data-nbasn-sub>loading autonomous-system distribution…</small>
+  </div>
+
+  <div class="nodes-by-asn__metrics">
+    <div><span>ASNs</span><strong data-nbasn-count>—</strong></div>
+    <div><span>organizations</span><strong data-nbasn-org-count>—</strong></div>
+    <div><span>top ASN</span><strong data-nbasn-top>—</strong></div>
+    <div><span>ASN coverage</span><strong data-nbasn-coverage>—</strong></div>
+  </div>
+
+  <div class="nodes-by-asn__coverage">
+    <div class="nodes-by-asn__coverage-head">
+      <span>autonomous-system identification coverage</span>
+      <strong data-nbasn-coverage-label>—</strong>
+    </div>
+    <div class="nodes-by-asn__coverage-bar" aria-label="ASN identification coverage">
+      <span class="nodes-by-asn__coverage-known" data-nbasn-bar-known></span>
+      <span class="nodes-by-asn__coverage-unknown" data-nbasn-bar-unknown></span>
+    </div>
+    <div class="nodes-by-asn__coverage-legend">
+      <span>ASN known <strong data-nbasn-known>—</strong></span>
+      <span>ASN unknown <strong data-nbasn-unknown>—</strong></span>
+      <span>nation located <strong data-nbasn-located>—</strong></span>
+    </div>
+  </div>
+
+  <div class="nodes-by-asn__leaders">
+    <div class="nodes-by-asn__section-head">
+      <div class="nodes-by-asn__section-title">
+        <span>Largest observed autonomous systems</span>
+        <strong data-nbasn-leader-count>—</strong>
+      </div>
+    </div>
+    <div class="nodes-by-asn__leader-list" data-nbasn-leaders></div>
+  </div>
+
+  <div class="nodes-by-asn__section-head">
+    <div class="nodes-by-asn__section-title">
+      <span>ASN × nation rows</span>
+      <strong data-nbasn-visible-count>—</strong>
+    </div>
+    <span class="nodes-by-asn__scroll-hint">compact scrollable matrix</span>
+  </div>
+
+  <div class="nodes-by-asn__controls">
+    <input
+      type="search"
+      data-nbasn-search
+      placeholder="filter ASN / organization / nation / ISO"
+      aria-label="Filter nodes by ASN"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <label>
+      <span>geography</span>
+      <select data-nbasn-geo aria-label="Filter ASN rows by geography">
+        <option value="all">All rows</option>
+        <option value="located">Located only</option>
+        <option value="unlocated">Unlocated only</option>
+      </select>
+    </label>
+
+    <label>
+      <span>sort</span>
+      <select data-nbasn-sort aria-label="Sort ASN rows">
+        <option value="nodes">Nodes ↓</option>
+        <option value="asn">ASN ↑</option>
+        <option value="organization">Organization ↑</option>
+        <option value="nation">Nation ↑</option>
+      </select>
+    </label>
+
+    <label>
+      <span>rows</span>
+      <select data-nbasn-page-size aria-label="Rows per page">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </label>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-nbasn-refresh
+      aria-label="Refresh shared nodes snapshot"
+    >Refresh</button>
+  </div>
+
+  <div class="nodes-by-asn__table-wrap" data-nbasn-scroll>
+    <div
+      class="nodes-by-asn__table"
+      role="table"
+      aria-label="Reachable Bitcoin nodes by autonomous system and nation"
+    >
+      <div class="nodes-by-asn__row nodes-by-asn__head" role="row">
+        <div role="columnheader">#</div>
+        <div role="columnheader">ASN / Organization</div>
+        <div role="columnheader">Nation</div>
+        <div class="nodes-by-asn__num" role="columnheader">Nodes</div>
+        <div class="nodes-by-asn__num" role="columnheader">Network Share</div>
+        <div class="nodes-by-asn__num" role="columnheader">ASN Share</div>
+      </div>
+      <div data-nbasn-body></div>
+    </div>
+  </div>
+
+  <div class="nodes-by-asn__pager" aria-label="Nodes by ASN pagination">
+    <button type="button" class="zzx-widgets__btn" data-nbasn-prev aria-label="Previous page">Prev</button>
+    <span data-nbasn-page>Page 1 / 1</span>
+    <button type="button" class="zzx-widgets__btn" data-nbasn-next aria-label="Next page">Next</button>
+  </div>
+
+  <div class="nodes-by-asn__details">
+    <div class="nodes-by-asn__detail-row">
+      <span>reachable total</span>
+      <strong data-nbasn-network-total>—</strong>
+    </div>
+    <div class="nodes-by-asn__detail-row">
+      <span>decoded node rows</span>
+      <strong data-nbasn-decoded>—</strong>
+    </div>
+    <div class="nodes-by-asn__detail-row">
+      <span>ASN identified</span>
+      <strong data-nbasn-identified>—</strong>
+    </div>
+    <div class="nodes-by-asn__detail-row">
+      <span>ASN unknown</span>
+      <strong data-nbasn-unidentified>—</strong>
+    </div>
+    <div class="nodes-by-asn__detail-row">
+      <span>ASN rows with nation</span>
+      <strong data-nbasn-nation-located>—</strong>
+    </div>
+    <div class="nodes-by-asn__detail-row">
+      <span>snapshot</span>
+      <strong data-nbasn-updated>—</strong>
+    </div>
+    <div class="nodes-by-asn__detail-row">
+      <span>source</span>
+      <strong data-nbasn-source>—</strong>
+    </div>
+  </div>
+
+  <div class="nodes-by-asn__footer">
+    <span data-nbasn-meta>
+      exact-address ASN enrichment · shared normalized snapshot · no per-widget upstream calls
+    </span>
+  </div>
 </div>
