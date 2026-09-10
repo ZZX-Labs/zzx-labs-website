@@ -3,15 +3,23 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXHashrateNationSources?.__version||0)>=4)return;
+  if(Number(W.ZZXHashrateNationSources?.__version||0)>=5)return;
 
   W.ZZXHashrateNationSources=Object.freeze({
-    __version:4,
+    __version:5,
 
     hashrate:{
       model:"/__partials/widgets/hashrate/js/model.js",
       provider:"/__partials/widgets/hashrate/js/provider.js"
     },
+
+    // Optional direct nation-share model. When populated, this is the most
+    // direct input the estimator accepts and outranks all proxy evidence.
+    estimates:[
+      "/bitcoin/mining/api/hashrate-by-nation/latest.json",
+      "/bitcoin/mining/hashrate-by-nation.json",
+      "/__partials/widgets/hashrate-by-nation/hashrate-by-nation.json"
+    ],
 
     pools:{
       localPrimary:"/bitcoin/mining/api/pools/24h.json",
@@ -53,6 +61,14 @@
       countryAggregates:[
         "/bitcoin/bitnodes/maps/data/map-countries.json",
         "/bitcoin/bitnodes/live-map/data/map-countries.json"
+      ],
+      geojson:[
+        "/bitcoin/bitnodes/maps/data/nodes.geojson",
+        "/bitcoin/bitnodes/live-map/data/nodes.geojson",
+        "/bitcoin/bitnodes/maps/zzxbitnodes/data/nodes.geojson",
+        "/bitcoin/bitnodes/live-map/zzxbitnodes/data/nodes.geojson",
+        "/bitcoin/bitnodes/maps/data/map-points.geojson",
+        "/bitcoin/bitnodes/live-map/data/map-points.geojson"
       ]
     }
   });
