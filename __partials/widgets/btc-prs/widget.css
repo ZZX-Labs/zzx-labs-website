@@ -118,3 +118,47 @@
   .btc-prs__item{grid-template-columns:52px minmax(0,1fr)}
   .btc-prs__state{grid-column:2;justify-self:start}
 }
+
+
+/* =========================================================
+   v10.39 HOST LAYOUT ISOLATION
+   The ZZX widget core globally sets [data-widget-root] to flex
+   and .btc-card to aggressive word wrapping. This widget is
+   internally composed and must own its top-level layout.
+   ========================================================= */
+[data-widget-root="btc-prs"]{
+  display:block !important;
+  flex:none !important;
+  grid-template-columns:none !important;
+  grid-template-rows:none !important;
+  grid-auto-flow:initial !important;
+  align-items:initial !important;
+  justify-content:initial !important;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+  min-width:0 !important;
+  width:100% !important;
+}
+
+[data-widget-root="btc-prs"] > *{
+  min-width:0;
+  max-width:100%;
+}
+
+/* Host containment sets svg height:auto; charts own their viewport height. */
+[data-widget-root="btc-prs"] svg{
+  width:100% !important;
+  max-width:100% !important;
+  height:100% !important;
+  display:block !important;
+}
+
+/* Long provenance/source strings may wrap, but ordinary instrument labels do not. */
+[data-widget-root="btc-prs"] [data-hr-sub],
+[data-widget-root="btc-prs"] [data-hbn-sub],
+[data-widget-root="btc-prs"] [data-gpg-sub],
+[data-widget-root="btc-prs"] [data-btc-prs-source],
+[data-widget-root="btc-prs"] [data-btc-commits-source]{
+  overflow-wrap:anywhere !important;
+  word-break:break-word !important;
+}
