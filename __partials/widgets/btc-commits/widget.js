@@ -1,56 +1,152 @@
+// __partials/widgets/btc-commits/widget.js
 (function(){
   "use strict";
-  const W=window,D=document,ID="btc-commits",REFRESH_MS=60000;
-  const q=(r,s)=>r?r.querySelector(s):null;
-  const set=(r,s,v)=>{const e=q(r,s);if(e)e.textContent=v==null?"—":String(v)};
-  function status(r,l,s){const e=q(r,"[data-commits-status]");if(e){e.textContent=l;e.setAttribute("data-status",s||"offline")}}
-  function resolve(p){return W.ZZXAPI?.url?W.ZZXAPI.url(p):p}
+
+  const W=window,D=document,ID="btc-commits";
+
+  function q(root,selector){return root?.querySelector?.(selector)||null}
+  function set(root,selector,value){const el=q(root,selector);if(el)el.textContent=value==null?"—":String(value)}
+  function status(root,label,state){const el=q(root,"[data-btc-commits-status]");if(el){el.textContent=label;el.dataset.status=state}}
+
+  function base(core){
+    return core?.widgetBase
+      ? String(core.widgetBase(ID)).replace(/\/+$/,"")
+      : "/__partials/widgets/btc-commits";
+  }
+
+  async function loadScript(path,test){
+    if(test())return;
+    const src=new URL(path,location.href).href;
+    const existing=[...D.scripts].find(s=>s.src===src);
+
+    if(existing){
+      const start=Date.now();
+      while(!test()&&Date.now()-start<2500)await new Promise(r=>setTimeout(r,25));
+      if(test())return;
+    }
+
+    await new Promise((ok,fail)=>{
+      const s=D.createElement("script");
+      s.src=src;
+      s.defer=true;
+      s.onload=ok;
+      s.onerror=()=>fail(new Error(`Failed ${path}`));
+      (D.head||D.documentElement).appendChild(s);
+    });
+
+    if(!test())throw new Error(`Module failed: ${path}`);
+  }
+
   async function ensure(core){
-    const base=core?.widgetBase?String(core.widgetBase(ID)).replace(/\/+$/g,""):"/__partials/widgets/btc-commits";
-    for(const [name,rel] of [["ZZXBTCCommitsSources","js/sources.js"],["ZZXBTCCommitsFetch","js/fetch.js"],["ZZXBTCCommitsModel","js/model.js"]]){
-      if(W[name])continue;
-      await new Promise((ok,bad)=>{const s=D.createElement("script");s.src=resolve(`${base}/${rel}`);s.defer=true;s.addEventListener("load",ok,{once:true});s.addEventListener("error",()=>bad(new Error(`failed to load ${rel}`)),{once:true});(D.head||D.documentElement).appendChild(s)});
-      if(!W[name])throw new Error(`${rel} did not initialize ${name}`);
+    await loadScript(`${base(core)}/js/model.js`,()=>Number(W.ZZXBitcoinCommitModel?.__version||0)>=1);
+    await loadScript(`${base(core)}/js/provider.js`,()=>Number(W.ZZXBitcoinCommitProvider?.__version||0)>=1);
+    await loadScript(`${base(core)}/js/ui.js`,()=>Number(W.ZZXBitcoinCommitUI?.__version||0)>=1);
+  }
+
+  function filtered(root,state){
+    const needle=(q(root,"[data-btc-commits-search]")?.value||"").trim().toLowerCase();
+    if(!needle)return [...state.model.rows];
+    return state.model.rows.filter(row=>
+      [row.sha,row.message,row.author].join(" ").toLowerCase().includes(needle)
+    );
+  }
+
+  function renderList(root,state,reset=false){
+    const rows=filtered(root,state);
+    W.ZZXBitcoinCommitUI.render(q(root,"[data-btc-commits-list]"),rows);
+    set(root,"[data-btc-commits-visible]",`${rows.length} visible / ${state.model.rows.length} recent`);
+    if(reset){
+      const scroller=q(root,"[data-btc-commits-scroll]");
+      if(scroller)scroller.scrollTop=0;
     }
   }
-  function ago(date){
-    const t=new Date(date).getTime();if(!Number.isFinite(t))return "time unknown";
-    const sec=Math.max(0,Math.floor((Date.now()-t)/1000));if(sec<60)return `${sec}s ago`;
-    const min=Math.floor(sec/60);if(min<60)return `${min}m ago`;const hr=Math.floor(min/60);if(hr<24)return `${hr}h ago`;return `${Math.floor(hr/24)}d ago`;
-  }
-  function renderList(root,rows){
-    const host=q(root,"[data-commits-list]");if(!host)return;host.replaceChildren();
-    for(const row of rows.slice(0,8)){
-      const item=D.createElement("div");item.className="btc-commits__row";
-      const sha=D.createElement("code");sha.textContent=row.shortSha||"—";
-      const main=D.createElement("div");main.className="btc-commits__row-main";
-      const msg=D.createElement("div");msg.className="btc-commits__row-message";msg.textContent=row.message;
-      const author=D.createElement("div");author.className="btc-commits__row-author";author.textContent=row.author;
-      const time=D.createElement("div");time.className="btc-commits__row-time";time.textContent=ago(row.date);time.title=new Date(row.date).toLocaleString();
-      main.append(msg,author);item.append(sha,main,time);host.appendChild(item);
+
+  function render(root,state){
+    const m=state.model;
+    set(root,"[data-btc-commits-24h]",m.counts.h24);
+    set(root,"[data-btc-commits-7d]",m.counts.d7);
+    set(root,"[data-btc-commits-authors]",m.counts.authors);
+    set(root,"[data-btc-commits-size]",m.counts.size);
+
+    if(m.latest){
+      set(root,"[data-btc-commits-latest-title]",m.latest.message||m.latest.shortSha);
+      set(root,"[data-btc-commits-latest-meta]",`${m.latest.shortSha} · ${m.latest.author} · ${new Date(m.latest.date).toLocaleString()}`);
+      const link=q(root,"[data-btc-commits-latest-link]");
+      if(link)link.href=m.latest.url||"#";
     }
+
+    set(root,"[data-btc-commits-source]",`${state.detail.source} · ${state.detail.transport}${state.detail.stale?" · stale":""}`);
+    renderList(root,state);
+    status(root,state.detail.stale?"cached":"live",state.detail.stale?"warn":"ok");
+
+    W.ZZXBitcoinCommitsLatest=Object.freeze({
+      schema:"zzx-bitcoin-core-commits-export-v1",
+      rows:m.rows,
+      counts:m.counts,
+      source:state.detail.source,
+      stale:!!state.detail.stale
+    });
   }
-  function render(root,m,source,transport){
-    set(root,"[data-commits-sha]",m.latest.shortSha);set(root,"[data-commits-message]",m.latest.message);
-    set(root,"[data-commits-24h]",String(m.count24));set(root,"[data-commits-7d]",String(m.count7d));
-    set(root,"[data-commits-authors]",String(m.authorCount));set(root,"[data-commits-count]",`${m.sampleSize}${m.sampleLimited?"+":""}`);
-    set(root,"[data-commits-meta]",`${source} · ${transport} · latest ${ago(m.latest.date)}${m.sampleLimited?" · recent-count metrics limited to latest 100 commits":""}`);
-    renderList(root,m.rows);
-  }
-  async function refresh(root,state){
-    if(state.busy||!root.isConnected)return;state.busy=true;status(root,"refreshing","warn");
-    try{const r=await W.ZZXBTCCommitsFetch.load();const m=W.ZZXBTCCommitsModel.build(r.payload);state.model=m;render(root,m,r.source,r.transport);status(root,"live","ok")}
-    catch(e){status(root,state.model?"stale":"offline",state.model?"warn":"error");set(root,"[data-commits-meta]",String(e?.message||e))}
-    finally{state.busy=false}
-  }
-  async function boot(root,core){
-    if(!root)return;const state={busy:false,model:null,timer:null};root.__zzxBTCCommitsState=state;
+
+  async function refresh(root,state,force=false){
+    if(state.busy)return;
+    state.busy=true;
+    status(root,"refreshing","warn");
+
+    state.controller?.abort?.();
+    state.controller=typeof AbortController==="function"?new AbortController():null;
+
     try{
-      await ensure(core||W.ZZXWidgetsCore||null);q(root,"[data-commits-refresh]")?.addEventListener("click",()=>refresh(root,state));await refresh(root,state);
-      async function loop(){if(!root.isConnected)return;await refresh(root,state);state.timer=W.setTimeout(loop,REFRESH_MS)}
-      state.timer=W.setTimeout(loop,REFRESH_MS);
-    }catch(e){status(root,"offline","error");set(root,"[data-commits-meta]",String(e?.message||e))}
+      state.detail=await W.ZZXBitcoinCommitProvider.load({
+        force,
+        signal:state.controller?.signal||null
+      });
+      state.model=W.ZZXBitcoinCommitModel.build(state.detail.rows);
+      render(root,state);
+    }catch(error){
+      if(error?.name!=="AbortError"){
+        status(root,state.model?"stale":"offline",state.model?"warn":"error");
+        set(root,"[data-btc-commits-source]",error?.message||error);
+      }
+    }finally{
+      state.busy=false;
+    }
   }
+
+  async function boot(root,core){
+    const old=root.__zzxBitcoinCommitState;
+    old?.abortController?.abort?.();
+    old?.controller?.abort?.();
+    if(old?.timer)clearTimeout(old.timer);
+
+    const ac=typeof AbortController==="function"?new AbortController():null;
+    const opts=ac?{signal:ac.signal}:undefined;
+    const state={
+      detail:null,
+      model:null,
+      busy:false,
+      timer:null,
+      controller:null,
+      abortController:ac
+    };
+    root.__zzxBitcoinCommitState=state;
+
+    try{
+      await ensure(core);
+
+      q(root,"[data-btc-commits-search]")?.addEventListener("input",()=>{
+        if(state.timer)clearTimeout(state.timer);
+        state.timer=setTimeout(()=>renderList(root,state,true),100);
+      },opts);
+
+      q(root,"[data-btc-commits-refresh]")?.addEventListener("click",()=>refresh(root,state,true),opts);
+      await refresh(root,state,false);
+    }catch(error){
+      status(root,"offline","error");
+      set(root,"[data-btc-commits-source]",error?.message||error);
+    }
+  }
+
   if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
   else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
   else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
