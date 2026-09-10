@@ -1,43 +1,168 @@
 <!-- __partials/widgets/hashrate-by-nation/widget.html -->
-<div class="btc-card hashrate-by-nation">
-  <div class="hashrate-by-nation__header">
+<div class="btc-card hashrate-by-nation" data-widget-root="hashrate-by-nation">
+  <div class="hbn__header">
     <div>
-      <div class="btc-card__title">Hashrate by Nation</div>
-      <div class="hashrate-by-nation__eyebrow">country allocation estimate · methodology shown explicitly</div>
+      <div class="btc-card__title">Hashrate By Nation</div>
+      <div class="hbn__eyebrow">24h estimate · pools + mining power + node geography</div>
     </div>
-    <span class="btc-card__status" data-hbn-status data-status="offline" aria-live="polite">loading</span>
+
+    <span
+      class="btc-card__status"
+      data-hbn-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
   </div>
 
-  <div class="hashrate-by-nation__hero">
-    <span>allocation mode</span>
-    <strong data-hbn-mode>—</strong>
-    <small data-hbn-sub>loading geographic allocation…</small>
+  <div class="hbn__hero">
+    <span>24h global average</span>
+    <strong data-hbn-global>—</strong>
+    <em data-hbn-window>last 24 hours</em>
   </div>
 
-  <div class="hashrate-by-nation__metrics">
-    <div><span>global hashrate</span><strong data-hbn-global>—</strong></div>
-    <div><span>countries shown</span><strong data-hbn-count>—</strong></div>
-    <div><span>shown share</span><strong data-hbn-share>—</strong></div>
-    <div><span>unallocated</span><strong data-hbn-other>—</strong></div>
-  </div>
-
-  <div class="hashrate-by-nation__chart">
-    <canvas data-hbn-canvas aria-label="Estimated Bitcoin hashrate by nation"></canvas>
-  </div>
-
-  <div class="hashrate-by-nation__table" role="table" aria-label="Estimated Bitcoin hashrate by nation">
-    <div class="hashrate-by-nation__row hashrate-by-nation__head" role="row">
-      <div role="columnheader">#</div>
-      <div role="columnheader">Nation</div>
-      <div class="hashrate-by-nation__num" role="columnheader">Share</div>
-      <div class="hashrate-by-nation__num" role="columnheader">Est. EH/s</div>
-      <div role="columnheader">Basis</div>
+  <div class="hbn__metrics">
+    <div>
+      <span>estimated nations</span>
+      <strong data-hbn-nations>—</strong>
     </div>
-    <div data-hbn-body></div>
+    <div>
+      <span>model confidence</span>
+      <strong data-hbn-confidence>—</strong>
+    </div>
+    <div>
+      <span>pool geo coverage</span>
+      <strong data-hbn-pool-coverage>—</strong>
+    </div>
+    <div>
+      <span>grid mining coverage</span>
+      <strong data-hbn-grid-coverage>—</strong>
+    </div>
   </div>
 
-  <div class="hashrate-by-nation__footer">
-    <span data-hbn-meta>local country-share registry preferred · node geography used only as a labeled proxy fallback</span>
+  <div class="hbn__section-head">
+    <div>
+      <span>Estimated 24h nation distribution</span>
+      <strong data-hbn-ranked-count>—</strong>
+    </div>
+    <span>model midpoint + uncertainty band</span>
+  </div>
+
+  <div class="hbn__rank-chart" data-hbn-rank-chart>
+    <svg
+      viewBox="0 0 640 360"
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label="Estimated Bitcoin hashrate by nation over the last 24 hours"
+      data-hbn-rank-svg
+    >
+      <g data-hbn-rank-grid></g>
+      <g data-hbn-rank-rows></g>
+    </svg>
+
+    <div class="hbn__empty" data-hbn-rank-empty hidden>
+      Insufficient geographic evidence for a nation estimate.
+    </div>
+  </div>
+
+  <div class="hbn__section-head hbn__timeline-head">
+    <div>
+      <span>Implied 24h profile</span>
+      <strong data-hbn-timeline-count>—</strong>
+    </div>
+    <span>top estimated nations · fixed 24h allocation × observed global series</span>
+  </div>
+
+  <div class="hbn__timeline" data-hbn-timeline>
+    <svg
+      viewBox="0 0 640 250"
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Implied 24 hour national Bitcoin hashrate profiles"
+      data-hbn-time-svg
+    >
+      <g data-hbn-time-grid></g>
+      <g data-hbn-time-lines></g>
+      <g data-hbn-time-y-labels></g>
+      <g data-hbn-time-x-labels></g>
+      <line data-hbn-crosshair x1="0" y1="0" x2="0" y2="0"></line>
+    </svg>
+
+    <div class="hbn__tooltip" data-hbn-tooltip hidden>
+      <strong data-hbn-tip-time>—</strong>
+      <div data-hbn-tip-rows></div>
+    </div>
+
+    <div class="hbn__empty" data-hbn-time-empty hidden>
+      24h hashrate history unavailable.
+    </div>
+  </div>
+
+  <div class="hbn__legend" data-hbn-legend></div>
+
+  <div class="hbn__section-head">
+    <div>
+      <span>Nation estimate readout</span>
+      <strong data-hbn-visible-count>—</strong>
+    </div>
+    <span>all rows · scroll to browse</span>
+  </div>
+
+  <div class="hbn__controls">
+    <input
+      type="search"
+      data-hbn-search
+      placeholder="filter nation / ISO"
+      aria-label="Filter hashrate nation estimates"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <select data-hbn-sort aria-label="Sort nation estimates">
+      <option value="hash-desc">Hashrate ↓</option>
+      <option value="share-desc">Share ↓</option>
+      <option value="confidence-desc">Confidence ↓</option>
+      <option value="nation">Nation A–Z</option>
+    </select>
+  </div>
+
+  <div class="hbn__table-wrap" data-hbn-scroll>
+    <table class="hbn__table">
+      <thead>
+        <tr>
+          <th>Nation</th>
+          <th>Estimate</th>
+          <th>Band</th>
+          <th>Share</th>
+          <th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody data-hbn-body></tbody>
+    </table>
+  </div>
+
+  <div class="hbn__evidence">
+    <div>
+      <span>Pool geography</span>
+      <strong data-hbn-pool-evidence>—</strong>
+    </div>
+    <div>
+      <span>Mining power/grid</span>
+      <strong data-hbn-grid-evidence>—</strong>
+    </div>
+    <div>
+      <span>Node geography</span>
+      <strong data-hbn-node-evidence>—</strong>
+    </div>
+    <div>
+      <span>Model</span>
+      <strong data-hbn-model-mode>—</strong>
+    </div>
+  </div>
+
+  <div class="hbn__footer">
+    <span data-hbn-sub>
+      loading 24h evidence…
+    </span>
     <button type="button" class="zzx-widgets__btn" data-hbn-refresh>Refresh</button>
   </div>
 </div>
