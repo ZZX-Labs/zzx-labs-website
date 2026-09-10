@@ -2,11 +2,18 @@
 (function(){
   "use strict";
 
-  const W=window;
-  if(Number(W.ZZXHashrateNationProvider?.__version||0)>=3)return;
+  const W=window,D=document;
+  if(Number(W.ZZXHashrateNationProvider?.__version||0)>=5)return;
 
-  const CACHE_KEY="zzx.hashrate-by-nation.inputs.v10.34";
+  const CACHE_KEY="zzx.hashrate-by-nation.inputs.v10.42";
   const TTL_MS=10*60*1000;
+
+  function finite(value){
+    if(value===null||value===undefined)return NaN;
+    if(typeof value==="string"&&!value.trim())return NaN;
+    const n=Number(value);
+    return Number.isFinite(n)?n:NaN;
+  }
 
   function safeRead(){
     try{
@@ -18,109 +25,70 @@
   }
 
   function safeWrite(value){
-    try{
-      W.localStorage.setItem(CACHE_KEY,JSON.stringify(value));
-    }catch(_){}
+    try{W.localStorage.setItem(CACHE_KEY,JSON.stringify(value))}catch(_){}
   }
 
-  async function fetchJson(url,signal){
-    const response=await fetch(url,{
-      method:"GET",
-      cache:"no-store",
-      credentials:"omit",
-      signal,
-      headers:{Accept:"application/json"}
+  async function ensureScript(path,test){
+    if(test())return;
+
+    const src=new URL(path,location.href).href;
+    const existing=[...D.scripts].find(script=>script.src===src);
+
+    if(existing){
+      const started=Date.now();
+      while(!test()&&Date.now()-started<3000){
+        await new Promise(resolve=>setTimeout(resolve,25));
+      }
+      if(test())return;
+    }
+
+    await new Promise((resolve,reject)=>{
+      const script=D.createElement("script");
+      script.src=path;
+      script.defer=true;
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error(`Failed to load ${path}`));
+      (D.head||D.documentElement).appendChild(script);
     });
 
-    if(!response.ok){
-      throw new Error(`HTTP ${response.status} for ${url}`);
-    }
-
-    const text=await response.text();
-
-    try{
-      return JSON.parse(text);
-    }catch(_){
-      throw new Error(`Invalid JSON from ${url}`);
-    }
+    if(!test())throw new Error(`${path} did not register`);
   }
 
-  async function firstJson(urls,signal){
-    const errors=[];
-
-    for(const url of urls){
-      try{
-        return {
-          data:await fetchJson(url,signal),
-          source:url
-        };
-      }catch(error){
-        errors.push(`${url}: ${error?.message||error}`);
-      }
-    }
-
-    return {
-      data:null,
-      source:null,
-      error:errors.join(" | ")
-    };
+  async function ensureTransport(){
+    await ensureScript(
+      "/__partials/widgets/hashrate-by-nation/js/sources.js",
+      ()=>Number(W.ZZXHashrateNationSources?.__version||0)>=4
+    );
+    await ensureScript(
+      "/__partials/widgets/hashrate-by-nation/js/fetch.js",
+      ()=>Number(W.ZZXHashrateNationFetch?.__version||0)>=4
+    );
   }
 
-  async function ensureHashrateModules(signal){
-    if(
-      Number(W.ZZXHashrateModel?.__version||0)>=2 &&
-      Number(W.ZZXHashrateProvider?.__version||0)>=2
-    ){
-      return true;
-    }
+  async function ensureHashrate(){
+    const S=W.ZZXHashrateNationSources.hashrate;
 
-    // Load modules from the preceding Hashrate v10.33 widget when available.
-    const scripts=[
-      [
-        "/__partials/widgets/hashrate/js/model.js",
-        ()=>Number(W.ZZXHashrateModel?.__version||0)>=2
-      ],
-      [
-        "/__partials/widgets/hashrate/js/provider.js",
-        ()=>Number(W.ZZXHashrateProvider?.__version||0)>=2
-      ]
-    ];
+    await ensureScript(
+      S.model,
+      ()=>Number(W.ZZXHashrateModel?.__version||0)>=2
+    );
+    await ensureScript(
+      S.provider,
+      ()=>Number(W.ZZXHashrateProvider?.__version||0)>=2
+    );
+  }
 
-    for(const [src,test] of scripts){
-      if(test())continue;
+  async function ensurePowerGrid(){
+    const S=W.ZZXHashrateNationSources.powerGrid;
 
-      await new Promise((resolve,reject)=>{
-        const existing=[...document.scripts].find(
-          script=>new URL(script.src,location.href).pathname===src
-        );
-
-        if(existing){
-          const started=Date.now();
-          const timer=setInterval(()=>{
-            if(test()){
-              clearInterval(timer);
-              resolve();
-            }else if(Date.now()-started>2500){
-              clearInterval(timer);
-              reject(new Error(`Timed out loading ${src}`));
-            }
-          },25);
-          return;
-        }
-
-        const script=document.createElement("script");
-        script.src=src;
-        script.defer=true;
-        script.dataset.hbnShared=src;
-        script.onload=()=>test()
-          ? resolve()
-          : reject(new Error(`${src} did not register`));
-        script.onerror=()=>reject(new Error(`Failed to load ${src}`));
-        (document.head||document.documentElement).appendChild(script);
-      });
-    }
-
-    return true;
+    await ensureScript(
+      S.model,
+      ()=>Number(W.ZZXGlobalPowerGridModel?.__version||0)>=2
+    );
+    await ensureScript(
+      S.provider,
+      ()=>Number(W.ZZXGlobalPowerGridProvider?.__version||0)>=2
+    );
   }
 
   async function loadHashrate(signal){
@@ -132,7 +100,7 @@
       };
     }
 
-    await ensureHashrateModules(signal);
+    await ensureHashrate();
 
     const result=await W.ZZXHashrateProvider.load(
       "1m",
@@ -153,13 +121,11 @@
       };
     }
 
-    return firstJson(
-      [
-        "/bitcoin/mining/api/pools/24h.json",
-        "/bitcoin/mining/pools/24h.json",
-        "https://mempool.space/api/v1/mining/pools/24h"
-      ],
-      signal
+    const S=W.ZZXHashrateNationSources.pools;
+
+    return W.ZZXHashrateNationFetch.firstJson(
+      [S.localPrimary,S.localFallback,S.direct],
+      {signal}
     );
   }
 
@@ -171,17 +137,15 @@
       };
     }
 
-    return firstJson(
-      [
-        "/bitcoin/mining/api/hashrate-by-nation/pool-country-evidence.json",
-        "/bitcoin/mining/api/pool-country-evidence.json",
-        "/__partials/widgets/hashrate-by-nation/data/pool-country-evidence.json"
-      ],
-      signal
+    const S=W.ZZXHashrateNationSources.poolEvidence;
+
+    return W.ZZXHashrateNationFetch.firstJson(
+      [S.localPrimary,S.localFallback,S.bundled],
+      {signal}
     );
   }
 
-  async function loadGrid(signal){
+  async function loadMiningGrid(signal){
     if(typeof W.ZZXHashrateNationSource?.grid==="function"){
       return {
         data:await W.ZZXHashrateNationSource.grid({signal}),
@@ -189,20 +153,134 @@
       };
     }
 
-    return firstJson(
-      [
-        "/bitcoin/mining/api/hashrate-by-nation/power-grid-24h.json",
-        "/bitcoin/mining/api/power-grid/24h.json",
-        "/__partials/widgets/hashrate-by-nation/data/power-grid-24h.json"
-      ],
-      signal
+    const S=W.ZZXHashrateNationSources.miningGrid;
+
+    return W.ZZXHashrateNationFetch.firstJson(
+      [S.localPrimary,S.localFallback,S.bundled],
+      {signal}
     );
   }
 
-  async function loadNodes(){
+  function modelToPowerGrid(model,source){
+    return {
+      data:{
+        schema:"zzx-global-power-grid-hbn-bridge-v1",
+        nations:(model?.rows||[]).map(row=>({
+          country:row.country,
+          countryName:row.countryName,
+          generationMW:Number.isFinite(row.generationMW)?row.generationMW:null,
+          loadMW:Number.isFinite(row.loadMW)?row.loadMW:null,
+          capacityMW:Number.isFinite(row.capacityMW)?row.capacityMW:null,
+          headroomMW:Number.isFinite(row.headroomMW)?row.headroomMW:null,
+          absoluteMiningCeilingEH:Number.isFinite(row.absoluteMiningCeilingEH)
+            ? row.absoluteMiningCeilingEH
+            : null,
+          headroomMiningCeilingEH:Number.isFinite(row.headroomMiningCeilingEH)
+            ? row.headroomMiningCeilingEH
+            : null,
+          editionYear:row.editionYear??null,
+          observationYear:row.observationYear??null,
+          source:row.source||"unavailable",
+          sourceUrl:row.sourceUrl||""
+        })),
+        registryCount:model?.registryCount||0,
+        coverage:model?.coverage||0,
+        historySummary:model?.historySummary||null
+      },
+      source
+    };
+  }
+
+  async function loadPowerGrid(signal){
+    if(typeof W.ZZXHashrateNationSource?.powerGrid==="function"){
+      return {
+        data:await W.ZZXHashrateNationSource.powerGrid({signal}),
+        source:"ZZXHashrateNationSource.powerGrid"
+      };
+    }
+
+    // Fastest path when Global Power Grid has already mounted.
+    if(Array.isArray(W.ZZXGlobalPowerGridLatest?.nations)){
+      return {
+        data:W.ZZXGlobalPowerGridLatest,
+        source:"ZZXGlobalPowerGridLatest"
+      };
+    }
+
+    // Important v10.42 behavior:
+    // HBN mounts before Global Power Grid in the HUD. Load the GPG provider/model
+    // directly instead of depending on widget mount order.
+    try{
+      await ensurePowerGrid();
+
+      const detail=await W.ZZXGlobalPowerGridProvider.load({
+        force:false,
+        signal
+      });
+
+      const payload=detail?.payload||{};
+      const model=W.ZZXGlobalPowerGridModel.build(
+        payload.registry||{countries:[]},
+        payload.factbook||{records:[]},
+        payload.live||{countries:[]}
+      );
+
+      return modelToPowerGrid(
+        model,
+        `Global Power Grid provider · ${detail?.transport||"local"}`
+      );
+    }catch(error){
+      if(error?.name==="AbortError")throw error;
+
+      // Last-resort static projection. This still uses the same canonical
+      // GPG files rather than inventing a second electricity data contract.
+      const S=W.ZZXHashrateNationSources.powerGrid;
+      const [registry,factbook,live]=await Promise.all([
+        W.ZZXHashrateNationFetch.firstJson(S.registry,{signal}),
+        W.ZZXHashrateNationFetch.firstJson(S.factbook,{signal}),
+        W.ZZXHashrateNationFetch.firstJson(S.live,{signal})
+      ]);
+
+      if(!registry.data){
+        return {
+          data:{nations:[],registryCount:0},
+          source:null,
+          error:[
+            String(error?.message||error),
+            registry.error,
+            factbook.error,
+            live.error
+          ].filter(Boolean).join(" | ")
+        };
+      }
+
+      await ensurePowerGrid();
+
+      const model=W.ZZXGlobalPowerGridModel.build(
+        registry.data,
+        factbook.data||{records:[]},
+        live.data||{countries:[]}
+      );
+
+      const bridged=modelToPowerGrid(
+        model,
+        factbook.source||live.source||"Global Power Grid static projection"
+      );
+
+      bridged.error=[
+        String(error?.message||error),
+        factbook.error,
+        live.error
+      ].filter(Boolean).join(" | ");
+
+      return bridged;
+    }
+  }
+
+  async function loadNodes(signal){
     if(typeof W.ZZXHashrateNationSource?.nodes==="function"){
       return {
-        data:await W.ZZXHashrateNationSource.nodes(),
+        data:await W.ZZXHashrateNationSource.nodes({signal}),
         source:"ZZXHashrateNationSource.nodes"
       };
     }
@@ -215,12 +293,11 @@
       };
     }
 
-    const local=await firstJson(
-      [
-        "/bitcoin/bitnodes/maps/data/map-countries.json",
-        "/bitcoin/bitnodes/live-map/data/map-countries.json"
-      ],
-      null
+    const S=W.ZZXHashrateNationSources.nodes;
+
+    const local=await W.ZZXHashrateNationFetch.firstJson(
+      S.countryAggregates,
+      {signal}
     );
 
     if(local.data){
@@ -243,6 +320,8 @@
   }
 
   async function load({force=false,signal=null}={}){
+    await ensureTransport();
+
     const cached=safeRead();
     const now=Date.now();
 
@@ -259,43 +338,48 @@
       };
     }
 
-    const errors=[];
-
     try{
-      const [hashrate,pools,poolEvidence,grid,nodes]=await Promise.all([
-        loadHashrate(signal),
-        loadPools(signal),
-        loadPoolEvidence(signal),
-        loadGrid(signal),
-        loadNodes()
-      ]);
+      const [hashrate,pools,poolEvidence,miningGrid,powerGrid,nodes]=
+        await Promise.all([
+          loadHashrate(signal),
+          loadPools(signal),
+          loadPoolEvidence(signal),
+          loadMiningGrid(signal),
+          loadPowerGrid(signal),
+          loadNodes(signal)
+        ]);
 
       if(!hashrate?.model){
         throw new Error("global hashrate unavailable");
       }
 
-      if(pools?.error)errors.push(pools.error);
-      if(poolEvidence?.error)errors.push(poolEvidence.error);
-      if(grid?.error)errors.push(grid.error);
-      if(nodes?.error)errors.push(nodes.error);
-
-      const inputs={
-        hashrate:hashrate.model,
-        pools:pools?.data||{},
-        poolEvidence:poolEvidence?.data||{},
-        grid:grid?.data||{},
-        nodes:nodes?.data||[]
-      };
+      const errors=[
+        pools?.error,
+        poolEvidence?.error,
+        miningGrid?.error,
+        powerGrid?.error,
+        nodes?.error
+      ].filter(Boolean);
 
       const result={
-        inputs,
+        inputs:{
+          hashrate:hashrate.model,
+          pools:pools?.data||{},
+          poolEvidence:poolEvidence?.data||{},
+          grid:miningGrid?.data||{},
+          powerGrid:powerGrid?.data||{},
+          nodes:nodes?.data||[]
+        },
+
         sources:{
           hashrate:hashrate.source||"—",
           pools:pools?.source||"unavailable",
           poolEvidence:poolEvidence?.source||"unavailable",
-          grid:grid?.source||"unavailable",
+          grid:miningGrid?.source||"unavailable",
+          powerGrid:powerGrid?.source||"unavailable",
           nodes:nodes?.source||"unavailable"
         },
+
         cachedAt:now,
         errors
       };
@@ -327,7 +411,7 @@
   }
 
   W.ZZXHashrateNationProvider=Object.freeze({
-    __version:3,
+    __version:5,
     load
   });
 })();
