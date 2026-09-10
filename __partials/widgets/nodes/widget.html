@@ -107,6 +107,61 @@
     </div>
   </div>
 
+
+  <div class="nodes__section-head">
+    <div class="nodes__section-title">
+      <span>Node IP addresses</span>
+      <strong data-nodes-ip-count>—</strong>
+    </div>
+    <span class="nodes__hint">deduplicated IPv4 / IPv6 endpoints</span>
+  </div>
+
+  <div class="nodes__ip-controls">
+    <input
+      type="search"
+      data-nodes-ip-search
+      placeholder="filter IP address"
+      aria-label="Filter node IP addresses"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <select data-nodes-ip-version aria-label="Filter node IP version">
+      <option value="all">All IPs</option>
+      <option value="4">IPv4</option>
+      <option value="6">IPv6</option>
+    </select>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-nodes-ip-copy
+    >Copy visible</button>
+  </div>
+
+  <div class="nodes__ip-meta">
+    <span>IPv4 <strong data-nodes-ipv4-count>—</strong></span>
+    <span>IPv6 <strong data-nodes-ipv6-count>—</strong></span>
+    <span>overlay / hostname excluded <strong data-nodes-ip-overlay>—</strong></span>
+  </div>
+
+  <div class="nodes__ip-table-wrap" data-nodes-ip-scroll>
+    <div
+      class="nodes__ip-table"
+      role="table"
+      aria-label="Public IPv4 and IPv6 addresses of reachable Bitcoin nodes"
+    >
+      <div class="nodes__ip-row nodes__ip-head" role="row">
+        <div role="columnheader">#</div>
+        <div role="columnheader">IP Address</div>
+        <div role="columnheader">Network</div>
+        <div class="nodes__num" role="columnheader">Port</div>
+        <div class="nodes__num" role="columnheader">Occurrences</div>
+      </div>
+      <div data-nodes-ip-body></div>
+    </div>
+  </div>
+
   <div class="nodes__chart">
     <div class="nodes__chart-head">
       <span>reachable-node history</span>
