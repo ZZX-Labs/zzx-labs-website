@@ -1,190 +1,196 @@
+
 // __partials/widgets/intel/js/sources.js
 (function () {
   "use strict";
 
-  const W = window;
-  if (W.ZZXIntelSources?.__version >= 1) return;
+  const W=window;
+  if(Number(W.ZZXIntelSources?.__version||0)>=2)return;
 
-  const ALLORIGINS_RAW = "https://api.allorigins.win/raw?url=";
-
-  const SOURCES = Object.freeze([
+  const SOURCES=Object.freeze([
     {
       id:"hn",
       label:"HN",
       type:"hn",
+      local:"/bitcoin/intel/api/news/hn.json",
       query:"bitcoin OR lightning OR mempool OR satoshi"
     },
     {
       id:"ap",
       label:"AP",
       type:"rss",
+      local:"/bitcoin/intel/api/news/ap.json",
       url:"https://apnews.com/hub/bitcoin?rss=1"
     },
     {
       id:"wired",
       label:"WIRED",
       type:"rss",
+      local:"/bitcoin/intel/api/news/wired.json",
       url:"https://www.wired.com/feed/tag/cryptocurrency/latest/rss"
     },
     {
       id:"ars",
       label:"ARS",
       type:"rss",
+      local:"/bitcoin/intel/api/news/ars.json",
       url:"https://feeds.arstechnica.com/arstechnica/technology-lab"
     },
     {
       id:"404",
       label:"404",
       type:"rss",
+      local:"/bitcoin/intel/api/news/404.json",
       url:"https://www.404media.co/rss/"
     }
   ]);
 
-  const cache = new Map();
-  const inflight = new Map();
+  const cache=new Map();
+  const inflight=new Map();
 
-  async function fetchRaw(url, mode) {
-    const external = /^https?:\/\//i.test(url);
+  function resolved(url){
+    return W.ZZXAPI?.url&&!/^https?:/i.test(url)?W.ZZXAPI.url(url):url;
+  }
 
-    if (W.ZZXAPI?.fetchRaw) {
-      const r = await W.ZZXAPI.fetchRaw(url,{
-        cacheBust:false,
+  async function raw(url,mode){
+    const target=resolved(url);
+    const external=/^https?:/i.test(target);
+
+    if(W.ZZXAPI?.fetchRaw){
+      const r=await W.ZZXAPI.fetchRaw(url,{
+        cacheBust:!external,
         cache:"no-store",
-        credentials:external ? "omit" : "same-origin",
+        credentials:external?"omit":"same-origin",
         timeoutMs:15000,
         retries:1,
         retryDelayMs:450
       });
-
-      return mode === "text" ? await r.text() : await r.json();
+      return mode==="text"?r.text():r.json();
     }
 
-    const r = await fetch(url,{
+    const r=await fetch(target,{
       cache:"no-store",
-      credentials:external ? "omit" : "same-origin"
+      credentials:external?"omit":"same-origin"
     });
 
-    if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
-    return mode === "text" ? await r.text() : await r.json();
+    if(!r.ok)throw new Error(`HTTP ${r.status} ${target}`);
+    return mode==="text"?r.text():r.json();
   }
 
-  async function cached(key, ttl, loader, force=false) {
-    const now = Date.now();
-    const hit = cache.get(key);
+  async function cached(key,ttl,loader,force=false){
+    const hit=cache.get(key);
+    if(!force&&hit&&Date.now()-hit.at<ttl)return hit.value;
+    if(inflight.has(key))return inflight.get(key);
 
-    if (!force && hit && now-hit.at < ttl) return hit.value;
-    if (inflight.has(key)) return await inflight.get(key);
-
-    const promise = Promise.resolve()
+    const promise=Promise.resolve()
       .then(loader)
-      .then(value => {
+      .then(value=>{
         cache.set(key,{at:Date.now(),value});
         return value;
       })
       .finally(()=>inflight.delete(key));
 
     inflight.set(key,promise);
-    return await promise;
+    return promise;
   }
 
-  function parseRSS(xml, source) {
-    const doc = new DOMParser().parseFromString(String(xml || ""),"text/xml");
-    if (doc.querySelector("parsererror")) throw new Error(`${source.label} RSS parse failed`);
+  function normalizedMirror(payload,source){
+    const rows=Array.isArray(payload?.items)?payload.items:[];
+    return rows.map(item=>({
+      id:String(item.id||`${source.id}:${item.url||item.title||""}`),
+      source:String(item.source||source.label),
+      title:String(item.title||"source item"),
+      url:String(item.url||""),
+      ts:Number(item.ts||0),
+      detail:String(item.detail||"")
+    })).filter(item=>item.title&&item.url);
+  }
 
-    const rows = Array.from(doc.querySelectorAll("item, entry")).slice(0,20);
-    const out = [];
+  function parseRSS(xml,source){
+    const doc=new DOMParser().parseFromString(String(xml||""),"text/xml");
+    if(doc.querySelector("parsererror"))throw new Error(`${source.label} RSS parse failed`);
 
-    for (const item of rows) {
-      const title = (
-        item.querySelector("title")?.textContent || ""
-      ).trim();
-
-      let url = (
-        item.querySelector("link")?.getAttribute("href") ||
-        item.querySelector("link")?.textContent ||
+    return [...doc.querySelectorAll("item, entry")].slice(0,20).map(item=>{
+      const title=(item.querySelector("title")?.textContent||"").trim();
+      const linkNode=item.querySelector("link");
+      const url=(linkNode?.getAttribute("href")||linkNode?.textContent||"").trim();
+      const dateText=(
+        item.querySelector("pubDate")?.textContent||
+        item.querySelector("published")?.textContent||
+        item.querySelector("updated")?.textContent||
         ""
       ).trim();
 
-      const dateText = (
-        item.querySelector("pubDate")?.textContent ||
-        item.querySelector("published")?.textContent ||
-        item.querySelector("updated")?.textContent ||
-        ""
-      ).trim();
+      let detail="";
+      try{detail=new URL(url,location.href).hostname.replace(/^www\./,"")}
+      catch(_){detail=source.label}
 
-      if (!title || !url) continue;
-
-      out.push({
+      return {
         id:`${source.id}:${url}`,
         source:source.label,
         title,
         url,
-        ts:Date.parse(dateText) || 0,
-        detail:new URL(url,location.href).hostname.replace(/^www\./,"")
-      });
-    }
-
-    return out;
-  }
-
-  async function loadRSS(source, force=false) {
-    return await cached(`rss:${source.id}`,60000,async()=>{
-      let text;
-      let route = "direct";
-
-      try {
-        text = await fetchRaw(source.url,"text");
-      } catch (directError) {
-        route = "proxy fallback";
-        text = await fetchRaw(
-          ALLORIGINS_RAW + encodeURIComponent(source.url),
-          "text"
-        );
-      }
-
-      return {
-        items:parseRSS(text,source),
-        route
+        ts:Date.parse(dateText)||0,
+        detail
       };
-    },force);
+    }).filter(item=>item.title&&item.url);
   }
 
-  async function loadHN(source, force=false) {
-    return await cached("hn",60000,async()=>{
-      const url =
-        "https://hn.algolia.com/api/v1/search?" +
+  async function loadLocal(source){
+    const payload=await raw(source.local,"json");
+    return {
+      items:normalizedMirror(payload,source),
+      route:"local mirror"
+    };
+  }
+
+  async function loadDirect(source){
+    if(source.type==="hn"){
+      const url="https://hn.algolia.com/api/v1/search?"+
         new URLSearchParams({
           query:source.query,
           tags:"story",
           hitsPerPage:"12"
         }).toString();
 
-      const data = await fetchRaw(url,"json");
-      const hits = Array.isArray(data?.hits) ? data.hits : [];
+      const data=await raw(url,"json");
+      const hits=Array.isArray(data?.hits)?data.hits:[];
 
       return {
-        route:"direct",
+        route:"direct HN",
         items:hits.slice(0,12).map(hit=>({
-          id:`hn:${hit?.objectID || ""}`,
+          id:`hn:${hit?.objectID||""}`,
           source:source.label,
-          title:hit?.title || hit?.story_title || "discussion",
-          url:hit?.url || hit?.story_url || `https://news.ycombinator.com/item?id=${hit?.objectID}`,
-          ts:Number(hit?.created_at_i || 0)*1000,
-          detail:`${Number(hit?.points || 0).toLocaleString()} points · ${Number(hit?.num_comments || 0).toLocaleString()} comments`
-        })).filter(item=>item.title && item.url)
+          title:hit?.title||hit?.story_title||"discussion",
+          url:hit?.url||hit?.story_url||`https://news.ycombinator.com/item?id=${hit?.objectID}`,
+          ts:Number(hit?.created_at_i||0)*1000,
+          detail:`${Number(hit?.points||0).toLocaleString()} points · ${Number(hit?.num_comments||0).toLocaleString()} comments`
+        })).filter(item=>item.title&&item.url)
       };
+    }
+
+    const text=await raw(source.url,"text");
+    return {
+      route:"direct RSS",
+      items:parseRSS(text,source)
+    };
+  }
+
+  async function load(source,force=false){
+    if(!source)throw new Error("missing source");
+
+    return cached(`intel:${source.id}`,60000,async()=>{
+      try{
+        const result=await loadLocal(source);
+        if(result.items.length)return result;
+      }catch(_){}
+
+      // No proxy service. Try the public source directly as a resilience path.
+      return loadDirect(source);
     },force);
   }
 
-  async function load(source, force=false) {
-    if (!source) throw new Error("missing source");
-    return source.type === "hn"
-      ? await loadHN(source,force)
-      : await loadRSS(source,force);
-  }
-
-  W.ZZXIntelSources = Object.freeze({
-    __version:1,
+  W.ZZXIntelSources=Object.freeze({
+    __version:2,
     SOURCES,
     load
   });
