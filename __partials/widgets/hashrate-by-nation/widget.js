@@ -205,6 +205,10 @@
     set(root,"[data-hbn-window]","last 24 hours");
     set(root,"[data-hbn-nations]",m.rows.length.toLocaleString());
     set(root,"[data-hbn-confidence]",pct(m.confidence));
+    const confidenceFill=q(root,"[data-hbn-confidence-fill]");
+    if(confidenceFill){
+      confidenceFill.style.width=`${Math.max(0,Math.min(100,(Number(m.confidence)||0)*100)).toFixed(1)}%`;
+    }
     set(root,"[data-hbn-pool-coverage]",pct(m.pool.coverage));
     set(root,"[data-hbn-grid-coverage]",pct(m.grid.coverage));
 
