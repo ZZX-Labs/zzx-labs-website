@@ -4,7 +4,7 @@
 
   const W=window;
   const D=document;
-  if(Number(W.ZZXHashrateNationCharts?.__version||0)>=3)return;
+  if(Number(W.ZZXHashrateNationCharts?.__version||0)>=4)return;
 
   const NS="http://www.w3.org/2000/svg";
 
@@ -323,7 +323,7 @@
   }
 
   W.ZZXHashrateNationCharts=Object.freeze({
-    __version:3,
+    __version:4,
     renderRank,
     renderTimeline
   });
