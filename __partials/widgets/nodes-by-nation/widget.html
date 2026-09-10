@@ -4,7 +4,7 @@
     <div>
       <div class="btc-card__title">Nodes by Nation</div>
       <div class="nodes-by-nation__eyebrow">
-        reachable-node geography · shared ZZX Bitnodes snapshot
+        reachable-node geography · shared ZZX Bitnodes + Map Host enrichment
       </div>
     </div>
 
@@ -19,25 +19,50 @@
   <div class="nodes-by-nation__hero">
     <span>geolocated reachable nodes</span>
     <strong data-nbn-summary>—</strong>
-    <small data-nbn-sub>loading shared nation distribution…</small>
+    <small data-nbn-sub>loading nation distribution…</small>
   </div>
 
   <div class="nodes-by-nation__metrics">
     <div><span>nations</span><strong data-nbn-country-count>—</strong></div>
     <div><span>top nation</span><strong data-nbn-top-country>—</strong></div>
-    <div><span>top-network share</span><strong data-nbn-top-share>—</strong></div>
-    <div><span>geolocated share</span><strong data-nbn-coverage>—</strong></div>
+    <div><span>top network share</span><strong data-nbn-top-share>—</strong></div>
+    <div><span>geolocation coverage</span><strong data-nbn-coverage>—</strong></div>
   </div>
 
   <div class="nodes-by-nation__coverage">
+    <div class="nodes-by-nation__coverage-head">
+      <span>nation geolocation coverage</span>
+      <strong data-nbn-coverage-label>—</strong>
+    </div>
+
     <div class="nodes-by-nation__coverage-bar" aria-label="Node geolocation coverage">
       <span data-nbn-bar-known></span>
       <span data-nbn-bar-unknown></span>
     </div>
+
     <div class="nodes-by-nation__coverage-legend">
       <span>geolocated <strong data-nbn-known>—</strong></span>
       <span>unknown / hidden <strong data-nbn-unknown>—</strong></span>
+      <span>Map Host joins <strong data-nbn-geo-joins>—</strong></span>
     </div>
+  </div>
+
+  <div class="nodes-by-nation__leaders">
+    <div class="nodes-by-nation__section-head">
+      <div class="nodes-by-nation__section-title">
+        <span>Largest nation populations</span>
+        <strong data-nbn-leader-count>—</strong>
+      </div>
+    </div>
+    <div class="nodes-by-nation__leader-list" data-nbn-leaders></div>
+  </div>
+
+  <div class="nodes-by-nation__section-head">
+    <div class="nodes-by-nation__section-title">
+      <span>Nation readout</span>
+      <strong data-nbn-visible-count>—</strong>
+    </div>
+    <span class="nodes-by-nation__scroll-hint">all matching nations · scroll to browse</span>
   </div>
 
   <div class="nodes-by-nation__controls">
@@ -51,12 +76,12 @@
     >
 
     <label>
-      <span>rows</span>
-      <select data-nbn-page-size aria-label="Rows per page">
-        <option value="5">5</option>
-        <option value="10" selected>10</option>
-        <option value="20">20</option>
-        <option value="50">50</option>
+      <span>sort</span>
+      <select data-nbn-sort aria-label="Sort nations">
+        <option value="nodes">Nodes ↓</option>
+        <option value="nation">Nation A–Z</option>
+        <option value="iso">ISO A–Z</option>
+        <option value="share">Geo share ↓</option>
       </select>
     </label>
 
@@ -68,8 +93,12 @@
     >Refresh</button>
   </div>
 
-  <div class="nodes-by-nation__table-wrap">
-    <div class="nodes-by-nation__table" role="table" aria-label="Reachable Bitcoin nodes by nation">
+  <div class="nodes-by-nation__table-wrap" data-nbn-scroll>
+    <div
+      class="nodes-by-nation__table"
+      role="table"
+      aria-label="Reachable Bitcoin nodes by nation"
+    >
       <div class="nodes-by-nation__row nodes-by-nation__head" role="row">
         <div role="columnheader">#</div>
         <div role="columnheader">Nation</div>
@@ -80,12 +109,6 @@
 
       <div data-nbn-body></div>
     </div>
-  </div>
-
-  <div class="nodes-by-nation__pager" aria-label="Nodes by nation pagination">
-    <button type="button" class="zzx-widgets__btn" data-nbn-prev aria-label="Previous page">Prev</button>
-    <span data-nbn-page>Page 1 / 1</span>
-    <button type="button" class="zzx-widgets__btn" data-nbn-next aria-label="Next page">Next</button>
   </div>
 
   <div class="nodes-by-nation__details">
@@ -102,6 +125,10 @@
       <strong data-nbn-unlocated>—</strong>
     </div>
     <div class="nodes-by-nation__detail-row">
+      <span>geography source</span>
+      <strong data-nbn-geo-source>—</strong>
+    </div>
+    <div class="nodes-by-nation__detail-row">
       <span>snapshot</span>
       <strong data-nbn-updated>—</strong>
     </div>
@@ -112,6 +139,8 @@
   </div>
 
   <div class="nodes-by-nation__footer">
-    <span data-nbn-meta>one shared ZZXBitnodes snapshot · zero per-widget API calls</span>
+    <span data-nbn-meta>
+      shared normalized snapshot · all nation rows continuously scrollable
+    </span>
   </div>
 </div>
