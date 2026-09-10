@@ -1,143 +1,33 @@
-/* BTC PRs v10.37 — repository activity ledger */
-.btc-prs--ledger{
-  --g:#c0d674;--a:#e6a42b;--m:#aab294;--d:#646a5d;
-  --line:rgba(192,214,116,.14);--line2:rgba(255,255,255,.06);
-  position:relative;min-width:0;overflow:hidden;background:#090a09
-}
-.btc-prs--ledger::before{
-  content:"";position:absolute;inset:0 0 auto;height:2px;
-  background:linear-gradient(90deg,var(--a) 0 9%,var(--g) 9% 25%,transparent 25%);
-  pointer-events:none
-}
-.btc-prs--ledger *{box-sizing:border-box}
-.btc-prs__topline{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding-top:.12rem}
-.btc-prs__identity{display:grid;gap:.06rem;min-width:0}
-.btc-prs__kicker{
-  color:var(--a);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.49rem;letter-spacing:.085em;text-transform:uppercase
-}
-.btc-prs__repo{
-  width:max-content;max-width:100%;color:#70786a;text-decoration:none;
-  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.54rem
-}
-.btc-prs__repo:hover{color:var(--g)}
+/* __partials/widgets/btc-prs/widget.css */
+/* Standard ZZX-Labs widget styling — intentionally matches BTC Commits
+   and the rest of the Bitcoin HUD. No unique top bar, kicker, or multicolor
+   eyebrow treatment. */
 
-.btc-prs__activity{
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:.6rem;
-  padding:.42rem 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line)
-}
-.btc-prs__activity>div{min-width:0;padding:0 .55rem;border-right:1px solid var(--line2)}
-.btc-prs__activity>div:first-child{padding-left:0}
-.btc-prs__activity>div:last-child{border-right:0}
-.btc-prs__activity span,.btc-prs__activity strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.btc-prs__activity span{
-  color:var(--d);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.47rem;letter-spacing:.08em
-}
-.btc-prs__activity strong{
-  margin-top:.08rem;color:var(--m);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.68rem;font-weight:500
-}
-.btc-prs__activity>div:first-child strong{color:var(--g)}
-.btc-prs__activity>div:nth-child(2) strong{color:var(--a)}
-
-.btc-prs__toolbar{
-  display:grid;grid-template-columns:minmax(240px,1fr) minmax(120px,auto);gap:.3rem;margin-top:.48rem
-}
-.btc-prs__toolbar input,.btc-prs__toolbar select{
-  min-width:0;width:100%;padding:.28rem .34rem;border:0;border-bottom:1px solid #30342f;
-  background:#070807;color:var(--g);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.55rem;outline:none
-}
-.btc-prs__toolbar input:focus,.btc-prs__toolbar select:focus{border-bottom-color:var(--a)}
-
-.btc-prs__readout-head{
-  display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;
-  margin-top:.48rem;padding-top:.36rem;border-top:1px solid var(--line2)
-}
-.btc-prs__readout-head span{
-  color:var(--d);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.48rem;letter-spacing:.085em
-}
-.btc-prs__readout-head strong{
-  color:var(--g);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.54rem;font-weight:500
-}
-
-.btc-prs__scroll{
-  max-height:520px;margin-top:.22rem;overflow:auto;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  background:
-    linear-gradient(90deg,rgba(192,214,116,.018) 1px,transparent 1px),
-    #080908;
-  background-size:32px 100%;
-  scrollbar-width:thin
-}
-.btc-prs__item{
-  display:grid;grid-template-columns:58px minmax(0,1fr) 72px;gap:.48rem;align-items:start;
-  min-width:0;padding:.38rem .38rem;border-bottom:1px solid rgba(255,255,255,.047);
-  position:relative
-}
-.btc-prs__item::before{
-  content:"";position:absolute;left:0;top:.32rem;bottom:.32rem;width:2px;background:#2e332c
-}
-.btc-prs__item[data-pr-state="open"]::before{background:var(--g)}
-.btc-prs__item[data-pr-state="merged"]::before{background:var(--a)}
-.btc-prs__item[data-pr-state="closed"]::before{background:#5d6259}
-.btc-prs__item:last-child{border-bottom:0}
-.btc-prs__item:hover{background:rgba(192,214,116,.025)}
-.btc-prs__number{
-  color:var(--a);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.55rem;white-space:nowrap
-}
-.btc-prs__body{min-width:0}
-.btc-prs__title{
-  display:block;color:#adb5a0;text-decoration:none;font-size:.61rem;line-height:1.3;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
-}
-.btc-prs__title:hover{color:var(--g)}
-.btc-prs__meta{
-  margin-top:.1rem;color:#646b60;font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.49rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
-}
-.btc-prs__state{
-  justify-self:end;min-width:54px;padding:.05rem .16rem;border:0;border-bottom:1px solid currentColor;
-  color:var(--g);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.47rem;text-align:right;text-transform:uppercase
-}
-.btc-prs__state[data-state="merged"]{color:var(--a)}
-.btc-prs__state[data-state="closed"]{color:#6d7269}
-
-.btc-prs__footer{
-  display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-top:.4rem;
-  color:#5e655a;font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.47rem
-}
-.btc-prs__footer>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(max-width:620px){
-  .btc-prs__activity{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .btc-prs__toolbar{grid-template-columns:1fr}
-  .btc-prs__scroll{max-height:450px}
-  .btc-prs__item{grid-template-columns:52px minmax(0,1fr)}
-  .btc-prs__state{grid-column:2;justify-self:start}
-}
-
-
-/* =========================================================
-   v10.39 HOST LAYOUT ISOLATION
-   The ZZX widget core globally sets [data-widget-root] to flex
-   and .btc-card to aggressive word wrapping. This widget is
-   internally composed and must own its top-level layout.
-   ========================================================= */
 [data-widget-root="btc-prs"]{
-  display:block !important;
-  flex:none !important;
-  grid-template-columns:none !important;
-  grid-template-rows:none !important;
-  grid-auto-flow:initial !important;
-  align-items:initial !important;
-  justify-content:initial !important;
-  overflow-wrap:normal !important;
-  word-break:normal !important;
-  min-width:0 !important;
-  width:100% !important;
+  --bp-green:var(--zzx-accent,#c0d674);
+  --bp-gold:var(--zzx-accent-alt,#e6a42b);
+  --bp-muted:var(--zzx-muted,#b7bf9a);
+  --bp-dim:var(--zzx-dim,#777);
+  --bp-line:rgba(255,255,255,.09);
+  --bp-panel:rgba(255,255,255,.018);
+
+  display:block!important;
+  flex:none!important;
+  grid-template-columns:none!important;
+  grid-template-rows:none!important;
+  grid-auto-flow:initial!important;
+  align-items:initial!important;
+  justify-content:initial!important;
+
+  width:100%!important;
+  min-width:0!important;
+  overflow:hidden;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+}
+
+[data-widget-root="btc-prs"] *{
+  box-sizing:border-box;
 }
 
 [data-widget-root="btc-prs"] > *{
@@ -145,20 +35,310 @@
   max-width:100%;
 }
 
-/* Host containment sets svg height:auto; charts own their viewport height. */
-[data-widget-root="btc-prs"] svg{
-  width:100% !important;
-  max-width:100% !important;
-  height:100% !important;
-  display:block !important;
+/* Standard widget header — same structure as BTC Commits. */
+.btc-prs__header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
 }
 
-/* Long provenance/source strings may wrap, but ordinary instrument labels do not. */
-[data-widget-root="btc-prs"] [data-hr-sub],
-[data-widget-root="btc-prs"] [data-hbn-sub],
-[data-widget-root="btc-prs"] [data-gpg-sub],
-[data-widget-root="btc-prs"] [data-btc-prs-source],
-[data-widget-root="btc-prs"] [data-btc-commits-source]{
-  overflow-wrap:anywhere !important;
-  word-break:break-word !important;
+/* Ordinary gray eyebrow only. */
+.btc-prs__eyebrow{
+  color:var(--bp-dim);
+  font-size:.64rem;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+/* Hero follows the same presentation as BTC Commits. */
+.btc-prs__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--bp-line);
+  border-bottom:1px solid var(--bp-line);
+}
+
+.btc-prs__hero>span{
+  color:var(--bp-dim);
+  font-size:.64rem;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+.btc-prs__hero>a{
+  min-width:0;
+  color:inherit;
+  text-decoration:none;
+}
+
+.btc-prs__hero strong{
+  display:block;
+  min-width:0;
+  color:var(--bp-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.05rem;
+  line-height:1.1;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__hero>a:hover strong{
+  color:var(--bp-gold);
+}
+
+.btc-prs__hero small{
+  color:var(--bp-muted);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* Standard four-up metric cards. */
+.btc-prs__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.btc-prs__metrics>div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--bp-line);
+  border-radius:6px;
+  background:var(--bp-panel);
+}
+
+.btc-prs__metrics span,
+.btc-prs__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__metrics span{
+  color:var(--bp-dim);
+  font-size:.64rem;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+.btc-prs__metrics strong{
+  margin-top:.1rem;
+  color:var(--bp-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+/* Standard filter controls. */
+.btc-prs__controls{
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) minmax(120px,auto);
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.btc-prs__controls input,
+.btc-prs__controls select{
+  width:100%;
+  min-width:0;
+  padding:.34rem .4rem;
+  border:1px solid var(--bp-line);
+  border-radius:5px;
+  background:#080808;
+  color:var(--bp-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.62rem;
+  outline:none;
+}
+
+.btc-prs__controls input:focus,
+.btc-prs__controls select:focus{
+  border-color:var(--bp-gold);
+}
+
+/* Standard readout header. */
+.btc-prs__readout-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  margin-top:.5rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--bp-line);
+}
+
+.btc-prs__readout-head>span{
+  color:var(--bp-dim);
+  font-size:.64rem;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+.btc-prs__readout-head strong{
+  color:var(--bp-muted);
+  font-size:.62rem;
+  font-weight:500;
+}
+
+/* Plain scroll area — no grid background or special ledger chrome. */
+.btc-prs__scroll{
+  max-height:270px;
+  margin-top:.3rem;
+  overflow:auto;
+  scrollbar-width:thin;
+}
+
+/* Same row-card treatment as BTC Commits. */
+.btc-prs__item{
+  display:grid;
+  grid-template-columns:4.7rem minmax(0,1fr) auto;
+  gap:.45rem;
+  align-items:start;
+  min-width:0;
+  padding:.34rem .4rem;
+  margin:.28rem 0;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:5px;
+  background:#080808;
+}
+
+/* Explicitly kill the old v10.37 state stripe if stale selectors remain. */
+.btc-prs__item::before{
+  content:none!important;
+  display:none!important;
+}
+
+.btc-prs__number{
+  color:var(--bp-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.62rem;
+  white-space:nowrap;
+}
+
+.btc-prs__body{
+  min-width:0;
+}
+
+.btc-prs__title{
+  display:block;
+  min-width:0;
+  color:var(--bp-muted);
+  font-size:.62rem;
+  text-decoration:none;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__title:hover{
+  color:var(--bp-gold);
+  text-decoration:underline;
+}
+
+.btc-prs__meta{
+  margin-top:.08rem;
+  color:var(--bp-dim);
+  font-size:.56rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* State is informational text only, not a separate visual theme. */
+.btc-prs__state{
+  justify-self:end;
+  color:var(--bp-dim);
+  font-size:.56rem;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.btc-prs__state[data-state="open"]{
+  color:var(--bp-green);
+}
+
+.btc-prs__state[data-state="merged"]{
+  color:var(--bp-muted);
+}
+
+.btc-prs__state[data-state="closed"]{
+  color:var(--bp-dim);
+}
+
+/* Standard footer. */
+.btc-prs__footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
+  margin-top:.46rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--bp-line);
+  color:var(--bp-muted);
+  font-size:.65rem;
+}
+
+.btc-prs__footer>span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* Host-layout protection retained because the widget core globally sets
+   [data-widget-root] to flex. */
+[data-widget-root="btc-prs"] svg{
+  width:100%!important;
+  max-width:100%!important;
+  height:100%!important;
+  display:block!important;
+}
+
+[data-widget-root="btc-prs"] [data-btc-prs-source]{
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+
+@media(max-width:720px){
+  .btc-prs__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:520px){
+  .btc-prs__controls{
+    grid-template-columns:1fr;
+  }
+
+  .btc-prs__item{
+    grid-template-columns:4.2rem minmax(0,1fr);
+  }
+
+  .btc-prs__state{
+    grid-column:2;
+    justify-self:start;
+  }
+}
+
+@media(max-width:420px){
+  .btc-prs__metrics{
+    grid-template-columns:1fr;
+  }
+
+  .btc-prs__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
 }
