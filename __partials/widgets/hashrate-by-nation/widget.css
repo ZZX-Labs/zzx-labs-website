@@ -767,3 +767,59 @@
     flex-direction:column;
   }
 }
+
+/* =========================================================
+   v10.57 CARD GEOMETRY FIX
+   Same rounded shell + same desktop vertical footprint.
+   ========================================================= */
+
+[data-widget-root="hashrate-by-nation"]{
+  --pm-card-height:1080px;
+  height:var(--pm-card-height)!important;
+  min-height:var(--pm-card-height)!important;
+  max-height:var(--pm-card-height)!important;
+  border-radius:10px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(192,214,116,.38) rgba(255,255,255,.025);
+}
+
+[data-widget-root="hashrate-by-nation"]::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+
+[data-widget-root="hashrate-by-nation"]::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.025);
+}
+
+[data-widget-root="hashrate-by-nation"]::-webkit-scrollbar-thumb{
+  background:rgba(192,214,116,.28);
+  border-radius:999px;
+}
+
+/* Large bounded regions use the same rounded nodes-by-* framing. */
+[data-widget-root="hashrate-by-nation"] .hbn__rank-chart,
+[data-widget-root="hashrate-by-nation"] .hbn__timeline,
+[data-widget-root="hashrate-by-nation"] .hbn__table-wrap{
+  border-radius:10px!important;
+  overflow:auto!important;
+}
+
+/* Metric tiles stay slightly tighter, like mining-rewards. */
+[data-widget-root="hashrate-by-nation"] .hbn__confidence-block,
+[data-widget-root="hashrate-by-nation"] .hbn__evidence-inline span,
+[data-widget-root="hashrate-by-nation"] .hbn__evidence>div,
+[data-widget-root="hashrate-by-nation"] .hbn__controls input,
+[data-widget-root="hashrate-by-nation"] .hbn__controls select{
+  border-radius:6px!important;
+}
+
+@media(max-width:720px){
+  [data-widget-root="hashrate-by-nation"]{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+}
