@@ -1,125 +1,100 @@
 <!-- __partials/widgets/hashrate/widget.html -->
-<div class="btc-card hashrate" data-widget-root="hashrate">
-  <div class="hashrate__header">
-    <div>
+<div class="btc-card hashrate hashrate--instrument" data-widget-root="hashrate">
+  <header class="hashrate__topline">
+    <div class="hashrate__identity">
+      <span class="hashrate__kicker">NETWORK / MINING</span>
       <div class="btc-card__title">Hashrate</div>
-      <div class="hashrate__eyebrow">Bitcoin mining · network hashrate history</div>
+      <span class="hashrate__scope">Bitcoin proof-of-work · live estimate</span>
+    </div>
+    <span class="btc-card__status hashrate__status" data-hr-status data-status="offline" aria-live="polite">loading</span>
+  </header>
+
+  <section class="hashrate__instrument">
+    <div class="hashrate__primary">
+      <span class="hashrate__label">CURRENT NETWORK HASHRATE</span>
+      <div class="hashrate__big">
+        <strong data-hr-zh>—</strong>
+        <span>ZH/s</span>
+      </div>
+      <div class="hashrate__secondary" data-hr-current-eh>— EH/s</div>
     </div>
 
-    <span
-      class="btc-card__status"
-      data-hr-status
-      data-status="offline"
-      aria-live="polite"
-    >loading</span>
-  </div>
+    <div class="hashrate__rail" aria-label="Hashrate window statistics">
+      <div><span>AVG</span><strong data-hr-average>—</strong></div>
+      <div><span>HIGH</span><strong data-hr-high>—</strong></div>
+      <div><span>LOW</span><strong data-hr-low>—</strong></div>
+      <div><span>Δ WINDOW</span><strong data-hr-change>—</strong></div>
+    </div>
+  </section>
 
-  <div class="hashrate__hero">
-    <span>current estimated network hashrate</span>
-    <strong><span data-hr-zh>—</span> <small>ZH/s</small></strong>
-    <em data-hr-current-eh>— EH/s</em>
-  </div>
+  <section class="hashrate__plot-section">
+    <div class="hashrate__plot-head">
+      <div class="hashrate__plot-title">
+        <span>HASHRATE HISTORY</span>
+        <strong data-hr-window-label>1 month</strong>
+      </div>
 
-  <div class="hashrate__metrics">
+      <div class="hashrate__ranges" role="group" aria-label="Hashrate chart range">
+        <button type="button" data-hr-range="1m" aria-pressed="true">1M</button>
+        <button type="button" data-hr-range="3m" aria-pressed="false">3M</button>
+        <button type="button" data-hr-range="6m" aria-pressed="false">6M</button>
+        <button type="button" data-hr-range="1y" aria-pressed="false">1Y</button>
+      </div>
+    </div>
+
+    <div class="hashrate__chart" data-hr-chart>
+      <svg viewBox="0 0 640 240" preserveAspectRatio="none" role="img" aria-label="Bitcoin network hashrate time series" data-hr-svg>
+        <g data-hr-grid></g>
+        <path data-hr-area d=""></path>
+        <path data-hr-line d=""></path>
+        <g data-hr-y-labels></g>
+        <g data-hr-x-labels></g>
+        <line data-hr-crosshair x1="0" y1="0" x2="0" y2="0"></line>
+        <circle data-hr-point cx="0" cy="0" r="4"></circle>
+      </svg>
+
+      <div class="hashrate__tooltip" data-hr-tooltip hidden>
+        <strong data-hr-tip-value>—</strong>
+        <span data-hr-tip-time>—</span>
+      </div>
+
+      <div class="hashrate__chart-empty" data-hr-chart-empty hidden>Hashrate history unavailable.</div>
+    </div>
+
+    <div class="hashrate__plot-foot">
+      <span data-hr-points>— samples</span>
+      <span data-hr-span>—</span>
+    </div>
+  </section>
+
+  <section class="hashrate__power-strip">
     <div>
-      <span>window average</span>
-      <strong data-hr-average>—</strong>
-    </div>
-    <div>
-      <span>window high</span>
-      <strong data-hr-high>—</strong>
-    </div>
-    <div>
-      <span>window low</span>
-      <strong data-hr-low>—</strong>
-    </div>
-    <div>
-      <span>window change</span>
-      <strong data-hr-change>—</strong>
-    </div>
-  </div>
-
-  <div class="hashrate__chart-head">
-    <div>
-      <span>Hashrate history</span>
-      <strong data-hr-window-label>1 month</strong>
-    </div>
-
-    <div class="hashrate__ranges" role="group" aria-label="Hashrate chart range">
-      <button type="button" data-hr-range="1m" aria-pressed="true">1M</button>
-      <button type="button" data-hr-range="3m" aria-pressed="false">3M</button>
-      <button type="button" data-hr-range="6m" aria-pressed="false">6M</button>
-      <button type="button" data-hr-range="1y" aria-pressed="false">1Y</button>
-    </div>
-  </div>
-
-  <div class="hashrate__chart" data-hr-chart>
-    <svg
-      viewBox="0 0 640 240"
-      preserveAspectRatio="none"
-      role="img"
-      aria-label="Bitcoin network hashrate time series"
-      data-hr-svg
-    >
-      <g data-hr-grid></g>
-      <path data-hr-area d=""></path>
-      <path data-hr-line d=""></path>
-      <g data-hr-y-labels></g>
-      <g data-hr-x-labels></g>
-      <line data-hr-crosshair x1="0" y1="0" x2="0" y2="0"></line>
-      <circle data-hr-point cx="0" cy="0" r="4"></circle>
-    </svg>
-
-    <div class="hashrate__tooltip" data-hr-tooltip hidden>
-      <strong data-hr-tip-value>—</strong>
-      <span data-hr-tip-time>—</span>
-    </div>
-
-    <div class="hashrate__chart-empty" data-hr-chart-empty hidden>
-      Hashrate history unavailable.
-    </div>
-  </div>
-
-  <div class="hashrate__chart-foot">
-    <span data-hr-points>— samples</span>
-    <span data-hr-span>—</span>
-  </div>
-
-  <div class="hashrate__details">
-    <div class="hashrate__detail-row">
-      <span>difficulty</span>
+      <span>DIFFICULTY</span>
       <strong data-hr-diff>—</strong>
     </div>
-    <div class="hashrate__detail-row">
-      <span>estimated power @ <span data-hr-eff>30</span> J/TH</span>
+    <div>
+      <span>POWER @ <b data-hr-eff>30</b> J/TH</span>
       <strong data-hr-power>—</strong>
     </div>
-    <div class="hashrate__detail-row">
-      <span>estimated energy / hour</span>
+    <div>
+      <span>ENERGY / HOUR</span>
       <strong data-hr-e1>—</strong>
     </div>
-    <div class="hashrate__detail-row">
-      <span>estimated energy / 24h</span>
+    <div>
+      <span>ENERGY / 24H</span>
       <strong data-hr-e24>—</strong>
     </div>
-    <div class="hashrate__detail-row">
-      <span>Tor-attributed hashrate</span>
-      <strong data-hr-tor>unavailable</strong>
-    </div>
-    <div class="hashrate__detail-row">
-      <span>updated</span>
-      <strong data-hr-updated>—</strong>
-    </div>
-    <div class="hashrate__detail-row">
-      <span>source</span>
-      <strong data-hr-source>—</strong>
-    </div>
-  </div>
+  </section>
 
-  <div class="hashrate__footer">
-    <span data-hr-sub>
-      loading hashrate history…
-    </span>
-    <button type="button" class="zzx-widgets__btn" data-hr-refresh>Refresh</button>
-  </div>
+  <footer class="hashrate__footer">
+    <div class="hashrate__source-line">
+      <span>TOR ATTRIBUTION</span><strong data-hr-tor>unavailable</strong>
+      <span>UPDATED</span><strong data-hr-updated>—</strong>
+      <span>SOURCE</span><strong data-hr-source>—</strong>
+    </div>
+    <div class="hashrate__footer-bottom">
+      <span data-hr-sub>loading hashrate history…</span>
+      <button type="button" class="zzx-widgets__btn hashrate__refresh" data-hr-refresh>REFRESH</button>
+    </div>
+  </footer>
 </div>
