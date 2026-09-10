@@ -1,0 +1,44 @@
+{
+  "schema": "zzx-global-power-grid-source-registry-v1",
+  "historical": [
+    {
+      "id": "cia-world-factbook",
+      "role": "historical_baseline",
+      "through_year": 2025,
+      "fields": [
+        "electricity_generation_kwh",
+        "electricity_consumption_kwh",
+        "installed_capacity_kw",
+        "generation_by_source_pct"
+      ]
+    }
+  ],
+  "live": [
+    {
+      "id": "electricitymaps",
+      "role": "live_grid_optional",
+      "requires": "API key or mirrored backend"
+    },
+    {
+      "id": "entsoe",
+      "role": "Europe_live_grid_optional",
+      "requires": "API token/backend"
+    },
+    {
+      "id": "eia",
+      "role": "US_live_grid_optional",
+      "requires": "API key/backend"
+    },
+    {
+      "id": "ember",
+      "role": "cross_country_generation_optional",
+      "requires": "backend/import"
+    },
+    {
+      "id": "ourworldindata",
+      "role": "historical_crosscheck_optional",
+      "requires": "backend/import"
+    }
+  ],
+  "policy": "Browser widget consumes normalized local JSON. Backend adapters may fetch provider APIs. Never fabricate unavailable observations."
+}

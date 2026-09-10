@@ -1,0 +1,121 @@
+<!-- __partials/widgets/global-power-grid/widget.html -->
+<div class="btc-card global-power-grid" data-widget-root="global-power-grid">
+  <div class="gpg__header">
+    <div>
+      <div class="btc-card__title">Global Power Grid</div>
+      <div class="gpg__eyebrow">national generation · demand · mix · timezone load · mining ceiling</div>
+    </div>
+    <span class="btc-card__status" data-gpg-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="gpg__hero">
+    <span>observed / derived global electricity demand</span>
+    <strong data-gpg-global-load>—</strong>
+    <em data-gpg-global-generation>generation —</em>
+  </div>
+
+  <div class="gpg__metrics">
+    <div><span>countries represented</span><strong data-gpg-country-count>—</strong></div>
+    <div><span>24h peak demand</span><strong data-gpg-peak>—</strong></div>
+    <div><span>24h low demand</span><strong data-gpg-low>—</strong></div>
+    <div><span>data coverage</span><strong data-gpg-coverage>—</strong></div>
+  </div>
+
+  <div class="gpg__section-head">
+    <div><span>Global 24h load profile</span><strong data-gpg-profile-label>hourly UTC aggregate</strong></div>
+    <span>generation · load · spare/headroom</span>
+  </div>
+
+  <div class="gpg__chart gpg__chart--profile" data-gpg-profile-chart>
+    <svg viewBox="0 0 640 250" preserveAspectRatio="none" role="img" aria-label="Global electricity generation and demand over 24 hours">
+      <g data-gpg-profile-grid></g>
+      <path data-gpg-generation-line d=""></path>
+      <path data-gpg-load-line d=""></path>
+      <path data-gpg-spare-line d=""></path>
+      <g data-gpg-profile-y></g>
+      <g data-gpg-profile-x></g>
+      <line data-gpg-crosshair x1="0" y1="0" x2="0" y2="0"></line>
+    </svg>
+    <div class="gpg__tooltip" data-gpg-tooltip hidden>
+      <strong data-gpg-tip-time>—</strong>
+      <span data-gpg-tip-generation>—</span>
+      <span data-gpg-tip-load>—</span>
+      <span data-gpg-tip-spare>—</span>
+    </div>
+    <div class="gpg__empty" data-gpg-profile-empty hidden>No hourly grid observations available.</div>
+  </div>
+
+  <div class="gpg__legend">
+    <span><i></i>generation</span>
+    <span><i></i>load</span>
+    <span><i></i>surplus/headroom</span>
+  </div>
+
+  <div class="gpg__section-head">
+    <div><span>Generation mix</span><strong data-gpg-mix-total>—</strong></div>
+    <span>latest verified country observations / historical fallback</span>
+  </div>
+
+  <div class="gpg__mix" data-gpg-mix></div>
+
+  <div class="gpg__section-head">
+    <div><span>Power by timezone</span><strong data-gpg-timezone-count>—</strong></div>
+    <span>local-time load · peak/off-peak · mining window context</span>
+  </div>
+
+  <div class="gpg__timezone-chart" data-gpg-timezone-chart>
+    <svg viewBox="0 0 640 300" preserveAspectRatio="none" role="img" aria-label="Electric power consumption by timezone and local hour">
+      <g data-gpg-tz-grid></g>
+      <g data-gpg-tz-rows></g>
+      <g data-gpg-tz-x></g>
+    </svg>
+    <div class="gpg__empty" data-gpg-tz-empty hidden>No timezone load curves available.</div>
+  </div>
+
+  <div class="gpg__section-head">
+    <div><span>Nation power ranking</span><strong data-gpg-visible-count>—</strong></div>
+    <span>all ISO countries · scroll to browse</span>
+  </div>
+
+  <div class="gpg__controls">
+    <input type="search" data-gpg-search placeholder="filter nation / ISO / timezone" aria-label="Filter nations" autocomplete="off" spellcheck="false">
+    <select data-gpg-sort aria-label="Sort nations">
+      <option value="generation-desc">Generation ↓</option>
+      <option value="load-desc">Demand ↓</option>
+      <option value="capacity-desc">Capacity ↓</option>
+      <option value="headroom-desc">Headroom ↓</option>
+      <option value="ceiling-desc">Mining ceiling ↓</option>
+      <option value="nation">Nation A–Z</option>
+    </select>
+    <select data-gpg-period aria-label="Power period">
+      <option value="hour">Hour</option>
+      <option value="day" selected>Day</option>
+      <option value="week">Week</option>
+      <option value="month">Month</option>
+      <option value="year">Year</option>
+    </select>
+  </div>
+
+  <div class="gpg__table-wrap" data-gpg-scroll>
+    <table class="gpg__table">
+      <thead>
+        <tr>
+          <th>Nation</th>
+          <th>Generation</th>
+          <th>Demand</th>
+          <th>Peak</th>
+          <th>Capacity</th>
+          <th>Headroom</th>
+          <th>Absolute Mining Ceiling</th>
+          <th>Source / Year</th>
+        </tr>
+      </thead>
+      <tbody data-gpg-body></tbody>
+    </table>
+  </div>
+
+  <div class="gpg__footer">
+    <span data-gpg-sub>loading power-grid dataset…</span>
+    <button type="button" class="zzx-widgets__btn" data-gpg-refresh>Refresh</button>
+  </div>
+</div>
