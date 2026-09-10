@@ -929,3 +929,105 @@
     flex-direction:column;
   }
 }
+
+/* =========================================================
+   v10.57 CARD GEOMETRY + COLLAPSIBLE CHART FIX
+   Same rounded shell + same desktop vertical footprint.
+   ========================================================= */
+
+[data-widget-root="global-power-grid"]{
+  --pm-card-height:1080px;
+  height:var(--pm-card-height)!important;
+  min-height:var(--pm-card-height)!important;
+  max-height:var(--pm-card-height)!important;
+  border-radius:10px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(192,214,116,.38) rgba(255,255,255,.025);
+}
+
+[data-widget-root="global-power-grid"]::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+
+[data-widget-root="global-power-grid"]::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.025);
+}
+
+[data-widget-root="global-power-grid"]::-webkit-scrollbar-thumb{
+  background:rgba(192,214,116,.28);
+  border-radius:999px;
+}
+
+/* Large bounded regions use the same rounded nodes-by-* framing. */
+[data-widget-root="global-power-grid"] .gpg__chart,
+[data-widget-root="global-power-grid"] .gpg__history-chart,
+[data-widget-root="global-power-grid"] .gpg__timezone-chart,
+[data-widget-root="global-power-grid"] .gpg__table-wrap,
+[data-widget-root="global-power-grid"] .gpg__history-table-wrap{
+  border-radius:10px!important;
+  overflow:auto!important;
+}
+
+/*
+  CSS-only collapsibility for GPG charts:
+  - default compact height
+  - drag vertically smaller/larger when desired
+  - horizontal/vertical scrollability remains active
+  - the SVG canvas keeps its minimum width
+*/
+[data-widget-root="global-power-grid"] .gpg__chart,
+[data-widget-root="global-power-grid"] .gpg__history-chart{
+  height:220px!important;
+  min-height:120px!important;
+  max-height:320px!important;
+  resize:vertical;
+  overflow:auto!important;
+}
+
+[data-widget-root="global-power-grid"] .gpg__timezone-chart{
+  height:240px!important;
+  min-height:140px!important;
+  max-height:360px!important;
+  resize:vertical;
+  overflow:auto!important;
+}
+
+/* Make the browser resize affordance visible but restrained. */
+[data-widget-root="global-power-grid"] .gpg__chart::after,
+[data-widget-root="global-power-grid"] .gpg__history-chart::after,
+[data-widget-root="global-power-grid"] .gpg__timezone-chart::after{
+  pointer-events:none;
+}
+
+/* Metric/control corners stay consistent with mining-rewards. */
+[data-widget-root="global-power-grid"] .gpg__telemetry>div,
+[data-widget-root="global-power-grid"] .gpg__mix-item,
+[data-widget-root="global-power-grid"] .gpg__controls input,
+[data-widget-root="global-power-grid"] .gpg__controls select,
+[data-widget-root="global-power-grid"] .gpg__history-controls select{
+  border-radius:6px!important;
+}
+
+@media(max-width:720px){
+  [data-widget-root="global-power-grid"]{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+
+  [data-widget-root="global-power-grid"] .gpg__chart,
+  [data-widget-root="global-power-grid"] .gpg__history-chart{
+    height:210px!important;
+    min-height:120px!important;
+    max-height:300px!important;
+  }
+
+  [data-widget-root="global-power-grid"] .gpg__timezone-chart{
+    height:230px!important;
+    min-height:140px!important;
+    max-height:330px!important;
+  }
+}
