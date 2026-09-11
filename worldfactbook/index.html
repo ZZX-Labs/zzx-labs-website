@@ -1,1 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>World Factbook | ZZX-Labs</title>
+  <meta name="description" content="ZZX-Labs historical World Factbook portal, preserving and unifying archived editions from 1962 through 2025.">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
+  <div class="wfb-shell" data-wfb-root>
+    <header class="wfb-topbar">
+      <div class="wfb-brand">
+        <a class="wfb-brand__home" href="/" aria-label="ZZX-Labs home">ZZX-LABS</a>
+        <span class="wfb-brand__slash" aria-hidden="true">/</span>
+        <span class="wfb-brand__product">WORLD FACTBOOK</span>
+      </div>
+
+      <nav class="wfb-topnav" aria-label="World Factbook links">
+        <a href="./api/portal-index.json">API</a>
+        <a href="./README.md">README</a>
+        <a href="#sources" data-wfb-nav-sources>Sources</a>
+      </nav>
+    </header>
+
+    <main id="main" class="wfb-main">
+      <section class="wfb-hero" aria-labelledby="wfb-title">
+        <div class="wfb-hero__copy">
+          <div class="wfb-label">HISTORICAL PUBLIC ARCHIVE</div>
+          <h1 id="wfb-title">World Factbook</h1>
+          <p>
+            A unified historical portal for archived editions of <em>The World Factbook</em>,
+            reconstructed across 1962–2025 with edition provenance, category text,
+            images, OCR, citations, and source attribution.
+          </p>
+        </div>
+
+        <div class="wfb-status" role="status" aria-live="polite">
+          <span class="wfb-status__dot" data-wfb-status-dot></span>
+          <span data-wfb-status>Loading archive index…</span>
+        </div>
+      </section>
+
+      <section class="wfb-metrics" aria-label="Archive statistics">
+        <div class="wfb-metric">
+          <span>EDITIONS</span>
+          <strong data-wfb-stat-editions>—</strong>
+          <small>available / indexed</small>
+        </div>
+        <div class="wfb-metric">
+          <span>TEXT CHUNKS</span>
+          <strong data-wfb-stat-chunks>—</strong>
+          <small>normalized corpus rows</small>
+        </div>
+        <div class="wfb-metric">
+          <span>IMAGES</span>
+          <strong data-wfb-stat-images>—</strong>
+          <small>extracted + OCR indexed</small>
+        </div>
+        <div class="wfb-metric">
+          <span>SOURCES</span>
+          <strong data-wfb-stat-sources>—</strong>
+          <small>archival source records</small>
+        </div>
+      </section>
+
+      <section class="wfb-timeline-panel" aria-labelledby="timeline-title">
+        <div class="wfb-section-head">
+          <div>
+            <span>ARCHIVE RANGE</span>
+            <strong id="timeline-title">1962—2025</strong>
+          </div>
+          <div class="wfb-timeline-legend">
+            <span><i class="is-available"></i> available</span>
+            <span><i class="is-missing"></i> unresolved</span>
+          </div>
+        </div>
+
+        <div class="wfb-timeline" data-wfb-timeline role="list" aria-label="Edition years"></div>
+      </section>
+
+      <section class="wfb-console">
+        <aside class="wfb-sidebar" aria-label="Archive filters">
+          <div class="wfb-sidebar__section">
+            <div class="wfb-label">EDITION</div>
+            <label class="wfb-field">
+              <span>Year</span>
+              <select data-wfb-year aria-label="Edition year"></select>
+            </label>
+
+            <label class="wfb-field">
+              <span>Compare with</span>
+              <select data-wfb-compare-year aria-label="Comparison edition year">
+                <option value="">None</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="wfb-sidebar__section">
+            <div class="wfb-label">FILTER</div>
+
+            <label class="wfb-field">
+              <span>Entity / country</span>
+              <select data-wfb-entity>
+                <option value="">All entities</option>
+              </select>
+            </label>
+
+            <label class="wfb-field">
+              <span>Category</span>
+              <select data-wfb-category></select>
+            </label>
+
+            <label class="wfb-field">
+              <span>Visual type</span>
+              <select data-wfb-visual>
+                <option value="">All visual types</option>
+              </select>
+            </label>
+
+            <label class="wfb-field">
+              <span>Search loaded records</span>
+              <input
+                type="search"
+                data-wfb-search
+                placeholder="population, energy, railways…"
+                autocomplete="off"
+                spellcheck="false"
+              >
+            </label>
+          </div>
+
+          <div class="wfb-sidebar__section">
+            <div class="wfb-label">EDITION HEALTH</div>
+            <dl class="wfb-health">
+              <div><dt>Status</dt><dd data-wfb-health-status>—</dd></div>
+              <div><dt>Chunks</dt><dd data-wfb-health-chunks>—</dd></div>
+              <div><dt>Categories</dt><dd data-wfb-health-categories>—</dd></div>
+              <div><dt>Images</dt><dd data-wfb-health-images>—</dd></div>
+              <div><dt>Sources</dt><dd data-wfb-health-sources>—</dd></div>
+            </dl>
+          </div>
+
+          <div class="wfb-sidebar__section wfb-sidebar__note">
+            <div class="wfb-label">ARCHIVE POLICY</div>
+            <p>
+              Missing editions and credits are shown as unavailable rather than inferred.
+              Image credits are only displayed when explicitly recovered from source material.
+            </p>
+          </div>
+        </aside>
+
+        <div class="wfb-workspace">
+          <header class="wfb-workspace__head">
+            <div>
+              <div class="wfb-label" data-wfb-edition-label>EDITION</div>
+              <h2 data-wfb-view-title>Loading…</h2>
+              <p data-wfb-view-subtitle>Reading local archive contracts.</p>
+            </div>
+
+            <div class="wfb-workspace__tools">
+              <button type="button" class="wfb-button" data-wfb-copy-link>Copy view link</button>
+              <button type="button" class="wfb-button" data-wfb-refresh>Refresh</button>
+            </div>
+          </header>
+
+          <div class="wfb-tabs" role="tablist" aria-label="World Factbook views">
+            <button type="button" role="tab" aria-selected="true" data-wfb-tab="text">Text</button>
+            <button type="button" role="tab" aria-selected="false" data-wfb-tab="media">Media</button>
+            <button type="button" role="tab" aria-selected="false" data-wfb-tab="sources">Sources</button>
+            <button type="button" role="tab" aria-selected="false" data-wfb-tab="compare">Compare</button>
+          </div>
+
+          <section class="wfb-view" data-wfb-panel="text" role="tabpanel">
+            <div class="wfb-results-head">
+              <span data-wfb-result-count>0 records</span>
+              <span data-wfb-result-context></span>
+            </div>
+            <div class="wfb-text-stream" data-wfb-text-stream></div>
+            <div class="wfb-loadmore-wrap" data-wfb-loadmore-wrap hidden>
+              <button type="button" class="wfb-button wfb-button--wide" data-wfb-loadmore>
+                Load more records
+              </button>
+            </div>
+          </section>
+
+          <section class="wfb-view" data-wfb-panel="media" role="tabpanel" hidden>
+            <div class="wfb-results-head">
+              <span data-wfb-media-count>0 images</span>
+              <span>OCR + recovered source attribution</span>
+            </div>
+            <div class="wfb-media-grid" data-wfb-media-grid></div>
+          </section>
+
+          <section class="wfb-view" id="sources" data-wfb-panel="sources" role="tabpanel" hidden>
+            <div class="wfb-results-head">
+              <span data-wfb-source-count>0 sources</span>
+              <span>Edition provenance</span>
+            </div>
+            <div class="wfb-source-list" data-wfb-source-list></div>
+          </section>
+
+          <section class="wfb-view" data-wfb-panel="compare" role="tabpanel" hidden>
+            <div class="wfb-compare-head">
+              <div>
+                <span data-wfb-compare-left-label>Primary edition</span>
+                <strong data-wfb-compare-left-year>—</strong>
+              </div>
+              <div>
+                <span>Comparison edition</span>
+                <strong data-wfb-compare-right-year>—</strong>
+              </div>
+            </div>
+            <div class="wfb-compare-grid">
+              <div class="wfb-compare-column" data-wfb-compare-left></div>
+              <div class="wfb-compare-column" data-wfb-compare-right></div>
+            </div>
+          </section>
+
+          <div class="wfb-empty" data-wfb-empty hidden>
+            <strong>No matching archive records.</strong>
+            <span>Change the edition, category, entity, or search query.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="wfb-about">
+        <div>
+          <div class="wfb-label">ABOUT THIS PORTAL</div>
+          <h2>One historical interface, sixty-four editions.</h2>
+        </div>
+        <div class="wfb-about__body">
+          <p>
+            ZZX-Labs preserves the archived public-domain World Factbook corpus as structured,
+            edition-specific data. Original source provenance remains attached to every normalized
+            text chunk and recovered image.
+          </p>
+          <p>
+            OCR and image-recognition metadata improve discovery, but do not replace historical
+            attribution. Where the source does not contain a recoverable image credit, this portal
+            says so explicitly.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wfb-footer">
+      <span>ZZX-Labs R&amp;D · World Factbook Archive</span>
+      <span data-wfb-generated>Archive index unavailable</span>
+    </footer>
+  </div>
+
+  <dialog class="wfb-dialog" data-wfb-dialog>
+    <form method="dialog" class="wfb-dialog__close-row">
+      <button type="submit" class="wfb-button">Close</button>
+    </form>
+    <div class="wfb-dialog__content">
+      <div class="wfb-dialog__image-wrap">
+        <img data-wfb-dialog-image alt="">
+      </div>
+      <div class="wfb-dialog__meta">
+        <div class="wfb-label">ARCHIVE IMAGE</div>
+        <h2 data-wfb-dialog-title>Image</h2>
+        <p data-wfb-dialog-caption></p>
+        <dl class="wfb-dialog__facts" data-wfb-dialog-facts></dl>
+        <div class="wfb-citation-box">
+          <span>Citation</span>
+          <p data-wfb-dialog-citation></p>
+          <button type="button" class="wfb-button" data-wfb-copy-citation>Copy citation</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <noscript>
+    <div class="wfb-noscript">
+      This archive portal requires JavaScript to load the static JSON edition contracts.
+    </div>
+  </noscript>
+
+  <script src="./worldfactbook.js"></script>
+  <script src="./script.js"></script>
+</body>
+</html>
