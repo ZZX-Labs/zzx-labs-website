@@ -1,0 +1,228 @@
+name: ZZX-Bitnodes Crawler
+
+run-name: >-
+  ZZX-Bitnodes Crawler / ${{ github.event_name }} / run-${{ github.run_number }}
+
+on:
+  schedule:
+    # Preserve the existing production cadence: hourly except the deep-crawl window.
+    - cron: "7 0-2,5-23 * * *"
+    # Daily deep crawl; 04:00 UTC remains reserved so the deep run can finish.
+    - cron: "23 3 * * *"
+
+  workflow_dispatch:
+    inputs:
+      crawl_profile:
+        description: "Global crawler profile"
+        required: false
+        default: "hourly"
+        type: choice
+        options:
+          - hourly
+          - deep
+      run_ayeowch_compat:
+        description: "Run optional Ayeowch compatibility crawler after production publication"
+        required: false
+        default: false
+        type: boolean
+      map_max_points:
+        description: "Maximum real-coordinate node points published to each public map"
+        required: false
+        default: "5000"
+        type: string
+      include_ayeowch_map:
+        description: "Build optional Ayeowch compatibility map when a real-coordinate snapshot exists"
+        required: false
+        default: false
+        type: boolean
+      enable_registry_backup:
+        description: "Attempt private zzxbitnodesglobalregistry backup after the public crawler succeeds"
+        required: false
+        default: true
+        type: boolean
+
+  workflow_call:
+    inputs:
+      crawl_profile:
+        description: "Global crawler profile"
+        required: false
+        type: string
+        default: "hourly"
+      run_ayeowch_compat:
+        description: "Run optional Ayeowch compatibility crawler after production publication"
+        required: false
+        type: boolean
+        default: false
+      map_max_points:
+        description: "Maximum real-coordinate node points published to each public map"
+        required: false
+        type: string
+        default: "5000"
+      include_ayeowch_map:
+        description: "Build optional Ayeowch compatibility map when a real-coordinate snapshot exists"
+        required: false
+        type: boolean
+        default: false
+      enable_registry_backup:
+        description: "Attempt private registry backup"
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      BITNODES_BACKUP_REPO:
+        required: false
+      BITNODES_BACKUP_TOKEN:
+        required: false
+      BITNODES_REGISTRY_PAT:
+        required: false
+      BITNODES_REGISTRY_SSH_KEY:
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-bitnodes-crawler-wrapper
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Resolve Bitnodes Crawl Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      crawl_profile: ${{ steps.plan.outputs.crawl_profile }}
+    steps:
+      - name: Resolve hourly or deep profile
+        id: plan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule || '' }}
+          INPUT_PROFILE: ${{ inputs.crawl_profile || 'hourly' }}
+        run: |
+          set -euo pipefail
+
+          PROFILE="${INPUT_PROFILE}"
+
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            if [ "${EVENT_SCHEDULE}" = "23 3 * * *" ]; then
+              PROFILE="deep"
+            else
+              PROFILE="hourly"
+            fi
+          fi
+
+          case "${PROFILE}" in
+            hourly|deep)
+              ;;
+            *)
+              printf '%s\n' "Unsupported Bitnodes crawl profile: ${PROFILE}"
+              exit 1
+              ;;
+          esac
+
+          printf '%s\n' "crawl_profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "ZZX-Bitnodes wrapper selected profile=${PROFILE}."
+
+  snapshot_mirror:
+    name: btcnodes.io Snapshot Mirror
+    needs:
+      - plan
+    uses: ./.github/workflows/bitnodes-latest.yml
+
+  global_crawler:
+    name: ZZX Global Node Crawler
+    needs:
+      - plan
+      - snapshot_mirror
+    uses: ./.github/workflows/bitnodes-global-crawler.yml
+    with:
+      crawl_profile: ${{ needs.plan.outputs.crawl_profile }}
+      run_ayeowch_compat: ${{ inputs.run_ayeowch_compat || false }}
+    secrets:
+      BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
+      BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
+
+  map_host:
+    name: Bitnodes Map Host
+    needs:
+      - global_crawler
+    uses: ./.github/workflows/bitnodes-maphost.yml
+    with:
+      max_points: ${{ inputs.map_max_points || '5000' }}
+      include_ayeowch_compat: ${{ inputs.include_ayeowch_map || false }}
+
+  registry_backup:
+    name: Private Bitnodes Registry Backup
+    if: ${{ github.event_name == 'schedule' || inputs.enable_registry_backup }}
+    needs:
+      - global_crawler
+    uses: ./.github/workflows/bitnodes-registry-backup.yml
+    secrets:
+      BITNODES_REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
+      BITNODES_REGISTRY_SSH_KEY: ${{ secrets.BITNODES_REGISTRY_SSH_KEY }}
+
+  wrapper_status:
+    name: Bitnodes Wrapper Status
+    if: ${{ always() }}
+    needs:
+      - plan
+      - snapshot_mirror
+      - global_crawler
+      - map_host
+      - registry_backup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report child workflow results
+        shell: bash
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          SNAPSHOT_RESULT: ${{ needs.snapshot_mirror.result }}
+          CRAWLER_RESULT: ${{ needs.global_crawler.result }}
+          MAPHOST_RESULT: ${{ needs.map_host.result }}
+          REGISTRY_RESULT: ${{ needs.registry_backup.result }}
+          REGISTRY_STATUS: ${{ needs.registry_backup.outputs.backup_status }}
+        run: |
+          set -euo pipefail
+
+          printf '%s\n' \
+            "ZZX-Bitnodes Crawler child results:" \
+            "  plan=${PLAN_RESULT}" \
+            "  snapshot_mirror=${SNAPSHOT_RESULT}" \
+            "  global_crawler=${CRAWLER_RESULT}" \
+            "  map_host=${MAPHOST_RESULT}" \
+            "  registry_backup=${REGISTRY_RESULT}" \
+            "  registry_status=${REGISTRY_STATUS:-not-run}"
+
+          failed=0
+
+          for result in \
+            "${PLAN_RESULT}" \
+            "${SNAPSHOT_RESULT}" \
+            "${CRAWLER_RESULT}" \
+            "${MAPHOST_RESULT}"
+          do
+            if [ "${result}" != "success" ]; then
+              failed=1
+            fi
+          done
+
+          # The registry is a private backup sink. Authentication trouble is
+          # intentionally isolated from all public Bitnodes artifacts.
+          if [ "${REGISTRY_RESULT}" = "failure" ] || [ "${REGISTRY_RESULT}" = "cancelled" ]; then
+            failed=1
+          fi
+
+          if [ "${REGISTRY_STATUS:-}" = "skipped-auth" ]; then
+            printf '%s\n' \
+              "::warning title=Bitnodes private registry auth::Registry backup was skipped because no valid private-repo credential was available. Public API, maps, live-map, subpages, and widgets completed independently."
+          fi
+
+          if (( failed )); then
+            printf '%s\n' "One or more required Bitnodes child workflows failed or were cancelled."
+            exit 1
+          fi
+
+          printf '%s\n' "All required public Bitnodes workflows completed successfully."
