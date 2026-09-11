@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window,D=document,ID="fees";
-  const UNIT_KEY="zzx.widget.fees.unit.v2";
+  const UNIT_KEY="zzx.widget.fees.unit.v3";
 
   function q(root,sel){return root?root.querySelector(sel):null}
   function qa(root,sel){return root?[...root.querySelectorAll(sel)]:[]}
@@ -28,17 +28,23 @@
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/fees";
 
-    for(const [globalName,relative] of [
-      ["ZZXFeesSources","js/sources.js"],
-      ["ZZXFeesFetch","js/fetch.js"],
-      ["ZZXFeesEstimator","js/estimator.js"]
+    for(const [globalName,minVersion,relative] of [
+      ["ZZXFeesSources",2,"js/sources.js"],
+      ["ZZXFeesFetch",2,"js/fetch.js"],
+      ["ZZXFeesEstimator",3,"js/estimator.js"]
     ]){
-      if(W[globalName])continue;
-      const src=W.ZZXAPI?.url?W.ZZXAPI.url(`${base}/${relative}`):`${base}/${relative}`;
+      if(Number(W[globalName]?.__version||0)>=minVersion)continue;
+
+      const src=W.ZZXAPI?.url
+        ? W.ZZXAPI.url(`${base}/${relative}?v=${minVersion}`)
+        : `${base}/${relative}?v=${minVersion}`;
+
       await new Promise((resolve,reject)=>{
         const s=D.createElement("script");
-        s.src=src;s.defer=true;
-        s.onload=resolve;s.onerror=reject;
+        s.src=src;
+        s.defer=true;
+        s.onload=resolve;
+        s.onerror=reject;
         (D.head||D.documentElement).appendChild(s);
       });
     }
@@ -63,7 +69,10 @@
       return Math.round(v).toLocaleString();
     }
 
-    return Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
+    return Number(v).toLocaleString(undefined,{
+      minimumFractionDigits:Number.isInteger(v)?0:2,
+      maximumFractionDigits:2
+    });
   }
 
   function rangeText(r,unit){
@@ -73,9 +82,19 @@
     return lo===hi?lo:`${lo}–${hi}`;
   }
 
+  function timeText(minutes){
+    const n=Math.round(Number(minutes));
+    if(!Number.isFinite(n))return "—";
+    if(n<60)return `~${n} min`;
+    if(n%1440===0)return `~${n/1440} d`;
+    if(n%60===0)return `~${n/60} h`;
+    return `~${Math.floor(n/60)}h ${n%60}m`;
+  }
+
   function updateUnitLabels(root,state){
     const label=unitSpec(state).label;
-    q(root,"[data-fees-unit]").textContent=label;
+    const button=q(root,"[data-fees-unit]");
+    if(button)button.textContent=label;
     qa(root,"[data-fees-unit-text]").forEach(el=>el.textContent=label);
   }
 
@@ -83,27 +102,68 @@
     if(!state.model)return;
 
     const vbytes=Number(q(root,"[data-fees-vbytes]")?.value);
-    const tier=q(root,"[data-fees-tier]")?.value||"fast";
-    const rate=state.model.tiers[tier];
-    const out=W.ZZXFeesEstimator.transaction(vbytes,rate,state.priceUsd);
+    const requestedMinutes=Number(q(root,"[data-fees-time]")?.value);
+    const confirmations=Number(q(root,"[data-fees-confirmations]")?.value);
+    const policy=q(root,"[data-fees-tier]")?.value||"auto";
+
+    const plan=W.ZZXFeesEstimator.plan(
+      state.model,
+      requestedMinutes,
+      confirmations,
+      policy
+    );
+
+    const out=plan
+      ? W.ZZXFeesEstimator.transaction(vbytes,plan.rateSatVB,state.priceUsd)
+      : null;
 
     const main=q(root,"[data-fees-estimate]");
     const sub=q(root,"[data-fees-estimate-usd]");
+    const planEl=q(root,"[data-fees-estimate-plan]");
 
-    if(!out){
-      main.textContent="—";
-      sub.textContent="invalid estimator input";
+    if(!out||!plan){
+      if(main)main.textContent="—";
+      if(sub)sub.textContent="invalid estimator input";
+      if(planEl)planEl.textContent="—";
       return;
     }
 
-    main.textContent=`${out.sats.toLocaleString()} sat · ${out.btc.toFixed(8)} BTC`;
-    sub.textContent=Number.isFinite(out.usd)
-      ? out.usd.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2})
-      : "USD unavailable";
+    if(main){
+      main.textContent=
+        `${out.sats.toLocaleString()} sat · ${out.btc.toFixed(8)} BTC · `+
+        `${fmtRate(plan.rateSatVB,"sat")} sat/vB`;
+    }
+
+    if(sub){
+      sub.textContent=Number.isFinite(out.usd)
+        ? out.usd.toLocaleString(undefined,{
+            style:"currency",
+            currency:"USD",
+            maximumFractionDigits:2
+          })
+        : "USD unavailable";
+    }
+
+    if(planEl){
+      if(policy==="auto"){
+        const constraint=plan.constrained
+          ? ` · requested ${timeText(plan.requestedTotalMinutes)} is below the ~${timeText(plan.minimumPracticalMinutes).replace(/^~/,"")} ${plan.confirmations}-confirmation block-time floor`
+          : "";
+
+        planEl.textContent=
+          `auto · ${plan.confirmations} conf · first confirmation target ${timeText(plan.firstConfirmationTargetMinutes)} · `+
+          `${plan.bandLabel}${constraint}`;
+      }else{
+        planEl.textContent=
+          `manual ${plan.bandLabel} · ${plan.confirmations} conf requested · `+
+          `network inclusion still depends on mempool and block production`;
+      }
+    }
   }
 
   function renderTable(root,state){
     const body=q(root,"[data-fees-body]");
+    if(!body)return;
     body.replaceChildren();
 
     const labels=[
@@ -148,21 +208,44 @@
 
     updateUnitLabels(root,state);
 
-    q(root,"[data-fees-fast]").textContent=fmtRate(state.model.mean,state.unit);
-    q(root,"[data-fees-instant]").textContent=fmtRate(state.model.tiers.instant,state.unit);
-    q(root,"[data-fees-30m]").textContent=fmtRate(state.model.tiers.fast,state.unit);
-    q(root,"[data-fees-1h]").textContent=fmtRate(state.model.tiers.low,state.unit);
-    q(root,"[data-fees-min]").textContent=fmtRate(state.model.tiers.min,state.unit);
+    const hero=q(root,"[data-fees-fast]");
+    if(hero)hero.textContent=fmtRate(state.model.mean,state.unit);
 
-    q(root,"[data-fees-price]").textContent=Number.isFinite(state.priceUsd)
-      ? `BTC/USD ${state.priceUsd.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0})}`
-      : "BTC/USD —";
+    const instant=q(root,"[data-fees-instant]");
+    if(instant)instant.textContent=fmtRate(state.model.tiers.instant,state.unit);
 
-    q(root,"[data-fees-sub]").textContent=
-      "mean of fastest, 30m, 1h, economy, and minimum recommendations";
+    const fast=q(root,"[data-fees-30m]");
+    if(fast)fast.textContent=fmtRate(state.model.tiers.fast,state.unit);
 
-    q(root,"[data-fees-meta]").textContent=
-      `${state.feeSource||"configured mempool API"} · ${state.priceSource||"ZZX BPI"} · recommendations are estimates`;
+    const low=q(root,"[data-fees-1h]");
+    if(low)low.textContent=fmtRate(state.model.tiers.low,state.unit);
+
+    const min=q(root,"[data-fees-min]");
+    if(min)min.textContent=fmtRate(state.model.tiers.min,state.unit);
+
+    const price=q(root,"[data-fees-price]");
+    if(price){
+      price.textContent=Number.isFinite(state.priceUsd)
+        ? `BTC/USD ${state.priceUsd.toLocaleString(undefined,{
+            style:"currency",
+            currency:"USD",
+            maximumFractionDigits:0
+          })}`
+        : "BTC/USD —";
+    }
+
+    const sub=q(root,"[data-fees-sub]");
+    if(sub){
+      sub.textContent=
+        "mean of five normalized mempool recommendations · strict monotonic ladder";
+    }
+
+    const meta=q(root,"[data-fees-meta]");
+    if(meta){
+      meta.textContent=
+        `${state.feeSource||"configured mempool API"} · ${state.priceSource||"ZZX BPI"} · `+
+        `0.01 sat/vB tie spacing · tx fees round up to whole sats`;
+    }
 
     renderTable(root,state);
     renderEstimator(root,state);
@@ -186,12 +269,15 @@
       state.priceUsd=price.value;
       state.priceSource=price.source;
 
-      if(!state.model.sourceValues.length)throw new Error("recommended fee payload contained no usable values");
+      if(!state.model.sourceValues.length){
+        throw new Error("recommended fee payload contained no usable values");
+      }
 
       render(root,state);
     }catch(error){
       status(root,state.model?"stale":"offline",state.model?"warn":"error");
-      q(root,"[data-fees-meta]").textContent=String(error?.message||error);
+      const meta=q(root,"[data-fees-meta]");
+      if(meta)meta.textContent=String(error?.message||error);
     }finally{
       state.busy=false;
     }
@@ -227,8 +313,20 @@
         if(state.model)render(root,state);
       });
 
-      q(root,"[data-fees-vbytes]")?.addEventListener("input",()=>renderEstimator(root,state));
-      q(root,"[data-fees-tier]")?.addEventListener("change",()=>renderEstimator(root,state));
+      for(const selector of [
+        "[data-fees-vbytes]",
+        "[data-fees-time]",
+        "[data-fees-confirmations]",
+        "[data-fees-tier]"
+      ]){
+        const el=q(root,selector);
+        if(!el)continue;
+        el.addEventListener(
+          el.tagName==="SELECT"?"change":"input",
+          ()=>renderEstimator(root,state)
+        );
+      }
+
       q(root,"[data-fees-refresh]")?.addEventListener("click",()=>refresh(root,state));
 
       await refresh(root,state);
@@ -242,7 +340,8 @@
       state.timer=W.setTimeout(loop,W.ZZXFeesSources.refreshMs);
     }catch(error){
       status(root,"offline","error");
-      q(root,"[data-fees-meta]").textContent=String(error?.message||error);
+      const meta=q(root,"[data-fees-meta]");
+      if(meta)meta.textContent=String(error?.message||error);
     }
   }
 
