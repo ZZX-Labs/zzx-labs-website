@@ -1,0 +1,51 @@
+name: ZZX-CyberChef
+
+run-name: >-
+  ZZX-CyberChef / ${{ github.event_name }} / run-${{ github.run_number }}
+
+on:
+  schedule:
+    - cron: "17 */12 * * *"
+
+  workflow_dispatch:
+    inputs:
+      cyberchef_version:
+        description: "Upstream GCHQ CyberChef release version to host locally"
+        required: false
+        default: "11.0.0"
+        type: string
+      deploy_pages:
+        description: "Deploy the validated local frontends to GitHub Pages"
+        required: false
+        default: true
+        type: boolean
+
+  workflow_call:
+    inputs:
+      cyberchef_version:
+        description: "Upstream GCHQ CyberChef release version to host locally"
+        required: false
+        type: string
+        default: "11.0.0"
+      deploy_pages:
+        description: "Deploy the validated local frontends to GitHub Pages"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: zzx-cyberchef-controller
+  cancel-in-progress: false
+
+jobs:
+  local_frontends:
+    name: Build and Host Local CyberChef Frontends
+    uses: ./.github/workflows/cyberchef-instance.yml
+    with:
+      cyberchef_version: ${{ inputs.cyberchef_version || '11.0.0' }}
+      deploy_pages: ${{ github.event_name == 'schedule' || inputs.deploy_pages }}
