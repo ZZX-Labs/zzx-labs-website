@@ -87,7 +87,8 @@ env:
   WFB_DB: worldfactbook/db
 
 jobs:
-  crawl:
+  corpus:
+    name: Crawl Complete World Factbook Corpus
     runs-on: ubuntu-24.04
     timeout-minutes: 330
 
@@ -116,6 +117,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             poppler-utils \
@@ -126,6 +128,7 @@ jobs:
             unrtf \
             djvulibre-bin \
             mariadb-client
+
           python -m pip install --upgrade pip
           python -m pip install pypdf
 
@@ -142,17 +145,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           python -m py_compile \
             tools/worldfactbook/formats.py \
             tools/worldfactbook/shard_store.py \
             tools/worldfactbook/mariadb_sync.py \
             tools/worldfactbook/worldfactbook_crawler.py \
-            tools/worldfactbook/worldfactbook_crawler_selftest.py \
-            tools/worldfactbook/factbook_archive_sync.py
+            tools/worldfactbook/worldfactbook_crawler_selftest.py
 
-          python tools/worldfactbook/worldfactbook_crawler.py --self-test
+          python tools/worldfactbook/worldfactbook_crawler.py \
+            --self-test
+
           python tools/worldfactbook/worldfactbook_crawler_selftest.py
-          python -m json.tool tools/worldfactbook/extra-sources.json >/dev/null
+
+          python -m json.tool \
+            tools/worldfactbook/extra-sources.json \
+            >/dev/null
 
       - name: Crawl and normalize all World Factbook editions
         shell: bash
@@ -183,36 +191,7 @@ jobs:
             --workers 6 \
             --sleep 0.15
 
-      - name: Preserve Global Power Grid World Factbook compatibility outputs
-        shell: bash
-        env:
-          INPUT_MODE: ${{ inputs.mode || 'incremental' }}
-        run: |
-          set -euo pipefail
-
-          ARGS=(
-            --country-registry __partials/widgets/global-power-grid/data/countries.json
-            --electricity-output worldfactbook/api/electricity-history.json
-            --reference-output worldfactbook/api/reference-index.json
-            --power-grid-output bitcoin/power-grid/api/factbook-history.json
-            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json
-            --cache-dir .cache/worldfactbook-v2
-            --start-year 1962
-            --end-year 2025
-            --max-ia-items 12
-            --min-records-per-edition 20
-            --workers 6
-            --max-wayback-pages 320
-            --sleep 0.15
-          )
-
-          if [ "${INPUT_MODE}" = "rebuild" ]; then
-            ARGS+=(--rebuild)
-          fi
-
-          python tools/worldfactbook/factbook_archive_sync.py "${ARGS[@]}"
-
-      - name: Validate corpus, portal, SQL shards, and compatibility ledgers
+      - name: Validate corpus, portal, and SQL shards
         shell: bash
         run: |
           set -euo pipefail
@@ -226,42 +205,89 @@ jobs:
           portal = Path("worldfactbook/api")
           db = Path("worldfactbook/db")
 
-          index = json.loads((portal / "portal-index.json").read_text(encoding="utf-8"))
-          report = json.loads((portal / "crawl-report.json").read_text(encoding="utf-8"))
-          shards = json.loads((db / "manifest.json").read_text(encoding="utf-8"))
+          index = json.loads(
+              (portal / "portal-index.json").read_text(
+                  encoding="utf-8"
+              )
+          )
 
-          if index.get("schema") != "zzx-worldfactbook-portal-index-v1":
-              raise SystemExit("wrong World Factbook portal-index schema")
-          if report.get("schema") != "zzx-worldfactbook-crawl-report-v1":
-              raise SystemExit("wrong World Factbook crawl-report schema")
-          if shards.get("schema") != "zzx-worldfactbook-mariadb-shards-v1":
-              raise SystemExit("wrong World Factbook shard manifest schema")
+          report = json.loads(
+              (portal / "crawl-report.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          shards = json.loads(
+              (db / "manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          if (
+              index.get("schema")
+              != "zzx-worldfactbook-portal-index-v1"
+          ):
+              raise SystemExit(
+                  "wrong World Factbook portal-index schema"
+              )
+
+          if (
+              report.get("schema")
+              != "zzx-worldfactbook-crawl-report-v1"
+          ):
+              raise SystemExit(
+                  "wrong World Factbook crawl-report schema"
+              )
+
+          if (
+              shards.get("schema")
+              != "zzx-worldfactbook-mariadb-shards-v1"
+          ):
+              raise SystemExit(
+                  "wrong World Factbook shard manifest schema"
+              )
+
           if int(report.get("chunks") or 0) < 1:
-              raise SystemExit("World Factbook corpus contains zero chunks")
+              raise SystemExit(
+                  "World Factbook corpus contains zero chunks"
+              )
 
           for entry in shards.get("files") or []:
               path = db / entry["path"]
-              if not path.is_file() or path.stat().st_size <= 0:
-                  raise SystemExit(f"missing SQL shard: {path}")
-              if path.stat().st_size > 24_000_000:
-                  raise SystemExit(f"SQL shard exceeds 24 MB public ceiling: {path}")
-              digest = hashlib.sha256(path.read_bytes()).hexdigest()
-              if digest != entry["sha256"]:
-                  raise SystemExit(f"SQL shard hash mismatch: {path}")
-              with gzip.open(path, "rt", encoding="utf-8") as fh:
-                  head = fh.read(4096)
-              if "worldfactbook_chunks" not in head:
-                  raise SystemExit(f"SQL shard contract missing table: {path}")
 
-          compat = [
-              Path("worldfactbook/api/electricity-history.json"),
-              Path("worldfactbook/api/reference-index.json"),
-              Path("bitcoin/power-grid/api/factbook-history.json"),
-              Path("__partials/widgets/global-power-grid/data/factbook-history.json"),
-          ]
-          for path in compat:
-              payload = json.loads(path.read_text(encoding="utf-8"))
-              print("compat", path, payload.get("schema"), len(payload.get("records", [])))
+              if (
+                  not path.is_file()
+                  or path.stat().st_size <= 0
+              ):
+                  raise SystemExit(
+                      f"missing SQL shard: {path}"
+                  )
+
+              if path.stat().st_size > 24_000_000:
+                  raise SystemExit(
+                      f"SQL shard exceeds 24 MB public ceiling: {path}"
+                  )
+
+              digest = hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+
+              if digest != entry["sha256"]:
+                  raise SystemExit(
+                      f"SQL shard hash mismatch: {path}"
+                  )
+
+              with gzip.open(
+                  path,
+                  "rt",
+                  encoding="utf-8",
+              ) as fh:
+                  head = fh.read(4096)
+
+              if "worldfactbook_chunks" not in head:
+                  raise SystemExit(
+                      f"SQL shard contract missing table: {path}"
+                  )
 
           print(
               "World Factbook corpus valid:",
@@ -283,9 +309,11 @@ jobs:
           WORLDFACTBOOK_MARIADB_DATABASE: ${{ secrets.WORLDFACTBOOK_MARIADB_DATABASE }}
         run: |
           set -euo pipefail
-          python tools/worldfactbook/mariadb_sync.py --root "${WFB_DB}"
 
-      - name: Publish World Factbook corpus and compatibility outputs
+          python tools/worldfactbook/mariadb_sync.py \
+            --root "${WFB_DB}"
+
+      - name: Publish World Factbook corpus
         shell: bash
         run: |
           set -euo pipefail
@@ -298,7 +326,15 @@ jobs:
             --message "Update ZZX World Factbook corpus" \
             --path worldfactbook/api \
             --path worldfactbook/db \
-            --path bitcoin/power-grid/api/factbook-history.json \
-            --path __partials/widgets/global-power-grid/data/factbook-history.json \
             --attempts 5 \
             --sleep-seconds 8
+
+  global_power_grid_compatibility:
+    name: Rebuild Verified Global Power Grid Factbook Ledger
+    needs:
+      - corpus
+    uses: ./.github/workflows/zzx-worldfactbook-archive-sync.yml
+    with:
+      rebuild: ${{ (inputs.mode || 'incremental') == 'rebuild' }}
+      max_ia_items: ${{ inputs.max_ia_items || '12' }}
+      max_wayback_pages: ${{ inputs.max_wayback_pages || '320' }}
