@@ -1,289 +1,521 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0a0a0a">
-  <title>World Factbook | ZZX-Labs</title>
-  <meta name="description" content="ZZX-Labs historical World Factbook portal, preserving and unifying archived editions from 1962 through 2025.">
-  <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-  <a class="skip-link" href="#main">Skip to content</a>
+  <meta name="description" content="ZZX-WorldFactbook preserves The World Factbook historical archive, credits the Central Intelligence Agency for the original 1962–2025 run, and develops British, Global, and provenance-first Hybrid WorldFactbook research layers.">
+  <meta name="theme-color" content="#050704">
+  <meta name="asset-version" content="">
+  <title>ZZX-WorldFactbook | ZZX-Labs R&amp;D</title>
 
-  <div class="wfb-shell" data-wfb-root>
-    <header class="wfb-topbar">
-      <div class="wfb-brand">
-        <a class="wfb-brand__home" href="/" aria-label="ZZX-Labs home">ZZX-LABS</a>
-        <span class="wfb-brand__slash" aria-hidden="true">/</span>
-        <span class="wfb-brand__product">WORLD FACTBOOK</span>
+  <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="../static/styles.css">
+  <link rel="stylesheet" href="./styles.css">
+
+  <script src="../static/script.js" defer></script>
+  <script src="./worldfactbook.js" defer></script>
+  <script src="./script.js" defer></script>
+</head>
+
+<body class="wfb-page zzx-site-page" data-wfb-depth=".">
+<header>
+  <div id="zzx-header"></div>
+  <div id="wfb-header"></div>
+</header>
+
+<main class="wfb-shell" data-wfb-view="home">
+  <section class="wfb-hero wfb-container" id="top">
+    <div class="wfb-hero-grid">
+      <div class="wfb-hero-copy">
+        <p class="wfb-kicker">ZZX-Labs / Public Intelligence Reference Infrastructure</p>
+        <h1>ZZX-WorldFactbook</h1>
+        <p class="wfb-hero-lede">
+          Preserve the historical World Factbook faithfully. Credit the people and institution that built it.
+          Keep the archive freely accessible. Then extend the idea without erasing the source.
+        </p>
+
+        <div class="wfb-hero-actions">
+          <a class="wfb-button wfb-button-primary" href="#archive">Explore the archive</a>
+          <a class="wfb-button" href="#variants">The four Factbooks</a>
+          <a class="wfb-button" href="./api/reference-index.json">Source index</a>
+        </div>
       </div>
 
-      <nav class="wfb-topnav" aria-label="World Factbook links">
-        <a href="./api/portal-index.json">API</a>
-        <a href="./README.md">README</a>
-        <a href="#sources" data-wfb-nav-sources>Sources</a>
-      </nav>
+      <aside class="wfb-hero-console" aria-label="World Factbook project status">
+        <div class="wfb-console-head">
+          <span class="wfb-console-dot" data-wfb-live-dot></span>
+          <span data-wfb-live-label>Reading local archive contracts…</span>
+        </div>
+        <dl class="wfb-console-grid">
+          <div>
+            <dt>Historical scope</dt>
+            <dd>1962–2025</dd>
+          </div>
+          <div>
+            <dt>Archive slots</dt>
+            <dd>64 years</dd>
+          </div>
+          <div>
+            <dt>Indexed editions</dt>
+            <dd data-wfb-stat-editions>—</dd>
+          </div>
+          <div>
+            <dt>Reference pages</dt>
+            <dd data-wfb-stat-pages>—</dd>
+          </div>
+          <div>
+            <dt>Verified power records</dt>
+            <dd data-wfb-stat-electricity>—</dd>
+          </div>
+          <div>
+            <dt>Recovered media</dt>
+            <dd data-wfb-stat-media>—</dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
+  <section class="wfb-credit-banner wfb-container" id="credit">
+    <div class="wfb-credit-mark" aria-hidden="true">CIA</div>
+    <div class="wfb-credit-copy">
+      <p class="wfb-kicker">Historical Source Credit</p>
+      <h2>The World Factbook — Central Intelligence Agency</h2>
+      <p>
+        ZZX-Labs gives primary historical credit to the Central Intelligence Agency for
+        <em>The World Factbook</em> and its public-facing run through 2025. The ZZX archive
+        is an independent preservation and continuation project; it is not affiliated with,
+        sponsored by, or endorsed by the CIA. Historical records retain source provenance,
+        original edition context, and any recoverable third-party image or document credits.
+      </p>
+    </div>
+    <div class="wfb-credit-years">
+      <strong>1962</strong>
+      <span>→</span>
+      <strong>2025</strong>
+      <small>historical archive target</small>
+    </div>
+  </section>
+
+  <section class="wfb-section wfb-container" id="variants">
+    <header class="wfb-section-head">
+      <div>
+        <p class="wfb-kicker">One project / four views</p>
+        <h2>The ZZX-WorldFactbook Family</h2>
+      </div>
+      <p>
+        Each layer expands the previous one. Source boundaries remain visible so a reader can always tell
+        what is historical CIA material, what is a British supplement, what comes from global sources,
+        and what is model-assisted synthesis.
+      </p>
     </header>
 
-    <main id="main" class="wfb-main">
-      <section class="wfb-hero" aria-labelledby="wfb-title">
-        <div class="wfb-hero__copy">
-          <div class="wfb-label">HISTORICAL PUBLIC ARCHIVE</div>
-          <h1 id="wfb-title">World Factbook</h1>
-          <p>
-            A unified historical portal for archived editions of <em>The World Factbook</em>,
-            reconstructed across 1962–2025 with edition provenance, category text,
-            images, OCR, citations, and source attribution.
-          </p>
-        </div>
+    <div class="wfb-variant-grid">
+      <article class="wfb-variant-card is-core" data-wfb-variant="worldfactbook">
+        <div class="wfb-card-index">01</div>
+        <p class="wfb-card-label">Historical Core</p>
+        <h3>ZZX-WorldFactbook</h3>
+        <p>
+          A digital historical mirror of the World Factbook corpus from 1962 through 2025,
+          preserving country profiles, reference data, leaders, maps, imagery, archive editions,
+          Fact of the Day, Image of the Day, and related public features wherever recoverable.
+        </p>
+        <ul>
+          <li>Edition-by-edition archive</li>
+          <li>Country and territory profiles</li>
+          <li>World leaders / heads of state</li>
+          <li>Historic Fact of the Day</li>
+          <li>Historic Image of the Day</li>
+          <li>OCR, media, citations, provenance</li>
+        </ul>
+        <a class="wfb-card-link" href="#archive">Open historical layer</a>
+      </article>
 
-        <div class="wfb-status" role="status" aria-live="polite">
-          <span class="wfb-status__dot" data-wfb-status-dot></span>
-          <span data-wfb-status>Loading archive index…</span>
-        </div>
-      </section>
+      <article class="wfb-variant-card" data-wfb-variant="british">
+        <div class="wfb-card-index">02</div>
+        <p class="wfb-card-label">British Supplement</p>
+        <h3>ZZX-BritishWorldFactbook</h3>
+        <p>
+          The historical core plus distinctly British public-source intelligence and reference material:
+          UK Government, FCDO, MoD, GCHQ, MI5, SIS/MI6, ONS, Parliament, The National Archives,
+          UK defence history, and relevant NATO/UN material.
+        </p>
+        <ul>
+          <li>UK source overlays and comparisons</li>
+          <li>British geopolitical and defence context</li>
+          <li>British historical IC lore for daily facts</li>
+          <li>NATO and UN public reference material</li>
+          <li>Original source attribution retained</li>
+        </ul>
+        <button class="wfb-card-link is-button" type="button" data-wfb-scroll="#british">View design scope</button>
+      </article>
 
-      <section class="wfb-metrics" aria-label="Archive statistics">
-        <div class="wfb-metric">
-          <span>EDITIONS</span>
-          <strong data-wfb-stat-editions>—</strong>
-          <small>available / indexed</small>
-        </div>
-        <div class="wfb-metric">
-          <span>TEXT CHUNKS</span>
-          <strong data-wfb-stat-chunks>—</strong>
-          <small>normalized corpus rows</small>
-        </div>
-        <div class="wfb-metric">
-          <span>IMAGES</span>
-          <strong data-wfb-stat-images>—</strong>
-          <small>extracted + OCR indexed</small>
-        </div>
-        <div class="wfb-metric">
-          <span>SOURCES</span>
-          <strong data-wfb-stat-sources>—</strong>
-          <small>archival source records</small>
-        </div>
-      </section>
+      <article class="wfb-variant-card" data-wfb-variant="global">
+        <div class="wfb-card-index">03</div>
+        <p class="wfb-card-label">Global Reference Layer</p>
+        <h3>ZZX-GlobalWorldFactbook</h3>
+        <p>
+          The historical and British layers expanded with public data from international institutions,
+          national statistical offices, central banks, foreign ministries, defence publications,
+          and source-labeled material from allied, neutral, and adversarial states.
+        </p>
+        <ul>
+          <li>UN / World Bank / IMF / NATO</li>
+          <li>National official-source layers</li>
+          <li>Historical blocs including USSR-era data</li>
+          <li>Cross-source conflict and revision tracking</li>
+          <li>Source lineage visible at every layer</li>
+        </ul>
+        <button class="wfb-card-link is-button" type="button" data-wfb-scroll="#global">View design scope</button>
+      </article>
 
-      <section class="wfb-timeline-panel" aria-labelledby="timeline-title">
-        <div class="wfb-section-head">
-          <div>
-            <span>ARCHIVE RANGE</span>
-            <strong id="timeline-title">1962—2025</strong>
-          </div>
-          <div class="wfb-timeline-legend">
-            <span><i class="is-available"></i> available</span>
-            <span><i class="is-missing"></i> unresolved</span>
-          </div>
-        </div>
+      <article class="wfb-variant-card is-hybrid" data-wfb-variant="hybrid">
+        <div class="wfb-card-index">04</div>
+        <p class="wfb-card-label">TensorFlow Synthesis Layer</p>
+        <h3>ZZX-HybridWorldFactbook</h3>
+        <p>
+          A provenance-first synthesis environment that lets a user choose time range, geography,
+          source families, historical depth, and output style. TensorFlow models can reproduce the
+          structure and editorial character of the archive while factual claims remain grounded in cited data.
+        </p>
+        <ul>
+          <li>User-defined source and time filters</li>
+          <li>Historical style model + current data retrieval</li>
+          <li>Generated text clearly labeled</li>
+          <li>Per-claim citations and model versioning</li>
+          <li>No silent blending of source provenance</li>
+        </ul>
+        <a class="wfb-card-link" href="#hybrid">Open Hybrid design preview</a>
+      </article>
+    </div>
+  </section>
 
-        <div class="wfb-timeline" data-wfb-timeline role="list" aria-label="Edition years"></div>
-      </section>
-
-      <section class="wfb-console">
-        <aside class="wfb-sidebar" aria-label="Archive filters">
-          <div class="wfb-sidebar__section">
-            <div class="wfb-label">EDITION</div>
-            <label class="wfb-field">
-              <span>Year</span>
-              <select data-wfb-year aria-label="Edition year"></select>
-            </label>
-
-            <label class="wfb-field">
-              <span>Compare with</span>
-              <select data-wfb-compare-year aria-label="Comparison edition year">
-                <option value="">None</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="wfb-sidebar__section">
-            <div class="wfb-label">FILTER</div>
-
-            <label class="wfb-field">
-              <span>Entity / country</span>
-              <select data-wfb-entity>
-                <option value="">All entities</option>
-              </select>
-            </label>
-
-            <label class="wfb-field">
-              <span>Category</span>
-              <select data-wfb-category></select>
-            </label>
-
-            <label class="wfb-field">
-              <span>Visual type</span>
-              <select data-wfb-visual>
-                <option value="">All visual types</option>
-              </select>
-            </label>
-
-            <label class="wfb-field">
-              <span>Search loaded records</span>
-              <input
-                type="search"
-                data-wfb-search
-                placeholder="population, energy, railways…"
-                autocomplete="off"
-                spellcheck="false"
-              >
-            </label>
-          </div>
-
-          <div class="wfb-sidebar__section">
-            <div class="wfb-label">EDITION HEALTH</div>
-            <dl class="wfb-health">
-              <div><dt>Status</dt><dd data-wfb-health-status>—</dd></div>
-              <div><dt>Chunks</dt><dd data-wfb-health-chunks>—</dd></div>
-              <div><dt>Categories</dt><dd data-wfb-health-categories>—</dd></div>
-              <div><dt>Images</dt><dd data-wfb-health-images>—</dd></div>
-              <div><dt>Sources</dt><dd data-wfb-health-sources>—</dd></div>
-            </dl>
-          </div>
-
-          <div class="wfb-sidebar__section wfb-sidebar__note">
-            <div class="wfb-label">ARCHIVE POLICY</div>
-            <p>
-              Missing editions and credits are shown as unavailable rather than inferred.
-              Image credits are only displayed when explicitly recovered from source material.
-            </p>
-          </div>
-        </aside>
-
-        <div class="wfb-workspace">
-          <header class="wfb-workspace__head">
-            <div>
-              <div class="wfb-label" data-wfb-edition-label>EDITION</div>
-              <h2 data-wfb-view-title>Loading…</h2>
-              <p data-wfb-view-subtitle>Reading local archive contracts.</p>
-            </div>
-
-            <div class="wfb-workspace__tools">
-              <button type="button" class="wfb-button" data-wfb-copy-link>Copy view link</button>
-              <button type="button" class="wfb-button" data-wfb-refresh>Refresh</button>
-            </div>
-          </header>
-
-          <div class="wfb-tabs" role="tablist" aria-label="World Factbook views">
-            <button type="button" role="tab" aria-selected="true" data-wfb-tab="text">Text</button>
-            <button type="button" role="tab" aria-selected="false" data-wfb-tab="media">Media</button>
-            <button type="button" role="tab" aria-selected="false" data-wfb-tab="sources">Sources</button>
-            <button type="button" role="tab" aria-selected="false" data-wfb-tab="compare">Compare</button>
-          </div>
-
-          <section class="wfb-view" data-wfb-panel="text" role="tabpanel">
-            <div class="wfb-results-head">
-              <span data-wfb-result-count>0 records</span>
-              <span data-wfb-result-context></span>
-            </div>
-            <div class="wfb-text-stream" data-wfb-text-stream></div>
-            <div class="wfb-loadmore-wrap" data-wfb-loadmore-wrap hidden>
-              <button type="button" class="wfb-button wfb-button--wide" data-wfb-loadmore>
-                Load more records
-              </button>
-            </div>
-          </section>
-
-          <section class="wfb-view" data-wfb-panel="media" role="tabpanel" hidden>
-            <div class="wfb-results-head">
-              <span data-wfb-media-count>0 images</span>
-              <span>OCR + recovered source attribution</span>
-            </div>
-            <div class="wfb-media-grid" data-wfb-media-grid></div>
-          </section>
-
-          <section class="wfb-view" id="sources" data-wfb-panel="sources" role="tabpanel" hidden>
-            <div class="wfb-results-head">
-              <span data-wfb-source-count>0 sources</span>
-              <span>Edition provenance</span>
-            </div>
-            <div class="wfb-source-list" data-wfb-source-list></div>
-          </section>
-
-          <section class="wfb-view" data-wfb-panel="compare" role="tabpanel" hidden>
-            <div class="wfb-compare-head">
-              <div>
-                <span data-wfb-compare-left-label>Primary edition</span>
-                <strong data-wfb-compare-left-year>—</strong>
-              </div>
-              <div>
-                <span>Comparison edition</span>
-                <strong data-wfb-compare-right-year>—</strong>
-              </div>
-            </div>
-            <div class="wfb-compare-grid">
-              <div class="wfb-compare-column" data-wfb-compare-left></div>
-              <div class="wfb-compare-column" data-wfb-compare-right></div>
-            </div>
-          </section>
-
-          <div class="wfb-empty" data-wfb-empty hidden>
-            <strong>No matching archive records.</strong>
-            <span>Change the edition, category, entity, or search query.</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="wfb-about">
-        <div>
-          <div class="wfb-label">ABOUT THIS PORTAL</div>
-          <h2>One historical interface, sixty-four editions.</h2>
-        </div>
-        <div class="wfb-about__body">
-          <p>
-            ZZX-Labs preserves the archived public-domain World Factbook corpus as structured,
-            edition-specific data. Original source provenance remains attached to every normalized
-            text chunk and recovered image.
-          </p>
-          <p>
-            OCR and image-recognition metadata improve discovery, but do not replace historical
-            attribution. Where the source does not contain a recoverable image credit, this portal
-            says so explicitly.
-          </p>
-        </div>
-      </section>
-    </main>
-
-    <footer class="wfb-footer">
-      <span>ZZX-Labs R&amp;D · World Factbook Archive</span>
-      <span data-wfb-generated>Archive index unavailable</span>
-    </footer>
-  </div>
-
-  <dialog class="wfb-dialog" data-wfb-dialog>
-    <form method="dialog" class="wfb-dialog__close-row">
-      <button type="submit" class="wfb-button">Close</button>
-    </form>
-    <div class="wfb-dialog__content">
-      <div class="wfb-dialog__image-wrap">
-        <img data-wfb-dialog-image alt="">
+  <section class="wfb-section wfb-container" id="archive">
+    <header class="wfb-section-head">
+      <div>
+        <p class="wfb-kicker">Historical Archive</p>
+        <h2>1962–2025 Edition Coverage</h2>
       </div>
-      <div class="wfb-dialog__meta">
-        <div class="wfb-label">ARCHIVE IMAGE</div>
-        <h2 data-wfb-dialog-title>Image</h2>
-        <p data-wfb-dialog-caption></p>
-        <dl class="wfb-dialog__facts" data-wfb-dialog-facts></dl>
-        <div class="wfb-citation-box">
-          <span>Citation</span>
-          <p data-wfb-dialog-citation></p>
-          <button type="button" class="wfb-button" data-wfb-copy-citation>Copy citation</button>
+      <p data-wfb-archive-summary>
+        Loading archive provenance from the local WorldFactbook API.
+      </p>
+    </header>
+
+    <div class="wfb-archive-layout">
+      <div class="wfb-archive-main">
+        <div class="wfb-timeline-head">
+          <span>Edition timeline</span>
+          <div class="wfb-legend">
+            <span><i class="is-indexed"></i> indexed</span>
+            <span><i class="is-partial"></i> partial evidence</span>
+            <span><i class="is-unresolved"></i> unresolved</span>
+          </div>
+        </div>
+        <div class="wfb-timeline" data-wfb-timeline role="list" aria-label="World Factbook edition timeline"></div>
+      </div>
+
+      <aside class="wfb-edition-inspector" data-wfb-edition-inspector>
+        <p class="wfb-card-label">Edition Inspector</p>
+        <h3 data-wfb-selected-year>2025</h3>
+        <dl>
+          <div><dt>Status</dt><dd data-wfb-edition-status>—</dd></div>
+          <div><dt>Providers</dt><dd data-wfb-edition-providers>—</dd></div>
+          <div><dt>Reference pages</dt><dd data-wfb-edition-pages>—</dd></div>
+          <div><dt>Electricity records</dt><dd data-wfb-edition-power>—</dd></div>
+          <div><dt>Media</dt><dd data-wfb-edition-media>—</dd></div>
+        </dl>
+        <p data-wfb-edition-note>
+          Select a year on the timeline to inspect available source evidence.
+        </p>
+      </aside>
+    </div>
+
+    <div class="wfb-archive-tools">
+      <label class="wfb-search-field">
+        <span>Search current source index</span>
+        <input type="search" data-wfb-search placeholder="country, territory, provider, year…" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="wfb-search-field">
+        <span>Limit to year</span>
+        <select data-wfb-search-year>
+          <option value="">All years</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="wfb-search-results" data-wfb-search-results>
+      <div class="wfb-placeholder">Search the recovered reference index.</div>
+    </div>
+  </section>
+
+  <section class="wfb-section wfb-container" id="continuity">
+    <header class="wfb-section-head">
+      <div>
+        <p class="wfb-kicker">Continuity Features</p>
+        <h2>Preserve the Parts People Remembered</h2>
+      </div>
+      <p>
+        The archive is not only country tables. ZZX-WorldFactbook treats the original public-facing
+        features as first-class historical material and keeps future continuations visibly separate.
+      </p>
+    </header>
+
+    <div class="wfb-feature-grid">
+      <article class="wfb-feature-card" data-wfb-feature="leaders">
+        <div class="wfb-feature-top">
+          <span class="wfb-feature-code">LEADERS</span>
+          <span class="wfb-feature-status" data-wfb-leaders-status>probing…</span>
+        </div>
+        <h3>World Leaders / Heads of State</h3>
+        <p>
+          Preserve historic leadership records by edition and date, then extend the sequence from
+          current official public records with change history and source citations.
+        </p>
+        <div class="wfb-feature-readout" data-wfb-leaders-readout>Awaiting leaders index.</div>
+      </article>
+
+      <article class="wfb-feature-card" data-wfb-feature="fact">
+        <div class="wfb-feature-top">
+          <span class="wfb-feature-code">FACT / DAY</span>
+          <span class="wfb-feature-status" data-wfb-fact-status>probing…</span>
+        </div>
+        <h3>Fact of the Day</h3>
+        <p>
+          Archive the historic daily facts first. Future entries should be selected from verified,
+          current source records; model assistance may reproduce editorial style, never invent the factual basis.
+        </p>
+        <blockquote data-wfb-fact-readout>
+          Historical Fact of the Day corpus not yet indexed in this checkout.
+        </blockquote>
+      </article>
+
+      <article class="wfb-feature-card" data-wfb-feature="image">
+        <div class="wfb-feature-top">
+          <span class="wfb-feature-code">IMAGE / DAY</span>
+          <span class="wfb-feature-status" data-wfb-image-status>probing…</span>
+        </div>
+        <h3>Image of the Day</h3>
+        <p>
+          Preserve original imagery with page context, OCR, crop coordinates, source URL,
+          explicit credit when present, and the exact citation-key filename convention.
+        </p>
+        <div class="wfb-image-placeholder" data-wfb-image-readout>
+          <span>IMAGE INDEX</span>
+          <strong>Awaiting media crawler output</strong>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="wfb-section wfb-container wfb-split" id="british">
+    <div>
+      <p class="wfb-kicker">British Variant</p>
+      <h2>ZZX-BritishWorldFactbook</h2>
+      <p>
+        A British counterpart should feel genuinely British rather than being a renamed copy.
+        The CIA archive remains intact underneath it; British material is a supplemental source layer
+        with its own citations, dates, institutions, and historical framing.
+      </p>
+      <p>
+        Candidate public-source families include GOV.UK, FCDO, Ministry of Defence, GCHQ,
+        MI5, SIS/MI6, Office for National Statistics, Parliament, The National Archives,
+        public defence histories, NATO, and UN publications.
+      </p>
+    </div>
+    <div class="wfb-source-stack">
+      <div><span>UK Government</span><strong>Public country / policy / statistical material</strong></div>
+      <div><span>UK Intelligence</span><strong>Public releases, histories, advisories, archives</strong></div>
+      <div><span>UK Defence</span><strong>MoD and public defence reference material</strong></div>
+      <div><span>NATO + UN</span><strong>Multilateral context and historical records</strong></div>
+    </div>
+  </section>
+
+  <section class="wfb-section wfb-container wfb-split" id="global">
+    <div>
+      <p class="wfb-kicker">Global Variant</p>
+      <h2>ZZX-GlobalWorldFactbook</h2>
+      <p>
+        The Global layer is a source federation, not a flattening exercise. Conflicting numbers,
+        dates, definitions, and political descriptions should remain attributable to the institution
+        that published them instead of being silently averaged into a single unexplained answer.
+      </p>
+      <p>
+        Long-run coverage can extend toward 1962 wherever archives permit, with explicit gaps rather
+        than synthetic backfilling.
+      </p>
+    </div>
+    <div class="wfb-source-matrix">
+      <div><span>UN</span><small>multilateral records</small></div>
+      <div><span>World Bank</span><small>development data</small></div>
+      <div><span>IMF</span><small>macroeconomic data</small></div>
+      <div><span>NATO</span><small>alliance material</small></div>
+      <div><span>National Sources</span><small>official public records</small></div>
+      <div><span>Historical Blocs</span><small>USSR-era and predecessor records</small></div>
+    </div>
+  </section>
+
+  <section class="wfb-section wfb-container" id="hybrid">
+    <header class="wfb-section-head">
+      <div>
+        <p class="wfb-kicker">Hybrid Builder Preview</p>
+        <h2>Filter the Factbook Before You Generate It</h2>
+      </div>
+      <p>
+        This landing-page control builds a transparent recipe only. It does not fabricate or synthesize
+        a new Factbook in the browser.
+      </p>
+    </header>
+
+    <div class="wfb-hybrid-grid">
+      <div class="wfb-hybrid-controls">
+        <label>
+          <span>Historical basis</span>
+          <select data-wfb-hybrid-era>
+            <option value="full">Full 1962–2025 archive</option>
+            <option value="cold-war">Cold War emphasis</option>
+            <option value="post-2000">2000–2025 modern archive</option>
+            <option value="current">Current-source emphasis</option>
+          </select>
+        </label>
+
+        <fieldset>
+          <legend>Source families</legend>
+          <label><input type="checkbox" value="cia" data-wfb-hybrid-source checked> CIA historical core</label>
+          <label><input type="checkbox" value="uk" data-wfb-hybrid-source> British public sources</label>
+          <label><input type="checkbox" value="multilateral" data-wfb-hybrid-source> UN / World Bank / IMF / NATO</label>
+          <label><input type="checkbox" value="national" data-wfb-hybrid-source> National official sources</label>
+        </fieldset>
+
+        <label>
+          <span>Editorial mode</span>
+          <select data-wfb-hybrid-style>
+            <option value="classic">Classic Factbook structure</option>
+            <option value="comparative">Cross-source comparative</option>
+            <option value="historical">Historical change report</option>
+            <option value="research">Research / citation heavy</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="wfb-hybrid-readout">
+        <p class="wfb-card-label">Recipe Preview</p>
+        <pre data-wfb-hybrid-recipe></pre>
+        <div class="wfb-guardrail">
+          <strong>Generation rule</strong>
+          <p>
+            Model weights may learn format and style. Facts must be retrieved from the selected,
+            dated, source-attributed corpus. Generated passages require source citations and a model/version label.
+          </p>
         </div>
       </div>
     </div>
-  </dialog>
+  </section>
 
-  <noscript>
-    <div class="wfb-noscript">
-      This archive portal requires JavaScript to load the static JSON edition contracts.
+  <section class="wfb-section wfb-container" id="architecture">
+    <header class="wfb-section-head">
+      <div>
+        <p class="wfb-kicker">Data Architecture</p>
+        <h2>Archive → Normalize → Cite → Publish</h2>
+      </div>
+      <p>
+        The page is a static client. The crawler does the expensive archival work; GitHub Pages or nginx
+        serves the normalized public output at effectively zero application-hosting cost.
+      </p>
+    </header>
+
+    <div class="wfb-pipeline">
+      <div>
+        <span>01</span>
+        <strong>Acquire</strong>
+        <p>Historical editions, web captures, books, documents, media, and official public data.</p>
+      </div>
+      <div>
+        <span>02</span>
+        <strong>Normalize</strong>
+        <p>Extract text, OCR images, crop media, identify categories, preserve dates and source hashes.</p>
+      </div>
+      <div>
+        <span>03</span>
+        <strong>Attribute</strong>
+        <p>Keep CIA/source credit, third-party image credits, archive identifiers, filenames, and citation keys.</p>
+      </div>
+      <div>
+        <span>04</span>
+        <strong>Shard</strong>
+        <p>Produce bounded JSON/media contracts and MariaDB-compatible historical shards.</p>
+      </div>
+      <div>
+        <span>05</span>
+        <strong>Publish</strong>
+        <p>Serve a public static portal with no account requirement and no proprietary reader.</p>
+      </div>
     </div>
-  </noscript>
+  </section>
 
-  <script src="./worldfactbook.js"></script>
-  <script src="./script.js"></script>
+  <section class="wfb-section wfb-container" id="sources">
+    <header class="wfb-section-head">
+      <div>
+        <p class="wfb-kicker">Provenance</p>
+        <h2>Source Families Stay Visible</h2>
+      </div>
+      <p>
+        The same country can have multiple source records. The interface should expose that disagreement
+        instead of hiding it.
+      </p>
+    </header>
+
+    <div class="wfb-provenance-grid" data-wfb-provenance-grid>
+      <article>
+        <span class="wfb-source-role">HISTORICAL CORE</span>
+        <h3>Central Intelligence Agency</h3>
+        <p>The World Factbook historical editions and recoverable web features, with CIA attribution retained.</p>
+      </article>
+      <article>
+        <span class="wfb-source-role">BRITISH SUPPLEMENT</span>
+        <h3>United Kingdom Public Sources</h3>
+        <p>British governmental, intelligence, defence, statistical, parliamentary, and archival public material.</p>
+      </article>
+      <article>
+        <span class="wfb-source-role">MULTILATERAL</span>
+        <h3>UN / World Bank / IMF / NATO</h3>
+        <p>Institution-specific records with original definitions, timestamps, revisions, and links.</p>
+      </article>
+      <article>
+        <span class="wfb-source-role">NATIONAL</span>
+        <h3>Official National Sources</h3>
+        <p>Public national records kept source-labeled across allied, neutral, and adversarial states.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="wfb-section wfb-container wfb-open-access" id="credits">
+    <div>
+      <p class="wfb-kicker">Open Access</p>
+      <h2>Preserve it. Credit it. Keep it usable.</h2>
+      <p>
+        ZZX-WorldFactbook is intended as a public research and reference service. Historical CIA material
+        remains identified as such; subsequent ZZX material is separately labeled. Source rights and
+        third-party credits remain attached wherever present.
+      </p>
+    </div>
+
+    <div class="wfb-credit-links">
+      <a href="./api/reference-index.json">Reference index</a>
+      <a href="./api/electricity-history.json">Verified electricity ledger</a>
+      <a href="./README.md">Portal README</a>
+      <span data-wfb-generated>Archive generation status unavailable</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div id="wfb-footer"></div>
+  <div id="zzx-footer"></div>
+</footer>
 </body>
 </html>
