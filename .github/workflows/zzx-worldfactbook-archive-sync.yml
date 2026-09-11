@@ -1,33 +1,49 @@
-name: ZZX World Factbook Archive Sync
+name: ZZX World Factbook Archive Sync (Compatibility)
 
 on:
   workflow_dispatch:
     inputs:
       rebuild:
-        description: "Discard legacy/unverified ledger and rebuild from public archives"
+        description: "Discard legacy/unverified electricity ledger and rebuild from public archives"
         required: false
         type: boolean
-        default: true
-  push:
-    branches:
-      - main
-    paths:
-      - "tools/worldfactbook/factbook_archive_sync.py"
-      - ".github/workflows/zzx-worldfactbook-archive-sync.yml"
-      - "__partials/widgets/global-power-grid/data/worldfactbook-source-catalog.json"
-  schedule:
-    - cron: "17 4 1 * *"
+        default: false
+      max_ia_items:
+        description: "Maximum Internet Archive candidates examined per edition"
+        required: false
+        type: string
+        default: "12"
+      max_wayback_pages:
+        description: "Maximum Wayback country pages examined per fallback edition"
+        required: false
+        type: string
+        default: "320"
+
+  workflow_call:
+    inputs:
+      rebuild:
+        required: false
+        type: boolean
+        default: false
+      max_ia_items:
+        required: false
+        type: string
+        default: "12"
+      max_wayback_pages:
+        required: false
+        type: string
+        default: "320"
 
 permissions:
   contents: write
 
 concurrency:
-  group: zzx-worldfactbook-archive-sync
+  group: zzx-worldfactbook-archive-sync-compat
   cancel-in-progress: false
 
 jobs:
-  sync:
-    runs-on: ubuntu-latest
+  sync-electricity-history:
+    runs-on: ubuntu-24.04
     timeout-minutes: 210
 
     steps:
@@ -35,6 +51,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
+
+      - name: Sync main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fdx -e .cache/worldfactbook-v2/
 
       - name: Python 3.13
         uses: actions/setup-python@v5
@@ -49,10 +74,34 @@ jobs:
           restore-keys: |
             worldfactbook-public-archive-v2-
 
+      - name: Validate compatibility extractor
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f tools/worldfactbook/factbook_archive_sync.py
+          test -f __partials/widgets/global-power-grid/data/countries.json
+          test -f __partials/widgets/global-power-grid/data/worldfactbook-source-catalog.json
+          test -f tools/bpi/bpi_git_publish.py
+
+          python -m py_compile \
+            tools/worldfactbook/factbook_archive_sync.py \
+            tools/bpi/bpi_git_publish.py
+
+          python -m json.tool \
+            __partials/widgets/global-power-grid/data/countries.json \
+            >/dev/null
+
+          python -m json.tool \
+            __partials/widgets/global-power-grid/data/worldfactbook-source-catalog.json \
+            >/dev/null
+
       - name: Synchronize World Factbook electricity history
         shell: bash
         env:
-          REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild || github.event_name == 'push' }}
+          REBUILD: ${{ inputs.rebuild && 'true' || 'false' }}
+          MAX_IA_ITEMS: ${{ inputs.max_ia_items || '12' }}
+          MAX_WAYBACK_PAGES: ${{ inputs.max_wayback_pages || '320' }}
         run: |
           set -euo pipefail
 
@@ -65,10 +114,10 @@ jobs:
             --cache-dir .cache/worldfactbook-v2
             --start-year 1962
             --end-year 2025
-            --max-ia-items 6
+            --max-ia-items "${MAX_IA_ITEMS}"
             --min-records-per-edition 20
             --workers 6
-            --max-wayback-pages 320
+            --max-wayback-pages "${MAX_WAYBACK_PAGES}"
             --sleep 0.15
           )
 
@@ -78,7 +127,7 @@ jobs:
 
           python tools/worldfactbook/factbook_archive_sync.py "${ARGS[@]}"
 
-      - name: Validate archive integrity
+      - name: Validate Global Power Grid compatibility contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -95,47 +144,87 @@ jobs:
           ]
 
           for path in paths:
-              payload = json.loads(path.read_text(encoding="utf-8"))
-              print(path, payload.get("schema"), len(payload.get("records", [])))
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(
+                      f"missing/empty World Factbook compatibility output: {path}"
+                  )
 
-          ledger = json.loads(paths[0].read_text(encoding="utf-8"))
-          if ledger.get("schema") != "zzx-global-power-grid-factbook-history-v2":
-              raise SystemExit("wrong Factbook ledger schema")
+              payload = json.loads(
+                  path.read_text(encoding="utf-8")
+              )
+
+              print(
+                  path,
+                  payload.get("schema"),
+                  len(payload.get("records", [])),
+              )
+
+          ledger = json.loads(
+              paths[0].read_text(encoding="utf-8")
+          )
+
+          if (
+              ledger.get("schema")
+              != "zzx-global-power-grid-factbook-history-v2"
+          ):
+              raise SystemExit(
+                  "wrong Factbook electricity ledger schema"
+              )
+
+          records = ledger.get("records")
+
+          if not isinstance(records, list):
+              raise SystemExit(
+                  "Factbook electricity records must be an array"
+              )
 
           bad = []
-          for row in ledger.get("records", []):
+
+          for row in records:
               quality = row.get("quality") or {}
-              if quality.get("status") != "verified" or int(quality.get("parser_version") or 0) < 2:
-                  bad.append((row.get("country"), row.get("edition_year"), quality))
+
+              if (
+                  quality.get("status") != "verified"
+                  or int(quality.get("parser_version") or 0) < 2
+              ):
+                  bad.append(
+                      (
+                          row.get("country"),
+                          row.get("edition_year"),
+                          quality,
+                      )
+                  )
 
           if bad:
               print("unverified records:")
+
               for row in bad[:30]:
                   print(row)
-              raise SystemExit("refusing unverified Factbook records")
 
-          print("Factbook v2 integrity gate passed")
+              raise SystemExit(
+                  "refusing unverified Factbook electricity records"
+              )
+
+          print(
+              "Factbook v2 Global Power Grid compatibility gate passed:",
+              f"verified_records={len(records)}",
+          )
           PY
 
-      - name: Commit updated archive ledgers
+      - name: Publish compatibility ledgers
         shell: bash
         run: |
           set -euo pipefail
 
           git config user.name "zzx-worldfactbook-bot"
-          git config user.email "actions@users.noreply.github.com"
+          git config user.email "actions@github.com"
 
-          git add \
-            worldfactbook/api/electricity-history.json \
-            worldfactbook/api/reference-index.json \
-            bitcoin/power-grid/api/factbook-history.json \
-            __partials/widgets/global-power-grid/data/factbook-history.json
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "World Factbook archive already current."
-            exit 0
-          fi
-
-          git commit -m "data: rebuild verified World Factbook electricity archive"
-          git pull --rebase origin "${GITHUB_REF_NAME}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update verified World Factbook electricity archive" \
+            --path worldfactbook/api/electricity-history.json \
+            --path worldfactbook/api/reference-index.json \
+            --path bitcoin/power-grid/api/factbook-history.json \
+            --path __partials/widgets/global-power-grid/data/factbook-history.json \
+            --attempts 5 \
+            --sleep-seconds 8
