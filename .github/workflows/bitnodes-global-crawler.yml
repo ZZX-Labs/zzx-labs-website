@@ -26,11 +26,11 @@ on:
         required: false
         type: boolean
         default: false
-  schedule:
-    # Hourly production crawls. 03:00 and 04:00 UTC are reserved for the deep run.
-    - cron: "7 0-2,5-23 * * *"
-    # Daily deep crawl. It has ~104 minutes before the next hourly production crawl.
-    - cron: "23 3 * * *"
+    secrets:
+      BITNODES_BACKUP_REPO:
+        required: false
+      BITNODES_BACKUP_TOKEN:
+        required: false
 
 permissions:
   contents: write
@@ -80,19 +80,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          PROFILE="${{ inputs.crawl_profile || '' }}"
+          PROFILE="${{ inputs.crawl_profile || 'hourly' }}"
 
-          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-            if [ "${{ github.event.schedule }}" = "23 3 * * *" ]; then
-              PROFILE="deep"
-            else
-              PROFILE="hourly"
-            fi
-          fi
-
-          if [ -z "${PROFILE}" ]; then
-            PROFILE="hourly"
-          fi
+          case "${PROFILE}" in
+            hourly|deep)
+              ;;
+            *)
+              printf '%s\n' "Unsupported crawl profile: ${PROFILE}"
+              exit 1
+              ;;
+          esac
 
           if [ "${PROFILE}" = "deep" ]; then
             printf '%s\n' "run_seconds=3000" >> "${GITHUB_OUTPUT}"
