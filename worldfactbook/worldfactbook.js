@@ -1,47 +1,58 @@
-/* worldfactbook/worldfactbook.js
- * Static data client for the ZZX World Factbook archive contracts.
- */
 (function () {
   "use strict";
 
   const W = window;
-  if (W.ZZXWorldFactbook && W.ZZXWorldFactbook.__version >= 1) return;
+  if (W.ZZXWorldFactbook && W.ZZXWorldFactbook.__version >= 2) return;
 
-  const script = document.currentScript;
-  const scriptURL = new URL(script && script.src ? script.src : "./worldfactbook.js", document.baseURI);
-  const ROOT = new URL("./", scriptURL);
-  const API = new URL("./api/", ROOT);
-
+  const current = document.currentScript;
+  const root = new URL("./", current && current.src ? current.src : location.href);
+  const apiRoot = new URL("./api/", root);
   const cache = new Map();
 
-  function cleanPath(path) {
-    return String(path || "")
-      .replace(/\\/g, "/")
-      .replace(/^\.?\//, "");
+  const CONFIG = Object.freeze({
+    name: "ZZX-WorldFactbook",
+    historicalStart: 1962,
+    historicalEnd: 2025,
+    historicalInstitution: "Central Intelligence Agency",
+    historicalPublication: "The World Factbook",
+    variants: Object.freeze([
+      "ZZX-WorldFactbook",
+      "ZZX-BritishWorldFactbook",
+      "ZZX-GlobalWorldFactbook",
+      "ZZX-HybridWorldFactbook"
+    ]),
+    featureEndpoints: Object.freeze({
+      leaders: "leaders/index.json",
+      facts: "facts-of-the-day/index.json",
+      images: "images-of-the-day/index.json"
+    })
+  });
+
+  function clean(path) {
+    return String(path || "").replace(/\\/g, "/").replace(/^\.?\//, "");
   }
 
-  function apiURL(path) {
-    return new URL(cleanPath(path), API).href;
+  function url(path) {
+    return new URL(clean(path), apiRoot).href;
   }
 
-  function rootURL(path) {
-    const p = cleanPath(path);
-    if (p.toLowerCase().startsWith("worldfactbook/")) {
-      return new URL(p.slice("worldfactbook/".length), ROOT).href;
-    }
-    return new URL(p, ROOT).href;
+  function assetURL(path) {
+    const cleanPath = clean(path);
+    return cleanPath.startsWith("worldfactbook/")
+      ? new URL(cleanPath.slice("worldfactbook/".length), root).href
+      : new URL(cleanPath, root).href;
   }
 
-  async function fetchJSON(url, options) {
+  async function fetchJSON(target, options) {
     const opts = options || {};
-    const key = String(url);
-    if (!opts.refresh && cache.has(key)) return cache.get(key);
+    const absolute = /^https?:/i.test(String(target || "")) ? String(target) : url(target);
+    if (!opts.refresh && cache.has(absolute)) return cache.get(absolute);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), Number(opts.timeout || 18000));
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(absolute, {
         cache: opts.refresh ? "no-store" : "default",
         credentials: "same-origin",
         signal: controller.signal,
@@ -49,154 +60,56 @@
       });
 
       if (!response.ok) {
-        const error = new Error("HTTP " + response.status + " for " + url);
+        const error = new Error("HTTP " + response.status + " for " + absolute);
         error.status = response.status;
         throw error;
       }
 
-      const data = await response.json();
-      cache.set(key, data);
-      return data;
+      const payload = await response.json();
+      cache.set(absolute, payload);
+      return payload;
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  function categoryPath(year, category) {
-    return "editions/" + encodeURIComponent(String(year)) + "/" +
-      encodeURIComponent(String(category)) + ".json";
-  }
-
-  async function portalIndex(options) {
-    return fetchJSON(apiURL("portal-index.json"), options);
-  }
-
-  async function sourceIndex(options) {
-    return fetchJSON(apiURL("source-index.json"), options);
-  }
-
-  async function edition(year, options) {
-    return fetchJSON(apiURL("editions/" + encodeURIComponent(String(year)) + "/index.json"), options);
-  }
-
-  async function category(year, categoryId, options) {
-    return fetchJSON(apiURL(categoryPath(year, categoryId)), options);
-  }
-
-  async function media(year, options) {
-    return fetchJSON(apiURL("media/" + encodeURIComponent(String(year)) + "/index.json"), options);
-  }
-
-  async function attributions(year, options) {
-    return fetchJSON(apiURL("attributions/" + encodeURIComponent(String(year)) + "/images.json"), options);
-  }
-
-  async function electricity(options) {
-    return fetchJSON(apiURL("electricity-history.json"), options);
-  }
-
-  async function loadCategories(year, categories, options) {
-    const ids = Array.from(new Set((categories || []).filter(Boolean)));
-    const out = [];
-    const queue = ids.slice();
-    const workers = Math.min(4, Math.max(1, queue.length));
-
-    async function worker() {
-      while (queue.length) {
-        const id = queue.shift();
-        if (!id) continue;
-        try {
-          const payload = await category(year, id, options);
-          const rows = Array.isArray(payload && payload.chunks) ? payload.chunks : [];
-          out.push.apply(out, rows);
-        } catch (error) {
-          if (!error || error.status !== 404) throw error;
-        }
-      }
+  async function optionalJSON(path, options) {
+    try {
+      return await fetchJSON(path, options);
+    } catch (error) {
+      if (error && error.status === 404) return null;
+      throw error;
     }
-
-    await Promise.all(Array.from({ length: workers }, worker));
-    return out;
   }
 
-  function normalizedEntity(row) {
-    const code = String(row && row.entity_code || "").trim();
-    const name = String(row && row.entity_name || "").trim();
-    return {
-      code,
-      name,
-      key: code || name || "",
-      label: name || code || "Global / uncategorized"
-    };
-  }
-
-  function entities(rows) {
-    const byKey = new Map();
-    (rows || []).forEach((row) => {
-      const entity = normalizedEntity(row);
-      if (!entity.key) return;
-      if (!byKey.has(entity.key)) byKey.set(entity.key, entity);
-    });
-    return Array.from(byKey.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
-    );
-  }
-
-  function matchesEntity(row, entityKey) {
-    if (!entityKey) return true;
-    const entity = normalizedEntity(row);
-    return entity.code === entityKey || entity.name === entityKey || entity.key === entityKey;
-  }
-
-  function searchableText(row) {
-    return [
-      row && row.entity_code,
-      row && row.entity_name,
-      row && row.category,
-      row && row.content,
-      row && row.caption,
-      row && row.credit,
-      row && row.ocr_text,
-      row && row.visual_type,
-      row && row.source_provider,
-      row && row.source_identifier
-    ].filter(Boolean).join("\n").toLowerCase();
-  }
-
-  function filterRows(rows, options) {
-    const opts = options || {};
-    const query = String(opts.query || "").trim().toLowerCase();
-    return (rows || []).filter((row) => {
-      if (!matchesEntity(row, opts.entity || "")) return false;
-      if (opts.category && row.category !== opts.category) return false;
-      if (opts.visualType && row.visual_type !== opts.visualType) return false;
-      if (query && !searchableText(row).includes(query)) return false;
-      return true;
-    });
-  }
-
-  function clearCache() {
-    cache.clear();
-  }
+  const api = {
+    portalIndex: (options) => fetchJSON("portal-index.json", options),
+    sourceIndex: (options) => fetchJSON("source-index.json", options),
+    referenceIndex: (options) => fetchJSON("reference-index.json", options),
+    electricity: (options) => fetchJSON("electricity-history.json", options),
+    mediaIndex: (options) => fetchJSON("media-index.json", options),
+    leaders: (options) => fetchJSON(CONFIG.featureEndpoints.leaders, options),
+    facts: (options) => fetchJSON(CONFIG.featureEndpoints.facts, options),
+    images: (options) => fetchJSON(CONFIG.featureEndpoints.images, options),
+    optionalJSON
+  };
 
   W.ZZXWorldFactbook = Object.freeze({
-    __version: 1,
-    root: ROOT.href,
-    apiRoot: API.href,
-    apiURL,
-    assetURL: rootURL,
+    __version: 2,
+    root: root.href,
+    apiRoot: apiRoot.href,
+    config: CONFIG,
+    url,
+    apiURL: url,
+    assetURL,
     fetchJSON,
-    portalIndex,
-    sourceIndex,
-    edition,
-    category,
-    loadCategories,
-    media,
-    attributions,
-    electricity,
-    normalizedEntity,
-    entities,
-    filterRows,
-    clearCache
+    optionalJSON,
+    api,
+    portalIndex: api.portalIndex,
+    sourceIndex: api.sourceIndex,
+    referenceIndex: api.referenceIndex,
+    electricity: api.electricity,
+    mediaIndex: api.mediaIndex,
+    clearCache: () => cache.clear()
   });
 })();
