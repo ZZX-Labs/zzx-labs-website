@@ -23,8 +23,9 @@ from pathlib import Path
 
 from formats import SUPPORTED_EXTENSIONS, extract
 from shard_store import write_shards
+from media import MediaExtractor, SourceContext, load_existing_media, write_media_indexes, write_media_shards
 
-UA = "ZZX-WorldFactbook-Crawler/1.0 (+https://zzx-labs.io/)"
+UA = "ZZX-WorldFactbook-Crawler/1.2 (+https://zzx-labs.io/)"
 CATEGORY_ALIASES = {
     "introduction": {"introduction", "background"},
     "geography": {"geography"},
@@ -263,21 +264,33 @@ def safe_name(name: str) -> str:
     return name[:180] or "source.bin"
 
 
-def write_portal(rows: list[dict], source_rows: list[dict], root: Path, start: int, end: int) -> dict:
+def write_portal(
+    rows: list[dict],
+    source_rows: list[dict],
+    media_rows: list[dict],
+    root: Path,
+    start: int,
+    end: int,
+) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     by_year: dict[int, list[dict]] = {}
+    media_by_year: dict[int, list[dict]] = {}
     for row in rows:
         by_year.setdefault(int(row["edition_year"]), []).append(row)
+    for row in media_rows:
+        media_by_year.setdefault(int(row.get("edition_year") or 0), []).append(row)
     editions = []
     for year in range(start, end + 1):
         year_rows = by_year.get(year, [])
+        year_media = media_by_year.get(year, [])
         cats: dict[str, list[dict]] = {}
         for row in year_rows:
-            public = {k: row[k] for k in (
+            keys = (
                 "chunk_id", "edition_year", "entity_code", "entity_name", "category", "ordinal",
                 "content", "content_sha256", "source_provider", "source_identifier", "source_format",
-                "source_sha256", "source_url", "extractor"
-            )}
+                "source_sha256", "source_url", "extractor", "media_citation_key",
+            )
+            public = {k: row[k] for k in keys if k in row}
             cats.setdefault(row["category"], []).append(public)
         category_meta = []
         for cat, cat_rows in sorted(cats.items()):
@@ -289,18 +302,27 @@ def write_portal(rows: list[dict], source_rows: list[dict], root: Path, start: i
         year_sources = [s for s in source_rows if int(s.get("edition_year") or 0) == year]
         manifest = {
             "schema": "zzx-worldfactbook-edition-v1", "edition_year": year,
-            "status": "available" if year_rows else "missing",
+            "status": "available" if year_rows or year_media else "missing",
             "chunks": len(year_rows), "categories": category_meta, "sources": year_sources,
+            "images": len(year_media),
+            "media_path": f"media/{year}/index.json",
+            "attribution_path": f"attributions/{year}/images.json",
         }
         mpath = root / "editions" / str(year) / "index.json"
         mpath.parent.mkdir(parents=True, exist_ok=True)
         mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        editions.append({"year": year, "status": manifest["status"], "chunks": len(year_rows), "categories": len(category_meta), "path": mpath.relative_to(root).as_posix()})
+        editions.append({
+            "year": year, "status": manifest["status"], "chunks": len(year_rows),
+            "categories": len(category_meta), "images": len(year_media),
+            "path": mpath.relative_to(root).as_posix(),
+        })
     index = {
         "schema": "zzx-worldfactbook-portal-index-v1", "generated_at": now_iso(),
         "start_year": start, "end_year": end, "editions": editions,
         "categories": sorted(CATEGORY_ALIASES),
         "supported_formats": list(SUPPORTED_EXTENSIONS),
+        "media_index": "media-index.json",
+        "attribution_index": "attribution-index.json",
     }
     (root / "portal-index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (root / "source-index.json").write_text(json.dumps({"schema":"zzx-worldfactbook-source-index-v1","sources":source_rows}, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
@@ -313,6 +335,7 @@ def main() -> int:
     ap.add_argument("--cache-dir", default=".cache/worldfactbook-v3")
     ap.add_argument("--portal-root", default="worldfactbook/api")
     ap.add_argument("--db-root", default="worldfactbook/db")
+    ap.add_argument("--media-root", default="worldfactbook/media")
     ap.add_argument("--country-registry", default="__partials/widgets/global-power-grid/data/countries.json")
     ap.add_argument("--extra-source-manifest", default="tools/worldfactbook/extra-sources.json")
     ap.add_argument("--start-year", type=int, default=1962)
@@ -325,6 +348,8 @@ def main() -> int:
     ap.add_argument("--max-download-mb", type=int, default=1500)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--sleep", type=float, default=.1)
+    ap.add_argument("--ocr-language", default="eng")
+    ap.add_argument("--max-images-per-source", type=int, default=2500)
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
@@ -344,11 +369,22 @@ def main() -> int:
     cache = repo / args.cache_dir
     portal = repo / args.portal_root
     dbroot = repo / args.db_root
+    media_root = repo / args.media_root
     if args.mode == "rebuild":
         shutil.rmtree(portal / "editions", ignore_errors=True)
+        shutil.rmtree(portal / "media", ignore_errors=True)
+        shutil.rmtree(portal / "attributions", ignore_errors=True)
+        for generated in (portal / "media-index.json", portal / "attribution-index.json"):
+            generated.unlink(missing_ok=True)
+        shutil.rmtree(media_root, ignore_errors=True)
         shutil.rmtree(dbroot, ignore_errors=True)
     cache.mkdir(parents=True, exist_ok=True)
     aliases, _ = load_entities(repo / args.country_registry)
+    media_extractor = MediaExtractor(
+        repo, media_root, portal, aliases,
+        ocr_language=args.ocr_language,
+        max_images_per_source=args.max_images_per_source,
+    )
     extras = extra_candidates(repo / args.extra_source_manifest, args.start_year, args.end_year)
     extras_by_year: dict[int, list[Candidate]] = {}
     for c in extras:
@@ -357,17 +393,25 @@ def main() -> int:
     providers = {p.strip() for p in args.providers.split(",") if p.strip()}
     all_rows: list[dict] = []
     source_rows: list[dict] = []
+    media_rows: list[dict] = []
     failures: list[dict] = []
     max_bytes = args.max_download_mb * 1024 * 1024
 
     for year in range(args.start_year, args.end_year + 1):
-        # Incremental mode preserves an existing available edition.
+        # Incremental mode preserves a fully indexed edition. Editions created
+        # before v1.2 are revisited once so OCR/image indexes can be backfilled.
         existing = portal / "editions" / str(year) / "index.json"
-        if args.mode == "incremental" and existing.is_file():
+        media_existing = portal / "media" / str(year) / "index.json"
+        if args.mode == "incremental" and existing.is_file() and media_existing.is_file():
             try:
                 e = json.loads(existing.read_text(encoding="utf-8"))
-                if e.get("status") == "available" and int(e.get("chunks") or 0) > 0:
-                    print(f"{year}: already available; keeping existing edition")
+                m = json.loads(media_existing.read_text(encoding="utf-8"))
+                if (
+                    e.get("status") == "available"
+                    and (int(e.get("chunks") or 0) > 0 or int(e.get("images") or 0) >= 0)
+                    and m.get("schema") == "zzx-worldfactbook-media-year-v1"
+                ):
+                    print(f"{year}: corpus + media indexes already available; keeping existing edition")
                     continue
             except Exception:
                 pass
@@ -404,9 +448,31 @@ def main() -> int:
                     raise RuntimeError(f"source too large ({c.size} bytes)")
                 download(c.url, local, max_bytes)
                 source_sha = hashlib.sha256(local.read_bytes()).hexdigest()
+                source_context = SourceContext(
+                    edition_year=year,
+                    provider=c.provider,
+                    identifier=c.identifier,
+                    source_url=c.url,
+                    source_name=c.name,
+                    source_format=c.format or ext.lstrip("."),
+                    source_sha256=source_sha,
+                    timestamp=c.timestamp,
+                )
+
+                source_media: list[dict] = []
+                try:
+                    source_media = media_extractor.extract(local, source_context)
+                    media_rows.extend(source_media)
+                except Exception as media_exc:
+                    failures.append({
+                        "year": year, "provider": c.provider, "url": c.url,
+                        "stage": "media", "error": str(media_exc),
+                    })
+
                 docs = extract(local)
-                if not docs:
-                    raise RuntimeError("no extractable text")
+                if not docs and not source_media:
+                    raise RuntimeError("no extractable text or images")
+
                 accepted = 0
                 for doc in docs:
                     chunks = parse_chunks(doc.text, year, aliases)
@@ -416,7 +482,10 @@ def main() -> int:
                         for pos in range(0, len(raw), 24000):
                             piece = raw[pos:pos+24000].strip()
                             if len(piece) >= 40:
-                                chunks.append({"edition_year":year,"entity_code":"","entity_name":"","category":"raw","ordinal":len(chunks)+1,"content":piece})
+                                chunks.append({
+                                    "edition_year": year, "entity_code": "", "entity_name": "",
+                                    "category": "raw", "ordinal": len(chunks)+1, "content": piece,
+                                })
                     for row in chunks:
                         content_sha = hashlib.sha256(row["content"].encode("utf-8")).hexdigest()
                         chunk_id = hashlib.sha256((f"{year}|{row['entity_code']}|{row['category']}|{row['ordinal']}|{source_sha}|{content_sha}").encode()).hexdigest()
@@ -428,10 +497,49 @@ def main() -> int:
                         })
                         all_rows.append(row)
                         accepted += 1
+
+                # OCR from every extracted image is searchable corpus content too.
+                # It is linked to the deterministic citation key for auditability.
+                for media in source_media:
+                    ocr_text = str(media.get("ocr_text") or "").strip()
+                    if len(ocr_text) < 40:
+                        continue
+                    ocr_chunks = parse_chunks(ocr_text, year, aliases)
+                    if not ocr_chunks:
+                        ocr_chunks = [{
+                            "edition_year": year,
+                            "entity_code": media.get("entity_code") or "",
+                            "entity_name": media.get("entity_name") or "",
+                            "category": media.get("category") or "raw",
+                            "ordinal": 1,
+                            "content": ocr_text[:24000],
+                        }]
+                    for row in ocr_chunks:
+                        content_sha = hashlib.sha256(row["content"].encode("utf-8")).hexdigest()
+                        chunk_id = hashlib.sha256((
+                            f"{year}|ocr|{media['citation_key']}|{row['category']}|"
+                            f"{row['ordinal']}|{source_sha}|{content_sha}"
+                        ).encode()).hexdigest()
+                        row.update({
+                            "chunk_id": chunk_id,
+                            "content_sha256": content_sha,
+                            "source_provider": c.provider,
+                            "source_identifier": c.identifier,
+                            "source_format": c.format or ext.lstrip("."),
+                            "source_sha256": source_sha,
+                            "source_url": c.url,
+                            "extractor": "tesseract-image-ocr",
+                            "media_citation_key": media["citation_key"],
+                        })
+                        all_rows.append(row)
+                        accepted += 1
+
                 source_rows.append({
-                    "edition_year":year,"provider":c.provider,"identifier":c.identifier,
-                    "url":c.url,"name":c.name,"format":c.format,"timestamp":c.timestamp,
-                    "sha256":source_sha,"bytes":local.stat().st_size,"chunks":accepted,
+                    "edition_year": year, "provider": c.provider, "identifier": c.identifier,
+                    "url": c.url, "name": c.name, "format": c.format, "timestamp": c.timestamp,
+                    "sha256": source_sha, "bytes": local.stat().st_size, "chunks": accepted,
+                    "images": len(source_media),
+                    "ocr_images": sum(1 for m in source_media if str(m.get("ocr_text") or "").strip()),
                 })
             except Exception as exc:
                 failures.append({"year":year,"provider":c.provider,"url":c.url,"error":str(exc)})
@@ -455,18 +563,33 @@ def main() -> int:
             except Exception as exc:
                 failures.append({"year":year,"provider":"local-incremental","error":str(exc)})
 
-    # Deduplicate exact chunk IDs and sources.
+    # Merge existing media indexes for untouched incremental editions.
+    if args.mode == "incremental":
+        existing_media = load_existing_media(portal, args.start_year, args.end_year)
+        new_years = {int(r.get("edition_year") or 0) for r in media_rows}
+        for row in existing_media:
+            if int(row.get("edition_year") or 0) not in new_years:
+                media_rows.append(row)
+
+    # Deduplicate exact chunk IDs, sources, and deterministic image citations.
     all_rows = list({r["chunk_id"]: r for r in all_rows}.values())
     source_rows = list({(s.get("edition_year"),s.get("url"),s.get("sha256")):s for s in source_rows}.values())
-    index = write_portal(all_rows, source_rows, portal, args.start_year, args.end_year)
+    media_rows = list({r["citation_key"]: r for r in media_rows if r.get("citation_key")}.values())
+    media_index = write_media_indexes(media_rows, portal, media_root, repo, args.start_year, args.end_year)
+    media_shard_manifest = write_media_shards(media_rows, dbroot)
+    index = write_portal(all_rows, source_rows, media_rows, portal, args.start_year, args.end_year)
     shard_manifest = write_shards(all_rows, dbroot)
     report = {
         "schema":"zzx-worldfactbook-crawl-report-v1","generated_at":now_iso(),
         "range":[args.start_year,args.end_year],"mode":args.mode,
-        "chunks":len(all_rows),"sources":len(source_rows),"failures":failures,
+        "chunks":len(all_rows),"sources":len(source_rows),"images":len(media_rows),
+        "ocr_images":sum(1 for r in media_rows if str(r.get("ocr_text") or "").strip()),
+        "credited_images":sum(1 for r in media_rows if r.get("credit_status") == "explicit"),
+        "media_schema":media_index.get("schema"),"failures":failures,
         "available_editions":sum(1 for e in index["editions"] if e["status"]=="available"),
         "missing_editions":[e["year"] for e in index["editions"] if e["status"]!="available"],
         "sql_shards":len(shard_manifest.get("files") or []),
+        "media_sql_shards":len(media_shard_manifest.get("files") or []),
     }
     (portal / "crawl-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
