@@ -1,4 +1,4 @@
-name: ZZX-Labs Server Instance
+name: ZZX-nginx Server Instance (Compatibility)
 
 on:
   workflow_dispatch:
@@ -35,6 +35,66 @@ on:
         required: true
         default: true
         type: boolean
+
+  workflow_call:
+    inputs:
+      target:
+        description: "Server target"
+        required: false
+        type: string
+        default: "production"
+      mode:
+        description: "Action mode"
+        required: false
+        type: string
+        default: "audit"
+      include_mail:
+        description: "Check/restart dovecot and ProtonMail Bridge where applicable"
+        required: false
+        type: boolean
+        default: true
+      include_storage:
+        description: "Check/restart SSH/SFTP, IPFS and MariaDB/MySQL where applicable"
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      ZZX_SERVER_HOST:
+        required: false
+      ZZX_SERVER_USER:
+        required: false
+      ZZX_SERVER_PORT:
+        required: false
+      ZZX_SERVER_SSH_KEY:
+        required: false
+      ZZX_SERVER_PATH:
+        required: false
+      ZZX_SERVER_KNOWN_HOSTS:
+        required: false
+      ZZX_PRODUCTION_SERVER_HOST:
+        required: false
+      ZZX_PRODUCTION_SERVER_USER:
+        required: false
+      ZZX_PRODUCTION_SERVER_PORT:
+        required: false
+      ZZX_PRODUCTION_SERVER_SSH_KEY:
+        required: false
+      ZZX_PRODUCTION_SERVER_PATH:
+        required: false
+      ZZX_PRODUCTION_SERVER_KNOWN_HOSTS:
+        required: false
+      ZZX_STAGING_SERVER_HOST:
+        required: false
+      ZZX_STAGING_SERVER_USER:
+        required: false
+      ZZX_STAGING_SERVER_PORT:
+        required: false
+      ZZX_STAGING_SERVER_SSH_KEY:
+        required: false
+      ZZX_STAGING_SERVER_PATH:
+        required: false
+      ZZX_STAGING_SERVER_KNOWN_HOSTS:
+        required: false
 
 permissions:
   contents: read
@@ -99,7 +159,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          printf '%s\n' "ZZX-Labs Server Instance workflow is disabled."
+          printf '%s\n' "ZZX-nginx Server workflow is disabled."
           printf '%s\n' \
             "Set repository variable ZZX_SERVER_INSTANCE_ENABLED=true to enable it."
 
@@ -359,7 +419,7 @@ jobs:
 
           {
             printf '%s\n' \
-              "ZZX-Labs Server Instance Repository Audit"
+              "ZZX-nginx Server Repository Audit"
 
             printf 'target=%s\n' "${TARGET}"
             printf 'mode=%s\n' "${MODE}"
@@ -572,7 +632,7 @@ jobs:
           set -euo pipefail
 
           printf '%s\n' \
-            "ZZX-Labs remote server audit"
+            "ZZX-nginx remote server audit"
 
           printf 'host=%s\n' "$(hostname)"
           printf 'date=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
