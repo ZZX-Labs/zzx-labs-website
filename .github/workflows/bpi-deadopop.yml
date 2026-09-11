@@ -21,8 +21,23 @@ on:
         required: false
         default: ""
         type: string
-  schedule:
-    - cron: "17 */6 * * *"
+  workflow_call:
+    inputs:
+      mode:
+        description: "DeadOPop scan mode"
+        required: false
+        type: string
+        default: "current"
+      start_year:
+        description: "Historical backfill start year"
+        required: false
+        type: string
+        default: "2009"
+      end_year:
+        description: "Historical backfill end year; blank = current year"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -101,9 +116,9 @@ jobs:
       - name: Discover and promote failed/dead/scam assets
         shell: bash
         env:
-          INPUT_MODE: ${{ github.event.inputs.mode || 'current' }}
-          INPUT_START_YEAR: ${{ github.event.inputs.start_year || '2009' }}
-          INPUT_END_YEAR: ${{ github.event.inputs.end_year || '' }}
+          INPUT_MODE: ${{ inputs.mode || 'current' }}
+          INPUT_START_YEAR: ${{ inputs.start_year || '2009' }}
+          INPUT_END_YEAR: ${{ inputs.end_year || '' }}
         run: |
           set -euo pipefail
 
