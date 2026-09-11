@@ -1,0 +1,159 @@
+name: ZZX-BPI Crawler (Wrapper)
+
+run-name: >-
+  ZZX-BPI Crawler / ${{ github.event_name }} / run-${{ github.run_number }}
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+
+  workflow_dispatch:
+    inputs:
+      capture_seconds:
+        description: "Live BTC exchange price/volume collection window for this hourly run"
+        required: false
+        default: "3120"
+        type: string
+      deadopop_mode:
+        description: "DeadOPop scan mode"
+        required: false
+        default: "current"
+        type: choice
+        options:
+          - current
+          - backfill
+      deadopop_start_year:
+        description: "DeadOPop historical backfill start year"
+        required: false
+        default: "2009"
+        type: string
+      deadopop_end_year:
+        description: "DeadOPop historical backfill end year; blank = current year"
+        required: false
+        default: ""
+        type: string
+
+  workflow_call:
+    inputs:
+      capture_seconds:
+        description: "Live BTC exchange price/volume collection window for this hourly run"
+        required: false
+        type: string
+        default: "3120"
+      deadopop_mode:
+        description: "DeadOPop scan mode"
+        required: false
+        type: string
+        default: "current"
+      deadopop_start_year:
+        description: "DeadOPop historical backfill start year"
+        required: false
+        type: string
+        default: "2009"
+      deadopop_end_year:
+        description: "DeadOPop historical backfill end year; blank = current year"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      BPI_MARIADB_HOST:
+        required: false
+      BPI_MARIADB_PORT:
+        required: false
+      BPI_MARIADB_USER:
+        required: false
+      BPI_MARIADB_PASSWORD:
+        required: false
+      BPI_MARIADB_DATABASE:
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-bpi-crawler-wrapper
+  cancel-in-progress: false
+
+jobs:
+  live_market:
+    name: Live BTC Price + Volume
+    uses: ./.github/workflows/bpi-latest.yml
+    with:
+      capture_seconds: ${{ inputs.capture_seconds || '3120' }}
+    secrets:
+      BPI_MARIADB_HOST: ${{ secrets.BPI_MARIADB_HOST }}
+      BPI_MARIADB_PORT: ${{ secrets.BPI_MARIADB_PORT }}
+      BPI_MARIADB_USER: ${{ secrets.BPI_MARIADB_USER }}
+      BPI_MARIADB_PASSWORD: ${{ secrets.BPI_MARIADB_PASSWORD }}
+      BPI_MARIADB_DATABASE: ${{ secrets.BPI_MARIADB_DATABASE }}
+
+  exchange_rates:
+    name: BPI Exchange Rates
+    uses: ./.github/workflows/bpi-exchange-rates.yml
+
+  reference_markets:
+    name: BPI Reference Markets
+    uses: ./.github/workflows/bpi-reference-markets.yml
+
+  sovereign_data:
+    name: BPI Sovereign Data
+    uses: ./.github/workflows/bpi-sovereign-data.yml
+
+  deadopop:
+    name: BPI DeadOPop + TheMarketBTCCreated
+    uses: ./.github/workflows/bpi-deadopop.yml
+    with:
+      mode: ${{ inputs.deadopop_mode || 'current' }}
+      start_year: ${{ inputs.deadopop_start_year || '2009' }}
+      end_year: ${{ inputs.deadopop_end_year || '' }}
+
+  wrapper_status:
+    name: BPI Wrapper Status
+    if: ${{ always() }}
+    needs:
+      - live_market
+      - exchange_rates
+      - reference_markets
+      - sovereign_data
+      - deadopop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report child workflow results
+        shell: bash
+        env:
+          LIVE_MARKET_RESULT: ${{ needs.live_market.result }}
+          EXCHANGE_RATES_RESULT: ${{ needs.exchange_rates.result }}
+          REFERENCE_MARKETS_RESULT: ${{ needs.reference_markets.result }}
+          SOVEREIGN_DATA_RESULT: ${{ needs.sovereign_data.result }}
+          DEADOPOP_RESULT: ${{ needs.deadopop.result }}
+        run: |
+          set -euo pipefail
+
+          printf '%s\n' \
+            "ZZX-BPI Crawler child results:" \
+            "  live_market=${LIVE_MARKET_RESULT}" \
+            "  exchange_rates=${EXCHANGE_RATES_RESULT}" \
+            "  reference_markets=${REFERENCE_MARKETS_RESULT}" \
+            "  sovereign_data=${SOVEREIGN_DATA_RESULT}" \
+            "  deadopop=${DEADOPOP_RESULT}"
+
+          failed=0
+          for result in \
+            "${LIVE_MARKET_RESULT}" \
+            "${EXCHANGE_RATES_RESULT}" \
+            "${REFERENCE_MARKETS_RESULT}" \
+            "${SOVEREIGN_DATA_RESULT}" \
+            "${DEADOPOP_RESULT}"
+          do
+            if [[ "${result}" != "success" ]]; then
+              failed=1
+            fi
+          done
+
+          if (( failed )); then
+            printf '%s\n' "One or more BPI child workflows failed or were cancelled."
+            exit 1
+          fi
+
+          printf '%s\n' "All BPI child workflows completed successfully."
