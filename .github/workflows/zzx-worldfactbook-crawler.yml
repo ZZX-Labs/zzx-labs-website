@@ -1,0 +1,304 @@
+name: ZZX-WorldFactbook Crawler
+
+run-name: >-
+  ZZX-WorldFactbook Crawler / ${{ github.event_name }} / run-${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Incremental keeps verified local editions; rebuild regenerates the 1962-2025 corpus"
+        required: false
+        default: "incremental"
+        type: choice
+        options:
+          - incremental
+          - rebuild
+      start_year:
+        description: "First Factbook edition year"
+        required: false
+        default: "1962"
+        type: string
+      end_year:
+        description: "Last Factbook edition year"
+        required: false
+        default: "2025"
+        type: string
+      max_ia_items:
+        description: "Maximum Internet Archive collection candidates examined per edition"
+        required: false
+        default: "12"
+        type: string
+      max_wayback_pages:
+        description: "Maximum Wayback country pages examined per fallback edition"
+        required: false
+        default: "320"
+        type: string
+
+  workflow_call:
+    inputs:
+      mode:
+        required: false
+        type: string
+        default: "incremental"
+      start_year:
+        required: false
+        type: string
+        default: "1962"
+      end_year:
+        required: false
+        type: string
+        default: "2025"
+      max_ia_items:
+        required: false
+        type: string
+        default: "12"
+      max_wayback_pages:
+        required: false
+        type: string
+        default: "320"
+    secrets:
+      WORLDFACTBOOK_MARIADB_HOST:
+        required: false
+      WORLDFACTBOOK_MARIADB_PORT:
+        required: false
+      WORLDFACTBOOK_MARIADB_USER:
+        required: false
+      WORLDFACTBOOK_MARIADB_PASSWORD:
+        required: false
+      WORLDFACTBOOK_MARIADB_DATABASE:
+        required: false
+
+  schedule:
+    - cron: "17 4 1 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-worldfactbook-crawler
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+  WFB_CACHE: .cache/worldfactbook-v3
+  WFB_PORTAL: worldfactbook/api
+  WFB_DB: worldfactbook/db
+
+jobs:
+  crawl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Sync main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fdx -e "${WFB_CACHE}/"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install archival format tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            poppler-utils \
+            calibre \
+            p7zip-full \
+            libarchive-tools \
+            antiword \
+            unrtf \
+            djvulibre-bin \
+            mariadb-client
+          python -m pip install --upgrade pip
+          python -m pip install pypdf
+
+      - name: Restore archival source cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/worldfactbook-v3
+          key: worldfactbook-corpus-v3-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            worldfactbook-corpus-v3-${{ runner.os }}-
+            worldfactbook-corpus-v3-
+
+      - name: Validate World Factbook crawler
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            tools/worldfactbook/formats.py \
+            tools/worldfactbook/shard_store.py \
+            tools/worldfactbook/mariadb_sync.py \
+            tools/worldfactbook/worldfactbook_crawler.py \
+            tools/worldfactbook/worldfactbook_crawler_selftest.py \
+            tools/worldfactbook/factbook_archive_sync.py
+
+          python tools/worldfactbook/worldfactbook_crawler.py --self-test
+          python tools/worldfactbook/worldfactbook_crawler_selftest.py
+          python -m json.tool tools/worldfactbook/extra-sources.json >/dev/null
+
+      - name: Crawl and normalize all World Factbook editions
+        shell: bash
+        env:
+          INPUT_MODE: ${{ inputs.mode || 'incremental' }}
+          INPUT_START: ${{ inputs.start_year || '1962' }}
+          INPUT_END: ${{ inputs.end_year || '2025' }}
+          INPUT_IA: ${{ inputs.max_ia_items || '12' }}
+          INPUT_WAYBACK: ${{ inputs.max_wayback_pages || '320' }}
+        run: |
+          set -euo pipefail
+
+          python tools/worldfactbook/worldfactbook_crawler.py \
+            --repo-root . \
+            --cache-dir "${WFB_CACHE}" \
+            --portal-root "${WFB_PORTAL}" \
+            --db-root "${WFB_DB}" \
+            --country-registry __partials/widgets/global-power-grid/data/countries.json \
+            --extra-source-manifest tools/worldfactbook/extra-sources.json \
+            --start-year "${INPUT_START}" \
+            --end-year "${INPUT_END}" \
+            --mode "${INPUT_MODE}" \
+            --providers ia,wayback \
+            --max-ia-items "${INPUT_IA}" \
+            --max-files-per-edition 3 \
+            --max-wayback-pages "${INPUT_WAYBACK}" \
+            --max-download-mb 1500 \
+            --workers 6 \
+            --sleep 0.15
+
+      - name: Preserve Global Power Grid World Factbook compatibility outputs
+        shell: bash
+        env:
+          INPUT_MODE: ${{ inputs.mode || 'incremental' }}
+        run: |
+          set -euo pipefail
+
+          ARGS=(
+            --country-registry __partials/widgets/global-power-grid/data/countries.json
+            --electricity-output worldfactbook/api/electricity-history.json
+            --reference-output worldfactbook/api/reference-index.json
+            --power-grid-output bitcoin/power-grid/api/factbook-history.json
+            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json
+            --cache-dir .cache/worldfactbook-v2
+            --start-year 1962
+            --end-year 2025
+            --max-ia-items 12
+            --min-records-per-edition 20
+            --workers 6
+            --max-wayback-pages 320
+            --sleep 0.15
+          )
+
+          if [ "${INPUT_MODE}" = "rebuild" ]; then
+            ARGS+=(--rebuild)
+          fi
+
+          python tools/worldfactbook/factbook_archive_sync.py "${ARGS[@]}"
+
+      - name: Validate corpus, portal, SQL shards, and compatibility ledgers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import gzip
+          import hashlib
+          import json
+          from pathlib import Path
+
+          portal = Path("worldfactbook/api")
+          db = Path("worldfactbook/db")
+
+          index = json.loads((portal / "portal-index.json").read_text(encoding="utf-8"))
+          report = json.loads((portal / "crawl-report.json").read_text(encoding="utf-8"))
+          shards = json.loads((db / "manifest.json").read_text(encoding="utf-8"))
+
+          if index.get("schema") != "zzx-worldfactbook-portal-index-v1":
+              raise SystemExit("wrong World Factbook portal-index schema")
+          if report.get("schema") != "zzx-worldfactbook-crawl-report-v1":
+              raise SystemExit("wrong World Factbook crawl-report schema")
+          if shards.get("schema") != "zzx-worldfactbook-mariadb-shards-v1":
+              raise SystemExit("wrong World Factbook shard manifest schema")
+          if int(report.get("chunks") or 0) < 1:
+              raise SystemExit("World Factbook corpus contains zero chunks")
+
+          for entry in shards.get("files") or []:
+              path = db / entry["path"]
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(f"missing SQL shard: {path}")
+              if path.stat().st_size > 24_000_000:
+                  raise SystemExit(f"SQL shard exceeds 24 MB public ceiling: {path}")
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              if digest != entry["sha256"]:
+                  raise SystemExit(f"SQL shard hash mismatch: {path}")
+              with gzip.open(path, "rt", encoding="utf-8") as fh:
+                  head = fh.read(4096)
+              if "worldfactbook_chunks" not in head:
+                  raise SystemExit(f"SQL shard contract missing table: {path}")
+
+          compat = [
+              Path("worldfactbook/api/electricity-history.json"),
+              Path("worldfactbook/api/reference-index.json"),
+              Path("bitcoin/power-grid/api/factbook-history.json"),
+              Path("__partials/widgets/global-power-grid/data/factbook-history.json"),
+          ]
+          for path in compat:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              print("compat", path, payload.get("schema"), len(payload.get("records", [])))
+
+          print(
+              "World Factbook corpus valid:",
+              f"chunks={report['chunks']}",
+              f"available_editions={report['available_editions']}",
+              f"sql_shards={len(shards.get('files') or [])}",
+              f"missing={len(report.get('missing_editions') or [])}",
+          )
+          PY
+
+      - name: Optionally synchronize MariaDB shards
+        if: ${{ env.WORLDFACTBOOK_MARIADB_HOST != '' && env.WORLDFACTBOOK_MARIADB_USER != '' }}
+        shell: bash
+        env:
+          WORLDFACTBOOK_MARIADB_HOST: ${{ secrets.WORLDFACTBOOK_MARIADB_HOST }}
+          WORLDFACTBOOK_MARIADB_PORT: ${{ secrets.WORLDFACTBOOK_MARIADB_PORT }}
+          WORLDFACTBOOK_MARIADB_USER: ${{ secrets.WORLDFACTBOOK_MARIADB_USER }}
+          WORLDFACTBOOK_MARIADB_PASSWORD: ${{ secrets.WORLDFACTBOOK_MARIADB_PASSWORD }}
+          WORLDFACTBOOK_MARIADB_DATABASE: ${{ secrets.WORLDFACTBOOK_MARIADB_DATABASE }}
+        run: |
+          set -euo pipefail
+          python tools/worldfactbook/mariadb_sync.py --root "${WFB_DB}"
+
+      - name: Publish World Factbook corpus and compatibility outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "zzx-worldfactbook-bot"
+          git config user.email "actions@github.com"
+
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update ZZX World Factbook corpus" \
+            --path worldfactbook/api \
+            --path worldfactbook/db \
+            --path bitcoin/power-grid/api/factbook-history.json \
+            --path __partials/widgets/global-power-grid/data/factbook-history.json \
+            --attempts 5 \
+            --sleep-seconds 8
