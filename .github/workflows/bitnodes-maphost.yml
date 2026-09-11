@@ -12,15 +12,23 @@ on:
         required: false
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      max_points:
+        description: "Maximum real-coordinate node points published to each public map"
+        required: false
+        type: string
+        default: "5000"
+      include_ayeowch_compat:
+        description: "Also build optional Ayeowch/original compatibility map when a real-coordinate snapshot exists"
+        required: false
+        type: boolean
+        default: false
   workflow_run:
     workflows:
       - ZZX-Labs Bitnodes Global Node Crawler
     types:
       - completed
-  schedule:
-    # Fallback rebuild. Normal publication is event-driven after the crawler.
-    - cron: "37 */6 * * *"
-
 permissions:
   contents: write
 
@@ -53,7 +61,7 @@ jobs:
   maps:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_call' ||
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
@@ -413,7 +421,7 @@ jobs:
           cat "${RUNNER_TEMP}/original-map-cleanup-report.json"
 
       - name: Build optional Ayeowch compatibility map
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_ayeowch_compat }}
+        if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.include_ayeowch_compat }}
         shell: bash
         run: |
           set -euo pipefail
