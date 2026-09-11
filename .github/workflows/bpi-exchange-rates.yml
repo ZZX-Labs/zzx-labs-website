@@ -2,12 +2,13 @@ name: Update BPI Exchange Rates
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: write
 
 concurrency:
-  group: bpi-hourly-master
+  group: bpi-exchange-rates
   cancel-in-progress: false
 
 env:
