@@ -91,6 +91,12 @@ jobs:
     name: Crawl Complete World Factbook Corpus
     runs-on: ubuntu-24.04
     timeout-minutes: 330
+    env:
+      WORLDFACTBOOK_MARIADB_HOST: ${{ secrets.WORLDFACTBOOK_MARIADB_HOST }}
+      WORLDFACTBOOK_MARIADB_PORT: ${{ secrets.WORLDFACTBOOK_MARIADB_PORT }}
+      WORLDFACTBOOK_MARIADB_USER: ${{ secrets.WORLDFACTBOOK_MARIADB_USER }}
+      WORLDFACTBOOK_MARIADB_PASSWORD: ${{ secrets.WORLDFACTBOOK_MARIADB_PASSWORD }}
+      WORLDFACTBOOK_MARIADB_DATABASE: ${{ secrets.WORLDFACTBOOK_MARIADB_DATABASE }}
 
     steps:
       - name: Checkout repository
@@ -127,10 +133,20 @@ jobs:
             antiword \
             unrtf \
             djvulibre-bin \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            fonts-dejavu-core \
+            libreoffice-writer \
             mariadb-client
 
           python -m pip install --upgrade pip
-          python -m pip install pypdf
+          python -m pip install \
+            pypdf \
+            pymupdf \
+            pillow \
+            opencv-python-headless \
+            pytesseract \
+            beautifulsoup4
 
       - name: Restore archival source cache
         uses: actions/cache@v4
@@ -148,6 +164,7 @@ jobs:
 
           python -m py_compile \
             tools/worldfactbook/formats.py \
+            tools/worldfactbook/media.py \
             tools/worldfactbook/shard_store.py \
             tools/worldfactbook/mariadb_sync.py \
             tools/worldfactbook/worldfactbook_crawler.py \
@@ -178,6 +195,7 @@ jobs:
             --cache-dir "${WFB_CACHE}" \
             --portal-root "${WFB_PORTAL}" \
             --db-root "${WFB_DB}" \
+            --media-root worldfactbook/media \
             --country-registry __partials/widgets/global-power-grid/data/countries.json \
             --extra-source-manifest tools/worldfactbook/extra-sources.json \
             --start-year "${INPUT_START}" \
@@ -189,7 +207,9 @@ jobs:
             --max-wayback-pages "${INPUT_WAYBACK}" \
             --max-download-mb 1500 \
             --workers 6 \
-            --sleep 0.15
+            --sleep 0.15 \
+            --ocr-language eng \
+            --max-images-per-source 2500
 
       - name: Validate corpus, portal, and SQL shards
         shell: bash
@@ -200,6 +220,7 @@ jobs:
           import gzip
           import hashlib
           import json
+          import re
           from pathlib import Path
 
           portal = Path("worldfactbook/api")
@@ -221,6 +242,15 @@ jobs:
               (db / "manifest.json").read_text(
                   encoding="utf-8"
               )
+          )
+          media_shards = json.loads(
+              (db / "media-manifest.json").read_text(encoding="utf-8")
+          )
+          media = json.loads(
+              (portal / "media-index.json").read_text(encoding="utf-8")
+          )
+          attribution = json.loads(
+              (portal / "attribution-index.json").read_text(encoding="utf-8")
           )
 
           if (
@@ -246,6 +276,20 @@ jobs:
               raise SystemExit(
                   "wrong World Factbook shard manifest schema"
               )
+
+          if (
+              media_shards.get("schema")
+              != "zzx-worldfactbook-media-mariadb-shards-v1"
+          ):
+              raise SystemExit(
+                  "wrong World Factbook media shard manifest schema"
+              )
+
+          if media.get("schema") != "zzx-worldfactbook-media-index-v1":
+              raise SystemExit("wrong World Factbook media-index schema")
+
+          if attribution.get("schema") != "zzx-worldfactbook-attribution-index-v1":
+              raise SystemExit("wrong World Factbook attribution-index schema")
 
           if int(report.get("chunks") or 0) < 1:
               raise SystemExit(
@@ -289,11 +333,143 @@ jobs:
                       f"SQL shard contract missing table: {path}"
                   )
 
+          for entry in media_shards.get("files") or []:
+              path = db / entry["path"]
+
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(f"missing media SQL shard: {path}")
+
+              if path.stat().st_size > 24_000_000:
+                  raise SystemExit(
+                      f"media SQL shard exceeds 24 MB public ceiling: {path}"
+                  )
+
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+
+              if digest != entry["sha256"]:
+                  raise SystemExit(
+                      f"media SQL shard hash mismatch: {path}"
+                  )
+
+              with gzip.open(path, "rt", encoding="utf-8") as fh:
+                  head = fh.read(4096)
+
+              if "worldfactbook_images" not in head:
+                  raise SystemExit(
+                      f"media SQL shard contract missing table: {path}"
+                  )
+
+          image_count = 0
+          credited_count = 0
+
+          for year_row in media.get("years") or []:
+              year_path = portal / year_row["path"]
+              payload = json.loads(year_path.read_text(encoding="utf-8"))
+
+              if payload.get("schema") != "zzx-worldfactbook-media-year-v1":
+                  raise SystemExit(f"bad yearly media schema: {year_path}")
+
+              for image in payload.get("images") or []:
+                  image_count += 1
+                  filename = str(image.get("filename") or "")
+                  key = str(image.get("citation_key") or "")
+
+                  if filename != key + ".png":
+                      raise SystemExit(
+                          f"filename/citation key mismatch: {filename} / {key}"
+                      )
+
+                  if not re.fullmatch(
+                      r"wfb-\d{4}-[a-z0-9-]+-[a-z0-9-]+-p\d{4}-i\d{3}-[0-9a-f]{12}\.png",
+                      filename,
+                  ):
+                      raise SystemExit(
+                          f"invalid World Factbook image filename: {filename}"
+                      )
+
+                  image_path = Path(image["path"])
+
+                  if (
+                      not image_path.is_file()
+                      or image_path.stat().st_size <= 0
+                  ):
+                      raise SystemExit(f"missing image: {image_path}")
+
+                  if image_path.stat().st_size > 24_000_000:
+                      raise SystemExit(
+                          f"image exceeds 24 MB public ceiling: {image_path}"
+                      )
+
+                  digest = hashlib.sha256(
+                      image_path.read_bytes()
+                  ).hexdigest()
+
+                  if digest != image.get("sha256"):
+                      raise SystemExit(
+                          f"image hash mismatch: {image_path}"
+                      )
+
+                  metadata_path = Path(
+                      image.get("metadata_path") or ""
+                  )
+
+                  if not metadata_path.is_file():
+                      raise SystemExit(
+                          f"missing image metadata: {metadata_path}"
+                      )
+
+                  citation = str(image.get("citation") or "")
+
+                  if key not in citation:
+                      raise SystemExit(
+                          f"citation missing filename key: {key}"
+                      )
+
+                  if str(image.get("source_url") or "") not in citation:
+                      raise SystemExit(
+                          f"citation missing source URL: {key}"
+                      )
+
+                  status = image.get("credit_status")
+                  credit = str(image.get("credit") or "")
+
+                  if status == "explicit":
+                      if not credit:
+                          raise SystemExit(
+                              f"explicit credit missing text: {key}"
+                          )
+                      credited_count += 1
+                  elif status == "not-found":
+                      if credit:
+                          raise SystemExit(
+                              f"unverified credit text present: {key}"
+                          )
+                  else:
+                      raise SystemExit(
+                          f"unknown credit status for {key}: {status}"
+                      )
+
+          if image_count != int(media.get("images") or 0):
+              raise SystemExit(
+                  f"media image count mismatch: "
+                  f"index={media.get('images')} scanned={image_count}"
+              )
+
+          if image_count != int(report.get("images") or 0):
+              raise SystemExit(
+                  f"crawl report image count mismatch: "
+                  f"report={report.get('images')} scanned={image_count}"
+              )
+
           print(
               "World Factbook corpus valid:",
               f"chunks={report['chunks']}",
+              f"images={image_count}",
+              f"ocr_images={report.get('ocr_images', 0)}",
+              f"credited_images={credited_count}",
               f"available_editions={report['available_editions']}",
               f"sql_shards={len(shards.get('files') or [])}",
+              f"media_sql_shards={len(media_shards.get('files') or [])}",
               f"missing={len(report.get('missing_editions') or [])}",
           )
           PY
@@ -326,6 +502,7 @@ jobs:
             --message "Update ZZX World Factbook corpus" \
             --path worldfactbook/api \
             --path worldfactbook/db \
+            --path worldfactbook/media \
             --attempts 5 \
             --sleep-seconds 8
 
