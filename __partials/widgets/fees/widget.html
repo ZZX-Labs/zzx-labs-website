@@ -26,7 +26,7 @@
   <div class="fees__hero">
     <span>mean recommendation</span>
     <strong><span data-fees-fast>—</span> <span data-fees-unit-text>sat/vB</span></strong>
-    <small data-fees-sub>mean of five distinct recommended fee levels</small>
+    <small data-fees-sub>mean of five normalized recommendation levels</small>
   </div>
 
   <div class="fees__metrics">
@@ -68,10 +68,40 @@
       </label>
 
       <label>
-        <span>fee tier</span>
-        <select data-fees-tier aria-label="Fee tier">
+        <span>preferred total time</span>
+        <select data-fees-time aria-label="Preferred total confirmation time">
+          <option value="10">~10 min</option>
+          <option value="30" selected>~30 min</option>
+          <option value="60">~1 hour</option>
+          <option value="120">~2 hours</option>
+          <option value="360">~6 hours</option>
+          <option value="720">~12 hours</option>
+          <option value="1440">~24 hours</option>
+        </select>
+      </label>
+
+      <label>
+        <span>confirmations preferred</span>
+        <input
+          data-fees-confirmations
+          type="number"
+          min="1"
+          max="144"
+          step="1"
+          value="1"
+          inputmode="numeric"
+          aria-label="Preferred confirmation depth"
+        >
+      </label>
+
+      <label>
+        <span>fee policy</span>
+        <select data-fees-tier aria-label="Fee policy">
+          <option value="auto" selected>auto · deadline aware</option>
           <option value="instant">instant</option>
-          <option value="fast" selected>fast</option>
+          <option value="fast">fast</option>
+          <option value="high">high</option>
+          <option value="mid">mid</option>
           <option value="low">low</option>
           <option value="economy">economy</option>
           <option value="min">minimum</option>
@@ -82,6 +112,7 @@
         <span>estimated network fee</span>
         <strong data-fees-estimate>—</strong>
         <small data-fees-estimate-usd>—</small>
+        <small class="fees__estimate-plan" data-fees-estimate-plan>—</small>
       </div>
     </div>
   </div>
