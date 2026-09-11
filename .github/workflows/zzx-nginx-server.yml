@@ -1,0 +1,137 @@
+name: ZZX-nginx Server
+
+run-name: >-
+  ZZX-nginx Server / ${{ inputs.target || 'production' }} / ${{ inputs.mode || 'audit' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Server target"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+          - local-mirror
+
+      mode:
+        description: "Action mode"
+        required: true
+        default: "audit"
+        type: choice
+        options:
+          - audit
+          - deploy
+          - restart
+          - audit-deploy-restart
+
+      include_mail:
+        description: "Check/restart dovecot and ProtonMail Bridge where applicable"
+        required: true
+        default: true
+        type: boolean
+
+      include_storage:
+        description: "Check/restart SSH/SFTP, IPFS and MariaDB/MySQL where applicable"
+        required: true
+        default: true
+        type: boolean
+
+  workflow_call:
+    inputs:
+      target:
+        description: "Server target"
+        required: false
+        type: string
+        default: "production"
+      mode:
+        description: "Action mode"
+        required: false
+        type: string
+        default: "audit"
+      include_mail:
+        description: "Check/restart dovecot and ProtonMail Bridge where applicable"
+        required: false
+        type: boolean
+        default: true
+      include_storage:
+        description: "Check/restart SSH/SFTP, IPFS and MariaDB/MySQL where applicable"
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      ZZX_SERVER_HOST:
+        required: false
+      ZZX_SERVER_USER:
+        required: false
+      ZZX_SERVER_PORT:
+        required: false
+      ZZX_SERVER_SSH_KEY:
+        required: false
+      ZZX_SERVER_PATH:
+        required: false
+      ZZX_SERVER_KNOWN_HOSTS:
+        required: false
+      ZZX_PRODUCTION_SERVER_HOST:
+        required: false
+      ZZX_PRODUCTION_SERVER_USER:
+        required: false
+      ZZX_PRODUCTION_SERVER_PORT:
+        required: false
+      ZZX_PRODUCTION_SERVER_SSH_KEY:
+        required: false
+      ZZX_PRODUCTION_SERVER_PATH:
+        required: false
+      ZZX_PRODUCTION_SERVER_KNOWN_HOSTS:
+        required: false
+      ZZX_STAGING_SERVER_HOST:
+        required: false
+      ZZX_STAGING_SERVER_USER:
+        required: false
+      ZZX_STAGING_SERVER_PORT:
+        required: false
+      ZZX_STAGING_SERVER_SSH_KEY:
+        required: false
+      ZZX_STAGING_SERVER_PATH:
+        required: false
+      ZZX_STAGING_SERVER_KNOWN_HOSTS:
+        required: false
+
+permissions:
+  contents: read
+
+# Remote administration stays explicit. There is intentionally no schedule.
+concurrency:
+  group: zzx-nginx-server-controller-${{ inputs.target || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  nginx_server:
+    name: ZZX-nginx Server
+    uses: ./.github/workflows/server-instance.yml
+    with:
+      target: ${{ inputs.target || 'production' }}
+      mode: ${{ inputs.mode || 'audit' }}
+      include_mail: ${{ inputs.include_mail }}
+      include_storage: ${{ inputs.include_storage }}
+    secrets:
+      ZZX_SERVER_HOST: ${{ secrets.ZZX_SERVER_HOST }}
+      ZZX_SERVER_USER: ${{ secrets.ZZX_SERVER_USER }}
+      ZZX_SERVER_PORT: ${{ secrets.ZZX_SERVER_PORT }}
+      ZZX_SERVER_SSH_KEY: ${{ secrets.ZZX_SERVER_SSH_KEY }}
+      ZZX_SERVER_PATH: ${{ secrets.ZZX_SERVER_PATH }}
+      ZZX_SERVER_KNOWN_HOSTS: ${{ secrets.ZZX_SERVER_KNOWN_HOSTS }}
+      ZZX_PRODUCTION_SERVER_HOST: ${{ secrets.ZZX_PRODUCTION_SERVER_HOST }}
+      ZZX_PRODUCTION_SERVER_USER: ${{ secrets.ZZX_PRODUCTION_SERVER_USER }}
+      ZZX_PRODUCTION_SERVER_PORT: ${{ secrets.ZZX_PRODUCTION_SERVER_PORT }}
+      ZZX_PRODUCTION_SERVER_SSH_KEY: ${{ secrets.ZZX_PRODUCTION_SERVER_SSH_KEY }}
+      ZZX_PRODUCTION_SERVER_PATH: ${{ secrets.ZZX_PRODUCTION_SERVER_PATH }}
+      ZZX_PRODUCTION_SERVER_KNOWN_HOSTS: ${{ secrets.ZZX_PRODUCTION_SERVER_KNOWN_HOSTS }}
+      ZZX_STAGING_SERVER_HOST: ${{ secrets.ZZX_STAGING_SERVER_HOST }}
+      ZZX_STAGING_SERVER_USER: ${{ secrets.ZZX_STAGING_SERVER_USER }}
+      ZZX_STAGING_SERVER_PORT: ${{ secrets.ZZX_STAGING_SERVER_PORT }}
+      ZZX_STAGING_SERVER_SSH_KEY: ${{ secrets.ZZX_STAGING_SERVER_SSH_KEY }}
+      ZZX_STAGING_SERVER_PATH: ${{ secrets.ZZX_STAGING_SERVER_PATH }}
+      ZZX_STAGING_SERVER_KNOWN_HOSTS: ${{ secrets.ZZX_STAGING_SERVER_KNOWN_HOSTS }}
