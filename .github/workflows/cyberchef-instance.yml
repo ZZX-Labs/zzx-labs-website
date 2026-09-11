@@ -1,10 +1,31 @@
-name: ZZX-Labs CyberChef Instance
+name: ZZX-CyberChef Local Frontends
 
 on:
   workflow_dispatch:
+    inputs:
+      cyberchef_version:
+        description: "Upstream GCHQ CyberChef release version to host locally"
+        required: false
+        default: "11.0.0"
+        type: string
+      deploy_pages:
+        description: "Deploy the validated build to GitHub Pages"
+        required: false
+        default: true
+        type: boolean
 
-  schedule:
-    - cron: '17 */12 * * *'
+  workflow_call:
+    inputs:
+      cyberchef_version:
+        description: "Upstream GCHQ CyberChef release version to host locally"
+        required: false
+        type: string
+        default: "11.0.0"
+      deploy_pages:
+        description: "Deploy the validated build to GitHub Pages"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -13,26 +34,113 @@ permissions:
 
 concurrency:
   group: zzx-labs-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PYTHONUNBUFFERED: "1"
+  CYBERCHEF_VERSION: ${{ inputs.cyberchef_version || '11.0.0' }}
 
 jobs:
   build:
-    name: Build ZZX-Labs Pages with CyberChef
-    runs-on: ubuntu-latest
+    name: Build ZZX + Native CyberChef Frontends
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - name: Checkout ZZX-Labs website
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Create temporary Pages site
+      - name: Validate CyberChef source trees
+        shell: bash
         run: |
-          rm -rf _site _cyberchef-download _cyberchef-extract
+          set -euo pipefail
+
+          case "${CYBERCHEF_VERSION}" in
+            *[!0-9A-Za-z._+-]*|"")
+              printf '%s\n' "Invalid CyberChef version: ${CYBERCHEF_VERSION}"
+              exit 1
+              ;;
+          esac
+
+          test -d cyberchef
+          test -d tools/cyberchef
+          test -f tools/cyberchef/cyberchef.py
+          python -m py_compile tools/cyberchef/cyberchef.py
+
+          ROOT_FILES=(
+            cyberchef/index.html
+            cyberchef/styles.css
+            cyberchef/script.js
+            cyberchef/hook.js
+            cyberchef/container.js
+            cyberchef/upgrades.css
+            cyberchef/upgrades.js
+            cyberchef/modifications.css
+            cyberchef/modifications.js
+            cyberchef/cyberchef.html
+            cyberchef/ATTRIBUTION.md
+            cyberchef/LICENSE-NOTICE.md
+          )
+
+          for file in "${ROOT_FILES[@]}"; do
+            test -s "${file}"
+          done
+
+          grep -q 'id="cz-runtime"' cyberchef/index.html
+          grep -q 'CyberChefZZX' cyberchef/index.html
+
+          printf '%s\n' "CyberChef source trees validated."
+
+      - name: Record protected ZZX frontend hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ROOT_FILES=(
+            cyberchef/index.html
+            cyberchef/styles.css
+            cyberchef/script.js
+            cyberchef/hook.js
+            cyberchef/container.js
+            cyberchef/upgrades.css
+            cyberchef/upgrades.js
+            cyberchef/modifications.css
+            cyberchef/modifications.js
+            cyberchef/cyberchef.html
+            cyberchef/ATTRIBUTION.md
+            cyberchef/LICENSE-NOTICE.md
+          )
+
+          : > "${RUNNER_TEMP}/zzx-cyberchef-root.sha256"
+
+          for file in "${ROOT_FILES[@]}"; do
+            sha256sum "${file}" >> "${RUNNER_TEMP}/zzx-cyberchef-root.sha256"
+          done
+
+          sort -o \
+            "${RUNNER_TEMP}/zzx-cyberchef-root.sha256" \
+            "${RUNNER_TEMP}/zzx-cyberchef-root.sha256"
+
+      - name: Stage complete Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf \
+            _site \
+            _cyberchef-download \
+            _cyberchef-extract
+
           mkdir -p _site
 
-          rsync -av \
+          rsync -a \
+            --delete \
             --exclude ".git" \
             --exclude ".github" \
             --exclude "_site" \
@@ -42,62 +150,107 @@ jobs:
             --exclude "cyberchef/assets" \
             ./ _site/
 
-      - name: Verify ZZX CyberChef wrapper files
-        run: |
-          test -f _site/cyberchef/index.html
-          test -f _site/cyberchef/styles.css
-          test -f _site/cyberchef/script.js
-          test -f _site/cyberchef/hook.js
-          test -f _site/cyberchef/container.js
-          test -f _site/cyberchef/upgrades.css
-          test -f _site/cyberchef/upgrades.js
-          test -f _site/cyberchef/modifications.css
-          test -f _site/cyberchef/modifications.js
-          grep -q 'id="cz-runtime"' _site/cyberchef/index.html
-          grep -q 'CyberChefZZX' _site/cyberchef/index.html
+          # tools/cyberchef is repository tooling, not a public runtime.
+          rm -rf _site/tools
 
-      - name: Download CyberChef v11.0.0
+      - name: Download pinned upstream CyberChef release
+        shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p _cyberchef-download
 
-          curl -L \
-            --fail \
-            --retry 3 \
-            --retry-delay 5 \
-            -o _cyberchef-download/CyberChef_v11.0.0.zip \
-            https://github.com/gchq/CyberChef/releases/download/v11.0.0/CyberChef_v11.0.0.zip
+          ARCHIVE="_cyberchef-download/CyberChef_v${CYBERCHEF_VERSION}.zip"
+          URL="https://github.com/gchq/CyberChef/releases/download/v${CYBERCHEF_VERSION}/CyberChef_v${CYBERCHEF_VERSION}.zip"
 
-      - name: Extract CyberChef
+          curl \
+            --proto '=https' \
+            --tlsv1.2 \
+            --fail \
+            --location \
+            --retry 4 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --output "${ARCHIVE}" \
+            "${URL}"
+
+          test -s "${ARCHIVE}"
+          unzip -tqq "${ARCHIVE}"
+
+          sha256sum "${ARCHIVE}" \
+            | tee "${RUNNER_TEMP}/cyberchef-release.sha256"
+
+          printf '%s\n' "release_url=${URL}" >> "${GITHUB_ENV}"
+          printf '%s\n' "release_archive=${ARCHIVE}" >> "${GITHUB_ENV}"
+
+      - name: Install isolated native CyberChef runtime
+        shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p _cyberchef-extract
           rm -rf _site/cyberchef/app _site/cyberchef/assets
           mkdir -p _site/cyberchef/app
 
-          unzip -o _cyberchef-download/CyberChef_v11.0.0.zip -d _cyberchef-extract
+          unzip -q \
+            -o "${release_archive}" \
+            -d _cyberchef-extract
 
           if [ -d "_cyberchef-extract/CyberChef" ]; then
-            cp -a _cyberchef-extract/CyberChef/. _site/cyberchef/app/
+            SOURCE_DIR="_cyberchef-extract/CyberChef"
           else
-            cp -a _cyberchef-extract/. _site/cyberchef/app/
+            SOURCE_DIR="_cyberchef-extract"
           fi
 
-          CYBERCHEF_HTML="$(find _site/cyberchef/app -maxdepth 5 -type f \( -name 'CyberChef*.html' -o -name 'Cyberchef*.html' \) | head -n 1)"
+          CYBERCHEF_HTML="$(
+            find "${SOURCE_DIR}" \
+              -maxdepth 5 \
+              -type f \
+              \( -name 'CyberChef*.html' -o -name 'Cyberchef*.html' \) \
+              -print \
+              | sort \
+              | head -n 1
+          )"
 
-          if [ -z "$CYBERCHEF_HTML" ]; then
-            printf '%s\n' 'ERROR: No CyberChef HTML entrypoint found.'
-            find _site/cyberchef/app -maxdepth 6 -type f | sort
+          if [ -z "${CYBERCHEF_HTML}" ]; then
+            printf '%s\n' \
+              "ERROR: no upstream CyberChef HTML entrypoint found."
+            find "${SOURCE_DIR}" -maxdepth 6 -type f | sort
             exit 1
           fi
 
-          cp "$CYBERCHEF_HTML" _site/cyberchef/app/index.html
-          cp "$CYBERCHEF_HTML" _site/cyberchef/app/native.html
-          cp "$CYBERCHEF_HTML" _site/cyberchef/cyberchef.html
+          HTML_DIR="$(dirname "${CYBERCHEF_HTML}")"
 
-          cp -a _site/cyberchef/app/assets _site/cyberchef/assets
+          if [ ! -d "${HTML_DIR}/assets" ]; then
+            printf '%s\n' \
+              "ERROR: upstream CyberChef assets directory not found beside entrypoint."
+            find "${SOURCE_DIR}" -maxdepth 6 -type d | sort
+            exit 1
+          fi
 
-      - name: Generate CyberChef storage and dark shim
+          cp -a "${HTML_DIR}/." _site/cyberchef/app/
+
+          cp "${CYBERCHEF_HTML}" \
+            _site/cyberchef/app/index.html
+
+          cp "${CYBERCHEF_HTML}" \
+            _site/cyberchef/app/native.html
+
+          cp -a \
+            _site/cyberchef/app/assets \
+            _site/cyberchef/assets
+
+          test -s _site/cyberchef/app/index.html
+          test -s _site/cyberchef/app/native.html
+          test -s _site/cyberchef/app/assets/main.js
+          test -s _site/cyberchef/app/assets/main.css
+
+      - name: Generate native runtime storage and dark-mode shim
+        shell: bash
         run: |
-          cat > _site/cyberchef/app/script.js << 'EOF'
+          set -euo pipefail
+
+          cat > _site/cyberchef/app/script.js <<'EOF'
           (function () {
               "use strict";
 
@@ -194,30 +347,6 @@ jobs:
 
                       document.documentElement.classList.add("dark");
                   } catch (ignored) {}
-
-                  try {
-                      var selects = document.querySelectorAll(
-                          "#theme, select[name='theme'], select[id*='theme'], select[class*='theme']"
-                      );
-
-                      selects.forEach(function (select) {
-                          var changed = false;
-
-                          Array.prototype.forEach.call(select.options || [], function (option) {
-                              var value = String(option.value || "").toLowerCase();
-                              var text = String(option.textContent || "").toLowerCase();
-
-                              if (value === "dark" || text === "dark") {
-                                  select.value = option.value;
-                                  changed = true;
-                              }
-                          });
-
-                          if (changed) {
-                              select.dispatchEvent(new Event("change", { bubbles: true }));
-                          }
-                      });
-                  } catch (ignored) {}
               }
 
               forceDark();
@@ -238,163 +367,236 @@ jobs:
           })();
           EOF
 
-      - name: Insert shim before CyberChef main.js
+      - name: Insert native shim before upstream main.js
+        shell: bash
         run: |
-          python3 - << 'PY'
+          set -euo pipefail
+
+          python - <<'PY'
           from pathlib import Path
           import re
 
-          def insert(path, main_src, shim_src):
-              html = path.read_text(encoding="utf-8", errors="ignore")
+          def insert(path: Path) -> None:
+              html = path.read_text(
+                  encoding="utf-8",
+                  errors="strict",
+              )
 
-              if shim_src in html:
-                  path.write_text(html, encoding="utf-8")
+              shim_src = "script.js"
+
+              if f'src="{shim_src}"' in html or f"src='{shim_src}'" in html:
                   return
 
-              pattern = rf'(<script[^>]+src=["\']{re.escape(main_src)}["\'][^>]*></script>)'
+              pattern = (
+                  r'(<script[^>]+src=["\']'
+                  r'assets/main\.js'
+                  r'["\'][^>]*></script>)'
+              )
 
               patched = re.sub(
                   pattern,
-                  f'<script src="{shim_src}"></script>\n\\1',
+                  rf'<script src="{shim_src}"></script>\n\1',
                   html,
                   count=1,
-                  flags=re.I
+                  flags=re.I,
               )
 
               if patched == html:
                   patched = html.replace(
                       "</head>",
-                      f'<script src="{shim_src}"></script>\n</head>'
+                      f'<script src="{shim_src}"></script>\n</head>',
+                      1,
                   )
 
-              path.write_text(patched, encoding="utf-8")
+              if patched == html:
+                  raise SystemExit(
+                      f"could not inject native CyberChef shim into {path}"
+                  )
 
-          insert(
-              Path("_site/cyberchef/app/index.html"),
-              "assets/main.js",
-              "script.js"
-          )
+              path.write_text(
+                  patched,
+                  encoding="utf-8",
+              )
 
-          insert(
-              Path("_site/cyberchef/app/native.html"),
-              "assets/main.js",
-              "script.js"
-          )
+          for file_name in (
+              "index.html",
+              "native.html",
+          ):
+              insert(
+                  Path("_site/cyberchef/app") / file_name
+              )
+          PY
 
-          insert(
-              Path("_site/cyberchef/cyberchef.html"),
-              "assets/main.js",
-              "app/script.js"
+      - name: Write local runtime manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          archive = Path(os.environ["release_archive"])
+          root = Path("_site/cyberchef")
+
+          protected = [
+              "index.html",
+              "styles.css",
+              "script.js",
+              "hook.js",
+              "container.js",
+              "upgrades.css",
+              "upgrades.js",
+              "modifications.css",
+              "modifications.js",
+              "cyberchef.html",
+              "ATTRIBUTION.md",
+              "LICENSE-NOTICE.md",
+          ]
+
+          files = {}
+
+          for relative in protected:
+              path = root / relative
+              files[relative] = hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+
+          payload = {
+              "schema": "zzx-cyberchef-runtime-v1",
+              "generated_at": datetime.now(
+                  timezone.utc
+              ).replace(microsecond=0).isoformat().replace(
+                  "+00:00",
+                  "Z",
+              ),
+              "repository_commit": os.environ.get(
+                  "GITHUB_SHA",
+                  "",
+              ),
+              "zzx_frontend": {
+                  "path": "/cyberchef/",
+                  "protected_files": files,
+              },
+              "native_frontend": {
+                  "path": "/cyberchef/app/",
+                  "version": os.environ["CYBERCHEF_VERSION"],
+                  "release_url": os.environ["release_url"],
+                  "release_sha256": hashlib.sha256(
+                      archive.read_bytes()
+                  ).hexdigest(),
+              },
+              "assets_alias": "/cyberchef/assets/",
+          }
+
+          (root / "runtime-manifest.json").write_text(
+              json.dumps(
+                  payload,
+                  ensure_ascii=False,
+                  indent=2,
+              )
+              + "\n",
+              encoding="utf-8",
           )
           PY
 
-      - name: Add attribution and license notices
+      - name: Verify protected ZZX frontend was not overwritten
+        shell: bash
         run: |
-          cat > _site/cyberchef/ATTRIBUTION.md << 'EOF'
-          # ZZX CyberChef Instance Attribution
+          set -euo pipefail
 
-          CyberChefZZX is a ZZX-Labs R&D subpage and presentation layer for CyberChef v11.0.0.
+          while read -r EXPECTED SOURCE; do
+            RELATIVE="${SOURCE#cyberchef/}"
+            TARGET="_site/cyberchef/${RELATIVE}"
 
-          Modified ZZX page:
+            test -s "${TARGET}"
 
-          https://zzx-labs.io/cyberchef/
+            ACTUAL="$(
+              sha256sum "${TARGET}" \
+                | awk '{print $1}'
+            )"
 
-          Root runtime bridge:
+            if [ "${ACTUAL}" != "${EXPECTED}" ]; then
+              printf '%s\n' \
+                "Protected ZZX CyberChef file changed during build: ${RELATIVE}"
+              exit 1
+            fi
+          done < "${RUNNER_TEMP}/zzx-cyberchef-root.sha256"
 
-          https://zzx-labs.io/cyberchef/cyberchef.html
+          printf '%s\n' \
+            "ZZX CyberChef root frontend preserved byte-for-byte."
 
-          Native local CyberChef path:
-
-          https://zzx-labs.io/cyberchef/app/
-
-          Upstream CyberChef project:
-
-          https://github.com/gchq/CyberChef
-
-          Official CyberChef hosted instance:
-
-          https://gchq.github.io/CyberChef/
-
-          CyberChef is developed by GCHQ and contributors.
-
-          ZZX-Labs R&D integration credits:
-
-          ZZX-Labs R&D
-          0xdeadbeef
-          0xdeadbeef Consulting
-          EOF
-
-          cat > _site/cyberchef/LICENSE-NOTICE.md << 'EOF'
-          # License Notice
-
-          CyberChef is distributed under the Apache License 2.0.
-
-          https://www.apache.org/licenses/LICENSE-2.0
-
-          CyberChef repository:
-
-          https://github.com/gchq/CyberChef
-
-          Crown Copyright reference:
-
-          https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/
-          EOF
-
-      - name: Verify CyberChef deployment artifact
+      - name: Validate complete CyberChef deployment artifact
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
-          test -f _site/cyberchef/index.html
-          test -f _site/cyberchef/cyberchef.html
-          test -f _site/cyberchef/styles.css
-          test -f _site/cyberchef/script.js
-          test -f _site/cyberchef/hook.js
-          test -f _site/cyberchef/container.js
-          test -f _site/cyberchef/upgrades.css
-          test -f _site/cyberchef/upgrades.js
-          test -f _site/cyberchef/modifications.css
-          test -f _site/cyberchef/modifications.js
+          ROOT_FILES=(
+            _site/cyberchef/index.html
+            _site/cyberchef/styles.css
+            _site/cyberchef/script.js
+            _site/cyberchef/hook.js
+            _site/cyberchef/container.js
+            _site/cyberchef/upgrades.css
+            _site/cyberchef/upgrades.js
+            _site/cyberchef/modifications.css
+            _site/cyberchef/modifications.js
+            _site/cyberchef/cyberchef.html
+            _site/cyberchef/ATTRIBUTION.md
+            _site/cyberchef/LICENSE-NOTICE.md
+            _site/cyberchef/runtime-manifest.json
+          )
 
-          test -f _site/cyberchef/app/index.html
-          test -f _site/cyberchef/app/native.html
-          test -f _site/cyberchef/app/script.js
-          test -f _site/cyberchef/app/assets/main.css
-          test -f _site/cyberchef/app/assets/main.js
+          for file in "${ROOT_FILES[@]}"; do
+            test -s "${file}"
+          done
 
-          test -f _site/cyberchef/assets/main.css
-          test -f _site/cyberchef/assets/main.js
-
-          grep -q 'assets/main.css' _site/cyberchef/app/index.html
-          grep -q 'assets/main.js' _site/cyberchef/app/index.html
-          grep -q 'script.js' _site/cyberchef/app/index.html
-          grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
-
-          grep -q 'assets/main.css' _site/cyberchef/cyberchef.html
-          grep -q 'assets/main.js' _site/cyberchef/cyberchef.html
-          grep -q 'app/script.js' _site/cyberchef/cyberchef.html
+          test -s _site/cyberchef/app/index.html
+          test -s _site/cyberchef/app/native.html
+          test -s _site/cyberchef/app/script.js
+          test -s _site/cyberchef/app/assets/main.css
+          test -s _site/cyberchef/app/assets/main.js
+          test -s _site/cyberchef/assets/main.css
+          test -s _site/cyberchef/assets/main.js
 
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
+          grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
+          grep -q 'script.js' _site/cyberchef/app/index.html
+          grep -q 'assets/main.css' _site/cyberchef/app/index.html
+          grep -q 'assets/main.js' _site/cyberchef/app/index.html
 
-          printf '%s\n' 'CyberChef native app, root runtime, shim, and wrapper files verified.'
+          python -m json.tool \
+            _site/cyberchef/runtime-manifest.json \
+            >/dev/null
+
+          printf '%s\n' \
+            "ZZX root frontend and isolated native CyberChef runtime verified."
 
       - name: Upload GitHub Pages artifact
+        if: ${{ inputs.deploy_pages }}
         uses: actions/upload-pages-artifact@v3
         with:
           name: zzx-cyberchef-pages
           path: _site
 
   deploy:
-    name: Deploy ZZX-Labs Pages
-    needs: build
-    runs-on: ubuntu-latest
+    name: Deploy ZZX-CyberChef
+    if: ${{ inputs.deploy_pages }}
+    needs:
+      - build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy validated Pages artifact
         id: deployment
         uses: actions/deploy-pages@v4
         with:
