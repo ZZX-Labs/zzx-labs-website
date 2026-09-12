@@ -3,13 +3,13 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsModel?.__version>=5)return;
+  if(W.ZZXMempoolSpecsModel?.__version>=6)return;
 
   const SATS=100_000_000;
   const BLOCK_VBYTES=1_000_000;
 
-  function finite(v){
-    const n=Number(v);
+  function finite(value){
+    const n=Number(value);
     return Number.isFinite(n)?n:NaN;
   }
 
@@ -30,8 +30,8 @@
   function median(values){
     const a=values.filter(Number.isFinite).slice().sort((x,y)=>x-y);
     if(!a.length)return NaN;
-    const mid=Math.floor(a.length/2);
-    return a.length%2?a[mid]:(a[mid-1]+a[mid])/2;
+    const m=Math.floor(a.length/2);
+    return a.length%2?a[m]:(a[m-1]+a[m])/2;
   }
 
   function normalizeHistogram(hist){
@@ -39,14 +39,9 @@
 
     for(const row of Array.isArray(hist)?hist:[]){
       if(!Array.isArray(row)||row.length<2)continue;
-
       const rate=finite(row[0]);
       const vbytes=finite(row[1]);
-
-      if(
-        Number.isFinite(rate)&&rate>=0 &&
-        Number.isFinite(vbytes)&&vbytes>0
-      ){
+      if(Number.isFinite(rate)&&rate>=0&&Number.isFinite(vbytes)&&vbytes>0){
         out.push({rate,vbytes});
       }
     }
@@ -86,18 +81,27 @@
     const totalFee=finite(summary?.total_fee);
 
     if(Number.isFinite(vsize)&&vsize>0){
-      const blockVSize=Math.min(BLOCK_VBYTES,vsize);
-      const ratio=blockVSize/vsize;
+      const countBlocks=Math.max(1,Math.ceil(vsize/BLOCK_VBYTES));
+      const blocksToCreate=Math.min(8,countBlocks);
+      const fallback=[];
 
-      return [{
-        index:0,
-        nTx:Number.isFinite(count)?Math.max(1,Math.round(count*ratio)):NaN,
-        blockVSize,
-        blockSize:NaN,
-        totalFees:Number.isFinite(totalFee)?totalFee*ratio:NaN,
-        medianFee:NaN,
-        feeRange:[]
-      }];
+      for(let index=0;index<blocksToCreate;index++){
+        const left=Math.max(0,vsize-index*BLOCK_VBYTES);
+        if(left<=0)break;
+        const blockVSize=Math.min(BLOCK_VBYTES,left);
+        const ratio=blockVSize/vsize;
+        fallback.push({
+          index,
+          nTx:Number.isFinite(count)?Math.max(1,Math.round(count*ratio)):NaN,
+          blockVSize,
+          blockSize:NaN,
+          totalFees:Number.isFinite(totalFee)?totalFee*ratio:NaN,
+          medianFee:NaN,
+          feeRange:[]
+        });
+      }
+
+      return fallback;
     }
 
     return [];
@@ -161,25 +165,30 @@
     return NaN;
   }
 
+  function hasFullTxShape(raw){
+    return Array.isArray(raw?.vin)&&Array.isArray(raw?.vout);
+  }
+
   function normalizeTx(raw,{kind="api",fallbackTxid=""}={}){
     if(!raw||typeof raw!=="object")return null;
 
     const txid=String(
       raw.txid ||
-      raw.hash ||
       raw.id ||
       fallbackTxid ||
+      raw.hash ||
       ""
     ).trim();
 
-    if(!txid)return null;
+    if(!/^[0-9a-f]{64}$/i.test(txid))return null;
 
     const core=kind==="core"||raw.__zzxCoreEntry===true;
     const weight=finite(raw.weight);
+    const size=finite(raw.size);
     const vbytes=finite(
       raw.vsize ??
       raw.vbytes ??
-      (Number.isFinite(weight)?weight/4:raw.size)
+      (Number.isFinite(weight)?weight/4:size)
     );
 
     let feeSats=NaN;
@@ -232,7 +241,6 @@
         packageFeeRate=(ancestorBtc*SATS)/ancestorSize;
       }else{
         const ancestorFees=finite(raw.ancestorfees??raw.ancestorFees);
-
         if(Number.isFinite(ancestorFees)){
           const sats=Math.abs(ancestorFees)<10000
             ? ancestorFees*SATS
@@ -244,13 +252,18 @@
 
     if(!Number.isFinite(packageFeeRate))packageFeeRate=feeRate;
 
+    const rawHash=String(raw.hash||raw.wtxid||"").trim();
+
     return {
       id:`tx:${txid}`,
       txid,
+      hash:rawHash||txid,
       kind:"tx",
       realTx:true,
       representative:false,
+      detailed:hasFullTxShape(raw),
       vbytes,
+      size,
       weight,
       feeSats,
       feeRate,
@@ -265,6 +278,7 @@
       ancestorCount:finite(raw.ancestorcount??raw.ancestorCount),
       ancestorSize,
       descendantCount:finite(raw.descendantcount??raw.descendantCount),
+      descendantSize:finite(raw.descendantsize??raw.descendantSize),
       depends:Array.isArray(raw.depends)?raw.depends.slice():[],
       spentBy:Array.isArray(raw.spentby)?raw.spentby.slice():[],
       raw
@@ -279,11 +293,19 @@
       return ap-bp;
     }
 
+    if(Number.isFinite(ap)!==Number.isFinite(bp)){
+      return Number.isFinite(ap)?-1:1;
+    }
+
     const ar=finite(a.packageFeeRate);
     const br=finite(b.packageFeeRate);
 
     if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br){
       return br-ar;
+    }
+
+    if(Number.isFinite(ar)!==Number.isFinite(br)){
+      return Number.isFinite(ar)?-1:1;
     }
 
     const av=finite(a.vbytes);
@@ -293,181 +315,127 @@
       return bv-av;
     }
 
+    const at=finite(a.timeMs);
+    const bt=finite(b.timeMs);
+    if(Number.isFinite(at)&&Number.isFinite(bt)&&at!==bt)return at-bt;
+
     return String(a.txid).localeCompare(String(b.txid));
   }
 
-  function histogramSlice(hist,startVbytes,targetVbytes){
-    const start=Math.max(0,finite(startVbytes)||0);
-    const target=Math.max(0,finite(targetVbytes)||0);
-    const end=start+target;
-    const out=[];
-    let cursor=0;
+  function dedupeTransactions(rows){
+    const map=new Map();
 
-    for(const row of hist){
-      const rowStart=cursor;
-      const rowEnd=cursor+row.vbytes;
-      cursor=rowEnd;
+    for(const tx of rows){
+      if(!tx?.txid)continue;
+      const prior=map.get(tx.txid);
 
-      const overlap=Math.max(
-        0,
-        Math.min(rowEnd,end)-Math.max(rowStart,start)
-      );
-
-      if(overlap>0){
-        out.push({
-          rate:row.rate,
-          vbytes:overlap
-        });
+      if(!prior){
+        map.set(tx.txid,tx);
+        continue;
       }
 
-      if(cursor>=end)break;
+      const priorScore=(prior.detailed?4:0)+(Number.isFinite(prior.vbytes)?2:0)+(Number.isFinite(prior.packageFeeRate)?1:0);
+      const nextScore=(tx.detailed?4:0)+(Number.isFinite(tx.vbytes)?2:0)+(Number.isFinite(tx.packageFeeRate)?1:0);
+
+      if(nextScore>=priorScore){
+        map.set(tx.txid,{
+          ...prior,
+          ...tx,
+          raw:tx.raw||prior.raw
+        });
+      }
     }
 
-    return out;
+    return [...map.values()];
   }
 
-  function candidateOffset(candidates,index){
-    let total=0;
-
-    for(let i=0;i<index;i++){
-      total+=Math.max(0,finite(candidates[i]?.blockVSize)||0);
-    }
-
-    return total;
-  }
-
-  function txsForCandidate(transactions,candidates,index){
-    const explicit=transactions.filter(
-      tx=>Number.isFinite(tx.projectedIndex)&&tx.projectedIndex===index
-    );
-
-    if(explicit.length){
-      return explicit.slice().sort(txComparator);
-    }
-
-    const start=candidateOffset(candidates,index);
-    const target=Math.max(
-      1,
-      finite(candidates[index]?.blockVSize)||BLOCK_VBYTES
-    );
-    const end=start+target;
-
+  function assignProjected(transactions,candidates){
     const sorted=transactions
-      .filter(
-        tx=>
-          Number.isFinite(tx.vbytes)&&
-          tx.vbytes>0&&
-          Number.isFinite(tx.packageFeeRate)
-      )
+      .filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0&&Number.isFinite(tx.packageFeeRate))
       .slice()
       .sort(txComparator);
 
-    const selected=[];
-    let cursor=0;
-
-    for(const tx of sorted){
-      const next=cursor+tx.vbytes;
-      const midpoint=cursor+tx.vbytes/2;
-
-      if(midpoint>=start&&midpoint<end){
-        selected.push(tx);
-      }
-
-      cursor=next;
-      if(cursor>=end)break;
+    if(!candidates.length){
+      return sorted.map(tx=>({...tx,assignedIndex:0}));
     }
 
-    return selected;
+    const explicit=sorted.filter(tx=>Number.isFinite(tx.projectedIndex));
+    const implicit=sorted.filter(tx=>!Number.isFinite(tx.projectedIndex));
+    const assigned=[];
+
+    for(const tx of explicit){
+      assigned.push({
+        ...tx,
+        assignedIndex:clamp(Math.floor(tx.projectedIndex),0,candidates.length-1)
+      });
+    }
+
+    let blockIndex=0;
+    let used=0;
+
+    for(const tx of implicit){
+      const target=Math.max(1,finite(candidates[blockIndex]?.blockVSize)||BLOCK_VBYTES);
+
+      if(
+        blockIndex<candidates.length-1 &&
+        used>0 &&
+        used+tx.vbytes>target*1.005
+      ){
+        blockIndex++;
+        used=0;
+      }
+
+      assigned.push({...tx,assignedIndex:blockIndex});
+      used+=tx.vbytes;
+    }
+
+    return assigned.sort((a,b)=>{
+      if(a.assignedIndex!==b.assignedIndex)return a.assignedIndex-b.assignedIndex;
+      return txComparator(a,b);
+    });
   }
 
-  function representativeItems({
-    bands,
-    blockIndex,
-    targetVbytes,
-    targetTx,
-    maxTiles
-  }){
-    const usable=bands.filter(
-      row=>Number.isFinite(row.rate)&&Number.isFinite(row.vbytes)&&row.vbytes>0
-    );
+  function summaryCounts(model){
+    const knownIds=model.knownTxids.length;
+    const txRows=model.transactions.length;
+    const summaryCount=finite(model.summaryCount);
+    const universe=Number.isFinite(summaryCount)
+      ? Math.max(summaryCount,knownIds,txRows)
+      : Math.max(knownIds,txRows);
 
-    const total=usable.reduce((sum,row)=>sum+row.vbytes,0);
+    const detailed=model.transactions.filter(tx=>tx.detailed).length;
+    const scalable=model.transactions.filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0&&Number.isFinite(tx.packageFeeRate)).length;
 
-    if(!(total>0))return [];
+    return {universe,detailed,scalable};
+  }
 
-    const txEstimate=Math.max(
-      1,
-      Number.isFinite(targetTx)
-        ? Math.round(targetTx)
-        : Math.round(targetVbytes/500)
-    );
+  function rebuild(model){
+    const transactions=dedupeTransactions(model.transactions).sort(txComparator);
+    const assigned=assignProjected(transactions,model.candidates);
+    const byTxid=new Map(assigned.map(tx=>[tx.txid,tx]));
+    const knownTxids=[...new Set([
+      ...(model.knownTxids||[]),
+      ...assigned.map(tx=>tx.txid)
+    ])];
 
-    const visualTarget=clamp(
-      Math.round(Math.sqrt(txEstimate)*12),
-      180,
-      Math.max(180,maxTiles||1200)
-    );
+    const next={...model,transactions:assigned,byTxid,knownTxids};
+    const counts=summaryCounts(next);
 
-    const items=[];
-    let representedTx=0;
-
-    usable.forEach((band,bandIndex)=>{
-      const share=band.vbytes/total;
-      const chunks=Math.max(
-        1,
-        Math.round(visualTarget*share)
+    next.universeCount=counts.universe;
+    next.detailedCount=counts.detailed;
+    next.scalableCount=counts.scalable;
+    next.layoutCoverage=counts.universe>0?counts.scalable/counts.universe:0;
+    next.detailCoverage=counts.universe>0?counts.detailed/counts.universe:0;
+    next.completeLayout=
+      counts.universe>0 &&
+      counts.scalable>=counts.universe*.985 &&
+      (
+        !Number.isFinite(next.summaryVsize) ||
+        next.summaryVsize<=0 ||
+        assigned.reduce((sum,tx)=>sum+(Number.isFinite(tx.vbytes)?tx.vbytes:0),0)>=next.summaryVsize*.97
       );
 
-      const txForBand=Math.max(
-        1,
-        Math.round(txEstimate*share)
-      );
-
-      for(let i=0;i<chunks;i++){
-        const vbytes=i===chunks-1
-          ? Math.max(
-              1,
-              band.vbytes-(band.vbytes/chunks)*(chunks-1)
-            )
-          : band.vbytes/chunks;
-
-        const txCount=i===chunks-1
-          ? Math.max(
-              1,
-              txForBand-Math.floor(txForBand/chunks)*(chunks-1)
-            )
-          : Math.max(
-              1,
-              Math.floor(txForBand/chunks)
-            );
-
-        representedTx+=txCount;
-
-        items.push({
-          id:`rep:b${blockIndex}:f${band.rate.toFixed(6)}:c${i}`,
-          kind:"representative",
-          realTx:false,
-          representative:true,
-          txid:"",
-          vbytes,
-          feeRate:band.rate,
-          packageFeeRate:band.rate,
-          representedTx:txCount,
-          bandIndex,
-          chunkIndex:i
-        });
-      }
-    });
-
-    if(items.length&&Number.isFinite(targetTx)){
-      const diff=Math.round(targetTx)-representedTx;
-      items[items.length-1].representedTx=Math.max(
-        1,
-        items[items.length-1].representedTx+diff
-      );
-    }
-
-    return items;
+    return next;
   }
 
   function build(payload){
@@ -475,32 +443,24 @@
     const histogram=normalizeHistogram(summary.fee_histogram);
     const candidates=normalizeCandidates(payload?.blocks,summary);
     const full=detectFullFeed(payload?.fullFeed);
-
-    const transactions=[];
+    const rows=[];
 
     for(const raw of full.rows){
-      const tx=normalizeTx(
-        raw,
-        {
-          kind:full.kind==="core-map"?"core":"api"
-        }
-      );
-
-      if(
-        tx &&
-        Number.isFinite(tx.vbytes) &&
-        tx.vbytes>0 &&
-        Number.isFinite(tx.packageFeeRate)
-      ){
-        transactions.push(tx);
-      }
+      const tx=normalizeTx(raw,{kind:full.kind==="core-map"?"core":"api"});
+      if(tx)rows.push(tx);
     }
 
-    transactions.sort(txComparator);
+    for(const raw of Array.isArray(payload?.recent)?payload.recent:[]){
+      const tx=normalizeTx(raw,{kind:"api"});
+      if(tx)rows.push(tx);
+    }
 
     const summaryVsize=finite(summary.vsize??summary.vbytes);
     const summaryCount=finite(summary.count);
     const totalFee=finite(summary.total_fee);
+    const knownTxids=(Array.isArray(payload?.txids)?payload.txids:[])
+      .map(String)
+      .filter(id=>/^[0-9a-f]{64}$/i.test(id));
 
     const backlogVMB=Number.isFinite(summaryVsize)
       ? summaryVsize/1e6
@@ -511,12 +471,14 @@
       payload?.feeRecommendations?.halfHourFee
     );
 
-    return {
-      schema:"zzx-mempool-specs-v5",
+    return rebuild({
+      schema:"zzx-mempool-specs-v6",
       summary,
       histogram,
       candidates,
-      transactions,
+      transactions:rows,
+      knownTxids,
+      byTxid:new Map(),
       summaryVsize,
       summaryCount,
       totalFee,
@@ -529,8 +491,35 @@
       fullFeedSource:String(payload?.fullFeedSource||""),
       fullFeedKind:full.kind,
       fetchedAt:finite(payload?.fetchedAt),
-      maxVisualTiles:Number(payload?.cfg?.maxVisualTiles)||1400
-    };
+      cfg:payload?.cfg||{}
+    });
+  }
+
+  function mergeTransactions(model,rawRows){
+    const rows=model.transactions.slice();
+
+    for(const raw of Array.isArray(rawRows)?rawRows:[]){
+      const tx=normalizeTx(raw,{kind:raw?.__zzxCoreEntry?"core":"api"});
+      if(tx)rows.push(tx);
+    }
+
+    return rebuild({...model,transactions:rows});
+  }
+
+  function pendingTxids(model,{limit=Infinity,offset=0}={}){
+    const out=[];
+    const start=Math.max(0,Math.floor(offset)||0);
+    const max=Math.max(0,Number.isFinite(limit)?Math.floor(limit):Infinity);
+
+    for(let i=start;i<model.knownTxids.length&&out.length<max;i++){
+      const id=model.knownTxids[i];
+      const current=model.byTxid.get(id);
+      if(!current||!Number.isFinite(current.vbytes)||!Number.isFinite(current.packageFeeRate)){
+        out.push(id);
+      }
+    }
+
+    return out;
   }
 
   function blockView(model,index=0){
@@ -545,98 +534,19 @@
     );
 
     const candidate=model.candidates[blockIndex];
-    const start=candidateOffset(model.candidates,blockIndex);
-    const targetVbytes=Math.max(
-      1,
-      finite(candidate.blockVSize)||BLOCK_VBYTES
-    );
+    const items=model.transactions
+      .filter(tx=>tx.assignedIndex===blockIndex)
+      .filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0)
+      .slice()
+      .sort(txComparator);
 
-    const bands=histogramSlice(
-      model.histogram,
-      start,
-      targetVbytes
-    );
-
-    const fullTxs=txsForCandidate(
-      model.transactions,
-      model.candidates,
-      blockIndex
-    );
-
-    const fullVbytes=fullTxs.reduce(
+    const actualVbytes=items.reduce(
       (sum,tx)=>sum+(Number.isFinite(tx.vbytes)?tx.vbytes:0),
       0
     );
 
-    const realCoverage=targetVbytes>0
-      ? fullVbytes/targetVbytes
-      : 0;
-
-    let items=[];
-    let sourceMode="representative";
-
-    if(fullTxs.length&&realCoverage>=0.72){
-      items=fullTxs.slice();
-      sourceMode=realCoverage>=0.98
-        ? "real transactions"
-        : "hybrid real + representative";
-
-      const missing=Math.max(
-        0,
-        targetVbytes-fullVbytes
-      );
-
-      if(missing>targetVbytes*.005){
-        const missingBands=histogramSlice(
-          model.histogram,
-          start+Math.min(fullVbytes,targetVbytes),
-          missing
-        );
-
-        items.push(
-          ...representativeItems({
-            bands:missingBands,
-            blockIndex,
-            targetVbytes:missing,
-            targetTx:Number.isFinite(candidate.nTx)
-              ? Math.max(1,candidate.nTx-fullTxs.length)
-              : NaN,
-            maxTiles:Math.max(
-              180,
-              model.maxVisualTiles-fullTxs.length
-            )
-          })
-        );
-      }
-    }else{
-      items=representativeItems({
-        bands,
-        blockIndex,
-        targetVbytes,
-        targetTx:candidate.nTx,
-        maxTiles:model.maxVisualTiles
-      });
-    }
-
-    if(!items.length){
-      items=[{
-        id:`rep:b${blockIndex}:fallback`,
-        kind:"representative",
-        realTx:false,
-        representative:true,
-        vbytes:targetVbytes,
-        feeRate:Number.isFinite(candidate.medianFee)
-          ? candidate.medianFee
-          : 0,
-        packageFeeRate:Number.isFinite(candidate.medianFee)
-          ? candidate.medianFee
-          : 0,
-        representedTx:Number.isFinite(candidate.nTx)
-          ? candidate.nTx
-          : 1
-      }];
-    }
-
+    const targetVbytes=Math.max(1,finite(candidate.blockVSize)||BLOCK_VBYTES);
+    const coverage=targetVbytes>0?actualVbytes/targetVbytes:0;
     const rates=items
       .map(item=>finite(item.packageFeeRate??item.feeRate))
       .filter(Number.isFinite)
@@ -648,48 +558,43 @@
       ? candidate.medianFee
       : median(rates);
 
-    const totalItemVbytes=items.reduce(
-      (sum,item)=>sum+(Number.isFinite(item.vbytes)?item.vbytes:0),
-      0
-    );
-
-    const fillRatio=targetVbytes/BLOCK_VBYTES;
-    const nextHeight=Number.isFinite(model.tipHeight)
-      ? model.tipHeight+blockIndex+1
-      : NaN;
-
     return {
-      schema:"zzx-mempool-specs-block-view-v5",
+      schema:"zzx-mempool-specs-block-view-v6",
       blockIndex,
       candidate,
       items,
-      bands,
-      sourceMode,
-      realCoverage,
       targetVbytes,
-      totalItemVbytes,
-      fillRatio,
+      actualVbytes,
+      coverage,
+      fillRatio:targetVbytes/BLOCK_VBYTES,
       minRate,
       medianRate,
       maxRate,
-      nextHeight,
+      nextHeight:Number.isFinite(model.tipHeight)
+        ? model.tipHeight+blockIndex+1
+        : NaN,
+      complete:model.completeLayout&&coverage>=.965,
+      sourceMode:model.completeLayout
+        ? "real TX / full mempool feed"
+        : "real TX / progressive detail coverage",
       model
     };
   }
 
   W.ZZXMempoolSpecsModel=Object.freeze({
-    __version:5,
+    __version:6,
     BLOCK_VBYTES,
     timestampMs,
     normalizeHistogram,
     normalizeCandidates,
     normalizeTx,
     detectFullFeed,
-    histogramSlice,
-    candidateOffset,
-    txsForCandidate,
-    representativeItems,
+    txComparator,
+    assignProjected,
     build,
+    rebuild,
+    mergeTransactions,
+    pendingTxids,
     blockView
   });
 })();
