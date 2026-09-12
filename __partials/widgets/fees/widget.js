@@ -31,13 +31,14 @@
     for(const [globalName,minVersion,relative] of [
       ["ZZXFeesSources",2,"js/sources.js"],
       ["ZZXFeesFetch",2,"js/fetch.js"],
-      ["ZZXFeesEstimator",3,"js/estimator.js"]
+      ["ZZXFeesEstimator",4,"js/estimator.js"]
     ]){
       if(Number(W[globalName]?.__version||0)>=minVersion)continue;
 
-      const src=W.ZZXAPI?.url
-        ? W.ZZXAPI.url(`${base}/${relative}?v=${minVersion}`)
-        : `${base}/${relative}?v=${minVersion}`;
+      const raw=`${base}/${relative}`;
+      const resolved=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+      const sep=resolved.includes("?")?"&":"?";
+      const src=`${resolved}${sep}zzxmod=${minVersion}`;
 
       await new Promise((resolve,reject)=>{
         const s=D.createElement("script");
@@ -61,7 +62,7 @@
     if(unit==="btc"){
       return v.toLocaleString(undefined,{
         minimumFractionDigits:8,
-        maximumFractionDigits:10
+        maximumFractionDigits:12
       });
     }
 
@@ -70,8 +71,8 @@
     }
 
     return Number(v).toLocaleString(undefined,{
-      minimumFractionDigits:Number.isInteger(v)?0:2,
-      maximumFractionDigits:2
+      minimumFractionDigits:Number.isInteger(v)?0:3,
+      maximumFractionDigits:3
     });
   }
 
@@ -152,11 +153,11 @@
 
         planEl.textContent=
           `auto · ${plan.confirmations} conf · first confirmation target ${timeText(plan.firstConfirmationTargetMinutes)} · `+
-          `${plan.bandLabel}${constraint}`;
+          `${plan.bandLabel} · fractional ${fmtRate(plan.rateSatVB,"sat")} sat/vB · rounded-rate view ${plan.roundedSatVB} sat/vB${constraint}`;
       }else{
         planEl.textContent=
-          `manual ${plan.bandLabel} · ${plan.confirmations} conf requested · `+
-          `network inclusion still depends on mempool and block production`;
+          `manual ${plan.bandLabel} · fractional ${fmtRate(plan.rateSatVB,"sat")} sat/vB · `+
+          `rounded-rate view ${plan.roundedSatVB} sat/vB · inclusion remains probabilistic`;
       }
     }
   }
@@ -179,6 +180,7 @@
     for(const [key,label] of labels){
       const rate=state.model.tiers[key];
       const tx=W.ZZXFeesEstimator.transaction(250,rate,NaN);
+      const rounded=W.ZZXFeesEstimator.roundedRate(rate);
 
       const row=D.createElement("div");
       row.className="fees__row";
@@ -187,6 +189,7 @@
       const values=[
         label,
         `${fmtRate(rate,state.unit)} ${unitSpec(state).label}`,
+        Number.isFinite(rounded)?`${rounded} sat/vB`:"—",
         rangeText(state.model.ranges[key],state.unit),
         tx?`${tx.sats.toLocaleString()} sat`:"—"
       ];
@@ -208,20 +211,18 @@
 
     updateUnitLabels(root,state);
 
-    const hero=q(root,"[data-fees-fast]");
-    if(hero)hero.textContent=fmtRate(state.model.mean,state.unit);
+    const map=[
+      ["[data-fees-fast]",state.model.mean],
+      ["[data-fees-instant]",state.model.tiers.instant],
+      ["[data-fees-30m]",state.model.tiers.fast],
+      ["[data-fees-1h]",state.model.tiers.low],
+      ["[data-fees-min]",state.model.tiers.min]
+    ];
 
-    const instant=q(root,"[data-fees-instant]");
-    if(instant)instant.textContent=fmtRate(state.model.tiers.instant,state.unit);
-
-    const fast=q(root,"[data-fees-30m]");
-    if(fast)fast.textContent=fmtRate(state.model.tiers.fast,state.unit);
-
-    const low=q(root,"[data-fees-1h]");
-    if(low)low.textContent=fmtRate(state.model.tiers.low,state.unit);
-
-    const min=q(root,"[data-fees-min]");
-    if(min)min.textContent=fmtRate(state.model.tiers.min,state.unit);
+    for(const [selector,value] of map){
+      const el=q(root,selector);
+      if(el)el.textContent=fmtRate(value,state.unit);
+    }
 
     const price=q(root,"[data-fees-price]");
     if(price){
@@ -237,14 +238,14 @@
     const sub=q(root,"[data-fees-sub]");
     if(sub){
       sub.textContent=
-        "mean of five normalized mempool recommendations · strict monotonic ladder";
+        "fractional source-anchored ladder · 0.125 sat/vB quantum";
     }
 
     const meta=q(root,"[data-fees-meta]");
     if(meta){
       meta.textContent=
         `${state.feeSource||"configured mempool API"} · ${state.priceSource||"ZZX BPI"} · `+
-        `0.01 sat/vB tie spacing · tx fees round up to whole sats`;
+        `fractional ladder 1/8 sat/vB · whole-sat tx total rounds upward`;
     }
 
     renderTable(root,state);
