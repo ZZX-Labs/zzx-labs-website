@@ -3,31 +3,10 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsBlockLayout?.__version>=2)return;
+  if(W.ZZXMempoolSpecsBlockLayout?.__version>=3)return;
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
-
-  function stableItems(items){
-    return (Array.isArray(items)?items:[])
-      .filter(item=>Number.isFinite(finite(item?.vbytes))&&finite(item.vbytes)>0)
-      .slice()
-      .sort((a,b)=>{
-        if(a.__reserve)return 1;
-        if(b.__reserve)return -1;
-
-        const ar=finite(a.packageFeeRate??a.feeRate);
-        const br=finite(b.packageFeeRate??b.feeRate);
-
-        if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return br-ar;
-        if(Number.isFinite(ar)!==Number.isFinite(br))return Number.isFinite(br)?1:-1;
-
-        const av=finite(a.vbytes);
-        const bv=finite(b.vbytes);
-        if(av!==bv)return bv-av;
-        return String(a.id).localeCompare(String(b.id));
-      });
-  }
 
   function worst(row,side){
     if(!row.length||!(side>0))return Infinity;
@@ -65,21 +44,9 @@
     return {x:rect.x+w,y:rect.y,w:Math.max(0,rect.w-w),h:rect.h};
   }
 
-  function squarify(items,denominator){
-    const ordered=stableItems(items);
-    if(!ordered.length)return [];
-
-    const total=Number.isFinite(denominator)&&denominator>0
-      ? denominator
-      : ordered.reduce((sum,item)=>sum+finite(item.vbytes),0);
-
-    if(!(total>0))return [];
-
-    const remaining=ordered.map(item=>({
-      ...item,
-      __area:finite(item.vbytes)/total
-    }));
-
+  function squarify(items,totalWeight){
+    if(!items.length||!(totalWeight>0))return [];
+    const remaining=items.map(item=>({...item,__area:item.__weight/totalWeight}));
     let rect={x:0,y:0,w:1,h:1};
     let row=[];
     const out=[];
@@ -92,11 +59,10 @@
 
       if(!row.length||nextWorst<=currentWorst){
         row.push(remaining.shift());
-        continue;
+      }else{
+        rect=layoutRow(row,rect,rect.w>=rect.h,out);
+        row=[];
       }
-
-      rect=layoutRow(row,rect,rect.w>=rect.h,out);
-      row=[];
     }
 
     if(row.length)layoutRow(row,rect,rect.w>=rect.h,out);
@@ -104,29 +70,65 @@
   }
 
   function build(blockView){
-    const realItems=(blockView?.items||[])
-      .filter(item=>item?.realTx!==false&&item?.txid)
-      .map(item=>({...item,__reserve:false}));
+    const allItems=(blockView?.items||[])
+      .filter(item=>item?.realTx!==false&&item?.txid);
 
-    const actual=realItems.reduce((sum,item)=>sum+Math.max(0,finite(item.vbytes)||0),0);
-    const target=Math.max(1,finite(blockView?.targetVbytes)||1_000_000);
-    const denominator=Math.max(target,actual);
-    const reserve=Math.max(0,denominator-actual);
+    const positiveValues=allItems
+      .map(item=>finite(item.valueSats))
+      .filter(value=>Number.isFinite(value)&&value>0);
+
+    const totalPositive=positiveValues.reduce((sum,value)=>sum+value,0);
+    const tinyFloor=totalPositive>0?Math.max(1,totalPositive*1e-10):1;
+
+    const realItems=allItems.map(item=>{
+      const value=finite(item.valueSats);
+      const known=Number.isFinite(value)&&value>=0;
+
+      return {
+        ...item,
+        valueKnown:known,
+        __weight:known?Math.max(tinyFloor,value):tinyFloor
+      };
+    });
+
+    const knownWeight=realItems.reduce((sum,item)=>sum+item.__weight,0);
+    const vsizeCoverage=clamp(finite(blockView?.coverage)||0,0,1);
+
+    const reserveWeight=
+      knownWeight>0&&vsizeCoverage>0&&vsizeCoverage<.999
+        ? knownWeight*((1/vsizeCoverage)-1)
+        : 0;
+
     const source=realItems.slice();
 
-    if(reserve>0){
+    if(reserveWeight>0){
       source.push({
-        id:"__zzx-empty-reserve__",
+        id:"__zzx-unhydrated__",
         txid:"",
         __reserve:true,
-        realTx:false,
-        vbytes:reserve,
-        feeRate:NaN,
-        packageFeeRate:NaN
+        __weight:reserveWeight
       });
     }
 
-    const all=squarify(source,denominator).map((tile,index)=>({
+    const totalWeight=source.reduce((sum,item)=>sum+(finite(item.__weight)||0),0);
+
+    source.sort((a,b)=>{
+      if(a.__reserve)return 1;
+      if(b.__reserve)return -1;
+
+      const ar=finite(a.projectedRank);
+      const br=finite(b.projectedRank);
+      if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return ar-br;
+      if(Number.isFinite(ar)!==Number.isFinite(br))return Number.isFinite(ar)?-1:1;
+
+      const af=finite(a.packageFeeRate??a.feeRate);
+      const bf=finite(b.packageFeeRate??b.feeRate);
+      if(Number.isFinite(af)&&Number.isFinite(bf)&&af!==bf)return bf-af;
+
+      return (finite(b.__weight)||0)-(finite(a.__weight)||0);
+    });
+
+    const all=squarify(source,totalWeight).map((tile,index)=>({
       ...tile,
       index,
       x:clamp(tile.x,0,1),
@@ -139,7 +141,8 @@
     const tiles=all.filter(tile=>!tile.__reserve);
     const byId=new Map(tiles.map(tile=>[tile.id,tile]));
     const byTxid=new Map(tiles.map(tile=>[tile.txid,tile]));
-    const gridN=192;
+
+    const gridN=256;
     const spatial=new Int32Array(gridN*gridN);
 
     for(let index=0;index<tiles.length;index++){
@@ -156,17 +159,18 @@
     }
 
     return {
-      schema:"zzx-mempool-specs-block-layout-v2",
+      schema:"zzx-mempool-specs-block-layout-v3",
       tiles,
       emptyRects,
       byId,
       byTxid,
       gridN,
       spatial,
-      denominatorVbytes:denominator,
-      representedVbytes:actual,
-      emptyVbytes:reserve,
-      areaCoverage:denominator>0?actual/denominator:0,
+      totalValueSats:finite(blockView?.totalValueSats),
+      valueKnownCount:realItems.filter(item=>item.valueKnown).length,
+      valueCoverage:realItems.length?realItems.filter(item=>item.valueKnown).length/realItems.length:0,
+      vsizeCoverage,
+      visualCoverage:1-(reserveWeight/Math.max(totalWeight,1)),
       builtAt:Date.now()
     };
   }
@@ -192,8 +196,7 @@
   }
 
   W.ZZXMempoolSpecsBlockLayout=Object.freeze({
-    __version:2,
-    stableItems,
+    __version:3,
     squarify,
     build,
     find
