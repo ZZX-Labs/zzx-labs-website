@@ -1,142 +1,128 @@
-// __partials/widgets/mempool-specs/adapter.js
-// DROP-IN COMPLETE REPLACEMENT (FIXED + MORE PERMISSIVE)
-//
-// Purpose:
-// - Normalize *either* TxFetcher.snapshot() output *or* raw mempool.space payloads
-//   into one stable internal shape used by widget.js / tiler / binfill / renderer.
-//
-// Accepts (any of):
-//   - TxFetcher snapshot: { tipHeight, tipHash, mempool:{count,vbytes,...}, feeHistogram:[...] }
-//   - Raw /api/mempool:  { count, vbytes, fee_histogram:[...] }
-//   - Raw /api/v1/fees/mempool-blocks (if you ever use it): array of blocks w/ feeRange, etc. (best-effort)
-//
-// Returns:
-// {
-//   tipHeight: number|null,
-//   tipHash: string|null,
-//   count: number|null,
-//   vbytes: number|null,
-//   feeHistogram: Array<[feeRate:number, vbytes:number]>
-// }
-//
-// Exposes:
-//   window.ZZXMempoolSpecs.Adapter.parse(payload)
-(function () {
+// __partials/widgets/mempool-specs/js/adapter.js
+// v5 — complete normalizer / compatibility adapter
+(function(){
   "use strict";
 
-  const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
-  const Adapter = (NS.Adapter = NS.Adapter || {});
+  const W=window;
+  const NS=(W.ZZXMempoolSpecs=W.ZZXMempoolSpecs||{});
+  if(NS.Adapter?.__version>=5)return;
 
-  function num(x) {
-    const v = Number(x);
-    return Number.isFinite(v) ? v : null;
-  }
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+  const string=v=>v==null||String(v)===""?null:String(v);
 
-  function str(x) {
-    const s = (x == null) ? "" : String(x);
-    return s ? s : null;
-  }
-
-  function normalizeHistogram(hist) {
-    const out = [];
-    const arr = Array.isArray(hist) ? hist : [];
-
-    for (const row of arr) {
-      if (Array.isArray(row) && row.length >= 2) {
-        const fee = Number(row[0]);
-        const vb  = Number(row[1]);
-        if (Number.isFinite(fee) && Number.isFinite(vb) && vb > 0) out.push([fee, vb]);
-      } else if (row && typeof row === "object") {
-        const fee = Number(row.feeRate ?? row.fee ?? row.rate ?? row[0]);
-        const vb  = Number(row.vbytes ?? row.vb ?? row.size ?? row[1]);
-        if (Number.isFinite(fee) && Number.isFinite(vb) && vb > 0) out.push([fee, vb]);
+  function normalizeHistogram(hist){
+    const out=[];
+    for(const row of Array.isArray(hist)?hist:[]){
+      let fee,vbytes;
+      if(Array.isArray(row)){
+        fee=Number(row[0]);
+        vbytes=Number(row[1]);
+      }else if(row&&typeof row==="object"){
+        fee=Number(row.feeRate??row.fee??row.rate??row[0]);
+        vbytes=Number(row.vbytes??row.vb??row.vsize??row.size??row[1]);
+      }
+      if(Number.isFinite(fee)&&fee>=0&&Number.isFinite(vbytes)&&vbytes>0){
+        out.push([fee,vbytes]);
       }
     }
-
-    // fee desc is convenient for block picking (highest first)
-    out.sort((a, b) => b[0] - a[0]);
-    return out;
+    return out.sort((a,b)=>b[0]-a[0]);
   }
 
-  // Optional best-effort: if someone passes mempool-blocks style structures,
-  // we can synthesize a crude histogram. Safe to ignore if shape doesn't match.
-  function histogramFromMempoolBlocks(blocks) {
-    if (!Array.isArray(blocks) || !blocks.length) return [];
-    // Each entry often has: { feeRange:[low,high], blockSize, blockVSize, nTx, ... }
-    // We'll approximate each "block" as one band at its midpoint fee with its vsize.
-    const out = [];
-    for (const b of blocks) {
-      if (!b || typeof b !== "object") continue;
-      const fr = Array.isArray(b.feeRange) ? b.feeRange : null;
-      const low = fr ? Number(fr[0]) : NaN;
-      const high = fr ? Number(fr[1]) : NaN;
-      const fee = (Number.isFinite(low) && Number.isFinite(high)) ? ((low + high) / 2) : NaN;
+  function normalizeCandidateBlocks(blocks){
+    return (Array.isArray(blocks)?blocks:[]).map((b,index)=>{
+      const feeRange=(Array.isArray(b?.feeRange)?b.feeRange:[])
+        .map(Number)
+        .filter(Number.isFinite);
 
-      const vb = Number(b.blockVSize ?? b.vsize ?? b.vbytes ?? b.size);
-      if (Number.isFinite(fee) && Number.isFinite(vb) && vb > 0) out.push([fee, vb]);
+      return {
+        index,
+        nTx:finite(b?.nTx??b?.n_tx??b?.tx_count),
+        blockVSize:finite(b?.blockVSize??b?.block_vsize??b?.vsize??b?.vbytes),
+        blockSize:finite(b?.blockSize??b?.block_size??b?.size),
+        totalFees:finite(b?.totalFees??b?.total_fees),
+        medianFee:finite(b?.medianFee??b?.median_fee),
+        feeRange
+      };
+    });
+  }
+
+  function histogramFromMempoolBlocks(blocks){
+    const out=[];
+    for(const b of normalizeCandidateBlocks(blocks)){
+      if(!(b.blockVSize>0)||!b.feeRange.length)continue;
+      const sorted=b.feeRange.slice().sort((a,z)=>a-z);
+      const fee=sorted[Math.floor(sorted.length/2)];
+      if(Number.isFinite(fee))out.push([fee,b.blockVSize]);
     }
-    out.sort((a, b) => b[0] - a[0]);
-    return out;
+    return out.sort((a,b)=>b[0]-a[0]);
   }
 
-  Adapter.parse = function parse(payload) {
-    // default
-    const out = {
-      tipHeight: null,
-      tipHash: null,
-      count: null,
-      vbytes: null,
-      feeHistogram: [],
+  function parse(payload){
+    const out={
+      tipHeight:null,
+      tipHash:null,
+      count:null,
+      vbytes:null,
+      totalFee:null,
+      feeHistogram:[],
+      candidateBlocks:[],
+      txids:[],
+      recent:[],
+      source:null
     };
 
-    if (!payload) return out;
+    if(!payload)return out;
 
-    // If payload is already an adapter output, normalize lightly and return
-    if (payload && typeof payload === "object" && Array.isArray(payload.feeHistogram)) {
-      out.tipHeight = num(payload.tipHeight);
-      out.tipHash = str(payload.tipHash);
-      out.count = num(payload.count);
-      out.vbytes = num(payload.vbytes);
-      out.feeHistogram = normalizeHistogram(payload.feeHistogram);
+    if(Array.isArray(payload)){
+      out.candidateBlocks=normalizeCandidateBlocks(payload);
+      out.feeHistogram=histogramFromMempoolBlocks(payload);
       return out;
     }
 
-    // TxFetcher snapshot shape
-    if (payload && typeof payload === "object" && (payload.mempool || payload.feeHistogram || payload.fee_histogram)) {
-      out.tipHeight = num(payload.tipHeight);
-      out.tipHash = str(payload.tipHash);
+    if(typeof payload!=="object")return out;
 
-      const mem = payload.mempool && typeof payload.mempool === "object" ? payload.mempool : null;
+    out.tipHeight=finite(payload.tipHeight??payload.height);
+    out.tipHash=string(payload.tipHash??payload.hash);
+    out.source=string(payload.source);
 
-      // mempool snapshot usually: {count, vbytes, total_fee, ...}
-      out.count = num(mem?.count ?? payload.count);
-      out.vbytes = num(mem?.vbytes ?? payload.vbytes);
+    const mem=payload.mempool&&typeof payload.mempool==="object"&&!Array.isArray(payload.mempool)
+      ? payload.mempool
+      : payload;
 
-      // histogram key drift
-      out.feeHistogram = normalizeHistogram(
-        payload.feeHistogram ??
-        payload.fee_histogram ??
-        mem?.fee_histogram ??
-        mem?.feeHistogram
-      );
+    out.count=finite(mem?.count??payload.count);
+    out.vbytes=finite(mem?.vsize??mem?.vbytes??payload.vsize??payload.vbytes);
+    out.totalFee=finite(mem?.total_fee??mem?.totalFee??payload.total_fee??payload.totalFee);
 
-      // If someone passed mempool-blocks array as "mempool"
-      if (!out.feeHistogram.length && Array.isArray(payload.mempool)) {
-        out.feeHistogram = histogramFromMempoolBlocks(payload.mempool);
-      }
+    out.feeHistogram=normalizeHistogram(
+      payload.feeHistogram ??
+      payload.fee_histogram ??
+      mem?.fee_histogram ??
+      mem?.feeHistogram
+    );
 
-      return out;
+    out.candidateBlocks=normalizeCandidateBlocks(
+      payload.blocks ??
+      payload.candidateBlocks ??
+      payload.mempoolBlocks
+    );
+
+    if(!out.feeHistogram.length&&out.candidateBlocks.length){
+      out.feeHistogram=histogramFromMempoolBlocks(out.candidateBlocks);
     }
 
-    // Raw /api/mempool response
-    if (payload && typeof payload === "object") {
-      out.count = num(payload.count);
-      out.vbytes = num(payload.vbytes);
-      out.feeHistogram = normalizeHistogram(payload.fee_histogram ?? payload.feeHistogram);
-      return out;
-    }
+    out.txids=(Array.isArray(payload.txids)?payload.txids:[])
+      .map(String)
+      .filter(Boolean);
 
-    // Unknown
+    out.recent=Array.isArray(payload.recent)?payload.recent.slice():[];
     return out;
-  };
+  }
+
+  NS.Adapter=Object.freeze({
+    __version:5,
+    parse,
+    normalizeHistogram,
+    normalizeCandidateBlocks,
+    histogramFromMempoolBlocks
+  });
 })();
