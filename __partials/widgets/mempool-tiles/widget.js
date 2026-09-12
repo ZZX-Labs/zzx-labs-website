@@ -1,13 +1,13 @@
 // __partials/widgets/mempool-tiles/widget.js
-// v1.3.0 — stable one-slot-per-TX grid; no experimental scatter/packing
+// v1.4.0 — fixed runtime mount + shared mempool instrument shell + stable TX grid
 (function(){
   "use strict";
 
   const W=window;
   const D=document;
 
-  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V13__)return;
-  W.__ZZX_MEMPOOL_TILES_WIDGET_V13__=true;
+  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V14__)return;
+  W.__ZZX_MEMPOOL_TILES_WIDGET_V14__=true;
 
   const MODULES=[
     ["ZZXMempoolTilesSources","js/sources.js",2],
@@ -172,26 +172,49 @@
     return rows.length%2?rows[i]:(rows[i-1]+rows[i])/2;
   }
 
-  async function mount(root){
-    if(root.__mempoolTilesMounted)return;
+  function storageGet(key,fallback=""){
+    try{
+      const value=W.localStorage?.getItem(key);
+      return value==null?fallback:value;
+    }catch(_){
+      return fallback;
+    }
+  }
+
+  function storageSet(key,value){
+    try{
+      W.localStorage?.setItem(key,String(value));
+    }catch(_){}
+  }
+
+  async function mount(root,mountedCore=null){
+    if(!root||root.__mempoolTilesMounted)return;
     root.__mempoolTilesMounted=true;
 
+    const runtimeCore=mountedCore||core();
     const canvas=root.querySelector("[data-mt-canvas]");
     const stage=root.querySelector("[data-mt-stage]");
     const summary=root.querySelector("[data-mt-summary]");
     const sub=root.querySelector("[data-mt-sub]");
     const liveState=root.querySelector("[data-mt-live-state]");
+    const headerStatus=root.querySelector("[data-mt-status]");
     const blockLabel=root.querySelector("[data-mt-block-label]");
+    const tooltip=root.querySelector("[data-mt-tooltip]");
+    const coverage=root.querySelector("[data-mt-coverage]");
+    const transport=root.querySelector("[data-mt-transport]");
+    const meta=root.querySelector("[data-mt-meta]");
+    const gridStat=root.querySelector("[data-mt-grid]");
+    const valueCoverageStat=root.querySelector("[data-mt-value-coverage]");
 
     let model=null;
     let layout=null;
     let priorLayout=null;
     let selectedTxid="";
     let hoverTxid="";
-    let scaleMode=localStorage.getItem("zzx.mempoolTiles.scale")||"vsize";
-    let colorMode=localStorage.getItem("zzx.mempoolTiles.color")||"fee";
-    let sortMode=localStorage.getItem("zzx.mempoolTiles.sort")||"priority";
-    let shuffleSeed=Number(localStorage.getItem("zzx.mempoolTiles.shuffleSeed"))||Date.now();
+    let scaleMode=storageGet("zzx.mempoolTiles.scale")||"vsize";
+    let colorMode=storageGet("zzx.mempoolTiles.color")||"fee";
+    let sortMode=storageGet("zzx.mempoolTiles.sort")||"priority";
+    let shuffleSeed=Number(storageGet("zzx.mempoolTiles.shuffleSeed"))||Date.now();
     let aborter=null;
     let live=null;
     let liveSnapshot=null;
@@ -201,7 +224,11 @@
     let hydrateCount=0;
     let destroyed=false;
 
-    await W.ZZXMempoolTilesThemes.load(BASE+"themes/zzx-default.json");
+    const themeRaw=`${widgetBase()}/themes/zzx-default.json`;
+    const themeUrl=W.ZZXAPI?.url
+      ? W.ZZXAPI.url(themeRaw)
+      : themeRaw;
+    await W.ZZXMempoolTilesThemes.load(themeUrl);
 
     function setActive(){
       root.querySelectorAll("[data-mt-scale]").forEach(button=>{
@@ -214,6 +241,34 @@
 
       const select=root.querySelector("[data-mt-sort]");
       if(select)select.value=sortMode;
+    }
+
+    function setConnectionState(state,detail=""){
+      const normalized=String(state||"offline").toLowerCase();
+      const live=normalized==="live";
+      const label=live
+        ? "live ws"
+        : normalized==="connecting"
+          ? "connecting"
+          : normalized==="reconnecting"
+            ? "reconnecting"
+            : normalized==="rest"
+              ? "REST"
+              : "offline";
+
+      if(liveState){
+        liveState.textContent=label;
+        liveState.title=detail||"";
+      }
+
+      if(headerStatus){
+        headerStatus.textContent=label;
+        headerStatus.setAttribute(
+          "data-status",
+          live?"ok":normalized==="offline"||normalized==="error"?"error":"warn"
+        );
+        headerStatus.title=detail||"";
+      }
     }
 
     function layoutNow(animate=true){
@@ -312,6 +367,31 @@
         Number.isFinite(model.tipHeight)
           ? `NEXT BLOCK · ${fmtInt(model.tipHeight+1)}`
           : "NEXT BLOCK";
+
+      if(gridStat){
+        gridStat.textContent=`${layout.gridN} × ${layout.gridN} stable slots`;
+      }
+
+      if(valueCoverageStat){
+        valueCoverageStat.textContent=`${(Math.max(0,Math.min(1,model.candidateValueCoverage||0))*100).toFixed(1)}% values resolved`;
+      }
+
+      if(coverage){
+        const fill=Math.min(125,model.candidateVsize/Math.max(1,model.targetVbytes)*100);
+        coverage.textContent=`${fmtInt(txs)} real candidate TX · ${fill.toFixed(1)}% projected block vsize · one stable slot per TX`;
+      }
+
+      if(transport){
+        transport.textContent=model.liveActive
+          ? "WebSocket live"
+          : model.fullFeedActive
+            ? "full feed"
+            : "REST building";
+      }
+
+      if(meta){
+        meta.textContent=`real projected-next-block transactions · txid-stable grid · ${scaleMode} footprint · ${colorMode} color · ${sortMode} order`;
+      }
     }
 
     function redraw(){
@@ -337,6 +417,35 @@
       return W.ZZXMempoolTilesLayout.hit(layout,nx,ny);
     }
 
+    function showTooltip(event,tile){
+      if(!tooltip||!tile){
+        if(tooltip)tooltip.hidden=true;
+        return;
+      }
+
+      const rect=stage.getBoundingClientRect();
+      const rate=Number(tile.packageFeeRate??tile.feeRate);
+      const value=Number(tile.valueSats);
+      const vsize=Number(tile.vsize);
+
+      tooltip.replaceChildren();
+
+      const strong=D.createElement("strong");
+      strong.textContent=`${String(tile.txid||"").slice(0,18)}…`;
+
+      const line=D.createElement("span");
+      const parts=[];
+      if(Number.isFinite(rate))parts.push(`${rate.toFixed(rate<1?3:1)} sat/vB`);
+      if(Number.isFinite(vsize))parts.push(`${Math.round(vsize).toLocaleString()} vB`);
+      if(Number.isFinite(value))parts.push(`${(value/1e8).toLocaleString(undefined,{maximumFractionDigits:8})} BTC`);
+      line.textContent=parts.join(" · ")||"transaction details pending";
+
+      tooltip.append(strong,line);
+      tooltip.hidden=false;
+      tooltip.style.left=`${Math.max(6,Math.min(rect.width-280,event.clientX-rect.left+12))}px`;
+      tooltip.style.top=`${Math.max(6,Math.min(rect.height-58,event.clientY-rect.top+12))}px`;
+    }
+
     async function inspect(txid){
       selectedTxid=txid;
       redraw();
@@ -345,7 +454,7 @@
 
       try{
         const analysis=await W.ZZXMempoolTilesTxFetcher.full(
-          core(),
+          runtimeCore,
           txid,
           {
             tipHeight:model?.tipHeight,
@@ -381,7 +490,7 @@
 
       const cfg=
         model.cfg ||
-        W.ZZXMempoolTilesSources.get(core());
+        W.ZZXMempoolTilesSources.get(runtimeCore);
 
       if(
         hydrateCount>=cfg.maxHydratePerSession
@@ -444,7 +553,7 @@
 
       const rows=
         await W.ZZXMempoolTilesTxFetcher.batch(
-          core(),
+          runtimeCore,
           ids,
           {concurrency}
         );
@@ -491,7 +600,7 @@
 
       try{
         const payload=await W.ZZXMempoolTilesProvider.load(
-          core(),
+          runtimeCore,
           {
             signal:aborter.signal,
             force
@@ -525,8 +634,10 @@
               reconnectMaxMs:payload.cfg.liveReconnectMaxMs,
 
               onState:state=>{
-                liveState.textContent=state.state;
-                liveState.title=state.url||state.detail||"";
+                setConnectionState(
+                  state.state,
+                  state.url||state.detail||""
+                );
               },
 
               onUpdate:snapshot=>{
@@ -551,7 +662,7 @@
             });
 
           if(!live.start()){
-            liveState.textContent="REST";
+            setConnectionState("rest","WebSocket unavailable; using REST");
           }
         }
 
@@ -559,7 +670,7 @@
         hydrateTimer=W.setTimeout(hydrate,180);
       }catch(error){
         if(error?.name==="AbortError")return;
-        liveState.textContent="offline";
+        setConnectionState("offline",String(error?.message||error));
         summary.textContent="Mempool Tiles unavailable";
         sub.textContent=String(error?.message||error);
       }
@@ -568,7 +679,7 @@
     root.querySelectorAll("[data-mt-scale]").forEach(button=>{
       button.addEventListener("click",()=>{
         scaleMode=button.dataset.mtScale;
-        localStorage.setItem("zzx.mempoolTiles.scale",scaleMode);
+        storageSet("zzx.mempoolTiles.scale",scaleMode);
         setActive();
         layoutNow(true);
       });
@@ -577,7 +688,7 @@
     root.querySelectorAll("[data-mt-color]").forEach(button=>{
       button.addEventListener("click",()=>{
         colorMode=button.dataset.mtColor;
-        localStorage.setItem("zzx.mempoolTiles.color",colorMode);
+        storageSet("zzx.mempoolTiles.color",colorMode);
         setActive();
         redraw();
         renderStats();
@@ -589,16 +700,18 @@
 
       if(sortMode==="shuffle"){
         shuffleSeed=Date.now();
-        localStorage.setItem("zzx.mempoolTiles.shuffleSeed",String(shuffleSeed));
+        storageSet("zzx.mempoolTiles.shuffleSeed",shuffleSeed);
       }
 
-      localStorage.setItem("zzx.mempoolTiles.sort",sortMode);
+      storageSet("zzx.mempoolTiles.sort",sortMode);
       layoutNow(true);
     });
 
     canvas.addEventListener("pointermove",event=>{
       const tile=pointerTile(event);
       const next=tile?.txid||"";
+
+      showTooltip(event,tile);
 
       if(next!==hoverTxid){
         hoverTxid=next;
@@ -608,6 +721,7 @@
     });
 
     canvas.addEventListener("pointerleave",()=>{
+      if(tooltip)tooltip.hidden=true;
       if(!hoverTxid)return;
       hoverTxid="";
       canvas.style.cursor="default";
@@ -647,6 +761,16 @@
       redraw();
     });
 
+    root.querySelector("[data-mt-refresh]")?.addEventListener("click",async()=>{
+      live?.stop();
+      live=null;
+      liveSnapshot=null;
+      fallbackCursor=0;
+      hydrateCount=0;
+      setConnectionState("connecting","manual reconnect");
+      await refresh(true);
+    });
+
     root.querySelector("[data-mt-inspector-close]")?.addEventListener("click",()=>{
       selectedTxid="";
       W.ZZXMempoolTilesInspector.clear(root);
@@ -657,6 +781,7 @@
     resize.observe(stage);
 
     setActive();
+    setConnectionState("connecting","initializing next-block feed");
     await refresh(true);
 
     const interval=W.setInterval(
@@ -675,26 +800,56 @@
     };
   }
 
-  async function boot(){
+  async function bootRoot(root,mountedCore){
     try{
       await dependencies();
-
-      const roots=[
-        ...D.querySelectorAll('[data-widget-root="mempool-tiles"]')
-      ];
-
-      for(const root of roots){
-        await mount(root);
-      }
+      await mount(root,mountedCore);
     }catch(error){
       console.error("[mempool-tiles]",error);
 
-      D.querySelectorAll('[data-widget-root="mempool-tiles"] [data-mt-summary]')
-        .forEach(node=>{
-          node.textContent="Mempool Tiles failed to initialize";
-        });
+      if(root){
+        const summary=root.querySelector("[data-mt-summary]");
+        const status=root.querySelector("[data-mt-status]");
+        const live=root.querySelector("[data-mt-live-state]");
+
+        if(summary){
+          summary.textContent="Mempool Tiles failed to initialize";
+        }
+
+        if(status){
+          status.textContent="error";
+          status.setAttribute("data-status","error");
+          status.title=String(error?.message||error);
+        }
+
+        if(live){
+          live.textContent="error";
+          live.title=String(error?.message||error);
+        }
+      }
     }
   }
 
-  boot();
+  function fallbackBoot(){
+    const run=()=>{
+      D.querySelectorAll('[data-widget-root="mempool-tiles"]')
+        .forEach(root=>bootRoot(root,core()));
+    };
+
+    if(D.readyState==="loading"){
+      D.addEventListener("DOMContentLoaded",run,{once:true});
+    }else{
+      run();
+    }
+  }
+
+  if(W.ZZXAPI?.register){
+    W.ZZXAPI.register(ID,bootRoot);
+  }else if(W.ZZXWidgetsCore?.onMount){
+    W.ZZXWidgetsCore.onMount(ID,bootRoot);
+  }else if(W.ZZXWidgets?.register){
+    W.ZZXWidgets.register(ID,bootRoot);
+  }else{
+    fallbackBoot();
+  }
 })();
