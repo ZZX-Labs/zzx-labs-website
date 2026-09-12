@@ -1,0 +1,116 @@
+<!-- __partials/widgets/mempool-tiles/widget.html -->
+<div class="btc-card mempool-tiles" data-widget-root="mempool-tiles">
+  <div class="btc-card__title">Mempool · Tiles</div>
+
+  <div class="btc-card__value">
+    <span data-mt-summary>loading next-block candidates…</span>
+  </div>
+
+  <div class="btc-card__sub">
+    <span data-mt-sub>one square = one real transaction</span>
+  </div>
+
+  <div class="mt-toolbar" aria-label="Mempool Tiles controls">
+    <div class="mt-control-group">
+      <span class="mt-control-label">Scale</span>
+      <button type="button" data-mt-scale="vsize" class="is-active">vB</button>
+      <button type="button" data-mt-scale="value">BTC</button>
+      <button type="button" data-mt-scale="feerate">sat/vB</button>
+    </div>
+
+    <div class="mt-control-group">
+      <span class="mt-control-label">Color</span>
+      <button type="button" data-mt-color="fee" class="is-active">Fee</button>
+      <button type="button" data-mt-color="type">Type</button>
+    </div>
+
+    <div class="mt-control-group mt-control-group--wide">
+      <span class="mt-control-label">Arrange</span>
+      <select data-mt-sort aria-label="Tile arrangement">
+        <option value="priority">Likely</option>
+        <option value="fee">Fee</option>
+        <option value="size">Size</option>
+        <option value="value">Value</option>
+        <option value="age">Age</option>
+        <option value="rbf">RBF</option>
+        <option value="type">Type</option>
+        <option value="shuffle">Shuffle</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="mt-stage-wrap">
+    <div class="mt-stage" data-mt-stage tabindex="0"
+         aria-label="Live projected next Bitcoin block transaction tile field">
+      <canvas data-mt-canvas></canvas>
+      <div class="mt-stage-badge">
+        <span data-mt-live-state>connecting</span>
+        <span aria-hidden="true">·</span>
+        <span data-mt-block-label>NEXT BLOCK</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-stats" aria-live="polite">
+    <span data-mt-stat="txs">— TX</span>
+    <span data-mt-stat="vsize">— vMB</span>
+    <span data-mt-stat="value">— BTC</span>
+    <span data-mt-stat="fee">— sat/vB</span>
+    <span data-mt-stat="fill">— packed</span>
+  </div>
+
+  <div class="mt-legend">
+    <span><i class="mt-dot mt-dot--low"></i>low fee</span>
+    <span><i class="mt-dot mt-dot--mid"></i>medium</span>
+    <span><i class="mt-dot mt-dot--high"></i>high</span>
+    <span class="mt-legend-note">square size follows selected scale</span>
+  </div>
+
+  <section class="mt-inspector" data-mt-inspector aria-live="polite">
+    <div class="mt-inspector-empty" data-mt-inspector-empty>
+      Select any transaction square for a full transaction readout.
+    </div>
+
+    <div class="mt-inspector-body" data-mt-inspector-body hidden>
+      <div class="mt-inspector-head">
+        <div>
+          <div class="mt-eyebrow">TRANSACTION SPECTRUM</div>
+          <h3 data-mt-inspector-title>Transaction</h3>
+        </div>
+        <button type="button" data-mt-inspector-close aria-label="Close transaction inspector">×</button>
+      </div>
+
+      <div class="mt-kv-grid" data-mt-kv-grid></div>
+
+      <details class="mt-detail" open>
+        <summary>Inputs</summary>
+        <div data-mt-inputs></div>
+      </details>
+
+      <details class="mt-detail" open>
+        <summary>Outputs</summary>
+        <div data-mt-outputs></div>
+      </details>
+
+      <details class="mt-detail">
+        <summary>OP_RETURN / Data</summary>
+        <div data-mt-opreturn></div>
+      </details>
+
+      <details class="mt-detail">
+        <summary>Block / Header</summary>
+        <div data-mt-block></div>
+      </details>
+
+      <details class="mt-detail">
+        <summary>Raw transaction JSON</summary>
+        <pre data-mt-raw-json></pre>
+      </details>
+
+      <details class="mt-detail">
+        <summary>Raw transaction hex</summary>
+        <pre data-mt-raw-hex></pre>
+      </details>
+    </div>
+  </section>
+</div>
