@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsModel?.__version>=7)return;
+  if(W.ZZXMempoolSpecsModel?.__version>=8)return;
 
   const SATS=100_000_000;
   const BLOCK_VBYTES=1_000_000;
@@ -90,6 +90,7 @@
         if(left<=0)break;
         const blockVSize=Math.min(BLOCK_VBYTES,left);
         const ratio=blockVSize/vsize;
+
         fallback.push({
           index,
           nTx:Number.isFinite(count)?Math.max(1,Math.round(count*ratio)):NaN,
@@ -539,7 +540,7 @@
     );
 
     return rebuild({
-      schema:"zzx-mempool-specs-v7",
+      schema:"zzx-mempool-specs-v8",
       summary,
       histogram,
       candidates,
@@ -611,17 +612,14 @@
     return out;
   }
 
-
   function mergeLiveBlock(model,rawRows,{candidates=[],updatedAt=Date.now()}={}){
     const rows=Array.isArray(rawRows)?rawRows:[];
-    const liveIds=new Set();
     const liveRows=[];
 
     rows.forEach((raw,index)=>{
       const txid=String(raw?.txid??raw?.id??raw?.hash??"").trim();
       if(!/^[0-9a-f]{64}$/i.test(txid))return;
 
-      liveIds.add(txid);
       const prior=model.byTxid?.get(txid);
       const mergedRaw={
         ...(prior?.raw&&typeof prior.raw==="object"?prior.raw:{}),
@@ -638,7 +636,7 @@
 
     const base=model.transactions.filter(tx=>!tx.liveProjected);
 
-    let next=rebuild({
+    const next=rebuild({
       ...model,
       candidates:Array.isArray(candidates)&&candidates.length
         ? normalizeCandidates(candidates,model.summary)
@@ -702,19 +700,34 @@
 
     const candidate=model.candidates[blockIndex];
     const targetVbytes=Math.max(1,finite(candidate.blockVSize)||BLOCK_VBYTES);
+    const live=blockIndex===0&&model.liveBlock0Active;
 
-    const sourceItems=
-      blockIndex===0&&model.liveBlock0Active
-        ? model.transactions.filter(tx=>tx.liveProjected)
-        : model.transactions.filter(tx=>tx.assignedIndex===blockIndex);
+    const sourceItems=live
+      ? model.transactions
+          .filter(tx=>tx.liveProjected&&tx.txid)
+          .slice()
+          .sort(txComparator)
+      : model.transactions
+          .filter(tx=>tx.assignedIndex===blockIndex);
 
-    const items=selectForTarget(
-      sourceItems.filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0),
-      targetVbytes
-    );
+    /*
+     * The live projected-block stream already is the candidate membership set.
+     * Do not run it through another vsize fitter: doing so silently discarded
+     * edge/tiny transactions and violated the one-square-per-candidate contract.
+     *
+     * REST/full-feed fallback still needs a deterministic fitter because it is
+     * deriving candidate membership from the whole mempool rather than receiving
+     * an exact live set.
+     */
+    const items=live
+      ? sourceItems
+      : selectForTarget(
+          sourceItems.filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0),
+          targetVbytes
+        );
 
     const actualVbytes=items.reduce(
-      (sum,tx)=>sum+(Number.isFinite(tx.vbytes)?tx.vbytes:0),
+      (sum,tx)=>sum+(Number.isFinite(tx.vbytes)&&tx.vbytes>0?tx.vbytes:0),
       0
     );
 
@@ -734,8 +747,14 @@
     const totalValueSats=valuedItems.reduce((sum,item)=>sum+item.valueSats,0);
     const valueCoverage=items.length?valuedItems.length/items.length:0;
 
+    const candidateTx=finite(candidate.nTx);
+    const membershipCoverage=
+      Number.isFinite(candidateTx)&&candidateTx>0
+        ? Math.min(1,items.length/candidateTx)
+        : (items.length?1:0);
+
     return {
-      schema:"zzx-mempool-specs-block-view-v6",
+      schema:"zzx-mempool-specs-block-view-v7",
       blockIndex,
       candidate,
       items,
@@ -752,22 +771,24 @@
       totalValueSats,
       valueKnownCount:valuedItems.length,
       valueCoverage,
-      live:model.liveBlock0Active&&blockIndex===0,
+      membershipCoverage,
+      candidateTxCount:Number.isFinite(candidateTx)?candidateTx:items.length,
+      live,
       liveUpdatedAt:model.liveUpdatedAt,
-      complete:(model.liveBlock0Active&&blockIndex===0)
-        ? coverage>=.965&&valueCoverage>=.98
+      complete:live
+        ? membershipCoverage>=.985
         : model.completeLayout&&coverage>=.965,
-      sourceMode:(model.liveBlock0Active&&blockIndex===0)
-        ? "mempool.space live projected-block transaction feed"
+      sourceMode:live
+        ? "mempool.space live projected-next-block membership · every candidate TX retained"
         : model.completeLayout
-          ? "real TX / full mempool feed"
-          : "real TX / progressive detail coverage",
+          ? "real TX / full mempool feed · package-fee candidate fit"
+          : "real TX / progressive detail coverage · package-fee candidate fit",
       model
     };
   }
 
   W.ZZXMempoolSpecsModel=Object.freeze({
-    __version:7,
+    __version:8,
     BLOCK_VBYTES,
     timestampMs,
     normalizeHistogram,
