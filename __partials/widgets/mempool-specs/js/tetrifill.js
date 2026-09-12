@@ -1,95 +1,235 @@
 // __partials/widgets/mempool-specs/js/tetrifill.js
-// v5 — deterministic square tetris-style packer
+// v6 — adaptive square-only next-block packer
 (function(){
   "use strict";
 
   const W=window;
   const NS=(W.ZZXMempoolSpecs=W.ZZXMempoolSpecs||{});
-  if(NS.TetriFill?.__version>=5)return;
+  if(NS.TetriFill?.__version>=6)return;
 
-  function makeOcc(rows,cols){
-    return Array.from({length:rows},()=>new Uint8Array(cols));
-  }
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
-  function canPlace(occ,cols,rows,x,y,side){
-    if(x<0||y<0||x+side>cols||y+side>rows)return false;
-    for(let yy=y;yy<y+side;yy++)for(let xx=x;xx<x+side;xx++)if(occ[yy][xx])return false;
-    return true;
-  }
-
-  function mark(occ,x,y,side,value=1){
-    for(let yy=y;yy<y+side;yy++)for(let xx=x;xx<x+side;xx++)occ[yy][xx]=value;
-  }
-
-  function bestSpot(occ,cols,rows,side,scan){
-    let best=null;
-    const visit=(x,y)=>{
-      if(!canPlace(occ,cols,rows,x,y,side))return;
-      const score=((rows-y)*100000)+((cols-x)*100)+(side*2);
-      if(!best||score>best.score)best={x,y,score};
-    };
-
-    if(scan==="col"){
-      for(let x=0;x<=cols-side;x++)for(let y=0;y<=rows-side;y++)visit(x,y);
-    }else{
-      for(let y=0;y<=rows-side;y++)for(let x=0;x<=cols-side;x++)visit(x,y);
+  function hash32(str,seed=0){
+    const s=String(str??"");
+    let h=(seed>>>0)^0x9e3779b9;
+    for(let i=0;i<s.length;i++){
+      h=Math.imul(h^s.charCodeAt(i),0x01000193);
+      h^=h>>>13;
     }
-    return best&&{x:best.x,y:best.y};
+    return h>>>0;
   }
 
-  function compact(placed,cols,rows,passes){
-    for(let pass=0;pass<passes;pass++){
-      const occ=makeOcc(rows,cols);
-      for(const p of placed)mark(occ,p.x,p.y,p.side,1);
-      let moved=0;
+  function rankOf(row){
+    for(const value of [
+      row?.projectedRank,
+      row?.rank,
+      row?.blockRank
+    ]){
+      const n=Number(value);
+      if(Number.isFinite(n))return n;
+    }
+    return Number.MAX_SAFE_INTEGER;
+  }
 
-      for(const p of placed.slice().sort((a,b)=>b.side-a.side)){
-        mark(occ,p.x,p.y,p.side,0);
-        let found=null;
-        for(let y=0;y<=p.y&&!found;y++){
-          for(let x=0;x<=p.x;x++){
-            if(canPlace(occ,cols,rows,x,y,p.side)){found={x,y};break}
-          }
+  function feeOf(row){
+    const n=Number(row?.packageFeeRate??row?.feeRate);
+    return Number.isFinite(n)?n:-Infinity;
+  }
+
+  /*
+   * Large squares are placed first to prevent fragmentation. Within a square
+   * size tier, projected next-block rank wins, then effective/package feerate.
+   * This keeps the packed field stable and still biases higher-likelihood TXs
+   * toward earlier/top-left placements.
+   */
+  function packingOrder(items,seed=0){
+    return (Array.isArray(items)?items:[]).slice().sort((a,b)=>{
+      const as=Math.max(1,Math.floor(Number(a?.side)||1));
+      const bs=Math.max(1,Math.floor(Number(b?.side)||1));
+      if(bs!==as)return bs-as;
+
+      const ar=rankOf(a),br=rankOf(b);
+      if(ar!==br)return ar-br;
+
+      const af=feeOf(a),bf=feeOf(b);
+      if(af!==bf)return bf-af;
+
+      return hash32(a?.txid??a?.id,seed)-hash32(b?.txid??b?.id,seed);
+    });
+  }
+
+  /*
+   * Skyline packing is fast enough to rebuild the live candidate set several
+   * times per second. Each placed item is an integer side×side square. There is
+   * no rectangle path in this packer.
+   */
+  function packAtN(items,n,{seed=0}={}){
+    const gridN=Math.max(1,Math.floor(n||1));
+    const sky=new Uint32Array(gridN);
+    const placed=[];
+    const rejected=[];
+    const ordered=packingOrder(items,seed);
+
+    for(const item of ordered){
+      const side=clamp(
+        Math.max(1,Math.floor(Number(item?.side)||1)),
+        1,
+        gridN
+      );
+
+      let bestX=-1;
+      let bestY=Infinity;
+      let bestWaste=Infinity;
+
+      for(let x=0;x<=gridN-side;x++){
+        let y=0;
+        let sum=0;
+
+        for(let i=0;i<side;i++){
+          const h=sky[x+i];
+          if(h>y)y=h;
+          sum+=h;
         }
-        found=found||{x:p.x,y:p.y};
-        mark(occ,found.x,found.y,p.side,1);
-        if(found.x!==p.x||found.y!==p.y){p.x=found.x;p.y=found.y;moved++}
+
+        if(y+side>gridN)continue;
+
+        const waste=side*y-sum;
+
+        if(
+          y<bestY ||
+          (y===bestY&&waste<bestWaste) ||
+          (y===bestY&&waste===bestWaste&&x<bestX)
+        ){
+          bestX=x;
+          bestY=y;
+          bestWaste=waste;
+        }
       }
-      if(!moved)break;
+
+      if(bestX<0){
+        rejected.push({...item,side});
+        continue;
+      }
+
+      const top=bestY+side;
+      for(let i=0;i<side;i++)sky[bestX+i]=top;
+
+      placed.push({
+        ...item,
+        x:bestX,
+        y:bestY,
+        side
+      });
     }
+
+    const occupied=placed.reduce(
+      (sum,row)=>sum+row.side*row.side,
+      0
+    );
+
+    const maxHeight=sky.length
+      ? Math.max(...sky)
+      : 0;
+
+    return {
+      placed,
+      rejected,
+      gridN,
+      occupiedCells:occupied,
+      fillRatio:occupied/(gridN*gridN),
+      maxHeight
+    };
   }
 
-  function pack(items,grid,opts={}){
-    const cols=Math.max(1,Math.floor(grid?.cols||1));
-    const rows=Math.max(1,Math.floor(grid?.rows||1));
-    const scan=opts.scan==="col"?"col":"row";
-    const passes=Number.isFinite(opts.bubblePasses)?Math.max(0,Math.floor(opts.bubblePasses)):1;
+  function packAdaptive(items,opts={}){
+    const rows=(Array.isArray(items)?items:[])
+      .map(row=>({
+        ...row,
+        side:Math.max(1,Math.floor(Number(row?.side)||1))
+      }));
 
-    const sorter=NS.Sorter?.stablePriority;
-    const arr=sorter
-      ? sorter(items,Number(opts.seed)||0)
-      : (Array.isArray(items)?items.slice():[]);
-
-    arr.sort((a,b)=>(Number(b.side)||1)-(Number(a.side)||1) || (Number(b.feeRate)||0)-(Number(a.feeRate)||0));
-
-    const occ=makeOcc(rows,cols);
-    const placed=[],rejected=[];
-
-    for(const item of arr){
-      const side=Math.max(1,Math.floor(Number(item.side)||1));
-      if(side>cols||side>rows){rejected.push(item);continue}
-      const spot=bestSpot(occ,cols,rows,side,scan);
-      if(!spot){rejected.push(item);continue}
-      mark(occ,spot.x,spot.y,side,1);
-      placed.push({...item,x:spot.x,y:spot.y,side});
+    if(!rows.length){
+      return {
+        placed:[],
+        rejected:[],
+        gridN:1,
+        occupiedCells:0,
+        fillRatio:0,
+        maxHeight:0,
+        attempts:0
+      };
     }
 
-    compact(placed,cols,rows,passes);
-    return {placed,rejected,cols,rows};
+    const targetFill=clamp(Number(opts.targetFill)||.86,.45,.96);
+    const maxGrid=Math.max(64,Math.floor(Number(opts.maxGrid)||512));
+    const seed=Number.isFinite(Number(opts.seed))?Number(opts.seed):0;
+
+    const totalArea=rows.reduce(
+      (sum,row)=>sum+row.side*row.side,
+      0
+    );
+
+    const maxSide=Math.max(...rows.map(row=>row.side));
+    let n=Math.max(
+      maxSide,
+      Math.ceil(Math.sqrt(totalArea/targetFill)),
+      Math.ceil(Math.sqrt(rows.length/targetFill))
+    );
+
+    let result=null;
+    let attempts=0;
+
+    while(n<=maxGrid&&attempts<96){
+      attempts++;
+      result=packAtN(rows,n,{seed});
+
+      if(!result.rejected.length){
+        return {
+          ...result,
+          attempts
+        };
+      }
+
+      // Small growth steps preserve useful canvas density instead of jumping to
+      // an unnecessarily huge logical grid after one fragmented attempt.
+      n=Math.min(
+        maxGrid+1,
+        Math.max(n+1,Math.ceil(n*1.035))
+      );
+    }
+
+    /*
+     * Deterministic last resort: grow beyond maxGrid only as much as necessary
+     * to honor the hard contract that every candidate transaction gets a square.
+     */
+    n=Math.max(
+      n,
+      Math.ceil(Math.sqrt(totalArea))*2,
+      maxSide*2
+    );
+
+    for(let i=0;i<64;i++){
+      attempts++;
+      result=packAtN(rows,n,{seed});
+      if(!result.rejected.length){
+        return {
+          ...result,
+          attempts
+        };
+      }
+      n=Math.ceil(n*1.06)+1;
+    }
+
+    throw new Error(
+      `square pack failed: ${result?.rejected?.length||rows.length} transactions unplaced`
+    );
   }
 
   NS.TetriFill=Object.freeze({
-    __version:5,
-    pack
+    __version:6,
+    hash32,
+    packingOrder,
+    packAtN,
+    packAdaptive
   });
 })();
