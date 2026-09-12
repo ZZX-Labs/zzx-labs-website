@@ -82,7 +82,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: zzx-bitnodes-crawler-wrapper
+  group: zzx-bitnodes-crawler
   cancel-in-progress: false
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
           esac
 
           printf '%s\n' "crawl_profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
-          printf '%s\n' "ZZX-Bitnodes wrapper selected profile=${PROFILE}."
+          printf '%s\n' "ZZX-Bitnodes Crawler selected profile=${PROFILE}."
 
   snapshot_mirror:
     name: btcnodes.io Snapshot Mirror
@@ -209,19 +209,28 @@ jobs:
             fi
           done
 
-          # The registry is a private backup sink. Authentication trouble is
-          # intentionally isolated from all public Bitnodes artifacts.
-          if [ "${REGISTRY_RESULT}" = "failure" ] || [ "${REGISTRY_RESULT}" = "cancelled" ]; then
-            failed=1
-          fi
+          # The registry is a private backup sink, not a public publication gate.
+          # Its authentication or push failure must never invalidate API/maps/widgets.
+          case "${REGISTRY_RESULT}" in
+            failure|cancelled)
+              printf '%s\n' \
+                "::warning title=Bitnodes private registry backup::Private registry workflow result=${REGISTRY_RESULT}. Public API, maps, live-map, subpages, and widgets completed independently."
+              ;;
+          esac
 
-          if [ "${REGISTRY_STATUS:-}" = "skipped-auth" ]; then
-            printf '%s\n' \
-              "::warning title=Bitnodes private registry auth::Registry backup was skipped because no valid private-repo credential was available. Public API, maps, live-map, subpages, and widgets completed independently."
-          fi
+          case "${REGISTRY_STATUS:-}" in
+            skipped-auth)
+              printf '%s\n' \
+                "::warning title=Bitnodes private registry auth::Registry backup was skipped because no usable private-repo credential was available. Public artifacts are unaffected."
+              ;;
+            failed)
+              printf '%s\n' \
+                "::warning title=Bitnodes private registry backup::Registry backup attempted but failed. Public artifacts are unaffected."
+              ;;
+          esac
 
           if (( failed )); then
-            printf '%s\n' "One or more required Bitnodes child workflows failed or were cancelled."
+            printf '%s\n' "A required public Bitnodes workflow did not complete successfully (plan, snapshot mirror, crawler, or Map Host)."
             exit 1
           fi
 
