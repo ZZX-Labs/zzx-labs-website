@@ -2,6 +2,7 @@ name: ZZX-Labs Bitnodes Registry Backup
 
 on:
   workflow_dispatch:
+
   workflow_call:
     secrets:
       BITNODES_REGISTRY_PAT:
@@ -10,8 +11,10 @@ on:
         required: false
     outputs:
       backup_status:
-        description: "Private registry backup status: success, skipped-auth, or failed"
+        description: "success, skipped-auth, or failed"
         value: ${{ jobs.backup-registry.outputs.backup_status }}
+
+  # Fallback for a standalone/manual Global Node Crawler run.
   workflow_run:
     workflows:
       - ZZX-Labs Bitnodes Global Node Crawler
@@ -38,8 +41,8 @@ env:
 jobs:
   backup-registry:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
@@ -47,9 +50,9 @@ jobs:
         github.event.workflow_run.head_repository.full_name == github.repository
       )
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
     outputs:
-      backup_status: ${{ steps.registry_status.outputs.backup_status }}
+      backup_status: ${{ steps.final-status.outputs.status }}
+    timeout-minutes: 30
 
     steps:
       - name: Checkout website repo
@@ -233,7 +236,7 @@ jobs:
             "Full pre-prune runtime/MariaDB history remains the crawler's responsibility."
 
       - name: Preflight private registry authentication
-        id: registry_auth
+        id: auth
         shell: bash
         env:
           REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
@@ -241,80 +244,63 @@ jobs:
         run: |
           set -euo pipefail
 
-          READY="false"
-          METHOD="none"
-          REASON="no-credential"
+          printf '%s\n' "ready=false" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "mode=none" >> "${GITHUB_OUTPUT}"
 
           if [ -n "${REGISTRY_PAT:-}" ]; then
-            AUTH_JSON="${RUNNER_TEMP}/bitnodes-registry-auth.json"
-
-            set +e
-            HTTP_STATUS="$(
-              curl \
-                --silent \
-                --show-error \
-                --location \
-                --output "${AUTH_JSON}" \
-                --write-out '%{http_code}' \
-                --header "Accept: application/vnd.github+json" \
-                --header "Authorization: Bearer ${REGISTRY_PAT}" \
-                --header "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/repos/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}"
+            CODE="$(
+              curl -sS                 -o "${RUNNER_TEMP}/bitnodes-registry-repo.json"                 -w '%{http_code}'                 -H "Accept: application/vnd.github+json"                 -H "Authorization: Bearer ${REGISTRY_PAT}"                 -H "X-GitHub-Api-Version: 2022-11-28"                 "https://api.github.com/repos/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}"                 || true
             )"
-            CURL_STATUS="$?"
-            set -e
 
-            if [ "${CURL_STATUS}" -eq 0 ] && [ "${HTTP_STATUS}" = "200" ]; then
-              CAN_PUSH="$(
-                python - "${AUTH_JSON}" <<'PY'
+            if [ "${CODE}" = "200" ]; then
+              PUSH="$(
+                python - <<'PY'
           import json
-          import sys
+          import os
           from pathlib import Path
 
-          path = Path(sys.argv[1])
+          path = Path(os.environ["RUNNER_TEMP"]) / "bitnodes-registry-repo.json"
           payload = json.loads(path.read_text(encoding="utf-8"))
-          permissions = payload.get("permissions") or {}
-          print("true" if permissions.get("push") is True else "false")
+          print("true" if bool((payload.get("permissions") or {}).get("push")) else "false")
           PY
               )"
 
-              if [ "${CAN_PUSH}" = "true" ]; then
-                READY="true"
-                METHOD="pat"
-                REASON="pat-ok"
-              else
-                REASON="pat-no-push-permission"
+              if [ "${PUSH}" = "true" ]; then
+                printf '%s\n' "ready=true" >> "${GITHUB_OUTPUT}"
+                printf '%s\n' "mode=pat" >> "${GITHUB_OUTPUT}"
+                printf '%s\n' "Private registry PAT passed repository/write preflight."
+                exit 0
               fi
-            else
-              REASON="pat-http-${HTTP_STATUS:-000}"
             fi
+
+            printf '%s\n'               "::warning title=Bitnodes registry PAT::PAT was present but is rejected or lacks push access to ${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}."
           fi
 
-          if [ "${READY}" != "true" ] && [ -n "${REGISTRY_SSH_KEY:-}" ]; then
-            READY="true"
-            METHOD="ssh"
-            REASON="ssh-fallback"
+          if [ -n "${REGISTRY_SSH_KEY:-}" ]; then
+            KEY_FILE="$(mktemp)"
+            trap 'rm -f "${KEY_FILE}"' EXIT
+            printf '%s\n' "${REGISTRY_SSH_KEY}" > "${KEY_FILE}"
+            chmod 600 "${KEY_FILE}"
+
+            if ssh-keygen -y -f "${KEY_FILE}" >/dev/null 2>&1; then
+              printf '%s\n' "ready=true" >> "${GITHUB_OUTPUT}"
+              printf '%s\n' "mode=ssh" >> "${GITHUB_OUTPUT}"
+              printf '%s\n' "Private registry SSH key passed syntax preflight."
+              exit 0
+            fi
+
+            printf '%s\n'               "::warning title=Bitnodes registry SSH key::BITNODES_REGISTRY_SSH_KEY is present but is not a usable private key."
           fi
 
-          printf '%s\n' \
-            "ready=${READY}" \
-            "method=${METHOD}" \
-            "reason=${REASON}" \
-            >> "${GITHUB_OUTPUT}"
-
-          if [ "${READY}" = "true" ]; then
-            printf '%s\n' \
-              "Private Bitnodes registry authentication ready: method=${METHOD}."
-          else
-            printf '%s\n' \
-              "::warning title=Bitnodes registry backup skipped::Private registry authentication is unavailable (${REASON}). The public crawler, API snapshots, maps, live-map, subpages, and widgets are not blocked. Rotate BITNODES_REGISTRY_PAT or configure BITNODES_REGISTRY_SSH_KEY."
-          fi
+          printf '%s\n'             "::warning title=Bitnodes private registry auth::No usable private-registry credential is available. Registry backup will be skipped; public Bitnodes publication is unaffected."
 
       - name: Backup committed registry snapshot to private repo
-        id: registry_backup
-        if: ${{ steps.registry_auth.outputs.ready == 'true' }}
+        id: backup
+        if: ${{ steps.auth.outputs.ready == 'true' }}
+        continue-on-error: true
         shell: bash
         env:
+          AUTH_MODE: ${{ steps.auth.outputs.mode }}
           REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
           REGISTRY_SSH_KEY: ${{ secrets.BITNODES_REGISTRY_SSH_KEY }}
           TRIGGER_RUN_ID: ${{ github.event.workflow_run.id || github.run_id }}
@@ -328,6 +314,25 @@ jobs:
           REGISTRY_SOURCE: ${{ steps.source.outputs.registry_source }}
         run: |
           set -euo pipefail
+
+          case "${AUTH_MODE:-}" in
+            pat)
+              if [ -z "${REGISTRY_PAT:-}" ] || [ "${#REGISTRY_PAT}" -lt 20 ]; then
+                printf '%s\n' "Private registry PAT failed local validation after preflight."
+                exit 1
+              fi
+              ;;
+            ssh)
+              if [ -z "${REGISTRY_SSH_KEY:-}" ]; then
+                printf '%s\n' "Private registry SSH key disappeared after preflight."
+                exit 1
+              fi
+              ;;
+            *)
+              printf '%s\n' "Unsupported private registry authentication mode: ${AUTH_MODE:-none}"
+              exit 1
+              ;;
+          esac
 
           if ! [[ "${SOURCE_NODES}" =~ ^[0-9]+$ ]] || [ "${SOURCE_NODES}" -lt 1 ]; then
             printf '%s\n' \
@@ -365,8 +370,7 @@ jobs:
 
           BACKUP_ROOT="$(mktemp -d)"
           ASKPASS="$(mktemp)"
-          SSH_KEY_FILE="$(mktemp)"
-          KNOWN_HOSTS="$(mktemp)"
+          SSH_DIR="$(mktemp -d)"
 
           export TODAY
           export SOURCE_RUN_ID
@@ -374,17 +378,15 @@ jobs:
           export BACKUP_ROOT
 
           cleanup() {
-            rm -f "${ASKPASS}" "${SSH_KEY_FILE}" "${KNOWN_HOSTS}"
-            rm -rf "${BACKUP_ROOT}"
+            rm -f "${ASKPASS}"
+            rm -rf "${SSH_DIR}" "${BACKUP_ROOT}"
           }
 
           trap cleanup EXIT
+          export GIT_TERMINAL_PROMPT=0
 
-          AUTH_METHOD="${{ steps.registry_auth.outputs.method }}"
-
-          case "${AUTH_METHOD}" in
-            pat)
-              cat > "${ASKPASS}" <<'ASKPASS'
+          if [ "${AUTH_MODE}" = "pat" ]; then
+            cat > "${ASKPASS}" <<'ASKPASS'
           #!/usr/bin/env bash
           case "${1:-}" in
             *Username*) printf '%s\n' "x-access-token" ;;
@@ -392,37 +394,38 @@ jobs:
             *) printf '%s\n' "" ;;
           esac
           ASKPASS
-              chmod 700 "${ASKPASS}"
-              export GIT_ASKPASS="${ASKPASS}"
-              export GIT_TERMINAL_PROMPT=0
-              REGISTRY_REMOTE="https://github.com/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git"
-              ;;
-            ssh)
-              printf '%s\n' "${REGISTRY_SSH_KEY}" | tr -d '\r' > "${SSH_KEY_FILE}"
-              chmod 600 "${SSH_KEY_FILE}"
-              ssh-keyscan -t rsa,ecdsa,ed25519 github.com > "${KNOWN_HOSTS}" 2>/dev/null
-              export GIT_SSH_COMMAND="ssh -i ${SSH_KEY_FILE} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes"
-              export GIT_TERMINAL_PROMPT=0
-              REGISTRY_REMOTE="git@github.com:${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git"
-              ;;
-            *)
-              printf '%s\n' "Unsupported registry authentication method: ${AUTH_METHOD}"
-              exit 1
-              ;;
-          esac
+
+            chmod 700 "${ASKPASS}"
+            export GIT_ASKPASS="${ASKPASS}"
+
+            REMOTE="https://github.com/${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git"
+          else
+            KEY_FILE="${SSH_DIR}/id_registry"
+            KNOWN_HOSTS="${SSH_DIR}/known_hosts"
+
+            printf '%s\n' "${REGISTRY_SSH_KEY}" > "${KEY_FILE}"
+            chmod 600 "${KEY_FILE}"
+
+            ssh-keyscan -t rsa,ecdsa,ed25519 github.com > "${KNOWN_HOSTS}" 2>/dev/null
+            chmod 600 "${KNOWN_HOSTS}"
+
+            export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${KNOWN_HOSTS}"
+            REMOTE="git@github.com:${BITNODES_REGISTRY_OWNER}/${BITNODES_REGISTRY_REPO}.git"
+          fi
 
           git clone \
             --filter=blob:none \
             --single-branch \
             --branch main \
-            "${REGISTRY_REMOTE}" \
+            "${REMOTE}" \
             "${BACKUP_ROOT}"
 
           REMOTE_URL="$(
             git -C "${BACKUP_ROOT}" remote get-url origin
           )"
 
-          if [ -n "${REGISTRY_PAT:-}" ] && printf '%s' "${REMOTE_URL}" | grep -Fq "${REGISTRY_PAT}"; then
+          if [ "${AUTH_MODE}" = "pat" ] && [ -n "${REGISTRY_PAT:-}" ] && \
+             printf '%s' "${REMOTE_URL}" | grep -Fq "${REGISTRY_PAT}"; then
             printf '%s\n' \
               "Refusing registry remote containing embedded credentials."
             exit 1
@@ -850,35 +853,29 @@ jobs:
           exit 1
 
       - name: Report private registry backup status
-        id: registry_status
+        id: final-status
         if: ${{ always() }}
         shell: bash
         env:
-          AUTH_READY: ${{ steps.registry_auth.outputs.ready }}
-          AUTH_METHOD: ${{ steps.registry_auth.outputs.method }}
-          AUTH_REASON: ${{ steps.registry_auth.outputs.reason }}
-          BACKUP_OUTCOME: ${{ steps.registry_backup.outcome }}
+          AUTH_READY: ${{ steps.auth.outputs.ready }}
+          AUTH_MODE: ${{ steps.auth.outputs.mode }}
+          BACKUP_OUTCOME: ${{ steps.backup.outcome }}
         run: |
           set -euo pipefail
 
-          if [ "${AUTH_READY}" != "true" ]; then
+          STATUS="failed"
+
+          if [ "${AUTH_READY:-false}" != "true" ]; then
             STATUS="skipped-auth"
-          elif [ "${BACKUP_OUTCOME}" = "success" ]; then
+          elif [ "${BACKUP_OUTCOME:-}" = "success" ]; then
             STATUS="success"
-          else
-            STATUS="failed"
           fi
 
-          printf '%s\n' "backup_status=${STATUS}" >> "${GITHUB_OUTPUT}"
-
-          {
-            printf '%s\n' "### Bitnodes private registry backup"
-            printf '%s\n' ""
-            printf '%s\n' "- status: \`${STATUS}\`"
-            printf '%s\n' "- auth method: \`${AUTH_METHOD:-none}\`"
-            printf '%s\n' "- auth reason: \`${AUTH_REASON:-unknown}\`"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
+          printf '%s\n' "status=${STATUS}" >> "${GITHUB_OUTPUT}"
           printf '%s\n' \
-            "Private registry backup status=${STATUS} auth=${AUTH_METHOD:-none} reason=${AUTH_REASON:-unknown}."
+            "Private Bitnodes registry status=${STATUS} auth_mode=${AUTH_MODE:-none} backup_outcome=${BACKUP_OUTCOME:-not-run}"
 
+          if [ "${STATUS}" = "failed" ]; then
+            printf '%s\n' \
+              "::warning title=Bitnodes private registry backup::Private backup failed after authentication. Public Bitnodes API/maps/widgets remain unaffected."
+          fi
