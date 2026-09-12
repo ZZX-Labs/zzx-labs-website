@@ -3,10 +3,25 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsSources?.__version>=6)return;
+  if(W.ZZXMempoolSpecsSources?.__version>=7)return;
 
   const normalize=value=>String(value||"").trim().replace(/\/+$/g,"");
   const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/,"");
+
+  function websocketUrl(base){
+    const raw=normalize(base);
+
+    try{
+      const url=new URL(raw,window.location.href);
+      url.protocol=url.protocol==="https:"?"wss:":"ws:";
+      url.pathname=url.pathname.replace(/\/+$/g,"")+"/v1/ws";
+      url.search="";
+      url.hash="";
+      return url.toString();
+    }catch(_error){
+      return raw.replace(/^http/i,"ws")+"/v1/ws";
+    }
+  }
 
   function apiBase(core){
     return normalize(
@@ -42,12 +57,15 @@
 
     return {
       apiBase:base,
-      refreshMs:15000,
+      refreshMs:10000,
+      liveDebounceMs:320,
+      liveReconnectMaxMs:30000,
       progressiveHydrate:16,
       hydrateDelayMs:2200,
       txConcurrency:4,
       maxHydratePerSession:1600,
       maxCandidateBlocks:8,
+      websocket:websocketUrl(base),
       endpoints:{
         mempool:join(base,"mempool"),
         blocks:join(base,"v1/fees/mempool-blocks"),
@@ -67,9 +85,10 @@
   }
 
   W.ZZXMempoolSpecsSources=Object.freeze({
-    __version:6,
+    __version:7,
     get,
     apiBase,
-    fullFeedUrls
+    fullFeedUrls,
+    websocketUrl
   });
 })();
