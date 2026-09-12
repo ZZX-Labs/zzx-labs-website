@@ -1,16 +1,15 @@
 // __partials/widgets/mempool-specs/widget.js
-// v10.71 — Mempool Specs / Spectacles real-transaction block viewer
+// v10.72 — Mempool Specs / Spectacles live next-block value tiler
 (function(){
   "use strict";
 
   const W=window,D=document,ID="mempool-specs";
-  const BLOCK_KEY="zzx.widget.mempool-specs.block.v6";
-
   const DEPS=[
-    ["ZZXMempoolSpecsSources","js/sources.js",6],
+    ["ZZXMempoolSpecsSources","js/sources.js",7],
     ["ZZXMempoolSpecsFetch","js/fetch.js",4],
     ["ZZXMempoolSpecsProvider","js/provider.js",6],
-    ["ZZXMempoolSpecsModel","js/model.js",6],
+    ["ZZXMempoolSpecsLive","js/live.js",1],
+    ["ZZXMempoolSpecsModel","js/model.js",7],
     ["ZZXMempoolSpecs.Adapter","js/adapter.js",5],
     ["ZZXMempoolSpecs.Theme","js/themes.js",4],
     ["ZZXMempoolSpecs.Grid","js/grid.js",5],
@@ -20,8 +19,8 @@
     ["ZZXMempoolSpecs.BinFill","js/binfill.js",5],
     ["ZZXMempoolSpecs.Sorter","js/sorter.js",5],
     ["ZZXMempoolSpecs.Plotter","js/plotter.js",5],
-    ["ZZXMempoolSpecsBlockLayout","js/block-layout.js",2],
-    ["ZZXMempoolSpecs.Renderer","js/renderer.js",6],
+    ["ZZXMempoolSpecsBlockLayout","js/block-layout.js",3],
+    ["ZZXMempoolSpecs.Renderer","js/renderer.js",7],
     ["ZZXMempoolSpecs.Anim","js/animation.js",5],
     ["ZZXMempoolSpecs.TxAnalyzer","js/tx-analyzer.js",1],
     ["ZZXMempoolSpecs.TxFetcher","js/txfetcher.js",6],
@@ -84,17 +83,36 @@
       : "—";
   }
 
-  function safeGet(){
-    try{
-      const n=Number(W.localStorage?.getItem(BLOCK_KEY));
-      return Number.isFinite(n)?n:0;
-    }catch(_error){
-      return 0;
-    }
+  function ageLabel(timestamp){
+    const n=finite(timestamp);
+    if(!Number.isFinite(n))return "—";
+    const seconds=Math.max(0,Math.floor((Date.now()-n)/1000));
+    if(seconds<60)return `${seconds}s ago`;
+    const minutes=Math.floor(seconds/60);
+    if(minutes<60)return `${minutes}m ago`;
+    return `${Math.floor(minutes/60)}h ${minutes%60}m ago`;
   }
 
-  function safeSet(value){
-    try{W.localStorage?.setItem(BLOCK_KEY,String(value))}catch(_error){}
+  function setLiveState(root,state,label,detail=""){
+    state.liveState=String(label||"offline");
+    root.setAttribute("data-ms-live-state",state.liveState);
+
+    const display={
+      live:"LIVE · reshuffling",
+      connecting:"connecting",
+      reconnecting:"reconnecting",
+      error:"socket fallback",
+      stopped:"stopped",
+      unsupported:"polling"
+    }[state.liveState]||state.liveState;
+
+    setText(root,"[data-ms-live]",display);
+    const sub=
+      state.liveState==="live"
+        ? "mempool.space next-block transaction stream"
+        : (detail||"REST/full-feed projection remains active");
+
+    setText(root,"[data-ms-live-sub]",sub);
   }
 
   function widgetBase(core){
@@ -155,76 +173,123 @@
     return `${min.toFixed(2)}–${max.toFixed(2)} sat/vB`;
   }
 
-  function renderNav(root,state){
-    const host=q(root,"[data-ms-block-nav]");
-    if(!host||!state.model)return;
-    host.replaceChildren();
-
-    const count=Math.min(
-      Number(state.model.cfg?.maxCandidateBlocks)||8,
-      state.model.candidates.length
-    );
-
-    for(let i=0;i<count;i++){
-      const button=D.createElement("button");
-      button.type="button";
-      button.className="mempool-specs__block-button";
-      button.textContent=`+${i+1}`;
-      button.setAttribute("aria-label",`Projected block +${i+1}`);
-      button.setAttribute("aria-pressed",String(i===state.blockIndex));
-      button.addEventListener("click",()=>setBlock(root,state,i,true));
-      host.appendChild(button);
-    }
-
-    const prev=q(root,"[data-ms-prev]");
-    const next=q(root,"[data-ms-next]");
-    if(prev)prev.disabled=state.blockIndex<=0;
-    if(next)next.disabled=state.blockIndex>=count-1;
-  }
-
   function renderSummary(root,state){
     const model=state.model;
     const block=state.blockView;
     const layout=state.layout;
     if(!model||!block||!layout)return;
 
-    const candidate=block.candidate;
-    const label=`+${block.blockIndex+1}`;
+    const candidate=block.candidate||{};
     const coverage=Math.min(1,Math.max(0,block.coverage));
-    const feeUsd=Number.isFinite(candidate.totalFees)&&Number.isFinite(model.priceUsd)
-      ? (candidate.totalFees/1e8)*model.priceUsd
-      : NaN;
+    const visibleTx=layout.tiles.length;
+    const txEstimate=Number.isFinite(Number(candidate.nTx))
+      ? Number(candidate.nTx)
+      : visibleTx;
 
-    setText(root,"[data-ms-hero-label]",`projected block ${label}${Number.isFinite(block.nextHeight)?` · height ${int(block.nextHeight)}`:""}`);
-    setText(root,"[data-ms-summary]",`${int(layout.tiles.length)} real TX tiles · ${num(block.actualVbytes/1e6,3)} vMB represented`);
-    setText(root,"[data-ms-sub]",`${int(candidate.nTx)} candidate TX estimate · ${rate(block.medianRate,2)} median`);
-    setText(root,"[data-ms-coverage]",pct(coverage,1));
-    setText(root,"[data-ms-mode]",block.sourceMode);
+    setText(
+      root,
+      "[data-ms-summary]",
+      `${int(visibleTx)} TX · ${btcFromSats(block.totalValueSats)} · ${num(block.actualVbytes/1e6,3)} vMB`
+    );
 
-    setText(root,"[data-ms-tx]",int(candidate.nTx));
-    setText(root,"[data-ms-tx-sub]",`${int(layout.tiles.length)} transaction records currently scaled`);
-    setText(root,"[data-ms-vsize]",`${num(block.targetVbytes/1e6,3)} vMB`);
-    setText(root,"[data-ms-util]",`${pct(block.fillRatio,1)} candidate fill · ${pct(coverage,1)} hydrated`);
+    setText(
+      root,
+      "[data-ms-sub]",
+      block.live
+        ? "live mempool.space projected next-block membership · tiles reshuffle as candidate inclusion changes"
+        : "projected next-block membership from package fee priority · waiting for live transaction stream"
+    );
+
+    setText(root,"[data-ms-tx]",int(txEstimate));
+    setText(
+      root,
+      "[data-ms-tx-sub]",
+      `${int(visibleTx)} currently visible · ${int(block.valueKnownCount)} value-scaled`
+    );
+
+    setText(root,"[data-ms-value]",btcFromSats(block.totalValueSats));
+    setText(
+      root,
+      "[data-ms-value-sub]",
+      `${int(block.valueKnownCount)} / ${int(block.items.length)} TX values known`
+    );
+
+    setText(root,"[data-ms-vsize]",`${num(block.actualVbytes/1e6,3)} vMB`);
+    setText(
+      root,
+      "[data-ms-util]",
+      `${pct(coverage,1)} of ${num(block.targetVbytes/1e6,3)} vMB candidate`
+    );
+
     setText(root,"[data-ms-median]",rate(block.medianRate,2));
     setText(root,"[data-ms-range]",candidateRange(block));
-    setText(root,"[data-ms-fees]",btcFromSats(candidate.totalFees));
-    setText(root,"[data-ms-fee-usd]",Number.isFinite(feeUsd)?usd(feeUsd):"USD unavailable");
 
-    setText(root,"[data-ms-plane-meta]",`${label} · ${layout.tiles.length} real transactions`);
-    setText(root,"[data-ms-canvas-title]",`${label} PROJECTED`);
-    setText(root,"[data-ms-canvas-fill]",`${num(layout.representedVbytes/1e6,3)} / ${num(layout.denominatorVbytes/1e6,3)} vMB`);
-    setText(root,"[data-ms-layout]",`${int(layout.tiles.length)} real transaction tiles · ${pct(layout.areaCoverage,1)} plane coverage`);
-    setText(root,"[data-ms-source-mode]",model.completeLayout?"full scalable mempool feed":"progressive real-TX hydration");
+    setText(
+      root,
+      "[data-ms-plane-meta]",
+      `${int(visibleTx)} real TX · area ∝ BTC value`
+    );
 
+    setText(
+      root,
+      "[data-ms-canvas-title]",
+      Number.isFinite(block.nextHeight)
+        ? `NEXT · ${int(block.nextHeight)}`
+        : "NEXT BLOCK"
+    );
+
+    setText(
+      root,
+      "[data-ms-canvas-fill]",
+      `${num(block.actualVbytes/1e6,3)} / ${num(block.targetVbytes/1e6,3)} vMB`
+    );
+
+    setText(
+      root,
+      "[data-ms-canvas-value]",
+      btcFromSats(block.totalValueSats)
+    );
+
+    setText(
+      root,
+      "[data-ms-layout]",
+      `${int(visibleTx)} real transaction tiles · ${pct(layout.valueCoverage,1)} value coverage · ${pct(layout.vsizeCoverage,1)} vsize coverage`
+    );
+
+    setText(root,"[data-ms-source-mode]",block.sourceMode);
     setText(root,"[data-ms-tip]",int(model.tipHeight));
     setText(root,"[data-ms-backlog]",`${num(model.backlogVMB,2)} vMB`);
+    setText(root,"[data-ms-fees]",btcFromSats(candidate.totalFees));
     setText(root,"[data-ms-price]",usd(model.priceUsd));
-    setText(root,"[data-ms-detail-coverage]",`${pct(model.detailCoverage,1)} full JSON · ${pct(model.layoutCoverage,1)} scalable`);
-    setText(root,"[data-ms-source]",model.fullFeedSource?`${model.source} + ${model.fullFeedSource}`:model.source);
-    setText(root,"[data-ms-method]",model.completeLayout
-      ? "real transaction rows sized by exact vbytes; package fee order; click lazily fetches complete mempool.space TX JSON + raw hex"
-      : "public mempool TXIDs progressively hydrate to real vsize/fee rows; no aggregate or fabricated transaction tiles");
-    setText(root,"[data-ms-meta]",`${model.priceSource||"price unavailable"} · ${int(model.scalableCount)} scalable / ${int(model.universeCount)} known TX · refreshed ${new Date(model.fetchedAt||Date.now()).toLocaleTimeString()}`);
+    setText(root,"[data-ms-value-coverage]",pct(block.valueCoverage,1));
+
+    const source=model.fullFeedSource
+      ? `${model.source} + ${model.fullFeedSource}`
+      : model.source;
+
+    setText(root,"[data-ms-source]",source||"configured mempool API");
+
+    setText(
+      root,
+      "[data-ms-method]",
+      block.live
+        ? "authoritative projected-next-block transaction membership from live stream; inclusion sorted by server projection/package fee; tile area proportional to total BTC outputs; color is absolute sat/vB"
+        : "fallback next-block estimate from detailed mempool rows ranked by projected index/package fee; real TX tiles only; background hydration resolves BTC values"
+    );
+
+    setText(
+      root,
+      "[data-ms-live-at]",
+      Number.isFinite(block.liveUpdatedAt)
+        ? `${new Date(block.liveUpdatedAt).toLocaleTimeString()} · ${ageLabel(block.liveUpdatedAt)}`
+        : "waiting"
+    );
+
+    setText(
+      root,
+      "[data-ms-meta]",
+      `${model.priceSource||"price unavailable"} · ${int(model.scalableCount)} scalable / ${int(model.universeCount)} known TX · refreshed ${new Date(model.fetchedAt||Date.now()).toLocaleTimeString()}`
+    );
   }
 
   function canvasPoint(canvas,event){
@@ -246,7 +311,7 @@
     if(!box)return;
     if(!tile){box.hidden=true;return}
 
-    box.textContent=`${String(tile.txid).slice(0,10)}… · ${num(tile.vbytes,0)} vB · ${rate(tile.packageFeeRate??tile.feeRate,2)} · click to inspect`;
+    box.textContent=`${String(tile.txid).slice(0,10)}… · ${btcFromSats(tile.valueSats)} · ${num(tile.vbytes,0)} vB · ${rate(tile.packageFeeRate??tile.feeRate,3)} · click for full TX`;
     const host=q(root,"[data-ms-block]");
     const rect=host?.getBoundingClientRect?.()||{width:320,height:320};
     box.style.left=`${Math.max(8,Math.min(Math.max(8,rect.width-260),point.x+12))}px`;
@@ -281,7 +346,7 @@
       host.replaceChildren();
       const empty=D.createElement("div");
       empty.className="ms-readout__empty";
-      empty.textContent="Select a transaction tile in the projected block.";
+      empty.textContent="Select any real transaction tile in the projected next block.";
       host.appendChild(empty);
     }
     setText(root,"[data-ms-selected]","none selected");
@@ -290,7 +355,7 @@
   async function selectTile(root,state,tile){
     if(!tile?.txid)return;
     state.selectedId=tile.id;
-    setText(root,"[data-ms-selected]",`${String(tile.txid).slice(0,12)}… · +${state.blockIndex+1}`);
+    setText(root,"[data-ms-selected]",`${String(tile.txid).slice(0,12)}… · ${btcFromSats(tile.valueSats)} · ${rate(tile.packageFeeRate??tile.feeRate,3)}`);
     draw(root,state,1,null);
 
     const host=q(root,"[data-ms-readout]");
@@ -317,7 +382,7 @@
       W.ZZXMempoolSpecs.TxCard.renderInline(host,{
         bundle,
         entry:updated,
-        projectedBlock:state.blockIndex+1,
+        projectedBlock:1,
         btcUsd:state.model.priceUsd
       });
 
@@ -334,32 +399,22 @@
 
   function rebuildBlock(root,state,{animateChange=true,preserveSelection=false}={}){
     if(!state.model?.candidates?.length)return;
-    state.blockIndex=Math.max(0,Math.min(state.model.candidates.length-1,state.blockIndex));
-    safeSet(state.blockIndex);
 
+    state.blockIndex=0;
     const previous=state.layout;
     const priorSelected=preserveSelection?state.selectedId:"";
 
-    state.blockView=W.ZZXMempoolSpecsModel.blockView(state.model,state.blockIndex);
+    state.blockView=W.ZZXMempoolSpecsModel.blockView(state.model,0);
     state.layout=W.ZZXMempoolSpecsBlockLayout.build(state.blockView);
     state.hoverId="";
     state.selectedId=priorSelected&&state.layout.byId.has(priorSelected)?priorSelected:"";
 
-    renderNav(root,state);
     renderSummary(root,state);
+
     if(!preserveSelection)clearReadout(root);
 
     if(animateChange)animate(root,state,previous);
     else draw(root,state,1,null);
-  }
-
-  function setBlock(root,state,index,animateChange=true){
-    const count=Math.min(Number(state.model?.cfg?.maxCandidateBlocks)||8,state.model?.candidates?.length||0);
-    if(!count)return;
-    const next=Math.max(0,Math.min(count-1,Math.floor(index)));
-    if(next===state.blockIndex&&state.layout)return;
-    state.blockIndex=next;
-    rebuildBlock(root,state,{animateChange});
   }
 
   function wireCanvas(root,state){
@@ -386,15 +441,16 @@
     });
 
     canvas.addEventListener("keydown",event=>{
-      if(event.key==="ArrowLeft"){
-        event.preventDefault();
-        setBlock(root,state,state.blockIndex-1,true);
-      }else if(event.key==="ArrowRight"){
-        event.preventDefault();
-        setBlock(root,state,state.blockIndex+1,true);
-      }else if(event.key==="Enter"||event.key===" "){
-        const tile=state.layout?.byId.get(state.hoverId)||state.layout?.byId.get(state.selectedId)||state.layout?.tiles?.[0];
-        if(tile){event.preventDefault();selectTile(root,state,tile)}
+      if(event.key==="Enter"||event.key===" "){
+        const tile=
+          state.layout?.byId.get(state.hoverId) ||
+          state.layout?.byId.get(state.selectedId) ||
+          state.layout?.tiles?.[0];
+
+        if(tile){
+          event.preventDefault();
+          selectTile(root,state,tile);
+        }
       }
     });
   }
@@ -432,7 +488,18 @@
       sessionMax-state.hydratedThisSession
     );
 
-    const pending=W.ZZXMempoolSpecsModel.pendingTxids(state.model,{limit:batchSize,offset:state.hydrateCursor});
+    let pending=W.ZZXMempoolSpecsModel.pendingNextBlockTxids(
+      state.model,
+      {limit:batchSize}
+    );
+
+    if(!pending.length){
+      pending=W.ZZXMempoolSpecsModel.pendingTxids(
+        state.model,
+        {limit:batchSize,offset:state.hydrateCursor}
+      );
+    }
+
     if(!pending.length){
       state.hydrateCursor=0;
       return;
@@ -454,7 +521,8 @@
       if(rows.length){
         state.model=W.ZZXMempoolSpecsModel.mergeTransactions(state.model,rows);
         rebuildBlock(root,state,{animateChange:true,preserveSelection:true});
-        status(root,state.model.completeLayout?"live":"partial",state.model.completeLayout?"ok":"warn");
+        const view=W.ZZXMempoolSpecsModel.blockView(state.model,0);
+        status(root,view.complete?"live":"partial",view.complete?"ok":"warn");
       }
     }catch(error){
       if(error?.name!=="AbortError")state.hydrateCursor+=pending.length;
@@ -467,10 +535,76 @@
     W.clearTimeout(state.hydrateTimer);
     state.hydrateTimer=W.setTimeout(async()=>{
       await hydrateBatch(root,state);
-      if(root.isConnected&&!state.model?.completeLayout&&state.hydratedThisSession<(Number(state.model?.cfg?.maxHydratePerSession)||1600)){
+      const view=state.model?.candidates?.length
+        ? W.ZZXMempoolSpecsModel.blockView(state.model,0)
+        : null;
+
+      if(root.isConnected&&view&&view.valueCoverage<.995&&state.hydratedThisSession<(Number(state.model?.cfg?.maxHydratePerSession)||1600)){
         scheduleHydration(root,state,Number(state.model?.cfg?.hydrateDelayMs)||2200);
       }
     },Math.max(250,delay||0));
+  }
+
+
+  function liveState(root,state,event){
+    const label=String(event?.state||"offline");
+    const detail=String(event?.detail||"");
+    setLiveState(root,state,label,detail);
+  }
+
+  function applyLiveSnapshot(root,state,snapshot){
+    if(!snapshot||!state.model||!root.isConnected)return;
+    state.liveSnapshot=snapshot;
+
+    W.clearTimeout(state.liveDebounce);
+    state.liveDebounce=W.setTimeout(()=>{
+      if(!state.model||!root.isConnected)return;
+
+      const priorSelected=state.selectedId;
+      state.model=W.ZZXMempoolSpecsModel.mergeLiveBlock(
+        state.model,
+        snapshot.transactions,
+        {
+          candidates:snapshot.candidates,
+          updatedAt:snapshot.updatedAt
+        }
+      );
+
+      rebuildBlock(
+        root,
+        state,
+        {
+          animateChange:true,
+          preserveSelection:true
+        }
+      );
+
+      if(priorSelected&&!state.layout.byId.has(priorSelected)){
+        state.selectedId="";
+      }
+
+      status(root,"live","ok");
+      setLiveState(root,state,"live","mempool.space next-block transaction stream");
+    },Number(state.model?.cfg?.liveDebounceMs)||320);
+  }
+
+  function startLive(root,state,payload){
+    const url=String(payload?.cfg?.websocket||"");
+    if(!url)return;
+
+    if(state.live&&state.live.url===url)return;
+
+    try{state.live?.stop?.()}catch(_error){}
+
+    state.live=new W.ZZXMempoolSpecsLive.LiveNextBlock({
+      url,
+      reconnectMaxMs:Number(payload?.cfg?.liveReconnectMaxMs)||30000,
+      onState:event=>liveState(root,state,event),
+      onUpdate:snapshot=>applyLiveSnapshot(root,state,snapshot)
+    });
+
+    const started=state.live.start();
+    if(!started)setLiveState(root,state,"unsupported","WebSocket unavailable; using REST/full-feed fallback");
   }
 
   async function refresh(root,state,force=false){
@@ -490,7 +624,7 @@
       makeFetcher(state,payload);
       let model=W.ZZXMempoolSpecsModel.build(payload);
 
-      // Preserve already-hydrated real transaction details across the 15-second
+      // Preserve already-hydrated real transaction details across the periodic
       // aggregate refresh. TxFetcher keeps the HTTP cache; carrying the rows
       // forward keeps the visual plane from regressing to empty/partial.
       if(state.model?.transactions?.length){
@@ -502,6 +636,17 @@
         }
       }
 
+      if(state.liveSnapshot?.transactions?.length){
+        model=W.ZZXMempoolSpecsModel.mergeLiveBlock(
+          model,
+          state.liveSnapshot.transactions,
+          {
+            candidates:state.liveSnapshot.candidates,
+            updatedAt:state.liveSnapshot.updatedAt
+          }
+        );
+      }
+
       if(!model.candidates.length)throw new Error("mempool.space returned no projected block candidates");
       if(!model.knownTxids.length&&!model.transactions.length){
         throw new Error("no real mempool transaction IDs were available");
@@ -510,12 +655,18 @@
       state.model=model;
       state.hydrateCursor=0;
       if(force)state.hydratedThisSession=0;
-      if(state.blockIndex>=model.candidates.length)state.blockIndex=0;
+      state.blockIndex=0;
+      startLive(root,state,payload);
 
       rebuildBlock(root,state,{animateChange:state.hasGood});
       state.hasGood=true;
-      status(root,model.completeLayout?"live":"partial",model.completeLayout?"ok":"warn");
-      if(!model.completeLayout)scheduleHydration(root,state,650);
+
+      const nextView=W.ZZXMempoolSpecsModel.blockView(model,0);
+      status(root,nextView.complete?"live":"partial",nextView.complete?"ok":"warn");
+
+      if(nextView.valueCoverage<.995){
+        scheduleHydration(root,state,500);
+      }
     }catch(error){
       if(error?.name!=="AbortError"){
         status(root,state.hasGood?"stale":"offline",state.hasGood?"warn":"error");
@@ -539,8 +690,10 @@
     try{state.abort?.abort()}catch(_error){}
     try{state.resize?.disconnect()}catch(_error){}
     try{state.anim?.stop?.()}catch(_error){}
+    try{state.live?.stop?.()}catch(_error){}
     W.clearTimeout(state.timer);
     W.clearTimeout(state.hydrateTimer);
+    W.clearTimeout(state.liveDebounce);
   }
 
   async function boot(root,core){
@@ -551,7 +704,7 @@
       model:null,
       blockView:null,
       layout:null,
-      blockIndex:safeGet(),
+      blockIndex:0,
       selectedId:"",
       hoverId:"",
       busy:false,
@@ -565,7 +718,11 @@
       abort:null,
       anim:null,
       txFetcher:null,
-      inspectToken:0
+      inspectToken:0,
+      live:null,
+      liveState:"offline",
+      liveSnapshot:null,
+      liveDebounce:null
     };
 
     root.__zzxMempoolSpecsState=state;
@@ -577,8 +734,6 @@
       wireCanvas(root,state);
       wireResize(root,state);
 
-      q(root,"[data-ms-prev]")?.addEventListener("click",()=>setBlock(root,state,state.blockIndex-1,true));
-      q(root,"[data-ms-next]")?.addEventListener("click",()=>setBlock(root,state,state.blockIndex+1,true));
       q(root,"[data-ms-refresh]")?.addEventListener("click",()=>refresh(root,state,true));
 
       await refresh(root,state,false);
@@ -586,10 +741,10 @@
       async function loop(){
         if(!root.isConnected){cleanup(state);return}
         if(!D.hidden)await refresh(root,state,false);
-        state.timer=W.setTimeout(loop,Number(state.model?.cfg?.refreshMs)||15000);
+        state.timer=W.setTimeout(loop,Number(state.model?.cfg?.refreshMs)||10000);
       }
 
-      state.timer=W.setTimeout(loop,Number(state.model?.cfg?.refreshMs)||15000);
+      state.timer=W.setTimeout(loop,Number(state.model?.cfg?.refreshMs)||10000);
     }catch(error){
       status(root,"offline","error");
       setText(root,"[data-ms-meta]",String(error?.message||error));
