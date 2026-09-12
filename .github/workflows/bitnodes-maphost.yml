@@ -7,28 +7,33 @@ on:
         description: "Maximum real-coordinate node points published to each public map"
         required: false
         default: "5000"
+        type: string
       include_ayeowch_compat:
         description: "Also build optional Ayeowch/original compatibility map when a real-coordinate snapshot exists"
         required: false
         type: boolean
         default: false
+
   workflow_call:
     inputs:
       max_points:
         description: "Maximum real-coordinate node points published to each public map"
         required: false
-        type: string
         default: "5000"
+        type: string
       include_ayeowch_compat:
         description: "Also build optional Ayeowch/original compatibility map when a real-coordinate snapshot exists"
         required: false
         type: boolean
         default: false
+
+  # Fallback for a standalone/manual Global Node Crawler run.
   workflow_run:
     workflows:
       - ZZX-Labs Bitnodes Global Node Crawler
     types:
       - completed
+
 permissions:
   contents: write
 
@@ -60,8 +65,8 @@ env:
 jobs:
   maps:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
