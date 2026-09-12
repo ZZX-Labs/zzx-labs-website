@@ -90,7 +90,7 @@ jobs:
   corpus:
     name: Crawl Complete World Factbook Corpus
     runs-on: ubuntu-24.04
-    timeout-minutes: 330
+    timeout-minutes: 360
     env:
       WORLDFACTBOOK_MARIADB_HOST: ${{ secrets.WORLDFACTBOOK_MARIADB_HOST }}
       WORLDFACTBOOK_MARIADB_PORT: ${{ secrets.WORLDFACTBOOK_MARIADB_PORT }}
@@ -209,6 +209,7 @@ jobs:
             --workers 6 \
             --sleep 0.15 \
             --ocr-language eng \
+            --ocr-timeout-seconds 30 \
             --max-images-per-source 2500
 
       - name: Validate corpus, portal, and SQL shards
