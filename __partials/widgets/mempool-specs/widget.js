@@ -1,5 +1,5 @@
 // __partials/widgets/mempool-specs/widget.js
-// v10.73 — Mempool Specs / Spectacles dense live next-block value tiler
+// v10.74 — Mempool Specs / Spectacles square-only live next-block tiler
 (function(){
   "use strict";
 
@@ -9,18 +9,18 @@
     ["ZZXMempoolSpecsFetch","js/fetch.js",4],
     ["ZZXMempoolSpecsProvider","js/provider.js",6],
     ["ZZXMempoolSpecsLive","js/live.js",1],
-    ["ZZXMempoolSpecsModel","js/model.js",7],
+    ["ZZXMempoolSpecsModel","js/model.js",8],
     ["ZZXMempoolSpecs.Adapter","js/adapter.js",5],
     ["ZZXMempoolSpecs.Theme","js/themes.js",4],
     ["ZZXMempoolSpecs.Grid","js/grid.js",5],
-    ["ZZXMempoolSpecs.Scaler","js/scaler.js",5],
+    ["ZZXMempoolSpecs.Scaler","js/scaler.js",6],
     ["ZZXMempoolSpecs.Tiler","js/tiler.js",5],
-    ["ZZXMempoolSpecs.TetriFill","js/tetrifill.js",5],
+    ["ZZXMempoolSpecs.TetriFill","js/tetrifill.js",6],
     ["ZZXMempoolSpecs.BinFill","js/binfill.js",5],
     ["ZZXMempoolSpecs.Sorter","js/sorter.js",5],
     ["ZZXMempoolSpecs.Plotter","js/plotter.js",5],
-    ["ZZXMempoolSpecsBlockLayout","js/block-layout.js",4],
-    ["ZZXMempoolSpecs.Renderer","js/renderer.js",8],
+    ["ZZXMempoolSpecsBlockLayout","js/block-layout.js",5],
+    ["ZZXMempoolSpecs.Renderer","js/renderer.js",9],
     ["ZZXMempoolSpecs.Anim","js/animation.js",5],
     ["ZZXMempoolSpecs.TxAnalyzer","js/tx-analyzer.js",1],
     ["ZZXMempoolSpecs.TxFetcher","js/txfetcher.js",6],
@@ -204,7 +204,7 @@
     setText(
       root,
       "[data-ms-tx-sub]",
-      `${int(visibleTx)} currently visible · ${int(block.valueKnownCount)} value-scaled`
+      `${int(visibleTx)} / ${int(block.candidateTxCount)} candidate TXs tiled · square-only`
     );
 
     setText(root,"[data-ms-value]",btcFromSats(block.totalValueSats));
@@ -227,7 +227,7 @@
     setText(
       root,
       "[data-ms-plane-meta]",
-      `${int(visibleTx)} real TX · BTC-value scaled mosaic`
+      `${int(visibleTx)} real TX squares · BTC-value scale`
     );
 
     setText(
@@ -253,7 +253,7 @@
     setText(
       root,
       "[data-ms-layout]",
-      `${int(visibleTx)} real transaction tiles · full visual fill · ${pct(layout.valueCoverage,1)} values resolved · ${pct(layout.vsizeCoverage,1)} candidate vsize observed`
+      `${int(visibleTx)} / ${int(block.items.length)} candidate TX squares · ${pct(layout.visualCoverage,1)} logical-grid fill · ${pct(layout.valueCoverage,1)} values resolved · every TX retained`
     );
 
     setText(root,"[data-ms-source-mode]",block.sourceMode);
@@ -273,8 +273,8 @@
       root,
       "[data-ms-method]",
       block.live
-        ? "authoritative projected-next-block membership from live stream; BTC output value controls perceptual tile area; absolute sat/vB controls color; txids animate in/out/reposition as the projected block changes"
-        : "fallback next-block estimate from detailed mempool rows ranked by projected index/package fee; real TX tiles only; unresolved values remain visible and resize when hydration resolves them"
+        ? "live projected-next-block membership; one real TX = one square; BTC output value selects square size; sat/vB selects color; no rectangle tiles; txids animate in/out/repack as the candidate block changes"
+        : "fallback next-block estimate from detailed mempool rows ranked by projected index/package fee; one real TX = one square; unresolved values remain as minimum 1x1 squares until hydration resolves them"
     );
 
     setText(
