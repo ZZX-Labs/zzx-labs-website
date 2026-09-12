@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsModel?.__version>=6)return;
+  if(W.ZZXMempoolSpecsModel?.__version>=7)return;
 
   const SATS=100_000_000;
   const BLOCK_VBYTES=1_000_000;
@@ -169,6 +169,58 @@
     return Array.isArray(raw?.vin)&&Array.isArray(raw?.vout);
   }
 
+  function sumSats(rows,selector){
+    let total=0;
+    let seen=false;
+
+    for(const row of Array.isArray(rows)?rows:[]){
+      const n=finite(selector(row));
+      if(!Number.isFinite(n))continue;
+      total+=n;
+      seen=true;
+    }
+
+    return seen?total:NaN;
+  }
+
+  function transactionValueSats(raw){
+    const outputSum=sumSats(raw?.vout,row=>row?.value);
+    if(Number.isFinite(outputSum))return outputSum;
+
+    for(const value of [
+      raw?.valueSats,
+      raw?.outputValueSats,
+      raw?.output_value_sats,
+      raw?.value,
+      raw?.outputValue,
+      raw?.output_value
+    ]){
+      const n=finite(value);
+      if(Number.isFinite(n)&&n>=0)return n;
+    }
+
+    const btc=finite(raw?.valueBtc??raw?.valueBTC??raw?.outputValueBtc);
+    return Number.isFinite(btc)&&btc>=0?btc*SATS:NaN;
+  }
+
+  function inputValueSats(raw){
+    return sumSats(raw?.vin,row=>row?.prevout?.value);
+  }
+
+  function projectedRank(raw){
+    for(const value of [
+      raw?.projectedRank,
+      raw?.projected_rank,
+      raw?.blockRank,
+      raw?.block_rank,
+      raw?.rank
+    ]){
+      const n=finite(value);
+      if(Number.isFinite(n))return Math.max(0,Math.floor(n));
+    }
+    return NaN;
+  }
+
   function normalizeTx(raw,{kind="api",fallbackTxid=""}={}){
     if(!raw||typeof raw!=="object")return null;
 
@@ -268,7 +320,11 @@
       feeSats,
       feeRate,
       packageFeeRate,
+      valueSats:transactionValueSats(raw),
+      inputValueSats:inputValueSats(raw),
       projectedIndex:projectedIndex(raw),
+      projectedRank:projectedRank(raw),
+      liveProjected:raw.__zzxLive===true,
       timeMs:timestampMs(
         raw.time ??
         raw.firstSeen ??
@@ -295,6 +351,17 @@
 
     if(Number.isFinite(ap)!==Number.isFinite(bp)){
       return Number.isFinite(ap)?-1:1;
+    }
+
+    const aRank=finite(a.projectedRank);
+    const bRank=finite(b.projectedRank);
+
+    if(Number.isFinite(aRank)&&Number.isFinite(bRank)&&aRank!==bRank){
+      return aRank-bRank;
+    }
+
+    if(Number.isFinite(aRank)!==Number.isFinite(bRank)){
+      return Number.isFinite(aRank)?-1:1;
     }
 
     const ar=finite(a.packageFeeRate);
@@ -334,8 +401,8 @@
         continue;
       }
 
-      const priorScore=(prior.detailed?4:0)+(Number.isFinite(prior.vbytes)?2:0)+(Number.isFinite(prior.packageFeeRate)?1:0);
-      const nextScore=(tx.detailed?4:0)+(Number.isFinite(tx.vbytes)?2:0)+(Number.isFinite(tx.packageFeeRate)?1:0);
+      const priorScore=(prior.detailed?8:0)+(Number.isFinite(prior.valueSats)?4:0)+(Number.isFinite(prior.vbytes)?2:0)+(Number.isFinite(prior.packageFeeRate)?1:0);
+      const nextScore=(tx.detailed?8:0)+(Number.isFinite(tx.valueSats)?4:0)+(Number.isFinite(tx.vbytes)?2:0)+(Number.isFinite(tx.packageFeeRate)?1:0);
 
       if(nextScore>=priorScore){
         map.set(tx.txid,{
@@ -472,7 +539,7 @@
     );
 
     return rebuild({
-      schema:"zzx-mempool-specs-v6",
+      schema:"zzx-mempool-specs-v7",
       summary,
       histogram,
       candidates,
@@ -491,7 +558,9 @@
       fullFeedSource:String(payload?.fullFeedSource||""),
       fullFeedKind:full.kind,
       fetchedAt:finite(payload?.fetchedAt),
-      cfg:payload?.cfg||{}
+      cfg:payload?.cfg||{},
+      liveBlock0Active:false,
+      liveUpdatedAt:NaN
     });
   }
 
@@ -499,7 +568,27 @@
     const rows=model.transactions.slice();
 
     for(const raw of Array.isArray(rawRows)?rawRows:[]){
-      const tx=normalizeTx(raw,{kind:raw?.__zzxCoreEntry?"core":"api"});
+      const txid=String(raw?.txid??raw?.id??raw?.hash??"").trim();
+      const prior=/^[0-9a-f]{64}$/i.test(txid)
+        ? model.byTxid?.get(txid)
+        : null;
+
+      const mergedRaw=prior?.liveProjected
+        ? {
+            ...(prior.raw&&typeof prior.raw==="object"?prior.raw:{}),
+            ...raw,
+            txid,
+            __zzxLive:true,
+            projectedBlockIndex:0,
+            projectedRank:prior.projectedRank
+          }
+        : raw;
+
+      const tx=normalizeTx(
+        mergedRaw,
+        {kind:mergedRaw?.__zzxCoreEntry?"core":"api"}
+      );
+
       if(tx)rows.push(tx);
     }
 
@@ -522,6 +611,84 @@
     return out;
   }
 
+
+  function mergeLiveBlock(model,rawRows,{candidates=[],updatedAt=Date.now()}={}){
+    const rows=Array.isArray(rawRows)?rawRows:[];
+    const liveIds=new Set();
+    const liveRows=[];
+
+    rows.forEach((raw,index)=>{
+      const txid=String(raw?.txid??raw?.id??raw?.hash??"").trim();
+      if(!/^[0-9a-f]{64}$/i.test(txid))return;
+
+      liveIds.add(txid);
+      const prior=model.byTxid?.get(txid);
+      const mergedRaw={
+        ...(prior?.raw&&typeof prior.raw==="object"?prior.raw:{}),
+        ...raw,
+        txid,
+        projectedBlockIndex:0,
+        projectedRank:index,
+        __zzxLive:true
+      };
+
+      const tx=normalizeTx(mergedRaw,{kind:raw?.__zzxCoreEntry?"core":"api"});
+      if(tx)liveRows.push(tx);
+    });
+
+    const base=model.transactions.filter(tx=>!tx.liveProjected);
+
+    let next=rebuild({
+      ...model,
+      candidates:Array.isArray(candidates)&&candidates.length
+        ? normalizeCandidates(candidates,model.summary)
+        : model.candidates,
+      transactions:base.concat(liveRows),
+      liveBlock0Active:liveRows.length>0,
+      liveUpdatedAt:finite(updatedAt)
+    });
+
+    next.liveBlock0Count=liveRows.length;
+    return next;
+  }
+
+  function pendingNextBlockTxids(model,{limit=Infinity}={}){
+    const max=Math.max(0,Number.isFinite(limit)?Math.floor(limit):Infinity);
+    const rows=model?.liveBlock0Active
+      ? model.transactions.filter(tx=>tx.liveProjected).sort(txComparator)
+      : model.transactions.filter(tx=>tx.assignedIndex===0).sort(txComparator);
+
+    const out=[];
+    for(const tx of rows){
+      if(out.length>=max)break;
+      if(!tx?.txid)continue;
+      if(!tx.detailed||!Number.isFinite(tx.valueSats)){
+        out.push(tx.txid);
+      }
+    }
+    return out;
+  }
+
+  function selectForTarget(items,targetVbytes){
+    const target=Math.max(1,finite(targetVbytes)||BLOCK_VBYTES);
+    const ordered=(Array.isArray(items)?items:[]).slice().sort(txComparator);
+    const out=[];
+    let used=0;
+
+    for(const tx of ordered){
+      const vb=finite(tx.vbytes);
+      if(!(vb>0))continue;
+      if(out.length&&used+vb>target*1.005)continue;
+
+      out.push(tx);
+      used+=vb;
+
+      if(used>=target)break;
+    }
+
+    return out;
+  }
+
   function blockView(model,index=0){
     if(!model?.candidates?.length){
       throw new Error("no projected mempool blocks available");
@@ -534,18 +701,23 @@
     );
 
     const candidate=model.candidates[blockIndex];
-    const items=model.transactions
-      .filter(tx=>tx.assignedIndex===blockIndex)
-      .filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0)
-      .slice()
-      .sort(txComparator);
+    const targetVbytes=Math.max(1,finite(candidate.blockVSize)||BLOCK_VBYTES);
+
+    const sourceItems=
+      blockIndex===0&&model.liveBlock0Active
+        ? model.transactions.filter(tx=>tx.liveProjected)
+        : model.transactions.filter(tx=>tx.assignedIndex===blockIndex);
+
+    const items=selectForTarget(
+      sourceItems.filter(tx=>Number.isFinite(tx.vbytes)&&tx.vbytes>0),
+      targetVbytes
+    );
 
     const actualVbytes=items.reduce(
       (sum,tx)=>sum+(Number.isFinite(tx.vbytes)?tx.vbytes:0),
       0
     );
 
-    const targetVbytes=Math.max(1,finite(candidate.blockVSize)||BLOCK_VBYTES);
     const coverage=targetVbytes>0?actualVbytes/targetVbytes:0;
     const rates=items
       .map(item=>finite(item.packageFeeRate??item.feeRate))
@@ -557,6 +729,10 @@
     const medianRate=Number.isFinite(candidate.medianFee)
       ? candidate.medianFee
       : median(rates);
+
+    const valuedItems=items.filter(item=>Number.isFinite(item.valueSats)&&item.valueSats>=0);
+    const totalValueSats=valuedItems.reduce((sum,item)=>sum+item.valueSats,0);
+    const valueCoverage=items.length?valuedItems.length/items.length:0;
 
     return {
       schema:"zzx-mempool-specs-block-view-v6",
@@ -573,16 +749,25 @@
       nextHeight:Number.isFinite(model.tipHeight)
         ? model.tipHeight+blockIndex+1
         : NaN,
-      complete:model.completeLayout&&coverage>=.965,
-      sourceMode:model.completeLayout
-        ? "real TX / full mempool feed"
-        : "real TX / progressive detail coverage",
+      totalValueSats,
+      valueKnownCount:valuedItems.length,
+      valueCoverage,
+      live:model.liveBlock0Active&&blockIndex===0,
+      liveUpdatedAt:model.liveUpdatedAt,
+      complete:(model.liveBlock0Active&&blockIndex===0)
+        ? coverage>=.965&&valueCoverage>=.98
+        : model.completeLayout&&coverage>=.965,
+      sourceMode:(model.liveBlock0Active&&blockIndex===0)
+        ? "mempool.space live projected-block transaction feed"
+        : model.completeLayout
+          ? "real TX / full mempool feed"
+          : "real TX / progressive detail coverage",
       model
     };
   }
 
   W.ZZXMempoolSpecsModel=Object.freeze({
-    __version:6,
+    __version:7,
     BLOCK_VBYTES,
     timestampMs,
     normalizeHistogram,
@@ -594,7 +779,11 @@
     build,
     rebuild,
     mergeTransactions,
+    mergeLiveBlock,
     pendingTxids,
+    pendingNextBlockTxids,
+    selectForTarget,
+    transactionValueSats,
     blockView
   });
 })();
