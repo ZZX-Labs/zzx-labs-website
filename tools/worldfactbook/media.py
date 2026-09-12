@@ -90,7 +90,7 @@ CATEGORY_TERMS = {
     "space": ("space", "satellite", "launch", "orbital"),
 }
 
-UA = "ZZX-WorldFactbook-Crawler-Media/1.2 (+https://zzx-labs.io/)"
+UA = "ZZX-WorldFactbook-Crawler-Media/1.2.1 (+https://zzx-labs.io/)"
 
 
 @dataclass(frozen=True)
@@ -165,7 +165,7 @@ def _trim_border(image: Image.Image) -> tuple[Image.Image, tuple[int, int, int, 
     return image.crop((x0, y0, x1, y1)), (x0, y0, x1, y1)
 
 
-def _ocr(image: Image.Image, language: str = "eng") -> tuple[str, float]:
+def _ocr(image: Image.Image, language: str = "eng", timeout_seconds: int = 30) -> tuple[str, float]:
     if pytesseract is None or not shutil.which("tesseract"):
         return "", 0.0
     work = image.convert("RGB")
@@ -182,6 +182,7 @@ def _ocr(image: Image.Image, language: str = "eng") -> tuple[str, float]:
             lang=language,
             config="--psm 6",
             output_type=pytesseract.Output.DICT,
+            timeout=max(1, int(timeout_seconds)),
         )
     except Exception:
         return "", 0.0
@@ -442,6 +443,7 @@ class MediaExtractor:
         entity_aliases: dict[str, tuple[str, str]],
         *,
         ocr_language: str = "eng",
+        ocr_timeout_seconds: int = 30,
         max_remote_image_bytes: int = 32 * 1024 * 1024,
         max_images_per_source: int = 2500,
     ) -> None:
@@ -450,6 +452,7 @@ class MediaExtractor:
         self.portal_root = portal_root.resolve()
         self.entity_aliases = entity_aliases
         self.ocr_language = ocr_language
+        self.ocr_timeout_seconds = max(1, int(ocr_timeout_seconds))
         self.max_remote_image_bytes = max_remote_image_bytes
         self.max_images_per_source = max_images_per_source
         self._seen_occurrences: set[tuple[str, str]] = set()
@@ -503,7 +506,7 @@ class MediaExtractor:
                 Image.Resampling.LANCZOS,
             )
 
-        ocr_text, ocr_conf = _ocr(cropped, self.ocr_language)
+        ocr_text, ocr_conf = _ocr(cropped, self.ocr_language, self.ocr_timeout_seconds)
         combined_context = "\n".join(x for x in (caption_hint, context_text) if x)
         credit, credit_source = _explicit_credit(combined_context, ocr_text)
         caption = _context_caption(caption_hint or context_text)
@@ -600,11 +603,11 @@ class MediaExtractor:
 
     def _pdf(self, path: Path, source: SourceContext) -> list[dict]:
         try:
-            import fitz  # PyMuPDF type: ignore
+            import pymupdf  # type: ignore
         except Exception as exc:
             raise RuntimeError(f"PyMuPDF is required for PDF image extraction: {exc}") from exc
         records: list[dict] = []
-        doc = fitz.open(path)
+        doc = pymupdf.open(path)
         try:
             for pno in range(len(doc)):
                 if len(records) >= self.max_images_per_source:
@@ -644,7 +647,7 @@ class MediaExtractor:
                 # Pages with no embedded raster image may still contain vector maps/charts,
                 # or be a single scanned page. Render and detect bounded visual regions.
                 if not image_blocks:
-                    pix = page.get_pixmap(matrix=fitz.Matrix(1.75, 1.75), alpha=False)
+                    pix = page.get_pixmap(matrix=pymupdf.Matrix(1.75, 1.75), alpha=False)
                     rendered = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
                     regions = _detect_render_regions(rendered)
                     if regions:
@@ -950,7 +953,25 @@ class MediaExtractor:
                 if not shutil.which("7z"):
                     raise RuntimeError("7z required for archive image extraction")
                 subprocess.run(["7z", "x", "-y", f"-o{dest}", str(path)], check=True, stdout=subprocess.DEVNULL)
-            for member in sorted(p for p in dest.rglob("*") if p.is_file()):
+            members = sorted(p for p in dest.rglob("*") if p.is_file())
+            rich_exts = {
+                ".pdf", ".epub", ".djvu", ".djv", ".mobi", ".azw", ".azw3",
+                ".prc", ".docx", ".odt", ".doc", ".rtf", ".chm",
+            }
+            rich = [m for m in members if m.suffix.lower() in rich_exts]
+            if rich:
+                # IA archive bundles commonly contain several derivative copies of
+                # the same scanned edition.  OCR one best direct document instead
+                # of recursively OCRing PDF + DjVu + ebook duplicates.
+                rank = {
+                    ".pdf": 100, ".epub": 90, ".djvu": 85, ".djv": 85,
+                    ".mobi": 80, ".azw3": 79, ".azw": 78, ".prc": 77,
+                    ".docx": 70, ".odt": 68, ".doc": 66, ".rtf": 64,
+                    ".chm": 60,
+                }
+                rich.sort(key=lambda m: (rank.get(m.suffix.lower(), 0), -len(m.name)), reverse=True)
+                members = rich[:1]
+            for member in members:
                 if len(records) >= self.max_images_per_source:
                     break
                 if member.stat().st_size > 768 * 1024 * 1024:
