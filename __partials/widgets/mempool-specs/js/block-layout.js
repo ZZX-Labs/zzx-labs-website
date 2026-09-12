@@ -3,21 +3,84 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsBlockLayout?.__version>=3)return;
+  if(W.ZZXMempoolSpecsBlockLayout?.__version>=4)return;
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
 
+  function quantile(sorted,q){
+    if(!sorted.length)return NaN;
+    const p=clamp(Number(q)||0,0,1)*(sorted.length-1);
+    const lo=Math.floor(p);
+    const hi=Math.ceil(p);
+    if(lo===hi)return sorted[lo];
+    const t=p-lo;
+    return sorted[lo]+(sorted[hi]-sorted[lo])*t;
+  }
+
+  /*
+   * Exact linear BTC-value area is visually pathological because Bitcoin
+   * transaction values are extremely heavy-tailed. One sweep can be orders of
+   * magnitude larger than thousands of ordinary payments. The old layout fed
+   * those values to squarify in projected-rank order, which is precisely how
+   * the "thin strips across the top" failure was produced.
+   *
+   * Specs keeps value as the only size signal, but uses a perceptual power
+   * transform after robust clipping. Larger-value transactions are always
+   * larger; the transform simply keeps the entire candidate block legible.
+   */
+  function makeValueScale(items){
+    const values=(Array.isArray(items)?items:[])
+      .map(item=>finite(item?.valueSats))
+      .filter(value=>Number.isFinite(value)&&value>0)
+      .sort((a,b)=>a-b);
+
+    const median=values.length?quantile(values,.50):1;
+    const low=values.length?Math.max(1,quantile(values,.02)):1;
+    const high=values.length?Math.max(low,quantile(values,.985)):Math.max(1,median);
+    const exponent=.30;
+
+    return {
+      values,
+      known:values.length,
+      median:Math.max(1,median||1),
+      low,
+      high,
+      exponent,
+      fallbackWeight:1
+    };
+  }
+
+  function displayWeight(value,scale){
+    const n=finite(value);
+
+    if(!Number.isFinite(n)||n<0){
+      // A real transaction whose full output-value detail has not arrived yet.
+      // Keep it visible and clickable; its tile will resize when hydration lands.
+      return scale.fallbackWeight;
+    }
+
+    const clamped=clamp(Math.max(1,n),scale.low,scale.high);
+    const normalized=clamped/Math.max(1,scale.median);
+    return Math.pow(normalized,scale.exponent);
+  }
+
   function worst(row,side){
     if(!row.length||!(side>0))return Infinity;
+
     const areas=row.map(item=>item.__area);
     const sum=areas.reduce((s,v)=>s+v,0);
     const max=Math.max(...areas);
     const min=Math.min(...areas);
+
     if(!(sum>0)||!(min>0))return Infinity;
+
     const sum2=sum*sum;
     const side2=side*side;
-    return Math.max(side2*max/sum2,sum2/(side2*min));
+    return Math.max(
+      side2*max/sum2,
+      sum2/(side2*min)
+    );
   }
 
   function layoutRow(row,rect,horizontal,out){
@@ -26,123 +89,163 @@
     if(horizontal){
       const h=rect.w>0?sum/rect.w:0;
       let x=rect.x;
+
       for(const item of row){
         const w=h>0?item.__area/h:0;
         out.push({...item,x,y:rect.y,w,h});
         x+=w;
       }
-      return {x:rect.x,y:rect.y+h,w:rect.w,h:Math.max(0,rect.h-h)};
+
+      return {
+        x:rect.x,
+        y:rect.y+h,
+        w:rect.w,
+        h:Math.max(0,rect.h-h)
+      };
     }
 
     const w=rect.h>0?sum/rect.h:0;
     let y=rect.y;
+
     for(const item of row){
       const h=w>0?item.__area/w:0;
       out.push({...item,x:rect.x,y,w,h});
       y+=h;
     }
-    return {x:rect.x+w,y:rect.y,w:Math.max(0,rect.w-w),h:rect.h};
+
+    return {
+      x:rect.x+w,
+      y:rect.y,
+      w:Math.max(0,rect.w-w),
+      h:rect.h
+    };
   }
 
+  /*
+   * Standard squarify requires descending area order. Never feed it projected
+   * rank order: doing so makes tiny early items form long slivers.
+   */
   function squarify(items,totalWeight){
     if(!items.length||!(totalWeight>0))return [];
-    const remaining=items.map(item=>({...item,__area:item.__weight/totalWeight}));
+
+    const remaining=items
+      .map(item=>({
+        ...item,
+        __area:item.__weight/totalWeight
+      }))
+      .sort((a,b)=>{
+        if(b.__area!==a.__area)return b.__area-a.__area;
+
+        const ar=finite(a.projectedRank);
+        const br=finite(b.projectedRank);
+        if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return ar-br;
+
+        return String(a.txid||a.id||"").localeCompare(String(b.txid||b.id||""));
+      });
+
     let rect={x:0,y:0,w:1,h:1};
     let row=[];
     const out=[];
 
     while(remaining.length){
       const next=remaining[0];
-      const side=Math.min(rect.w,rect.h);
+      const side=Math.max(1e-12,Math.min(rect.w,rect.h));
       const currentWorst=worst(row,side);
       const nextWorst=worst(row.concat(next),side);
 
       if(!row.length||nextWorst<=currentWorst){
         row.push(remaining.shift());
       }else{
-        rect=layoutRow(row,rect,rect.w>=rect.h,out);
+        rect=layoutRow(row,rect,rect.w<rect.h,out);
         row=[];
       }
     }
 
-    if(row.length)layoutRow(row,rect,rect.w>=rect.h,out);
+    if(row.length)layoutRow(row,rect,rect.w<rect.h,out);
     return out;
   }
 
   function build(blockView){
-    const allItems=(blockView?.items||[])
+    const sourceItems=(blockView?.items||[])
       .filter(item=>item?.realTx!==false&&item?.txid);
 
-    const positiveValues=allItems
-      .map(item=>finite(item.valueSats))
-      .filter(value=>Number.isFinite(value)&&value>0);
+    if(!sourceItems.length){
+      return {
+        schema:"zzx-mempool-specs-block-layout-v4",
+        tiles:[],
+        emptyRects:[],
+        byId:new Map(),
+        byTxid:new Map(),
+        gridN:512,
+        spatial:new Int32Array(512*512),
+        totalValueSats:finite(blockView?.totalValueSats),
+        valueKnownCount:0,
+        valueCoverage:0,
+        vsizeCoverage:clamp(finite(blockView?.coverage)||0,0,1),
+        visualCoverage:0,
+        valueScale:null,
+        builtAt:Date.now()
+      };
+    }
 
-    const totalPositive=positiveValues.reduce((sum,value)=>sum+value,0);
-    const tinyFloor=totalPositive>0?Math.max(1,totalPositive*1e-10):1;
+    const scale=makeValueScale(sourceItems);
 
-    const realItems=allItems.map(item=>{
+    const weighted=sourceItems.map(item=>{
       const value=finite(item.valueSats);
-      const known=Number.isFinite(value)&&value>=0;
+      const valueKnown=Number.isFinite(value)&&value>=0;
 
       return {
         ...item,
-        valueKnown:known,
-        __weight:known?Math.max(tinyFloor,value):tinyFloor
+        valueKnown,
+        __weight:displayWeight(value,scale)
       };
     });
 
-    const knownWeight=realItems.reduce((sum,item)=>sum+item.__weight,0);
-    const vsizeCoverage=clamp(finite(blockView?.coverage)||0,0,1);
+    /*
+     * Unknown-value real transactions must not disappear. Give them the median
+     * transformed weight, then let the live detail fetch resize them accurately.
+     */
+    const knownWeights=weighted
+      .filter(item=>item.valueKnown)
+      .map(item=>item.__weight)
+      .filter(Number.isFinite)
+      .sort((a,b)=>a-b);
 
-    const reserveWeight=
-      knownWeight>0&&vsizeCoverage>0&&vsizeCoverage<.999
-        ? knownWeight*((1/vsizeCoverage)-1)
-        : 0;
+    const fallback=knownWeights.length
+      ? Math.max(.25,quantile(knownWeights,.50))
+      : 1;
 
-    const source=realItems.slice();
-
-    if(reserveWeight>0){
-      source.push({
-        id:"__zzx-unhydrated__",
-        txid:"",
-        __reserve:true,
-        __weight:reserveWeight
-      });
+    for(const item of weighted){
+      if(!item.valueKnown)item.__weight=fallback;
     }
 
-    const totalWeight=source.reduce((sum,item)=>sum+(finite(item.__weight)||0),0);
+    const totalWeight=weighted.reduce(
+      (sum,item)=>sum+(finite(item.__weight)||0),
+      0
+    );
 
-    source.sort((a,b)=>{
-      if(a.__reserve)return 1;
-      if(b.__reserve)return -1;
-
-      const ar=finite(a.projectedRank);
-      const br=finite(b.projectedRank);
-      if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return ar-br;
-      if(Number.isFinite(ar)!==Number.isFinite(br))return Number.isFinite(ar)?-1:1;
-
-      const af=finite(a.packageFeeRate??a.feeRate);
-      const bf=finite(b.packageFeeRate??b.feeRate);
-      if(Number.isFinite(af)&&Number.isFinite(bf)&&af!==bf)return bf-af;
-
-      return (finite(b.__weight)||0)-(finite(a.__weight)||0);
-    });
-
-    const all=squarify(source,totalWeight).map((tile,index)=>({
+    const all=squarify(weighted,totalWeight).map((tile,index)=>({
       ...tile,
       index,
       x:clamp(tile.x,0,1),
       y:clamp(tile.y,0,1),
       w:clamp(tile.w,0,1),
-      h:clamp(tile.h,0,1)
+      h:clamp(tile.h,0,1),
+      rawValueShare:
+        Number.isFinite(tile.valueSats)&&Number.isFinite(blockView?.totalValueSats)&&blockView.totalValueSats>0
+          ? tile.valueSats/blockView.totalValueSats
+          : NaN
     }));
 
-    const emptyRects=all.filter(tile=>tile.__reserve);
-    const tiles=all.filter(tile=>!tile.__reserve);
+    const tiles=all;
     const byId=new Map(tiles.map(tile=>[tile.id,tile]));
     const byTxid=new Map(tiles.map(tile=>[tile.txid,tile]));
 
-    const gridN=256;
+    /*
+     * 512² hit grid keeps thousands of very small real transactions clickable.
+     * Later tiles only win a cell when their center is actually within it.
+     */
+    const gridN=512;
     const spatial=new Int32Array(gridN*gridN);
 
     for(let index=0;index<tiles.length;index++){
@@ -158,25 +261,35 @@
       }
     }
 
+    const valueKnownCount=tiles.filter(item=>item.valueKnown).length;
+
     return {
-      schema:"zzx-mempool-specs-block-layout-v3",
+      schema:"zzx-mempool-specs-block-layout-v4",
       tiles,
-      emptyRects,
+      emptyRects:[],
       byId,
       byTxid,
       gridN,
       spatial,
       totalValueSats:finite(blockView?.totalValueSats),
-      valueKnownCount:realItems.filter(item=>item.valueKnown).length,
-      valueCoverage:realItems.length?realItems.filter(item=>item.valueKnown).length/realItems.length:0,
-      vsizeCoverage,
-      visualCoverage:1-(reserveWeight/Math.max(totalWeight,1)),
+      valueKnownCount,
+      valueCoverage:tiles.length?valueKnownCount/tiles.length:0,
+      vsizeCoverage:clamp(finite(blockView?.coverage)||0,0,1),
+      visualCoverage:tiles.length?1:0,
+      valueScale:{
+        mode:"btc-output-value-perceptual",
+        exponent:scale.exponent,
+        lowSats:scale.low,
+        medianSats:scale.median,
+        highSats:scale.high
+      },
       builtAt:Date.now()
     };
   }
 
   function find(layout,nx,ny){
     if(!layout?.spatial||!(nx>=0&&nx<1&&ny>=0&&ny<1))return null;
+
     const n=layout.gridN;
     const x=clamp(Math.floor(nx*n),0,n-1);
     const y=clamp(Math.floor(ny*n),0,n-1);
@@ -184,19 +297,40 @@
 
     if(index>=0){
       const tile=layout.tiles[index];
-      if(tile&&nx>=tile.x&&nx<=tile.x+tile.w&&ny>=tile.y&&ny<=tile.y+tile.h)return tile;
+
+      if(
+        tile &&
+        nx>=tile.x &&
+        nx<=tile.x+tile.w &&
+        ny>=tile.y &&
+        ny<=tile.y+tile.h
+      ){
+        return tile;
+      }
     }
 
+    // Exact fallback for sub-cell slivers at extreme zoom distributions.
     for(let i=layout.tiles.length-1;i>=0;i--){
       const tile=layout.tiles[i];
-      if(nx>=tile.x&&nx<=tile.x+tile.w&&ny>=tile.y&&ny<=tile.y+tile.h)return tile;
+
+      if(
+        nx>=tile.x &&
+        nx<=tile.x+tile.w &&
+        ny>=tile.y &&
+        ny<=tile.y+tile.h
+      ){
+        return tile;
+      }
     }
 
     return null;
   }
 
   W.ZZXMempoolSpecsBlockLayout=Object.freeze({
-    __version:3,
+    __version:4,
+    quantile,
+    makeValueScale,
+    displayWeight,
     squarify,
     build,
     find
