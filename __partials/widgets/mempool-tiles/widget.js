@@ -1,13 +1,13 @@
 // __partials/widgets/mempool-tiles/widget.js
-// v1.2.0 — Hilbert-scatter square block field + restrained instrument UI
+// v1.3.0 — stable one-slot-per-TX grid; no experimental scatter/packing
 (function(){
   "use strict";
 
   const W=window;
   const D=document;
 
-  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V12__)return;
-  W.__ZZX_MEMPOOL_TILES_WIDGET_V12__=true;
+  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V13__)return;
+  W.__ZZX_MEMPOOL_TILES_WIDGET_V13__=true;
 
   const MODULES=[
     ["ZZXMempoolTilesSources","js/sources.js",2],
@@ -16,12 +16,11 @@
     ["ZZXMempoolTilesLive","js/live.js",2],
     ["ZZXMempoolTilesAnalyzer","js/analyzer.js",1],
     ["ZZXMempoolTilesModel","js/model.js",2],
-    ["ZZXMempoolTilesScaler","js/scaler.js",1],
+    ["ZZXMempoolTilesScaler","js/scaler.js",2],
     ["ZZXMempoolTilesSorter","js/sorter.js",1],
-    ["ZZXMempoolTilesPacker","js/packer.js",3],
-    ["ZZXMempoolTilesLayout","js/layout.js",2],
+        ["ZZXMempoolTilesLayout","js/layout.js",3],
     ["ZZXMempoolTilesThemes","js/themes.js",1],
-    ["ZZXMempoolTilesRenderer","js/renderer.js",2],
+    ["ZZXMempoolTilesRenderer","js/renderer.js",3],
     ["ZZXMempoolTilesAnimation","js/animation.js",1],
     ["ZZXMempoolTilesTxFetcher","js/txfetcher.js",1],
     ["ZZXMempoolTilesInspector","js/inspector.js",1]
@@ -291,17 +290,17 @@
             : "BUILDING";
 
       summary.textContent=
-        `${fmtInt(txs)} TX · projected next block`;
+        `${fmtInt(txs)} TX · next-block tile grid`;
 
       sub.textContent=
-        `${sourceLabel} · size ${scaleMode==="vsize"?"vB":scaleMode==="value"?"BTC":"sat/vB"} · color ${colorMode==="fee"?"fee rate":"type"} · arrange ${sortMode}`;
+        `${sourceLabel} · footprint ${scaleMode==="vsize"?"vB":scaleMode==="value"?"BTC value":"sat/vB"} · color ${colorMode==="fee"?"fee rate":"type"} · order ${sortMode}`;
 
       const stats={
         txs:`${fmtInt(txs)} TX`,
         vsize:`${(model.candidateVsize/1e6).toFixed(3)} vMB`,
         value:fmtBtc(model.candidateValue),
         fee:fmtRate(med),
-        fill:`${(layout.fillRatio*100).toFixed(1)}% packed`
+        fill:`${Math.min(125,(model.candidateVsize/Math.max(1,model.targetVbytes)*100)).toFixed(1)}% block`
       };
 
       for(const [key,value] of Object.entries(stats)){
