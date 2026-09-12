@@ -1,24 +1,24 @@
 // __partials/widgets/mempool-tiles/widget.js
-// v1.0.0 — independent live next-block square transaction visualizer
+// v1.1.0 — fixed loader, persistent live snapshot, dense next-block square visualizer
 (function(){
   "use strict";
 
   const W=window;
   const D=document;
 
-  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V1__)return;
-  W.__ZZX_MEMPOOL_TILES_WIDGET_V1__=true;
+  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V11__)return;
+  W.__ZZX_MEMPOOL_TILES_WIDGET_V11__=true;
 
   const MODULES=[
-    ["ZZXMempoolTilesSources","js/sources.js",1],
+    ["ZZXMempoolTilesSources","js/sources.js",2],
     ["ZZXMempoolTilesFetch","js/fetch.js",1],
     ["ZZXMempoolTilesProvider","js/provider.js",1],
-    ["ZZXMempoolTilesLive","js/live.js",1],
+    ["ZZXMempoolTilesLive","js/live.js",2],
     ["ZZXMempoolTilesAnalyzer","js/analyzer.js",1],
-    ["ZZXMempoolTilesModel","js/model.js",1],
+    ["ZZXMempoolTilesModel","js/model.js",2],
     ["ZZXMempoolTilesScaler","js/scaler.js",1],
     ["ZZXMempoolTilesSorter","js/sorter.js",1],
-    ["ZZXMempoolTilesPacker","js/packer.js",1],
+    ["ZZXMempoolTilesPacker","js/packer.js",2],
     ["ZZXMempoolTilesLayout","js/layout.js",1],
     ["ZZXMempoolTilesThemes","js/themes.js",1],
     ["ZZXMempoolTilesRenderer","js/renderer.js",1],
@@ -31,39 +31,125 @@
     return path.split(".").reduce((obj,key)=>obj?.[key],W);
   }
 
-  function scriptBase(){
-    const current=D.currentScript?.src;
-    if(current)return current.replace(/\/widget\.js(?:\?.*)?$/,"/");
-
-    const scripts=[...D.scripts];
-    const found=scripts.find(node=>/\/mempool-tiles\/widget\.js(?:\?.*)?$/.test(node.src));
-    return found?.src?.replace(/\/widget\.js(?:\?.*)?$/,"/")||"";
-  }
-
-  const BASE=scriptBase();
-
-  function loadScript(src){
-    return new Promise((resolve,reject)=>{
-      const node=D.createElement("script");
-      node.src=src;
-      node.async=false;
-      node.onload=()=>resolve();
-      node.onerror=()=>reject(new Error(`failed to load ${src}`));
-      D.head.appendChild(node);
-    });
-  }
-
-  async function dependencies(){
-    for(const [path,rel,version] of MODULES){
-      const current=getPath(path);
-      if(current?.__version>=version)continue;
-      await loadScript(BASE+rel);
-    }
-  }
+  const ID="mempool-tiles";
 
   function core(){
     return W.ZZXWidgetCore || W.ZZXWidgets || W.ZZX || {};
   }
+
+  function widgetBase(){
+    const c=core();
+
+    if(typeof c?.widgetBase==="function"){
+      try{
+        const value=String(c.widgetBase(ID)||"").replace(/\/+$/g,"");
+        if(value)return value;
+      }catch(_){}
+    }
+
+    return "/__partials/widgets/mempool-tiles";
+  }
+
+  function moduleUrl(relative,minimumVersion){
+    const raw=
+      `${widgetBase()}/${String(relative).replace(/^\/+/,"")}`;
+
+    const resolved=
+      W.ZZXAPI?.url
+        ? W.ZZXAPI.url(raw)
+        : raw;
+
+    return (
+      resolved +
+      (resolved.includes("?")?"&":"?") +
+      `zzxmod=${minimumVersion}`
+    );
+  }
+
+  function loadScript(src,key,minimumVersion){
+    if(getPath(key)?.__version>=minimumVersion){
+      return Promise.resolve(true);
+    }
+
+    const tagKey=String(key).replace(/[^a-z0-9_-]/gi,"_");
+
+    const selector=
+      `script[data-mt-module="${tagKey}"][data-mt-version="${minimumVersion}"]`;
+
+    const existing=D.querySelector(selector);
+
+    if(existing){
+      return new Promise(resolve=>{
+        if(getPath(key)?.__version>=minimumVersion){
+          resolve(true);
+          return;
+        }
+
+        const done=()=>resolve(
+          getPath(key)?.__version>=minimumVersion
+        );
+
+        existing.addEventListener(
+          "load",
+          done,
+          {once:true}
+        );
+
+        existing.addEventListener(
+          "error",
+          done,
+          {once:true}
+        );
+
+        W.setTimeout(done,6000);
+      });
+    }
+
+    return new Promise(resolve=>{
+      const node=D.createElement("script");
+      node.src=src;
+      node.defer=true;
+      node.setAttribute("data-mt-module",tagKey);
+      node.setAttribute("data-mt-version",String(minimumVersion));
+
+      node.addEventListener(
+        "load",
+        ()=>resolve(
+          getPath(key)?.__version>=minimumVersion
+        ),
+        {once:true}
+      );
+
+      node.addEventListener(
+        "error",
+        ()=>resolve(false),
+        {once:true}
+      );
+
+      (D.head||D.documentElement).appendChild(node);
+    });
+  }
+
+  async function dependencies(){
+    for(const [path,rel,minimumVersion] of MODULES){
+      if(getPath(path)?.__version>=minimumVersion){
+        continue;
+      }
+
+      const ok=await loadScript(
+        moduleUrl(rel,minimumVersion),
+        path,
+        minimumVersion
+      );
+
+      if(!ok){
+        throw new Error(
+          `${rel} did not register ${path} v${minimumVersion}`
+        );
+      }
+    }
+  }
+
 
   function fmtInt(value){
     const n=Number(value);
@@ -109,6 +195,8 @@
     let shuffleSeed=Number(localStorage.getItem("zzx.mempoolTiles.shuffleSeed"))||Date.now();
     let aborter=null;
     let live=null;
+    let liveSnapshot=null;
+    let fallbackCursor=0;
     let animationCancel=null;
     let hydrateTimer=0;
     let hydrateCount=0;
@@ -195,8 +283,15 @@
 
       const med=median(rates);
 
+      const sourceLabel=
+        model.candidateSource==="live"
+          ? "LIVE next-block membership"
+          : model.candidateSource==="full-feed"
+            ? "full-feed projection"
+            : "building projection";
+
       summary.textContent=
-        `${fmtInt(txs)} projected next-block transactions`;
+        `${fmtInt(txs)} ${sourceLabel} transactions`;
 
       sub.textContent=
         `${scaleMode==="vsize"?"tile size = vB":scaleMode==="value"?"tile size = BTC value":"tile size = fee rate"} · ${colorMode==="fee"?"color = sat/vB":"color = transaction type"} · ${sortMode}`;
@@ -285,36 +380,109 @@
     async function hydrate(){
       if(destroyed||!model)return;
 
-      const cfg=model.cfg||W.ZZXMempoolTilesSources.get(core());
+      const cfg=
+        model.cfg ||
+        W.ZZXMempoolTilesSources.get(core());
 
-      if(hydrateCount>=cfg.maxHydratePerSession)return;
+      if(
+        hydrateCount>=cfg.maxHydratePerSession
+      ){
+        return;
+      }
 
-      const ids=W.ZZXMempoolTilesModel.pendingCandidateTxids(
-        model,
-        cfg.hydrateBatch
-      );
+      let ids=[];
+      let concurrency=cfg.hydrateConcurrency;
+      let delay=cfg.hydrateDelayMs;
+
+      if(model.liveActive){
+        ids=
+          W.ZZXMempoolTilesModel.pendingCandidateTxids(
+            model,
+            cfg.hydrateBatch
+          );
+      }else if(!model.fullFeedActive){
+        /*
+         * v1 dead-ended here: candidate was built from /mempool/recent and then
+         * only that tiny candidate was hydrated, so the txid universe could
+         * never grow into a real block-sized field.
+         */
+        ids=
+          W.ZZXMempoolTilesModel.pendingUniverseTxids(
+            model,
+            cfg.fallbackHydrateBatch,
+            fallbackCursor
+          );
+
+        concurrency=cfg.fallbackHydrateConcurrency;
+        delay=cfg.fallbackHydrateDelayMs;
+
+        fallbackCursor+=cfg.fallbackHydrateBatch;
+
+        if(
+          !ids.length &&
+          fallbackCursor>0
+        ){
+          fallbackCursor=0;
+
+          ids=
+            W.ZZXMempoolTilesModel.pendingUniverseTxids(
+              model,
+              cfg.fallbackHydrateBatch,
+              0
+            );
+        }
+      }else{
+        ids=
+          W.ZZXMempoolTilesModel.pendingCandidateTxids(
+            model,
+            cfg.hydrateBatch
+          );
+      }
 
       if(!ids.length)return;
 
       hydrateCount+=ids.length;
 
-      const rows=await W.ZZXMempoolTilesTxFetcher.batch(
-        core(),
-        ids,
-        {
-          concurrency:cfg.hydrateConcurrency
-        }
-      );
+      const rows=
+        await W.ZZXMempoolTilesTxFetcher.batch(
+          core(),
+          ids,
+          {concurrency}
+        );
 
-      if(destroyed||!rows.length)return;
+      if(
+        destroyed ||
+        !rows.length
+      ){
+        return;
+      }
 
-      model=W.ZZXMempoolTilesModel.mergeDetails(model,rows);
+      model=
+        W.ZZXMempoolTilesModel.mergeDetails(
+          model,
+          rows
+        );
+
+      /*
+       * If the live membership snapshot exists, re-apply it after hydration so
+       * full transaction details enrich those exact members without changing
+       * candidate membership.
+       */
+      if(liveSnapshot?.transactions?.length){
+        model=
+          W.ZZXMempoolTilesModel.mergeLive(
+            model,
+            liveSnapshot
+          );
+      }
+
       layoutNow(true);
 
       W.clearTimeout(hydrateTimer);
+
       hydrateTimer=W.setTimeout(
         hydrate,
-        cfg.hydrateDelayMs
+        delay
       );
     }
 
@@ -333,34 +501,55 @@
 
         if(destroyed)return;
 
-        const fresh=W.ZZXMempoolTilesModel.build(payload);
+        const fresh=
+          W.ZZXMempoolTilesModel.build(payload);
 
-        if(model?.liveActive){
-          fresh.liveActive=true;
-          fresh.liveTxids=model.liveTxids.slice();
-          fresh.liveUpdatedAt=model.liveUpdatedAt;
-        }
+        /*
+         * v1 rebuilt from REST every ten seconds and accidentally discarded the
+         * live transaction objects while keeping only their ids. The field would
+         * collapse to a few recent transactions until the next websocket delta.
+         */
+        model=
+          liveSnapshot?.transactions?.length
+            ? W.ZZXMempoolTilesModel.mergeLive(
+                fresh,
+                liveSnapshot
+              )
+            : fresh;
 
-        model=W.ZZXMempoolTilesModel.rebuild(fresh);
         layoutNow(Boolean(layout));
 
         if(!live){
-          live=new W.ZZXMempoolTilesLive.LiveNextBlock({
-            url:payload.cfg.websocket,
+          live=
+            new W.ZZXMempoolTilesLive.LiveNextBlock({
+              urls:payload.cfg.websocketUrls,
+              reconnectMaxMs:payload.cfg.liveReconnectMaxMs,
 
-            onState:state=>{
-              liveState.textContent=state.state;
-            },
+              onState:state=>{
+                liveState.textContent=state.state;
+                liveState.title=state.url||state.detail||"";
+              },
 
-            onUpdate:snapshot=>{
-              if(destroyed)return;
-              model=W.ZZXMempoolTilesModel.mergeLive(model,snapshot);
-              layoutNow(true);
+              onUpdate:snapshot=>{
+                if(destroyed)return;
 
-              W.clearTimeout(hydrateTimer);
-              hydrateTimer=W.setTimeout(hydrate,140);
-            }
-          });
+                liveSnapshot=snapshot;
+
+                model=
+                  W.ZZXMempoolTilesModel.mergeLive(
+                    model,
+                    snapshot
+                  );
+
+                layoutNow(true);
+
+                W.clearTimeout(hydrateTimer);
+                hydrateTimer=W.setTimeout(
+                  hydrate,
+                  payload.cfg.liveDebounceMs
+                );
+              }
+            });
 
           if(!live.start()){
             liveState.textContent="REST";
