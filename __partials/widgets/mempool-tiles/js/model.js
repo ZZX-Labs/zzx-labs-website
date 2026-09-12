@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesModel?.__version>=1)return;
+  if(W.ZZXMempoolTilesModel?.__version>=2)return;
 
   const SATS=100_000_000;
   const BLOCK_VBYTES=1_000_000;
@@ -16,6 +16,7 @@
 
   function timestampMs(value){
     const n=finite(value);
+
     if(!Number.isFinite(n)||n<=0)return NaN;
     if(n<1e11)return n*1000;
     if(n<1e14)return n;
@@ -29,12 +30,14 @@
     if(vout){
       let sum=0;
       let seen=false;
+
       for(const row of vout){
         const n=finite(row?.value);
         if(!Number.isFinite(n))continue;
         sum+=n;
         seen=true;
       }
+
       if(seen)return sum;
     }
 
@@ -49,7 +52,9 @@
     }
 
     const btc=finite(raw?.valueBtc??raw?.valueBTC);
-    return Number.isFinite(btc)&&btc>=0?btc*SATS:NaN;
+    return Number.isFinite(btc)&&btc>=0
+      ? btc*SATS
+      : NaN;
   }
 
   function normalizeTx(raw,{core=false,rank=NaN}={}){
@@ -69,10 +74,18 @@
     const vsize=finite(
       raw.vsize ??
       raw.vbytes ??
-      (Number.isFinite(weight)?weight/4:size)
+      (
+        Number.isFinite(weight)
+          ? weight/4
+          : size
+      )
     );
 
-    let feeSats=finite(raw.fee??raw.fee_sats??raw.feeSats);
+    let feeSats=finite(
+      raw.fee ??
+      raw.fee_sats ??
+      raw.feeSats
+    );
 
     if(core){
       const btc=finite(
@@ -80,14 +93,22 @@
         raw?.fees?.modified ??
         raw?.modifiedfee
       );
-      if(Number.isFinite(btc))feeSats=btc*SATS;
+
+      if(Number.isFinite(btc)){
+        feeSats=btc*SATS;
+      }
     }
 
     const feeRate=finite(
       raw.feeRate ??
       raw.fee_rate ??
       raw.feerate ??
-      (Number.isFinite(feeSats)&&vsize>0?feeSats/vsize:NaN)
+      raw.rate ??
+      (
+        Number.isFinite(feeSats)&&vsize>0
+          ? feeSats/vsize
+          : NaN
+      )
     );
 
     let packageFeeRate=finite(
@@ -99,12 +120,15 @@
     if(!Number.isFinite(packageFeeRate)&&core){
       const ancestorSize=finite(raw.ancestorsize);
       const ancestorFee=finite(raw?.fees?.ancestor);
+
       if(ancestorSize>0&&Number.isFinite(ancestorFee)){
         packageFeeRate=ancestorFee*SATS/ancestorSize;
       }
     }
 
-    if(!Number.isFinite(packageFeeRate))packageFeeRate=feeRate;
+    if(!Number.isFinite(packageFeeRate)){
+      packageFeeRate=feeRate;
+    }
 
     const firstSeen=timestampMs(
       raw.firstSeen ??
@@ -112,9 +136,10 @@
       raw.time
     );
 
-    const analysis=Array.isArray(raw.vin)&&Array.isArray(raw.vout)
-      ? A().classify(raw)
-      : null;
+    const analysis=
+      Array.isArray(raw.vin)&&Array.isArray(raw.vout)
+        ? A().classify(raw)
+        : null;
 
     return {
       id:txid,
@@ -128,24 +153,44 @@
       packageFeeRate,
       valueSats:valueSats(raw),
       firstSeen,
+
       rank:Number.isFinite(finite(raw.projectedRank))
         ? finite(raw.projectedRank)
         : finite(rank),
-      rbf:analysis?.rbf ?? Boolean(raw.rbf),
+
+      rbf:analysis?.rbf ?? (
+        typeof raw.rbf==="boolean"
+          ? raw.rbf
+          : null
+      ),
+
       type:analysis?.kind || String(raw.type||"unknown"),
       ordinal:Boolean(raw.ordinal||raw.inscription),
       boosted:Boolean(raw.boosted||raw.cpfp),
-      detailed:Array.isArray(raw.vin)&&Array.isArray(raw.vout),
-      live:raw.__zzxTilesLive===true,
+
+      detailed:
+        Array.isArray(raw.vin)&&
+        Array.isArray(raw.vout),
+
+      live:
+        raw.__zzxTilesLive===true,
+
       raw
     };
   }
 
   function fullFeedRows(feed){
     if(!feed)return {rows:[],core:false};
+
     let source=feed;
 
-    for(const key of ["transactions","txs","mempool","entries","result"]){
+    for(const key of [
+      "transactions",
+      "txs",
+      "mempool",
+      "entries",
+      "result"
+    ]){
       if(source&&typeof source==="object"&&source[key]!=null){
         source=source[key];
         break;
@@ -153,20 +198,45 @@
     }
 
     if(Array.isArray(source)){
-      return {rows:source,core:false};
+      return {
+        rows:source,
+        core:false
+      };
     }
 
     if(source&&typeof source==="object"){
       const rows=[];
+
       for(const [txid,entry] of Object.entries(source)){
         if(!/^[0-9a-f]{64}$/i.test(txid))continue;
         if(!entry||typeof entry!=="object")continue;
-        rows.push({txid,...entry});
+
+        rows.push({
+          txid,
+          ...entry
+        });
       }
-      return {rows,core:true};
+
+      return {
+        rows,
+        core:true
+      };
     }
 
-    return {rows:[],core:false};
+    return {
+      rows:[],
+      core:false
+    };
+  }
+
+  function score(row){
+    return (
+      (row?.detailed?16:0) +
+      (Number.isFinite(row?.valueSats)?8:0) +
+      (Number.isFinite(row?.vsize)?4:0) +
+      (Number.isFinite(row?.packageFeeRate)?2:0) +
+      (row?.live?1:0)
+    );
   }
 
   function dedupe(rows){
@@ -174,6 +244,7 @@
 
     for(const tx of rows){
       if(!tx?.txid)continue;
+
       const prior=map.get(tx.txid);
 
       if(!prior){
@@ -181,17 +252,24 @@
         continue;
       }
 
-      const score=row=>
-        (row.detailed?8:0)+
-        (Number.isFinite(row.valueSats)?4:0)+
-        (Number.isFinite(row.vsize)?2:0)+
-        (Number.isFinite(row.packageFeeRate)?1:0);
+      const winner=score(tx)>=score(prior)
+        ? tx
+        : prior;
+
+      const loser=winner===tx
+        ? prior
+        : tx;
 
       map.set(
         tx.txid,
-        score(tx)>=score(prior)
-          ? {...prior,...tx,raw:tx.raw||prior.raw}
-          : prior
+        {
+          ...loser,
+          ...winner,
+          raw:{
+            ...(loser.raw&&typeof loser.raw==="object"?loser.raw:{}),
+            ...(winner.raw&&typeof winner.raw==="object"?winner.raw:{})
+          }
+        }
       );
     }
 
@@ -200,16 +278,28 @@
 
   function candidateFit(rows,target=BLOCK_VBYTES){
     const ordered=rows
-      .filter(tx=>Number.isFinite(tx.vsize)&&tx.vsize>0&&Number.isFinite(tx.packageFeeRate))
+      .filter(tx=>
+        Number.isFinite(tx.vsize)&&
+        tx.vsize>0&&
+        Number.isFinite(tx.packageFeeRate)
+      )
       .slice()
       .sort((a,b)=>{
         const af=Number(a.packageFeeRate);
         const bf=Number(b.packageFeeRate);
+
         if(bf!==af)return bf-af;
 
         const ar=Number(a.rank);
         const br=Number(b.rank);
-        if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return ar-br;
+
+        if(
+          Number.isFinite(ar)&&
+          Number.isFinite(br)&&
+          ar!==br
+        ){
+          return ar-br;
+        }
 
         return String(a.txid).localeCompare(String(b.txid));
       });
@@ -218,9 +308,20 @@
     let used=0;
 
     for(const tx of ordered){
-      if(out.length&&used+tx.vsize>target*1.005)continue;
-      out.push({...tx,rank:out.length});
+      if(
+        out.length&&
+        used+tx.vsize>target*1.005
+      ){
+        continue;
+      }
+
+      out.push({
+        ...tx,
+        rank:out.length
+      });
+
       used+=tx.vsize;
+
       if(used>=target)break;
     }
 
@@ -229,7 +330,10 @@
 
   function rebuild(model){
     const transactions=dedupe(model.transactions);
-    const byTxid=new Map(transactions.map(tx=>[tx.txid,tx]));
+    const byTxid=new Map(
+      transactions.map(tx=>[tx.txid,tx])
+    );
+
     const knownTxids=[...new Set([
       ...(model.knownTxids||[]),
       ...transactions.map(tx=>tx.txid)
@@ -241,21 +345,54 @@
       candidate=model.liveTxids
         .map(id=>byTxid.get(id))
         .filter(Boolean)
-        .map((tx,index)=>({...tx,rank:index,live:true}));
+        .map((tx,index)=>({
+          ...tx,
+          rank:index,
+          live:true
+        }));
     }else{
-      candidate=candidateFit(transactions,model.targetVbytes);
+      candidate=candidateFit(
+        transactions,
+        model.targetVbytes
+      );
     }
 
-    const candidateIds=new Set(candidate.map(tx=>tx.txid));
     const candidateVsize=candidate.reduce(
-      (sum,tx)=>sum+(Number.isFinite(tx.vsize)?tx.vsize:0),
+      (sum,tx)=>
+        sum+
+        (
+          Number.isFinite(tx.vsize)
+            ? tx.vsize
+            : 0
+        ),
       0
     );
+
     const candidateValue=candidate.reduce(
-      (sum,tx)=>sum+(Number.isFinite(tx.valueSats)?tx.valueSats:0),
+      (sum,tx)=>
+        sum+
+        (
+          Number.isFinite(tx.valueSats)
+            ? tx.valueSats
+            : 0
+        ),
       0
     );
-    const knownValues=candidate.filter(tx=>Number.isFinite(tx.valueSats)).length;
+
+    const knownValues=candidate.filter(
+      tx=>Number.isFinite(tx.valueSats)
+    ).length;
+
+    const resolvedMempoolVsize=transactions.reduce(
+      (sum,tx)=>
+        sum+
+        (
+          Number.isFinite(tx.vsize)
+            ? tx.vsize
+            : 0
+        ),
+      0
+    );
 
     return {
       ...model,
@@ -263,10 +400,22 @@
       byTxid,
       knownTxids,
       candidate,
-      candidateIds,
       candidateVsize,
       candidateValue,
-      candidateValueCoverage:candidate.length?knownValues/candidate.length:0
+      candidateValueCoverage:
+        candidate.length
+          ? knownValues/candidate.length
+          : 0,
+
+      resolvedMempoolVsize,
+      candidateSource:
+        model.liveActive
+          ? "live"
+          : model.fullFeedActive
+            ? "full-feed"
+            : transactions.length>0
+              ? "partial-rest"
+              : "none"
     };
   }
 
@@ -275,32 +424,48 @@
     const txs=[];
 
     full.rows.forEach((raw,index)=>{
-      const tx=normalizeTx(raw,{core:full.core,rank:index});
+      const tx=normalizeTx(
+        raw,
+        {
+          core:full.core,
+          rank:index
+        }
+      );
+
       if(tx)txs.push(tx);
     });
 
     (payload.recent||[]).forEach((raw,index)=>{
-      const tx=normalizeTx(raw,{rank:index});
+      const tx=normalizeTx(
+        raw,
+        {rank:index}
+      );
+
       if(tx)txs.push(tx);
     });
 
-    const firstBlock=Array.isArray(payload.blocks)&&payload.blocks.length
-      ? payload.blocks[0]
-      : null;
+    const firstBlock=
+      Array.isArray(payload.blocks)&&payload.blocks.length
+        ? payload.blocks[0]
+        : null;
 
     const targetVbytes=Math.max(
       1,
-      finite(firstBlock?.blockVSize??firstBlock?.vsize) || BLOCK_VBYTES
+      finite(
+        firstBlock?.blockVSize ??
+        firstBlock?.vsize
+      ) || BLOCK_VBYTES
     );
 
     return rebuild({
-      schema:"zzx-mempool-tiles-v1",
+      schema:"zzx-mempool-tiles-v2",
       transactions:txs,
       byTxid:new Map(),
       knownTxids:payload.txids||[],
       liveActive:false,
       liveTxids:[],
       liveUpdatedAt:NaN,
+      fullFeedActive:full.rows.length>0,
       targetVbytes,
       blocks:payload.blocks||[],
       mempool:payload.mempool||{},
@@ -319,20 +484,36 @@
     const merged=model.transactions.slice();
 
     for(const raw of Array.isArray(rows)?rows:[]){
-      const txid=String(raw?.txid??raw?.id??raw?.hash??"").trim();
+      const txid=String(
+        raw?.txid ??
+        raw?.id ??
+        raw?.hash ??
+        ""
+      ).trim();
+
       const prior=model.byTxid.get(txid);
 
       const next=normalizeTx(
         prior
-          ? {...(prior.raw||{}),...raw,txid,__zzxTilesLive:prior.live}
+          ? {
+              ...(prior.raw||{}),
+              ...raw,
+              txid,
+              __zzxTilesLive:prior.live
+            }
           : raw,
-        {rank:prior?.rank}
+        {
+          rank:prior?.rank
+        }
       );
 
       if(next)merged.push(next);
     }
 
-    return rebuild({...model,transactions:merged});
+    return rebuild({
+      ...model,
+      transactions:merged
+    });
   }
 
   function mergeLive(model,snapshot){
@@ -340,14 +521,25 @@
       ? snapshot.transactions
       : [];
 
+    /*
+     * Remove stale live-only rows before installing the newest membership set.
+     * Detailed REST/full-feed rows remain and are merged back into live members.
+     */
+    const rows=model.transactions.filter(tx=>!tx.live);
     const liveIds=[];
-    const rows=model.transactions.slice();
 
     liveRows.forEach((raw,index)=>{
-      const txid=String(raw?.txid??raw?.id??raw?.hash??"").trim();
+      const txid=String(
+        raw?.txid ??
+        raw?.id ??
+        raw?.hash ??
+        ""
+      ).trim();
+
       if(!/^[0-9a-f]{64}$/i.test(txid))return;
 
       const prior=model.byTxid.get(txid);
+
       const mergedRaw={
         ...(prior?.raw||{}),
         ...raw,
@@ -356,7 +548,11 @@
         __zzxTilesLive:true
       };
 
-      const tx=normalizeTx(mergedRaw,{rank:index});
+      const tx=normalizeTx(
+        mergedRaw,
+        {rank:index}
+      );
+
       if(tx){
         rows.push(tx);
         liveIds.push(txid);
@@ -364,12 +560,20 @@
     });
 
     let targetVbytes=model.targetVbytes;
-    const block0=Array.isArray(snapshot?.blocks)&&snapshot.blocks.length
-      ? snapshot.blocks[0]
-      : null;
 
-    const blockVsize=finite(block0?.blockVSize??block0?.vsize);
-    if(blockVsize>0)targetVbytes=blockVsize;
+    const block0=
+      Array.isArray(snapshot?.blocks)&&snapshot.blocks.length
+        ? snapshot.blocks[0]
+        : null;
+
+    const blockVsize=finite(
+      block0?.blockVSize ??
+      block0?.vsize
+    );
+
+    if(blockVsize>0){
+      targetVbytes=blockVsize;
+    }
 
     return rebuild({
       ...model,
@@ -378,25 +582,53 @@
       liveTxids:liveIds,
       liveUpdatedAt:finite(snapshot?.updatedAt),
       targetVbytes,
-      blocks:Array.isArray(snapshot?.blocks)&&snapshot.blocks.length
-        ? snapshot.blocks
-        : model.blocks
+      blocks:
+        Array.isArray(snapshot?.blocks)&&snapshot.blocks.length
+          ? snapshot.blocks
+          : model.blocks
     });
   }
 
   function pendingCandidateTxids(model,limit=64){
     const out=[];
+
     for(const tx of model.candidate){
       if(out.length>=limit)break;
-      if(!tx.detailed||!Number.isFinite(tx.valueSats)){
+
+      if(
+        !tx.detailed ||
+        !Number.isFinite(tx.valueSats)
+      ){
         out.push(tx.txid);
       }
     }
+
+    return out;
+  }
+
+  function pendingUniverseTxids(model,limit=96,offset=0){
+    const out=[];
+    const start=Math.max(0,Math.floor(Number(offset)||0));
+    const ids=model.knownTxids||[];
+
+    for(let i=start;i<ids.length&&out.length<limit;i++){
+      const id=ids[i];
+      const tx=model.byTxid.get(id);
+
+      if(
+        !tx ||
+        !Number.isFinite(tx.vsize) ||
+        !Number.isFinite(tx.packageFeeRate)
+      ){
+        out.push(id);
+      }
+    }
+
     return out;
   }
 
   W.ZZXMempoolTilesModel=Object.freeze({
-    __version:1,
+    __version:2,
     SATS,
     BLOCK_VBYTES,
     normalizeTx,
@@ -407,6 +639,7 @@
     rebuild,
     mergeDetails,
     mergeLive,
-    pendingCandidateTxids
+    pendingCandidateTxids,
+    pendingUniverseTxids
   });
 })();
