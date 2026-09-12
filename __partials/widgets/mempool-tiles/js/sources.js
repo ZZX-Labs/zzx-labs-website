@@ -3,13 +3,14 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesSources?.__version>=1)return;
+  if(W.ZZXMempoolTilesSources?.__version>=2)return;
 
   const normalize=value=>String(value||"").trim().replace(/\/+$/g,"");
   const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/,"");
 
   function websocketUrl(base){
     const raw=normalize(base);
+
     try{
       const url=new URL(raw,W.location.href);
       url.protocol=url.protocol==="https:"?"wss:":"ws:";
@@ -34,6 +35,30 @@
     );
   }
 
+  function websocketUrls(core){
+    const base=apiBase(core);
+
+    const configured=[
+      core?.ctx?.api?.MEMPOOL_WS,
+      core?.ctx?.api?.MEMPOOL_WEBSOCKET,
+      W.ZZX?.api?.MEMPOOL_WS,
+      W.ZZX?.API?.MEMPOOL_WS
+    ]
+      .map(value=>String(value||"").trim())
+      .filter(Boolean);
+
+    /*
+     * A local REST mirror frequently does not proxy mempool.space's websocket.
+     * Keep the derived local URL first, then fall back to the public projection
+     * stream instead of leaving Tiles stuck on a ten-transaction recent sample.
+     */
+    return [...new Set([
+      ...configured,
+      websocketUrl(base),
+      "wss://mempool.space/api/v1/ws"
+    ])];
+  }
+
   function fullFeedUrls(core){
     const rows=[
       core?.ctx?.api?.MEMPOOL_FULL,
@@ -43,8 +68,12 @@
       W.ZZX?.api?.MEMPOOL_TXS,
       W.ZZX?.API?.MEMPOOL_FULL,
       W.ZZX?.API?.MEMPOOL_TXS,
-      "/bitcoin/mempool/api/full.json"
-    ].map(v=>String(v||"").trim()).filter(Boolean);
+      "/bitcoin/mempool/api/full.json",
+      "/bitcoin/mempool/api/mempool-full.json",
+      "/bitcoin/mempool/data/full.json"
+    ]
+      .map(value=>String(value||"").trim())
+      .filter(Boolean);
 
     return [...new Set(rows)];
   }
@@ -55,11 +84,23 @@
     return {
       apiBase:base,
       refreshMs:10000,
-      hydrateBatch:28,
-      hydrateConcurrency:6,
-      hydrateDelayMs:850,
-      maxHydratePerSession:4800,
-      websocket:websocketUrl(base),
+      liveDebounceMs:180,
+      liveReconnectMaxMs:30000,
+
+      // Hydrate candidate details aggressively once exact live membership exists.
+      hydrateBatch:36,
+      hydrateConcurrency:8,
+      hydrateDelayMs:650,
+
+      // REST-only fallback progressively resolves the txid universe until it can
+      // build a plausible 1-vMB candidate set. It is never labelled authoritative.
+      fallbackHydrateBatch:96,
+      fallbackHydrateConcurrency:10,
+      fallbackHydrateDelayMs:420,
+      maxHydratePerSession:6000,
+
+      websocketUrls:websocketUrls(core),
+
       endpoints:{
         mempool:join(base,"mempool"),
         blocks:join(base,"v1/fees/mempool-blocks"),
@@ -71,7 +112,9 @@
         txHex:join(base,"tx/{txid}/hex"),
         block:join(base,"block/{hash}")
       },
+
       fullFeedUrls:fullFeedUrls(core),
+
       price:W.ZZXAPI?.url
         ? W.ZZXAPI.url("/bitcoin/bpi/api/latest.json")
         : "/bitcoin/bpi/api/latest.json"
@@ -79,10 +122,11 @@
   }
 
   W.ZZXMempoolTilesSources=Object.freeze({
-    __version:1,
+    __version:2,
     get,
     apiBase,
     websocketUrl,
+    websocketUrls,
     fullFeedUrls
   });
 })();
