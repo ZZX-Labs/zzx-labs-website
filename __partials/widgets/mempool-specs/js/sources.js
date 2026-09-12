@@ -1,8 +1,9 @@
 // __partials/widgets/mempool-specs/js/sources.js
 (function(){
   "use strict";
+
   const W=window;
-  if(W.ZZXMempoolSpecsSources?.__version>=4)return;
+  if(W.ZZXMempoolSpecsSources?.__version>=5)return;
 
   const normalize=v=>String(v||"").trim().replace(/\/+$/g,"");
   const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/,"");
@@ -29,25 +30,22 @@
       W.ZZX?.API?.MEMPOOL_TXS,
       "/bitcoin/mempool/api/full.json"
     ].map(v=>String(v||"").trim()).filter(Boolean);
+
     return [...new Set(candidates)];
   }
 
   function get(core){
     const base=apiBase(core);
+
     return {
       apiBase:base,
       refreshMs:15000,
-      txidRefreshMs:30000,
-      progressiveHydrate:24,
-      txConcurrency:4,
+      maxVisualTiles:1400,
       endpoints:{
         mempool:join(base,"mempool"),
-        txids:join(base,"mempool/txids"),
-        recent:join(base,"mempool/recent"),
         blocks:join(base,"v1/fees/mempool-blocks"),
         recommended:join(base,"v1/fees/recommended"),
-        tipHeight:join(base,"blocks/tip/height"),
-        tx:join(base,"tx/{txid}")
+        tipHeight:join(base,"blocks/tip/height")
       },
       fullFeedUrls:fullFeedUrls(core),
       price:W.ZZXAPI?.url
@@ -56,5 +54,10 @@
     };
   }
 
-  W.ZZXMempoolSpecsSources=Object.freeze({__version:4,get,apiBase,fullFeedUrls});
+  W.ZZXMempoolSpecsSources=Object.freeze({
+    __version:5,
+    get,
+    apiBase,
+    fullFeedUrls
+  });
 })();
