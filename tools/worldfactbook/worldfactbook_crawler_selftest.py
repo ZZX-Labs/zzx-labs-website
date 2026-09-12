@@ -20,7 +20,13 @@ if str(HERE) not in sys.path:
 from formats import extract
 from media import MediaExtractor, SourceContext, write_media_indexes, write_media_shards
 from shard_store import write_shards
-from worldfactbook_crawler import parse_chunks
+from worldfactbook_crawler import (
+    _candidate_years,
+    _doc_years,
+    _select_ia_files,
+    discover_wayback,
+    parse_chunks,
+)
 
 
 def _font(size: int = 34):
@@ -58,6 +64,28 @@ def main() -> int:
             "united states": ("US", "United States"),
             "canada": ("CA", "Canada"),
         }
+        # Historical IA metadata does not reliably populate ``year`` with the
+        # edition year.  Verify the crawler can recover it from title/identifier
+        # and that direct documents outrank expensive derivative archive bundles.
+        assert _candidate_years("National Basic Intelligence Factbook 1963") == {1963}
+        assert 1975 in _doc_years({
+            "title": "The World Factbook 1975",
+            "identifier": "worldfactbook1975scan",
+            "date": "2004-01-01",
+        })
+        selected = _select_ia_files({
+            "files": [
+                {"name": "worldfactbook1975_archive.zip", "size": "900000000", "source": "original"},
+                {"name": "worldfactbook1975.pdf", "size": "120000000", "source": "original"},
+                {"name": "worldfactbook1975_text.pdf", "size": "40000000", "source": "derivative"},
+                {"name": "worldfactbook1975.epub", "size": "10000000", "source": "derivative"},
+            ]
+        }, 1975, 3)
+        assert selected
+        assert all(not name.endswith(".zip") for name, _ in selected)
+        assert selected[0][0].endswith(".pdf")
+        assert discover_wayback(1975, 320) == []
+
         chunks = parse_chunks(docs[0].text, 2025, aliases)
         assert chunks
         rows = []
