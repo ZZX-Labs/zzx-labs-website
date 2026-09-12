@@ -4,7 +4,7 @@
 
   const W=window;
   const NS=(W.ZZXMempoolSpecs=W.ZZXMempoolSpecs||{});
-  if(NS.Renderer?.__version>=8)return;
+  if(NS.Renderer?.__version>=9)return;
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
@@ -81,6 +81,20 @@
     return anchors.at(-1)[1];
   }
 
+  function squareSide(tile){
+    const side=Number(tile?.side);
+    if(Number.isFinite(side)&&side>0)return side;
+
+    // One-refresh compatibility with the previous v4 rectangle layout.
+    const w=Number(tile?.w);
+    const h=Number(tile?.h);
+    if(Number.isFinite(w)&&Number.isFinite(h)&&w>0&&h>0){
+      return Math.min(w,h);
+    }
+
+    return 0;
+  }
+
   function interpolate(tile,fromMap,progress){
     const t=clamp(
       Number.isFinite(progress)?progress:1,
@@ -90,26 +104,29 @@
 
     const key=tile.txid||tile.id;
     const old=fromMap?.get(key);
+    const side=squareSide(tile);
 
     if(!old){
-      const cx=tile.x+tile.w/2;
-      const cy=tile.y+tile.h/2;
+      const cx=tile.x+side/2;
+      const cy=tile.y+side/2;
       const scale=.08+t*.92;
+      const nowSide=side*scale;
 
       return {
-        x:cx-(tile.w*scale)/2,
-        y:cy-(tile.h*scale)/2,
-        w:tile.w*scale,
-        h:tile.h*scale,
+        x:cx-nowSide/2,
+        y:cy-nowSide/2,
+        side:nowSide,
         alpha:t
       };
     }
 
+    const oldSide=squareSide(old);
+    const nextSide=oldSide+(side-oldSide)*t;
+
     return {
-      x:old.x+(tile.x-old.x)*t,
-      y:old.y+(tile.y-old.y)*t,
-      w:old.w+(tile.w-old.w)*t,
-      h:old.h+(tile.h-old.h)*t,
+      x:Number(old.x||0)+(tile.x-Number(old.x||0))*t,
+      y:Number(old.y||0)+(tile.y-Number(old.y||0))*t,
+      side:nextSide,
       alpha:1
     };
   }
@@ -128,92 +145,63 @@
     return `${Math.round(n).toLocaleString()} sat`;
   }
 
-  function roundedRect(ctx,x,y,w,h,r){
-    const radius=Math.max(0,Math.min(r,w/2,h/2));
-
-    if(typeof ctx.roundRect==="function"){
-      ctx.beginPath();
-      ctx.roundRect(x,y,w,h,radius);
-      return;
-    }
-
-    ctx.beginPath();
-    ctx.moveTo(x+radius,y);
-    ctx.arcTo(x+w,y,x+w,y+h,radius);
-    ctx.arcTo(x+w,y+h,x,y+h,radius);
-    ctx.arcTo(x,y+h,x,y,radius);
-    ctx.arcTo(x,y,x+w,y,radius);
-    ctx.closePath();
-  }
-
   function drawTile(ctx,tile,rect,colors,alpha=1){
-    const {x,y,w,h}=rect;
-    if(w<=.12||h<=.12||alpha<=0)return;
+    const x=rect.x;
+    const y=rect.y;
+    const size=rect.size;
 
-    const min=Math.min(w,h);
-    const max=Math.max(w,h);
+    if(size<=.12||alpha<=0)return;
+
     const rate=Number(tile.packageFeeRate??tile.feeRate);
     const fill=feeColor(rate);
 
     /*
-     * Keep gaps proportional and tiny. The old fixed inset could erase small
-     * transactions entirely. A real tile must remain visible even at 1–2 px.
+     * Every visible primitive is a square. The same inset is subtracted from
+     * both axes, so even the smallest candidate transaction remains square.
      */
-    const gap=min>=18
+    const gap=size>=18
       ? .9
-      : min>=7
-        ? .48
-        : min>=2
-          ? .22
+      : size>=7
+        ? .45
+        : size>=2
+          ? .18
           : 0;
 
     const px=x+gap;
     const py=y+gap;
-    const pw=Math.max(.12,w-gap*2);
-    const ph=Math.max(.12,h-gap*2);
-    const radius=min>=16?Math.min(3,min*.08):min>=6?1.2:0;
+    const ps=Math.max(.12,size-gap*2);
 
     ctx.save();
     ctx.globalAlpha=alpha;
+    ctx.fillStyle=tile.valueKnown===false
+      ? colors.pending||"#263137"
+      : fill;
+    ctx.fillRect(px,py,ps,ps);
 
-    roundedRect(ctx,px,py,pw,ph,radius);
-
-    if(tile.valueKnown===false){
-      ctx.fillStyle=colors.pending||"#263137";
-    }else{
-      ctx.fillStyle=fill;
-    }
-
-    ctx.fill();
-
-    /*
-     * Fee heat gets a subtle top-light rather than a large shadow. This makes
-     * thousands of tiles read as one dense block instead of glowing confetti.
-     */
-    if(min>=3){
-      ctx.strokeStyle=min>=12
+    if(size>=3){
+      ctx.strokeStyle=size>=12
         ? "rgba(255,255,255,.14)"
         : "rgba(255,255,255,.07)";
-      ctx.lineWidth=min>=12?.75:.45;
-      ctx.stroke();
+      ctx.lineWidth=size>=12?.75:.45;
+      ctx.strokeRect(px+.5,py+.5,Math.max(.12,ps-1),Math.max(.12,ps-1));
     }
 
-    if(min>=8&&tile.valueKnown!==false){
+    if(size>=8&&tile.valueKnown!==false){
       ctx.save();
       ctx.globalAlpha=.22*alpha;
       ctx.strokeStyle=fill;
-      ctx.lineWidth=Math.max(.5,Math.min(2,min*.055));
+      ctx.lineWidth=Math.max(.5,Math.min(2,size*.055));
       ctx.beginPath();
-      ctx.moveTo(px+radius,py+.5);
-      ctx.lineTo(px+pw-radius,py+.5);
+      ctx.moveTo(px,py+.5);
+      ctx.lineTo(px+ps,py+.5);
       ctx.stroke();
       ctx.restore();
     }
 
-    if(min>=31&&pw>=58&&ph>=31){
+    if(size>=31){
       ctx.globalAlpha=.94*alpha;
       ctx.fillStyle="rgba(0,0,0,.78)";
-      const font=Math.max(8,Math.min(11,min*.17));
+      const font=Math.max(8,Math.min(11,size*.17));
       ctx.font=`${font}px "IBM Plex Mono", monospace`;
       ctx.textAlign="left";
       ctx.textBaseline="top";
@@ -224,7 +212,7 @@
         py+3
       );
 
-      if(Number.isFinite(rate)&&ph>=font*2+9){
+      if(Number.isFinite(rate)&&size>=font*2+9){
         ctx.fillText(
           `${rate<1?rate.toFixed(3):rate.toFixed(1)} sat/vB`,
           px+4,
@@ -232,7 +220,7 @@
         );
       }
 
-      if(min>=55&&pw>=78&&ph>=font*3+12){
+      if(size>=58){
         ctx.fillText(
           String(tile.txid||"").slice(0,10),
           px+4,
@@ -274,7 +262,10 @@
     const ctx=canvas.getContext("2d");
     if(!ctx)return;
 
-    const {css,dpr}=size(canvas);
+    const sized=size(canvas);
+    const css=sized.css;
+    const dpr=sized.dpr;
+
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.clearRect(0,0,css,css);
 
@@ -298,12 +289,11 @@
 
     ctx.fillStyle=bg;
     ctx.fillRect(0,0,css,css);
-
     drawGrid(ctx,css,pad,colors);
 
     /*
-     * Removed transactions fade out while surviving txids move/rescale toward
-     * their new value-weighted treemap slots.
+     * Removed candidate transactions fade out as surviving txids move and
+     * resize into the newly packed next-block square field.
      */
     if(progress<1&&fromMap?.size){
       const current=new Set(
@@ -313,14 +303,15 @@
       for(const [key,old] of fromMap.entries()){
         if(current.has(key))continue;
 
+        const oldSide=squareSide(old);
+
         drawTile(
           ctx,
           old,
           {
-            x:pad+old.x*inner,
-            y:pad+old.y*inner,
-            w:old.w*inner,
-            h:old.h*inner
+            x:pad+Number(old.x||0)*inner,
+            y:pad+Number(old.y||0)*inner,
+            size:oldSide*inner
           },
           colors,
           1-progress
@@ -337,8 +328,7 @@
         {
           x:pad+p.x*inner,
           y:pad+p.y*inner,
-          w:p.w*inner,
-          h:p.h*inner
+          size:p.side*inner
         },
         colors,
         p.alpha
@@ -354,10 +344,10 @@
       const tile=layout.byId.get(id)||layout.byTxid.get(id);
       if(!tile)continue;
 
+      const side=squareSide(tile);
       const x=pad+tile.x*inner;
       const y=pad+tile.y*inner;
-      const w=tile.w*inner;
-      const h=tile.h*inner;
+      const s=side*inner;
 
       ctx.save();
       ctx.strokeStyle=color;
@@ -367,8 +357,8 @@
       ctx.strokeRect(
         x+.5,
         y+.5,
-        Math.max(1,w-1),
-        Math.max(1,h-1)
+        Math.max(1,s-1),
+        Math.max(1,s-1)
       );
       ctx.restore();
     }
@@ -383,10 +373,11 @@
   }
 
   NS.Renderer=Object.freeze({
-    __version:8,
+    __version:9,
     draw,
     previousMap,
     feeColor,
-    formatBtc
+    formatBtc,
+    squareSide
   });
 })();
