@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsSources?.__version>=7)return;
+  if(W.ZZXMempoolSpecsSources?.__version>=8)return;
 
   const normalize=value=>String(value||"").trim().replace(/\/+$/g,"");
   const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/,"");
@@ -60,10 +60,10 @@
       refreshMs:10000,
       liveDebounceMs:320,
       liveReconnectMaxMs:30000,
-      progressiveHydrate:16,
-      hydrateDelayMs:2200,
-      txConcurrency:4,
-      maxHydratePerSession:1600,
+      progressiveHydrate:32,
+      hydrateDelayMs:900,
+      txConcurrency:6,
+      maxHydratePerSession:4200,
       maxCandidateBlocks:8,
       websocket:websocketUrl(base),
       endpoints:{
@@ -85,7 +85,7 @@
   }
 
   W.ZZXMempoolSpecsSources=Object.freeze({
-    __version:7,
+    __version:8,
     get,
     apiBase,
     fullFeedUrls,
