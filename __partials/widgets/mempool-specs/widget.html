@@ -3,64 +3,102 @@
   <div class="mempool-specs__header">
     <div>
       <div class="btc-card__title">Mempool · Specs</div>
-      <div class="mempool-specs__eyebrow">full-mempool priority field · transaction tiles 1 → end</div>
+      <div class="mempool-specs__eyebrow">projected block construction · transaction tile visualizer</div>
     </div>
     <span class="btc-card__status" data-ms-status data-status="offline" aria-live="polite">loading</span>
   </div>
 
   <div class="mempool-specs__hero">
-    <span>priority-ordered mempool</span>
-    <strong data-ms-summary>loading…</strong>
-    <small data-ms-sub>assembling transaction universe…</small>
+    <div class="mempool-specs__hero-main">
+      <span data-ms-hero-label>projected block +1</span>
+      <strong data-ms-summary>loading…</strong>
+      <small data-ms-sub>building candidate block…</small>
+    </div>
+    <div class="mempool-specs__hero-side">
+      <span>fill</span>
+      <strong data-ms-fill>—</strong>
+      <small data-ms-mode>representative tiling</small>
+    </div>
   </div>
 
   <div class="mempool-specs__controls">
-    <div class="mempool-specs__control-copy">
-      <span>ordering</span>
-      <strong>projected inclusion priority · top → bottom</strong>
-    </div>
-    <button type="button" class="zzx-widgets__btn" data-ms-refresh>Refresh</button>
+    <button type="button" class="zzx-widgets__btn" data-ms-prev aria-label="Previous projected block">←</button>
+    <div class="mempool-specs__block-nav" data-ms-block-nav aria-label="Projected mempool blocks"></div>
+    <button type="button" class="zzx-widgets__btn" data-ms-next aria-label="Next projected block">→</button>
+    <button type="button" class="zzx-widgets__btn mempool-specs__refresh" data-ms-refresh>Refresh</button>
   </div>
 
   <div class="mempool-specs__metrics">
-    <div><span>mempool TXs</span><strong data-ms-count>—</strong><small data-ms-count-sub>all transaction IDs</small></div>
-    <div><span>priority-scored</span><strong data-ms-scored>—</strong><small data-ms-scored-sub>—</small></div>
-    <div><span>virtual backlog</span><strong data-ms-backlog>—</strong><small data-ms-blocks>—</small></div>
-    <div><span>fee pressure</span><strong data-ms-fee>—</strong><small data-ms-fast>—</small></div>
+    <div>
+      <span>projected TXs</span>
+      <strong data-ms-tx>—</strong>
+      <small data-ms-tx-sub>candidate estimate</small>
+    </div>
+    <div>
+      <span>virtual size</span>
+      <strong data-ms-vsize>—</strong>
+      <small data-ms-util>—</small>
+    </div>
+    <div>
+      <span>median fee</span>
+      <strong data-ms-median>—</strong>
+      <small data-ms-range>—</small>
+    </div>
+    <div>
+      <span>projected fees</span>
+      <strong data-ms-fees>—</strong>
+      <small data-ms-fee-usd>—</small>
+    </div>
   </div>
 
   <div class="mempool-specs__field-head">
     <div>
-      <span>transaction field</span>
-      <small>every visible square is one transaction ID; select any tile for the readout below</small>
+      <span>Specs block plane</span>
+      <small>tile area ≈ transaction vsize · color = fee pressure · higher-priority tiles enter first</small>
     </div>
-    <strong data-ms-rank-span>—</strong>
+    <strong data-ms-plane-meta>—</strong>
   </div>
 
   <div class="ms-block" data-ms-block>
     <canvas
       data-ms-canvas
       tabindex="0"
-      aria-label="Priority ordered Bitcoin mempool transaction field"
+      aria-label="Projected Bitcoin block transaction tile visualization"
     ></canvas>
+
+    <div class="ms-block__chrome ms-block__chrome--tl">
+      <strong data-ms-canvas-title>+1 PROJECTED</strong>
+      <small>high priority</small>
+    </div>
+
+    <div class="ms-block__chrome ms-block__chrome--tr">
+      <strong data-ms-canvas-fill>—</strong>
+      <small>candidate vsize</small>
+    </div>
+
+    <div class="ms-block__chrome ms-block__chrome--bl">
+      <small>lower priority / block edge</small>
+    </div>
+
     <div class="ms-hover" data-ms-hover hidden></div>
   </div>
 
   <div class="mempool-specs__viz-meta">
     <span data-ms-layout>—</span>
-    <span data-ms-coverage>—</span>
+    <span data-ms-source-mode>—</span>
   </div>
 
   <div class="ms-legend" aria-label="Mempool Specs legend">
-    <div class="ms-legend-item"><span class="ms-swatch pending"></span><span>priority pending</span></div>
-    <div class="ms-legend-item"><span class="ms-swatch low"></span><span>low fee</span></div>
-    <div class="ms-legend-item"><span class="ms-swatch mid"></span><span>medium fee</span></div>
-    <div class="ms-legend-item"><span class="ms-swatch high"></span><span>high fee</span></div>
-    <div class="ms-legend-item"><span class="ms-marker"></span><span>projected block boundary</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--cold"></span><span>lower fee</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--mid"></span><span>mid fee</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--hot"></span><span>higher fee</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--real"></span><span>real TX</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--rep"></span><span>representative group</span></div>
   </div>
 
   <div class="mempool-specs__details">
     <div><span>tip height</span><strong data-ms-tip>—</strong></div>
+    <div><span>mempool backlog</span><strong data-ms-backlog>—</strong></div>
     <div><span>BTC / USD</span><strong data-ms-price>—</strong></div>
     <div><span>source</span><strong data-ms-source>—</strong></div>
     <div><span>method</span><strong data-ms-method>—</strong></div>
@@ -68,17 +106,17 @@
 
   <div class="mempool-specs__readout-head">
     <div>
-      <span>transaction readout</span>
-      <small>rank · projected inclusion · fee · size · package data · transaction details</small>
+      <span>tile readout</span>
+      <small>real transactions expose TX detail; aggregate tiles show the represented fee/vsize band</small>
     </div>
     <strong data-ms-selected>none selected</strong>
   </div>
 
   <div class="ms-readout" data-ms-readout>
-    <div class="ms-readout__empty">Select any transaction tile above.</div>
+    <div class="ms-readout__empty">Select a tile in the projected block.</div>
   </div>
 
   <div class="mempool-specs__footer">
-    <span data-ms-meta>full-feed aware · public API fallback remains explicitly partial</span>
+    <span data-ms-meta>candidate construction is an estimate, not a miner commitment</span>
   </div>
 </div>
