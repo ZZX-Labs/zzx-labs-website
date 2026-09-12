@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-12T09:02:49.690961Z",
+  "generated_at": "2026-09-12T12:50:22.461329Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "0476444e33bd8036b2726ce128d068ba472e1278",
+      "node_id": "C_kwDOABII59oAKDA0NzY0NDRlMzNiZDgwMzZiMjcyNmNlMTI4ZDA2OGJhNDcyZTEyNzg",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-12T10:30:31Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-12T10:30:31Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35935: wallet: Avoid unnecessary wtxvariant rewrites\n\n1548d15de61886e0b8e67801146e9c168d9d4a66 walletdb: Rename WriteTx to WriteFullTx (Ava Chow)\n9a0628d9320d2275d922d70d1a87573091840293 wallet: Write tx to database during CWalletTx::Update (Ava Chow)\n1c557a380288df661e13e88f5d9c7c27b9bbbefb wallet: Add WriteTxMetadata to write just the tx record (Ava Chow)\n\nPull request description:\n\n  `wtxvariant` records should never change, so it is unnecessary for us to be rewriting all `wtxvariants` in a `CWalletTx` every time the `CWalletTx`'s state changes. Likewise, every time there is a new variant, `CWalletTx` states may not change so do not need to always be unconditionally written.\n\n  This PR adds a `WalletBatch::WriteTxMetadata` to write just the `tx` record (the former behavior of `WriteTx`) and renames `WriteTx` to `WriteFullTx` to indicate that it will write all relevant records for a `CWalletTx`. Most uses of `WriteTx` become `WriteTxMetadata`, except in migration and watch only export.\n\n  `AddToWallet` is changed to use `WriteFullTx` only for new transactions, and to do so immediately after the transaction is inserted to the wallet. `CWalletTx::Update` takes the `WalletBatch` now and will write the correct records according to what is actually being updated.\n\nACKs for top commit:\n  polespinasa:\n    re-ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  pablomartin4btc:\n    ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  rkrux:\n    lgtm ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n\nTree-SHA512: c389bdef3490def857f5f2daee7c0b73e4434419aa8f06fc5201e3a55221f8bbe8683264ec90044436346190e700f04aed13622b12267ffe9ed470ee852b3bd3",
+        "tree": {
+          "sha": "bcf97ad6e63e65e19fbab58dbb0a4e8283a9ce10",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/bcf97ad6e63e65e19fbab58dbb0a4e8283a9ce10"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0476444e33bd8036b2726ce128d068ba472e1278",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqlKccACgkQm3m0VpHb\nQXNOBRAAzgy56/0z0iMKdghwL+ixYWCTIyhGwGZngGVyQ5nk6aZAKv/4e28K+7Ff\nDuerk627ymVsuPSGUJalVKdE5bAaTGAWcKRGRkON43UH3ypjaKcQ047l2H0CDi+4\nQlemIJoqcQeNtHn28T+VON023MbBJRKB/0H1NxWnC0V7moMUaPO65TKzXOUx/BI7\nwBKAcjJHJ+2eLDNaveZTUARGQCqV+IlyM5xGr8PX/PelOA9Pkuhz0Vxy33K4VXjI\nlSXUH9JzTPXPHfDboHkNUHcKzaL8u6bCmmZVro8wnnFD1e1xRsNnkhbROh4yQ02L\noaOt9+i6KrMF48KBGXmilkBKhyxOnoUX1IDvU/CajJ5isqoQMN5BgrZ40WlmDFq0\nSQUh3zmjYpZTByD/ViMJGT6izziWVC3NdXUfsoLU4NLijnYdwdUceHUXFaUvG5oS\nZCBwbURXzRQDPPnGeJHUaM9KWSe4Nxw6I5gxxhjcR9gZ0anG8PTH5KyqM+7OLgGb\nIXSl0/r866CY8yiODyxqo9WumMte/1rfvGlohfy7Q2hU2HsJGmBJksHaXsIk/OcW\nLdxnO8UI1OLw19eeUDL8XpbGGusAypf4ABo294hHnP3rm51nWk4WOYeKVYLr/SAq\nldKvamXu98QJU/HTy9H3ktX2Q4SOEvVJuDbJD0Vz3TLkECWB9Rc=\n=5JdV\n-----END PGP SIGNATURE-----",
+          "payload": "tree bcf97ad6e63e65e19fbab58dbb0a4e8283a9ce10\nparent f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d\nparent 1548d15de61886e0b8e67801146e9c168d9d4a66\nauthor merge-script <seb.kung@gmail.com> 1789209031 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789209031 +0200\n\nMerge bitcoin/bitcoin#35935: wallet: Avoid unnecessary wtxvariant rewrites\n\n1548d15de61886e0b8e67801146e9c168d9d4a66 walletdb: Rename WriteTx to WriteFullTx (Ava Chow)\n9a0628d9320d2275d922d70d1a87573091840293 wallet: Write tx to database during CWalletTx::Update (Ava Chow)\n1c557a380288df661e13e88f5d9c7c27b9bbbefb wallet: Add WriteTxMetadata to write just the tx record (Ava Chow)\n\nPull request description:\n\n  `wtxvariant` records should never change, so it is unnecessary for us to be rewriting all `wtxvariants` in a `CWalletTx` every time the `CWalletTx`'s state changes. Likewise, every time there is a new variant, `CWalletTx` states may not change so do not need to always be unconditionally written.\n\n  This PR adds a `WalletBatch::WriteTxMetadata` to write just the `tx` record (the former behavior of `WriteTx`) and renames `WriteTx` to `WriteFullTx` to indicate that it will write all relevant records for a `CWalletTx`. Most uses of `WriteTx` become `WriteTxMetadata`, except in migration and watch only export.\n\n  `AddToWallet` is changed to use `WriteFullTx` only for new transactions, and to do so immediately after the transaction is inserted to the wallet. `CWalletTx::Update` takes the `WalletBatch` now and will write the correct records according to what is actually being updated.\n\nACKs for top commit:\n  polespinasa:\n    re-ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  pablomartin4btc:\n    ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  rkrux:\n    lgtm ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n\nTree-SHA512: c389bdef3490def857f5f2daee7c0b73e4434419aa8f06fc5201e3a55221f8bbe8683264ec90044436346190e700f04aed13622b12267ffe9ed470ee852b3bd3\n",
+          "verified_at": "2026-09-12T10:31:14Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0476444e33bd8036b2726ce128d068ba472e1278",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/0476444e33bd8036b2726ce128d068ba472e1278",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0476444e33bd8036b2726ce128d068ba472e1278/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d"
+        },
+        {
+          "sha": "1548d15de61886e0b8e67801146e9c168d9d4a66",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1548d15de61886e0b8e67801146e9c168d9d4a66",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/1548d15de61886e0b8e67801146e9c168d9d4a66"
+        }
+      ]
+    },
     {
       "sha": "f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d",
       "node_id": "C_kwDOABII59oAKGYzZmVjNjdjM2VlYjI3ZDViZTFiYzlkNTdjYTczN2I3NGZjZDc2MmQ",
@@ -1608,88 +1695,6 @@
           "sha": "4a15e0b6f9c5adabf48db1f610d3eda4390986d0",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4a15e0b6f9c5adabf48db1f610d3eda4390986d0",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/4a15e0b6f9c5adabf48db1f610d3eda4390986d0"
-        }
-      ]
-    },
-    {
-      "sha": "1fe87c25054760dc53636d7e0cec8556c6c51e34",
-      "node_id": "C_kwDOABII59oAKDFmZTg3YzI1MDU0NzYwZGM1MzYzNmQ3ZTBjZWM4NTU2YzZjNTFlMzQ",
-      "commit": {
-        "author": {
-          "name": "will",
-          "email": "will@256k1.dev",
-          "date": "2026-08-17T19:27:06Z"
-        },
-        "committer": {
-          "name": "will",
-          "email": "will@256k1.dev",
-          "date": "2026-09-10T10:44:54Z"
-        },
-        "message": "guix: cache GUI depends separately\n\nThe GUI manifest has a distinct Guix profile and consequently produces\ndifferent depends build IDs. Previously this mean that the gui build\nwould invalidate the build cache for the non-guix build.\n\nMove guix builds under a GUIX/ root, and further BUILD/ and GUI/ trees,\nso that local developer builds, GUI and non GUI guix builds can all\nco-exist together.\n\nThere will end up being more copies of build depends packages, (local\nbuilds, and two guix variants), but these all use different toolchains\nand toolsets so this is desirable.",
-        "tree": {
-          "sha": "511b5212f7d031318bf1894d61a747a773b77d45",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/511b5212f7d031318bf1894d61a747a773b77d45"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/1fe87c25054760dc53636d7e0cec8556c6c51e34",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEoAg2YPI1onAAzTyBzm7EmUXBfqYFAmqiiiYACgkQzm7EmUXB\nfqbmPQ//SmBCVbCymaWo0XbFeR6dLtwCTspU6gpa9+64hkb3lDkHy4JW98iOzAS7\nrvE5XhARFqlFPjz/gqWRtnyxYwxdbkdFrljzi7scx3kXLICgGBM7fvjRNzSBwb+0\nL0Gaq9nFDPX11CYry0gOpOb8WM7ChxihOl7f2dBSCDOe6v2RF6MlDEqaTCmyD4Z9\nvgRWkm5taZBTEqn9Dt2N60pXtlBbrPicYE5GBpEVxMYkaFPgmUVQiF3uf8CgoO+v\nhpXPUhi8zeC/stV57DqZu7hfQT5IlZIvZj9DFZsXkh9OXhj+8dlzTjMi7sor0BZF\nQBou1lX14s+dHp18jwq+r5Pa2qKrxTWHQbhFmYBp5azvlAI1JCFKoIGYl1s/k+DB\nRZVB7AhCB67TI6ISclzatPHFhfL16t9WJFvWxK17tFoxj1lQy1x6DguRZK8Od5wG\nDBSNeAc+rvSW9TCteSon4F8tCwn4FMapU8G2qJXou4VlgxMIiC3coQmr6E7/h8Fn\nqJ/lh2k2tLoifnUIRdevnLQ2uH+ecYkdPS1nfSwZ8nlu7NZEuUUGo5a/XXRQn6L3\ntoBEgxxPjYD1p8nf7u4erfprViI0AOKLThCAqDcuVIaFBGVZ8JiK+5EIpj8T9NjA\nW7miF7Id8Ee4Vn7guZpZ4SkkdOATVUY1jjuiHt5YCb8heJ3NK+w=\n=sK2j\n-----END PGP SIGNATURE-----",
-          "payload": "tree 511b5212f7d031318bf1894d61a747a773b77d45\nparent 7e75b3b922f9ba740240c2204e3e9389524eafdb\nauthor will <will@256k1.dev> 1786994826 +0100\ncommitter will <will@256k1.dev> 1789037094 +0100\n\nguix: cache GUI depends separately\n\nThe GUI manifest has a distinct Guix profile and consequently produces\ndifferent depends build IDs. Previously this mean that the gui build\nwould invalidate the build cache for the non-guix build.\n\nMove guix builds under a GUIX/ root, and further BUILD/ and GUI/ trees,\nso that local developer builds, GUI and non GUI guix builds can all\nco-exist together.\n\nThere will end up being more copies of build depends packages, (local\nbuilds, and two guix variants), but these all use different toolchains\nand toolsets so this is desirable.\n",
-          "verified_at": "2026-09-10T10:45:15Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1fe87c25054760dc53636d7e0cec8556c6c51e34",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/1fe87c25054760dc53636d7e0cec8556c6c51e34",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1fe87c25054760dc53636d7e0cec8556c6c51e34/comments",
-      "author": {
-        "login": "willcl-ark",
-        "id": 6606587,
-        "node_id": "MDQ6VXNlcjY2MDY1ODc=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/6606587?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/willcl-ark",
-        "html_url": "https://github.com/willcl-ark",
-        "followers_url": "https://api.github.com/users/willcl-ark/followers",
-        "following_url": "https://api.github.com/users/willcl-ark/following{/other_user}",
-        "gists_url": "https://api.github.com/users/willcl-ark/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/willcl-ark/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/willcl-ark/subscriptions",
-        "organizations_url": "https://api.github.com/users/willcl-ark/orgs",
-        "repos_url": "https://api.github.com/users/willcl-ark/repos",
-        "events_url": "https://api.github.com/users/willcl-ark/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/willcl-ark/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "willcl-ark",
-        "id": 6606587,
-        "node_id": "MDQ6VXNlcjY2MDY1ODc=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/6606587?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/willcl-ark",
-        "html_url": "https://github.com/willcl-ark",
-        "followers_url": "https://api.github.com/users/willcl-ark/followers",
-        "following_url": "https://api.github.com/users/willcl-ark/following{/other_user}",
-        "gists_url": "https://api.github.com/users/willcl-ark/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/willcl-ark/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/willcl-ark/subscriptions",
-        "organizations_url": "https://api.github.com/users/willcl-ark/orgs",
-        "repos_url": "https://api.github.com/users/willcl-ark/repos",
-        "events_url": "https://api.github.com/users/willcl-ark/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/willcl-ark/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "7e75b3b922f9ba740240c2204e3e9389524eafdb",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7e75b3b922f9ba740240c2204e3e9389524eafdb",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/7e75b3b922f9ba740240c2204e3e9389524eafdb"
         }
       ]
     }
