@@ -1,12 +1,14 @@
 // __partials/widgets/mempool-specs/js/provider.js
 (function(){
   "use strict";
+
   const W=window;
-  if(W.ZZXMempoolSpecsProvider?.__version>=4)return;
+  if(W.ZZXMempoolSpecsProvider?.__version>=5)return;
 
   async function j(url,opts={}){
     return (await W.ZZXMempoolSpecsFetch.fetchJSON(url,opts)).json;
   }
+
   async function t(url,opts={}){
     return (await W.ZZXMempoolSpecsFetch.fetchText(url,opts)).text;
   }
@@ -19,61 +21,88 @@
   function marketStatePrice(){
     const state=W.ZZXMarketState;
     let snap=null;
+
     try{
-      snap=typeof state?.getSnapshot==="function"?state.getSnapshot():(state?.snapshot||state?.current||state);
-    }catch(_){snap=state}
-    const values=[
+      snap=typeof state?.getSnapshot==="function"
+        ? state.getSnapshot()
+        : (state?.snapshot||state?.current||state);
+    }catch(_error){
+      snap=state;
+    }
+
+    for(const value of [
       snap?.effectivePriceUsd,
       snap?.effective_price_usd,
       state?.effectivePriceUsd,
       state?.effective_price_usd
-    ];
-    for(const value of values){
+    ]){
       const n=positive(value);
-      if(Number.isFinite(n))return {value:n,source:"ZZX Market State"};
+      if(Number.isFinite(n)){
+        return {value:n,source:"ZZX Market State"};
+      }
     }
+
     return null;
   }
 
   async function price(url){
     const shared=marketStatePrice();
     if(shared)return shared;
+
     try{
       const data=await j(url,{ttlMs:5000});
-      const value=positive(data?.price_usd??data?.bpi_usd??data?.vwap_usd);
-      return {value,source:data?.source||"ZZX Global BPI"};
-    }catch(_){return {value:NaN,source:"price unavailable"}}
+      const value=positive(
+        data?.price_usd ??
+        data?.bpi_usd ??
+        data?.vwap_usd
+      );
+
+      return {
+        value,
+        source:data?.source||"ZZX Global BPI"
+      };
+    }catch(_error){
+      return {value:NaN,source:"price unavailable"};
+    }
   }
 
   async function inlineFullFeed(){
     const feed=W.ZZXMempoolSpecsFullFeed;
     if(!feed)return null;
+
     try{
       const value=typeof feed==="function"?await feed():feed;
-      return value&&typeof value==="object"?{data:value,source:"window.ZZXMempoolSpecsFullFeed"}:null;
-    }catch(_){return null}
+      return value&&typeof value==="object"
+        ? {data:value,source:"window.ZZXMempoolSpecsFullFeed"}
+        : null;
+    }catch(_error){
+      return null;
+    }
   }
 
   async function remoteFullFeed(cfg,signal){
     const inline=await inlineFullFeed();
     if(inline)return inline;
+
     for(const url of cfg.fullFeedUrls||[]){
       try{
         const data=await j(url,{signal,ttlMs:10000});
-        if(data&&typeof data==="object")return {data,source:url};
-      }catch(_){/* optional source */}
+        if(data&&typeof data==="object"){
+          return {data,source:url};
+        }
+      }catch(_error){
+        // Optional source. Public mempool.space mode works without this.
+      }
     }
+
     return null;
   }
 
   async function load(core,{signal,force=false}={}){
     const cfg=W.ZZXMempoolSpecsSources.get(core);
-    const txidTtl=force?0:cfg.txidRefreshMs;
 
-    const tasks={
+    const jobs={
       mempool:j(cfg.endpoints.mempool,{signal,ttlMs:force?0:5000}),
-      txids:j(cfg.endpoints.txids,{signal,ttlMs:txidTtl}),
-      recent:j(cfg.endpoints.recent,{signal,ttlMs:force?0:5000}),
       blocks:j(cfg.endpoints.blocks,{signal,ttlMs:force?0:5000}),
       recommended:j(cfg.endpoints.recommended,{signal,ttlMs:force?0:5000}),
       tip:t(cfg.endpoints.tipHeight,{signal,ttlMs:force?0:5000}),
@@ -81,28 +110,30 @@
       full:remoteFullFeed(cfg,signal)
     };
 
-    const keys=Object.keys(tasks);
-    const settled=await Promise.allSettled(keys.map(k=>tasks[k]));
+    const keys=Object.keys(jobs);
+    const settled=await Promise.allSettled(keys.map(key=>jobs[key]));
     const out={};
-    settled.forEach((r,i)=>{out[keys[i]]=r.status==="fulfilled"?r.value:null});
 
-    if(!out.mempool&&!out.txids&&!out.full){
-      const error=settled.find(r=>r.status==="rejected")?.reason;
-      throw error||new Error("mempool transaction universe unavailable");
+    settled.forEach((result,index)=>{
+      out[keys[index]]=result.status==="fulfilled"
+        ? result.value
+        : null;
+    });
+
+    if(!out.mempool&&!out.blocks&&!out.full){
+      const firstError=settled.find(result=>result.status==="rejected")?.reason;
+      throw firstError||new Error("projected mempool block data unavailable");
     }
 
     const tipHeight=Number(String(out.tip??"").trim());
-    const txids=Array.isArray(out.txids)?out.txids.filter(x=>typeof x==="string"):[];
-    const recent=Array.isArray(out.recent)?out.recent:[];
-    const blocks=Array.isArray(out.blocks)?out.blocks:[];
 
     return {
       cfg,
       mempool:out.mempool&&typeof out.mempool==="object"?out.mempool:null,
-      txids,
-      recent,
-      blocks,
-      feeRecommendations:out.recommended&&typeof out.recommended==="object"?out.recommended:null,
+      blocks:Array.isArray(out.blocks)?out.blocks:[],
+      feeRecommendations:out.recommended&&typeof out.recommended==="object"
+        ? out.recommended
+        : null,
       fullFeed:out.full?.data||null,
       fullFeedSource:out.full?.source||"",
       tipHeight:Number.isFinite(tipHeight)?tipHeight:NaN,
@@ -113,5 +144,9 @@
     };
   }
 
-  W.ZZXMempoolSpecsProvider=Object.freeze({__version:4,load,marketStatePrice});
+  W.ZZXMempoolSpecsProvider=Object.freeze({
+    __version:5,
+    load,
+    marketStatePrice
+  });
 })();
