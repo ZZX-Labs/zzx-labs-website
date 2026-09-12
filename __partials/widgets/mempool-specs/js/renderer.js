@@ -1,143 +1,107 @@
-// __partials/widgets/mempool-specs/renderer.js
-// DROP-IN COMPLETE REPLACEMENT
-//
-// Purpose:
-// - Paint a *tiled field* of variable-size TX tiles onto the canvas.
-// - Supports BOTH square tiles (tx.side) and rectangle tiles (tx.w/tx.h in cells).
-// - Uses Theme for colors + chrome, identical look regardless of packer used.
-// - This replaces “columns” vibes by honoring packed geometry (w/h or side).
-//
-// Input:
-//   - grid: from Grid.makeGrid()
-//   - layout: { placed:[ {x,y, side? , w?, h?, feeRate, ...} ] }
-//     where x/y and side/w/h are in GRID CELLS.
-//
-// Exposes:
-//   window.ZZXMempoolSpecs.Renderer.draw(ctx, canvas, grid, layout, meta)
-//
-// Notes:
-// - Your packer can be: tetrifill (squares), binfill (squares), treemap (rectangles).
-// - This renderer will faithfully draw what the packer outputs.
-
-(function () {
+// __partials/widgets/mempool-specs/js/renderer.js
+(function(){
   "use strict";
+  const W=window;
+  const NS=(W.ZZXMempoolSpecs=W.ZZXMempoolSpecs||{});
+  if(NS.Renderer?.__version>=4)return;
 
-  const NS = (window.ZZXMempoolSpecs = window.ZZXMempoolSpecs || {});
-
-  function pxSpan(cells, cellPx, gapPx) {
-    const c = Math.max(1, Math.floor(cells || 1));
-    return (c * cellPx) + (Math.max(0, c - 1) * gapPx);
+  function size(canvas){
+    const rect=canvas.getBoundingClientRect();
+    const css=Math.max(220,Math.floor(Math.min(rect.width||520,rect.height||rect.width||520)));
+    const dpr=Math.max(1,Math.min(3,W.devicePixelRatio||1));
+    const px=Math.floor(css*dpr);
+    if(canvas.width!==px||canvas.height!==px){canvas.width=px;canvas.height=px}
+    return {css,dpr};
   }
 
-  function drawStripes(ctx, grid, theme) {
-    ctx.save();
-    ctx.strokeStyle = theme.gridLine || "rgba(255,255,255,0.06)";
-    ctx.lineWidth = 1;
-
-    // subtle stripes only (fast)
-    const stepY = Math.max(24, Math.round(28 * grid.dpr));
-    const stepX = Math.max(34, Math.round(44 * grid.dpr));
-
-    for (let y = grid.padPx; y < grid.H - grid.padPx; y += stepY) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(grid.W, y + 0.5);
-      ctx.stroke();
-    }
-    for (let x = grid.padPx; x < grid.W - grid.padPx; x += stepX) {
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, grid.H);
-      ctx.stroke();
-    }
-
-    ctx.restore();
+  function previousMap(layout){
+    if(!layout?.tiles)return null;
+    const m=new Map();
+    for(const t of layout.tiles)m.set(t.txid,t);
+    return m;
   }
 
-  function drawFrame(ctx, canvas, grid, theme) {
-    ctx.save();
-
-    // bg
-    ctx.fillStyle = theme.canvasBg || "#000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // border frame
-    ctx.strokeStyle = theme.border || "#e6a42b";
-    ctx.lineWidth = Math.max(2, Math.round(3 * grid.dpr));
-    ctx.strokeRect(
-      Math.round(2 * grid.dpr),
-      Math.round(2 * grid.dpr),
-      canvas.width - Math.round(4 * grid.dpr),
-      canvas.height - Math.round(4 * grid.dpr)
-    );
-
-    drawStripes(ctx, grid, theme);
-
-    ctx.restore();
+  function position(tile,layout,fromMap,fromLayout,t){
+    const nx=tile.x/layout.gridN,ny=tile.y/layout.gridN,ns=tile.side/layout.gridN;
+    if(!(fromMap&&fromLayout&&t<1))return {x:nx,y:ny,s:ns,alpha:1};
+    const old=fromMap.get(tile.txid);
+    if(!old)return {x:nx,y:ny,s:ns,alpha:t};
+    const ox=old.x/fromLayout.gridN,oy=old.y/fromLayout.gridN,os=old.side/fromLayout.gridN;
+    return {
+      x:ox+(nx-ox)*t,
+      y:oy+(ny-oy)*t,
+      s:os+(ns-os)*t,
+      alpha:1
+    };
   }
 
-  function drawMeta(ctx, canvas, grid, theme, meta) {
-    if (!meta) return;
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = theme.text || "#c0d674";
-    ctx.font = `${Math.max(12, Math.round(11 * grid.dpr))}px IBMPlexMono, ui-monospace, monospace`;
-    ctx.fillText(
-      String(meta),
-      Math.round(10 * grid.dpr),
-      canvas.height - Math.round(14 * grid.dpr)
-    );
-    ctx.restore();
-  }
+  function draw(canvas,layout,opts={}){
+    if(!canvas||!layout)return;
+    const ctx=canvas.getContext("2d");if(!ctx)return;
+    const {css,dpr}=size(canvas);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,css,css);
 
-  function draw(ctx, canvas, grid, layout, meta) {
-    const Theme = NS.Theme;
-    const theme = Theme?.get?.() || {};
-    const colorForFee = Theme?.colorForFeeRate || (() => "#555");
+    const theme=NS.Theme?.get?.()||{};
+    const colors=theme.colors||{};
+    ctx.fillStyle=colors.canvasBg||"#000";ctx.fillRect(0,0,css,css);
 
-    ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    drawFrame(ctx, canvas, grid, theme);
-
-    const outline = theme.tileOutline || "rgba(255,255,255,0.10)";
-    const placed = (layout && Array.isArray(layout.placed)) ? layout.placed : [];
-
-    // Paint tiles
-    for (const tx of placed) {
-      const cx = Math.max(0, Math.floor(tx.x || 0));
-      const cy = Math.max(0, Math.floor(tx.y || 0));
-
-      // Prefer rectangles if present, else squares
-      const wCells = Number.isFinite(tx.w) ? Math.max(1, Math.floor(tx.w)) : null;
-      const hCells = Number.isFinite(tx.h) ? Math.max(1, Math.floor(tx.h)) : null;
-
-      const sideCells = Number.isFinite(tx.side)
-        ? Math.max(1, Math.floor(tx.side))
-        : 1;
-
-      const wc = (wCells != null && hCells != null) ? wCells : sideCells;
-      const hc = (wCells != null && hCells != null) ? hCells : sideCells;
-
-      const x = grid.x0 + cx * grid.step;
-      const y = grid.y0 + cy * grid.step;
-
-      const wpx = pxSpan(wc, grid.cellPx, grid.gapPx);
-      const hpx = pxSpan(hc, grid.cellPx, grid.gapPx);
-
-      ctx.fillStyle = colorForFee(Number(tx.feeRate) || 0, theme);
-      ctx.fillRect(x, y, wpx, hpx);
-
-      // outline
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, wpx - 1), Math.max(0, hpx - 1));
+    const pad=8;
+    const inner=css-pad*2;
+    ctx.strokeStyle=colors.gridLine||"rgba(255,255,255,.045)";
+    ctx.lineWidth=1;
+    const stripe=Math.max(32,Math.floor(inner/10));
+    for(let p=pad+stripe;p<css-pad;p+=stripe){
+      ctx.beginPath();ctx.moveTo(p+.5,pad);ctx.lineTo(p+.5,css-pad);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(pad,p+.5);ctx.lineTo(css-pad,p+.5);ctx.stroke();
     }
 
-    drawMeta(ctx, canvas, grid, theme, meta);
+    const fromLayout=opts.fromLayout||null;
+    const fromMap=opts.fromMap||previousMap(fromLayout);
+    const progress=Number.isFinite(opts.progress)?opts.progress:1;
+    const colorForFee=NS.Theme?.colorForFeeRate||(()=>"#555");
 
+    for(const tile of layout.tiles){
+      const p=position(tile,layout,fromMap,fromLayout,progress);
+      const x=pad+p.x*inner,y=pad+p.y*inner,s=Math.max(.55,p.s*inner);
+      ctx.globalAlpha=p.alpha*(tile.detailed?1:.52);
+      ctx.fillStyle=tile.detailed?colorForFee(tile.packageFeeRate??tile.feeRate,theme):(colors.pending||"#171b1d");
+      ctx.fillRect(x,y,s,s);
+      if(s>=2.4){
+        ctx.strokeStyle=colors.tileOutline||"rgba(255,255,255,.09)";
+        ctx.lineWidth=.6;
+        ctx.strokeRect(x+.3,y+.3,Math.max(.1,s-.6),Math.max(.1,s-.6));
+      }
+    }
+    ctx.globalAlpha=1;
+
+    // Projected one-vMB block boundaries follow the actual sorted transaction stream.
+    ctx.save();
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle=colors.marker||"rgba(230,164,43,.82)";
+    ctx.fillStyle=colors.marker||"rgba(230,164,43,.82)";
+    ctx.font='9px "IBM Plex Mono", monospace';
+    ctx.textAlign="right";
+    for(const marker of layout.markers.slice(0,12)){
+      const y=pad+(marker.y/layout.gridN)*inner;
+      if(y<=pad+2||y>=css-pad-2)continue;
+      ctx.beginPath();ctx.moveTo(pad,y+.5);ctx.lineTo(css-pad,y+.5);ctx.stroke();
+      ctx.fillText(`+${marker.block}`,css-pad-3,Math.max(pad+2,y-10));
+    }
     ctx.restore();
+
+    const selected=opts.selectedTxid?layout.byTxid.get(opts.selectedTxid):null;
+    const hovered=opts.hoverTxid?layout.byTxid.get(opts.hoverTxid):null;
+    for(const [tile,width,color] of [[selected,2,colors.selected||"#fff"],[hovered,1,colors.border||"#e6a42b"]]){
+      if(!tile)continue;
+      const x=pad+(tile.x/layout.gridN)*inner,y=pad+(tile.y/layout.gridN)*inner,s=Math.max(1,(tile.side/layout.gridN)*inner);
+      ctx.strokeStyle=color;ctx.lineWidth=width;ctx.strokeRect(x+.5,y+.5,Math.max(1,s-1),Math.max(1,s-1));
+    }
+
+    ctx.strokeStyle=colors.border||"#e6a42b";
+    ctx.lineWidth=2;
+    ctx.strokeRect(1,1,css-2,css-2);
   }
 
-  NS.Renderer = { draw };
+  NS.Renderer=Object.freeze({__version:4,draw,previousMap});
 })();
