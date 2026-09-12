@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesLayout?.__version>=1)return;
+  if(W.ZZXMempoolTilesLayout?.__version>=2)return;
 
   const Scaler=()=>W.ZZXMempoolTilesScaler;
   const Packer=()=>W.ZZXMempoolTilesPacker;
@@ -36,15 +36,24 @@
       side:Scaler().side(tx,scale)
     }));
 
+    /*
+     * A deliberately modest packing density is important here. Tiles is a live
+     * transaction field, not a solid treemap: the breathing room lets every
+     * square remain visually discrete and keeps repacking fast enough to animate
+     * whenever next-block membership changes.
+     */
     const packed=Packer().pack(squareItems,{
-      targetFill:.86,
-      maxGrid:512,
+      targetFill:.74,
+      maxGrid:640,
+      probes:180,
       sortMode,
       seed
     });
 
     if(packed.placed.length!==items.length){
-      throw new Error(`layout lost transactions ${packed.placed.length}/${items.length}`);
+      throw new Error(
+        `layout lost transactions ${packed.placed.length}/${items.length}`
+      );
     }
 
     const n=packed.gridN;
@@ -57,22 +66,34 @@
       side:row.sideCells/n
     }));
 
-    const byTxid=new Map(tiles.map(tile=>[tile.txid,tile]));
+    const byTxid=new Map(
+      tiles.map(tile=>[tile.txid,tile])
+    );
+
     const spatial=new Int32Array(n*n);
 
     for(let index=0;index<tiles.length;index++){
       const tile=tiles[index];
 
-      for(let y=tile.cellY;y<tile.cellY+tile.sideCells;y++){
+      for(
+        let y=tile.cellY;
+        y<tile.cellY+tile.sideCells;
+        y++
+      ){
         const offset=y*n;
-        for(let x=tile.cellX;x<tile.cellX+tile.sideCells;x++){
+
+        for(
+          let x=tile.cellX;
+          x<tile.cellX+tile.sideCells;
+          x++
+        ){
           spatial[offset+x]=index+1;
         }
       }
     }
 
     return {
-      schema:"zzx-mempool-tiles-layout-v1",
+      schema:"zzx-mempool-tiles-layout-v2",
       tiles,
       byTxid,
       gridN:n,
@@ -88,18 +109,41 @@
   }
 
   function hit(layout,nx,ny){
-    if(!layout?.spatial||!(nx>=0&&nx<1&&ny>=0&&ny<1))return null;
+    if(
+      !layout?.spatial ||
+      !(nx>=0&&nx<1&&ny>=0&&ny<1)
+    ){
+      return null;
+    }
 
     const n=layout.gridN;
-    const x=Math.min(n-1,Math.max(0,Math.floor(nx*n)));
-    const y=Math.min(n-1,Math.max(0,Math.floor(ny*n)));
-    const index=layout.spatial[y*n+x]-1;
 
-    return index>=0?layout.tiles[index]||null:null;
+    const x=Math.min(
+      n-1,
+      Math.max(
+        0,
+        Math.floor(nx*n)
+      )
+    );
+
+    const y=Math.min(
+      n-1,
+      Math.max(
+        0,
+        Math.floor(ny*n)
+      )
+    );
+
+    const index=
+      layout.spatial[y*n+x]-1;
+
+    return index>=0
+      ? layout.tiles[index]||null
+      : null;
   }
 
   W.ZZXMempoolTilesLayout=Object.freeze({
-    __version:1,
+    __version:2,
     build,
     hit
   });
