@@ -1,11 +1,11 @@
 // __partials/widgets/mempool-specs/widget.js
-// v10.72 — Mempool Specs / Spectacles live next-block value tiler
+// v10.73 — Mempool Specs / Spectacles dense live next-block value tiler
 (function(){
   "use strict";
 
   const W=window,D=document,ID="mempool-specs";
   const DEPS=[
-    ["ZZXMempoolSpecsSources","js/sources.js",7],
+    ["ZZXMempoolSpecsSources","js/sources.js",8],
     ["ZZXMempoolSpecsFetch","js/fetch.js",4],
     ["ZZXMempoolSpecsProvider","js/provider.js",6],
     ["ZZXMempoolSpecsLive","js/live.js",1],
@@ -19,8 +19,8 @@
     ["ZZXMempoolSpecs.BinFill","js/binfill.js",5],
     ["ZZXMempoolSpecs.Sorter","js/sorter.js",5],
     ["ZZXMempoolSpecs.Plotter","js/plotter.js",5],
-    ["ZZXMempoolSpecsBlockLayout","js/block-layout.js",3],
-    ["ZZXMempoolSpecs.Renderer","js/renderer.js",7],
+    ["ZZXMempoolSpecsBlockLayout","js/block-layout.js",4],
+    ["ZZXMempoolSpecs.Renderer","js/renderer.js",8],
     ["ZZXMempoolSpecs.Anim","js/animation.js",5],
     ["ZZXMempoolSpecs.TxAnalyzer","js/tx-analyzer.js",1],
     ["ZZXMempoolSpecs.TxFetcher","js/txfetcher.js",6],
@@ -227,7 +227,7 @@
     setText(
       root,
       "[data-ms-plane-meta]",
-      `${int(visibleTx)} real TX · area ∝ BTC value`
+      `${int(visibleTx)} real TX · BTC-value scaled mosaic`
     );
 
     setText(
@@ -253,7 +253,7 @@
     setText(
       root,
       "[data-ms-layout]",
-      `${int(visibleTx)} real transaction tiles · ${pct(layout.valueCoverage,1)} value coverage · ${pct(layout.vsizeCoverage,1)} vsize coverage`
+      `${int(visibleTx)} real transaction tiles · full visual fill · ${pct(layout.valueCoverage,1)} values resolved · ${pct(layout.vsizeCoverage,1)} candidate vsize observed`
     );
 
     setText(root,"[data-ms-source-mode]",block.sourceMode);
@@ -273,8 +273,8 @@
       root,
       "[data-ms-method]",
       block.live
-        ? "authoritative projected-next-block transaction membership from live stream; inclusion sorted by server projection/package fee; tile area proportional to total BTC outputs; color is absolute sat/vB"
-        : "fallback next-block estimate from detailed mempool rows ranked by projected index/package fee; real TX tiles only; background hydration resolves BTC values"
+        ? "authoritative projected-next-block membership from live stream; BTC output value controls perceptual tile area; absolute sat/vB controls color; txids animate in/out/reposition as the projected block changes"
+        : "fallback next-block estimate from detailed mempool rows ranked by projected index/package fee; real TX tiles only; unresolved values remain visible and resize when hydration resolves them"
     );
 
     setText(
