@@ -1,109 +1,121 @@
 // __partials/widgets/mempool-tiles/js/layout.js
+// v3 — stable one-slot-per-transaction square tile grid
 (function(){
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesLayout?.__version>=2)return;
+  if(W.ZZXMempoolTilesLayout?.__version>=3)return;
 
   const Scaler=()=>W.ZZXMempoolTilesScaler;
-  const Packer=()=>W.ZZXMempoolTilesPacker;
+  const Sorter=()=>W.ZZXMempoolTilesSorter;
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
   function build(model,{
     scaleMode="vsize",
     sortMode="priority",
     seed=0
   }={}){
-    const items=(model?.candidate||[]).filter(tx=>tx?.txid);
+    const source=(model?.candidate||[])
+      .filter(tx=>tx?.txid);
 
-    if(!items.length){
+    if(!source.length){
       return {
+        schema:"zzx-mempool-tiles-grid-v3",
         tiles:[],
         byTxid:new Map(),
         gridN:1,
         spatial:new Int32Array(1),
-        fillRatio:0,
+        slotFillRatio:0,
+        blockFillRatio:0,
         scale:null,
-        sortMode,
         scaleMode,
-        seed
+        sortMode,
+        seed,
+        builtAt:Date.now()
       };
     }
 
-    const scale=Scaler().makeScale(items,scaleMode);
-
-    const squareItems=items.map(tx=>({
-      ...tx,
-      side:Scaler().side(tx,scale)
-    }));
-
-    /*
-     * A deliberately modest packing density is important here. Tiles is a live
-     * transaction field, not a solid treemap: the breathing room lets every
-     * square remain visually discrete and keeps repacking fast enough to animate
-     * whenever next-block membership changes.
-     */
-    const packed=Packer().pack(squareItems,{
-      targetFill:.74,
-      maxGrid:640,
-      probes:180,
+    const ordered=Sorter().sort(
+      source,
       sortMode,
       seed
+    );
+
+    const gridN=Math.max(
+      1,
+      Math.ceil(
+        Math.sqrt(ordered.length)
+      )
+    );
+
+    const cell=1/gridN;
+    const scale=Scaler().makeScale(
+      ordered,
+      scaleMode
+    );
+
+    const tiles=ordered.map((tx,index)=>{
+      const cellX=index%gridN;
+      const cellY=Math.floor(index/gridN);
+      const footprint=Scaler().ratio(tx,scale);
+      const side=cell*footprint;
+      const cx=(cellX+.5)*cell;
+      const cy=(cellY+.5)*cell;
+
+      return {
+        ...tx,
+        index,
+        cellX,
+        cellY,
+        cellSide:cell,
+        footprint,
+        cx,
+        cy,
+        side,
+        x:cx-side/2,
+        y:cy-side/2
+      };
     });
-
-    if(packed.placed.length!==items.length){
-      throw new Error(
-        `layout lost transactions ${packed.placed.length}/${items.length}`
-      );
-    }
-
-    const n=packed.gridN;
-
-    const tiles=packed.placed.map((row,index)=>({
-      ...row,
-      index,
-      x:row.cellX/n,
-      y:row.cellY/n,
-      side:row.sideCells/n
-    }));
 
     const byTxid=new Map(
       tiles.map(tile=>[tile.txid,tile])
     );
 
-    const spatial=new Int32Array(n*n);
+    /*
+     * Hit testing uses the entire logical slot, not only the visible square.
+     * Tiny transactions therefore remain just as selectable as large ones.
+     */
+    const spatial=new Int32Array(gridN*gridN);
 
     for(let index=0;index<tiles.length;index++){
       const tile=tiles[index];
-
-      for(
-        let y=tile.cellY;
-        y<tile.cellY+tile.sideCells;
-        y++
-      ){
-        const offset=y*n;
-
-        for(
-          let x=tile.cellX;
-          x<tile.cellX+tile.sideCells;
-          x++
-        ){
-          spatial[offset+x]=index+1;
-        }
-      }
+      spatial[tile.cellY*gridN+tile.cellX]=index+1;
     }
 
+    const target=Math.max(
+      1,
+      Number(model?.targetVbytes)||1_000_000
+    );
+
+    const actual=Math.max(
+      0,
+      Number(model?.candidateVsize)||0
+    );
+
     return {
-      schema:"zzx-mempool-tiles-layout-v2",
+      schema:"zzx-mempool-tiles-grid-v3",
       tiles,
       byTxid,
-      gridN:n,
+      gridN,
       spatial,
-      fillRatio:packed.fillRatio,
+      slotFillRatio:
+        tiles.length/(gridN*gridN),
+      blockFillRatio:
+        clamp(actual/target,0,1.25),
       scale,
-      sortMode,
       scaleMode,
+      sortMode,
       seed,
-      attempts:packed.attempts,
       builtAt:Date.now()
     };
   }
@@ -117,25 +129,9 @@
     }
 
     const n=layout.gridN;
-
-    const x=Math.min(
-      n-1,
-      Math.max(
-        0,
-        Math.floor(nx*n)
-      )
-    );
-
-    const y=Math.min(
-      n-1,
-      Math.max(
-        0,
-        Math.floor(ny*n)
-      )
-    );
-
-    const index=
-      layout.spatial[y*n+x]-1;
+    const x=clamp(Math.floor(nx*n),0,n-1);
+    const y=clamp(Math.floor(ny*n),0,n-1);
+    const index=layout.spatial[y*n+x]-1;
 
     return index>=0
       ? layout.tiles[index]||null
@@ -143,7 +139,7 @@
   }
 
   W.ZZXMempoolTilesLayout=Object.freeze({
-    __version:2,
+    __version:3,
     build,
     hit
   });
