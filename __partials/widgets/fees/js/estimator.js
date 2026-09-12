@@ -3,12 +3,11 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXFeesEstimator?.__version>=3)return;
+  if(W.ZZXFeesEstimator?.__version>=4)return;
 
-  const STEP=0.01;
+  const QUANTUM=0.125;
   const BLOCK_MINUTES=10;
 
-  // Ordered from cheapest/slowest to most expensive/fastest.
   const ORDER=Object.freeze([
     "min",
     "economy",
@@ -19,8 +18,14 @@
     "instant"
   ]);
 
-  // First-confirmation planning anchors. These are planning bands, not
-  // guarantees; block production and mempool state remain stochastic.
+  const SOURCE_ORDER=Object.freeze([
+    "min",
+    "economy",
+    "low",
+    "fast",
+    "instant"
+  ]);
+
   const FIRST_CONFIRMATION_MINUTES=Object.freeze({
     instant:10,
     fast:30,
@@ -36,124 +41,110 @@
     return Number.isFinite(n)?n:NaN;
   }
 
-  function ceilTo(value,step=STEP){
-    const n=finite(value);
-    if(!Number.isFinite(n))return NaN;
-    return Math.ceil((n-1e-12)/step)*step;
-  }
-
-  function roundTo(value,step=STEP){
-    const n=finite(value);
-    if(!Number.isFinite(n))return NaN;
-    return Math.round(n/step)*step;
-  }
-
-  function validPositive(value){
-    const n=finite(value);
+  function positiveOrZero(v){
+    const n=finite(v);
     return Number.isFinite(n)&&n>=0?n:NaN;
+  }
+
+  function roundQuantum(value){
+    const n=finite(value);
+    if(!Number.isFinite(n))return NaN;
+    return Math.round(n/QUANTUM)*QUANTUM;
+  }
+
+  function ceilQuantum(value){
+    const n=finite(value);
+    if(!Number.isFinite(n))return NaN;
+    return Math.ceil((n-1e-12)/QUANTUM)*QUANTUM;
   }
 
   function sourceBase(rec){
     return {
-      instant:validPositive(rec?.fastestFee),
-      fast:validPositive(rec?.halfHourFee),
-      low:validPositive(rec?.hourFee),
-      economy:validPositive(rec?.economyFee),
-      min:validPositive(rec?.minimumFee)
+      instant:positiveOrZero(rec?.fastestFee),
+      fast:positiveOrZero(rec?.halfHourFee),
+      low:positiveOrZero(rec?.hourFee),
+      economy:positiveOrZero(rec?.economyFee),
+      min:positiveOrZero(rec?.minimumFee)
     };
   }
 
-  function firstFinite(...values){
-    for(const value of values){
-      if(Number.isFinite(value))return value;
-    }
-    return NaN;
+  function finiteValues(obj){
+    return Object.values(obj).filter(Number.isFinite);
   }
 
-  function normalizedBase(raw){
-    // Preserve the source values as the floor for each corresponding tier,
-    // but make the presentation ladder strictly monotonic. Fast reserves
-    // two sub-sat slots for the derived Mid/High tiers.
-    const min=ceilTo(firstFinite(raw.min,raw.economy,raw.low,raw.fast,raw.instant,1));
-    const economy=ceilTo(Math.max(
-      firstFinite(raw.economy,min),
-      min+STEP
-    ));
-    const low=ceilTo(Math.max(
-      firstFinite(raw.low,economy),
-      economy+STEP
-    ));
-    const fast=ceilTo(Math.max(
-      firstFinite(raw.fast,low),
-      low+(STEP*3)
-    ));
-    const instant=ceilTo(Math.max(
-      firstFinite(raw.instant,fast),
-      fast+STEP
-    ));
+  function sourceBounds(raw){
+    const values=finiteValues(raw);
+    const minSource=Number.isFinite(raw.min)
+      ? raw.min
+      : values.length
+        ? Math.min(...values)
+        : 1;
 
-    return {instant,fast,low,economy,min};
-  }
-
-  function derivedTiers(base){
-    const gap=base.fast-base.low;
-
-    let mid=roundTo(base.low+(gap/3));
-    let high=roundTo(base.low+(gap*2/3));
-
-    // Rounding can collapse boundaries in tiny source gaps. Repair using
-    // 0.01 sat/vB increments while never exceeding the source-derived fast.
-    mid=Math.max(mid,roundTo(base.low+STEP));
-    high=Math.max(high,roundTo(mid+STEP));
-
-    if(high>=base.fast){
-      high=roundTo(base.fast-STEP);
-    }
-    if(mid>=high){
-      mid=roundTo(high-STEP);
-    }
+    const maxSource=Number.isFinite(raw.instant)
+      ? Math.max(raw.instant,...values)
+      : values.length
+        ? Math.max(...values)
+        : minSource;
 
     return {
-      instant:base.instant,
-      fast:base.fast,
-      high,
-      mid,
-      low:base.low,
-      economy:base.economy,
-      min:base.min
+      min:roundQuantum(minSource),
+      max:roundQuantum(maxSource)
     };
   }
 
-  function strictRepair(tiers){
-    const out={...tiers};
-    let previous=NaN;
+  function distributedLadder(raw){
+    const bounds=sourceBounds(raw);
+    const gaps=ORDER.length-1;
 
-    for(const key of ORDER){
-      let value=ceilTo(out[key]);
+    let min=bounds.min;
+    let max=bounds.max;
 
-      if(!Number.isFinite(value)){
-        value=Number.isFinite(previous)?ceilTo(previous+STEP):STEP;
-      }
+    if(!Number.isFinite(min))min=1;
+    if(!Number.isFinite(max))max=min;
 
-      if(Number.isFinite(previous)&&value<=previous){
-        value=ceilTo(previous+STEP);
-      }
+    // Seven tiers require six positive gaps. If the source range is too
+    // narrow, extend only the top edge by the smallest amount necessary.
+    // Otherwise, preserve the source min/max endpoints exactly.
+    let totalSteps=Math.round((max-min)/QUANTUM);
 
-      out[key]=value;
-      previous=value;
+    if(totalSteps<gaps){
+      totalSteps=gaps;
+      max=roundQuantum(min+(totalSteps*QUANTUM));
     }
 
-    return out;
+    const values=[];
+
+    for(let index=0;index<=gaps;index++){
+      const stepIndex=index===gaps
+        ? totalSteps
+        : Math.floor((totalSteps*index)/gaps);
+
+      values.push(
+        roundQuantum(min+(stepIndex*QUANTUM))
+      );
+    }
+
+    // Integer step distribution can never duplicate when totalSteps>=gaps,
+    // but keep a final safety repair.
+    for(let index=1;index<values.length;index++){
+      if(values[index]<=values[index-1]){
+        values[index]=roundQuantum(values[index-1]+QUANTUM);
+      }
+    }
+
+    return Object.fromEntries(
+      ORDER.map((key,index)=>[key,values[index]])
+    );
   }
 
   function buildRanges(tiers){
     const ranges={};
 
     ORDER.forEach((key,index)=>{
-      const value=tiers[key];
-      const lower=index>0?tiers[ORDER[index-1]]:value;
-      const upper=index<ORDER.length-1?tiers[ORDER[index+1]]:value;
-      ranges[key]={lo:lower,hi:upper};
+      ranges[key]={
+        lo:index>0?tiers[ORDER[index-1]]:tiers[key],
+        hi:index<ORDER.length-1?tiers[ORDER[index+1]]:tiers[key]
+      };
     });
 
     return ranges;
@@ -161,11 +152,15 @@
 
   function build(rec){
     const raw=sourceBase(rec);
-    const base=normalizedBase(raw);
-    const tiers=strictRepair(derivedTiers(base));
+    const tiers=distributedLadder(raw);
 
-    // Five source-corresponding normalized levels are used once each.
-    const sourceValues=[
+    // Preserve original five mempool recommendations independently from the
+    // normalized display ladder so provenance is never lost.
+    const rawSourceValues=SOURCE_ORDER
+      .map(key=>raw[key])
+      .filter(Number.isFinite);
+
+    const meanValues=[
       tiers.instant,
       tiers.fast,
       tiers.low,
@@ -173,10 +168,9 @@
       tiers.min
     ];
 
-    const mean=sourceValues.reduce((a,b)=>a+b,0)/sourceValues.length;
-
     return {
       raw,
+      sourceBounds:sourceBounds(raw),
       base:{
         instant:tiers.instant,
         fast:tiers.fast,
@@ -186,10 +180,11 @@
       },
       tiers,
       ranges:buildRanges(tiers),
-      mean,
-      sourceValues,
+      mean:meanValues.reduce((sum,value)=>sum+value,0)/meanValues.length,
+      sourceValues:rawSourceValues.length?rawSourceValues:meanValues,
+      normalizedSourceValues:meanValues,
       order:[...ORDER],
-      stepSatVB:STEP
+      quantumSatVB:QUANTUM
     };
   }
 
@@ -203,6 +198,11 @@
     return n;
   }
 
+  function roundedRate(value){
+    const n=finite(value);
+    return Number.isFinite(n)?Math.ceil(n-1e-12):NaN;
+  }
+
   function transaction(vbytes,satVB,priceUsd){
     const rawSize=finite(vbytes);
     const rate=finite(satVB);
@@ -212,8 +212,6 @@
     }
 
     const size=Math.max(1,Math.ceil(rawSize));
-    // Fee rate can be sub-sat/vB, but the transaction fee is integer sats.
-    // Always round upward so the effective paid rate never undershoots.
     const sats=Math.ceil((size*rate)-1e-12);
     const btc=sats/1e8;
     const usd=Number.isFinite(finite(priceUsd))?btc*finite(priceUsd):NaN;
@@ -221,6 +219,7 @@
     return {
       vbytes:size,
       satVB:rate,
+      roundedSatVB:roundedRate(rate),
       sats,
       btc,
       usd,
@@ -260,7 +259,7 @@
         const interpolated=fastRate+((slowRate-fastRate)*fraction);
 
         return {
-          rateSatVB:ceilTo(interpolated),
+          rateSatVB:ceilQuantum(interpolated),
           lowerKey:slowKey,
           upperKey:fastKey
         };
@@ -291,9 +290,6 @@
     const depthMinutes=Math.max(0,(conf-1)*BLOCK_MINUTES);
     const constrained=requested<minimumPracticalMinutes;
 
-    // User supplies a desired total time to the requested confirmation depth.
-    // Reserve ~10 min for every confirmation after the first, and use the
-    // remaining budget to choose the first-inclusion fee rate.
     const firstConfirmationTargetMinutes=Math.max(
       BLOCK_MINUTES,
       requested-depthMinutes
@@ -303,6 +299,7 @@
       return {
         policy,
         rateSatVB:model.tiers[policy],
+        roundedSatVB:roundedRate(model.tiers[policy]),
         bandLabel:policy,
         confirmations:conf,
         requestedTotalMinutes:requested,
@@ -325,6 +322,7 @@
     return {
       policy:"auto",
       rateSatVB:interpolation.rateSatVB,
+      roundedSatVB:roundedRate(interpolation.rateSatVB),
       bandLabel,
       confirmations:conf,
       requestedTotalMinutes:requested,
@@ -338,13 +336,15 @@
   }
 
   W.ZZXFeesEstimator=Object.freeze({
-    __version:3,
-    STEP,
+    __version:4,
+    QUANTUM,
     BLOCK_MINUTES,
     ORDER,
+    SOURCE_ORDER,
     FIRST_CONFIRMATION_MINUTES,
     build,
     convertSatVB,
+    roundedRate,
     transaction,
     plan,
     interpolateRate
