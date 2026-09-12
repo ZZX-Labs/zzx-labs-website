@@ -1,16 +1,14 @@
 // __partials/widgets/mempool-specs/js/sources.js
 (function(){
   "use strict";
-
   const W=window;
-  if(W.ZZXMempoolSpecsSources?.__version>=3)return;
+  if(W.ZZXMempoolSpecsSources?.__version>=4)return;
 
-  function normalizeBase(value){
-    return String(value||"").trim().replace(/\/+$/g,"");
-  }
+  const normalize=v=>String(v||"").trim().replace(/\/+$/g,"");
+  const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/,"");
 
-  function resolveBase(core){
-    return normalizeBase(
+  function apiBase(core){
+    return normalize(
       core?.ctx?.api?.MEMPOOL ||
       core?.ctx?.api?.MEMPOOL_API ||
       W.ZZX?.api?.MEMPOOL ||
@@ -21,32 +19,42 @@
     );
   }
 
-  function join(base,path){
-    return normalizeBase(base)+"/"+String(path||"").replace(/^\/+/,"");
+  function fullFeedUrls(core){
+    const candidates=[
+      core?.ctx?.api?.MEMPOOL_FULL,
+      core?.ctx?.api?.MEMPOOL_TXS,
+      W.ZZX?.api?.MEMPOOL_FULL,
+      W.ZZX?.api?.MEMPOOL_TXS,
+      W.ZZX?.API?.MEMPOOL_FULL,
+      W.ZZX?.API?.MEMPOOL_TXS,
+      "/bitcoin/mempool/api/full.json"
+    ].map(v=>String(v||"").trim()).filter(Boolean);
+    return [...new Set(candidates)];
   }
 
   function get(core){
-    const apiBase=resolveBase(core);
+    const base=apiBase(core);
     return {
-      apiBase,
-      refreshMs:30000,
-      recentLimit:20,
-      candidateVbytes:1_000_000,
+      apiBase:base,
+      refreshMs:15000,
+      txidRefreshMs:30000,
+      progressiveHydrate:24,
+      txConcurrency:4,
       endpoints:{
-        mempool:join(apiBase,"mempool"),
-        blocks:join(apiBase,"v1/fees/mempool-blocks"),
-        tipHeight:join(apiBase,"blocks/tip/height"),
-        recent:join(apiBase,"mempool/recent"),
-        tx:join(apiBase,"tx/{txid}")
+        mempool:join(base,"mempool"),
+        txids:join(base,"mempool/txids"),
+        recent:join(base,"mempool/recent"),
+        blocks:join(base,"v1/fees/mempool-blocks"),
+        recommended:join(base,"v1/fees/recommended"),
+        tipHeight:join(base,"blocks/tip/height"),
+        tx:join(base,"tx/{txid}")
       },
+      fullFeedUrls:fullFeedUrls(core),
       price:W.ZZXAPI?.url
         ? W.ZZXAPI.url("/bitcoin/bpi/api/latest.json")
         : "/bitcoin/bpi/api/latest.json"
     };
   }
 
-  W.ZZXMempoolSpecsSources=Object.freeze({
-    __version:3,
-    get
-  });
+  W.ZZXMempoolSpecsSources=Object.freeze({__version:4,get,apiBase,fullFeedUrls});
 })();
