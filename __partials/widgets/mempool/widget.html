@@ -14,48 +14,124 @@
   </div>
 
   <div class="mempool__hero">
-    <span>virtual backlog</span>
-    <strong><span data-mp-vmb>—</span> vMB</strong>
-    <small data-mp-sub>loading mempool state…</small>
+    <div class="mempool__hero-main">
+      <span>virtual backlog</span>
+      <strong><span data-mp-vmb>—</span> vMB</strong>
+      <small data-mp-sub>loading mempool state…</small>
+    </div>
+
+    <div class="mempool__hero-side">
+      <span>combined condition</span>
+      <strong data-mp-condition>—</strong>
+      <small data-mp-condition-sub>depth — · pressure —</small>
+    </div>
   </div>
 
   <div class="mempool__metrics">
-    <div><span>transactions</span><strong data-mp-tx>—</strong></div>
-    <div><span>block equivalents</span><strong data-mp-blocks>—</strong></div>
-    <div><span>total fees</span><strong data-mp-fees-btc>—</strong></div>
-    <div><span>fees value</span><strong data-mp-fees-usd>—</strong></div>
+    <div>
+      <span>transactions</span>
+      <strong data-mp-tx>—</strong>
+      <small data-mp-avg-tx>—</small>
+    </div>
+    <div>
+      <span>block equivalents</span>
+      <strong data-mp-blocks>—</strong>
+      <small>1.0 vMB reference blocks</small>
+    </div>
+    <div>
+      <span>total fees</span>
+      <strong data-mp-fees-btc>—</strong>
+      <small data-mp-fees-sat>—</small>
+    </div>
+    <div>
+      <span>fees value</span>
+      <strong data-mp-fees-usd>—</strong>
+      <small data-mp-price-basis>BTC/USD —</small>
+    </div>
+  </div>
+
+  <div class="mempool__section-head">
+    <span>Fee pressure</span>
+    <small>depth and fee urgency are scored independently</small>
   </div>
 
   <div class="mempool__metrics mempool__metrics--secondary">
-    <div><span>mean fee density</span><strong data-mp-mean-rate>—</strong></div>
-    <div><span>median fee density</span><strong data-mp-median-rate>—</strong></div>
-    <div><span>avg virtual TX size</span><strong data-mp-avg-tx>—</strong></div>
-    <div><span>backlog ≥ 10 sat/vB</span><strong data-mp-ge10>—</strong></div>
+    <div>
+      <span>mean fee density</span>
+      <strong data-mp-mean-rate>—</strong>
+      <small>all mempool fee / vsize</small>
+    </div>
+    <div>
+      <span>median fee density</span>
+      <strong data-mp-median-rate>—</strong>
+      <small>vsize-weighted median</small>
+    </div>
+    <div>
+      <span>≥ 10 sat/vB</span>
+      <strong data-mp-ge10>—</strong>
+      <small data-mp-ge10-sub>—</small>
+    </div>
+    <div>
+      <span>fast recommendation</span>
+      <strong data-mp-fast-fee>—</strong>
+      <small>mempool.space recommendation</small>
+    </div>
   </div>
 
   <div class="mempool__pressure">
     <div class="mempool__pressure-head">
-      <span>fee-pressure histogram</span>
-      <span data-mp-hist-note>mempool vbytes by fee rate</span>
+      <div>
+        <span>fee-pressure histogram</span>
+        <small data-mp-hist-note>mempool vsize by fee-rate band</small>
+      </div>
+      <strong data-mp-hist-total>—</strong>
     </div>
     <canvas
       data-mp-canvas
-      aria-label="Mempool fee-rate histogram"
+      aria-label="Mempool virtual-size histogram by fee-rate band"
     ></canvas>
+  </div>
+
+  <div class="mempool__section-head">
+    <span>Projected blocks</span>
+    <small>mempool.space candidate-block estimates</small>
+  </div>
+
+  <div class="mempool__candidate-grid">
+    <div>
+      <span>next block</span>
+      <strong data-mp-next-tx>—</strong>
+      <small data-mp-next-vsize>—</small>
+    </div>
+    <div>
+      <span>next median fee</span>
+      <strong data-mp-next-median>—</strong>
+      <small data-mp-next-range>—</small>
+    </div>
+    <div>
+      <span>projected blocks</span>
+      <strong data-mp-projected-count>—</strong>
+      <small data-mp-projected-vsize>—</small>
+    </div>
+    <div>
+      <span>projected fees</span>
+      <strong data-mp-projected-fees>—</strong>
+      <small data-mp-projected-tx>—</small>
+    </div>
   </div>
 
   <div class="mempool__details">
     <div class="mempool__row">
-      <span>backlog condition</span>
-      <strong data-mp-condition>—</strong>
+      <span>backlog depth</span>
+      <strong data-mp-depth>—</strong>
+    </div>
+    <div class="mempool__row">
+      <span>fee pressure</span>
+      <strong data-mp-pressure>—</strong>
     </div>
     <div class="mempool__row">
       <span>theoretical clear time</span>
       <strong data-mp-clear>—</strong>
-    </div>
-    <div class="mempool__row">
-      <span>fast recommendation</span>
-      <strong data-mp-fast-fee>—</strong>
     </div>
     <div class="mempool__row">
       <span>source</span>
