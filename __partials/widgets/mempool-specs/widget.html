@@ -3,7 +3,7 @@
   <div class="mempool-specs__header">
     <div>
       <div class="btc-card__title">Mempool · Specs</div>
-      <div class="mempool-specs__eyebrow">projected block construction · transaction tile visualizer</div>
+      <div class="mempool-specs__eyebrow">Spectacles · projected block / transaction viewer</div>
     </div>
     <span class="btc-card__status" data-ms-status data-status="offline" aria-live="polite">loading</span>
   </div>
@@ -12,12 +12,12 @@
     <div class="mempool-specs__hero-main">
       <span data-ms-hero-label>projected block +1</span>
       <strong data-ms-summary>loading…</strong>
-      <small data-ms-sub>building candidate block…</small>
+      <small data-ms-sub>loading real transaction tiles…</small>
     </div>
     <div class="mempool-specs__hero-side">
-      <span>fill</span>
-      <strong data-ms-fill>—</strong>
-      <small data-ms-mode>representative tiling</small>
+      <span>real TX coverage</span>
+      <strong data-ms-coverage>—</strong>
+      <small data-ms-mode>real transactions only</small>
     </div>
   </div>
 
@@ -29,57 +29,25 @@
   </div>
 
   <div class="mempool-specs__metrics">
-    <div>
-      <span>projected TXs</span>
-      <strong data-ms-tx>—</strong>
-      <small data-ms-tx-sub>candidate estimate</small>
-    </div>
-    <div>
-      <span>virtual size</span>
-      <strong data-ms-vsize>—</strong>
-      <small data-ms-util>—</small>
-    </div>
-    <div>
-      <span>median fee</span>
-      <strong data-ms-median>—</strong>
-      <small data-ms-range>—</small>
-    </div>
-    <div>
-      <span>projected fees</span>
-      <strong data-ms-fees>—</strong>
-      <small data-ms-fee-usd>—</small>
-    </div>
+    <div><span>candidate TXs</span><strong data-ms-tx>—</strong><small data-ms-tx-sub>—</small></div>
+    <div><span>candidate vsize</span><strong data-ms-vsize>—</strong><small data-ms-util>—</small></div>
+    <div><span>median fee</span><strong data-ms-median>—</strong><small data-ms-range>—</small></div>
+    <div><span>projected fees</span><strong data-ms-fees>—</strong><small data-ms-fee-usd>—</small></div>
   </div>
 
   <div class="mempool-specs__field-head">
     <div>
-      <span>Specs block plane</span>
-      <small>tile area ≈ transaction vsize · color = fee pressure · higher-priority tiles enter first</small>
+      <span>Specs transaction plane</span>
+      <small>one tile = one real transaction · tile area ∝ vbytes · color = fee pressure</small>
     </div>
     <strong data-ms-plane-meta>—</strong>
   </div>
 
   <div class="ms-block" data-ms-block>
-    <canvas
-      data-ms-canvas
-      tabindex="0"
-      aria-label="Projected Bitcoin block transaction tile visualization"
-    ></canvas>
-
-    <div class="ms-block__chrome ms-block__chrome--tl">
-      <strong data-ms-canvas-title>+1 PROJECTED</strong>
-      <small>high priority</small>
-    </div>
-
-    <div class="ms-block__chrome ms-block__chrome--tr">
-      <strong data-ms-canvas-fill>—</strong>
-      <small>candidate vsize</small>
-    </div>
-
-    <div class="ms-block__chrome ms-block__chrome--bl">
-      <small>lower priority / block edge</small>
-    </div>
-
+    <canvas data-ms-canvas tabindex="0" aria-label="Projected Bitcoin block transaction tile visualization"></canvas>
+    <div class="ms-block__chrome ms-block__chrome--tl"><strong data-ms-canvas-title>+1 PROJECTED</strong><small>higher inclusion priority</small></div>
+    <div class="ms-block__chrome ms-block__chrome--tr"><strong data-ms-canvas-fill>—</strong><small>real TX vsize represented</small></div>
+    <div class="ms-block__chrome ms-block__chrome--bl"><small>empty hatch = transaction detail not yet hydrated</small></div>
     <div class="ms-hover" data-ms-hover hidden></div>
   </div>
 
@@ -92,31 +60,31 @@
     <div class="ms-legend-item"><span class="ms-swatch ms-swatch--cold"></span><span>lower fee</span></div>
     <div class="ms-legend-item"><span class="ms-swatch ms-swatch--mid"></span><span>mid fee</span></div>
     <div class="ms-legend-item"><span class="ms-swatch ms-swatch--hot"></span><span>higher fee</span></div>
-    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--real"></span><span>real TX</span></div>
-    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--rep"></span><span>representative group</span></div>
+    <div class="ms-legend-item"><span class="ms-swatch ms-swatch--empty"></span><span>unhydrated block area</span></div>
   </div>
 
   <div class="mempool-specs__details">
     <div><span>tip height</span><strong data-ms-tip>—</strong></div>
     <div><span>mempool backlog</span><strong data-ms-backlog>—</strong></div>
     <div><span>BTC / USD</span><strong data-ms-price>—</strong></div>
+    <div><span>TX detail coverage</span><strong data-ms-detail-coverage>—</strong></div>
     <div><span>source</span><strong data-ms-source>—</strong></div>
     <div><span>method</span><strong data-ms-method>—</strong></div>
   </div>
 
   <div class="mempool-specs__readout-head">
     <div>
-      <span>tile readout</span>
-      <small>real transactions expose TX detail; aggregate tiles show the represented fee/vsize band</small>
+      <span>Specs transaction inspector</span>
+      <small>click any tile for hashes, values, vsize, fee, confirmations, type, scripts, OP_RETURN, inputs, outputs, raw JSON/hex, and block metadata</small>
     </div>
     <strong data-ms-selected>none selected</strong>
   </div>
 
   <div class="ms-readout" data-ms-readout>
-    <div class="ms-readout__empty">Select a tile in the projected block.</div>
+    <div class="ms-readout__empty">Select a transaction tile in the projected block.</div>
   </div>
 
   <div class="mempool-specs__footer">
-    <span data-ms-meta>candidate construction is an estimate, not a miner commitment</span>
+    <span data-ms-meta>real transaction tiles only · no synthetic transaction IDs</span>
   </div>
 </div>
