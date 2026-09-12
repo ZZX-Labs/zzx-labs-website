@@ -1,13 +1,13 @@
 // __partials/widgets/mempool-tiles/widget.js
-// v1.1.0 — fixed loader, persistent live snapshot, dense next-block square visualizer
+// v1.2.0 — Hilbert-scatter square block field + restrained instrument UI
 (function(){
   "use strict";
 
   const W=window;
   const D=document;
 
-  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V11__)return;
-  W.__ZZX_MEMPOOL_TILES_WIDGET_V11__=true;
+  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V12__)return;
+  W.__ZZX_MEMPOOL_TILES_WIDGET_V12__=true;
 
   const MODULES=[
     ["ZZXMempoolTilesSources","js/sources.js",2],
@@ -18,10 +18,10 @@
     ["ZZXMempoolTilesModel","js/model.js",2],
     ["ZZXMempoolTilesScaler","js/scaler.js",1],
     ["ZZXMempoolTilesSorter","js/sorter.js",1],
-    ["ZZXMempoolTilesPacker","js/packer.js",2],
-    ["ZZXMempoolTilesLayout","js/layout.js",1],
+    ["ZZXMempoolTilesPacker","js/packer.js",3],
+    ["ZZXMempoolTilesLayout","js/layout.js",2],
     ["ZZXMempoolTilesThemes","js/themes.js",1],
-    ["ZZXMempoolTilesRenderer","js/renderer.js",1],
+    ["ZZXMempoolTilesRenderer","js/renderer.js",2],
     ["ZZXMempoolTilesAnimation","js/animation.js",1],
     ["ZZXMempoolTilesTxFetcher","js/txfetcher.js",1],
     ["ZZXMempoolTilesInspector","js/inspector.js",1]
@@ -285,16 +285,16 @@
 
       const sourceLabel=
         model.candidateSource==="live"
-          ? "LIVE next-block membership"
+          ? "LIVE"
           : model.candidateSource==="full-feed"
-            ? "full-feed projection"
-            : "building projection";
+            ? "FULL FEED"
+            : "BUILDING";
 
       summary.textContent=
-        `${fmtInt(txs)} ${sourceLabel} transactions`;
+        `${fmtInt(txs)} TX · projected next block`;
 
       sub.textContent=
-        `${scaleMode==="vsize"?"tile size = vB":scaleMode==="value"?"tile size = BTC value":"tile size = fee rate"} · ${colorMode==="fee"?"color = sat/vB":"color = transaction type"} · ${sortMode}`;
+        `${sourceLabel} · size ${scaleMode==="vsize"?"vB":scaleMode==="value"?"BTC":"sat/vB"} · color ${colorMode==="fee"?"fee rate":"type"} · arrange ${sortMode}`;
 
       const stats={
         txs:`${fmtInt(txs)} TX`,
