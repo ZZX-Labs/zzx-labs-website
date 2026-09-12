@@ -573,3 +573,29 @@
 @media(prefers-reduced-motion:reduce){
   .mempool-specs__pulse{animation:none!important}
 }
+
+
+/* v10.73 dense Spectacles plane */
+.mempool-specs .ms-block{
+  min-height:360px;
+  isolation:isolate;
+}
+
+.mempool-specs .ms-block canvas{
+  z-index:2;
+  image-rendering:auto;
+}
+
+.mempool-specs .ms-block::before{
+  z-index:3;
+  opacity:.42;
+}
+
+.ms-block__chrome{z-index:4}
+.mempool-specs .ms-hover{z-index:5}
+
+@media(max-width:560px){
+  .mempool-specs .ms-block{
+    min-height:300px;
+  }
+}
