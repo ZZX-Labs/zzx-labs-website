@@ -456,3 +456,120 @@
   .ms-readout__io summary{grid-template-columns:auto minmax(0,1fr);}
   .ms-readout__io summary span:last-child{grid-column:2}
 }
+
+
+/* ============================================================
+   v10.72 · Spectacles live next-block visual treatment
+   ============================================================ */
+
+.mempool-specs__controls--live{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:.55rem;
+  margin-top:.52rem;
+}
+
+.mempool-specs__live-key{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.28rem .7rem;
+  min-width:0;
+  color:var(--ms-muted);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.58rem;
+  letter-spacing:.035em;
+}
+
+.mempool-specs__pulse{
+  display:inline-block;
+  width:7px;
+  height:7px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:var(--ms-dim);
+  box-shadow:0 0 0 0 rgba(192,214,116,0);
+}
+
+.mempool-specs[data-ms-live-state="live"] .mempool-specs__pulse{
+  background:var(--ms-green);
+  animation:ms-live-pulse 1.8s ease-out infinite;
+}
+
+.mempool-specs[data-ms-live-state="reconnecting"] .mempool-specs__pulse,
+.mempool-specs[data-ms-live-state="connecting"] .mempool-specs__pulse{
+  background:var(--ms-gold);
+}
+
+.mempool-specs[data-ms-live-state="error"] .mempool-specs__pulse{
+  background:var(--ms-red);
+}
+
+@keyframes ms-live-pulse{
+  0%{box-shadow:0 0 0 0 rgba(192,214,116,.35)}
+  70%{box-shadow:0 0 0 7px rgba(192,214,116,0)}
+  100%{box-shadow:0 0 0 0 rgba(192,214,116,0)}
+}
+
+.mempool-specs .ms-block{
+  width:min(100%,760px);
+  border:1px solid rgba(230,164,43,.92);
+  border-radius:7px;
+  background:#020202;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.022),
+    inset 0 0 90px rgba(0,0,0,.78),
+    0 14px 38px rgba(0,0,0,.24);
+}
+
+.mempool-specs .ms-block::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(192,214,116,.018),transparent 18%,transparent 82%,rgba(230,164,43,.018)),
+    radial-gradient(circle at 50% 38%,rgba(192,214,116,.025),transparent 54%);
+  mix-blend-mode:screen;
+}
+
+.ms-block__chrome{
+  z-index:4;
+  background:rgba(0,0,0,.76);
+  border-color:rgba(255,255,255,.07);
+  backdrop-filter:blur(3px);
+}
+
+.ms-block__chrome--bl{display:grid}
+
+.mempool-specs .ms-hover{
+  z-index:5;
+  max-width:min(330px,78%);
+  border-color:rgba(230,164,43,.62);
+  background:rgba(2,2,2,.965);
+  box-shadow:0 10px 30px rgba(0,0,0,.58);
+}
+
+.ms-swatch--subsat{background:#1b3440}
+.ms-swatch--low{background:#3e8561}
+.ms-swatch--mid{background:#c0d674}
+.ms-swatch--hot{background:#e6a42b}
+.ms-swatch--peak{background:#d67474}
+
+.mempool-specs__metrics strong[data-ms-value]{color:var(--ms-gold)}
+
+@media(max-width:560px){
+  .mempool-specs__controls--live{
+    grid-template-columns:1fr;
+    align-items:start;
+  }
+
+  .mempool-specs__live-key{gap:.24rem .5rem}
+  .mempool-specs__refresh{justify-self:start}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .mempool-specs__pulse{animation:none!important}
+}
