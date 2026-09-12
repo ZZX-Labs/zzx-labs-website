@@ -1,11 +1,11 @@
 // __partials/widgets/mempool-specs/js/scaler.js
-// v5 — transaction vsize/fee scaling with compatibility APIs
+// v6 — BTC-value square scaling + compatibility vsize APIs
 (function(){
   "use strict";
 
   const W=window;
   const NS=(W.ZZXMempoolSpecs=W.ZZXMempoolSpecs||{});
-  if(NS.Scaler?.__version>=5)return;
+  if(NS.Scaler?.__version>=6)return;
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
@@ -19,8 +19,26 @@
     curveGamma:.92,
     valueK:.05,
     feeRateK:.02,
-    weightToVBytes:1/4
+    weightToVBytes:1/4,
+
+    // Spectacles value scaling. Tile *shape* is always square. These settings
+    // only select the integer square side from the transaction's BTC value.
+    valueMinSide:1,
+    valueMaxSide:10,
+    valueLowQuantile:.02,
+    valueHighQuantile:.995,
+    valueCurve:.74
   };
+
+  function quantile(sorted,q){
+    if(!sorted.length)return NaN;
+    const p=clamp(Number(q)||0,0,1)*(sorted.length-1);
+    const lo=Math.floor(p);
+    const hi=Math.ceil(p);
+    if(lo===hi)return sorted[lo];
+    const t=p-lo;
+    return sorted[lo]+(sorted[hi]-sorted[lo])*t;
+  }
 
   class Scaler{
     constructor(opts={}){
@@ -91,9 +109,81 @@
         ? this.sideCellsFromVBytes(w*this.cfg.weightToVBytes)
         : this.cfg.minSideCells;
     }
+
+    makeBtcValueScale(items,opts={}){
+      const values=(Array.isArray(items)?items:[])
+        .map(row=>Number(row?.valueSats))
+        .filter(value=>Number.isFinite(value)&&value>=0)
+        .sort((a,b)=>a-b);
+
+      const minSide=Math.max(
+        1,
+        Math.floor(Number(opts.minSide??this.cfg.valueMinSide)||1)
+      );
+
+      const maxSide=Math.max(
+        minSide,
+        Math.floor(Number(opts.maxSide??this.cfg.valueMaxSide)||this.cfg.valueMaxSide)
+      );
+
+      const lowQ=Number(opts.lowQuantile??this.cfg.valueLowQuantile);
+      const highQ=Number(opts.highQuantile??this.cfg.valueHighQuantile);
+      const curve=Math.max(.2,Number(opts.curve??this.cfg.valueCurve)||this.cfg.valueCurve);
+
+      const low=values.length
+        ? Math.max(0,quantile(values,lowQ))
+        : 0;
+
+      const high=values.length
+        ? Math.max(low+1,quantile(values,highQ))
+        : 1;
+
+      return {
+        minSide,
+        maxSide,
+        low,
+        high,
+        logLow:Math.log1p(low),
+        logHigh:Math.log1p(high),
+        curve,
+        known:values.length
+      };
+    }
+
+    sideCellsFromValueSats(valueSats,scale){
+      const s=scale||this.makeBtcValueScale([]);
+      const value=Number(valueSats);
+
+      // Unknown or zero-value transactions never disappear. A 1x1 square is
+      // still a real, selectable transaction tile.
+      if(!Number.isFinite(value)||value<=s.low){
+        return s.minSide;
+      }
+
+      if(value>=s.high){
+        return s.maxSide;
+      }
+
+      const logValue=Math.log1p(Math.max(0,value));
+      const span=Math.max(1e-9,s.logHigh-s.logLow);
+      const t=clamp((logValue-s.logLow)/span,0,1);
+      const shaped=Math.pow(t,s.curve);
+
+      return clamp(
+        s.minSide+Math.round(shaped*(s.maxSide-s.minSide)),
+        s.minSide,
+        s.maxSide
+      );
+    }
+
+    areaCellsFromValueSats(valueSats,scale){
+      const side=this.sideCellsFromValueSats(valueSats,scale);
+      return side*side;
+    }
   }
 
-  Scaler.__version=5;
+  Scaler.__version=6;
   Scaler.DEFAULTS=Object.freeze({...DEFAULTS});
+  Scaler.quantile=quantile;
   NS.Scaler=Scaler;
 })();
