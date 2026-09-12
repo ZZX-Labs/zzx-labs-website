@@ -217,6 +217,22 @@ def extract(path: Path, *, max_depth: int = 2, _depth: int = 0) -> list[Extracte
             return []
         with tempfile.TemporaryDirectory(prefix="wfb-archive-") as td:
             members = _archive_members(path, Path(td))
+            # Internet Archive bundles often contain PDF, DjVu, EPUB and text
+            # derivatives of the same scanned edition.  Recursing through all of
+            # them multiplies extraction time without adding independent corpus
+            # content.  If rich document representations are present, parse a
+            # small ranked set; otherwise keep the legacy website/archive behavior
+            # and walk text/HTML members broadly.
+            rich_rank = {
+                ".txt": 120, ".pdf": 115, ".epub": 110, ".djvu": 105,
+                ".djv": 105, ".mobi": 100, ".azw3": 99, ".azw": 98,
+                ".prc": 97, ".html": 90, ".htm": 90, ".xhtml": 90,
+                ".docx": 80, ".odt": 78, ".doc": 76, ".rtf": 74,
+            }
+            rich = [m for m in members if m.suffix.lower() in rich_rank]
+            if any(m.suffix.lower() in {".pdf", ".epub", ".djvu", ".djv", ".mobi", ".azw3", ".azw", ".prc"} for m in rich):
+                rich.sort(key=lambda m: (rich_rank.get(m.suffix.lower(), 0), -len(m.name)), reverse=True)
+                members = rich[:3]
             docs: list[ExtractedDocument] = []
             for member in members[:10000]:
                 if member.stat().st_size > 512 * 1024 * 1024:
