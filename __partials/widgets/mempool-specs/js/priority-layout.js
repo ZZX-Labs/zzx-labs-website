@@ -2,7 +2,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXMempoolSpecsPriorityLayout?.__version>=1)return;
+  if(W.ZZXMempoolSpecsPriorityLayout?.__version>=2)return;
 
   function finite(v){const n=Number(v);return Number.isFinite(n)?n:NaN}
   function hash32(s){
@@ -18,9 +18,15 @@
     return a.length%2?a[m]:(a[m-1]+a[m])/2;
   }
 
-  function sideFor(tx,baseline){
-    if(!tx.detailed||tx.estimatedVbytes)return 1;
-    const vb=finite(tx.vbytes);
+  function sideFor(tx,baseline,scaler){
+    if(!tx?.detailed||tx?.estimatedVbytes)return 1;
+
+    if(scaler?.sideCellsFromTx){
+      const raw=scaler.sideCellsFromTx(tx);
+      if(Number.isFinite(raw))return Math.max(1,Math.min(6,Math.round(raw)));
+    }
+
+    const vb=finite(tx?.vbytes);
     if(!Number.isFinite(vb)||vb<=0||!Number.isFinite(baseline)||baseline<=0)return 1;
     const ratio=vb/baseline;
     if(ratio<1.8)return 1;
@@ -34,70 +40,95 @@
   function pack(items,n){
     const placed=[];
     let x=0,y=0,rowH=0;
+
     for(const item of items){
-      let side=Math.min(item.side,n);
+      const side=Math.min(item.side,n);
       if(x+side>n){x=0;y+=rowH;rowH=0}
       if(y+side>n)return null;
       placed.push({...item,x,y,side});
       x+=side;
-      if(side>rowH)rowH=side;
+      rowH=Math.max(rowH,side);
     }
+
     return placed;
   }
 
-  function build(model,{maxGrid=1400,fill=.88}={}){
+  function orderedRows(model){
     const rows=(model?.transactions||[]).slice();
-    const measured=rows.map(x=>finite(x.vbytes)).filter(Number.isFinite);
+    const sorter=W.ZZXMempoolSpecs?.Sorter?.stablePriority;
+
+    if(sorter)return sorter(rows,Number(model?.tipHeight)||0);
+
+    const known=rows.filter(x=>Number.isFinite(x.packageFeeRate)||Number.isFinite(x.projectedIndex));
+    const unknown=rows
+      .filter(x=>!Number.isFinite(x.packageFeeRate)&&!Number.isFinite(x.projectedIndex))
+      .sort((a,b)=>hash32(a.txid)-hash32(b.txid));
+
+    return known.concat(unknown);
+  }
+
+  function build(model,{maxGrid=1800,fill=.88,scaler=null}={}){
+    const ordered=orderedRows(model);
+    const measured=ordered.map(x=>finite(x.vbytes)).filter(Number.isFinite);
     const baseline=median(measured)||finite(model?.averageVbytes)||500;
 
-    // Preserve the model's package-aware priority order. Unknown-priority rows are
-    // kept deterministic at the tail so refreshes do not randomly thrash the field.
-    const known=rows.filter(x=>Number.isFinite(x.packageFeeRate)||Number.isFinite(x.projectedIndex));
-    const unknown=rows.filter(x=>!Number.isFinite(x.packageFeeRate)&&!Number.isFinite(x.projectedIndex))
-      .sort((a,b)=>hash32(a.txid)-hash32(b.txid));
-    const ordered=known.concat(unknown);
+    const items=ordered.map((tx,index)=>({
+      tx,
+      index,
+      rank:index+1,
+      side:sideFor(tx,baseline,scaler)
+    }));
 
-    const items=ordered.map((tx,index)=>({tx,index,rank:index+1,side:sideFor(tx,baseline)}));
-    const totalArea=items.reduce((s,x)=>s+x.side*x.side,0);
+    const totalArea=items.reduce((sum,item)=>sum+item.side*item.side,0);
     let n=Math.max(16,Math.ceil(Math.sqrt(Math.max(1,totalArea)/fill)));
     n=Math.min(maxGrid,n);
 
     let placed=pack(items,n);
     while(!placed&&n<maxGrid){
-      n=Math.min(maxGrid,Math.ceil(n*1.06+2));
+      n=Math.min(maxGrid,Math.ceil(n*1.055+2));
       placed=pack(items,n);
     }
 
     if(!placed){
-      // Guaranteed representation fallback: every transaction becomes one cell.
       n=Math.min(maxGrid,Math.max(16,Math.ceil(Math.sqrt(items.length/.92))));
-      const one=items.map(x=>({...x,side:1}));
-      placed=pack(one,n);
+      placed=pack(items.map(item=>({...item,side:1})),n);
       if(!placed)throw new Error("transaction field exceeds visual grid capacity");
     }
 
     const hit=new Int32Array(n*n);
     const tiles=[];
+    const markers=[];
     let cumulativeVbytes=0;
     let nextBoundary=1_000_000;
-    const markers=[];
 
     for(let i=0;i<placed.length;i++){
       const p=placed[i];
       const tx=p.tx;
       const vb=finite(tx.vbytes);
-      const usedVb=Number.isFinite(vb)&&vb>0?vb:(finite(model?.averageVbytes)||500);
+      const usedVb=Number.isFinite(vb)&&vb>0
+        ? vb
+        : (finite(model?.averageVbytes)||500);
+
       cumulativeVbytes+=usedVb;
       const projectedBlock=Math.max(1,Math.ceil(cumulativeVbytes/1_000_000));
-      const tile={...tx,rank:p.rank,x:p.x,y:p.y,side:p.side,projectedBlock};
+
+      const tile={
+        ...tx,
+        rank:p.rank,
+        x:p.x,
+        y:p.y,
+        side:p.side,
+        projectedBlock
+      };
+
       tiles.push(tile);
 
       for(let yy=p.y;yy<p.y+p.side;yy++){
-        const off=yy*n;
-        for(let xx=p.x;xx<p.x+p.side;xx++)hit[off+xx]=i+1;
+        const offset=yy*n;
+        for(let xx=p.x;xx<p.x+p.side;xx++)hit[offset+xx]=i+1;
       }
 
-      while(cumulativeVbytes>=nextBoundary&&markers.length<18){
+      while(cumulativeVbytes>=nextBoundary&&markers.length<24){
         markers.push({
           block:markers.length+1,
           rank:p.rank,
@@ -108,22 +139,22 @@
       }
     }
 
-    const byTxid=new Map(tiles.map(t=>[t.txid,t]));
     return {
-      schema:"zzx-mempool-specs-layout-v1",
+      schema:"zzx-mempool-specs-layout-v2",
       gridN:n,
       tiles,
       hit,
-      byTxid,
+      byTxid:new Map(tiles.map(tile=>[tile.txid,tile])),
       markers,
       baselineVbytes:baseline,
       totalArea,
+      cumulativeVbytes,
       builtAt:Date.now()
     };
   }
 
   function find(layout,nx,ny){
-    if(!layout||!layout.hit||!layout.gridN)return null;
+    if(!layout?.hit||!layout?.gridN)return null;
     if(!(nx>=0&&nx<1&&ny>=0&&ny<1))return null;
     const x=Math.min(layout.gridN-1,Math.floor(nx*layout.gridN));
     const y=Math.min(layout.gridN-1,Math.floor(ny*layout.gridN));
@@ -131,5 +162,11 @@
     return idx>=0?layout.tiles[idx]||null:null;
   }
 
-  W.ZZXMempoolSpecsPriorityLayout=Object.freeze({__version:1,build,find,sideFor});
+  W.ZZXMempoolSpecsPriorityLayout=Object.freeze({
+    __version:2,
+    build,
+    find,
+    sideFor,
+    orderedRows
+  });
 })();
