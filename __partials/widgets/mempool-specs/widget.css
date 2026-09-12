@@ -1,5 +1,4 @@
 /* __partials/widgets/mempool-specs/widget.css */
-
 .mempool-specs{
   --ms-green:var(--zzx-accent,#c0d674);
   --ms-gold:var(--zzx-accent-alt,#e6a42b);
@@ -8,7 +7,6 @@
   --ms-dim:var(--zzx-dim,#777);
   --ms-line:rgba(255,255,255,.09);
   --ms-panel:rgba(255,255,255,.018);
-  position:relative;
   width:100%;
   min-width:0;
   overflow:hidden;
@@ -16,7 +14,10 @@
 
 .mempool-specs__header,
 .mempool-specs__footer,
-.mempool-specs__viz-meta{
+.mempool-specs__controls,
+.mempool-specs__viz-meta,
+.mempool-specs__field-head,
+.mempool-specs__readout-head{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -27,10 +28,13 @@
 .mempool-specs__header{align-items:flex-start}
 
 .mempool-specs__eyebrow,
-.mempool-specs__hero > span,
-.mempool-specs__controls label > span,
+.mempool-specs__hero>span,
 .mempool-specs__metrics span,
-.mempool-specs__row > span{
+.mempool-specs__control-copy>span,
+.mempool-specs__details span,
+.mempool-specs__field-head span,
+.mempool-specs__readout-head span,
+.ms-readout__k{
   color:var(--ms-dim);
   font-size:.67rem;
   letter-spacing:.05em;
@@ -50,9 +54,10 @@
   min-width:0;
   color:var(--ms-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:1.16rem;
+  font-size:1.18rem;
   line-height:1.1;
   font-weight:500;
+  font-variant-numeric:tabular-nums;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
@@ -67,33 +72,25 @@
 }
 
 .mempool-specs__controls{
-  display:flex;
   align-items:flex-end;
-  gap:.4rem;
   margin-top:.5rem;
 }
 
-.mempool-specs__controls label{
+.mempool-specs__control-copy{
   display:grid;
-  gap:.15rem;
-  flex:1;
+  gap:.06rem;
   min-width:0;
 }
 
-.mempool-specs__controls select{
-  width:100%;
-  min-width:0;
-  padding:.32rem .4rem;
-  border:1px solid #343434;
-  border-radius:6px;
-  outline:none;
-  background:#080808;
-  color:var(--ms-green);
+.mempool-specs__control-copy strong{
+  color:var(--ms-muted);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.72rem;
+  font-size:.69rem;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
-
-.mempool-specs__controls select:focus{border-color:var(--ms-gold)}
 
 .mempool-specs__metrics{
   display:grid;
@@ -102,16 +99,17 @@
   margin-top:.5rem;
 }
 
-.mempool-specs__metrics > div{
+.mempool-specs__metrics>div{
   min-width:0;
-  padding:.38rem .42rem;
+  padding:.4rem .43rem;
   border:1px solid var(--ms-line);
   border-radius:6px;
   background:var(--ms-panel);
 }
 
 .mempool-specs__metrics span,
-.mempool-specs__metrics strong{
+.mempool-specs__metrics strong,
+.mempool-specs__metrics small{
   display:block;
   min-width:0;
   overflow:hidden;
@@ -123,52 +121,88 @@
   margin-top:.1rem;
   color:var(--ms-green);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.72rem;
+  font-size:.74rem;
   font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+
+.mempool-specs__metrics small{
+  margin-top:.1rem;
+  color:var(--ms-muted);
+  font-size:.64rem;
+}
+
+.mempool-specs__field-head,
+.mempool-specs__readout-head{
+  align-items:flex-end;
+  margin-top:.72rem;
+  padding-top:.52rem;
+  border-top:1px solid var(--ms-line);
+}
+
+.mempool-specs__field-head>div,
+.mempool-specs__readout-head>div{
+  display:grid;
+  gap:.05rem;
+  min-width:0;
+}
+
+.mempool-specs__field-head small,
+.mempool-specs__readout-head small{
+  color:var(--ms-muted);
+  font-size:.65rem;
+}
+
+.mempool-specs__field-head>strong,
+.mempool-specs__readout-head>strong{
+  color:var(--ms-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.66rem;
+  font-weight:500;
+  white-space:nowrap;
 }
 
 .mempool-specs .ms-block{
   position:relative;
-  width:100%;
+  width:min(100%,760px);
   box-sizing:border-box;
-  margin-top:.5rem;
+  margin:.42rem auto 0;
   overflow:hidden;
-  aspect-ratio:16/10;
-  min-height:220px;
-  max-height:520px;
+  aspect-ratio:1/1;
   border:3px solid var(--ms-gold);
   border-radius:8px;
   background:#000;
+  box-shadow:inset 0 0 34px rgba(192,214,116,.025);
 }
 
 .mempool-specs .ms-block canvas{
   display:block;
   width:100%;
   height:100%;
-  image-rendering:pixelated;
+  touch-action:manipulation;
+  cursor:crosshair;
 }
 
-.mempool-specs .ms-hitlayer{
+.mempool-specs .ms-block canvas:focus-visible{
+  outline:1px solid rgba(255,255,255,.72);
+  outline-offset:-4px;
+}
+
+.mempool-specs .ms-hover{
   position:absolute;
-  inset:0;
-  z-index:2;
+  z-index:3;
+  max-width:min(320px,calc(100% - 18px));
+  padding:.38rem .46rem;
+  border:1px solid rgba(230,164,43,.72);
+  border-radius:6px;
+  background:rgba(4,4,4,.94);
+  color:var(--ms-green);
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.63rem;
+  line-height:1.4;
   pointer-events:none;
-}
-
-.mempool-specs .ms-hit{
-  position:absolute;
-  z-index:1;
-  border:0;
-  padding:0;
-  background:transparent;
-  cursor:pointer;
-  pointer-events:auto;
-}
-
-.mempool-specs .ms-hit:hover,
-.mempool-specs .ms-hit:focus-visible{
-  outline:1px solid rgba(255,255,255,.65);
-  outline-offset:-1px;
+  white-space:nowrap;
 }
 
 .mempool-specs__viz-meta{
@@ -187,28 +221,30 @@
 .mempool-specs .ms-legend{
   display:flex;
   flex-wrap:wrap;
-  gap:.7rem;
-  margin-top:.4rem;
+  gap:.72rem;
+  margin-top:.42rem;
   color:var(--ms-muted);
-  font-size:.68rem;
+  font-size:.67rem;
 }
 
 .mempool-specs .ms-legend-item{
   display:inline-flex;
   align-items:center;
-  gap:.3rem;
+  gap:.28rem;
 }
 
 .mempool-specs .ms-swatch{
   display:inline-block;
-  width:12px;
-  height:12px;
+  width:11px;
+  height:11px;
   border-radius:2px;
 }
 
-.mempool-specs .ms-swatch.low{background:#2c5364}
+.mempool-specs .ms-swatch.pending{background:#171b1d;border:1px solid rgba(255,255,255,.12)}
+.mempool-specs .ms-swatch.low{background:#243f4a}
 .mempool-specs .ms-swatch.mid{background:#c0d674}
 .mempool-specs .ms-swatch.high{background:#e6a42b}
+.mempool-specs .ms-marker{display:inline-block;width:14px;border-top:1px dashed rgba(230,164,43,.82)}
 
 .mempool-specs__details{
   display:grid;
@@ -218,14 +254,14 @@
   border-top:1px solid var(--ms-line);
 }
 
-.mempool-specs__row{
+.mempool-specs__details>div{
   display:grid;
-  grid-template-columns:minmax(125px,.35fr) minmax(0,1fr);
+  grid-template-columns:minmax(125px,.25fr) minmax(0,1fr);
   gap:.55rem;
   min-width:0;
 }
 
-.mempool-specs__row > strong{
+.mempool-specs__details strong{
   min-width:0;
   color:var(--ms-muted);
   font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
@@ -237,6 +273,121 @@
   white-space:nowrap;
 }
 
+.ms-readout{
+  margin-top:.4rem;
+  min-height:5rem;
+  padding:.5rem;
+  border:1px solid var(--ms-line);
+  border-radius:7px;
+  background:rgba(255,255,255,.018);
+}
+
+.ms-readout__empty{
+  color:var(--ms-muted);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.69rem;
+}
+
+.ms-readout__head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+  padding-bottom:.42rem;
+  border-bottom:1px solid var(--ms-line);
+}
+
+.ms-readout__title{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+
+.ms-readout__title strong{
+  color:var(--ms-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.78rem;
+  font-weight:500;
+}
+
+.ms-readout__title code{
+  color:var(--ms-muted);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.63rem;
+  overflow-wrap:anywhere;
+}
+
+.ms-readout__badge{
+  flex:none;
+  padding:.16rem .38rem;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  color:var(--ms-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.61rem;
+  white-space:nowrap;
+}
+
+.ms-readout__grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.34rem;
+  margin-top:.42rem;
+}
+
+.ms-readout__cell{
+  min-width:0;
+  padding:.34rem .38rem;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:5px;
+  background:rgba(0,0,0,.18);
+}
+
+.ms-readout__v{
+  display:block;
+  margin-top:.08rem;
+  color:var(--ms-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.66rem;
+  line-height:1.35;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.ms-readout__deps{
+  display:grid;
+  gap:.24rem;
+  margin-top:.42rem;
+  color:var(--ms-muted);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.63rem;
+}
+
+.ms-readout__deps code{overflow-wrap:anywhere}
+
+.ms-readout__actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.35rem;
+  margin-top:.42rem;
+}
+
+.ms-readout__actions a{
+  display:inline-flex;
+  align-items:center;
+  padding:.3rem .42rem;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:5px;
+  color:var(--ms-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.63rem;
+  text-decoration:none;
+}
+
+.ms-readout__actions a:hover{border-color:var(--ms-gold)}
+
 .mempool-specs__footer{
   margin-top:.45rem;
   padding-top:.42rem;
@@ -245,29 +396,22 @@
   font-size:.67rem;
 }
 
-@media(max-width:720px){
-  .mempool-specs__metrics{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
+@media(max-width:820px){
+  .mempool-specs__metrics,.ms-readout__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media(max-width:560px){
-  .mempool-specs .ms-block{
-    aspect-ratio:4/3;
-    min-height:200px;
-    max-height:420px;
-  }
+  .mempool-specs__field-head,.mempool-specs__readout-head{align-items:flex-start;flex-direction:column;gap:.14rem}
 }
 
 @media(max-width:460px){
-  .mempool-specs__metrics{
-    grid-template-columns:1fr;
-  }
+  .mempool-specs__metrics,.ms-readout__grid{grid-template-columns:1fr}
+  .mempool-specs__details>div{grid-template-columns:1fr;gap:.05rem}
+  .mempool-specs__details strong{text-align:left}
+  .mempool-specs__controls{align-items:flex-start;flex-direction:column}
+  .mempool-specs__control-copy strong{white-space:normal}
+}
 
-  .mempool-specs__row{
-    grid-template-columns:1fr;
-    gap:.05rem;
-  }
-
-  .mempool-specs__row > strong{text-align:left}
+@media(prefers-reduced-motion:reduce){
+  .mempool-specs *{scroll-behavior:auto!important}
 }
