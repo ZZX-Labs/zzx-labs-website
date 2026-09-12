@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-12T07:37:10.687264Z",
+  "generated_at": "2026-09-12T11:55:56.794176Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "0476444e33bd8036b2726ce128d068ba472e1278",
+      "node_id": "C_kwDOABII59oAKDA0NzY0NDRlMzNiZDgwMzZiMjcyNmNlMTI4ZDA2OGJhNDcyZTEyNzg",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-12T10:30:31Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-12T10:30:31Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35935: wallet: Avoid unnecessary wtxvariant rewrites\n\n1548d15de61886e0b8e67801146e9c168d9d4a66 walletdb: Rename WriteTx to WriteFullTx (Ava Chow)\n9a0628d9320d2275d922d70d1a87573091840293 wallet: Write tx to database during CWalletTx::Update (Ava Chow)\n1c557a380288df661e13e88f5d9c7c27b9bbbefb wallet: Add WriteTxMetadata to write just the tx record (Ava Chow)\n\nPull request description:\n\n  `wtxvariant` records should never change, so it is unnecessary for us to be rewriting all `wtxvariants` in a `CWalletTx` every time the `CWalletTx`'s state changes. Likewise, every time there is a new variant, `CWalletTx` states may not change so do not need to always be unconditionally written.\n\n  This PR adds a `WalletBatch::WriteTxMetadata` to write just the `tx` record (the former behavior of `WriteTx`) and renames `WriteTx` to `WriteFullTx` to indicate that it will write all relevant records for a `CWalletTx`. Most uses of `WriteTx` become `WriteTxMetadata`, except in migration and watch only export.\n\n  `AddToWallet` is changed to use `WriteFullTx` only for new transactions, and to do so immediately after the transaction is inserted to the wallet. `CWalletTx::Update` takes the `WalletBatch` now and will write the correct records according to what is actually being updated.\n\nACKs for top commit:\n  polespinasa:\n    re-ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  pablomartin4btc:\n    ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  rkrux:\n    lgtm ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n\nTree-SHA512: c389bdef3490def857f5f2daee7c0b73e4434419aa8f06fc5201e3a55221f8bbe8683264ec90044436346190e700f04aed13622b12267ffe9ed470ee852b3bd3",
+        "tree": {
+          "sha": "bcf97ad6e63e65e19fbab58dbb0a4e8283a9ce10",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/bcf97ad6e63e65e19fbab58dbb0a4e8283a9ce10"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0476444e33bd8036b2726ce128d068ba472e1278",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqlKccACgkQm3m0VpHb\nQXNOBRAAzgy56/0z0iMKdghwL+ixYWCTIyhGwGZngGVyQ5nk6aZAKv/4e28K+7Ff\nDuerk627ymVsuPSGUJalVKdE5bAaTGAWcKRGRkON43UH3ypjaKcQ047l2H0CDi+4\nQlemIJoqcQeNtHn28T+VON023MbBJRKB/0H1NxWnC0V7moMUaPO65TKzXOUx/BI7\nwBKAcjJHJ+2eLDNaveZTUARGQCqV+IlyM5xGr8PX/PelOA9Pkuhz0Vxy33K4VXjI\nlSXUH9JzTPXPHfDboHkNUHcKzaL8u6bCmmZVro8wnnFD1e1xRsNnkhbROh4yQ02L\noaOt9+i6KrMF48KBGXmilkBKhyxOnoUX1IDvU/CajJ5isqoQMN5BgrZ40WlmDFq0\nSQUh3zmjYpZTByD/ViMJGT6izziWVC3NdXUfsoLU4NLijnYdwdUceHUXFaUvG5oS\nZCBwbURXzRQDPPnGeJHUaM9KWSe4Nxw6I5gxxhjcR9gZ0anG8PTH5KyqM+7OLgGb\nIXSl0/r866CY8yiODyxqo9WumMte/1rfvGlohfy7Q2hU2HsJGmBJksHaXsIk/OcW\nLdxnO8UI1OLw19eeUDL8XpbGGusAypf4ABo294hHnP3rm51nWk4WOYeKVYLr/SAq\nldKvamXu98QJU/HTy9H3ktX2Q4SOEvVJuDbJD0Vz3TLkECWB9Rc=\n=5JdV\n-----END PGP SIGNATURE-----",
+          "payload": "tree bcf97ad6e63e65e19fbab58dbb0a4e8283a9ce10\nparent f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d\nparent 1548d15de61886e0b8e67801146e9c168d9d4a66\nauthor merge-script <seb.kung@gmail.com> 1789209031 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789209031 +0200\n\nMerge bitcoin/bitcoin#35935: wallet: Avoid unnecessary wtxvariant rewrites\n\n1548d15de61886e0b8e67801146e9c168d9d4a66 walletdb: Rename WriteTx to WriteFullTx (Ava Chow)\n9a0628d9320d2275d922d70d1a87573091840293 wallet: Write tx to database during CWalletTx::Update (Ava Chow)\n1c557a380288df661e13e88f5d9c7c27b9bbbefb wallet: Add WriteTxMetadata to write just the tx record (Ava Chow)\n\nPull request description:\n\n  `wtxvariant` records should never change, so it is unnecessary for us to be rewriting all `wtxvariants` in a `CWalletTx` every time the `CWalletTx`'s state changes. Likewise, every time there is a new variant, `CWalletTx` states may not change so do not need to always be unconditionally written.\n\n  This PR adds a `WalletBatch::WriteTxMetadata` to write just the `tx` record (the former behavior of `WriteTx`) and renames `WriteTx` to `WriteFullTx` to indicate that it will write all relevant records for a `CWalletTx`. Most uses of `WriteTx` become `WriteTxMetadata`, except in migration and watch only export.\n\n  `AddToWallet` is changed to use `WriteFullTx` only for new transactions, and to do so immediately after the transaction is inserted to the wallet. `CWalletTx::Update` takes the `WalletBatch` now and will write the correct records according to what is actually being updated.\n\nACKs for top commit:\n  polespinasa:\n    re-ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  pablomartin4btc:\n    ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n  rkrux:\n    lgtm ACK 1548d15de61886e0b8e67801146e9c168d9d4a66\n\nTree-SHA512: c389bdef3490def857f5f2daee7c0b73e4434419aa8f06fc5201e3a55221f8bbe8683264ec90044436346190e700f04aed13622b12267ffe9ed470ee852b3bd3\n",
+          "verified_at": "2026-09-12T10:31:14Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0476444e33bd8036b2726ce128d068ba472e1278",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/0476444e33bd8036b2726ce128d068ba472e1278",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0476444e33bd8036b2726ce128d068ba472e1278/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d"
+        },
+        {
+          "sha": "1548d15de61886e0b8e67801146e9c168d9d4a66",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1548d15de61886e0b8e67801146e9c168d9d4a66",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/1548d15de61886e0b8e67801146e9c168d9d4a66"
+        }
+      ]
+    },
     {
       "sha": "f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d",
       "node_id": "C_kwDOABII59oAKGYzZmVjNjdjM2VlYjI3ZDViZTFiYzlkNTdjYTczN2I3NGZjZDc2MmQ",
@@ -8363,93 +8450,6 @@
           "sha": "cc577de954671378268bab2a78714869b4f7388d",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cc577de954671378268bab2a78714869b4f7388d",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/cc577de954671378268bab2a78714869b4f7388d"
-        }
-      ]
-    },
-    {
-      "sha": "64ab0a06979e6905c3ba28a833e456a44b75c605",
-      "node_id": "C_kwDOABII59oAKDY0YWIwYTA2OTc5ZTY5MDVjM2JhMjhhODMzZTQ1NmE0NGI3NWM2MDU",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-03T08:00:14Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-03T08:00:14Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36148: test: Avoid unsafe memory race in index_reorg_crash shutdown\n\nfab80e82c1087126477e07eda5f6e3a1f25ceb99 test: Avoid unsafe memory race in baseindex_no_commit_ahead_of_flush (MarcoFalke)\nfa0f14ef5e76424ed7770936f7d053f27336a601 test: Avoid unsafe memory race in index_reorg_crash shutdown (MarcoFalke)\nfaf9c8e8a12cff5ef4f277d8c3f1035776e57c14 test: Clarify index.GetSummary().synced state in index_reorg_crash (MarcoFalke)\n\nPull request description:\n\n  Currently, the `index_reorg_crash` test may rarely crash due to UB in sanitizers like TSan or ASan. This is perfectly fine, because it is just a rare test-only issue.\n\n  However, fix it nonetheless by adding a missing drain of the unused in-flight events. Also, add a small check about the synced state while touching this test.\n\nACKs for top commit:\n  arejula27:\n    ACK fab80e82c1\n  furszy:\n    ACK fab80e82c1087126477e07eda5f6e3a1f25ceb99\n\nTree-SHA512: 4423e420421aa37d8b59e053f44c455fafb676102866bdf23988cf72f3d3f265b996bd953583ea8208f1534defb0e16b13ef08644be97e61959dc777a2918e5a",
-        "tree": {
-          "sha": "e93f20b12d3811a1b68b3171642ee7536bb8242d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/e93f20b12d3811a1b68b3171642ee7536bb8242d"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/64ab0a06979e6905c3ba28a833e456a44b75c605",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmqZKQ4bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBV6cP/R/M9asPiS6juzaGKXZf\nFeFDEr09ZJmlVs/3QS+ifvf7kz1nHZ+181tixoK+LYuA36CkIY2EDlg+FYCk9kvX\nNE9EBaUkNFuhDMAvrWfkxW+nW2zh+jIPymiNWj5pC6Zbglds2wwIlo/qrFPR1ddX\nPYzNIeNeLVBIps0L92r+RejyTWldHGi4/7zA/HGrODo5yt9pVWEOYO+YxCmmj+cl\nRnIQ+Ep8Y3q3C/egWbiZcbyATql1kYEnZJiXWcbiUzpChVU+ABzWHfgnX6EKjbNX\n2oXYE/3JyXa8LJtwMCaaDcpRtzvdZX9jcBfJLwIgbRr7HC+l8BhSvFAs14vRHN8G\nOTrjvDFNXY0ySlPq0HEffIpmdoMsLKqbM/j2oMtN3tjz/5Sci6z1WZVvICFj3CD+\nIvUjIinsaAqFa3AF1kmyYk9XZXu4k2EOv4X1dl6qSMyhbK6/RbSMrN+gyWwyIQcI\nQPYuPquimzz1E2xNp4b7krUeMQ/Tp2doOJ/q8fuE5A7mzspZQYZilfzhbOpuk0tf\nXSrgd3/Pr719eQilAE6U3YvsBUjJKMdiXR75mUOuGTCILx82q6kYH2qioJFqOstC\nUlpvXkimRGz31MsZsRj2TQHxCRAjzcCZJGgAqKJoe9rZK2TQeHo4PapfWvb8ZYRU\nCUX95y1ZSJyhIZnA2OrMbCb6\n=4Rfw\n-----END PGP SIGNATURE-----",
-          "payload": "tree e93f20b12d3811a1b68b3171642ee7536bb8242d\nparent b811aeabad94ef48cd0f0fb1d2fcc456594aeedb\nparent fab80e82c1087126477e07eda5f6e3a1f25ceb99\nauthor merge-script <fanquake@gmail.com> 1788422414 +0100\ncommitter merge-script <fanquake@gmail.com> 1788422414 +0100\n\nMerge bitcoin/bitcoin#36148: test: Avoid unsafe memory race in index_reorg_crash shutdown\n\nfab80e82c1087126477e07eda5f6e3a1f25ceb99 test: Avoid unsafe memory race in baseindex_no_commit_ahead_of_flush (MarcoFalke)\nfa0f14ef5e76424ed7770936f7d053f27336a601 test: Avoid unsafe memory race in index_reorg_crash shutdown (MarcoFalke)\nfaf9c8e8a12cff5ef4f277d8c3f1035776e57c14 test: Clarify index.GetSummary().synced state in index_reorg_crash (MarcoFalke)\n\nPull request description:\n\n  Currently, the `index_reorg_crash` test may rarely crash due to UB in sanitizers like TSan or ASan. This is perfectly fine, because it is just a rare test-only issue.\n\n  However, fix it nonetheless by adding a missing drain of the unused in-flight events. Also, add a small check about the synced state while touching this test.\n\nACKs for top commit:\n  arejula27:\n    ACK fab80e82c1\n  furszy:\n    ACK fab80e82c1087126477e07eda5f6e3a1f25ceb99\n\nTree-SHA512: 4423e420421aa37d8b59e053f44c455fafb676102866bdf23988cf72f3d3f265b996bd953583ea8208f1534defb0e16b13ef08644be97e61959dc777a2918e5a\n",
-          "verified_at": "2026-09-03T08:00:19Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/64ab0a06979e6905c3ba28a833e456a44b75c605",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/64ab0a06979e6905c3ba28a833e456a44b75c605",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/64ab0a06979e6905c3ba28a833e456a44b75c605/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b811aeabad94ef48cd0f0fb1d2fcc456594aeedb",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b811aeabad94ef48cd0f0fb1d2fcc456594aeedb",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b811aeabad94ef48cd0f0fb1d2fcc456594aeedb"
-        },
-        {
-          "sha": "fab80e82c1087126477e07eda5f6e3a1f25ceb99",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab80e82c1087126477e07eda5f6e3a1f25ceb99",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fab80e82c1087126477e07eda5f6e3a1f25ceb99"
         }
       ]
     }
