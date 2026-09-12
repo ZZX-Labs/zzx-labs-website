@@ -3,18 +3,20 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolSpecsProvider?.__version>=5)return;
+  if(W.ZZXMempoolSpecsProvider?.__version>=6)return;
 
   async function j(url,opts={}){
-    return (await W.ZZXMempoolSpecsFetch.fetchJSON(url,opts)).json;
+    const r=await W.ZZXMempoolSpecsFetch.fetchJSON(url,opts);
+    return r?.json??r;
   }
 
   async function t(url,opts={}){
-    return (await W.ZZXMempoolSpecsFetch.fetchText(url,opts)).text;
+    const r=await W.ZZXMempoolSpecsFetch.fetchText(url,opts);
+    return r?.text??r;
   }
 
-  function positive(v){
-    const n=Number(v);
+  function positive(value){
+    const n=Number(value);
     return Number.isFinite(n)&&n>0?n:NaN;
   }
 
@@ -67,7 +69,10 @@
   }
 
   async function inlineFullFeed(){
-    const feed=W.ZZXMempoolSpecsFullFeed;
+    const feed=
+      W.ZZXMempoolSpecsFullFeed ??
+      W.ZZXMempoolFullFeed;
+
     if(!feed)return null;
 
     try{
@@ -91,21 +96,36 @@
           return {data,source:url};
         }
       }catch(_error){
-        // Optional source. Public mempool.space mode works without this.
+        // Optional. Public mempool.space REST mode can progressively hydrate
+        // real transaction rows without this source.
       }
     }
 
     return null;
   }
 
+  async function optionalJSON(url,{signal,ttlMs=5000}={}){
+    try{
+      return await j(url,{signal,ttlMs});
+    }catch(_error){
+      return null;
+    }
+  }
+
   async function load(core,{signal,force=false}={}){
     const cfg=W.ZZXMempoolSpecsSources.get(core);
+    const ttl=force?0:5000;
 
     const jobs={
-      mempool:j(cfg.endpoints.mempool,{signal,ttlMs:force?0:5000}),
-      blocks:j(cfg.endpoints.blocks,{signal,ttlMs:force?0:5000}),
-      recommended:j(cfg.endpoints.recommended,{signal,ttlMs:force?0:5000}),
-      tip:t(cfg.endpoints.tipHeight,{signal,ttlMs:force?0:5000}),
+      mempool:optionalJSON(cfg.endpoints.mempool,{signal,ttlMs:ttl}),
+      blocks:optionalJSON(cfg.endpoints.blocks,{signal,ttlMs:ttl}),
+      recommended:optionalJSON(cfg.endpoints.recommended,{signal,ttlMs:ttl}),
+      tip:(async()=>{
+        try{return await t(cfg.endpoints.tipHeight,{signal,ttlMs:ttl})}
+        catch(_error){return null}
+      })(),
+      txids:optionalJSON(cfg.endpoints.txids,{signal,ttlMs:force?0:10000}),
+      recent:optionalJSON(cfg.endpoints.recent,{signal,ttlMs:force?0:5000}),
       spot:price(cfg.price),
       full:remoteFullFeed(cfg,signal)
     };
@@ -120,12 +140,18 @@
         : null;
     });
 
-    if(!out.mempool&&!out.blocks&&!out.full){
-      const firstError=settled.find(result=>result.status==="rejected")?.reason;
-      throw firstError||new Error("projected mempool block data unavailable");
+    if(!out.mempool&&!out.blocks&&!out.full&&!out.txids){
+      throw new Error("mempool transaction data unavailable");
     }
 
     const tipHeight=Number(String(out.tip??"").trim());
+    const txids=Array.isArray(out.txids)
+      ? out.txids.map(String).filter(Boolean)
+      : [];
+
+    const recent=Array.isArray(out.recent)
+      ? out.recent.filter(row=>row&&typeof row==="object")
+      : [];
 
     return {
       cfg,
@@ -134,6 +160,8 @@
       feeRecommendations:out.recommended&&typeof out.recommended==="object"
         ? out.recommended
         : null,
+      txids,
+      recent,
       fullFeed:out.full?.data||null,
       fullFeedSource:out.full?.source||"",
       tipHeight:Number.isFinite(tipHeight)?tipHeight:NaN,
@@ -145,7 +173,7 @@
   }
 
   W.ZZXMempoolSpecsProvider=Object.freeze({
-    __version:5,
+    __version:6,
     load,
     marketStatePrice
   });
