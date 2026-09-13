@@ -1,19 +1,19 @@
 // __partials/widgets/mempool-tiles/widget.js
-// v1.4.0 — fixed runtime mount + shared mempool instrument shell + stable TX grid
+// v1.6.0 — self-contained shell + immediate WebSocket boot + multi-source REST fallback
 (function(){
   "use strict";
 
   const W=window;
   const D=document;
 
-  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V14__)return;
-  W.__ZZX_MEMPOOL_TILES_WIDGET_V14__=true;
+  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V16__)return;
+  W.__ZZX_MEMPOOL_TILES_WIDGET_V16__=true;
 
   const MODULES=[
-    ["ZZXMempoolTilesSources","js/sources.js",2],
+    ["ZZXMempoolTilesSources","js/sources.js",3],
     ["ZZXMempoolTilesFetch","js/fetch.js",1],
-    ["ZZXMempoolTilesProvider","js/provider.js",1],
-    ["ZZXMempoolTilesLive","js/live.js",2],
+    ["ZZXMempoolTilesProvider","js/provider.js",2],
+    ["ZZXMempoolTilesLive","js/live.js",3],
     ["ZZXMempoolTilesAnalyzer","js/analyzer.js",1],
     ["ZZXMempoolTilesModel","js/model.js",2],
     ["ZZXMempoolTilesScaler","js/scaler.js",2],
@@ -22,7 +22,7 @@
     ["ZZXMempoolTilesThemes","js/themes.js",1],
     ["ZZXMempoolTilesRenderer","js/renderer.js",3],
     ["ZZXMempoolTilesAnimation","js/animation.js",1],
-    ["ZZXMempoolTilesTxFetcher","js/txfetcher.js",1],
+    ["ZZXMempoolTilesTxFetcher","js/txfetcher.js",2],
     ["ZZXMempoolTilesInspector","js/inspector.js",1]
   ];
 
@@ -33,7 +33,7 @@
   const ID="mempool-tiles";
 
   function core(){
-    return W.ZZXWidgetCore || W.ZZXWidgets || W.ZZX || {};
+    return W.ZZXWidgetsCore || W.ZZXWidgetCore || W.ZZXWidgets || W.ZZX || {};
   }
 
   function widgetBase(){
@@ -205,6 +205,12 @@
     const meta=root.querySelector("[data-mt-meta]");
     const gridStat=root.querySelector("[data-mt-grid]");
     const valueCoverageStat=root.querySelector("[data-mt-value-coverage]");
+    const vizCount=root.querySelector("[data-mt-viz-count]");
+    const tipStat=root.querySelector("[data-mt-tip]");
+    const feeRangeStat=root.querySelector("[data-mt-fee-range]");
+    const backlogStat=root.querySelector("[data-mt-backlog]");
+    const sourceStat=root.querySelector("[data-mt-source]");
+    const updatedStat=root.querySelector("[data-mt-updated]");
 
     let model=null;
     let layout=null;
@@ -223,6 +229,8 @@
     let hydrateTimer=0;
     let hydrateCount=0;
     let destroyed=false;
+    let sharedUnsubscribe=null;
+    let lastConnectionState="connecting";
 
     const themeRaw=`${widgetBase()}/themes/zzx-default.json`;
     const themeUrl=W.ZZXAPI?.url
@@ -245,6 +253,7 @@
 
     function setConnectionState(state,detail=""){
       const normalized=String(state||"offline").toLowerCase();
+      lastConnectionState=normalized;
       const live=normalized==="live";
       const label=live
         ? "live ws"
@@ -376,6 +385,41 @@
         valueCoverageStat.textContent=`${(Math.max(0,Math.min(1,model.candidateValueCoverage||0))*100).toFixed(1)}% values resolved`;
       }
 
+      if(vizCount){
+        vizCount.textContent=`${fmtInt(txs)} real TX · ${layout.gridN}×${layout.gridN} slots`;
+      }
+
+      if(tipStat){
+        tipStat.textContent=Number.isFinite(model.tipHeight)
+          ? `#${fmtInt(model.tipHeight)} → candidate #${fmtInt(model.tipHeight+1)}`
+          : "—";
+      }
+
+      if(feeRangeStat){
+        const sorted=rates.slice().sort((a,b)=>a-b);
+        feeRangeStat.textContent=sorted.length
+          ? `${fmtRate(sorted[0])} – ${fmtRate(sorted[sorted.length-1])}`
+          : "—";
+      }
+
+      if(backlogStat){
+        const backlog=Number(model.mempool?.vsize??model.mempool?.vbytes);
+        const count=Number(model.mempool?.count);
+        backlogStat.textContent=Number.isFinite(backlog)
+          ? `${(backlog/1e6).toFixed(2)} vMB${Number.isFinite(count)?` · ${fmtInt(count)} TX`:""}`
+          : "—";
+      }
+
+      if(sourceStat){
+        sourceStat.textContent=model.source||model.fullFeedSource||"configured mempool API";
+      }
+
+      if(updatedStat){
+        updatedStat.textContent=Number.isFinite(Number(model.fetchedAt))
+          ? `updated ${new Date(Number(model.fetchedAt)).toLocaleTimeString()}`
+          : "—";
+      }
+
       if(coverage){
         const fill=Math.min(125,model.candidateVsize/Math.max(1,model.targetVbytes)*100);
         coverage.textContent=`${fmtInt(txs)} real candidate TX · ${fill.toFixed(1)}% projected block vsize · one stable slot per TX`;
@@ -386,7 +430,9 @@
           ? "WebSocket live"
           : model.fullFeedActive
             ? "full feed"
-            : "REST building";
+            : lastConnectionState==="connecting"||lastConnectionState==="reconnecting"
+              ? "WebSocket connecting · REST fallback"
+              : "REST building";
       }
 
       if(meta){
@@ -594,6 +640,174 @@
       );
     }
 
+    function seedFromLive(snapshot,cfg){
+      const rows=Array.isArray(snapshot?.transactions)
+        ? snapshot.transactions
+        : [];
+
+      const totalVsize=rows.reduce(
+        (sum,row)=>sum+(Number(row?.vsize??row?.vbytes)||0),
+        0
+      );
+
+      const block0=Array.isArray(snapshot?.blocks)&&snapshot.blocks.length
+        ? snapshot.blocks[0]
+        : {
+            nTx:rows.length,
+            blockVSize:Math.max(1,totalVsize||1_000_000)
+          };
+
+      const base=W.ZZXMempoolTilesModel.build({
+        cfg,
+        mempool:{
+          count:rows.length,
+          vsize:totalVsize
+        },
+        blocks:[block0],
+        feeRecommendations:null,
+        tipHeight:NaN,
+        txids:rows.map(row=>row?.txid).filter(Boolean),
+        recent:rows,
+        fullFeed:null,
+        fullFeedSource:"",
+        priceUsd:NaN,
+        priceSource:"",
+        source:snapshot?.url||cfg.apiBase||"WebSocket",
+        fetchedAt:Number(snapshot?.updatedAt)||Date.now()
+      });
+
+      return W.ZZXMempoolTilesModel.mergeLive(
+        base,
+        snapshot
+      );
+    }
+
+    function applySharedSnapshot(snapshot){
+      const group=snapshot?.groups?.[0];
+      const rows=(group?.items||[])
+        .filter(item=>item?.kind==="tx"&&item?.txid)
+        .map((item,index)=>({
+          txid:item.txid,
+          id:item.txid,
+          vsize:item.vbytes,
+          vbytes:item.vbytes,
+          fee:item.fee,
+          value:item.value,
+          feeRate:item.feeRate,
+          packageFeeRate:item.feeRate,
+          firstSeen:item.firstSeenMs,
+          projectedRank:index,
+          __zzxTilesLive:true
+        }));
+
+      if(!rows.length)return;
+      if(model?.liveActive&&model.candidate.length>=rows.length)return;
+
+      const cfg=W.ZZXMempoolTilesSources.get(
+        runtimeCore,
+        snapshot?.source||""
+      );
+
+      const base=W.ZZXMempoolTilesModel.build({
+        cfg,
+        mempool:snapshot?.summary||{},
+        blocks:Array.isArray(snapshot?.candidateBlocks)?snapshot.candidateBlocks:[],
+        feeRecommendations:null,
+        tipHeight:Number(snapshot?.tipHeight),
+        txids:rows.map(row=>row.txid),
+        recent:rows,
+        fullFeed:null,
+        fullFeedSource:"",
+        priceUsd:Number(snapshot?.priceUsd),
+        priceSource:String(snapshot?.priceSource||"shared mempool state"),
+        source:String(snapshot?.source||"ZZXMempoolVisuals"),
+        fetchedAt:Number(snapshot?.fetchedAt)||Date.now()
+      });
+
+      model=W.ZZXMempoolTilesModel.mergeLive(
+        base,
+        {
+          transactions:rows,
+          blocks:Array.isArray(snapshot?.candidateBlocks)?snapshot.candidateBlocks:[],
+          updatedAt:Number(snapshot?.fetchedAt)||Date.now()
+        }
+      );
+
+      setConnectionState(
+        snapshot?.websocketConnected?"live":"rest",
+        snapshot?.source||"shared mempool visual state"
+      );
+
+      layoutNow(Boolean(layout));
+    }
+
+    async function ensureSharedFallback(){
+      if(Number(W.ZZXMempoolVisuals?.__version||0)<1){
+        try{
+          const raw="/__partials/widgets/_shared/zzx-mempool-visuals.js";
+          const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+          await new Promise((resolve,reject)=>{
+            const script=D.createElement("script");
+            script.src=`${src}${src.includes("?")?"&":"?"}zzxmod=1`;
+            script.defer=true;
+            script.onload=resolve;
+            script.onerror=reject;
+            (D.head||D.documentElement).appendChild(script);
+          });
+        }catch(_){}
+      }
+
+      if(Number(W.ZZXMempoolVisuals?.__version||0)>=1){
+        sharedUnsubscribe=W.ZZXMempoolVisuals.subscribe(
+          runtimeCore,
+          snapshot=>{
+            if(!destroyed)applySharedSnapshot(snapshot);
+          }
+        );
+      }
+    }
+
+    function startLive(cfg){
+      if(live)return;
+
+      live=new W.ZZXMempoolTilesLive.LiveNextBlock({
+        urls:cfg.websocketUrls,
+        reconnectMaxMs:cfg.liveReconnectMaxMs,
+
+        onState:state=>{
+          setConnectionState(
+            state.state,
+            state.url||state.detail||""
+          );
+        },
+
+        onUpdate:snapshot=>{
+          if(destroyed)return;
+
+          liveSnapshot=snapshot;
+
+          model=model
+            ? W.ZZXMempoolTilesModel.mergeLive(model,snapshot)
+            : seedFromLive(snapshot,cfg);
+
+          layoutNow(Boolean(layout));
+
+          W.clearTimeout(hydrateTimer);
+          hydrateTimer=W.setTimeout(
+            hydrate,
+            cfg.liveDebounceMs
+          );
+        }
+      });
+
+      if(!live.start()){
+        setConnectionState(
+          "rest",
+          "WebSocket unavailable; using REST"
+        );
+      }
+    }
+
     async function refresh(force=false){
       aborter?.abort();
       aborter=new AbortController();
@@ -627,52 +841,26 @@
 
         layoutNow(Boolean(layout));
 
-        if(!live){
-          live=
-            new W.ZZXMempoolTilesLive.LiveNextBlock({
-              urls:payload.cfg.websocketUrls,
-              reconnectMaxMs:payload.cfg.liveReconnectMaxMs,
-
-              onState:state=>{
-                setConnectionState(
-                  state.state,
-                  state.url||state.detail||""
-                );
-              },
-
-              onUpdate:snapshot=>{
-                if(destroyed)return;
-
-                liveSnapshot=snapshot;
-
-                model=
-                  W.ZZXMempoolTilesModel.mergeLive(
-                    model,
-                    snapshot
-                  );
-
-                layoutNow(true);
-
-                W.clearTimeout(hydrateTimer);
-                hydrateTimer=W.setTimeout(
-                  hydrate,
-                  payload.cfg.liveDebounceMs
-                );
-              }
-            });
-
-          if(!live.start()){
-            setConnectionState("rest","WebSocket unavailable; using REST");
-          }
-        }
+        startLive(payload.cfg);
 
         W.clearTimeout(hydrateTimer);
         hydrateTimer=W.setTimeout(hydrate,180);
       }catch(error){
         if(error?.name==="AbortError")return;
-        setConnectionState("offline",String(error?.message||error));
-        summary.textContent="Mempool Tiles unavailable";
-        sub.textContent=String(error?.message||error);
+
+        const message=String(error?.message||error);
+
+        if(model?.candidate?.length){
+          if(lastConnectionState!=="live"){
+            setConnectionState("reconnecting",message);
+          }
+          sub.textContent=`live/shared transaction field retained · REST refresh failed: ${message}`;
+          renderStats();
+        }else{
+          setConnectionState("reconnecting",message);
+          summary.textContent="Connecting to projected next-block feed…";
+          sub.textContent="REST unavailable; WebSocket/shared fallback still active";
+        }
       }
     }
 
@@ -768,6 +956,7 @@
       fallbackCursor=0;
       hydrateCount=0;
       setConnectionState("connecting","manual reconnect");
+      startLive(W.ZZXMempoolTilesSources.get(runtimeCore));
       await refresh(true);
     });
 
@@ -782,6 +971,11 @@
 
     setActive();
     setConnectionState("connecting","initializing next-block feed");
+
+    const initialCfg=W.ZZXMempoolTilesSources.get(runtimeCore);
+    startLive(initialCfg);
+    ensureSharedFallback().catch(()=>{});
+
     await refresh(true);
 
     const interval=W.setInterval(
@@ -796,6 +990,7 @@
       animationCancel?.();
       aborter?.abort();
       live?.stop();
+      sharedUnsubscribe?.();
       resize.disconnect();
     };
   }
