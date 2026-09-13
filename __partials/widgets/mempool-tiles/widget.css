@@ -396,3 +396,231 @@
 
   .mt-io-value{grid-column:2}
 }
+
+/* ========================================================================
+   v1.5.0 INTEGRATED-RUNTIME LAYOUT ISOLATION
+   The host/site has legacy/global .mempool-tiles/.btc-card layout rules.  If
+   those win, every top-level Tiles section becomes its own grid/flex column
+   and the square visualizer collapses to a tiny cell.  Own the root layout
+   explicitly and put every section inside one full-width stack.
+   ======================================================================== */
+
+.btc-card.mempool-tiles{
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  grid-template-columns:none!important;
+  grid-template-rows:none!important;
+  grid-auto-flow:row!important;
+  grid-auto-columns:auto!important;
+  grid-auto-rows:auto!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  justify-items:stretch!important;
+  columns:auto!important;
+  column-count:initial!important;
+  column-width:auto!important;
+}
+
+.btc-card.mempool-tiles > .mempool-tiles__stack{
+  position:relative!important;
+  display:block!important;
+  float:none!important;
+  clear:both!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  grid-column:1 / -1!important;
+  grid-row:auto!important;
+  flex:0 0 auto!important;
+}
+
+.btc-card.mempool-tiles > .mempool-tiles__stack > *{
+  min-width:0!important;
+  max-width:100%!important;
+}
+
+.btc-card.mempool-tiles .mempool-tiles__header,
+.btc-card.mempool-tiles .mempool-tiles__footer{
+  display:flex!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+.btc-card.mempool-tiles .mempool-tiles__hero{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+.btc-card.mempool-tiles .mempool-tiles__hero > *{
+  width:auto!important;
+  min-width:0!important;
+  max-width:100%!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics > div{
+  display:block!important;
+  min-width:0!important;
+  width:auto!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics span,
+.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics strong,
+.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics small{
+  display:block!important;
+  min-width:0!important;
+  width:auto!important;
+  white-space:nowrap!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-controls.mempool-tiles__controls{
+  display:flex!important;
+  width:100%!important;
+  min-width:0!important;
+  align-items:flex-end!important;
+  flex-wrap:wrap!important;
+}
+
+.btc-card.mempool-tiles .mt-segment{
+  display:grid!important;
+  width:auto!important;
+  min-width:0!important;
+  flex:0 0 auto!important;
+}
+
+.btc-card.mempool-tiles .mt-segment__buttons{
+  display:flex!important;
+  width:auto!important;
+  min-width:0!important;
+}
+
+.btc-card.mempool-tiles .mt-order-control{
+  display:grid!important;
+  min-width:150px!important;
+  max-width:240px!important;
+  flex:1 1 180px!important;
+}
+
+.btc-card.mempool-tiles .mt-order-control select{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+/* The actual visualizer owns the width of the card.  No inherited grid/flex
+   column can shrink it, and the canvas is pinned to the square stage. */
+.btc-card.mempool-tiles .zzx-mp-viz.zzx-mp-viz--square.mempool-tiles__viz{
+  position:relative!important;
+  display:block!important;
+  float:none!important;
+  clear:both!important;
+  width:100%!important;
+  max-width:760px!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  aspect-ratio:1 / 1!important;
+  margin:.55rem auto 0!important;
+  padding:0!important;
+  flex:none!important;
+  grid-column:1 / -1!important;
+  grid-row:auto!important;
+  overflow:hidden!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-viz.zzx-mp-viz--square.mempool-tiles__viz > canvas[data-mt-canvas]{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+}
+
+.btc-card.mempool-tiles .mempool-tiles__legend{
+  display:flex!important;
+  width:100%!important;
+  min-width:0!important;
+  flex-wrap:wrap!important;
+}
+
+.btc-card.mempool-tiles .mempool-tiles__legend span{
+  display:inline-flex!important;
+  width:auto!important;
+  min-width:0!important;
+  white-space:nowrap!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-coverage.mempool-tiles__coverage{
+  display:flex!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+.btc-card.mempool-tiles .zzx-mp-inspector.mempool-tiles__inspector{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+.btc-card.mempool-tiles .mt-inspector-body[hidden]{
+  display:none!important;
+}
+
+.btc-card.mempool-tiles .mt-kv-grid{
+  display:grid!important;
+  width:100%!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+}
+
+.btc-card.mempool-tiles .mempool-tiles__footer{
+  width:100%!important;
+  min-width:0!important;
+}
+
+@media(max-width:820px){
+  .btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics,
+  .btc-card.mempool-tiles .mt-kv-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .btc-card.mempool-tiles .mt-order-control{
+    max-width:none!important;
+    flex:1 1 100%!important;
+  }
+}
+
+@media(max-width:520px){
+  .btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics,
+  .btc-card.mempool-tiles .mt-kv-grid{
+    grid-template-columns:1fr!important;
+  }
+}
