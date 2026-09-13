@@ -15,7 +15,7 @@
       <small data-mt-sub>one grid slot = one real transaction</small>
     </div>
 
-    <div class="zzx-mp-metrics mempool-tiles__metrics">
+    <div class="mempool-tiles__metrics">
       <div>
         <span>candidate vsize</span>
         <strong data-mt-stat="vsize">— vMB</strong>
@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <div class="zzx-mp-controls mempool-tiles__controls" aria-label="Mempool Tiles controls">
+    <div class="mempool-tiles__controls" aria-label="Mempool Tiles controls">
       <div class="mt-segment">
         <span class="mt-segment__label">Scale</span>
         <div class="mt-segment__buttons">
@@ -71,14 +71,21 @@
       </label>
     </div>
 
-    <div class="zzx-mp-viz zzx-mp-viz--square mempool-tiles__viz" data-mt-stage tabindex="0"
-         aria-label="Live projected next Bitcoin block transaction tile grid">
-      <canvas data-mt-canvas aria-label="Mempool Tiles live projected next-block transaction grid"></canvas>
-      <div class="zzx-mp-viz__tooltip" data-mt-tooltip hidden></div>
-      <div class="mempool-tiles__badge">
-        <span data-mt-live-state>connecting</span>
-        <span aria-hidden="true">·</span>
-        <span data-mt-block-label>NEXT BLOCK</span>
+    <div class="mempool-tiles__visual-panel">
+      <div class="mempool-tiles__visual-head">
+        <span>transaction tile grid</span>
+        <strong data-mt-viz-count>—</strong>
+      </div>
+
+      <div class="mempool-tiles__viz" data-mt-stage tabindex="0"
+           aria-label="Live projected next Bitcoin block transaction tile grid">
+        <canvas data-mt-canvas aria-label="Mempool Tiles live projected next-block transaction grid"></canvas>
+        <div class="mempool-tiles__tooltip" data-mt-tooltip hidden></div>
+        <div class="mempool-tiles__badge">
+          <span data-mt-live-state>connecting</span>
+          <span aria-hidden="true">·</span>
+          <span data-mt-block-label>NEXT BLOCK</span>
+        </div>
       </div>
     </div>
 
@@ -89,12 +96,20 @@
       <span><i class="mt-dot mt-dot--very-high"></i>very high fee</span>
     </div>
 
-    <div class="zzx-mp-coverage mempool-tiles__coverage">
-      <span data-mt-coverage>assembling projected next-block transaction set…</span>
-      <strong data-mt-transport>REST</strong>
+    <div class="mempool-tiles__telemetry">
+      <div><span>current tip</span><strong data-mt-tip>—</strong></div>
+      <div><span>candidate fee range</span><strong data-mt-fee-range>—</strong></div>
+      <div><span>mempool backlog</span><strong data-mt-backlog>—</strong></div>
+      <div><span>transport</span><strong data-mt-transport>REST</strong></div>
+      <div><span>source</span><strong data-mt-source>—</strong></div>
     </div>
 
-    <section class="zzx-mp-inspector mempool-tiles__inspector" data-mt-inspector aria-live="polite">
+    <div class="mempool-tiles__coverage">
+      <span data-mt-coverage>assembling projected next-block transaction set…</span>
+      <strong data-mt-updated>—</strong>
+    </div>
+
+    <section class="mempool-tiles__inspector" data-mt-inspector aria-live="polite">
       <div class="mt-inspector-empty" data-mt-inspector-empty>
         Select any transaction tile for the full transaction readout.
       </div>
