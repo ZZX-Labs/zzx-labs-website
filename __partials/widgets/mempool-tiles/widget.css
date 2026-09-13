@@ -1,150 +1,307 @@
-@import url("/__partials/widgets/_shared/zzx-mempool-visuals.css");
 /* __partials/widgets/mempool-tiles/widget.css
-   v1.4.0 — shared mempool instrument shell + stable transaction tile grid
+   v1.6.0 — fully self-contained widget shell; no dependency on shared @import
 */
 
-.mempool-tiles{
-  --c:var(--zzx-accent,#c0d674);
-  --g:var(--zzx-accent-alt,#e6a42b);
-  --m:var(--zzx-muted,#b7bf9a);
-  --d:var(--zzx-dim,#777);
-  --l:rgba(255,255,255,.09);
-  width:100%;
-  min-width:0;
-  overflow:hidden;
+.btc-card.mempool-tiles{
+  --mt-green:var(--zzx-accent,#c0d674);
+  --mt-gold:var(--zzx-accent-alt,#e6a42b);
+  --mt-muted:var(--zzx-muted,#b7bf9a);
+  --mt-dim:var(--zzx-dim,#777);
+  --mt-line:rgba(255,255,255,.09);
+  --mt-panel:#080808;
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  grid-template:none!important;
+  grid-auto-flow:row!important;
+  flex:none!important;
+  columns:auto!important;
 }
 
-.mempool-tiles *{box-sizing:border-box}
+.btc-card.mempool-tiles,
+.btc-card.mempool-tiles *{box-sizing:border-box}
+
+.btc-card.mempool-tiles>.mempool-tiles__stack{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+}
 
 .mempool-tiles__header,
 .mempool-tiles__footer{
-  display:flex;
+  display:flex!important;
   align-items:center;
   justify-content:space-between;
   gap:.55rem;
-  min-width:0;
+  width:100%!important;
+  min-width:0!important;
 }
 
 .mempool-tiles__header{align-items:flex-start}
 
 .mempool-tiles__eyebrow,
-.mempool-tiles__hero>span{
-  color:var(--d);
-  font-size:.67rem;
-  letter-spacing:.05em;
-  text-transform:uppercase;
-}
-
-.mempool-tiles__hero{
-  display:grid;
-  gap:.08rem;
-  margin-top:.5rem;
-  padding:.55rem 0 .58rem;
-  border-top:1px solid var(--l);
-  border-bottom:1px solid var(--l);
-}
-
-.mempool-tiles__hero strong{
-  color:var(--c);
-  font:500 1.14rem/1.1 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-}
-
-.mempool-tiles__hero small{
-  color:var(--g);
-  font-size:.68rem;
-}
-
-.mempool-tiles__metrics{margin-top:.5rem}
-
-.mempool-tiles__controls{
-  align-items:flex-end;
-  flex-wrap:wrap;
-}
-
-.mt-segment{
-  display:grid;
-  gap:.13rem;
-  min-width:0;
-}
-
+.mempool-tiles__hero>span,
+.mempool-tiles__visual-head>span,
+.mempool-tiles__telemetry span,
 .mt-segment__label,
-.mt-order-control>span{
-  color:#777;
+.mt-order-control>span,
+.mt-kv dt,
+.mt-eyebrow{
+  color:var(--mt-dim);
   font-size:.62rem;
   letter-spacing:.05em;
   text-transform:uppercase;
 }
 
+.mempool-tiles__hero{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:.08rem;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--mt-line);
+  border-bottom:1px solid var(--mt-line);
+}
+
+.mempool-tiles__hero>*{
+  min-width:0!important;
+  max-width:100%!important;
+}
+
+.mempool-tiles__hero strong{
+  color:var(--mt-green);
+  font:500 1.14rem/1.1 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+}
+
+.mempool-tiles__hero small{
+  color:var(--mt-gold);
+  font-size:.68rem;
+}
+
+/* Metric cards are intentionally duplicated here rather than imported.
+   The runtime that embeds this widget does not reliably honor CSS @import. */
+.mempool-tiles__metrics{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:.38rem!important;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:.5rem!important;
+}
+
+.mempool-tiles__metrics>div{
+  display:block!important;
+  min-width:0!important;
+  padding:.38rem .42rem!important;
+  border:1px solid var(--mt-line)!important;
+  border-radius:6px!important;
+  background:rgba(255,255,255,.018)!important;
+}
+
+.mempool-tiles__metrics span,
+.mempool-tiles__metrics strong,
+.mempool-tiles__metrics small{
+  display:block!important;
+  min-width:0!important;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap!important;
+}
+
+.mempool-tiles__metrics span{
+  color:var(--mt-dim);
+  font-size:.64rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.mempool-tiles__metrics strong{
+  margin-top:.1rem;
+  color:var(--mt-green);
+  font:500 .71rem/1.2 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+}
+
+.mempool-tiles__metrics small{
+  margin-top:.08rem;
+  color:var(--mt-muted);
+  font-size:.62rem;
+}
+
+.mempool-tiles__controls{
+  display:flex!important;
+  align-items:flex-end!important;
+  flex-wrap:wrap!important;
+  gap:.4rem!important;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:.5rem!important;
+}
+
+.mt-segment{
+  display:grid!important;
+  gap:.13rem;
+  min-width:0!important;
+  flex:0 0 auto!important;
+}
+
 .mt-segment__buttons{
-  display:flex;
+  display:flex!important;
   align-items:center;
+  min-width:0!important;
 }
 
 .mt-segment__buttons .zzx-widgets__btn{
   min-width:44px;
+  white-space:nowrap;
   border-radius:0;
 }
 
-.mt-segment__buttons .zzx-widgets__btn:first-child{
-  border-radius:6px 0 0 6px;
-}
-
-.mt-segment__buttons .zzx-widgets__btn:last-child{
-  border-radius:0 6px 6px 0;
-}
-
-.mt-segment__buttons .zzx-widgets__btn + .zzx-widgets__btn{
-  margin-left:-1px;
-}
+.mt-segment__buttons .zzx-widgets__btn:first-child{border-radius:6px 0 0 6px}
+.mt-segment__buttons .zzx-widgets__btn:last-child{border-radius:0 6px 6px 0}
+.mt-segment__buttons .zzx-widgets__btn+.zzx-widgets__btn{margin-left:-1px}
 
 .mt-segment__buttons .zzx-widgets__btn.is-active{
   position:relative;
   z-index:2;
   border-color:rgba(230,164,43,.78);
-  color:var(--g);
+  color:var(--mt-gold);
   background:rgba(230,164,43,.065);
   box-shadow:inset 0 2px 0 rgba(230,164,43,.42);
 }
 
 .mt-order-control{
-  display:grid;
+  display:grid!important;
   gap:.13rem;
-  min-width:150px;
-  flex:1;
+  min-width:160px!important;
+  flex:1 1 180px!important;
 }
 
 .mt-order-control select{
-  width:100%;
-  min-width:0;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
   padding:.31rem .4rem;
   border:1px solid #343434;
   border-radius:6px;
   background:#080808;
-  color:#c0d674;
+  color:var(--mt-green);
   font:500 .69rem/1.2 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
   outline:none;
 }
 
-.mt-order-control select:focus{border-color:#e6a42b}
+.mt-order-control select:focus{border-color:var(--mt-gold)}
+
+.mempool-tiles__visual-panel{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:.5rem!important;
+  padding-top:.42rem!important;
+  border-top:1px solid var(--mt-line)!important;
+}
+
+.mempool-tiles__visual-head{
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  width:100%!important;
+  min-width:0!important;
+  margin-bottom:.32rem;
+}
+
+.mempool-tiles__visual-head strong{
+  min-width:0;
+  color:var(--mt-gold);
+  font:500 .62rem/1.2 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 
 .mempool-tiles__viz{
-  margin-top:.5rem;
-  min-height:260px;
-  max-height:760px;
+  position:relative!important;
+  display:block!important;
+  float:none!important;
+  clear:both!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:760px!important;
+  aspect-ratio:1/1!important;
+  height:auto!important;
+  min-height:260px!important;
+  max-height:760px!important;
+  margin:0 auto!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:2px solid rgba(230,164,43,.86)!important;
+  border-radius:8px!important;
+  background:
+    radial-gradient(circle at 50% 30%,rgba(192,214,116,.035),transparent 48%),
+    #050505!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025)!important;
   outline:none;
 }
 
 .mempool-tiles__viz:focus-visible{
   box-shadow:
     0 0 0 2px rgba(230,164,43,.16),
-    inset 0 0 0 1px rgba(255,255,255,.025);
+    inset 0 0 0 1px rgba(255,255,255,.025)!important;
 }
+
+.mempool-tiles__viz>canvas[data-mt-canvas]{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  touch-action:manipulation;
+}
+
+.mempool-tiles__tooltip{
+  position:absolute;
+  z-index:5;
+  max-width:min(270px,calc(100% - 14px));
+  pointer-events:none;
+  padding:.38rem .45rem;
+  border:1px solid rgba(230,164,43,.52);
+  border-radius:5px;
+  background:rgba(5,5,5,.94);
+  color:var(--mt-muted);
+  font:500 .64rem/1.35 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+
+.mempool-tiles__tooltip strong{
+  display:block;
+  color:var(--mt-green);
+  font-weight:500;
+  margin-bottom:.08rem;
+}
+
+.mempool-tiles__tooltip[hidden]{display:none!important}
 
 .mempool-tiles__badge{
   position:absolute;
   top:.48rem;
   left:.5rem;
-  z-index:3;
+  z-index:4;
   display:flex;
   align-items:center;
   gap:.32rem;
@@ -163,22 +320,26 @@
   pointer-events:none;
 }
 
-.mempool-tiles__badge [data-mt-live-state]{color:var(--c)}
+.mempool-tiles__badge [data-mt-live-state]{color:var(--mt-green)}
 
 .mempool-tiles__legend{
-  display:flex;
-  flex-wrap:wrap;
+  display:flex!important;
+  flex-wrap:wrap!important;
   align-items:center;
   gap:.28rem .72rem;
+  width:100%!important;
+  min-width:0!important;
   margin-top:.34rem;
-  color:#777;
+  color:var(--mt-dim);
   font-size:.62rem;
 }
 
 .mempool-tiles__legend span{
-  display:inline-flex;
+  display:inline-flex!important;
   align-items:center;
   gap:.28rem;
+  width:auto!important;
+  white-space:nowrap;
 }
 
 .mt-dot{
@@ -187,25 +348,84 @@
   height:12px;
   border-radius:3px;
 }
-
 .mt-dot--low{background:#20353d}
 .mt-dot--mid{background:#79945f}
 .mt-dot--high{background:#c0d674}
 .mt-dot--very-high{background:#e6a42b}
 
-.mempool-tiles__coverage{margin-top:.34rem}
+.mempool-tiles__telemetry{
+  display:grid!important;
+  gap:.26rem;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:.42rem;
+  padding:.42rem 0;
+  border-top:1px solid var(--mt-line);
+  border-bottom:1px solid var(--mt-line);
+}
+
+.mempool-tiles__telemetry>div{
+  display:grid!important;
+  grid-template-columns:minmax(9rem,auto) minmax(0,1fr)!important;
+  gap:.55rem;
+  align-items:center;
+  min-width:0!important;
+}
+
+.mempool-tiles__telemetry strong{
+  min-width:0;
+  overflow:hidden;
+  color:var(--mt-muted);
+  font:500 .62rem/1.25 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  text-align:right;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mempool-tiles__coverage{
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:.34rem;
+  color:var(--mt-muted);
+  font-size:.64rem;
+}
+
+.mempool-tiles__coverage span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mempool-tiles__coverage strong{
+  color:var(--mt-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-weight:500;
+  white-space:nowrap;
+}
 
 .mempool-tiles__inspector{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
   margin-top:.5rem;
-  min-width:0;
+  padding:.5rem;
+  border:1px solid var(--mt-line);
+  border-radius:7px;
+  background:rgba(255,255,255,.018);
 }
 
 .mt-inspector-empty{
   padding:.05rem;
-  color:#777;
+  color:var(--mt-dim);
   font-size:.66rem;
 }
 
+.mt-inspector-body[hidden]{display:none!important}
 .mt-inspector-body{padding:0}
 
 .mt-inspector-head{
@@ -217,28 +437,15 @@
   border-bottom:1px solid rgba(255,255,255,.075);
 }
 
-.mt-inspector-head>div{
-  display:grid;
-  gap:.06rem;
-  min-width:0;
-}
-
+.mt-inspector-head>div{display:grid;gap:.06rem;min-width:0}
 .mt-inspector-head h3{
   margin:0;
   min-width:0;
   overflow:hidden;
+  color:var(--mt-gold);
+  font:500 .76rem/1.2 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
   text-overflow:ellipsis;
   white-space:nowrap;
-  color:#e6a42b;
-  font:500 .76rem/1.2 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-}
-
-.mt-eyebrow,
-.mt-kv dt{
-  color:#777;
-  font-size:.62rem;
-  letter-spacing:.05em;
-  text-transform:uppercase;
 }
 
 .mt-inspector-head button{
@@ -248,23 +455,16 @@
   border:1px solid #343434;
   border-radius:5px;
   background:#080808;
-  color:#b7bf9a;
+  color:var(--mt-muted);
   cursor:pointer;
 }
 
-.mt-inspector-head button:hover,
-.mt-inspector-head button:focus-visible{
-  border-color:#e6a42b;
-  color:#e6a42b;
-  outline:none;
-}
-
 .mt-kv-grid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
   gap:.34rem;
-  margin-top:.42rem;
-  margin-bottom:.42rem;
+  width:100%!important;
+  margin:.42rem 0;
 }
 
 .mt-kv{
@@ -280,23 +480,14 @@
   min-width:0;
   margin:.08rem 0 0;
   overflow:hidden;
-  color:#c0d674;
+  color:var(--mt-green);
   font:500 .66rem/1.35 var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-.mt-detail{
-  border-top:1px solid rgba(255,255,255,.075);
-  padding:.34rem 0;
-}
-
-.mt-detail summary{
-  cursor:pointer;
-  color:#b7bf9a;
-  font-size:.66rem;
-}
-
+.mt-detail{border-top:1px solid rgba(255,255,255,.075);padding:.34rem 0}
+.mt-detail summary{cursor:pointer;color:var(--mt-muted);font-size:.66rem}
 .mt-detail pre{
   margin:.36rem 0 0;
   max-height:300px;
@@ -311,12 +502,7 @@
   overflow-wrap:anywhere;
 }
 
-.mt-io-list{
-  display:grid;
-  gap:.3rem;
-  margin-top:.34rem;
-}
-
+.mt-io-list{display:grid;gap:.3rem;margin-top:.34rem}
 .mt-io-row{
   display:grid;
   grid-template-columns:42px minmax(0,1fr) auto;
@@ -329,11 +515,9 @@
   color:#9ba486;
   font-size:.62rem;
 }
-
-.mt-io-index{color:#e6a42b}
+.mt-io-index{color:var(--mt-gold)}
 .mt-io-main{min-width:0;overflow-wrap:anywhere}
-.mt-io-value{color:#c0d674;white-space:nowrap}
-
+.mt-io-value{color:var(--mt-green);white-space:nowrap}
 .mt-data-row{
   margin-top:.30rem;
   padding:.38rem;
@@ -349,8 +533,8 @@
 .mempool-tiles__footer{
   margin-top:.45rem;
   padding-top:.42rem;
-  border-top:1px solid var(--l);
-  color:var(--m);
+  border-top:1px solid var(--mt-line);
+  color:var(--mt-muted);
   font-size:.67rem;
 }
 
@@ -364,263 +548,19 @@
 .mempool-tiles__footer .zzx-widgets__btn{white-space:nowrap}
 
 @media(max-width:820px){
-  .mt-kv-grid,
-  .mempool-tiles__metrics{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-
-  .mempool-tiles__controls{align-items:stretch}
-  .mt-order-control{flex:1 1 100%}
+  .mempool-tiles__metrics,
+  .mt-kv-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .mt-order-control{flex:1 1 100%!important}
 }
 
 @media(max-width:520px){
-  .mempool-tiles__viz{min-height:230px}
-
-  .mt-kv-grid,
-  .mempool-tiles__metrics{
-    grid-template-columns:1fr;
-  }
-
-  .mempool-tiles__footer{
-    align-items:flex-start;
-    flex-direction:column;
-  }
-
-  .mempool-tiles__footer>span{
-    white-space:normal;
-  }
-
-  .mt-io-row{
-    grid-template-columns:34px minmax(0,1fr);
-  }
-
+  .mempool-tiles__metrics,
+  .mt-kv-grid{grid-template-columns:1fr!important}
+  .mempool-tiles__viz{min-height:230px!important}
+  .mempool-tiles__telemetry>div{grid-template-columns:1fr!important;gap:.08rem}
+  .mempool-tiles__telemetry strong{text-align:left}
+  .mempool-tiles__footer{align-items:flex-start;flex-direction:column}
+  .mempool-tiles__footer>span{white-space:normal}
+  .mt-io-row{grid-template-columns:34px minmax(0,1fr)}
   .mt-io-value{grid-column:2}
-}
-
-/* ========================================================================
-   v1.5.0 INTEGRATED-RUNTIME LAYOUT ISOLATION
-   The host/site has legacy/global .mempool-tiles/.btc-card layout rules.  If
-   those win, every top-level Tiles section becomes its own grid/flex column
-   and the square visualizer collapses to a tiny cell.  Own the root layout
-   explicitly and put every section inside one full-width stack.
-   ======================================================================== */
-
-.btc-card.mempool-tiles{
-  position:relative!important;
-  display:block!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:none!important;
-  height:auto!important;
-  min-height:0!important;
-  overflow:hidden!important;
-  grid-template-columns:none!important;
-  grid-template-rows:none!important;
-  grid-auto-flow:row!important;
-  grid-auto-columns:auto!important;
-  grid-auto-rows:auto!important;
-  flex-direction:column!important;
-  align-items:stretch!important;
-  justify-items:stretch!important;
-  columns:auto!important;
-  column-count:initial!important;
-  column-width:auto!important;
-}
-
-.btc-card.mempool-tiles > .mempool-tiles__stack{
-  position:relative!important;
-  display:block!important;
-  float:none!important;
-  clear:both!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:100%!important;
-  height:auto!important;
-  min-height:0!important;
-  margin:0!important;
-  padding:0!important;
-  grid-column:1 / -1!important;
-  grid-row:auto!important;
-  flex:0 0 auto!important;
-}
-
-.btc-card.mempool-tiles > .mempool-tiles__stack > *{
-  min-width:0!important;
-  max-width:100%!important;
-}
-
-.btc-card.mempool-tiles .mempool-tiles__header,
-.btc-card.mempool-tiles .mempool-tiles__footer{
-  display:flex!important;
-  width:100%!important;
-  min-width:0!important;
-}
-
-.btc-card.mempool-tiles .mempool-tiles__hero{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr)!important;
-  width:100%!important;
-  min-width:0!important;
-}
-
-.btc-card.mempool-tiles .mempool-tiles__hero > *{
-  width:auto!important;
-  min-width:0!important;
-  max-width:100%!important;
-  word-break:normal!important;
-  overflow-wrap:normal!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics{
-  display:grid!important;
-  grid-template-columns:repeat(4,minmax(0,1fr))!important;
-  width:100%!important;
-  min-width:0!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics > div{
-  display:block!important;
-  min-width:0!important;
-  width:auto!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics span,
-.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics strong,
-.btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics small{
-  display:block!important;
-  min-width:0!important;
-  width:auto!important;
-  white-space:nowrap!important;
-  word-break:normal!important;
-  overflow-wrap:normal!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-controls.mempool-tiles__controls{
-  display:flex!important;
-  width:100%!important;
-  min-width:0!important;
-  align-items:flex-end!important;
-  flex-wrap:wrap!important;
-}
-
-.btc-card.mempool-tiles .mt-segment{
-  display:grid!important;
-  width:auto!important;
-  min-width:0!important;
-  flex:0 0 auto!important;
-}
-
-.btc-card.mempool-tiles .mt-segment__buttons{
-  display:flex!important;
-  width:auto!important;
-  min-width:0!important;
-}
-
-.btc-card.mempool-tiles .mt-order-control{
-  display:grid!important;
-  min-width:150px!important;
-  max-width:240px!important;
-  flex:1 1 180px!important;
-}
-
-.btc-card.mempool-tiles .mt-order-control select{
-  display:block!important;
-  width:100%!important;
-  min-width:0!important;
-}
-
-/* The actual visualizer owns the width of the card.  No inherited grid/flex
-   column can shrink it, and the canvas is pinned to the square stage. */
-.btc-card.mempool-tiles .zzx-mp-viz.zzx-mp-viz--square.mempool-tiles__viz{
-  position:relative!important;
-  display:block!important;
-  float:none!important;
-  clear:both!important;
-  width:100%!important;
-  max-width:760px!important;
-  min-width:0!important;
-  height:auto!important;
-  min-height:0!important;
-  max-height:none!important;
-  aspect-ratio:1 / 1!important;
-  margin:.55rem auto 0!important;
-  padding:0!important;
-  flex:none!important;
-  grid-column:1 / -1!important;
-  grid-row:auto!important;
-  overflow:hidden!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-viz.zzx-mp-viz--square.mempool-tiles__viz > canvas[data-mt-canvas]{
-  position:absolute!important;
-  inset:0!important;
-  display:block!important;
-  width:100%!important;
-  height:100%!important;
-  min-width:0!important;
-  max-width:none!important;
-  min-height:0!important;
-  max-height:none!important;
-  margin:0!important;
-  padding:0!important;
-}
-
-.btc-card.mempool-tiles .mempool-tiles__legend{
-  display:flex!important;
-  width:100%!important;
-  min-width:0!important;
-  flex-wrap:wrap!important;
-}
-
-.btc-card.mempool-tiles .mempool-tiles__legend span{
-  display:inline-flex!important;
-  width:auto!important;
-  min-width:0!important;
-  white-space:nowrap!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-coverage.mempool-tiles__coverage{
-  display:flex!important;
-  width:100%!important;
-  min-width:0!important;
-}
-
-.btc-card.mempool-tiles .zzx-mp-inspector.mempool-tiles__inspector{
-  display:block!important;
-  width:100%!important;
-  min-width:0!important;
-}
-
-.btc-card.mempool-tiles .mt-inspector-body[hidden]{
-  display:none!important;
-}
-
-.btc-card.mempool-tiles .mt-kv-grid{
-  display:grid!important;
-  width:100%!important;
-  grid-template-columns:repeat(4,minmax(0,1fr))!important;
-}
-
-.btc-card.mempool-tiles .mempool-tiles__footer{
-  width:100%!important;
-  min-width:0!important;
-}
-
-@media(max-width:820px){
-  .btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics,
-  .btc-card.mempool-tiles .mt-kv-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-  }
-
-  .btc-card.mempool-tiles .mt-order-control{
-    max-width:none!important;
-    flex:1 1 100%!important;
-  }
-}
-
-@media(max-width:520px){
-  .btc-card.mempool-tiles .zzx-mp-metrics.mempool-tiles__metrics,
-  .btc-card.mempool-tiles .mt-kv-grid{
-    grid-template-columns:1fr!important;
-  }
 }
