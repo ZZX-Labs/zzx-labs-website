@@ -1,148 +1,150 @@
 <!-- __partials/widgets/mempool-tiles/widget.html -->
 <div class="btc-card mempool-tiles" data-widget-root="mempool-tiles">
-  <div class="mempool-tiles__header">
-    <div>
-      <div class="btc-card__title">Mempool Tiles</div>
-      <div class="mempool-tiles__eyebrow">live projected next-block transaction tile grid</div>
+  <div class="mempool-tiles__stack">
+    <div class="mempool-tiles__header">
+      <div>
+        <div class="btc-card__title">Mempool Tiles</div>
+        <div class="mempool-tiles__eyebrow">live projected next-block transaction tile grid</div>
+      </div>
+      <span class="btc-card__status" data-mt-status data-status="offline" aria-live="polite">loading</span>
     </div>
-    <span class="btc-card__status" data-mt-status data-status="offline" aria-live="polite">loading</span>
-  </div>
 
-  <div class="mempool-tiles__hero">
-    <span>next candidate block</span>
-    <strong data-mt-summary>loading next-block candidates…</strong>
-    <small data-mt-sub>one grid slot = one real transaction</small>
-  </div>
+    <div class="mempool-tiles__hero">
+      <span>next candidate block</span>
+      <strong data-mt-summary>loading next-block candidates…</strong>
+      <small data-mt-sub>one grid slot = one real transaction</small>
+    </div>
 
-  <div class="zzx-mp-metrics mempool-tiles__metrics">
-    <div>
-      <span>candidate vsize</span>
-      <strong data-mt-stat="vsize">— vMB</strong>
-      <small data-mt-stat="fill">— block</small>
-    </div>
-    <div>
-      <span>candidate TXs</span>
-      <strong data-mt-stat="txs">— TX</strong>
-      <small data-mt-grid>— grid</small>
-    </div>
-    <div>
-      <span>total output value</span>
-      <strong data-mt-stat="value">— BTC</strong>
-      <small data-mt-value-coverage>— values resolved</small>
-    </div>
-    <div>
-      <span>median fee</span>
-      <strong data-mt-stat="fee">— sat/vB</strong>
-      <small>absolute fee-rate color scale</small>
-    </div>
-  </div>
-
-  <div class="zzx-mp-controls mempool-tiles__controls" aria-label="Mempool Tiles controls">
-    <div class="mt-segment">
-      <span class="mt-segment__label">Scale</span>
-      <div class="mt-segment__buttons">
-        <button class="zzx-widgets__btn is-active" type="button" data-mt-scale="vsize">vB</button>
-        <button class="zzx-widgets__btn" type="button" data-mt-scale="value">BTC</button>
-        <button class="zzx-widgets__btn" type="button" data-mt-scale="feerate">sat/vB</button>
+    <div class="zzx-mp-metrics mempool-tiles__metrics">
+      <div>
+        <span>candidate vsize</span>
+        <strong data-mt-stat="vsize">— vMB</strong>
+        <small data-mt-stat="fill">— block</small>
+      </div>
+      <div>
+        <span>candidate TXs</span>
+        <strong data-mt-stat="txs">— TX</strong>
+        <small data-mt-grid>— grid</small>
+      </div>
+      <div>
+        <span>total output value</span>
+        <strong data-mt-stat="value">— BTC</strong>
+        <small data-mt-value-coverage>— values resolved</small>
+      </div>
+      <div>
+        <span>median fee</span>
+        <strong data-mt-stat="fee">— sat/vB</strong>
+        <small>absolute fee-rate color scale</small>
       </div>
     </div>
 
-    <div class="mt-segment">
-      <span class="mt-segment__label">Color</span>
-      <div class="mt-segment__buttons">
-        <button class="zzx-widgets__btn is-active" type="button" data-mt-color="fee">Fee</button>
-        <button class="zzx-widgets__btn" type="button" data-mt-color="type">Type</button>
-      </div>
-    </div>
-
-    <label class="mt-order-control">
-      <span>Order</span>
-      <select data-mt-sort aria-label="Tile ordering">
-        <option value="priority">Likely</option>
-        <option value="fee">Fee</option>
-        <option value="size">Size</option>
-        <option value="value">Value</option>
-        <option value="age">Age</option>
-        <option value="rbf">RBF</option>
-        <option value="type">Type</option>
-        <option value="shuffle">Shuffle</option>
-      </select>
-    </label>
-  </div>
-
-  <div class="zzx-mp-viz zzx-mp-viz--square mempool-tiles__viz" data-mt-stage tabindex="0"
-       aria-label="Live projected next Bitcoin block transaction tile grid">
-    <canvas data-mt-canvas aria-label="Mempool Tiles live projected next-block transaction grid"></canvas>
-    <div class="zzx-mp-viz__tooltip" data-mt-tooltip hidden></div>
-    <div class="mempool-tiles__badge">
-      <span data-mt-live-state>connecting</span>
-      <span aria-hidden="true">·</span>
-      <span data-mt-block-label>NEXT BLOCK</span>
-    </div>
-  </div>
-
-  <div class="mempool-tiles__legend" aria-label="Fee-rate legend">
-    <span><i class="mt-dot mt-dot--low"></i>low fee</span>
-    <span><i class="mt-dot mt-dot--mid"></i>medium fee</span>
-    <span><i class="mt-dot mt-dot--high"></i>high fee</span>
-    <span><i class="mt-dot mt-dot--very-high"></i>very high fee</span>
-  </div>
-
-  <div class="zzx-mp-coverage mempool-tiles__coverage">
-    <span data-mt-coverage>assembling projected next-block transaction set…</span>
-    <strong data-mt-transport>REST</strong>
-  </div>
-
-  <section class="zzx-mp-inspector mempool-tiles__inspector" data-mt-inspector aria-live="polite">
-    <div class="mt-inspector-empty" data-mt-inspector-empty>
-      Select any transaction tile for the full transaction readout.
-    </div>
-
-    <div class="mt-inspector-body" data-mt-inspector-body hidden>
-      <div class="mt-inspector-head">
-        <div>
-          <div class="mt-eyebrow">TRANSACTION TILE</div>
-          <h3 data-mt-inspector-title>Transaction</h3>
+    <div class="zzx-mp-controls mempool-tiles__controls" aria-label="Mempool Tiles controls">
+      <div class="mt-segment">
+        <span class="mt-segment__label">Scale</span>
+        <div class="mt-segment__buttons">
+          <button class="zzx-widgets__btn is-active" type="button" data-mt-scale="vsize">vB</button>
+          <button class="zzx-widgets__btn" type="button" data-mt-scale="value">BTC</button>
+          <button class="zzx-widgets__btn" type="button" data-mt-scale="feerate">sat/vB</button>
         </div>
-        <button type="button" data-mt-inspector-close aria-label="Close transaction inspector">×</button>
       </div>
 
-      <div class="mt-kv-grid" data-mt-kv-grid></div>
+      <div class="mt-segment">
+        <span class="mt-segment__label">Color</span>
+        <div class="mt-segment__buttons">
+          <button class="zzx-widgets__btn is-active" type="button" data-mt-color="fee">Fee</button>
+          <button class="zzx-widgets__btn" type="button" data-mt-color="type">Type</button>
+        </div>
+      </div>
 
-      <details class="mt-detail" open>
-        <summary>Inputs</summary>
-        <div data-mt-inputs></div>
-      </details>
-
-      <details class="mt-detail" open>
-        <summary>Outputs</summary>
-        <div data-mt-outputs></div>
-      </details>
-
-      <details class="mt-detail">
-        <summary>OP_RETURN / Data</summary>
-        <div data-mt-opreturn></div>
-      </details>
-
-      <details class="mt-detail">
-        <summary>Block / Header</summary>
-        <div data-mt-block></div>
-      </details>
-
-      <details class="mt-detail">
-        <summary>Raw transaction JSON</summary>
-        <pre data-mt-raw-json></pre>
-      </details>
-
-      <details class="mt-detail">
-        <summary>Raw transaction hex</summary>
-        <pre data-mt-raw-hex></pre>
-      </details>
+      <label class="mt-order-control">
+        <span>Order</span>
+        <select data-mt-sort aria-label="Tile ordering">
+          <option value="priority">Likely</option>
+          <option value="fee">Fee</option>
+          <option value="size">Size</option>
+          <option value="value">Value</option>
+          <option value="age">Age</option>
+          <option value="rbf">RBF</option>
+          <option value="type">Type</option>
+          <option value="shuffle">Shuffle</option>
+        </select>
+      </label>
     </div>
-  </section>
 
-  <div class="mempool-tiles__footer">
-    <span data-mt-meta>one slot = one real projected next-block transaction · click any tile for full TX details</span>
-    <button class="zzx-widgets__btn" type="button" data-mt-refresh>Reconnect / Refresh</button>
+    <div class="zzx-mp-viz zzx-mp-viz--square mempool-tiles__viz" data-mt-stage tabindex="0"
+         aria-label="Live projected next Bitcoin block transaction tile grid">
+      <canvas data-mt-canvas aria-label="Mempool Tiles live projected next-block transaction grid"></canvas>
+      <div class="zzx-mp-viz__tooltip" data-mt-tooltip hidden></div>
+      <div class="mempool-tiles__badge">
+        <span data-mt-live-state>connecting</span>
+        <span aria-hidden="true">·</span>
+        <span data-mt-block-label>NEXT BLOCK</span>
+      </div>
+    </div>
+
+    <div class="mempool-tiles__legend" aria-label="Fee-rate legend">
+      <span><i class="mt-dot mt-dot--low"></i>low fee</span>
+      <span><i class="mt-dot mt-dot--mid"></i>medium fee</span>
+      <span><i class="mt-dot mt-dot--high"></i>high fee</span>
+      <span><i class="mt-dot mt-dot--very-high"></i>very high fee</span>
+    </div>
+
+    <div class="zzx-mp-coverage mempool-tiles__coverage">
+      <span data-mt-coverage>assembling projected next-block transaction set…</span>
+      <strong data-mt-transport>REST</strong>
+    </div>
+
+    <section class="zzx-mp-inspector mempool-tiles__inspector" data-mt-inspector aria-live="polite">
+      <div class="mt-inspector-empty" data-mt-inspector-empty>
+        Select any transaction tile for the full transaction readout.
+      </div>
+
+      <div class="mt-inspector-body" data-mt-inspector-body hidden>
+        <div class="mt-inspector-head">
+          <div>
+            <div class="mt-eyebrow">TRANSACTION TILE</div>
+            <h3 data-mt-inspector-title>Transaction</h3>
+          </div>
+          <button type="button" data-mt-inspector-close aria-label="Close transaction inspector">×</button>
+        </div>
+
+        <div class="mt-kv-grid" data-mt-kv-grid></div>
+
+        <details class="mt-detail" open>
+          <summary>Inputs</summary>
+          <div data-mt-inputs></div>
+        </details>
+
+        <details class="mt-detail" open>
+          <summary>Outputs</summary>
+          <div data-mt-outputs></div>
+        </details>
+
+        <details class="mt-detail">
+          <summary>OP_RETURN / Data</summary>
+          <div data-mt-opreturn></div>
+        </details>
+
+        <details class="mt-detail">
+          <summary>Block / Header</summary>
+          <div data-mt-block></div>
+        </details>
+
+        <details class="mt-detail">
+          <summary>Raw transaction JSON</summary>
+          <pre data-mt-raw-json></pre>
+        </details>
+
+        <details class="mt-detail">
+          <summary>Raw transaction hex</summary>
+          <pre data-mt-raw-hex></pre>
+        </details>
+      </div>
+    </section>
+
+    <div class="mempool-tiles__footer">
+      <span data-mt-meta>one slot = one real projected next-block transaction · click any tile for full TX details</span>
+      <button class="zzx-widgets__btn" type="button" data-mt-refresh>Reconnect / Refresh</button>
+    </div>
   </div>
 </div>
