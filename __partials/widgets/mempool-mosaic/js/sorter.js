@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolMosaicSorter?.__version>=1)return;
+  if(W.ZZXMempoolMosaicSorter?.__version>=3)return;
 
   function finite(value,fallback=-Infinity){
     const n=Number(value);
@@ -74,7 +74,7 @@
   }
 
   W.ZZXMempoolMosaicSorter=Object.freeze({
-    __version:1,
+    __version:3,
     hash32,
     sort
   });
