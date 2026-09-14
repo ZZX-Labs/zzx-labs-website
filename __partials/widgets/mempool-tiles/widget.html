@@ -4,7 +4,7 @@
     <div class="mempool-tiles__header">
       <div>
         <div class="btc-card__title">Mempool Tiles</div>
-        <div class="mempool-tiles__eyebrow">live projected next-block square-packed transaction field</div>
+        <div class="mempool-tiles__eyebrow">live projected next-block transaction tile grid</div>
       </div>
       <span class="btc-card__status" data-mt-status data-status="offline" aria-live="polite">loading</span>
     </div>
@@ -12,7 +12,7 @@
     <div class="mempool-tiles__hero">
       <span>next candidate block</span>
       <strong data-mt-summary>loading next-block candidates…</strong>
-      <small data-mt-sub>every pixel belongs to a square transaction tile</small>
+      <small data-mt-sub>one grid slot = one real transaction</small>
     </div>
 
     <div class="mempool-tiles__metrics">
@@ -69,21 +69,16 @@
           <option value="shuffle">Shuffle</option>
         </select>
       </label>
-
-      <label class="mt-order-control mt-theme-control">
-        <span>Theme</span>
-        <select data-mt-theme aria-label="Mempool Tiles theme"></select>
-      </label>
     </div>
 
     <div class="mempool-tiles__visual-panel">
       <div class="mempool-tiles__visual-head">
-        <span>square-packed transaction field</span>
+        <span>transaction tile grid</span>
         <strong data-mt-viz-count>—</strong>
       </div>
 
       <div class="mempool-tiles__viz" data-mt-stage tabindex="0"
-           aria-label="Live projected next Bitcoin block square-packed transaction field">
+           aria-label="Live projected next Bitcoin block transaction tile grid">
         <canvas data-mt-canvas aria-label="Mempool Tiles live projected next-block transaction grid"></canvas>
         <div class="mempool-tiles__tooltip" data-mt-tooltip hidden></div>
         <div class="mempool-tiles__badge">
@@ -163,7 +158,7 @@
     </section>
 
     <div class="mempool-tiles__footer">
-      <span data-mt-meta>square-only exact-cover projected next block · click any tile for full TX details</span>
+      <span data-mt-meta>one slot = one real projected next-block transaction · click any tile for full TX details</span>
       <button class="zzx-widgets__btn" type="button" data-mt-refresh>Reconnect / Refresh</button>
     </div>
   </div>
