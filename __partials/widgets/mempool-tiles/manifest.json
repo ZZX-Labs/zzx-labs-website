@@ -1,0 +1,29 @@
+{
+  "id": "mempool-tiles",
+  "name": "Mempool Tiles",
+  "version": "2.0.0",
+  "runtime": {
+    "html": "widget.html",
+    "css": "widget.css",
+    "js": "widget.js"
+  },
+  "source": "js/",
+  "build": "python build.py",
+  "test": "node tests/layout-selftest.js",
+  "network": {
+    "primary": "configured mempool API / WebSocket",
+    "fallback": "https://mempool.space/api",
+    "websocket": "wss://mempool.space/api/v1/ws"
+  },
+  "features": [
+    "square-only transaction tiles",
+    "100% exact-cover field for normal candidate populations",
+    "projected next-block WebSocket membership",
+    "REST hydration and fallback",
+    "persistent transaction inspector",
+    "vsize, BTC-value, and fee-rate scale modes",
+    "fee-rate and transaction-type color modes",
+    "32 built-in themes",
+    "single bundled production JavaScript asset"
+  ]
+}
