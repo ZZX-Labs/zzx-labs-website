@@ -1,159 +1,71 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Mempool Mosaic v3.0.0 Standalone Demo</title>
-  <link rel="stylesheet" href="../widget.css">
-  <style>
-    html,body{margin:0;background:#050505;color:#b7bf9a;font-family:"IBM Plex Mono",Consolas,monospace}
-    main{width:min(1120px,calc(100% - 32px));margin:32px auto}
-    .btc-card{background:#0a0a0a;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px}
-    .btc-card__title{color:#c0d674;font-size:1rem}
-    .zzx-widgets__btn{background:#111;border:1px solid rgba(255,255,255,.12);color:#b7bf9a;border-radius:5px;padding:.3rem .5rem}
-    .zzx-widgets__btn.is-active{border-color:#c0d674;color:#c0d674}
-  </style>
-  <script>
-    window.ZZX={api:{MEMPOOL:"https://mempool.space/api",MEMPOOL_WS:"wss://mempool.space/api/v1/ws"}};
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mempool Mosaic Standalone Demo</title>
+<link rel="stylesheet" href="../widget.css">
+<style>
+html,body{margin:0;background:#121212;color:#b7bf9a;font-family:"IBM Plex Mono",Consolas,monospace}
+main{width:min(760px,calc(100% - 32px));margin:32px auto}
+.btc-card{background:#0a0a0a;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px}
+.btc-card__title{color:#e6a42b;font-size:1rem}
+.zzx-widgets__btn{background:#111;border:1px solid rgba(255,255,255,.12);color:#b7bf9a;border-radius:5px;padding:.3rem .5rem}
+</style>
+<script>window.ZZX={api:{MEMPOOL:"https://mempool.space/api",MEMPOOL_WS:"wss://mempool.space/api/v1/ws"}};</script>
 </head>
-<body>
-  <main>
-<!-- __partials/widgets/mempool-mosaic/widget.html -->
-<div class="btc-card mempool-mosaic" data-widget-root="mempool-mosaic">
-  <div class="mempool-mosaic__stack">
-    <div class="mempool-mosaic__header">
-      <div>
-        <div class="btc-card__title">Mempool Mosaic</div>
-        <div class="mempool-mosaic__eyebrow">live projected next-block square mosaic · amount area · fee/vB chroma</div>
-      </div>
-      <span class="btc-card__status" data-mm-status data-status="offline" aria-live="polite">loading</span>
+<body><main><div data-widget-root="mempool-mosaic"><div class="btc-card mempool-mosaic">
+  <div class="mempool-mosaic__header">
+    <div>
+      <div class="btc-card__title">Mempool Mosaic</div>
+      <div class="mempool-mosaic__eyebrow">live projected next-block transaction mosaic · mempool.space block 0</div>
     </div>
+    <span class="btc-card__status" data-mm-status data-status="offline" aria-live="polite">loading</span>
+  </div>
 
-    <div class="mempool-mosaic__hero">
-      <span>next candidate block</span>
-      <strong data-mm-summary>loading next-block candidates…</strong>
-      <small data-mm-sub>every visible cell is square and every pixel belongs to the transaction mosaic</small>
+  <div class="mempool-mosaic__hero">
+    <span>next candidate block</span>
+    <strong data-mm-height>—</strong>
+    <small data-mm-sub>waiting for projected-block transaction stream…</small>
+  </div>
+
+  <div class="mempool-mosaic__metrics">
+    <div><span>candidate vsize</span><strong data-mm-vsize>—</strong></div>
+    <div><span>candidate TXs</span><strong data-mm-tx>—</strong></div>
+    <div><span>total fees</span><strong data-mm-fees>—</strong></div>
+    <div><span>median fee</span><strong data-mm-median>—</strong></div>
+  </div>
+
+  <div class="mempool-mosaic__block-wrap">
+    <div class="mempool-mosaic__block-head">
+      <span data-mm-block-label>transaction mosaic</span>
+      <span data-mm-updated>—</span>
     </div>
-
-    <div class="mempool-mosaic__metrics">
-      <div><span>candidate vsize</span><strong data-mm-stat="vsize">— vMB</strong><small data-mm-stat="fill">— block</small></div>
-      <div><span>candidate TXs</span><strong data-mm-stat="txs">— TX</strong><small data-mm-grid>— mosaic</small></div>
-      <div><span>total output value</span><strong data-mm-stat="value">— BTC</strong><small data-mm-value-coverage>— values resolved</small></div>
-      <div><span>median fee</span><strong data-mm-stat="fee">— sat/vB</strong><small>fee × vB color model</small></div>
-    </div>
-
-    <div class="mempool-mosaic__controls" aria-label="Mempool Mosaic controls">
-      <div class="mm-segment">
-        <span class="mm-segment__label">Square area</span>
-        <div class="mm-segment__buttons">
-          <button class="zzx-widgets__btn is-active" type="button" data-mm-scale="value">BTC</button>
-          <button class="zzx-widgets__btn" type="button" data-mm-scale="vsize">vB</button>
-          <button class="zzx-widgets__btn" type="button" data-mm-scale="feerate">sat/vB</button>
-        </div>
-      </div>
-
-      <div class="mm-segment">
-        <span class="mm-segment__label">Color</span>
-        <div class="mm-segment__buttons">
-          <button class="zzx-widgets__btn is-active" type="button" data-mm-color="fee-vb">Fee × vB</button>
-          <button class="zzx-widgets__btn" type="button" data-mm-color="fee">Fee</button>
-          <button class="zzx-widgets__btn" type="button" data-mm-color="type">Type</button>
-        </div>
-      </div>
-
-      <label class="mm-order-control">
-        <span>Neighborhood</span>
-        <select data-mm-sort aria-label="Mosaic neighborhood ordering">
-          <option value="mosaic">Mosaic</option>
-          <option value="priority">Likely</option>
-          <option value="fee">Fee</option>
-          <option value="value">Value</option>
-          <option value="size">vB</option>
-          <option value="age">Age</option>
-          <option value="rbf">RBF</option>
-          <option value="type">Type</option>
-          <option value="shuffle">Shuffle</option>
-        </select>
-      </label>
-
-      <label class="mm-order-control mm-theme-control">
-        <span>Theme</span>
-        <select data-mm-theme aria-label="Mempool Mosaic theme"></select>
-      </label>
-    </div>
-
-    <div class="mempool-mosaic__visual-panel">
-      <div class="mempool-mosaic__visual-head">
-        <span>recursive square transaction mosaic</span>
-        <strong data-mm-viz-count>—</strong>
-      </div>
-      <div class="mempool-mosaic__viz" data-mm-stage tabindex="0" aria-label="Live projected next Bitcoin block square transaction mosaic">
-        <canvas data-mm-canvas aria-label="Mempool Mosaic projected next-block square transaction field"></canvas>
-        <div class="mempool-mosaic__tooltip" data-mm-tooltip hidden></div>
-        <div class="mempool-mosaic__badge">
-          <span data-mm-live-state>connecting</span><span aria-hidden="true">·</span><span data-mm-block-label>NEXT BLOCK</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="mempool-mosaic__legend" aria-label="Fee-rate legend">
-      <span><i class="mm-dot mm-dot--low"></i>low fee</span>
-      <span><i class="mm-dot mm-dot--mid"></i>medium fee</span>
-      <span><i class="mm-dot mm-dot--high"></i>high fee</span>
-      <span><i class="mm-dot mm-dot--very-high"></i>very high fee</span>
-      <span>brightness tracks vB in Fee × vB mode</span>
-    </div>
-
-    <div class="mempool-mosaic__telemetry">
-      <div><span>current tip</span><strong data-mm-tip>—</strong></div>
-      <div><span>candidate fee range</span><strong data-mm-fee-range>—</strong></div>
-      <div><span>mempool backlog</span><strong data-mm-backlog>—</strong></div>
-      <div><span>transport</span><strong data-mm-transport>REST</strong></div>
-      <div><span>source</span><strong data-mm-source>—</strong></div>
-    </div>
-
-    <div class="mempool-mosaic__coverage">
-      <span data-mm-coverage>assembling projected next-block transaction set…</span>
-      <strong data-mm-updated>—</strong>
-    </div>
-
-    <section class="mempool-mosaic__inspector" data-mm-inspector aria-live="polite">
-      <div class="mm-reader-archive">
-        <div class="mm-reader-archive__head">
-          <div><span>persistent transaction readers</span><strong data-mm-reader-count>0 saved</strong></div>
-          <div class="mm-reader-archive__actions">
-            <button class="zzx-widgets__btn" type="button" data-mm-reader-export>Export JSON</button>
-            <button class="zzx-widgets__btn" type="button" data-mm-reader-clear>Clear archive</button>
-          </div>
-        </div>
-        <div class="mm-reader-history" data-mm-reader-history aria-label="Saved transaction readers"></div>
-      </div>
-
-      <div class="mm-inspector-empty" data-mm-inspector-empty>Select any transaction square for the full persistent transaction readout.</div>
-      <div class="mm-inspector-body" data-mm-inspector-body hidden>
-        <div class="mm-inspector-head">
-          <div><div class="mm-eyebrow">TRANSACTION MOSAIC CELL</div><h3 data-mm-inspector-title>Transaction</h3></div>
-          <button type="button" data-mm-inspector-close aria-label="Close transaction inspector">×</button>
-        </div>
-        <div class="mm-kv-grid" data-mm-kv-grid></div>
-        <details class="mm-detail" open><summary>Inputs</summary><div data-mm-inputs></div></details>
-        <details class="mm-detail" open><summary>Outputs</summary><div data-mm-outputs></div></details>
-        <details class="mm-detail"><summary>OP_RETURN / Data</summary><div data-mm-opreturn></div></details>
-        <details class="mm-detail"><summary>Block / Header</summary><div data-mm-block></div></details>
-        <details class="mm-detail"><summary>Raw transaction JSON</summary><pre data-mm-raw-json></pre></details>
-        <details class="mm-detail"><summary>Raw transaction hex</summary><pre data-mm-raw-hex></pre></details>
-      </div>
-    </section>
-
-    <div class="mempool-mosaic__footer">
-      <span data-mm-meta>square-only exact-cover projected next block · persistent local TX reader archive</span>
-      <button class="zzx-widgets__btn" type="button" data-mm-refresh>Reconnect / Refresh</button>
+    <div class="mempool-mosaic__block" data-mm-block role="img" aria-label="Live Bitcoin projected next-block transaction mosaic">
+      <canvas data-mm-canvas></canvas>
+      <div class="mempool-mosaic__tooltip" data-mm-tooltip hidden></div>
     </div>
   </div>
-</div>
 
-  </main>
-  <script src="../widget.js"></script>
-</body>
+  <div class="mempool-mosaic__legend" aria-hidden="true">
+    <span><i data-tier="low"></i>low fee</span>
+    <span><i data-tier="mid"></i>medium fee</span>
+    <span><i data-tier="high"></i>high fee</span>
+    <span><i data-tier="hot"></i>very high fee</span>
+  </div>
+
+  <div class="mempool-mosaic__details">
+    <div class="mempool-mosaic__row"><span>current tip</span><strong data-mm-tip>—</strong></div>
+    <div class="mempool-mosaic__row"><span>candidate fee range</span><strong data-mm-range>—</strong></div>
+    <div class="mempool-mosaic__row"><span>mempool backlog</span><strong data-mm-backlog>—</strong></div>
+    <div class="mempool-mosaic__row"><span>transport</span><strong data-mm-transport>—</strong></div>
+    <div class="mempool-mosaic__row"><span>source</span><strong data-mm-source>—</strong></div>
+  </div>
+
+  <div class="mempool-mosaic__footer">
+    <span data-mm-meta>projected block 0 · stable txid tiles slide/re-sort on live updates · aggregate fallback is explicitly labeled</span>
+    <button type="button" class="zzx-widgets__btn" data-mm-refresh>Reconnect / Refresh</button>
+  </div>
+</div>
+</div></main><script src="../widget.js"></script></body>
 </html>
