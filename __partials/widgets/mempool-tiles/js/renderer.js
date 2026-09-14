@@ -1,67 +1,66 @@
-// v5 — full-coverage square atlas renderer with bivariate fee/vByte color.
+// mempool-tiles/js/renderer.js
+// v4 — full-cover square renderer. No gutters, no rectangular TX glyphs.
 (function(){
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesRenderer?.__version>=5)return;
+  if(W.ZZXMempoolTilesRenderer?.__version>=4)return;
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
   function canvasSize(canvas){
     const rect=canvas.getBoundingClientRect();
-    const css=Math.max(240,Math.floor(Math.min(rect.width||720,rect.height||rect.width||720)));
+    const css=Math.max(260,Math.floor(Math.min(rect.width||720,rect.height||rect.width||720)));
     const dpr=Math.max(1,Math.min(3,W.devicePixelRatio||1));
     const px=Math.floor(css*dpr);
-
     if(canvas.width!==px||canvas.height!==px){
       canvas.width=px;
       canvas.height=px;
     }
-
     return {css,dpr};
   }
 
-  function rgb(value){
-    const hex=String(value||"").replace("#","");
-    return /^[0-9a-f]{6}$/i.test(hex)
-      ? [parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16)]
+  function rgb(hex){
+    const value=String(hex||"").replace("#","");
+    return /^[0-9a-f]{6}$/i.test(value)
+      ? [parseInt(value.slice(0,2),16),parseInt(value.slice(2,4),16),parseInt(value.slice(4,6),16)]
       : [80,80,80];
   }
 
   function mix(a,b,t){
-    const A=Array.isArray(a)?a:rgb(a);
-    const B=Array.isArray(b)?b:rgb(b);
-    const value=clamp(Number(t)||0,0,1);
-    return `rgb(${A.map((part,index)=>Math.round(part+(B[index]-part)*value)).join(",")})`;
-  }
-
-  function ramp(value,stops,colors){
-    const n=Number(value);
-    if(!Number.isFinite(n))return colors.pending||"#263137";
-    if(n<=stops[0])return colors[0];
-    if(n>=stops.at(-1))return colors.at(-1);
-
-    for(let index=1;index<stops.length;index++){
-      if(n>stops[index])continue;
-      const start=stops[index-1];
-      const end=stops[index];
-      const t=(Math.log1p(Math.max(0,n))-Math.log1p(Math.max(0,start)))/
-        Math.max(1e-12,Math.log1p(end)-Math.log1p(start));
-      return mix(colors[index-1],colors[index],t);
-    }
-
-    return colors.at(-1);
+    return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`;
   }
 
   function feeColor(rate,colors){
-    const palette=Array.isArray(colors.feeScale)&&colors.feeScale.length>=9
-      ? colors.feeScale
-      : ["#14272d","#20353d","#31544d","#52755a","#79945f","#9cad67","#c0d674","#d0c265","#e6a42b"];
-    return ramp(rate,[0,.5,1,2,5,10,25,50,100],palette);
+    const anchors=[
+      [0.000,colors.feeFloor||"#152229"],
+      [0.500,colors.feeLow||"#20353d"],
+      [1.000,colors.feeLow2||"#31544d"],
+      [2.000,colors.feeMidLow||"#52755a"],
+      [5.000,colors.feeMid||"#79945f"],
+      [10.00,colors.feeMidHigh||"#9cad67"],
+      [25.00,colors.feeHigh||"#c0d674"],
+      [50.00,colors.feeVeryHigh||"#d0c265"],
+      [100.0,colors.boosted||"#e6a42b"]
+    ];
+
+    const value=Number(rate);
+    if(!Number.isFinite(value))return colors.pending||"#263137";
+    if(value<=anchors[0][0])return anchors[0][1];
+    if(value>=anchors.at(-1)[0])return anchors.at(-1)[1];
+
+    for(let i=1;i<anchors.length;i++){
+      if(value>anchors[i][0])continue;
+      const [av,ac]=anchors[i-1];
+      const [bv,bc]=anchors[i];
+      const t=clamp((Math.log1p(Math.max(0,value))-Math.log1p(av))/Math.max(1e-9,Math.log1p(bv)-Math.log1p(av)),0,1);
+      return mix(rgb(ac),rgb(bc),t);
+    }
+    return anchors.at(-1)[1];
   }
 
   function typeColor(tile,colors){
-    if(tile.boosted)return colors.boosted||colors.accent;
+    if(tile.boosted)return colors.boosted||"#e6a42b";
     if(tile.ordinal)return colors.ordinal||"#7657a8";
     const type=String(tile.type||"").toLowerCase();
     if(type.includes("op_return")||type.includes("data"))return colors.data||"#6e7480";
@@ -70,147 +69,82 @@
     return colors.unknown||"#56605d";
   }
 
-  function normalizedLog(value,low,high){
-    const n=Number(value);
-    if(!Number.isFinite(n))return 0;
-    return clamp(
-      (Math.log1p(Math.max(0,n))-Math.log1p(low))/
-      Math.max(1e-12,Math.log1p(high)-Math.log1p(low)),
-      0,1
-    );
-  }
-
-  function color(tile,mode,colors,now=Date.now()){
-    const rate=tile.packageFeeRate??tile.feeRate;
-    const vsize=Number(tile.vsize);
-
-    if(mode==="type")return typeColor(tile,colors);
-    if(mode==="vsize")return mix(colors.sizeLow,colors.sizeHigh,normalizedLog(vsize,50,120000));
-    if(mode==="absolute-fee"){
-      return mix(
-        colors.absoluteFeeLow||colors.sizeLow,
-        colors.absoluteFeeHigh||colors.accent,
-        normalizedLog(tile.feeSats,100,2_000_000)
-      );
-    }
-    if(mode==="age"){
-      const ageHours=(now-Number(tile.firstSeen))/3_600_000;
-      return mix(colors.primary,colors.accent,normalizedLog(ageHours,0,720));
-    }
-
-    const fee=feeColor(rate,colors);
-    if(mode==="fee")return fee;
-
-    // Default: fee rate selects the palette; transaction vBytes modulate it.
-    return mix(fee,colors.sizeHigh||colors.primary,.08+normalizedLog(vsize,50,120000)*.28);
+  function color(tile,mode,colors){
+    return mode==="type"?typeColor(tile,colors):feeColor(tile.packageFeeRate??tile.feeRate,colors);
   }
 
   function geometry(tile){
-    const side=Math.max(0,Number(tile?.side)||0);
-    const x=Number(tile?.x)||0;
-    const y=Number(tile?.y)||0;
-    return {x,y,side,cx:x+side/2,cy:y+side/2};
+    return {
+      x:Number(tile?.x)||0,
+      y:Number(tile?.y)||0,
+      side:Number(tile?.side)||0,
+      cx:Number(tile?.cx)||((Number(tile?.x)||0)+(Number(tile?.side)||0)/2),
+      cy:Number(tile?.cy)||((Number(tile?.y)||0)+(Number(tile?.side)||0)/2)
+    };
   }
 
-  function drawTile(ctx,tile,css,colors,colorMode,alpha,now){
-    const g=geometry(tile);
-    if(!(g.side>0)||alpha<=0)return;
-
-    const x=g.x*css;
-    const y=g.y*css;
-    const side=g.side*css;
-
-    ctx.save();
-    ctx.globalAlpha=alpha;
-    ctx.fillStyle=color(tile,colorMode,colors,now);
-    ctx.fillRect(x-.12,y-.12,side+.24,side+.24);
-
-    if(side>=3.2){
-      ctx.strokeStyle=`rgba(0,0,0,${side>=12?.42:.26})`;
-      ctx.lineWidth=side>=12?.72:.42;
-      ctx.strokeRect(x+.35,y+.35,Math.max(.1,side-.7),Math.max(.1,side-.7));
-    }
-
-    if(side>=24){
-      ctx.strokeStyle="rgba(255,255,255,.18)";
-      ctx.lineWidth=.55;
-      ctx.beginPath();
-      ctx.moveTo(x+1,y+1);
-      ctx.lineTo(x+side-1,y+1);
-      ctx.stroke();
-    }
-
-    if(side>=52&&!tile.__fragment){
-      const rate=Number(tile.packageFeeRate??tile.feeRate);
-      const btc=Number(tile.valueSats)/1e8;
-      ctx.fillStyle="rgba(0,0,0,.78)";
-      ctx.font='9px "IBM Plex Mono",ui-monospace,monospace';
-      ctx.textAlign="left";
-      ctx.textBaseline="top";
-      ctx.fillText(Number.isFinite(rate)?`${rate.toFixed(rate<1?3:1)} sat/vB`:"fee pending",x+4,y+4);
-      if(side>=70&&Number.isFinite(btc))ctx.fillText(`${btc.toLocaleString(undefined,{maximumFractionDigits:8})} BTC`,x+4,y+16);
-    }
-
-    ctx.restore();
+  function pixelRect(tile,css){
+    const x0=Math.round(tile.x*css);
+    const y0=Math.round(tile.y*css);
+    const x1=Math.round((tile.x+tile.side)*css);
+    const y1=Math.round((tile.y+tile.side)*css);
+    return {x:x0,y:y0,w:Math.max(1,x1-x0),h:Math.max(1,y1-y0)};
   }
 
-  function drawLayer(ctx,layout,css,colors,colorMode,alpha,now){
-    for(const tile of layout?.tiles||[])drawTile(ctx,tile,css,colors,colorMode,alpha,now);
-  }
-
-  function outline(ctx,tile,css,stroke,width){
-    if(!tile)return;
-    const g=geometry(tile);
-    const x=g.x*css;
-    const y=g.y*css;
-    const side=g.side*css;
-    ctx.save();
-    ctx.strokeStyle=stroke;
-    ctx.lineWidth=width;
-    ctx.shadowColor=stroke;
-    ctx.shadowBlur=width>1?8:4;
-    const inset=Math.max(.75,width/2);
-    ctx.strokeRect(x+inset,y+inset,Math.max(.1,side-inset*2),Math.max(.1,side-inset*2));
-    ctx.restore();
-  }
-
-  function draw(canvas,layout,{
-    fromLayout=null,
-    progress=1,
-    selectedTxid="",
-    hoverTxid="",
-    colorMode="fee-vbytes",
-    themeId="zzx-default"
-  }={}){
+  function draw(canvas,layout,{selectedTxid="",hoverTxid="",colorMode="fee"}={}){
     if(!canvas||!layout)return;
-    const ctx=canvas.getContext("2d");
+    const ctx=canvas.getContext("2d",{alpha:false});
     if(!ctx)return;
 
     const {css,dpr}=canvasSize(canvas);
-    const theme=W.ZZXMempoolTilesThemes.get(themeId);
-    const colors=theme.colors||{};
-    const t=clamp(Number(progress)||0,0,1);
-    const now=Date.now();
-
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,css,css);
+
+    const theme=W.ZZXMempoolTilesThemes.get();
+    const colors=theme.colors||{};
     ctx.fillStyle=colors.background||"#020302";
     ctx.fillRect(0,0,css,css);
 
-    // Crossfade complete atlases. Unlike geometric interpolation, both layers
-    // remain exact square dissections, so live updates never open empty seams.
-    if(fromLayout&&t<1){
-      drawLayer(ctx,fromLayout,css,colors,colorMode,1,now);
-      drawLayer(ctx,layout,css,colors,colorMode,t,now);
-    }else{
-      drawLayer(ctx,layout,css,colors,colorMode,1,now);
+    // Exact-cover layouts intentionally draw edge-to-edge. Pixel boundaries
+    // are rounded from shared normalized coordinates so adjacent squares meet.
+    for(const tile of layout.tiles){
+      const r=pixelRect(tile,css);
+      ctx.fillStyle=color(tile,colorMode,colors);
+      ctx.fillRect(r.x,r.y,r.w,r.h);
+
+      if(r.w>=4&&r.h>=4){
+        ctx.strokeStyle=colors.grid||"rgba(255,255,255,.085)";
+        ctx.lineWidth=1;
+        ctx.strokeRect(r.x+.5,r.y+.5,Math.max(.1,r.w-1),Math.max(.1,r.h-1));
+      }
+
+      if(r.w>=48&&r.h>=48){
+        const rate=Number(tile.packageFeeRate??tile.feeRate);
+        ctx.fillStyle=colors.textOnTile||"rgba(0,0,0,.78)";
+        ctx.font='9px "IBM Plex Mono", ui-monospace, monospace';
+        ctx.textBaseline="top";
+        ctx.fillText(Number.isFinite(rate)?`${rate.toFixed(rate<1?3:1)} sat/vB`:"fee pending",r.x+4,r.y+3,Math.max(10,r.w-8));
+      }
     }
 
-    outline(ctx,layout.byTxid?.get(selectedTxid),css,colors.selected||"#fff",2.2);
-    outline(ctx,layout.byTxid?.get(hoverTxid),css,colors.hover||colors.accent||"#e6a42b",1.25);
+    for(const [txid,width,stroke] of [
+      [selectedTxid,2,colors.selected||"#fff"],
+      [hoverTxid,1.25,colors.border||"#e6a42b"]
+    ]){
+      if(!txid)continue;
+      const tile=layout.byTxid.get(txid);
+      if(!tile)continue;
+      const r=pixelRect(tile,css);
+      ctx.save();
+      ctx.strokeStyle=stroke;
+      ctx.lineWidth=width;
+      ctx.shadowColor=stroke;
+      ctx.shadowBlur=width>1?7:3;
+      ctx.strokeRect(r.x+width/2,r.y+width/2,Math.max(1,r.w-width),Math.max(1,r.h-width));
+      ctx.restore();
+    }
 
     ctx.save();
-    ctx.strokeStyle=colors.border||colors.accent||"#e6a42b";
+    ctx.strokeStyle=colors.border||"#e6a42b";
     ctx.globalAlpha=.72;
     ctx.lineWidth=1;
     ctx.strokeRect(.5,.5,css-1,css-1);
@@ -218,7 +152,7 @@
   }
 
   W.ZZXMempoolTilesRenderer=Object.freeze({
-    __version:5,
+    __version:4,
     feeColor,
     typeColor,
     color,
