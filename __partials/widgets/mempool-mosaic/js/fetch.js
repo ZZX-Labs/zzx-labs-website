@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolMosaicFetch?.__version>=1)return;
+  if(W.ZZXMempoolMosaicFetch?.__version>=3)return;
 
   const cache=new Map();
 
@@ -58,7 +58,7 @@
   }
 
   W.ZZXMempoolMosaicFetch=Object.freeze({
-    __version:1,
+    __version:3,
     json:(url,opts)=>request(url,{...(opts||{}),as:"json"}),
     text:(url,opts)=>request(url,{...(opts||{}),as:"text"}),
     clear:()=>cache.clear()
