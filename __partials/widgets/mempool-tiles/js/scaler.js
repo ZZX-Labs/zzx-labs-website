@@ -1,91 +1,134 @@
-// Metric scaling for square-atlas area and bivariate transaction color.
+// __partials/widgets/mempool-tiles/js/scaler.js
+// v2 — robust per-slot square footprint scaling
 (function(){
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesScaler?.__version>=4)return;
+  if(W.ZZXMempoolTilesScaler?.__version>=2)return;
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
   function quantile(sorted,q){
     if(!sorted.length)return NaN;
+
     const p=clamp(Number(q)||0,0,1)*(sorted.length-1);
-    const low=Math.floor(p);
-    const high=Math.ceil(p);
-    if(low===high)return sorted[low];
-    return sorted[low]+(sorted[high]-sorted[low])*(p-low);
+    const lo=Math.floor(p);
+    const hi=Math.ceil(p);
+
+    if(lo===hi)return sorted[lo];
+
+    const t=p-lo;
+    return sorted[lo]+(sorted[hi]-sorted[lo])*t;
   }
 
   function metricValue(tx,mode){
     if(mode==="value")return Number(tx?.valueSats);
-    if(mode==="fee")return Number(tx?.feeSats);
     if(mode==="feerate")return Number(tx?.packageFeeRate??tx?.feeRate);
     return Number(tx?.vsize);
   }
 
-  function makeScale(items,mode="value"){
+  function makeScale(items,mode="vsize"){
     const values=(Array.isArray(items)?items:[])
       .map(tx=>metricValue(tx,mode))
       .filter(value=>Number.isFinite(value)&&value>=0)
       .sort((a,b)=>a-b);
 
-    const median=values.length?quantile(values,.5):1;
-    const low=values.length?quantile(values,.005):0;
-    const high=values.length?Math.max(low+1e-9,quantile(values,.9995)):1;
-    const p99=values.length?Math.max(low+1e-9,quantile(values,.99)):1;
-    const cap=Math.max(high,p99*3,median*12,1e-9);
-    const floor=Math.max(cap*1e-7,median*1e-4,1e-12);
+    let lowQ=.02;
+    let highQ=.995;
+    let curve=.84;
 
+    if(mode==="value"){
+      lowQ=.01;
+      highQ=.995;
+      curve=.68;
+    }else if(mode==="feerate"){
+      lowQ=.02;
+      highQ=.99;
+      curve=.76;
+    }
+
+    const low=values.length
+      ? Math.max(0,quantile(values,lowQ))
+      : 0;
+
+    const high=values.length
+      ? Math.max(low+1e-9,quantile(values,highQ))
+      : 1;
+
+    /*
+     * Tile area, not side length, carries the selected metric. The square is
+     * drawn inside one stable transaction slot. This keeps all candidate TXs
+     * legible and prevents the packer pathologies that made earlier versions
+     * look like strips/confetti while still preserving monotonic visual scale.
+     */
     return {
       mode,
       low,
       high,
-      p99,
-      cap,
-      floor,
-      median,
-      known:values.length,
-      total:values.reduce((sum,value)=>sum+value,0)
+      logLow:Math.log1p(low),
+      logHigh:Math.log1p(high),
+      curve,
+      minAreaFraction:.055,
+      maxAreaFraction:.79,
+      known:values.length
     };
-  }
-
-  function weight(tx,scale){
-    const value=metricValue(tx,scale.mode);
-    if(!Number.isFinite(value)||value<0)return Math.max(scale.floor,scale.median*.08);
-
-    const clipped=clamp(value,0,scale.cap);
-
-    // Square area tracks the metric directly; the soft floor keeps dust visible.
-    return Math.max(scale.floor,clipped);
   }
 
   function normalized(tx,scale){
     const value=metricValue(tx,scale.mode);
-    if(!Number.isFinite(value)||value<=scale.low)return 0;
-    if(value>=scale.cap)return 1;
 
-    const start=Math.log1p(Math.max(0,scale.low));
-    const end=Math.log1p(Math.max(scale.low+1e-12,scale.cap));
-    return clamp((Math.log1p(value)-start)/Math.max(1e-12,end-start),0,1);
+    if(!Number.isFinite(value))return 0;
+    if(value<=scale.low)return 0;
+    if(value>=scale.high)return 1;
+
+    const span=Math.max(1e-12,scale.logHigh-scale.logLow);
+
+    return clamp(
+      (
+        Math.log1p(Math.max(0,value))-
+        scale.logLow
+      )/span,
+      0,
+      1
+    );
   }
 
-  function distribution(items,mode){
-    const scale=makeScale(items,mode);
-    return (Array.isArray(items)?items:[]).map(tx=>({
-      tx,
-      metric:metricValue(tx,mode),
-      normalized:normalized(tx,scale),
-      weight:weight(tx,scale)
-    }));
+  function areaFraction(tx,scale){
+    const t=normalized(tx,scale);
+
+    return (
+      scale.minAreaFraction+
+      (
+        scale.maxAreaFraction-
+        scale.minAreaFraction
+      )*
+      Math.pow(t,scale.curve)
+    );
+  }
+
+  function ratio(tx,scale){
+    return Math.sqrt(
+      clamp(
+        areaFraction(tx,scale),
+        .01,
+        .94
+      )
+    );
+  }
+
+  /* Compatibility helper for callers from the experimental packer versions. */
+  function side(tx,scale){
+    return ratio(tx,scale);
   }
 
   W.ZZXMempoolTilesScaler=Object.freeze({
-    __version:4,
+    __version:2,
     quantile,
     metricValue,
     makeScale,
-    weight,
     normalized,
-    distribution
+    areaFraction,
+    ratio,
+    side
   });
 })();
