@@ -1,148 +1,88 @@
-// ZZX-Labs / 0xDEADBEEF transaction-mosaic theme system.
+// mempool-mosaic/js/themes.js
+// v2 — 32 built-in ZZX/0xdeadbeef palettes; no runtime theme fetch required.
 (function(){
   "use strict";
 
   const W=window;
   if(W.ZZXMempoolMosaicThemes?.__version>=3)return;
 
-  const DEFINITIONS=[
-    ["zzx-default","ZZX Lab Default","ZZX","#020302","#070a07","#c0d674","#e6a42b","#14272d","#617d55","#c0d674","#e6a42b"],
-    ["deadbeef","0xDEADBEEF","ZZX","#030303","#0a0b09","#c0d674","#deadbe","#182927","#657c54","#c0d674","#deadbe"],
-    ["terminal-green","Terminal Green","Terminal","#010502","#041007","#7dff8a","#d5ff73","#06351d","#1e9c55","#7dff8a","#d5ff73"],
-    ["terminal-amber","Terminal Amber","Terminal","#060401","#110b03","#ffc35c","#ffe1a3","#3c2105","#a8600a","#ffc35c","#fff0bd"],
-    ["crt-monochrome","CRT Monochrome","Terminal","#020403","#070b09","#b8cfbf","#f0fff4","#17241c","#587064","#b8cfbf","#f0fff4"],
-    ["obsidian-lime","Obsidian Lime","ZZX","#020202","#080a06","#b7ff38","#f1ff9d","#192a0c","#628c21","#b7ff38","#f1ff9d"],
-    ["midnight-copper","Midnight Copper","Industrial","#050302","#0f0a07","#e1a56f","#ffcf8a","#2d1810","#8c4d2f","#e1a56f","#ffcf8a"],
-    ["scranton-steel","Scranton Steel","Industrial","#030506","#091014","#a8bec9","#d29b52","#13242b","#4a6c7a","#a8bec9","#d29b52"],
-    ["deep-ocean","Deep Ocean","Signal","#010507","#041016","#67d5d1","#b7f06a","#072d3b","#137b88","#67d5d1","#b7f06a"],
-    ["arctic-relay","Arctic Relay","Signal","#030609","#08131b","#8ad8ff","#e6fbff","#0d3149","#297ca9","#8ad8ff","#e6fbff"],
-    ["neon-cyan","Neon Cyan","Signal","#010405","#031013","#45f0ff","#b7fff8","#06313a","#0c8994","#45f0ff","#b7fff8"],
-    ["blue-wire","Blue Wire","Signal","#02040a","#071020","#6e9cff","#9ee7ff","#101f4b","#2f57aa","#6e9cff","#9ee7ff"],
-    ["violet-cipher","Violet Cipher","Cipher","#040207","#0d0713","#b68cff","#e8c5ff","#241138","#684098","#b68cff","#e8c5ff"],
-    ["magenta-trace","Magenta Trace","Cipher","#070206","#130811","#ff79c6","#ffd1ea","#3b0d2a","#a22e73","#ff79c6","#ffd1ea"],
-    ["tor-purple","Tor Purple","Cipher","#050307","#100b15","#a98be8","#e9bd67","#26153b","#644692","#a98be8","#e9bd67"],
-    ["i2p-indigo","I2P Indigo","Cipher","#030309","#09091a","#8a8cff","#65e0c3","#171744","#4749a3","#8a8cff","#65e0c3"],
-    ["crimson-packet","Crimson Packet","Ops","#070202","#130606","#ff7b72","#ffd166","#351011","#9b292d","#ff7b72","#ffd166"],
-    ["infrared-ops","Infrared Ops","Ops","#060101","#120404","#ff5f4d","#ffb86b","#310705","#a31c13","#ff5f4d","#ffb86b"],
-    ["ghost-grid","Ghost Grid","Ops","#030404","#0b0d0d","#c7d0cf","#81a6a3","#1c2424","#536866","#c7d0cf","#f2f7f6"],
-    ["ultraviolet-lab","Ultraviolet Lab","Ops","#050109","#0e0518","#d879ff","#72fff1","#270c3f","#7932a0","#d879ff","#72fff1"],
-    ["ukraine-signal","Ukraine Signal","Regional","#02050a","#07101d","#60a5fa","#facc15","#0d2c50","#2368ac","#60a5fa","#facc15"],
-    ["saffron-circuit","Saffron Circuit","Regional","#070401","#130b03","#ffb84d","#fff07a","#3c2208","#ad6817","#ffb84d","#fff07a"],
-    ["himalayan-night","Himalayan Night","Regional","#030408","#090d16","#8fc7ff","#ffb36b","#112945","#365f87","#8fc7ff","#ffb36b"],
-    ["tibetan-dusk","Tibetan Dusk","Regional","#060304","#12090a","#d9a36f","#7ed6b2","#32181e","#8b4850","#d9a36f","#7ed6b2"],
-    ["bombay-monsoon","Bombay Monsoon","Regional","#020607","#061216","#58c6b8","#ffb45b","#0c3436","#237f79","#58c6b8","#ffb45b"],
-    ["pune-terminal","Pune Terminal","Regional","#030502","#081006","#9bd66f","#f3aa52","#173119","#4d832f","#9bd66f","#f3aa52"],
-    ["palo-alto-neon","Palo Alto Neon","Regional","#020407","#07101a","#65d5ff","#d6ff63","#0b3048","#227fa7","#65d5ff","#d6ff63"],
-    ["solar-flare","Solar Flare","Celestial","#070301","#140704","#ff884d","#ffe066","#411307","#b44416","#ff884d","#ffe066"],
-    ["lunar-obscura","Lunar Obscura","Celestial","#030407","#090c13","#aab7d4","#d9d0ff","#171e35","#4a587d","#aab7d4","#d9d0ff"],
-    ["aurora-hash","Aurora Hash","Celestial","#010607","#051214","#6ee7b7","#c084fc","#083531","#218b72","#6ee7b7","#c084fc"],
-    ["bitcoin-ember","Bitcoin Ember","Bitcoin","#060301","#120902","#f7931a","#ffd166","#351705","#a84f08","#f7931a","#ffd166"],
-    ["blockspace-gold","Blockspace Gold","Bitcoin","#060501","#121003","#d6b85f","#fff1a8","#312b0b","#837126","#d6b85f","#fff1a8"],
-    ["hashrate-ice","Hashrate Ice","Bitcoin","#020609","#06131a","#89dceb","#c8f7ff","#0d3141","#327a8b","#89dceb","#c8f7ff"],
-    ["mempool-heat","Mempool Heat","Bitcoin","#070202","#140705","#ff6b35","#ffe66d","#39100a","#a53218","#ff6b35","#ffe66d"],
-    ["paperwhite-dark","Paperwhite Dark","Accessible","#090908","#11110f","#e4e1d7","#d7ba7d","#292925","#77746b","#e4e1d7","#fffaf0"],
-    ["high-contrast","High Contrast","Accessible","#000000","#080808","#ffffff","#ffd400","#1d1d1d","#707070","#ffffff","#ffd400"],
-    ["deuteranopia-safe","Deuteranopia Safe","Accessible","#030507","#081016","#56b4e9","#f0e442","#102a3a","#2f78a0","#56b4e9","#f0e442"],
-    ["protanopia-safe","Protanopia Safe","Accessible","#030507","#081116","#5ab4ac","#f6c85f","#102d32","#337d78","#5ab4ac","#f6c85f"],
-    ["tritanopia-safe","Tritanopia Safe","Accessible","#050305","#100a10","#e78ac3","#8da0cb","#321529","#8b4d78","#e78ac3","#8da0cb"],
-    ["sepia-archive","Sepia Archive","Accessible","#080603","#151007","#d8c39a","#efb366","#342714","#80643a","#d8c39a","#efb366"]
-  ];
-
-  function rgb(hex){
-    const value=String(hex||"").replace("#","");
-    return /^[0-9a-f]{6}$/i.test(value)
-      ? [parseInt(value.slice(0,2),16),parseInt(value.slice(2,4),16),parseInt(value.slice(4,6),16)]
-      : [96,96,96];
-  }
-
-  function hex(color){
-    return `#${color.map(value=>Math.max(0,Math.min(255,Math.round(value))).toString(16).padStart(2,"0")).join("")}`;
-  }
-
-  function mix(a,b,t){
-    const A=rgb(a),B=rgb(b);
-    return hex(A.map((value,index)=>value+(B[index]-value)*t));
-  }
-
-  function expand(row){
-    const [id,name,group,background,panel,primary,accent,low,mid,high,hot]=row;
-    return {
-      id,name,group,
+  function palette(id,name,background,low,mid,high,hot,border,rbf="#d65a5a",nonRbf="#4e83d6",ordinal="#7657a8",data="#6e7480"){
+    return Object.freeze({
+      id,name,
       colors:{
-        background,panel,primary,accent,
-        text:mix(primary,"#ffffff",.56),
-        muted:mix(primary,"#777777",.58),
-        border:mix(primary,accent,.52),
+        background,
+        grid:"rgba(255,255,255,.09)",
+        border,
         selected:"#ffffff",
-        hover:accent,
-        pending:mix(background,primary,.22),
-        feeScale:[low,mix(low,mid,.45),mid,mix(mid,high,.38),mix(mid,high,.68),high,mix(high,hot,.34),mix(high,hot,.68),hot],
-        sizeLow:low,
-        sizeHigh:primary,
-        absoluteFeeLow:mid,
-        absoluteFeeHigh:hot,
-        rbf:"#ef6a68",
-        nonRbf:"#5b8def",
-        ordinal:"#a77be8",
-        data:"#8b939f",
-        boosted:accent,
-        unknown:mix(low,primary,.45)
+        pending:low,
+        feeFloor:background,
+        feeLow:low,
+        feeLow2:low,
+        feeMidLow:mid,
+        feeMid:mid,
+        feeMidHigh:high,
+        feeHigh:high,
+        feeVeryHigh:hot,
+        boosted:hot,
+        rbf,
+        nonRbf,
+        ordinal,
+        data,
+        unknown:mid,
+        textOnTile:"rgba(0,0,0,.78)"
       }
-    };
+    });
   }
 
-  let catalog=DEFINITIONS.map(expand);
+  const THEMES=Object.freeze([
+    palette("zzx-default","ZZX Default","#020302","#20353d","#79945f","#c0d674","#e6a42b","#e6a42b"),
+    palette("deadbeef","0xDEADBEEF","#050505","#24312b","#60775d","#b8d56a","#f2a93b","#b8d56a"),
+    palette("terminal-green","Terminal Green","#010401","#12321b","#2d7b3c","#70e56f","#d4ff6a","#70e56f"),
+    palette("amber-crt","Amber CRT","#070400","#352308","#8a5c12","#d99a2b","#ffd166","#d99a2b"),
+    palette("phosphor","Phosphor","#000402","#0c2f20","#25744b","#67d98c","#b8ffc9","#67d98c"),
+    palette("black-ice","Black Ice","#020407","#172633","#315b72","#6ca8c7","#b9e7ff","#6ca8c7"),
+    palette("deep-ocean","Deep Ocean","#01050a","#0f2637","#15536e","#2ea0b8","#77dbe8","#2ea0b8"),
+    palette("ultraviolet","Ultraviolet","#05030a","#251f38","#5d4a88","#9f7aea","#e6c7ff","#9f7aea"),
+    palette("infrared","Infrared","#080202","#381010","#7a2424","#d54a3a","#ffad66","#d54a3a"),
+    palette("monochrome","Monochrome","#030303","#202020","#5c5c5c","#bdbdbd","#f5f5f5","#bdbdbd"),
+    palette("graphite","Graphite","#050505","#1d2324","#4a5455","#8f9b9d","#d7dedf","#8f9b9d"),
+    palette("paperwhite","Paperwhite","#111111","#303030","#666666","#c9c9c9","#ffffff","#c9c9c9"),
+    palette("satoshi","Satoshi","#040403","#25251b","#65633e","#bbb56c","#f4e28b","#bbb56c"),
+    palette("halving","Halving","#050402","#2d2614","#79652a","#d0af4a","#ffd76a","#d0af4a"),
+    palette("miner","Miner","#030303","#27231d","#6c5a38","#bea35e","#f0c978","#bea35e"),
+    palette("hashrate","Hashrate","#020504","#183027","#3e6f58","#76b98d","#b8e5b3","#76b98d"),
+    palette("cypherpunk","Cypherpunk","#070207","#32132f","#7c2f6b","#d054b0","#ff93d8","#d054b0"),
+    palette("matrix","Matrix","#000300","#0b2910","#1e6a2c","#43c25b","#9cff9f","#43c25b"),
+    palette("kali","Kali","#020307","#171d32","#344979","#5d7fd0","#b3c8ff","#5d7fd0"),
+    palette("tor","Tor","#050306","#281c2c","#62436b","#a06bac","#e0b0e7","#a06bac"),
+    palette("i2p","I2P","#050402","#2c2918","#6f6538","#baa55e","#f3dc8b","#baa55e"),
+    palette("onion","Onion","#050204","#2f1628","#6f365e","#b65a91","#eea0c5","#b65a91"),
+    palette("moss","Moss","#030503","#1c2b1b","#536647","#8ea572","#d0df92","#8ea572"),
+    palette("lichen","Lichen","#050604","#2d3428","#6a7959","#acbd8a","#e1ebb0","#acbd8a"),
+    palette("desert","Desert","#070503","#332919","#7d6336","#c69a52","#f0ca7b","#c69a52"),
+    palette("rust","Rust","#070302","#351812","#7d3b27","#c8653d","#f3a36f","#c8653d"),
+    palette("copper","Copper","#060403","#332219","#79503a","#c47b54","#eda77d","#c47b54"),
+    palette("steel","Steel","#030506","#1e2b30","#50666d","#8faab1","#d1e2e6","#8faab1"),
+    palette("arctic","Arctic","#020608","#17303a","#3c7180","#75bbca","#c7f0f5","#75bbca"),
+    palette("solar","Solar","#080500","#3a2504","#8a5d0d","#dda019","#ffe36b","#dda019"),
+    palette("lunar","Lunar","#030306","#202335","#515979","#939cc6","#dde2ff","#939cc6"),
+    palette("signal","Signal","#040404","#2d2112","#72501f","#c38b31","#ffcf58","#c38b31")
+  ]);
 
-  function validate(theme){
-    return theme&&typeof theme==="object"&&theme.id&&theme.name&&theme.colors;
-  }
+  const BY_ID=new Map(THEMES.map(theme=>[theme.id,theme]));
+  let current=THEMES[0];
 
-  async function load(url){
-    if(!url)return list();
-    try{
-      const data=await fetch(url,{cache:"no-store"}).then(response=>{
-        if(!response.ok)throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      });
-      const additions=Array.isArray(data)?data:Array.isArray(data?.themes)?data.themes:[];
-      const map=new Map(catalog.map(theme=>[theme.id,theme]));
-      for(const theme of additions){
-        if(validate(theme))map.set(theme.id,theme);
-      }
-      catalog=[...map.values()];
-    }catch(_){}
-    return list();
+  function get(){return current;}
+  function list(){return THEMES.slice();}
+  function set(id){
+    const next=BY_ID.get(String(id||""));
+    if(next)current=next;
+    return current;
   }
-
-  function list(){
-    return catalog.map(theme=>({id:theme.id,name:theme.name,group:theme.group}));
-  }
-
-  function get(id="zzx-default"){
-    return catalog.find(theme=>theme.id===id)||catalog[0];
-  }
-
-  function apply(root,id){
-    const theme=get(id);
-    const colors=theme.colors;
-    if(root){
-      root.dataset.mmTheme=theme.id;
-      root.style.setProperty("--mm-bg",colors.background);
-      root.style.setProperty("--mm-panel",colors.panel);
-      root.style.setProperty("--mm-primary",colors.primary);
-      root.style.setProperty("--mm-accent",colors.accent);
-      root.style.setProperty("--mm-text",colors.text);
-      root.style.setProperty("--mm-muted",colors.muted);
-      root.style.setProperty("--mm-border",colors.border);
-    }
-    return theme;
-  }
+  async function load(){return current;}
 
   W.ZZXMempoolMosaicThemes=Object.freeze({
     __version:3,
-    load,
-    list,
-    get,
-    apply
+    get,list,set,load
   });
 })();
