@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document,ID="mempool-mosaic";
-  if(W.ZZXMempoolMosaicController?.__version>=5)return;
+  if(W.ZZXMempoolMosaicController?.__version>=6)return;
 
   const q=(root,sel)=>root?.querySelector?.(sel)||null;
   const set=(root,sel,value)=>{const el=q(root,sel);if(el)el.textContent=value==null?"—":String(value)};
@@ -90,7 +90,7 @@
   function startLive(root,state){
     const cfg=state.cfg;
     state.liveEngine=new W.ZZXMempoolMosaicLive.LiveNextBlock({
-      url:cfg.websocket,reconnectMaxMs:cfg.reconnectMaxMs,
+      urls:cfg.websocketUrls,reconnectMaxMs:cfg.reconnectMaxMs,
       onUpdate:snapshot=>{if(!root.isConnected)return;state.live=snapshot;scheduleRebuild(root,state,true)},
       onState:event=>{if(!root.isConnected)return;state.liveState=event.state;if(event.state==="live")status(root,"live ws","ok");else if(!state.model?.items?.length&&event.state==="connecting")status(root,"connecting","offline");else if(event.state==="error"&&!state.model?.items?.length)status(root,"socket fallback","warn")}
     });
@@ -154,7 +154,7 @@
     refresh(root,state,false);
   }
 
-  W.ZZXMempoolMosaicController=Object.freeze({__version:5,boot,teardown,rebuild,refresh});
+  W.ZZXMempoolMosaicController=Object.freeze({__version:6,boot,teardown,rebuild,refresh});
   if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
   else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
   else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
