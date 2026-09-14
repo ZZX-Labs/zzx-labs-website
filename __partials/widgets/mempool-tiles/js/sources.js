@@ -3,13 +3,13 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesSources?.__version>=3)return;
+  if(W.ZZXMempoolTilesSources?.__version>=4)return;
 
   const normalize=value=>String(value||"").trim().replace(/\/+$/g,"");
-  const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/,"");
+  const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/ ,"");
   const unique=rows=>[...new Set(rows.map(normalize).filter(Boolean))];
 
-  function apiBases(core){
+  function configuredBases(core){
     return unique([
       core?.ctx?.api?.MEMPOOL,
       core?.ctx?.api?.MEMPOOL_API,
@@ -17,23 +17,24 @@
       W.ZZX?.api?.MEMPOOL_API,
       W.ZZX?.API?.MEMPOOL,
       W.ZZX?.API?.MEMPOOL_API,
-      "/bitcoin/mempool/api",
       "https://mempool.space/api"
     ]);
   }
 
+  function apiBases(core){
+    const rows=configuredBases(core);
+    return rows.length?rows:["https://mempool.space/api"];
+  }
+
   function websocketUrl(base){
     const raw=normalize(base);
-
     try{
       const url=new URL(raw,W.location.href);
       url.protocol=url.protocol==="https:"?"wss:":url.protocol==="http:"?"ws:":url.protocol;
-
       let path=url.pathname.replace(/\/+$/g,"");
       if(/\/api\/v1$/i.test(path))path+="/ws";
       else if(/\/api$/i.test(path))path+="/v1/ws";
-      else path+="/api/v1/ws";
-
+      else if(!/\/v1\/ws$/i.test(path))path+="/api/v1/ws";
       url.pathname=path;
       url.search="";
       url.hash="";
@@ -59,6 +60,9 @@
   }
 
   function fullFeedUrls(core){
+    // Full-feed endpoints are optional enrichment. Only explicitly configured
+    // endpoints are probed; never manufacture same-origin URLs that may 404 or
+    // stall the widget before the normal mempool REST path can run.
     return unique([
       core?.ctx?.api?.MEMPOOL_FULL,
       core?.ctx?.api?.MEMPOOL_TXS,
@@ -66,16 +70,12 @@
       W.ZZX?.api?.MEMPOOL_FULL,
       W.ZZX?.api?.MEMPOOL_TXS,
       W.ZZX?.API?.MEMPOOL_FULL,
-      W.ZZX?.API?.MEMPOOL_TXS,
-      "/bitcoin/mempool/api/full.json",
-      "/bitcoin/mempool/api/mempool-full.json",
-      "/bitcoin/mempool/data/full.json"
+      W.ZZX?.API?.MEMPOOL_TXS
     ]);
   }
 
   function configForBase(core,base){
     const normalized=normalize(base||apiBases(core)[0]||"https://mempool.space/api");
-
     return {
       apiBase:normalized,
       apiBases:apiBases(core),
@@ -86,8 +86,8 @@
       hydrateConcurrency:8,
       hydrateDelayMs:650,
       fallbackHydrateBatch:96,
-      fallbackHydrateConcurrency:10,
-      fallbackHydrateDelayMs:420,
+      fallbackHydrateConcurrency:8,
+      fallbackHydrateDelayMs:500,
       maxHydratePerSession:6000,
       websocketUrls:websocketUrls(core),
       endpoints:{
@@ -113,7 +113,7 @@
   }
 
   W.ZZXMempoolTilesSources=Object.freeze({
-    __version:3,
+    __version:4,
     get,
     apiBases,
     configForBase,
