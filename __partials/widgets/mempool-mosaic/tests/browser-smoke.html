@@ -1,0 +1,1266 @@
+<!doctype html><html><head><meta charset="utf-8"><style>/* __partials/widgets/mempool-mosaic/widget.css */
+.mempool-mosaic{--mg-green:var(--zzx-accent,#c0d674);--mg-gold:var(--zzx-accent-alt,#e6a42b);--mg-muted:var(--zzx-muted,#b7bf9a);--mg-dim:var(--zzx-dim,#777);--mg-line:rgba(255,255,255,.09);--mg-panel:rgba(255,255,255,.018);--mg-low:#244052;--mg-mid:#4f8b67;--mg-high:#c0d674;--mg-hot:#e6a42b;width:100%;min-width:0;}
+.mempool-mosaic__header,.mempool-mosaic__footer,.mempool-mosaic__block-head{display:flex;align-items:center;justify-content:space-between;gap:.55rem;min-width:0}.mempool-mosaic__header{align-items:flex-start}.mempool-mosaic__eyebrow,.mempool-mosaic__hero>span,.mempool-mosaic__metrics span,.mempool-mosaic__row>span,.mempool-mosaic__block-head{color:var(--mg-dim);font-size:.67rem;letter-spacing:.05em;text-transform:uppercase}.mempool-mosaic__hero{display:grid;gap:.08rem;margin-top:.5rem;padding:.55rem 0 .58rem;border-top:1px solid var(--mg-line);border-bottom:1px solid var(--mg-line)}.mempool-mosaic__hero strong{min-width:0;color:var(--mg-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:1.35rem;line-height:1.05;font-weight:500;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mempool-mosaic__hero small{min-width:0;color:var(--mg-gold);font-size:.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mempool-mosaic__metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.38rem;margin-top:.5rem}.mempool-mosaic__metrics>div{min-width:0;padding:.38rem .42rem;border:1px solid var(--mg-line);border-radius:6px;background:var(--mg-panel)}.mempool-mosaic__metrics span,.mempool-mosaic__metrics strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mempool-mosaic__metrics strong{margin-top:.1rem;color:var(--mg-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.72rem;font-weight:500}.mempool-mosaic__block-wrap{margin-top:.5rem;padding:.42rem;border:1px solid var(--mg-line);border-radius:7px;background:var(--mg-panel)}.mempool-mosaic__block-head{color:var(--mg-gold)}.mempool-mosaic__block{position:relative;width:min(100%,620px);margin:.42rem auto 0;overflow:hidden;aspect-ratio:1/1;border:3px solid var(--mg-gold);border-radius:8px;background:#0a0a0a;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}.mempool-mosaic__block canvas{display:block;width:100%;height:100%;image-rendering:auto}.mempool-mosaic__tooltip{position:absolute;z-index:3;max-width:min(88%,340px);padding:.38rem .45rem;border:1px solid rgba(230,164,43,.65);border-radius:5px;background:rgba(7,7,7,.96);color:var(--mg-green);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.62rem;line-height:1.4;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.45)}.mempool-mosaic__tooltip strong{display:block;margin-bottom:.08rem;color:var(--mg-gold);font-weight:500}.mempool-mosaic__legend{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:.4rem;color:var(--mg-muted);font-size:.66rem}.mempool-mosaic__legend span{display:inline-flex;align-items:center;gap:.28rem}.mempool-mosaic__legend i{display:inline-block;width:11px;height:11px;border-radius:2px}.mempool-mosaic__legend i[data-tier="low"]{background:var(--mg-low)}.mempool-mosaic__legend i[data-tier="mid"]{background:var(--mg-mid)}.mempool-mosaic__legend i[data-tier="high"]{background:var(--mg-high)}.mempool-mosaic__legend i[data-tier="hot"]{background:var(--mg-hot)}.mempool-mosaic__details{display:grid;gap:.25rem;margin-top:.5rem;padding-top:.42rem;border-top:1px solid var(--mg-line)}.mempool-mosaic__row{display:grid;grid-template-columns:minmax(150px,.38fr) minmax(0,1fr);gap:.55rem;min-width:0}.mempool-mosaic__row>strong{min-width:0;color:var(--mg-muted);font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);font-size:.68rem;font-weight:500;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mempool-mosaic__footer{margin-top:.45rem;padding-top:.42rem;border-top:1px solid var(--mg-line);color:var(--mg-muted);font-size:.67rem}.mempool-mosaic__footer>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(max-width:720px){.mempool-mosaic__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:460px){.mempool-mosaic__metrics{grid-template-columns:1fr}.mempool-mosaic__row{grid-template-columns:1fr;gap:.05rem}.mempool-mosaic__row>strong{text-align:left}.mempool-mosaic__footer{align-items:flex-start;flex-direction:column}}
+</style></head><body style="margin:0;background:#121212;color:#ddd;width:820px"><div class="btc-card mempool-mosaic">
+  <div class="mempool-mosaic__header">
+    <div>
+      <div class="btc-card__title">Mempool Mosaic</div>
+      <div class="mempool-mosaic__eyebrow">live projected next-block transaction mosaic · mempool.space block 0</div>
+    </div>
+    <span class="btc-card__status" data-mm-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="mempool-mosaic__hero">
+    <span>next candidate block</span>
+    <strong data-mm-height>—</strong>
+    <small data-mm-sub>waiting for projected-block transaction stream…</small>
+  </div>
+
+  <div class="mempool-mosaic__metrics">
+    <div><span>candidate vsize</span><strong data-mm-vsize>—</strong></div>
+    <div><span>candidate TXs</span><strong data-mm-tx>—</strong></div>
+    <div><span>total fees</span><strong data-mm-fees>—</strong></div>
+    <div><span>median fee</span><strong data-mm-median>—</strong></div>
+  </div>
+
+  <div class="mempool-mosaic__block-wrap">
+    <div class="mempool-mosaic__block-head">
+      <span data-mm-block-label>transaction mosaic</span>
+      <span data-mm-updated>—</span>
+    </div>
+    <div class="mempool-mosaic__block" data-mm-block role="img" aria-label="Live Bitcoin projected next-block transaction mosaic">
+      <canvas data-mm-canvas></canvas>
+      <div class="mempool-mosaic__tooltip" data-mm-tooltip hidden></div>
+    </div>
+  </div>
+
+  <div class="mempool-mosaic__legend" aria-hidden="true">
+    <span><i data-tier="low"></i>low fee</span>
+    <span><i data-tier="mid"></i>medium fee</span>
+    <span><i data-tier="high"></i>high fee</span>
+    <span><i data-tier="hot"></i>very high fee</span>
+  </div>
+
+  <div class="mempool-mosaic__details">
+    <div class="mempool-mosaic__row"><span>current tip</span><strong data-mm-tip>—</strong></div>
+    <div class="mempool-mosaic__row"><span>candidate fee range</span><strong data-mm-range>—</strong></div>
+    <div class="mempool-mosaic__row"><span>mempool backlog</span><strong data-mm-backlog>—</strong></div>
+    <div class="mempool-mosaic__row"><span>transport</span><strong data-mm-transport>—</strong></div>
+    <div class="mempool-mosaic__row"><span>source</span><strong data-mm-source>—</strong></div>
+  </div>
+
+  <div class="mempool-mosaic__footer">
+    <span data-mm-meta>projected block 0 · stable txid tiles slide/re-sort on live updates · aggregate fallback is explicitly labeled</span>
+    <button type="button" class="zzx-widgets__btn" data-mm-refresh>Reconnect / Refresh</button>
+  </div>
+</div>
+
+<script>
+window.__errors=[];
+window.addEventListener('error',e=>window.__errors.push(String(e.error?.stack||e.message||e.error)));
+window.addEventListener('unhandledrejection',e=>window.__errors.push(String(e.reason?.stack||e.reason)));
+const TXS=Array.from({length:81},(_,i)=>({
+  txid:(i+1).toString(16).padStart(64,'0'),
+  vsize:120+(i%17)*13,
+  fee:800+(i%23)*97,
+  feeRate:(800+(i%23)*97)/(120+(i%17)*13),
+  packageFeeRate:(800+(i%23)*97)/(120+(i%17)*13),
+  value:(i+1)*(i+5)*10000,
+  time:1700000000+i
+}));
+window.fetch=async function(url){
+  const u=String(url);
+  const body=(obj,type='json')=>({ok:true,status:200,json:async()=>obj,text:async()=>type==='text'?String(obj):JSON.stringify(obj)});
+  if(u.includes('/mempool')&&!u.includes('/tx/')){
+    if(u.includes('full.json'))return body({},'json');
+    if(u.endsWith('/mempool'))return body({count:120000,vsize:138000000,total_fee:22000000});
+    if(u.includes('/recent'))return body(TXS.slice(0,10));
+    if(u.includes('/txids'))return body(TXS.map(x=>x.txid));
+  }
+  if(u.includes('/v1/fees/mempool-blocks'))return body([{blockVSize:TXS.reduce((s,x)=>s+x.vsize,0),nTx:TXS.length,totalFees:TXS.reduce((s,x)=>s+x.fee,0),feeRange:[1,3,5,8,12,20]}]);
+  if(u.includes('/v1/fees/recommended'))return body({fastestFee:15,halfHourFee:10,hourFee:7});
+  if(u.includes('/blocks/tip/height'))return body('910000','text');
+  if(u.includes('/bitcoin/bpi/api/latest.json'))return body({price_usd:115000,source:'mock'});
+  const m=u.match(/\/tx\/([0-9a-f]{64})(?:\/hex)?$/i);
+  if(m){
+    if(u.endsWith('/hex'))return body('02000000000100','text');
+    const base=TXS.find(x=>x.txid===m[1])||TXS[0];
+    return body({...base,weight:base.vsize*4,vin:[{sequence:0xfffffffd,witness:['01'],prevout:{value:base.value+base.fee}}],vout:[{value:base.value,scriptpubkey_type:'v0_p2wpkh'}],status:{confirmed:false}});
+  }
+  return {ok:false,status:404,json:async()=>({}),text:async()=>''};
+};
+class FakeWebSocket{
+  static OPEN=1;
+  constructor(url){this.url=url;this.readyState=0;setTimeout(()=>{this.readyState=1;this.onopen?.({});setTimeout(()=>this.onmessage?.({data:JSON.stringify({'mempool-blocks':[{blockVSize:TXS.reduce((s,x)=>s+x.vsize,0),nTx:TXS.length,totalFees:TXS.reduce((s,x)=>s+x.fee,0),feeRange:[1,3,5,8,12,20]}]})}),10);setTimeout(()=>this.onmessage?.({data:JSON.stringify({'mempool-block-transactions':{index:0,blockTransactions:TXS}})}),20)},5)}
+  send(_msg){}
+  close(){this.readyState=3;this.onclose?.({code:1000})}
+}
+window.WebSocket=FakeWebSocket;
+window.ZZXAPI={url:x=>x,register:(id,fn)=>setTimeout(()=>fn(document.querySelector('.mempool-mosaic'),null),0)};
+</script>
+<script>// Mempool Mosaic — production bundle generated by build.py
+
+/* ===== js/sources.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicSources?.__version>=4)return;
+
+  const normalize=value=>String(value||"").trim().replace(/\/+$/g,"");
+  const join=(base,path)=>normalize(base)+"/"+String(path||"").replace(/^\/+/g,"");
+
+  function apiBase(core){
+    return normalize(
+      core?.ctx?.api?.MEMPOOL ||
+      core?.ctx?.api?.MEMPOOL_API ||
+      W.ZZX?.api?.MEMPOOL ||
+      W.ZZX?.api?.MEMPOOL_API ||
+      W.ZZX?.API?.MEMPOOL ||
+      W.ZZX?.API?.MEMPOOL_API ||
+      "https://mempool.space/api"
+    );
+  }
+
+  function websocketUrl(base){
+    const raw=normalize(base);
+    try{
+      const u=new URL(raw,W.location.href);
+      u.protocol=u.protocol==="https:"?"wss:":"ws:";
+      u.pathname=u.pathname.replace(/\/+$/g,"")+"/v1/ws";
+      u.search="";u.hash="";
+      return u.toString();
+    }catch(_){
+      return raw.replace(/^http/i,"ws")+"/v1/ws";
+    }
+  }
+
+  function fullFeedUrls(core){
+    return [...new Set([
+      core?.ctx?.api?.MEMPOOL_FULL,
+      core?.ctx?.api?.MEMPOOL_TXS,
+      W.ZZX?.api?.MEMPOOL_FULL,
+      W.ZZX?.api?.MEMPOOL_TXS,
+      W.ZZX?.API?.MEMPOOL_FULL,
+      W.ZZX?.API?.MEMPOOL_TXS,
+      "/bitcoin/mempool/api/full.json"
+    ].map(v=>String(v||"").trim()).filter(Boolean))];
+  }
+
+  function get(core){
+    const base=apiBase(core);
+    return Object.freeze({
+      apiBase:base,
+      websocket:websocketUrl(base),
+      refreshMs:10000,
+      reconnectMaxMs:30000,
+      animationMs:560,
+      shuffleMs:7200,
+      renderDebounceMs:90,
+      targetVbytes:1_000_000,
+      maxTiles:6000,
+      trackedBlockIndex:0,
+      endpoints:Object.freeze({
+        mempool:join(base,"mempool"),
+        blocks:join(base,"v1/fees/mempool-blocks"),
+        recommended:join(base,"v1/fees/recommended"),
+        tipHeight:join(base,"blocks/tip/height"),
+        recent:join(base,"mempool/recent"),
+        txids:join(base,"mempool/txids"),
+        tx:join(base,"tx/{txid}"),
+        txHex:join(base,"tx/{txid}/hex"),
+        block:join(base,"block/{hash}")
+      }),
+      fullFeedUrls:fullFeedUrls(core),
+      price:W.ZZXAPI?.url?W.ZZXAPI.url("/bitcoin/bpi/api/latest.json"):"/bitcoin/bpi/api/latest.json"
+    });
+  }
+
+  W.ZZXMempoolMosaicSources=Object.freeze({__version:4,get,apiBase,websocketUrl,fullFeedUrls});
+})();
+
+/* ===== js/fetch.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicFetch?.__version>=4)return;
+
+  const cache=new Map();
+  const inflight=new Map();
+  const external=url=>/^https?:\/\//i.test(String(url||""));
+
+  async function raw(url,{signal,timeoutMs=12000,retries=1}={}){
+    if(W.ZZXAPI?.fetchRaw){
+      return await W.ZZXAPI.fetchRaw(url,{
+        cacheBust:!external(url),cache:"no-store",
+        credentials:external(url)?"omit":"same-origin",
+        timeoutMs,retries,retryDelayMs:400,signal
+      });
+    }
+
+    let last;
+    for(let attempt=0;attempt<=Math.max(0,retries);attempt++){
+      const ctl=typeof AbortController==="function"?new AbortController():null;
+      let timer=0;
+      const relay=()=>ctl?.abort(signal?.reason);
+      if(signal?.aborted)throw signal.reason||new DOMException("Aborted","AbortError");
+      signal?.addEventListener?.("abort",relay,{once:true});
+      if(ctl&&timeoutMs>0)timer=W.setTimeout(()=>ctl.abort(new DOMException("Timeout","TimeoutError")),timeoutMs);
+      try{
+        const r=await fetch(url,{cache:"no-store",credentials:external(url)?"omit":"same-origin",signal:ctl?.signal||signal});
+        if(!r.ok){const e=new Error(`HTTP ${r.status} ${url}`);e.status=r.status;throw e;}
+        return r;
+      }catch(error){
+        last=error;
+        if(error?.name==="AbortError"||signal?.aborted||attempt>=retries)throw error;
+        await new Promise(done=>W.setTimeout(done,300*(attempt+1)));
+      }finally{
+        W.clearTimeout(timer);
+        signal?.removeEventListener?.("abort",relay);
+      }
+    }
+    throw last||new Error(`fetch failed ${url}`);
+  }
+
+  async function fetchJSON(url,{signal,ttlMs=0,coalesce=true,timeoutMs=12000,retries=1}={}){
+    const key=`json:${url}`;
+    const old=cache.get(key);
+    if(ttlMs>0&&old&&Date.now()-old.at<ttlMs)return old.value;
+    if(coalesce&&inflight.has(key))return await inflight.get(key);
+    const task=(async()=>{
+      const r=await raw(url,{signal,timeoutMs,retries});
+      const value=await r.json();
+      if(ttlMs>0)cache.set(key,{at:Date.now(),value});
+      return value;
+    })();
+    if(coalesce)inflight.set(key,task);
+    try{return await task}finally{if(coalesce)inflight.delete(key)}
+  }
+
+  async function fetchText(url,{signal,ttlMs=0,coalesce=true,timeoutMs=12000,retries=1}={}){
+    const key=`text:${url}`;
+    const old=cache.get(key);
+    if(ttlMs>0&&old&&Date.now()-old.at<ttlMs)return old.value;
+    if(coalesce&&inflight.has(key))return await inflight.get(key);
+    const task=(async()=>{
+      const r=await raw(url,{signal,timeoutMs,retries});
+      const value=await r.text();
+      if(ttlMs>0)cache.set(key,{at:Date.now(),value});
+      return value;
+    })();
+    if(coalesce)inflight.set(key,task);
+    try{return await task}finally{if(coalesce)inflight.delete(key)}
+  }
+
+  W.ZZXMempoolMosaicFetch=Object.freeze({__version:4,raw,fetchJSON,fetchText});
+})();
+
+/* ===== js/live.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicLive?.__version>=2)return;
+
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  const txidOf=row=>{const id=String(row?.txid??row?.id??row?.hash??"").trim();return /^[0-9a-f]{64}$/i.test(id)?id:""};
+
+  function normalizeTx(row,index=0){
+    if(!row||typeof row!=="object")return null;
+    const txid=txidOf(row);if(!txid)return null;
+    const weight=finite(row.weight);
+    let vsize=finite(row.vsize??row.vbytes??row.virtualSize??row.virtual_size);
+    if(!(vsize>0)&&weight>0)vsize=weight/4;
+    if(!(vsize>0))vsize=finite(row.size);
+    const fee=finite(row.fee??row.fees??row.totalFee??row.total_fee);
+    const feeRate=finite(row.feeRate??row.fee_rate??row.rate??row.effectiveFeePerVsize??(fee>0&&vsize>0?fee/vsize:NaN));
+    const packageFeeRate=finite(row.packageFeeRate??row.effectiveFeeRate??row.ancestorFeeRate??feeRate);
+    const value=finite(row.value??row.valueSats??row.outputValue??row.output_value);
+    return {...row,txid,id:txid,vsize,vbytes:vsize,fee,feeRate,packageFeeRate,value,valueSats:value,projectedBlockIndex:0,projectedRank:index,__zzxLive:true};
+  }
+
+  function normalizeRows(rows){
+    const out=[],seen=new Set();
+    for(const raw of Array.isArray(rows)?rows:[]){
+      const tx=normalizeTx(raw,out.length);if(!tx||seen.has(tx.txid))continue;
+      seen.add(tx.txid);out.push(tx);
+    }
+    return out;
+  }
+
+  function blockTxPayload(message){
+    const payload=message?.["mempool-block-transactions"]??message?.mempoolBlockTransactions??message?.mempool_block_transactions;
+    if(payload==null)return null;
+    if(Array.isArray(payload))return {replace:true,rows:payload,removed:[],index:0};
+    if(typeof payload!=="object")return null;
+    const index=finite(payload.index??payload.blockIndex??payload.block_index??payload.projectedBlockIndex??0);
+    const full=payload.blockTransactions??payload.transactions??payload.txs??payload.items??payload.block?.transactions;
+    if(Array.isArray(full))return {replace:true,rows:full,removed:[],index:Number.isFinite(index)?index:0};
+    const added=payload.added??payload.add??payload.delta?.added??payload.delta?.add;
+    const removed=payload.removed??payload.remove??payload.delta?.removed??payload.delta?.remove??[];
+    if(Array.isArray(added)||Array.isArray(removed))return {replace:false,rows:Array.isArray(added)?added:[],removed:Array.isArray(removed)?removed:[],index:Number.isFinite(index)?index:0};
+    return null;
+  }
+
+  function candidatePayload(message){
+    const blocks=message?.["mempool-blocks"]??message?.mempoolBlocks??message?.mempool_blocks;
+    return Array.isArray(blocks)?blocks:null;
+  }
+
+  class LiveNextBlock{
+    constructor(opts={}){
+      this.url=String(opts.url||"");this.onUpdate=typeof opts.onUpdate==="function"?opts.onUpdate:null;this.onState=typeof opts.onState==="function"?opts.onState:null;
+      this.reconnectMaxMs=Math.max(5000,Number(opts.reconnectMaxMs)||30000);this.socket=null;this.timer=0;this.stopped=true;this.retryMs=1000;this.rows=new Map();this.candidates=[];this.lastUpdate=0;this.generation=0;
+    }
+    emitState(state,detail=""){try{this.onState?.({state,detail,at:Date.now()})}catch(_){}}
+    snapshot(){return {transactions:[...this.rows.values()].sort((a,b)=>(finite(a.projectedRank)||0)-(finite(b.projectedRank)||0)),candidates:this.candidates.slice(),updatedAt:this.lastUpdate,url:this.url}}
+    emit(){this.lastUpdate=Date.now();try{this.onUpdate?.(this.snapshot())}catch(_){}}
+    start(){if(!this.url||!("WebSocket" in W)){this.emitState("unsupported");return false}this.stopped=false;this.connect();return true}
+    stop(){this.stopped=true;W.clearTimeout(this.timer);this.timer=0;try{this.socket?.close?.()}catch(_){}this.socket=null;this.emitState("stopped")}
+    reconnect(){if(this.stopped)return;W.clearTimeout(this.timer);const delay=this.retryMs;this.retryMs=Math.min(this.reconnectMaxMs,Math.round(this.retryMs*1.7));this.timer=W.setTimeout(()=>this.connect(),delay)}
+    send(payload){try{if(this.socket?.readyState===W.WebSocket.OPEN){this.socket.send(JSON.stringify(payload));return true}}catch(_){}return false}
+    connect(){
+      if(this.stopped)return;const gen=++this.generation;this.emitState("connecting",this.url);let socket;
+      try{socket=new W.WebSocket(this.url)}catch(error){this.emitState("error",String(error?.message||error));this.reconnect();return}
+      this.socket=socket;
+      socket.onopen=()=>{if(this.stopped||gen!==this.generation)return;this.retryMs=1000;this.emitState("live",this.url);this.send({action:"want",data:["mempool-blocks"]});this.send({"track-mempool-block":0})};
+      socket.onmessage=event=>{
+        if(this.stopped||gen!==this.generation)return;let message;try{message=JSON.parse(event.data)}catch(_){return}
+        const blocks=candidatePayload(message);if(blocks)this.candidates=blocks;
+        const payload=blockTxPayload(message);
+        if(payload&&(!Number.isFinite(payload.index)||payload.index===0)){
+          if(payload.replace){this.rows.clear();normalizeRows(payload.rows).forEach((row,i)=>{row.projectedRank=i;this.rows.set(row.txid,row)})}
+          else{
+            for(const raw of payload.removed||[]){const id=typeof raw==="string"?raw:txidOf(raw);if(id)this.rows.delete(id)}
+            for(const raw of payload.rows||[]){const tx=normalizeTx(raw,this.rows.size);if(tx)this.rows.set(tx.txid,tx)}
+            const ordered=[...this.rows.values()].sort((a,b)=>{
+              const ar=finite(a.packageFeeRate??a.feeRate),br=finite(b.packageFeeRate??b.feeRate);if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return br-ar;
+              const ai=finite(a.projectedRank),bi=finite(b.projectedRank);if(Number.isFinite(ai)&&Number.isFinite(bi)&&ai!==bi)return ai-bi;
+              return a.txid.localeCompare(b.txid);
+            });
+            this.rows=new Map();ordered.forEach((row,i)=>{row.projectedRank=i;this.rows.set(row.txid,row)});
+          }
+          this.emit();
+        }else if(blocks)this.emit();
+      };
+      socket.onerror=()=>{if(!this.stopped&&gen===this.generation)this.emitState("error","websocket error")};
+      socket.onclose=event=>{if(this.stopped||gen!==this.generation)return;this.emitState("reconnecting",`code ${event?.code||0}`);this.reconnect()};
+    }
+  }
+
+  W.ZZXMempoolMosaicLive=Object.freeze({__version:2,normalizeTx,normalizeRows,blockTxPayload,candidatePayload,LiveNextBlock});
+})();
+
+/* ===== js/provider.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicProvider?.__version>=4)return;
+
+  async function optionalJSON(url,{signal,ttlMs=5000}={}){try{return await W.ZZXMempoolMosaicFetch.fetchJSON(url,{signal,ttlMs})}catch(_){return null}}
+  async function optionalText(url,{signal,ttlMs=5000}={}){try{return await W.ZZXMempoolMosaicFetch.fetchText(url,{signal,ttlMs})}catch(_){return null}}
+
+  function marketPrice(){
+    const state=W.ZZXMarketState;let snap=null;
+    try{snap=typeof state?.getSnapshot==="function"?state.getSnapshot():(state?.snapshot||state?.current||state)}catch(_){snap=state}
+    for(const value of [snap?.effectivePriceUsd,snap?.effective_price_usd,state?.effectivePriceUsd,state?.effective_price_usd]){const n=Number(value);if(Number.isFinite(n)&&n>0)return {value:n,source:"ZZX Market State"}}
+    return null;
+  }
+
+  async function price(url,signal){
+    const shared=marketPrice();if(shared)return shared;
+    const data=await optionalJSON(url,{signal,ttlMs:5000});
+    const value=Number(data?.price_usd??data?.bpi_usd??data?.vwap_usd);
+    return {value:Number.isFinite(value)&&value>0?value:NaN,source:data?.source||"ZZX Global BPI"};
+  }
+
+  async function fullFeed(cfg,signal){
+    const inline=W.ZZXMempoolMosaicFullFeed??W.ZZXMempoolFullFeed;
+    if(inline){
+      try{const value=typeof inline==="function"?await inline():inline;if(value&&typeof value==="object")return {data:value,source:"window.ZZXMempoolMosaicFullFeed"}}catch(_){}
+    }
+    for(const url of cfg.fullFeedUrls||[]){
+      try{const data=await W.ZZXMempoolMosaicFetch.fetchJSON(url,{signal,ttlMs:10000,timeoutMs:6500,retries:0});if(data&&typeof data==="object")return {data,source:url}}catch(_){}
+    }
+    return null;
+  }
+
+  async function load(core,{signal,force=false}={}){
+    const cfg=W.ZZXMempoolMosaicSources.get(core),ttl=force?0:5000;
+    const jobs={
+      mempool:optionalJSON(cfg.endpoints.mempool,{signal,ttlMs:ttl}),
+      blocks:optionalJSON(cfg.endpoints.blocks,{signal,ttlMs:ttl}),
+      recommended:optionalJSON(cfg.endpoints.recommended,{signal,ttlMs:ttl}),
+      tip:optionalText(cfg.endpoints.tipHeight,{signal,ttlMs:ttl}),
+      recent:optionalJSON(cfg.endpoints.recent,{signal,ttlMs:force?0:5000}),
+      full:fullFeed(cfg,signal),
+      spot:price(cfg.price,signal)
+    };
+    const keys=Object.keys(jobs),settled=await Promise.allSettled(keys.map(k=>jobs[k])),out={};
+    settled.forEach((r,i)=>out[keys[i]]=r.status==="fulfilled"?r.value:null);
+    if(!out.mempool&&!out.blocks&&!out.full)throw new Error("mempool REST data unavailable");
+    const tip=Number(String(out.tip??"").trim());
+    return Object.freeze({
+      cfg,
+      mempool:out.mempool&&typeof out.mempool==="object"?out.mempool:null,
+      blocks:Array.isArray(out.blocks)?out.blocks:[],
+      recommended:out.recommended&&typeof out.recommended==="object"?out.recommended:null,
+      recent:Array.isArray(out.recent)?out.recent.filter(Boolean):[],
+      fullFeed:out.full?.data||null,
+      fullFeedSource:out.full?.source||"",
+      tipHeight:Number.isFinite(tip)?tip:NaN,
+      priceUsd:out.spot?.value??NaN,
+      priceSource:out.spot?.source||"price unavailable",
+      source:cfg.apiBase,
+      fetchedAt:Date.now()
+    });
+  }
+
+  W.ZZXMempoolMosaicProvider=Object.freeze({__version:4,load,marketPrice});
+})();
+
+/* ===== js/model.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicModel?.__version>=5)return;
+
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  const txidOf=(row,fallback="")=>{const id=String(row?.txid??row?.id??row?.hash??fallback??"").trim();return /^[0-9a-f]{64}$/i.test(id)?id:""};
+
+  function outputValue(row){
+    const direct=finite(row?.valueSats??row?.value??row?.outputValue??row?.output_value);if(Number.isFinite(direct))return direct;
+    if(Array.isArray(row?.vout)){let total=0,known=0;for(const v of row.vout){const n=finite(v?.value);if(Number.isFinite(n)){total+=n;known++}}if(known)return total}
+    return NaN;
+  }
+
+  function normalizeTx(row,index=0,fallback=""){
+    if(!row||typeof row!=="object")return null;const txid=txidOf(row,fallback);if(!txid)return null;
+    const weight=finite(row.weight);let vsize=finite(row.vsize??row.vbytes??row.virtualSize??row.virtual_size);if(!(vsize>0)&&weight>0)vsize=weight/4;if(!(vsize>0))vsize=finite(row.size);
+    let fee=finite(row.fee??row.fees??row.totalFee??row.total_fee??row.feeSats);if(Number.isFinite(fee)&&Math.abs(fee)<1&&row?.fees?.base!=null)fee=finite(row.fees.base)*1e8;
+    const feeRate=finite(row.feeRate??row.fee_rate??row.rate??row.effectiveFeePerVsize??(fee>0&&vsize>0?fee/vsize:NaN));
+    const packageFeeRate=finite(row.packageFeeRate??row.effectiveFeeRate??row.ancestorFeeRate??feeRate);
+    const valueSats=outputValue(row);
+    const time=finite(row.time??row.firstSeen??row.first_seen??row.seen_at);const timeMs=Number.isFinite(time)?(time<1e12?time*1000:time):NaN;
+    const projectedIndex=finite(row.projectedBlockIndex??row.projected_index??row.blockIndex??row.block_index);
+    const projectedRank=finite(row.projectedRank??row.projected_rank??row.rank??index);
+    return Object.freeze({...row,id:txid,txid,vsize,vbytes:vsize,weight,fee,feeSats:fee,feeRate,packageFeeRate,valueSats,timeMs,projectedIndex,projectedRank,kind:"transaction"});
+  }
+
+  function normalizeRows(rows){
+    const map=new Map();
+    if(Array.isArray(rows))for(const raw of rows){const tx=normalizeTx(raw,map.size);if(tx)map.set(tx.txid,tx)}
+    else if(rows&&typeof rows==="object"){
+      const list=Array.isArray(rows.transactions)?rows.transactions:Array.isArray(rows.txs)?rows.txs:null;
+      if(list)return normalizeRows(list);
+      for(const [key,raw] of Object.entries(rows)){const tx=normalizeTx(raw,map.size,key);if(tx)map.set(tx.txid,tx)}
+    }
+    return [...map.values()];
+  }
+
+  function mergeRows(primary,secondary){
+    const map=new Map();
+    for(const row of [...(secondary||[]),...(primary||[])]){
+      if(!row?.txid)continue;const old=map.get(row.txid);
+      map.set(row.txid,old?{...old,...row,valueSats:Number.isFinite(row.valueSats)?row.valueSats:old.valueSats,vsize:Number.isFinite(row.vsize)?row.vsize:old.vsize,fee:Number.isFinite(row.fee)?row.fee:old.fee,feeRate:Number.isFinite(row.feeRate)?row.feeRate:old.feeRate,packageFeeRate:Number.isFinite(row.packageFeeRate)?row.packageFeeRate:old.packageFeeRate}:row);
+    }
+    return [...map.values()];
+  }
+
+  function fallbackProject(rows,targetVbytes=1_000_000){
+    const ordered=(rows||[]).slice().sort((a,b)=>{
+      const ai=finite(a.projectedIndex),bi=finite(b.projectedIndex);if(Number.isFinite(ai)&&Number.isFinite(bi)&&ai!==bi)return ai-bi;if(Number.isFinite(ai)!==Number.isFinite(bi))return Number.isFinite(ai)?-1:1;
+      const ar=finite(a.packageFeeRate??a.feeRate),br=finite(b.packageFeeRate??b.feeRate);if(Number.isFinite(ar)&&Number.isFinite(br)&&ar!==br)return br-ar;
+      return String(a.txid).localeCompare(String(b.txid));
+    });
+    const out=[];let used=0;
+    for(const row of ordered){const vb=finite(row.vsize);if(!(vb>0))continue;if(out.length&&used+vb>targetVbytes*1.04)continue;out.push({...row,projectedRank:out.length,projectedIndex:0});used+=vb;if(used>=targetVbytes)break}
+    return out;
+  }
+
+  function median(values){const v=values.filter(Number.isFinite).sort((a,b)=>a-b);if(!v.length)return NaN;const m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2}
+
+  function build({rest=null,live=null,enriched=null}={}){
+    const liveRows=normalizeRows(live?.transactions||[]);
+    const fullRows=normalizeRows(rest?.fullFeed||[]);
+    const enrichedRows=enriched instanceof Map?normalizeRows([...enriched.values()]):normalizeRows(enriched||[]);
+    let rows;
+    let sourceMode;
+    if(liveRows.length){rows=mergeRows(liveRows,enrichedRows);sourceMode="live projected block 0"}
+    else if(fullRows.length){rows=fallbackProject(mergeRows(fullRows,enrichedRows),rest?.cfg?.targetVbytes||1_000_000);sourceMode="projected full-feed fallback"}
+    else{rows=[];sourceMode="waiting for projected block 0"}
+
+    const block=(Array.isArray(live?.candidates)&&live.candidates[0])||(Array.isArray(rest?.blocks)&&rest.blocks[0])||{};
+    const rowVbytes=rows.reduce((s,r)=>s+(finite(r.vsize)>0?finite(r.vsize):0),0);
+    const candidateVbytes=finite(block.blockVSize??block.vsize??block.vbytes);const actualVbytes=rowVbytes>0?rowVbytes:candidateVbytes;
+    const fees=rows.map(r=>finite(r.feeRate)).filter(Number.isFinite);const feeMin=fees.length?Math.min(...fees):NaN,feeMax=fees.length?Math.max(...fees):NaN;
+    const totalFees=rows.reduce((s,r)=>s+(finite(r.fee)>0?finite(r.fee):0),0);const blockFees=finite(block.totalFees??block.total_fees??block.fees);
+    const tip=finite(rest?.tipHeight);const price=finite(rest?.priceUsd);
+    const totalFeesSats=totalFees>0?totalFees:blockFees;const totalFeesBTC=Number.isFinite(totalFeesSats)?totalFeesSats/1e8:NaN;
+    const backlog=finite(rest?.mempool?.vsize);
+    return Object.freeze({
+      schema:"zzx-mempool-mosaic-model-v5",items:Object.freeze(rows),tiles:Object.freeze(rows),mode:rows.length?"transactions":"waiting",sourceMode,
+      tipHeight:tip,nextHeight:Number.isFinite(tip)?tip+1:NaN,candidateVbytes:Number.isFinite(actualVbytes)?actualVbytes:(rest?.cfg?.targetVbytes||1_000_000),candidateTx:rows.length,
+      totalFeesSats,totalFeesBTC,totalFeesUSD:Number.isFinite(totalFeesBTC)&&Number.isFinite(price)?totalFeesBTC*price:NaN,medianFee:median(fees),feeMin,feeMax,
+      backlogVMB:Number.isFinite(backlog)?backlog/1e6:NaN,mempoolTx:finite(rest?.mempool?.count),
+      valueKnownCount:rows.filter(r=>Number.isFinite(r.valueSats)).length,valueSats:rows.reduce((s,r)=>s+(Number.isFinite(r.valueSats)?r.valueSats:0),0),
+      liveConnected:Boolean(liveRows.length),transport:liveRows.length?"WebSocket block-0":"REST/full-feed",wsUrl:String(live?.url||rest?.cfg?.websocket||""),source:String(rest?.source||rest?.cfg?.apiBase||""),fullFeedSource:String(rest?.fullFeedSource||""),priceUsd:price,fetchedAt:Math.max(Number(rest?.fetchedAt)||0,Number(live?.updatedAt)||0,Date.now())
+    });
+  }
+
+  W.ZZXMempoolMosaicModel=Object.freeze({__version:5,normalizeTx,normalizeRows,mergeRows,fallbackProject,build});
+})();
+
+/* ===== js/sorter.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicSorter?.__version>=2)return;
+
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  function hash(text,seed=0){let h=(2166136261^(seed>>>0))>>>0;for(const c of String(text||"")){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}
+  function value(row){return finite(row?.valueSats)}
+  function rate(row){return finite(row?.packageFeeRate??row?.feeRate)}
+  function vsize(row){return finite(row?.vsize??row?.vbytes)}
+  function age(row){return finite(row?.timeMs)}
+  function metricWeight(row){
+    const sats=value(row);if(Number.isFinite(sats)&&sats>=0)return Math.max(1,Math.sqrt(sats+1));
+    const vb=vsize(row);return Math.max(1,Math.sqrt((Number.isFinite(vb)?vb:1)*1000));
+  }
+  function compareNumber(a,b,dir=-1){const aa=Number.isFinite(a)?a:(dir<0?-Infinity:Infinity),bb=Number.isFinite(b)?b:(dir<0?-Infinity:Infinity);return dir*(aa-bb)}
+  function sort(rows,mode="mosaic",seed=0){
+    const list=(rows||[]).slice();
+    const byHash=(a,b)=>hash(a.txid,seed)-hash(b.txid,seed)||String(a.txid).localeCompare(String(b.txid));
+    if(mode==="fee")list.sort((a,b)=>compareNumber(rate(a),rate(b),-1)||compareNumber(value(a),value(b),-1)||byHash(a,b));
+    else if(mode==="value")list.sort((a,b)=>compareNumber(value(a),value(b),-1)||compareNumber(rate(a),rate(b),-1)||byHash(a,b));
+    else if(mode==="vsize")list.sort((a,b)=>compareNumber(vsize(a),vsize(b),-1)||compareNumber(rate(a),rate(b),-1)||byHash(a,b));
+    else if(mode==="age")list.sort((a,b)=>compareNumber(age(a),age(b),1)||compareNumber(rate(a),rate(b),-1)||byHash(a,b));
+    else if(mode==="shuffle")list.sort(byHash);
+    else{
+      const finiteRates=list.map(rate).filter(Number.isFinite).sort((a,b)=>a-b);const q=i=>finiteRates.length?finiteRates[Math.min(finiteRates.length-1,Math.floor((finiteRates.length-1)*i))]:0;const cuts=[q(.2),q(.4),q(.6),q(.8)];
+      const band=r=>{const x=rate(r);if(!Number.isFinite(x))return 0;let b=0;while(b<cuts.length&&x>cuts[b])b++;return b};
+      list.sort((a,b)=>band(b)-band(a)||((hash(a.txid,seed)%7)-(hash(b.txid,seed)%7))||compareNumber(value(a),value(b),-1)||byHash(a,b));
+    }
+    return list;
+  }
+  W.ZZXMempoolMosaicSorter=Object.freeze({__version:2,hash,metricWeight,sort,modes:Object.freeze(["mosaic","fee","value","vsize","age","shuffle"])});
+})();
+
+/* ===== js/packer.js ===== */
+// Exact square-dissection atlas. Every leaf is square; the root has no gaps.
+(function(){
+  "use strict";
+
+  const W=window;
+  if(W.ZZXMempoolMosaicPacker?.__version>=5)return;
+
+  const EPS=1e-12;
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+
+  function representation(count,targetThreeRatio=.22){
+    const n=Math.max(1,Math.floor(Number(count)||1));
+    if(n===1)return {a:0,b:0};
+
+    const remainder=n-1;
+    let best=null;
+
+    for(let b=0;b<=Math.floor(remainder/8);b++){
+      const left=remainder-b*8;
+      if(left<0||left%3)continue;
+      const a=left/3;
+      const operations=a+b;
+      const ratio=operations?b/operations:0;
+      const score=Math.abs(ratio-targetThreeRatio)+(a===0?.025:0);
+
+      if(!best||score<best.score)best={a,b,score};
+    }
+
+    return best&&{a:best.a,b:best.b};
+  }
+
+  function isConstructible(count){
+    return Boolean(representation(count));
+  }
+
+  function nextConstructible(count){
+    const start=Math.max(1,Math.floor(Number(count)||1));
+    for(let n=start;n<start+24;n++){
+      if(isConstructible(n))return n;
+    }
+    return start;
+  }
+
+  function finiteWeight(row){
+    const n=Number(row?.__atlasWeight);
+    return Number.isFinite(n)&&n>0?n:EPS;
+  }
+
+  function distributeBundles(k,a,b,rows){
+    const bundles=Array.from({length:k},()=>({a:0,b:0,count:1}));
+    const weights=rows.map(finiteWeight).sort((x,y)=>y-x);
+    const total=weights.reduce((sum,value)=>sum+value,0);
+    const equalShare=total/Math.max(1,k);
+
+    let singletonCount=0;
+    const maxSingletons=Math.max(0,Math.min(k-1,rows.length-1));
+
+    while(
+      singletonCount<maxSingletons&&
+      weights[singletonCount]>=equalShare*.82
+    )singletonCount++;
+
+    const active=[];
+    for(let index=singletonCount;index<k;index++)active.push(index);
+    if(!active.length)active.push(k-1);
+
+    const operations=[
+      ...Array.from({length:b},()=>({key:"b",increment:8})),
+      ...Array.from({length:a},()=>({key:"a",increment:3}))
+    ];
+
+    for(const operation of operations){
+      let winner=active[0];
+
+      for(const index of active){
+        const candidateAfter=bundles[index].count+operation.increment;
+        const chosenAfter=bundles[winner].count+operation.increment;
+
+        if(candidateAfter<chosenAfter||(candidateAfter===chosenAfter&&index<winner)){
+          winner=index;
+        }
+      }
+
+      bundles[winner][operation.key]++;
+      bundles[winner].count+=operation.increment;
+    }
+
+    return bundles;
+  }
+
+  function assignRows(rows,bundles){
+    const ordered=rows.slice().sort((a,b)=>{
+      const difference=finiteWeight(b)-finiteWeight(a);
+      if(Math.abs(difference)>EPS)return difference;
+      return Number(a.__sortIndex||0)-Number(b.__sortIndex||0);
+    });
+
+    const bins=bundles.map((bundle,index)=>({
+      ...bundle,
+      index,
+      rows:[],
+      load:0,
+      remaining:bundle.count
+    }));
+
+    const seedOrder=bins.slice().sort((a,b)=>a.count-b.count||a.index-b.index);
+
+    for(const bin of seedOrder){
+      const row=ordered.shift();
+      if(!row)break;
+      bin.rows.push(row);
+      bin.load+=finiteWeight(row);
+      bin.remaining--;
+    }
+
+    const target=rows.reduce((sum,row)=>sum+finiteWeight(row),0)/Math.max(1,bins.length);
+
+    for(const row of ordered){
+      let winner=null;
+      let winnerScore=Infinity;
+
+      for(const bin of bins){
+        if(bin.remaining<=0)continue;
+        const loadRatio=(bin.load+finiteWeight(row))/Math.max(EPS,target);
+        const occupancyRatio=bin.rows.length/Math.max(1,bin.count);
+        const score=loadRatio+occupancyRatio*.035+bin.index*1e-9;
+
+        if(score<winnerScore){
+          winner=bin;
+          winnerScore=score;
+        }
+      }
+
+      if(!winner)winner=bins.find(bin=>bin.remaining>0)||bins.at(-1);
+      winner.rows.push(row);
+      winner.load+=finiteWeight(row);
+      winner.remaining--;
+    }
+
+    return bins;
+  }
+
+  function positions(grid,depth,seed){
+    const out=[];
+
+    for(let y=0;y<grid;y++){
+      const reverse=(y+depth+(seed&1))%2===1;
+      for(let step=0;step<grid;step++){
+        out.push({x:reverse?grid-1-step:step,y});
+      }
+    }
+
+    if(seed&2)out.reverse();
+    if(seed&4){
+      for(const point of out){
+        const swap=point.x;
+        point.x=point.y;
+        point.y=swap;
+      }
+    }
+
+    return out;
+  }
+
+  function binRank(bin){
+    if(!bin.rows.length)return Infinity;
+    return bin.rows.reduce((sum,row)=>sum+Number(row.__sortIndex||0),0)/bin.rows.length;
+  }
+
+  function buildNode(rows,a,b,x,y,side,depth,seed,leaves){
+    if(rows.length===1||(!a&&!b)){
+      const item=rows[0];
+      const leaf={x,y,side,depth,item,children:null};
+      leaves.push({...item,x,y,side,cx:x+side/2,cy:y+side/2,depth});
+      return leaf;
+    }
+
+    let grid;
+    if(a>0&&b>0){
+      const density=rows.reduce((sum,row)=>sum+finiteWeight(row),0)/rows.length;
+      grid=((depth+(seed&3)+Math.round(density))%5===0)?3:2;
+    }else{
+      grid=b>0?3:2;
+    }
+
+    if(grid===2&&a<=0)grid=3;
+    if(grid===3&&b<=0)grid=2;
+
+    const childCount=grid*grid;
+    const remainingA=a-(grid===2?1:0);
+    const remainingB=b-(grid===3?1:0);
+    const bundles=distributeBundles(childCount,remainingA,remainingB,rows);
+    const bins=assignRows(rows,bundles).sort((left,right)=>
+      binRank(left)-binRank(right)||left.index-right.index
+    );
+    const cells=positions(grid,depth,seed);
+    const childSide=side/grid;
+    const children=[];
+
+    bins.forEach((bin,index)=>{
+      const point=cells[index];
+      children.push(buildNode(
+        bin.rows,
+        bin.a,
+        bin.b,
+        x+point.x*childSide,
+        y+point.y*childSide,
+        childSide,
+        depth+1,
+        (seed*1664525+1013904223+index)>>>0,
+        leaves
+      ));
+    });
+
+    return {x,y,side,depth,item:null,children,grid};
+  }
+
+  function hit(node,nx,ny){
+    if(!node||nx<node.x||ny<node.y||nx>node.x+node.side||ny>node.y+node.side){
+      return null;
+    }
+
+    let current=node;
+
+    while(current?.children?.length){
+      let next=null;
+      for(const child of current.children){
+        if(
+          nx>=child.x-EPS&&nx<=child.x+child.side+EPS&&
+          ny>=child.y-EPS&&ny<=child.y+child.side+EPS
+        ){
+          next=child;
+          break;
+        }
+      }
+      if(!next)break;
+      current=next;
+    }
+
+    return current?.item||null;
+  }
+
+  function pack(items,{seed=0}={}){
+    const source=(Array.isArray(items)?items:[]).filter(Boolean);
+
+    if(!source.length){
+      return {root:null,leaves:[],sourceCount:0,leafCount:0,fragmentCount:0,maxDepth:0,coverage:0};
+    }
+
+    const required=nextConstructible(source.length);
+    const prepared=source.slice();
+    const fragments=required-source.length;
+    const fragmentSource=source.slice().sort((a,b)=>finiteWeight(a)-finiteWeight(b));
+
+    for(let index=0;index<fragments;index++){
+      const original=fragmentSource[index%fragmentSource.length];
+      prepared.push({
+        ...original,
+        __atlasWeight:Math.max(EPS,finiteWeight(original)/(fragments+1)),
+        __fragment:true,
+        __fragmentIndex:index+1
+      });
+    }
+
+    const plan=representation(required);
+    const leaves=[];
+    const root=buildNode(prepared,plan.a,plan.b,0,0,1,0,Number(seed)>>>0,leaves);
+    const coverage=leaves.reduce((sum,leaf)=>sum+leaf.side*leaf.side,0);
+    const maxDepth=leaves.reduce((value,leaf)=>Math.max(value,leaf.depth||0),0);
+
+    return {
+      root,
+      leaves,
+      sourceCount:source.length,
+      leafCount:leaves.length,
+      fragmentCount:fragments,
+      maxDepth,
+      coverage:clamp(coverage,0,1+EPS)
+    };
+  }
+
+  W.ZZXMempoolMosaicPacker=Object.freeze({
+    __version:5,
+    representation,
+    isConstructible,
+    nextConstructible,
+    pack,
+    hit
+  });
+})();
+
+/* ===== js/layout.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicLayout?.__version>=6)return;
+
+  function build(items,{mode="mosaic",seed=0}={}){
+    const rows=W.ZZXMempoolMosaicSorter.sort(items,mode,seed);
+    const prepared=rows.map((row,index)=>({...row,__sortIndex:index,__atlasWeight:W.ZZXMempoolMosaicSorter.metricWeight(row)}));
+    const packed=W.ZZXMempoolMosaicPacker.pack(prepared,{seed});
+    const leaves=packed.leaves.map((leaf,index)=>Object.freeze({...leaf,id:`${leaf.txid||leaf.id}:${leaf.__fragment?`f${leaf.__fragmentIndex||index}`:"p"}`,fragment:Boolean(leaf.__fragment)}));
+    const byTxid=new Map();
+    for(const leaf of leaves){const id=String(leaf.txid||"");if(!id)continue;if(!byTxid.has(id))byTxid.set(id,[]);byTxid.get(id).push(leaf)}
+    return Object.freeze({
+      mode,seed,root:packed.root,leaves:Object.freeze(leaves),tiles:Object.freeze(leaves),byTxid,
+      sourceCount:packed.sourceCount,leafCount:packed.leafCount,fragmentCount:packed.fragmentCount,maxDepth:packed.maxDepth,coverage:packed.coverage
+    });
+  }
+
+  function hit(layout,nx,ny){return W.ZZXMempoolMosaicPacker.hit(layout?.root,nx,ny)}
+
+  W.ZZXMempoolMosaicLayout=Object.freeze({__version:6,build,hit});
+})();
+
+/* ===== js/animation.js ===== */
+// __partials/widgets/mempool-mosaic/js/animation.js
+(function(){
+  "use strict";
+
+  const W=window;
+  if(W.ZZXMempoolMosaicAnimation?.__version>=1)return;
+
+  function ease(t){
+    return 1-Math.pow(1-Math.max(0,Math.min(1,t)),3);
+  }
+
+  function run(duration,onFrame,onDone){
+    const ms=Math.max(0,Number(duration)||0);
+    const started=performance.now();
+    let raf=0;
+    let cancelled=false;
+
+    function frame(now){
+      if(cancelled)return;
+      const raw=ms>0?(now-started)/ms:1;
+      const t=Math.max(0,Math.min(1,raw));
+      onFrame?.(ease(t),t);
+
+      if(t<1){
+        raf=W.requestAnimationFrame(frame);
+      }else{
+        onDone?.();
+      }
+    }
+
+    raf=W.requestAnimationFrame(frame);
+
+    return ()=>{
+      cancelled=true;
+      W.cancelAnimationFrame(raf);
+    };
+  }
+
+  W.ZZXMempoolMosaicAnimation=Object.freeze({
+    __version:1,
+    ease,
+    run
+  });
+})();
+
+/* ===== js/renderer.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicRenderer?.__version>=6)return;
+
+  const stateByCanvas=new WeakMap();
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+
+  function cssPalette(canvas){
+    const root=canvas?.closest?.(".mempool-mosaic");
+    const s=root?getComputedStyle(root):null;
+    const get=(name,fallback)=>String(s?.getPropertyValue(name)||"").trim()||fallback;
+    return {low:get("--mg-low","#244052"),mid:get("--mg-mid","#4f8b67"),high:get("--mg-high","#c0d674"),hot:get("--mg-hot","#e6a42b"),green:get("--mg-green","#c0d674"),gold:get("--mg-gold","#e6a42b")};
+  }
+
+  function resize(canvas){
+    const r=canvas.getBoundingClientRect();
+    const css=Math.max(1,Math.floor(Math.min(r.width||520,r.height||r.width||520)));
+    const dpr=Math.max(1,Math.min(3,W.devicePixelRatio||1));
+    const px=Math.max(1,Math.floor(css*dpr));
+    if(canvas.width!==px||canvas.height!==px){canvas.width=px;canvas.height=px}
+    const ctx=canvas.getContext("2d");if(!ctx)return null;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx,css,dpr};
+  }
+
+  function quantiles(model){
+    const rates=(model?.items||[]).map(r=>finite(r.packageFeeRate??r.feeRate)).filter(Number.isFinite).sort((a,b)=>a-b);
+    const q=p=>rates.length?rates[Math.min(rates.length-1,Math.floor((rates.length-1)*p))]:NaN;
+    return {q1:q(.25),q2:q(.5),q3:q(.75),q9:q(.92)};
+  }
+
+  function color(item,model,palette,qs){
+    const r=finite(item?.packageFeeRate??item?.feeRate);
+    if(!Number.isFinite(r))return palette.low;
+    if(Number.isFinite(qs.q9)&&r>=qs.q9)return palette.hot;
+    if(Number.isFinite(qs.q3)&&r>=qs.q3)return palette.high;
+    if(Number.isFinite(qs.q1)&&r>=qs.q1)return palette.mid;
+    return palette.low;
+  }
+
+  function paintLayout(surface,layout,model,{alpha=1,selectedTxid="",hoverTxid=""}={}){
+    const {ctx,css}=surface,palette=cssPalette(ctx.canvas),qs=quantiles(model);
+    ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,alpha));
+    for(const tile of layout?.leaves||[]){
+      const x=tile.x*css,y=tile.y*css,s=tile.side*css;
+      ctx.fillStyle=color(tile,model,palette,qs);ctx.fillRect(x,y,s,s);
+      if(s>=5){ctx.strokeStyle="rgba(0,0,0,.22)";ctx.lineWidth=Math.min(.8,Math.max(.25,s*.02));ctx.strokeRect(x+.25,y+.25,Math.max(.1,s-.5),Math.max(.1,s-.5))}
+      if(s>=28&&!tile.fragment){
+        const value=finite(tile.valueSats);const rate=finite(tile.packageFeeRate??tile.feeRate);
+        ctx.fillStyle="rgba(0,0,0,.56)";ctx.fillRect(x+1,y+1,Math.min(s-2,62),12);
+        ctx.fillStyle="rgba(255,255,255,.82)";ctx.font="8px IBM Plex Mono, monospace";ctx.textBaseline="top";
+        const text=Number.isFinite(value)?`${(value/1e8).toFixed(value>=1e8?2:4)} BTC`:Number.isFinite(rate)?`${rate.toFixed(1)} sat/vB`:String(tile.txid||"").slice(0,8);
+        ctx.fillText(text,x+3,y+3);
+      }
+    }
+    ctx.restore();
+
+    for(const [id,width,col] of [[selectedTxid,2,palette.gold],[hoverTxid,1.2,"rgba(255,255,255,.85)"]]){
+      if(!id)continue;const tiles=layout?.byTxid?.get?.(id)||[];
+      for(const tile of tiles){const x=tile.x*css,y=tile.y*css,s=tile.side*css;ctx.save();ctx.strokeStyle=col;ctx.lineWidth=width;ctx.strokeRect(x+.5,y+.5,Math.max(1,s-1),Math.max(1,s-1));ctx.restore()}
+    }
+  }
+
+  function movingOverlay(surface,fromLayout,toLayout,model,t){
+    if(!fromLayout||!toLayout)return;
+    const {ctx,css}=surface,palette=cssPalette(ctx.canvas),qs=quantiles(model);
+    const fromPrimary=new Map();
+    for(const tile of fromLayout.leaves||[]){if(tile.fragment||!tile.txid||fromPrimary.has(tile.txid))continue;fromPrimary.set(tile.txid,tile)}
+    ctx.save();ctx.globalAlpha=.72*(1-Math.abs(.5-t)*.8);
+    for(const tile of toLayout.leaves||[]){
+      if(tile.fragment||!tile.txid)continue;const from=fromPrimary.get(tile.txid);if(!from)continue;
+      const x=(from.x+(tile.x-from.x)*t)*css,y=(from.y+(tile.y-from.y)*t)*css,s=(from.side+(tile.side-from.side)*t)*css;
+      if(s<4)continue;ctx.strokeStyle=color(tile,model,palette,qs);ctx.lineWidth=Math.min(2,Math.max(.6,s*.04));ctx.strokeRect(x+.5,y+.5,Math.max(1,s-1),Math.max(1,s-1));
+    }
+    ctx.restore();
+  }
+
+  function frame(surface,layout,model,opts,previous,t=1){
+    const {ctx,css}=surface;ctx.clearRect(0,0,css,css);ctx.fillStyle="#0a0a0a";ctx.fillRect(0,0,css,css);
+    if(previous&&t<1){paintLayout(surface,previous,model,{alpha:1});paintLayout(surface,layout,model,{alpha:.18+.82*t,selectedTxid:opts.selectedTxid,hoverTxid:opts.hoverTxid});movingOverlay(surface,previous,layout,model,t)}
+    else paintLayout(surface,layout,model,{alpha:1,selectedTxid:opts.selectedTxid,hoverTxid:opts.hoverTxid});
+  }
+
+  function draw(canvas,layout,model,{animate=true,selectedTxid="",hoverTxid=""}={}){
+    const surface=resize(canvas);if(!surface||!layout)return;
+    let st=stateByCanvas.get(canvas);if(!st){st={layout:null,cancel:null};stateByCanvas.set(canvas,st)}
+    st.cancel?.();st.cancel=null;
+    const previous=st.layout;
+    const opts={selectedTxid,hoverTxid};
+    if(animate&&previous&&previous!==layout){
+      const duration=Number(W.ZZXMempoolMosaicSources?.get?.(null)?.animationMs)||560;
+      st.cancel=W.ZZXMempoolMosaicAnimation.run(duration,t=>frame(surface,layout,model,opts,previous,t),()=>{st.cancel=null;frame(surface,layout,model,opts,null,1)});
+    }else frame(surface,layout,model,opts,null,1);
+    st.layout=layout;
+  }
+
+  function hitTest(canvas,layout,clientX,clientY){
+    const r=canvas.getBoundingClientRect();if(!(r.width>0&&r.height>0))return null;
+    const nx=(clientX-r.left)/r.width,ny=(clientY-r.top)/r.height;
+    return W.ZZXMempoolMosaicLayout.hit(layout,nx,ny);
+  }
+  function reset(canvas){const st=stateByCanvas.get(canvas);st?.cancel?.();stateByCanvas.delete(canvas)}
+
+  W.ZZXMempoolMosaicRenderer=Object.freeze({__version:6,draw,hitTest,reset,color});
+})();
+
+/* ===== js/txfetcher.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicTxFetcher?.__version>=3)return;
+  const caches={tx:new Map(),hex:new Map(),block:new Map()};
+  function endpoint(cfg,key,value){return cfg.endpoints[key].replace("{txid}",encodeURIComponent(value)).replace("{hash}",encodeURIComponent(value))}
+  async function cached(map,key,ttl,loader,force=false){const old=map.get(key);if(!force&&old&&Date.now()-old.at<ttl)return old.value;const value=await loader();map.set(key,{at:Date.now(),value});return value}
+  async function tx(core,txid,{signal,force=false}={}){const cfg=W.ZZXMempoolMosaicSources.get(core);return cached(caches.tx,txid,180000,()=>W.ZZXMempoolMosaicFetch.fetchJSON(endpoint(cfg,"tx",txid),{signal,ttlMs:0}),force)}
+  async function hex(core,txid,{signal,force=false}={}){const cfg=W.ZZXMempoolMosaicSources.get(core);try{return await cached(caches.hex,txid,600000,()=>W.ZZXMempoolMosaicFetch.fetchText(endpoint(cfg,"txHex",txid),{signal,ttlMs:0}),force)}catch(error){if(error?.name==="AbortError")throw error;return ""}}
+  async function block(core,hash,{signal,force=false}={}){const cfg=W.ZZXMempoolMosaicSources.get(core);try{return await cached(caches.block,hash,600000,()=>W.ZZXMempoolMosaicFetch.fetchJSON(endpoint(cfg,"block",hash),{signal,ttlMs:0}),force)}catch(error){if(error?.name==="AbortError")throw error;return null}}
+  async function inspect(core,txid,{signal,force=false,entry=null,tipHeight=NaN,btcUsd=NaN}={}){const transaction=await tx(core,txid,{signal,force});if(!transaction)throw new Error("transaction unavailable");const [rawHex,blockInfo]=await Promise.all([hex(core,txid,{signal,force}),transaction?.status?.confirmed&&transaction?.status?.block_hash?block(core,transaction.status.block_hash,{signal,force}):Promise.resolve(null)]);return W.ZZXMempoolMosaicAnalyzer.analyze(transaction,{rawHex,block:blockInfo,entry,tipHeight,btcUsd})}
+  W.ZZXMempoolMosaicTxFetcher=Object.freeze({__version:3,tx,hex,block,inspect});
+})();
+
+/* ===== js/analyzer.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicAnalyzer?.__version>=2)return;
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  function analyze(tx,{rawHex="",block=null,entry=null,tipHeight=NaN,btcUsd=NaN}={}){
+    const vsize=finite(tx?.vsize??tx?.weight/4??entry?.vsize);const fee=finite(tx?.fee??entry?.fee);const rate=fee>0&&vsize>0?fee/vsize:finite(entry?.feeRate);
+    const outputs=Array.isArray(tx?.vout)?tx.vout:[],inputs=Array.isArray(tx?.vin)?tx.vin:[];
+    const valueSats=outputs.reduce((s,o)=>s+(Number.isFinite(finite(o?.value))?finite(o.value):0),0);
+    const inputSats=inputs.reduce((s,i)=>s+(Number.isFinite(finite(i?.prevout?.value))?finite(i.prevout.value):0),0);
+    const rbf=inputs.some(i=>Number(i?.sequence)<0xfffffffe);const segwit=inputs.some(i=>Array.isArray(i?.witness)&&i.witness.length);
+    const opReturn=outputs.filter(o=>String(o?.scriptpubkey_type||"").toLowerCase()==="op_return"||String(o?.scriptpubkey_asm||"").startsWith("OP_RETURN")).length;
+    const status=tx?.status||{};const confirmed=Boolean(status.confirmed);const height=finite(status.block_height);const confirmations=confirmed&&Number.isFinite(height)&&Number.isFinite(finite(tipHeight))?Math.max(1,Math.floor(finite(tipHeight)-height+1)):0;
+    return Object.freeze({txid:String(tx?.txid||entry?.txid||""),capturedAt:Date.now(),vsize,feeSats:fee,feeRate:rate,valueSats,inputSats,inputs:inputs.length,outputs:outputs.length,rbf,segwit,opReturn,confirmed,blockHeight:height,confirmations,blockHash:String(status.block_hash||""),rawHex:String(rawHex||""),raw:tx,block,btcUsd:finite(btcUsd)});
+  }
+  W.ZZXMempoolMosaicAnalyzer=Object.freeze({__version:2,analyze});
+})();
+
+/* ===== js/reader-store.js ===== */
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXMempoolMosaicReaderStore?.__version>=1)return;
+
+  const DB_NAME="zzx-mempool-mosaic-readers",DB_VERSION=1,STORE="readers";
+  const FALLBACK_KEY="zzx.mempoolMosaic.readerSummaries.v1",LAST_KEY="zzx.mempoolMosaic.lastReader";
+  const memory=new Map();let dbPromise=null;
+  const valid=txid=>/^[0-9a-f]{64}$/i.test(String(txid||""));
+  const storageGet=(k,f="")=>{try{const v=W.localStorage?.getItem(k);return v==null?f:v}catch(_){return f}};
+  const storageSet=(k,v)=>{try{W.localStorage?.setItem(k,String(v))}catch(_){}};
+  const requestResult=req=>new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error("IndexedDB request failed"))});
+
+  function database(){
+    if(dbPromise)return dbPromise;if(!("indexedDB" in W))return Promise.reject(new Error("IndexedDB unavailable"));
+    dbPromise=new Promise((resolve,reject)=>{const req=W.indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;const store=db.objectStoreNames.contains(STORE)?req.transaction.objectStore(STORE):db.createObjectStore(STORE,{keyPath:"txid"});if(!store.indexNames.contains("lastViewedAt"))store.createIndex("lastViewedAt","lastViewedAt")};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error("Reader database failed"));req.onblocked=()=>reject(new Error("Reader database blocked"))}).catch(error=>{dbPromise=null;throw error});return dbPromise;
+  }
+  async function idb(mode,fn){const db=await database();const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);const result=await fn(store);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error("Reader transaction failed"));tx.onabort=()=>reject(tx.error||new Error("Reader transaction aborted"))});return result}
+  function fallbackLoad(){try{for(const row of JSON.parse(storageGet(FALLBACK_KEY,"[]"))||[]){if(valid(row?.txid))memory.set(row.txid,row)}}catch(_){}}
+  function fallbackSave(){const rows=[...memory.values()].sort((a,b)=>Number(b.lastViewedAt||0)-Number(a.lastViewedAt||0)).slice(0,64).map(row=>({txid:row.txid,pinnedAt:row.pinnedAt,lastViewedAt:row.lastViewedAt,capturedAt:row.capturedAt,status:row.status,tile:row.tile,error:row.error||""}));storageSet(FALLBACK_KEY,JSON.stringify(rows))}
+  fallbackLoad();
+  function tileSnapshot(tile){if(!tile||typeof tile!=="object")return null;return {txid:String(tile.txid||""),valueSats:Number(tile.valueSats),vsize:Number(tile.vsize),feeSats:Number(tile.fee??tile.feeSats),feeRate:Number(tile.feeRate),packageFeeRate:Number(tile.packageFeeRate),firstSeen:Number(tile.firstSeen??tile.timeMs),type:String(tile.type||"unknown")}}
+  async function get(txid){const id=String(txid||"");if(!valid(id))return null;try{const value=await idb("readonly",store=>requestResult(store.get(id)));if(value)memory.set(id,value);return value||memory.get(id)||null}catch(_){return memory.get(id)||null}}
+  async function list(limit=64){let rows;try{rows=await idb("readonly",store=>requestResult(store.getAll()));for(const row of rows)memory.set(row.txid,row)}catch(_){rows=[...memory.values()]}return rows.sort((a,b)=>Number(b.lastViewedAt||0)-Number(a.lastViewedAt||0)).slice(0,Math.max(1,Number(limit)||64))}
+  async function put(record,limit=64){if(!valid(record?.txid))throw new Error("Invalid transaction id");const now=Date.now(),prior=await get(record.txid);const value={...(prior||{}),...record,txid:String(record.txid),pinnedAt:Number(prior?.pinnedAt||record.pinnedAt||now),lastViewedAt:Number(record.lastViewedAt||now)};memory.set(value.txid,value);try{await idb("readwrite",store=>requestResult(store.put(value)))}catch(_){}const rows=await list(limit+32);for(const stale of rows.slice(limit))await remove(stale.txid);fallbackSave();storageSet(LAST_KEY,value.txid);return value}
+  const pin=(txid,tile,limit=64)=>put({txid:String(txid),status:"loading",tile:tileSnapshot(tile),lastViewedAt:Date.now()},limit);
+  const save=(analysis,tile,limit=64)=>put({txid:String(analysis?.txid||tile?.txid||""),status:"ready",capturedAt:Number(analysis?.capturedAt||Date.now()),tile:tileSnapshot(tile)||analysis?.tile||null,analysis,error:"",lastViewedAt:Date.now()},limit);
+  const fail=(txid,error,limit=64)=>put({txid:String(txid),status:"error",error:String(error?.message||error||"Transaction read failed"),lastViewedAt:Date.now()},limit);
+  async function remove(txid){const id=String(txid||"");memory.delete(id);try{await idb("readwrite",store=>requestResult(store.delete(id)))}catch(_){}fallbackSave();if(storageGet(LAST_KEY)===id)storageSet(LAST_KEY,"")}
+  async function clear(){memory.clear();try{await idb("readwrite",store=>requestResult(store.clear()))}catch(_){}fallbackSave();storageSet(LAST_KEY,"")}
+  function last(){const value=storageGet(LAST_KEY,"");return valid(value)?value:""}
+  const exportAll=async()=>({schema:"zzx-mempool-mosaic-reader-export-v1",exportedAt:new Date().toISOString(),readers:await list(64)});
+  W.ZZXMempoolMosaicReaderStore=Object.freeze({__version:1,valid,tileSnapshot,get,list,put,pin,save,fail,remove,clear,last,exportAll});
+})();
+
+/* ===== js/inspector.js ===== */
+(function(){
+  "use strict";
+  const W=window,D=document;
+  if(W.ZZXMempoolMosaicInspector?.__version>=2)return;
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  const int=v=>Number.isFinite(finite(v))?Math.round(finite(v)).toLocaleString():"—";
+  const num=(v,d=2)=>Number.isFinite(finite(v))?finite(v).toLocaleString(undefined,{maximumFractionDigits:d}):"—";
+  function title(tip,text){tip.replaceChildren();const strong=D.createElement("strong");strong.textContent=text;tip.append(strong);return tip}
+  function add(tip,text){const span=D.createElement("span");span.textContent=text;tip.append(span);return span}
+  function tile(tip,item){title(tip,item?.txid?`${String(item.txid).slice(0,16)}…`:"transaction");add(tip,`${num(item?.packageFeeRate??item?.feeRate,2)} sat/vB · ${int(item?.vsize)} vB · ${Number.isFinite(finite(item?.valueSats))?(finite(item.valueSats)/1e8).toFixed(8)+" BTC":"value pending"}`);tip.hidden=false}
+  function loading(tip,item){tile(tip,item);const br=D.createElement("br");tip.append(br);add(tip,"loading full transaction reader…")}
+  function analysis(tip,a){title(tip,`${String(a?.txid||"").slice(0,20)}… · pinned`);const lines=[`${num(a?.feeRate,2)} sat/vB · ${int(a?.vsize)} vB · ${int(a?.feeSats)} sats fee`,`${Number.isFinite(finite(a?.valueSats))?(finite(a.valueSats)/1e8).toFixed(8)+" BTC output":"value unavailable"} · ${int(a?.inputs)} in / ${int(a?.outputs)} out`,`${a?.segwit?"SegWit":"legacy/unknown"} · ${a?.rbf?"RBF":"final sequence"}${a?.opReturn?` · ${a.opReturn} OP_RETURN`:""}`,a?.confirmed?`confirmed${Number.isFinite(finite(a?.blockHeight))?` @ ${int(a.blockHeight)}`:""}${a?.confirmations?` · ${int(a.confirmations)} conf`:""}`:"unconfirmed"];lines.forEach((line,i)=>{if(i)tip.append(D.createElement("br"));add(tip,line)});tip.hidden=false}
+  function error(tip,txid,error){title(tip,`${String(txid||"").slice(0,20)}… · reader error`);add(tip,String(error?.message||error||"transaction unavailable"));tip.hidden=false}
+  W.ZZXMempoolMosaicInspector=Object.freeze({__version:2,tile,loading,analysis,error});
+})();
+
+/* ===== js/controller.js ===== */
+(function(){
+  "use strict";
+  const W=window,D=document,ID="mempool-mosaic";
+  if(W.ZZXMempoolMosaicController?.__version>=5)return;
+
+  const q=(root,sel)=>root?.querySelector?.(sel)||null;
+  const set=(root,sel,value)=>{const el=q(root,sel);if(el)el.textContent=value==null?"—":String(value)};
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  const int=v=>Number.isFinite(finite(v))?Math.round(finite(v)).toLocaleString():"—";
+  const num=(v,d=2)=>Number.isFinite(finite(v))?finite(v).toLocaleString(undefined,{maximumFractionDigits:d}):"—";
+  const btcFromSats=v=>Number.isFinite(finite(v))?`${(finite(v)/1e8).toLocaleString(undefined,{maximumFractionDigits:8})} BTC`:"—";
+  const usd=v=>Number.isFinite(finite(v))?finite(v).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2}):"—";
+  function status(root,label,state){const el=q(root,"[data-mm-status]");if(!el)return;el.textContent=label;el.setAttribute("data-status",state||"offline")}
+
+  function positionTip(root,event){
+    const block=q(root,"[data-mm-block]"),tip=q(root,"[data-mm-tooltip]");if(!block||!tip)return;
+    const r=block.getBoundingClientRect();const x=event?event.clientX-r.left+12:12,y=event?event.clientY-r.top+12:12;
+    const width=Math.max(140,Math.min(340,r.width*.88));tip.style.left=`${Math.max(6,Math.min(r.width-width-6,x))}px`;tip.style.top=`${Math.max(6,Math.min(r.height-96,y))}px`;
+  }
+
+  function hideTip(root,state){if(state.locked)return;const tip=q(root,"[data-mm-tooltip]");if(tip)tip.hidden=true}
+  function restoreLocked(root,state){
+    if(!state.locked)return hideTip(root,state);
+    const tip=q(root,"[data-mm-tooltip]");if(!tip)return;
+    if(state.selectedAnalysis)W.ZZXMempoolMosaicInspector.analysis(tip,state.selectedAnalysis);
+    else if(state.selectedItem)W.ZZXMempoolMosaicInspector.tile(tip,state.selectedItem);
+    positionTip(root,null);
+  }
+
+  function renderSummary(root,state){
+    const m=state.model,l=state.layout;if(!m)return;
+    set(root,"[data-mm-height]",Number.isFinite(m.nextHeight)?`#${int(m.nextHeight)}`:"next block");
+    set(root,"[data-mm-sub]",m.items.length?`${int(m.items.length)} projected TXs · ${num(m.candidateVbytes/1e6,3)} vMB · ${m.sourceMode}`:"waiting for projected-block transaction stream…");
+    set(root,"[data-mm-vsize]",Number.isFinite(m.candidateVbytes)?`${num(m.candidateVbytes/1e6,3)} vMB`:"—");
+    set(root,"[data-mm-tx]",int(m.items.length));
+    set(root,"[data-mm-fees]",`${btcFromSats(m.totalFeesSats)}${Number.isFinite(m.totalFeesUSD)?` · ${usd(m.totalFeesUSD)}`:""}`);
+    set(root,"[data-mm-median]",Number.isFinite(m.medianFee)?`${num(m.medianFee,1)} sat/vB`:"—");
+    set(root,"[data-mm-tip]",Number.isFinite(m.tipHeight)?`#${int(m.tipHeight)} → candidate #${int(m.nextHeight)}`:"—");
+    set(root,"[data-mm-range]",Number.isFinite(m.feeMin)&&Number.isFinite(m.feeMax)?`${num(m.feeMin,1)}–${num(m.feeMax,1)} sat/vB`:"—");
+    set(root,"[data-mm-backlog]",Number.isFinite(m.backlogVMB)?`${num(m.backlogVMB,2)} vMB · ${int(m.mempoolTx)} TXs`:"—");
+    set(root,"[data-mm-transport]",m.items.length?`${m.liveConnected?"WebSocket live":"real REST/full-feed fallback"} · ${m.transport}`:"waiting for real transaction membership");
+    set(root,"[data-mm-source]",m.wsUrl||m.source||"configured mempool source");
+    set(root,"[data-mm-updated]",`updated ${new Date(m.fetchedAt).toLocaleTimeString()}`);
+    if(l){
+      set(root,"[data-mm-block-label]",`${int(l.sourceCount)} real TX · ${int(l.leafCount)} square mosaic cells · ${(l.coverage*100).toFixed(1)}% cover · ${l.mode}`);
+      set(root,"[data-mm-meta]",`projected block 0 · recursive square tessellation · ${l.fragmentCount?`${int(l.fragmentCount)} linked fragment cells · `:""}${l.mode} shuffle mode`);
+    }else{
+      set(root,"[data-mm-block-label]","transaction mosaic");
+      set(root,"[data-mm-meta]","waiting for real projected-block transaction rows; no aggregate fake tiles");
+    }
+    if(m.liveConnected)status(root,"live ws","ok");
+    else if(m.items.length)status(root,"fallback","warn");
+    else status(root,state.liveState==="error"?"socket fallback":"connecting",state.liveState==="error"?"warn":"offline");
+  }
+
+  function redraw(root,state,animate=false){
+    const canvas=q(root,"[data-mm-canvas]");if(!canvas||!state.layout||!state.model)return;
+    W.ZZXMempoolMosaicRenderer.draw(canvas,state.layout,state.model,{animate,selectedTxid:state.selectedTxid,hoverTxid:state.hoverTxid});
+  }
+
+  function rebuild(root,state,{animate=true,reason="data"}={}){
+    state.model=W.ZZXMempoolMosaicModel.build({rest:state.rest,live:state.live,enriched:state.enriched});
+    if(state.model.items.length){
+      state.seed=(state.seed+1)>>>0;
+      state.layout=W.ZZXMempoolMosaicLayout.build(state.model.items,{mode:state.mode,seed:state.seed});
+      redraw(root,state,animate);
+    }else state.layout=null;
+    renderSummary(root,state);
+    if(state.locked)restoreLocked(root,state);
+  }
+
+  function scheduleRebuild(root,state,animate=true){
+    W.clearTimeout(state.renderTimer);state.renderTimer=W.setTimeout(()=>{state.renderTimer=0;if(root.isConnected)rebuild(root,state,{animate})},state.cfg.renderDebounceMs);
+  }
+
+  async function refresh(root,state,force=false){
+    if(state.refreshing)return;state.refreshing=true;
+    if(!state.model?.items?.length)status(root,"refreshing","warn");
+    try{
+      const rest=await W.ZZXMempoolMosaicProvider.load(state.core,{signal:state.abort?.signal,force});
+      state.rest=rest;scheduleRebuild(root,state,false);
+      if(force){state.liveEngine?.stop?.();startLive(root,state)}
+    }catch(error){
+      if(error?.name!=="AbortError"){
+        state.lastError=String(error?.message||error);if(!state.model?.items?.length)status(root,"offline","error");set(root,"[data-mm-meta]",state.model?.items?.length?`REST refresh failed · ${state.lastError}`:state.lastError);
+      }
+    }finally{state.refreshing=false}
+  }
+
+  function startLive(root,state){
+    const cfg=state.cfg;
+    state.liveEngine=new W.ZZXMempoolMosaicLive.LiveNextBlock({
+      url:cfg.websocket,reconnectMaxMs:cfg.reconnectMaxMs,
+      onUpdate:snapshot=>{if(!root.isConnected)return;state.live=snapshot;scheduleRebuild(root,state,true)},
+      onState:event=>{if(!root.isConnected)return;state.liveState=event.state;if(event.state==="live")status(root,"live ws","ok");else if(!state.model?.items?.length&&event.state==="connecting")status(root,"connecting","offline");else if(event.state==="error"&&!state.model?.items?.length)status(root,"socket fallback","warn")}
+    });
+    state.liveEngine.start();
+  }
+
+  function cycleMode(root,state){
+    if(!state.model?.items?.length)return;
+    const modes=W.ZZXMempoolMosaicSorter.modes;state.modeIndex=(state.modeIndex+1)%modes.length;state.mode=modes[state.modeIndex];state.seed=(state.seed+0x9e3779b9)>>>0;
+    state.layout=W.ZZXMempoolMosaicLayout.build(state.model.items,{mode:state.mode,seed:state.seed});
+    redraw(root,state,true);renderSummary(root,state);
+  }
+
+  async function inspectHit(root,state,item,event){
+    if(!item?.txid)return;
+    const txid=String(item.txid);state.selectedTxid=txid;state.selectedItem=item;state.selectedAnalysis=null;state.locked=true;
+    const tip=q(root,"[data-mm-tooltip]");if(!tip)return;
+    W.ZZXMempoolMosaicInspector.loading(tip,item);positionTip(root,event);redraw(root,state,false);
+    try{await W.ZZXMempoolMosaicReaderStore.pin(txid,item)}catch(_){}
+    const cached=await W.ZZXMempoolMosaicReaderStore.get(txid).catch(()=>null);
+    if(cached?.status==="ready"&&cached.analysis){state.selectedAnalysis=cached.analysis;W.ZZXMempoolMosaicInspector.analysis(tip,cached.analysis);positionTip(root,event)}
+    try{
+      const analysis=await W.ZZXMempoolMosaicTxFetcher.inspect(state.core,txid,{signal:state.abort?.signal,entry:item,tipHeight:state.model?.tipHeight,btcUsd:state.model?.priceUsd});
+      state.selectedAnalysis=analysis;state.enriched.set(txid,{...(item||{}),...(analysis.raw||{}),txid,valueSats:analysis.valueSats,vsize:analysis.vsize,fee:analysis.feeSats,feeRate:analysis.feeRate});
+      await W.ZZXMempoolMosaicReaderStore.save(analysis,item).catch(()=>null);
+      if(state.selectedTxid===txid){W.ZZXMempoolMosaicInspector.analysis(tip,analysis);positionTip(root,event)}
+    }catch(error){
+      if(error?.name==="AbortError")return;await W.ZZXMempoolMosaicReaderStore.fail(txid,error).catch(()=>null);if(state.selectedTxid===txid){W.ZZXMempoolMosaicInspector.error(tip,txid,error);positionTip(root,event)}
+    }
+  }
+
+  function attachInteractions(root,state){
+    const canvas=q(root,"[data-mm-canvas]");if(!canvas)return;
+    const opts=state.abort?{signal:state.abort.signal}:undefined;
+    canvas.addEventListener("pointermove",event=>{
+      if(!state.layout)return;const hit=W.ZZXMempoolMosaicRenderer.hitTest(canvas,state.layout,event.clientX,event.clientY);state.hoverTxid=hit?.txid||"";canvas.style.cursor=hit?.txid?"pointer":"default";redraw(root,state,false);
+      const tip=q(root,"[data-mm-tooltip]");
+      if(hit?.txid){W.ZZXMempoolMosaicInspector.tile(tip,hit);positionTip(root,event)}else if(state.locked)restoreLocked(root,state);else hideTip(root,state);
+    },opts);
+    canvas.addEventListener("pointerleave",()=>{state.hoverTxid="";canvas.style.cursor="default";redraw(root,state,false);if(state.locked)restoreLocked(root,state);else hideTip(root,state)},opts);
+    canvas.addEventListener("click",event=>{
+      if(!state.layout)return;const hit=W.ZZXMempoolMosaicRenderer.hitTest(canvas,state.layout,event.clientX,event.clientY);
+      if(hit?.txid)inspectHit(root,state,hit,event);else{state.locked=false;state.selectedTxid="";state.selectedItem=null;state.selectedAnalysis=null;hideTip(root,state);redraw(root,state,false)}
+    },opts);
+    q(root,"[data-mm-refresh]")?.addEventListener("click",()=>refresh(root,state,true),opts);
+  }
+
+  function teardown(root){
+    const old=root.__zzxMempoolMosaicState;if(!old)return;
+    W.clearTimeout(old.renderTimer);W.clearInterval(old.refreshInterval);W.clearInterval(old.shuffleInterval);old.liveEngine?.stop?.();old.resize?.disconnect?.();old.abort?.abort?.();const canvas=q(root,"[data-mm-canvas]");if(canvas)W.ZZXMempoolMosaicRenderer?.reset?.(canvas);
+  }
+
+  async function boot(root,core){
+    if(!root)return;teardown(root);
+    const abort=typeof AbortController==="function"?new AbortController():null;const actualCore=core||W.ZZXWidgetsCore||null;const cfg=W.ZZXMempoolMosaicSources.get(actualCore);
+    const state={core:actualCore,cfg,rest:{cfg,source:cfg.apiBase,fetchedAt:Date.now()},live:null,enriched:new Map(),model:null,layout:null,mode:"mosaic",modeIndex:0,seed:(Date.now()>>>0),hoverTxid:"",selectedTxid:"",selectedItem:null,selectedAnalysis:null,locked:false,liveState:"connecting",refreshing:false,renderTimer:0,refreshInterval:0,shuffleInterval:0,resize:null,abort,liveEngine:null};
+    root.__zzxMempoolMosaicState=state;status(root,"connecting","offline");attachInteractions(root,state);startLive(root,state);
+    if("ResizeObserver" in W){state.resize=new ResizeObserver(()=>W.requestAnimationFrame(()=>{if(state.layout)redraw(root,state,false)}));const block=q(root,"[data-mm-block]");if(block)state.resize.observe(block)}
+    state.refreshInterval=W.setInterval(()=>refresh(root,state,false),cfg.refreshMs);
+    state.shuffleInterval=W.setInterval(()=>cycleMode(root,state),cfg.shuffleMs);
+    refresh(root,state,false);
+  }
+
+  W.ZZXMempoolMosaicController=Object.freeze({__version:5,boot,teardown,rebuild,refresh});
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,boot);
+  else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,boot);
+  else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,boot);
+})();
+</script></body></html>
