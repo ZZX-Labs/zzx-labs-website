@@ -1,66 +1,74 @@
-// __partials/widgets/mempool-mosaic/js/fetch.js
 (function(){
   "use strict";
-
   const W=window;
-  if(W.ZZXMempoolMosaicFetch?.__version>=3)return;
+  if(W.ZZXMempoolMosaicFetch?.__version>=4)return;
 
   const cache=new Map();
+  const inflight=new Map();
+  const external=url=>/^https?:\/\//i.test(String(url||""));
 
-  async function request(url,{
-    signal,
-    ttlMs=0,
-    timeoutMs=12000,
-    as="json"
-  }={}){
-    const key=`${as}:${url}`;
-    const now=Date.now();
-    const cached=cache.get(key);
-
-    if(ttlMs>0&&cached&&now-cached.at<ttlMs){
-      return cached.value;
-    }
-
-    const controller=new AbortController();
-    const timer=W.setTimeout(()=>controller.abort(),timeoutMs);
-
-    const abort=()=>{
-      try{controller.abort()}catch(_){}
-    };
-
-    if(signal){
-      if(signal.aborted)abort();
-      else signal.addEventListener("abort",abort,{once:true});
-    }
-
-    try{
-      const response=await fetch(url,{
-        signal:controller.signal,
-        cache:"no-store",
-        credentials:"omit",
-        headers:{Accept:as==="json"?"application/json":"text/plain,*/*"}
+  async function raw(url,{signal,timeoutMs=12000,retries=1}={}){
+    if(W.ZZXAPI?.fetchRaw){
+      return await W.ZZXAPI.fetchRaw(url,{
+        cacheBust:!external(url),cache:"no-store",
+        credentials:external(url)?"omit":"same-origin",
+        timeoutMs,retries,retryDelayMs:400,signal
       });
-
-      if(!response.ok){
-        throw new Error(`HTTP ${response.status} ${response.statusText}`);
-      }
-
-      const value=as==="json"
-        ? await response.json()
-        : await response.text();
-
-      cache.set(key,{at:Date.now(),value});
-      return value;
-    }finally{
-      W.clearTimeout(timer);
-      if(signal)signal.removeEventListener("abort",abort);
     }
+
+    let last;
+    for(let attempt=0;attempt<=Math.max(0,retries);attempt++){
+      const ctl=typeof AbortController==="function"?new AbortController():null;
+      let timer=0;
+      const relay=()=>ctl?.abort(signal?.reason);
+      if(signal?.aborted)throw signal.reason||new DOMException("Aborted","AbortError");
+      signal?.addEventListener?.("abort",relay,{once:true});
+      if(ctl&&timeoutMs>0)timer=W.setTimeout(()=>ctl.abort(new DOMException("Timeout","TimeoutError")),timeoutMs);
+      try{
+        const r=await fetch(url,{cache:"no-store",credentials:external(url)?"omit":"same-origin",signal:ctl?.signal||signal});
+        if(!r.ok){const e=new Error(`HTTP ${r.status} ${url}`);e.status=r.status;throw e;}
+        return r;
+      }catch(error){
+        last=error;
+        if(error?.name==="AbortError"||signal?.aborted||attempt>=retries)throw error;
+        await new Promise(done=>W.setTimeout(done,300*(attempt+1)));
+      }finally{
+        W.clearTimeout(timer);
+        signal?.removeEventListener?.("abort",relay);
+      }
+    }
+    throw last||new Error(`fetch failed ${url}`);
   }
 
-  W.ZZXMempoolMosaicFetch=Object.freeze({
-    __version:3,
-    json:(url,opts)=>request(url,{...(opts||{}),as:"json"}),
-    text:(url,opts)=>request(url,{...(opts||{}),as:"text"}),
-    clear:()=>cache.clear()
-  });
+  async function fetchJSON(url,{signal,ttlMs=0,coalesce=true,timeoutMs=12000,retries=1}={}){
+    const key=`json:${url}`;
+    const old=cache.get(key);
+    if(ttlMs>0&&old&&Date.now()-old.at<ttlMs)return old.value;
+    if(coalesce&&inflight.has(key))return await inflight.get(key);
+    const task=(async()=>{
+      const r=await raw(url,{signal,timeoutMs,retries});
+      const value=await r.json();
+      if(ttlMs>0)cache.set(key,{at:Date.now(),value});
+      return value;
+    })();
+    if(coalesce)inflight.set(key,task);
+    try{return await task}finally{if(coalesce)inflight.delete(key)}
+  }
+
+  async function fetchText(url,{signal,ttlMs=0,coalesce=true,timeoutMs=12000,retries=1}={}){
+    const key=`text:${url}`;
+    const old=cache.get(key);
+    if(ttlMs>0&&old&&Date.now()-old.at<ttlMs)return old.value;
+    if(coalesce&&inflight.has(key))return await inflight.get(key);
+    const task=(async()=>{
+      const r=await raw(url,{signal,timeoutMs,retries});
+      const value=await r.text();
+      if(ttlMs>0)cache.set(key,{at:Date.now(),value});
+      return value;
+    })();
+    if(coalesce)inflight.set(key,task);
+    try{return await task}finally{if(coalesce)inflight.delete(key)}
+  }
+
+  W.ZZXMempoolMosaicFetch=Object.freeze({__version:4,raw,fetchJSON,fetchText});
 })();
