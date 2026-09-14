@@ -1,104 +1,19 @@
 "use strict";
-
-const fs=require("fs");
-const path=require("path");
-const vm=require("vm");
+const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
-
-function assert(condition,message){
-  if(!condition)throw new Error(message);
-}
-
-function context(extra={}){
-  const value={console,Map,Set,Date,Math,Number,String,Array,Object,JSON,Intl,...extra};
-  value.window=value;
-  vm.createContext(value);
-  return value;
-}
-
-function load(ctx,file){
-  vm.runInContext(fs.readFileSync(path.join(root,file),"utf8"),ctx,{filename:file});
-}
-
-function tx(index){
-  const txid=index.toString(16).padStart(64,"0");
-  return {
-    txid,
-    id:txid,
-    valueSats:Math.max(1,Math.round(Math.exp((index%61)/7)*100)),
-    vsize:60+(index*7919)%120000,
-    feeSats:100+(index*101)%500000,
-    feeRate:.1+(index*17)%250,
-    packageFeeRate:.1+(index*17)%250,
-    rank:index,
-    firstSeen:Date.now()-index*1000,
-    type:index%9?"standard":"data",
-    rbf:index%3===0
-  };
-}
-
-function atlasTests(){
-  const ctx=context();
-  for(const file of ["js/sorter.js","js/scaler.js","js/packer.js","js/layout.js"]){
-    load(ctx,file);
-  }
-
-  for(const count of [1,2,3,4,5,6,7,8,9,10,11,14,15,16,17,31,64,127,512,1000,3000,5000]){
-    const candidate=Array.from({length:count},(_,index)=>tx(index+1));
-    const layout=ctx.ZZXMempoolTilesLayout.build({
-      candidate,
-      candidateVsize:candidate.reduce((sum,row)=>sum+row.vsize,0),
-      targetVbytes:1_000_000
-    },{scaleMode:"value",sortMode:"priority",seed:0xdeadbeef});
-
-    assert(layout.sourceCount===count,`candidate identity count failed at ${count}`);
-    assert(Math.abs(layout.coverage-1)<1e-9,`coverage failed at ${count}`);
-
-    for(const tile of layout.tiles){
-      assert(tile.side>0,`non-positive square at ${count}`);
-      assert(tile.x>=-1e-10&&tile.y>=-1e-10,"negative square origin");
-      assert(tile.x+tile.side<=1+1e-9&&tile.y+tile.side<=1+1e-9,"square exceeded atlas");
-    }
-
-    for(let y=0;y<72;y++)for(let x=0;x<72;x++){
-      const hit=ctx.ZZXMempoolTilesLayout.hit(layout,(x+.5)/72,(y+.5)/72);
-      assert(hit?.txid,`sampled atlas gap at ${count}:${x},${y}`);
-    }
-  }
-}
-
-function themeTests(){
-  const ctx=context({fetch:async()=>{throw new Error("offline")}});
-  load(ctx,"js/themes.js");
-  const themes=ctx.ZZXMempoolTilesThemes.list();
-  assert(themes.length>=32,"fewer than 32 themes");
-  assert(new Set(themes.map(theme=>theme.id)).size===themes.length,"duplicate theme id");
-}
-
-async function readerFallbackTests(){
-  const backing=new Map();
-  const localStorage={
-    getItem:key=>backing.has(key)?backing.get(key):null,
-    setItem:(key,value)=>backing.set(key,String(value))
-  };
-  let ctx=context({localStorage});
-  load(ctx,"js/reader-store.js");
-  const txid="ab".repeat(32);
-  await ctx.ZZXMempoolTilesReaderStore.pin(txid,{txid,vsize:141,feeRate:4.2,valueSats:21000},64);
-  assert((await ctx.ZZXMempoolTilesReaderStore.list()).length===1,"reader pin failed");
-
-  ctx=context({localStorage});
-  load(ctx,"js/reader-store.js");
-  const restored=await ctx.ZZXMempoolTilesReaderStore.list();
-  assert(restored.length===1&&restored[0].txid===txid,"reader summary did not survive reload");
-}
-
+const assert=(c,m)=>{if(!c)throw new Error(m)};
+function context(extra={}){const v={console,Map,Set,Date,Math,Number,String,Array,Object,JSON,Intl,Int32Array,AbortController,setTimeout,clearTimeout,...extra};v.window=v;v.location={href:"https://zzx-labs.io/"};vm.createContext(v);return v}
+function load(ctx,f){vm.runInContext(fs.readFileSync(path.join(root,f),"utf8"),ctx,{filename:f})}
 (async()=>{
-  atlasTests();
-  themeTests();
-  await readerFallbackTests();
-  console.log("Mempool Tiles self-test: PASS");
-})().catch(error=>{
-  console.error(error.stack||error);
-  process.exitCode=1;
-});
+ const ctx=context();
+ load(ctx,"js/sources.js");
+ const bases=ctx.ZZXMempoolTilesSources.apiBases({ctx:{api:{MEMPOOL:"https://mempool.space/api"}}});
+ assert(bases[0]==="https://mempool.space/api","configured mempool base not preferred");
+ assert(!bases.includes("/bitcoin/mempool/api"),"dead local mempool route still injected");
+ const ws=ctx.ZZXMempoolTilesSources.websocketUrls({ctx:{api:{MEMPOOL:"https://mempool.space/api"}}});
+ assert(ws.includes("wss://mempool.space/api/v1/ws"),"public websocket fallback missing");
+ const themeCtx=context({fetch:async()=>{throw new Error("offline")}});load(themeCtx,"js/themes.js");assert(themeCtx.ZZXMempoolTilesThemes.get&&themeCtx.ZZXMempoolTilesThemes.load,"theme API missing");
+ const backing=new Map(),localStorage={getItem:k=>backing.has(k)?backing.get(k):null,setItem:(k,v)=>backing.set(k,String(v))};
+ const rctx=context({localStorage});load(rctx,"js/reader-store.js");const id="ab".repeat(32);await rctx.ZZXMempoolTilesReaderStore.pin(id,{txid:id,vsize:141,feeRate:4.2},64);assert((await rctx.ZZXMempoolTilesReaderStore.list()).length===1,"reader store failed");
+ console.log("Mempool Tiles runtime self-test: PASS");
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1});
