@@ -1,92 +1,114 @@
+// __partials/widgets/mempool-mosaic/js/txfetcher.js
 (function(){
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolMosaicTxFetcher?.__version>=2)return;
+  if(W.ZZXMempoolMosaicTxFetcher?.__version>=3)return;
 
-  const caches={
-    tx:new Map(),
-    hex:new Map(),
-    block:new Map(),
-    status:new Map(),
-    outspends:new Map(),
-    merkle:new Map()
-  };
+  const txCache=new Map();
+  const hexCache=new Map();
+  const blockCache=new Map();
 
-  const cfg=core=>W.ZZXMempoolMosaicSources.get(core);
-  const endpoint=(core,key,value)=>cfg(core).endpoints[key]
-    .replace("{txid}",encodeURIComponent(value))
-    .replace("{hash}",encodeURIComponent(value));
-
-  async function cached(kind,key,loader,force=false){
-    if(!force&&caches[kind].has(key))return caches[kind].get(key);
-    const value=await loader();
-    caches[kind].set(key,value);
-    return value;
+  function configs(core){
+    const S=W.ZZXMempoolMosaicSources;
+    return (S?.apiBases?.(core)||[]).map(base=>S.get(core,base));
   }
 
-  function tx(core,txid,{signal,force=false}={}){
-    return cached("tx",txid,()=>W.ZZXMempoolMosaicFetch.json(
-      endpoint(core,"tx",txid),{signal,ttlMs:force?0:30000}
-    ),force);
+  async function firstJSON(core,build,{signal,ttlMs}){
+    let lastError=null;
+
+    for(const cfg of configs(core)){
+      try{
+        return await W.ZZXMempoolMosaicFetch.json(
+          build(cfg),
+          {signal,ttlMs}
+        );
+      }catch(error){
+        lastError=error;
+      }
+    }
+
+    throw lastError||new Error("transaction JSON unavailable");
   }
 
-  function hex(core,txid,{signal,force=false}={}){
-    return cached("hex",txid,()=>W.ZZXMempoolMosaicFetch.text(
-      endpoint(core,"txHex",txid),{signal,ttlMs:force?0:30000}
-    ),force);
+  async function firstText(core,build,{signal,ttlMs}){
+    let lastError=null;
+
+    for(const cfg of configs(core)){
+      try{
+        return await W.ZZXMempoolMosaicFetch.text(
+          build(cfg),
+          {signal,ttlMs}
+        );
+      }catch(error){
+        lastError=error;
+      }
+    }
+
+    throw lastError||new Error("transaction text unavailable");
   }
 
-  function status(core,txid,{signal,force=false}={}){
-    return cached("status",txid,()=>W.ZZXMempoolMosaicFetch.json(
-      endpoint(core,"txStatus",txid),{signal,ttlMs:force?0:15000}
-    ),force);
+  async function tx(core,txid,{signal,force=false}={}){
+    if(!force&&txCache.has(txid))return txCache.get(txid);
+
+    const encoded=encodeURIComponent(txid);
+    const data=await firstJSON(
+      core,
+      cfg=>cfg.endpoints.tx.replace("{txid}",encoded),
+      {signal,ttlMs:force?0:30000}
+    );
+
+    txCache.set(txid,data);
+    return data;
   }
 
-  function outspends(core,txid,{signal,force=false}={}){
-    return cached("outspends",txid,()=>W.ZZXMempoolMosaicFetch.json(
-      endpoint(core,"txOutspends",txid),{signal,ttlMs:force?0:30000}
-    ),force);
+  async function hex(core,txid,{signal,force=false}={}){
+    if(!force&&hexCache.has(txid))return hexCache.get(txid);
+
+    const encoded=encodeURIComponent(txid);
+    const data=await firstText(
+      core,
+      cfg=>cfg.endpoints.txHex.replace("{txid}",encoded),
+      {signal,ttlMs:force?0:30000}
+    );
+
+    hexCache.set(txid,data);
+    return data;
   }
 
-  function merkle(core,txid,{signal,force=false}={}){
-    return cached("merkle",txid,()=>W.ZZXMempoolMosaicFetch.json(
-      endpoint(core,"txMerkleProof",txid),{signal,ttlMs:force?0:60000}
-    ),force);
+  async function block(core,hash,{signal,force=false}={}){
+    if(!hash)return null;
+    if(!force&&blockCache.has(hash))return blockCache.get(hash);
+
+    const encoded=encodeURIComponent(hash);
+    const data=await firstJSON(
+      core,
+      cfg=>cfg.endpoints.block.replace("{hash}",encoded),
+      {signal,ttlMs:force?0:60000}
+    );
+
+    blockCache.set(hash,data);
+    return data;
   }
 
-  function block(core,hash,{signal,force=false}={}){
-    if(!hash)return Promise.resolve(null);
-    return cached("block",hash,()=>W.ZZXMempoolMosaicFetch.json(
-      endpoint(core,"block",hash),{signal,ttlMs:force?0:60000}
-    ),force);
-  }
+  async function full(core,txid,{signal,tipHeight=NaN,priceUsd=NaN}={}){
+    const transaction=await tx(core,txid,{signal});
 
-  async function full(core,txid,{
-    signal,
-    force=false,
-    tipHeight=NaN,
-    priceUsd=NaN,
-    tile=null
-  }={}){
-    const transaction=await tx(core,txid,{signal,force});
-    const txStatus=transaction?.status||await status(core,txid,{signal,force}).catch(()=>null);
-    const blockHash=String(txStatus?.block_hash||"");
-
-    const [rawHex,blockData,spends,proof]=await Promise.all([
-      hex(core,txid,{signal,force}).catch(()=>""),
-      txStatus?.confirmed&&blockHash
-        ? block(core,blockHash,{signal,force}).catch(()=>null)
-        : Promise.resolve(null),
-      outspends(core,txid,{signal,force}).catch(()=>[]),
-      txStatus?.confirmed
-        ? merkle(core,txid,{signal,force}).catch(()=>null)
+    const [rawHex,blockData]=await Promise.all([
+      hex(core,txid,{signal}).catch(()=>""),
+      transaction?.status?.confirmed&&transaction?.status?.block_hash
+        ? block(core,transaction.status.block_hash,{signal}).catch(()=>null)
         : Promise.resolve(null)
     ]);
 
     return W.ZZXMempoolMosaicAnalyzer.analyze(
-      {...transaction,status:txStatus||transaction?.status||{}},
-      {rawHex,block:blockData,outspends:spends,merkleProof:proof,tipHeight,priceUsd,tile}
+      transaction,
+      {
+        rawHex,
+        block:blockData,
+        tipHeight,
+        priceUsd
+      }
     );
   }
 
@@ -99,6 +121,7 @@
       while(cursor<ids.length){
         const index=cursor++;
         const id=ids[index];
+
         try{
           const data=await tx(core,id,{signal});
           results.push(data);
@@ -107,16 +130,22 @@
       }
     }
 
-    await Promise.all(Array.from({length:Math.max(1,Math.min(concurrency,ids.length||1))},worker));
+    await Promise.all(
+      Array.from(
+        {length:Math.max(1,Math.min(concurrency,ids.length||1))},
+        worker
+      )
+    );
+
     return results;
   }
 
-  function forget(txid){
-    for(const cache of Object.values(caches))cache.delete(txid);
-  }
-
   W.ZZXMempoolMosaicTxFetcher=Object.freeze({
-    __version:2,
-    tx,hex,status,outspends,merkle,block,full,batch,forget
+    __version:3,
+    tx,
+    hex,
+    block,
+    full,
+    batch
   });
 })();
