@@ -1,105 +1,73 @@
-// __partials/widgets/mempool-tiles/widget.js
-// v1.6.0 — self-contained shell + immediate WebSocket boot + multi-source REST fallback
+// Mempool Tiles v2.0.0 — exact square atlas + persistent transaction readers.
 (function(){
   "use strict";
 
   const W=window;
   const D=document;
+  const ID="mempool-tiles";
 
-  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V16__)return;
-  W.__ZZX_MEMPOOL_TILES_WIDGET_V16__=true;
+  if(W.__ZZX_MEMPOOL_TILES_WIDGET_V20__)return;
+  W.__ZZX_MEMPOOL_TILES_WIDGET_V20__=true;
 
   const MODULES=[
     ["ZZXMempoolTilesSources","js/sources.js",3],
     ["ZZXMempoolTilesFetch","js/fetch.js",1],
-    ["ZZXMempoolTilesProvider","js/provider.js",2],
-    ["ZZXMempoolTilesLive","js/live.js",3],
-    ["ZZXMempoolTilesAnalyzer","js/analyzer.js",1],
-    ["ZZXMempoolTilesModel","js/model.js",2],
-    ["ZZXMempoolTilesScaler","js/scaler.js",2],
+    ["ZZXMempoolTilesProvider","js/provider.js",1],
+    ["ZZXMempoolTilesLive","js/live.js",2],
+    ["ZZXMempoolTilesAnalyzer","js/analyzer.js",3],
+    ["ZZXMempoolTilesModel","js/model.js",3],
+    ["ZZXMempoolTilesScaler","js/scaler.js",4],
     ["ZZXMempoolTilesSorter","js/sorter.js",1],
-        ["ZZXMempoolTilesLayout","js/layout.js",3],
-    ["ZZXMempoolTilesThemes","js/themes.js",1],
-    ["ZZXMempoolTilesRenderer","js/renderer.js",3],
+    ["ZZXMempoolTilesPacker","js/packer.js",5],
+    ["ZZXMempoolTilesLayout","js/layout.js",5],
+    ["ZZXMempoolTilesThemes","js/themes.js",3],
+    ["ZZXMempoolTilesRenderer","js/renderer.js",5],
     ["ZZXMempoolTilesAnimation","js/animation.js",1],
+    ["ZZXMempoolTilesReaderStore","js/reader-store.js",1],
     ["ZZXMempoolTilesTxFetcher","js/txfetcher.js",2],
-    ["ZZXMempoolTilesInspector","js/inspector.js",1]
+    ["ZZXMempoolTilesInspector","js/inspector.js",3]
   ];
 
-  function getPath(path){
-    return path.split(".").reduce((obj,key)=>obj?.[key],W);
-  }
+  const SCALE_MODES=new Set(["value","vsize","fee","feerate"]);
+  const COLOR_MODES=new Set(["fee-vbytes","fee","absolute-fee","vsize","type","age"]);
+  const SORT_MODES=new Set(["priority","fee","size","value","age","rbf","type","shuffle"]);
 
-  const ID="mempool-tiles";
+  function getPath(path){
+    return path.split(".").reduce((object,key)=>object?.[key],W);
+  }
 
   function core(){
-    return W.ZZXWidgetsCore || W.ZZXWidgetCore || W.ZZXWidgets || W.ZZX || {};
+    return W.ZZXWidgetsCore||W.ZZXWidgetCore||W.ZZXWidgets||W.ZZXAPI||W.ZZX||{};
   }
 
-  function widgetBase(){
-    const c=core();
-
-    if(typeof c?.widgetBase==="function"){
+  function widgetBase(runtimeCore=core()){
+    if(typeof runtimeCore?.widgetBase==="function"){
       try{
-        const value=String(c.widgetBase(ID)||"").replace(/\/+$/g,"");
+        const value=String(runtimeCore.widgetBase(ID)||"").replace(/\/+$/g,"");
         if(value)return value;
       }catch(_){}
     }
-
     return "/__partials/widgets/mempool-tiles";
   }
 
   function moduleUrl(relative,minimumVersion){
-    const raw=
-      `${widgetBase()}/${String(relative).replace(/^\/+/,"")}`;
-
-    const resolved=
-      W.ZZXAPI?.url
-        ? W.ZZXAPI.url(raw)
-        : raw;
-
-    return (
-      resolved +
-      (resolved.includes("?")?"&":"?") +
-      `zzxmod=${minimumVersion}`
-    );
+    const raw=`${widgetBase()}/${String(relative).replace(/^\/+/,"")}`;
+    const resolved=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+    return `${resolved}${resolved.includes("?")?"&":"?"}zzxmod=${minimumVersion}`;
   }
 
   function loadScript(src,key,minimumVersion){
-    if(getPath(key)?.__version>=minimumVersion){
-      return Promise.resolve(true);
-    }
-
+    if(getPath(key)?.__version>=minimumVersion)return Promise.resolve(true);
     const tagKey=String(key).replace(/[^a-z0-9_-]/gi,"_");
-
-    const selector=
-      `script[data-mt-module="${tagKey}"][data-mt-version="${minimumVersion}"]`;
-
+    const selector=`script[data-mt-module="${tagKey}"][data-mt-version="${minimumVersion}"]`;
     const existing=D.querySelector(selector);
 
     if(existing){
       return new Promise(resolve=>{
-        if(getPath(key)?.__version>=minimumVersion){
-          resolve(true);
-          return;
-        }
-
-        const done=()=>resolve(
-          getPath(key)?.__version>=minimumVersion
-        );
-
-        existing.addEventListener(
-          "load",
-          done,
-          {once:true}
-        );
-
-        existing.addEventListener(
-          "error",
-          done,
-          {once:true}
-        );
-
+        if(getPath(key)?.__version>=minimumVersion){resolve(true);return}
+        const done=()=>resolve(getPath(key)?.__version>=minimumVersion);
+        existing.addEventListener("load",done,{once:true});
+        existing.addEventListener("error",done,{once:true});
         W.setTimeout(done,6000);
       });
     }
@@ -110,81 +78,64 @@
       node.defer=true;
       node.setAttribute("data-mt-module",tagKey);
       node.setAttribute("data-mt-version",String(minimumVersion));
-
-      node.addEventListener(
-        "load",
-        ()=>resolve(
-          getPath(key)?.__version>=minimumVersion
-        ),
-        {once:true}
-      );
-
-      node.addEventListener(
-        "error",
-        ()=>resolve(false),
-        {once:true}
-      );
-
+      node.addEventListener("load",()=>resolve(getPath(key)?.__version>=minimumVersion),{once:true});
+      node.addEventListener("error",()=>resolve(false),{once:true});
       (D.head||D.documentElement).appendChild(node);
     });
   }
 
   async function dependencies(){
-    for(const [path,rel,minimumVersion] of MODULES){
-      if(getPath(path)?.__version>=minimumVersion){
-        continue;
-      }
+    const results=await Promise.all(MODULES.map(async([path,relative,minimumVersion])=>{
+      if(getPath(path)?.__version>=minimumVersion)return {path,relative,minimumVersion,loaded:true};
+      const loaded=await loadScript(moduleUrl(relative,minimumVersion),path,minimumVersion);
+      return {path,relative,minimumVersion,loaded};
+    }));
 
-      const ok=await loadScript(
-        moduleUrl(rel,minimumVersion),
-        path,
-        minimumVersion
-      );
+    const failed=results.find(result=>
+      !result.loaded||getPath(result.path)?.__version<result.minimumVersion
+    );
 
-      if(!ok){
-        throw new Error(
-          `${rel} did not register ${path} v${minimumVersion}`
-        );
-      }
+    if(failed){
+      throw new Error(`${failed.relative} did not register ${failed.path} v${failed.minimumVersion}`);
     }
-  }
-
-
-  function fmtInt(value){
-    const n=Number(value);
-    return Number.isFinite(n)?Math.round(n).toLocaleString():"—";
-  }
-
-  function fmtBtc(sats){
-    const n=Number(sats);
-    return Number.isFinite(n)?`${(n/1e8).toFixed(4)} BTC`:"— BTC";
-  }
-
-  function fmtRate(value){
-    const n=Number(value);
-    return Number.isFinite(n)?`${n.toFixed(n<1?3:1)} sat/vB`:"— sat/vB";
-  }
-
-  function median(values){
-    const rows=values.filter(Number.isFinite).sort((a,b)=>a-b);
-    if(!rows.length)return NaN;
-    const i=Math.floor(rows.length/2);
-    return rows.length%2?rows[i]:(rows[i-1]+rows[i])/2;
   }
 
   function storageGet(key,fallback=""){
     try{
       const value=W.localStorage?.getItem(key);
       return value==null?fallback:value;
-    }catch(_){
-      return fallback;
-    }
+    }catch(_){return fallback}
   }
 
   function storageSet(key,value){
-    try{
-      W.localStorage?.setItem(key,String(value));
-    }catch(_){}
+    try{W.localStorage?.setItem(key,String(value))}catch(_){}
+  }
+
+  const finite=value=>{const n=Number(value);return Number.isFinite(n)?n:NaN};
+  const fmtInt=value=>Number.isFinite(finite(value))?Math.round(finite(value)).toLocaleString():"—";
+  const fmtBtcSats=(value,digits=8)=>Number.isFinite(finite(value))
+    ? `${(finite(value)/1e8).toLocaleString(undefined,{maximumFractionDigits:digits})} BTC`:"— BTC";
+  const fmtRate=value=>Number.isFinite(finite(value))
+    ? `${finite(value).toFixed(finite(value)<1?3:1)} sat/vB`:"— sat/vB";
+
+  function median(values){
+    const rows=values.filter(Number.isFinite).sort((a,b)=>a-b);
+    if(!rows.length)return NaN;
+    const middle=Math.floor(rows.length/2);
+    return rows.length%2?rows[middle]:(rows[middle-1]+rows[middle])/2;
+  }
+
+  function downloadJSON(filename,data){
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const link=D.createElement("a");
+    link.href=url;
+    link.download=filename;
+    link.hidden=true;
+    D.body.append(link);
+    link.click();
+    link.remove();
+    W.setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
 
   async function mount(root,mountedCore=null){
@@ -203,168 +154,152 @@
     const coverage=root.querySelector("[data-mt-coverage]");
     const transport=root.querySelector("[data-mt-transport]");
     const meta=root.querySelector("[data-mt-meta]");
-    const gridStat=root.querySelector("[data-mt-grid]");
-    const valueCoverageStat=root.querySelector("[data-mt-value-coverage]");
-    const vizCount=root.querySelector("[data-mt-viz-count]");
-    const tipStat=root.querySelector("[data-mt-tip]");
-    const feeRangeStat=root.querySelector("[data-mt-fee-range]");
-    const backlogStat=root.querySelector("[data-mt-backlog]");
-    const sourceStat=root.querySelector("[data-mt-source]");
-    const updatedStat=root.querySelector("[data-mt-updated]");
+    const updated=root.querySelector("[data-mt-updated]");
 
+    if(!canvas||!stage||!summary||!sub)throw new Error("Mempool Tiles markup is incomplete");
+
+    const listenerAbort=typeof AbortController==="function"?new AbortController():null;
+    const listenerOptions=listenerAbort?{signal:listenerAbort.signal}:undefined;
     let model=null;
     let layout=null;
     let priorLayout=null;
     let selectedTxid="";
     let hoverTxid="";
-    let scaleMode=storageGet("zzx.mempoolTiles.scale")||"vsize";
-    let colorMode=storageGet("zzx.mempoolTiles.color")||"fee";
-    let sortMode=storageGet("zzx.mempoolTiles.sort")||"priority";
-    let shuffleSeed=Number(storageGet("zzx.mempoolTiles.shuffleSeed"))||Date.now();
+    let scaleMode=storageGet("zzx.mempoolTiles.scale","value");
+    let colorMode=storageGet("zzx.mempoolTiles.color","fee-vbytes");
+    let sortMode=storageGet("zzx.mempoolTiles.sort","priority");
+    let themeId=storageGet("zzx.mempoolTiles.theme","zzx-default");
+    let shuffleSeed=Number(storageGet("zzx.mempoolTiles.shuffleSeed",Date.now()))||Date.now();
     let aborter=null;
     let live=null;
     let liveSnapshot=null;
+    let pendingLiveSnapshot=null;
     let fallbackCursor=0;
     let animationCancel=null;
     let hydrateTimer=0;
     let hydrateCount=0;
+    let pointerFrame=0;
+    let paused=false;
     let destroyed=false;
-    let sharedUnsubscribe=null;
-    let lastConnectionState="connecting";
+    let readGeneration=0;
 
-    const themeRaw=`${widgetBase()}/themes/zzx-default.json`;
-    const themeUrl=W.ZZXAPI?.url
-      ? W.ZZXAPI.url(themeRaw)
-      : themeRaw;
-    await W.ZZXMempoolTilesThemes.load(themeUrl);
+    if(!SCALE_MODES.has(scaleMode))scaleMode="value";
+    if(!COLOR_MODES.has(colorMode))colorMode="fee-vbytes";
+    if(!SORT_MODES.has(sortMode))sortMode="priority";
+
+    await W.ZZXMempoolTilesThemes.load();
+    if(!W.ZZXMempoolTilesThemes.list().some(theme=>theme.id===themeId))themeId="zzx-default";
+
+    const sourceConfig=()=>model?.cfg||W.ZZXMempoolTilesSources.get(runtimeCore);
+    const readerLimit=()=>Math.max(1,Number(sourceConfig().readerLimit)||64);
+
+    function populateThemes(){
+      const select=root.querySelector("[data-mt-theme-select]");
+      if(!select)return;
+      const groups=new Map();
+      for(const theme of W.ZZXMempoolTilesThemes.list()){
+        const group=theme.group||"Other";
+        if(!groups.has(group))groups.set(group,[]);
+        groups.get(group).push(theme);
+      }
+      select.replaceChildren();
+      for(const [name,themes] of groups){
+        const optionGroup=D.createElement("optgroup");
+        optionGroup.label=name;
+        for(const theme of themes){
+          const option=D.createElement("option");
+          option.value=theme.id;
+          option.textContent=theme.name;
+          optionGroup.append(option);
+        }
+        select.append(optionGroup);
+      }
+      select.value=themeId;
+    }
+
+    function renderLegend(){
+      const host=root.querySelector("[data-mt-legend]");
+      if(!host)return;
+      const theme=W.ZZXMempoolTilesThemes.get(themeId);
+      const colors=theme.colors.feeScale||[];
+      const labels=["0","0.5","1","2","5","10","25","50","100+"];
+      host.replaceChildren();
+      labels.forEach((label,index)=>{
+        const step=D.createElement("span");
+        step.className="mt-legend-step";
+        const swatch=D.createElement("i");
+        swatch.style.background=colors[index]||theme.colors.pending;
+        const caption=D.createElement("span");
+        caption.textContent=`${label} sat/vB`;
+        step.append(swatch,caption);
+        host.append(step);
+      });
+    }
+
+    function applyTheme(){
+      W.ZZXMempoolTilesThemes.apply(root,themeId);
+      const select=root.querySelector("[data-mt-theme-select]");
+      if(select)select.value=themeId;
+      renderLegend();
+    }
 
     function setActive(){
       root.querySelectorAll("[data-mt-scale]").forEach(button=>{
         button.classList.toggle("is-active",button.dataset.mtScale===scaleMode);
       });
-
-      root.querySelectorAll("[data-mt-color]").forEach(button=>{
-        button.classList.toggle("is-active",button.dataset.mtColor===colorMode);
-      });
-
-      const select=root.querySelector("[data-mt-sort]");
-      if(select)select.value=sortMode;
+      const color=root.querySelector("[data-mt-color]");
+      const sort=root.querySelector("[data-mt-sort]");
+      if(color)color.value=colorMode;
+      if(sort)sort.value=sortMode;
     }
 
     function setConnectionState(state,detail=""){
       const normalized=String(state||"offline").toLowerCase();
-      lastConnectionState=normalized;
-      const live=normalized==="live";
-      const label=live
-        ? "live ws"
-        : normalized==="connecting"
-          ? "connecting"
-          : normalized==="reconnecting"
-            ? "reconnecting"
-            : normalized==="rest"
-              ? "REST"
-              : "offline";
-
-      if(liveState){
-        liveState.textContent=label;
-        liveState.title=detail||"";
-      }
-
+      const isLive=normalized==="live";
+      const label=isLive?"live ws":normalized==="rest"?"REST":normalized;
+      if(liveState){liveState.textContent=label;liveState.title=detail}
       if(headerStatus){
-        headerStatus.textContent=label;
-        headerStatus.setAttribute(
-          "data-status",
-          live?"ok":normalized==="offline"||normalized==="error"?"error":"warn"
-        );
-        headerStatus.title=detail||"";
+        headerStatus.textContent=paused?"paused":label;
+        headerStatus.title=detail;
+        headerStatus.setAttribute("data-status",paused?"warn":isLive?"ok":normalized==="offline"||normalized==="error"?"error":"warn");
       }
     }
 
-    function layoutNow(animate=true){
-      if(!model)return;
-
-      const next=W.ZZXMempoolTilesLayout.build(
-        model,
-        {
-          scaleMode,
-          sortMode,
-          seed:shuffleSeed
-        }
-      );
-
-      priorLayout=layout;
-      layout=next;
-
-      animationCancel?.();
-      animationCancel=null;
-
-      if(
-        !animate ||
-        matchMedia("(prefers-reduced-motion: reduce)").matches ||
-        !priorLayout
-      ){
-        W.ZZXMempoolTilesRenderer.draw(
-          canvas,
-          layout,
-          {
-            fromLayout:null,
-            progress:1,
-            selectedTxid,
-            hoverTxid,
-            colorMode
-          }
-        );
-      }else{
-        animationCancel=W.ZZXMempoolTilesAnimation.run(
-          520,
-          progress=>{
-            W.ZZXMempoolTilesRenderer.draw(
-              canvas,
-              layout,
-              {
-                fromLayout:priorLayout,
-                progress,
-                selectedTxid,
-                hoverTxid,
-                colorMode
-              }
-            );
-          }
-        );
-      }
-
-      renderStats();
+    function redraw(){
+      if(!layout)return;
+      W.ZZXMempoolTilesRenderer.draw(canvas,layout,{
+        fromLayout:null,
+        progress:1,
+        selectedTxid,
+        hoverTxid,
+        colorMode,
+        themeId
+      });
     }
 
     function renderStats(){
       if(!model||!layout)return;
-
       const txs=model.candidate.length;
-      const rates=model.candidate
-        .map(tx=>Number(tx.packageFeeRate??tx.feeRate))
-        .filter(Number.isFinite);
-
+      const rates=model.candidate.map(tx=>Number(tx.packageFeeRate??tx.feeRate)).filter(Number.isFinite);
       const med=median(rates);
+      const sourceLabel=model.candidateSource==="live"?"LIVE PROJECTED BLOCK":
+        model.candidateSource==="full-feed"?"FULL MEMPOOL FEED":"REST CANDIDATE BUILD";
+      const scaleLabel={value:"BTC output",vsize:"virtual bytes",fee:"absolute fee",feerate:"fee rate"}[scaleMode];
+      const colorLabel={
+        "fee-vbytes":"fee rate × vBytes",fee:"fee rate","absolute-fee":"absolute fee",
+        vsize:"vBytes",type:"transaction type",age:"mempool age"
+      }[colorMode];
 
-      const sourceLabel=
-        model.candidateSource==="live"
-          ? "LIVE"
-          : model.candidateSource==="full-feed"
-            ? "FULL FEED"
-            : "BUILDING";
-
-      summary.textContent=
-        `${fmtInt(txs)} TX · next-block tile grid`;
-
-      sub.textContent=
-        `${sourceLabel} · footprint ${scaleMode==="vsize"?"vB":scaleMode==="value"?"BTC value":"sat/vB"} · color ${colorMode==="fee"?"fee rate":"type"} · order ${sortMode}`;
+      summary.textContent=`${fmtInt(txs)} transactions · candidate #${Number.isFinite(model.tipHeight)?fmtInt(model.tipHeight+1):"next"}`;
+      sub.textContent=`${sourceLabel} · square area ${scaleLabel} · color ${colorLabel} · ${sortMode} topology`;
 
       const stats={
-        txs:`${fmtInt(txs)} TX`,
+        txs:fmtInt(txs),
         vsize:`${(model.candidateVsize/1e6).toFixed(3)} vMB`,
-        value:fmtBtc(model.candidateValue),
-        fee:fmtRate(med),
-        fill:`${Math.min(125,(model.candidateVsize/Math.max(1,model.targetVbytes)*100)).toFixed(1)}% block`
+        value:fmtBtcSats(model.candidateValue,8),
+        fees:fmtBtcSats(model.candidateFees,8),
+        fee:`${fmtRate(med)} median`,
+        fill:`${Math.min(125,model.candidateVsize/Math.max(1,model.targetVbytes)*100).toFixed(1)}% block`
       };
 
       for(const [key,value] of Object.entries(stats)){
@@ -372,495 +307,221 @@
         if(node)node.textContent=value;
       }
 
-      blockLabel.textContent=
-        Number.isFinite(model.tipHeight)
-          ? `NEXT BLOCK · ${fmtInt(model.tipHeight+1)}`
-          : "NEXT BLOCK";
-
-      if(gridStat){
-        gridStat.textContent=`${layout.gridN} × ${layout.gridN} stable slots`;
-      }
-
-      if(valueCoverageStat){
-        valueCoverageStat.textContent=`${(Math.max(0,Math.min(1,model.candidateValueCoverage||0))*100).toFixed(1)}% values resolved`;
-      }
-
-      if(vizCount){
-        vizCount.textContent=`${fmtInt(txs)} real TX · ${layout.gridN}×${layout.gridN} slots`;
-      }
-
-      if(tipStat){
-        tipStat.textContent=Number.isFinite(model.tipHeight)
-          ? `#${fmtInt(model.tipHeight)} → candidate #${fmtInt(model.tipHeight+1)}`
-          : "—";
-      }
-
-      if(feeRangeStat){
-        const sorted=rates.slice().sort((a,b)=>a-b);
-        feeRangeStat.textContent=sorted.length
-          ? `${fmtRate(sorted[0])} – ${fmtRate(sorted[sorted.length-1])}`
-          : "—";
-      }
-
-      if(backlogStat){
-        const backlog=Number(model.mempool?.vsize??model.mempool?.vbytes);
-        const count=Number(model.mempool?.count);
-        backlogStat.textContent=Number.isFinite(backlog)
-          ? `${(backlog/1e6).toFixed(2)} vMB${Number.isFinite(count)?` · ${fmtInt(count)} TX`:""}`
-          : "—";
-      }
-
-      if(sourceStat){
-        sourceStat.textContent=model.source||model.fullFeedSource||"configured mempool API";
-      }
-
-      if(updatedStat){
-        updatedStat.textContent=Number.isFinite(Number(model.fetchedAt))
-          ? `updated ${new Date(Number(model.fetchedAt)).toLocaleTimeString()}`
-          : "—";
-      }
-
-      if(coverage){
-        const fill=Math.min(125,model.candidateVsize/Math.max(1,model.targetVbytes)*100);
-        coverage.textContent=`${fmtInt(txs)} real candidate TX · ${fill.toFixed(1)}% projected block vsize · one stable slot per TX`;
-      }
-
-      if(transport){
-        transport.textContent=model.liveActive
-          ? "WebSocket live"
-          : model.fullFeedActive
-            ? "full feed"
-            : lastConnectionState==="connecting"||lastConnectionState==="reconnecting"
-              ? "WebSocket connecting · REST fallback"
-              : "REST building";
-      }
-
-      if(meta){
-        meta.textContent=`real projected-next-block transactions · txid-stable grid · ${scaleMode} footprint · ${colorMode} color · ${sortMode} order`;
-      }
+      const leafNode=root.querySelector("[data-mt-leaves]");
+      const valueCoverage=root.querySelector("[data-mt-value-coverage]");
+      const coverageValue=root.querySelector("[data-mt-coverage-value]");
+      const depth=root.querySelector("[data-mt-depth]");
+      if(leafNode)leafNode.textContent=`${fmtInt(layout.leafCount)} leaves${layout.fragmentCount?` · ${layout.fragmentCount} dust continuation`:""}`;
+      if(valueCoverage)valueCoverage.textContent=`${(Math.max(0,Math.min(1,model.candidateValueCoverage||0))*100).toFixed(1)}% values resolved`;
+      if(coverageValue)coverageValue.textContent=`${(layout.coverage*100).toFixed(3)}%`;
+      if(depth)depth.textContent=fmtInt(layout.maxDepth);
+      if(blockLabel)blockLabel.textContent=Number.isFinite(model.tipHeight)?`NEXT BLOCK · ${fmtInt(model.tipHeight+1)}`:"NEXT BLOCK";
+      if(coverage)coverage.textContent=`${fmtInt(txs)} real candidate TX · ${fmtInt(layout.leafCount)} square leaves · ${(layout.coverage*100).toFixed(3)}% atlas coverage · no empty cells`;
+      if(transport)transport.textContent=model.liveActive?"WebSocket projected block":model.fullFeedActive?"configured full feed":"REST progressive hydration";
+      if(meta)meta.textContent=`square-only atlas · ${W.ZZXMempoolTilesThemes.get(themeId).name} · ${scaleLabel} area · ${colorLabel} color · persistent readers local to this browser`;
+      if(updated)updated.textContent=`updated ${new Date(model.liveUpdatedAt||model.fetchedAt||Date.now()).toLocaleTimeString()}`;
     }
 
-    function redraw(){
-      if(!layout)return;
-      W.ZZXMempoolTilesRenderer.draw(
-        canvas,
-        layout,
-        {
-          fromLayout:null,
-          progress:1,
-          selectedTxid,
-          hoverTxid,
-          colorMode
-        }
-      );
+    function layoutNow(animate=true){
+      if(!model||paused)return;
+      const next=W.ZZXMempoolTilesLayout.build(model,{scaleMode,sortMode,seed:shuffleSeed});
+      priorLayout=layout;
+      layout=next;
+      animationCancel?.();
+      animationCancel=null;
+
+      const reduced=typeof W.matchMedia==="function"&&W.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(!animate||reduced||!priorLayout){
+        redraw();
+      }else{
+        animationCancel=W.ZZXMempoolTilesAnimation.run(340,progress=>{
+          W.ZZXMempoolTilesRenderer.draw(canvas,layout,{
+            fromLayout:priorLayout,
+            progress,
+            selectedTxid,
+            hoverTxid,
+            colorMode,
+            themeId
+          });
+        });
+      }
+      renderStats();
     }
 
     function pointerTile(event){
       if(!layout)return null;
       const rect=canvas.getBoundingClientRect();
-      const nx=(event.clientX-rect.left)/rect.width;
-      const ny=(event.clientY-rect.top)/rect.height;
-      return W.ZZXMempoolTilesLayout.hit(layout,nx,ny);
+      return W.ZZXMempoolTilesLayout.hit(
+        layout,
+        (event.clientX-rect.left)/Math.max(1,rect.width),
+        (event.clientY-rect.top)/Math.max(1,rect.height)
+      );
     }
 
     function showTooltip(event,tile){
-      if(!tooltip||!tile){
-        if(tooltip)tooltip.hidden=true;
-        return;
-      }
-
+      if(!tooltip||!tile){if(tooltip)tooltip.hidden=true;return}
       const rect=stage.getBoundingClientRect();
-      const rate=Number(tile.packageFeeRate??tile.feeRate);
-      const value=Number(tile.valueSats);
-      const vsize=Number(tile.vsize);
-
       tooltip.replaceChildren();
-
-      const strong=D.createElement("strong");
-      strong.textContent=`${String(tile.txid||"").slice(0,18)}…`;
-
+      const title=D.createElement("strong");
+      title.textContent=`${String(tile.txid||"").slice(0,18)}…${String(tile.txid||"").slice(-8)}`;
       const line=D.createElement("span");
-      const parts=[];
-      if(Number.isFinite(rate))parts.push(`${rate.toFixed(rate<1?3:1)} sat/vB`);
-      if(Number.isFinite(vsize))parts.push(`${Math.round(vsize).toLocaleString()} vB`);
-      if(Number.isFinite(value))parts.push(`${(value/1e8).toLocaleString(undefined,{maximumFractionDigits:8})} BTC`);
-      line.textContent=parts.join(" · ")||"transaction details pending";
-
-      tooltip.append(strong,line);
+      const parts=[
+        fmtBtcSats(tile.valueSats,8),
+        Number.isFinite(finite(tile.vsize))?`${fmtInt(tile.vsize)} vB`:"vB pending",
+        fmtRate(tile.packageFeeRate??tile.feeRate),
+        Number.isFinite(finite(tile.feeSats))?`${fmtInt(tile.feeSats)} sat fee`:"fee pending"
+      ];
+      line.textContent=parts.join(" · ");
+      tooltip.append(title,line);
       tooltip.hidden=false;
-      tooltip.style.left=`${Math.max(6,Math.min(rect.width-280,event.clientX-rect.left+12))}px`;
-      tooltip.style.top=`${Math.max(6,Math.min(rect.height-58,event.clientY-rect.top+12))}px`;
+      const width=tooltip.offsetWidth||300;
+      const height=tooltip.offsetHeight||58;
+      tooltip.style.left=`${Math.max(6,Math.min(rect.width-width-6,event.clientX-rect.left+12))}px`;
+      tooltip.style.top=`${Math.max(6,Math.min(rect.height-height-6,event.clientY-rect.top+12))}px`;
     }
 
-    async function inspect(txid){
+    async function refreshReaders(){
+      const records=await W.ZZXMempoolTilesReaderStore.list(readerLimit());
+      if(!destroyed)W.ZZXMempoolTilesInspector.renderReaderList(root,records,selectedTxid);
+      return records;
+    }
+
+    async function openStored(txid){
+      const record=await W.ZZXMempoolTilesReaderStore.get(txid);
+      if(!record)return false;
       selectedTxid=txid;
+      await W.ZZXMempoolTilesReaderStore.put({...record,lastViewedAt:Date.now()},readerLimit());
+      if(record.analysis)W.ZZXMempoolTilesInspector.render(root,record.analysis,{persisted:true});
+      else W.ZZXMempoolTilesInspector.renderSummary(root,record);
+      redraw();
+      await refreshReaders();
+      return true;
+    }
+
+    async function inspect(txid,{force=false}={}){
+      const id=String(txid||"").trim().toLowerCase();
+      if(!W.ZZXMempoolTilesReaderStore.valid(id))return false;
+      const generation=++readGeneration;
+      selectedTxid=id;
       redraw();
 
-      W.ZZXMempoolTilesInspector.loading(root,txid);
+      const stored=await W.ZZXMempoolTilesReaderStore.get(id);
+      if(!force&&stored?.analysis){
+        await openStored(id);
+        return true;
+      }
+
+      const tile=layout?.byTxid?.get(id)||model?.byTxid?.get(id)||stored?.tile||null;
+      await W.ZZXMempoolTilesReaderStore.pin(id,tile,readerLimit());
+      W.ZZXMempoolTilesInspector.loading(root,id);
+      await refreshReaders();
 
       try{
-        const analysis=await W.ZZXMempoolTilesTxFetcher.full(
-          runtimeCore,
-          txid,
-          {
-            tipHeight:model?.tipHeight,
-            priceUsd:model?.priceUsd
-          }
-        );
+        if(force)W.ZZXMempoolTilesTxFetcher.forget(id);
+        const analysis=await W.ZZXMempoolTilesTxFetcher.full(runtimeCore,id,{
+          force,
+          tipHeight:model?.tipHeight,
+          priceUsd:model?.priceUsd,
+          tile
+        });
+        await W.ZZXMempoolTilesReaderStore.save(analysis,tile,readerLimit());
 
-        if(destroyed||selectedTxid!==txid)return;
+        if(model?.byTxid?.has(id)){
+          model=W.ZZXMempoolTilesModel.mergeDetails(model,[analysis.tx]);
+          if(liveSnapshot?.transactions?.length)model=W.ZZXMempoolTilesModel.mergeLive(model,liveSnapshot);
+          layoutNow(true);
+        }
 
-        W.ZZXMempoolTilesInspector.render(root,analysis);
-
-        model=W.ZZXMempoolTilesModel.mergeDetails(
-          model,
-          [analysis.tx]
-        );
-
-        layoutNow(true);
+        if(!destroyed&&generation===readGeneration&&selectedTxid===id){
+          W.ZZXMempoolTilesInspector.render(root,analysis,{persisted:false});
+          redraw();
+        }
+        await refreshReaders();
+        return true;
       }catch(error){
-        if(destroyed||selectedTxid!==txid)return;
-
-        const body=root.querySelector("[data-mt-kv-grid]");
-        body.innerHTML=`
-          <div class="mt-kv">
-            <dt>Status</dt>
-            <dd>${String(error?.message||error)}</dd>
-          </div>
-        `;
+        await W.ZZXMempoolTilesReaderStore.fail(id,error,readerLimit());
+        if(!destroyed&&generation===readGeneration&&selectedTxid===id){
+          W.ZZXMempoolTilesInspector.error(root,id,error?.message||error);
+        }
+        await refreshReaders();
+        return false;
       }
     }
 
     async function hydrate(){
-      if(destroyed||!model)return;
-
-      const cfg=
-        model.cfg ||
-        W.ZZXMempoolTilesSources.get(runtimeCore);
-
-      if(
-        hydrateCount>=cfg.maxHydratePerSession
-      ){
-        return;
-      }
-
+      if(destroyed||paused||!model)return;
+      const cfg=sourceConfig();
+      if(hydrateCount>=cfg.maxHydratePerSession)return;
       let ids=[];
       let concurrency=cfg.hydrateConcurrency;
       let delay=cfg.hydrateDelayMs;
 
       if(model.liveActive){
-        ids=
-          W.ZZXMempoolTilesModel.pendingCandidateTxids(
-            model,
-            cfg.hydrateBatch
-          );
+        ids=W.ZZXMempoolTilesModel.pendingCandidateTxids(model,cfg.hydrateBatch);
       }else if(!model.fullFeedActive){
-        /*
-         * v1 dead-ended here: candidate was built from /mempool/recent and then
-         * only that tiny candidate was hydrated, so the txid universe could
-         * never grow into a real block-sized field.
-         */
-        ids=
-          W.ZZXMempoolTilesModel.pendingUniverseTxids(
-            model,
-            cfg.fallbackHydrateBatch,
-            fallbackCursor
-          );
-
+        ids=W.ZZXMempoolTilesModel.pendingUniverseTxids(model,cfg.fallbackHydrateBatch,fallbackCursor);
         concurrency=cfg.fallbackHydrateConcurrency;
         delay=cfg.fallbackHydrateDelayMs;
-
         fallbackCursor+=cfg.fallbackHydrateBatch;
-
-        if(
-          !ids.length &&
-          fallbackCursor>0
-        ){
+        if(!ids.length&&fallbackCursor>0){
           fallbackCursor=0;
-
-          ids=
-            W.ZZXMempoolTilesModel.pendingUniverseTxids(
-              model,
-              cfg.fallbackHydrateBatch,
-              0
-            );
+          ids=W.ZZXMempoolTilesModel.pendingUniverseTxids(model,cfg.fallbackHydrateBatch,0);
         }
       }else{
-        ids=
-          W.ZZXMempoolTilesModel.pendingCandidateTxids(
-            model,
-            cfg.hydrateBatch
-          );
+        ids=W.ZZXMempoolTilesModel.pendingCandidateTxids(model,cfg.hydrateBatch);
       }
 
       if(!ids.length)return;
-
       hydrateCount+=ids.length;
-
-      const rows=
-        await W.ZZXMempoolTilesTxFetcher.batch(
-          runtimeCore,
-          ids,
-          {concurrency}
-        );
-
-      if(
-        destroyed ||
-        !rows.length
-      ){
-        return;
-      }
-
-      model=
-        W.ZZXMempoolTilesModel.mergeDetails(
-          model,
-          rows
-        );
-
-      /*
-       * If the live membership snapshot exists, re-apply it after hydration so
-       * full transaction details enrich those exact members without changing
-       * candidate membership.
-       */
-      if(liveSnapshot?.transactions?.length){
-        model=
-          W.ZZXMempoolTilesModel.mergeLive(
-            model,
-            liveSnapshot
-          );
-      }
-
+      const rows=await W.ZZXMempoolTilesTxFetcher.batch(runtimeCore,ids,{concurrency});
+      if(destroyed||paused||!rows.length)return;
+      model=W.ZZXMempoolTilesModel.mergeDetails(model,rows);
+      if(liveSnapshot?.transactions?.length)model=W.ZZXMempoolTilesModel.mergeLive(model,liveSnapshot);
       layoutNow(true);
-
       W.clearTimeout(hydrateTimer);
-
-      hydrateTimer=W.setTimeout(
-        hydrate,
-        delay
-      );
+      hydrateTimer=W.setTimeout(hydrate,delay);
     }
 
-    function seedFromLive(snapshot,cfg){
-      const rows=Array.isArray(snapshot?.transactions)
-        ? snapshot.transactions
-        : [];
-
-      const totalVsize=rows.reduce(
-        (sum,row)=>sum+(Number(row?.vsize??row?.vbytes)||0),
-        0
-      );
-
-      const block0=Array.isArray(snapshot?.blocks)&&snapshot.blocks.length
-        ? snapshot.blocks[0]
-        : {
-            nTx:rows.length,
-            blockVSize:Math.max(1,totalVsize||1_000_000)
-          };
-
-      const base=W.ZZXMempoolTilesModel.build({
-        cfg,
-        mempool:{
-          count:rows.length,
-          vsize:totalVsize
-        },
-        blocks:[block0],
-        feeRecommendations:null,
-        tipHeight:NaN,
-        txids:rows.map(row=>row?.txid).filter(Boolean),
-        recent:rows,
-        fullFeed:null,
-        fullFeedSource:"",
-        priceUsd:NaN,
-        priceSource:"",
-        source:snapshot?.url||cfg.apiBase||"WebSocket",
-        fetchedAt:Number(snapshot?.updatedAt)||Date.now()
-      });
-
-      return W.ZZXMempoolTilesModel.mergeLive(
-        base,
-        snapshot
-      );
-    }
-
-    function applySharedSnapshot(snapshot){
-      const group=snapshot?.groups?.[0];
-      const rows=(group?.items||[])
-        .filter(item=>item?.kind==="tx"&&item?.txid)
-        .map((item,index)=>({
-          txid:item.txid,
-          id:item.txid,
-          vsize:item.vbytes,
-          vbytes:item.vbytes,
-          fee:item.fee,
-          value:item.value,
-          feeRate:item.feeRate,
-          packageFeeRate:item.feeRate,
-          firstSeen:item.firstSeenMs,
-          projectedRank:index,
-          __zzxTilesLive:true
-        }));
-
-      if(!rows.length)return;
-      if(model?.liveActive&&model.candidate.length>=rows.length)return;
-
-      const cfg=W.ZZXMempoolTilesSources.get(
-        runtimeCore,
-        snapshot?.source||""
-      );
-
-      const base=W.ZZXMempoolTilesModel.build({
-        cfg,
-        mempool:snapshot?.summary||{},
-        blocks:Array.isArray(snapshot?.candidateBlocks)?snapshot.candidateBlocks:[],
-        feeRecommendations:null,
-        tipHeight:Number(snapshot?.tipHeight),
-        txids:rows.map(row=>row.txid),
-        recent:rows,
-        fullFeed:null,
-        fullFeedSource:"",
-        priceUsd:Number(snapshot?.priceUsd),
-        priceSource:String(snapshot?.priceSource||"shared mempool state"),
-        source:String(snapshot?.source||"ZZXMempoolVisuals"),
-        fetchedAt:Number(snapshot?.fetchedAt)||Date.now()
-      });
-
-      model=W.ZZXMempoolTilesModel.mergeLive(
-        base,
-        {
-          transactions:rows,
-          blocks:Array.isArray(snapshot?.candidateBlocks)?snapshot.candidateBlocks:[],
-          updatedAt:Number(snapshot?.fetchedAt)||Date.now()
-        }
-      );
-
-      setConnectionState(
-        snapshot?.websocketConnected?"live":"rest",
-        snapshot?.source||"shared mempool visual state"
-      );
-
-      layoutNow(Boolean(layout));
-    }
-
-    async function ensureSharedFallback(){
-      if(Number(W.ZZXMempoolVisuals?.__version||0)<1){
-        try{
-          const raw="/__partials/widgets/_shared/zzx-mempool-visuals.js";
-          const src=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
-          await new Promise((resolve,reject)=>{
-            const script=D.createElement("script");
-            script.src=`${src}${src.includes("?")?"&":"?"}zzxmod=1`;
-            script.defer=true;
-            script.onload=resolve;
-            script.onerror=reject;
-            (D.head||D.documentElement).appendChild(script);
-          });
-        }catch(_){}
-      }
-
-      if(Number(W.ZZXMempoolVisuals?.__version||0)>=1){
-        sharedUnsubscribe=W.ZZXMempoolVisuals.subscribe(
-          runtimeCore,
-          snapshot=>{
-            if(!destroyed)applySharedSnapshot(snapshot);
-          }
-        );
-      }
-    }
-
-    function startLive(cfg){
-      if(live)return;
-
-      live=new W.ZZXMempoolTilesLive.LiveNextBlock({
-        urls:cfg.websocketUrls,
-        reconnectMaxMs:cfg.liveReconnectMaxMs,
-
-        onState:state=>{
-          setConnectionState(
-            state.state,
-            state.url||state.detail||""
-          );
-        },
-
-        onUpdate:snapshot=>{
-          if(destroyed)return;
-
-          liveSnapshot=snapshot;
-
-          model=model
-            ? W.ZZXMempoolTilesModel.mergeLive(model,snapshot)
-            : seedFromLive(snapshot,cfg);
-
-          layoutNow(Boolean(layout));
-
-          W.clearTimeout(hydrateTimer);
-          hydrateTimer=W.setTimeout(
-            hydrate,
-            cfg.liveDebounceMs
-          );
-        }
-      });
-
-      if(!live.start()){
-        setConnectionState(
-          "rest",
-          "WebSocket unavailable; using REST"
-        );
-      }
+    function consumeLive(snapshot){
+      liveSnapshot=snapshot;
+      if(paused){pendingLiveSnapshot=snapshot;return}
+      model=W.ZZXMempoolTilesModel.mergeLive(model,snapshot);
+      layoutNow(true);
+      W.clearTimeout(hydrateTimer);
+      hydrateTimer=W.setTimeout(hydrate,sourceConfig().liveDebounceMs);
     }
 
     async function refresh(force=false){
+      if(paused&&!force)return;
       aborter?.abort();
       aborter=new AbortController();
 
       try{
-        const payload=await W.ZZXMempoolTilesProvider.load(
-          runtimeCore,
-          {
-            signal:aborter.signal,
-            force
-          }
-        );
-
+        const payload=await W.ZZXMempoolTilesProvider.load(runtimeCore,{signal:aborter.signal,force});
         if(destroyed)return;
-
-        const fresh=
-          W.ZZXMempoolTilesModel.build(payload);
-
-        /*
-         * v1 rebuilt from REST every ten seconds and accidentally discarded the
-         * live transaction objects while keeping only their ids. The field would
-         * collapse to a few recent transactions until the next websocket delta.
-         */
-        model=
-          liveSnapshot?.transactions?.length
-            ? W.ZZXMempoolTilesModel.mergeLive(
-                fresh,
-                liveSnapshot
-              )
-            : fresh;
-
+        const fresh=W.ZZXMempoolTilesModel.build(payload);
+        model=liveSnapshot?.transactions?.length
+          ? W.ZZXMempoolTilesModel.mergeLive(fresh,liveSnapshot)
+          : fresh;
         layoutNow(Boolean(layout));
 
-        startLive(payload.cfg);
+        if(!live){
+          live=new W.ZZXMempoolTilesLive.LiveNextBlock({
+            urls:payload.cfg.websocketUrls,
+            reconnectMaxMs:payload.cfg.liveReconnectMaxMs,
+            onState:state=>setConnectionState(state.state,state.url||state.detail||""),
+            onUpdate:snapshot=>{if(!destroyed)consumeLive(snapshot)}
+          });
+          if(!live.start())setConnectionState("rest","WebSocket unavailable; using REST hydration");
+        }
 
         W.clearTimeout(hydrateTimer);
         hydrateTimer=W.setTimeout(hydrate,180);
       }catch(error){
         if(error?.name==="AbortError")return;
-
-        const message=String(error?.message||error);
-
-        if(model?.candidate?.length){
-          if(lastConnectionState!=="live"){
-            setConnectionState("reconnecting",message);
-          }
-          sub.textContent=`live/shared transaction field retained · REST refresh failed: ${message}`;
-          renderStats();
-        }else{
-          setConnectionState("reconnecting",message);
-          summary.textContent="Connecting to projected next-block feed…";
-          sub.textContent="REST unavailable; WebSocket/shared fallback still active";
-        }
+        setConnectionState("offline",String(error?.message||error));
+        summary.textContent=layout?summary.textContent:"Mempool Tiles unavailable";
+        sub.textContent=layout?`${sub.textContent} · stale data retained`:String(error?.message||error);
       }
     }
 
@@ -870,128 +531,219 @@
         storageSet("zzx.mempoolTiles.scale",scaleMode);
         setActive();
         layoutNow(true);
-      });
+      },listenerOptions);
     });
 
-    root.querySelectorAll("[data-mt-color]").forEach(button=>{
-      button.addEventListener("click",()=>{
-        colorMode=button.dataset.mtColor;
-        storageSet("zzx.mempoolTiles.color",colorMode);
-        setActive();
-        redraw();
-        renderStats();
-      });
-    });
+    root.querySelector("[data-mt-color]")?.addEventListener("change",event=>{
+      colorMode=COLOR_MODES.has(event.target.value)?event.target.value:"fee-vbytes";
+      storageSet("zzx.mempoolTiles.color",colorMode);
+      redraw();
+      renderStats();
+    },listenerOptions);
 
     root.querySelector("[data-mt-sort]")?.addEventListener("change",event=>{
-      sortMode=event.target.value;
-
+      sortMode=SORT_MODES.has(event.target.value)?event.target.value:"priority";
       if(sortMode==="shuffle"){
         shuffleSeed=Date.now();
         storageSet("zzx.mempoolTiles.shuffleSeed",shuffleSeed);
       }
-
       storageSet("zzx.mempoolTiles.sort",sortMode);
       layoutNow(true);
-    });
+    },listenerOptions);
+
+    root.querySelector("[data-mt-theme-select]")?.addEventListener("change",event=>{
+      themeId=event.target.value;
+      storageSet("zzx.mempoolTiles.theme",themeId);
+      applyTheme();
+      redraw();
+      renderStats();
+    },listenerOptions);
 
     canvas.addEventListener("pointermove",event=>{
-      const tile=pointerTile(event);
-      const next=tile?.txid||"";
-
-      showTooltip(event,tile);
-
-      if(next!==hoverTxid){
-        hoverTxid=next;
-        canvas.style.cursor=next?"pointer":"default";
-        redraw();
-      }
-    });
+      if(pointerFrame)W.cancelAnimationFrame(pointerFrame);
+      pointerFrame=W.requestAnimationFrame(()=>{
+        pointerFrame=0;
+        const tile=pointerTile(event);
+        const next=tile?.txid||"";
+        showTooltip(event,tile);
+        if(next!==hoverTxid){
+          hoverTxid=next;
+          canvas.style.cursor=next?"pointer":"default";
+          redraw();
+        }
+      });
+    },listenerOptions);
 
     canvas.addEventListener("pointerleave",()=>{
       if(tooltip)tooltip.hidden=true;
-      if(!hoverTxid)return;
       hoverTxid="";
       canvas.style.cursor="default";
       redraw();
-    });
+    },listenerOptions);
 
     canvas.addEventListener("click",event=>{
       const tile=pointerTile(event);
       if(tile?.txid)inspect(tile.txid);
-    });
+    },listenerOptions);
 
     stage.addEventListener("keydown",event=>{
-      if(!layout?.tiles?.length)return;
-
-      if(event.key==="Enter"&&hoverTxid){
-        event.preventDefault();
-        inspect(hoverTxid);
-        return;
-      }
-
-      if(!["ArrowRight","ArrowLeft","ArrowDown","ArrowUp"].includes(event.key)){
-        return;
-      }
-
+      const tiles=(layout?.tiles||[]).filter(tile=>!tile.__fragment).sort((a,b)=>a.__sortIndex-b.__sortIndex);
+      if(!tiles.length)return;
+      if(event.key==="Enter"&&hoverTxid){event.preventDefault();inspect(hoverTxid);return}
+      if(!["ArrowRight","ArrowLeft","ArrowDown","ArrowUp"].includes(event.key))return;
       event.preventDefault();
-
-      let index=layout.tiles.findIndex(tile=>tile.txid===hoverTxid);
+      let index=tiles.findIndex(tile=>tile.txid===hoverTxid);
       if(index<0)index=0;
-
-      if(event.key==="ArrowRight"||event.key==="ArrowDown"){
-        index=(index+1)%layout.tiles.length;
-      }else{
-        index=(index-1+layout.tiles.length)%layout.tiles.length;
-      }
-
-      hoverTxid=layout.tiles[index].txid;
+      index=(event.key==="ArrowRight"||event.key==="ArrowDown")
+        ?(index+1)%tiles.length:(index-1+tiles.length)%tiles.length;
+      hoverTxid=tiles[index].txid;
       redraw();
-    });
+    },listenerOptions);
+
+    root.querySelector("[data-mt-pause]")?.addEventListener("click",event=>{
+      paused=!paused;
+      event.currentTarget.textContent=paused?"Resume":"Pause";
+      event.currentTarget.setAttribute("aria-pressed",String(paused));
+      setConnectionState(paused?"paused":liveSnapshot?"live":"rest",paused?"visual updates paused by user":"visual updates resumed");
+      if(!paused&&pendingLiveSnapshot){
+        const snapshot=pendingLiveSnapshot;
+        pendingLiveSnapshot=null;
+        consumeLive(snapshot);
+      }
+    },listenerOptions);
 
     root.querySelector("[data-mt-refresh]")?.addEventListener("click",async()=>{
+      paused=false;
+      const pause=root.querySelector("[data-mt-pause]");
+      if(pause){pause.textContent="Pause";pause.setAttribute("aria-pressed","false")}
       live?.stop();
       live=null;
       liveSnapshot=null;
+      pendingLiveSnapshot=null;
       fallbackCursor=0;
       hydrateCount=0;
       setConnectionState("connecting","manual reconnect");
-      startLive(W.ZZXMempoolTilesSources.get(runtimeCore));
       await refresh(true);
-    });
+    },listenerOptions);
+
+    root.querySelector("[data-mt-fullscreen]")?.addEventListener("click",async()=>{
+      try{
+        if(D.fullscreenElement)await D.exitFullscreen();
+        else await stage.requestFullscreen();
+      }catch(_){}
+    },listenerOptions);
+
+    root.querySelector("[data-mt-open-form]")?.addEventListener("submit",event=>{
+      event.preventDefault();
+      const input=root.querySelector("[data-mt-open-txid]");
+      const error=root.querySelector("[data-mt-open-error]");
+      const txid=String(input?.value||"").trim().toLowerCase();
+      if(!W.ZZXMempoolTilesReaderStore.valid(txid)){
+        if(error)error.textContent="Enter one 64-character hexadecimal Bitcoin transaction ID.";
+        return;
+      }
+      if(error)error.textContent="";
+      if(input)input.value="";
+      inspect(txid);
+    },listenerOptions);
+
+    root.querySelector("[data-mt-reader-list]")?.addEventListener("click",async event=>{
+      const remove=event.target.closest("[data-mt-reader-remove]");
+      if(remove){
+        event.stopPropagation();
+        const txid=remove.dataset.mtReaderRemove;
+        await W.ZZXMempoolTilesReaderStore.remove(txid);
+        if(selectedTxid===txid){selectedTxid="";W.ZZXMempoolTilesInspector.clear(root);redraw()}
+        await refreshReaders();
+        return;
+      }
+      const chip=event.target.closest("[data-mt-reader-open]");
+      if(chip)await openStored(chip.dataset.mtReaderOpen);
+    },listenerOptions);
+
+    root.querySelector("[data-mt-reader-list]")?.addEventListener("keydown",event=>{
+      if((event.key==="Enter"||event.key===" ")&&event.target.matches("[data-mt-reader-open]")){
+        event.preventDefault();
+        openStored(event.target.dataset.mtReaderOpen);
+      }
+    },listenerOptions);
 
     root.querySelector("[data-mt-inspector-close]")?.addEventListener("click",()=>{
+      readGeneration++;
       selectedTxid="";
       W.ZZXMempoolTilesInspector.clear(root);
       redraw();
-    });
+      refreshReaders();
+    },listenerOptions);
 
-    const resize=new ResizeObserver(()=>redraw());
-    resize.observe(stage);
+    root.querySelector("[data-mt-refresh-reader]")?.addEventListener("click",()=>{
+      if(selectedTxid)inspect(selectedTxid,{force:true});
+    },listenerOptions);
 
+    root.querySelector("[data-mt-unpin-reader]")?.addEventListener("click",async()=>{
+      if(!selectedTxid)return;
+      await W.ZZXMempoolTilesReaderStore.remove(selectedTxid);
+      selectedTxid="";
+      W.ZZXMempoolTilesInspector.clear(root);
+      redraw();
+      await refreshReaders();
+    },listenerOptions);
+
+    root.querySelector("[data-mt-copy-txid]")?.addEventListener("click",async event=>{
+      if(!selectedTxid)return;
+      try{
+        await navigator.clipboard.writeText(selectedTxid);
+        event.currentTarget.textContent="Copied";
+        W.setTimeout(()=>{if(event.currentTarget)event.currentTarget.textContent="Copy TXID"},1200);
+      }catch(_){}
+    },listenerOptions);
+
+    root.querySelector("[data-mt-export-readers]")?.addEventListener("click",async()=>{
+      const data=await W.ZZXMempoolTilesReaderStore.exportAll();
+      downloadJSON(`mempool-tiles-readers-${new Date().toISOString().replace(/[:.]/g,"-")}.json`,data);
+    },listenerOptions);
+
+    root.querySelector("[data-mt-clear-readers]")?.addEventListener("click",async()=>{
+      if(typeof W.confirm==="function"&&!W.confirm("Clear every locally persisted Mempool Tiles transaction reader?"))return;
+      await W.ZZXMempoolTilesReaderStore.clear();
+      selectedTxid="";
+      W.ZZXMempoolTilesInspector.clear(root);
+      redraw();
+      await refreshReaders();
+    },listenerOptions);
+
+    let resize=null;
+    if("ResizeObserver" in W){
+      resize=new ResizeObserver(()=>redraw());
+      resize.observe(stage);
+    }else{
+      W.addEventListener("resize",redraw,listenerOptions);
+    }
+
+    populateThemes();
+    applyTheme();
     setActive();
-    setConnectionState("connecting","initializing next-block feed");
+    setConnectionState("connecting","initializing projected next-block feed");
 
-    const initialCfg=W.ZZXMempoolTilesSources.get(runtimeCore);
-    startLive(initialCfg);
-    ensureSharedFallback().catch(()=>{});
+    const records=await refreshReaders();
+    const lastId=W.ZZXMempoolTilesReaderStore.last();
+    if(lastId&&records.some(record=>record.txid===lastId))await openStored(lastId);
 
     await refresh(true);
-
-    const interval=W.setInterval(
-      ()=>refresh(false),
-      10000
-    );
+    const interval=W.setInterval(()=>refresh(false),10000);
 
     root.__mempoolTilesDestroy=()=>{
       destroyed=true;
+      readGeneration++;
       W.clearInterval(interval);
       W.clearTimeout(hydrateTimer);
+      if(pointerFrame)W.cancelAnimationFrame(pointerFrame);
       animationCancel?.();
       aborter?.abort();
       live?.stop();
-      sharedUnsubscribe?.();
-      resize.disconnect();
+      resize?.disconnect?.();
+      listenerAbort?.abort();
+      root.__mempoolTilesMounted=false;
     };
   }
 
@@ -1001,50 +753,26 @@
       await mount(root,mountedCore);
     }catch(error){
       console.error("[mempool-tiles]",error);
-
-      if(root){
-        const summary=root.querySelector("[data-mt-summary]");
-        const status=root.querySelector("[data-mt-status]");
-        const live=root.querySelector("[data-mt-live-state]");
-
-        if(summary){
-          summary.textContent="Mempool Tiles failed to initialize";
-        }
-
-        if(status){
-          status.textContent="error";
-          status.setAttribute("data-status","error");
-          status.title=String(error?.message||error);
-        }
-
-        if(live){
-          live.textContent="error";
-          live.title=String(error?.message||error);
-        }
+      const summary=root?.querySelector?.("[data-mt-summary]");
+      const status=root?.querySelector?.("[data-mt-status]");
+      if(summary)summary.textContent="Mempool Tiles failed to initialize";
+      if(status){
+        status.textContent="error";
+        status.setAttribute("data-status","error");
+        status.title=String(error?.message||error);
       }
+      throw error;
     }
   }
 
   function fallbackBoot(){
-    const run=()=>{
-      D.querySelectorAll('[data-widget-root="mempool-tiles"]')
-        .forEach(root=>bootRoot(root,core()));
-    };
-
-    if(D.readyState==="loading"){
-      D.addEventListener("DOMContentLoaded",run,{once:true});
-    }else{
-      run();
-    }
+    const run=()=>D.querySelectorAll('[data-widget-root="mempool-tiles"]').forEach(root=>bootRoot(root,core()));
+    if(D.readyState==="loading")D.addEventListener("DOMContentLoaded",run,{once:true});
+    else run();
   }
 
-  if(W.ZZXAPI?.register){
-    W.ZZXAPI.register(ID,bootRoot);
-  }else if(W.ZZXWidgetsCore?.onMount){
-    W.ZZXWidgetsCore.onMount(ID,bootRoot);
-  }else if(W.ZZXWidgets?.register){
-    W.ZZXWidgets.register(ID,bootRoot);
-  }else{
-    fallbackBoot();
-  }
+  if(W.ZZXAPI?.register)W.ZZXAPI.register(ID,bootRoot);
+  else if(W.ZZXWidgetsCore?.onMount)W.ZZXWidgetsCore.onMount(ID,bootRoot);
+  else if(W.ZZXWidgets?.register)W.ZZXWidgets.register(ID,bootRoot);
+  else fallbackBoot();
 })();
