@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolMosaicReaderStore?.__version>=1)return;
+  if(W.ZZXMempoolMosaicReaderStore?.__version>=3)return;
 
   const DB_NAME="zzx-mempool-mosaic-readers";
   const DB_VERSION=1;
@@ -227,7 +227,7 @@
   }
 
   W.ZZXMempoolMosaicReaderStore=Object.freeze({
-    __version:1,
+    __version:3,
     valid,
     tileSnapshot,
     get,
