@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesLive?.__version>=3)return;
+  if(W.ZZXMempoolTilesLive?.__version>=2)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
 
@@ -17,19 +17,7 @@
   }
 
   function normalize(row,index=0){
-    if(!row)return null;
-
-    if(Array.isArray(row)){
-      row={
-        txid:row[0],
-        fee:row[1],
-        vsize:row[2],
-        value:row[3],
-        feeRate:row[4]
-      };
-    }
-
-    if(typeof row!=="object")return null;
+    if(!row||typeof row!=="object"||Array.isArray(row))return null;
 
     const txid=txidOf(row);
     if(!txid)return null;
@@ -454,7 +442,7 @@
   }
 
   W.ZZXMempoolTilesLive=Object.freeze({
-    __version:3,
+    __version:2,
     txidOf,
     normalize,
     normalizeRows,
