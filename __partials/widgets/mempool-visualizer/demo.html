@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ZZX Mempool Visualizer Preview</title>
+  <link rel="stylesheet" href="../_core/widget-core.css">
+  <link rel="stylesheet" href="../../bitcoin-ticker-widget.css">
+  <link rel="stylesheet" href="widget.css">
+  <style>html,body{margin:0;min-height:100%;background:#050505}body{padding:18px}.preview{width:min(1180px,100%);margin:auto}</style>
+</head>
+<body>
+  <main class="preview" id="preview"></main>
+  <script>
+    fetch("widget.html").then(function(response){return response.text()}).then(function(markup){
+      document.getElementById("preview").innerHTML=markup;
+      window.ZZXWidgetsCore={
+        widgetBase:function(){return "."},
+        onMount:function(id,fn){if(id==="mempool-visualizer")fn(document.querySelector('[data-widget-root="mempool-visualizer"]'),this)},
+        ctx:{api:{MEMPOOL:"https://mempool.space/api"}}
+      };
+      var script=document.createElement("script");script.src="widget.js";document.body.appendChild(script);
+    });
+  </script>
+</body>
+</html>

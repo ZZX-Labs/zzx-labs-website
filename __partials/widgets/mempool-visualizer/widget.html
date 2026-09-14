@@ -1,0 +1,106 @@
+<!-- __partials/widgets/mempool-visualizer/widget.html · v1.0.0 -->
+<article class="btc-card mempool-visualizer" data-widget-root="mempool-visualizer" data-mv-theme="zzx-tranquil">
+  <header class="mv-header">
+    <div class="mv-brand">
+      <span class="mv-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div>
+        <div class="btc-card__title">Mempool Visualizer</div>
+        <p>ZZX-Labs blockspace physics engine · live transaction / fee / amount field</p>
+      </div>
+    </div>
+    <div class="mv-header__right">
+      <span class="mv-connection" data-mv-connection data-state="loading" aria-live="polite">INITIALIZING</span>
+      <button class="mv-icon-btn" type="button" data-mv-pause aria-pressed="false" title="Pause motion">PAUSE</button>
+      <button class="mv-icon-btn" type="button" data-mv-fullscreen aria-pressed="false" title="Fullscreen visualizer">EXPAND</button>
+      <button class="mv-icon-btn" type="button" data-mv-settings aria-expanded="false" aria-controls="mv-settings-panel">TUNE</button>
+    </div>
+  </header>
+
+  <section class="mv-telemetry" aria-label="Live mempool telemetry">
+    <div><span>TX FIELD</span><strong data-mv-stat="shown">—</strong><small data-mv-stat="total">— total</small></div>
+    <div><span>MEMPOOL</span><strong data-mv-stat="vsize">—</strong><small data-mv-stat="usage">— memory</small></div>
+    <div><span>MEDIAN FEE</span><strong data-mv-stat="medianFee">—</strong><small data-mv-stat="feeRange">— range</small></div>
+    <div><span>VALUE SEEN</span><strong data-mv-stat="value">—</strong><small data-mv-stat="fees">— fees</small></div>
+    <div><span>NEXT BLOCK</span><strong data-mv-stat="block">—</strong><small data-mv-stat="fill">— projected</small></div>
+    <div><span>TRANQUILITY</span><strong data-mv-stat="tranquility">—</strong><small data-mv-stat="motion">— physics</small></div>
+  </section>
+
+  <nav class="mv-presets" aria-label="Visualizer presets">
+    <label class="mv-select-label"><span>SCENARIO</span>
+      <select data-mv-preset aria-label="Scenario preset"></select>
+    </label>
+    <div class="mv-macros" data-mv-macros role="group" aria-label="Quick macros"></div>
+    <button class="mv-icon-btn mv-refresh" type="button" data-mv-refresh title="Refresh data">SYNC</button>
+  </nav>
+
+  <section class="mv-stage" data-mv-stage tabindex="0" aria-label="Interactive mempool transaction field. Move the pointer to bend the field; select a square to inspect its transaction.">
+    <canvas data-mv-canvas role="img" aria-label="Live Bitcoin mempool transactions represented exclusively by squares"></canvas>
+    <div class="mv-stage__wash" aria-hidden="true"></div>
+    <div class="mv-stage__axis mv-stage__axis--x" aria-hidden="true"><span>LOW FEE</span><span>PRIORITY</span><span>HIGH FEE</span></div>
+    <div class="mv-stage__axis mv-stage__axis--y" aria-hidden="true"><span>LARGE VALUE</span><span>DUST</span></div>
+    <div class="mv-stage__badge" data-mv-field-label>ZEN GARDEN · FEE HEAT × BTC AMOUNT</div>
+    <div class="mv-stage__hint" data-mv-hint>MOVE TO BEND THE FIELD · CLICK A SQUARE TO PIN ITS TX</div>
+    <div class="mv-tooltip" data-mv-tooltip hidden></div>
+    <div class="mv-empty" data-mv-empty hidden>
+      <strong>WAITING FOR BLOCKSPACE</strong>
+      <span data-mv-empty-detail>The live feed is reconnecting. A deterministic local demonstration can be enabled from Tune.</span>
+    </div>
+  </section>
+
+  <div class="mv-legend" data-mv-legend aria-label="Current color scale"></div>
+
+  <section class="mv-settings" id="mv-settings-panel" data-mv-settings-panel hidden>
+    <div class="mv-settings__grid">
+      <label><span>THEME</span><select data-mv-control="theme"></select></label>
+      <label><span>PHYSICS</span><select data-mv-control="physics"></select></label>
+      <label><span>SQUARE AREA</span><select data-mv-control="scale"></select></label>
+      <label><span>SQUARE COLOR</span><select data-mv-control="color"></select></label>
+      <label><span>TOPOLOGY</span><select data-mv-control="topology"></select></label>
+      <label><span>TX BUDGET</span><select data-mv-control="budget"></select></label>
+      <label><span>FRAME CAP</span><select data-mv-control="fps"></select></label>
+      <label><span>FIELD FORCE <b data-mv-output="force">40%</b></span><input type="range" min="0" max="100" step="1" data-mv-control="force"></label>
+      <label><span>DAMPING <b data-mv-output="damping">82%</b></span><input type="range" min="40" max="98" step="1" data-mv-control="damping"></label>
+      <label><span>TRAILS <b data-mv-output="trails">22%</b></span><input type="range" min="0" max="85" step="1" data-mv-control="trails"></label>
+      <label><span>GLOW <b data-mv-output="glow">36%</b></span><input type="range" min="0" max="100" step="1" data-mv-control="glow"></label>
+      <label><span>GAP <b data-mv-output="gap">0.5px</b></span><input type="range" min="0" max="2" step="0.25" data-mv-control="gap"></label>
+    </div>
+    <div class="mv-switches">
+      <label><input type="checkbox" data-mv-control="cursorGravity" checked><span>POINTER GRAVITY</span></label>
+      <label><input type="checkbox" data-mv-control="labels"><span>LARGE-TX LABELS</span></label>
+      <label><input type="checkbox" data-mv-control="reducedMotion"><span>REDUCED MOTION</span></label>
+      <label><input type="checkbox" data-mv-control="demoFallback" checked><span>OFFLINE DEMO FALLBACK</span></label>
+    </div>
+    <div class="mv-command">
+      <label for="mv-command-input">MACRO CONSOLE</label>
+      <input id="mv-command-input" type="text" data-mv-command spellcheck="false" autocomplete="off" placeholder="theme:aurora physics:tide scale:amount color:fee force:35">
+      <button class="mv-icon-btn" type="button" data-mv-command-run>RUN</button>
+      <button class="mv-icon-btn" type="button" data-mv-copy-macro>COPY</button>
+    </div>
+    <div class="mv-settings__actions">
+      <button class="mv-icon-btn" type="button" data-mv-export>EXPORT SETTINGS</button>
+      <label class="mv-icon-btn mv-import">IMPORT SETTINGS<input type="file" accept="application/json,.json" data-mv-import hidden></label>
+      <button class="mv-icon-btn" type="button" data-mv-reset>RESET</button>
+    </div>
+    <p class="mv-settings__note">The renderer sleeps off-screen, respects page visibility and reduced-motion preferences, and shares the site-wide mempool transport instead of opening redundant polling loops.</p>
+  </section>
+
+  <section class="mv-reader" data-mv-reader hidden aria-live="polite">
+    <header>
+      <div><span>PINNED TRANSACTION READER</span><strong data-mv-reader-title>—</strong></div>
+      <div class="mv-reader__actions">
+        <button class="mv-icon-btn" type="button" data-mv-reader-copy>COPY TXID</button>
+        <a class="mv-icon-btn" data-mv-reader-open target="_blank" rel="noopener noreferrer">EXPLORER</a>
+        <button class="mv-icon-btn" type="button" data-mv-reader-close>CLOSE</button>
+      </div>
+    </header>
+    <div class="mv-reader__metrics" data-mv-reader-metrics></div>
+    <div class="mv-reader__detail" data-mv-reader-detail></div>
+    <div class="mv-pins" data-mv-pins aria-label="Persisted transaction readers"></div>
+  </section>
+
+  <footer class="mv-footer">
+    <span data-mv-source>DATA SOURCE · CONNECTING</span>
+    <span>EVERY TX HAS A SQUARE · GAPLESS BASE ATLAS · PHYSICS OVERLAY</span>
+    <span data-mv-updated>NOT YET UPDATED</span>
+  </footer>
+</article>
