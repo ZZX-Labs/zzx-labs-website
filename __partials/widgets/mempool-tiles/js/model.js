@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolTilesModel?.__version>=3)return;
+  if(W.ZZXMempoolTilesModel?.__version>=2)return;
 
   const SATS=100_000_000;
   const BLOCK_VBYTES=1_000_000;
@@ -383,15 +383,6 @@
       tx=>Number.isFinite(tx.valueSats)
     ).length;
 
-    const candidateFees=candidate.reduce(
-      (sum,tx)=>sum+(Number.isFinite(tx.feeSats)?tx.feeSats:0),
-      0
-    );
-
-    const knownFees=candidate.filter(
-      tx=>Number.isFinite(tx.feeSats)
-    ).length;
-
     const resolvedMempoolVsize=transactions.reduce(
       (sum,tx)=>
         sum+
@@ -414,11 +405,6 @@
       candidateValueCoverage:
         candidate.length
           ? knownValues/candidate.length
-          : 0,
-      candidateFees,
-      candidateFeeCoverage:
-        candidate.length
-          ? knownFees/candidate.length
           : 0,
 
       resolvedMempoolVsize,
@@ -472,7 +458,7 @@
     );
 
     return rebuild({
-      schema:"zzx-mempool-tiles-v3",
+      schema:"zzx-mempool-tiles-v2",
       transactions:txs,
       byTxid:new Map(),
       knownTxids:payload.txids||[],
@@ -642,7 +628,7 @@
   }
 
   W.ZZXMempoolTilesModel=Object.freeze({
-    __version:3,
+    __version:2,
     SATS,
     BLOCK_VBYTES,
     normalizeTx,
