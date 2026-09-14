@@ -383,15 +383,6 @@
       tx=>Number.isFinite(tx.valueSats)
     ).length;
 
-    const candidateFees=candidate.reduce(
-      (sum,tx)=>sum+(Number.isFinite(tx.feeSats)?tx.feeSats:0),
-      0
-    );
-
-    const knownFees=candidate.filter(
-      tx=>Number.isFinite(tx.feeSats)
-    ).length;
-
     const resolvedMempoolVsize=transactions.reduce(
       (sum,tx)=>
         sum+
@@ -414,11 +405,6 @@
       candidateValueCoverage:
         candidate.length
           ? knownValues/candidate.length
-          : 0,
-      candidateFees,
-      candidateFeeCoverage:
-        candidate.length
-          ? knownFees/candidate.length
           : 0,
 
       resolvedMempoolVsize,
@@ -472,7 +458,7 @@
     );
 
     return rebuild({
-      schema:"zzx-mempool-mosaic-v3",
+      schema:"zzx-mempool-mosaic-model-v3",
       transactions:txs,
       byTxid:new Map(),
       knownTxids:payload.txids||[],
