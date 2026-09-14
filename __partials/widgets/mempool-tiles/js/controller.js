@@ -10,9 +10,9 @@
   W.__ZZX_MEMPOOL_TILES_WIDGET_V16__=true;
 
   const MODULES=[
-    ["ZZXMempoolTilesSources","js/sources.js",3],
-    ["ZZXMempoolTilesFetch","js/fetch.js",1],
-    ["ZZXMempoolTilesProvider","js/provider.js",2],
+    ["ZZXMempoolTilesSources","js/sources.js",4],
+    ["ZZXMempoolTilesFetch","js/fetch.js",2],
+    ["ZZXMempoolTilesProvider","js/provider.js",3],
     ["ZZXMempoolTilesLive","js/live.js",3],
     ["ZZXMempoolTilesAnalyzer","js/analyzer.js",1],
     ["ZZXMempoolTilesModel","js/model.js",2],
@@ -23,7 +23,8 @@
     ["ZZXMempoolTilesRenderer","js/renderer.js",3],
     ["ZZXMempoolTilesAnimation","js/animation.js",1],
     ["ZZXMempoolTilesTxFetcher","js/txfetcher.js",2],
-    ["ZZXMempoolTilesInspector","js/inspector.js",1]
+    ["ZZXMempoolTilesInspector","js/inspector.js",1],
+    ["ZZXMempoolTilesReaderStore","js/reader-store.js",1]
   ];
 
   function getPath(path){
@@ -500,7 +501,11 @@
       selectedTxid=txid;
       redraw();
 
-      W.ZZXMempoolTilesInspector.loading(root,txid);
+      const tile=layout?.byTxid?.get(txid)||model?.candidate?.find(row=>row.txid===txid)||null;
+      const cached=await W.ZZXMempoolTilesReaderStore.get(txid).catch(()=>null);
+      if(cached?.analysis)W.ZZXMempoolTilesInspector.render(root,cached.analysis);
+      else W.ZZXMempoolTilesInspector.loading(root,txid);
+      await W.ZZXMempoolTilesReaderStore.pin(txid,tile,64).catch(()=>{});
 
       try{
         const analysis=await W.ZZXMempoolTilesTxFetcher.full(
@@ -514,6 +519,7 @@
 
         if(destroyed||selectedTxid!==txid)return;
 
+        await W.ZZXMempoolTilesReaderStore.save(analysis,tile,64).catch(()=>{});
         W.ZZXMempoolTilesInspector.render(root,analysis);
 
         model=W.ZZXMempoolTilesModel.mergeDetails(
@@ -523,6 +529,7 @@
 
         layoutNow(true);
       }catch(error){
+        await W.ZZXMempoolTilesReaderStore.fail(txid,error,64).catch(()=>{});
         if(destroyed||selectedTxid!==txid)return;
 
         const body=root.querySelector("[data-mt-kv-grid]");
