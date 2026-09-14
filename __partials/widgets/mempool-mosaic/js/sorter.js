@@ -1,81 +1,33 @@
-// __partials/widgets/mempool-mosaic/js/sorter.js
 (function(){
   "use strict";
-
   const W=window;
-  if(W.ZZXMempoolMosaicSorter?.__version>=3)return;
+  if(W.ZZXMempoolMosaicSorter?.__version>=2)return;
 
-  function finite(value,fallback=-Infinity){
-    const n=Number(value);
-    return Number.isFinite(n)?n:fallback;
+  const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
+  function hash(text,seed=0){let h=(2166136261^(seed>>>0))>>>0;for(const c of String(text||"")){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}
+  function value(row){return finite(row?.valueSats)}
+  function rate(row){return finite(row?.packageFeeRate??row?.feeRate)}
+  function vsize(row){return finite(row?.vsize??row?.vbytes)}
+  function age(row){return finite(row?.timeMs)}
+  function metricWeight(row){
+    const sats=value(row);if(Number.isFinite(sats)&&sats>=0)return Math.max(1,Math.sqrt(sats+1));
+    const vb=vsize(row);return Math.max(1,Math.sqrt((Number.isFinite(vb)?vb:1)*1000));
   }
-
-  function hash32(text,seed=0){
-    let h=(seed>>>0)^0x9e3779b9;
-    const s=String(text||"");
-
-    for(let i=0;i<s.length;i++){
-      h=Math.imul(h^s.charCodeAt(i),0x01000193);
-      h^=h>>>13;
+  function compareNumber(a,b,dir=-1){const aa=Number.isFinite(a)?a:(dir<0?-Infinity:Infinity),bb=Number.isFinite(b)?b:(dir<0?-Infinity:Infinity);return dir*(aa-bb)}
+  function sort(rows,mode="mosaic",seed=0){
+    const list=(rows||[]).slice();
+    const byHash=(a,b)=>hash(a.txid,seed)-hash(b.txid,seed)||String(a.txid).localeCompare(String(b.txid));
+    if(mode==="fee")list.sort((a,b)=>compareNumber(rate(a),rate(b),-1)||compareNumber(value(a),value(b),-1)||byHash(a,b));
+    else if(mode==="value")list.sort((a,b)=>compareNumber(value(a),value(b),-1)||compareNumber(rate(a),rate(b),-1)||byHash(a,b));
+    else if(mode==="vsize")list.sort((a,b)=>compareNumber(vsize(a),vsize(b),-1)||compareNumber(rate(a),rate(b),-1)||byHash(a,b));
+    else if(mode==="age")list.sort((a,b)=>compareNumber(age(a),age(b),1)||compareNumber(rate(a),rate(b),-1)||byHash(a,b));
+    else if(mode==="shuffle")list.sort(byHash);
+    else{
+      const finiteRates=list.map(rate).filter(Number.isFinite).sort((a,b)=>a-b);const q=i=>finiteRates.length?finiteRates[Math.min(finiteRates.length-1,Math.floor((finiteRates.length-1)*i))]:0;const cuts=[q(.2),q(.4),q(.6),q(.8)];
+      const band=r=>{const x=rate(r);if(!Number.isFinite(x))return 0;let b=0;while(b<cuts.length&&x>cuts[b])b++;return b};
+      list.sort((a,b)=>band(b)-band(a)||((hash(a.txid,seed)%7)-(hash(b.txid,seed)%7))||compareNumber(value(a),value(b),-1)||byHash(a,b));
     }
-
-    return h>>>0;
+    return list;
   }
-
-  function sort(items,mode="priority",seed=0){
-    const rows=(Array.isArray(items)?items:[]).slice();
-
-    const comparator=(a,b)=>{
-      if(mode==="fee"){
-        return finite(b.packageFeeRate??b.feeRate)-finite(a.packageFeeRate??a.feeRate);
-      }
-
-      if(mode==="size"){
-        return finite(b.vsize)-finite(a.vsize);
-      }
-
-      if(mode==="value"){
-        return finite(b.valueSats)-finite(a.valueSats);
-      }
-
-      if(mode==="age"){
-        return finite(a.firstSeen,Infinity)-finite(b.firstSeen,Infinity);
-      }
-
-      if(mode==="rbf"){
-        const ar=a.rbf?1:0;
-        const br=b.rbf?1:0;
-        if(br!==ar)return br-ar;
-      }
-
-      if(mode==="type"){
-        const at=String(a.type||"");
-        const bt=String(b.type||"");
-        const c=at.localeCompare(bt);
-        if(c)return c;
-      }
-
-      if(mode==="shuffle"){
-        return hash32(a.txid,seed)-hash32(b.txid,seed);
-      }
-
-      const ar=finite(a.rank,Number.MAX_SAFE_INTEGER);
-      const br=finite(b.rank,Number.MAX_SAFE_INTEGER);
-      if(ar!==br)return ar-br;
-
-      const af=finite(a.packageFeeRate??a.feeRate);
-      const bf=finite(b.packageFeeRate??b.feeRate);
-      if(bf!==af)return bf-af;
-
-      return String(a.txid).localeCompare(String(b.txid));
-    };
-
-    return rows.sort(comparator);
-  }
-
-  W.ZZXMempoolMosaicSorter=Object.freeze({
-    __version:3,
-    hash32,
-    sort
-  });
+  W.ZZXMempoolMosaicSorter=Object.freeze({__version:2,hash,metricWeight,sort,modes:Object.freeze(["mosaic","fee","value","vsize","age","shuffle"])});
 })();
