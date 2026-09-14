@@ -1,0 +1,32 @@
+{
+  "id": "mempool-mosaic",
+  "name": "Mempool Mosaic",
+  "version": "3.0.0",
+  "runtime": {
+    "html": "widget.html",
+    "css": "widget.css",
+    "js": "widget.js"
+  },
+  "source": "js/",
+  "build": "python build.py",
+  "test": "node tests/layout-selftest.js && node tests/model-selftest.js && node tests/reader-store-selftest.js",
+  "network": {
+    "primary": "configured mempool API / WebSocket",
+    "fallback": "https://mempool.space/api",
+    "websocket": "wss://mempool.space/api/v1/ws"
+  },
+  "features": [
+    "3x3-dominant recursive exact-cover square mosaic",
+    "100% square-only transaction field with no gutters or rectangular transaction cells",
+    "minimum linked fragments only for nonconstructible transaction counts",
+    "BTC output amount, vsize, or fee-rate square-area modes",
+    "fee x vB, fee-only, and transaction-type color modes",
+    "stable fee/priority mosaic neighborhoods",
+    "projected next-block WebSocket membership",
+    "REST hydration and full-feed fallback",
+    "IndexedDB persistent transaction-reader archive",
+    "reader restore, history, JSON export, and explicit clear controls",
+    "32 built-in ZZX/0xdeadbeef themes",
+    "single bundled production JavaScript asset"
+  ]
+}
