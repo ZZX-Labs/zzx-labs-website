@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-14T17:03:45.120007Z",
+  "generated_at": "2026-09-14T21:05:34.274589Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "51ddab532cb38213e2258c24c492bc8a392ffc90",
+      "node_id": "C_kwDOABII59oAKDUxZGRhYjUzMmNiMzgyMTNlMjI1OGMyNGM0OTJiYzhhMzkyZmZjOTA",
+      "commit": {
+        "author": {
+          "name": "Ryan Ofsky",
+          "email": "ryan@ofsky.org",
+          "date": "2026-09-14T19:21:02Z"
+        },
+        "committer": {
+          "name": "Ryan Ofsky",
+          "email": "ryan@ofsky.org",
+          "date": "2026-09-14T20:02:06Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35819: test: add coverage for untested descriptor parse error paths\n\n0b3bb071036ac00649901b7a806e3882b61ddfde test: add coverage for untested descriptor parse error paths (azuchi)\n\nPull request description:\n\n  Looking at the coverage report for master on https://corecheck.dev, a number of error branches in `descriptor.cpp` are never exercised by any test. This PR adds  `CheckUnparsable` vectors for each reachable one, plus one\n    positive boundary check:\n\n  **musig()**\n  - unterminated expression: `tr(musig(00)` \u2192 \"Invalid musig() expression\"\n  - invalid participant key\n  - trailing garbage after a participant key: `tr(musig(KEY}{))` \u2192 \"musig(): expected ',', got '}'\" (the `}` closes the level opened by the `(` of `musig(` and the `{` re-opens it, so the final `)` stays inside the expression span; thanks to @151henry151 for the counterexample showing this branch is reachable)\n  - invalid derivation path element (the `musig(): `-prefixed wrapping of the keypath error; the underlying `ParseKeyPath` errors were already covered via `pkh()`/`wpkh()`)\n  - participants with multipath derivations of mismatched lengths (`/<0;1>` vs `/<0;1;2>`; the `multi()` and Miniscript variants of this error were covered, the `musig()` one was not)\n\n  **Context restrictions**\n  - `multi()` inside `tr()`, `multi_a()` at top level, and `addr()`/`tr()`/`rawtr()`/`raw()` inside `sh()`\n\n  **Taptree structure errors**\n  - exceeding the 128 nesting level limit (129 `{`s, built with `std::string(129, '{')`)\n  - missing `'}'` after a right branch, missing `','` after a left branch, trailing garbage after a script expression and after the internal key\n  - a positive check that a taptree of exactly 128 nesting levels parses and expands successfully, so the limit is verified on both sides (suggested by @Herb-ops)\n\n  **rawtr()**\n  - invalid key. `00` is used (rather than the truncated-valid-key pattern used elsewhere in this file) because in Taproot contexts a 32-byte string would parse as a valid x-only key.\n\n  Since `CheckUnparsable` asserts on the exact error message and each targeted branch produces a distinct one, a passing vector proves the corresponding branch executed.\n\n  Note that replaying the qa-assets `descriptor_parse`/`mocked_descriptor_parse` fuzz corpora already reaches these branches, so the value of these vectors is deterministic coverage in the unit tests with the exact error messages pinned.\n\nACKs for top commit:\n  Herb-ops:\n    ACK 0b3bb071036ac00649901b7a806e3882b61ddfde\n  151henry151:\n    re-ACK 0b3bb071036ac00649901b7a806e3882b61ddfde\n  ryanofsky:\n    Code review ACK 0b3bb071036ac00649901b7a806e3882b61ddfde. Seems good to add these cases since there are no checks for these error messages. It also seems like it could be good to fix the inconsistent \"tr: expected\" message this exposed in a followup.\n\nTree-SHA512: a3f14d44b5c03eb2c365efa3b530e0b5dc143fbd9782f3e2f5bb9a8119a16428e67dfbf20ff850e13f0fe5f2f6cb5123edaa7c6d3d21c32af735c34a6a1a1050",
+        "tree": {
+          "sha": "954cc3e517d4aaa08a8ea7cfe4eb648b6aa969a8",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/954cc3e517d4aaa08a8ea7cfe4eb648b6aa969a8"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/51ddab532cb38213e2258c24c492bc8a392ffc90",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEETRs9Xsuhp+BTce6+RoAOMPx0imYFAmqoUr4ACgkQRoAOMPx0\nimZy5Q/+JDYcg6v031p+5SgXhq7cWfZiVW1KDtEViyj3Mf3D0li2BtqjcPJgU9kz\n1CL7J0A4h84fmcYQR69rWYmZb8vEvoBHAC0TCySJ4ECWjd3sHOBfEFK8bnPAbFO9\nQUM216yvGKOIAmMr2g9cizBFi/GWHizbuLpMWRVZJLJ1tLqOC4i730FsxWpOY049\nyf6k/22LYHcl/fXsxGnA1gzdTIBjtxKwhHsqVM0wUskCYOvca56tBKMhotTse/B4\nBcW9PFfy8XvKDjpOsp1t/37eN2UGT7uzQqE5vThm9U2xbNFYZ3n3BFzwWrQGmbc7\nj/Fih8KOMFtONJ0Dur2JPYb+db36ui1EQ3jFhTHB/vYGJC2xq8wYL0tMfdeGhaHI\nvZS3zsQ1G0ePfY6F6CzhOqlEHopSqIV9UX7NO1rqDFsiW5BfTgDLRnOgJaktHU+5\nnuED+byF1gcD5FrmRU9hnuW2abxx4hL5Z/CZ/QrLc8Jqx2QZyshPG+YFTU3OF5WD\nob4HWBzIyoVW30XMZMltOhm/XnFQg1Pb4KSdrGqK8ekZ81sizTd3PFrWZGzQEXVe\nJX+y6dnnmvYz4C7w7JeX+4TggpXygs9AlmUiWKIJJY9tDfQaIPZtNwHePxbhY4TS\nSR8QigVN2VFqoV2JXtAHro5fJ//f0s264j8fnOpq8DNwB+ycJwg=\n=4Yxs\n-----END PGP SIGNATURE-----",
+          "payload": "tree 954cc3e517d4aaa08a8ea7cfe4eb648b6aa969a8\nparent cff00c547e7460fa1ec4aa1e38217793593d4263\nparent 0b3bb071036ac00649901b7a806e3882b61ddfde\nauthor Ryan Ofsky <ryan@ofsky.org> 1789413662 -0400\ncommitter Ryan Ofsky <ryan@ofsky.org> 1789416126 -0400\n\nMerge bitcoin/bitcoin#35819: test: add coverage for untested descriptor parse error paths\n\n0b3bb071036ac00649901b7a806e3882b61ddfde test: add coverage for untested descriptor parse error paths (azuchi)\n\nPull request description:\n\n  Looking at the coverage report for master on https://corecheck.dev, a number of error branches in `descriptor.cpp` are never exercised by any test. This PR adds  `CheckUnparsable` vectors for each reachable one, plus one\n    positive boundary check:\n\n  **musig()**\n  - unterminated expression: `tr(musig(00)` \u2192 \"Invalid musig() expression\"\n  - invalid participant key\n  - trailing garbage after a participant key: `tr(musig(KEY}{))` \u2192 \"musig(): expected ',', got '}'\" (the `}` closes the level opened by the `(` of `musig(` and the `{` re-opens it, so the final `)` stays inside the expression span; thanks to @151henry151 for the counterexample showing this branch is reachable)\n  - invalid derivation path element (the `musig(): `-prefixed wrapping of the keypath error; the underlying `ParseKeyPath` errors were already covered via `pkh()`/`wpkh()`)\n  - participants with multipath derivations of mismatched lengths (`/<0;1>` vs `/<0;1;2>`; the `multi()` and Miniscript variants of this error were covered, the `musig()` one was not)\n\n  **Context restrictions**\n  - `multi()` inside `tr()`, `multi_a()` at top level, and `addr()`/`tr()`/`rawtr()`/`raw()` inside `sh()`\n\n  **Taptree structure errors**\n  - exceeding the 128 nesting level limit (129 `{`s, built with `std::string(129, '{')`)\n  - missing `'}'` after a right branch, missing `','` after a left branch, trailing garbage after a script expression and after the internal key\n  - a positive check that a taptree of exactly 128 nesting levels parses and expands successfully, so the limit is verified on both sides (suggested by @Herb-ops)\n\n  **rawtr()**\n  - invalid key. `00` is used (rather than the truncated-valid-key pattern used elsewhere in this file) because in Taproot contexts a 32-byte string would parse as a valid x-only key.\n\n  Since `CheckUnparsable` asserts on the exact error message and each targeted branch produces a distinct one, a passing vector proves the corresponding branch executed.\n\n  Note that replaying the qa-assets `descriptor_parse`/`mocked_descriptor_parse` fuzz corpora already reaches these branches, so the value of these vectors is deterministic coverage in the unit tests with the exact error messages pinned.\n\nACKs for top commit:\n  Herb-ops:\n    ACK 0b3bb071036ac00649901b7a806e3882b61ddfde\n  151henry151:\n    re-ACK 0b3bb071036ac00649901b7a806e3882b61ddfde\n  ryanofsky:\n    Code review ACK 0b3bb071036ac00649901b7a806e3882b61ddfde. Seems good to add these cases since there are no checks for these error messages. It also seems like it could be good to fix the inconsistent \"tr: expected\" message this exposed in a followup.\n\nTree-SHA512: a3f14d44b5c03eb2c365efa3b530e0b5dc143fbd9782f3e2f5bb9a8119a16428e67dfbf20ff850e13f0fe5f2f6cb5123edaa7c6d3d21c32af735c34a6a1a1050\n",
+          "verified_at": "2026-09-14T20:02:13Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/51ddab532cb38213e2258c24c492bc8a392ffc90",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/51ddab532cb38213e2258c24c492bc8a392ffc90",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/51ddab532cb38213e2258c24c492bc8a392ffc90/comments",
+      "author": {
+        "login": "ryanofsky",
+        "id": 7133040,
+        "node_id": "MDQ6VXNlcjcxMzMwNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7133040?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ryanofsky",
+        "html_url": "https://github.com/ryanofsky",
+        "followers_url": "https://api.github.com/users/ryanofsky/followers",
+        "following_url": "https://api.github.com/users/ryanofsky/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ryanofsky/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ryanofsky/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ryanofsky/subscriptions",
+        "organizations_url": "https://api.github.com/users/ryanofsky/orgs",
+        "repos_url": "https://api.github.com/users/ryanofsky/repos",
+        "events_url": "https://api.github.com/users/ryanofsky/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ryanofsky/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "ryanofsky",
+        "id": 7133040,
+        "node_id": "MDQ6VXNlcjcxMzMwNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7133040?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ryanofsky",
+        "html_url": "https://github.com/ryanofsky",
+        "followers_url": "https://api.github.com/users/ryanofsky/followers",
+        "following_url": "https://api.github.com/users/ryanofsky/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ryanofsky/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ryanofsky/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ryanofsky/subscriptions",
+        "organizations_url": "https://api.github.com/users/ryanofsky/orgs",
+        "repos_url": "https://api.github.com/users/ryanofsky/repos",
+        "events_url": "https://api.github.com/users/ryanofsky/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ryanofsky/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "cff00c547e7460fa1ec4aa1e38217793593d4263",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cff00c547e7460fa1ec4aa1e38217793593d4263",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/cff00c547e7460fa1ec4aa1e38217793593d4263"
+        },
+        {
+          "sha": "0b3bb071036ac00649901b7a806e3882b61ddfde",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0b3bb071036ac00649901b7a806e3882b61ddfde",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0b3bb071036ac00649901b7a806e3882b61ddfde"
+        }
+      ]
+    },
     {
       "sha": "cff00c547e7460fa1ec4aa1e38217793593d4263",
       "node_id": "C_kwDOABII59oAKGNmZjAwYzU0N2U3NDYwZmExZWM0YWExZTM4MjE3NzkzNTkzZDQyNjM",
@@ -8363,93 +8450,6 @@
           "sha": "d180b891a2904fb787ac5fa1ed66f56c98496698",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d180b891a2904fb787ac5fa1ed66f56c98496698",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/d180b891a2904fb787ac5fa1ed66f56c98496698"
-        }
-      ]
-    },
-    {
-      "sha": "a174dd4017cf97f283b1848bb31998bfa28465e9",
-      "node_id": "C_kwDOABII59oAKGExNzRkZDQwMTdjZjk3ZjI4M2IxODQ4YmIzMTk5OGJmYTI4NDY1ZTk",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-06T13:24:12Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-06T13:24:12Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36161: build: Remove `cmake/script/CoverageFuzz.cmake`\n\n00a5f9b7375ec8dca944e200bd9bef6a29949409 build: Remove `cmake/script/CoverageFuzz.cmake` (Hennadii Stepanov)\n\nPull request description:\n\n  The `gcov`-based `CoverageFuzz` script was introduced in 8b6f1c4353836bae6aa683cbc65251165bd031ba, as a CMake's replacement for the legacy `cov_fuzz` target. However, neither `cov_fuzz` nor `CoverageFuzz` has a documented usage.\n\n  Instead, #32206 documented compiling for fuzz coverage using the LLVM/Clang toolchain, which does not involve the `CoverageFuzz` script.\n\n  This PR removes the never-documented `CoverageFuzz` script, which is likely unused.\n\nACKs for top commit:\n  Crypt-iQ:\n    crACK 00a5f9b7375ec8dca944e200bd9bef6a29949409\n  sedited:\n    ACK 00a5f9b7375ec8dca944e200bd9bef6a29949409\n\nTree-SHA512: a0932f717d9ddf2540634728ee26a0bdf843bdcff0885b94b2d5df9de7df023afa4d90d644b7cfac7b50b7e4343114e87b7906ca55419f7ca353019f9072b03e",
-        "tree": {
-          "sha": "aeee25ab3f2f4d70921a12971755d6282ebf3d7f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/aeee25ab3f2f4d70921a12971755d6282ebf3d7f"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/a174dd4017cf97f283b1848bb31998bfa28465e9",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqdaXwACgkQm3m0VpHb\nQXNbmg/9EiYjB+9YBfewVwPY8d93rjn5NGnN6PGr/Pu0ZSEqZgpDeOlSU81Bi4Cd\ngEtZ2O44k5rE7y4DP2xUktEBprxSOWlwOFNIqdhWyjwIaQlta3kzkRB9nJ+fV1M4\nC2uwFTFb+Z9qR8oJ+2ZP5ihfQmdhCsAw3tp0ETEz7xM6LFMTzrGgfRcC+CBLhn21\nK3L6gS/V0AWLQAE7h/63HgzjCNKye/uegCgRvZr3oZztkdbL70TWn+HWH8DdNsXD\nHuLisOugI2di0UdLHcp3zVRcJO9o/MzRpsizP0fnMGWg3Ctn64tFlXr407mLPwmB\nx0ya7HnbdFZ93tGRjzhsfO7vZs74UnhUgQVrxFrpbvK/3INn+iM4sGpCOCC5H5KO\nHLwy8dgjzhX9GcPo42q+trHVRQ5Hv1LcYHmCNk7AXmCDaJ/8jEzRDJEzdRh1/A5/\nVC/zZPMZrbrhdVlolwxYeSkdMmBeM27SQEeQvaMp+PNbAZjdEfp/Td9cF7sG4Y3b\n0oa2u8/TM3iovVVTpzmk/WN2RsRGT6r2u5knKX4uoTujuy0eQVLMTX58HQNV7Adt\ndVevR/oEfo5L4cWyS1qyUQuNDo2YDKnikHyTombQ+sa29ZWKPqo9GaQZNGIaDFWz\nKHOSqRcGcaTaemhfB6cir2U+CJ86el1x7MgYbmBX1b/nX4sbaH4=\n=FOH2\n-----END PGP SIGNATURE-----",
-          "payload": "tree aeee25ab3f2f4d70921a12971755d6282ebf3d7f\nparent b557fb2728e9cc4c91d892cd5d2e04fc31863078\nparent 00a5f9b7375ec8dca944e200bd9bef6a29949409\nauthor merge-script <seb.kung@gmail.com> 1788701052 +0200\ncommitter merge-script <seb.kung@gmail.com> 1788701052 +0200\n\nMerge bitcoin/bitcoin#36161: build: Remove `cmake/script/CoverageFuzz.cmake`\n\n00a5f9b7375ec8dca944e200bd9bef6a29949409 build: Remove `cmake/script/CoverageFuzz.cmake` (Hennadii Stepanov)\n\nPull request description:\n\n  The `gcov`-based `CoverageFuzz` script was introduced in 8b6f1c4353836bae6aa683cbc65251165bd031ba, as a CMake's replacement for the legacy `cov_fuzz` target. However, neither `cov_fuzz` nor `CoverageFuzz` has a documented usage.\n\n  Instead, #32206 documented compiling for fuzz coverage using the LLVM/Clang toolchain, which does not involve the `CoverageFuzz` script.\n\n  This PR removes the never-documented `CoverageFuzz` script, which is likely unused.\n\nACKs for top commit:\n  Crypt-iQ:\n    crACK 00a5f9b7375ec8dca944e200bd9bef6a29949409\n  sedited:\n    ACK 00a5f9b7375ec8dca944e200bd9bef6a29949409\n\nTree-SHA512: a0932f717d9ddf2540634728ee26a0bdf843bdcff0885b94b2d5df9de7df023afa4d90d644b7cfac7b50b7e4343114e87b7906ca55419f7ca353019f9072b03e\n",
-          "verified_at": "2026-09-06T13:24:54Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a174dd4017cf97f283b1848bb31998bfa28465e9",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/a174dd4017cf97f283b1848bb31998bfa28465e9",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a174dd4017cf97f283b1848bb31998bfa28465e9/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b557fb2728e9cc4c91d892cd5d2e04fc31863078",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b557fb2728e9cc4c91d892cd5d2e04fc31863078",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b557fb2728e9cc4c91d892cd5d2e04fc31863078"
-        },
-        {
-          "sha": "00a5f9b7375ec8dca944e200bd9bef6a29949409",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/00a5f9b7375ec8dca944e200bd9bef6a29949409",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/00a5f9b7375ec8dca944e200bd9bef6a29949409"
         }
       ]
     }
