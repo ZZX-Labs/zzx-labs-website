@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-17T17:27:03.124235Z",
+  "generated_at": "2026-09-17T20:30:43.301781Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "0e9018e8b65611b0769545e177110e4b7fc51244",
+      "node_id": "C_kwDOABII59oAKDBlOTAxOGU4YjY1NjExYjA3Njk1NDVlMTc3MTEwZTRiN2ZjNTEyNDQ",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-17T20:24:40Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-17T20:24:40Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36249: net, rpc: Asmap version improvements/follow-ups\n\n0b353a9e872e81b900a543d7fedf668be3afec2c netgroup: Cache asmap version (Fabian Jahr)\nc1e9d15406fb7b46cff1cf385607a3e47fdd1bfb doc: Describe how to verify the asmap in use (Fabian Jahr)\n87ce88c1b53c0a954a53b5a1856ef0d20850f3d5 rpc: Add asmap_version to getnetworkinfo (Fabian Jahr)\ndd5a8a63b2232279e2ea46e4360434d36f379774 test: Check embedded asmap version log and addrman re-bucketing (Fabian Jahr)\n0bc87365cac1ef8586a28d69eca95d8080512454 init: Log asmap version from NetGroupManager (Fabian Jahr)\nfdfd196908e1fce930ed0554d8a75d4be3cf5cec rpc: Reuse AsmapVersion in exportasmap (Fabian Jahr)\n\nPull request description:\n\n  This is a follow-up to #36215. I noticed the possible improvement in `exportasmap` and went through everything to see where else we could make changes where we can use this as an advantage.\n\n  - `rpc: Reuse AsmapVersion in exportasmap`: `exportasmap` hashed the file by hand to show the hash, instead we can use `AsmapVersion()` which is the same value.\n  - `init: Log asmap version from NetGroupManager`: Drop the version variable in init and log the version by getting it from `NetGroupManager` instead\n  - `test: Check embedded asmap version log and addrman re-bucketing`: We didn't cover rebucketing behavior in the functional test yet. Also gets rid of stale comment.\n  - `rpc: Add asmap_version to getnetworkinfo`: Getting access to the asmap version from the logs may be a bit tedious for some users and now it may be even more interesting for them to compare the version to the hash attested to in `asmap-data`. So let them get it via `getnetworkinfo`.\n  - `doc: Describe how to verify the asmap in use`: Just mention the latest changes from above and the opportunity to compare the version to the hash in seen in `asmap-data`.\n\nACKs for top commit:\n  sedited:\n    Re-ACK 0b353a9e872e81b900a543d7fedf668be3afec2c\n  willcl-ark:\n    ACK 0b353a9e872e81b900a543d7fedf668be3afec2c\n\nTree-SHA512: daed639f6cbec5ec3bbe04771970edae973e749ff15a24cf3f6d38e0991d4e26462fd4e49db78b75465623115ac967776626d2749f03344018cfb53658492909",
+        "tree": {
+          "sha": "d05f28181034824ec6b458e729123c19666b8aa5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d05f28181034824ec6b458e729123c19666b8aa5"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0e9018e8b65611b0769545e177110e4b7fc51244",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqsTIgACgkQm3m0VpHb\nQXNXdg//TPGyrJc5srBdwpwQfTZFgMB9TgRbbO+ln183cO2G1NkGj5HZiw1UTL80\nKxGOheNdMxrbbhEfnYDGbQM0r/XzMASlF3P4lp77Cl9JxnUGD87VjDbwmXxb4Vly\no1oLsxNa9hrjn3tmcNCcgcKEScxyJpUjyhlAosGHvrvZmqiYDFwGobGU/dlM3oxz\nVO9GlhTQGvR+Nq0MJj6rcLyqaL2ceJrT7XJo20py+pj99HD3jC3gGYqNjTw20brb\nNSyw+oT8HwQWxCNetH+BGpSsUH1JUKM9ZbJDsO15/8EdCChDY/4nsyAQkCpKc3XR\nvx7QTK1HHTtBCF7pU4hpqkoLCaa6DvKPhR3jK84lUsLfoEskBZFHqTv+dC72cfFo\nFmwb2iRscutiG9gHjCuvkFTQeRtXt0ryWocDHkTXSZBm+zvWJtg9TDCdXEGCLBR2\n/0Qjs9TYultm6IKpqmsNYI04Fqfqje2G+fVWDhEAZVvV0kWZcq6li//frbHtXxRM\ncTOreH8zbg5/eDKk2u0ABJib94jVqoLRBVKZL+nYDJ1tjplbRDCfPCRbz5rSxWh5\nkbFJgAmg76yQOvghAUBRuO9+x3CrKNVQV61d8rnkuesAMkF+gNneOoWRNt6nkrR4\nvMr5bFcSU/UaCFQ/etf4hGAuXDFO31FHSuynSJIedg3b7CBYP/U=\n=ekgN\n-----END PGP SIGNATURE-----",
+          "payload": "tree d05f28181034824ec6b458e729123c19666b8aa5\nparent ad97933af248bf2e6a299ea643f4183353ffc237\nparent 0b353a9e872e81b900a543d7fedf668be3afec2c\nauthor merge-script <seb.kung@gmail.com> 1789676680 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789676680 +0200\n\nMerge bitcoin/bitcoin#36249: net, rpc: Asmap version improvements/follow-ups\n\n0b353a9e872e81b900a543d7fedf668be3afec2c netgroup: Cache asmap version (Fabian Jahr)\nc1e9d15406fb7b46cff1cf385607a3e47fdd1bfb doc: Describe how to verify the asmap in use (Fabian Jahr)\n87ce88c1b53c0a954a53b5a1856ef0d20850f3d5 rpc: Add asmap_version to getnetworkinfo (Fabian Jahr)\ndd5a8a63b2232279e2ea46e4360434d36f379774 test: Check embedded asmap version log and addrman re-bucketing (Fabian Jahr)\n0bc87365cac1ef8586a28d69eca95d8080512454 init: Log asmap version from NetGroupManager (Fabian Jahr)\nfdfd196908e1fce930ed0554d8a75d4be3cf5cec rpc: Reuse AsmapVersion in exportasmap (Fabian Jahr)\n\nPull request description:\n\n  This is a follow-up to #36215. I noticed the possible improvement in `exportasmap` and went through everything to see where else we could make changes where we can use this as an advantage.\n\n  - `rpc: Reuse AsmapVersion in exportasmap`: `exportasmap` hashed the file by hand to show the hash, instead we can use `AsmapVersion()` which is the same value.\n  - `init: Log asmap version from NetGroupManager`: Drop the version variable in init and log the version by getting it from `NetGroupManager` instead\n  - `test: Check embedded asmap version log and addrman re-bucketing`: We didn't cover rebucketing behavior in the functional test yet. Also gets rid of stale comment.\n  - `rpc: Add asmap_version to getnetworkinfo`: Getting access to the asmap version from the logs may be a bit tedious for some users and now it may be even more interesting for them to compare the version to the hash attested to in `asmap-data`. So let them get it via `getnetworkinfo`.\n  - `doc: Describe how to verify the asmap in use`: Just mention the latest changes from above and the opportunity to compare the version to the hash in seen in `asmap-data`.\n\nACKs for top commit:\n  sedited:\n    Re-ACK 0b353a9e872e81b900a543d7fedf668be3afec2c\n  willcl-ark:\n    ACK 0b353a9e872e81b900a543d7fedf668be3afec2c\n\nTree-SHA512: daed639f6cbec5ec3bbe04771970edae973e749ff15a24cf3f6d38e0991d4e26462fd4e49db78b75465623115ac967776626d2749f03344018cfb53658492909\n",
+          "verified_at": "2026-09-17T20:24:51Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0e9018e8b65611b0769545e177110e4b7fc51244",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/0e9018e8b65611b0769545e177110e4b7fc51244",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0e9018e8b65611b0769545e177110e4b7fc51244/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "ad97933af248bf2e6a299ea643f4183353ffc237",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ad97933af248bf2e6a299ea643f4183353ffc237",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ad97933af248bf2e6a299ea643f4183353ffc237"
+        },
+        {
+          "sha": "0b353a9e872e81b900a543d7fedf668be3afec2c",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0b353a9e872e81b900a543d7fedf668be3afec2c",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0b353a9e872e81b900a543d7fedf668be3afec2c"
+        }
+      ]
+    },
     {
       "sha": "ad97933af248bf2e6a299ea643f4183353ffc237",
       "node_id": "C_kwDOABII59oAKGFkOTc5MzNhZjI0OGJmMmU2YTI5OWVhNjQzZjQxODMzNTNmZmMyMzc",
@@ -559,6 +646,88 @@
           "sha": "b07810544f15153c9d9136f9adeb9bf7cd86e619",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b07810544f15153c9d9136f9adeb9bf7cd86e619",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/b07810544f15153c9d9136f9adeb9bf7cd86e619"
+        }
+      ]
+    },
+    {
+      "sha": "0b353a9e872e81b900a543d7fedf668be3afec2c",
+      "node_id": "C_kwDOABII59oAKDBiMzUzYTllODcyZTgxYjkwMGE1NDNkN2ZlZGY2NjhiZTNhZmVjMmM",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-16T12:03:41Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-16T12:03:41Z"
+        },
+        "message": "netgroup: Cache asmap version",
+        "tree": {
+          "sha": "9e0406ffc3ce367db9e522bf84387fcb894cc4b1",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/9e0406ffc3ce367db9e522bf84387fcb894cc4b1"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0b353a9e872e81b900a543d7fedf668be3afec2c",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqqhZ0bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNuj4P/3eK2F8chlyv7NmCSepD\nD49c+3rkV729UZtWe+DKLNOpHA6mVdh4q9jPdrIfX6UQvtdACXhqqUpy55Fno9gd\ndYyZrel77SCXMcdApQGymvY0ymjQjU52RSmmjMRuzKbZLBcXVCrmVdtKV27lZOrl\nT7tkVs9Jj6aDNY2LUGB5XoRQwtZNXP4ksUMcgNz98+v+WbGuSj2CwI/ITeC6hh0q\nz6Eluin7pOX3Cyo7562f9V5kSSU4yqHl+6mFJGYibJqpdF0ugx8RhmSFoCFO+DCe\nuewTDvMi8DJoRpkzq227R5xt6GqNcm06l0sJVM5rKjHDp6EXcqbouQmkBRXMget7\n3gR2axg67RBeUaniXWOOJwCfNQdTIOn9KDTsQP7IwmH6fgF7Qk5Dc7OMDYG5+S90\nPI697sfrO8qoGLwtJ68EraWnOFC1YayV9ABt7kI1QyAGTbMbh6/ZEdrFyZeF+Pbx\n+TAoc4jrDlki7ugNBpuG28Djl6LNyEk+lENQt8tElQ7r0piwgw85JeNMk8Pdbu6T\nKCxEJYGtXkFw05tGLtdqIvGcZ8eeFwoCjqtDIPuVoexvouUdwleCNgaBeAeqZxNw\nll4Pz+nf9YoBtVbT6BaTtAfXEGs4QhYgbsH+TgEkT4SSZhiSrHe90TFed0ia5XmZ\n0b8sOHSXWlmvTPbvneLtOnin\n=33pt\n-----END PGP SIGNATURE-----",
+          "payload": "tree 9e0406ffc3ce367db9e522bf84387fcb894cc4b1\nparent c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb\nauthor Fabian Jahr <fjahr@protonmail.com> 1789560221 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789560221 +0200\n\nnetgroup: Cache asmap version\n",
+          "verified_at": "2026-09-16T12:25:19Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0b353a9e872e81b900a543d7fedf668be3afec2c",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/0b353a9e872e81b900a543d7fedf668be3afec2c",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0b353a9e872e81b900a543d7fedf668be3afec2c/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb"
         }
       ]
     },
@@ -4010,6 +4179,252 @@
       ]
     },
     {
+      "sha": "c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb",
+      "node_id": "C_kwDOABII59oAKGMxZTlkMTU0MDZmYjdiNDZjZmYxY2YzODU2MDdhM2U0N2ZkZDFiZmI",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-13T13:59:40Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-14T12:01:15Z"
+        },
+        "message": "doc: Describe how to verify the asmap in use",
+        "tree": {
+          "sha": "e089982a675220626ba1a04529928ac5d51fe54e",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/e089982a675220626ba1a04529928ac5d51fe54e"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqn4gsbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNqDEP/1BM6Ay10BPu+mESRuA9\nF6l3muX9XWrdYoNavdeEmKQjSFMjOIDBcHBrhOWXG/SuZJhmlMPx0B63DS2RcA0F\n53ZZYkK6ew/W7fns9x45MfIfvI1g7Vnl5u0C3hDE7Qhm89e+/uKZymY1z1eLTFhf\nvGl1M3zmZE3J85/LSMaZP5PblrAovzk1s4/31DjSQZp0hodHKTP1L2xfvz5qybsd\n6RdX3G34FSy5HNTYSkRZMAW95D5Iv6ddSAWeI8UI2kDUt3cNpHJNLFokr3bJLZSY\nLhBdw8+HlF/yp+tIjJXqXI1dnhkkNocUsIkPTK/OhF+ZuwCaYySVuMKbmTAUT4ub\nB8g1M5UQzDOr/L1MTE3WHoPUsfhjeW5m9Jtwh57PnXxW0OWVHOGhlH+wrpLcj9TL\n1h9uqhZbARTOQ7IfTMNp3/m9Jp80A0oLiRd05D4gx+BOsbr7ey6Q1n38JWnE5y/m\nhpT9HwNjtgPio69hsnrRWjkAyU/X7WvdzUsyJi2C/bLOVdB3RMXiybDbhmOJ6VvF\nCsq9QFtZQpHfZI2Ddx0zzhs1LEmtYzrJn3UefvNyUgY4QhHqlF4zGKo2mvQVyFTq\nQpTIP8TM2omVTuCu56kx00g/J6gsoK99/v4eMWU1142DxrxzeJkfDbqH+wUNWMmw\nUfCQnoDTGxLc/ZnwY4a2pN/j\n=huDL\n-----END PGP SIGNATURE-----",
+          "payload": "tree e089982a675220626ba1a04529928ac5d51fe54e\nparent 87ce88c1b53c0a954a53b5a1856ef0d20850f3d5\nauthor Fabian Jahr <fjahr@protonmail.com> 1789307980 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789387275 +0200\n\ndoc: Describe how to verify the asmap in use\n",
+          "verified_at": "2026-09-14T12:35:23Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c1e9d15406fb7b46cff1cf385607a3e47fdd1bfb/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "87ce88c1b53c0a954a53b5a1856ef0d20850f3d5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/87ce88c1b53c0a954a53b5a1856ef0d20850f3d5",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/87ce88c1b53c0a954a53b5a1856ef0d20850f3d5"
+        }
+      ]
+    },
+    {
+      "sha": "87ce88c1b53c0a954a53b5a1856ef0d20850f3d5",
+      "node_id": "C_kwDOABII59oAKDg3Y2U4OGMxYjUzYzBhOTU0YTUzYjVhMTg1NmVmMGQyMDg1MGYzZDU",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-13T16:12:33Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-14T12:01:15Z"
+        },
+        "message": "rpc: Add asmap_version to getnetworkinfo",
+        "tree": {
+          "sha": "49a36b8b6b8503929d6d836d29cb6bdc8010e264",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/49a36b8b6b8503929d6d836d29cb6bdc8010e264"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/87ce88c1b53c0a954a53b5a1856ef0d20850f3d5",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqn4gsbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jN+2kQAJA9gqv5iI4cOdsN+boI\nsg2nKFr1qlHSlEuHru5mPA6fG37Vpkg6d5l4OnQ9DhE5nJ+rdnWuo72CS+kTSH3H\nmGxpKSLO5ryP7B4U0ObNKQHx844ufBdOOiyIg6Ywq+JrjyADMoP2nM7Z6/qxnUNJ\nzkl5wS/8TBurcriEysfSLX2WC06X3FtKO/zYtAOa4EYvQLB1xMRLibmLbawMw0w+\nU7MG/2ZGUcPmQgp5Dt0bT/v1NIX2O3eeEGJo2psWg2evZGhc2vRRUQXVvgxSHkrj\njZA3dDgxmKfs0Sbrui5CEGRMRapxl+NgJuKv0iI7Yq/Ux/sw1FXvOfoX4JgVfGW6\ndJ4ZOLfu5o1rHF/kzZ51cc9Rz/pyZ0vC1cNaePygA2+d+09IYEkinHkp9LmQX4sG\nLRx5ODWkTfLk7K52ZsRbzX0UPsHgwh+gQ85JgLoXjvZo0MAiNL+FOOqnJSGgWY42\nwKAATfrgw8gtA7sJPhMul8WPOrY5G7m+GgR36g9F974pfvDXAhwhcQSIGOSrVfNL\nUd37QwG6lZ9strC858uSDqxtglgKrNw5l9t6SsdHRy9j5lO9kByJpXgcF30OWwQv\nkVUvETt9lzX9IA4dUYtCB6Px722grlEZYuGGan3mOjVNKzjNoqDndd2GKNqzOn1S\n7Rh1jSI0ABPpg09TXRjMUOIS\n=Ukyn\n-----END PGP SIGNATURE-----",
+          "payload": "tree 49a36b8b6b8503929d6d836d29cb6bdc8010e264\nparent dd5a8a63b2232279e2ea46e4360434d36f379774\nauthor Fabian Jahr <fjahr@protonmail.com> 1789315953 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789387275 +0200\n\nrpc: Add asmap_version to getnetworkinfo\n",
+          "verified_at": "2026-09-14T12:35:23Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/87ce88c1b53c0a954a53b5a1856ef0d20850f3d5",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/87ce88c1b53c0a954a53b5a1856ef0d20850f3d5",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/87ce88c1b53c0a954a53b5a1856ef0d20850f3d5/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "dd5a8a63b2232279e2ea46e4360434d36f379774",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/dd5a8a63b2232279e2ea46e4360434d36f379774",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/dd5a8a63b2232279e2ea46e4360434d36f379774"
+        }
+      ]
+    },
+    {
+      "sha": "dd5a8a63b2232279e2ea46e4360434d36f379774",
+      "node_id": "C_kwDOABII59oAKGRkNWE4YTYzYjIyMzIyNzllMmVhNDZlNDM2MDQzNGQzNmYzNzk3NzQ",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-13T13:58:54Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-14T12:01:14Z"
+        },
+        "message": "test: Check embedded asmap version log and addrman re-bucketing",
+        "tree": {
+          "sha": "ac54d0ccd38481d77e7c81a2b6d50afcafed5f3f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ac54d0ccd38481d77e7c81a2b6d50afcafed5f3f"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/dd5a8a63b2232279e2ea46e4360434d36f379774",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqn4gobFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNNEAP/A3vjJ48WCU0lZlW30IE\nKNZidO+scnOIa4wLGb2pT+YCTVXl0mDBdgiDDGoDfSCgeawoL8+xb13yBPJ/XKw0\neo0CTedyPq01yrT1/uRZJU8r1P1kNC6NbBQU2WwPlhMCTmlO6c8ARXmS0TFtdxUZ\n+k9jSya0Nb++CUJf86sMvw9czqsPRDPMp2IJeEdokz0Vgg8UovJ2nvMYWQ/q3/LA\n9Mmckbjc0teBMk/UnymhaAaBa3vqrg+nvkkxk8JGHqYX6iJxYOVZxQrpTmecq5hI\nTaDeDG8Rdw54S51XctLyeChcz/+1Ja1FFgCWfo/mJSP65jYRse6WUVEOc4Dj7U78\nudqEo/XIJWvAGDfR6AyRk6PM8SOGKTEd6xxgeDW2I4ZrPqmeG1P66CJSaNaRfREw\nUGdAvBvY66OHMCp4PG6cf0yLXC283TqXh1txdwI4ByXHTUqt8dpAUqNY/mS22rd2\nw0Ufie+7e3mLPflR+syPPoHO5jlpF1kna1SBMp6zDI0zWS9xHVMTYndOKFverhDV\ngOXnnDXA75QNIynTCvlZxU8W9tEB1WXV3UL3h+/L2exOhFiemTusnS8ibby2Jyhq\nmnxRROAk8DzNa8FLwzxkP/fg5zFs5XkSsPJmmqfxbqA7X36B6MarBl4K68mNbfCa\nudDyUcWsbZqVMFRTcId2Nmfu\n=znKq\n-----END PGP SIGNATURE-----",
+          "payload": "tree ac54d0ccd38481d77e7c81a2b6d50afcafed5f3f\nparent 0bc87365cac1ef8586a28d69eca95d8080512454\nauthor Fabian Jahr <fjahr@protonmail.com> 1789307934 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789387274 +0200\n\ntest: Check embedded asmap version log and addrman re-bucketing\n",
+          "verified_at": "2026-09-14T12:35:23Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/dd5a8a63b2232279e2ea46e4360434d36f379774",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/dd5a8a63b2232279e2ea46e4360434d36f379774",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/dd5a8a63b2232279e2ea46e4360434d36f379774/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "0bc87365cac1ef8586a28d69eca95d8080512454",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0bc87365cac1ef8586a28d69eca95d8080512454",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0bc87365cac1ef8586a28d69eca95d8080512454"
+        }
+      ]
+    },
+    {
       "sha": "d9d0578410290ca89e0f2424bd87755f4339e85c",
       "node_id": "C_kwDOABII59oAKGQ5ZDA1Nzg0MTAyOTBjYTg5ZTBmMjQyNGJkODc3NTVmNDMzOWU4NWM",
       "commit": {
@@ -4180,6 +4595,170 @@
           "sha": "1bb5820b4411dfbc0ade5fada39d1a4af46dfa78",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1bb5820b4411dfbc0ade5fada39d1a4af46dfa78",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/1bb5820b4411dfbc0ade5fada39d1a4af46dfa78"
+        }
+      ]
+    },
+    {
+      "sha": "0bc87365cac1ef8586a28d69eca95d8080512454",
+      "node_id": "C_kwDOABII59oAKDBiYzg3MzY1Y2FjMWVmODU4NmEyOGQ2OWVjYTk1ZDgwODA1MTI0NTQ",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-13T13:58:01Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-14T11:41:55Z"
+        },
+        "message": "init: Log asmap version from NetGroupManager",
+        "tree": {
+          "sha": "9cd19c97478c519e283999f08aaccb078975a046",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/9cd19c97478c519e283999f08aaccb078975a046"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0bc87365cac1ef8586a28d69eca95d8080512454",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqn3YMbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNWMUP/jljg+ESZOn3WPwvB736\nxmj9UOwd4Y6aLrkCxAHWoXaXrKBg/1kMO8Pa/iNdsvE5xtu9+64dcsDvqo5PndAZ\nRxGpNMdkw8fnSC4a7LhIJExQ9mLOP1+0yWK6cs0AvQid80zBh78O84//V4nRgDLG\ng+EJIhxgPcQrU3v8iLKZOSHuWzTdy3ET3pqXt7sCCMnh+i6uwYNTt6ICnlx0EWft\nqr8EY7Xg/2VLVKTEUEHezHlm158C6P85eDM+KOlD+SwHcLCsf4dChwJfMIU53u+Y\nU60NzV1kBs9Aw/U7tXfPJ0dcV7ZTxsj8s8BHyuAzqZBXlT9QLjZwftgfsMr47Yw1\nbrhYu3+3xhMLW4i66n68DVspDt30n3Xnj0/GRpR7pOKdD9pnOQbgILcRXbzEr9fV\niuJW5Nqhf7oVk1NhYX2MzGMi7jEti8Vv6KtiXvL/yAkIs/tTmPmmPw9Zt4mCBt+i\nkebGUoC/FoeG9z5vkunT5gJ68xa8M5wz6CJ7caBRt9qc9jc9FQFsrwJwzE1YLjDX\n077RhzpQwEmKjvULwssgLeriXnrj1HDjC7wP2hUWW3UED3tItDWc+9jIAO411skM\nfqXgewIVoWH+2/jzzz3EDZszQ1xjAbRZ4w8qj/9A2P7GZp4XSLuFecRvqm8bSNyN\n6q8IWbAVw7hfdpih1XKJTt5G\n=iM08\n-----END PGP SIGNATURE-----",
+          "payload": "tree 9cd19c97478c519e283999f08aaccb078975a046\nparent fdfd196908e1fce930ed0554d8a75d4be3cf5cec\nauthor Fabian Jahr <fjahr@protonmail.com> 1789307881 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789386115 +0200\n\ninit: Log asmap version from NetGroupManager\n",
+          "verified_at": "2026-09-14T11:42:03Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0bc87365cac1ef8586a28d69eca95d8080512454",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/0bc87365cac1ef8586a28d69eca95d8080512454",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0bc87365cac1ef8586a28d69eca95d8080512454/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "fdfd196908e1fce930ed0554d8a75d4be3cf5cec",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fdfd196908e1fce930ed0554d8a75d4be3cf5cec",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fdfd196908e1fce930ed0554d8a75d4be3cf5cec"
+        }
+      ]
+    },
+    {
+      "sha": "fdfd196908e1fce930ed0554d8a75d4be3cf5cec",
+      "node_id": "C_kwDOABII59oAKGZkZmQxOTY5MDhlMWZjZTkzMGVkMDU1NGQ4YTc1ZDRiZTNjZjVjZWM",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-13T13:53:36Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-14T11:41:53Z"
+        },
+        "message": "rpc: Reuse AsmapVersion in exportasmap",
+        "tree": {
+          "sha": "bb29c49178c443b86313c8457c64b83147afa998",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/bb29c49178c443b86313c8457c64b83147afa998"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fdfd196908e1fce930ed0554d8a75d4be3cf5cec",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqn3YEbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNqa4P/iEvn3Sgw9M7rgPVs7oV\nWc9J5m2EEEhVf6ynPC1yz/9rw10ZjLO0k/Gfp3DpxEjCkFDo8Natf6UhnxVDVaCR\nE7WJ9RNJxvTgii11HhKSL+Z2LUVblTbkZjxBQEjwkYGrm1kyyNVVvZYLyP43U0TK\nBC2hfArWz9hyVf74VlTgeRqy/J5gYcTzYg3rr/Lu8LOuiz5d3ZnepPUnqjOgOWK9\n1HwzUSKZgZQrhGK/kIjhwyFAflnkGOruLzOOcPrUI7UyyOy+TPdKzzTPAXRHbYac\n58Uy1VhnuVhChKcvfzYZo2iDzIno1lT01BZVIAWdwl92GYNeLSALYG9o8iQgP51P\njZ9YLO65y2y6BxEDHHSPQrfRi6amGnqRVIrrcGcu8+zjZNMruHATKUKs88zNDI+d\nEdMYZZpcec0TrdTsoAgE3w8DLdWMJmVBXn3B7Wig4ik84abARmZisuMeBOX4hI7Z\nbS0Df5zD35mDXi6XpvAtAMMhwAm+f2BPlDOAn16myqPNuMkyiEw1+nuJpHZ2JY7m\nXPkS/Wjg2uxZ13uqdcVjrANbobX/6aBriq6LBY/nAQW0sXpLJ6Y4RrXDR3EyeBJX\nTxfVGOxaT6X01/IFsmMVf+k2PlAq8aj2AMBiTdZ7PbmsyOKRzYARsJqxyRTCF3tO\nHhD0jO3I2//dQEW8rFtAU+kS\n=CnOC\n-----END PGP SIGNATURE-----",
+          "payload": "tree bb29c49178c443b86313c8457c64b83147afa998\nparent adca0a97406d8f8b1f85ce5bb8aa5c354b96b893\nauthor Fabian Jahr <fjahr@protonmail.com> 1789307616 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789386113 +0200\n\nrpc: Reuse AsmapVersion in exportasmap\n",
+          "verified_at": "2026-09-14T11:42:03Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fdfd196908e1fce930ed0554d8a75d4be3cf5cec",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fdfd196908e1fce930ed0554d8a75d4be3cf5cec",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fdfd196908e1fce930ed0554d8a75d4be3cf5cec/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "adca0a97406d8f8b1f85ce5bb8aa5c354b96b893",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/adca0a97406d8f8b1f85ce5bb8aa5c354b96b893",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/adca0a97406d8f8b1f85ce5bb8aa5c354b96b893"
         }
       ]
     },
@@ -7781,600 +8360,6 @@
           "sha": "ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9"
-        }
-      ]
-    },
-    {
-      "sha": "b5ef74b248cd957645fd7a22613191fc703e1504",
-      "node_id": "C_kwDOABII59oAKGI1ZWY3NGIyNDhjZDk1NzY0NWZkN2EyMjYxMzE5MWZjNzAzZTE1MDQ",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-10T10:00:10Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-10T10:00:10Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36211: doc: Fix PR reference in productivity guide\n\nb3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434 doc: Correct upstream-pull reference (littleyier)\n\nPull request description:\n\n  Notice that the refspec in `doc/productivity.md` maps to `upstream-pull/NUMBER`, but the doc mentions `upstream-pull/NUMBER/head` right below it.\n  Dropping the trailing `/head` so the `git show` / `git chekcout` examples actually match up. Tested both locally in a scratch repo and they work fine now.\n\nACKs for top commit:\n  sedited:\n    ACK b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434\n\nTree-SHA512: e5bb1b093d6cc1445988c5c74c7282efa39edf599093719ccb31a8ac11ab9bf4f4857cfb8fe48af558fd99ac25e2b5a106f487a8d022bdb3074cc1bc3824fa88",
-        "tree": {
-          "sha": "fd986401d0f695d19b926c60f4e02752cdf4ba2e",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/fd986401d0f695d19b926c60f4e02752cdf4ba2e"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b5ef74b248cd957645fd7a22613191fc703e1504",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmqif6obFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBJtEP/3QlrbZu17LckfHkWPpi\nAZzgJ+DDM5hMOjJR0ZBwQdf0mE0521nWbPK02hn2nWmDEaZnW2vDdkNsN1kgEUZr\n5fMGK5Xr6FqerT6bFUSEF7mKg2wPJ+yGUnDlGKizWCCIbF78soYrYUnl6wZXeOmi\naxcIX2luDFpYBppoIGDdw2eQzDVy1JhYZoFq7jNOqU5L1zLQZF3yPFQQPZs0IWwn\nwGFo5MBLQFwjzgIlx8zSuCTfWDHh83rytcyCEtmQ4pKlYpuDg3UmI/eNVPZKRzBj\nAMXU72OVg3Wu20HXNiD77DVbDTsKPMyDDbAKsBaSgxZ/7Lbe210sgNNvuCHx3d1O\njFw7rikrxz8HW6t0HirPtgYfzJUAAgrMCnu0pkum1ZHMXNm4fRg4qpMiWBPZDSBV\n9+k+mpD5Fdd5md3UqrlQbGQOjHoZnYPV5xMvyZGXaAYw2NlTvwgHZ8frIX8vWFmg\nFFKRzwYgb32A6fjozzkZb3KXVZxZZMMRdkP2NAlBwn/agU28GHtINJUKW13JN8iL\nRf6uRBs7gyyosQsTQLGHPj/U14WZFsK9QGHohFc2Z6cUniS6EA8+KMxATWJ11jdt\n45as5E0YkkGMXisaNLtMET0hG8AaSLmFgU+w07szbdjWa94YqXkYFdGMlnrIWP+I\n+Omw4jMzaXoy1AyA5PygqrHj\n=hqt4\n-----END PGP SIGNATURE-----",
-          "payload": "tree fd986401d0f695d19b926c60f4e02752cdf4ba2e\nparent 5a5b1ed7471f9d5c3a33e0b1f4362545710c244c\nparent b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434\nauthor merge-script <fanquake@gmail.com> 1789034410 +0100\ncommitter merge-script <fanquake@gmail.com> 1789034410 +0100\n\nMerge bitcoin/bitcoin#36211: doc: Fix PR reference in productivity guide\n\nb3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434 doc: Correct upstream-pull reference (littleyier)\n\nPull request description:\n\n  Notice that the refspec in `doc/productivity.md` maps to `upstream-pull/NUMBER`, but the doc mentions `upstream-pull/NUMBER/head` right below it.\n  Dropping the trailing `/head` so the `git show` / `git chekcout` examples actually match up. Tested both locally in a scratch repo and they work fine now.\n\nACKs for top commit:\n  sedited:\n    ACK b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434\n\nTree-SHA512: e5bb1b093d6cc1445988c5c74c7282efa39edf599093719ccb31a8ac11ab9bf4f4857cfb8fe48af558fd99ac25e2b5a106f487a8d022bdb3074cc1bc3824fa88\n",
-          "verified_at": "2026-09-10T10:00:14Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b5ef74b248cd957645fd7a22613191fc703e1504",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/b5ef74b248cd957645fd7a22613191fc703e1504",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b5ef74b248cd957645fd7a22613191fc703e1504/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "5a5b1ed7471f9d5c3a33e0b1f4362545710c244c",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5a5b1ed7471f9d5c3a33e0b1f4362545710c244c",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/5a5b1ed7471f9d5c3a33e0b1f4362545710c244c"
-        },
-        {
-          "sha": "b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434"
-        }
-      ]
-    },
-    {
-      "sha": "5a5b1ed7471f9d5c3a33e0b1f4362545710c244c",
-      "node_id": "C_kwDOABII59oAKDVhNWIxZWQ3NDcxZjlkNWMzYTMzZTBiMWY0MzYyNTQ1NzEwYzI0NGM",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-10T09:53:58Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-10T09:53:58Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36201: Update embedded asmap to 1788801420\n\n3c91db262b74f001a30bc5834daf322eadc19c46 net: Update embedded asmap to 1788801420 (Fabian Jahr)\n\nPull request description:\n\n  Depends on #36199 and https://github.com/bitcoin-core/asmap-data/pull/70 getting merged and receiving enough attestations. The run just happened so I hope we'll get these ACKs before the end of the week.\n\nACKs for top commit:\n  hodlinator:\n    ACK 3c91db262b74f001a30bc5834daf322eadc19c46\n\nTree-SHA512: a93aa1e25a7484e79eb7f8fa1d4871ee5a1356c2d9638a503729e31e629ae9448d4c0b82d8016cf8b0c1f7ec2d86ee03a9b14b27a5c3e12b39fb7cff4232086b",
-        "tree": {
-          "sha": "7bc408beb1e3f5d1870220b07f2a2bfcc2442fcd",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7bc408beb1e3f5d1870220b07f2a2bfcc2442fcd"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/5a5b1ed7471f9d5c3a33e0b1f4362545710c244c",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmqifjYbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBNiIQAJFwCwYGgoe0S7x67CgT\n46xKKrNgOfgoyklPOSQzW+lSdPhyHWhaz90XNIQ3Te6y1Jc7golR2DYCHkAKG0oU\nYz8xIq6Qtmh9FM8PzQv26BkkF22nTvKEEV4lmJa05RJztEMXvIPnPdmslZ8rmnOo\nCoNV2Khk8RFLlkGLpe2TqkxcMq4rHDJ9Z6NGOJE4BWMGA62c9wSrsL6zovxbR3C/\nRrCyVoO+WgLPz5k8ATzGiWqM3pmcs/GyC6WwW7ubqL9tFW36mHhg3ZKsfOF8m57A\nQ/RwEfYGux4Vhs7ySZHZI9wfn/h6KstCVuVarWOlaWNJ3dr6BJrwI1YkBLM4u7ox\nvoBJprbD6nUkg7c+9eVdc77ULjeb7LdQh2NCxwNI8wvQy6FyLIjUUK6vkEzM19Tv\nPwhJf3O9ajCdQrqfYn2W0ovjbnsjZkrhyCXxjFFlEkfL/066Yl+wPruUcPchFaWL\n9gJqck6gxYqgEl0+ECotrF9fpDnn4FKV/YOLkSQn5YMY7scGWoCEriSBgHAAX8At\ni4q3qk9skSanfy0rD3RPQHS++JqSEF8ZeoDFg78QNshUoimNPiplwp1UHHFnrULD\nVgmrjLpSzEuY4Xg67yJSgqfMZVwVKwiVbS8Zly6uZ3uzUM0PsWZfFAk6Du8Cio2l\nWPUwhrmTjoTOoygCJAeuVDKC\n=Almj\n-----END PGP SIGNATURE-----",
-          "payload": "tree 7bc408beb1e3f5d1870220b07f2a2bfcc2442fcd\nparent fc4f35fdce4d65696be6bf34003dbcac1f2f64bf\nparent 3c91db262b74f001a30bc5834daf322eadc19c46\nauthor merge-script <fanquake@gmail.com> 1789034038 +0100\ncommitter merge-script <fanquake@gmail.com> 1789034038 +0100\n\nMerge bitcoin/bitcoin#36201: Update embedded asmap to 1788801420\n\n3c91db262b74f001a30bc5834daf322eadc19c46 net: Update embedded asmap to 1788801420 (Fabian Jahr)\n\nPull request description:\n\n  Depends on #36199 and https://github.com/bitcoin-core/asmap-data/pull/70 getting merged and receiving enough attestations. The run just happened so I hope we'll get these ACKs before the end of the week.\n\nACKs for top commit:\n  hodlinator:\n    ACK 3c91db262b74f001a30bc5834daf322eadc19c46\n\nTree-SHA512: a93aa1e25a7484e79eb7f8fa1d4871ee5a1356c2d9638a503729e31e629ae9448d4c0b82d8016cf8b0c1f7ec2d86ee03a9b14b27a5c3e12b39fb7cff4232086b\n",
-          "verified_at": "2026-09-10T09:54:02Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5a5b1ed7471f9d5c3a33e0b1f4362545710c244c",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/5a5b1ed7471f9d5c3a33e0b1f4362545710c244c",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5a5b1ed7471f9d5c3a33e0b1f4362545710c244c/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf"
-        },
-        {
-          "sha": "3c91db262b74f001a30bc5834daf322eadc19c46",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3c91db262b74f001a30bc5834daf322eadc19c46",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/3c91db262b74f001a30bc5834daf322eadc19c46"
-        }
-      ]
-    },
-    {
-      "sha": "b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434",
-      "node_id": "C_kwDOABII59oAKGIzYTliODRiMzdjMGMzMGY0NDExYWQxZTA5ZDhmODllOWFhYTc0MzQ",
-      "commit": {
-        "author": {
-          "name": "littleyier",
-          "email": "153109197+LittleYier@users.noreply.github.com",
-          "date": "2026-09-09T21:02:48Z"
-        },
-        "committer": {
-          "name": "littleyier",
-          "email": "153109197+LittleYier@users.noreply.github.com",
-          "date": "2026-09-09T21:02:48Z"
-        },
-        "message": "doc: Correct upstream-pull reference",
-        "tree": {
-          "sha": "4db78cbdaeba01de36639a728d10d61cbeade60c",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/4db78cbdaeba01de36639a728d10d61cbeade60c"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b3a9b84b37c0c30f4411ad1e09d8f89e9aaa7434/comments",
-      "author": {
-        "login": "LittleYier",
-        "id": 153109197,
-        "node_id": "U_kgDOCSBCzQ",
-        "avatar_url": "https://avatars.githubusercontent.com/u/153109197?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/LittleYier",
-        "html_url": "https://github.com/LittleYier",
-        "followers_url": "https://api.github.com/users/LittleYier/followers",
-        "following_url": "https://api.github.com/users/LittleYier/following{/other_user}",
-        "gists_url": "https://api.github.com/users/LittleYier/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/LittleYier/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/LittleYier/subscriptions",
-        "organizations_url": "https://api.github.com/users/LittleYier/orgs",
-        "repos_url": "https://api.github.com/users/LittleYier/repos",
-        "events_url": "https://api.github.com/users/LittleYier/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/LittleYier/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "LittleYier",
-        "id": 153109197,
-        "node_id": "U_kgDOCSBCzQ",
-        "avatar_url": "https://avatars.githubusercontent.com/u/153109197?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/LittleYier",
-        "html_url": "https://github.com/LittleYier",
-        "followers_url": "https://api.github.com/users/LittleYier/followers",
-        "following_url": "https://api.github.com/users/LittleYier/following{/other_user}",
-        "gists_url": "https://api.github.com/users/LittleYier/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/LittleYier/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/LittleYier/subscriptions",
-        "organizations_url": "https://api.github.com/users/LittleYier/orgs",
-        "repos_url": "https://api.github.com/users/LittleYier/repos",
-        "events_url": "https://api.github.com/users/LittleYier/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/LittleYier/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf"
-        }
-      ]
-    },
-    {
-      "sha": "fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-      "node_id": "C_kwDOABII59oAKGZjNGYzNWZkY2U0ZDY1Njk2YmU2YmYzNDAwM2RiY2FjMWYyZjY0YmY",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-09T20:22:57Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-09T20:22:57Z"
-        },
-        "message": "Merge bitcoin/bitcoin#35513: rpc: help metadata fixes\n\n8976ba50a2b9cfa8f5b7898bd84f31be25270d5e rpc: require connman in getnetworkinfo (Ruslan Kasheparov)\n975229580f742135fd84c61b68f99acd7c7a4621 rpc: Fix inaccuracies in RPC help docs (Ruslan Kasheparov)\n\nPull request description:\n\n  Align RPC help documentation with actual implementation.\n\nACKs for top commit:\n  sedited:\n    ACK 8976ba50a2b9cfa8f5b7898bd84f31be25270d5e\n  willcl-ark:\n    ACK 8976ba50a2b9cfa8f5b7898bd84f31be25270d5e\n\nTree-SHA512: 9cea335aa1a74e3c598ce43cfa9a99b992b4436203e9b5e90a9e8b3bbd3cbf7ef3d5f112f426c7d13ba7b0ff9723f84be8fbfff23bdf940de51ef15708ea5ac4",
-        "tree": {
-          "sha": "8c27c64dae104812aac2d23afcbccac42ac003aa",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8c27c64dae104812aac2d23afcbccac42ac003aa"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqhwCEACgkQm3m0VpHb\nQXMW0BAAw7vkWjuaydAXEf8w8k6PoMkYjPMCnHyABigGSxgCcMZ6HsZGxkdreta3\nEf0Pe1vCMKyFM72G9AvsRUniyY8yJ3olDFVbmJrVOuEGxlMl9mJNLiGjudZ2RIek\nj4VHC5EGoanJpg3Aw+6d5HjssHSqgeUbGv/eQjcXkAjEgvMu/B9GuEbxabUFHzdD\niVup3vW8HXTiBk6+pyKPwtNWJvvlkiz+LOPmVGARjEBSusATJbeeCvWfAV+0XwiE\nAeNPa00uSgL2UBUJalMG9I3QNFtbg7uyZaJNiFNMsvP+XeKpyUI/qf6Z2hl/Fztf\nQiOrolPAi2OdjAR8SSnGgGbaKsJNnRy/k0d4XFYkepraVR3oJsaUKz8xml7IA785\nEoM56iTN9jmpPcSzyVd9swQjtk85BEvpY7N9MAwJnvTrS75yn+1geCNeUiv0nXxe\nljo5vZVcjfpP3a2nLzdPt//ZQI30eZc7oHxm/DzSFHOirNhV/3bWvWEBgB0EcZo1\nOo+w7JZ8F8AP4ZN9U7/k4wVWaBTxDoYMGLstU8x0A4uqjfmWPvAcXThyMRkc3yGN\n8EL2xed3iSmM7QYL0aDyMhrwOEisnurXjfEngjU1IN6wkeYYKGihiC+cz85WMlMy\n7ZKR7UWWD0DfCT0mq2oXT2oAHsHDzpH6FukfoqL8j4Qmh+81RWs=\n=8wu/\n-----END PGP SIGNATURE-----",
-          "payload": "tree 8c27c64dae104812aac2d23afcbccac42ac003aa\nparent af83bacdf9d6032b1a8c2767cc4394d413062d01\nparent 8976ba50a2b9cfa8f5b7898bd84f31be25270d5e\nauthor merge-script <seb.kung@gmail.com> 1788985377 +0200\ncommitter merge-script <seb.kung@gmail.com> 1788985377 +0200\n\nMerge bitcoin/bitcoin#35513: rpc: help metadata fixes\n\n8976ba50a2b9cfa8f5b7898bd84f31be25270d5e rpc: require connman in getnetworkinfo (Ruslan Kasheparov)\n975229580f742135fd84c61b68f99acd7c7a4621 rpc: Fix inaccuracies in RPC help docs (Ruslan Kasheparov)\n\nPull request description:\n\n  Align RPC help documentation with actual implementation.\n\nACKs for top commit:\n  sedited:\n    ACK 8976ba50a2b9cfa8f5b7898bd84f31be25270d5e\n  willcl-ark:\n    ACK 8976ba50a2b9cfa8f5b7898bd84f31be25270d5e\n\nTree-SHA512: 9cea335aa1a74e3c598ce43cfa9a99b992b4436203e9b5e90a9e8b3bbd3cbf7ef3d5f112f426c7d13ba7b0ff9723f84be8fbfff23bdf940de51ef15708ea5ac4\n",
-          "verified_at": "2026-09-09T20:23:28Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "af83bacdf9d6032b1a8c2767cc4394d413062d01",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/af83bacdf9d6032b1a8c2767cc4394d413062d01",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/af83bacdf9d6032b1a8c2767cc4394d413062d01"
-        },
-        {
-          "sha": "8976ba50a2b9cfa8f5b7898bd84f31be25270d5e",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8976ba50a2b9cfa8f5b7898bd84f31be25270d5e",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/8976ba50a2b9cfa8f5b7898bd84f31be25270d5e"
-        }
-      ]
-    },
-    {
-      "sha": "af83bacdf9d6032b1a8c2767cc4394d413062d01",
-      "node_id": "C_kwDOABII59oAKGFmODNiYWNkZjlkNjAzMmIxYThjMjc2N2NjNDM5NGQ0MTMwNjJkMDE",
-      "commit": {
-        "author": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-09-09T19:58:53Z"
-        },
-        "committer": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-09-09T19:58:53Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36202: doc: add rel note about potential CJDNS removal\n\nd6a2341632a045f880693b7df60bd135f0c72e82 doc: add rel note about potential CJDNS removal (fanquake)\n\nPull request description:\n\n  Related to discussion in #36041.\n\nACKs for top commit:\n  achow101:\n    ACK d6a2341632a045f880693b7df60bd135f0c72e82\n  mzumsande:\n    ACK [d6a2341](https://github.com/bitcoin/bitcoin/commit/d6a2341632a045f880693b7df60bd135f0c72e82)\n  willcl-ark:\n    ACK d6a2341632a045f880693b7df60bd135f0c72e82\n\nTree-SHA512: 4e421a2d7a17202059d34878a0f702cdd12aa41693c281d36e4c0c670e67eef7631a54b66cb237082e5fa491873be6992b6d378cb6c2145fc5c870826225afcc",
-        "tree": {
-          "sha": "879a4082de7cc9652164f42716f475f1c9467b68",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/879a4082de7cc9652164f42716f475f1c9467b68"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/af83bacdf9d6032b1a8c2767cc4394d413062d01",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unknown_key",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmqhun0ACgkQF1ZXMuCO\nXkELfw/5AdOfWH+tkz/SSyEMKWfpVTs3mYuzGS8HCZIAQAHxZO157lsxYXTq7zdQ\nBf2Ej3s93i1w+mdfjn6ZXh6768LPtaoWEmo23r9p/5T1fEomrST8gOfyc3NdrQSf\nPMUj90a1lvAfHn3VE93IZhOyzHcInaBA6ktCBfyAsg5qQbEmmbarVpz+cOkEypIg\nfAYboe7JnBD8UobPadZMh202MxNYbcuiJQzDjhi/35ayIjcJUZdUM8KsI6Js6xsh\nXnshT8LmiTW0ZbozzXgjeVt+9h1QHjOYnxt17cytHYTtd72AoKTQon22OLoYRbdb\nvwE3RW3HdZsEVFfihCmLbA0Y0HdBMl4RPxnyA+qCSJU/JrNrC/TcG/AkZj1tEaaL\nr21vlX34Yu4RPXfXrInvJ2k+SnRucGQuPkmj+iipGlqiiYxrQUJbZ2tBXCskf+60\n4yeEeepk8RlW3WFEEYoUug3reFl6RI+ThiNs9jp6AVkcOOUkqxGVrQu2nQI3Z7ms\nwtZgc9gr0rKa2sUYaJt7dL3BgwVm/fw7yzSyLlhxAHrT+pw5OjxT4D4wp2e36yug\ncpnxTahwRN1bHyGWNVMfbrfmvWVFbQM2K8cw4PUJhuCj+A8Y81XhaXmj7GdnH/DM\nG/sXJjLdw8w0IEQXCkjSFR66Eok6dy6Ny5AumXHGfXtrOlEUiEk=\n=L6Gl\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIF7+cVoDUR4AsP+IBGTvoPQXGKEUuid1LDyreEBKEEtCCP/wEAY7qAG+hCe3\nj6uMgVCwlQAI8QRqobqC8Ag7HRJTqOfmOwCD3+MNLvkMjiMiaHR0cHM6Ly9idGMu\nY2FsZW5kYXIuY2F0YWxsYXh5LmNvbf/wEI5bqH/YtHPRwWzum4fcmcMI8SC0dK7Z\nlzeTgOehKscVxpTv73OwIzZ8Yxj4oa1aiOinSAjxBGqhuoLwCJcJyW5kSsx/AIPf\n4w0u+QyOKShodHRwczovL2Zpbm5leS5jYWxlbmRhci5ldGVybml0eXdhbGwuY29t\n//AIqTiXd1mrdd4I8BAzG9+ozCUtUpu5PH8dpKvjCPAgm1DPoWWBh8M5r/fTjQwE\nOym5vq/c8h+ZJS+3JyOflQEI8CCxltvfbf0YUCedteFzXbYTOrQDPDT9fP6RK1zB\nOUV7JgjxBGqhuoLwCO69+gbPcCUcAIPf4w0u+QyOLCtodHRwczovL2JvYi5idGMu\nY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3Jn8Ajzl4BnCQi0xQjwEDMtzPmIp+58\n1Ygnd4BlBocI8CDDHTPzSMyDRKsReuKmvwlkplkq8ngkS1ajSXoEkvB+BwjxBGqh\nuoLwCNBVsNn4cB6lAIPf4w0u+QyOLi1odHRwczovL2FsaWNlLmJ0Yy5jYWxlbmRh\nci5vcGVudGltZXN0YW1wcy5vcmc=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
-          "payload": "tree 879a4082de7cc9652164f42716f475f1c9467b68\nparent 7e75b3b922f9ba740240c2204e3e9389524eafdb\nparent d6a2341632a045f880693b7df60bd135f0c72e82\nauthor Ava Chow <github@achow101.com> 1788983933 -0700\ncommitter Ava Chow <github@achow101.com> 1788983933 -0700\n\nMerge bitcoin/bitcoin#36202: doc: add rel note about potential CJDNS removal\n\nd6a2341632a045f880693b7df60bd135f0c72e82 doc: add rel note about potential CJDNS removal (fanquake)\n\nPull request description:\n\n  Related to discussion in #36041.\n\nACKs for top commit:\n  achow101:\n    ACK d6a2341632a045f880693b7df60bd135f0c72e82\n  mzumsande:\n    ACK [d6a2341](https://github.com/bitcoin/bitcoin/commit/d6a2341632a045f880693b7df60bd135f0c72e82)\n  willcl-ark:\n    ACK d6a2341632a045f880693b7df60bd135f0c72e82\n\nTree-SHA512: 4e421a2d7a17202059d34878a0f702cdd12aa41693c281d36e4c0c670e67eef7631a54b66cb237082e5fa491873be6992b6d378cb6c2145fc5c870826225afcc\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/af83bacdf9d6032b1a8c2767cc4394d413062d01",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/af83bacdf9d6032b1a8c2767cc4394d413062d01",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/af83bacdf9d6032b1a8c2767cc4394d413062d01/comments",
-      "author": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "7e75b3b922f9ba740240c2204e3e9389524eafdb",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7e75b3b922f9ba740240c2204e3e9389524eafdb",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/7e75b3b922f9ba740240c2204e3e9389524eafdb"
-        },
-        {
-          "sha": "d6a2341632a045f880693b7df60bd135f0c72e82",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d6a2341632a045f880693b7df60bd135f0c72e82",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/d6a2341632a045f880693b7df60bd135f0c72e82"
-        }
-      ]
-    },
-    {
-      "sha": "ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
-      "node_id": "C_kwDOABII59oAKGVjZGY5ZGI5MDZiNGQwOWU3ODAzNzFmZDZlN2ZlNDIwZWNkYzg3Zjk",
-      "commit": {
-        "author": {
-          "name": "David Gumberg",
-          "email": "davidzgumberg@gmail.com",
-          "date": "2026-09-08T22:13:03Z"
-        },
-        "committer": {
-          "name": "David Gumberg",
-          "email": "davidzgumberg@gmail.com",
-          "date": "2026-09-09T17:16:16Z"
-        },
-        "message": "test: get_previous_releases.py use `PREVIOUS_RELEASES_DIR`\n\n`test_framework.py` already uses `PREVIOUS_RELEASES_DIR` to set a\ndefault directory to find previous releases, so should\n`get_previous_releases.py` when fetching them.\n\nThis is more convenient for local development when using multiple\nworktrees where having `$PREVIOUS_RELEASES_DIR` set is useful.\n\nAlso allows some CI code to get deleted.",
-        "tree": {
-          "sha": "df7603f43ed51a8fba6ee9afcc058d294eb0f43a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/df7603f43ed51a8fba6ee9afcc058d294eb0f43a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9/comments",
-      "author": {
-        "login": "davidgumberg",
-        "id": 2257631,
-        "node_id": "MDQ6VXNlcjIyNTc2MzE=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/2257631?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/davidgumberg",
-        "html_url": "https://github.com/davidgumberg",
-        "followers_url": "https://api.github.com/users/davidgumberg/followers",
-        "following_url": "https://api.github.com/users/davidgumberg/following{/other_user}",
-        "gists_url": "https://api.github.com/users/davidgumberg/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/davidgumberg/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/davidgumberg/subscriptions",
-        "organizations_url": "https://api.github.com/users/davidgumberg/orgs",
-        "repos_url": "https://api.github.com/users/davidgumberg/repos",
-        "events_url": "https://api.github.com/users/davidgumberg/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/davidgumberg/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "davidgumberg",
-        "id": 2257631,
-        "node_id": "MDQ6VXNlcjIyNTc2MzE=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/2257631?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/davidgumberg",
-        "html_url": "https://github.com/davidgumberg",
-        "followers_url": "https://api.github.com/users/davidgumberg/followers",
-        "following_url": "https://api.github.com/users/davidgumberg/following{/other_user}",
-        "gists_url": "https://api.github.com/users/davidgumberg/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/davidgumberg/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/davidgumberg/subscriptions",
-        "organizations_url": "https://api.github.com/users/davidgumberg/orgs",
-        "repos_url": "https://api.github.com/users/davidgumberg/repos",
-        "events_url": "https://api.github.com/users/davidgumberg/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/davidgumberg/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "59fd053dac83c989dcb18f6d92e0d17eb7ecb227",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/59fd053dac83c989dcb18f6d92e0d17eb7ecb227",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/59fd053dac83c989dcb18f6d92e0d17eb7ecb227"
-        }
-      ]
-    },
-    {
-      "sha": "28b69e298884ed3f0b03023d9ad1cf37d15bcec6",
-      "node_id": "C_kwDOABII59oAKDI4YjY5ZTI5ODg4NGVkM2YwYjAzMDIzZDlhZDFjZjM3ZDE1YmNlYzY",
-      "commit": {
-        "author": {
-          "name": "Matthew Zipkin",
-          "email": "pinheadmz@pm.me",
-          "date": "2026-09-04T16:18:23Z"
-        },
-        "committer": {
-          "name": "Matthew Zipkin",
-          "email": "pinheadmz@pm.me",
-          "date": "2026-09-09T17:15:46Z"
-        },
-        "message": "http: stop processing requests from a client when send buffer is full\n\nPrevents a memory exhaustion case where a misbehaving client\nrefuses to read responses and drain the socket buffer. Instead of\npacking more data on to the server-side m_send_buffer, stop\ndispatching requests from the client to workers",
-        "tree": {
-          "sha": "85cd1619414ae9fc521c7c1a522e7aaa16f8833d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/85cd1619414ae9fc521c7c1a522e7aaa16f8833d"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/28b69e298884ed3f0b03023d9ad1cf37d15bcec6",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/28b69e298884ed3f0b03023d9ad1cf37d15bcec6",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/28b69e298884ed3f0b03023d9ad1cf37d15bcec6",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/28b69e298884ed3f0b03023d9ad1cf37d15bcec6/comments",
-      "author": {
-        "login": "pinheadmz",
-        "id": 2084648,
-        "node_id": "MDQ6VXNlcjIwODQ2NDg=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/2084648?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/pinheadmz",
-        "html_url": "https://github.com/pinheadmz",
-        "followers_url": "https://api.github.com/users/pinheadmz/followers",
-        "following_url": "https://api.github.com/users/pinheadmz/following{/other_user}",
-        "gists_url": "https://api.github.com/users/pinheadmz/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/pinheadmz/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/pinheadmz/subscriptions",
-        "organizations_url": "https://api.github.com/users/pinheadmz/orgs",
-        "repos_url": "https://api.github.com/users/pinheadmz/repos",
-        "events_url": "https://api.github.com/users/pinheadmz/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/pinheadmz/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "pinheadmz",
-        "id": 2084648,
-        "node_id": "MDQ6VXNlcjIwODQ2NDg=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/2084648?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/pinheadmz",
-        "html_url": "https://github.com/pinheadmz",
-        "followers_url": "https://api.github.com/users/pinheadmz/followers",
-        "following_url": "https://api.github.com/users/pinheadmz/following{/other_user}",
-        "gists_url": "https://api.github.com/users/pinheadmz/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/pinheadmz/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/pinheadmz/subscriptions",
-        "organizations_url": "https://api.github.com/users/pinheadmz/orgs",
-        "repos_url": "https://api.github.com/users/pinheadmz/repos",
-        "events_url": "https://api.github.com/users/pinheadmz/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/pinheadmz/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "f0c839ace5a2a5e2651c580c76974c514f1500f8",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f0c839ace5a2a5e2651c580c76974c514f1500f8",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f0c839ace5a2a5e2651c580c76974c514f1500f8"
         }
       ]
     }
