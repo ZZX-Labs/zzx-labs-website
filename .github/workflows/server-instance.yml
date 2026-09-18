@@ -672,6 +672,10 @@ jobs:
 
           audit_service nginx
           audit_service gunicorn
+          audit_service zzx-bitnodes-crawler
+          audit_service zzx-bitnodes-snapshot
+          audit_service zzx-bpi
+          audit_service zzx-bpi-finalize
 
           if [ "${INCLUDE_MAIL}" = "true" ]; then
             printf '%s\n' ""
@@ -792,6 +796,50 @@ jobs:
             server/ \
             "${USER}@${HOST}:${DEST}/server/"
 
+          # Install repository-managed resident collectors/timers. The unit files
+          # use /srv/zzx-labs as their canonical runtime root; only install them
+          # when this deployment targets that canonical production path.
+          if [ "${DEST}" = "/srv/zzx-labs" ]; then
+            "${SSH[@]}" "bash -s" <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/zzx-labs
+
+          # The resident Bitnodes collector has a dedicated unprivileged
+          # identity. Keep deployment ownership intact while granting its group
+          # write access only to the Bitnodes runtime/publication tree.
+          if ! getent group zzx >/dev/null 2>&1; then
+            sudo groupadd --system zzx
+          fi
+          if ! id -u zzx >/dev/null 2>&1; then
+            sudo useradd --system --gid zzx --home-dir "${ROOT}" --no-create-home --shell /usr/sbin/nologin zzx
+          fi
+          sudo install -d -m 0750 -o zzx -g zzx /etc/zzx-labs
+          sudo install -d -m 0750 -o zzx -g zzx /var/lib/zzx-bitnodes/history
+          sudo chgrp -R zzx "${ROOT}/bitcoin/bitnodes" "${ROOT}/log" "${ROOT}/run" 2>/dev/null || true
+          sudo chmod -R g+rwX "${ROOT}/bitcoin/bitnodes" "${ROOT}/log" "${ROOT}/run" 2>/dev/null || true
+          sudo find "${ROOT}/bitcoin/bitnodes" "${ROOT}/log" "${ROOT}/run" -type d -exec chmod g+s {} + 2>/dev/null || true
+
+          for unit in \
+            zzx-bitnodes-crawler.service \
+            zzx-bitnodes-snapshot.service \
+            zzx-bitnodes-snapshot.timer \
+            zzx-bpi.service \
+            zzx-bpi-finalize.service \
+            zzx-bpi-finalize.timer
+          do
+            test -s "${ROOT}/server/systemd/${unit}"
+            sudo install -m 0644 "${ROOT}/server/systemd/${unit}" "/etc/systemd/system/${unit}"
+          done
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now zzx-bitnodes-crawler.service
+          sudo systemctl enable --now zzx-bitnodes-snapshot.timer
+          sudo systemctl enable --now zzx-bpi.service
+          sudo systemctl enable --now zzx-bpi-finalize.timer
+          REMOTE
+          else
+            printf '%s\n' "Custom resident collector units were not auto-installed because destination is ${DEST}, not /srv/zzx-labs."
+          fi
+
           {
             printf 'target=%s\n' "${TARGET}"
             printf 'destination=%s/server/\n' "${DEST}"
@@ -886,6 +934,15 @@ jobs:
 
           restart_service nginx || FAILED=1
           restart_service gunicorn || FAILED=1
+          restart_service zzx-bitnodes-crawler || FAILED=1
+          restart_service zzx-bpi || FAILED=1
+
+          if systemctl list-unit-files --type=timer --no-legend zzx-bitnodes-snapshot.timer 2>/dev/null | grep -q '^zzx-bitnodes-snapshot.timer'; then
+            sudo systemctl enable --now zzx-bitnodes-snapshot.timer || FAILED=1
+          fi
+          if systemctl list-unit-files --type=timer --no-legend zzx-bpi-finalize.timer 2>/dev/null | grep -q '^zzx-bpi-finalize.timer'; then
+            sudo systemctl enable --now zzx-bpi-finalize.timer || FAILED=1
+          fi
 
           if [ "${INCLUDE_MAIL}" = "true" ]; then
             restart_service dovecot || FAILED=1
