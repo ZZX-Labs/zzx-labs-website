@@ -35,10 +35,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: zzx-bitnodes-global-crawler
-  cancel-in-progress: false
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
@@ -49,6 +45,8 @@ env:
   BITNODES_ARCHIVE: bitcoin/bitnodes/archive
   BITNODES_GEO: bitcoin/bitnodes/data/geo
   BITNODES_GEOIP: bitcoin/bitnodes/data/geoip
+  BITNODES_HISTORY: /tmp/zzx-bitnodes-history
+  BITNODES_HISTORY_SQL: /tmp/zzx-bitnodes-history-mariadb
 
   MAX_PUBLIC_JSON_BYTES: "24000000"
   MAX_COMMIT_FILES: "600"
@@ -70,7 +68,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+
+          fetched=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              fetched=1
+              break
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying."
+            sleep "$(( attempt * 3 ))"
+          done
+
+          if [ "${fetched}" != "1" ]; then
+            printf '%s\n' "Unable to refresh origin/main after five attempts."
+            exit 1
+          fi
+
           git reset --hard origin/main
           git clean -fdx
 
@@ -92,14 +105,14 @@ jobs:
           esac
 
           if [ "${PROFILE}" = "deep" ]; then
-            printf '%s\n' "run_seconds=3000" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "run_seconds=3300" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "workers=256" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "batch_size=4096" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "getaddr_rounds=48" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "dns_seed_limit=12000" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "archive_replay_files=1500" >> "${GITHUB_OUTPUT}"
           else
-            printf '%s\n' "run_seconds=1500" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "run_seconds=1200" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "workers=192" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "batch_size=2048" >> "${GITHUB_OUTPUT}"
             printf '%s\n' "getaddr_rounds=24" >> "${GITHUB_OUTPUT}"
@@ -120,8 +133,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -r tools/bitnodes/requirements.txt
+          python -m pip install --retries 5 --timeout 60 --upgrade pip
+          python -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
           python - <<'PY'
           import geoip2.database
           import maxminddb
@@ -136,6 +149,12 @@ jobs:
           REQUIRED=(
             tools/bitnodes/crawl.py
             tools/bitnodes/zzxbitnodes.py
+            tools/bitnodes/history_archive.py
+            tools/bitnodes/history_mariadb.py
+            tools/bitnodes/restore_private_state.py
+            tools/bitnodes/history_archive_selftest.py
+            tools/bitnodes/state_continuity_selftest.py
+            tools/bitnodes/workflow_contract_selftest.py
             tools/bitnodes/collector.py
             tools/bitnodes/update_snapshot.py
             tools/bitnodes/merge_sources.py
@@ -152,6 +171,7 @@ jobs:
             tools/bitnodes/publish_generated_commit.py
             tools/bitnodes/publish_generated_commit_selftest.py
             tools/bitnodes/build_geo_indexes.py
+            tools/bitnodes/map/ensure_geo_data.py
             tools/bpi/bpi_git_publish.py
           )
 
@@ -186,6 +206,9 @@ jobs:
           python tools/bitnodes/export_db_selftest.py
           python tools/bitnodes/public_artifacts_selftest.py
           python tools/bitnodes/publish_generated_commit_selftest.py
+          python tools/bitnodes/history_archive_selftest.py
+          python tools/bitnodes/state_continuity_selftest.py
+          python tools/bitnodes/workflow_contract_selftest.py
           python -m json.tool "${BITNODES_API}/sources.json" >/dev/null
 
       - name: Prepare Bitnodes directories
@@ -215,8 +238,407 @@ jobs:
             "${BITNODES_GEOIP}/published" \
             "${BITNODES_ARCHIVE}/runtime/zzxbitnodes"
 
-      - name: Download DB-IP GeoIP databases
+      - name: Restore durable all-known node state from private backup
+        continue-on-error: true
         shell: bash
+        env:
+          BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
+          BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BITNODES_BACKUP_REPO:-}" ] || [ -z "${BITNODES_BACKUP_TOKEN:-}" ]; then
+            printf '%s\n' "Private durable state is not configured; native discovery/public seeds will bootstrap this run."
+            exit 0
+          fi
+
+          TMP="$(mktemp -d)"
+          ASKPASS="$(mktemp)"
+          trap 'rm -rf "${TMP}"; rm -f "${ASKPASS}"' EXIT
+
+          cat > "${ASKPASS}" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "${BITNODES_BACKUP_TOKEN}" ;;
+            *) printf '%s\n' "" ;;
+          esac
+          ASKPASS
+          chmod 700 "${ASKPASS}"
+          export GIT_ASKPASS="${ASKPASS}"
+          export GIT_TERMINAL_PROMPT=0
+
+          git clone --filter=blob:none --no-checkout --single-branch --branch main \
+            "https://github.com/${BITNODES_BACKUP_REPO}.git" "${TMP}"
+          git -C "${TMP}" sparse-checkout init --cone
+          git -C "${TMP}" sparse-checkout set bitnodes/latest-state
+          git -C "${TMP}" checkout main
+
+          STATE_MANIFEST="${TMP}/bitnodes/latest-state/manifest.json"
+          if [ ! -s "${STATE_MANIFEST}" ]; then
+            printf '%s\n' "No private latest-state snapshot exists yet; this run will establish it."
+            exit 0
+          fi
+
+          python -m json.tool "${STATE_MANIFEST}" >/dev/null
+          while IFS= read -r -d '' file; do
+            gzip -t "${file}"
+          done < <(find "${TMP}/bitnodes/latest-state" -type f -name '*.json.gz' -print0)
+
+          python tools/bitnodes/restore_private_state.py \
+            --manifest "${STATE_MANIFEST}" \
+            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes"
+
+      - name: Mirror btcnodes.io as optional compatibility seed
+        id: btcnodes-seed
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REFRESHED=0
+          for attempt in 1 2 3; do
+            if python tools/bitnodes/update_snapshot.py; then
+              REFRESHED=1
+              break
+            fi
+            printf '%s\n' "::warning title=btcnodes.io seed retry::External snapshot attempt ${attempt}/3 failed."
+            sleep "$(( attempt * 5 ))"
+          done
+
+          if python - <<'PY'
+          import json
+          from pathlib import Path
+          raw=Path("bitcoin/bitnodes/api/btcnodes/latest.json")
+          normalized=Path("bitcoin/bitnodes/api/btcnodes/normalized/latest.json")
+          if not raw.is_file() or raw.stat().st_size <= 0 or not normalized.is_file() or normalized.stat().st_size <= 0:
+              raise SystemExit(1)
+          json.loads(raw.read_text(encoding="utf-8"))
+          data=json.loads(normalized.read_text(encoding="utf-8"))
+          nodes=data.get("nodes")
+          if not str(data.get("source") or "").strip() or not isinstance(nodes,list) or not nodes:
+              raise SystemExit(1)
+          print(f"validated optional btcnodes seed: nodes={len(nodes)}")
+          PY
+          then
+            mkdir -p "${BITNODES_DATA}/runtime/seeders/zzxbitnodes"
+            cp -f "${BITNODES_API}/btcnodes/latest.json" "${BITNODES_DATA}/runtime/seeders/zzxbitnodes/btcnodes-latest.json"
+            if [ "${REFRESHED}" = "1" ]; then
+              printf '%s\n' "mode=fresh" >> "${GITHUB_OUTPUT}"
+            else
+              printf '%s\n' "mode=last-known-good" >> "${GITHUB_OUTPUT}"
+            fi
+          else
+            rm -f "${BITNODES_DATA}/runtime/seeders/zzxbitnodes/btcnodes-latest.json"
+            printf '%s\n' "mode=native-only" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "::warning title=btcnodes.io unavailable::No valid external mirror is available. Continuing with native Bitcoin DNS/P2P discovery."
+          fi
+
+      - name: Run ZZX Bitnodes crawler window
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python tools/bitnodes/crawl.py \
+            --crawler zzxbitnodes \
+            --daemon \
+            --run-seconds "${{ steps.profile.outputs.run_seconds }}" \
+            --interval 20 \
+            --output "${BITNODES_API}/zzxbitnodes" \
+            --archive-dir "${BITNODES_ARCHIVE}/runtime/zzxbitnodes" \
+            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
+            --snapshot-24h-dir "${BITNODES_DATA}/runtime/snapshots/24h/zzxbitnodes" \
+            --history-output-dir "${BITNODES_HISTORY}" \
+            --history-full-snapshot-interval-seconds 900 \
+            --recrawl-reachable-seconds 300 \
+            --recrawl-unreachable-seconds 900 \
+            --seeder-dir "${BITNODES_DATA}/runtime/seeders/zzxbitnodes" \
+            --disable-geoip \
+            --geoip-dir "${BITNODES_GEOIP}" \
+            --geo-root "${BITNODES_GEO}" \
+            --timeout 5 \
+            --limit 750000 \
+            --batch-size "${{ steps.profile.outputs.batch_size }}" \
+            --workers "${{ steps.profile.outputs.workers }}" \
+            --getaddr-rounds "${{ steps.profile.outputs.getaddr_rounds }}" \
+            --dns-seed-limit "${{ steps.profile.outputs.dns_seed_limit }}" \
+            --archive-replay-files "${{ steps.profile.outputs.archive_replay_files }}" \
+            --export-mode reachable_24h \
+            --no-enrich-after \
+            --no-aggregate-after \
+            --no-export-all-after \
+            --compact
+
+      - name: Validate and shard append-only private history
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -d "${BITNODES_HISTORY}/zzxbitnodes"
+          SNAPSHOT_COUNT="$(find "${BITNODES_HISTORY}/zzxbitnodes" -type f -name 'manifest.json' -path '*/snapshots/*/manifest.json' | wc -l | tr -d ' ')"
+          OBS_COUNT="$(find "${BITNODES_HISTORY}/zzxbitnodes" -type f -name '*.ndjson.gz' -path '*/observations/*' | wc -l | tr -d ' ')"
+          test "${SNAPSHOT_COUNT}" -gt 0
+          test "${OBS_COUNT}" -gt 0
+
+          while IFS= read -r -d '' file; do
+            gzip -t "${file}"
+          done < <(find "${BITNODES_HISTORY}/zzxbitnodes" -type f \
+            \( -name '*.json.gz' -o -name '*.ndjson.gz' \) -print0)
+
+          rm -rf "${BITNODES_HISTORY_SQL}"
+          python tools/bitnodes/history_mariadb.py \
+            --history-root "${BITNODES_HISTORY}" \
+            --output-dir "${BITNODES_HISTORY_SQL}" \
+            --rows-per-shard 5000
+
+          test -s "${BITNODES_HISTORY_SQL}/manifest.json"
+          python -m json.tool "${BITNODES_HISTORY_SQL}/manifest.json" >/dev/null
+          python - <<'PY'
+          import json
+          p=json.load(open("/tmp/zzx-bitnodes-history-mariadb/manifest.json",encoding="utf-8"))
+          if p.get("schema") != "zzx-bitnodes-history-mariadb-v3" or not p.get("idempotent"):
+              raise SystemExit("private Bitnodes MariaDB shard contract is not v3/idempotent")
+          PY
+
+      - name: Backup raw history and history MariaDB shards to private repo
+        id: history_backup
+        continue-on-error: true
+        shell: bash
+        env:
+          BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
+          BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BITNODES_BACKUP_REPO:-}" ] || [ -z "${BITNODES_BACKUP_TOKEN:-}" ]; then
+            printf '%s\n' "history_backup_status=skipped-auth" >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "Private history backup credentials are not configured."
+            exit 0
+          fi
+
+          if ! [[ "${BITNODES_BACKUP_REPO}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            printf '%s\n' "history_backup_status=invalid-repo" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
+          TMP="$(mktemp -d)"
+          STAGE="$(mktemp -d)"
+          ASKPASS="$(mktemp)"
+          trap 'rm -rf "${TMP}" "${STAGE}"; rm -f "${ASKPASS}"' EXIT
+
+          cat > "${ASKPASS}" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "${BITNODES_BACKUP_TOKEN}" ;;
+            *) printf '%s\n' "" ;;
+          esac
+          ASKPASS
+          chmod 700 "${ASKPASS}"
+          export GIT_ASKPASS="${ASKPASS}" GIT_TERMINAL_PROMPT=0
+
+          cloned=0
+          for attempt in 1 2 3 4 5; do
+            rm -rf "${TMP:?}"/* "${TMP:?}"/.[!.]* "${TMP:?}"/..?* 2>/dev/null || true
+            if git clone --filter=blob:none --no-checkout --single-branch --branch main \
+              "https://github.com/${BITNODES_BACKUP_REPO}.git" "${TMP}"; then
+              git -C "${TMP}" sparse-checkout init --cone
+              git -C "${TMP}" sparse-checkout set bitnodes/latest-state
+              git -C "${TMP}" checkout main
+              cloned=1
+              break
+            fi
+            sleep "$((attempt * 5))"
+          done
+          test "${cloned}" = "1"
+
+          RUN_DIR="bitnodes/history-runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "${STAGE}/raw" "${STAGE}/mariadb" "${STAGE}/latest-state"
+          cp -a "${BITNODES_HISTORY}/." "${STAGE}/raw/"
+          cp -a "${BITNODES_HISTORY_SQL}/." "${STAGE}/mariadb/"
+
+          LATEST_MANIFEST="$(find "${BITNODES_HISTORY}/zzxbitnodes" -type f -name 'manifest.json' -path '*/snapshots/*/manifest.json' -print | sort | tail -n 1)"
+          test -n "${LATEST_MANIFEST}"
+          cp -a "$(dirname "${LATEST_MANIFEST}")/." "${STAGE}/latest-state/"
+          CHECKSUM_TMP="$(mktemp)"
+          find "${STAGE}/latest-state" -type f ! -name 'SHA256SUMS' -print0 \
+            | sort -z | xargs -0 sha256sum > "${CHECKSUM_TMP}"
+          mv -f "${CHECKSUM_TMP}" "${STAGE}/latest-state/SHA256SUMS"
+
+          NEW_TS="$(python - "${STAGE}/latest-state/manifest.json" <<'PY'
+          import json,sys
+          print(int(json.load(open(sys.argv[1],encoding='utf-8')).get('timestamp') or 0))
+          PY
+          )"
+          test "${NEW_TS}" -gt 0
+
+          git -C "${TMP}" config user.name "zzx-labs-bitnodes-bot"
+          git -C "${TMP}" config user.email "actions@github.com"
+          pushed=0
+          for attempt in 1 2 3 4 5; do
+            if ! git -C "${TMP}" fetch origin main; then
+              sleep "$((attempt * 5))"
+              continue
+            fi
+            git -C "${TMP}" reset --hard origin/main
+            git -C "${TMP}" clean -fdx
+
+            mkdir -p "${TMP}/${RUN_DIR}/raw" "${TMP}/${RUN_DIR}/mariadb"
+            cp -a "${STAGE}/raw/." "${TMP}/${RUN_DIR}/raw/"
+            cp -a "${STAGE}/mariadb/." "${TMP}/${RUN_DIR}/mariadb/"
+
+            OLD_TS=0
+            if [ -s "${TMP}/bitnodes/latest-state/manifest.json" ]; then
+              OLD_TS="$(python - "${TMP}/bitnodes/latest-state/manifest.json" <<'PY'
+          import json,sys
+          print(int(json.load(open(sys.argv[1],encoding='utf-8')).get('timestamp') or 0))
+          PY
+              )"
+            fi
+            if [ "${NEW_TS}" -gt "${OLD_TS}" ]; then
+              rm -rf "${TMP}/bitnodes/latest-state"
+              mkdir -p "${TMP}/bitnodes/latest-state"
+              cp -a "${STAGE}/latest-state/." "${TMP}/bitnodes/latest-state/"
+            else
+              printf '%s\n' "Private latest-state already newer/equal (${OLD_TS} >= ${NEW_TS}); archiving this run without regressing restore state."
+            fi
+
+            git -C "${TMP}" add --sparse "${RUN_DIR}" bitnodes/latest-state
+            if git -C "${TMP}" diff --cached --quiet; then
+              pushed=1
+              break
+            fi
+            git -C "${TMP}" commit -m "Archive continuous Bitnodes observations ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            if git -C "${TMP}" push origin HEAD:main; then
+              pushed=1
+              break
+            fi
+            sleep "$((attempt * 7))"
+          done
+          test "${pushed}" = "1"
+          printf '%s\n' "history_backup_status=success" >> "${GITHUB_OUTPUT}"
+
+      - name: Preserve history as workflow artifact when private backup is unavailable
+        if: ${{ always() && steps.history_backup.outputs.history_backup_status != 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: zzx-bitnodes-history-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/zzx-bitnodes-history
+            /tmp/zzx-bitnodes-history-mariadb
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
+
+      - name: Publish raw native latest independently of enrichment
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SRC="${BITNODES_API}/zzxbitnodes/latest.json"
+          test -s "${SRC}"
+          TMP="$(mktemp -d)"
+          ASKPASS="$(mktemp)"
+          trap 'rm -rf "${TMP}"; rm -f "${ASKPASS}"' EXIT
+          cat > "${ASKPASS}" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "${GH_TOKEN}" ;;
+            *) printf '%s\n' "" ;;
+          esac
+          ASKPASS
+          chmod 700 "${ASKPASS}"
+          export GIT_ASKPASS="${ASKPASS}" GIT_TERMINAL_PROMPT=0
+          git clone --filter=blob:none --no-checkout --single-branch --branch main "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" "${TMP}"
+          git -C "${TMP}" sparse-checkout init --cone
+          git -C "${TMP}" sparse-checkout set bitcoin/bitnodes/api/zzxbitnodes
+          git -C "${TMP}" checkout main
+          git -C "${TMP}" config user.name "zzx-labs-bitnodes-bot"
+          git -C "${TMP}" config user.email "actions@github.com"
+
+          NEW_TS="$(python - "${SRC}" <<'PY'
+          import json,sys
+          print(int(json.load(open(sys.argv[1],encoding='utf-8')).get('timestamp') or 0))
+          PY
+          )"
+          test "${NEW_TS}" -gt 0
+
+          TARGET="${TMP}/bitcoin/bitnodes/api/zzxbitnodes/latest.json"
+          for attempt in 1 2 3 4 5; do
+            git -C "${TMP}" fetch origin main || { sleep "$((attempt * 4))"; continue; }
+            git -C "${TMP}" reset --hard origin/main
+            OLD_TS=0
+            if [ -s "${TARGET}" ]; then
+              OLD_TS="$(python - "${TARGET}" <<'PY'
+          import json,sys
+          print(int(json.load(open(sys.argv[1],encoding='utf-8')).get('timestamp') or 0))
+          PY
+              )"
+            fi
+            if [ "${OLD_TS}" -ge "${NEW_TS}" ]; then
+              printf '%s\n' "Raw public latest is already newer/equal (${OLD_TS} >= ${NEW_TS}); refusing stale overwrite."
+              exit 0
+            fi
+            mkdir -p "$(dirname "${TARGET}")"
+            cp -f "${SRC}" "${TARGET}"
+            git -C "${TMP}" add bitcoin/bitnodes/api/zzxbitnodes/latest.json
+            git -C "${TMP}" commit -m "data: update raw ZZX Bitnodes latest"
+            if git -C "${TMP}" push origin HEAD:main; then
+              exit 0
+            fi
+            sleep "$((attempt * 4))"
+          done
+          exit 1
+
+      - name: Resolve geodata cache period
+        id: geodata-cache-key
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'month=%s\n' "$(date -u +%Y-%m)" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore reusable DB-IP and GeoNames cache
+        continue-on-error: true
+        id: geodata-cache
+        uses: actions/cache@v4
+        with:
+          # Keep the durable cache outside the Git worktree. Both crawler and
+          # Map Host intentionally use git clean -fdx during safe publication.
+          path: ~/.cache/zzx-bitnodes-geodata
+          key: zzx-bitnodes-geodata-${{ runner.os }}-${{ steps.geodata-cache-key.outputs.month }}
+          restore-keys: |
+            zzx-bitnodes-geodata-${{ runner.os }}-
+
+      - name: Hydrate working geodata from durable cache
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CACHE_ROOT="${HOME}/.cache/zzx-bitnodes-geodata"
+          mkdir -p \
+            "${BITNODES_GEOIP}" \
+            "${BITNODES_GEO}/sources" \
+            "${BITNODES_GEO}/mariadb-gz"
+
+          if [ -d "${CACHE_ROOT}/geoip" ]; then
+            cp -af "${CACHE_ROOT}/geoip/." "${BITNODES_GEOIP}/"
+          fi
+          if [ -d "${CACHE_ROOT}/geo/sources" ]; then
+            cp -af "${CACHE_ROOT}/geo/sources/." "${BITNODES_GEO}/sources/"
+          fi
+          if [ -d "${CACHE_ROOT}/geo/mariadb-gz" ]; then
+            cp -af "${CACHE_ROOT}/geo/mariadb-gz/." "${BITNODES_GEO}/mariadb-gz/"
+          fi
+
+      - name: Refresh DB-IP GeoIP databases with cached fallback
+        continue-on-error: true
+        shell: bash
+        env:
+          GEODATA_CACHE_HIT: ${{ steps.geodata-cache.outputs.cache-hit }}
         run: |
           set -euo pipefail
 
@@ -227,7 +649,7 @@ jobs:
           from datetime import datetime, timezone
           now = datetime.now(timezone.utc)
           year, month = now.year, now.month
-          for _ in range(6):
+          for _ in range(3):
               print(f"{year:04d}-{month:02d}")
               month -= 1
               if month == 0:
@@ -236,47 +658,81 @@ jobs:
           PY
           )"
 
+          verify_mmdb() {
+            local path="$1"
+            python - "${path}" <<'PY'
+          import sys
+          import maxminddb
+          path = sys.argv[1]
+          with maxminddb.open_database(path) as db:
+              db.get("8.8.8.8")
+          PY
+          }
+
+          if [ "${GEODATA_CACHE_HIT:-false}" = "true" ]; then
+            for DB in city asn country; do
+              OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb"
+              if [ ! -s "${OUT}" ] || ! verify_mmdb "${OUT}"; then
+                printf '%s\n' \
+                  "::error title=DB-IP cache invalid::Exact geodata cache hit is missing a valid ${DB} MMDB."
+                exit 1
+              fi
+            done
+            printf '%s\n' "Exact monthly geodata cache hit; skipping unnecessary DB-IP network refresh."
+            exit 0
+          fi
+
           for DB in city asn country; do
-            OK="0"
+            OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb"
+            UPDATED=0
+
             for DBIP_MONTH in ${MONTHS}; do
               URL="https://download.db-ip.com/free/dbip-${DB}-lite-${DBIP_MONTH}.mmdb.gz"
-              OUT="${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb.gz"
+              TMP_GZ="${RUNNER_TEMP}/dbip-${DB}-${DBIP_MONTH}.mmdb.gz"
+              TMP_DB="${RUNNER_TEMP}/dbip-${DB}-${DBIP_MONTH}.mmdb"
+              rm -f "${TMP_GZ}" "${TMP_DB}"
 
               if curl \
                 --proto '=https' \
                 --tlsv1.2 \
                 --fail \
                 --location \
-                --retry 3 \
+                --connect-timeout 10 \
+                --max-time 60 \
+                --retry 2 \
+                --retry-max-time 75 \
                 --retry-all-errors \
                 --retry-delay 5 \
-                --output "${OUT}" \
-                "${URL}"
+                --output "${TMP_GZ}" \
+                "${URL}" \
+                && gzip -dc "${TMP_GZ}" > "${TMP_DB}" \
+                && test -s "${TMP_DB}" \
+                && verify_mmdb "${TMP_DB}"
               then
-                OK="1"
+                mv -f "${TMP_DB}" "${OUT}"
+                rm -f "${TMP_GZ}"
+                UPDATED=1
+                printf '%s\n' "DB-IP ${DB} refreshed from ${DBIP_MONTH}."
                 break
               fi
 
-              rm -f "${OUT}"
+              rm -f "${TMP_GZ}" "${TMP_DB}"
             done
 
-            if [ "${OK}" != "1" ]; then
-              printf '%s\n' "Failed to download DB-IP ${DB} Lite database."
-              exit 1
+            if [ "${UPDATED}" != "1" ]; then
+              if [ -s "${OUT}" ] && verify_mmdb "${OUT}"; then
+                printf '%s\n' \
+                  "::warning title=DB-IP cached fallback::Unable to refresh ${DB}; using validated cached database ${OUT}."
+              else
+                printf '%s\n' \
+                  "::error title=DB-IP unavailable::No downloadable or cached usable ${DB} database exists."
+                exit 1
+              fi
             fi
           done
 
-          gunzip -f "${BITNODES_GEOIP}"/*.gz
-
-          for DB in \
-            "${BITNODES_GEOIP}/dbip-city-lite.mmdb" \
-            "${BITNODES_GEOIP}/dbip-asn-lite.mmdb" \
-            "${BITNODES_GEOIP}/dbip-country-lite.mmdb"
-          do
-            test -s "${DB}"
-          done
-
       - name: Verify DB-IP GeoIP databases
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -302,6 +758,7 @@ jobs:
           PY
 
       - name: Build local GeoNames indexes
+        continue-on-error: true
         timeout-minutes: 10
         shell: bash
         run: |
@@ -313,72 +770,32 @@ jobs:
             --download-retries 3 \
             --copy-source-manifest
 
-      - name: Mirror btcnodes.io and seed ZZX crawler
+      - name: Stage reusable geodata outside the Git worktree
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bitnodes/update_snapshot.py
+          CACHE_ROOT="${HOME}/.cache/zzx-bitnodes-geodata"
+          rm -rf "${CACHE_ROOT}"
+          mkdir -p \
+            "${CACHE_ROOT}/geoip" \
+            "${CACHE_ROOT}/geo/sources" \
+            "${CACHE_ROOT}/geo/mariadb-gz"
 
-          test -s "${BITNODES_API}/btcnodes/latest.json"
-          test -s "${BITNODES_API}/btcnodes/normalized/latest.json"
+          for DB in city asn country; do
+            cp -f \
+              "${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb" \
+              "${CACHE_ROOT}/geoip/dbip-${DB}-lite.mmdb"
+          done
 
-          cp -f \
-            "${BITNODES_API}/btcnodes/latest.json" \
-            "${BITNODES_DATA}/runtime/seeders/zzxbitnodes/btcnodes-latest.json"
+          if [ -d "${BITNODES_GEO}/sources" ]; then
+            cp -af "${BITNODES_GEO}/sources/." "${CACHE_ROOT}/geo/sources/"
+          fi
+          if [ -d "${BITNODES_GEO}/mariadb-gz" ]; then
+            cp -af "${BITNODES_GEO}/mariadb-gz/." "${CACHE_ROOT}/geo/mariadb-gz/"
+          fi
 
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          raw = Path("bitcoin/bitnodes/api/btcnodes/latest.json")
-          normalized = Path("bitcoin/bitnodes/api/btcnodes/normalized/latest.json")
-          data = json.loads(normalized.read_text(encoding="utf-8"))
-          nodes = data.get("nodes")
-          count = len(nodes) if isinstance(nodes, list) else 0
-
-          if data.get("source") != "btcnodes.io" and not str(data.get("source", "")).strip():
-              raise SystemExit("btcnodes normalized snapshot has no source provenance")
-          if count <= 0:
-              raise SystemExit("btcnodes.io mirror normalized to zero node rows")
-
-          print(
-              "btcnodes.io mirror seeded:",
-              f"nodes={count}",
-              f"reachable={data.get('reachable_nodes')}",
-              f"raw_bytes={raw.stat().st_size}",
-          )
-          PY
-
-      - name: Run ZZX Bitnodes crawler window
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python tools/bitnodes/crawl.py \
-            --crawler zzxbitnodes \
-            --daemon \
-            --run-seconds "${{ steps.profile.outputs.run_seconds }}" \
-            --interval 20 \
-            --output "${BITNODES_API}/zzxbitnodes" \
-            --archive-dir "${BITNODES_ARCHIVE}/runtime/zzxbitnodes" \
-            --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
-            --snapshot-24h-dir "${BITNODES_DATA}/runtime/snapshots/24h/zzxbitnodes" \
-            --seeder-dir "${BITNODES_DATA}/runtime/seeders/zzxbitnodes" \
-            --geoip-dir "${BITNODES_GEOIP}" \
-            --geo-root "${BITNODES_GEO}" \
-            --timeout 5 \
-            --limit 750000 \
-            --batch-size "${{ steps.profile.outputs.batch_size }}" \
-            --workers "${{ steps.profile.outputs.workers }}" \
-            --getaddr-rounds "${{ steps.profile.outputs.getaddr_rounds }}" \
-            --dns-seed-limit "${{ steps.profile.outputs.dns_seed_limit }}" \
-            --archive-replay-files "${{ steps.profile.outputs.archive_replay_files }}" \
-            --export-mode reachable_24h \
-            --no-enrich-after \
-            --no-aggregate-after \
-            --no-export-all-after \
-            --compact
 
       - name: Validate ZZX crawler output
         shell: bash
@@ -806,8 +1223,20 @@ jobs:
           export GIT_ASKPASS="${ASKPASS}"
           export GIT_TERMINAL_PROMPT=0
 
-          git clone --filter=blob:none --single-branch --branch main \
-            "https://github.com/${BITNODES_BACKUP_REPO}.git" "${TMP}"
+          cloned=0
+          for attempt in 1 2 3 4 5; do
+            rm -rf "${TMP:?}"/* "${TMP:?}"/.[!.]* "${TMP:?}"/..?* 2>/dev/null || true
+            if git clone --filter=blob:none --no-checkout --single-branch --branch main \
+              "https://github.com/${BITNODES_BACKUP_REPO}.git" "${TMP}"; then
+              git -C "${TMP}" sparse-checkout init --cone
+              git -C "${TMP}" sparse-checkout set bitnodes/latest
+              git -C "${TMP}" checkout main
+              cloned=1
+              break
+            fi
+            sleep "$((attempt * 5))"
+          done
+          test "${cloned}" = "1"
 
           mkdir -p "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}" "${TMP}/bitnodes/latest"
           cp -av "${BITNODES_API}/data/mariadb/"*.sql.gz "${TMP}/bitnodes/mariadb/${TODAY}/${RUN_ID}/"
@@ -815,7 +1244,7 @@ jobs:
 
           git -C "${TMP}" config user.name "zzx-labs-bitnodes-bot"
           git -C "${TMP}" config user.email "actions@github.com"
-          git -C "${TMP}" add bitnodes
+          git -C "${TMP}" add --sparse "bitnodes/mariadb/${TODAY}/${RUN_ID}" bitnodes/latest
 
           if git -C "${TMP}" diff --cached --quiet; then
             printf '%s\n' "No private backup changes."
@@ -823,7 +1252,17 @@ jobs:
           fi
 
           git -C "${TMP}" commit -m "Backup Bitnodes MariaDB shards ${TODAY} ${RUN_ID}"
-          git -C "${TMP}" push origin HEAD:main
+
+          pushed=0
+          for attempt in 1 2 3 4 5; do
+            if git -C "${TMP}" pull --rebase origin main && git -C "${TMP}" push origin HEAD:main; then
+              pushed=1
+              break
+            fi
+            git -C "${TMP}" rebase --abort 2>/dev/null || true
+            sleep "$((attempt * 7))"
+          done
+          test "${pushed}" = "1"
 
       - name: Build public API index
         shell: bash
@@ -1032,6 +1471,8 @@ jobs:
             --allowed-prefix "${BITNODES_GEOIP}/public-artifacts-report.json" \
             --forbidden-prefix "${BITNODES_ROOT}/maps" \
             --forbidden-prefix "${BITNODES_ROOT}/live-map" \
+            --monotonic-json-path "${BITNODES_API}/zzxbitnodes/latest.json" \
+            --monotonic-field timestamp \
             --clean
 
   ayeowch-compat:
@@ -1070,8 +1511,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -r tools/bitnodes/requirements.txt
+          python -m pip install --retries 5 --timeout 60 --upgrade pip
+          python -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
           python -m py_compile tools/bitnodes/originalbitnodes.py tools/bitnodes/run_original_bitnodes.py
 
       - name: Run time-bounded Ayeowch compatibility crawler
