@@ -976,7 +976,8 @@ jobs:
             --api-dir "${BITNODES_API}" \
             --state-dir "${BITNODES_DATA}/runtime/state/zzxbitnodes" \
             --source zzxbitnodes \
-            --compact
+            --compact \
+            --omit-node-metadata
 
           # Keep the enriched external aggregate separate from the 5-minute
           # mirror-owned aggregate/btcnodes/latest.json path.
@@ -986,7 +987,8 @@ jobs:
             --api-dir "${BITNODES_API}" \
             --state-dir "${BITNODES_DATA}/runtime/state/btcnodes" \
             --source btcnodes.io \
-            --compact
+            --compact \
+            --omit-node-metadata
 
       - name: Build canonical merged widget snapshot
         shell: bash
@@ -1117,6 +1119,7 @@ jobs:
             --ipdb-shard-dir "${BITNODES_GEOIP}/current/shards" \
             --ipdb-manifest "${BITNODES_GEOIP}/current/ip_db.public-manifest.json" \
             --max-bytes "${MAX_PUBLIC_JSON_BYTES}" \
+            --keep-bounded-aggregate-nodes \
             --rows-per-shard 5000 \
             --gzip-level 6 \
             --report "${BITNODES_GEOIP}/public-artifacts-report.json"
@@ -1319,10 +1322,22 @@ jobs:
           rm -rf "${BITNODES_DATA}/runtime" || true
           rm -rf "${BITNODES_ARCHIVE}/runtime" || true
           rm -f "${BITNODES_API}/snapshots/latest.ipdb-enriched.json" || true
-          rm -f "${BITNODES_API}/enriched/btcnodes/latest.json" || true
-          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.json" || true
+
+          # Preserve the historical public enriched endpoints without publishing the
+          # enormous duplicate nested enrichment trees.  The public projections keep
+          # the normalized node fields used by every Bitnodes page while the full raw
+          # enrichment remains available to the private/history pipeline.
+          cp -f \
+            "${BITNODES_API}/aggregate/zzxbitnodes/latest.json" \
+            "${BITNODES_API}/enriched/zzxbitnodes/latest.json"
+          cp -f \
+            "${BITNODES_API}/aggregate/btcnodes-enriched/latest.json" \
+            "${BITNODES_API}/enriched/btcnodes/latest.json"
+
           rm -f "${BITNODES_API}/enriched/btcnodes/latest.geo.json" || true
           rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.geo.json" || true
+          rm -f "${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json" || true
+          rm -f "${BITNODES_API}/enriched/btcnodes/latest.ipdb-enriched.json" || true
           find "${BITNODES_ROOT}" -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find tools/bitnodes -type d -name '__pycache__' -prune -exec rm -rf {} + || true
           find . -type f -name '*.pyc' -delete || true
@@ -1350,6 +1365,24 @@ jobs:
               for path in root.rglob("*"):
                   if not path.is_file():
                       continue
+
+                  # The production crawler must validate only artifacts in its own
+                  # publication domain.  originalbitnodes/** is owned by the optional
+                  # Ayeowch compatibility workflow and may retain its legacy monolithic
+                  # contract independently; stale/pre-existing compatibility output must
+                  # never stop the native ZZX crawler from publishing current data.
+                  try:
+                      relative = path.relative_to(Path(os.environ["BITNODES_API"]))
+                  except ValueError:
+                      relative = None
+                  if relative is not None and relative.parts and relative.parts[0] == "originalbitnodes":
+                      continue
+                  if relative is not None and len(relative.parts) >= 2 and relative.parts[:2] in {
+                      ("aggregate", "originalbitnodes"),
+                      ("enriched", "originalbitnodes"),
+                  }:
+                      continue
+
                   if path.suffix == ".gz":
                       if path.stat().st_size > max_bytes:
                           bad.append((path.stat().st_size, path, "gzip shard too large"))
@@ -1393,6 +1426,8 @@ jobs:
             "${BITNODES_API}/sources.json" \
             "${BITNODES_API}/zzxbitnodes/latest.json" \
             "${BITNODES_API}/snapshots/latest.json" \
+            "${BITNODES_API}/enriched/btcnodes/latest.json" \
+            "${BITNODES_API}/enriched/zzxbitnodes/latest.json" \
             "${BITNODES_API}/enriched/btcnodes/enrichment-report.json" \
             "${BITNODES_API}/enriched/zzxbitnodes/enrichment-report.json" \
             "${BITNODES_API}/enriched/btcnodes/geo-contract-report.json" \
