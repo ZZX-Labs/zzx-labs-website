@@ -1,38 +1,48 @@
 [Unit]
-Description=ZZX-Labs Bitnodes Daemon
+Description=ZZX-Labs Continuous Bitcoin Node Crawler
 Documentation=https://zzx-labs.io/
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-
 User=zzx
 Group=zzx
-
 WorkingDirectory=/srv/zzx-labs
 
 Environment=PYTHONUNBUFFERED=1
 Environment=ZZX_LABS_ROOT=/srv/zzx-labs
-Environment=ZZX_LABS_RUN_DIR=/srv/zzx-labs/run
-Environment=ZZX_LABS_LOG_DIR=/srv/zzx-labs/log
+Environment=ZZX_LABS_RUN_DIR=/run/zzx-bitnodes
+Environment=ZZX_LABS_LOG_DIR=/var/log/zzx-bitnodes
 Environment=ZZX_LABS_API_DIR=/srv/zzx-labs/bitcoin/bitnodes/api
-
+Environment=ZZX_BITNODES_HISTORY_DIR=/var/lib/zzx-bitnodes/history
 EnvironmentFile=-/etc/zzx-labs/bitnodes.env
 
-ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py daemon
+RuntimeDirectory=zzx-bitnodes
+RuntimeDirectoryMode=0750
+StateDirectory=zzx-bitnodes
+StateDirectoryMode=0750
+LogsDirectory=zzx-bitnodes
+LogsDirectoryMode=0750
+
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py daemon run
 ExecReload=/bin/kill -HUP $MAINPID
 
 Restart=always
-RestartSec=15
-
+RestartSec=3
 TimeoutStopSec=120
+KillSignal=SIGTERM
 
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/zzx-labs /var/lib/zzx-bitnodes /var/log/zzx-bitnodes /run/zzx-bitnodes
 
-StandardOutput=append:/srv/zzx-labs/log/bitnodesd.log
-StandardError=append:/srv/zzx-labs/log/bitnodesd.error.log
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=zzx-bitnodes
 
 [Install]
 WantedBy=multi-user.target
