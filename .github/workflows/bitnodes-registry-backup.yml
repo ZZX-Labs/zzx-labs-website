@@ -40,6 +40,9 @@ env:
 
 jobs:
   backup-registry:
+    # Private registry replication is a noncritical backup sink. Keep a setup,
+    # credential, network, or push failure from poisoning public publication.
+    continue-on-error: true
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
@@ -65,7 +68,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+
+          fetched=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              fetched=1
+              break
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying."
+            sleep "$(( attempt * 3 ))"
+          done
+
+          if [ "${fetched}" != "1" ]; then
+            printf '%s\n' "Unable to refresh origin/main after five attempts."
+            exit 1
+          fi
+
           git reset --hard origin/main
           git clean -fdx
 
@@ -80,8 +98,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -r tools/bitnodes/requirements.txt
+          python -m pip install --retries 5 --timeout 60 --upgrade pip
+          python -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
 
       - name: Validate registry tools
         shell: bash
@@ -820,7 +838,12 @@ jobs:
           fi
 
           for attempt in 1 2 3 4 5; do
-            git fetch origin main
+            if ! git fetch --prune origin main; then
+              printf '%s\n' \
+                "Private registry fetch attempt ${attempt}/5 failed; retrying without force."
+              sleep 10
+              continue
+            fi
 
             if ! git rebase origin/main; then
               git rebase --abort || true
@@ -857,6 +880,8 @@ jobs:
         if: ${{ always() }}
         shell: bash
         env:
+          SOURCE_OUTCOME: ${{ steps.source.outcome }}
+          AUTH_OUTCOME: ${{ steps.auth.outcome }}
           AUTH_READY: ${{ steps.auth.outputs.ready }}
           AUTH_MODE: ${{ steps.auth.outputs.mode }}
           BACKUP_OUTCOME: ${{ steps.backup.outcome }}
@@ -865,7 +890,11 @@ jobs:
 
           STATUS="failed"
 
-          if [ "${AUTH_READY:-false}" != "true" ]; then
+          if [ "${SOURCE_OUTCOME:-}" != "success" ]; then
+            STATUS="failed"
+          elif [ "${AUTH_OUTCOME:-}" != "success" ]; then
+            STATUS="failed"
+          elif [ "${AUTH_READY:-false}" != "true" ]; then
             STATUS="skipped-auth"
           elif [ "${BACKUP_OUTCOME:-}" = "success" ]; then
             STATUS="success"
