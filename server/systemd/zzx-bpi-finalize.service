@@ -1,0 +1,14 @@
+[Unit]
+Description=ZZX BPI completed-hour shard finalizer
+After=zzx-bpi.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/zzx-labs
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bpi/bpi_finalize_completed.py --root /srv/zzx-labs --history-db /var/lib/zzx-bpi/history.sqlite3 --orderbook-db /var/lib/zzx-bpi/orderbooks.sqlite3 --hours-back 2
+ProtectSystem=full
+PrivateTmp=true
+ReadWritePaths=/srv/zzx-labs /var/lib/zzx-bpi

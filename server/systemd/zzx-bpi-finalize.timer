@@ -1,0 +1,11 @@
+[Unit]
+Description=Finalize ZZX BPI completed UTC-hour shards
+
+[Timer]
+OnCalendar=*-*-* *:03:00 UTC
+Persistent=true
+AccuracySec=10s
+Unit=zzx-bpi-finalize.service
+
+[Install]
+WantedBy=timers.target

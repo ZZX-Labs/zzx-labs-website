@@ -1,0 +1,24 @@
+[Unit]
+Description=ZZX BPI continuous market-data collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/zzx-labs
+Environment=PYTHONUNBUFFERED=1
+Environment=ZZX_BPI_HISTORY_DB=/var/lib/zzx-bpi/history.sqlite3
+Environment=ZZX_BPI_SUPERVISOR_STATUS=/var/lib/zzx-bpi/supervisor-status.json
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bpi/run-bpi-master.py --root /srv/zzx-labs
+Restart=always
+RestartSec=2
+StateDirectory=zzx-bpi
+StateDirectoryMode=0750
+ProtectSystem=full
+PrivateTmp=true
+ReadWritePaths=/srv/zzx-labs /var/lib/zzx-bpi
+
+[Install]
+WantedBy=multi-user.target
