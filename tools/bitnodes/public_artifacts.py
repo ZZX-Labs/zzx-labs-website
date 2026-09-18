@@ -85,10 +85,24 @@ def compact_aggregate(
     *,
     canonical_url: str,
     max_bytes: int,
+    keep_bounded_nodes: bool = False,
 ) -> dict[str, Any]:
     payload = read_json(source)
     if not isinstance(payload, Mapping):
         raise RuntimeError(f"aggregate input must be an object: {source}")
+
+    if keep_bounded_nodes:
+        encoded = compact_json_bytes(payload)
+        if len(encoded) <= max_bytes:
+            atomic_write(output, encoded)
+            return {
+                "schema": PUBLIC_AGGREGATE_SCHEMA,
+                "output": str(output),
+                "bytes": len(encoded),
+                "node_count": node_count(payload),
+                "nodes_omitted": False,
+                "publication_policy": "bounded-full-node-aggregate",
+            }
 
     summary: dict[str, Any] = {
         "schema": PUBLIC_AGGREGATE_SCHEMA,
@@ -357,6 +371,14 @@ def main() -> int:
     parser.add_argument("--rows-per-shard", type=int, default=5_000)
     parser.add_argument("--gzip-level", type=int, default=6)
     parser.add_argument("--keep-ipdb-latest", action="store_true")
+    parser.add_argument(
+        "--keep-bounded-aggregate-nodes",
+        action="store_true",
+        help=(
+            "Keep the aggregate node collection when the compact aggregate already fits "
+            "under --max-bytes; fall back to the bounded summary contract only if it does not."
+        ),
+    )
     parser.add_argument("--report", default="")
     args = parser.parse_args()
 
@@ -366,6 +388,7 @@ def main() -> int:
         Path(args.aggregate),
         canonical_url=args.canonical_url,
         max_bytes=args.max_bytes,
+        keep_bounded_nodes=args.keep_bounded_aggregate_nodes,
     )
     ipdb_source = Path(args.ipdb_source) if args.ipdb_source else Path(args.ipdb_latest)
     ipdb_latest = Path(args.ipdb_latest)
