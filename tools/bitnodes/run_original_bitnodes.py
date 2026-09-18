@@ -1,0 +1,1004 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import gzip
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+APP_ROOT = Path(__file__).resolve().parents[2]
+TOOLS_DIR = APP_ROOT / "tools" / "bitnodes"
+
+BITNODES_ROOT = APP_ROOT / "bitcoin" / "bitnodes"
+SRC_DIR = BITNODES_ROOT / "src"
+
+DATA_DIR = BITNODES_ROOT / "data"
+API_DIR = BITNODES_ROOT / "api"
+ARCHIVE_DIR = BITNODES_ROOT / "archive"
+LOG_DIR = BITNODES_ROOT / "log"
+GEOIP_DIR = DATA_DIR / "geoip"
+
+SNAPSHOTS_ROOT = DATA_DIR / "snapshots"
+SNAPSHOT_BUCKETS = ("24h", "week", "monthly", "quarterly", "yearly", "all-time")
+
+SOURCE = "originalbitnodes"
+
+ORIGINAL_API_DIR = API_DIR / SOURCE
+ORIGINAL_ARCHIVE_DIR = ARCHIVE_DIR / SOURCE
+ORIGINAL_STATE_DIR = DATA_DIR / "state" / SOURCE
+ORIGINAL_SNAPSHOT_24H_DIR = SNAPSHOTS_ROOT / "24h" / SOURCE
+ORIGINAL_SEEDER_DIR = DATA_DIR / "seeders" / SOURCE
+ORIGINAL_REGISTRY_DIR = DATA_DIR / "registry" / SOURCE
+ORIGINAL_REGISTRY_LATEST_DIR = ORIGINAL_REGISTRY_DIR / "latest"
+
+ORIGINAL_ENRICHED_DIR = API_DIR / "enriched" / SOURCE
+ORIGINAL_ENRICHED_LATEST = ORIGINAL_ENRICHED_DIR / "latest.json"
+ORIGINAL_ENRICHMENT_REPORT = ORIGINAL_ENRICHED_DIR / "enrichment-report.json"
+
+ORIGINAL_AGGREGATE_DIR = API_DIR / "aggregate" / SOURCE
+ORIGINAL_AGGREGATE_LATEST = ORIGINAL_AGGREGATE_DIR / "latest.json"
+
+DATAPLANE_DIR = API_DIR / "data"
+DATAPLANE_DATABASE = "zzx_bitnodes"
+DATAPLANE_MAX_BYTES = 24_000_000
+
+EXPORT = TOOLS_DIR / "export.py"
+EXPORT_FROM_REDIS = TOOLS_DIR / "export_from_redis.py"
+ENRICH = TOOLS_DIR / "enrich.py"
+AGGREGATE = TOOLS_DIR / "aggregate.py"
+CHUNK_REGISTRY_BACKUP = TOOLS_DIR / "chunk_registry_backup.py"
+UPDATE_DAILY_INDEX = TOOLS_DIR / "update_daily_index.py"
+PUSH_SNAPSHOTS = TOOLS_DIR / "push_snapshots.py"
+GEO_CONTRACT = TOOLS_DIR / "geo_contract.py"
+GEO_ROOT = DATA_DIR / "geo"
+
+DEFAULT_ENRICH_MODULES = (
+    "geoip,geoloc,boundary_zone,continent,region,country,territory,"
+    "city,county,zip,timezone"
+)
+
+DEFAULT_REPO = "https://github.com/ayeowch/bitnodes"
+DEFAULT_BRANCH = "master"
+
+
+def printf(message: str) -> None:
+    print(message, flush=True)
+
+
+def utc_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def utc_ts() -> int:
+    return int(time.time())
+
+
+def date_slug() -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def month_slug() -> str:
+    return time.strftime("%Y-%m", time.gmtime())
+
+
+def year_slug() -> str:
+    return time.strftime("%Y", time.gmtime())
+
+
+def quarter_slug() -> str:
+    now = datetime.now(timezone.utc)
+    quarter = ((now.month - 1) // 3) + 1
+    return f"{now.year}-Q{quarter}"
+
+
+def ensure_dirs() -> None:
+    for path in (
+        BITNODES_ROOT,
+        SRC_DIR.parent,
+        DATA_DIR,
+        API_DIR,
+        ARCHIVE_DIR,
+        LOG_DIR,
+        GEOIP_DIR,
+        DATAPLANE_DIR,
+        ORIGINAL_API_DIR,
+        ORIGINAL_ARCHIVE_DIR,
+        ORIGINAL_STATE_DIR,
+        ORIGINAL_SNAPSHOT_24H_DIR,
+        ORIGINAL_SEEDER_DIR,
+        ORIGINAL_REGISTRY_DIR,
+        ORIGINAL_REGISTRY_LATEST_DIR,
+        ORIGINAL_ENRICHED_DIR,
+        ORIGINAL_AGGREGATE_DIR,
+    ):
+        path.mkdir(parents=True, exist_ok=True)
+
+    for bucket in SNAPSHOT_BUCKETS:
+        (SNAPSHOTS_ROOT / bucket / SOURCE).mkdir(parents=True, exist_ok=True)
+
+
+def read_json(path: Path, fallback: Any = None) -> Any:
+    if fallback is None:
+        fallback = {}
+
+    if not path.exists():
+        return fallback
+
+    try:
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return fallback
+
+
+def write_json(path: Path, payload: Any, pretty: bool = True) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            payload,
+            handle,
+            ensure_ascii=False,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            sort_keys=pretty,
+        )
+        handle.write("\n")
+
+
+def run(
+    command: list[str],
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    check: bool = False,
+    timeout_seconds: int | None = None,
+) -> int:
+    merged_env = os.environ.copy()
+
+    if env:
+        merged_env.update(env)
+
+    printf(f"RUNNING: {' '.join(str(item) for item in command)}")
+
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            env=merged_env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=(max(1, int(timeout_seconds)) if timeout_seconds else None),
+        )
+    except subprocess.TimeoutExpired as exc:
+        printf(
+            "TIMEOUT: "
+            + " ".join(str(item) for item in command)
+            + f" after {timeout_seconds}s"
+        )
+        if exc.stdout:
+            printf(str(exc.stdout).strip())
+        if exc.stderr:
+            printf(str(exc.stderr).strip())
+        return 124
+
+    if result.stdout.strip():
+        printf(result.stdout.strip())
+
+    if result.stderr.strip():
+        printf(result.stderr.strip())
+
+    if check and result.returncode != 0:
+        raise RuntimeError(f"Command failed: {' '.join(command)}")
+
+    return result.returncode
+
+
+def py(script: Path, *args: str) -> list[str]:
+    return [sys.executable, str(script), *args]
+
+
+def runtime_env() -> dict[str, str]:
+    return {
+        "ZZX_BITNODES_ROOT": str(BITNODES_ROOT),
+        "ZZX_BITNODES_SRC_DIR": str(SRC_DIR),
+        "ZZX_BITNODES_API_DIR": str(ORIGINAL_API_DIR),
+        "ZZX_BITNODES_ARCHIVE_DIR": str(ORIGINAL_ARCHIVE_DIR),
+        "ZZX_BITNODES_GEOIP_DIR": str(GEOIP_DIR),
+        "ZZX_BITNODES_STATE_DIR": str(ORIGINAL_STATE_DIR),
+        "ZZX_BITNODES_SNAPSHOT_24H_DIR": str(ORIGINAL_SNAPSHOT_24H_DIR),
+        "ZZX_BITNODES_SNAPSHOTS_ROOT": str(SNAPSHOTS_ROOT),
+        "ZZX_BITNODES_SEEDER_DIR": str(ORIGINAL_SEEDER_DIR),
+        "ZZX_BITNODES_REGISTRY_DIR": str(ORIGINAL_REGISTRY_DIR),
+        "ZZX_BITNODES_LOG_DIR": str(LOG_DIR),
+        "ZZX_BITNODES_SOURCE": SOURCE,
+        "PYTHONUNBUFFERED": "1",
+    }
+
+
+def is_git_repo(path: Path) -> bool:
+    return (path / ".git").exists()
+
+
+def clone(repo: str = DEFAULT_REPO, branch: str = DEFAULT_BRANCH) -> int:
+    ensure_dirs()
+
+    if is_git_repo(SRC_DIR):
+        printf("Existing original Bitnodes git repository detected. Updating source clone.")
+        return run(["git", "pull", "--ff-only", "origin", branch], cwd=SRC_DIR)
+
+    if SRC_DIR.exists() and any(SRC_DIR.iterdir()):
+        printf(
+            "bitcoin/bitnodes/src exists but is not a git repository. "
+            "Removing stale runtime directory before clone."
+        )
+        shutil.rmtree(SRC_DIR)
+
+    SRC_DIR.parent.mkdir(parents=True, exist_ok=True)
+
+    return run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            branch,
+            repo,
+            str(SRC_DIR),
+        ]
+    )
+
+
+def install_requirements() -> int:
+    requirements = SRC_DIR / "requirements.txt"
+
+    if not requirements.exists():
+        printf("requirements.txt not found in bitcoin/bitnodes/src.")
+        return 1
+
+    code = run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], cwd=SRC_DIR)
+
+    if code:
+        return code
+
+    return run([sys.executable, "-m", "pip", "install", "-r", str(requirements)], cwd=SRC_DIR)
+
+
+def update_geoip() -> int:
+    candidates = [
+        SRC_DIR / "geoip" / "update.sh",
+        SRC_DIR / "geoip" / "update.py",
+        SRC_DIR / "scripts" / "geoip.sh",
+        SRC_DIR / "scripts" / "update_geoip.py",
+    ]
+
+    for script in candidates:
+        if not script.exists():
+            continue
+
+        if script.suffix == ".sh":
+            return run(["bash", str(script)], cwd=SRC_DIR, env=runtime_env())
+
+        if script.suffix == ".py":
+            return run([sys.executable, str(script)], cwd=SRC_DIR, env=runtime_env())
+
+    printf("No original Bitnodes GeoIP updater found. Continuing without upstream GeoIP update.")
+    return 0
+
+
+def locate_start_target() -> Path | None:
+    candidates = (
+        SRC_DIR / "start.sh",
+        SRC_DIR / "run.sh",
+        SRC_DIR / "crawler.py",
+        SRC_DIR / "crawl.py",
+        SRC_DIR / "bitnodes.py",
+        SRC_DIR / "manage.py",
+        SRC_DIR / "main.py",
+    )
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def start_original(
+    *,
+    limit: int,
+    batch_size: int,
+    timeout: float,
+    workers: int,
+    getaddr_rounds: int,
+    dns_seed_limit: int,
+    compact: bool,
+    max_runtime_seconds: int = 1100,
+) -> int:
+    ensure_dirs()
+
+    target = locate_start_target()
+
+    if not target:
+        printf("No original Bitnodes startup target found in bitcoin/bitnodes/src.")
+        return 1
+
+    env = runtime_env()
+    env.update(
+        {
+            "ZZX_BITNODES_LIMIT": str(limit),
+            "ZZX_BITNODES_BATCH_SIZE": str(batch_size),
+            "ZZX_BITNODES_TIMEOUT": str(timeout),
+            "ZZX_BITNODES_WORKERS": str(workers),
+            "ZZX_BITNODES_GETADDR_ROUNDS": str(getaddr_rounds),
+            "ZZX_BITNODES_DNS_SEED_LIMIT": str(dns_seed_limit),
+            "ZZX_BITNODES_COMPACT": "1" if compact else "0",
+        }
+    )
+
+    if target.name in {"start.sh", "run.sh"}:
+        return run(
+            ["bash", str(target)],
+            cwd=SRC_DIR,
+            env=env,
+            timeout_seconds=max_runtime_seconds,
+        )
+
+    if target.suffix == ".py":
+        return run(
+            [sys.executable, str(target)],
+            cwd=SRC_DIR,
+            env=env,
+            timeout_seconds=max_runtime_seconds,
+        )
+
+    printf("Unsupported original Bitnodes startup target.")
+    return 1
+
+
+def export_redis(
+    *,
+    compact: bool,
+    no_gzip: bool,
+    fail_empty: bool,
+    scan_pattern: str,
+    scan_limit: int,
+) -> int:
+    ensure_dirs()
+
+    command = py(
+        EXPORT_FROM_REDIS,
+        "--output",
+        str(ORIGINAL_API_DIR),
+        "--archive-dir",
+        str(ORIGINAL_ARCHIVE_DIR),
+        "--scan-pattern",
+        scan_pattern,
+        "--scan-limit",
+        str(scan_limit),
+    )
+
+    if compact:
+        command.append("--compact")
+
+    if no_gzip:
+        command.append("--no-gzip")
+
+    if fail_empty:
+        command.append("--fail-empty")
+
+    return run(command, cwd=APP_ROOT, env=runtime_env())
+
+
+def enrich_original(
+    modules: str = "",
+    strict: bool = False,
+    compact: bool = False,
+) -> int:
+    latest = ORIGINAL_API_DIR / "latest.json"
+
+    if not latest.exists():
+        printf(f"Original enrichment skipped; missing {latest}")
+        return 0
+
+    command = py(
+        ENRICH,
+        "--input",
+        str(latest),
+        "--output",
+        str(ORIGINAL_ENRICHED_LATEST),
+        "--report",
+        str(ORIGINAL_ENRICHMENT_REPORT),
+        "--source",
+        SOURCE,
+        "--api-dir",
+        str(API_DIR),
+        "--state-dir",
+        str(ORIGINAL_STATE_DIR),
+        "--geoip-dir",
+        str(GEOIP_DIR),
+        "--geo-root",
+        str(GEO_ROOT),
+        "--city-db",
+        str(GEOIP_DIR / "dbip-city-lite.mmdb"),
+        "--asn-db",
+        str(GEOIP_DIR / "dbip-asn-lite.mmdb"),
+        "--country-db",
+        str(GEOIP_DIR / "dbip-country-lite.mmdb"),
+    )
+
+    command.extend(["--modules", modules or DEFAULT_ENRICH_MODULES])
+
+    if strict:
+        command.append("--strict")
+
+    if compact:
+        command.append("--compact")
+
+    return run(command, cwd=APP_ROOT)
+
+
+
+def normalize_original_geo(path: Path, compact: bool = False) -> int:
+    """Apply the same real-public-IP geography contract used by ZZX production."""
+    if not path.exists():
+        return 0
+    if not GEO_CONTRACT.exists():
+        printf(f"Original geo contract skipped; missing {GEO_CONTRACT}")
+        return 1
+
+    report = path.parent / "geo-contract-report.json"
+    command = py(
+        GEO_CONTRACT,
+        "--input", str(path),
+        "--output", str(path),
+        "--report", str(report),
+        "--city-db", str(GEOIP_DIR / "dbip-city-lite.mmdb"),
+        "--country-db", str(GEOIP_DIR / "dbip-country-lite.mmdb"),
+        "--asn-db", str(GEOIP_DIR / "dbip-asn-lite.mmdb"),
+        "--geo-root", str(GEO_ROOT),
+        "--minimum-country", "0",
+        "--minimum-city", "0",
+        "--minimum-county", "0",
+        "--minimum-coordinates", "0",
+    )
+    if compact:
+        command.append("--compact")
+    return run(command, cwd=APP_ROOT)
+
+
+def aggregate_original() -> int:
+    input_path = ORIGINAL_ENRICHED_LATEST if ORIGINAL_ENRICHED_LATEST.exists() else ORIGINAL_API_DIR / "latest.json"
+
+    if not input_path.exists():
+        printf(f"Original aggregate skipped; missing {input_path}")
+        return 0
+
+    command = py(
+        AGGREGATE,
+        "--input",
+        str(input_path),
+        "--output",
+        str(ORIGINAL_AGGREGATE_LATEST),
+        "--api-dir",
+        str(API_DIR),
+        "--state-dir",
+        str(ORIGINAL_STATE_DIR),
+        "--source",
+        SOURCE,
+    )
+
+    return run(command, cwd=APP_ROOT)
+
+
+def export_all_formats(compact: bool = False) -> int:
+    if not EXPORT.exists():
+        return 0
+
+    input_path = ORIGINAL_AGGREGATE_LATEST if ORIGINAL_AGGREGATE_LATEST.exists() else ORIGINAL_ENRICHED_LATEST
+
+    if not input_path.exists():
+        input_path = ORIGINAL_API_DIR / "latest.json"
+
+    if not input_path.exists():
+        printf(f"Original dataplane export skipped; missing {input_path}")
+        return 0
+
+    command = py(
+        EXPORT,
+        "dataplane",
+        "--input",
+        str(input_path),
+        "--output-dir",
+        str(DATAPLANE_DIR),
+        "--database",
+        DATAPLANE_DATABASE,
+        "--max-bytes",
+        str(DATAPLANE_MAX_BYTES),
+    )
+
+    if compact:
+        command.append("--compact")
+
+    return run(command, cwd=APP_ROOT)
+
+
+def latest_payload() -> dict[str, Any]:
+    payload = read_json(ORIGINAL_API_DIR / "latest.json", fallback={})
+
+    if not isinstance(payload, dict):
+        return {}
+
+    payload["source"] = SOURCE
+    payload["crawler"] = SOURCE
+    payload["updated_by"] = "run_original_bitnodes.py"
+    payload["compatibility"] = {
+        "mode": "original-bitnodes-compatible",
+        "upstream": DEFAULT_REPO,
+        "note": "Generated from the original Bitnodes-compatible runner/export path.",
+    }
+
+    return payload
+
+
+def write_snapshot_buckets(pretty: bool = True) -> None:
+    payload = latest_payload()
+
+    if not payload:
+        return
+
+    timestamp = int(payload.get("timestamp") or utc_ts())
+
+    bucket_dirs = {
+        bucket: SNAPSHOTS_ROOT / bucket / SOURCE
+        for bucket in SNAPSHOT_BUCKETS
+    }
+
+    for directory in bucket_dirs.values():
+        directory.mkdir(parents=True, exist_ok=True)
+
+    pointer = {
+        "schema": "zzx-original-bitnodes-snapshot-pointer-v1",
+        "source": SOURCE,
+        "generated_at": utc_iso(),
+        "timestamp": timestamp,
+        "canonical_latest": "api/originalbitnodes/latest.json",
+        "canonical_enriched": "api/enriched/originalbitnodes/latest.json",
+        "canonical_aggregate": "api/aggregate/originalbitnodes/latest.json",
+        "canonical_dataplane": "api/data/dataplane_manifest.json",
+        "node_count": payload.get("total_nodes") or payload.get("known_nodes"),
+        "reachable_nodes": payload.get("reachable_nodes"),
+        "latest_height": payload.get("latest_height"),
+        "policy": "No full node fan-out snapshots. Full node data is held in DB/dataplane artifacts.",
+    }
+
+    write_json(bucket_dirs["24h"] / "latest.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["week"] / f"{date_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["monthly"] / f"{month_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["quarterly"] / f"{quarter_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["yearly"] / f"{year_slug()}.json", pointer, pretty=pretty)
+    write_json(bucket_dirs["all-time"] / "latest.json", pointer, pretty=pretty)
+
+    for bucket, directory in bucket_dirs.items():
+        write_json(
+            directory / "index.json",
+            {
+                "schema": "zzx-original-bitnodes-snapshot-bucket-index-v2",
+                "source": SOURCE,
+                "bucket": bucket,
+                "generated_at": utc_iso(),
+                "latest": pointer,
+                "entries": [pointer],
+            },
+            pretty=pretty,
+        )
+
+
+def registry_backup_original(enabled: bool = True) -> int:
+    if not enabled:
+        return 0
+
+    dated = ORIGINAL_REGISTRY_DIR / date_slug()
+
+    command = py(
+        CHUNK_REGISTRY_BACKUP,
+        "--input",
+        str(ORIGINAL_ARCHIVE_DIR),
+        "--api",
+        str(API_DIR),
+        "--output",
+        str(dated),
+        "--latest-output",
+        str(ORIGINAL_REGISTRY_LATEST_DIR),
+        "--max-mb",
+        "24",
+    )
+
+    code = run(command, cwd=APP_ROOT)
+
+    if code:
+        return code
+
+    command = py(
+        UPDATE_DAILY_INDEX,
+        "--repo-root",
+        str(ORIGINAL_REGISTRY_DIR),
+    )
+
+    return run(command, cwd=APP_ROOT)
+
+
+def push_original(enabled: bool = False) -> int:
+    if not enabled:
+        return 0
+
+    command = py(
+        PUSH_SNAPSHOTS,
+        "--message",
+        "Update Original Bitnodes-compatible dataplane snapshots",
+        "--paths",
+        "bitcoin/bitnodes/api/originalbitnodes",
+        "bitcoin/bitnodes/api/original-latest.json",
+        "bitcoin/bitnodes/api/enriched/originalbitnodes",
+        "bitcoin/bitnodes/api/aggregate/originalbitnodes",
+        "bitcoin/bitnodes/api/data",
+        "bitcoin/bitnodes/archive/originalbitnodes",
+        "bitcoin/bitnodes/data/state/originalbitnodes",
+        "bitcoin/bitnodes/data/snapshots",
+        "bitcoin/bitnodes/data/registry/originalbitnodes",
+    )
+
+    return run(command, cwd=APP_ROOT)
+
+
+def mirror_original_latest(pretty: bool = True) -> None:
+    payload = latest_payload()
+
+    if not payload:
+        return
+
+    write_json(API_DIR / "original-latest.json", payload, pretty=pretty)
+
+
+def write_status(stage: str, extra: dict[str, Any] | None = None) -> None:
+    payload = {
+        "schema": "zzx-original-bitnodes-runner-status-v3",
+        "updated_at": utc_iso(),
+        "stage": stage,
+        "src_dir": str(SRC_DIR),
+        "api_dir": str(ORIGINAL_API_DIR),
+        "archive_dir": str(ORIGINAL_ARCHIVE_DIR),
+        "state_dir": str(ORIGINAL_STATE_DIR),
+        "snapshots_root": str(SNAPSHOTS_ROOT),
+        "registry_dir": str(ORIGINAL_REGISTRY_DIR),
+        "dataplane_dir": str(DATAPLANE_DIR),
+        **(extra or {}),
+    }
+
+    write_json(LOG_DIR / "originalbitnodes-status.json", payload)
+
+
+def pipeline_once(args: argparse.Namespace) -> int:
+    ensure_dirs()
+    write_status("pipeline-started")
+
+    if args.ensure_source:
+        code = clone(repo=args.repo, branch=args.branch)
+
+        if code:
+            write_status("clone-failed", {"exit_code": code})
+            return code
+
+    if args.install:
+        code = install_requirements()
+
+        if code:
+            write_status("install-failed", {"exit_code": code})
+            return code
+
+    if args.geoip:
+        update_geoip()
+
+    if args.mode in {"classic", "hybrid"}:
+        code = start_original(
+            limit=args.limit,
+            batch_size=args.batch_size,
+            timeout=args.timeout,
+            workers=args.workers,
+            getaddr_rounds=args.getaddr_rounds,
+            dns_seed_limit=args.dns_seed_limit,
+            compact=args.compact,
+            max_runtime_seconds=args.max_runtime_seconds,
+        )
+
+        if code and args.mode == "classic":
+            write_status("classic-failed", {"exit_code": code})
+            return code
+
+        if code:
+            printf("Classic original runner failed; falling back to Redis export.")
+
+    if args.mode in {"redis", "hybrid"}:
+        code = export_redis(
+            compact=args.compact,
+            no_gzip=args.no_gzip,
+            fail_empty=args.fail_empty,
+            scan_pattern=args.redis_scan_pattern,
+            scan_limit=args.redis_scan_limit,
+        )
+
+        if code:
+            write_status("redis-export-failed", {"exit_code": code})
+            return code
+
+    mirror_original_latest(pretty=not args.compact)
+
+    geo_code = normalize_original_geo(
+        ORIGINAL_API_DIR / "latest.json",
+        compact=args.compact,
+    )
+    if geo_code and args.strict:
+        write_status("geo-contract-failed", {"exit_code": geo_code})
+        return geo_code
+
+    # Refresh the legacy mirror from the normalized raw payload.
+    mirror_original_latest(pretty=not args.compact)
+
+    if not args.no_enrich:
+        code = enrich_original(
+            modules=args.enrich_modules,
+            strict=args.strict,
+            compact=args.compact,
+        )
+
+        if code and args.strict:
+            write_status("enrichment-failed", {"exit_code": code})
+            return code
+
+        if code == 0 and ORIGINAL_ENRICHED_LATEST.exists():
+            geo_code = normalize_original_geo(
+                ORIGINAL_ENRICHED_LATEST,
+                compact=args.compact,
+            )
+            if geo_code and args.strict:
+                write_status("enriched-geo-contract-failed", {"exit_code": geo_code})
+                return geo_code
+
+    if not args.no_aggregate:
+        code = aggregate_original()
+
+        if code and args.strict:
+            write_status("aggregate-failed", {"exit_code": code})
+            return code
+
+    if not args.no_export_all:
+        code = export_all_formats(compact=args.compact)
+
+        if code and args.strict:
+            write_status("dataplane-export-failed", {"exit_code": code})
+            return code
+
+    mirror_original_latest(pretty=not args.compact)
+    write_snapshot_buckets(pretty=not args.compact)
+
+    if args.registry_backup:
+        code = registry_backup_original(enabled=True)
+
+        if code and args.strict:
+            write_status("registry-backup-failed", {"exit_code": code})
+            return code
+
+    if args.git_push:
+        code = push_original(enabled=True)
+
+        if code and args.strict:
+            write_status("push-failed", {"exit_code": code})
+            return code
+
+    write_status("pipeline-complete")
+    return 0
+
+
+def daemon_loop(args: argparse.Namespace) -> int:
+    started = time.time()
+
+    while True:
+        if args.run_seconds > 0 and time.time() - started >= args.run_seconds:
+            write_status("daemon-run-seconds-complete")
+            return 0
+
+        try:
+            code = pipeline_once(args)
+
+            if code:
+                printf(f"Original Bitnodes cycle failed with code {code}")
+
+                if args.strict:
+                    return code
+
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            printf(f"Original Bitnodes daemon cycle error: {exc}")
+
+            if args.strict:
+                return 1
+
+        if args.run_seconds > 0 and time.time() - started >= args.run_seconds:
+            return 0
+
+        time.sleep(args.interval)
+
+
+def clean() -> int:
+    if SRC_DIR.exists():
+        shutil.rmtree(SRC_DIR)
+        printf("Removed bitcoin/bitnodes/src.")
+
+    return 0
+
+
+def bootstrap(args: argparse.Namespace) -> int:
+    code = clone(repo=args.repo, branch=args.branch)
+
+    if code:
+        return code
+
+    code = install_requirements()
+
+    if code:
+        return code
+
+    update_geoip()
+
+    return pipeline_once(args)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Manage and run the original ayeowch/bitnodes crawler as a ZZX-compatible data source."
+    )
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    for command in ("clone", "install", "geoip", "clean"):
+        child = sub.add_parser(command)
+        child.add_argument("--repo", default=DEFAULT_REPO)
+        child.add_argument("--branch", default=DEFAULT_BRANCH)
+
+    for command in ("start", "crawl", "export", "postprocess", "pipeline", "daemon", "bootstrap"):
+        child = sub.add_parser(command)
+        child.add_argument("--repo", default=DEFAULT_REPO)
+        child.add_argument("--branch", default=DEFAULT_BRANCH)
+
+        child.add_argument("--mode", choices=["hybrid", "classic", "redis"], default="hybrid")
+        child.add_argument("--ensure-source", action="store_true")
+        child.add_argument("--install", action="store_true")
+        child.add_argument("--geoip", action="store_true")
+
+        child.add_argument("--limit", type=int, default=500000)
+        child.add_argument("--batch-size", type=int, default=4096)
+        child.add_argument("--timeout", type=float, default=5.0)
+        child.add_argument("--workers", type=int, default=256)
+        child.add_argument("--getaddr-rounds", type=int, default=16)
+        child.add_argument("--dns-seed-limit", type=int, default=4096)
+        child.add_argument(
+            "--max-runtime-seconds",
+            type=int,
+            default=1100,
+            help="Hard ceiling for the optional Ayeowch startup target; 124 on timeout.",
+        )
+
+        child.add_argument("--compact", action="store_true")
+        child.add_argument("--redis-scan-pattern", default="*")
+        child.add_argument("--redis-scan-limit", type=int, default=250000)
+        child.add_argument("--no-gzip", action="store_true")
+        child.add_argument("--fail-empty", action="store_true")
+
+        child.add_argument("--enrich-modules", default="")
+        child.add_argument("--no-enrich", action="store_true")
+        child.add_argument("--no-aggregate", action="store_true")
+        child.add_argument("--no-export-all", action="store_true")
+        child.add_argument("--registry-backup", action="store_true")
+        child.add_argument("--git-push", action="store_true")
+        child.add_argument("--strict", action="store_true")
+
+        child.add_argument("--interval", type=int, default=3600)
+        child.add_argument("--run-seconds", type=int, default=0)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    ensure_dirs()
+
+    if args.command == "clone":
+        return clone(repo=args.repo, branch=args.branch)
+
+    if args.command == "install":
+        return install_requirements()
+
+    if args.command == "geoip":
+        return update_geoip()
+
+    if args.command == "clean":
+        return clean()
+
+    if args.command in {"start", "crawl"}:
+        return start_original(
+            limit=args.limit,
+            batch_size=args.batch_size,
+            timeout=args.timeout,
+            workers=args.workers,
+            getaddr_rounds=args.getaddr_rounds,
+            dns_seed_limit=args.dns_seed_limit,
+            compact=args.compact,
+            max_runtime_seconds=args.max_runtime_seconds,
+        )
+
+    if args.command == "export":
+        return export_redis(
+            compact=args.compact,
+            no_gzip=args.no_gzip,
+            fail_empty=args.fail_empty,
+            scan_pattern=args.redis_scan_pattern,
+            scan_limit=args.redis_scan_limit,
+        )
+
+    if args.command == "postprocess":
+        mirror_original_latest(pretty=not args.compact)
+
+        code = 0
+
+        if not args.no_enrich:
+            code = enrich_original(args.enrich_modules, args.strict, args.compact)
+
+        if code == 0 and not args.no_aggregate:
+            code = aggregate_original()
+
+        if code == 0 and not args.no_export_all:
+            code = export_all_formats(compact=args.compact)
+
+        if code == 0:
+            mirror_original_latest(pretty=not args.compact)
+            write_snapshot_buckets(pretty=not args.compact)
+
+        if code == 0 and args.registry_backup:
+            code = registry_backup_original(enabled=True)
+
+        if code == 0 and args.git_push:
+            code = push_original(enabled=True)
+
+        return code
+
+    if args.command == "pipeline":
+        return pipeline_once(args)
+
+    if args.command == "daemon":
+        return daemon_loop(args)
+
+    if args.command == "bootstrap":
+        return bootstrap(args)
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
