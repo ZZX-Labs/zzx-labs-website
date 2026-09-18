@@ -842,7 +842,12 @@ def count_flag(nodes: list[dict[str, Any]], *keys: str) -> int:
     return total
 
 
-def normalized_node(row: dict[str, Any], source: str) -> dict[str, Any]:
+def normalized_node(
+    row: dict[str, Any],
+    source: str,
+    *,
+    include_metadata: bool = True,
+) -> dict[str, Any]:
     network = network_class(row)
 
     return {
@@ -908,12 +913,26 @@ def normalized_node(row: dict[str, Any], source: str) -> dict[str, Any]:
         "last_seen": row.get("last_seen") or deep_get(row, "metadata.last_seen"),
         "last_failure": row.get("last_failure") or deep_get(row, "metadata.last_failure"),
         "source": source,
-        "metadata": row.get("metadata", {}),
+        **({"metadata": row.get("metadata", {})} if include_metadata else {}),
     }
 
 
-def aggregate(nodes: list[dict[str, Any]], *, source: str = "zzxbitnodes", include_nodes: bool = True) -> dict[str, Any]:
-    normalized = [normalized_node(row, source) for row in nodes if is_known(row)]
+def aggregate(
+    nodes: list[dict[str, Any]],
+    *,
+    source: str = "zzxbitnodes",
+    include_nodes: bool = True,
+    include_node_metadata: bool = True,
+) -> dict[str, Any]:
+    normalized = [
+        normalized_node(
+            row,
+            source,
+            include_metadata=include_node_metadata,
+        )
+        for row in nodes
+        if is_known(row)
+    ]
 
     deduped: dict[str, dict[str, Any]] = {}
     for row in normalized:
@@ -1096,6 +1115,15 @@ def main() -> int:
     parser.add_argument("--source", default="zzxbitnodes")
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--no-nodes", action="store_true")
+    parser.add_argument(
+        "--omit-node-metadata",
+        action="store_true",
+        help=(
+            "Omit the duplicated nested metadata object from each public aggregate node. "
+            "All normalized public fields remain available; the full enrichment metadata "
+            "continues to live in the enriched/canonical source datasets."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -1110,6 +1138,7 @@ def main() -> int:
         nodes,
         source=args.source,
         include_nodes=not args.no_nodes,
+        include_node_metadata=not args.omit_node_metadata,
     )
 
     summary["input"] = str(input_path)
