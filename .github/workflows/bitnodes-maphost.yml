@@ -88,7 +88,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+
+          fetched=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              fetched=1
+              break
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying."
+            sleep "$(( attempt * 3 ))"
+          done
+
+          if [ "${fetched}" != "1" ]; then
+            printf '%s\n' "Unable to refresh origin/main after five attempts."
+            exit 1
+          fi
+
           git reset --hard origin/main
           git clean -fdx
 
@@ -117,8 +132,47 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -r tools/bitnodes/requirements.txt
+          python -m pip install --retries 5 --timeout 60 --upgrade pip
+          python -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
+
+      - name: Resolve geodata cache period
+        id: geodata-cache-key
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'month=%s\n' "$(date -u +%Y-%m)" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore reusable DB-IP and GeoNames cache
+        id: geodata-cache
+        uses: actions/cache@v4
+        with:
+          # Keep the durable cache outside the Git worktree. Both crawler and
+          # Map Host intentionally use git clean -fdx during safe publication.
+          path: ~/.cache/zzx-bitnodes-geodata
+          key: zzx-bitnodes-geodata-${{ runner.os }}-${{ steps.geodata-cache-key.outputs.month }}
+          restore-keys: |
+            zzx-bitnodes-geodata-${{ runner.os }}-
+
+      - name: Hydrate working geodata from durable cache
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CACHE_ROOT="${HOME}/.cache/zzx-bitnodes-geodata"
+          mkdir -p \
+            "${BITNODES_GEOIP}" \
+            "${BITNODES_GEO}/sources" \
+            "${BITNODES_GEO}/mariadb-gz"
+
+          if [ -d "${CACHE_ROOT}/geoip" ]; then
+            cp -af "${CACHE_ROOT}/geoip/." "${BITNODES_GEOIP}/"
+          fi
+          if [ -d "${CACHE_ROOT}/geo/sources" ]; then
+            cp -af "${CACHE_ROOT}/geo/sources/." "${BITNODES_GEO}/sources/"
+          fi
+          if [ -d "${CACHE_ROOT}/geo/mariadb-gz" ]; then
+            cp -af "${CACHE_ROOT}/geo/mariadb-gz/." "${BITNODES_GEO}/mariadb-gz/"
+          fi
 
       - name: Validate canonical map stack
         shell: bash
@@ -229,6 +283,31 @@ jobs:
               row=reader.asn("8.8.8.8")
               print("DB-IP ASN smoke:",row.autonomous_system_number,row.autonomous_system_organization)
           PY
+
+      - name: Stage reusable geodata outside the Git worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CACHE_ROOT="${HOME}/.cache/zzx-bitnodes-geodata"
+          rm -rf "${CACHE_ROOT}"
+          mkdir -p \
+            "${CACHE_ROOT}/geoip" \
+            "${CACHE_ROOT}/geo/sources" \
+            "${CACHE_ROOT}/geo/mariadb-gz"
+
+          for DB in city asn country; do
+            cp -f \
+              "${BITNODES_GEOIP}/dbip-${DB}-lite.mmdb" \
+              "${CACHE_ROOT}/geoip/dbip-${DB}-lite.mmdb"
+          done
+
+          if [ -d "${BITNODES_GEO}/sources" ]; then
+            cp -af "${BITNODES_GEO}/sources/." "${CACHE_ROOT}/geo/sources/"
+          fi
+          if [ -d "${BITNODES_GEO}/mariadb-gz" ]; then
+            cp -af "${BITNODES_GEO}/mariadb-gz/." "${CACHE_ROOT}/geo/mariadb-gz/"
+          fi
 
       - name: Prepare canonical snapshot for Map Host
         id: canonical
@@ -825,7 +904,11 @@ jobs:
           git clean -fdx
 
           for attempt in 1 2 3 4 5; do
-            git fetch origin main
+            if ! git fetch --prune origin main; then
+              printf '%s\n' "Map Host fetch attempt ${attempt}/5 failed; retrying."
+              sleep 10
+              continue
+            fi
 
             EXPECTED_SOURCE_SHA256="${{ steps.baseline.outputs.source_sha256 }}"
             REMOTE_SOURCE_SHA256="$(
@@ -834,10 +917,10 @@ jobs:
 
             if [ "${REMOTE_SOURCE_SHA256}" != "${EXPECTED_SOURCE_SHA256}" ]; then
               printf '%s\n' \
-                "Canonical snapshot changed while Map Host was building; refusing stale publication." \
+                "::warning title=Bitnodes Map Host superseded::Canonical snapshot changed while this map build was running. Stale maps will not be published; the newer crawler run owns the next map publication." \
                 "expected=${EXPECTED_SOURCE_SHA256}" \
                 "remote=${REMOTE_SOURCE_SHA256}"
-              exit 1
+              exit 0
             fi
 
             if git rebase origin/main && git push origin HEAD:main; then
