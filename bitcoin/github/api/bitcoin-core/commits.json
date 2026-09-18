@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-18T11:36:57.953347Z",
+  "generated_at": "2026-09-18T15:40:29.879320Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+      "node_id": "C_kwDOABII59oAKGQ0OGU3NmU2ODliYjRkNjgwZDlkOGE3MGI2N2Y5OTRiZTJmMGNkZDE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-18T14:46:38Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-18T14:46:38Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36286: crypto: Fix MuHash3072 division by itself\n\nb388f9bd0d2bcc259d488638d479ba09a30ba040 crypto: Fix MuHash3072 division by itself (Fabian Jahr)\n\nPull request description:\n\n  `MuHash3072::operator/=` multiplies the numerator by the divisor's denominator and then the denominator by the divisor's numerator. But as it is currently implemented the divisor could be the MuHash object itself. When that is the case, the second step reads the numerator that the first step already updated, so `x /= x` actually leaves `1/D` instead of the empty set. This only goes unnoticed when the denominator is 1, which is the case in our existing fuzz target and benchmark. No code in the node/index divides MuHash objects by themselves, so runnings nodes are not affected.\n\n  Fixes the code by not using the potentially changed nominator, adds a test that reproduces the issue and updates the fuzz test to not always use denominator 1.\n\nACKs for top commit:\n  furszy:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sedited:\n    ACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sipa:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n\nTree-SHA512: ae2eb845db07fb140e7946dfc7d084766e5f6d06060b91da6acc3434fdf6b59ad1eb050b4be79bc4644dea032d1ca0d01dd9e9b366bd04a545cf5224e57526df",
+        "tree": {
+          "sha": "5a24aa781569b8d05def68ae07589fa3e2cc6d91",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/5a24aa781569b8d05def68ae07589fa3e2cc6d91"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqtTs4ACgkQm3m0VpHb\nQXOPtQ/7BUSAHBVczdIztK+GPXFrNE5k6r70B8rrKrJU2AAHArlWNNlnQanGdBEq\n827PeVB9TM9ffwzeNS/MmVaSmqu9GeLOdODbKSH2dZurtFM1BCBx336tXlvx9P/N\nyxJrUbEZ4aS9QtQocWEZn5O3D7liH9GSXzvX+ucv1TcFHJITkiGdqRvxz7aJeQsa\np7CEenBJK9h8H/2a4KPP4Kn0lIxKYdUhjOZryFelDcGb8L0wakkYR0NZDCelik6R\nbGDv0g1v3h88/4xvIksYNg+tV6LfROKCqXXZhrCQsoOBwsge5/IFc5CSCBduZ50y\nuPjP/kb8A2qoHpoSViVDeeF8Ba0eB6N9brCC7phOX8O0hhUiXWUqenVJ6CJZuLeV\nMTj/ubr/i4A+qUSMN3qVMuinriilrX4CqYoqOJ4F2kcz9jfybHUFK0XrTw8B4ERA\nVw0KINYbSikqp7jCnUMOPYIiHqdHA0YCnc8fw7HtY19VhdiMR4xiqhP6hEocwIMJ\nUWtHn0Y2xTmWJPmj8e/wN59uH9Wubkb+Ef5lmkFZjzzcY1Rkx0V3rMNfGM4cuxGw\nKpZDWlh7ocpncH8apDb8BqTJX54gZbC33Bec4r+s9PAdxyuUzZcBOkirf3uknA5c\nNFPLNFwya3VfAUUaLwGmkpEfDP8zGvz+OjYyM3Ow41JpR7EYxNg=\n=N8Zs\n-----END PGP SIGNATURE-----",
+          "payload": "tree 5a24aa781569b8d05def68ae07589fa3e2cc6d91\nparent 0e9018e8b65611b0769545e177110e4b7fc51244\nparent b388f9bd0d2bcc259d488638d479ba09a30ba040\nauthor merge-script <seb.kung@gmail.com> 1789742798 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789742798 +0200\n\nMerge bitcoin/bitcoin#36286: crypto: Fix MuHash3072 division by itself\n\nb388f9bd0d2bcc259d488638d479ba09a30ba040 crypto: Fix MuHash3072 division by itself (Fabian Jahr)\n\nPull request description:\n\n  `MuHash3072::operator/=` multiplies the numerator by the divisor's denominator and then the denominator by the divisor's numerator. But as it is currently implemented the divisor could be the MuHash object itself. When that is the case, the second step reads the numerator that the first step already updated, so `x /= x` actually leaves `1/D` instead of the empty set. This only goes unnoticed when the denominator is 1, which is the case in our existing fuzz target and benchmark. No code in the node/index divides MuHash objects by themselves, so runnings nodes are not affected.\n\n  Fixes the code by not using the potentially changed nominator, adds a test that reproduces the issue and updates the fuzz test to not always use denominator 1.\n\nACKs for top commit:\n  furszy:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sedited:\n    ACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sipa:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n\nTree-SHA512: ae2eb845db07fb140e7946dfc7d084766e5f6d06060b91da6acc3434fdf6b59ad1eb050b4be79bc4644dea032d1ca0d01dd9e9b366bd04a545cf5224e57526df\n",
+          "verified_at": "2026-09-18T14:47:17Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "0e9018e8b65611b0769545e177110e4b7fc51244",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0e9018e8b65611b0769545e177110e4b7fc51244",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0e9018e8b65611b0769545e177110e4b7fc51244"
+        },
+        {
+          "sha": "b388f9bd0d2bcc259d488638d479ba09a30ba040",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b388f9bd0d2bcc259d488638d479ba09a30ba040"
+        }
+      ]
+    },
     {
       "sha": "0e9018e8b65611b0769545e177110e4b7fc51244",
       "node_id": "C_kwDOABII59oAKDBlOTAxOGU4YjY1NjExYjA3Njk1NDVlMTc3MTEwZTRiN2ZjNTEyNDQ",
@@ -87,6 +174,88 @@
           "sha": "0b353a9e872e81b900a543d7fedf668be3afec2c",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0b353a9e872e81b900a543d7fedf668be3afec2c",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/0b353a9e872e81b900a543d7fedf668be3afec2c"
+        }
+      ]
+    },
+    {
+      "sha": "b388f9bd0d2bcc259d488638d479ba09a30ba040",
+      "node_id": "C_kwDOABII59oAKGIzODhmOWJkMGQyYmNjMjU5ZDQ4ODYzOGQ0NzliYTA5YTMwYmEwNDA",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-17T08:42:44Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-17T18:28:22Z"
+        },
+        "message": "crypto: Fix MuHash3072 division by itself",
+        "tree": {
+          "sha": "62f6e9deaed3e8d6a275e9ebcec5b46c00b97b9b",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/62f6e9deaed3e8d6a275e9ebcec5b46c00b97b9b"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqsMUYbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNIHwP/RDBfLcdxh+KwHJ0FG7F\n2UbTPKSylrypfECEOOfITdbab5/a59n1R9G33ddcdgrPfabdZBtDGornsib/KVkE\nBVcR53t7bMVUS5APyQrKSghQKf+iIl2PImvtVBUDRpCxscZ7MO4RdnSuL2M8MRGV\nC5voTJ4J3BKyQgXTrO8cbyKUgfAbDy/cuICrgj8dLtTnuSI4KVdT6eIrBMxu5e0V\nqqdS1f/LewSyBa9cK7UPlFjeDItwhHoDHLJXAooeKgDtyFRI1fRet7mecArj5F8H\n5r0bXy4j1OgpMl0O1XL7iDPyLOsLe0W6+xhXYFItGWl0iCvGJCtohYzbTl/GoTZz\n4kPaXH7tbvQamTA5QdK48g7QTw93M1gGs7AcrknNpFIEYF8qddyj1K7j20jpWuHb\nN9BrreNHm73D8p9p4/zi7AVE/Fd/YVMaRcFDv3TibdlkxuWd4TNCnCnQqjnCZIg8\nSNSJU8hdWQtRaurSbqWCdQ0IJE4F3a/gjskQuSyX4OxwC8GydT1uivRpWPg0/ZZo\nSNrMaKiAepOXTQoW6oiMS33oLagW4LPHok9popRzfy1gdB/VUY/ZZaqbQ2xP5K4z\nILOlp3HCUZNHzniz5PYIdtMGm0MMj+lcMgfH5niQxPXMXnYGq5ctS5stXf35JLrW\nFkb8nY1biQUK7tGZEDf5GDzh\n=dVhS\n-----END PGP SIGNATURE-----",
+          "payload": "tree 62f6e9deaed3e8d6a275e9ebcec5b46c00b97b9b\nparent b8215855437288cac95c7fd5d41104c73c0f3495\nauthor Fabian Jahr <fjahr@protonmail.com> 1789634564 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789669702 +0200\n\ncrypto: Fix MuHash3072 division by itself\n",
+          "verified_at": "2026-09-17T18:28:32Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "b8215855437288cac95c7fd5d41104c73c0f3495",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b8215855437288cac95c7fd5d41104c73c0f3495",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b8215855437288cac95c7fd5d41104c73c0f3495"
         }
       ]
     },
@@ -8191,175 +8360,6 @@
           "sha": "7e75b3b922f9ba740240c2204e3e9389524eafdb",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7e75b3b922f9ba740240c2204e3e9389524eafdb",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/7e75b3b922f9ba740240c2204e3e9389524eafdb"
-        }
-      ]
-    },
-    {
-      "sha": "7ee94bf4b02376af8b2cfc78ea954ca340fab8c5",
-      "node_id": "C_kwDOABII59oAKDdlZTk0YmY0YjAyMzc2YWY4YjJjZmM3OGVhOTU0Y2EzNDBmYWI4YzU",
-      "commit": {
-        "author": {
-          "name": "Hodlinator",
-          "email": "172445034+hodlinator@users.noreply.github.com",
-          "date": "2026-09-10T09:31:04Z"
-        },
-        "committer": {
-          "name": "Hodlinator",
-          "email": "172445034+hodlinator@users.noreply.github.com",
-          "date": "2026-09-10T10:37:44Z"
-        },
-        "message": "asmap: Make outputted ASMap version match externally computed hashes\n\n* Change version from double to single SHA256\n  This invalidates serialized AddrMan data which forces re-bucketing.\n\n* Avoid reversing byte order for ASMap version in log\n  Makes it easier to match it with externally computed hashes of the encoded file.",
-        "tree": {
-          "sha": "8acd462d62e4ed0c13638f39f0a149fec1e8f022",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8acd462d62e4ed0c13638f39f0a149fec1e8f022"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/7ee94bf4b02376af8b2cfc78ea954ca340fab8c5",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAg39Hzirivn9mM3G8qwAOGOKsmHT\ny2f/O2iDRQI8UxEyoAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQGB+mYuM1UwJmt96xawRJLYh4krqm8spFwJksRmQ9D9IT9XINPPKwAyVw4urs+Xlzd\neUFOmaew3kTBK3RRbyew8=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 8acd462d62e4ed0c13638f39f0a149fec1e8f022\nparent fc4f35fdce4d65696be6bf34003dbcac1f2f64bf\nauthor Hodlinator <172445034+hodlinator@users.noreply.github.com> 1789032664 +0200\ncommitter Hodlinator <172445034+hodlinator@users.noreply.github.com> 1789036664 +0200\n\nasmap: Make outputted ASMap version match externally computed hashes\n\n* Change version from double to single SHA256\n  This invalidates serialized AddrMan data which forces re-bucketing.\n\n* Avoid reversing byte order for ASMap version in log\n  Makes it easier to match it with externally computed hashes of the encoded file.\n",
-          "verified_at": "2026-09-10T10:40:46Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7ee94bf4b02376af8b2cfc78ea954ca340fab8c5",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/7ee94bf4b02376af8b2cfc78ea954ca340fab8c5",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7ee94bf4b02376af8b2cfc78ea954ca340fab8c5/comments",
-      "author": {
-        "login": "hodlinator",
-        "id": 172445034,
-        "node_id": "U_kgDOCkdNag",
-        "avatar_url": "https://avatars.githubusercontent.com/u/172445034?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/hodlinator",
-        "html_url": "https://github.com/hodlinator",
-        "followers_url": "https://api.github.com/users/hodlinator/followers",
-        "following_url": "https://api.github.com/users/hodlinator/following{/other_user}",
-        "gists_url": "https://api.github.com/users/hodlinator/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/hodlinator/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/hodlinator/subscriptions",
-        "organizations_url": "https://api.github.com/users/hodlinator/orgs",
-        "repos_url": "https://api.github.com/users/hodlinator/repos",
-        "events_url": "https://api.github.com/users/hodlinator/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/hodlinator/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "hodlinator",
-        "id": 172445034,
-        "node_id": "U_kgDOCkdNag",
-        "avatar_url": "https://avatars.githubusercontent.com/u/172445034?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/hodlinator",
-        "html_url": "https://github.com/hodlinator",
-        "followers_url": "https://api.github.com/users/hodlinator/followers",
-        "following_url": "https://api.github.com/users/hodlinator/following{/other_user}",
-        "gists_url": "https://api.github.com/users/hodlinator/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/hodlinator/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/hodlinator/subscriptions",
-        "organizations_url": "https://api.github.com/users/hodlinator/orgs",
-        "repos_url": "https://api.github.com/users/hodlinator/repos",
-        "events_url": "https://api.github.com/users/hodlinator/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/hodlinator/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fc4f35fdce4d65696be6bf34003dbcac1f2f64bf"
-        }
-      ]
-    },
-    {
-      "sha": "4a15e0b6f9c5adabf48db1f610d3eda4390986d0",
-      "node_id": "C_kwDOABII59oAKDRhMTVlMGI2ZjljNWFkYWJmNDhkYjFmNjEwZDNlZGE0MzkwOTg2ZDA",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-10T10:33:10Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-10T10:33:10Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36195: test: `get_previous_releases.py` use `PREVIOUS_RELEASES_DIR`\n\necdf9db906b4d09e780371fd6e7fe420ecdc87f9 test: get_previous_releases.py use `PREVIOUS_RELEASES_DIR` (David Gumberg)\n\nPull request description:\n\n  `test_framework.py` already uses `PREVIOUS_RELEASES_DIR` to set a default directory to find previous releases, so should `get_previous_releases.py` when fetching them.\n\n  This is more convenient for local development when using multiple worktrees where having `$PREVIOUS_RELEASES_DIR` set is useful.\n\n  Also allows some CI code to get deleted.\n\n  _LLM Usage Disclosure: Qwen3.8-0.5B generated the next 800,000 pages of my epistolary novel while I made this PR._\n\nACKs for top commit:\n  hodlinator:\n    ACK ecdf9db906b4d09e780371fd6e7fe420ecdc87f9\n  willcl-ark:\n    ACK ecdf9db906b4d09e780371fd6e7fe420ecdc87f9\n\nTree-SHA512: cd99ff118bdf0425b286ad1efb99be3b53997e4f0915722923e79081ee0820c23a2177b2b4a45153d1d5e2963363b5b59d7840e203d7722e46204f9bee2f6485",
-        "tree": {
-          "sha": "c8fe4b3ca5d97e3b44d39570d5d10ac23cc2de2a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/c8fe4b3ca5d97e3b44d39570d5d10ac23cc2de2a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/4a15e0b6f9c5adabf48db1f610d3eda4390986d0",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmqih2YbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB6AkP/02Bbqf0SKJ5KpimlSAr\n2LuJHHXPkMFzgtV75rZ9EwEjkm0wuVMy0gvus96rAWE7Jo8mWd5i/P+zgYWQpQzS\nAMeWtz/G0oLyEiToupiFC20FzR33NHIdZav69CANSx+upmlgtz3Dwpi5fg1oEE+M\nitnHe3gY62f2uA8+Y43SXvYwp7k931tpqg2vhlqm+Fk6UaIdWYUVDiAxOYM+IdIj\n0XTLh+L88IVXnSWvolw7kVWVAGfn8upruSkhVoUAn7LkgPGxiDLjrcc542Wfbgi7\nCNhI6YettR0DbwDqd77sWRarbk6/QCBnmSnLGMH2OjVoz+eUyvLvEZt7L7QOWmSI\nnFxAFhrM0NrodSM7bs5KDXdPSuoXvwwx8kcgIOP8WiF7e5Wm60laWCekAQBbRemN\nDsme356l3ATNy8URe2RgPfwii/zhMbM1Iy0gpeymA9b1FaCYEUXkWaYWMu/e8RDr\n5WTBnHZSb9cvFt3j4f9amn++vrbge2CgX5j+4BxF0SVrXhgviUIriHokcKM27Xmr\nzM9rmisPVjioHmurTTpF83H+RKPynVlN0mFGdYs8jicDIcKWwafJzpM8A8AM97cJ\nyA+DYxPXUpWC5LEhYUTuhYKwVhlYWUbXg/3Bu6P8kIzTLn7haggFwiD7JZXHvCjl\nQwrbrkVgif2XVIsxYpDrChiG\n=sxIz\n-----END PGP SIGNATURE-----",
-          "payload": "tree c8fe4b3ca5d97e3b44d39570d5d10ac23cc2de2a\nparent b5ef74b248cd957645fd7a22613191fc703e1504\nparent ecdf9db906b4d09e780371fd6e7fe420ecdc87f9\nauthor merge-script <fanquake@gmail.com> 1789036390 +0100\ncommitter merge-script <fanquake@gmail.com> 1789036390 +0100\n\nMerge bitcoin/bitcoin#36195: test: `get_previous_releases.py` use `PREVIOUS_RELEASES_DIR`\n\necdf9db906b4d09e780371fd6e7fe420ecdc87f9 test: get_previous_releases.py use `PREVIOUS_RELEASES_DIR` (David Gumberg)\n\nPull request description:\n\n  `test_framework.py` already uses `PREVIOUS_RELEASES_DIR` to set a default directory to find previous releases, so should `get_previous_releases.py` when fetching them.\n\n  This is more convenient for local development when using multiple worktrees where having `$PREVIOUS_RELEASES_DIR` set is useful.\n\n  Also allows some CI code to get deleted.\n\n  _LLM Usage Disclosure: Qwen3.8-0.5B generated the next 800,000 pages of my epistolary novel while I made this PR._\n\nACKs for top commit:\n  hodlinator:\n    ACK ecdf9db906b4d09e780371fd6e7fe420ecdc87f9\n  willcl-ark:\n    ACK ecdf9db906b4d09e780371fd6e7fe420ecdc87f9\n\nTree-SHA512: cd99ff118bdf0425b286ad1efb99be3b53997e4f0915722923e79081ee0820c23a2177b2b4a45153d1d5e2963363b5b59d7840e203d7722e46204f9bee2f6485\n",
-          "verified_at": "2026-09-10T10:33:15Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4a15e0b6f9c5adabf48db1f610d3eda4390986d0",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/4a15e0b6f9c5adabf48db1f610d3eda4390986d0",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4a15e0b6f9c5adabf48db1f610d3eda4390986d0/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b5ef74b248cd957645fd7a22613191fc703e1504",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b5ef74b248cd957645fd7a22613191fc703e1504",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b5ef74b248cd957645fd7a22613191fc703e1504"
-        },
-        {
-          "sha": "ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/ecdf9db906b4d09e780371fd6e7fe420ecdc87f9"
         }
       ]
     }
