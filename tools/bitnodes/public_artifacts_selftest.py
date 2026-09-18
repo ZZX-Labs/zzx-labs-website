@@ -61,6 +61,22 @@ def main() -> int:
         assert compacted.get("nodes") in (None, [], {})
         assert aggregate_report["node_count"] == 1
 
+        bounded = root / "aggregate-bounded.json"
+        bounded_payload = {
+            "schema": "fixture-aggregate-v1",
+            "source": "fixture",
+            "nodes": {"1.1.1.1:8333": {"address": "1.1.1.1:8333", "country": "AU"}},
+            "node_count": 1,
+        }
+        bounded.write_text(json.dumps(bounded_payload), encoding="utf-8")
+        bounded_report = mod.compact_aggregate(
+            bounded, bounded, canonical_url="/canonical.json", max_bytes=24_000_000,
+            keep_bounded_nodes=True,
+        )
+        bounded_out = load(bounded)
+        assert bounded_out["nodes"] == bounded_payload["nodes"]
+        assert bounded_report["nodes_omitted"] is False
+
         report = mod.shard_ipdb(
             source, shards, manifest,
             max_bytes=24_000_000, rows_per_shard=2, gzip_level=6,
