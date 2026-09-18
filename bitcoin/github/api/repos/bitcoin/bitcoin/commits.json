@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-18T14:39:16.804638Z",
+  "generated_at": "2026-09-18T18:04:45.702080Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+      "node_id": "C_kwDOABII59oAKGQ0OGU3NmU2ODliYjRkNjgwZDlkOGE3MGI2N2Y5OTRiZTJmMGNkZDE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-18T14:46:38Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-09-18T14:46:38Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36286: crypto: Fix MuHash3072 division by itself\n\nb388f9bd0d2bcc259d488638d479ba09a30ba040 crypto: Fix MuHash3072 division by itself (Fabian Jahr)\n\nPull request description:\n\n  `MuHash3072::operator/=` multiplies the numerator by the divisor's denominator and then the denominator by the divisor's numerator. But as it is currently implemented the divisor could be the MuHash object itself. When that is the case, the second step reads the numerator that the first step already updated, so `x /= x` actually leaves `1/D` instead of the empty set. This only goes unnoticed when the denominator is 1, which is the case in our existing fuzz target and benchmark. No code in the node/index divides MuHash objects by themselves, so runnings nodes are not affected.\n\n  Fixes the code by not using the potentially changed nominator, adds a test that reproduces the issue and updates the fuzz test to not always use denominator 1.\n\nACKs for top commit:\n  furszy:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sedited:\n    ACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sipa:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n\nTree-SHA512: ae2eb845db07fb140e7946dfc7d084766e5f6d06060b91da6acc3434fdf6b59ad1eb050b4be79bc4644dea032d1ca0d01dd9e9b366bd04a545cf5224e57526df",
+        "tree": {
+          "sha": "5a24aa781569b8d05def68ae07589fa3e2cc6d91",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/5a24aa781569b8d05def68ae07589fa3e2cc6d91"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqtTs4ACgkQm3m0VpHb\nQXOPtQ/7BUSAHBVczdIztK+GPXFrNE5k6r70B8rrKrJU2AAHArlWNNlnQanGdBEq\n827PeVB9TM9ffwzeNS/MmVaSmqu9GeLOdODbKSH2dZurtFM1BCBx336tXlvx9P/N\nyxJrUbEZ4aS9QtQocWEZn5O3D7liH9GSXzvX+ucv1TcFHJITkiGdqRvxz7aJeQsa\np7CEenBJK9h8H/2a4KPP4Kn0lIxKYdUhjOZryFelDcGb8L0wakkYR0NZDCelik6R\nbGDv0g1v3h88/4xvIksYNg+tV6LfROKCqXXZhrCQsoOBwsge5/IFc5CSCBduZ50y\nuPjP/kb8A2qoHpoSViVDeeF8Ba0eB6N9brCC7phOX8O0hhUiXWUqenVJ6CJZuLeV\nMTj/ubr/i4A+qUSMN3qVMuinriilrX4CqYoqOJ4F2kcz9jfybHUFK0XrTw8B4ERA\nVw0KINYbSikqp7jCnUMOPYIiHqdHA0YCnc8fw7HtY19VhdiMR4xiqhP6hEocwIMJ\nUWtHn0Y2xTmWJPmj8e/wN59uH9Wubkb+Ef5lmkFZjzzcY1Rkx0V3rMNfGM4cuxGw\nKpZDWlh7ocpncH8apDb8BqTJX54gZbC33Bec4r+s9PAdxyuUzZcBOkirf3uknA5c\nNFPLNFwya3VfAUUaLwGmkpEfDP8zGvz+OjYyM3Ow41JpR7EYxNg=\n=N8Zs\n-----END PGP SIGNATURE-----",
+          "payload": "tree 5a24aa781569b8d05def68ae07589fa3e2cc6d91\nparent 0e9018e8b65611b0769545e177110e4b7fc51244\nparent b388f9bd0d2bcc259d488638d479ba09a30ba040\nauthor merge-script <seb.kung@gmail.com> 1789742798 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789742798 +0200\n\nMerge bitcoin/bitcoin#36286: crypto: Fix MuHash3072 division by itself\n\nb388f9bd0d2bcc259d488638d479ba09a30ba040 crypto: Fix MuHash3072 division by itself (Fabian Jahr)\n\nPull request description:\n\n  `MuHash3072::operator/=` multiplies the numerator by the divisor's denominator and then the denominator by the divisor's numerator. But as it is currently implemented the divisor could be the MuHash object itself. When that is the case, the second step reads the numerator that the first step already updated, so `x /= x` actually leaves `1/D` instead of the empty set. This only goes unnoticed when the denominator is 1, which is the case in our existing fuzz target and benchmark. No code in the node/index divides MuHash objects by themselves, so runnings nodes are not affected.\n\n  Fixes the code by not using the potentially changed nominator, adds a test that reproduces the issue and updates the fuzz test to not always use denominator 1.\n\nACKs for top commit:\n  furszy:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sedited:\n    ACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n  sipa:\n    utACK b388f9bd0d2bcc259d488638d479ba09a30ba040\n\nTree-SHA512: ae2eb845db07fb140e7946dfc7d084766e5f6d06060b91da6acc3434fdf6b59ad1eb050b4be79bc4644dea032d1ca0d01dd9e9b366bd04a545cf5224e57526df\n",
+          "verified_at": "2026-09-18T14:47:17Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "0e9018e8b65611b0769545e177110e4b7fc51244",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0e9018e8b65611b0769545e177110e4b7fc51244",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0e9018e8b65611b0769545e177110e4b7fc51244"
+        },
+        {
+          "sha": "b388f9bd0d2bcc259d488638d479ba09a30ba040",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b388f9bd0d2bcc259d488638d479ba09a30ba040"
+        }
+      ]
+    },
     {
       "sha": "0e9018e8b65611b0769545e177110e4b7fc51244",
       "node_id": "C_kwDOABII59oAKDBlOTAxOGU4YjY1NjExYjA3Njk1NDVlMTc3MTEwZTRiN2ZjNTEyNDQ",
@@ -87,6 +174,88 @@
           "sha": "0b353a9e872e81b900a543d7fedf668be3afec2c",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0b353a9e872e81b900a543d7fedf668be3afec2c",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/0b353a9e872e81b900a543d7fedf668be3afec2c"
+        }
+      ]
+    },
+    {
+      "sha": "b388f9bd0d2bcc259d488638d479ba09a30ba040",
+      "node_id": "C_kwDOABII59oAKGIzODhmOWJkMGQyYmNjMjU5ZDQ4ODYzOGQ0NzliYTA5YTMwYmEwNDA",
+      "commit": {
+        "author": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-17T08:42:44Z"
+        },
+        "committer": {
+          "name": "Fabian Jahr",
+          "email": "fjahr@protonmail.com",
+          "date": "2026-09-17T18:28:22Z"
+        },
+        "message": "crypto: Fix MuHash3072 division by itself",
+        "tree": {
+          "sha": "62f6e9deaed3e8d6a275e9ebcec5b46c00b97b9b",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/62f6e9deaed3e8d6a275e9ebcec5b46c00b97b9b"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqsMUYbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNIHwP/RDBfLcdxh+KwHJ0FG7F\n2UbTPKSylrypfECEOOfITdbab5/a59n1R9G33ddcdgrPfabdZBtDGornsib/KVkE\nBVcR53t7bMVUS5APyQrKSghQKf+iIl2PImvtVBUDRpCxscZ7MO4RdnSuL2M8MRGV\nC5voTJ4J3BKyQgXTrO8cbyKUgfAbDy/cuICrgj8dLtTnuSI4KVdT6eIrBMxu5e0V\nqqdS1f/LewSyBa9cK7UPlFjeDItwhHoDHLJXAooeKgDtyFRI1fRet7mecArj5F8H\n5r0bXy4j1OgpMl0O1XL7iDPyLOsLe0W6+xhXYFItGWl0iCvGJCtohYzbTl/GoTZz\n4kPaXH7tbvQamTA5QdK48g7QTw93M1gGs7AcrknNpFIEYF8qddyj1K7j20jpWuHb\nN9BrreNHm73D8p9p4/zi7AVE/Fd/YVMaRcFDv3TibdlkxuWd4TNCnCnQqjnCZIg8\nSNSJU8hdWQtRaurSbqWCdQ0IJE4F3a/gjskQuSyX4OxwC8GydT1uivRpWPg0/ZZo\nSNrMaKiAepOXTQoW6oiMS33oLagW4LPHok9popRzfy1gdB/VUY/ZZaqbQ2xP5K4z\nILOlp3HCUZNHzniz5PYIdtMGm0MMj+lcMgfH5niQxPXMXnYGq5ctS5stXf35JLrW\nFkb8nY1biQUK7tGZEDf5GDzh\n=dVhS\n-----END PGP SIGNATURE-----",
+          "payload": "tree 62f6e9deaed3e8d6a275e9ebcec5b46c00b97b9b\nparent b8215855437288cac95c7fd5d41104c73c0f3495\nauthor Fabian Jahr <fjahr@protonmail.com> 1789634564 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789669702 +0200\n\ncrypto: Fix MuHash3072 division by itself\n",
+          "verified_at": "2026-09-17T18:28:32Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b388f9bd0d2bcc259d488638d479ba09a30ba040",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b388f9bd0d2bcc259d488638d479ba09a30ba040/comments",
+      "author": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fjahr",
+        "id": 1322187,
+        "node_id": "MDQ6VXNlcjEzMjIxODc=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fjahr",
+        "html_url": "https://github.com/fjahr",
+        "followers_url": "https://api.github.com/users/fjahr/followers",
+        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
+        "organizations_url": "https://api.github.com/users/fjahr/orgs",
+        "repos_url": "https://api.github.com/users/fjahr/repos",
+        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fjahr/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "b8215855437288cac95c7fd5d41104c73c0f3495",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b8215855437288cac95c7fd5d41104c73c0f3495",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b8215855437288cac95c7fd5d41104c73c0f3495"
         }
       ]
     },
@@ -1496,180 +1665,6 @@
           "sha": "e0229ca6851572189ee99dc7093b58b01650d43b",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e0229ca6851572189ee99dc7093b58b01650d43b",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/e0229ca6851572189ee99dc7093b58b01650d43b"
-        }
-      ]
-    },
-    {
-      "sha": "dadca55f60ad1e756bd9ad88351729f0e6af2181",
-      "node_id": "C_kwDOABII59oAKGRhZGNhNTVmNjBhZDFlNzU2YmQ5YWQ4ODM1MTcyOWYwZTZhZjIxODE",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-15T12:06:37Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-15T12:06:37Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36251: rest: add `generated` and `height` to spenttxouts JSON\n\n1566a4767afd3865ee466d1aa2ce8237cb5c27c1 rest: add generated and height to spenttxouts JSON (0xb10c)\n\nPull request description:\n\n  This adds the `generated` and `height` fields to the JSON REST endpoint `/rest/spenttxouts/BLOCKHASH.json` to match the prevout output of the getblock RPC with verbosity 3. The information for these fields is already available, but just was not exposed.\n\n  The binary and hex formats aren't changed (here) to not break backwards compatibility with consumers of these endpoints. See the discussion in https://github.com/bitcoin/bitcoin/pull/32540#issuecomment-5665279713\n\nACKs for top commit:\n  nervana21:\n    tACK 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\n  willcl-ark:\n    ACK 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\n  sedited:\n    ACK 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\n\nTree-SHA512: e0f57baa75d9b5e941fdf87179f293209af2fab16a151011a788b7f459d10ce50cf8b8ee2acc4d352e032aa5c76cf0a32dfb959c860938b988645844a2e75675",
-        "tree": {
-          "sha": "89f0d15d24289a916325991d4f8e08c8c0495510",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/89f0d15d24289a916325991d4f8e08c8c0495510"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/dadca55f60ad1e756bd9ad88351729f0e6af2181",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqpNM0ACgkQm3m0VpHb\nQXMQWg/+O4yUgvAt7ckFF57MxXSd0hvjDbtQPOhR6yE8rmvjYj+1j0yXk4QB2a85\nvZ7xZxj+rZVBmbMP4ckHZ2+YjcMaRSjjOSxIFJOcsHvYSwKtLdvRAIpgVuVPC4mL\nr48KPRAu8B62Er3ihty1t2k+irhNJo1/J3GGx5fqsq+aFWRZjC3fWlID1f8EhYKc\n/CPWPso/WccqFBMxHYR1tKBKwMlTKATHbJRDPT3FAGM0pWItZNDKFB+SGUB/HBIm\nYAlv+PPdEOxJ/vU8PisY4G032NUOuv/sAH32ses/tzNM8Nkq5J4u8ScaHUm3RMt7\n+DjBxy0LR+Wpexy4wiSpKRY8jXMl0c1Z5yp6/Ycs+tnAU/70Ss7np8P79tzsKQDF\nWBDjcrWHUu3oppBwTeauUuVD05j0W+nf63uPeoQUzBbEEZz5f4fIWfRgM+GjLQnv\ngedvSzKPmc2WdHiKsKulOBibYr67rwuqixtTa1t/R0vjzjXvNYUYulgqI9EAUSGl\n1zYD4sFwe1OKAdjANF853U8zl3bM1ZZ685Dc9Q4+hTjVrZjnw2qAl88c2sdHetuT\n73Ru6VjJkgEyYdrICM3dcBZMDRnPo84eN0sOiUBSRvQS2Ey89gOxR8P2aEfv+dDD\n+u1l57QRtA102xnmA1CHrTsTcmB1DOL7o2hZWvKj5UUv6KDDEGI=\n=i0BJ\n-----END PGP SIGNATURE-----",
-          "payload": "tree 89f0d15d24289a916325991d4f8e08c8c0495510\nparent de394ad3b739585a67b5830fafc866ac174f1fb7\nparent 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\nauthor merge-script <seb.kung@gmail.com> 1789473997 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789473997 +0200\n\nMerge bitcoin/bitcoin#36251: rest: add `generated` and `height` to spenttxouts JSON\n\n1566a4767afd3865ee466d1aa2ce8237cb5c27c1 rest: add generated and height to spenttxouts JSON (0xb10c)\n\nPull request description:\n\n  This adds the `generated` and `height` fields to the JSON REST endpoint `/rest/spenttxouts/BLOCKHASH.json` to match the prevout output of the getblock RPC with verbosity 3. The information for these fields is already available, but just was not exposed.\n\n  The binary and hex formats aren't changed (here) to not break backwards compatibility with consumers of these endpoints. See the discussion in https://github.com/bitcoin/bitcoin/pull/32540#issuecomment-5665279713\n\nACKs for top commit:\n  nervana21:\n    tACK 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\n  willcl-ark:\n    ACK 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\n  sedited:\n    ACK 1566a4767afd3865ee466d1aa2ce8237cb5c27c1\n\nTree-SHA512: e0f57baa75d9b5e941fdf87179f293209af2fab16a151011a788b7f459d10ce50cf8b8ee2acc4d352e032aa5c76cf0a32dfb959c860938b988645844a2e75675\n",
-          "verified_at": "2026-09-15T12:07:09Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/dadca55f60ad1e756bd9ad88351729f0e6af2181",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/dadca55f60ad1e756bd9ad88351729f0e6af2181",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/dadca55f60ad1e756bd9ad88351729f0e6af2181/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "de394ad3b739585a67b5830fafc866ac174f1fb7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/de394ad3b739585a67b5830fafc866ac174f1fb7",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/de394ad3b739585a67b5830fafc866ac174f1fb7"
-        },
-        {
-          "sha": "1566a4767afd3865ee466d1aa2ce8237cb5c27c1",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1566a4767afd3865ee466d1aa2ce8237cb5c27c1",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/1566a4767afd3865ee466d1aa2ce8237cb5c27c1"
-        }
-      ]
-    },
-    {
-      "sha": "de394ad3b739585a67b5830fafc866ac174f1fb7",
-      "node_id": "C_kwDOABII59oAKGRlMzk0YWQzYjczOTU4NWE2N2I1ODMwZmFmYzg2NmFjMTc0ZjFmYjc",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-15T11:53:20Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-15T11:53:20Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36207: kernel: add wtxid accessor\n\n43bba1ed74f8301fe1ec8e3751cdc93d07b89e82 kernel: expose transaction witness presence (KY-U)\n31224d0680775adec17a3878c92afe4b67a73987 kernel: expose transaction wtxid (KY-U)\n\nPull request description:\n\n  While the kernel API provides access to a transactions's txid, it does not expose its wtxid. Clients therefore have to hash the transaction's witness serialization themselves, even though `CTransaction` already calculates and caches this value in `m_witness_hash`.\n\n  Expose the wtxid through a C API handle and corresponding C++ view and owning wrappers. Mirror the existing txid operations for copying, destruction, comparison and byte serialization.\n\n  Also expose `CTransaction::HasWitness()`, allowing clients to determine whether a transaction contains witness data without having to inspect each input themselves.\n\n  Tests cover legacy transactions, where txid and wtxid bytes match, and witness transactions, where they differ.\n\nACKs for top commit:\n  stickies-v:\n    re-ACK 43bba1ed74f8301fe1ec8e3751cdc93d07b89e82\n  sedited:\n    ACK 43bba1ed74f8301fe1ec8e3751cdc93d07b89e82\n\nTree-SHA512: d7bb7f590878fefb05f834f3076b990e1447f226e33da4499e4ae6ab32880f03a8fdee5f4cef60db6aecb77cd0eb3f820fafe603c31bb9cfcd950acece3f4f03",
-        "tree": {
-          "sha": "3bd4407da03d70dfb397c2e3aa810308f97adf8a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/3bd4407da03d70dfb397c2e3aa810308f97adf8a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/de394ad3b739585a67b5830fafc866ac174f1fb7",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqpMbAACgkQm3m0VpHb\nQXPPPRAAyvHOyvxSzzMPF/YYoC9u+pVrUhbQ/HySMHIO+p3Ywzr/HqvqVe2YlYfO\n0cKLCKm98DEZPoQyaY4vd/eXgDD2cLn60555RL9Wfp+Pme7VbyJWzV+gnxTByTAa\nqDUE77EVf4WgDcUIe+Q/NjLW11BrSxe7j1pWZ42xT5UzvclNfn8ktHXBCmEj+faD\nEeDvkC7ASMrOPbwLIcaE1e3YniddngpFr/yh7oPFo7W3Maz494RX6RghQXDCIVNz\nyJiX0y3+tw0nQRjAZfQqipeicIlBrf8H153YZ+TcJashBSosMAM2l/8O0cy9ZQJg\nctbXNrzn4ezc99HwBj1ZIgvLyGOVuVHgJfA04i0x4jnq9fXnpaZrHY5UGkoH6lwS\nhdeGANOUwpsV2O1KmYShFCUT/Wfo4/LJEX2taxPk61t0Vj4oBh0cLBek20HdmRqU\nH4zHyOdyi7Ta9XldInvOHFWQtRok7H/laUrGJr6rJbl9KEx3ZCIJoQUV95QH1ZbJ\nOPkvguZl349MDvAt+PcP3O5kWbzvJvaPpQf3meHL0o+SJOvNSdGv15GNezlqfBRG\nKYth4J1yG9iML05FJMlbyZUH1a/P1vMlvz7rHPDdWtjSZ0ZgIlOiLlLjbfjvc1El\nYSbPnkPlzQm+GHA6AVwkKCqekwxewKRiahDyYl2olkllQhH29oE=\n=h7CT\n-----END PGP SIGNATURE-----",
-          "payload": "tree 3bd4407da03d70dfb397c2e3aa810308f97adf8a\nparent 51ddab532cb38213e2258c24c492bc8a392ffc90\nparent 43bba1ed74f8301fe1ec8e3751cdc93d07b89e82\nauthor merge-script <seb.kung@gmail.com> 1789473200 +0200\ncommitter merge-script <seb.kung@gmail.com> 1789473200 +0200\n\nMerge bitcoin/bitcoin#36207: kernel: add wtxid accessor\n\n43bba1ed74f8301fe1ec8e3751cdc93d07b89e82 kernel: expose transaction witness presence (KY-U)\n31224d0680775adec17a3878c92afe4b67a73987 kernel: expose transaction wtxid (KY-U)\n\nPull request description:\n\n  While the kernel API provides access to a transactions's txid, it does not expose its wtxid. Clients therefore have to hash the transaction's witness serialization themselves, even though `CTransaction` already calculates and caches this value in `m_witness_hash`.\n\n  Expose the wtxid through a C API handle and corresponding C++ view and owning wrappers. Mirror the existing txid operations for copying, destruction, comparison and byte serialization.\n\n  Also expose `CTransaction::HasWitness()`, allowing clients to determine whether a transaction contains witness data without having to inspect each input themselves.\n\n  Tests cover legacy transactions, where txid and wtxid bytes match, and witness transactions, where they differ.\n\nACKs for top commit:\n  stickies-v:\n    re-ACK 43bba1ed74f8301fe1ec8e3751cdc93d07b89e82\n  sedited:\n    ACK 43bba1ed74f8301fe1ec8e3751cdc93d07b89e82\n\nTree-SHA512: d7bb7f590878fefb05f834f3076b990e1447f226e33da4499e4ae6ab32880f03a8fdee5f4cef60db6aecb77cd0eb3f820fafe603c31bb9cfcd950acece3f4f03\n",
-          "verified_at": "2026-09-15T11:54:32Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/de394ad3b739585a67b5830fafc866ac174f1fb7",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/de394ad3b739585a67b5830fafc866ac174f1fb7",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/de394ad3b739585a67b5830fafc866ac174f1fb7/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "51ddab532cb38213e2258c24c492bc8a392ffc90",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/51ddab532cb38213e2258c24c492bc8a392ffc90",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/51ddab532cb38213e2258c24c492bc8a392ffc90"
-        },
-        {
-          "sha": "43bba1ed74f8301fe1ec8e3751cdc93d07b89e82",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/43bba1ed74f8301fe1ec8e3751cdc93d07b89e82",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/43bba1ed74f8301fe1ec8e3751cdc93d07b89e82"
         }
       ]
     }
