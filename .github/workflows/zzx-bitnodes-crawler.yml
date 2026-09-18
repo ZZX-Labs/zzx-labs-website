@@ -5,10 +5,11 @@ run-name: >-
 
 on:
   schedule:
-    # Preserve the existing production cadence: hourly except the deep-crawl window.
-    - cron: "7 0-2,5-23 * * *"
-    # Daily deep crawl; 04:00 UTC remains reserved so the deep run can finish.
-    - cron: "23 3 * * *"
+    # Redundant continuous acquisition windows. Each normal collector runs long
+    # enough to overlap the next 15-minute launch, eliminating deliberate gaps.
+    - cron: "*/15 * * * *"
+    # One deeper discovery window each day runs in parallel with normal coverage.
+    - cron: "7 3 * * *"
 
   workflow_dispatch:
     inputs:
@@ -81,9 +82,9 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: zzx-bitnodes-crawler
-  cancel-in-progress: false
+# Do not serialize acquisition runs. Overlapping scheduled collectors provide
+# coverage when GitHub starts a run late or one runner encounters a transient
+# network fault. Publication itself is race-safe/retry-based downstream.
 
 jobs:
   plan:
@@ -103,39 +104,46 @@ jobs:
         run: |
           set -euo pipefail
 
-          PROFILE="${INPUT_PROFILE}"
+          PROFILE="${INPUT_PROFILE:-hourly}"
 
           if [ "${EVENT_NAME}" = "schedule" ]; then
-            if [ "${EVENT_SCHEDULE}" = "23 3 * * *" ]; then
-              PROFILE="deep"
-            else
-              PROFILE="hourly"
-            fi
+            case "${EVENT_SCHEDULE}" in
+              "7 3 * * *") PROFILE="deep" ;;
+              *)            PROFILE="hourly" ;;
+            esac
           fi
 
           case "${PROFILE}" in
             hourly|deep)
               ;;
             *)
-              printf '%s\n' "Unsupported Bitnodes crawl profile: ${PROFILE}"
+              printf '%s\n' \
+                "::error title=Invalid Bitnodes crawl profile::Unsupported profile: ${PROFILE}"
               exit 1
               ;;
           esac
 
-          printf '%s\n' "crawl_profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
-          printf '%s\n' "ZZX-Bitnodes Crawler selected profile=${PROFILE}."
+          printf 'crawl_profile=%s\n' "${PROFILE}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' \
+            "ZZX-Bitnodes crawl plan:" \
+            "  event=${EVENT_NAME}" \
+            "  schedule=${EVENT_SCHEDULE:-manual}" \
+            "  profile=${PROFILE}"
 
+  # Compatibility mirror only. It is intentionally NOT a prerequisite for the
+  # native ZZX crawler. An upstream btcnodes.io outage must not suppress native
+  # Bitcoin P2P discovery or public ZZX publication.
   snapshot_mirror:
     name: btcnodes.io Snapshot Mirror
     needs:
       - plan
     uses: ./.github/workflows/bitnodes-latest.yml
 
+  # Authoritative production crawler. Planning is its only wrapper prerequisite.
   global_crawler:
     name: ZZX Global Node Crawler
     needs:
       - plan
-      - snapshot_mirror
     uses: ./.github/workflows/bitnodes-global-crawler.yml
     with:
       crawl_profile: ${{ needs.plan.outputs.crawl_profile }}
@@ -148,16 +156,26 @@ jobs:
     name: Bitnodes Map Host
     needs:
       - global_crawler
+    if: ${{ needs.global_crawler.result == 'success' }}
     uses: ./.github/workflows/bitnodes-maphost.yml
     with:
       max_points: ${{ inputs.map_max_points || '5000' }}
       include_ayeowch_compat: ${{ inputs.include_ayeowch_map || false }}
 
+  # Private backup is deliberately outside the public publication gate.
   registry_backup:
     name: Private Bitnodes Registry Backup
-    if: ${{ github.event_name == 'schedule' || inputs.enable_registry_backup }}
     needs:
       - global_crawler
+    if: >-
+      ${{
+        always() &&
+        needs.global_crawler.result == 'success' &&
+        (
+          github.event_name == 'schedule' ||
+          inputs.enable_registry_backup == true
+        )
+      }}
     uses: ./.github/workflows/bitnodes-registry-backup.yml
     secrets:
       BITNODES_REGISTRY_PAT: ${{ secrets.BITNODES_REGISTRY_PAT }}
@@ -188,50 +206,114 @@ jobs:
           set -euo pipefail
 
           printf '%s\n' \
-            "ZZX-Bitnodes Crawler child results:" \
-            "  plan=${PLAN_RESULT}" \
-            "  snapshot_mirror=${SNAPSHOT_RESULT}" \
-            "  global_crawler=${CRAWLER_RESULT}" \
-            "  map_host=${MAPHOST_RESULT}" \
-            "  registry_backup=${REGISTRY_RESULT}" \
-            "  registry_status=${REGISTRY_STATUS:-not-run}"
+            "============================================================" \
+            "ZZX-Bitnodes Crawler child workflow results" \
+            "============================================================" \
+            "plan=${PLAN_RESULT:-unknown}" \
+            "snapshot_mirror=${SNAPSHOT_RESULT:-unknown}" \
+            "global_crawler=${CRAWLER_RESULT:-unknown}" \
+            "map_host=${MAPHOST_RESULT:-unknown}" \
+            "registry_backup=${REGISTRY_RESULT:-unknown}" \
+            "registry_status=${REGISTRY_STATUS:-not-run}" \
+            "============================================================"
 
           failed=0
 
-          for result in \
-            "${PLAN_RESULT}" \
-            "${SNAPSHOT_RESULT}" \
-            "${CRAWLER_RESULT}" \
-            "${MAPHOST_RESULT}"
+          # Acquisition is the only critical production chain. Maps are a
+          # derived presentation layer and last-known-good maps stay online if
+          # a map build fails; map failure must never invalidate node capture.
+          for pair in \
+            "plan:${PLAN_RESULT:-unknown}" \
+            "global_crawler:${CRAWLER_RESULT:-unknown}"
           do
+            name="${pair%%:*}"
+            result="${pair#*:}"
             if [ "${result}" != "success" ]; then
+              printf '%s\n' \
+                "::error title=Required Bitnodes workflow failed::${name}=${result}"
               failed=1
             fi
           done
 
-          # The registry is a private backup sink, not a public publication gate.
-          # Its authentication or push failure must never invalidate API/maps/widgets.
-          case "${REGISTRY_RESULT}" in
+          # External compatibility mirror is useful but noncritical.
+          case "${SNAPSHOT_RESULT:-unknown}" in
+            success)
+              printf '%s\n' "btcnodes.io compatibility mirror completed successfully."
+              ;;
+            skipped)
+              printf '%s\n' \
+                "::notice title=Bitnodes snapshot mirror::External snapshot mirror was skipped. Native ZZX publication is unaffected."
+              ;;
             failure|cancelled)
               printf '%s\n' \
-                "::warning title=Bitnodes private registry backup::Private registry workflow result=${REGISTRY_RESULT}. Public API, maps, live-map, subpages, and widgets completed independently."
+                "::warning title=Bitnodes snapshot mirror::External mirror result=${SNAPSHOT_RESULT}. Native ZZX crawling and publication remain independent."
+              ;;
+            *)
+              printf '%s\n' \
+                "::warning title=Bitnodes snapshot mirror::Unexpected mirror result=${SNAPSHOT_RESULT:-unknown}. Native ZZX crawling remains authoritative."
+              ;;
+          esac
+
+          case "${MAPHOST_RESULT:-unknown}" in
+            success)
+              printf '%s\n' "Bitnodes map publication completed successfully."
+              ;;
+            skipped)
+              printf '%s\n' "::notice title=Bitnodes map publication::Map Host was skipped; last-known-good public maps remain available."
+              ;;
+            failure|cancelled|*)
+              printf '%s\n' "::warning title=Bitnodes map publication::Map Host result=${MAPHOST_RESULT:-unknown}. Native node acquisition/history completed independently and last-known-good maps remain available."
+              ;;
+          esac
+
+          # Private registry is a backup sink, not a public production gate.
+          case "${REGISTRY_RESULT:-unknown}" in
+            success)
+              printf '%s\n' "Private Bitnodes registry workflow completed."
+              ;;
+            skipped)
+              printf '%s\n' \
+                "::notice title=Bitnodes private registry::Private registry backup was not required for this run."
+              ;;
+            failure|cancelled)
+              printf '%s\n' \
+                "::warning title=Bitnodes private registry backup::Private registry result=${REGISTRY_RESULT}. Public API, maps, live-map, subpages, and widgets are unaffected."
+              ;;
+            *)
+              printf '%s\n' \
+                "::warning title=Bitnodes private registry backup::Unexpected registry result=${REGISTRY_RESULT:-unknown}. Public publication is unaffected."
               ;;
           esac
 
           case "${REGISTRY_STATUS:-}" in
             skipped-auth)
               printf '%s\n' \
-                "::warning title=Bitnodes private registry auth::Registry backup was skipped because no usable private-repo credential was available. Public artifacts are unaffected."
+                "::warning title=Bitnodes private registry auth::Registry backup skipped because no usable private-repository credential was available. Public artifacts are unaffected."
               ;;
             failed)
               printf '%s\n' \
                 "::warning title=Bitnodes private registry backup::Registry backup attempted but failed. Public artifacts are unaffected."
               ;;
+            ""|success|ok|complete|completed)
+              ;;
+            *)
+              printf '%s\n' \
+                "::notice title=Bitnodes private registry::Registry reported status=${REGISTRY_STATUS}."
+              ;;
           esac
 
           if (( failed )); then
-            printf '%s\n' "A required public Bitnodes workflow did not complete successfully (plan, snapshot mirror, crawler, or Map Host)."
+            printf '%s\n' \
+              "============================================================" \
+              "ZZX-Bitnodes PUBLIC PIPELINE FAILED" \
+              "Required acquisition chain: plan -> global_crawler" \
+              "============================================================"
             exit 1
           fi
 
-          printf '%s\n' "All required public Bitnodes workflows completed successfully."
+          printf '%s\n' \
+            "============================================================" \
+            "ZZX-Bitnodes PUBLIC PIPELINE SUCCESSFUL" \
+            "Native crawler acquisition/history completed." \
+            "External mirror, maps, and private registry do not gate acquisition." \
+            "============================================================"
