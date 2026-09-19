@@ -280,12 +280,17 @@
             return BN.normalizeLatest(payload);
         }
 
+        const nodesValue = payload?.nodes;
         const nodes =
-            payload?.nodes && typeof payload.nodes === "object"
-                ? payload.nodes
+            nodesValue && typeof nodesValue === "object" && !Array.isArray(nodesValue)
+                ? nodesValue
                 : {};
 
-        const rows = Array.isArray(payload?.rows) ? payload.rows : null;
+        const rows = Array.isArray(payload?.rows)
+            ? payload.rows
+            : Array.isArray(nodesValue)
+                ? nodesValue
+                : null;
         const count = rows?.length || Object.keys(nodes).length;
 
         return {
