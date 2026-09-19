@@ -1,7 +1,7 @@
 {
   "schema": "zzx-bitnodes-config-v3",
   "profile": "example",
-  "description": "Continuous acquisition configuration for the ZZX-Labs Bitnodes crawler. The resident daemon only acquires node observations; enrichment, maps and publication run independently.",
+  "description": "Continuous Bitnodes configuration. zzxbitnodes mirrors btcnodes.io as the public/default source; originalbitnodes is the independent Addy Yeow-style fallback crawler. Enrichment, maps and publication run independently.",
   "crawler": {
     "name": "zzx-labs-bitnodes-crawler",
     "user_agent": "/ZZX-Labs-Bitnodes:0.2.0/",
@@ -37,7 +37,8 @@
       "seed.bitcoin.wiz.biz",
       "mainnet.achownodes.xyz"
     ],
-    "history_full_snapshot_interval_seconds": 900
+    "history_full_snapshot_interval_seconds": 900,
+    "mode": "btcnodes_mirror"
   },
   "original_bitnodes": {
     "enabled": true,
