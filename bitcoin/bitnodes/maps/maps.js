@@ -11,7 +11,8 @@
         theme: null,
         themes: null,
         settingsProfiles: null,
-        filter: "all"
+        filter: "all",
+        fallbackCanvas: false
     };
 
     function qs(selector, scope = document) {
@@ -248,8 +249,71 @@
         `).join("");
     }
 
+
+    function renderFallbackCanvas() {
+        const root = qs("[data-map-root]");
+        if (!root || !state.vectors) return;
+
+        root.classList.add("bn-map-canvas-fallback");
+        let canvas = root.querySelector("canvas[data-bn-map-fallback]");
+        if (!canvas) {
+            root.replaceChildren();
+            canvas = document.createElement("canvas");
+            canvas.dataset.bnMapFallback = "1";
+            root.appendChild(canvas);
+        }
+
+        const rect = root.getBoundingClientRect();
+        const width = Math.max(320, Math.floor(rect.width || root.clientWidth || 1200));
+        const height = Math.max(360, Math.floor(rect.height || root.clientHeight || 720));
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bn-map-background").trim() || "#050705";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.strokeStyle = "rgba(192,214,116,0.08)";
+        ctx.lineWidth = 1;
+        for (let lon = -180; lon <= 180; lon += 30) {
+            const x = ((lon + 180) / 360) * width;
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+        }
+        for (let lat = -60; lat <= 60; lat += 30) {
+            const y = ((90 - lat) / 180) * height;
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+        }
+
+        const points = filteredPoints();
+        for (const point of points) {
+            const lat = Number(point.latitude ?? point.lat);
+            const lon = Number(point.longitude ?? point.lon ?? point.lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+            const x = ((lon + 180) / 360) * width;
+            const y = ((90 - lat) / 180) * height;
+            const r = Math.max(1.5, Math.min(5, radius(point) * 0.35));
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = point.color || point.marker_color || "#c0d674";
+            ctx.globalAlpha = 0.78;
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        state.fallbackCanvas = true;
+        renderHud();
+        renderLegend();
+        setStatus(`Leaflet/tile service unavailable; rendered ${points.length.toLocaleString()} local node points using the offline canvas fallback.`);
+    }
+
     function renderPoints() {
         if (!state.map || !window.L) {
+            renderFallbackCanvas();
             return;
         }
 
@@ -414,13 +478,14 @@
         });
 
         qs("[data-map-reset]")?.addEventListener("click", () => {
-            state.map.setView(
-                [
-                    Number(view.latitude || 20),
-                    Number(view.longitude || 0)
-                ],
-                Number(view.zoom || 2)
-            );
+            if (state.map) {
+                state.map.setView(
+                    [Number(view.latitude || 20), Number(view.longitude || 0)],
+                    Number(view.zoom || 2)
+                );
+            } else {
+                renderFallbackCanvas();
+            }
         });
     }
 
@@ -450,28 +515,58 @@
         ]).catch(() => null);
     }
 
+    function startVectorRefresh() {
+        let busy = false;
+        const refresh = async () => {
+            if (busy || document.hidden) return;
+            busy = true;
+            try {
+                state.vectors = await readFirst([
+                    "./data/map-vectors.json",
+                    "./zzxbitnodes/data/map-vectors.json",
+                    "./global/data/map-vectors.json"
+                ]);
+                renderPoints();
+            } catch (error) {
+                console.warn("Map vector refresh failed; retaining last-known-good vectors.", error);
+            } finally {
+                busy = false;
+            }
+        };
+        const timer = window.setInterval(refresh, 30000);
+        window.addEventListener("pagehide", () => window.clearInterval(timer), { once: true });
+    }
+
     async function init() {
-        await loadLeaflet();
-
         await loadMapData();
-
-        await loadTheme(
-            state.settings?.theme?.selected || "zzx_dark_olive"
-        );
+        await loadTheme(state.settings?.theme?.selected || "zzx_dark_olive");
 
         const root = qs("[data-map-root]");
-
-        if (!root) {
-            return;
-        }
+        if (!root) return;
 
         const view = state.settings.initial_view || {};
         const interaction = state.settings.interaction || {};
+        let leafletReady = false;
 
-        state.canvasRenderer = window.L.canvas({
-            padding: 0.35
-        });
+        try {
+            await loadLeaflet();
+            leafletReady = Boolean(window.L);
+        } catch (error) {
+            console.warn("Leaflet unavailable; using local canvas map fallback.", error);
+        }
 
+        populateThemeSelect();
+        populateSettingsSelect();
+        wireControls(view);
+
+        if (!leafletReady) {
+            renderFallbackCanvas();
+            window.addEventListener("resize", renderFallbackCanvas, { passive: true });
+            startVectorRefresh();
+            return;
+        }
+
+        state.canvasRenderer = window.L.canvas({ padding: 0.35 });
         state.map = window.L.map(root, {
             scrollWheelZoom: interaction.scroll_wheel_zoom !== false,
             doubleClickZoom: interaction.double_click_zoom !== false,
@@ -479,35 +574,23 @@
             keyboard: interaction.keyboard !== false,
             preferCanvas: state.settings?.performance?.prefer_canvas_renderer !== false
         }).setView(
-            [
-                Number(view.latitude || 20),
-                Number(view.longitude || 0)
-            ],
+            [Number(view.latitude || 20), Number(view.longitude || 0)],
             Number(view.zoom || 2)
         );
 
         window.L.tileLayer(
-            state.settings.tile_url ||
-                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            state.settings.tile_url || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
-                attribution:
-                    state.settings.tile_attribution ||
-                    "© OpenStreetMap contributors",
-                subdomains:
-                    state.settings.tile_subdomains ||
-                    undefined,
+                attribution: state.settings.tile_attribution || "© OpenStreetMap contributors",
+                subdomains: state.settings.tile_subdomains || undefined,
                 maxZoom: Number(view.max_zoom || 18),
                 minZoom: Number(view.min_zoom || 2)
             }
         ).addTo(state.map);
 
-        populateThemeSelect();
-        populateSettingsSelect();
-        wireControls(view);
-
         await renderPolygons();
-
         renderPoints();
+        startVectorRefresh();
     }
 
     document.addEventListener("DOMContentLoaded", () => {
