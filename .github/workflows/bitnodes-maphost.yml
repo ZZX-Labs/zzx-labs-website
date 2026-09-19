@@ -27,10 +27,11 @@ on:
         type: boolean
         default: false
 
-  # Fallback for a standalone/manual Global Node Crawler run.
+  # Standalone fallback: a direct btcnodes.io mirror refresh should also
+  # refresh map/maps/live-map even when the wrapper was not used.
   workflow_run:
     workflows:
-      - ZZX-Labs Bitnodes Global Node Crawler
+      - btcnodes.io Snapshot Mirror
     types:
       - completed
 
