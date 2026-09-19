@@ -123,7 +123,18 @@ def publish(
             # exchange_rates.json conflict. Start each attempt from fresh main.
             run(root,['git','rebase','--abort'],check=False)
             run(root,['git','merge','--abort'],check=False)
-            run(root,['git','fetch',remote,branch])
+
+            fetched=run(root,['git','fetch',remote,branch],check=False)
+            if fetched.returncode!=0:
+                print(
+                    f'Fetch attempt {attempt}/{attempts} failed; retrying without force.\n'
+                    f'stdout:\n{fetched.stdout}\nstderr:\n{fetched.stderr}',
+                    file=sys.stderr,
+                )
+                if attempt<attempts:
+                    time.sleep(max(0.0,sleep_seconds))
+                continue
+
             run(root,['git','reset','--hard',f'{remote}/{branch}'])
 
             restore_files(root,files,snapshot)
