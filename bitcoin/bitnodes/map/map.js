@@ -43,12 +43,32 @@
     }
 
     async function getJson(url) {
-        const join = url.includes("?") ? "&" : "?";
-        const response = await fetch(`${url}${join}t=${Date.now()}`, {
-            cache: "no-store",
-            credentials: "same-origin"
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
+            cache: "no-store"
         });
-        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
         return response.json();
     }
 
