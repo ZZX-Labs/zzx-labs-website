@@ -204,8 +204,45 @@ jobs:
           },indent=2)+'\n',encoding='utf-8')
           PY
 
+      - name: Resolve private BPI backup availability
+        id: private_backup_preflight
+        shell: bash
+        env:
+          BPI_BACKUP_REPO: ${{ secrets.BPI_BACKUP_REPO }}
+          BPI_BACKUP_TOKEN: ${{ secrets.BPI_BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          repo_set=false
+          token_set=false
+          [ -n "${BPI_BACKUP_REPO:-}" ] && repo_set=true
+          [ -n "${BPI_BACKUP_TOKEN:-}" ] && token_set=true
+
+          if [ "${repo_set}" = true ] && [ "${token_set}" = true ]; then
+            printf '%s\n' \
+              "enabled=true" \
+              "status=ready" \
+              >> "${GITHUB_OUTPUT}"
+            printf '%s\n' "Private BPI backup repository is configured."
+            exit 0
+          fi
+
+          printf '%s\n' \
+            "enabled=false" \
+            "status=skipped-auth" \
+            >> "${GITHUB_OUTPUT}"
+
+          if [ "${repo_set}" = false ] && [ "${token_set}" = false ]; then
+            printf '%s\n' \
+              "::warning title=BPI private backup::BPI_BACKUP_REPO and BPI_BACKUP_TOKEN are not configured. Private Git backup is skipped; the staged run will be retained as a workflow artifact and the public BPI pipeline is unaffected."
+          else
+            printf '%s\n' \
+              "::warning title=BPI private backup::Private backup configuration is incomplete. Configure both BPI_BACKUP_REPO and BPI_BACKUP_TOKEN. Git backup is skipped; the staged run will be retained as a workflow artifact and the public BPI pipeline is unaffected."
+          fi
+
       - name: Backup immutable BPI run to private repository
         id: private_backup
+        if: ${{ steps.private_backup_preflight.outputs.enabled == 'true' }}
         continue-on-error: true
         shell: bash
         env:
@@ -214,10 +251,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${BPI_BACKUP_REPO:-}" ] || [ -z "${BPI_BACKUP_TOKEN:-}" ]; then
-            printf '%s\n' "Private BPI backup credentials are not configured."
-            exit 2
-          fi
+          # Credentials were validated by private_backup_preflight. Treat any
+          # failure below as a non-critical backup-sink failure; acquisition,
+          # public publication, hourly archives and MariaDB remain independent.
+          test -n "${BPI_BACKUP_REPO}"
+          test -n "${BPI_BACKUP_TOKEN}"
 
           TMP="$(mktemp -d)"
           ASKPASS="$(mktemp)"
@@ -250,25 +288,82 @@ jobs:
           git -C "${TMP}" config user.email "actions@github.com"
           git -C "${TMP}" add --sparse "${RUN_DIR}" bpi/latest
           if git -C "${TMP}" diff --cached --quiet; then
+            printf '%s\n' "Private BPI backup already contains this run."
             exit 0
           fi
           git -C "${TMP}" commit -m "BPI immutable run ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
           for attempt in 1 2 3 4 5; do
-            if git -C "${TMP}" push origin HEAD:main; then exit 0; fi
-            git -C "${TMP}" pull --rebase origin main || true
+            if git -C "${TMP}" push origin HEAD:main; then
+              printf '%s\n' "Private BPI run backup pushed successfully."
+              exit 0
+            fi
+
+            printf '%s\n' \
+              "Private BPI push attempt ${attempt}/5 failed; replaying on newest main."
+
+            if git -C "${TMP}" fetch --prune origin main; then
+              git -C "${TMP}" rebase origin/main || {
+                git -C "${TMP}" rebase --abort || true
+                # Keep the immutable run files and replay the generated commit
+                # without force-pushing or rewriting remote history.
+                git -C "${TMP}" reset --soft origin/main
+                git -C "${TMP}" commit -m \
+                  "BPI immutable run ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" || true
+              }
+            fi
+
             sleep "$(( attempt * 3 ))"
           done
+
+          printf '%s\n' \
+            "::warning title=BPI private backup::Private Git backup failed after retries. The public BPI pipeline remains valid; the staged run will be preserved as a workflow artifact."
           exit 1
 
-      - name: Preserve private BPI run as artifact when backup is unavailable
-        if: ${{ steps.private_backup.outcome != 'success' }}
+      - name: Preserve private BPI run as artifact when Git backup is unavailable
+        if: >-
+          ${{
+            always() &&
+            (
+              steps.private_backup_preflight.outputs.enabled != 'true' ||
+              steps.private_backup.outcome != 'success'
+            )
+          }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: bpi-private-run-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bpi-private-run
           if-no-files-found: error
           retention-days: 90
+
+      - name: Report private BPI retention status
+        if: ${{ always() }}
+        shell: bash
+        env:
+          PREFLIGHT_STATUS: ${{ steps.private_backup_preflight.outputs.status }}
+          BACKUP_OUTCOME: ${{ steps.private_backup.outcome }}
+        run: |
+          set -euo pipefail
+
+          case "${PREFLIGHT_STATUS:-unknown}" in
+            ready)
+              if [ "${BACKUP_OUTCOME:-}" = "success" ]; then
+                printf '%s\n' "Private BPI retention: repository backup successful."
+              else
+                printf '%s\n' \
+                  "::warning title=BPI private retention::Private repository backup outcome=${BACKUP_OUTCOME:-unknown}. This does not gate live capture, public archives, publication or MariaDB."
+              fi
+              ;;
+            skipped-auth)
+              printf '%s\n' \
+                "::warning title=BPI private retention::Private repository backup skipped because credentials are not configured. Artifact fallback was requested; live/public BPI is unaffected."
+              ;;
+            *)
+              printf '%s\n' \
+                "::warning title=BPI private retention::Unexpected private-backup preflight status=${PREFLIGHT_STATUS:-unknown}. Live/public BPI is unaffected."
+              ;;
+          esac
 
       - name: Optionally sync finalized SQL shards to MariaDB
         if: ${{ env.ZZX_MARIADB_HOST != '' && env.ZZX_MARIADB_USER != '' }}
