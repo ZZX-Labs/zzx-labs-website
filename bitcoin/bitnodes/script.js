@@ -2,6 +2,7 @@
     "use strict";
 
     const BN_MODULES = [
+        "js/page-runtime.js",
         "js/base.js",
         "js/api.js",
         "js/datasource.js",
