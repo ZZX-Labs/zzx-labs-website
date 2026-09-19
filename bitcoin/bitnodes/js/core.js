@@ -236,14 +236,16 @@
     function normalizeLatest(data) {
         const payload = data || {};
         const summary = payload.summary || {};
+        const nodesValue = payload.nodes;
         const nodesObject =
-            payload.nodes && typeof payload.nodes === "object"
-                ? payload.nodes
+            nodesValue && typeof nodesValue === "object" && !Array.isArray(nodesValue)
+                ? nodesValue
                 : {};
 
-        const rows =
-            Array.isArray(payload.rows)
-                ? payload.rows
+        const rows = Array.isArray(payload.rows)
+            ? payload.rows
+            : Array.isArray(nodesValue)
+                ? nodesValue
                 : null;
 
         const nodeCount =
@@ -469,12 +471,19 @@
             return payload.rows.map(rowFromObject);
         }
 
-        const nodes =
-            payload?.nodes && typeof payload.nodes === "object"
-                ? payload.nodes
-                : {};
+        const nodes = payload?.nodes;
 
-        return Object.entries(nodes).map(([address, data]) => rowFromArray(address, data));
+        if (Array.isArray(nodes)) {
+            return nodes.map(rowFromObject);
+        }
+
+        if (nodes && typeof nodes === "object") {
+            return Object.entries(nodes).map(([address, data]) =>
+                Array.isArray(data) ? rowFromArray(address, data) : rowFromObject({ address, ...data })
+            );
+        }
+
+        return [];
     }
 
     function mergeOptionalRows(rows, optional) {
