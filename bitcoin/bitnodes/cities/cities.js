@@ -4,10 +4,10 @@
     const SOURCES = {
 
         zzxbitnodes:
-            "../api/cities.json",
+            "../api/zzxbitnodes/cities.json",
 
         originalbitnodes:
-            "../api/originalbitnodes/cities.json",
+            "../api/originalbitnodes/latest.json",
 
         aggregate:
             "../api/aggregate/zzxbitnodes/latest.json",
@@ -53,22 +53,33 @@
     }
 
     async function getJson(url) {
+        const runtime = window.BNPageRuntime;
 
-        const response =
-            await fetch(
-                `${url}?t=${Date.now()}`,
-                {
-                    cache: "no-store"
-                }
-            );
+        if (runtime) {
+            const candidates = [url];
 
-        if (!response.ok) {
-            throw new Error(
-                `${response.status} ${response.statusText}`
-            );
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
         }
 
-        return await response.json();
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
     }
 
     function topValue(map) {
