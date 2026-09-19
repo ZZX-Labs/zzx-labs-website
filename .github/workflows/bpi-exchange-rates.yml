@@ -36,7 +36,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+          fetched=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              fetched=1
+              break
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying."
+            sleep "$(( attempt * 3 ))"
+          done
+          test "${fetched}" = "1"
           git reset --hard origin/main
 
       - name: Validate exchange-rate updater inputs
