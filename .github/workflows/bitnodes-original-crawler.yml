@@ -1,0 +1,188 @@
+name: Original Bitnodes Addy Yeow-Style Crawler
+
+on:
+  workflow_dispatch:
+    inputs:
+      crawl_profile:
+        description: "Original Bitnodes crawl profile"
+        required: false
+        default: "hourly"
+        type: choice
+        options: [hourly, deep]
+  workflow_call:
+    inputs:
+      crawl_profile:
+        required: false
+        type: string
+        default: "hourly"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: originalbitnodes-crawler
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  crawl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Sync main
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then break; fi
+            if [ "${attempt}" = 5 ]; then exit 1; fi
+            sleep "$(( attempt * 3 ))"
+          done
+          git reset --hard origin/main
+          git clean -fdx
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate crawler
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
+          python -m py_compile \
+            tools/bitnodes/originalbitnodes.py \
+            tools/bitnodes/run_original_bitnodes.py \
+            tools/bitnodes/export_json.py \
+            tools/bitnodes/aggregate.py \
+            tools/bitnodes/publish_generated_commit.py
+
+      - name: Resolve crawl limits
+        id: limits
+        shell: bash
+        env:
+          PROFILE: ${{ inputs.crawl_profile || 'hourly' }}
+        run: |
+          set -euo pipefail
+          case "${PROFILE}" in
+            deep)
+              printf '%s\n' 'runtime=1200' 'workers=128' 'rounds=24' 'dns=8192' >> "${GITHUB_OUTPUT}"
+              ;;
+            hourly)
+              printf '%s\n' 'runtime=600' 'workers=96' 'rounds=16' 'dns=4096' >> "${GITHUB_OUTPUT}"
+              ;;
+            *) exit 1 ;;
+          esac
+
+      - name: Crawl Bitcoin P2P using original Bitnodes methodology
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p \
+            bitcoin/bitnodes/api/originalbitnodes \
+            bitcoin/bitnodes/archive/runtime/originalbitnodes \
+            bitcoin/bitnodes/data/runtime/state/originalbitnodes \
+            bitcoin/bitnodes/data/runtime/seeders/originalbitnodes \
+            bitcoin/bitnodes/data/runtime/snapshots/24h/originalbitnodes
+
+          timeout --signal=TERM --kill-after=30s "${{ steps.limits.outputs.runtime }}s" \
+            python tools/bitnodes/originalbitnodes.py \
+              --original-mode classic \
+              --classic-timeout-seconds "$(( ${{ steps.limits.outputs.runtime }} - 30 ))" \
+              --run-seconds 0 \
+              --timeout 5 \
+              --limit 750000 \
+              --batch-size 2048 \
+              --workers "${{ steps.limits.outputs.workers }}" \
+              --getaddr-rounds "${{ steps.limits.outputs.rounds }}" \
+              --dns-seed-limit "${{ steps.limits.outputs.dns }}" \
+              --archive-replay-files 0 \
+              --disable-archive-replay \
+              --export-mode reachable \
+              --no-enrich-after \
+              --no-aggregate-after \
+              --no-export-all-after \
+              --compact || true
+
+          test -s bitcoin/bitnodes/api/originalbitnodes/latest.json
+          python -m json.tool bitcoin/bitnodes/api/originalbitnodes/latest.json >/dev/null
+
+      - name: Build originalbitnodes public API contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bitnodes/export_json.py \
+            --input bitcoin/bitnodes/api/originalbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/originalbitnodes \
+            --source originalbitnodes \
+            --archive-dir bitcoin/bitnodes/archive/originalbitnodes \
+            --compact
+
+          python tools/bitnodes/aggregate.py \
+            --input bitcoin/bitnodes/api/originalbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/runtime/state/originalbitnodes \
+            --source originalbitnodes \
+            --compact \
+            --omit-node-metadata
+
+      - name: Validate originalbitnodes output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('bitcoin/bitnodes/api/originalbitnodes')
+          for name in ('latest.json','nodes.json','countries.json','asns.json','peer-health.json'):
+              p=root/name
+              if not p.is_file() or p.stat().st_size <= 0:
+                  raise SystemExit(f'missing originalbitnodes contract: {p}')
+              json.loads(p.read_text(encoding='utf-8'))
+          data=json.loads((root/'latest.json').read_text(encoding='utf-8'))
+          rows=data.get('nodes') if isinstance(data,dict) else None
+          if not isinstance(rows,(list,dict)) or len(rows) < 1:
+              raise SystemExit('originalbitnodes produced zero nodes')
+          print('originalbitnodes valid:', len(rows))
+          PY
+
+      - name: Publish originalbitnodes artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-originalbitnodes-bot"
+          git config user.email "actions@github.com"
+          git add -- \
+            bitcoin/bitnodes/api/originalbitnodes \
+            bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json
+          if git diff --cached --quiet; then
+            printf '%s\n' "Original Bitnodes artifacts already current."
+            exit 0
+          fi
+          git commit -m "Update original Bitnodes crawler snapshot"
+          PAYLOAD_COMMIT="$(git rev-parse HEAD)"
+          python tools/bitnodes/publish_generated_commit.py \
+            --payload-commit "${PAYLOAD_COMMIT}" \
+            --remote origin \
+            --branch main \
+            --message "Update original Bitnodes crawler snapshot" \
+            --attempts 5 \
+            --sleep-seconds 5 \
+            --allowed-prefix bitcoin/bitnodes/api/originalbitnodes \
+            --allowed-prefix bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json \
+            --forbidden-prefix bitcoin/bitnodes/maps \
+            --forbidden-prefix bitcoin/bitnodes/live-map \
+            --monotonic-json-path bitcoin/bitnodes/api/originalbitnodes/latest.json \
+            --monotonic-field timestamp \
+            --clean
