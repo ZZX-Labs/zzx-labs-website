@@ -408,24 +408,25 @@ def store_db(db: sqlite3.Connection, normalized: dict[str, Any], raw: Any) -> No
     db.commit()
 
 def write_api(normalized: dict[str, Any], raw: Any) -> None:
-    """Publish the external btcnodes.io mirror without impersonating another crawler.
+    """Publish btcnodes.io as the authoritative ZZX Bitnodes snapshot.
 
-    Source ownership is deliberately explicit:
-      * api/btcnodes/latest.json                raw upstream-compatible snapshot
-      * api/btcnodes/normalized/latest.json     normalized ZZX view of that snapshot
-      * api/aggregate/btcnodes/latest.json      compact summary without node rows
-      * api/snapshots/btcnodes/latest.json      normalized source snapshot
-      * api/snapshots/latest.json               fast canonical fallback used between full crawls
+    Namespace ownership is deliberate:
+      * api/btcnodes/latest.json                raw upstream-compatible btcnodes.io snapshot
+      * api/btcnodes/normalized/latest.json     normalized upstream mirror
+      * api/zzxbitnodes/latest.json              public/default ZZX snapshot derived from btcnodes.io
+      * api/aggregate/btcnodes/latest.json      compact upstream summary
+      * api/snapshots/btcnodes/latest.json      normalized upstream source snapshot
+      * api/snapshots/latest.json               fast canonical/default snapshot
 
-    The collector MUST NOT write api/originalbitnodes/latest.json. That path belongs
-    exclusively to the optional Ayeowch/original compatibility crawler.
-    The collector MUST NOT write api/zzxbitnodes/latest.json either. That path belongs
-    exclusively to the ZZX active crawler.
+    ``zzxbitnodes`` is the website-facing identity of the btcnodes.io-backed
+    datasource. ``originalbitnodes`` is reserved for the independent Addy
+    Yeow/Bitnodes-style crawler and is never written here.
     """
     API_DIR.mkdir(parents=True, exist_ok=True)
 
     raw_dir = API_DIR / "btcnodes"
     normalized_dir = raw_dir / "normalized"
+    zzx_dir = API_DIR / "zzxbitnodes"
     aggregate_dir = API_DIR / "aggregate" / "btcnodes"
     source_snapshot_dir = API_DIR / "snapshots" / "btcnodes"
     snapshots_dir = API_DIR / "snapshots"
@@ -433,6 +434,7 @@ def write_api(normalized: dict[str, Any], raw: Any) -> None:
     for directory in (
         raw_dir,
         normalized_dir,
+        zzx_dir,
         aggregate_dir,
         source_snapshot_dir,
         snapshots_dir,
@@ -442,8 +444,16 @@ def write_api(normalized: dict[str, Any], raw: Any) -> None:
     raw_text = json.dumps(raw, indent=2, sort_keys=True) + "\n"
     normalized_text = json.dumps(normalized, indent=2, sort_keys=True) + "\n"
 
+    zzx_payload = dict(normalized)
+    zzx_payload["source"] = "zzxbitnodes"
+    zzx_payload["upstream_source"] = str(normalized.get("source") or "btcnodes.io")
+    zzx_payload["upstream_mirror"] = "btcnodes.io"
+    zzx_payload["crawler_method"] = "btcnodes.io-snapshot-mirror"
+    zzx_text = json.dumps(zzx_payload, indent=2, sort_keys=True) + "\n"
+
     (raw_dir / "latest.json").write_text(raw_text, encoding="utf-8")
     (normalized_dir / "latest.json").write_text(normalized_text, encoding="utf-8")
+    (zzx_dir / "latest.json").write_text(zzx_text, encoding="utf-8")
     (source_snapshot_dir / "latest.json").write_text(normalized_text, encoding="utf-8")
 
     aggregate = {k: v for k, v in normalized.items() if k != "nodes"}
@@ -452,23 +462,11 @@ def write_api(normalized: dict[str, Any], raw: Any) -> None:
         encoding="utf-8",
     )
 
-    # Seed the browser canonical pointer only when no full merged canonical
-    # snapshot exists yet. A lightweight btcnodes.io refresh must never
-    # overwrite the richer hourly ZZX+btcnodes enriched canonical dataset.
+    # The btcnodes.io-backed ZZX snapshot is the default browser/map source.
+    # Map Host may later enrich/canonicalize it, but a fast mirror refresh must
+    # always advance this pointer so widgets see the freshest node set.
     canonical_path = snapshots_dir / "latest.json"
-    preserve_canonical = False
-    if canonical_path.exists():
-        try:
-            current = json.loads(canonical_path.read_text(encoding="utf-8"))
-            preserve_canonical = (
-                isinstance(current, dict)
-                and str(current.get("schema") or "").startswith("zzx-bitnodes-canonical-")
-            )
-        except Exception:
-            preserve_canonical = False
-
-    if not preserve_canonical:
-        canonical_path.write_text(normalized_text, encoding="utf-8")
+    canonical_path.write_text(zzx_text, encoding="utf-8")
 
     history_path = API_DIR / "history.json"
     try:
