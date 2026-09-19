@@ -74,6 +74,8 @@ def validate_current(root: Path) -> dict[str, Any]:
     }
 
 
+MAX_ARCHIVE_FILE_BYTES = 24_000_000
+
 def validate_manifest(root: Path, manifest_path: Path) -> dict[str, Any]:
     manifest = load(manifest_path)
     if manifest.get("schema") != "zzx-bpi-hourly-archive-v1":
@@ -83,6 +85,8 @@ def validate_manifest(root: Path, manifest_path: Path) -> dict[str, Any]:
         path = manifest_path.parent / str(chunk["path"])
         if not path.is_file():
             raise ValueError(f"missing archive chunk {path}")
+        if path.stat().st_size > MAX_ARCHIVE_FILE_BYTES:
+            raise ValueError(f"archive chunk exceeds 24 MB ceiling: {path}")
         if sha256(path) != chunk.get("sha256"):
             raise ValueError(f"checksum mismatch {path}")
         if chunk.get("kind") == "jsonl-gzip":
@@ -108,6 +112,8 @@ def validate_manifest(root: Path, manifest_path: Path) -> dict[str, Any]:
         path = manifest_path.parent / str(chunk["path"])
         if not path.is_file():
             raise ValueError(f"missing order-book archive chunk {path}")
+        if path.stat().st_size > MAX_ARCHIVE_FILE_BYTES:
+            raise ValueError(f"order-book archive chunk exceeds 24 MB ceiling: {path}")
         if sha256(path) != chunk.get("sha256"):
             raise ValueError(f"checksum mismatch {path}")
         kind = str(chunk.get("kind") or "")
