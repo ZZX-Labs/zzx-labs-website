@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import json
 import re
+import shutil
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -859,8 +860,14 @@ def backup(
             rows=rows,
         )
 
+        # Write the immutable dated shard once, then copy those exact gzip
+        # bytes into latest/.  Recompressing the same SQL twice is not
+        # byte-deterministic because gzip headers may carry different mtimes.
+        # The registry contract intentionally requires latest/ to be an exact
+        # moving alias of the dated shard, so copy the bytes rather than
+        # recompressing.
         write_gzip_text(dated_path, sql)
-        write_gzip_text(latest_path, sql)
+        shutil.copyfile(dated_path, latest_path)
 
         entry = {
             "file": name,
@@ -885,8 +892,10 @@ def backup(
     manifest_sql = header + "".join(shard_control_lines) + control
     manifest_sql += f"-- manifest_sha256:{sha256_text(manifest_sql)}\n"
 
-    write_gzip_text(output_dir / "manifest.sql.gz", manifest_sql)
-    write_gzip_text(latest_dir / "manifest.sql.gz", manifest_sql)
+    dated_manifest = output_dir / "manifest.sql.gz"
+    latest_manifest = latest_dir / "manifest.sql.gz"
+    write_gzip_text(dated_manifest, manifest_sql)
+    shutil.copyfile(dated_manifest, latest_manifest)
     write_gzip_text(latest_dir / "latest.sql.gz", manifest_sql + "\n".join(shard_control_lines))
 
     print(
