@@ -25,6 +25,10 @@ on:
         required: false
       BPI_MARIADB_DATABASE:
         required: false
+      BPI_BACKUP_REPO:
+        required: false
+      BPI_BACKUP_TOKEN:
+        required: false
 permissions:
   contents: write
 
@@ -63,7 +67,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+          fetched=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              fetched=1
+              break
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying."
+            sleep "$(( attempt * 3 ))"
+          done
+          test "${fetched}" = "1"
           git reset --hard origin/main
 
       - name: Validate hourly BPI stack
@@ -79,6 +92,10 @@ jobs:
           test -f tools/bpi/bpi_git_publish.py
           test -f tools/bpi/collector.py
           test -f tools/bpi/history_store.py
+          test -f tools/bpi/master_daemon.py
+          test -f tools/bpi/bpi_finalize_completed.py
+          test -f tools/bpi/bpi_continuity_selftest.py
+          test -f tools/bpi/bpi_private_backup.py
 
           python -m py_compile \
             tools/bpi/run-bpi-master.py \
@@ -91,6 +108,10 @@ jobs:
             tools/bpi/bpi_orderbook_ingest.py \
             tools/bpi/collector.py \
             tools/bpi/history_store.py \
+            tools/bpi/master_daemon.py \
+            tools/bpi/bpi_finalize_completed.py \
+            tools/bpi/bpi_continuity_selftest.py \
+            tools/bpi/bpi_private_backup.py \
             tools/bpi/bpi_git_publish.py \
             tools/bpi/update_latest.py \
             tools/bpi/reference_updater.py \
@@ -110,6 +131,8 @@ jobs:
           fi
 
           python tools/bpi/run-bpi-master.py --hourly --self-test
+          python tools/bpi/bpi_continuity_selftest.py
+          python tools/bpi/bpi_private_backup.py --self-test
           python tools/bpi/update_latest.py --self-test
           python tools/bpi/update_sovereign_data.py --self-test
           python tools/bpi/update_reference_national_averages.py --self-test
@@ -129,8 +152,9 @@ jobs:
           python tools/bpi/run-bpi-master.py \
             --hourly \
             --capture-seconds "${BPI_CAPTURE_SECONDS}" \
-            --finalize-margin-seconds 180 \
-            --chunk-rows 50000
+            --finalize-margin-seconds 90 \
+            --no-hour-boundary \
+            --chunk-rows 10000
 
       - name: Validate finalized BPI and archive shards
         shell: bash
@@ -141,6 +165,110 @@ jobs:
 
           python -m json.tool bitcoin/bpi/api/hourly_status.json >/dev/null
           python -m json.tool bitcoin/bpi/archive/archive-index.json >/dev/null
+
+      - name: Stage immutable BPI run for private retention
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          STAGE="${RUNNER_TEMP}/bpi-private-run"
+          rm -rf "${STAGE}"
+          mkdir -p "${STAGE}/archive" "${STAGE}/api"
+
+          python - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+          root=Path('.')
+          stage=Path(os.environ['RUNNER_TEMP'])/'bpi-private-run'
+          status=json.loads((root/'bitcoin/bpi/api/hourly_status.json').read_text(encoding='utf-8'))
+          manifests=[]
+          for rel in status.get('archive_manifests') or []:
+              src=(root/rel).resolve()
+              if not src.is_file():
+                  continue
+              hour=src.parent
+              dst=stage/'archive'/Path(rel).parent.relative_to('bitcoin/bpi/archive')
+              if dst.exists(): shutil.rmtree(dst)
+              shutil.copytree(hour,dst)
+              manifests.append(rel)
+          # Current public state is useful for point-in-time reconstruction, but
+          # the immutable hourly shards above are the historical source of truth.
+          for name in ('prices.json','markets.json','latest.json','history-live.json','hourly_status.json'):
+              src=root/'bitcoin/bpi/api'/name
+              if src.is_file(): shutil.copy2(src,stage/'api'/name)
+          (stage/'run-manifest.json').write_text(json.dumps({
+              'schema':'zzx-bpi-private-run-v1',
+              'github_run_id':os.environ.get('GITHUB_RUN_ID'),
+              'github_run_attempt':os.environ.get('GITHUB_RUN_ATTEMPT'),
+              'archive_manifests':manifests,
+          },indent=2)+'\n',encoding='utf-8')
+          PY
+
+      - name: Backup immutable BPI run to private repository
+        id: private_backup
+        continue-on-error: true
+        shell: bash
+        env:
+          BPI_BACKUP_REPO: ${{ secrets.BPI_BACKUP_REPO }}
+          BPI_BACKUP_TOKEN: ${{ secrets.BPI_BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BPI_BACKUP_REPO:-}" ] || [ -z "${BPI_BACKUP_TOKEN:-}" ]; then
+            printf '%s\n' "Private BPI backup credentials are not configured."
+            exit 2
+          fi
+
+          TMP="$(mktemp -d)"
+          ASKPASS="$(mktemp)"
+          trap 'rm -rf "${TMP}"; rm -f "${ASKPASS}"' EXIT
+          cat > "${ASKPASS}" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "${BPI_BACKUP_TOKEN}" ;;
+            *) printf '%s\n' "" ;;
+          esac
+          ASKPASS
+          chmod 700 "${ASKPASS}"
+          export GIT_ASKPASS="${ASKPASS}" GIT_TERMINAL_PROMPT=0
+
+          git clone --filter=blob:none --no-checkout --single-branch --branch main \
+            "https://github.com/${BPI_BACKUP_REPO}.git" "${TMP}"
+          git -C "${TMP}" sparse-checkout init --cone
+          git -C "${TMP}" sparse-checkout set bpi/latest bpi/history-runs
+          git -C "${TMP}" checkout main
+
+          RUN_DIR="bpi/history-runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "${TMP}/${RUN_DIR}"
+          cp -a "${RUNNER_TEMP}/bpi-private-run/." "${TMP}/${RUN_DIR}/"
+          rm -rf "${TMP}/bpi/latest"
+          mkdir -p "${TMP}/bpi/latest"
+          cp -a "${RUNNER_TEMP}/bpi-private-run/." "${TMP}/bpi/latest/"
+
+          git -C "${TMP}" config user.name "zzx-bpi-backup-bot"
+          git -C "${TMP}" config user.email "actions@github.com"
+          git -C "${TMP}" add --sparse "${RUN_DIR}" bpi/latest
+          if git -C "${TMP}" diff --cached --quiet; then
+            exit 0
+          fi
+          git -C "${TMP}" commit -m "BPI immutable run ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          for attempt in 1 2 3 4 5; do
+            if git -C "${TMP}" push origin HEAD:main; then exit 0; fi
+            git -C "${TMP}" pull --rebase origin main || true
+            sleep "$(( attempt * 3 ))"
+          done
+          exit 1
+
+      - name: Preserve private BPI run as artifact when backup is unavailable
+        if: ${{ steps.private_backup.outcome != 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpi-private-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bpi-private-run
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Optionally sync finalized SQL shards to MariaDB
         if: ${{ env.ZZX_MARIADB_HOST != '' && env.ZZX_MARIADB_USER != '' }}
