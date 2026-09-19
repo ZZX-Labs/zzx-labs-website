@@ -10,7 +10,8 @@ from typing import Any
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
-PRAGMA synchronous=NORMAL;
+PRAGMA synchronous=FULL;
+PRAGMA wal_autocheckpoint=1000;
 CREATE TABLE IF NOT EXISTS ticks (
   ts_ms INTEGER NOT NULL,
   source TEXT NOT NULL,
@@ -115,6 +116,21 @@ class HistoryStore:
     def commit(self) -> None:
         with self._lock:
             self.db.commit()
+
+
+    def checkpoint(self, mode: str = "PASSIVE") -> None:
+        mode = str(mode or "PASSIVE").upper()
+        if mode not in {"PASSIVE", "FULL", "RESTART", "TRUNCATE"}:
+            raise ValueError(f"invalid WAL checkpoint mode: {mode}")
+        with self._lock:
+            self.db.execute(f"PRAGMA wal_checkpoint({mode})")
+
+    def close(self) -> None:
+        with self._lock:
+            try:
+                self.db.commit()
+            finally:
+                self.db.close()
 
     def bounds(self, source: str|None=None) -> dict[str, Any]:
         with self._lock:
