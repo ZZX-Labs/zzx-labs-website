@@ -20,7 +20,9 @@ APP_NAME = "bitnodesd.py"
 APP_VERSION = "0.5.0"
 
 CRAWLER = TOOLS_DIR / "crawl.py"
-ZZX_CRAWLER = TOOLS_DIR / "zzxbitnodes.py"
+SNAPSHOT_COLLECTOR = TOOLS_DIR / "collector.py"
+ORIGINAL_CRAWLER = TOOLS_DIR / "originalbitnodes.py"
+ZZX_CRAWLER = TOOLS_DIR / "zzxbitnodes.py"  # legacy native crawler; never default for zzxbitnodes
 ENRICH = TOOLS_DIR / "enrich.py"
 MAPS = TOOLS_DIR / "map" / "maps.py"
 BUILD_GEO_INDEXES = TOOLS_DIR / "build_geo_indexes.py"
@@ -241,12 +243,18 @@ def latest_input(config: dict[str, Any]) -> Path:
 
 
 def selected_crawler(config: dict[str, Any]) -> Path:
-    prefer_zzx = bool_cfg(config, ["crawler", "prefer_zzx"], True)
+    """Return the acquisition program that owns the configured namespace.
 
-    if prefer_zzx and ZZX_CRAWLER.exists():
-        return ZZX_CRAWLER
+    zzxbitnodes is the btcnodes.io-backed public/default mirror. The native
+    Addy Yeow-style crawler owns originalbitnodes and must never overwrite
+    the zzxbitnodes namespace.
+    """
+    mode = str((config.get("crawler") or {}).get("mode") or "btcnodes_mirror").strip().lower()
 
-    return CRAWLER
+    if mode in {"original", "originalbitnodes", "addy", "ayeowch"}:
+        return ORIGINAL_CRAWLER if ORIGINAL_CRAWLER.exists() else CRAWLER
+
+    return SNAPSHOT_COLLECTOR if SNAPSHOT_COLLECTOR.exists() else CRAWLER
 
 
 def default_modules() -> str:
@@ -296,6 +304,15 @@ def build_crawl_command(config: dict[str, Any], daemon_cycle: bool = False) -> l
     geoip_cfg = config.get("geoip", {})
 
     script = selected_crawler(config)
+
+    # The primary resident path mirrors btcnodes.io into the zzxbitnodes
+    # namespace. It has a deliberately small CLI and must not receive native
+    # crawler arguments intended for originalbitnodes.
+    if script == SNAPSHOT_COLLECTOR:
+        interval = int(crawler_cfg.get("crawl_interval_seconds", 30))
+        if daemon_cycle:
+            return [sys.executable, str(script), "--once", "--no-sqlite"]
+        return [sys.executable, str(script), "--once", "--no-sqlite"]
 
     limit = int(crawler_cfg.get("max_nodes_per_run", 100000))
     batch_size = int(crawler_cfg.get("batch_size", 5000))
@@ -583,7 +600,9 @@ def write_status(
         "tools_dir": str(TOOLS_DIR),
         "crawler": str(selected_crawler(config)),
         "original_crawler": str(CRAWLER),
-        "zzx_crawler": str(ZZX_CRAWLER),
+        "snapshot_collector": str(SNAPSHOT_COLLECTOR),
+        "original_crawler": str(ORIGINAL_CRAWLER),
+        "legacy_zzx_native_crawler": str(ZZX_CRAWLER),
         "enrich": str(ENRICH),
         "maps": str(MAPS),
         "push_ipdb": str(PUSH_IPDB),
@@ -898,7 +917,9 @@ def status() -> int:
             "tools_dir": str(TOOLS_DIR),
             "crawler": str(selected_crawler(config)),
             "original_crawler": str(CRAWLER),
-            "zzx_crawler": str(ZZX_CRAWLER),
+            "snapshot_collector": str(SNAPSHOT_COLLECTOR),
+        "original_crawler": str(ORIGINAL_CRAWLER),
+        "legacy_zzx_native_crawler": str(ZZX_CRAWLER),
             "enrich": str(ENRICH),
             "maps": str(MAPS),
             "api_dir": str(cfg_get(config, ["export", "base_dir"], str(DEFAULT_API_DIR))),
@@ -968,7 +989,7 @@ def write_config_example() -> int:
     payload = {
         "crawler": {
             "enabled": True,
-            "prefer_zzx": True,
+            "mode": "btcnodes_mirror",
             "max_nodes_per_run": 100000,
             "batch_size": 5000,
             "connection_timeout": 5,
