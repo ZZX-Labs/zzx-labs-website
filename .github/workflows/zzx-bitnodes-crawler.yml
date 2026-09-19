@@ -130,47 +130,59 @@ jobs:
             "  schedule=${EVENT_SCHEDULE:-manual}" \
             "  profile=${PROFILE}"
 
-  # Compatibility mirror only. It is intentionally NOT a prerequisite for the
-  # native ZZX crawler. An upstream btcnodes.io outage must not suppress native
-  # Bitcoin P2P discovery or public ZZX publication.
+  # Primary/default datasource: btcnodes.io mirrored into the public
+  # zzxbitnodes contract consumed by all existing widgets and subpages.
   snapshot_mirror:
-    name: btcnodes.io Snapshot Mirror
+    name: ZZX Bitnodes Snapshot (btcnodes.io)
     needs:
       - plan
     uses: ./.github/workflows/bitnodes-latest.yml
 
-  # Authoritative production crawler. Planning is its only wrapper prerequisite.
-  global_crawler:
-    name: ZZX Global Node Crawler
+  # Secondary/fallback datasource: independent Addy Yeow/Bitnodes-style
+  # crawler. It owns originalbitnodes and never overwrites zzxbitnodes.
+  original_crawler:
+    name: Original Bitnodes Fallback Crawler
     needs:
       - plan
-    uses: ./.github/workflows/bitnodes-global-crawler.yml
+    uses: ./.github/workflows/bitnodes-original-crawler.yml
     with:
       crawl_profile: ${{ needs.plan.outputs.crawl_profile }}
-      run_ayeowch_compat: ${{ inputs.run_ayeowch_compat || false }}
-    secrets:
-      BITNODES_BACKUP_REPO: ${{ secrets.BITNODES_BACKUP_REPO }}
-      BITNODES_BACKUP_TOKEN: ${{ secrets.BITNODES_BACKUP_TOKEN }}
 
   map_host:
-    name: Bitnodes Map Host
+    name: Bitnodes Map Host (Primary ZZX Snapshot)
     needs:
-      - global_crawler
-    if: ${{ needs.global_crawler.result == 'success' }}
+      - snapshot_mirror
+    if: ${{ needs.snapshot_mirror.result == 'success' }}
     uses: ./.github/workflows/bitnodes-maphost.yml
     with:
       max_points: ${{ inputs.map_max_points || '5000' }}
-      include_ayeowch_compat: ${{ inputs.include_ayeowch_map || false }}
+      include_ayeowch_compat: true
+
+  map_host_fallback:
+    name: Bitnodes Map Host (Original Fallback)
+    needs:
+      - snapshot_mirror
+      - original_crawler
+    if: >-
+      ${{
+        always() &&
+        needs.snapshot_mirror.result != 'success' &&
+        needs.original_crawler.result == 'success'
+      }}
+    uses: ./.github/workflows/bitnodes-maphost.yml
+    with:
+      max_points: ${{ inputs.map_max_points || '5000' }}
+      include_ayeowch_compat: true
 
   # Private backup is deliberately outside the public publication gate.
   registry_backup:
     name: Private Bitnodes Registry Backup
     needs:
-      - global_crawler
+      - snapshot_mirror
     if: >-
       ${{
         always() &&
-        needs.global_crawler.result == 'success' &&
+        needs.snapshot_mirror.result == 'success' &&
         (
           github.event_name == 'schedule' ||
           inputs.enable_registry_backup == true
@@ -187,8 +199,9 @@ jobs:
     needs:
       - plan
       - snapshot_mirror
-      - global_crawler
+      - original_crawler
       - map_host
+      - map_host_fallback
       - registry_backup
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -198,8 +211,9 @@ jobs:
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
           SNAPSHOT_RESULT: ${{ needs.snapshot_mirror.result }}
-          CRAWLER_RESULT: ${{ needs.global_crawler.result }}
+          ORIGINAL_RESULT: ${{ needs.original_crawler.result }}
           MAPHOST_RESULT: ${{ needs.map_host.result }}
+          MAPHOST_FALLBACK_RESULT: ${{ needs.map_host_fallback.result }}
           REGISTRY_RESULT: ${{ needs.registry_backup.result }}
           REGISTRY_STATUS: ${{ needs.registry_backup.outputs.backup_status }}
         run: |
@@ -211,46 +225,41 @@ jobs:
             "============================================================" \
             "plan=${PLAN_RESULT:-unknown}" \
             "snapshot_mirror=${SNAPSHOT_RESULT:-unknown}" \
-            "global_crawler=${CRAWLER_RESULT:-unknown}" \
+            "original_crawler=${ORIGINAL_RESULT:-unknown}" \
             "map_host=${MAPHOST_RESULT:-unknown}" \
+            "map_host_fallback=${MAPHOST_FALLBACK_RESULT:-unknown}" \
             "registry_backup=${REGISTRY_RESULT:-unknown}" \
             "registry_status=${REGISTRY_STATUS:-not-run}" \
             "============================================================"
 
           failed=0
 
-          # Acquisition is the only critical production chain. Maps are a
-          # derived presentation layer and last-known-good maps stay online if
-          # a map build fails; map failure must never invalidate node capture.
-          for pair in \
-            "plan:${PLAN_RESULT:-unknown}" \
-            "global_crawler:${CRAWLER_RESULT:-unknown}"
-          do
-            name="${pair%%:*}"
-            result="${pair#*:}"
-            if [ "${result}" != "success" ]; then
-              printf '%s\n' \
-                "::error title=Required Bitnodes workflow failed::${name}=${result}"
+          if [ "${PLAN_RESULT:-unknown}" != "success" ]; then
+            printf '%s\n' "::error title=Bitnodes planning failed::plan=${PLAN_RESULT:-unknown}"
+            failed=1
+          fi
+
+          if [ "${SNAPSHOT_RESULT:-unknown}" = "success" ]; then
+            if [ "${MAPHOST_RESULT:-unknown}" != "success" ]; then
+              printf '%s\n' "::error title=Bitnodes map publication failed::primary map_host=${MAPHOST_RESULT:-unknown}"
               failed=1
             fi
-          done
+          else
+            if [ "${ORIGINAL_RESULT:-unknown}" != "success" ] || [ "${MAPHOST_FALLBACK_RESULT:-unknown}" != "success" ]; then
+              printf '%s\n' "::error title=Bitnodes acquisition unavailable::primary snapshot=${SNAPSHOT_RESULT:-unknown}, original=${ORIGINAL_RESULT:-unknown}, fallback_map=${MAPHOST_FALLBACK_RESULT:-unknown}"
+              failed=1
+            fi
+          fi
 
-          # External compatibility mirror is useful but noncritical.
-          case "${SNAPSHOT_RESULT:-unknown}" in
+          case "${ORIGINAL_RESULT:-unknown}" in
             success)
-              printf '%s\n' "btcnodes.io compatibility mirror completed successfully."
+              printf '%s\n' "Original Bitnodes fallback crawler completed successfully."
               ;;
             skipped)
-              printf '%s\n' \
-                "::notice title=Bitnodes snapshot mirror::External snapshot mirror was skipped. Native ZZX publication is unaffected."
+              printf '%s\n' "::notice title=Original Bitnodes crawler::Fallback crawler was skipped; zzxbitnodes remains primary."
               ;;
-            failure|cancelled)
-              printf '%s\n' \
-                "::warning title=Bitnodes snapshot mirror::External mirror result=${SNAPSHOT_RESULT}. Native ZZX crawling and publication remain independent."
-              ;;
-            *)
-              printf '%s\n' \
-                "::warning title=Bitnodes snapshot mirror::Unexpected mirror result=${SNAPSHOT_RESULT:-unknown}. Native ZZX crawling remains authoritative."
+            failure|cancelled|*)
+              printf '%s\n' "::warning title=Original Bitnodes crawler::Fallback crawler result=${ORIGINAL_RESULT:-unknown}; primary zzxbitnodes data remains authoritative."
               ;;
           esac
 
@@ -306,7 +315,7 @@ jobs:
             printf '%s\n' \
               "============================================================" \
               "ZZX-Bitnodes PUBLIC PIPELINE FAILED" \
-              "Required acquisition chain: plan -> global_crawler" \
+              "Required public chain: plan -> zzxbitnodes snapshot -> Map Host" \
               "============================================================"
             exit 1
           fi
@@ -314,6 +323,6 @@ jobs:
           printf '%s\n' \
             "============================================================" \
             "ZZX-Bitnodes PUBLIC PIPELINE SUCCESSFUL" \
-            "Native crawler acquisition/history completed." \
-            "External mirror, maps, and private registry do not gate acquisition." \
+            "btcnodes.io-backed zzxbitnodes snapshot and public maps completed." \
+            "originalbitnodes remains the independent Addy Yeow-style fallback crawler." \
             "============================================================"
