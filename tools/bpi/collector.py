@@ -23,6 +23,7 @@ import json
 import math
 import os
 import signal
+import sys
 import tempfile
 import time
 import urllib.error
@@ -439,12 +440,16 @@ def weighted_metric(markets: list[dict[str, Any]], key: str, fallback_key: str =
 
 
 class Collector:
-    def __init__(self, root: Path, proxy_url: str | None = None):
+    def __init__(self, root: Path, proxy_url: str | None = None, history_db: Path | None = None):
         self.root = root
         self.api = root / "bitcoin/bpi/api"
         self.config = load_json(root / "tools/bpi/collector-config.json", {})
         self.cycle_ms = max(1000, int(self.config.get("exchange_cycle_ms") or CYCLE_MS))
         self.max_workers = max(1, int(self.config.get("max_workers") or MAX_WORKERS))
+        self.market_stale_after_ms = max(
+            self.cycle_ms * 2,
+            int(self.config.get("market_stale_after_ms") or 30_000),
+        )
         timeout = float(self.config.get("request_timeout_seconds") or 8.0)
         self.client = HttpClient(proxy_url=proxy_url, timeout=timeout)
         self.providers = load_json(self.api / "provider_urls.json", {}).get("providers", {})
@@ -458,7 +463,8 @@ class Collector:
         self.market_configs: list[dict[str, Any]] = []
         self.provider_due: dict[str, float] = {}
         self.health: dict[str, Any] = {}
-        self.history = HistoryStore(root / "bitcoin/bpi/history.sqlite3")
+        self.history_db = Path(history_db or (root / "bitcoin/bpi/history.sqlite3")).resolve()
+        self.history = HistoryStore(self.history_db)
         self.static_history_path = self.api / "history-live.json"
         previous_static = load_json(self.static_history_path, {})
         self.static_history: dict[str, list[dict[str, Any]]] = (
@@ -626,6 +632,20 @@ class Collector:
         self.market_configs = markets
         self.next_discovery = now + 30 * 60
 
+    def _market_is_fresh(self, row: dict[str, Any], now_wall: float | None = None) -> bool:
+        """Return True only while a prior market row is recent enough for index use."""
+        stamp = row.get("updated_at")
+        if not stamp:
+            return False
+        try:
+            dt = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            age_ms = ((now_wall if now_wall is not None else time.time()) - dt.timestamp()) * 1000.0
+        except Exception:
+            return False
+        return -5_000.0 <= age_ms <= float(self.market_stale_after_ms)
+
     def fetch_due_markets(self, now: float) -> list[dict[str, Any]]:
         self.refresh_discovery(now)
         due: list[dict[str, Any]] = []
@@ -642,7 +662,11 @@ class Collector:
 
         if not due:
             latest = load_json(self.api / "markets.json", {}).get("markets", [])
-            return [m for m in latest if isinstance(m, dict)]
+            now_wall = time.time()
+            return [
+                m for m in latest
+                if isinstance(m, dict) and self._market_is_fresh(m, now_wall)
+            ]
 
         fresh: list[dict[str, Any]] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, max(1, len(due)))) as pool:
@@ -706,10 +730,11 @@ class Collector:
 
         # Retain still-valid rows from providers not due this cycle.
         prior = load_json(self.api / "markets.json", {}).get("markets", [])
+        now_wall = time.time()
         by_market = {
             str(m.get("market_key") or (str(m.get("exchange")) + "::" + str(m.get("pair")))): m
             for m in prior
-            if isinstance(m, dict)
+            if isinstance(m, dict) and self._market_is_fresh(m, now_wall)
         }
         for row in fresh:
             by_market[str(row.get("market_key") or (str(row.get("exchange")) + "::" + str(row.get("pair"))))] = row
@@ -1407,10 +1432,12 @@ class Collector:
             "ended_at_epoch": time.time(),
             "duration_seconds": round(time.monotonic() - started_mono, 3),
             "cycle_ms": self.cycle_ms,
+            "market_stale_after_ms": self.market_stale_after_ms,
             "cycles": cycles,
             "errors": errors,
             "markets_discovered": len(self.market_configs),
             "provider_health_rows": len(self.health),
+            "history_db": str(self.history_db),
             "stopped_by_signal": STOP,
         }
         if status_file is not None:
@@ -1427,6 +1454,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[2]))
     parser.add_argument("--once", action="store_true")
+    parser.add_argument(
+        "--history-db",
+        default=os.environ.get("ZZX_BPI_HISTORY_DB"),
+        help="Durable SQLite history path. Defaults to bitcoin/bpi/history.sqlite3 inside --root.",
+    )
     parser.add_argument(
         "--duration-seconds",
         type=float,
@@ -1447,17 +1479,20 @@ def main() -> int:
     signal.signal(signal.SIGTERM, handle_signal)
 
     root = Path(args.root).resolve()
-    collector = Collector(root, proxy_url=args.proxy)
+    history_db = Path(args.history_db).resolve() if args.history_db else None
+    collector = Collector(root, proxy_url=args.proxy, history_db=history_db)
     if args.once:
         collector.run_once()
         result = {
             "schema": "zzx-bpi-collector-run-v1",
             "duration_seconds": 0.0,
             "cycle_ms": collector.cycle_ms,
+            "market_stale_after_ms": collector.market_stale_after_ms,
             "cycles": 1,
             "errors": 0,
             "markets_discovered": len(collector.market_configs),
             "provider_health_rows": len(collector.health),
+            "history_db": str(collector.history_db),
             "stopped_by_signal": False,
         }
         if args.status_file:
