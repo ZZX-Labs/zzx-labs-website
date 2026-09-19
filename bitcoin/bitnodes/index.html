@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="./styles.css">
     <script src="../../static/script.js" defer></script>
     <script src="./script.js" defer></script>
+    <script src="./js/page-runtime.js" defer></script>
 </head>
 <body data-bn-depth=".">
 <header>
@@ -48,22 +49,11 @@
         <div class="bn-sourcebar">
             <label for="bn-source">Data Source</label>
 
-            <select id="bn-source">
-                <option value="zzx" selected>
-                    ZZX Bitnodes Enhanced
-                </option>
-
-                <option value="original">
-                    Original Bitnodes
-                </option>
-
-                <option value="hybrid">
-                    ZZX + Original Hybrid API
-                </option>
-
-                <option value="external">
-                    Third-Party Compatible Instance
-                </option>
+            <select id="bn-source" data-bn-semantic="source">
+                <option value="zzxbitnodes" selected>ZZX Bitnodes (btcnodes.io Live)</option>
+                <option value="originalbitnodes">Original Bitnodes (Addy Yeow-Style)</option>
+                <option value="local">Legacy Local Compatibility API</option>
+                <option value="external">External Compatible API</option>
             </select>
 
             <button id="bn-refresh" type="button">
@@ -211,10 +201,6 @@
     <section class="bn-panel container">
         <h2>Latest Snapshot</h2>
         <div id="bn-table"></div>
-    </section>
-    <br>
-    <section class="bn-panel container">
-        <div id="bn-knotsvscore" data-bn-knotsvscore></div>
     </section>
     <br>
     <section class="bn-panel container">
