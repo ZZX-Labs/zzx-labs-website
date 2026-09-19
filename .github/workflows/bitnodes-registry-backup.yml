@@ -108,9 +108,11 @@ jobs:
 
           python -m py_compile \
             tools/bitnodes/chunk_registry_backup.py \
+            tools/bitnodes/chunk_registry_backup_selftest.py \
             tools/bitnodes/update_daily_index.py
 
           python tools/bitnodes/chunk_registry_backup.py --help
+          python tools/bitnodes/chunk_registry_backup_selftest.py
           python tools/bitnodes/update_daily_index.py --help
 
       - name: Validate committed ZZX registry snapshot
@@ -466,7 +468,9 @@ jobs:
             --output "${BACKUP_ROOT}/registry/${TODAY}/${RUN_ID}" \
             --latest-output "${BACKUP_ROOT}/latest" \
             --max-mb 24 \
-            --source zzxbitnodes
+            --source zzxbitnodes \
+            --expected-nodes "${SOURCE_NODES}" \
+            --expected-source-sha256 "${SOURCE_SHA256}"
 
           python tools/bitnodes/update_daily_index.py \
             --repo-root "${BACKUP_ROOT}/registry" \
