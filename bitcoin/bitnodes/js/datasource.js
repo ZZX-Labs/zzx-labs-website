@@ -32,9 +32,9 @@
     const SOURCE_DEFINITIONS = {
         zzxbitnodes: {
             id: "zzxbitnodes",
-            label: "ZZX Bitnodes Global Registry API",
-            shortLabel: "ZZX Global Registry",
-            description: "Default ZZX-Labs persistent global Bitnodes crawler registry with rolling 24h reachable-state memory, archive replay, GeoIP enrichment, private registry backups, and static public JSON exports.",
+            label: "ZZX Bitnodes / btcnodes.io Live Mirror",
+            shortLabel: "ZZX Live Mirror",
+            description: "Default ZZX-Labs public datasource mirrored from btcnodes.io and normalized into the zzxbitnodes API contract used by widgets, statistics, and maps.",
             basePath: "./api/zzxbitnodes",
             statusClass: "",
             endpoints: { ...COMMON_ENDPOINTS }
@@ -42,9 +42,9 @@
 
         originalbitnodes: {
             id: "originalbitnodes",
-            label: "Original Bitnodes API",
+            label: "Original Bitnodes / Addy Yeow-Style Crawler",
             shortLabel: "Original Bitnodes",
-            description: "Original Bitnodes-compatible crawler output preserved for Addy Yeow attribution, comparison, public API continuity, and upstream-style crawler behavior.",
+            description: "Independent Addy Yeow/Bitnodes-style crawler retained as a secondary comparison and fallback datasource. Specialized page views derive their statistics from its latest snapshot when dedicated fan-out files are unavailable.",
             basePath: "./api/originalbitnodes",
             statusClass: "is-warning",
             endpoints: { ...COMMON_ENDPOINTS }
