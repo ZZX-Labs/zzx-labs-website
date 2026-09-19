@@ -1,6 +1,8 @@
 name: Update DeadOPop + TheMarketBTCCreated
 
 on:
+  schedule:
+    - cron: "23 4 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -77,7 +79,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+          fetched=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              fetched=1
+              break
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying."
+            sleep "$(( attempt * 3 ))"
+          done
+          test "${fetched}" = "1"
           git reset --hard origin/main
 
       - name: Validate DeadOPop programs
@@ -87,7 +98,8 @@ jobs:
           python -m py_compile \
             tools/bpi/deadopop_scan.py \
             tools/bpi/update_deadopop.py \
-            tools/bpi/update_themarketbtccreated.py
+            tools/bpi/update_themarketbtccreated.py \
+            tools/bpi/bpi_git_publish.py
 
           python tools/bpi/deadopop_scan.py --help >/dev/null
           python tools/bpi/update_deadopop.py --help >/dev/null
@@ -245,51 +257,19 @@ jobs:
           )
           PY
 
-      - name: Commit and push DeadOPop state
+      - name: Publish DeadOPop state without rebasing generated files
         shell: bash
         run: |
           set -euo pipefail
-
           git config user.name "zzx-deadopop-bot"
           git config user.email "actions@github.com"
-
-          git add \
-            "${DEADOPOP_REGISTRY}" \
-            "${DEADOPOP_CANDIDATES}" \
-            "${DEADOPOP_STATE}" \
-            "${DEADOPOP_API}" \
-            "${MARKET_CREATED_API}"
-
-          if git diff --cached --quiet; then
-            printf '%s\n' "No DeadOPop changes."
-            exit 0
-          fi
-
-          git commit -m "Update DeadOPop registry and BTC appraisal"
-
-          # These paths are DeadOPop-owned, so a normal rebase should be
-          # conflict-free unless another writer violates ownership.
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-
-            if git rebase origin/main; then
-              if git push origin HEAD:main; then
-                printf '%s\n' "DeadOPop registry/appraisal pushed."
-                exit 0
-              fi
-            else
-              git rebase --abort || true
-            fi
-
-            git reset --hard HEAD
-            git clean -fdx
-
-            printf '%s\n' \
-              "DeadOPop push attempt ${attempt} failed; retrying without force."
-
-            sleep 5
-          done
-
-          printf '%s\n' \
-            "Failed to push DeadOPop registry/appraisal without rewriting main."
-          exit 1
+          python tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Update DeadOPop registry and BTC appraisal" \
+            --path "${DEADOPOP_REGISTRY}" \
+            --path "${DEADOPOP_CANDIDATES}" \
+            --path "${DEADOPOP_STATE}" \
+            --path "${DEADOPOP_API}" \
+            --path "${MARKET_CREATED_API}" \
+            --attempts 5 \
+            --sleep-seconds 5
