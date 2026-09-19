@@ -3,8 +3,8 @@
 
     const SOURCE_FILES = {
         zzxbitnodes: "../api/zzxbitnodes/agents.json",
-        originalbitnodes: "../api/originalbitnodes/agents.json",
-        local: "../api/zzxbitnodes/agents.json",
+        originalbitnodes: "../api/originalbitnodes/latest.json",
+        local: "../api/agents.json",
         external: "https://bitnodes.io/api/v1/snapshots/latest/"
     };
 
@@ -53,7 +53,25 @@
     }
 
     async function getJson(url) {
-        const response = await fetch(`${url}?t=${Date.now()}`, {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
             cache: "no-store"
         });
 
