@@ -163,7 +163,12 @@ def main()->int:
     parser.add_argument(
         "--references-only",
         action="store_true",
-        help="Update only commodity/reference-market mirrors."
+        help="Update commodity/reference-market mirrors once and exit."
+    )
+    parser.add_argument(
+        "--bpi-only",
+        action="store_true",
+        help="Run persistently for BPI reference/debt data without touching Bitnodes or mempool mirrors."
     )
     args=parser.parse_args()
 
@@ -193,11 +198,11 @@ def main()->int:
             update_debts(root,client)
             next_debt=now+21600
 
-        if now>=next_mempool:
+        if not args.bpi_only and now>=next_mempool:
             update_mempool_mirror(root,client)
             next_mempool=now+15
 
-        if now>=next_nodes:
+        if not args.bpi_only and now>=next_nodes:
             update_bitnodes_mirror(root,client)
             next_nodes=now+60
 
