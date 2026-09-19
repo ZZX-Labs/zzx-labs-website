@@ -8,7 +8,10 @@ User=www-data
 Group=www-data
 WorkingDirectory=/srv/zzx-labs
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bpi/bpi_finalize_completed.py --root /srv/zzx-labs --history-db /var/lib/zzx-bpi/history.sqlite3 --orderbook-db /var/lib/zzx-bpi/orderbooks.sqlite3 --hours-back 2
+EnvironmentFile=-/etc/zzx-labs/bpi.env
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bpi/bpi_finalize_completed.py --root /srv/zzx-labs --history-db /var/lib/zzx-bpi/history.sqlite3 --orderbook-db /var/lib/zzx-bpi/orderbooks.sqlite3 --hours-back 2 --chunk-rows 10000
+ExecStartPost=-/usr/bin/python3 /srv/zzx-labs/tools/bpi/bpi_mariadb_sync.py --root /srv/zzx-labs
+ExecStartPost=-/usr/bin/python3 /srv/zzx-labs/tools/bpi/bpi_private_backup.py --root /srv/zzx-labs --hours-back 2
 ProtectSystem=full
 PrivateTmp=true
 ReadWritePaths=/srv/zzx-labs /var/lib/zzx-bpi
