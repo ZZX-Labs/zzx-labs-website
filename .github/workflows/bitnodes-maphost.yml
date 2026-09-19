@@ -65,15 +65,19 @@ env:
 
 jobs:
   maps:
+    # Reusable workflows inherit the caller's github context. When this file is
+    # invoked from the scheduled ZZX wrapper, github.event_name is therefore
+    # "schedule", not "workflow_call". Only workflow_run invocations need
+    # an event-specific gate; workflow_call/workflow_dispatch/caller events run.
     if: >-
-      github.event_name == 'workflow_call' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository
-      )
+      ${{
+        github.event_name != 'workflow_run' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
@@ -196,6 +200,7 @@ jobs:
             tools/bitnodes/map/prepare_canonical_selftest.py
             tools/bitnodes/map/ensure_geo_data.py
             tools/bitnodes/geo_contract.py
+            tools/bitnodes/frontend_contract_selftest.py
             tools/bitnodes/merge_sources.py
             tools/bitnodes/map/mapvectors.py
             tools/bitnodes/map/vector_types.py
@@ -242,6 +247,7 @@ jobs:
           python tools/bitnodes/map/maphost_status_selftest.py
           python tools/bitnodes/map/ensure_geo_data.py --help >/dev/null
           python tools/bitnodes/geo_contract.py --help >/dev/null
+          python tools/bitnodes/frontend_contract_selftest.py
 
       - name: Ensure Map Host IP geolocation datasets
         shell: bash
@@ -506,7 +512,7 @@ jobs:
           cat "${RUNNER_TEMP}/original-map-cleanup-report.json"
 
       - name: Build optional Ayeowch compatibility map
-        if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.include_ayeowch_compat }}
+        if: ${{ inputs.include_ayeowch_compat == true }}
         shell: bash
         run: |
           set -euo pipefail
