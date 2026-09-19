@@ -15,6 +15,7 @@ def main()->int:
     latest_wf=(WF/'bitnodes-latest.yml').read_text(encoding='utf-8')
     original_wf=(WF/'bitnodes-original-crawler.yml').read_text(encoding='utf-8')
     maphost_wf=(WF/'bitnodes-maphost.yml').read_text(encoding='utf-8')
+    registry_wf=(WF/'bitnodes-registry-backup.yml').read_text(encoding='utf-8')
     collector=(TOOLS/'collector.py').read_text(encoding='utf-8')
     canonical=(TOOLS/'map'/'prepare_canonical.py').read_text(encoding='utf-8')
     service=(ROOT/'server/systemd/zzx-bitnodes-crawler.service').read_text(encoding='utf-8')
@@ -57,6 +58,13 @@ def main()->int:
     original_pos=canonical.index("return [('originalbitnodes-fallback',original)]")
     require(zzx_pos < btc_pos < original_pos, 'Map Host source priority must be zzxbitnodes -> raw btcnodes alias -> originalbitnodes')
     require('- btcnodes.io Snapshot Mirror' in maphost_wf, 'standalone snapshot refresh does not trigger Map Host')
+    require('frontend_contract_selftest.py' in latest_wf, 'primary snapshot workflow does not validate frontend contracts')
+    require('frontend_contract_selftest.py' in maphost_wf, 'Map Host workflow does not validate frontend contracts')
+    require("github.event_name != 'workflow_run'" in maphost_wf, 'Map Host reusable workflow can still self-skip under scheduled callers')
+    require("github.event_name == 'workflow_call'" not in maphost_wf, 'Map Host incorrectly assumes reusable calls change github.event_name')
+    require('if: ${{ inputs.include_ayeowch_compat == true }}' in maphost_wf, 'Map Host optional original map is still tied to caller event_name')
+    require("github.event_name != 'workflow_run'" in registry_wf, 'Registry reusable workflow can still self-skip under scheduled callers')
+    require("github.event_name == 'workflow_call'" not in registry_wf, 'Registry incorrectly assumes reusable calls change github.event_name')
 
     require('ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py daemon run' in service, 'systemd daemon command is not runnable')
     require('Restart=always' in service and 'StartLimitIntervalSec=0' in service, 'systemd restart-forever contract missing')
@@ -70,6 +78,10 @@ def main()->int:
         require((TOOLS/rel).is_file(), f'required nested tool missing: {rel}')
 
     crawler=config.get('crawler') or {}; export=config.get('export') or {}
+    daemon=(TOOLS/'bitnodesd.py').read_text(encoding='utf-8')
+    require(str(crawler.get('mode') or '') == 'btcnodes_mirror', 'resident daemon does not default to btcnodes.io-backed zzxbitnodes')
+    require('SNAPSHOT_COLLECTOR = TOOLS_DIR / "collector.py"' in daemon, 'resident daemon lacks btcnodes snapshot collector')
+    require('return SNAPSHOT_COLLECTOR if SNAPSHOT_COLLECTOR.exists() else CRAWLER' in daemon, 'resident daemon can still default to native zzx crawler')
     require(int(crawler.get('recrawl_reachable_seconds') or 0)==300, 'resident reachable recrawl policy mismatch')
     require(int(crawler.get('recrawl_unreachable_seconds') or 0)==900, 'resident unreachable recrawl policy mismatch')
     require(int(crawler.get('history_full_snapshot_interval_seconds') or 0)==900, 'resident full-history baseline interval mismatch')
