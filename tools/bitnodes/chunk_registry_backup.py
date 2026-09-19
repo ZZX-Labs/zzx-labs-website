@@ -290,6 +290,15 @@ def normalize_node(address: str, row: Any) -> dict[str, Any]:
         if port is not None:
             out.setdefault("port", port)
 
+        # Preserve the original fields while also populating the canonical
+        # registry column names used by node_sql().
+        if out.get("protocol") in (None, "") and out.get("protocol_version") not in (None, ""):
+            out["protocol"] = out.get("protocol_version")
+        if out.get("agent") in (None, "") and out.get("user_agent") not in (None, ""):
+            out["agent"] = out.get("user_agent")
+        if out.get("country_code") in (None, "") and out.get("country") not in (None, ""):
+            out["country_code"] = out.get("country")
+
         return out
 
     if isinstance(row, list):
@@ -301,12 +310,57 @@ def normalize_node(address: str, row: Any) -> dict[str, Any]:
 def normalize_nodes(payload: Any) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
 
-    if isinstance(payload, Mapping) and isinstance(payload.get("nodes"), Mapping):
-        for address, row in payload["nodes"].items():
-            normalized = normalize_node(str(address), row)
-            if normalized.get("address"):
-                output[normalized["address"]] = normalized
-        return output
+    # ZZX public snapshots have existed in both of these forms:
+    #
+    #   {"nodes": {"host:port": {...}, ...}}
+    #   {"nodes": [{"address": "host:port", ...}, ...]}
+    #
+    # Treat either representation as the authoritative node collection before
+    # inspecting any other top-level fields.  Falling through on the list form
+    # would incorrectly interpret structural objects such as network_counts,
+    # changes, dataplane, geo_summary, and metadata as node records.
+    if isinstance(payload, Mapping):
+        node_container = payload.get("nodes")
+
+        if isinstance(node_container, Mapping):
+            for address, row in node_container.items():
+                normalized = normalize_node(str(address), row)
+                if normalized.get("address"):
+                    output[normalized["address"]] = normalized
+            return output
+
+        if isinstance(node_container, list):
+            for row in node_container:
+                if not isinstance(row, Mapping):
+                    continue
+
+                address = normalize_address(
+                    row.get("address")
+                    or row.get("canonical_address")
+                    or row.get("node")
+                    or row.get("addr")
+                    or row.get("host")
+                    or deep_get(row, "metadata.canonical_address")
+                )
+
+                if not address:
+                    host = normalize_address(
+                        row.get("ip")
+                        or row.get("hostname")
+                        or deep_get(row, "metadata.host")
+                    )
+                    port = safe_int(
+                        row.get("port")
+                        or deep_get(row, "metadata.port"),
+                        0,
+                    )
+                    if host:
+                        address = f"{host}:{port}" if port else host
+
+                if address:
+                    output[address] = normalize_node(address, row)
+
+            return output
 
     if isinstance(payload, Mapping):
         for key in ("results", "data", "rows", "peers", "node_records", "reachable_nodes"):
@@ -735,6 +789,8 @@ def backup(
     max_mb: float,
     source: str,
     no_clean: bool,
+    expected_nodes: int | None = None,
+    expected_source_sha256: str = "",
 ) -> int:
     max_bytes = int(max_mb * 1024 * 1024)
 
@@ -743,7 +799,33 @@ def backup(
         clean_output_dir(latest_dir)
 
     files = collect_input_files([*input_paths, *api_paths])
+
+    if not files:
+        raise SystemExit("registry backup received no supported source files")
+
+    if expected_source_sha256:
+        primary = input_paths[0] if input_paths else files[0]
+        if not primary.is_file():
+            raise SystemExit(
+                "expected source SHA256 requires a file input, got: "
+                f"{primary}"
+            )
+        actual_source_sha256 = sha256_file(primary)
+        if actual_source_sha256 != expected_source_sha256:
+            raise SystemExit(
+                "registry source SHA256 mismatch: "
+                f"expected={expected_source_sha256} "
+                f"actual={actual_source_sha256} source={primary}"
+            )
+
     nodes = merge_nodes(files)
+
+    if expected_nodes is not None and len(nodes) != expected_nodes:
+        raise SystemExit(
+            "registry normalized-node mismatch before SQL generation: "
+            f"expected={expected_nodes} normalized={len(nodes)}"
+        )
+
     generated_at = utc_now_iso()
     source_name = infer_source(files, source)
     header = create_sql_header()
@@ -828,6 +910,8 @@ def main() -> int:
     parser.add_argument("--max-mb", type=float, default=24.0)
     parser.add_argument("--source", default="")
     parser.add_argument("--no-clean", action="store_true")
+    parser.add_argument("--expected-nodes", type=int, default=None)
+    parser.add_argument("--expected-source-sha256", default="")
 
     args = parser.parse_args()
 
@@ -839,6 +923,8 @@ def main() -> int:
         max_mb=args.max_mb,
         source=args.source,
         no_clean=args.no_clean,
+        expected_nodes=args.expected_nodes,
+        expected_source_sha256=args.expected_source_sha256.strip().lower(),
     )
 
 
