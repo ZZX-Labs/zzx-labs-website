@@ -2,8 +2,8 @@
     "use strict";
 
     const SOURCES = {
-        zzxbitnodes: "../api/propagation.json",
-        originalbitnodes: "../api/originalbitnodes/propagation.json",
+        zzxbitnodes: "../api/zzxbitnodes/propagation.json",
+        originalbitnodes: "../api/originalbitnodes/latest.json",
         aggregate: "../api/aggregate/zzxbitnodes/latest.json",
         enriched: "../api/enriched/zzxbitnodes/latest.json",
         local: "../api/propagation.json",
@@ -62,7 +62,25 @@
     }
 
     async function getJson(url) {
-        const response = await fetch(`${url}?t=${Date.now()}`, {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
             cache: "no-store"
         });
 
