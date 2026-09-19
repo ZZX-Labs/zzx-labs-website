@@ -128,6 +128,49 @@ def main() -> int:
                 f"SQL row mismatch: expected={len(rows)} actual={sql_rows}"
             )
 
+        dated_shards = sorted(out.glob("nodes-*.sql.gz"))
+        latest_shards = sorted(latest.glob("nodes-*.sql.gz"))
+        if [p.name for p in dated_shards] != [p.name for p in latest_shards]:
+            raise SystemExit("dated/latest shard names diverged")
+        for dated_path, latest_path in zip(dated_shards, latest_shards, strict=True):
+            if dated_path.read_bytes() != latest_path.read_bytes():
+                raise SystemExit(
+                    f"dated/latest gzip bytes diverged: {dated_path.name}"
+                )
+
+        if (out / "manifest.sql.gz").read_bytes() != (latest / "manifest.sql.gz").read_bytes():
+            raise SystemExit("dated/latest manifest gzip bytes diverged")
+
+        # Force a multi-shard run so the exact private-registry failure mode
+        # remains covered.  The live registry commonly spans multiple shards.
+        multi_out = root / "multi-dated"
+        multi_latest = root / "multi-latest"
+        rc = crb.backup(
+            input_paths=[source],
+            api_paths=[source],
+            output_dir=multi_out,
+            latest_dir=multi_latest,
+            max_mb=0.0003,
+            source="zzxbitnodes",
+            no_clean=False,
+            expected_nodes=len(rows),
+            expected_source_sha256=digest,
+        )
+        if rc != 0:
+            raise SystemExit(f"multi-shard backup returned {rc}")
+
+        multi_dated = sorted(multi_out.glob("nodes-*.sql.gz"))
+        multi_alias = sorted(multi_latest.glob("nodes-*.sql.gz"))
+        if len(multi_dated) < 2:
+            raise SystemExit("multi-shard regression did not produce >=2 shards")
+        if [p.name for p in multi_dated] != [p.name for p in multi_alias]:
+            raise SystemExit("multi-shard dated/latest names diverged")
+        for dated_path, latest_path in zip(multi_dated, multi_alias, strict=True):
+            if dated_path.read_bytes() != latest_path.read_bytes():
+                raise SystemExit(
+                    f"multi-shard dated/latest gzip bytes diverged: {dated_path.name}"
+                )
+
         try:
             crb.backup(
                 input_paths=[source],
