@@ -2,7 +2,7 @@
   "schema": "zzx-bpi-hourly-config-v2",
   "capture_seconds": 3120,
   "finalize_margin_seconds": 180,
-  "chunk_rows": 50000,
+  "chunk_rows": 10000,
   "schedule": "approximately once per UTC hour",
   "collector_cycle_ms": 2500,
   "archive": {
@@ -10,7 +10,9 @@
     "json": "gzip JSON Lines",
     "mariadb": "gzip SQL INSERT shards",
     "immutable_hour_partitions": true,
-    "retain_all_hours": true
+    "retain_all_hours": true,
+    "max_file_bytes": 24000000,
+    "private_backup_primary_history": true
   },
   "pipeline_order": [
     "continuous price/volume collector",
