@@ -18,6 +18,7 @@ def main() -> int:
     p.add_argument("--finalize-margin-seconds", type=float)
     p.add_argument("--chunk-rows", type=int)
     p.add_argument("--skip-collect", action="store_true")
+    p.add_argument("--no-hour-boundary", action="store_true")
     p.add_argument("--self-test", action="store_true")
     args = p.parse_args()
 
@@ -33,6 +34,8 @@ def main() -> int:
             cmd += ["--chunk-rows", str(args.chunk_rows)]
         if args.skip_collect:
             cmd += ["--skip-collect"]
+        if args.no_hour_boundary:
+            cmd += ["--no-hour-boundary"]
         if args.self_test:
             cmd += ["--self-test"]
         return subprocess.call(cmd)
