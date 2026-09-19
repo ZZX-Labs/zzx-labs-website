@@ -13,9 +13,8 @@ concurrency:
 
 jobs:
   update:
-    # This workflow mirrors an external compatibility source. A failure is
-    # reported in its logs but must never invalidate the native ZZX pipeline.
-    continue-on-error: true
+    # Primary/default ZZX Bitnodes snapshot. btcnodes.io is mirrored into the
+    # zzxbitnodes public contract consumed by widgets and subpages.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -65,11 +64,15 @@ jobs:
 
           test -f tools/bitnodes/collector.py
           test -f tools/bitnodes/update_snapshot.py
+          test -f tools/bitnodes/export_json.py
+          test -f tools/bitnodes/aggregate.py
           test -f tools/bpi/bpi_git_publish.py
 
           python -m py_compile \
             tools/bitnodes/collector.py \
             tools/bitnodes/update_snapshot.py \
+            tools/bitnodes/export_json.py \
+            tools/bitnodes/aggregate.py \
             tools/bpi/bpi_git_publish.py
 
           python -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
@@ -127,6 +130,32 @@ jobs:
           printf '%s\n' \
             "::warning title=btcnodes.io degraded mode::Upstream is unavailable; preserving the validated committed last-known-good mirror."
 
+      - name: Build complete zzxbitnodes public API from btcnodes.io snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s bitcoin/bitnodes/api/zzxbitnodes/latest.json
+
+          # Preserve the complete default API contract consumed by the existing
+          # widgets and bitcoin/bitnodes/* subpages.
+          python tools/bitnodes/export_json.py \
+            --input bitcoin/bitnodes/api/zzxbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/zzxbitnodes \
+            --source zzxbitnodes \
+            --archive-dir bitcoin/bitnodes/archive/zzxbitnodes \
+            --compact
+
+          mkdir -p bitcoin/bitnodes/data/runtime/state/zzxbitnodes
+          python tools/bitnodes/aggregate.py \
+            --input bitcoin/bitnodes/api/zzxbitnodes/latest.json \
+            --output bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json \
+            --api-dir bitcoin/bitnodes/api \
+            --state-dir bitcoin/bitnodes/data/runtime/state/zzxbitnodes \
+            --source zzxbitnodes \
+            --compact \
+            --omit-node-metadata
+
       - name: Validate generated local mirror
         shell: bash
         run: |
@@ -140,7 +169,13 @@ jobs:
           required = [
               api / "btcnodes/latest.json",
               api / "btcnodes/normalized/latest.json",
+              api / "zzxbitnodes/latest.json",
+              api / "zzxbitnodes/nodes.json",
+              api / "zzxbitnodes/countries.json",
+              api / "zzxbitnodes/asns.json",
+              api / "zzxbitnodes/peer-health.json",
               api / "aggregate/btcnodes/latest.json",
+              api / "aggregate/zzxbitnodes/latest.json",
               api / "snapshots/btcnodes/latest.json",
               api / "snapshots/latest.json",
               api / "history.json",
@@ -181,7 +216,9 @@ jobs:
             --root . \
             --message "Update btcnodes.io local snapshot mirror" \
             --path bitcoin/bitnodes/api/btcnodes \
+            --path bitcoin/bitnodes/api/zzxbitnodes \
             --path bitcoin/bitnodes/api/aggregate/btcnodes/latest.json \
+            --path bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json \
             --path bitcoin/bitnodes/api/snapshots/btcnodes/latest.json \
             --path bitcoin/bitnodes/api/snapshots/latest.json \
             --path bitcoin/bitnodes/api/history.json \
