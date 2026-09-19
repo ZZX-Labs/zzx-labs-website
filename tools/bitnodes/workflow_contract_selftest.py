@@ -12,36 +12,51 @@ def require(cond: bool, msg: str) -> None:
 
 def main()->int:
     wrapper=(WF/'zzx-bitnodes-crawler.yml').read_text(encoding='utf-8')
-    global_wf=(WF/'bitnodes-global-crawler.yml').read_text(encoding='utf-8')
+    latest_wf=(WF/'bitnodes-latest.yml').read_text(encoding='utf-8')
+    original_wf=(WF/'bitnodes-original-crawler.yml').read_text(encoding='utf-8')
+    maphost_wf=(WF/'bitnodes-maphost.yml').read_text(encoding='utf-8')
+    collector=(TOOLS/'collector.py').read_text(encoding='utf-8')
+    canonical=(TOOLS/'map'/'prepare_canonical.py').read_text(encoding='utf-8')
     service=(ROOT/'server/systemd/zzx-bitnodes-crawler.service').read_text(encoding='utf-8')
     timer=(ROOT/'server/systemd/zzx-bitnodes-snapshot.timer').read_text(encoding='utf-8')
     cli=(TOOLS/'bitnodes-cli.py').read_text(encoding='utf-8')
     gui=(TOOLS/'bitnodes-gui.py').read_text(encoding='utf-8')
     config=json.loads((TOOLS/'config.example.json').read_text(encoding='utf-8'))
 
-    require('- cron: "*/15 * * * *"' in wrapper, 'continuous 15-minute redundant GitHub schedule missing')
-    gc=wrapper.split('  global_crawler:',1)[1].split('\n  map_host:',1)[0]
-    require('snapshot_mirror' not in gc, 'native global crawler must not depend on external snapshot mirror')
-    require('needs:\n      - plan' in gc, 'global crawler planning dependency missing')
-    require('Native node acquisition/history completed' in wrapper, 'wrapper acquisition status contract missing')
+    require('- cron: "*/15 * * * *"' in wrapper, 'continuous 15-minute GitHub schedule missing')
+    require('uses: ./.github/workflows/bitnodes-latest.yml' in wrapper, 'primary btcnodes/zzx snapshot workflow missing')
+    require('uses: ./.github/workflows/bitnodes-original-crawler.yml' in wrapper, 'original Bitnodes fallback workflow missing')
+    require("needs.snapshot_mirror.result == 'success'" in wrapper, 'private registry is not gated by primary zzx snapshot success')
+    require('include_ayeowch_compat: true' in wrapper, 'originalbitnodes map compatibility output is not enabled')
+    require('Required public chain: plan -> zzxbitnodes snapshot -> Map Host' in wrapper, 'wrapper status still describes old source topology')
 
-    order=['Mirror btcnodes.io as optional compatibility seed','Run ZZX Bitnodes crawler window','Backup raw history and history MariaDB shards to private repo','Publish raw native latest independently of enrichment','Resolve geodata cache period']
-    positions=[global_wf.index(x) for x in order]
-    require(positions==sorted(positions), 'acquisition must execute before optional geodata/presentation work')
-    for flag in ('--history-output-dir','--history-full-snapshot-interval-seconds 900','--recrawl-reachable-seconds 300','--recrawl-unreachable-seconds 900','--disable-geoip'):
-        require(flag in global_wf, f'global crawler missing {flag}')
-    require('mode=native-only' in global_wf, 'external-seed-free native fallback missing')
-    require('zzx-bitnodes-history-mariadb-v3' in global_wf, 'idempotent history MariaDB v3 gate missing')
-    require('--monotonic-json-path "${BITNODES_API}/zzxbitnodes/latest.json"' in global_wf, 'final public publication is not monotonic')
-    require(global_wf.count('--omit-node-metadata') >= 2, 'public aggregate generation must omit duplicated nested node metadata')
-    require('--keep-bounded-aggregate-nodes' in global_wf, 'bounded btcnodes aggregate must retain public node data when safe')
-    require('Preserve the historical public enriched endpoints' in global_wf, 'current enriched public projection contract missing')
-    require('relative.parts[0] == "originalbitnodes"' in global_wf, 'native public artifact guard must ignore optional originalbitnodes-owned output')
-    require('${BITNODES_API}/enriched/zzxbitnodes/latest.ipdb-enriched.json' in global_wf, 'temporary enriched IPDB cleanup missing')
-    require('Private latest-state already newer/equal' in global_wf, 'private restore-point monotonic guard missing')
-    require('Raw public latest is already newer/equal' in global_wf, 'raw public monotonic guard missing')
-    require('Preserve history as workflow artifact when private backup is unavailable' in global_wf, 'history artifact fallback missing')
-    require('Maps are a' in wrapper and 'derived presentation layer' in wrapper, 'map failures are not documented as noncritical')
+    require('api/zzxbitnodes/latest.json' in collector, 'btcnodes collector does not own zzxbitnodes public latest')
+    require('upstream_mirror' in collector and 'btcnodes.io' in collector, 'zzxbitnodes provenance is missing')
+    require('originalbitnodes' in collector and 'never written here' in collector, 'originalbitnodes namespace ownership guard missing')
+
+    for token in (
+        'Build complete zzxbitnodes public API from btcnodes.io snapshot',
+        '--output bitcoin/bitnodes/api/zzxbitnodes',
+        '--source zzxbitnodes',
+        '--path bitcoin/bitnodes/api/zzxbitnodes',
+        '--path bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json',
+    ):
+        require(token in latest_wf, f'primary snapshot workflow missing contract: {token}')
+
+    for token in (
+        'tools/bitnodes/originalbitnodes.py',
+        '--original-mode classic',
+        '--output bitcoin/bitnodes/api/originalbitnodes',
+        '--source originalbitnodes',
+        '--allowed-prefix bitcoin/bitnodes/api/originalbitnodes',
+    ):
+        require(token in original_wf, f'original crawler workflow missing contract: {token}')
+
+    zzx_pos=canonical.index("return [('zzxbitnodes',zzx)]")
+    btc_pos=canonical.index("return [('zzxbitnodes-btcnodes-alias',btc)]")
+    original_pos=canonical.index("return [('originalbitnodes-fallback',original)]")
+    require(zzx_pos < btc_pos < original_pos, 'Map Host source priority must be zzxbitnodes -> raw btcnodes alias -> originalbitnodes')
+    require('- btcnodes.io Snapshot Mirror' in maphost_wf, 'standalone snapshot refresh does not trigger Map Host')
 
     require('ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py daemon run' in service, 'systemd daemon command is not runnable')
     require('Restart=always' in service and 'StartLimitIntervalSec=0' in service, 'systemd restart-forever contract missing')
