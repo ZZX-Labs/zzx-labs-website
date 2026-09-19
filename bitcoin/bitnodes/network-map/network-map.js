@@ -2,7 +2,7 @@
     "use strict";
 
     const SOURCES = {
-        zzxbitnodes: "../api/latest.json",
+        zzxbitnodes: "../api/zzxbitnodes/latest.json",
         originalbitnodes: "../api/originalbitnodes/latest.json",
         aggregate: "../api/aggregate/zzxbitnodes/latest.json",
         enriched: "../api/enriched/zzxbitnodes/latest.json",
@@ -44,7 +44,25 @@
     }
 
     async function getJson(url) {
-        const response = await fetch(`${url}?t=${Date.now()}`, {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
             cache: "no-store"
         });
 
@@ -56,12 +74,34 @@
     }
 
     function extractNodes(data) {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const entries = runtime.nodeEntries(data);
+            if (entries.length) {
+                return Object.fromEntries(entries);
+            }
+        }
+
         if (!data || typeof data !== "object") return {};
-
+        if (Array.isArray(data.nodes)) {
+            return Object.fromEntries(data.nodes.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
         if (data.nodes && typeof data.nodes === "object") return data.nodes;
+        if (Array.isArray(data.reachable_nodes)) {
+            return Object.fromEntries(data.reachable_nodes.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
         if (data.reachable_nodes && typeof data.reachable_nodes === "object") return data.reachable_nodes;
+        if (data.data && Array.isArray(data.data.nodes)) {
+            return Object.fromEntries(data.data.nodes.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
         if (data.data && data.data.nodes && typeof data.data.nodes === "object") return data.data.nodes;
-
+        if (Array.isArray(data.rows)) {
+            return Object.fromEntries(data.rows.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
+        if (Array.isArray(data.results)) {
+            return Object.fromEntries(data.results.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
         return {};
     }
 
