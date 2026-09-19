@@ -19,10 +19,8 @@ on:
         default: "3120"
 
   schedule:
-    # Full hourly cycle starts on the hour.
-    - cron: "0 * * * *"
-
-    # Lightweight Bitnodes refreshes between BPI starts.
+    # BPI has its own authoritative ZZX-BPI Crawler schedule. This master must
+    # not start a second writer against the same BPI API/archive paths.
     - cron: "4-59/5 * * * *"
 
 permissions:
@@ -33,8 +31,7 @@ jobs:
     name: BPI hourly capture
     if: >-
       ${{
-        (github.event_name == 'workflow_dispatch' && inputs.run_bpi) ||
-        github.event.schedule == '0 * * * *'
+        github.event_name == 'workflow_dispatch' && inputs.run_bpi
       }}
     uses: ./.github/workflows/bpi-latest.yml
     with:
@@ -46,7 +43,6 @@ jobs:
     if: >-
       ${{
         (github.event_name == 'workflow_dispatch' && inputs.run_bitnodes) ||
-        github.event.schedule == '0 * * * *' ||
         github.event.schedule == '4-59/5 * * * *'
       }}
     uses: ./.github/workflows/bitnodes-latest.yml
