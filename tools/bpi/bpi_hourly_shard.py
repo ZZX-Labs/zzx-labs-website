@@ -391,11 +391,18 @@ def update_archive_index(root: Path, manifest: dict[str, Any], manifest_path: Pa
     atomic_json(index_path, index)
 
 
-def finalize(root: Path, start_ms: int, end_ms: int, chunk_rows: int = DEFAULT_CHUNK_ROWS) -> dict[str, Any]:
+def finalize(
+    root: Path,
+    start_ms: int,
+    end_ms: int,
+    chunk_rows: int = DEFAULT_CHUNK_ROWS,
+    db_path: Path | None = None,
+    orderbook_db: Path | None = None,
+) -> dict[str, Any]:
     if end_ms <= start_ms:
         raise ValueError("end must be after start")
     chunk_rows = max(1000, int(chunk_rows))
-    db_path = root / "bitcoin/bpi/history.sqlite3"
+    db_path = Path(db_path or (root / "bitcoin/bpi/history.sqlite3")).resolve()
     fresh_rows = list(fetch_rows(db_path, start_ms, end_ms))
     base = archive_dir(root, start_ms)
     base.mkdir(parents=True, exist_ok=True)
@@ -426,7 +433,7 @@ def finalize(root: Path, start_ms: int, end_ms: int, chunk_rows: int = DEFAULT_C
     for i, offset in enumerate(range(0, len(rows), chunk_rows)):
         chunks.extend(write_chunk(base, i, rows[offset:offset + chunk_rows]))
 
-    orderbook_db = root / "bitcoin/bpi/orderbooks.sqlite3"
+    orderbook_db = Path(orderbook_db or (root / "bitcoin/bpi/orderbooks.sqlite3")).resolve()
     fresh_snapshots = fetch_orderbook_rows(
         orderbook_db, "orderbook_snapshots", ORDERBOOK_SNAPSHOT_COLUMNS, start_ms, end_ms
     )
@@ -571,6 +578,8 @@ def main() -> int:
     p.add_argument("--start", help="Window start (ISO-8601 or epoch seconds/ms).")
     p.add_argument("--end", help="Window end, exclusive (ISO-8601 or epoch seconds/ms).")
     p.add_argument("--chunk-rows", type=int, default=DEFAULT_CHUNK_ROWS)
+    p.add_argument("--db", help="SQLite ticker history database; defaults to bitcoin/bpi/history.sqlite3")
+    p.add_argument("--orderbook-db", help="SQLite order-book database; defaults to bitcoin/bpi/orderbooks.sqlite3")
     p.add_argument("--self-test", action="store_true")
     args = p.parse_args()
     if args.self_test:
@@ -579,7 +588,14 @@ def main() -> int:
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     start_ms = parse_time(args.start, hour_floor_ms(now_ms))
     end_ms = parse_time(args.end, now_ms)
-    result = finalize(Path(args.root).resolve(), start_ms, end_ms, args.chunk_rows)
+    result = finalize(
+        Path(args.root).resolve(),
+        start_ms,
+        end_ms,
+        args.chunk_rows,
+        db_path=Path(args.db).resolve() if args.db else None,
+        orderbook_db=Path(args.orderbook_db).resolve() if args.orderbook_db else None,
+    )
     print(json.dumps(result, indent=2))
     return 0
 
