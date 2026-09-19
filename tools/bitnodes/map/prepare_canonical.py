@@ -111,20 +111,48 @@ def first_usable(paths: list[Path]) -> Path|None:
 
 
 def discover(repo_root: Path, include_original: bool=False) -> list[tuple[str,Path]]:
+    """Resolve one canonical node source in strict priority order.
+
+    ``zzxbitnodes`` is the public/default identity backed by btcnodes.io. The
+    raw ``btcnodes`` namespace is only an alias fallback for older/incomplete
+    runs and must never be merged with zzxbitnodes as a second independent
+    datasource. ``originalbitnodes`` is the independent Addy Yeow-style
+    crawler and is used only when the primary mirror cannot provide nodes.
+    """
     api=repo_root/'bitcoin'/'bitnodes'/'api'; snapshot=api/'snapshots'/'latest.json'
-    inputs=[]
-    zzx=first_usable([api/'enriched'/'zzxbitnodes'/'latest.geo.json',api/'enriched'/'zzxbitnodes'/'latest.json',api/'zzxbitnodes'/'latest.json'])
-    if zzx: inputs.append(('zzxbitnodes',zzx))
-    btc=first_usable([api/'enriched'/'btcnodes'/'latest.geo.json',api/'enriched'/'btcnodes'/'latest.json',api/'btcnodes'/'normalized'/'latest.json',api/'btcnodes'/'latest.json'])
-    if btc: inputs.append(('btcnodes.io',btc))
-    if not inputs and usable(snapshot)[0]: inputs.append(('published-snapshot-fallback',snapshot))
-    if not inputs:
-        data=first_usable([api/'data'/'latest.json',api/'latest.json'])
-        if data: inputs.append(('published-data-fallback',data))
-    if include_original:
-        original=first_usable([api/'enriched'/'originalbitnodes'/'latest.geo.json',api/'enriched'/'originalbitnodes'/'latest.json',api/'originalbitnodes'/'latest.json'])
-        if original: inputs.append(('originalbitnodes-compat',original))
-    return inputs
+
+    zzx=first_usable([
+        api/'enriched'/'zzxbitnodes'/'latest.geo.json',
+        api/'enriched'/'zzxbitnodes'/'latest.json',
+        api/'zzxbitnodes'/'latest.json',
+    ])
+    if zzx:
+        return [('zzxbitnodes',zzx)]
+
+    btc=first_usable([
+        api/'enriched'/'btcnodes'/'latest.geo.json',
+        api/'enriched'/'btcnodes'/'latest.json',
+        api/'btcnodes'/'normalized'/'latest.json',
+        api/'btcnodes'/'latest.json',
+    ])
+    if btc:
+        return [('zzxbitnodes-btcnodes-alias',btc)]
+
+    original=first_usable([
+        api/'enriched'/'originalbitnodes'/'latest.geo.json',
+        api/'enriched'/'originalbitnodes'/'latest.json',
+        api/'originalbitnodes'/'latest.json',
+    ])
+    if original:
+        return [('originalbitnodes-fallback',original)]
+
+    if usable(snapshot)[0]:
+        return [('published-snapshot-fallback',snapshot)]
+
+    data=first_usable([api/'data'/'latest.json',api/'latest.json'])
+    if data:
+        return [('published-data-fallback',data)]
+    return []
 
 
 def geo_counts(payload: Mapping[str,Any]) -> dict[str,int]:
