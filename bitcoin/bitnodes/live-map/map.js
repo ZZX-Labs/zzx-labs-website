@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const state = { map: null, layer: null, vectors: null, settings: null, theme: null, filter: "all" };
+    const state = { map: null, layer: null, vectors: null, settings: null, theme: null, filter: "all", fallbackCanvas: false };
 
     function qs(selector, scope = document) { return scope.querySelector(selector); }
     function qsa(selector, scope = document) { return Array.from(scope.querySelectorAll(selector)); }
@@ -117,8 +117,72 @@
         `).join("");
     }
 
+
+    function renderFallbackCanvas() {
+        const root = qs("[data-map-root]");
+        if (!root || !state.vectors) return;
+
+        root.classList.add("bn-map-canvas-fallback");
+        let canvas = root.querySelector("canvas[data-bn-map-fallback]");
+        if (!canvas) {
+            root.replaceChildren();
+            canvas = document.createElement("canvas");
+            canvas.dataset.bnMapFallback = "1";
+            root.appendChild(canvas);
+        }
+
+        const rect = root.getBoundingClientRect();
+        const width = Math.max(320, Math.floor(rect.width || root.clientWidth || 1200));
+        const height = Math.max(360, Math.floor(rect.height || root.clientHeight || 720));
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bn-map-background").trim() || "#050705";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.strokeStyle = "rgba(192,214,116,0.08)";
+        for (let lon = -180; lon <= 180; lon += 30) {
+            const x = ((lon + 180) / 360) * width;
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+        }
+        for (let lat = -60; lat <= 60; lat += 30) {
+            const y = ((90 - lat) / 180) * height;
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+        }
+
+        const points = filteredPoints();
+        for (const point of points) {
+            const lat = Number(point.latitude ?? point.lat);
+            const lon = Number(point.longitude ?? point.lon ?? point.lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+            const x = ((lon + 180) / 360) * width;
+            const y = ((90 - lat) / 180) * height;
+            const r = Math.max(1.5, Math.min(5, radius(point) * 0.35));
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = point.color || point.marker_color || "#c0d674";
+            ctx.globalAlpha = 0.78;
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        state.fallbackCanvas = true;
+        renderHud();
+        renderLegend();
+        setStatus(`Leaflet/tile service unavailable; rendered ${points.length.toLocaleString()} local node points using the offline canvas fallback.`);
+    }
+
     function renderPoints() {
-        if (!state.map || !window.L) return;
+        if (!state.map || !window.L) {
+            renderFallbackCanvas();
+            return;
+        }
         if (state.layer) state.layer.remove();
 
         state.layer = window.L.layerGroup();
@@ -157,13 +221,33 @@
         });
 
         qs("[data-map-reset]")?.addEventListener("click", () => {
-            state.map.setView([Number(view.latitude || 20), Number(view.longitude || 0)], Number(view.zoom || 2));
+            if (state.map) {
+                state.map.setView([Number(view.latitude || 20), Number(view.longitude || 0)], Number(view.zoom || 2));
+            } else {
+                renderFallbackCanvas();
+            }
         });
     }
 
-    async function init() {
-        await loadLeaflet();
+    function startVectorRefresh() {
+        let busy = false;
+        const refresh = async () => {
+            if (busy || document.hidden) return;
+            busy = true;
+            try {
+                state.vectors = await readJson("./data/map-vectors.json");
+                renderPoints();
+            } catch (error) {
+                console.warn("Live-map vector refresh failed; retaining last-known-good vectors.", error);
+            } finally {
+                busy = false;
+            }
+        };
+        const timer = window.setInterval(refresh, 15000);
+        window.addEventListener("pagehide", () => window.clearInterval(timer), { once: true });
+    }
 
+    async function init() {
         state.settings = await readJson("./data/map-settings.json");
         state.vectors = await readJson("./data/map-vectors.json");
         state.theme = await readJson("./data/map-theme.json").catch(() => null);
@@ -173,6 +257,24 @@
         if (!root) return;
 
         const view = state.settings.initial_view || {};
+        let leafletReady = false;
+        try {
+            await loadLeaflet();
+            leafletReady = Boolean(window.L);
+        } catch (error) {
+            console.warn("Leaflet unavailable; using local canvas map fallback.", error);
+        }
+
+        wireControls(view);
+
+        if (!leafletReady) {
+            renderFallbackCanvas();
+            window.addEventListener("resize", renderFallbackCanvas, { passive: true });
+            window.ZZXBitnodesMap = state;
+            startVectorRefresh();
+            return;
+        }
+
         state.map = window.L.map(root, { preferCanvas: true }).setView(
             [Number(view.latitude || 20), Number(view.longitude || 0)],
             Number(view.zoom || 2)
@@ -185,9 +287,9 @@
             minZoom: Number(view.min_zoom || 2)
         }).addTo(state.map);
 
-        wireControls(view);
         renderPoints();
         window.ZZXBitnodesMap = state;
+        startVectorRefresh();
     }
 
     document.addEventListener("DOMContentLoaded", () => {
