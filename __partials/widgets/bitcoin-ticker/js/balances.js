@@ -1,6 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
+  if(W.ZZXBitcoinTickerNationalBalances){W.ZZXBitcoinTickerBalances=W.ZZXBitcoinTickerNationalBalances;return;}
   if(W.ZZXBitcoinTickerBalances?.__version>=1)return;
 
   const cache={data:null,at:0};
