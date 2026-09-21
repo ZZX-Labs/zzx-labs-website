@@ -18,11 +18,6 @@ on:
         required: false
         default: "3120"
 
-  schedule:
-    # BPI has its own authoritative ZZX-BPI Crawler schedule. This master must
-    # not start a second writer against the same BPI API/archive paths.
-    - cron: "4-59/5 * * * *"
-
 permissions:
   contents: write
 
@@ -42,8 +37,7 @@ jobs:
     name: Bitnodes shared mirror
     if: >-
       ${{
-        (github.event_name == 'workflow_dispatch' && inputs.run_bitnodes) ||
-        github.event.schedule == '4-59/5 * * * *'
+        github.event_name == 'workflow_dispatch' && inputs.run_bitnodes
       }}
     uses: ./.github/workflows/bitnodes-latest.yml
 
