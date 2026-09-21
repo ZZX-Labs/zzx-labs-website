@@ -1,6 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
+  if(W.ZZXBitcoinTickerWidgetModules){W.ZZXBitcoinTickerWidgetBridge=W.ZZXBitcoinTickerWidgetModules;return;}
   if(W.ZZXBitcoinTickerWidgetBridge?.__version>=1)return;
 
   const STORAGE="zzx.widget.bitcoin-ticker.widget-visibility.v1";
