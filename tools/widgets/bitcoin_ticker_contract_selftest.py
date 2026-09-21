@@ -36,10 +36,20 @@ REQUIRED_HOOKS = {
 
 REQUIRED_MODULE_GLOBALS = {
     "ZZXBitcoinTickerConstants", "ZZXBitcoinTickerDeps", "ZZXBitcoinTickerFetch",
-    "ZZXBitcoinTickerFX", "ZZXBitcoinTickerSelection", "ZZXBitcoinTickerUnits",
-    "ZZXBitcoinTickerReferences", "ZZXBitcoinTickerDebts",
-    "ZZXBitcoinTickerBalances", "ZZXBitcoinTickerPanels",
-    "ZZXBitcoinTickerWidgetBridge", "ZZXBitcoinTickerCharts",
+    "ZZXBitcoinTickerSelection", "ZZXBitcoinTickerUnits",
+    "ZZXBitcoinTickerExchangeRates", "ZZXBitcoinTickerExchanges",
+    "ZZXBitcoinTickerPurchasingPowerRegistry", "ZZXBitcoinTickerPurchasingPower",
+    "ZZXBitcoinTickerNationalDebts", "ZZXBitcoinTickerNationalBalances",
+    "ZZXBitcoinTickerPanels", "ZZXBitcoinTickerWidgetModules",
+    "ZZXBitcoinTickerCharts",
+}
+
+LEGACY_MODULE_ALIASES = {
+    "ZZXBitcoinTickerFX": "exchange-rates.js",
+    "ZZXBitcoinTickerReferences": "purchasing-power.js",
+    "ZZXBitcoinTickerDebts": "national-debts.js",
+    "ZZXBitcoinTickerBalances": "national-balances.js",
+    "ZZXBitcoinTickerWidgetBridge": "widget-modules.js",
 }
 
 REQUIRED_CONSUMERS = {
@@ -65,7 +75,7 @@ def main() -> int:
     css = text(TICKER / "widget.css")
     main_js = text(TICKER / "widget.js")
     selection = text(TICKER / "js" / "selection.js")
-    bridge = text(TICKER / "js" / "widget-bridge.js")
+    bridge = text(TICKER / "js" / "widget-modules.js")
     constants = text(TICKER / "js" / "constants.js")
 
     hooks = set(re.findall(r"data-[A-Za-z0-9_-]+", html))
@@ -80,6 +90,18 @@ def main() -> int:
     for global_name in REQUIRED_MODULE_GLOBALS:
         require(global_name in all_js, f"missing module global {global_name}")
         require(global_name in main_js, f"main loader no longer references {global_name}")
+
+    for global_name, module_name in LEGACY_MODULE_ALIASES.items():
+        module_text = text(TICKER / "js" / module_name)
+        require(global_name in module_text, f"legacy alias missing: {global_name}")
+
+    pp_dir = TICKER / "js" / "purchasing-power"
+    category_files = sorted(
+        p for p in pp_dir.glob("*.js") if p.name != "registry.js"
+    )
+    require(len(category_files) == 16, f"expected 16 purchasing-power category modules, got {len(category_files)}")
+    require("renderFx" not in text(TICKER / "js" / "panels.js"), "panels.js still owns exchange-rate rendering")
+    require("renderExchanges" not in text(TICKER / "js" / "panels.js"), "panels.js still owns exchange rendering")
 
     for token in [
         "ZZXBPISelection", "ZZXSelectedBPI", "zzx:bpi-selection",
