@@ -5,24 +5,44 @@ run-name: >-
 
 on:
   schedule:
-    # Redundant GitHub-hosted capture. The production server collector is resident.
-    - cron: "0 * * * *"
+    # GitHub-hosted continuity/checkpoint tier. Each collector runs for longer
+    # than the five-minute launch cadence so adjacent runs overlap instead of
+    # creating deliberate acquisition holes. The resident systemd service is
+    # still the authoritative 2.5-second 24/7 collector.
+    - cron: "*/5 * * * *"
 
   workflow_dispatch:
     inputs:
       capture_seconds:
-        description: "Live BTC exchange price/volume collection window for this hourly run"
+        description: "Overlapping live BTC price/volume capture window"
         required: false
-        default: "3120"
+        default: "480"
         type: string
+      poll_cycle_ms:
+        description: "GitHub fallback poll cycle; resident service remains 2500 ms"
+        required: false
+        default: "10000"
+        type: string
+      run_archive_checkpoint:
+        description: "Also run the legacy full archive/reference checkpoint"
+        required: false
+        default: false
+        type: boolean
 
   workflow_call:
     inputs:
       capture_seconds:
-        description: "Live BTC exchange price/volume collection window for this hourly run"
         required: false
         type: string
-        default: "3120"
+        default: "480"
+      poll_cycle_ms:
+        required: false
+        type: string
+        default: "10000"
+      run_archive_checkpoint:
+        required: false
+        type: boolean
+        default: false
     secrets:
       BPI_MARIADB_HOST:
         required: false
@@ -42,18 +62,140 @@ on:
 permissions:
   contents: write
 
-# One authoritative GitHub fallback capture at a time. Do not cancel a run that
-# already contains observations that have not yet been sharded/published.
-concurrency:
-  group: zzx-bpi-crawler
-  cancel-in-progress: false
+# Deliberately no workflow-level concurrency lock: overlapping collectors are
+# the continuity mechanism. bpi_live_publish.py makes publication monotonic and
+# merges history-live buckets on every push retry so an older runner cannot
+# regress the public state.
 
 jobs:
   live_market:
     name: Continuous BTC Price + Volume Fallback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    env:
+      PYTHONUNBUFFERED: "1"
+      BPI_CAPTURE_SECONDS: ${{ inputs.capture_seconds || '480' }}
+      BPI_POLL_CYCLE_MS: ${{ inputs.poll_cycle_ms || '10000' }}
+
+    steps:
+      - name: Checkout newest main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Sync main before live capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if git fetch --prune origin main; then
+              git reset --hard origin/main
+              git clean -fdx
+              exit 0
+            fi
+            printf '%s\n' "git fetch attempt ${attempt}/5 failed; retrying"
+            sleep "$(( attempt * 2 ))"
+          done
+          exit 1
+
+      - name: Validate continuous BPI stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            tools/bpi/collector.py \
+            tools/bpi/history_store.py \
+            tools/bpi/bpi_index_engine.py \
+            tools/bpi/index_sanity.py \
+            tools/bpi/bpi_live_publish.py
+          python tools/bpi/bpi_live_publish.py --self-test
+          python tools/bpi/bpi_continuity_selftest.py
+          python tools/bpi/workflow_contract_selftest.py
+          python -m json.tool tools/bpi/collector-config.json >/dev/null
+          python -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
+          python -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+
+      - name: Run overlapping live price and volume collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/bpi/collector.py \
+            --root . \
+            --duration-seconds "${BPI_CAPTURE_SECONDS}" \
+            --cycle-ms "${BPI_POLL_CYCLE_MS}" \
+            --market-stale-after-ms 60000 \
+            --status-file bitcoin/bpi/api/collector_run_status.json
+
+      - name: Validate fresh live BPI output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, math, time
+          from datetime import datetime
+          from pathlib import Path
+
+          api=Path('bitcoin/bpi/api')
+          required=('latest.json','markets.json','provider_health.json','history-live.json','collector_run_status.json')
+          for name in required:
+              p=api/name
+              if not p.is_file() or p.stat().st_size <= 0:
+                  raise SystemExit(f'missing live BPI output: {p}')
+              json.loads(p.read_text(encoding='utf-8'))
+
+          latest=json.loads((api/'latest.json').read_text(encoding='utf-8'))
+          price=latest.get('price_usd') or latest.get('bpi_usd') or latest.get('global_bpi_usd')
+          try: price=float(price)
+          except Exception: price=float('nan')
+          if not math.isfinite(price) or price <= 0:
+              raise SystemExit(f'live BPI price is invalid: {price!r}')
+
+          markets=json.loads((api/'markets.json').read_text(encoding='utf-8')).get('markets') or []
+          good=[m for m in markets if isinstance(m,dict) and m.get('price_usd') is not None and m.get('volume_24h_btc') is not None]
+          if len(good) < 2:
+              raise SystemExit(f'insufficient live price+volume markets: {len(good)}')
+
+          status=json.loads((api/'collector_run_status.json').read_text(encoding='utf-8'))
+          if int(status.get('cycles') or 0) < 2:
+              raise SystemExit(f'collector completed too few cycles: {status}')
+          if int(status.get('provider_health_rows') or 0) < 1:
+              raise SystemExit(f'collector produced no provider health rows: {status}')
+
+          stamp=str(latest.get('updated_at') or '').replace('Z','+00:00')
+          try: age=time.time()-datetime.fromisoformat(stamp).timestamp()
+          except Exception as exc: raise SystemExit(f'invalid latest updated_at: {exc}')
+          if age > 120:
+              raise SystemExit(f'latest BPI state is stale at validation: age={age:.1f}s')
+
+          print('live BPI validation:', 'markets=',len(good),'cycles=',status.get('cycles'),'price_usd=',price)
+          PY
+
+      - name: Publish monotonic live BPI checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-bpi-live-bot"
+          git config user.email "actions@github.com"
+          python tools/bpi/bpi_live_publish.py \
+            --root . \
+            --message "Update continuous live BPI checkpoint" \
+            --attempts 6 \
+            --sleep-seconds 3 \
+            --keep-history 1440
+
+  archive_checkpoint:
+    name: Optional Full BPI Archive Checkpoint
+    needs: [live_market]
+    if: ${{ inputs.run_archive_checkpoint == true }}
     uses: ./.github/workflows/bpi-latest.yml
     with:
-      capture_seconds: ${{ inputs.capture_seconds || '3120' }}
+      capture_seconds: ${{ inputs.capture_seconds || '480' }}
     secrets:
       BPI_MARIADB_HOST: ${{ secrets.BPI_MARIADB_HOST }}
       BPI_MARIADB_PORT: ${{ secrets.BPI_MARIADB_PORT }}
@@ -68,18 +210,29 @@ jobs:
     if: ${{ always() }}
     needs:
       - live_market
+      - archive_checkpoint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Report authoritative BPI result
+      - name: Report BPI continuity result
         shell: bash
         env:
-          LIVE_MARKET_RESULT: ${{ needs.live_market.result }}
+          LIVE_RESULT: ${{ needs.live_market.result }}
+          ARCHIVE_RESULT: ${{ needs.archive_checkpoint.result }}
         run: |
           set -euo pipefail
-          printf '%s\n' "ZZX-BPI authoritative hourly result=${LIVE_MARKET_RESULT}"
-          if [ "${LIVE_MARKET_RESULT}" != "success" ]; then
-            printf '%s\n' "Critical BPI live-market fallback did not complete successfully."
+          printf '%s\n' \
+            "ZZX-BPI continuity result" \
+            "live_market=${LIVE_RESULT:-unknown}" \
+            "archive_checkpoint=${ARCHIVE_RESULT:-skipped}"
+          if [ "${LIVE_RESULT:-unknown}" != "success" ]; then
+            printf '%s\n' "::error title=BPI continuity failure::live_market=${LIVE_RESULT:-unknown}"
             exit 1
           fi
-          printf '%s\n' "BPI live-market capture/finalization/publication completed successfully."
+          case "${ARCHIVE_RESULT:-skipped}" in
+            success|skipped) ;;
+            *)
+              printf '%s\n' "::warning title=BPI archive checkpoint::optional archive checkpoint result=${ARCHIVE_RESULT}"
+              ;;
+          esac
+          printf '%s\n' "Overlapping live price/volume capture and monotonic publication completed successfully."
