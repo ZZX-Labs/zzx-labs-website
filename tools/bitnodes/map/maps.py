@@ -1173,6 +1173,9 @@ def render_index_html(title: str, depth: str = "..") -> str:
 
 
 def render_map_css() -> str:
+    asset = Path(__file__).resolve().parent / "assets" / "map.css"
+    if asset.is_file():
+        return asset.read_text(encoding="utf-8")
     return """:root {
     --bn-map-background: #050705;
     --bn-map-panel: #080b08;
@@ -1358,6 +1361,9 @@ def render_map_css() -> str:
 
 
 def render_map_js() -> str:
+    asset = Path(__file__).resolve().parent / "assets" / "map.js"
+    if asset.is_file():
+        return asset.read_text(encoding="utf-8")
     return """(() => {
     "use strict";
 
