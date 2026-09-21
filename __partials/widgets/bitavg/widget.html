@@ -2,7 +2,7 @@
 <div class="btc-card bitavg">
   <div class="bitavg__header">
     <div>
-      <div class="btc-card__title">BitAvg · ZZX Global BPI</div>
+      <div class="btc-card__title">BitAvg · BPI Weighting Controller</div>
       <div class="bitavg__eyebrow">all configured BTC/fiat markets · normalized to USD</div>
     </div>
     <span class="btc-card__status" data-bitavg-status data-status="offline" aria-live="polite">loading</span>
@@ -15,12 +15,30 @@
   </div>
 
   <div class="bitavg__weighting">
-    <label class="bitavg__toggle">
-      <input type="checkbox" data-bitavg-weight-toggle checked>
-      <span>Apply 24h BTC-volume weights</span>
-    </label>
-    <span data-bitavg-weight-mode>
-      weighted by global 24h BTC volume
+    <div class="bitavg__weighting-control">
+      <span class="bitavg__weighting-label">weighted price</span>
+
+      <button
+        type="button"
+        class="bitavg__weight-switch"
+        data-bitavg-weight-toggle
+        data-mode="global-bpi"
+        role="slider"
+        aria-label="Bitcoin price weighting mode"
+        aria-valuemin="0"
+        aria-valuemax="2"
+        aria-valuenow="2"
+        aria-valuetext="Global BPI weighted"
+        aria-orientation="horizontal"
+      >
+        <span data-bitavg-weight-choice="off">OFF</span>
+        <span data-bitavg-weight-choice="bpi">BPI</span>
+        <span data-bitavg-weight-choice="global-bpi">GLOBAL</span>
+      </button>
+    </div>
+
+    <span class="bitavg__weighting-summary" data-bitavg-weight-mode>
+      Global BPI weighted by sane eligible 24h BTC volume
     </span>
   </div>
 
