@@ -1,6 +1,7 @@
 (function(){
   "use strict";
   const W=window;
+  if(W.ZZXBitcoinTickerExchangeRates){W.ZZXBitcoinTickerFX=W.ZZXBitcoinTickerExchangeRates;return;}
   if(W.ZZXBitcoinTickerFX?.__version>=5)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
