@@ -2,22 +2,39 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXBitAvgPublisher?.__version>=7)return;
+  if(W.ZZXBitAvgPublisher?.__version>=8)return;
 
   const CHANNEL="zzx:bpi:update";
   const PROVIDER_ID="bitavg";
   const MODE_ID="global-bpi";
 
   function snapshot(model,transport,stale){
+    const globalPrice=
+      model.globalWeightsEnabled
+        ? model.weightedBpi
+        : model.unweightedBpi;
+
     return Object.freeze({
       provider:PROVIDER_ID,
       mode:MODE_ID,
       label:"Global BPI",
-      price_usd:Number(model.bpi),
+      price_usd:Number(globalPrice),
       weighted_price_usd:Number(model.weightedBpi),
       unweighted_price_usd:Number(model.unweightedBpi),
+      bpi_weighted_price_usd:Number(model.canonicalBpiWeighted),
+      bpi_unweighted_price_usd:Number(model.canonicalBpiUnweighted),
+      weighting_mode:String(model.weightingMode||"off"),
+      weighting_target:
+        model.weightingMode==="off"
+          ? null
+          : String(model.weightingMode),
       weights_enabled:!!model.weightsEnabled,
-      method:model.method,
+      global_weights_enabled:!!model.globalWeightsEnabled,
+      bpi_weights_enabled:!!model.bpiWeightsEnabled,
+      method:
+        model.globalWeightsEnabled
+          ? model.methodWeighted
+          : model.methodUnweighted,
       method_weighted:model.methodWeighted,
       method_unweighted:model.methodUnweighted,
       exchange_count:model.exchanges.length,
@@ -56,7 +73,7 @@
   }
 
   W.ZZXBitAvgPublisher=Object.freeze({
-    __version:7,
+    __version:8,
     channel:CHANNEL,
     providerId:PROVIDER_ID,
     modeId:MODE_ID,
