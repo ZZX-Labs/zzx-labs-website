@@ -1,10 +1,60 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerSelection?.__version>=6)return;
+  if(W.ZZXBitcoinTickerSelection?.__version>=7)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
+
+  function weightingMode(){
+    const controlled=
+      W.ZZXBPIWeightingController?.getMode?.();
+
+    if(
+      controlled==="off" ||
+      controlled==="bpi" ||
+      controlled==="global-bpi"
+    ){
+      return controlled;
+    }
+
+    const published=
+      W.ZZXBPIWeighting?.mode;
+
+    if(
+      published==="off" ||
+      published==="bpi" ||
+      published==="global-bpi"
+    ){
+      return published;
+    }
+
+    try{
+      const modern=
+        W.localStorage.getItem(
+          "zzx.bpi.weighting.mode.v2"
+        );
+
+      if(
+        modern==="off" ||
+        modern==="bpi" ||
+        modern==="global-bpi"
+      ){
+        return modern;
+      }
+
+      const legacy=
+        W.localStorage.getItem(
+          "zzx.bpi.weights.enabled.v1"
+        );
+
+      return legacy==="false"
+        ? "off"
+        : "global-bpi";
+    }catch(_){
+      return "global-bpi";
+    }
+  }
 
   function median(values){
     const rows=values.filter(Number.isFinite).slice().sort((a,b)=>a-b);
@@ -141,49 +191,144 @@
     return out;
   }
 
-  function canonicalBpi(latest){
-    const p=positive(
-      latest?.price_usd ??
-      latest?.btc_usd ??
-      latest?.bpi_usd ??
-      latest?.weighted_average?.price_usd
+  function canonicalUnweighted(config){
+    const latest=config?.latest;
+    const rows=
+      latest?.exchanges &&
+      typeof latest.exchanges==="object"
+        ? Object.entries(latest.exchanges)
+        : [];
+
+    const prices=[];
+
+    for(const [id,row] of rows){
+      const policy=
+        config?.exchangesData?.sources?.[id]||{};
+
+      if(policy.include_in_bpi===false)continue;
+      if(!exchangeEligible(config,id,row))continue;
+
+      const price=positive(
+        row?.raw_price_usd ??
+        row?.price_usd
+      );
+
+      if(Number.isFinite(price)){
+        prices.push(price);
+      }
+    }
+
+    if(prices.length){
+      return prices.reduce(
+        (sum,price)=>sum+price,
+        0
+      )/prices.length;
+    }
+
+    return positive(
+      W.ZZXGlobalBPI?.bpi_unweighted_price_usd ??
+      W.ZZXBitAvgLatest?.canonical_bpi_unweighted_usd
     );
+  }
+
+  function canonicalBpi(config){
+    const latest=config?.latest;
+    const mode=weightingMode();
+    const unweighted=canonicalUnweighted(config);
+    const weighted=positive(
+      latest?.weighted_average?.price_usd ??
+      latest?.weighted_average?.vwap_usd ??
+      W.ZZXGlobalBPI?.bpi_weighted_price_usd ??
+      W.ZZXBitAvgLatest?.canonical_bpi_weighted_usd ??
+      latest?.price_usd ??
+      latest?.bpi_usd
+    );
+
+    const p=
+      mode==="bpi" && Number.isFinite(weighted)
+        ? weighted
+        : Number.isFinite(unweighted)
+          ? unweighted
+          : positive(
+              latest?.price_usd ??
+              latest?.btc_usd ??
+              latest?.bpi_usd
+            );
+
     if(!Number.isFinite(p))return null;
+
+    const weightingApplied=mode==="bpi";
 
     return {
       sourceId:"bpi",
       sourceType:"bpi",
-      label:"BPI",
+      label:weightingApplied?"BPI · weighted":"BPI · unweighted",
       priceUsd:p,
       highUsd:finite(latest?.high_24h),
       lowUsd:finite(latest?.low_24h),
       volumeBtc:finite(latest?.volume_24h_btc),
       timestamp:latest?.updated_at||null,
-      mode:String(latest?.mode||"bpi")
+      mode:weightingApplied
+        ? "bpi_24h_btc_volume_weighted"
+        : "bpi_unweighted_arithmetic_mean",
+      weightingMode:mode,
+      weightingApplied,
+      weightedPriceUsd:weighted,
+      unweightedPriceUsd:unweighted
     };
   }
 
   function globalBpi(latest){
     const published=W.ZZXGlobalBPI;
-    const p=positive(
-      published?.price_usd ??
+    const mode=weightingMode();
+
+    const weighted=positive(
+      published?.weighted_price_usd ??
+      latest?.global_bpi?.vwap_usd ??
       latest?.global_bpi?.price_usd ??
-      latest?.global_bpi_usd ??
-      latest?.vwap_usd ??
-      latest?.bpi_usd
+      latest?.vwap_usd
     );
+
+    const unweighted=positive(
+      published?.unweighted_price_usd ??
+      W.ZZXBitAvgLatest?.unweighted_bpi_usd
+    );
+
+    const p=
+      mode==="global-bpi" && Number.isFinite(weighted)
+        ? weighted
+        : Number.isFinite(unweighted)
+          ? unweighted
+          : positive(
+              published?.price_usd ??
+              latest?.global_bpi?.price_usd ??
+              latest?.global_bpi_usd ??
+              latest?.vwap_usd ??
+              latest?.bpi_usd
+            );
+
     if(!Number.isFinite(p))return null;
+
+    const weightingApplied=mode==="global-bpi";
 
     return {
       sourceId:"global-bpi",
       sourceType:"global-bpi",
-      label:"Global BPI",
+      label:weightingApplied
+        ? "Global BPI · weighted"
+        : "Global BPI · unweighted",
       priceUsd:p,
       highUsd:finite(latest?.global_bpi?.high_24h??latest?.high_24h),
       lowUsd:finite(latest?.global_bpi?.low_24h??latest?.low_24h),
       volumeBtc:finite(published?.volume_24h_btc??latest?.volume_24h_btc),
       timestamp:published?.updated_at??latest?.global_bpi?.updated_at??latest?.updated_at??null,
-      mode:String(published?.method??latest?.global_bpi?.method??"bitavg-global-bpi")
+      mode:weightingApplied
+        ? String(published?.method_weighted??"bitavg_global_24h_btc_volume_weighted")
+        : String(published?.method_unweighted??"global_unweighted_arithmetic_mean"),
+      weightingMode:mode,
+      weightingApplied,
+      weightedPriceUsd:weighted,
+      unweightedPriceUsd:unweighted
     };
   }
 
@@ -212,7 +357,7 @@
   function resolve(config,sourceId){
     const id=String(sourceId||"bpi");
 
-    if(id==="bpi")return canonicalBpi(config.latest);
+    if(id==="bpi")return canonicalBpi(config);
     if(id==="global-bpi")return globalBpi(config.latest);
 
     if(id.startsWith("exchange:")){
@@ -220,7 +365,7 @@
       return exchangeQuote(config.latest,ex,exchangeMap(config).get(ex)?.label,config);
     }
 
-    return canonicalBpi(config.latest);
+    return canonicalBpi(config);
   }
 
   function publish(selection){
@@ -241,7 +386,9 @@
   }
 
   W.ZZXBitcoinTickerSelection=Object.freeze({
-    __version:6,
+    __version:7,
+    weightingMode,
+    canonicalUnweighted,
     exchangeMap,
     exchangeEligible,
     localConsensus,
