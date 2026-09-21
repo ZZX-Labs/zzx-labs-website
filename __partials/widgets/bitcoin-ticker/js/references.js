@@ -1,6 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
+  if(W.ZZXBitcoinTickerPurchasingPower){W.ZZXBitcoinTickerReferences=W.ZZXBitcoinTickerPurchasingPower;return;}
   if(W.ZZXBitcoinTickerReferences?.__version>=7)return;
 
   const C=()=>W.ZZXBitcoinTickerConstants;
