@@ -5,39 +5,44 @@ run-name: >-
 
 on:
   schedule:
-    # Redundant continuous acquisition windows. Each normal collector runs long
-    # enough to overlap the next 15-minute launch, eliminating deliberate gaps.
-    - cron: "*/15 * * * *"
-    # One deeper discovery window each day runs in parallel with normal coverage.
+    # Fast public node-snapshot checkpoint. The resident daemon polls continuously;
+    # GitHub can only provide a checkpoint/fallback cadence, not hard real-time SLA.
+    - cron: "*/5 * * * *"
+    # Map publication is intentionally decoupled from the fast snapshot path.
+    - cron: "2,17,32,47 * * * *"
+    # Daily deeper independent Addy Yeow-style crawl.
     - cron: "7 3 * * *"
 
   workflow_dispatch:
     inputs:
       crawl_profile:
-        description: "Global crawler profile"
+        description: "Original crawler profile when the fallback/deep crawler is requested"
         required: false
         default: "hourly"
         type: choice
-        options:
-          - hourly
-          - deep
+        options: [hourly, deep]
       run_ayeowch_compat:
-        description: "Run optional Ayeowch compatibility crawler after production publication"
+        description: "Also run the independent original Bitnodes-compatible crawler"
         required: false
         default: false
         type: boolean
+      build_maps:
+        description: "Build maps/live-map after the fresh snapshot"
+        required: false
+        default: true
+        type: boolean
       map_max_points:
-        description: "Maximum real-coordinate node points published to each public map"
+        description: "Maximum real-coordinate node points published to maps"
         required: false
         default: "5000"
         type: string
       include_ayeowch_map:
-        description: "Build optional Ayeowch compatibility map when a real-coordinate snapshot exists"
+        description: "Build originalbitnodes compatibility map when available"
         required: false
         default: false
         type: boolean
       enable_registry_backup:
-        description: "Attempt private zzxbitnodesglobalregistry backup after the public crawler succeeds"
+        description: "Attempt private registry backup"
         required: false
         default: true
         type: boolean
@@ -45,27 +50,26 @@ on:
   workflow_call:
     inputs:
       crawl_profile:
-        description: "Global crawler profile"
         required: false
         type: string
         default: "hourly"
       run_ayeowch_compat:
-        description: "Run optional Ayeowch compatibility crawler after production publication"
         required: false
         type: boolean
         default: false
+      build_maps:
+        required: false
+        type: boolean
+        default: true
       map_max_points:
-        description: "Maximum real-coordinate node points published to each public map"
         required: false
         type: string
         default: "5000"
       include_ayeowch_map:
-        description: "Build optional Ayeowch compatibility map when a real-coordinate snapshot exists"
         required: false
         type: boolean
         default: false
       enable_registry_backup:
-        description: "Attempt private registry backup"
         required: false
         type: boolean
         default: true
@@ -82,10 +86,6 @@ on:
 permissions:
   contents: write
 
-# Do not serialize acquisition runs. Overlapping scheduled collectors provide
-# coverage when GitHub starts a run late or one runner encounters a transient
-# network fault. Publication itself is race-safe/retry-based downstream.
-
 jobs:
   plan:
     name: Resolve Bitnodes Crawl Plan
@@ -93,79 +93,114 @@ jobs:
     timeout-minutes: 5
     outputs:
       crawl_profile: ${{ steps.plan.outputs.crawl_profile }}
+      run_original: ${{ steps.plan.outputs.run_original }}
+      build_maps: ${{ steps.plan.outputs.build_maps }}
+      backup_registry: ${{ steps.plan.outputs.backup_registry }}
     steps:
-      - name: Resolve hourly or deep profile
+      - name: Resolve fast, map, deep and manual paths
         id: plan
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule || '' }}
           INPUT_PROFILE: ${{ inputs.crawl_profile || 'hourly' }}
+          INPUT_ORIGINAL: ${{ inputs.run_ayeowch_compat || false }}
+          INPUT_MAPS: ${{ inputs.build_maps || false }}
+          INPUT_BACKUP: ${{ inputs.enable_registry_backup || false }}
         run: |
           set -euo pipefail
 
           PROFILE="${INPUT_PROFILE:-hourly}"
+          RUN_ORIGINAL="${INPUT_ORIGINAL:-false}"
+          BUILD_MAPS="${INPUT_MAPS:-false}"
+          BACKUP_REGISTRY="${INPUT_BACKUP:-false}"
 
           if [ "${EVENT_NAME}" = "schedule" ]; then
             case "${EVENT_SCHEDULE}" in
-              "7 3 * * *") PROFILE="deep" ;;
-              *)            PROFILE="hourly" ;;
+              "*/5 * * * *")
+                PROFILE="hourly"
+                RUN_ORIGINAL="false"
+                BUILD_MAPS="false"
+                BACKUP_REGISTRY="false"
+                ;;
+              "2,17,32,47 * * * *")
+                PROFILE="hourly"
+                RUN_ORIGINAL="false"
+                BUILD_MAPS="true"
+                BACKUP_REGISTRY="false"
+                ;;
+              "7 3 * * *")
+                PROFILE="deep"
+                RUN_ORIGINAL="true"
+                BUILD_MAPS="true"
+                BACKUP_REGISTRY="true"
+                ;;
+              *)
+                printf '%s\n' "::error title=Unknown Bitnodes schedule::${EVENT_SCHEDULE}"
+                exit 1
+                ;;
             esac
           fi
 
-          case "${PROFILE}" in
-            hourly|deep)
-              ;;
-            *)
-              printf '%s\n' \
-                "::error title=Invalid Bitnodes crawl profile::Unsupported profile: ${PROFILE}"
-              exit 1
-              ;;
-          esac
+          case "${PROFILE}" in hourly|deep) ;; *) exit 1 ;; esac
+          case "${RUN_ORIGINAL}" in true|false) ;; *) RUN_ORIGINAL=false ;; esac
+          case "${BUILD_MAPS}" in true|false) ;; *) BUILD_MAPS=false ;; esac
+          case "${BACKUP_REGISTRY}" in true|false) ;; *) BACKUP_REGISTRY=false ;; esac
 
-          printf 'crawl_profile=%s\n' "${PROFILE}" >> "${GITHUB_OUTPUT}"
           printf '%s\n' \
-            "ZZX-Bitnodes crawl plan:" \
-            "  event=${EVENT_NAME}" \
-            "  schedule=${EVENT_SCHEDULE:-manual}" \
-            "  profile=${PROFILE}"
+            "crawl_profile=${PROFILE}" \
+            "run_original=${RUN_ORIGINAL}" \
+            "build_maps=${BUILD_MAPS}" \
+            "backup_registry=${BACKUP_REGISTRY}" >> "${GITHUB_OUTPUT}"
 
-  # Primary/default datasource: btcnodes.io mirrored into the public
-  # zzxbitnodes contract consumed by all existing widgets and subpages.
+          printf '%s\n' \
+            "Bitnodes plan:" \
+            "  profile=${PROFILE}" \
+            "  original=${RUN_ORIGINAL}" \
+            "  maps=${BUILD_MAPS}" \
+            "  registry=${BACKUP_REGISTRY}"
+
   snapshot_mirror:
-    name: ZZX Bitnodes Snapshot (btcnodes.io)
-    needs:
-      - plan
+    name: ZZX Bitnodes Snapshot (btcnodes.io / Bitnodes fallback)
+    needs: [plan]
     uses: ./.github/workflows/bitnodes-latest.yml
 
-  # Secondary/fallback datasource: independent Addy Yeow/Bitnodes-style
-  # crawler. It owns originalbitnodes and never overwrites zzxbitnodes.
   original_crawler:
     name: Original Bitnodes Fallback Crawler
-    needs:
-      - plan
+    needs: [plan, snapshot_mirror]
+    if: >-
+      ${{
+        always() &&
+        needs.plan.result == 'success' &&
+        (
+          needs.snapshot_mirror.result != 'success' ||
+          needs.plan.outputs.run_original == 'true'
+        )
+      }}
     uses: ./.github/workflows/bitnodes-original-crawler.yml
     with:
       crawl_profile: ${{ needs.plan.outputs.crawl_profile }}
 
   map_host:
     name: Bitnodes Map Host (Primary ZZX Snapshot)
-    needs:
-      - snapshot_mirror
-    if: ${{ needs.snapshot_mirror.result == 'success' }}
+    needs: [plan, snapshot_mirror]
+    if: >-
+      ${{
+        needs.plan.outputs.build_maps == 'true' &&
+        needs.snapshot_mirror.result == 'success'
+      }}
     uses: ./.github/workflows/bitnodes-maphost.yml
     with:
       max_points: ${{ inputs.map_max_points || '5000' }}
-      include_ayeowch_compat: true
+      include_ayeowch_compat: ${{ inputs.include_ayeowch_map || false }}
 
   map_host_fallback:
     name: Bitnodes Map Host (Original Fallback)
-    needs:
-      - snapshot_mirror
-      - original_crawler
+    needs: [plan, snapshot_mirror, original_crawler]
     if: >-
       ${{
         always() &&
+        needs.plan.outputs.build_maps == 'true' &&
         needs.snapshot_mirror.result != 'success' &&
         needs.original_crawler.result == 'success'
       }}
@@ -174,19 +209,14 @@ jobs:
       max_points: ${{ inputs.map_max_points || '5000' }}
       include_ayeowch_compat: true
 
-  # Private backup is deliberately outside the public publication gate.
   registry_backup:
     name: Private Bitnodes Registry Backup
-    needs:
-      - snapshot_mirror
+    needs: [plan, snapshot_mirror]
     if: >-
       ${{
         always() &&
         needs.snapshot_mirror.result == 'success' &&
-        (
-          github.event_name == 'schedule' ||
-          inputs.enable_registry_backup == true
-        )
+        needs.plan.outputs.backup_registry == 'true'
       }}
     uses: ./.github/workflows/bitnodes-registry-backup.yml
     secrets:
@@ -196,13 +226,7 @@ jobs:
   wrapper_status:
     name: Bitnodes Wrapper Status
     if: ${{ always() }}
-    needs:
-      - plan
-      - snapshot_mirror
-      - original_crawler
-      - map_host
-      - map_host_fallback
-      - registry_backup
+    needs: [plan, snapshot_mirror, original_crawler, map_host, map_host_fallback, registry_backup]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -216,113 +240,59 @@ jobs:
           MAPHOST_FALLBACK_RESULT: ${{ needs.map_host_fallback.result }}
           REGISTRY_RESULT: ${{ needs.registry_backup.result }}
           REGISTRY_STATUS: ${{ needs.registry_backup.outputs.backup_status }}
+          MAP_REQUIRED: ${{ needs.plan.outputs.build_maps }}
         run: |
           set -euo pipefail
 
           printf '%s\n' \
             "============================================================" \
-            "ZZX-Bitnodes Crawler child workflow results" \
+            "ZZX-Bitnodes Crawler results" \
             "============================================================" \
             "plan=${PLAN_RESULT:-unknown}" \
             "snapshot_mirror=${SNAPSHOT_RESULT:-unknown}" \
-            "original_crawler=${ORIGINAL_RESULT:-unknown}" \
-            "map_host=${MAPHOST_RESULT:-unknown}" \
-            "map_host_fallback=${MAPHOST_FALLBACK_RESULT:-unknown}" \
-            "registry_backup=${REGISTRY_RESULT:-unknown}" \
+            "original_crawler=${ORIGINAL_RESULT:-skipped}" \
+            "map_required=${MAP_REQUIRED:-false}" \
+            "map_host=${MAPHOST_RESULT:-skipped}" \
+            "map_host_fallback=${MAPHOST_FALLBACK_RESULT:-skipped}" \
+            "registry_backup=${REGISTRY_RESULT:-skipped}" \
             "registry_status=${REGISTRY_STATUS:-not-run}" \
             "============================================================"
 
           failed=0
-
           if [ "${PLAN_RESULT:-unknown}" != "success" ]; then
             printf '%s\n' "::error title=Bitnodes planning failed::plan=${PLAN_RESULT:-unknown}"
             failed=1
           fi
 
-          if [ "${SNAPSHOT_RESULT:-unknown}" = "success" ]; then
-            if [ "${MAPHOST_RESULT:-unknown}" != "success" ]; then
-              printf '%s\n' "::error title=Bitnodes map publication failed::primary map_host=${MAPHOST_RESULT:-unknown}"
-              failed=1
-            fi
-          else
-            if [ "${ORIGINAL_RESULT:-unknown}" != "success" ] || [ "${MAPHOST_FALLBACK_RESULT:-unknown}" != "success" ]; then
-              printf '%s\n' "::error title=Bitnodes acquisition unavailable::primary snapshot=${SNAPSHOT_RESULT:-unknown}, original=${ORIGINAL_RESULT:-unknown}, fallback_map=${MAPHOST_FALLBACK_RESULT:-unknown}"
+          # Primary snapshot success is sufficient for the fast five-minute API
+          # path. If it fails, the independent original crawler must succeed.
+          if [ "${SNAPSHOT_RESULT:-unknown}" != "success" ] && [ "${ORIGINAL_RESULT:-unknown}" != "success" ]; then
+            printf '%s\n' "::error title=Bitnodes acquisition unavailable::primary=${SNAPSHOT_RESULT:-unknown}, original=${ORIGINAL_RESULT:-unknown}"
+            failed=1
+          fi
+
+          if [ "${MAP_REQUIRED:-false}" = "true" ]; then
+            if [ "${SNAPSHOT_RESULT:-unknown}" = "success" ]; then
+              if [ "${MAPHOST_RESULT:-unknown}" != "success" ]; then
+                printf '%s\n' "::error title=Bitnodes map publication failed::primary map_host=${MAPHOST_RESULT:-unknown}"
+                failed=1
+              fi
+            elif [ "${MAPHOST_FALLBACK_RESULT:-unknown}" != "success" ]; then
+              printf '%s\n' "::error title=Bitnodes fallback map publication failed::map_host_fallback=${MAPHOST_FALLBACK_RESULT:-unknown}"
               failed=1
             fi
           fi
 
-          case "${ORIGINAL_RESULT:-unknown}" in
-            success)
-              printf '%s\n' "Original Bitnodes fallback crawler completed successfully."
-              ;;
-            skipped)
-              printf '%s\n' "::notice title=Original Bitnodes crawler::Fallback crawler was skipped; zzxbitnodes remains primary."
-              ;;
-            failure|cancelled|*)
-              printf '%s\n' "::warning title=Original Bitnodes crawler::Fallback crawler result=${ORIGINAL_RESULT:-unknown}; primary zzxbitnodes data remains authoritative."
-              ;;
-          esac
-
-          case "${MAPHOST_RESULT:-unknown}" in
-            success)
-              printf '%s\n' "Bitnodes map publication completed successfully."
-              ;;
-            skipped)
-              printf '%s\n' "::notice title=Bitnodes map publication::Map Host was skipped; last-known-good public maps remain available."
-              ;;
-            failure|cancelled|*)
-              printf '%s\n' "::warning title=Bitnodes map publication::Map Host result=${MAPHOST_RESULT:-unknown}. Native node acquisition/history completed independently and last-known-good maps remain available."
-              ;;
-          esac
-
-          # Private registry is a backup sink, not a public production gate.
-          case "${REGISTRY_RESULT:-unknown}" in
-            success)
-              printf '%s\n' "Private Bitnodes registry workflow completed."
-              ;;
-            skipped)
-              printf '%s\n' \
-                "::notice title=Bitnodes private registry::Private registry backup was not required for this run."
-              ;;
-            failure|cancelled)
-              printf '%s\n' \
-                "::warning title=Bitnodes private registry backup::Private registry result=${REGISTRY_RESULT}. Public API, maps, live-map, subpages, and widgets are unaffected."
-              ;;
-            *)
-              printf '%s\n' \
-                "::warning title=Bitnodes private registry backup::Unexpected registry result=${REGISTRY_RESULT:-unknown}. Public publication is unaffected."
-              ;;
-          esac
-
-          case "${REGISTRY_STATUS:-}" in
-            skipped-auth)
-              printf '%s\n' \
-                "::warning title=Bitnodes private registry auth::Registry backup skipped because no usable private-repository credential was available. Public artifacts are unaffected."
-              ;;
-            failed)
-              printf '%s\n' \
-                "::warning title=Bitnodes private registry backup::Registry backup attempted but failed. Public artifacts are unaffected."
-              ;;
-            ""|success|ok|complete|completed)
-              ;;
-            *)
-              printf '%s\n' \
-                "::notice title=Bitnodes private registry::Registry reported status=${REGISTRY_STATUS}."
-              ;;
+          case "${REGISTRY_RESULT:-skipped}" in
+            success|skipped) ;;
+            *) printf '%s\n' "::warning title=Bitnodes private registry::backup result=${REGISTRY_RESULT}; public data is unaffected" ;;
           esac
 
           if (( failed )); then
-            printf '%s\n' \
-              "============================================================" \
-              "ZZX-Bitnodes PUBLIC PIPELINE FAILED" \
-              "Required public chain: plan -> zzxbitnodes snapshot -> Map Host" \
-              "============================================================"
+            printf '%s\n' "ZZX-Bitnodes public pipeline failed."
             exit 1
           fi
 
           printf '%s\n' \
-            "============================================================" \
-            "ZZX-Bitnodes PUBLIC PIPELINE SUCCESSFUL" \
-            "btcnodes.io-backed zzxbitnodes snapshot and public maps completed." \
-            "originalbitnodes remains the independent Addy Yeow-style fallback crawler." \
-            "============================================================"
+            "ZZX-Bitnodes public pipeline successful." \
+            "Fast snapshots are independent from map generation and private backup."
