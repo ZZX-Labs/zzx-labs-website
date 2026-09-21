@@ -1,6 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
+  if(W.ZZXBitcoinTickerNationalDebts){W.ZZXBitcoinTickerDebts=W.ZZXBitcoinTickerNationalDebts;return;}
   if(W.ZZXBitcoinTickerDebts?.__version>=8)return;
 
   const cache={data:null,at:0};
