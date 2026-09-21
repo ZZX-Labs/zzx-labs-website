@@ -95,7 +95,7 @@
       ["ZZXBitcoinTickerConstants","js/constants.js",9],
       ["ZZXBitcoinTickerDeps","js/deps.js",7],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
-      ["ZZXBitcoinTickerSelection","js/selection.js",6],
+      ["ZZXBitcoinTickerSelection","js/selection.js",7],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerExchangeRates","js/exchange-rates.js",1],
       ["ZZXBitcoinTickerExchanges","js/exchanges.js",1],
@@ -288,7 +288,11 @@
       lowUsd:quote.lowUsd,
       volumeBtc:quote.volumeBtc,
       timestamp:quote.timestamp,
-      mode:quote.mode
+      mode:quote.mode,
+      weightingMode:quote.weightingMode||"off",
+      weightingApplied:!!quote.weightingApplied,
+      weightedPriceUsd:quote.weightedPriceUsd,
+      unweightedPriceUsd:quote.unweightedPriceUsd
     });
 
     state.selection=selection;
@@ -407,6 +411,10 @@
           state.config.latest=event.detail;
           W.ZZXBitcoinTickerExchanges.populateSources(root,state.config);
         }
+        refresh(root,state,false);
+      });
+
+      W.addEventListener("zzx:bpi-weighting",()=>{
         refresh(root,state,false);
       });
 
