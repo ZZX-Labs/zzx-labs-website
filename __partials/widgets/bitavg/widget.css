@@ -82,32 +82,180 @@
 }
 
 
+
 .bitavg__weighting{
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(210px,.9fr);
   align-items:center;
-  justify-content:space-between;
-  gap:.65rem;
-  margin-top:.45rem;
-  padding:.38rem .42rem;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:6px;
-  background:rgba(255,255,255,.018);
-  color:var(--bitavg-muted,#b7bf9a);
-  font-size:.62rem;
+  gap:.7rem;
+  margin-top:.5rem;
+  padding:.48rem .52rem;
+  border:1px solid var(--ba-line);
+  border-radius:7px;
+  background:
+    linear-gradient(90deg,rgba(192,214,116,.025),transparent 54%),
+    var(--ba-panel);
 }
-.bitavg__toggle{
+
+.bitavg__weighting-control{
   display:flex;
   align-items:center;
-  gap:.4rem;
+  gap:.52rem;
+  min-width:0;
+}
+
+.bitavg__weighting-label{
+  flex:0 0 auto;
+  color:var(--ba-dim);
+  font-size:.6rem;
+  letter-spacing:.075em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.bitavg__weight-switch{
+  --ba-switch-index:2;
+
+  position:relative;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  width:min(100%,290px);
+  min-width:220px;
+  height:34px;
+  padding:2px;
+  overflow:hidden;
+
+  appearance:none;
+  color:var(--ba-muted);
+  background:#080808;
+  border:1px solid #303030;
+  border-radius:999px;
+  outline:none;
+
+  font:inherit;
+  font-size:.58rem;
+  line-height:1;
+  letter-spacing:.055em;
+  text-transform:uppercase;
   cursor:pointer;
 }
-.bitavg__toggle input{
-  accent-color:var(--bitavg-green,#c0d674);
+
+.bitavg__weight-switch::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  top:2px;
+  bottom:2px;
+  left:2px;
+  width:calc((100% - 4px)/3);
+  border:1px solid rgba(192,214,116,.35);
+  border-radius:999px;
+  background:
+    linear-gradient(180deg,rgba(192,214,116,.10),rgba(192,214,116,.035)),
+    #0d0f0c;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    0 0 10px rgba(192,214,116,.06);
+  transform:translateX(calc(var(--ba-switch-index)*100%));
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
 }
+
+.bitavg__weight-switch[data-mode="off"]{
+  --ba-switch-index:0;
+}
+
+.bitavg__weight-switch[data-mode="bpi"]{
+  --ba-switch-index:1;
+}
+
+.bitavg__weight-switch[data-mode="global-bpi"]{
+  --ba-switch-index:2;
+}
+
+.bitavg__weight-switch[data-mode="off"]::before{
+  border-color:rgba(255,255,255,.16);
+  background:#101010;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.bitavg__weight-switch[data-mode="bpi"]::before{
+  border-color:rgba(230,164,43,.46);
+  background:
+    linear-gradient(180deg,rgba(230,164,43,.10),rgba(230,164,43,.035)),
+    #100e09;
+  box-shadow:0 0 10px rgba(230,164,43,.07);
+}
+
+.bitavg__weight-switch > span{
+  position:relative;
+  z-index:1;
+  display:grid;
+  place-items:center;
+  min-width:0;
+  padding:0 .35rem;
+  color:var(--ba-dim);
+  pointer-events:auto;
+  user-select:none;
+}
+
+.bitavg__weight-switch[data-mode="off"] > [data-bitavg-weight-choice="off"]{
+  color:var(--ba-muted);
+}
+
+.bitavg__weight-switch[data-mode="bpi"] > [data-bitavg-weight-choice="bpi"]{
+  color:var(--ba-gold);
+}
+
+.bitavg__weight-switch[data-mode="global-bpi"] > [data-bitavg-weight-choice="global-bpi"]{
+  color:var(--ba-green);
+}
+
+.bitavg__weight-switch:hover{
+  border-color:#414141;
+}
+
+.bitavg__weight-switch:focus-visible{
+  border-color:var(--ba-gold);
+  outline:2px solid rgba(230,164,43,.18);
+  outline-offset:2px;
+}
+
+.bitavg__weighting-summary{
+  min-width:0;
+  color:var(--ba-muted);
+  font-size:.61rem;
+  line-height:1.4;
+  text-align:right;
+}
+
 @media(max-width:700px){
   .bitavg__weighting{
+    grid-template-columns:1fr;
+    align-items:stretch;
+  }
+
+  .bitavg__weighting-control{
+    justify-content:space-between;
+  }
+
+  .bitavg__weighting-summary{
+    text-align:left;
+  }
+}
+
+@media(max-width:480px){
+  .bitavg__weighting-control{
     align-items:flex-start;
     flex-direction:column;
+  }
+
+  .bitavg__weight-switch{
+    width:100%;
+    min-width:0;
   }
 }
 
