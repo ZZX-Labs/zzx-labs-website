@@ -36,6 +36,33 @@
     if(el){el.textContent=label;el.setAttribute("data-status",state||"offline")}
   }
 
+  const WEIGHT_MODES=Object.freeze(["off","bpi","global-bpi"]);
+
+  function weightIndex(mode){
+    const index=WEIGHT_MODES.indexOf(String(mode||""));
+    return index>=0?index:0;
+  }
+
+  function syncWeightSwitch(root,mode){
+    const control=q(root,"[data-bitavg-weight-toggle]");
+    if(!control)return;
+
+    const normalized=WEIGHT_MODES.includes(String(mode||""))
+      ? String(mode)
+      : "off";
+
+    const labels={
+      off:"Unweighted",
+      bpi:"BPI weighted",
+      "global-bpi":"Global BPI weighted"
+    };
+
+    control.dataset.mode=normalized;
+    control.setAttribute("aria-valuenow",String(weightIndex(normalized)));
+    control.setAttribute("aria-valuetext",labels[normalized]);
+    control.title=`Weighting mode: ${labels[normalized]}`;
+  }
+
   async function ensureModules(core){
     const base=core?.widgetBase
       ? String(
@@ -45,11 +72,12 @@
 
     const modules=[
       ["ZZXBitAvgConstants","js/constants.js",5],
+      ["ZZXBPIWeightingController","js/weighting.js",1],
       ["ZZXBitAvgFetch","js/fetch.js",5],
       ["ZZXBitAvgFX","js/fx.js",5],
-      ["ZZXBitAvgModel","js/model.js",7],
+      ["ZZXBitAvgModel","js/model.js",8],
       ["ZZXBitAvgProvider","js/provider.js",7],
-      ["ZZXBitAvgPublisher","js/publisher.js",7]
+      ["ZZXBitAvgPublisher","js/publisher.js",8]
     ];
 
     for(
@@ -299,24 +327,38 @@
   function render(root,state){
     const m=state.result.model;
 
-    set(root,"[data-bitavg-price]",usd(m.bpi));
+    const weightingMode=String(m.weightingMode||"off");
+
+    const displayPrice=
+      weightingMode==="bpi"
+        ? m.canonicalBpiWeighted
+        : weightingMode==="global-bpi"
+          ? m.weightedBpi
+          : m.unweightedBpi;
+
+    set(root,"[data-bitavg-price]",usd(displayPrice));
+
     set(
       root,
       "[data-bitavg-hero-label]",
-      m.weightsEnabled
-        ? "Global BPI · weighted BTC / USD"
-        : "Global BPI · unweighted BTC / USD"
+      weightingMode==="bpi"
+        ? "BPI · 24h BTC-volume weighted BTC / USD"
+        : weightingMode==="global-bpi"
+          ? "Global BPI · 24h BTC-volume weighted BTC / USD"
+          : "BPI + Global BPI · unweighted price data"
     );
+
     set(
       root,
       "[data-bitavg-weight-mode]",
-      m.weightsEnabled
-        ? `weights ON · ${usd(m.weightedBpi)} weighted · ${usd(m.unweightedBpi)} unweighted`
-        : `weights OFF · ${usd(m.unweightedBpi)} unweighted · ${usd(m.weightedBpi)} weighted`
+      weightingMode==="bpi"
+        ? `BPI weighted · ${usd(m.canonicalBpiWeighted)} · Global stays unweighted ${usd(m.unweightedBpi)}`
+        : weightingMode==="global-bpi"
+          ? `Global BPI weighted · ${usd(m.weightedBpi)} · BPI stays unweighted ${usd(m.canonicalBpiUnweighted)}`
+          : `weights OFF · BPI ${usd(m.canonicalBpiUnweighted)} · Global ${usd(m.unweightedBpi)}`
     );
 
-    const weightToggle=q(root,"[data-bitavg-weight-toggle]");
-    if(weightToggle)weightToggle.checked=!!m.weightsEnabled;
+    syncWeightSwitch(root,weightingMode);
     set(root,"[data-bitavg-exchanges]",String(m.exchanges.length));
     set(root,"[data-bitavg-currencies]",String(m.currencies.length));
     set(
@@ -390,11 +432,20 @@
     renderRows(root,state);
 
     W.ZZXBitAvgLatest={
-      bpi_usd:m.bpi,
+      bpi_usd:m.globalBpi,
       weighted_bpi_usd:m.weightedBpi,
       unweighted_bpi_usd:m.unweightedBpi,
+      canonical_bpi_weighted_usd:m.canonicalBpiWeighted,
+      canonical_bpi_unweighted_usd:m.canonicalBpiUnweighted,
+      weighting_mode:m.weightingMode,
       weights_enabled:!!m.weightsEnabled,
-      method:m.method,
+      bpi_weights_enabled:!!m.bpiWeightsEnabled,
+      global_weights_enabled:!!m.globalWeightsEnabled,
+      method:
+        m.globalWeightsEnabled
+          ? m.methodWeighted
+          : m.methodUnweighted,
+      active_method:m.method,
       exchanges:m.exchanges.length,
       currencies:[...m.currencies],
       markets:m.markets,
@@ -459,35 +510,53 @@
       if(project&&W.ZZXAPI?.url)project.href=W.ZZXAPI.url(W.ZZXBitAvgConstants.projectPath);
 
       q(root,"[data-bitavg-refresh]")?.addEventListener("click",()=>refresh(root,state));
-      q(root,"[data-bitavg-weight-toggle]")?.addEventListener("change",event=>{
-        const enabled=!!event.currentTarget.checked;
+      const weightControl=q(root,"[data-bitavg-weight-toggle]");
 
-        try{
-          W.localStorage.setItem(
-            "zzx.bpi.weights.enabled.v1",
-            enabled?"true":"false"
+      weightControl?.addEventListener("click",event=>{
+        const direct=
+          event.target?.closest?.("[data-bitavg-weight-choice]");
+
+        if(direct&&weightControl.contains(direct)){
+          W.ZZXBPIWeightingController.setMode(
+            direct.getAttribute("data-bitavg-weight-choice"),
+            "bitavg-switch"
           );
-        }catch(_){}
+          return;
+        }
 
-        try{
-          W.dispatchEvent(
-            new CustomEvent(
-              "zzx:bpi-weighting",
-              {detail:{enabled}}
-            )
-          );
-        }catch(_){}
+        W.ZZXBPIWeightingController.nextMode("bitavg-switch");
+      });
 
-        refresh(root,state);
+      weightControl?.addEventListener("keydown",event=>{
+        let next=null;
+        const current=W.ZZXBPIWeightingController.getMode();
+        const index=weightIndex(current);
+
+        if(event.key==="ArrowLeft"||event.key==="ArrowDown"){
+          next=WEIGHT_MODES[Math.max(0,index-1)];
+        }else if(event.key==="ArrowRight"||event.key==="ArrowUp"){
+          next=WEIGHT_MODES[Math.min(WEIGHT_MODES.length-1,index+1)];
+        }else if(event.key==="Home"){
+          next=WEIGHT_MODES[0];
+        }else if(event.key==="End"){
+          next=WEIGHT_MODES[WEIGHT_MODES.length-1];
+        }
+
+        if(next){
+          event.preventDefault();
+          W.ZZXBPIWeightingController.setMode(next,"bitavg-keyboard");
+        }
       });
 
       W.addEventListener(
         "zzx:bpi-weighting",
         event=>{
-          const toggle=q(root,"[data-bitavg-weight-toggle]");
-          if(toggle&&typeof event?.detail?.enabled==="boolean"){
-            toggle.checked=event.detail.enabled;
-          }
+          const mode=String(
+            event?.detail?.mode ??
+            W.ZZXBPIWeightingController.getMode()
+          );
+
+          syncWeightSwitch(root,mode);
           refresh(root,state);
         }
       );
