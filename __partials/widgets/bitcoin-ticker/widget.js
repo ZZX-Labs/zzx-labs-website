@@ -73,7 +73,7 @@
       : "/__partials/widgets/bitcoin-ticker";
 
     for(const [globalName,relative,minVersion] of [
-      ["ZZXBitcoinTickerConstants","js/constants.js",8],
+      ["ZZXBitcoinTickerConstants","js/constants.js",9],
       ["ZZXBitcoinTickerDeps","js/deps.js",7],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerFX","js/fx.js"],
@@ -137,6 +137,11 @@
 
     state.config={latest,exchangesData,currenciesData,ratesData,symbolsData,fiat,symbols,rates};
     state.configAt=now;
+    if(latest){
+      state.lastGoodLatest=latest;
+      state.lastGoodLatestAt=now;
+      state.lastStaticLatestFetchAt=now;
+    }
     return state.config;
   }
 
@@ -216,10 +221,35 @@
 
   async function render(root,state,force=false){
     const config=await loadConfig(state,force);
-    const staticLatest=await W.ZZXBitcoinTickerFetch.json(W.ZZXBitcoinTickerConstants.endpoints.latest);
+    const C=W.ZZXBitcoinTickerConstants;
+    const now=Date.now();
     const liveLatest=W.ZZXLiveBPI?.snapshot?.();
-    const liveAge=liveLatest?.updated_at?Date.now()-new Date(liveLatest.updated_at).getTime():Infinity;
-    config.latest=(liveLatest&&Number.isFinite(liveAge)&&liveAge<15_000)?liveLatest:staticLatest;
+    const liveAt=liveLatest?.updated_at?new Date(liveLatest.updated_at).getTime():NaN;
+    const liveAge=Number.isFinite(liveAt)?now-liveAt:Infinity;
+
+    if(liveLatest&&liveAge>=0&&liveAge<C.liveFreshMs){
+      config.latest=liveLatest;
+      state.lastGoodLatest=liveLatest;
+      state.lastGoodLatestAt=now;
+    }else if(
+      !state.lastGoodLatest ||
+      now-state.lastStaticLatestFetchAt>=C.latestFallbackTtlMs
+    ){
+      try{
+        const staticLatest=await W.ZZXBitcoinTickerFetch.json(C.endpoints.latest);
+        if(staticLatest){
+          config.latest=staticLatest;
+          state.lastGoodLatest=staticLatest;
+          state.lastGoodLatestAt=now;
+        }
+        state.lastStaticLatestFetchAt=now;
+      }catch(error){
+        if(state.lastGoodLatest)config.latest=state.lastGoodLatest;
+        else throw error;
+      }
+    }else if(state.lastGoodLatest){
+      config.latest=state.lastGoodLatest;
+    }
 
     const sourceId=q(root,"[data-source-select]")?.value||"bpi";
     const currency=q(root,"[data-currency-select]")?.value||"USD";
@@ -287,9 +317,27 @@
     }
     W.ZZXBitcoinTickerReferences.render(root,state,quote.priceUsd);
 
-    const tip=await W.ZZXChain.tipHeight(false);
-    const height=Number(tip?.height);
-    const issued=Number.isFinite(height)?W.ZZXChain.issuedSatsAtHeight(height):null;
+    if(
+      force ||
+      !Number.isFinite(state.chainHeight) ||
+      now-state.chainAt>=C.chainRefreshMs
+    ){
+      try{
+        const tip=await W.ZZXChain.tipHeight(false);
+        const nextHeight=Number(tip?.height);
+        if(Number.isFinite(nextHeight)){
+          state.chainHeight=nextHeight;
+          state.issuedSats=W.ZZXChain.issuedSatsAtHeight(nextHeight);
+          state.chainAt=now;
+        }
+      }catch(_){
+        // Preserve the last-known-good chain state. Price selection must not fail
+        // merely because the chain metadata endpoint is temporarily unavailable.
+      }
+    }
+
+    const height=state.chainHeight;
+    const issued=state.issuedSats;
 
     if(!state.debts){
       state.debts=await W.ZZXBitcoinTickerDebts.load(false);
@@ -351,7 +399,8 @@
     const state={
       core:core||W.ZZXWidgetsCore||null,
       config:null,configAt:0,references:null,debts:null,balances:null,
-      chainHeight:NaN,issuedSats:null,
+      chainHeight:NaN,issuedSats:null,chainAt:0,
+      lastGoodLatest:null,lastGoodLatestAt:0,lastStaticLatestFetchAt:0,
       selection:null,busy:false,queued:false,timer:null,referenceType:null
     };
     root.__zzxBitcoinTickerState=state;
@@ -463,6 +512,12 @@
       });
 
       await refresh(root,state,false);
+
+      try{
+        W.dispatchEvent(new CustomEvent("zzx:bitcoin-ticker-ready",{
+          detail:{root,selection:state.selection}
+        }));
+      }catch(_){}
 
       async function loop(){
         if(!root.isConnected)return;
