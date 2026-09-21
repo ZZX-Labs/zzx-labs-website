@@ -83,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -127,7 +127,7 @@ jobs:
             | sed -n '1,260p'
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -190,6 +190,7 @@ jobs:
             tools/bitnodes/map/live-map.py
             tools/bitnodes/map/map_source.py
             tools/bitnodes/map/map_source_selftest.py
+            tools/bitnodes/map/frontend_asset_selftest.py
             tools/bitnodes/map/compact_vectors.py
             tools/bitnodes/map/compact_vectors_selftest.py
             tools/bitnodes/map/compact_public_map_contracts.py
@@ -235,6 +236,7 @@ jobs:
           python tools/bitnodes/map/map.py --help >/dev/null
           python tools/bitnodes/map/map_source.py --help >/dev/null
           python tools/bitnodes/map/map_source_selftest.py
+          python tools/bitnodes/map/frontend_asset_selftest.py
           python tools/bitnodes/map/compact_vectors.py --help >/dev/null
           python tools/bitnodes/map/compact_vectors_selftest.py
           python tools/bitnodes/map/compact_public_map_contracts.py --help >/dev/null
