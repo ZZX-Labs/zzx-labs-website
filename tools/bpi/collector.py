@@ -1465,6 +1465,16 @@ def main() -> int:
         help="Run serialized collection for this many seconds, then exit cleanly.",
     )
     parser.add_argument(
+        "--cycle-ms",
+        type=int,
+        help="Override exchange polling cycle for this process (minimum 1000 ms).",
+    )
+    parser.add_argument(
+        "--market-stale-after-ms",
+        type=int,
+        help="Override market freshness window; never lower than two polling cycles.",
+    )
+    parser.add_argument(
         "--status-file",
         help="Optional JSON status output for the completed collector run.",
     )
@@ -1481,6 +1491,10 @@ def main() -> int:
     root = Path(args.root).resolve()
     history_db = Path(args.history_db).resolve() if args.history_db else None
     collector = Collector(root, proxy_url=args.proxy, history_db=history_db)
+    if args.cycle_ms is not None:
+        collector.cycle_ms = max(1000, int(args.cycle_ms))
+    if args.market_stale_after_ms is not None:
+        collector.market_stale_after_ms = max(collector.cycle_ms * 2, int(args.market_stale_after_ms))
     if args.once:
         collector.run_once()
         result = {
