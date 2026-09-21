@@ -1,6 +1,6 @@
 {
   "schema": "zzx-bitnodes-sources-v3",
-  "refresh_ms": 60000,
+  "refresh_ms": 5000,
   "stale_ms": 86400000,
   "local_candidates": [
     "/bitcoin/bitnodes/api/snapshots/latest.json",
@@ -13,7 +13,15 @@
     "base": "https://btcnodes.io/api/v1",
     "latest_snapshot": "https://btcnodes.io/api/v1/snapshots/latest/"
   },
-  "mirrors": [],
+  "mirrors": [
+    {
+      "id": "bitnodes.io",
+      "base": "https://bitnodes.io/api/v1",
+      "priority": 10,
+      "enabled": true,
+      "note": "Secondary legacy Bitnodes snapshot API fallback; failures fall through without replacing last-known-good data."
+    }
+  ],
   "mirror_contract": {
     "base": "https://example.org",
     "required_latest_path": "/api/v1/snapshots/latest/",
