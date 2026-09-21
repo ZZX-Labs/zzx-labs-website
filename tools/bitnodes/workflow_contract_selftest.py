@@ -7,8 +7,11 @@ TOOLS=Path(__file__).resolve().parent
 ROOT=TOOLS.parents[1]
 WF=ROOT/'.github'/'workflows'
 
+
 def require(cond: bool, msg: str) -> None:
-    if not cond: raise SystemExit(msg)
+    if not cond:
+        raise SystemExit(msg)
+
 
 def main()->int:
     wrapper=(WF/'zzx-bitnodes-crawler.yml').read_text(encoding='utf-8')
@@ -22,17 +25,21 @@ def main()->int:
     cli=(TOOLS/'bitnodes-cli.py').read_text(encoding='utf-8')
     gui=(TOOLS/'bitnodes-gui.py').read_text(encoding='utf-8')
     config=json.loads((TOOLS/'config.example.json').read_text(encoding='utf-8'))
+    sources=json.loads((ROOT/'bitcoin/bitnodes/api/sources.json').read_text(encoding='utf-8'))
 
-    require('- cron: "*/15 * * * *"' in wrapper, 'continuous 15-minute GitHub schedule missing')
-    require('uses: ./.github/workflows/bitnodes-latest.yml' in wrapper, 'primary btcnodes/zzx snapshot workflow missing')
-    require('uses: ./.github/workflows/bitnodes-original-crawler.yml' in wrapper, 'original Bitnodes fallback workflow missing')
-    require("needs.snapshot_mirror.result == 'success'" in wrapper, 'private registry is not gated by primary zzx snapshot success')
-    require('include_ayeowch_compat: true' in wrapper, 'originalbitnodes map compatibility output is not enabled')
-    require('Required public chain: plan -> zzxbitnodes snapshot -> Map Host' in wrapper, 'wrapper status still describes old source topology')
+    require('- cron: "*/5 * * * *"' in wrapper, 'continuous five-minute GitHub snapshot schedule missing')
+    require('- cron: "2,17,32,47 * * * *"' in wrapper, 'decoupled 15-minute map schedule missing')
+    require('uses: ./.github/workflows/bitnodes-latest.yml' in wrapper, 'primary snapshot workflow missing')
+    require('uses: ./.github/workflows/bitnodes-original-crawler.yml' in wrapper, 'original fallback workflow missing')
+    require("needs.snapshot_mirror.result != 'success'" in wrapper, 'original fallback is not gated by primary failure/deep request')
+    require("needs.plan.outputs.build_maps == 'true'" in wrapper, 'map build is not decoupled from fast snapshot path')
+    require('Fast snapshots are independent from map generation and private backup.' in wrapper, 'wrapper status does not describe independent publication tiers')
 
     require('api/zzxbitnodes/latest.json' in collector, 'btcnodes collector does not own zzxbitnodes public latest')
     require('upstream_mirror' in collector and 'btcnodes.io' in collector, 'zzxbitnodes provenance is missing')
     require('originalbitnodes' in collector and 'never written here' in collector, 'originalbitnodes namespace ownership guard missing')
+    mirrors=sources.get('mirrors') or []
+    require(any(isinstance(x,dict) and x.get('id')=='bitnodes.io' for x in mirrors), 'legacy bitnodes.io snapshot API fallback missing')
 
     for token in (
         'Build complete zzxbitnodes public API from btcnodes.io snapshot',
@@ -57,7 +64,6 @@ def main()->int:
     original_pos=canonical.index("return [('originalbitnodes-fallback',original)]")
     require(zzx_pos < btc_pos < original_pos, 'Map Host source priority must be zzxbitnodes -> raw btcnodes alias -> originalbitnodes')
     require('- btcnodes.io Snapshot Mirror' in maphost_wf, 'standalone snapshot refresh does not trigger Map Host')
-    require('frontend_contract_selftest.py' in latest_wf, 'primary snapshot workflow does not validate frontend contracts')
     require('frontend_contract_selftest.py' in maphost_wf, 'Map Host workflow does not validate frontend contracts')
 
     require('ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bitnodes/bitnodes.py daemon run' in service, 'systemd daemon command is not runnable')
@@ -76,10 +82,11 @@ def main()->int:
     require(str(crawler.get('mode') or '') == 'btcnodes_mirror', 'resident daemon does not default to btcnodes.io-backed zzxbitnodes')
     require('SNAPSHOT_COLLECTOR = TOOLS_DIR / "collector.py"' in daemon, 'resident daemon lacks btcnodes snapshot collector')
     require('return SNAPSHOT_COLLECTOR if SNAPSHOT_COLLECTOR.exists() else CRAWLER' in daemon, 'resident daemon can still default to native zzx crawler')
-    require(int(crawler.get('recrawl_reachable_seconds') or 0)==300, 'resident reachable recrawl policy mismatch')
-    require(int(crawler.get('recrawl_unreachable_seconds') or 0)==900, 'resident unreachable recrawl policy mismatch')
-    require(int(crawler.get('history_full_snapshot_interval_seconds') or 0)==900, 'resident full-history baseline interval mismatch')
+    require(int(crawler.get('crawl_interval_seconds') or 0)==5, 'resident mirror poll policy mismatch')
     require(str(export.get('history_output_dir') or '').startswith('/var/lib/zzx-bitnodes/'), 'resident private history is not on durable state storage')
-    print('workflow_contract_selftest: PASS'); return 0
+    print('workflow_contract_selftest: PASS')
+    return 0
 
-if __name__=='__main__': raise SystemExit(main())
+
+if __name__=='__main__':
+    raise SystemExit(main())
