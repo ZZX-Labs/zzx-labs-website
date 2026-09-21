@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=7)return;
+  if(W.ZZXBitAvgModel?.__version>=8)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -885,29 +885,93 @@
       )/
       accepted.length;
 
-    const weightsEnabled=(()=>{
-      try{
-        const raw=W.localStorage.getItem(
-          "zzx.bpi.weights.enabled.v1"
-        );
+    const canonicalBpiWeighted=finite(
+      latest?.weighted_average?.price_usd ??
+      latest?.weighted_average?.vwap_usd ??
+      latest?.price_usd ??
+      latest?.bpi_usd
+    );
 
-        return raw==null
-          ? true
-          : raw!=="false";
+    const canonicalBpiUnweighted=
+      unweightedBpi;
+
+    const weightingMode=(()=>{
+      const controlled=
+        W.ZZXBPIWeightingController?.getMode?.();
+
+      if(
+        controlled==="off" ||
+        controlled==="bpi" ||
+        controlled==="global-bpi"
+      ){
+        return controlled;
+      }
+
+      const published=
+        W.ZZXBPIWeighting?.mode;
+
+      if(
+        published==="off" ||
+        published==="bpi" ||
+        published==="global-bpi"
+      ){
+        return published;
+      }
+
+      try{
+        const modern=
+          W.localStorage.getItem(
+            "zzx.bpi.weighting.mode.v2"
+          );
+
+        if(
+          modern==="off" ||
+          modern==="bpi" ||
+          modern==="global-bpi"
+        ){
+          return modern;
+        }
+
+        const legacy=
+          W.localStorage.getItem(
+            "zzx.bpi.weights.enabled.v1"
+          );
+
+        return legacy==="false"
+          ? "off"
+          : "global-bpi";
       }catch(_){
-        return true;
+        return "global-bpi";
       }
     })();
 
-    const bpi=
-      weightsEnabled
+    const weightsEnabled=
+      weightingMode!=="off";
+
+    const globalWeightsEnabled=
+      weightingMode==="global-bpi";
+
+    const bpiWeightsEnabled=
+      weightingMode==="bpi";
+
+    const globalBpi=
+      globalWeightsEnabled
         ? weightedBpi
         : unweightedBpi;
 
+    const bpi=
+      bpiWeightsEnabled &&
+      Number.isFinite(canonicalBpiWeighted) &&
+      canonicalBpiWeighted>0
+        ? canonicalBpiWeighted
+        : canonicalBpiUnweighted;
+
     const method=
-      weightsEnabled
-        ? methodWeighted
-        : "global_unweighted_arithmetic_mean";
+      bpiWeightsEnabled
+        ? "canonical_bpi_24h_btc_volume_weighted"
+        : globalWeightsEnabled
+          ? methodWeighted
+          : "global_unweighted_arithmetic_mean";
 
     for(const row of rows){
       row.deviationPct=
@@ -983,7 +1047,7 @@
     const high=prices.length?Math.max(...prices):NaN;
     const low=prices.length?Math.min(...prices):NaN;
     const spread=Number.isFinite(high)&&Number.isFinite(low)?high-low:NaN;
-    const spreadPct=Number.isFinite(spread)?spread/bpi*100:NaN;
+    const spreadPct=Number.isFinite(spread)&&globalBpi>0?spread/globalBpi*100:NaN;
 
     const configured=configuredExchangeIds(exchangeConfig);
 
@@ -996,9 +1060,15 @@
 
     return {
       bpi,
+      globalBpi,
       weightedBpi,
       unweightedBpi,
+      canonicalBpiWeighted,
+      canonicalBpiUnweighted,
+      weightingMode,
       weightsEnabled,
+      bpiWeightsEnabled,
+      globalWeightsEnabled,
       rows,
       acceptedRows:accepted,
       quarantinedRows:quarantined,
@@ -1022,6 +1092,7 @@
       method,
       methodWeighted,
       methodUnweighted:"global_unweighted_arithmetic_mean",
+      methodCanonicalWeighted:"canonical_bpi_24h_btc_volume_weighted",
       configuredCount:configured.size,
       configuredCovered:[...configured].filter(id=>exchanges.includes(id)).length,
       updatedAt,
@@ -1055,5 +1126,5 @@
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:7,build,sanityGate});
+  W.ZZXBitAvgModel=Object.freeze({__version:8,build,sanityGate});
 })();
