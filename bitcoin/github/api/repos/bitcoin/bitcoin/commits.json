@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-22T20:54:02.213244Z",
+  "generated_at": "2026-09-22T23:30:33.399131Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "2b95b45a9abd63a1532ce9deea1438e07e7a635f",
+      "node_id": "C_kwDOABII59oAKDJiOTViNDVhOWFiZDYzYTE1MzJjZTlkZWVhMTQzOGUwN2U3YTYzNWY",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-22T21:18:40Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-22T21:18:40Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35813: wallet, rpc: Add listrawtransactions RPC\n\n7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1 doc: Add release notes for listrawtransactions (pablomartin4btc)\nb377786df14e4098cc2af2fa3a108b3371df9471 test: Add functional test for listrawtransactions (pablomartin4btc)\n605c4fd3aee0cea04aef583e7ceeca2dd9a17718 wallet, rpc: Add listrawtransactions RPC (pablomartin4btc)\nba6c179ba07cafb3f7e8a0baf9c9a73992b36695 wallet, rpc: allow omitting parent_descs from TransactionDescriptionString (pablomartin4btc)\ndc3e2bc6df6814f6b9b5ce1d5b24933e3f10ca8a wallet, rpc: extract PushTxAmountAndFee/PushTxDecoded helpers (pablomartin4btc)\n\nPull request description:\n\n  Add a new `listrawtransactions` RPC that returns wallet transactions without logical interpretation. Unlike `listtransactions`, which only lists transactions with an economic category (sends to external addresses, receives from outside), this RPC returns every transaction the wallet knows about — including consolidations and self-transfers that would otherwise be invisible.\n\n  Each transaction appears exactly once with its net wallet balance change (`amount`) and, when the wallet funded the transaction, the fee paid (`fee`). Pagination is supported via `count` and `skip` parameters, matching the interface of `listtransactions`.\n\n  Next possible follow-ups:\n  - A filter parameter (`\"all\"` / `\"received\"` / `\"sent\"` / `\"self\"`) once per-tx semantics are agreed on\n  - Some fields inherited from `TransactionDescriptionString()` carry references to `category` (e.g. `replaced_by_txid`, `parent_descs`) which don't apply here — could be cleaned up in a separate pass\n\n  Closes #34632.\n\n  Previous attempt: #35009 (by alfonsoromanz), closed in favour of a separate RPC as suggested by achow101.\n\nACKs for top commit:\n  Bicaru20:\n    reACK 7c311f5c6c\n  achow101:\n    ACK 7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1\n  polespinasa:\n    ACK 7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1\n\nTree-SHA512: c80f98844124d10b16a7f275107e22d4f5983329d93208e95b3e56ac7295c7265eebdb247a4fa7d70da8d38f4b453df17efaee29a4bd6bae8cb1da60b029c489",
+        "tree": {
+          "sha": "8dc93ee468e5f390b2d2115fa246b4aee0460631",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8dc93ee468e5f390b2d2115fa246b4aee0460631"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/2b95b45a9abd63a1532ce9deea1438e07e7a635f",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmqy8LAACgkQF1ZXMuCO\nXkFRABAAj4xFwnix5OL7rmor+CTmlTcVhP+6Cy7e0KWFQqo0AHc+pK2o7RXZGlTz\n8tYbZ8nlgwfGeu5MWlGOe631cyMXI2v4y8+QaINOWefCV0qhcDGS0bVPlk8gj0c3\nWRi0jeis7jQLwNK+U7T1Z+py6y90pZ560Dkef02tHpUu4L8w+54I4fsV4VusR67B\nuZ0DEu/qxdRkjsGY2RiTW0nhXNPOOpLvTiMsIGLYXE3fWJw3p4GHRIInVxPwYAdn\nsF57a61oH5SV5DNfjooS/ExWMSEw3pXGoQhlMGETahaEqNOB4kNjna31qQDdiGio\nY9I2uuEFbRSyRiyJ4CaF4Q3s9XO5zohalHz6Haob3Xw4jxYz2Vnl77bBeeXcncpt\nSjHJYAsxkYTPwIkdAyIImO6IbZqp8QFvtTtJlgX4+jcauj0/cZP+4IA1qnPF+gcj\nnZ/yqxCkG10iEQDBgBFxUFpuzvl2x1cT8hwIFOiIQR340u8Rbixi6YqKmVqpVzBg\nZKeI0W++GutYTYFRgDh4KUe+3MrDTEJx1e5wqhqwUZqgKRMz4yDarLbAyB3ManO7\nxK7VQ6mKBYiLzXLv8FM/JcdTO0j7DhOQfB1HTL8ZDDYsSfV2Cy+gUjdhSSnQd5VQ\nsKYJlHjsM2KguiUInOJTIaEAmpBtcp6aF9dFXyT6pzJ2VI/8pyA=\n=5W9W\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIGISU1dR/qUl9CdovUOvGXVY3xLGjogcd40tOOFIyGYPCP/wCIkmkQae0GYG\nCPAQ9jkOuzpZ8QU2AT3QL0Cr5gjwIIcv0+RQdQ0ePFCtwijcH9QopiJfJdaG38tR\n3hc+oYToCPEgofJqflNiDa/Qy6ZW8pfLMYg2F0sggZnf+uLvyTE+2F0I8QRqsvC1\n8AhQHgY4LUnd7QCD3+MNLvkMjiwraHR0cHM6Ly9ib2IuYnRjLmNhbGVuZGFyLm9w\nZW50aW1lc3RhbXBzLm9yZ//wCKTEUZ8Vy3SfCPAQU9bHcx1mtJoVWq8BcMnqiQjx\nINZu3jCaLTyqijZBX6bqRBCTSpZyT27swcZZhXogomp9CPAgMQK1RbabvqDRc1ve\n2SmUJ/gTNib8x1utQVfip2hDNKQI8QRqsvC18AjTKCo+VbpU/ACD3+MNLvkMji4t\naHR0cHM6Ly9hbGljZS5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3Jn//AQ\nuUCx6bcJ9AbqzzU1VyUv3wjwIPUzSFbMap6hxPtluII8MfgZKgPncr5TkQwCHFtk\nD1ZSCPEgdi+kwGVUQ4umnStcgYmgRclhfZHS5NfR/S3vILVKApwI8CDE7ynvXjtD\nUQUIt/J+LSmC2OKYa4PY+6zZQmoCnaCg2gjxBGqy8LbwCA/iaiaulTvlAIPf4w0u\n+QyOKShodHRwczovL2Zpbm5leS5jYWxlbmRhci5ldGVybml0eXdhbGwuY29t8BD8\nThzZ+0gr6GDDoiLa9k/jCPAgkxAhJpsqPJ6zfJRPR8eu6foMLCZ0FNmVawBB31Jj\nJogI8QRqsvC28AjEtKBRz1Wd5gCD3+MNLvkMjiMiaHR0cHM6Ly9idGMuY2FsZW5k\nYXIuY2F0YWxsYXh5LmNvbQ==\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 8dc93ee468e5f390b2d2115fa246b4aee0460631\nparent 71c30b6083821b16d6f459db017cc1a1118d5c21\nparent 7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1\nauthor Ava Chow <github@achow101.com> 1790111920 -0700\ncommitter Ava Chow <github@achow101.com> 1790111920 -0700\n\nMerge bitcoin/bitcoin#35813: wallet, rpc: Add listrawtransactions RPC\n\n7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1 doc: Add release notes for listrawtransactions (pablomartin4btc)\nb377786df14e4098cc2af2fa3a108b3371df9471 test: Add functional test for listrawtransactions (pablomartin4btc)\n605c4fd3aee0cea04aef583e7ceeca2dd9a17718 wallet, rpc: Add listrawtransactions RPC (pablomartin4btc)\nba6c179ba07cafb3f7e8a0baf9c9a73992b36695 wallet, rpc: allow omitting parent_descs from TransactionDescriptionString (pablomartin4btc)\ndc3e2bc6df6814f6b9b5ce1d5b24933e3f10ca8a wallet, rpc: extract PushTxAmountAndFee/PushTxDecoded helpers (pablomartin4btc)\n\nPull request description:\n\n  Add a new `listrawtransactions` RPC that returns wallet transactions without logical interpretation. Unlike `listtransactions`, which only lists transactions with an economic category (sends to external addresses, receives from outside), this RPC returns every transaction the wallet knows about — including consolidations and self-transfers that would otherwise be invisible.\n\n  Each transaction appears exactly once with its net wallet balance change (`amount`) and, when the wallet funded the transaction, the fee paid (`fee`). Pagination is supported via `count` and `skip` parameters, matching the interface of `listtransactions`.\n\n  Next possible follow-ups:\n  - A filter parameter (`\"all\"` / `\"received\"` / `\"sent\"` / `\"self\"`) once per-tx semantics are agreed on\n  - Some fields inherited from `TransactionDescriptionString()` carry references to `category` (e.g. `replaced_by_txid`, `parent_descs`) which don't apply here — could be cleaned up in a separate pass\n\n  Closes #34632.\n\n  Previous attempt: #35009 (by alfonsoromanz), closed in favour of a separate RPC as suggested by achow101.\n\nACKs for top commit:\n  Bicaru20:\n    reACK 7c311f5c6c\n  achow101:\n    ACK 7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1\n  polespinasa:\n    ACK 7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1\n\nTree-SHA512: c80f98844124d10b16a7f275107e22d4f5983329d93208e95b3e56ac7295c7265eebdb247a4fa7d70da8d38f4b453df17efaee29a4bd6bae8cb1da60b029c489\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2b95b45a9abd63a1532ce9deea1438e07e7a635f",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/2b95b45a9abd63a1532ce9deea1438e07e7a635f",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2b95b45a9abd63a1532ce9deea1438e07e7a635f/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "71c30b6083821b16d6f459db017cc1a1118d5c21",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/71c30b6083821b16d6f459db017cc1a1118d5c21",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/71c30b6083821b16d6f459db017cc1a1118d5c21"
+        },
+        {
+          "sha": "7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/7c311f5c6c3ea5a0d0cc4da35177e6977cda87d1"
+        }
+      ]
+    },
     {
       "sha": "71c30b6083821b16d6f459db017cc1a1118d5c21",
       "node_id": "C_kwDOABII59oAKDcxYzMwYjYwODM4MjFiMTZkNmY0NTlkYjAxN2NjMWExMTE4ZDVjMjE",
@@ -1643,93 +1730,6 @@
           "sha": "61edcf92532502e91c2e17b8c2a23b45f5773936",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/61edcf92532502e91c2e17b8c2a23b45f5773936",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/61edcf92532502e91c2e17b8c2a23b45f5773936"
-        }
-      ]
-    },
-    {
-      "sha": "5f05d8c5f6ddfa3821511f979651c81300fbe722",
-      "node_id": "C_kwDOABII59oAKDVmMDVkOGM1ZjZkZGZhMzgyMTUxMWY5Nzk2NTFjODEzMDBmYmU3MjI",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-19T15:48:48Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-19T15:48:48Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36297: rpc: Correct invalid OpenRPC defaults\n\nb7f740c594ba1482344a7906b799fb62c533464f rpc: Correct OpenRPC default metadata (will)\n\nPull request description:\n\n  `getopenrpcinfo` emits two defaults that do not satisfy their schemas.\n\n  This changes `getdeploymentinfo.blockhash` to a default hint, since its fallback describes the current chain tip, and makes `send.options.include_watching` default to boolean `false`.\n\nACKs for top commit:\n  nervana21:\n    ACK b7f740c594ba1482344a7906b799fb62c533464f\n  sedited:\n    ACK b7f740c594ba1482344a7906b799fb62c533464f\n\nTree-SHA512: fd99c3642ff39ef13116f7f18e2a93b398e347330ea24e5bfd01744528744e5c6fbff12a56213961f8703218a6100f0ea74a10fe3b1d9a221ba8b1fa307a907a",
-        "tree": {
-          "sha": "208b4d9c4814a6d45f22f409ee7ec3ddc6645e33",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/208b4d9c4814a6d45f22f409ee7ec3ddc6645e33"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/5f05d8c5f6ddfa3821511f979651c81300fbe722",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmquruAbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB3JIQAJi5uoZtBKWDl0MiOGuF\nifweyxnAW5NqLRp0xdpjf0r4/i3lEDsdDk1FIM5C5G2g4673UQDyQYcflYxUvadv\nZyuQKtUY1AvmVpYvojsSA9SHN+BaNn6hnB0n49iGsc+wFqTZum+T+UgV6AF938pE\nBCX5bcgT/vSRaZGESOuwqLtD86EOb5i+HmoSlN7O/mA8peF7D4AneEb/NmlmhMk9\nIzkZHcJoUak7xuKeTkyaufE0kAr9N83Q4BYP7sZUdyDG579fUkJJ2ScQxaxr/JX3\nTFu6ZKFOKamvCbw/bRSZ+ik3Rh4PpvXuae4xIqxV25E3iRURmrFXaIN2O3PQB3B5\n1JBuIYpmLlPQOOtEIcJ7q7iujjeUtmCN4yB83BDPCLNhcT5VW8ZbS14YpFR2+SlU\npz14C09wY/89n2hFIbkaqkHPo1xMXqKV4PVUpv+qkqgf9XYVP7t/onA2hf9iXAav\ntbrZd89OxCW3b79kZDlQ6mIKF90kKj5cezAy8+jbqnJIaUCMqeqMvEAfPIdVCh50\nikE5NQchMXo46XJijwJ64k9GWnHNuUVgEda9uT21YzPR8TwUpBuLdLeRSDu+vuip\nmzIaA0Fpqx3Wv1EVWijYBJN3Ci2tQ/qQRxc8F/WRHYnpOb3Hd9fYG6s7PWMykQu7\njgQvIYnMXSVHB1YSvuFr/4+D\n=Uirp\n-----END PGP SIGNATURE-----",
-          "payload": "tree 208b4d9c4814a6d45f22f409ee7ec3ddc6645e33\nparent d48e76e689bb4d680d9d8a70b67f994be2f0cdd1\nparent b7f740c594ba1482344a7906b799fb62c533464f\nauthor merge-script <fanquake@gmail.com> 1789832928 +0100\ncommitter merge-script <fanquake@gmail.com> 1789832928 +0100\n\nMerge bitcoin/bitcoin#36297: rpc: Correct invalid OpenRPC defaults\n\nb7f740c594ba1482344a7906b799fb62c533464f rpc: Correct OpenRPC default metadata (will)\n\nPull request description:\n\n  `getopenrpcinfo` emits two defaults that do not satisfy their schemas.\n\n  This changes `getdeploymentinfo.blockhash` to a default hint, since its fallback describes the current chain tip, and makes `send.options.include_watching` default to boolean `false`.\n\nACKs for top commit:\n  nervana21:\n    ACK b7f740c594ba1482344a7906b799fb62c533464f\n  sedited:\n    ACK b7f740c594ba1482344a7906b799fb62c533464f\n\nTree-SHA512: fd99c3642ff39ef13116f7f18e2a93b398e347330ea24e5bfd01744528744e5c6fbff12a56213961f8703218a6100f0ea74a10fe3b1d9a221ba8b1fa307a907a\n",
-          "verified_at": "2026-09-19T15:48:53Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5f05d8c5f6ddfa3821511f979651c81300fbe722",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/5f05d8c5f6ddfa3821511f979651c81300fbe722",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5f05d8c5f6ddfa3821511f979651c81300fbe722/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/d48e76e689bb4d680d9d8a70b67f994be2f0cdd1"
-        },
-        {
-          "sha": "b7f740c594ba1482344a7906b799fb62c533464f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b7f740c594ba1482344a7906b799fb62c533464f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b7f740c594ba1482344a7906b799fb62c533464f"
         }
       ]
     }
