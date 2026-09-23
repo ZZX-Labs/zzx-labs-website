@@ -1,8 +1,182 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-23T21:00:47.184026Z",
+  "generated_at": "2026-09-23T23:29:51.706366Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "a632d4f697f367c11776ca34ddcf9d8223238d41",
+      "node_id": "C_kwDOABII59oAKGE2MzJkNGY2OTdmMzY3YzExNzc2Y2EzNGRkY2Y5ZDgyMjMyMzhkNDE",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-23T23:24:23Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-23T23:24:23Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35177: test: use MiniWallet for getblockstats test data generation\n\nb7cbd804284bb70f40c5beebf8d1d3ff614ae406 test: use MiniWallet for getblockstats test data generation (AgustinRivera)\n\nPull request description:\n\n  Fixes #31838.\n  Follow-up to #33184.\n\n  This updates `rpc_getblockstats.py --gen-test-data` to generate its fixture data using `MiniWallet` instead of wallet RPCs.\n\n  The normal test path still loads predefined block/stat data from `rpc_getblockstats.json`, so the test continues to compare `getblockstats` results against fixed expected data rather than against freshly computed RPC output.\n\n  This keeps the generator independent of wallet behavior while preserving the existing regression-test structure.\n\n  Tested on a wallet-disabled Linux build:\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --gen-test-data --test-data /tmp/rpc_getblockstats.generated.json`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --test-data /tmp/rpc_getblockstats.generated.json`\n\nACKs for top commit:\n  achow101:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  theStack:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  sedited:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n\nTree-SHA512: f763acd0467143c4f151fa2acd5b154c073fea8551eafcf102ef2d1cc0f4b2ce13b7828bd2736d0cdda782a78dfa6aea60b61bee27e9ca8a2b72d76dffc09340",
+        "tree": {
+          "sha": "0f4ebe0357b5d240094619daa3ee0da7dd41233a",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0f4ebe0357b5d240094619daa3ee0da7dd41233a"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/a632d4f697f367c11776ca34ddcf9d8223238d41",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq0X6cACgkQF1ZXMuCO\nXkEMMg/+ISeL4JBOyFp5S6S795YQy7v99MlU0I+0yw3TEprC6P/PsSKmtTv54z8z\nSlsqwaECnoYIPgYPEjGQ0EalyWfM5krH1UEBWC27xkALR/bNHMacrJ5WQtZSwKyZ\n72oSUTc87rtTlzBbaj98YxEpMvXQbQdXbYFqmF6deFW+oI61JJh8mHbkFz3pWf56\nR/sLrLJ/acA1tCmAP7RrnRNUFf6K6R/UwctMkxX+pBIKVqaYbjdReCIxUihaetJb\nEzR6UwWgTH0wAY0W/4oLrLXZmg8ob5F22T2UaaYGkhRCZ+DJ6Q0QvRLojm67rsLb\ncaDb1PfWwetqKlzKzf8Sj+FsYAe2A5SOym8/VLE3yEXJ3nN8fHpEyiA6fkMZBBes\nL1rNUUv1756zNbpijGHw8T4iKQDKMIegH27t2d5qoND/BMcYmfxblMYO8hleaa3z\nMk9AmGu3ZSSXEEzPmaiGZVNajTzRa7i0vVOKXG7m4CLEL2UP/5Ght98IWqjHhT73\ndMcUeBTqWtlzF5STN77z2ty+YJn2rdd6/2e+PK8DwRrjeDYVWnpXCJtsbsVQA3rh\nVzGsRuLxcD7lIerF503QOaJiENGOJeGw2YQJghOychFiFuEfrrsDMzF2XuQg0itz\nOSIQBfkF1tieobiFz3mbAkrR6Yy/FnVEOYFllCvcLrdd3IzFL58=\n=9rIo\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIP4rS0aG6G3VcxGOlnlIylvLkbrdAxWGhd+84iDsStqqCP/wEBHPAaiz8j8s\nlhJn/YVUN24I8SAyDltYjxWJFt/XqVdpbTgr/LBbk5I1JjxGwlXJ3sp4cwjxBGq0\nX6rwCNL7jUTyZpVmAIPf4w0u+QyOKShodHRwczovL2Zpbm5leS5jYWxlbmRhci5l\ndGVybml0eXdhbGwuY29t//AIOZTUmHIgKTkI8CDJAgTKeQYyyHJwVLxfjxSN7aeb\nvLs+/BXl5ag4ZzI6VgjwECFTmN5yNyZisNrT8fmUHfYI8SBxf3/uTpl/SB6nTJDm\nTlSepXdjgs89kedYK3CPlkDrIwjxBGq0X6rwCMnwAZph80EeAIPf4w0u+QyOLCto\ndHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3Jn//AIWAcB\nMcIV4kcI8BCLJjkPAMSqINzl4+780pKxCPAgSbPC2+uNBuw9JI6psN9yZWf1BdOq\nKT2iqABu4mOQD4QI8CCKrZEyopRksLXJf4Xe4XX/xqeDavwBP+IfsRa6wlmrwAjw\nICbrNCLxpAU58SjjF3bpa919UC/9zMWfyI47DV/FeIkbCPEEarRfq/AIFr33ZrDE\n5C8Ag9/jDS75DI4uLWh0dHBzOi8vYWxpY2UuYnRjLmNhbGVuZGFyLm9wZW50aW1l\nc3RhbXBzLm9yZ/AQt91z6pG5NLPDknQ4CH0TbQjwIEokplNB8UOpmcWRfTZgqVPX\n15BMwoZGpp4jgP3G+QkECPAgIB+rRj1Vv3Rc4jsbTTMAfLw8UkJWBHvKiJpMUV6o\nsgYI8CCrrFzryZIR4Ub7TWf3xsqdv46kLuP2X9qOWBHfIBYYQgjxBGq0X6vwCMNg\n7v1859pVAIPf4w0u+QyOIyJodHRwczovL2J0Yy5jYWxlbmRhci5jYXRhbGxheHku\nY29t\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 0f4ebe0357b5d240094619daa3ee0da7dd41233a\nparent be5d0b5503fa820da86185537821359648f9f562\nparent b7cbd804284bb70f40c5beebf8d1d3ff614ae406\nauthor Ava Chow <github@achow101.com> 1790205863 -0700\ncommitter Ava Chow <github@achow101.com> 1790205863 -0700\n\nMerge bitcoin/bitcoin#35177: test: use MiniWallet for getblockstats test data generation\n\nb7cbd804284bb70f40c5beebf8d1d3ff614ae406 test: use MiniWallet for getblockstats test data generation (AgustinRivera)\n\nPull request description:\n\n  Fixes #31838.\n  Follow-up to #33184.\n\n  This updates `rpc_getblockstats.py --gen-test-data` to generate its fixture data using `MiniWallet` instead of wallet RPCs.\n\n  The normal test path still loads predefined block/stat data from `rpc_getblockstats.json`, so the test continues to compare `getblockstats` results against fixed expected data rather than against freshly computed RPC output.\n\n  This keeps the generator independent of wallet behavior while preserving the existing regression-test structure.\n\n  Tested on a wallet-disabled Linux build:\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --gen-test-data --test-data /tmp/rpc_getblockstats.generated.json`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --test-data /tmp/rpc_getblockstats.generated.json`\n\nACKs for top commit:\n  achow101:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  theStack:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  sedited:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n\nTree-SHA512: f763acd0467143c4f151fa2acd5b154c073fea8551eafcf102ef2d1cc0f4b2ce13b7828bd2736d0cdda782a78dfa6aea60b61bee27e9ca8a2b72d76dffc09340\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a632d4f697f367c11776ca34ddcf9d8223238d41",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/a632d4f697f367c11776ca34ddcf9d8223238d41",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a632d4f697f367c11776ca34ddcf9d8223238d41/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "be5d0b5503fa820da86185537821359648f9f562",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/be5d0b5503fa820da86185537821359648f9f562",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/be5d0b5503fa820da86185537821359648f9f562"
+        },
+        {
+          "sha": "b7cbd804284bb70f40c5beebf8d1d3ff614ae406",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b7cbd804284bb70f40c5beebf8d1d3ff614ae406",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b7cbd804284bb70f40c5beebf8d1d3ff614ae406"
+        }
+      ]
+    },
+    {
+      "sha": "be5d0b5503fa820da86185537821359648f9f562",
+      "node_id": "C_kwDOABII59oAKGJlNWQwYjU1MDNmYTgyMGRhODYxODU1Mzc4MjEzNTk2NDhmOWY1NjI",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-23T23:18:12Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-23T23:18:12Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35301: Silent Payments: Implement bip352 (take 2)\n\ne3ee0ebd89e9955da94c8d806cfa1793baba9860 tests: add BIP352 test vectors as unit tests (josibake)\nf133d1373af6f58488f73fe3dc795d37c4796dd9 common: add bip352.{h,cpp} secp256k1 module (josibake)\n44997c391afc1f3ae75d2331606e1261fd365801 Add \"sp\" HRP (josibake)\n356c91f6ae51bd9e48db0920110ac9303f54f714 crypto: add KeyPair::GetSecpKeypair (josibake)\n\nPull request description:\n\n  This PR is part of integrating silent payments into Bitcoin Core. It is the second iteration of https://github.com/bitcoin/bitcoin/pull/28122, now based on https://github.com/bitcoin-core/secp256k1/pull/1765.\n\n  This project is tracked in https://github.com/bitcoin/bitcoin/issues/28536.\n\n  BIP352\n  This PR focuses strictly on the BIP logic and attempts to separate it from the wallet and transaction implementation details. This is accomplished by working directly with public and private keys, instead of needing a wallet backend and transactions for testing. Labels for the receiver are optional and thus deferred for a later PR.\n\n  Test vectors from the BIP are included as unit tests.\n\nACKs for top commit:\n  rustaceanrob:\n    reACK e3ee0ebd89e9955da94c8d806cfa1793baba9860\n  theStack:\n    re-ACK e3ee0ebd89e9955da94c8d806cfa1793baba9860\n  achow101:\n    ACK e3ee0ebd89e9955da94c8d806cfa1793baba9860\n\nTree-SHA512: 9b5706e35a49606ac53303c4be0c08f0a08ee273bd69855ff2c869ebcf63dc1e798f8295b8800a41a7094658ab17134366b1ebf2b79dbda5d4af377b05bb2854",
+        "tree": {
+          "sha": "2affa7e84efcea9d14d504e91177296c3bcbddd1",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/2affa7e84efcea9d14d504e91177296c3bcbddd1"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/be5d0b5503fa820da86185537821359648f9f562",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq0XjQACgkQF1ZXMuCO\nXkGjnxAAmPBjgcRR2cqEps65++jYb7WkNUkwgTkrs2dK/mhK5gzX5+bOFPCmTC4Q\n7pMgYJ6rZbfXwLeif6sPIksytjpsrAuOWntRdA0cxnz/51H4u/k/rDJi1SjIzsVh\nlarrjrEG8UAHxm4/7SmmJf1Xk4UNUI8XrQj7LCK3Mydc1S2AlkBYOIFZkDkzHqNg\ngLNG9yD/H6iwG/An81v6lca8Yu9xlcYUNM6YD7/8UqAmfvyjhughkHP6RmCjiQhb\nt727fbuK/67+r4trgii4sAr2Z7qLTvA4XYEg3IDE+S7vP0Zx8vcJG2rV5MJ4b0Q3\nKif68OgGlKYWOw6XcHA8aw0d+lSG91jGlcdCztRUZs0L3NjMqhDph58a0XQdjx59\naUVEYFmeok1Pn+OZwFh4XqXnH2VshgORGNMDWt65HtpKIRDTYcZOw/FA1PuWcl7z\no2eD/f8+bW9QSzFSq+gMUv4y7ZgN/SOWDcAG/0KvgQVyP1gbaUZ1h9DoT85SwqBF\nL/C//wy/LJGkGCwVrLcaKyG6mEBhH2ut9qK1kpdHhfAmrNgoJRBr3Wl8LGl9SF4V\nkIyvizCvwf+6ZViDR0GEMmKAxNIoOwprcthB7tibyz+QCjF/Di+J6XWAhOlrGjvK\n1ZNWY6w0KZ4Dp4a0IuRR5dFqSUns6dlij2+uQFkhnUH9A5vSaMU=\n=8viU\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIKw2J1yTsMWpATnRcG7r5GS5uJm7HiLGkT/esRR8XoRPCP/wCDxfc5mGcHL+\nCPEgmvJaq9J8ce1wNJ6py2FwFlEY4s4E3S5MGUJk0bndeeMI8BDFTopoCrVmkiFC\nsmzT4EFfCPEEarReOfAIG1aKoVAU29wAg9/jDS75DI4sK2h0dHBzOi8vYm9iLmJ0\nYy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmf/8BA90tlWLPQXwAz5jLCcRp/q\nCPEg7Yn7gx8RsO2VjQx8TEX4pYO9isWp70jqw9xYByS2aWkI8QRqtF458Ah4XvvD\ngjYifQCD3+MNLvkMjiMiaHR0cHM6Ly9idGMuY2FsZW5kYXIuY2F0YWxsYXh5LmNv\nbf/wCET79xBIYe8OCPAQKvOarWkbT3lR3zUqIualUAjwIOMnHSK6Z5WGUnF8yBUy\n7/E/XlGr+OXuNRB7damVJ5I/CPAgpTr0ZnzdmTcGqr4+iMELq44rigXzfPpbnESr\nDXWezLEI8CCAvLFdr0NQs9Izf75i2D4apGC8WJUyTGFYVHtP/hZJJQjxBGq0Xjrw\nCJG0IF+4UAqLAIPf4w0u+QyOLi1odHRwczovL2FsaWNlLmJ0Yy5jYWxlbmRhci5v\ncGVudGltZXN0YW1wcy5vcmfwEIyGDy562Ib6cu5tsmTHGtYI8SCW6dlT9LfltQr5\n4i5MzjHi/MJQBedEB/BoTpgwsNfz8gjwILE5tIYTaoMKD/V8gXr4VGQgxkcpCYJs\nHS+6wWKhMQqFCPEEarReOvAIdlQbJ+RLVK0Ag9/jDS75DI4pKGh0dHBzOi8vZmlu\nbmV5LmNhbGVuZGFyLmV0ZXJuaXR5d2FsbC5jb20=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 2affa7e84efcea9d14d504e91177296c3bcbddd1\nparent b3f846ec3e5c21b08779ac6c13475f3ab37e7d9c\nparent e3ee0ebd89e9955da94c8d806cfa1793baba9860\nauthor Ava Chow <github@achow101.com> 1790205492 -0700\ncommitter Ava Chow <github@achow101.com> 1790205492 -0700\n\nMerge bitcoin/bitcoin#35301: Silent Payments: Implement bip352 (take 2)\n\ne3ee0ebd89e9955da94c8d806cfa1793baba9860 tests: add BIP352 test vectors as unit tests (josibake)\nf133d1373af6f58488f73fe3dc795d37c4796dd9 common: add bip352.{h,cpp} secp256k1 module (josibake)\n44997c391afc1f3ae75d2331606e1261fd365801 Add \"sp\" HRP (josibake)\n356c91f6ae51bd9e48db0920110ac9303f54f714 crypto: add KeyPair::GetSecpKeypair (josibake)\n\nPull request description:\n\n  This PR is part of integrating silent payments into Bitcoin Core. It is the second iteration of https://github.com/bitcoin/bitcoin/pull/28122, now based on https://github.com/bitcoin-core/secp256k1/pull/1765.\n\n  This project is tracked in https://github.com/bitcoin/bitcoin/issues/28536.\n\n  BIP352\n  This PR focuses strictly on the BIP logic and attempts to separate it from the wallet and transaction implementation details. This is accomplished by working directly with public and private keys, instead of needing a wallet backend and transactions for testing. Labels for the receiver are optional and thus deferred for a later PR.\n\n  Test vectors from the BIP are included as unit tests.\n\nACKs for top commit:\n  rustaceanrob:\n    reACK e3ee0ebd89e9955da94c8d806cfa1793baba9860\n  theStack:\n    re-ACK e3ee0ebd89e9955da94c8d806cfa1793baba9860\n  achow101:\n    ACK e3ee0ebd89e9955da94c8d806cfa1793baba9860\n\nTree-SHA512: 9b5706e35a49606ac53303c4be0c08f0a08ee273bd69855ff2c869ebcf63dc1e798f8295b8800a41a7094658ab17134366b1ebf2b79dbda5d4af377b05bb2854\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/be5d0b5503fa820da86185537821359648f9f562",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/be5d0b5503fa820da86185537821359648f9f562",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/be5d0b5503fa820da86185537821359648f9f562/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "b3f846ec3e5c21b08779ac6c13475f3ab37e7d9c",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b3f846ec3e5c21b08779ac6c13475f3ab37e7d9c",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b3f846ec3e5c21b08779ac6c13475f3ab37e7d9c"
+        },
+        {
+          "sha": "e3ee0ebd89e9955da94c8d806cfa1793baba9860",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e3ee0ebd89e9955da94c8d806cfa1793baba9860",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/e3ee0ebd89e9955da94c8d806cfa1793baba9860"
+        }
+      ]
+    },
     {
       "sha": "b3f846ec3e5c21b08779ac6c13475f3ab37e7d9c",
       "node_id": "C_kwDOABII59oAKGIzZjg0NmVjM2U1YzIxYjA4Nzc5YWM2YzEzNDc1ZjNhYjM3ZTdkOWM",
@@ -348,6 +522,334 @@
           "sha": "f41372998377ab8310476f0c03294e69cc3222e8",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f41372998377ab8310476f0c03294e69cc3222e8",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/f41372998377ab8310476f0c03294e69cc3222e8"
+        }
+      ]
+    },
+    {
+      "sha": "e3ee0ebd89e9955da94c8d806cfa1793baba9860",
+      "node_id": "C_kwDOABII59oAKGUzZWUwZWJkODllOTk1NWRhOTRjOGQ4MDZjZmExNzkzYmFiYTk4NjA",
+      "commit": {
+        "author": {
+          "name": "josibake",
+          "email": "josibake@protonmail.com",
+          "date": "2024-05-05T10:53:19Z"
+        },
+        "committer": {
+          "name": "Novo",
+          "email": "eunovo9@gmail.com",
+          "date": "2026-09-23T10:24:19Z"
+        },
+        "message": "tests: add BIP352 test vectors as unit tests\n\nUse the test vectors to test sending and receiving. A few cases are not\ncovered here, namely anything that requires testing specific to the\nwallet. For example:\n\n* Taproot script path spending is not tested, as that is better tested in\n  a wallets coin selection / signing logic\n* Re-computing outputs during RBF is not tested, as that is better\n  tested in a wallets RBF logic",
+        "tree": {
+          "sha": "7e7233f71e552da6c0634d6924fe997843127b1d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7e7233f71e552da6c0634d6924fe997843127b1d"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/e3ee0ebd89e9955da94c8d806cfa1793baba9860",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e3ee0ebd89e9955da94c8d806cfa1793baba9860",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/e3ee0ebd89e9955da94c8d806cfa1793baba9860",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e3ee0ebd89e9955da94c8d806cfa1793baba9860/comments",
+      "author": {
+        "login": "josibake",
+        "id": 7444140,
+        "node_id": "MDQ6VXNlcjc0NDQxNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7444140?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/josibake",
+        "html_url": "https://github.com/josibake",
+        "followers_url": "https://api.github.com/users/josibake/followers",
+        "following_url": "https://api.github.com/users/josibake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/josibake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/josibake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/josibake/subscriptions",
+        "organizations_url": "https://api.github.com/users/josibake/orgs",
+        "repos_url": "https://api.github.com/users/josibake/repos",
+        "events_url": "https://api.github.com/users/josibake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/josibake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "Eunovo",
+        "id": 37949128,
+        "node_id": "MDQ6VXNlcjM3OTQ5MTI4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37949128?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Eunovo",
+        "html_url": "https://github.com/Eunovo",
+        "followers_url": "https://api.github.com/users/Eunovo/followers",
+        "following_url": "https://api.github.com/users/Eunovo/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Eunovo/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Eunovo/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Eunovo/subscriptions",
+        "organizations_url": "https://api.github.com/users/Eunovo/orgs",
+        "repos_url": "https://api.github.com/users/Eunovo/repos",
+        "events_url": "https://api.github.com/users/Eunovo/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Eunovo/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "f133d1373af6f58488f73fe3dc795d37c4796dd9",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f133d1373af6f58488f73fe3dc795d37c4796dd9",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f133d1373af6f58488f73fe3dc795d37c4796dd9"
+        }
+      ]
+    },
+    {
+      "sha": "f133d1373af6f58488f73fe3dc795d37c4796dd9",
+      "node_id": "C_kwDOABII59oAKGYxMzNkMTM3M2FmNmY1ODQ4OGY3M2ZlM2RjNzk1ZDM3YzQ3OTZkZDk",
+      "commit": {
+        "author": {
+          "name": "josibake",
+          "email": "josibake@protonmail.com",
+          "date": "2024-02-07T15:28:14Z"
+        },
+        "committer": {
+          "name": "Novo",
+          "email": "eunovo9@gmail.com",
+          "date": "2026-09-23T10:24:13Z"
+        },
+        "message": "common: add bip352.{h,cpp} secp256k1 module\n\nWrap the silentpayments module from libsecp256k1. This is placed in\ncommon as it is intended to be used by:\n\n  * RPCs: for parsing addresses\n  * Wallet: for sending, receiving, spending silent payments outputs\n  * Node: for creating silent payments indexes for light clients\n\nCo-authored-by: Rob <rob.netzke@gmail.com>",
+        "tree": {
+          "sha": "7d1066fc0603669cf6fa2e74f06c966b0decdfbc",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7d1066fc0603669cf6fa2e74f06c966b0decdfbc"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/f133d1373af6f58488f73fe3dc795d37c4796dd9",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f133d1373af6f58488f73fe3dc795d37c4796dd9",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/f133d1373af6f58488f73fe3dc795d37c4796dd9",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f133d1373af6f58488f73fe3dc795d37c4796dd9/comments",
+      "author": {
+        "login": "josibake",
+        "id": 7444140,
+        "node_id": "MDQ6VXNlcjc0NDQxNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7444140?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/josibake",
+        "html_url": "https://github.com/josibake",
+        "followers_url": "https://api.github.com/users/josibake/followers",
+        "following_url": "https://api.github.com/users/josibake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/josibake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/josibake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/josibake/subscriptions",
+        "organizations_url": "https://api.github.com/users/josibake/orgs",
+        "repos_url": "https://api.github.com/users/josibake/repos",
+        "events_url": "https://api.github.com/users/josibake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/josibake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "Eunovo",
+        "id": 37949128,
+        "node_id": "MDQ6VXNlcjM3OTQ5MTI4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37949128?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Eunovo",
+        "html_url": "https://github.com/Eunovo",
+        "followers_url": "https://api.github.com/users/Eunovo/followers",
+        "following_url": "https://api.github.com/users/Eunovo/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Eunovo/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Eunovo/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Eunovo/subscriptions",
+        "organizations_url": "https://api.github.com/users/Eunovo/orgs",
+        "repos_url": "https://api.github.com/users/Eunovo/repos",
+        "events_url": "https://api.github.com/users/Eunovo/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Eunovo/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "44997c391afc1f3ae75d2331606e1261fd365801",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44997c391afc1f3ae75d2331606e1261fd365801",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/44997c391afc1f3ae75d2331606e1261fd365801"
+        }
+      ]
+    },
+    {
+      "sha": "44997c391afc1f3ae75d2331606e1261fd365801",
+      "node_id": "C_kwDOABII59oAKDQ0OTk3YzM5MWFmYzFmM2FlNzVkMjMzMTYwNmUxMjYxZmQzNjU4MDE",
+      "commit": {
+        "author": {
+          "name": "josibake",
+          "email": "josibake@protonmail.com",
+          "date": "2023-07-18T20:23:11Z"
+        },
+        "committer": {
+          "name": "Novo",
+          "email": "eunovo9@gmail.com",
+          "date": "2026-09-23T09:22:42Z"
+        },
+        "message": "Add \"sp\" HRP",
+        "tree": {
+          "sha": "ca821a1b8b4721929fd1ce6ce0aa89cb50c31a06",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ca821a1b8b4721929fd1ce6ce0aa89cb50c31a06"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/44997c391afc1f3ae75d2331606e1261fd365801",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44997c391afc1f3ae75d2331606e1261fd365801",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/44997c391afc1f3ae75d2331606e1261fd365801",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44997c391afc1f3ae75d2331606e1261fd365801/comments",
+      "author": {
+        "login": "josibake",
+        "id": 7444140,
+        "node_id": "MDQ6VXNlcjc0NDQxNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7444140?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/josibake",
+        "html_url": "https://github.com/josibake",
+        "followers_url": "https://api.github.com/users/josibake/followers",
+        "following_url": "https://api.github.com/users/josibake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/josibake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/josibake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/josibake/subscriptions",
+        "organizations_url": "https://api.github.com/users/josibake/orgs",
+        "repos_url": "https://api.github.com/users/josibake/repos",
+        "events_url": "https://api.github.com/users/josibake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/josibake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "Eunovo",
+        "id": 37949128,
+        "node_id": "MDQ6VXNlcjM3OTQ5MTI4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37949128?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Eunovo",
+        "html_url": "https://github.com/Eunovo",
+        "followers_url": "https://api.github.com/users/Eunovo/followers",
+        "following_url": "https://api.github.com/users/Eunovo/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Eunovo/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Eunovo/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Eunovo/subscriptions",
+        "organizations_url": "https://api.github.com/users/Eunovo/orgs",
+        "repos_url": "https://api.github.com/users/Eunovo/repos",
+        "events_url": "https://api.github.com/users/Eunovo/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Eunovo/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "356c91f6ae51bd9e48db0920110ac9303f54f714",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/356c91f6ae51bd9e48db0920110ac9303f54f714",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/356c91f6ae51bd9e48db0920110ac9303f54f714"
+        }
+      ]
+    },
+    {
+      "sha": "356c91f6ae51bd9e48db0920110ac9303f54f714",
+      "node_id": "C_kwDOABII59oAKDM1NmM5MWY2YWU1MWJkOWU0OGRiMDkyMDExMGFjOTMwM2Y1NGY3MTQ",
+      "commit": {
+        "author": {
+          "name": "josibake",
+          "email": "josibake@protonmail.com",
+          "date": "2025-04-04T10:37:55Z"
+        },
+        "committer": {
+          "name": "Novo",
+          "email": "eunovo9@gmail.com",
+          "date": "2026-09-23T09:22:26Z"
+        },
+        "message": "crypto: add KeyPair::GetSecpKeypair\n\nThis allows for passing a KeyPair directly to a secp256k1 function without needing to create a\ntemporary secp256k1_keypair object.\n\nCo-authored-by: Rob <rob.netzke@gmail.com>",
+        "tree": {
+          "sha": "b80316835457e328e8cf6e6e1061a8e0a44e9a2b",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/b80316835457e328e8cf6e6e1061a8e0a44e9a2b"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/356c91f6ae51bd9e48db0920110ac9303f54f714",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/356c91f6ae51bd9e48db0920110ac9303f54f714",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/356c91f6ae51bd9e48db0920110ac9303f54f714",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/356c91f6ae51bd9e48db0920110ac9303f54f714/comments",
+      "author": {
+        "login": "josibake",
+        "id": 7444140,
+        "node_id": "MDQ6VXNlcjc0NDQxNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7444140?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/josibake",
+        "html_url": "https://github.com/josibake",
+        "followers_url": "https://api.github.com/users/josibake/followers",
+        "following_url": "https://api.github.com/users/josibake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/josibake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/josibake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/josibake/subscriptions",
+        "organizations_url": "https://api.github.com/users/josibake/orgs",
+        "repos_url": "https://api.github.com/users/josibake/repos",
+        "events_url": "https://api.github.com/users/josibake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/josibake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "Eunovo",
+        "id": 37949128,
+        "node_id": "MDQ6VXNlcjM3OTQ5MTI4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37949128?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Eunovo",
+        "html_url": "https://github.com/Eunovo",
+        "followers_url": "https://api.github.com/users/Eunovo/followers",
+        "following_url": "https://api.github.com/users/Eunovo/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Eunovo/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Eunovo/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Eunovo/subscriptions",
+        "organizations_url": "https://api.github.com/users/Eunovo/orgs",
+        "repos_url": "https://api.github.com/users/Eunovo/repos",
+        "events_url": "https://api.github.com/users/Eunovo/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Eunovo/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "f839ee1afb0ff02c58422dae6d2678e5e654b605",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f839ee1afb0ff02c58422dae6d2678e5e654b605",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f839ee1afb0ff02c58422dae6d2678e5e654b605"
         }
       ]
     },
@@ -7873,498 +8375,6 @@
           "sha": "59fd053dac83c989dcb18f6d92e0d17eb7ecb227",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/59fd053dac83c989dcb18f6d92e0d17eb7ecb227",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/59fd053dac83c989dcb18f6d92e0d17eb7ecb227"
-        }
-      ]
-    },
-    {
-      "sha": "a9cd985d0a54877ef3ba9b844f725a2d3065f1bb",
-      "node_id": "C_kwDOABII59oAKGE5Y2Q5ODVkMGE1NDg3N2VmM2JhOWI4NDRmNzI1YTJkMzA2NWYxYmI",
-      "commit": {
-        "author": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-04-14T16:29:23Z"
-        },
-        "committer": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-14T18:07:33Z"
-        },
-        "message": "wallet: Move ImportDescriptor and ProcessDescriptorsImport to imports.cpp\n\nExtract ImportDescriptor() and ProcessDescriptorsImport() out of backup.cpp and move them into imports.cpp so other future interfaces\ncan use them without needing to know about RPC code.\n\nThe commit can be reviewed with the --color-moved=dimmed-zebra option for an easier review.",
-        "tree": {
-          "sha": "30b557933116066a01c5262d487cf433a67213ac",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/30b557933116066a01c5262d487cf433a67213ac"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/a9cd985d0a54877ef3ba9b844f725a2d3065f1bb",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niIsEABYKADMWIQRd8IHT46QaaYw3spsoRwkHtAvybQUCaqg35RUccG9sLmVzcGlu\nYXNhQHVhYi5jYXQACgkQKEcJB7QL8m2bBQD/fO139xK03GbQGke8dZbRVyZrMadl\nvDJ7AK4Ev2FBc1IA/RFj6SRJIWV7XdAd1BDXmyuF0q6IkTsMNti4mJkbEykK\n=rWX3\n-----END PGP SIGNATURE-----",
-          "payload": "tree 30b557933116066a01c5262d487cf433a67213ac\nparent c9650d8f0e2f664b4f4362a42e8dfc7efc82af18\nauthor Pol Espinasa <pol.espinasa@uab.cat> 1776184163 +0200\ncommitter Pol Espinasa <pol.espinasa@uab.cat> 1789409253 +0200\n\nwallet: Move ImportDescriptor and ProcessDescriptorsImport to imports.cpp\n\nExtract ImportDescriptor() and ProcessDescriptorsImport() out of backup.cpp and move them into imports.cpp so other future interfaces\ncan use them without needing to know about RPC code.\n\nThe commit can be reviewed with the --color-moved=dimmed-zebra option for an easier review.\n",
-          "verified_at": "2026-09-14T18:09:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a9cd985d0a54877ef3ba9b844f725a2d3065f1bb",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/a9cd985d0a54877ef3ba9b844f725a2d3065f1bb",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a9cd985d0a54877ef3ba9b844f725a2d3065f1bb/comments",
-      "author": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "c9650d8f0e2f664b4f4362a42e8dfc7efc82af18",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c9650d8f0e2f664b4f4362a42e8dfc7efc82af18",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/c9650d8f0e2f664b4f4362a42e8dfc7efc82af18"
-        }
-      ]
-    },
-    {
-      "sha": "c9650d8f0e2f664b4f4362a42e8dfc7efc82af18",
-      "node_id": "C_kwDOABII59oAKGM5NjUwZDhmMGUyZjY2NGI0ZjQzNjJhNDJlOGRmYzdlZmM4MmFmMTg",
-      "commit": {
-        "author": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-04-14T18:23:52Z"
-        },
-        "committer": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-14T18:07:32Z"
-        },
-        "message": "wallet: rename ProcessDescriptorImport to ImportDescriptor and add ProcessDescriptorsImport\n\nRename ProcessDescriptorImport() to ImportDescriptor().\nImportDescriptor() takes a single descriptor request and imports it into the wallet.\n\nAdd ProcessDescriptorsImport() (descriptors in plural) to handle wallet locking and rescanning\nover a vector of ImportDescriptorRequest items. It is also in charge of collecting all responses\nof imports from ImportDescriptor.\n\nThis allows a next commit to extract ImportDescriptor() and\nProcessDescriptorsImport() out of the RPC code so they can be used by\nother future interfaces.",
-        "tree": {
-          "sha": "405da34ca38560d5b465cfaec19e591aba9ca2dd",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/405da34ca38560d5b465cfaec19e591aba9ca2dd"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c9650d8f0e2f664b4f4362a42e8dfc7efc82af18",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niIsEABYKADMWIQRd8IHT46QaaYw3spsoRwkHtAvybQUCaqg35BUccG9sLmVzcGlu\nYXNhQHVhYi5jYXQACgkQKEcJB7QL8m1suwD+P39KcAcoXKHGF9PlCNVbt5tyBPsy\nOC/y1/aarQQJFRkBAIcVIHfUP4P3M4HLWcXJSvwuQujH9DCtPWwZPT+kD4EI\n=oICO\n-----END PGP SIGNATURE-----",
-          "payload": "tree 405da34ca38560d5b465cfaec19e591aba9ca2dd\nparent a40ee4ec26590c4e485f5bb0155d90b4438ee590\nauthor Pol Espinasa <pol.espinasa@uab.cat> 1776191032 +0200\ncommitter Pol Espinasa <pol.espinasa@uab.cat> 1789409252 +0200\n\nwallet: rename ProcessDescriptorImport to ImportDescriptor and add ProcessDescriptorsImport\n\nRename ProcessDescriptorImport() to ImportDescriptor().\nImportDescriptor() takes a single descriptor request and imports it into the wallet.\n\nAdd ProcessDescriptorsImport() (descriptors in plural) to handle wallet locking and rescanning\nover a vector of ImportDescriptorRequest items. It is also in charge of collecting all responses\nof imports from ImportDescriptor.\n\nThis allows a next commit to extract ImportDescriptor() and\nProcessDescriptorsImport() out of the RPC code so they can be used by\nother future interfaces.\n",
-          "verified_at": "2026-09-14T18:09:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c9650d8f0e2f664b4f4362a42e8dfc7efc82af18",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/c9650d8f0e2f664b4f4362a42e8dfc7efc82af18",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c9650d8f0e2f664b4f4362a42e8dfc7efc82af18/comments",
-      "author": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "a40ee4ec26590c4e485f5bb0155d90b4438ee590",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a40ee4ec26590c4e485f5bb0155d90b4438ee590",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/a40ee4ec26590c4e485f5bb0155d90b4438ee590"
-        }
-      ]
-    },
-    {
-      "sha": "a40ee4ec26590c4e485f5bb0155d90b4438ee590",
-      "node_id": "C_kwDOABII59oAKGE0MGVlNGVjMjY1OTBjNGU0ODVmNWJiMDE1NWQ5MGI0NDM4ZWU1OTA",
-      "commit": {
-        "author": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-06-26T16:49:14Z"
-        },
-        "committer": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-14T18:07:32Z"
-        },
-        "message": "wallet: rpc: refactor: ProcessDescriptorImport returns ImportDescriptorResult\n\nMake ProcessDescriptorImport return a ImportDescriptorResult object instead of a UniValue.\n\nThis commit gets rid of a try-catch that generates a big diff of identation changes,\nit is recommended to review it with --ignore-space-change",
-        "tree": {
-          "sha": "9cb394c8d9f8dd0e090cd4aaf6e4a38c93a0ed3d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/9cb394c8d9f8dd0e090cd4aaf6e4a38c93a0ed3d"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/a40ee4ec26590c4e485f5bb0155d90b4438ee590",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niIsEABYKADMWIQRd8IHT46QaaYw3spsoRwkHtAvybQUCaqg35BUccG9sLmVzcGlu\nYXNhQHVhYi5jYXQACgkQKEcJB7QL8m2EUQEA5QkAIZ20Yt1/xY13hVuv6cTT1g7e\nmXnC9ZzYG/+b7YEBAO09BmLu1bPyjrzJme0Vhvc7BD6k7NiDiXn7UPFBxLMB\n=1Xxw\n-----END PGP SIGNATURE-----",
-          "payload": "tree 9cb394c8d9f8dd0e090cd4aaf6e4a38c93a0ed3d\nparent 48d3d717fb6e3f61acbaf867404e51a1cac77e78\nauthor Pol Espinasa <pol.espinasa@uab.cat> 1782492554 +0200\ncommitter Pol Espinasa <pol.espinasa@uab.cat> 1789409252 +0200\n\nwallet: rpc: refactor: ProcessDescriptorImport returns ImportDescriptorResult\n\nMake ProcessDescriptorImport return a ImportDescriptorResult object instead of a UniValue.\n\nThis commit gets rid of a try-catch that generates a big diff of identation changes,\nit is recommended to review it with --ignore-space-change\n",
-          "verified_at": "2026-09-14T18:09:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a40ee4ec26590c4e485f5bb0155d90b4438ee590",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/a40ee4ec26590c4e485f5bb0155d90b4438ee590",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a40ee4ec26590c4e485f5bb0155d90b4438ee590/comments",
-      "author": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "48d3d717fb6e3f61acbaf867404e51a1cac77e78",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/48d3d717fb6e3f61acbaf867404e51a1cac77e78",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/48d3d717fb6e3f61acbaf867404e51a1cac77e78"
-        }
-      ]
-    },
-    {
-      "sha": "48d3d717fb6e3f61acbaf867404e51a1cac77e78",
-      "node_id": "C_kwDOABII59oAKDQ4ZDNkNzE3ZmI2ZTNmNjFhY2JhZjg2NzQwNGU1MWExY2FjNzdlNzg",
-      "commit": {
-        "author": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-02T20:06:12Z"
-        },
-        "committer": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-14T18:07:32Z"
-        },
-        "message": "wallet, util: Add HandleWalletErrorCode\n\nHelper function to translate from WalletErrorCode to RPC error codes.",
-        "tree": {
-          "sha": "4c274141ed134b0aaa5c65d987681a26d1dda836",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/4c274141ed134b0aaa5c65d987681a26d1dda836"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/48d3d717fb6e3f61acbaf867404e51a1cac77e78",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niIsEABYKADMWIQRd8IHT46QaaYw3spsoRwkHtAvybQUCaqg35BUccG9sLmVzcGlu\nYXNhQHVhYi5jYXQACgkQKEcJB7QL8m2A7gEAiiwxs+a43TzgD0B//ptzlt8T+beU\nbCTx6VzhwzYoFrUBAKT2H0SzxQxT+90GKc03BGpdHcbxo6NP7wH1ZkEWr8MA\n=A33I\n-----END PGP SIGNATURE-----",
-          "payload": "tree 4c274141ed134b0aaa5c65d987681a26d1dda836\nparent 04c73a91d2cc4165b90dc43b8932b128b8e1923f\nauthor Pol Espinasa <pol.espinasa@uab.cat> 1788379572 +0200\ncommitter Pol Espinasa <pol.espinasa@uab.cat> 1789409252 +0200\n\nwallet, util: Add HandleWalletErrorCode\n\nHelper function to translate from WalletErrorCode to RPC error codes.\n",
-          "verified_at": "2026-09-14T18:09:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/48d3d717fb6e3f61acbaf867404e51a1cac77e78",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/48d3d717fb6e3f61acbaf867404e51a1cac77e78",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/48d3d717fb6e3f61acbaf867404e51a1cac77e78/comments",
-      "author": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "04c73a91d2cc4165b90dc43b8932b128b8e1923f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/04c73a91d2cc4165b90dc43b8932b128b8e1923f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/04c73a91d2cc4165b90dc43b8932b128b8e1923f"
-        }
-      ]
-    },
-    {
-      "sha": "04c73a91d2cc4165b90dc43b8932b128b8e1923f",
-      "node_id": "C_kwDOABII59oAKDA0YzczYTkxZDJjYzQxNjViOTBkYzQzYjg5MzJiMTI4YjhlMTkyM2Y",
-      "commit": {
-        "author": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-07-09T17:49:12Z"
-        },
-        "committer": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-14T18:07:32Z"
-        },
-        "message": "wallet: Add ImportError struct and new WalletError codes\n\nImportError struct will substitute the UniValue based response of ProcessDescriptorImport\nin a subsequent commit. This will allow other interfaces such as the GUI to consume those function.\n\nAdded an extra constructors that will be useful in following commits.\n\nAlso add new error codes to the WalletError codes enum, this is necessary in order to propagate\nerror codes to the new interfaces and to translate errors to the rpc wallet error codes.",
-        "tree": {
-          "sha": "f7b57e0e3eb47cce7c80732b019af4432a055246",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f7b57e0e3eb47cce7c80732b019af4432a055246"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/04c73a91d2cc4165b90dc43b8932b128b8e1923f",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niIsEABYKADMWIQRd8IHT46QaaYw3spsoRwkHtAvybQUCaqg35BUccG9sLmVzcGlu\nYXNhQHVhYi5jYXQACgkQKEcJB7QL8m1LbAD/clNOgMP2npCkdacW4y9wJIL2Psnl\nIfuzgoXgNbMx82QBAObAGEsY9EsgNnceKKcuMQfG4xsWxBVr7ll63ajxWPYO\n=OWMB\n-----END PGP SIGNATURE-----",
-          "payload": "tree f7b57e0e3eb47cce7c80732b019af4432a055246\nparent 975215618505e2d62c17cb63ce94ca2a72e79ffc\nauthor Pol Espinasa <pol.espinasa@uab.cat> 1783619352 +0200\ncommitter Pol Espinasa <pol.espinasa@uab.cat> 1789409252 +0200\n\nwallet: Add ImportError struct and new WalletError codes\n\nImportError struct will substitute the UniValue based response of ProcessDescriptorImport\nin a subsequent commit. This will allow other interfaces such as the GUI to consume those function.\n\nAdded an extra constructors that will be useful in following commits.\n\nAlso add new error codes to the WalletError codes enum, this is necessary in order to propagate\nerror codes to the new interfaces and to translate errors to the rpc wallet error codes.\n",
-          "verified_at": "2026-09-14T18:09:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/04c73a91d2cc4165b90dc43b8932b128b8e1923f",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/04c73a91d2cc4165b90dc43b8932b128b8e1923f",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/04c73a91d2cc4165b90dc43b8932b128b8e1923f/comments",
-      "author": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "975215618505e2d62c17cb63ce94ca2a72e79ffc",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/975215618505e2d62c17cb63ce94ca2a72e79ffc",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/975215618505e2d62c17cb63ce94ca2a72e79ffc"
-        }
-      ]
-    },
-    {
-      "sha": "975215618505e2d62c17cb63ce94ca2a72e79ffc",
-      "node_id": "C_kwDOABII59oAKDk3NTIxNTYxODUwNWUyZDYyYzE3Y2I2M2NlOTRjYTJhNzJlNzlmZmM",
-      "commit": {
-        "author": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-06-26T15:27:34Z"
-        },
-        "committer": {
-          "name": "Pol Espinasa",
-          "email": "pol.espinasa@uab.cat",
-          "date": "2026-09-14T18:07:31Z"
-        },
-        "message": "wallet: rpc: refactor: Extract UniValue processing from ProcessDescriptorImport\n\nAdds a new function ProcessUniValueDescriptor that translates from UniValue to ImportDescriptorRequest.\nRefactors ProcessDescriptorImport to work with ImportDescriptorRequest objects instead of UniValue.\nRefactors RPCMethod importdescriptors() to use ProcessUniValueDescriptor.\n\nThe commit introduces a small behavior change to make label handling more consistent.\nPreviously, an unset label on a descriptor that cannot have a label would eventually be converted\nto an empty string. However, if the user explicitly set the label to an empty string,\nthe importdescriptors RPC call would fail because the descriptor does not support labels.\nThis inconsistency does not make sense, since an empty string (or null) effectively means that\nno label was set. With this change, null labels and empty strings are treated as valid and are\nconsidered equivalent to having no label at all.",
-        "tree": {
-          "sha": "de898fda6f24afca8a8d6eed5abeef312b23abc9",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/de898fda6f24afca8a8d6eed5abeef312b23abc9"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/975215618505e2d62c17cb63ce94ca2a72e79ffc",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niIsEABYKADMWIQRd8IHT46QaaYw3spsoRwkHtAvybQUCaqg34xUccG9sLmVzcGlu\nYXNhQHVhYi5jYXQACgkQKEcJB7QL8m2NRwEAj9e7uPXi98EPEJMGNUbfxV2mj4kb\nozuIzjobgKAkdpEBAK/yE/NaKqNO30PJesptrzGntz4yrORR6wJBXfgYtUgH\n=lDF0\n-----END PGP SIGNATURE-----",
-          "payload": "tree de898fda6f24afca8a8d6eed5abeef312b23abc9\nparent f1f61af357275f277c169e895d39699f918ef7aa\nauthor Pol Espinasa <pol.espinasa@uab.cat> 1782487654 +0200\ncommitter Pol Espinasa <pol.espinasa@uab.cat> 1789409251 +0200\n\nwallet: rpc: refactor: Extract UniValue processing from ProcessDescriptorImport\n\nAdds a new function ProcessUniValueDescriptor that translates from UniValue to ImportDescriptorRequest.\nRefactors ProcessDescriptorImport to work with ImportDescriptorRequest objects instead of UniValue.\nRefactors RPCMethod importdescriptors() to use ProcessUniValueDescriptor.\n\nThe commit introduces a small behavior change to make label handling more consistent.\nPreviously, an unset label on a descriptor that cannot have a label would eventually be converted\nto an empty string. However, if the user explicitly set the label to an empty string,\nthe importdescriptors RPC call would fail because the descriptor does not support labels.\nThis inconsistency does not make sense, since an empty string (or null) effectively means that\nno label was set. With this change, null labels and empty strings are treated as valid and are\nconsidered equivalent to having no label at all.\n",
-          "verified_at": "2026-09-14T18:09:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/975215618505e2d62c17cb63ce94ca2a72e79ffc",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/975215618505e2d62c17cb63ce94ca2a72e79ffc",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/975215618505e2d62c17cb63ce94ca2a72e79ffc/comments",
-      "author": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "polespinasa",
-        "id": 57642229,
-        "node_id": "MDQ6VXNlcjU3NjQyMjI5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/57642229?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/polespinasa",
-        "html_url": "https://github.com/polespinasa",
-        "followers_url": "https://api.github.com/users/polespinasa/followers",
-        "following_url": "https://api.github.com/users/polespinasa/following{/other_user}",
-        "gists_url": "https://api.github.com/users/polespinasa/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/polespinasa/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/polespinasa/subscriptions",
-        "organizations_url": "https://api.github.com/users/polespinasa/orgs",
-        "repos_url": "https://api.github.com/users/polespinasa/repos",
-        "events_url": "https://api.github.com/users/polespinasa/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/polespinasa/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "f1f61af357275f277c169e895d39699f918ef7aa",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f1f61af357275f277c169e895d39699f918ef7aa",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f1f61af357275f277c169e895d39699f918ef7aa"
         }
       ]
     }
