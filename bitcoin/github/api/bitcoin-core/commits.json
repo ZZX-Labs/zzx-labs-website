@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-23T23:29:51.706366Z",
+  "generated_at": "2026-09-24T01:37:45.465246Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "26241482e530ff507fce6f560baac54fe6b4dcb4",
+      "node_id": "C_kwDOABII59oAKDI2MjQxNDgyZTUzMGZmNTA3ZmNlNmY1NjBiYWFjNTRmZTZiNGRjYjQ",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-23T23:30:09Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-23T23:30:09Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35923: mempool: count unbroadcast txids in memory usage\n\ndb21e03c9d50386072a1123568f917ba65dcf348 mempool: include unbroadcast txid memory (L\u0151rinc)\n8d5c4a9290b0bc0c323cf77619f1620aa3d4caf0 test: characterize unbroadcast memory accounting (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** The mempool memory estimate omits the txid set used to retry the initial broadcast of locally submitted transactions, so `getmempoolinfo` and `-maxmempool` undercount retained memory.\n\n  **Fix:** Count this set when calculating mempool memory usage.\n\nACKs for top commit:\n  jeanpablojp:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  bartoli:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  achow101:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  musaHaruna:\n    Tested ACK [db21e03](https://github.com/bitcoin/bitcoin/pull/35923/changes/db21e03c9d50386072a1123568f917ba65dcf348)\n  instagibbs:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  ismaelsadeeq:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n\nTree-SHA512: 1d00381efb65839057a731101753ffd492596c76c23d4a2c229c720dec13b0558bdc4e6e5be0de52b65004872a1a8f87342b085eb1827bb15a7732646101d486",
+        "tree": {
+          "sha": "d35247ae9b6adf852000e1c49649960e18d841ad",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d35247ae9b6adf852000e1c49649960e18d841ad"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/26241482e530ff507fce6f560baac54fe6b4dcb4",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq0YQEACgkQF1ZXMuCO\nXkEPgg//XFqG959HLFz5SqQW+vzWffzlSPr1Jhskz7yg01gXXsJF/W4LctoeYrJY\nvoKcrZbSnR3dQzlwZpA/u0bFMcayiDI6aI9UQuFe4q75it1sg+1YV/jENVHVP9uu\niZFaMIbVX5fGe3l68hbQyM8bKMBSOS5GvWVjcv90zubqx9muqAwqe2U/Y7ZsekTT\nriHMmlSiqURorGr5KEL82LiIBeotHFtdqVCxAyN0bWX/jp/+CkxvVf/aZqs4HvYR\nt6NPLVSxGAZVEtwEZdOCvREpphGARYJXdHkSSGFcqC6vr4Xj0IV9pw67A5cyjNyC\nYZLHxOztJJwU3o41eu40dtF6BYXCOtMrgBXB9runFDvpw1plhXx4JKo+/zftJva2\nqzCuobabtrWA5P0kPTQzPgfT3cMK1MDlT+GqFl3Mj1J0qBSwwdT+qqE9d2f6opBT\nocG8QC7kAr2eNDnogIbNHw50BCo6PukqEp0OhAP3KlRUu/DSq0IJi9uMv854zY2Y\n98WzszDSvLMqKX1CMLPY5DXUFLsyB5ww7YVBzP1kytiv+KBs4zPRs+9rq8MDzlGd\nc8chJc2ET4CNzyp/5aZvXOVFCrau623PJSs4676I3AXj2ANmqpPEfW/RizUowvCc\nobSlnSkyFfLr7EWliAJ+x9am6sTMbpLf/VSPnTuqU8fWN3dc7Yg=\n=HAk1\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIFYfKSOOHuzeDW9cmNxDRkCwZREAf5hMfokrtAF4i3S5CP/wEDJF6leVNUL2\nDculhP7a8CAI8CCPjqeXk2q5g7YZ6WamAqwAoCtSL19Bze4DEpe95YdvjQjxIIYJ\nY55mrSxqPZzyPVSWNdLOBM/mY1H1X4dVrIVGxs6lCPAgVaSa0lfJnV/GB8k+VITJ\n7D1MrZXLlyynglafWAEXaSsI8QRqtGEF8AiDOVS+ueC9MwCD3+MNLvkMjiMiaHR0\ncHM6Ly9idGMuY2FsZW5kYXIuY2F0YWxsYXh5LmNvbf/wCDKh6qrvpduhCPAgpYgL\nH6wtj+1nlL3rtgzhTdB7UCQw81DB3mqwS4zigD8I8BCurFBvgbFOEijbAxY0ueys\nCPAgQRdM5bnxwclXz3p+D3HHZ3lZmT9ySRNOyqmr7B77fLoI8CDsZF6Mi8YwnCro\nfXj5gbPqg17YvvJKwpfZxJzy8ye/rgjwIHTsL5tov3q2dNtaEIYb5p34yvceCRXI\nb7UtOs7RlKn0CPEEarRhBfAITqkQgnZJUiAAg9/jDS75DI4sK2h0dHBzOi8vYm9i\nLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmf/8BBi1swqcDvAVqYcTpTq\n5IJVCPEgvbN5moyh5Wl4MU3z3TLvTqweU0aaHPUB6mxXlqj4xvoI8QRqtGEF8AhT\nO4sS8Y/AkwCD3+MNLvkMjikoaHR0cHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5p\ndHl3YWxsLmNvbfAIezkDR0GawsMI8BDDIf+ukFMoU4si65ZxY/a5CPEgW0qr1awH\n7435rkNTuWGMb1k6AAhL7olrC/bwMQqU66sI8QRqtGEF8AiVTCxlTYzUZwCD3+MN\nLvkMji4taHR0cHM6Ly9hbGljZS5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMu\nb3Jn\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree d35247ae9b6adf852000e1c49649960e18d841ad\nparent a632d4f697f367c11776ca34ddcf9d8223238d41\nparent db21e03c9d50386072a1123568f917ba65dcf348\nauthor Ava Chow <github@achow101.com> 1790206209 -0700\ncommitter Ava Chow <github@achow101.com> 1790206209 -0700\n\nMerge bitcoin/bitcoin#35923: mempool: count unbroadcast txids in memory usage\n\ndb21e03c9d50386072a1123568f917ba65dcf348 mempool: include unbroadcast txid memory (L\u0151rinc)\n8d5c4a9290b0bc0c323cf77619f1620aa3d4caf0 test: characterize unbroadcast memory accounting (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** The mempool memory estimate omits the txid set used to retry the initial broadcast of locally submitted transactions, so `getmempoolinfo` and `-maxmempool` undercount retained memory.\n\n  **Fix:** Count this set when calculating mempool memory usage.\n\nACKs for top commit:\n  jeanpablojp:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  bartoli:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  achow101:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  musaHaruna:\n    Tested ACK [db21e03](https://github.com/bitcoin/bitcoin/pull/35923/changes/db21e03c9d50386072a1123568f917ba65dcf348)\n  instagibbs:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n  ismaelsadeeq:\n    ACK db21e03c9d50386072a1123568f917ba65dcf348\n\nTree-SHA512: 1d00381efb65839057a731101753ffd492596c76c23d4a2c229c720dec13b0558bdc4e6e5be0de52b65004872a1a8f87342b085eb1827bb15a7732646101d486\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/26241482e530ff507fce6f560baac54fe6b4dcb4",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/26241482e530ff507fce6f560baac54fe6b4dcb4",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/26241482e530ff507fce6f560baac54fe6b4dcb4/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "a632d4f697f367c11776ca34ddcf9d8223238d41",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a632d4f697f367c11776ca34ddcf9d8223238d41",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/a632d4f697f367c11776ca34ddcf9d8223238d41"
+        },
+        {
+          "sha": "db21e03c9d50386072a1123568f917ba65dcf348",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db21e03c9d50386072a1123568f917ba65dcf348",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/db21e03c9d50386072a1123568f917ba65dcf348"
+        }
+      ]
+    },
     {
       "sha": "a632d4f697f367c11776ca34ddcf9d8223238d41",
       "node_id": "C_kwDOABII59oAKGE2MzJkNGY2OTdmMzY3YzExNzc2Y2EzNGRkY2Y5ZDgyMjMyMzhkNDE",
@@ -8293,88 +8380,6 @@
           "sha": "31224d0680775adec17a3878c92afe4b67a73987",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/31224d0680775adec17a3878c92afe4b67a73987",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/31224d0680775adec17a3878c92afe4b67a73987"
-        }
-      ]
-    },
-    {
-      "sha": "31224d0680775adec17a3878c92afe4b67a73987",
-      "node_id": "C_kwDOABII59oAKDMxMjI0ZDA2ODA3NzVhZGVjMTdhMzg3OGM5MmFmZTRiNjdhNzM5ODc",
-      "commit": {
-        "author": {
-          "name": "KY-U",
-          "email": "arcocaio10@gmail.com",
-          "date": "2026-09-08T19:45:33Z"
-        },
-        "committer": {
-          "name": "KY-U",
-          "email": "arcocaio10@gmail.com",
-          "date": "2026-09-14T18:09:12Z"
-        },
-        "message": "kernel: expose transaction wtxid\n\nKernel clients can retrieve a transaction's txid but not its wtxid.\nExpose the cached witness transaction identifier through a distinct,\ntype-safe C API handle.\n\nMirror the existing txid API with borrowed and owned representations,\ncopy and destroy operations, equality comparison, byte serialization,\nand corresponding C++ wrappers.\n\nTest that txid and wtxid bytes match for a legacy transaction and\ndiffer when witness data is present.",
-        "tree": {
-          "sha": "19660c729bf5bac97d23f1042049041fc95b9590",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/19660c729bf5bac97d23f1042049041fc95b9590"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/31224d0680775adec17a3878c92afe4b67a73987",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEJB2p2JC+UVDZ+1C1PMCNqoFkVDoFAmqoOEkACgkQPMCNqoFk\nVDq3Dg/7BGAky8RhyLJPeodKJMRreZcSSYgHi/K/DP17N6WId67u8GgvhsKc8Og1\n5U7+MQMDBmzEGKsmlpNoh80ChLY3pcM3vH0w3XGZBpJ6fSvyM4FdGhv2CVHUBl1s\nVY49YyJeovcOzPQy5qRuFSSDx/KCuQ9ZmOOI3QNQEGUwwjPZU+qgV5VjWjyO3uvm\n1pXtSjKYjNXHL11fMJLvUH2xD2Lht5Q4oJwQ+wd17x4eBzp0qc6p7dq2HsS9g2kM\nm75snRLMAYy/aUiVB5Be2Y4Wx3cZ51k1npcQYrhgiiqhAICqpvwpxiI9s4PlbWUf\nFkZi8YwkzuaeK3dvr36Z0lhggJJqskkdlUMtaE1uIjqaXJdLLozy2KK1SaJ98ayl\n6dAtPt2uJo13Orw8wzrI/jvX7iEkLHPSE2AaNagc3qRtncxfL0oxdRCeGJjEW7YK\ndt0o6CgtiToxs0C5MHvN+HKgkY9JmA//MWs9YjWqmc67dSjxBSWL28y7gWn1c8fg\nGecz8sQOqR8zIYAIGWaCDq6C+7h8xthfHI9HniJZHZXgk5fJkDcYrpDP4wi6Pq6i\nxYqIc5ctW9ksGJsi8Tft+ZwB7WhPkD9AADIWuWV7YNP79e+6ceinSVhOXwkQT5/2\nGuKNk7clNXvkF8WYblbOMG/lVrRVBTxh2HPHEbHXDsJzyMewE7s=\n=Hvkz\n-----END PGP SIGNATURE-----",
-          "payload": "tree 19660c729bf5bac97d23f1042049041fc95b9590\nparent 59fd053dac83c989dcb18f6d92e0d17eb7ecb227\nauthor KY-U <arcocaio10@gmail.com> 1788896733 -0300\ncommitter KY-U <arcocaio10@gmail.com> 1789409352 -0300\n\nkernel: expose transaction wtxid\n\nKernel clients can retrieve a transaction's txid but not its wtxid.\nExpose the cached witness transaction identifier through a distinct,\ntype-safe C API handle.\n\nMirror the existing txid API with borrowed and owned representations,\ncopy and destroy operations, equality comparison, byte serialization,\nand corresponding C++ wrappers.\n\nTest that txid and wtxid bytes match for a legacy transaction and\ndiffer when witness data is present.\n",
-          "verified_at": "2026-09-14T18:10:00Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/31224d0680775adec17a3878c92afe4b67a73987",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/31224d0680775adec17a3878c92afe4b67a73987",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/31224d0680775adec17a3878c92afe4b67a73987/comments",
-      "author": {
-        "login": "KY-U",
-        "id": 90665609,
-        "node_id": "MDQ6VXNlcjkwNjY1NjA5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/90665609?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/KY-U",
-        "html_url": "https://github.com/KY-U",
-        "followers_url": "https://api.github.com/users/KY-U/followers",
-        "following_url": "https://api.github.com/users/KY-U/following{/other_user}",
-        "gists_url": "https://api.github.com/users/KY-U/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/KY-U/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/KY-U/subscriptions",
-        "organizations_url": "https://api.github.com/users/KY-U/orgs",
-        "repos_url": "https://api.github.com/users/KY-U/repos",
-        "events_url": "https://api.github.com/users/KY-U/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/KY-U/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "KY-U",
-        "id": 90665609,
-        "node_id": "MDQ6VXNlcjkwNjY1NjA5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/90665609?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/KY-U",
-        "html_url": "https://github.com/KY-U",
-        "followers_url": "https://api.github.com/users/KY-U/followers",
-        "following_url": "https://api.github.com/users/KY-U/following{/other_user}",
-        "gists_url": "https://api.github.com/users/KY-U/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/KY-U/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/KY-U/subscriptions",
-        "organizations_url": "https://api.github.com/users/KY-U/orgs",
-        "repos_url": "https://api.github.com/users/KY-U/repos",
-        "events_url": "https://api.github.com/users/KY-U/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/KY-U/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "59fd053dac83c989dcb18f6d92e0d17eb7ecb227",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/59fd053dac83c989dcb18f6d92e0d17eb7ecb227",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/59fd053dac83c989dcb18f6d92e0d17eb7ecb227"
         }
       ]
     }
