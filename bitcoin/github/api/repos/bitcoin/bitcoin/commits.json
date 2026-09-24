@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-24T18:13:26.282821Z",
+  "generated_at": "2026-09-24T21:43:17.395428Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "e8e7e91a1144c378dff4da2e2a562eb0f3f2e1d6",
+      "node_id": "C_kwDOABII59oAKGU4ZTdlOTFhMTE0NGMzNzhkZmY0ZGEyZTJhNTYyZWIwZjNmMmUxZDY",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-24T21:20:33Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-24T21:20:33Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36284: wallet: don't double discard output groups with avoidpartialspends\n\n719324977a41ab5132699d9c81032f8b2687f599 test: Check that ineligible output groups are discarded only once (Fabian Jahr)\n20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1 wallet: don't double count discarded output groups with avoidpartialspends (Fabian Jahr)\n\nPull request description:\n\n  With `-avoidpartialspends` or `avoid_reuse`, `GroupOutputs` puts every positive-value output into both the mixed and the positive-only map and runs `push_output_groups` on each, so a group rejected by the eligibility filters lands in `discarded_groups` twice. `AutomaticCoinSelection` then subtracts it twice and could fail with an insufficient funds error even when there would be enough confirmed coins to cover the payment.\n\n  Not a problem in a default wallet but it can happen with `sendtoaddress` from an `avoid_reuse` wallet, or with `-avoidpartialspends=1`.\n\n  The simplest possible fix is to record discards only from the mixed map pass, which contains every output anyway. Also adds a test that reproduces the issue.\n\nACKs for top commit:\n  achow101:\n    ACK 719324977a41ab5132699d9c81032f8b2687f599\n  pablomartin4btc:\n    ACK 719324977a41ab5132699d9c81032f8b2687f599\n  vicjuma:\n    ACK 719324977a41ab5132699d9c81032f8b2687f599\n  polespinasa:\n    code reviewed ACK 719324977a41ab5132699d9c81032f8b2687f599\n\nTree-SHA512: 3028f8feeacecc601aacfce757fc885b7bd25cf6ea2ad9d9b65c56b5da71096aa48d0d70ce04d80fc2b147d67109c47d190e5dc925d06c67dfcf33cf8cc715d8",
+        "tree": {
+          "sha": "fc19bbe6891336283ca51b353968e4d9abfcd74a",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/fc19bbe6891336283ca51b353968e4d9abfcd74a"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/e8e7e91a1144c378dff4da2e2a562eb0f3f2e1d6",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq1lCEACgkQF1ZXMuCO\nXkE1gQ/9H77+f0GaSg3wHS8OPyXpqfBL/bvpMwsn7FiD2tqRSYNa7iEZ2tEt2wmb\ncZmOGW8Gpjfbj2uYnzZqA5HsLn0YM/9aM/1AM70QKBlfp1EocRuIaQzRsdiBgTAE\n+gkwqkma9O95rH6D4sH23aTh8cVSu5+kWmrdM2Zy/TE4Q2lI86qb7azs5Xapv2YZ\nOsPNrTXS8L4Jl4/gzpp+ibBAXMDbwL7YWc/1Twd+nCfJ0gqZzXbgQzftUs2IYik/\nBvEkw1wGXOxQCqDryq58cr868X6yobErs4+nTy6uAHhh3NDQX7rydQipKgHt5NvH\nsFDnyEi1iM83k3113FvUbvLyFJ8wD8iVnOiW807R//hn+FllYWdz4/H3FEWnr6vY\n2Es+NqN7pNisBS/OKv/AWKcWEHZYkAkacItC27ppMd4G5kDQXJju5kbAmWObX+XE\n282CPBfNovki4JFd+LPQdv8VEyhTnUaUjHKPRtglhFXM3Hjx+LaUmK/tdd3RVH36\nSseK6JYv6I7iYQwM35aJ3mmaXpZsW2p8pxkbyVybdVh5n9XtLwys96M1PoXzYxxY\nIFnQmR+OQ05+ZdMsbH8I0eJrp+w2+2hbYkx01SJgGrW1iAJ9cuiYe8L0S4L8zAUE\n8qgpo07qYK7kPqj7GNBkGV96FT06EyDCOnwaILNkSH08wUTlZ88=\n=Qx2f\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIE3wtXpr5eUjBeICMLjoaE+njhvdhQkr1GYc23h/OS8QCP/wEBtCSZlV6sqa\n8nabfWJer2cI8SCg4b0U4U9Hyv++hPoj1qIBZYBOMxt5RWn5XJlhseQ6ZwjxIIVx\nEDmQkdzOmRMt554iGefXwE0k1iozkXTBlhk0yEM+CPAglf5+9K5l/0FAzs9N/ZiD\nssGp9NtkzU0YFdhK7FQ99sgI8QRqtZQq8AinC8kPJu6tHgCD3+MNLvkMjikoaHR0\ncHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5pdHl3YWxsLmNvbf/wCCsFFOTgkEYm\nCPEgh2NmEM4FZ1o1rhFnMGSDY6t7j7HqdUOcHTT8ZSdnZGkI8BDirILS3gnHdyuF\naqTJRb6KCPAgZ71lRKPODezqq/5iZrA1NXtyPHrpP0rG7JZNufI2T/8I8QRqtZQp\n8Aj+1Ye77762ZQCD3+MNLvkMjiwraHR0cHM6Ly9ib2IuYnRjLmNhbGVuZGFyLm9w\nZW50aW1lc3RhbXBzLm9yZ//wEHFjix0s9KFgi1qRA/8QOjMI8CCY4QCPPHlEheQu\nErAFI3chSe49wLG5MM8Gun/f27OzbAjxIL+GuKqAKyqY6V4JmCxXmJLjT+w4wesu\nIGEpwYznslJLCPAgkqxdL5H9Ao0JH2CRh3BJjsc+iQdJfKexwmIijWKbjUUI8QRq\ntZQq8Aglgyi4nf5bKwCD3+MNLvkMjiMiaHR0cHM6Ly9idGMuY2FsZW5kYXIuY2F0\nYWxsYXh5LmNvbfAIxGqKLkN3YLYI8BDq0l7zCr2WfC8CsRUJoGsGCPAggDRXSwuJ\nZqZ4wC1P3Pi9IHejGp9Zjns5m8KT3FrCy9EI8SCPmhtuG3R+NSzGvkZlKpgX+ax+\nC0P/r1aKVyPRNm+gfQjxBGq1lCnwCDHVItucg9BvAIPf4w0u+QyOLi1odHRwczov\nL2FsaWNlLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmc=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree fc19bbe6891336283ca51b353968e4d9abfcd74a\nparent bfdcd9797cd1a1345bdaf7ee7ef48f94028262da\nparent 719324977a41ab5132699d9c81032f8b2687f599\nauthor Ava Chow <github@achow101.com> 1790284833 -0700\ncommitter Ava Chow <github@achow101.com> 1790284833 -0700\n\nMerge bitcoin/bitcoin#36284: wallet: don't double discard output groups with avoidpartialspends\n\n719324977a41ab5132699d9c81032f8b2687f599 test: Check that ineligible output groups are discarded only once (Fabian Jahr)\n20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1 wallet: don't double count discarded output groups with avoidpartialspends (Fabian Jahr)\n\nPull request description:\n\n  With `-avoidpartialspends` or `avoid_reuse`, `GroupOutputs` puts every positive-value output into both the mixed and the positive-only map and runs `push_output_groups` on each, so a group rejected by the eligibility filters lands in `discarded_groups` twice. `AutomaticCoinSelection` then subtracts it twice and could fail with an insufficient funds error even when there would be enough confirmed coins to cover the payment.\n\n  Not a problem in a default wallet but it can happen with `sendtoaddress` from an `avoid_reuse` wallet, or with `-avoidpartialspends=1`.\n\n  The simplest possible fix is to record discards only from the mixed map pass, which contains every output anyway. Also adds a test that reproduces the issue.\n\nACKs for top commit:\n  achow101:\n    ACK 719324977a41ab5132699d9c81032f8b2687f599\n  pablomartin4btc:\n    ACK 719324977a41ab5132699d9c81032f8b2687f599\n  vicjuma:\n    ACK 719324977a41ab5132699d9c81032f8b2687f599\n  polespinasa:\n    code reviewed ACK 719324977a41ab5132699d9c81032f8b2687f599\n\nTree-SHA512: 3028f8feeacecc601aacfce757fc885b7bd25cf6ea2ad9d9b65c56b5da71096aa48d0d70ce04d80fc2b147d67109c47d190e5dc925d06c67dfcf33cf8cc715d8\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e8e7e91a1144c378dff4da2e2a562eb0f3f2e1d6",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/e8e7e91a1144c378dff4da2e2a562eb0f3f2e1d6",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e8e7e91a1144c378dff4da2e2a562eb0f3f2e1d6/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "bfdcd9797cd1a1345bdaf7ee7ef48f94028262da",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/bfdcd9797cd1a1345bdaf7ee7ef48f94028262da",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/bfdcd9797cd1a1345bdaf7ee7ef48f94028262da"
+        },
+        {
+          "sha": "719324977a41ab5132699d9c81032f8b2687f599",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/719324977a41ab5132699d9c81032f8b2687f599",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/719324977a41ab5132699d9c81032f8b2687f599"
+        }
+      ]
+    },
     {
       "sha": "bfdcd9797cd1a1345bdaf7ee7ef48f94028262da",
       "node_id": "C_kwDOABII59oAKGJmZGNkOTc5N2NkMWExMzQ1YmRhZjdlZTdlZjQ4Zjk0MDI4MjYyZGE",
@@ -1618,93 +1705,6 @@
           "sha": "13ce46ba1a79c99882cc1ac768db1df1f25de098",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/13ce46ba1a79c99882cc1ac768db1df1f25de098",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/13ce46ba1a79c99882cc1ac768db1df1f25de098"
-        }
-      ]
-    },
-    {
-      "sha": "d36f4a1788da9bd5d297c7a11e0c32438242b3d1",
-      "node_id": "C_kwDOABII59oAKGQzNmY0YTE3ODhkYTliZDVkMjk3YzdhMTFlMGMzMjQzODI0MmIzZDE",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-22T19:40:22Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-22T19:40:22Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36155: doc: remove json quoting from gettxoutsetinfo and getblockstats cli examples\n\n57a79c69627de7854d5aec7b6b121e4a987ceb52 doc: remove json quoting from gettxoutsetinfo and getblockstats cli examples (csjones)\n\nPull request description:\n\n  This is a followup change based on https://github.com/bitcoin/bitcoin/pull/33230#issuecomment-3216227775 because https://github.com/bitcoin/bitcoin/pull/33230 enabled handling cli arguments with either json or a string but the examples (i.e. `bitcoin-cli help gettxoutsetinfo` and `bitcoin-cli help getblockstats`) left the quotes. I considered adding a new example but felt that change might seem confusing.\n\nACKs for top commit:\n  nervana21:\n    ACK 57a79c69627de7854d5aec7b6b121e4a987ceb52\n  sedited:\n    ACK 57a79c69627de7854d5aec7b6b121e4a987ceb52\n\nTree-SHA512: fb1cf210837acb4a62b1adf024ce7b2716178e9f7293d21fee3a058f838603bd38cb46a8405c7b7d33cf2b7b66a4f7012bb0fc1f1cafc94055969f4728dfa2f9",
-        "tree": {
-          "sha": "c302d9cb0c13cb7289c5cf831d817e3cca5da986",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/c302d9cb0c13cb7289c5cf831d817e3cca5da986"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d36f4a1788da9bd5d297c7a11e0c32438242b3d1",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqy2aYACgkQm3m0VpHb\nQXPwhBAAvw11a6WJvFL4JJ0Km+y9+2zPBcQ9pCH9Gg5Nb+KZGBW1VIeo5GhUI1de\nMtWkiltqxT6ek4N89fMiaakKFtNsbsKA+0xNJXsnHwo6CTVbPQWyXkDE4Jh1Ps2W\nWV5f+vDpe6d91yfz/+Z3tH33bC4Hudah5D0irmFTP+2ebx8Sf98fRSSVr6k64Fq+\n9dpmc/rrTLUXRvmMLpfZwVS2lZwNhKHciPA/JSk6fAzRFT1Sk7EAKjDOS4Kq7BXZ\nmzD/0HAYXn/IVbpD8BtBgUto2LnRy9iWNqsdf+279LiyaXRfQOYjfs18HI8KSgJC\nqMehd1YXlmv8hb3/Bv4MAfrECPiqCcfXuIY/KSDN2y1AJy7mPcCYn2QEFjxQl+Ai\ncCgpGxv4IRlHXtVPlrmXOgQDh+ppPCCoSE6GhcL+Tgutme4T4sPjE6h0xL3eN9dt\nuLBUWfFaZf3vd/2YLhrVvGHGP/ZQninmpgmkRWA/yS++Vbrl4frepr9pZFkxgqps\nzsoTMlK6Efr+93kcLehQPxIckkcePv3T2WT6xkNFIpzUaoxjEaiBjuFKmBQq2IOX\neXYmOulqRpqToKNeK69NA5/zsxU3EcQ0G2FhUisIlhuZd9BSvnd45u/iRYWVxjPO\nhSxxLAxPNs1FzLroRcLg0s3UM/gzhX/5HBcVgaibb5M5MAK7FeI=\n=z3RK\n-----END PGP SIGNATURE-----",
-          "payload": "tree c302d9cb0c13cb7289c5cf831d817e3cca5da986\nparent b7211ba80cde559db3cef16577ce03d5701813ed\nparent 57a79c69627de7854d5aec7b6b121e4a987ceb52\nauthor merge-script <seb.kung@gmail.com> 1790106022 +0200\ncommitter merge-script <seb.kung@gmail.com> 1790106022 +0200\n\nMerge bitcoin/bitcoin#36155: doc: remove json quoting from gettxoutsetinfo and getblockstats cli examples\n\n57a79c69627de7854d5aec7b6b121e4a987ceb52 doc: remove json quoting from gettxoutsetinfo and getblockstats cli examples (csjones)\n\nPull request description:\n\n  This is a followup change based on https://github.com/bitcoin/bitcoin/pull/33230#issuecomment-3216227775 because https://github.com/bitcoin/bitcoin/pull/33230 enabled handling cli arguments with either json or a string but the examples (i.e. `bitcoin-cli help gettxoutsetinfo` and `bitcoin-cli help getblockstats`) left the quotes. I considered adding a new example but felt that change might seem confusing.\n\nACKs for top commit:\n  nervana21:\n    ACK 57a79c69627de7854d5aec7b6b121e4a987ceb52\n  sedited:\n    ACK 57a79c69627de7854d5aec7b6b121e4a987ceb52\n\nTree-SHA512: fb1cf210837acb4a62b1adf024ce7b2716178e9f7293d21fee3a058f838603bd38cb46a8405c7b7d33cf2b7b66a4f7012bb0fc1f1cafc94055969f4728dfa2f9\n",
-          "verified_at": "2026-09-22T19:40:50Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d36f4a1788da9bd5d297c7a11e0c32438242b3d1",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/d36f4a1788da9bd5d297c7a11e0c32438242b3d1",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d36f4a1788da9bd5d297c7a11e0c32438242b3d1/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b7211ba80cde559db3cef16577ce03d5701813ed",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b7211ba80cde559db3cef16577ce03d5701813ed",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b7211ba80cde559db3cef16577ce03d5701813ed"
-        },
-        {
-          "sha": "57a79c69627de7854d5aec7b6b121e4a987ceb52",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/57a79c69627de7854d5aec7b6b121e4a987ceb52",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/57a79c69627de7854d5aec7b6b121e4a987ceb52"
         }
       ]
     }
