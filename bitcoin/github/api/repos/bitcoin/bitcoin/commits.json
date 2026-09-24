@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-24T03:01:18.828293Z",
+  "generated_at": "2026-09-24T08:22:32.242162Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "5c726f2058a4d5ac2c7d0dc8753d4ff125d03f15",
+      "node_id": "C_kwDOABII59oAKDVjNzI2ZjIwNThhNGQ1YWMyYzdkMGRjODc1M2Q0ZmYxMjVkMDNmMTU",
+      "commit": {
+        "author": {
+          "name": "Ryan Ofsky",
+          "email": "ryan@ofsky.org",
+          "date": "2026-09-24T03:14:53Z"
+        },
+        "committer": {
+          "name": "Ryan Ofsky",
+          "email": "ryan@ofsky.org",
+          "date": "2026-09-24T04:01:04Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35675: mining: add block template manager\n\n3d7d190b6995b3c0adb6528c2d9eac81a8f839d9 ci: enforce iwyu for block template manager (ismaelsadeeq)\nffe3a631f38b1224db8b0ea246a3c976f358c59e node: remove NodeContext::mining and EnsureMining (ismaelsadeeq)\n6c71166bcfa4339d5019f2b27d477eb45ce7fe86 test: create templates via BlockTemplateManager (ismaelsadeeq)\nec4f24ef181a7987bcea72a21e507f59dc1b8126 rpc: wait for tips via BlockTemplateManager (ismaelsadeeq)\n8372721f20e2ea2c15bae38a046476736169d801 rpc: build generation templates via BlockTemplateManager (ismaelsadeeq)\n38556f817e060187b48cd31490f578cdf63134ee rpc: only copy the header in getblocktemplate (ismaelsadeeq)\n951fac807d37302e7de5e289c0ab05f8dfcb1e1c rpc: do not copy template data in getblocktemplate (ismaelsadeeq)\n0998c0bbdfcc3c3f7c105a1fb7223bace529556a rpc: build getblocktemplate via BlockTemplateManager (ismaelsadeeq)\n011cbfbcd2e3a3282ae7e5afdfd923bc444d1845 rpc: route getblocktemplate internals through node (ismaelsadeeq)\n400ac328c91b653e793bd140b89e8fabfb42e3ac interfaces: create block template via BlockTemplateManager (ismaelsadeeq)\n037d3519f2ff9937aa82060a42939aafab4179f1 node: move tip and wait helpers into BlockTemplateManager (ismaelsadeeq)\n07964c525d4769d00004b9942225a2cb1306e09d miner: move SubmitBlock into BlockTemplateManager (ismaelsadeeq)\nbcdadf2b7111a061d2bbeba350233db7b258a787 node: move mining_args to BlockTemplateManager (ismaelsadeeq)\n482a5d27124c4241c27ed323659914cd38409650 node: introduce BlockTemplateManager (ismaelsadeeq)\n\nPull request description:\n\n  This PR introduces `node::BlockTemplateManager` and moves block template\n  creation, submission, and mining wait helpers behind it.\n\n  #### Motivation\n\n  Instead of keeping template-related state and helper functions spread across\n  `NodeContext`, `miner.cpp`, the mining interface, RPC, and tests, the manager\n   now owns the node's init-time mining options and exposes methods needed by callers.\n\n  This also prevents some redundant copies previously done when using the mining\n  interface to create a block template and then retrieve the template data.\n\n  This keeps the IPC `Mining` interface focused on IPC-facing mining objects, while RPC\n  and tests use the block template manager directly.\n\n  #### Changes\n\n  - `NodeContext` no longer stores `BlockCreateOptions` directly.\n  - `BlockTemplateManager` stores the parsed init-time mining options and applies\n    them to unset per-call options before creating templates.\n  - Block submission through the mining interface is routed through\n    `BlockTemplateManager::SubmitBlock()`, preserving the existing\n    `BlockChecked` state-capture behavior.\n  - Tip lookup, tip waiting, cooldown, and `waitNext()` template creation helpers\n    are moved from miner helper functions into `BlockTemplateManager`.\n  - In-process RPC and tests create raw `CBlockTemplate` objects directly through\n    `BlockTemplateManager`, avoiding cached `BlockTemplateImpl` objects that hold\n    `NodeContext` references during shutdown.\n\n  #### Note: This change is intended to be a pure refactor that preserves behavior.\n\nACKs for top commit:\n  Sjors:\n    re-ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\n  marcofleon:\n    light code review ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\n  pablomartin4btc:\n    re-ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\n\nTree-SHA512: 885af752ecd105f9813e75de87b9e022b151e5959aae3ef00de838ca4b07ce19ee24a80629dd80bb5261d4b090b4f7832f09c4d8147e4265c54c7f8926694590",
+        "tree": {
+          "sha": "853e499c3ccabf34235a1cb4635d8ed81c499949",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/853e499c3ccabf34235a1cb4635d8ed81c499949"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/5c726f2058a4d5ac2c7d0dc8753d4ff125d03f15",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEETRs9Xsuhp+BTce6+RoAOMPx0imYFAmq0oIAACgkQRoAOMPx0\nimZqWw/8CoRC7ai3aoDxfCmXfOxp7mpiVtR3dcJzM1WcpRSqawcCYT+GPFoBl+gh\nTtD4jctpSWuxgaylI4z4J1cXKUPRH1+PSeSq/2b1TvHRMxj9KwH/1TrlBCp42ObX\nZpSzhoA+M0QGwQkILmgJPRI0egaomnFQuVCBwVkqPYeoXf75vDn3wkO62OPAXN4d\nmQPxhmMGhWCQGFF+lzm5cUAHbcl5WW2WbG2bRfSOEAk1QaMrI/mAoyGJUQAtYKih\ne/6MGz3zzrF+7H7K/dx07SSr/4X8/vq+BQazu6PyuzaJXROWX1NoDhTddfH2TZv0\nDwBwFvFkcHIGLvZASqrziDgORaGu3bO/goSg9h5ssKQSBGJ2AxJi1M71V6X9PQls\nBwVlsxs2yeMo7kMv8169ibv+6MbRpV7/fYpNaHnCK+pSM56yVDsCknTrFJ79weKz\n9BJfsabv5Ucc2jEK0WitRXnald3T3RB6MQuIJ6nO19f9Y5zaCP2/nNbuNWOGXzG7\nYb0Ml98lnYNKa7weD5GByQpFJk9u4PJOTnpMTSgzgoujJxCiy31ZrRnpHuSxhA1b\n8AWvOfWBuph5W+XQuKDWavt6V1zHxUAT4lXIt5YmkBqFCzW1a5o+qAd7y4SkTL5v\n4B8BOaMjH8uTJfJAYAb6S/wkUk5SHmYTBHC2euLYCWzg8cim/SA=\n=TsOk\n-----END PGP SIGNATURE-----",
+          "payload": "tree 853e499c3ccabf34235a1cb4635d8ed81c499949\nparent 26241482e530ff507fce6f560baac54fe6b4dcb4\nparent 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\nauthor Ryan Ofsky <ryan@ofsky.org> 1790219693 -0400\ncommitter Ryan Ofsky <ryan@ofsky.org> 1790222464 -0400\n\nMerge bitcoin/bitcoin#35675: mining: add block template manager\n\n3d7d190b6995b3c0adb6528c2d9eac81a8f839d9 ci: enforce iwyu for block template manager (ismaelsadeeq)\nffe3a631f38b1224db8b0ea246a3c976f358c59e node: remove NodeContext::mining and EnsureMining (ismaelsadeeq)\n6c71166bcfa4339d5019f2b27d477eb45ce7fe86 test: create templates via BlockTemplateManager (ismaelsadeeq)\nec4f24ef181a7987bcea72a21e507f59dc1b8126 rpc: wait for tips via BlockTemplateManager (ismaelsadeeq)\n8372721f20e2ea2c15bae38a046476736169d801 rpc: build generation templates via BlockTemplateManager (ismaelsadeeq)\n38556f817e060187b48cd31490f578cdf63134ee rpc: only copy the header in getblocktemplate (ismaelsadeeq)\n951fac807d37302e7de5e289c0ab05f8dfcb1e1c rpc: do not copy template data in getblocktemplate (ismaelsadeeq)\n0998c0bbdfcc3c3f7c105a1fb7223bace529556a rpc: build getblocktemplate via BlockTemplateManager (ismaelsadeeq)\n011cbfbcd2e3a3282ae7e5afdfd923bc444d1845 rpc: route getblocktemplate internals through node (ismaelsadeeq)\n400ac328c91b653e793bd140b89e8fabfb42e3ac interfaces: create block template via BlockTemplateManager (ismaelsadeeq)\n037d3519f2ff9937aa82060a42939aafab4179f1 node: move tip and wait helpers into BlockTemplateManager (ismaelsadeeq)\n07964c525d4769d00004b9942225a2cb1306e09d miner: move SubmitBlock into BlockTemplateManager (ismaelsadeeq)\nbcdadf2b7111a061d2bbeba350233db7b258a787 node: move mining_args to BlockTemplateManager (ismaelsadeeq)\n482a5d27124c4241c27ed323659914cd38409650 node: introduce BlockTemplateManager (ismaelsadeeq)\n\nPull request description:\n\n  This PR introduces `node::BlockTemplateManager` and moves block template\n  creation, submission, and mining wait helpers behind it.\n\n  #### Motivation\n\n  Instead of keeping template-related state and helper functions spread across\n  `NodeContext`, `miner.cpp`, the mining interface, RPC, and tests, the manager\n   now owns the node's init-time mining options and exposes methods needed by callers.\n\n  This also prevents some redundant copies previously done when using the mining\n  interface to create a block template and then retrieve the template data.\n\n  This keeps the IPC `Mining` interface focused on IPC-facing mining objects, while RPC\n  and tests use the block template manager directly.\n\n  #### Changes\n\n  - `NodeContext` no longer stores `BlockCreateOptions` directly.\n  - `BlockTemplateManager` stores the parsed init-time mining options and applies\n    them to unset per-call options before creating templates.\n  - Block submission through the mining interface is routed through\n    `BlockTemplateManager::SubmitBlock()`, preserving the existing\n    `BlockChecked` state-capture behavior.\n  - Tip lookup, tip waiting, cooldown, and `waitNext()` template creation helpers\n    are moved from miner helper functions into `BlockTemplateManager`.\n  - In-process RPC and tests create raw `CBlockTemplate` objects directly through\n    `BlockTemplateManager`, avoiding cached `BlockTemplateImpl` objects that hold\n    `NodeContext` references during shutdown.\n\n  #### Note: This change is intended to be a pure refactor that preserves behavior.\n\nACKs for top commit:\n  Sjors:\n    re-ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\n  marcofleon:\n    light code review ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\n  pablomartin4btc:\n    re-ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9\n\nTree-SHA512: 885af752ecd105f9813e75de87b9e022b151e5959aae3ef00de838ca4b07ce19ee24a80629dd80bb5261d4b090b4f7832f09c4d8147e4265c54c7f8926694590\n",
+          "verified_at": "2026-09-24T04:01:14Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5c726f2058a4d5ac2c7d0dc8753d4ff125d03f15",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/5c726f2058a4d5ac2c7d0dc8753d4ff125d03f15",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5c726f2058a4d5ac2c7d0dc8753d4ff125d03f15/comments",
+      "author": {
+        "login": "ryanofsky",
+        "id": 7133040,
+        "node_id": "MDQ6VXNlcjcxMzMwNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7133040?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ryanofsky",
+        "html_url": "https://github.com/ryanofsky",
+        "followers_url": "https://api.github.com/users/ryanofsky/followers",
+        "following_url": "https://api.github.com/users/ryanofsky/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ryanofsky/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ryanofsky/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ryanofsky/subscriptions",
+        "organizations_url": "https://api.github.com/users/ryanofsky/orgs",
+        "repos_url": "https://api.github.com/users/ryanofsky/repos",
+        "events_url": "https://api.github.com/users/ryanofsky/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ryanofsky/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "ryanofsky",
+        "id": 7133040,
+        "node_id": "MDQ6VXNlcjcxMzMwNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7133040?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ryanofsky",
+        "html_url": "https://github.com/ryanofsky",
+        "followers_url": "https://api.github.com/users/ryanofsky/followers",
+        "following_url": "https://api.github.com/users/ryanofsky/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ryanofsky/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ryanofsky/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ryanofsky/subscriptions",
+        "organizations_url": "https://api.github.com/users/ryanofsky/orgs",
+        "repos_url": "https://api.github.com/users/ryanofsky/repos",
+        "events_url": "https://api.github.com/users/ryanofsky/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ryanofsky/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "26241482e530ff507fce6f560baac54fe6b4dcb4",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/26241482e530ff507fce6f560baac54fe6b4dcb4",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/26241482e530ff507fce6f560baac54fe6b4dcb4"
+        },
+        {
+          "sha": "3d7d190b6995b3c0adb6528c2d9eac81a8f839d9",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3d7d190b6995b3c0adb6528c2d9eac81a8f839d9",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/3d7d190b6995b3c0adb6528c2d9eac81a8f839d9"
+        }
+      ]
+    },
     {
       "sha": "26241482e530ff507fce6f560baac54fe6b4dcb4",
       "node_id": "C_kwDOABII59oAKDI2MjQxNDgyZTUzMGZmNTA3ZmNlNmY1NjBiYWFjNTRmZTZiNGRjYjQ",
@@ -1623,93 +1710,6 @@
           "sha": "a34861d280b3db81175b6692ba00ccc62edff52e",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a34861d280b3db81175b6692ba00ccc62edff52e",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/a34861d280b3db81175b6692ba00ccc62edff52e"
-        }
-      ]
-    },
-    {
-      "sha": "995da8678a02aeae66b4724d8926dd3d03ed682d",
-      "node_id": "C_kwDOABII59oAKDk5NWRhODY3OGEwMmFlYWU2NmI0NzI0ZDg5MjZkZDNkMDNlZDY4MmQ",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-22T14:50:21Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-09-22T14:50:21Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36302: ci: simplify macOS codesign check\n\n716e8605e5c8a85400be15b3ce4a2eaef8045435 ci: simplify macOS codesign check (fanquake)\n\nPull request description:\n\n  Followup to #34914. See https://github.com/bitcoin/bitcoin/pull/34914#discussion_r4043925876.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 716e8605e5c8a85400be15b3ce4a2eaef8045435\n  Sjors:\n    ACK 716e8605e5c8a85400be15b3ce4a2eaef8045435\n  willcl-ark:\n    code review ACK 716e8605e5c8a85400be15b3ce4a2eaef8045435\n\nTree-SHA512: 750c08eef5f5284b2d259ddb73a62a774cfa9154d91a91561a3042897639be9ea649d74ca5212eb07d3e1e24ea4b468d734824a0d91c9cc2544f4d7fedb67706",
-        "tree": {
-          "sha": "de524e852efc63cb620e08fa3495d3f1aee2593f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/de524e852efc63cb620e08fa3495d3f1aee2593f"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/995da8678a02aeae66b4724d8926dd3d03ed682d",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmqyla0ACgkQm3m0VpHb\nQXPuPRAAqiHzKQHzOeJf63dpNMRPdk9TDuLOrnw7a9Bht1M3XtiugocnRQKXtNB+\n2tFsvdp+UgV7RCFpFmEq1LCTKMTmmtVB+AWA37FhL6u/ZhNtd1hpTMljSnSv/2JV\nZZXVXx0p8dTXbbHpTFGSOw1JYcPzWDPehxAKmiXzmFHSgD88ko7/vYiYk2PTcAsY\nCS2wBkX6Tk7G+oubFeQUdG+c5+nHIP3yzi1AES+PXFDuzLxMWexNEPe/2N/X7ata\nqEiNlkANWbhER72VhErdTPfHx/rQGvWCfCLDAhoZFtfbCYA3liqjrxgN4mRnXBJq\nUAhDNqL7ZjMgEXZCSDQUADJ/F3T+6CxJG64ii2oHwyAGGRQfdyKZSfm32EGh6ayL\nkz0jS6mISioRko8doC2Ad/6f8nwQGKPDoCTU8cay4REgP+HbLyQRMnSOekl1NO59\nRyNkg4am5EXUDvzuifN6s37/bI2fIacRD99doFaGuO05wIP5GWlJcSxrV6toF9Vf\nu0GHMmCcfP3SIN+AVZRVR34qAvaebhzgtgRkvLVSeYUgdrvKDn36wRuq0KEVDPDN\nXqsA5Ikw2cXezlUIxU6LmIXoWderMU+Om7SAHdoGc3Dhjkr/HcK0uaQinBZpaVIy\naKTOaaMveF5Pqs3rxt8Sxw/C3FtDpeR8j5G6sHxCgycGe59K9Ks=\n=qa/9\n-----END PGP SIGNATURE-----",
-          "payload": "tree de524e852efc63cb620e08fa3495d3f1aee2593f\nparent f86cbf53eb3ed90eea20e35936182689014f3143\nparent 716e8605e5c8a85400be15b3ce4a2eaef8045435\nauthor merge-script <seb.kung@gmail.com> 1790088621 +0200\ncommitter merge-script <seb.kung@gmail.com> 1790088621 +0200\n\nMerge bitcoin/bitcoin#36302: ci: simplify macOS codesign check\n\n716e8605e5c8a85400be15b3ce4a2eaef8045435 ci: simplify macOS codesign check (fanquake)\n\nPull request description:\n\n  Followup to #34914. See https://github.com/bitcoin/bitcoin/pull/34914#discussion_r4043925876.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 716e8605e5c8a85400be15b3ce4a2eaef8045435\n  Sjors:\n    ACK 716e8605e5c8a85400be15b3ce4a2eaef8045435\n  willcl-ark:\n    code review ACK 716e8605e5c8a85400be15b3ce4a2eaef8045435\n\nTree-SHA512: 750c08eef5f5284b2d259ddb73a62a774cfa9154d91a91561a3042897639be9ea649d74ca5212eb07d3e1e24ea4b468d734824a0d91c9cc2544f4d7fedb67706\n",
-          "verified_at": "2026-09-22T14:50:56Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/995da8678a02aeae66b4724d8926dd3d03ed682d",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/995da8678a02aeae66b4724d8926dd3d03ed682d",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/995da8678a02aeae66b4724d8926dd3d03ed682d/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "f86cbf53eb3ed90eea20e35936182689014f3143",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f86cbf53eb3ed90eea20e35936182689014f3143",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f86cbf53eb3ed90eea20e35936182689014f3143"
-        },
-        {
-          "sha": "716e8605e5c8a85400be15b3ce4a2eaef8045435",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/716e8605e5c8a85400be15b3ce4a2eaef8045435",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/716e8605e5c8a85400be15b3ce4a2eaef8045435"
         }
       ]
     }
