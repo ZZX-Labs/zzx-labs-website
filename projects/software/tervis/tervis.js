@@ -21,18 +21,8 @@
     counters: { image: 0, video: 0, audio: 0 }
   };
 
-  const MODEL_SCRIPTS = [
-    {
-      id: "tfjs-runtime",
-      src: "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js",
-      ready: () => !!window.tf
-    },
-    {
-      id: "tfjs-mobilenet",
-      src: "https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js",
-      ready: () => !!window.mobilenet
-    }
-  ];
+  const MODEL_SCRIPTS = [];
+  const BROWSER_ML_DISABLED = true;
 
   function log(id, message) {
     const el = $(id);
@@ -65,60 +55,13 @@
     );
   }
 
-  function loadScript(src, id) {
-    return new Promise((resolve, reject) => {
-      const existing = document.getElementById(id);
-      if (existing) {
-        if (existing.dataset.loaded === "true") return resolve();
-        existing.addEventListener("load", resolve, { once: true });
-        existing.addEventListener("error", reject, { once: true });
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.id = id;
-      script.src = src;
-      script.async = true;
-      script.crossOrigin = "anonymous";
-      script.addEventListener("load", () => {
-        script.dataset.loaded = "true";
-        resolve();
-      }, { once: true });
-      script.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
-      document.head.appendChild(script);
-    });
-  }
-
-  async function ensureTf({ withMobileNet = false } = {}) {
-    setStatus("status-tf", "TFJS: LOADING", "partial");
-    log("model-log", "Loading TensorFlow.js runtime…");
-
-    const tfSpec = MODEL_SCRIPTS[0];
-    if (!tfSpec.ready()) await loadScript(tfSpec.src, tfSpec.id);
-    if (!window.tf) throw new Error("TensorFlow.js did not initialize.");
-
-    await tf.ready();
-    state.tfReady = true;
-
-    if (withMobileNet) {
-      const mnSpec = MODEL_SCRIPTS[1];
-      if (!mnSpec.ready()) await loadScript(mnSpec.src, mnSpec.id);
-      if (!window.mobilenet) throw new Error("MobileNet library did not initialize.");
-    }
-
-    setStatus("status-tf", `TFJS: ${tf.version.tfjs}`, "ok");
-    log("model-log", `TensorFlow.js ready (${tf.getBackend()}).`);
-    return tf;
+  async function ensureTf() {
+    setStatus("status-tf", "PYTHON ML: SERVER", "partial");
+    throw new Error("Browser TensorFlow/npm runtimes are disabled by repository policy. Use the Python inference backend/CLI.");
   }
 
   async function loadMobileNet() {
-    await ensureTf({ withMobileNet: true });
-    if (!state.mobileNet) {
-      log("model-log", "Loading MobileNet model weights…");
-      state.mobileNet = await mobilenet.load({ version: 2, alpha: 1.0 });
-      log("model-log", "MobileNet loaded.");
-    }
-    return state.mobileNet;
+    return ensureTf();
   }
 
   function parseLabels() {
