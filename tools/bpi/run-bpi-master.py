@@ -15,6 +15,7 @@ def main() -> int:
     p.add_argument("--hourly", action="store_true", help="Run one bounded hourly collect/finalize/archive cycle.")
     p.add_argument("--root", default=str(ROOT))
     p.add_argument("--capture-seconds", type=float)
+    p.add_argument("--cycle-ms", type=int, default=2500, help="Resident collector cycle (2500-5000 ms).")
     p.add_argument("--finalize-margin-seconds", type=float)
     p.add_argument("--chunk-rows", type=int)
     p.add_argument("--skip-collect", action="store_true")
@@ -46,6 +47,8 @@ def main() -> int:
         str(HERE / "master_daemon.py"),
         "--root",
         root,
+        "--cycle-ms",
+        str(args.cycle_ms),
     ])
 
 
