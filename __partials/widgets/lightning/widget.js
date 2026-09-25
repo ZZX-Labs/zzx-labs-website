@@ -26,7 +26,7 @@
   }
 
   async function ensureProvider(core){
-    if(W.ZZXLightningNetworkProvider?.load)return;
+    if(Number(W.ZZXLightningNetworkProvider?.__version||0)>=4)return;
 
     const base=core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -38,7 +38,7 @@
 
     await new Promise((resolve,reject)=>{
       const s=D.createElement("script");
-      s.src=src;s.defer=true;
+      s.src=`${src}${src.includes("?")?"&":"?"}zzxmod=4`;s.defer=true;
       s.onload=resolve;s.onerror=reject;
       (D.head||D.documentElement).appendChild(s);
     });
@@ -63,7 +63,7 @@
       `${int(m.nodes)} nodes · ${int(m.channels)} channels · public network statistics`;
 
     q(root,"[data-ln-meta]").textContent=
-      `${m.source} · capacity: ${m.capacityAssumption}`;
+      `${m.source} · ${m.transport||"live"} · checked ${new Date(m.checkedMs||Date.now()).toLocaleTimeString()} · collector ${new Date(m.observedMs||m.fetchedAt).toLocaleTimeString()} · capacity: ${m.capacityAssumption}`;
 
     status(root,"live","ok");
   }
@@ -104,10 +104,10 @@
       async function loop(){
         if(!root.isConnected)return;
         await refresh(root,state);
-        state.timer=W.setTimeout(loop,60000);
+        state.timer=W.setTimeout(loop,5000);
       }
 
-      state.timer=W.setTimeout(loop,60000);
+      state.timer=W.setTimeout(loop,5000);
     }catch(error){
       status(root,"offline","error");
       q(root,"[data-ln-meta]").textContent=String(error?.message||error);
