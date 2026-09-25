@@ -111,6 +111,8 @@ jobs:
             tools/bpi/master_daemon.py \
             tools/bpi/bpi_finalize_completed.py \
             tools/bpi/bpi_continuity_selftest.py \
+            tools/bpi/bpi_runtime_healthcheck.py \
+            tools/bpi/workflow_contract_selftest.py \
             tools/bpi/bpi_private_backup.py \
             tools/bpi/bpi_git_publish.py \
             tools/bpi/update_latest.py \
@@ -132,6 +134,8 @@ jobs:
 
           python tools/bpi/run-bpi-master.py --hourly --self-test
           python tools/bpi/bpi_continuity_selftest.py
+          python tools/bpi/bpi_runtime_healthcheck.py --self-test
+          python tools/bpi/workflow_contract_selftest.py
           python tools/bpi/bpi_private_backup.py --self-test
           python tools/bpi/update_latest.py --self-test
           python tools/bpi/update_sovereign_data.py --self-test
