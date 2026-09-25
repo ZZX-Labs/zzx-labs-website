@@ -22,79 +22,93 @@ concurrency:
 
 jobs:
   purge:
-    runs-on: [self-hosted, linux, x64, zzx-bpi]
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      DEPLOY_ROOT: /srv/zzx-labs
-      ZZX_BPI_HISTORY_DB: /var/lib/zzx-bpi/history.sqlite3
-    steps:
-      - name: Checkout current main
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: true
+      ZZX_HOST: ${{ secrets.ZZX_PRODUCTION_SERVER_HOST || secrets.ZZX_SERVER_HOST }}
+      ZZX_USER: ${{ secrets.ZZX_PRODUCTION_SERVER_USER || secrets.ZZX_SERVER_USER }}
+      ZZX_PORT: ${{ secrets.ZZX_PRODUCTION_SERVER_PORT || secrets.ZZX_SERVER_PORT }}
+      ZZX_SSH_KEY: ${{ secrets.ZZX_PRODUCTION_SERVER_SSH_KEY || secrets.ZZX_SERVER_SSH_KEY }}
+      ZZX_KNOWN_HOSTS: ${{ secrets.ZZX_PRODUCTION_SERVER_KNOWN_HOSTS || secrets.ZZX_SERVER_KNOWN_HOSTS }}
+      DEPLOY_ROOT: ${{ secrets.ZZX_PRODUCTION_SERVER_PATH || secrets.ZZX_SERVER_PATH || '/srv/zzx-labs' }}
 
-      - name: Validate explicit destructive confirmation
+    steps:
+      - name: Checkout repository with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+      - name: Configure hardened SSH transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${ZZX_HOST:-}" ] || missing+=(ZZX_SERVER_HOST)
+          [ -n "${ZZX_USER:-}" ] || missing+=(ZZX_SERVER_USER)
+          [ -n "${ZZX_SSH_KEY:-}" ] || missing+=(ZZX_SERVER_SSH_KEY)
+          [ -n "${ZZX_KNOWN_HOSTS:-}" ] || missing+=(ZZX_SERVER_KNOWN_HOSTS)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '%s\n' "::error title=BPI SSH configuration missing::Configure repository secrets: ${missing[*]}"
+            exit 78
+          fi
+          install -d -m 700 "${RUNNER_TEMP}/zzx-ssh"
+          printf '%s\n' "${ZZX_SSH_KEY}" > "${RUNNER_TEMP}/zzx-ssh/id_ed25519"
+          printf '%s\n' "${ZZX_KNOWN_HOSTS}" > "${RUNNER_TEMP}/zzx-ssh/known_hosts"
+          chmod 600 "${RUNNER_TEMP}/zzx-ssh/id_ed25519" "${RUNNER_TEMP}/zzx-ssh/known_hosts"
+          printf 'ZZX_SSH=ssh -i %q -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=%q -p %q\n' \
+            "${RUNNER_TEMP}/zzx-ssh/id_ed25519" "${RUNNER_TEMP}/zzx-ssh/known_hosts" "${ZZX_PORT:-22}" >> "${GITHUB_ENV}"
+          ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" \
+            -p "${ZZX_PORT:-22}" "${ZZX_USER}@${ZZX_HOST}" 'printf "%s\n" "ZZX SSH preflight OK"'
+      - name: Validate destructive confirmation
         shell: bash
         env:
           CONFIRMATION: ${{ inputs.confirmation }}
         run: |
           set -euo pipefail
-          if [ "${CONFIRMATION}" != "PURGE_BPI_DATA" ]; then
-            printf '%s\n' "::error::Refusing purge. confirmation must equal PURGE_BPI_DATA"
-            exit 64
-          fi
+          [ "${CONFIRMATION}" = "PURGE_BPI_DATA" ] || { printf '%s\n' '::error::confirmation must equal PURGE_BPI_DATA'; exit 64; }
+          python3 tools/bpi/purge_data.py --root . --dry-run
 
-      - name: Stop resident BPI writer
+      - name: Purge production BPI data over SSH
         shell: bash
+        env:
+          RESTART: ${{ inputs.restart_live_service }}
         run: |
           set -euo pipefail
+          SSH=(ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -p "${ZZX_PORT:-22}")
+          REMOTE="${ZZX_USER}@${ZZX_HOST}"
+          "${SSH[@]}" "${REMOTE}" bash -s -- "${DEPLOY_ROOT}" "${RESTART}" <<'REMOTE'
+          set -euo pipefail
+          ROOT="$1"; RESTART="$2"
           sudo systemctl stop zzx-bpi.service || true
+          sudo -u www-data python3 "${ROOT}/tools/bpi/purge_data.py" --root "${ROOT}" --runtime-db /var/lib/zzx-bpi/history.sqlite3 --confirm PURGE_BPI_DATA
+          if [ "${RESTART}" = "true" ]; then
+            sudo systemctl restart zzx-bpi.service
+            sudo systemctl is-active --quiet zzx-bpi.service
+          fi
+          REMOTE
 
-      - name: Purge derived repository and resident history
+      - name: Purge tracked derived snapshots and publish clean baseline
         shell: bash
         run: |
           set -euo pipefail
-          # Purge the production data plane using the freshly checked-out
-          # maintenance code, then purge the checkout's generated snapshots so
-          # the clean baseline can be committed.
-          sudo -u www-data python3 "${GITHUB_WORKSPACE}/tools/bpi/purge_data.py" \
-            --root "${DEPLOY_ROOT}" \
-            --runtime-db "${ZZX_BPI_HISTORY_DB}" \
-            --confirm PURGE_BPI_DATA
-          python3 tools/bpi/purge_data.py \
-            --root . \
-            --confirm PURGE_BPI_DATA
-
-      - name: Publish clean derived-data baseline
-        shell: bash
-        run: |
-          set -euo pipefail
+          python3 tools/bpi/purge_data.py --root . --confirm PURGE_BPI_DATA
           git config user.name "zzx-bpi-maintenance-bot"
           git config user.email "actions@github.com"
           git add -A bitcoin/bpi/api bitcoin/bpi/archive bitcoin/bpi/backfill
-          if git diff --cached --quiet; then
-            printf '%s\n' "No repository-derived BPI data required removal."
-          else
+          if ! git diff --cached --quiet; then
             git commit -m "Purge derived BPI data for clean rebuild"
-            git pull --rebase origin main
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
-
-      - name: Restart empty live BPI collector
-        if: ${{ inputs.restart_live_service == true }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo systemctl restart zzx-bpi.service
-          for attempt in $(seq 1 30); do
-            if sudo systemctl is-active --quiet zzx-bpi.service && \
-               python3 tools/bpi/bpi_runtime_healthcheck.py \
-                 --root "${DEPLOY_ROOT}" --max-age-seconds 10 >/dev/null 2>&1; then
-              printf '%s\n' "Fresh resident BPI collector is advancing."
-              exit 0
-            fi
-            sleep 2
-          done
-          sudo systemctl --no-pager --full status zzx-bpi.service || true
-          exit 1
