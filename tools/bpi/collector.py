@@ -39,6 +39,8 @@ from index_sanity import classify_markets
 from bpi_index_engine import build_indexes, aggregate_exchanges
 
 CYCLE_MS = 2500
+MIN_CYCLE_MS = 2500
+MAX_CYCLE_MS = 5000
 FX_MS = 60_000
 COMMODITY_MS = 60_000
 DEBT_MS = 30 * 60_000
@@ -444,7 +446,8 @@ class Collector:
         self.root = root
         self.api = root / "bitcoin/bpi/api"
         self.config = load_json(root / "tools/bpi/collector-config.json", {})
-        self.cycle_ms = max(1000, int(self.config.get("exchange_cycle_ms") or CYCLE_MS))
+        configured_cycle = int(self.config.get("exchange_cycle_ms") or CYCLE_MS)
+        self.cycle_ms = min(MAX_CYCLE_MS, max(MIN_CYCLE_MS, configured_cycle))
         self.max_workers = max(1, int(self.config.get("max_workers") or MAX_WORKERS))
         self.market_stale_after_ms = max(
             self.cycle_ms * 2,
@@ -623,13 +626,41 @@ class Collector:
         if self.market_configs and now < self.next_discovery:
             return
 
-        markets: list[dict[str, Any]] = []
-        for cfg in self.providers.values():
-            if not cfg.get("enabled_poll") or not cfg.get("adapter") or not cfg.get("price_volume_url"):
-                continue
-            markets.extend(self.discover_provider(cfg))
+        configs = [
+            cfg for cfg in self.providers.values()
+            if cfg.get("enabled_poll")
+            and cfg.get("adapter")
+            and cfg.get("price_volume_url")
+        ]
 
-        self.market_configs = markets
+        # Discovery must never serialize the live market loop. A slow discovery
+        # endpoint is bounded by the same HTTP timeout as ordinary market reads
+        # and all provider discoveries run concurrently.
+        markets: list[dict[str, Any]] = []
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(self.max_workers, max(1, len(configs)))
+        ) as pool:
+            jobs = {pool.submit(self.discover_provider, cfg): cfg for cfg in configs}
+            for future in concurrent.futures.as_completed(jobs):
+                cfg = jobs[future]
+                try:
+                    markets.extend(future.result())
+                except Exception as exc:
+                    # Fall back to the configured primary pair so a discovery
+                    # failure cannot remove a provider from the live collector.
+                    one = dict(cfg)
+                    one["market_key"] = cfg["id"] + "::" + str(cfg.get("quote") or "USD")
+                    markets.append(one)
+                    self.health[cfg["id"] + "::discovery"] = {
+                        "ok": False,
+                        "error": str(exc),
+                        "updated_at": utcnow(),
+                    }
+
+        self.market_configs = sorted(
+            markets,
+            key=lambda row: str(row.get("market_key") or row.get("id") or ""),
+        )
         self.next_discovery = now + 30 * 60
 
     def _market_is_fresh(self, row: dict[str, Any], now_wall: float | None = None) -> bool:
@@ -668,6 +699,15 @@ class Collector:
                 if isinstance(m, dict) and self._market_is_fresh(m, now_wall)
             ]
 
+        # Schedule from cycle start, not request completion. Otherwise a 2.5 s
+        # configured interval becomes 2.5 s + network latency and can silently
+        # drift beyond the 5 s live-data budget.
+        for cfg in due:
+            key = cfg.get("market_key") or cfg["id"]
+            requested = int(cfg.get("poll_interval_ms") or self.cycle_ms)
+            interval_ms = min(MAX_CYCLE_MS, max(MIN_CYCLE_MS, requested))
+            self.provider_due[key] = now + interval_ms / 1000.0
+
         fresh: list[dict[str, Any]] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, max(1, len(due)))) as pool:
             jobs = {pool.submit(self.client.get, cfg["id"], cfg["price_volume_url"]): cfg for cfg in due}
@@ -677,11 +717,14 @@ class Collector:
                 key = cfg.get("market_key") or pid
                 result = future.result()
 
-                interval = max(self.cycle_ms, int(cfg.get("poll_interval_ms") or self.cycle_ms)) / 1000.0
+                # Explicit upstream rate limiting is the one intentional cadence
+                # exception. Honor Retry-After instead of turning the collector
+                # into a rate-limit hammer.
                 if result.retry_after:
-                    interval = max(interval, float(result.retry_after))
-
-                self.provider_due[key] = time.monotonic() + interval
+                    self.provider_due[key] = max(
+                        self.provider_due.get(key, now),
+                        time.monotonic() + float(result.retry_after),
+                    )
 
                 if not result.ok:
                     self.health[key] = {
@@ -991,6 +1034,14 @@ class Collector:
             {},
         )
 
+        # Carry exchange-registry geography into every market row before index
+        # construction. Native BPI membership is exchange-native region, never
+        # quote currency; Global BPI includes all otherwise eligible regions.
+        for row in valid:
+            meta = registry_sources.get(row.get("exchange"), {})
+            row["region"] = str(meta.get("region") or "Global")
+            row["exchange_label"] = str(meta.get("label") or row.get("exchange") or "")
+
         eligible_policy_rows = [
             row for row in valid
             if row.get("index_eligible") is not False
@@ -998,6 +1049,11 @@ class Collector:
                 registry_sources
                 .get(row.get("exchange"), {})
                 .get("enabled") is not False
+            )
+            and (
+                registry_sources
+                .get(row.get("exchange"), {})
+                .get("include_in_bpi") is not False
             )
             and not str(
                 registry_sources
@@ -1116,6 +1172,12 @@ class Collector:
             )
 
         now = utcnow()
+        market_source_stamps = [
+            str(row.get("updated_at"))
+            for row in output_markets
+            if row.get("updated_at")
+        ]
+        source_updated_at = max(market_source_stamps) if market_source_stamps else now
 
         atomic_json(
             self.api / "markets.json",
@@ -1123,6 +1185,8 @@ class Collector:
                 "schema":
                     "zzx-bpi-markets-v6-national-global-weighted",
                 "updated_at": now,
+                "observed_at": now,
+                "source_updated_at": source_updated_at,
                 "markets": output_markets,
                 "eligible_market_count":
                     sum(
@@ -1172,10 +1236,24 @@ class Collector:
                 "schema":
                     "zzx-bpi-latest-v6-national-global-weighted",
                 "updated_at": now,
+                "observed_at": now,
+                "source_updated_at": source_updated_at,
                 "default_country": default_country,
                 "weights_enabled_default": True,
                 "weight_basis":
                     "eligible 24h BTC volume / eligible global 24h BTC volume",
+                # Compatibility contract consumed by BitAvg/bitcoin-ticker. The
+                # weighted and unweighted values are published from the same
+                # cycle and therefore can never be mixed across snapshots.
+                "weighted_average": {
+                    "price_usd": default_weighted,
+                    "vwap_usd": default_weighted,
+                    "unweighted_price_usd": default_unweighted,
+                    "method": "bpi_24h_btc_volume_weighted",
+                    "updated_at": now,
+                    "observed_at": now,
+                    "source_updated_at": source_updated_at,
+                },
                 "price_usd": default_weighted,
                 "bpi_usd": default_weighted,
                 "unweighted_bpi_usd": default_unweighted,
@@ -1215,6 +1293,7 @@ class Collector:
                         global_bpi.get(
                             "weighted_price_usd"
                         ),
+                    "updated_at": now,
                     "method":
                         "consensus_gated_global_24h_btc_volume_weighted",
                 },
@@ -1280,6 +1359,24 @@ class Collector:
                 default_bpi.get("low_24h")
                 if default_bpi
                 else None,
+            )
+
+        if default_unweighted is not None:
+            self.history.append_index(
+                ts_ms,
+                "bpi-unweighted",
+                default_unweighted,
+                default_bpi.get("volume_24h_btc") if default_bpi else None,
+                default_bpi.get("high_24h") if default_bpi else None,
+                default_bpi.get("low_24h") if default_bpi else None,
+            )
+            self.append_static_history(
+                "bpi-unweighted",
+                default_unweighted,
+                default_bpi.get("volume_24h_btc") if default_bpi else None,
+                ts_ms,
+                default_bpi.get("high_24h") if default_bpi else None,
+                default_bpi.get("low_24h") if default_bpi else None,
             )
 
         for country_code, national_index in national_bpi.items():
@@ -1467,7 +1564,7 @@ def main() -> int:
     parser.add_argument(
         "--cycle-ms",
         type=int,
-        help="Override exchange polling cycle for this process (minimum 1000 ms).",
+        help="Override exchange polling cycle for this process (clamped to 2500-5000 ms).",
     )
     parser.add_argument(
         "--market-stale-after-ms",
@@ -1492,7 +1589,7 @@ def main() -> int:
     history_db = Path(args.history_db).resolve() if args.history_db else None
     collector = Collector(root, proxy_url=args.proxy, history_db=history_db)
     if args.cycle_ms is not None:
-        collector.cycle_ms = max(1000, int(args.cycle_ms))
+        collector.cycle_ms = min(MAX_CYCLE_MS, max(MIN_CYCLE_MS, int(args.cycle_ms)))
     if args.market_stale_after_ms is not None:
         collector.market_stale_after_ms = max(collector.cycle_ms * 2, int(args.market_stale_after_ms))
     if args.once:
