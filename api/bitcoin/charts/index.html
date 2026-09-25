@@ -35,46 +35,49 @@
   </div>
 </section>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/__partials/widgets/_shared/zzx-history-client.js"></script>
 <script>
-  async function fetchChartData() {
-    const res = await fetch('/api/bitcoin/charts?interval=5m');
-    const data = await res.json();
-    return {
-      labels: data.timestamps,
-      datasets: [{
-        label: 'BTC/USD',
-        data: data.prices,
-        borderColor: '#e6a42b',
-        backgroundColor: 'rgba(230, 164, 43, 0.1)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3,
-      }]
-    };
+(() => {
+  "use strict";
+  const canvas=document.getElementById("btcChart");
+  const ctx=canvas.getContext("2d");
+  function draw(points){
+    const dpr=Math.max(1,window.devicePixelRatio||1);
+    const rect=canvas.getBoundingClientRect();
+    const w=Math.max(320,Math.floor(rect.width||1000));
+    const h=Math.max(220,Math.floor(rect.height||400));
+    canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="#090909"; ctx.fillRect(0,0,w,h);
+    const valid=points.filter(p=>Number.isFinite(+p.t)&&Number.isFinite(+p.close));
+    if(valid.length<2){ctx.fillStyle="#c0d674";ctx.fillText("Awaiting BPI history…",20,30);return;}
+    const minT=valid[0].t,maxT=valid[valid.length-1].t;
+    const lows=valid.map(p=>Number(p.low??p.close)), highs=valid.map(p=>Number(p.high??p.close));
+    const minP=Math.min(...lows),maxP=Math.max(...highs),span=Math.max(1,maxP-minP);
+    const x=t=>40+((t-minT)/Math.max(1,maxT-minT))*(w-60);
+    const y=v=>20+(1-(v-minP)/span)*(h-55);
+    ctx.strokeStyle="#c0d674";ctx.lineWidth=1.5;ctx.beginPath();
+    let started=false;
+    for(const p of valid){
+      if(p.gap_before)started=false;
+      const px=x(p.t),py=y(Number(p.close));
+      if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    ctx.fillStyle="#b7bf9a";ctx.font="12px monospace";
+    ctx.fillText(`BPI ${new Date(minT).toLocaleString()} → ${new Date(maxT).toLocaleString()}`,40,h-16);
   }
-
-  async function renderChart() {
-    const ctx = document.getElementById('btcChart').getContext('2d');
-    const chartData = await fetchChartData();
-
-    new Chart(ctx, {
-      type: 'line',
-      data: chartData,
-      options: {
-        responsive: true,
-        scales: {
-          x: { display: true, title: { display: true, text: 'Time' }},
-          y: { display: true, title: { display: true, text: 'USD' }}
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
+  async function refresh(){
+    try{
+      const result=await window.ZZXHistoryClient.series({source:"bpi",timeframe:"24h",resolution:"auto",maxPoints:1200});
+      draw(result.points||[]);
+    }catch(error){console.error(error);}
   }
-
-  renderChart();
+  refresh();
+  const timer=setInterval(refresh,5000);
+  addEventListener("pagehide",()=>clearInterval(timer),{once:true});
+  addEventListener("resize",refresh,{passive:true});
+})();
 </script>
 
 <section class="features">
@@ -88,7 +91,7 @@
     <h3>Visual Output Modes</h3>
     <ul>
       <li style="list-style-type: none;">SVG / PNG static exports</li>
-      <li style="list-style-type: none;">Canvas / Chart.js live streaming</li>
+      <li style="list-style-type: none;">Canvas live streaming (vanilla JavaScript renderer)</li>
       <li style="list-style-type: none;">Terminal ASCII chart rendering (CLI)</li>
     </ul>
   </div>
