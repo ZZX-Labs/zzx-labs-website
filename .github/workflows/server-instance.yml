@@ -673,6 +673,8 @@ jobs:
           audit_service nginx
           audit_service gunicorn
           audit_service zzx-bpi
+          audit_service zzx-bitnodes-crawler
+          audit_service zzx-live-data
 
           if [ "${INCLUDE_MAIL}" = "true" ]; then
             printf '%s\n' ""
@@ -782,7 +784,7 @@ jobs:
 
           "${SSH[@]}" \
             "${REMOTE[@]}" \
-            "mkdir -p '${DEST}/server' '${DEST}/tools/bpi' '${REMOTE_BACKUP}'"
+            "mkdir -p '${DEST}/server' '${DEST}/tools/bpi' '${DEST}/tools/bitnodes' '${DEST}/tools/live' '${DEST}/bitcoin/bpi/api' '${DEST}/bitcoin/bitnodes/api' '${DEST}/bitcoin/live/api' '${REMOTE_BACKUP}'"
 
           rsync \
             -az \
@@ -802,13 +804,37 @@ jobs:
             tools/bpi/ \
             "${USER}@${HOST}:${DEST}/tools/bpi/"
 
+          rsync \
+            -az \
+            --delete-delay \
+            --backup \
+            --backup-dir="${REMOTE_BACKUP}/tools-bitnodes" \
+            -e "${SSH[*]}" \
+            tools/bitnodes/ \
+            "${USER}@${HOST}:${DEST}/tools/bitnodes/"
+
+          rsync \
+            -az \
+            --delete-delay \
+            --backup \
+            --backup-dir="${REMOTE_BACKUP}/tools-live" \
+            -e "${SSH[*]}" \
+            tools/live/ \
+            "${USER}@${HOST}:${DEST}/tools/live/"
+
           if [ "${TARGET}" = "production" ]; then
             "${SSH[@]}" "${REMOTE[@]}" \
-              "sudo install -m 0644 '${DEST}/server/systemd/zzx-bpi.service' /etc/systemd/system/zzx-bpi.service && \
+              "id -u zzx >/dev/null 2>&1 || sudo useradd --system --home-dir /var/lib/zzx --create-home --shell /usr/sbin/nologin zzx; \
+               sudo mkdir -p '${DEST}/bitcoin/bpi/api' '${DEST}/bitcoin/bitnodes/api' '${DEST}/bitcoin/live/api'; \
+               sudo chown -R www-data:www-data '${DEST}/bitcoin/bpi/api'; \
+               sudo chown -R zzx:zzx '${DEST}/bitcoin/bitnodes/api' '${DEST}/bitcoin/live/api'; \
+               sudo install -m 0644 '${DEST}/server/systemd/zzx-bpi.service' /etc/systemd/system/zzx-bpi.service && \
                sudo install -m 0644 '${DEST}/server/systemd/zzx-bpi-finalize.service' /etc/systemd/system/zzx-bpi-finalize.service && \
                sudo install -m 0644 '${DEST}/server/systemd/zzx-bpi-finalize.timer' /etc/systemd/system/zzx-bpi-finalize.timer && \
+               sudo install -m 0644 '${DEST}/server/systemd/zzx-bitnodes-crawler.service' /etc/systemd/system/zzx-bitnodes-crawler.service && \
+               sudo install -m 0644 '${DEST}/server/systemd/zzx-live-data.service' /etc/systemd/system/zzx-live-data.service && \
                sudo systemctl daemon-reload && \
-               sudo systemctl enable --now zzx-bpi.service zzx-bpi-finalize.timer"
+               sudo systemctl enable --now zzx-bpi.service zzx-bpi-finalize.timer zzx-bitnodes-crawler.service zzx-live-data.service"
           fi
 
           {
@@ -906,6 +932,8 @@ jobs:
           restart_service nginx || FAILED=1
           restart_service gunicorn || FAILED=1
           restart_service zzx-bpi || FAILED=1
+          restart_service zzx-bitnodes-crawler || FAILED=1
+          restart_service zzx-live-data || FAILED=1
 
           if [ "${INCLUDE_MAIL}" = "true" ]; then
             restart_service dovecot || FAILED=1
@@ -982,6 +1010,14 @@ jobs:
 
           if systemctl list-unit-files --type=service --no-legend zzx-bpi.service 2>/dev/null | grep -q '^zzx-bpi\.service'; then
             systemctl is-active zzx-bpi.service
+          fi
+
+          if systemctl list-unit-files --type=service --no-legend zzx-bitnodes-crawler.service 2>/dev/null | grep -q '^zzx-bitnodes-crawler\.service'; then
+            systemctl is-active zzx-bitnodes-crawler.service
+          fi
+
+          if systemctl list-unit-files --type=service --no-legend zzx-live-data.service 2>/dev/null | grep -q '^zzx-live-data\.service'; then
+            systemctl is-active zzx-live-data.service
           fi
 
           if systemctl list-unit-files --type=timer --no-legend zzx-bpi-finalize.timer 2>/dev/null | grep -q '^zzx-bpi-finalize\.timer'; then
