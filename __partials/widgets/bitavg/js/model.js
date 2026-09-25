@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=8)return;
+  if(W.ZZXBitAvgModel?.__version>=9)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -1052,10 +1052,19 @@
     const configured=configuredExchangeIds(exchangeConfig);
 
     const updatedAt=
+      latest?.observed_at ??
+      markets?.observed_at ??
       latest?.updated_at ??
       latest?.generated_at ??
       markets?.updated_at ??
       markets?.generated_at ??
+      null;
+
+    const sourceUpdatedAt=
+      latest?.source_updated_at ??
+      markets?.source_updated_at ??
+      latest?.updated_at ??
+      markets?.updated_at ??
       null;
 
     return {
@@ -1096,6 +1105,7 @@
       configuredCount:configured.size,
       configuredCovered:[...configured].filter(id=>exchanges.includes(id)).length,
       updatedAt,
+      sourceUpdatedAt,
       fxRateCount:rates.size,
       fiatCatalogCount:fiats.size,
       eligibility:"BTC_or_XBT_base_and_recognized_fiat_quote_only",
@@ -1126,5 +1136,5 @@
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:8,build,sanityGate});
+  W.ZZXBitAvgModel=Object.freeze({__version:9,build,sanityGate});
 })();
