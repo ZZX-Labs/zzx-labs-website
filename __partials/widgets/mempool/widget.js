@@ -108,8 +108,8 @@
 
   async function ensureModules(core){
     const modules=[
-      ["ZZXMempoolProvider","js/provider.js",4],
-      ["ZZXMempoolModel","js/model.js",4],
+      ["ZZXMempoolProvider","js/provider.js",5],
+      ["ZZXMempoolModel","js/model.js",5],
       ["ZZXMempoolChart","js/chart.js",4]
     ];
 
@@ -241,7 +241,7 @@
     setText(root,"[data-mp-source]",m.source||"configured mempool API");
 
     setText(root,"[data-mp-meta]",
-      `${m.priceSource||"price unavailable"}${m.priceMode?` · ${m.priceMode}`:""} · vsize only · refreshed ${new Date(m.fetchedAt||Date.now()).toLocaleTimeString()}`
+      `${m.priceSource||"price unavailable"}${m.priceMode?` · ${m.priceMode}`:""} · ${m.transport||"live"} · checked ${new Date(m.checkedAt||Date.now()).toLocaleTimeString()} · collector ${new Date(m.observedAt||m.fetchedAt||Date.now()).toLocaleTimeString()}${Number.isFinite(m.sourceUpdatedAt)?` · source ${new Date(m.sourceUpdatedAt).toLocaleTimeString()}`:" · source timestamp unavailable"}`
     );
 
     draw(root,state);
@@ -316,10 +316,10 @@
       async function loop(){
         if(!root.isConnected)return;
         await refresh(root,state);
-        if(root.isConnected)state.timer=W.setTimeout(loop,30000);
+        if(root.isConnected)state.timer=W.setTimeout(loop,5000);
       }
 
-      state.timer=W.setTimeout(loop,30000);
+      state.timer=W.setTimeout(loop,5000);
     }catch(error){
       status(root,"offline","error");
       setText(root,"[data-mp-meta]",String(error?.message||error));
