@@ -206,6 +206,13 @@ def build_indexes(
     markets: list[dict[str,Any]],
     country_currency_config: dict[str,Any],
 ) -> dict[str,Any]:
+    """Build distinct native BPI and Global BPI scopes.
+
+    Global BPI uses every eligible exchange market worldwide. Native/national
+    BPI membership is determined by the exchange registry region carried on
+    each market row, never by quote currency. A foreign exchange offering a
+    BTC/USD market therefore remains Global BPI-only for the US-native BPI.
+    """
     weighted=annotate_global_weights(markets)
     eligible=weighted["eligible"]
 
@@ -220,26 +227,35 @@ def build_indexes(
     global_index["global_weight_share_ratio"]=1.0
     global_index["global_weight_share_percent"]=100.0
     global_index["method_weighted"]="global_24h_btc_volume_weighted"
+    global_index["scope_method"]="all_eligible_exchange_regions"
 
     country_map=country_currency_map(country_currency_config)
     national={}
 
-    for country,currency in sorted(country_map.items()):
+    # Build region-native indexes from the union of configured countries and
+    # regions actually present in the exchange registry rows.
+    regions={
+        str(row.get("region") or "").upper()
+        for row in eligible
+        if row.get("region")
+    }
+    regions.update(country_map)
+
+    for region in sorted(regions):
         rows=[
             row for row in eligible
-            if str(row.get("quote") or "").upper()==currency
+            if str(row.get("region") or "").upper()==region
         ]
         index=index_for_rows(rows)
-
         if index is None:
             continue
-
         index.update({
-            "country_code":country,
-            "currency":currency,
-            "scope_method":"national_currency_market",
+            "country_code":region,
+            "region":region,
+            "currency":country_map.get(region),
+            "scope_method":"exchange_registry_region",
         })
-        national[country]=index
+        national[region]=index
 
     default_country=str(
         country_currency_config.get("default_country")
@@ -252,8 +268,11 @@ def build_indexes(
         "markets":weighted["markets"],
         "global_bpi":global_index,
         "national_bpi":national,
+        "native_bpi":default,
         "default_country":default_country,
-        "default_bpi":default or global_index,
+        # Never substitute Global BPI for a missing native BPI. The two scopes
+        # are semantically distinct and callers must expose missing coverage.
+        "default_bpi":default,
         "global_volume_24h_btc":weighted["global_volume_24h_btc"],
     }
 
@@ -344,6 +363,7 @@ def self_test() -> None:
     markets=[
         {
             "exchange":"a",
+            "region":"US",
             "quote":"USD",
             "price_usd":79000,
             "volume_24h_btc":100,
@@ -351,6 +371,7 @@ def self_test() -> None:
         },
         {
             "exchange":"b",
+            "region":"US",
             "quote":"USD",
             "price_usd":81000,
             "volume_24h_btc":300,
@@ -358,6 +379,7 @@ def self_test() -> None:
         },
         {
             "exchange":"c",
+            "region":"EU",
             "quote":"EUR",
             "price_usd":80000,
             "volume_24h_btc":600,
