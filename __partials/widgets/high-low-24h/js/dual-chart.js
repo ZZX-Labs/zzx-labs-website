@@ -196,7 +196,7 @@
       this.points=[];
       this.recipe={
         priceMode:"area",
-        volumeMode:"candles-line",
+        volumeMode:"interval-bars",
         showPriceLine:true,
         showPriceHighLow:true,
         showPriceRangeBand:true,
@@ -1149,25 +1149,10 @@
       const volumeValues=[];
 
       for(const row of visible){
-        for(
-          const value
-          of [
-            row.volume_open_24h_btc,
-            row.volume_high_24h_btc,
-            row.volume_low_24h_btc,
-            row.volume_close_24h_btc
-          ]
-        ){
-          if(
-            Number.isFinite(
-              finite(value)
-            )
-          ){
-            volumeValues.push(
-              finite(value)
-            );
-          }
-        }
+        const value=this.recipe.volumeMode==="interval-bars"
+          ? finite(row.interval_volume_btc)
+          : finite(row.volume_24h_btc??row.volume_close_24h_btc);
+        if(Number.isFinite(value)&&value>=0)volumeValues.push(value);
       }
 
       const priceRange=
@@ -1175,10 +1160,10 @@
           priceValues
         );
 
-      const volumeRange=
-        scaleRange(
-          volumeValues
-        );
+      const rawVolumeRange=scaleRange(volumeValues);
+      const volumeRange=rawVolumeRange&&this.recipe.volumeMode==="interval-bars"
+        ? {min:0,max:Math.max(1,Math.max(...volumeValues)*1.08)}
+        : rawVolumeRange;
 
       if(!priceRange){
         return;
@@ -1698,111 +1683,20 @@
       }
 
       if(volumeRange){
-        // Volume candles.
-        if(
-          this.recipe
-            .showVolumeCandles
-        ){
-          const barWidth=
-            Math.max(
-              1,
-              plotWidth/
-              Math.max(
-                1,
-                visible.length
-              )*
-              0.58
-            );
-
-          visible.forEach(
-            (point,index)=>{
-              const open=
-                finite(
-                  point
-                    .volume_open_24h_btc
-                );
-
-              const high=
-                finite(
-                  point
-                    .volume_high_24h_btc
-                );
-
-              const low=
-                finite(
-                  point
-                    .volume_low_24h_btc
-                );
-
-              const close=
-                finite(
-                  point
-                    .volume_close_24h_btc
-                );
-
-              if(
-                ![
-                  open,
-                  high,
-                  low,
-                  close
-                ].every(
-                  Number.isFinite
-                )
-              ){
-                return;
-              }
-
-              const x=
-                xFor(index);
-
-              const rising=
-                close>=open;
-
-              ctx.strokeStyle=
-                rising
-                  ? "rgba(230,164,43,.78)"
-                  : "rgba(214,116,116,.78)";
-
-              ctx.fillStyle=
-                rising
-                  ? "rgba(230,164,43,.34)"
-                  : "rgba(214,116,116,.34)";
-
-              ctx.beginPath();
-
-              ctx.moveTo(
-                x,
-                yVolume(high)
-              );
-
-              ctx.lineTo(
-                x,
-                yVolume(low)
-              );
-
-              ctx.stroke();
-
-              const y1=
-                yVolume(open);
-
-              const y2=
-                yVolume(close);
-
-              ctx.fillRect(
-                x-
-                barWidth/2,
-                Math.min(y1,y2),
-                barWidth,
-                Math.max(
-                  1,
-                  Math.abs(
-                    y2-y1
-                  )
-                )
-              );
-            }
-          );
+        // Actual BTC traded inside each returned history bucket. This is not
+        // rolling 24h volume and is intentionally rendered as bars, not fake
+        // OHLC candles of a rolling statistic.
+        if(this.recipe.showVolumeCandles){
+          const barWidth=Math.max(1,plotWidth/Math.max(1,visible.length)*0.64);
+          visible.forEach((point,index)=>{
+            const volume=finite(point.interval_volume_btc);
+            if(!Number.isFinite(volume)||volume<0)return;
+            const x=xFor(index);
+            const y=yVolume(volume);
+            const zero=yVolume(0);
+            ctx.fillStyle="rgba(230,164,43,.42)";
+            ctx.fillRect(x-barWidth/2,Math.min(y,zero),barWidth,Math.max(1,Math.abs(zero-y)));
+          });
         }
 
         // Closing rolling-volume line.
@@ -1814,8 +1708,7 @@
             visible.map(
               row=>
                 finite(
-                  row
-                    .volume_close_24h_btc
+                  row.volume_24h_btc??row.volume_close_24h_btc
                 )
             ),
             yVolume,
@@ -1824,35 +1717,8 @@
           );
         }
 
-        const observedVolumeHigh=
-          Math.max(
-            ...visible
-              .map(
-                row=>
-                  finite(
-                    row
-                      .volume_high_24h_btc
-                  )
-              )
-              .filter(
-                Number.isFinite
-              )
-          );
-
-        const observedVolumeLow=
-          Math.min(
-            ...visible
-              .map(
-                row=>
-                  finite(
-                    row
-                      .volume_low_24h_btc
-                  )
-              )
-              .filter(
-                Number.isFinite
-              )
-          );
+        const observedVolumeHigh=volumeValues.length?Math.max(...volumeValues):NaN;
+        const observedVolumeLow=volumeValues.length?Math.min(...volumeValues):NaN;
 
         for(
           const ref
