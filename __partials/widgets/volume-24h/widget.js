@@ -21,7 +21,7 @@
       global:"ZZXHistoryClient",
       path:
         "/__partials/widgets/_shared/zzx-history-client.js",
-      version:3
+      version:5
     },
     {
       global:"ZZXChartEngine",
@@ -428,7 +428,7 @@
           root,
           "[data-volume24-mode]"
         )?.value||
-        "candles-line",
+        "rolling-line",
       follow:
         q(
           root,
@@ -650,7 +650,7 @@
     if(line){
       line.hidden=
         controls.mode!==
-        "candles-line";
+        "interval-bars+rolling";
     }
   }
 
@@ -843,8 +843,8 @@
       set(
         root,
         "[data-volume24-eyebrow]",
-        `${descriptor.label} · rolling 24h BTC volume · `+
-        `${controls.mode==="candles-line"?"candles + close line":controls.mode}`
+        `${descriptor.label} · `+
+        `${controls.mode==="rolling-line"?"rolling 24h BTC volume":"actual interval BTC volume"}`
       );
 
       const data=
