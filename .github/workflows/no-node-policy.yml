@@ -1,0 +1,35 @@
+name: No JavaScript Toolchain Policy
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+
+      - name: Enforce Python/native workflow policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/site/no_node_policy.py --root .
