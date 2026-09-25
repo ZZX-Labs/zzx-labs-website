@@ -36,9 +36,9 @@
     <label>
       <span>plot</span>
       <select data-volume24-mode aria-label="Volume chart plotting mode">
-        <option value="candles-line">candles + line</option>
-        <option value="candles">candles</option>
-        <option value="line">line</option>
+        <option value="rolling-line">rolling 24h line</option>
+        <option value="interval-bars">actual interval volume bars</option>
+        <option value="interval-bars+rolling">interval bars + rolling 24h line</option>
       </select>
     </label>
 
@@ -102,17 +102,17 @@
     <div class="mini-history__legend" aria-hidden="true">
       <span>
         <i class="mini-history__legend-up"></i>
-        rising volume candle
+        actual interval BTC volume
       </span>
 
       <span>
         <i class="mini-history__legend-down"></i>
-        falling volume candle
+        interval volume bucket
       </span>
 
       <span data-volume24-line-legend>
         <i class="mini-history__legend-line"></i>
-        closing volume
+        rolling 24h volume
       </span>
     </div>
 
@@ -121,7 +121,7 @@
     <div class="mini-history__empty" data-volume24-empty hidden>
       <strong>No 24h volume history yet</strong>
       <span data-volume24-empty-detail>
-        Waiting for rolling-volume history collector data.
+        Waiting for Python history API volume data.
       </span>
     </div>
   </div>
