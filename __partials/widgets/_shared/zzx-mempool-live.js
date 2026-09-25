@@ -2,7 +2,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolLive?.__version>=2)return;
+  if(W.ZZXMempoolLive?.__version>=3)return;
 
   const EVENT="zzx:mempool-live:update";
   const state={
@@ -189,13 +189,37 @@
     for(const fn of state.subscribers){try{fn(detail);}catch(_){ }}
   }
 
+  async function resident(core){
+    const payload=await json("/bitcoin/live/api/mempool.json",{local:true,timeoutMs:5000});
+    const observedMs=Date.parse(String(payload?.observed_at||""));
+    if(!Number.isFinite(observedMs)||Date.now()-observedMs>15000){
+      throw new Error("resident mempool snapshot is stale");
+    }
+    const priceR=await price();
+    state.source=String(payload?.source||"ZZX resident mempool telemetry");
+    state.transport="resident-rest";
+    merge({
+      base:payload?.source||"resident",
+      blocks:Array.isArray(payload?.candidate_blocks)?payload.candidate_blocks:[],
+      mempool:payload?.summary&&typeof payload.summary==="object"?payload.summary:null,
+      tipHeight:finite(payload?.tip_height),
+      priceUsd:finite(priceR.value),
+      priceSource:priceR.source,
+      observedAt:observedMs,
+      sourceUpdatedAt:Date.parse(String(payload?.source_updated_at||""))
+    });
+    publish();
+    return view();
+  }
+
   async function load(core=state.core,force=false){
     state.core=core||state.core||W.ZZXWidgetsCore||null;
-    if(!force&&state.snapshot&&Date.now()-state.fetchedAt<8000)return view();
+    if(!force&&state.snapshot&&Date.now()-state.fetchedAt<4000)return view();
     if(state.inflight)return await state.inflight;
 
     state.inflight=(async()=>{
       let lastError=null;
+      try{return await resident(state.core);}catch(error){lastError=error;}
       for(const base of apiBases(state.core)){
         const local=!/^https?:/i.test(base);
         try{
@@ -216,7 +240,9 @@
             mempool,
             tipHeight:tipR.status==="fulfilled"?finite(tipR.value):NaN,
             priceUsd:priceR.status==="fulfilled"?finite(priceR.value.value):NaN,
-            priceSource:priceR.status==="fulfilled"?priceR.value.source:"price unavailable"
+            priceSource:priceR.status==="fulfilled"?priceR.value.source:"price unavailable",
+            observedAt:Date.now(),
+            sourceUpdatedAt:NaN
           });
           publish();
           return view();
@@ -283,6 +309,7 @@
       if(Array.isArray(parsed.transactions))update.transactions=parsed.transactions;
       if(parsed.mempool&&typeof parsed.mempool==="object")update.mempool=parsed.mempool;
       if(!Object.keys(update).length)return;
+      update.observedAt=Date.now();
       state.source=url;
       state.transport="websocket";
       merge(update);
@@ -299,7 +326,7 @@
     state.pollTimer=W.setTimeout(async()=>{
       try{await load(state.core,true);}catch(_){ }
       schedulePoll();
-    },10000);
+    },5000);
   }
 
   function start(core){
@@ -336,7 +363,7 @@
   }
 
   W.ZZXMempoolLive=Object.freeze({
-    __version:2,
+    __version:3,
     EVENT,
     apiBases,
     wsUrls,
