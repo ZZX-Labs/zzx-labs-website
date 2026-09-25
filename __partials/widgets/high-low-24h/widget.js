@@ -23,7 +23,7 @@
       global:"ZZXHistoryClient",
       path:
         "/__partials/widgets/_shared/zzx-history-client.js",
-      version:4
+      version:5
     },
     {
       global:"ZZXHighLow24HModel",
@@ -437,7 +437,7 @@
           root,
           "[data-hl24-volume-mode]"
         )?.value||
-        "candles-line",
+        "interval-bars",
       follow:
         q(
           root,
