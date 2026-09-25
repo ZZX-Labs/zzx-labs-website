@@ -1,5 +1,5 @@
 {
-  "schema": "zzx-bpi-index-policy-v1",
+  "schema": "zzx-bpi-index-policy-v2-native-global",
   "updated_at": null,
   "default_country": "US",
   "weights_enabled_default": true,
@@ -12,15 +12,16 @@
     "weighted_price_contribution_usd": "price_usd * weight_ratio"
   },
   "global_bpi": {
-    "weighted": "sum(price_usd * weight_ratio) across all eligible global BTC/fiat markets",
+    "membership": "all eligible exchange regions worldwide",
+    "weighted": "sum(price_usd * global weight_ratio) across all eligible global BTC/fiat markets",
     "unweighted": "arithmetic mean price_usd across all eligible global BTC/fiat markets"
   },
   "national_bpi": {
-    "membership": "market quote currency matches selected country's national currency",
+    "membership": "exchange registry region equals selected region/country code",
     "global_weight_preserved": true,
-    "weighted": "sum(price_usd * global_weight_ratio) / sum(global_weight_ratio) within selected national subset",
-    "unweighted": "arithmetic mean price_usd within selected national subset",
-    "reason": "preserves each market's share of world BTC volume while renormalizing the national subset to a valid price"
+    "weighted": "sum(price_usd * global_weight_ratio) / sum(global_weight_ratio) within selected region subset",
+    "unweighted": "arithmetic mean price_usd within selected region subset",
+    "reason": "exchange geography defines native scope; quote currency is presentation/FX metadata only"
   },
   "sanity_gate": {
     "order": [
@@ -49,5 +50,14 @@
     "quarantined_weight": 0,
     "quarantined_in_unweighted_index": false,
     "note": "No market receives any Global BPI or BitAvg weight until every sanity gate passes."
+  },
+  "native_bpi": {
+    "regions": [
+      "US"
+    ],
+    "membership": "exchange registry region is one of native_bpi.regions; quote currency never determines native membership",
+    "weighted": "renormalized eligible 24h BTC-volume weights within native-region exchanges",
+    "unweighted": "arithmetic mean price_usd across eligible native-region exchange markets",
+    "fallback_to_global": false
   }
 }
