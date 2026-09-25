@@ -93,7 +93,7 @@
   async function ensureModules(core){
     await loadScript(
       "/__partials/widgets/_shared/zzx-bitnodes.js",
-      ()=>Number(W.ZZXBitnodes?.__version||0)>=8,
+      ()=>Number(W.ZZXBitnodes?.__version||0)>=9,
       "ZZXBitnodes"
     );
     await loadScript(
@@ -304,15 +304,19 @@
     width(q(root,"[data-nodes-height-bar]"),m.heightCoverage);
 
     const updated=finite(snapshot.updatedMs);
+    const observed=finite(detail.fetchedAt);
     set(
       root,
       "[data-nodes-age]",
-      Number.isFinite(updated)?`${age(updated)} old`:"timestamp unavailable"
+      `${Number.isFinite(observed)?`${age(observed)} since poll`:"poll unknown"}`+
+      `${Number.isFinite(updated)?` · source ${age(updated)} old`:" · source time unknown"}`
     );
     set(
       root,
       "[data-nodes-updated]",
-      Number.isFinite(updated)?new Date(updated).toLocaleString():"—"
+      Number.isFinite(observed)
+        ? `${new Date(observed).toLocaleString()} · source ${Number.isFinite(updated)?new Date(updated).toLocaleString():"unknown"}`
+        : (Number.isFinite(updated)?new Date(updated).toLocaleString():"—")
     );
 
     set(root,"[data-nodes-geo-joins]",integer(m.geoJoined));
@@ -327,7 +331,7 @@
     set(
       root,
       "[data-nodes-meta]",
-      "ZZXBitnodes v8 · one canonical browser snapshot · no browser-level direct upstream or proxy requests"
+      "ZZXBitnodes v9 · 5 s live poll · canonical local snapshot with direct-upstream stale fallback"
     );
 
     status(root,detail.stale?"cached":"live",detail.stale?"warn":"ok");
@@ -338,7 +342,8 @@
       ipAddresses:state.ipAddresses,
       source:detail.source,
       transport:detail.transport,
-      updatedMs:Number.isFinite(updated)?updated:null
+      updatedMs:Number.isFinite(updated)?updated:null,
+      observedMs:Number.isFinite(observed)?observed:null
     });
     W.ZZXNodesLatest=W.ZZXNodesOverview;
   }
