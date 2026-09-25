@@ -2,7 +2,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXBitAvgPublisher?.__version>=8)return;
+  if(W.ZZXBitAvgPublisher?.__version>=9)return;
 
   const CHANNEL="zzx:bpi:update";
   const PROVIDER_ID="bitavg";
@@ -47,6 +47,8 @@
       weight_basis:
         "eligible market 24h BTC volume / eligible global 24h BTC volume",
       updated_at:model.updatedAt||new Date().toISOString(),
+      observed_at:model.updatedAt||new Date().toISOString(),
+      source_updated_at:model.sourceUpdatedAt||null,
       rendered_at:Date.now(),
       transport:String(transport||""),
       stale:!!stale
@@ -73,7 +75,7 @@
   }
 
   W.ZZXBitAvgPublisher=Object.freeze({
-    __version:8,
+    __version:9,
     channel:CHANNEL,
     providerId:PROVIDER_ID,
     modeId:MODE_ID,
