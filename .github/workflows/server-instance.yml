@@ -109,8 +109,6 @@ env:
   #
   # This keeps remote administration opt-in without requiring a source edit.
   ENABLE_WORKFLOW: ${{ vars.ZZX_SERVER_INSTANCE_ENABLED || 'false' }}
-
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
 
   INSTANCE_ROOT: server
@@ -163,19 +161,41 @@ jobs:
           printf '%s\n' \
             "Set repository variable ZZX_SERVER_INSTANCE_ENABLED=true to enable it."
 
-      - name: Checkout repository
+      - name: Checkout repository (native Git; no JavaScript action)
         if: env.ENABLE_WORKFLOW == 'true'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Python
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "1"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
+      - name: Set up Python (system Python; no JavaScript action)
         if: env.ENABLE_WORKFLOW == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Prepare report directory
         if: env.ENABLE_WORKFLOW == 'true'
         shell: bash
@@ -185,7 +205,7 @@ jobs:
           rm -rf "${REPORT_DIR}"
           mkdir -p \
             "${REPORT_DIR}/nginx" \
-            "${REPORT_DIR}/python" \
+            "${REPORT_DIR}/python3" \
             "${REPORT_DIR}/deploy" \
             "${REPORT_DIR}/restart"
 
@@ -349,7 +369,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import os
           from pathlib import Path
@@ -557,12 +577,12 @@ jobs:
               -name '*.py' \
               -print0 \
               | xargs -0 -r \
-                  python -m py_compile
+                  python3 -m py_compile
           fi
 
           printf '%s\n' \
             "Python Flask syntax check complete." \
-            | tee "${REPORT_DIR}/python/flask-check.txt"
+            | tee "${REPORT_DIR}/python3/flask-check.txt"
 
       - name: Validate remote SSH requirements
         if: >-
@@ -1038,11 +1058,13 @@ jobs:
             "${RUNNER_TEMP}/zzx-server-known-hosts" \
             "${RUNNER_TEMP}/zzx-server-instance.env"
 
-      - name: Upload server instance report
+      - name: Upload server instance report (native shell; no JavaScript action)
         if: always() && env.ENABLE_WORKFLOW == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: zzx-server-instance-${{ inputs.target }}-${{ inputs.mode }}
-          path: server-instance-report
-          if-no-files-found: warn
-          retention-days: 14
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d server-instance-report ]; then
+            printf '%s\n' '### ZZX server instance report' >> "${GITHUB_STEP_SUMMARY}"
+            find server-instance-report -maxdepth 2 -type f -printf '%p\n' | sort >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          printf '%s\n' "::notice title=Server report::Report retained in job logs/summary; no Node-backed artifact action is used."
