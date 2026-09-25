@@ -25,19 +25,32 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   crawl:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
+      - name: Checkout repository (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
       - name: Sync main
         shell: bash
         run: |
@@ -50,17 +63,24 @@ jobs:
           git reset --hard origin/main
           git clean -fdx
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
+      - name: Set up Python (system Python; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Install and validate crawler
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
-          python -m py_compile \
+          python3 -m pip install --retries 5 --timeout 60 -r tools/bitnodes/requirements.txt
+          python3 -m py_compile \
             tools/bitnodes/originalbitnodes.py \
             tools/bitnodes/run_original_bitnodes.py \
             tools/bitnodes/export_json.py \
@@ -96,7 +116,7 @@ jobs:
             bitcoin/bitnodes/data/runtime/snapshots/24h/originalbitnodes
 
           timeout --signal=TERM --kill-after=30s "${{ steps.limits.outputs.runtime }}s" \
-            python tools/bitnodes/originalbitnodes.py \
+            python3 tools/bitnodes/originalbitnodes.py \
               --original-mode classic \
               --classic-timeout-seconds "$(( ${{ steps.limits.outputs.runtime }} - 30 ))" \
               --run-seconds 0 \
@@ -115,20 +135,20 @@ jobs:
               --compact || true
 
           test -s bitcoin/bitnodes/api/originalbitnodes/latest.json
-          python -m json.tool bitcoin/bitnodes/api/originalbitnodes/latest.json >/dev/null
+          python3 -m json.tool bitcoin/bitnodes/api/originalbitnodes/latest.json >/dev/null
 
       - name: Build originalbitnodes public API contract
         shell: bash
         run: |
           set -euo pipefail
-          python tools/bitnodes/export_json.py \
+          python3 tools/bitnodes/export_json.py \
             --input bitcoin/bitnodes/api/originalbitnodes/latest.json \
             --output bitcoin/bitnodes/api/originalbitnodes \
             --source originalbitnodes \
             --archive-dir bitcoin/bitnodes/archive/originalbitnodes \
             --compact
 
-          python tools/bitnodes/aggregate.py \
+          python3 tools/bitnodes/aggregate.py \
             --input bitcoin/bitnodes/api/originalbitnodes/latest.json \
             --output bitcoin/bitnodes/api/aggregate/originalbitnodes/latest.json \
             --api-dir bitcoin/bitnodes/api \
@@ -141,7 +161,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           from pathlib import Path
           root=Path('bitcoin/bitnodes/api/originalbitnodes')
@@ -172,7 +192,7 @@ jobs:
           fi
           git commit -m "Update original Bitnodes crawler snapshot"
           PAYLOAD_COMMIT="$(git rev-parse HEAD)"
-          python tools/bitnodes/publish_generated_commit.py \
+          python3 tools/bitnodes/publish_generated_commit.py \
             --payload-commit "${PAYLOAD_COMMIT}" \
             --remote origin \
             --branch main \
