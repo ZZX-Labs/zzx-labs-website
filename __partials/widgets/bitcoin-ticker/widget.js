@@ -47,6 +47,17 @@
     return `updated ${Math.floor(min/60)}h ago`;
   }
 
+
+  function observeLatest(payload){
+    if(!payload||typeof payload!=="object")return payload;
+    const observedAt=new Date().toISOString();
+    return {
+      ...payload,
+      source_updated_at:payload.source_updated_at||payload.updated_at||null,
+      observed_at:observedAt
+    };
+  }
+
   function status(root,label,state){
     const widget=q(root,"[data-bitcoin-ticker]")||root;
     widget.dataset.status=state;
@@ -92,10 +103,10 @@
     ];
 
     const modules=[
-      ["ZZXBitcoinTickerConstants","js/constants.js",9],
-      ["ZZXBitcoinTickerDeps","js/deps.js",7],
+      ["ZZXBitcoinTickerConstants","js/constants.js",10],
+      ["ZZXBitcoinTickerDeps","js/deps.js",8],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
-      ["ZZXBitcoinTickerSelection","js/selection.js",7],
+      ["ZZXBitcoinTickerSelection","js/selection.js",8],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerExchangeRates","js/exchange-rates.js",1],
       ["ZZXBitcoinTickerExchanges","js/exchanges.js",1],
@@ -169,10 +180,11 @@
     const symbols=W.ZZXBitcoinTickerExchangeRates.symbols(symbolsData||{});
     const rates=W.ZZXBitcoinTickerExchangeRates.localRates(ratesData||{});
 
-    state.config={latest,exchangesData,currenciesData,ratesData,symbolsData,fiat,symbols,rates};
+    const observed=observeLatest(latest);
+    state.config={latest:observed,exchangesData,currenciesData,ratesData,symbolsData,fiat,symbols,rates};
     state.configAt=now;
-    if(latest){
-      state.lastGoodLatest=latest;
+    if(observed){
+      state.lastGoodLatest=observed;
       state.lastGoodLatestAt=now;
       state.lastStaticLatestFetchAt=now;
     }
@@ -225,8 +237,9 @@
       try{
         const staticLatest=await W.ZZXBitcoinTickerFetch.json(C.endpoints.latest);
         if(staticLatest){
-          config.latest=staticLatest;
-          state.lastGoodLatest=staticLatest;
+          const observedStatic=observeLatest(staticLatest);
+          config.latest=observedStatic;
+          state.lastGoodLatest=observedStatic;
           state.lastGoodLatestAt=now;
         }
         state.lastStaticLatestFetchAt=now;
@@ -257,7 +270,12 @@
     set(root,"[data-currency-label]",currency);
     set(root,"[data-btc]",format(priceQuote));
     set(root,"[data-source-label]",quote.label);
-    set(root,"[data-update-age]",formatAge(quote.timestamp));
+    set(
+      root,
+      "[data-update-age]",
+      `${formatAge(quote.timestamp)}`+
+      `${quote.sourceTimestamp?` · source ${formatAge(quote.sourceTimestamp).replace(/^updated /,"")}`:""}`
+    );
     set(root,"[data-high]",Number.isFinite(highQuote)?`${symbol}${format(highQuote)}`:"—");
     set(root,"[data-low]",Number.isFinite(lowQuote)?`${symbol}${format(lowQuote)}`:"—");
     set(root,"[data-volume]",Number.isFinite(quote.volumeBtc)?`${compact(quote.volumeBtc,2)} BTC`:"—");
@@ -267,7 +285,8 @@
 
     renderDenoms(root,priceQuote,symbol);
 
-    const age=quote.timestamp?Date.now()-new Date(quote.timestamp).getTime():NaN;
+    const sourceClock=quote.sourceTimestamp||quote.timestamp;
+    const age=sourceClock?Date.now()-new Date(sourceClock).getTime():NaN;
     const stale=Number.isFinite(age)&&age>W.ZZXBitcoinTickerConstants.staleAfterMs;
 
     set(root,"[data-provider-detail]",
@@ -288,6 +307,7 @@
       lowUsd:quote.lowUsd,
       volumeBtc:quote.volumeBtc,
       timestamp:quote.timestamp,
+      sourceTimestamp:quote.sourceTimestamp||null,
       mode:quote.mode,
       weightingMode:quote.weightingMode||"off",
       weightingApplied:!!quote.weightingApplied,
