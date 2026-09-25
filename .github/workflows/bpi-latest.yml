@@ -37,7 +37,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
   BPI_CAPTURE_SECONDS: ${{ inputs.capture_seconds || '3120' }}
   ZZX_MARIADB_HOST: ${{ secrets.BPI_MARIADB_HOST }}
@@ -52,17 +51,39 @@ jobs:
     timeout-minutes: 70
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
+      - name: Checkout repository (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
+      - name: Set up Python (system Python; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Sync repository before hourly capture
         shell: bash
         run: |
@@ -97,7 +118,7 @@ jobs:
           test -f tools/bpi/bpi_continuity_selftest.py
           test -f tools/bpi/bpi_private_backup.py
 
-          python -m py_compile \
+          python3 -m py_compile \
             tools/bpi/run-bpi-master.py \
             tools/bpi/bpi_hourly_master.py \
             tools/bpi/bpi_hourly_shard.py \
@@ -121,39 +142,39 @@ jobs:
             tools/bpi/update_sovereign_data.py
 
           if test -f tools/bpi/update_exchange_rates.py; then
-            python -m py_compile tools/bpi/update_exchange_rates.py
+            python3 -m py_compile tools/bpi/update_exchange_rates.py
           fi
 
           if test -f tools/bpi/update_deadopop.py; then
-            python -m py_compile tools/bpi/update_deadopop.py
+            python3 -m py_compile tools/bpi/update_deadopop.py
           fi
 
           if test -f tools/bpi/update_themarketbtccreated.py; then
-            python -m py_compile tools/bpi/update_themarketbtccreated.py
+            python3 -m py_compile tools/bpi/update_themarketbtccreated.py
           fi
 
-          python tools/bpi/run-bpi-master.py --hourly --self-test
-          python tools/bpi/bpi_continuity_selftest.py
-          python tools/bpi/bpi_runtime_healthcheck.py --self-test
-          python tools/bpi/workflow_contract_selftest.py
-          python tools/bpi/bpi_private_backup.py --self-test
-          python tools/bpi/update_latest.py --self-test
-          python tools/bpi/update_sovereign_data.py --self-test
-          python tools/bpi/update_reference_national_averages.py --self-test
+          python3 tools/bpi/run-bpi-master.py --hourly --self-test
+          python3 tools/bpi/bpi_continuity_selftest.py
+          python3 tools/bpi/bpi_runtime_healthcheck.py --self-test
+          python3 tools/bpi/workflow_contract_selftest.py
+          python3 tools/bpi/bpi_private_backup.py --self-test
+          python3 tools/bpi/update_latest.py --self-test
+          python3 tools/bpi/update_sovereign_data.py --self-test
+          python3 tools/bpi/update_reference_national_averages.py --self-test
 
-          python -m json.tool tools/bpi/hourly-config.json >/dev/null
-          python -m json.tool tools/bpi/collector-config.json >/dev/null
-          python -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
-          python -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
-          python -m json.tool bitcoin/bpi/api/bpi_index_policy.json >/dev/null
-          python -m json.tool bitcoin/bpi/api/orderbook_source_registry.json >/dev/null
+          python3 -m json.tool tools/bpi/hourly-config.json >/dev/null
+          python3 -m json.tool tools/bpi/collector-config.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/bpi_index_policy.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/orderbook_source_registry.json >/dev/null
 
       - name: Run hourly BPI acquisition and sequential finalization
         shell: bash
         run: |
           set -euo pipefail
 
-          python tools/bpi/run-bpi-master.py \
+          python3 tools/bpi/run-bpi-master.py \
             --hourly \
             --capture-seconds "${BPI_CAPTURE_SECONDS}" \
             --finalize-margin-seconds 90 \
@@ -165,10 +186,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          python tools/bpi/bpi_hourly_validate.py --root .
+          python3 tools/bpi/bpi_hourly_validate.py --root .
 
-          python -m json.tool bitcoin/bpi/api/hourly_status.json >/dev/null
-          python -m json.tool bitcoin/bpi/archive/archive-index.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/hourly_status.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/archive/archive-index.json >/dev/null
 
       - name: Stage immutable BPI run for private retention
         shell: bash
@@ -179,7 +200,7 @@ jobs:
           rm -rf "${STAGE}"
           mkdir -p "${STAGE}/archive" "${STAGE}/api"
 
-          python - <<'PY'
+          python3 - <<'PY'
           import json, os, shutil
           from pathlib import Path
           root=Path('.')
@@ -238,10 +259,10 @@ jobs:
 
           if [ "${repo_set}" = false ] && [ "${token_set}" = false ]; then
             printf '%s\n' \
-              "::warning title=BPI private backup::BPI_BACKUP_REPO and BPI_BACKUP_TOKEN are not configured. Private Git backup is skipped; the staged run will be retained as a workflow artifact and the public BPI pipeline is unaffected."
+              "::notice title=BPI private backup::BPI_BACKUP_REPO and BPI_BACKUP_TOKEN are not configured. Private Git backup is skipped. No JavaScript artifact action is used; configure the private backup sink for durable retention. Live/public BPI is unaffected."
           else
             printf '%s\n' \
-              "::warning title=BPI private backup::Private backup configuration is incomplete. Configure both BPI_BACKUP_REPO and BPI_BACKUP_TOKEN. Git backup is skipped; the staged run will be retained as a workflow artifact and the public BPI pipeline is unaffected."
+              "::notice title=BPI private backup::Private backup configuration is incomplete. Configure both BPI_BACKUP_REPO and BPI_BACKUP_TOKEN. Git backup is skipped. No JavaScript artifact action is used; configure the private backup sink for durable retention. Live/public BPI is unaffected."
           fi
 
       - name: Backup immutable BPI run to private repository
@@ -321,10 +342,10 @@ jobs:
           done
 
           printf '%s\n' \
-            "::warning title=BPI private backup::Private Git backup failed after retries. The public BPI pipeline remains valid; the staged run will be preserved as a workflow artifact."
+            "::warning title=BPI private backup::Private Git backup failed after retries. The public BPI pipeline remains valid; no remote artifact fallback is attempted; configure the private backup sink for durable retention."
           exit 1
 
-      - name: Preserve private BPI run as artifact when Git backup is unavailable
+      - name: Create local BPI emergency archive when private backup is unavailable
         if: >-
           ${{
             always() &&
@@ -333,14 +354,15 @@ jobs:
               steps.private_backup.outcome != 'success'
             )
           }}
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: bpi-private-run-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/bpi-private-run
-          if-no-files-found: error
-          retention-days: 90
-
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="${RUNNER_TEMP}/bpi-private-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          if [ -d "${RUNNER_TEMP}/bpi-private-run" ]; then
+            tar -C "${RUNNER_TEMP}" -czf "${ARCHIVE}" bpi-private-run
+            sha256sum "${ARCHIVE}"
+            printf '%s\n' "::notice title=BPI private retention::No private backup credentials configured. A local runner archive was created for this job only; configure BPI_BACKUP_REPO/BPI_BACKUP_TOKEN for durable remote retention."
+          fi
       - name: Report private BPI retention status
         if: ${{ always() }}
         shell: bash
@@ -361,7 +383,7 @@ jobs:
               ;;
             skipped-auth)
               printf '%s\n' \
-                "::warning title=BPI private retention::Private repository backup skipped because credentials are not configured. Artifact fallback was requested; live/public BPI is unaffected."
+                "::notice title=BPI private retention::Private repository backup skipped because credentials are not configured. No remote artifact fallback is used; live/public BPI is unaffected."
               ;;
             *)
               printf '%s\n' \
@@ -378,7 +400,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq mariadb-client
 
-          python tools/bpi/bpi_mariadb_sync.py --root .
+          python3 tools/bpi/bpi_mariadb_sync.py --root .
 
       - name: Publish hourly BPI mirrors and archive shards
         shell: bash
@@ -390,7 +412,7 @@ jobs:
 
           hour_id="$(date -u +'%Y-%m-%dT%H:00Z')"
 
-          python tools/bpi/bpi_git_publish.py \
+          python3 tools/bpi/bpi_git_publish.py \
             --root . \
             --message "Archive BPI hour ${hour_id}" \
             --path bitcoin/bpi/api \
