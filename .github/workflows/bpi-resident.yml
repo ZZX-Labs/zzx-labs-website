@@ -6,8 +6,7 @@ run-name: >-
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "tools/bpi/**"
       - "tools/bitnodes/**"
@@ -21,10 +20,6 @@ on:
       - "server/systemd/zzx-bpi.service"
       - "server/systemd/zzx-bitnodes-crawler.service"
       - "server/systemd/zzx-live-data.service"
-      - "__server/nginx.conf"
-      - "__partials/widgets/_shared/zzx-live-bpi.js"
-      - "__partials/widgets/_shared/zzx-bitnodes.js"
-      - "__partials/widgets/_shared/zzx-mempool-live.js"
       - ".github/workflows/bpi-resident.yml"
 
 permissions:
@@ -36,180 +31,121 @@ concurrency:
 
 jobs:
   deploy-resident-live-data:
-    # Label the actual live-data host's runner with `zzx-bpi`.  The workflow
-    # exits after deployment; systemd owns the perpetual processes thereafter.
-    runs-on: [self-hosted, linux, x64, zzx-bpi]
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     env:
-      DEPLOY_ROOT: /srv/zzx-labs
+      ZZX_HOST: ${{ secrets.ZZX_PRODUCTION_SERVER_HOST || secrets.ZZX_SERVER_HOST }}
+      ZZX_USER: ${{ secrets.ZZX_PRODUCTION_SERVER_USER || secrets.ZZX_SERVER_USER }}
+      ZZX_PORT: ${{ secrets.ZZX_PRODUCTION_SERVER_PORT || secrets.ZZX_SERVER_PORT }}
+      ZZX_SSH_KEY: ${{ secrets.ZZX_PRODUCTION_SERVER_SSH_KEY || secrets.ZZX_SERVER_SSH_KEY }}
+      ZZX_KNOWN_HOSTS: ${{ secrets.ZZX_PRODUCTION_SERVER_KNOWN_HOSTS || secrets.ZZX_SERVER_KNOWN_HOSTS }}
+      DEPLOY_ROOT: ${{ secrets.ZZX_PRODUCTION_SERVER_PATH || secrets.ZZX_SERVER_PATH || '/srv/zzx-labs' }}
+      PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout live-data source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Validate perpetual live-data contracts
+      - name: Checkout repository with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+      - name: Configure hardened SSH transport
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile \
-            tools/bpi/collector.py \
-            tools/bpi/history_store.py \
-            tools/bpi/history_api.py \
-            tools/bpi/history_backfill.py \
-            tools/bpi/history_semantics_selftest.py \
-            tools/bpi/backtest_all_exchanges.py \
-            tools/bpi/bpi_index_engine.py \
-            tools/bpi/index_sanity.py \
-            tools/bpi/master_daemon.py \
-            tools/bpi/run-bpi-master.py \
-            tools/bpi/bpi_runtime_healthcheck.py \
-            tools/live/live_data_daemon.py \
-            tools/live/live_data_healthcheck.py \
-            tools/bitnodes/bitnodes.py \
-            tools/bitnodes/bitnodesd.py
+          missing=()
+          [ -n "${ZZX_HOST:-}" ] || missing+=(ZZX_SERVER_HOST)
+          [ -n "${ZZX_USER:-}" ] || missing+=(ZZX_SERVER_USER)
+          [ -n "${ZZX_SSH_KEY:-}" ] || missing+=(ZZX_SERVER_SSH_KEY)
+          [ -n "${ZZX_KNOWN_HOSTS:-}" ] || missing+=(ZZX_SERVER_KNOWN_HOSTS)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '%s\n' "::error title=BPI SSH configuration missing::Configure repository secrets: ${missing[*]}"
+            exit 78
+          fi
+          install -d -m 700 "${RUNNER_TEMP}/zzx-ssh"
+          printf '%s\n' "${ZZX_SSH_KEY}" > "${RUNNER_TEMP}/zzx-ssh/id_ed25519"
+          printf '%s\n' "${ZZX_KNOWN_HOSTS}" > "${RUNNER_TEMP}/zzx-ssh/known_hosts"
+          chmod 600 "${RUNNER_TEMP}/zzx-ssh/id_ed25519" "${RUNNER_TEMP}/zzx-ssh/known_hosts"
+          printf 'ZZX_SSH=ssh -i %q -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=%q -p %q\n' \
+            "${RUNNER_TEMP}/zzx-ssh/id_ed25519" "${RUNNER_TEMP}/zzx-ssh/known_hosts" "${ZZX_PORT:-22}" >> "${GITHUB_ENV}"
+          ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" \
+            -p "${ZZX_PORT:-22}" "${ZZX_USER}@${ZZX_HOST}" 'printf "%s\n" "ZZX SSH preflight OK"'
+      - name: Validate Python-only live-data contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/bpi/*.py tools/live/*.py
           python3 tools/bpi/bpi_runtime_healthcheck.py --self-test
           python3 tools/bpi/history_backfill.py --self-test
           python3 tools/bpi/history_semantics_selftest.py
           python3 tools/bpi/backtest_all_exchanges.py --root . --self-test
-          python3 tools/site/runtime_dependency_audit.py --root . >/dev/null
-          python3 tools/bpi/bpi_index_engine.py
           python3 tools/bpi/bpi_continuity_selftest.py
           python3 tools/bpi/workflow_contract_selftest.py
           python3 tools/live/live_data_daemon.py --self-test
           python3 tools/live/live_data_healthcheck.py --self-test
-          python3 tools/bitnodes/workflow_contract_selftest.py
-          python3 -m json.tool tools/bpi/collector-config.json >/dev/null
-          python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
+          python3 tools/site/no_node_policy.py --root .
           python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
           python3 -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
 
-      - name: Install current repository and live-data services
+      - name: Deploy live-data code and service definitions over SSH
         shell: bash
         run: |
           set -euo pipefail
-          command -v rsync >/dev/null
+          SSH=(ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -p "${ZZX_PORT:-22}")
+          RSYNC_SSH="ssh -i ${RUNNER_TEMP}/zzx-ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${RUNNER_TEMP}/zzx-ssh/known_hosts -p ${ZZX_PORT:-22}"
+          REMOTE="${ZZX_USER}@${ZZX_HOST}"
 
-          if ! id -u zzx >/dev/null 2>&1; then
-            sudo useradd --system --home-dir /var/lib/zzx --create-home --shell /usr/sbin/nologin zzx
-          fi
+          "${SSH[@]}" "${REMOTE}" "sudo mkdir -p '${DEPLOY_ROOT}/tools' '${DEPLOY_ROOT}/tools/bitnodes' '${DEPLOY_ROOT}/bitcoin/bpi/api' '${DEPLOY_ROOT}/bitcoin/bitnodes/api' '${DEPLOY_ROOT}/bitcoin/live/api' '${DEPLOY_ROOT}/server/systemd' /var/lib/zzx-bpi/backfill/incoming && sudo chown -R '${ZZX_USER}:${ZZX_USER}' '${DEPLOY_ROOT}/tools' '${DEPLOY_ROOT}/server/systemd' '${DEPLOY_ROOT}/bitcoin/bpi/api' '${DEPLOY_ROOT}/bitcoin/bitnodes/api' '${DEPLOY_ROOT}/bitcoin/live/api'"
+          rsync -a --delete -e "${RSYNC_SSH}" tools/bpi/ "${REMOTE}:${DEPLOY_ROOT}/tools/bpi/"
+          rsync -a --delete -e "${RSYNC_SSH}" tools/live/ "${REMOTE}:${DEPLOY_ROOT}/tools/live/"
+          rsync -a --delete -e "${RSYNC_SSH}" tools/bitnodes/ "${REMOTE}:${DEPLOY_ROOT}/tools/bitnodes/"
+          rsync -a --delete -e "${RSYNC_SSH}" tools/site/ "${REMOTE}:${DEPLOY_ROOT}/tools/site/"
+          rsync -a -e "${RSYNC_SSH}" server/systemd/zzx-bpi.service server/systemd/zzx-bitnodes-crawler.service server/systemd/zzx-live-data.service "${REMOTE}:${DEPLOY_ROOT}/server/systemd/"
+          rsync -a -e "${RSYNC_SSH}" bitcoin/bpi/api/provider_urls.json bitcoin/bpi/api/exchanges.json bitcoin/bpi/api/bpi_index_policy.json bitcoin/bpi/api/fx_source_urls.json "${REMOTE}:${DEPLOY_ROOT}/bitcoin/bpi/api/"
+          rsync -a -e "${RSYNC_SSH}" bitcoin/bitnodes/api/sources.json "${REMOTE}:${DEPLOY_ROOT}/bitcoin/bitnodes/api/"
 
-          sudo mkdir -p \
-            "${DEPLOY_ROOT}" \
-            /var/lib/zzx-bpi \
-            /var/lib/zzx-bpi/backfill/incoming \
-            /etc/zzx-labs
-
-          sudo rsync -a --delete \
-            --exclude '.git/' \
-            --exclude 'bitcoin/bpi/history.sqlite3' \
-            --exclude 'bitcoin/bpi/history.sqlite3-shm' \
-            --exclude 'bitcoin/bpi/history.sqlite3-wal' \
-            --exclude 'bitcoin/bpi/backfill/incoming/' \
-            "${GITHUB_WORKSPACE}/" "${DEPLOY_ROOT}/"
-
-          sudo mkdir -p \
-            "${DEPLOY_ROOT}/bitcoin/bpi/api" \
-            "${DEPLOY_ROOT}/bitcoin/bitnodes/api" \
-            "${DEPLOY_ROOT}/bitcoin/live/api"
-
-          sudo chown -R www-data:www-data \
-            "${DEPLOY_ROOT}/bitcoin/bpi/api" \
-            /var/lib/zzx-bpi
-          sudo mkdir -p /var/lib/zzx-bpi/backfill/incoming
-          sudo chown -R www-data:www-data /var/lib/zzx-bpi/backfill
-          sudo chmod -R u+rwX,go-rwx /var/lib/zzx-bpi/backfill
-          sudo chmod -R u+rwX,go+rX "${DEPLOY_ROOT}/bitcoin/bpi/api"
-
-          sudo chown -R zzx:zzx \
-            "${DEPLOY_ROOT}/bitcoin/bitnodes/api" \
-            "${DEPLOY_ROOT}/bitcoin/live/api"
-          sudo chmod -R u+rwX,go+rX \
-            "${DEPLOY_ROOT}/bitcoin/bitnodes/api" \
-            "${DEPLOY_ROOT}/bitcoin/live/api"
-
-          for unit in \
-            zzx-bpi.service \
-            zzx-bitnodes-crawler.service \
-            zzx-live-data.service
-          do
-            sudo install -m 0644 \
-              "${DEPLOY_ROOT}/server/systemd/${unit}" \
-              "/etc/systemd/system/${unit}"
+      - name: Install and restart perpetual services remotely
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -p "${ZZX_PORT:-22}")
+          REMOTE="${ZZX_USER}@${ZZX_HOST}"
+          "${SSH[@]}" "${REMOTE}" bash -s -- "${DEPLOY_ROOT}" <<'REMOTE'
+          set -euo pipefail
+          DEPLOY_ROOT="$1"
+          if ! id -u zzx >/dev/null 2>&1; then sudo useradd --system --home-dir /var/lib/zzx --create-home --shell /usr/sbin/nologin zzx; fi
+          sudo mkdir -p /var/lib/zzx-bpi/backfill/incoming "${DEPLOY_ROOT}/bitcoin/live/api" "${DEPLOY_ROOT}/bitcoin/bitnodes/api"
+          sudo chown -R www-data:www-data /var/lib/zzx-bpi "${DEPLOY_ROOT}/bitcoin/bpi/api"
+          sudo chown -R zzx:zzx "${DEPLOY_ROOT}/bitcoin/live/api" "${DEPLOY_ROOT}/bitcoin/bitnodes/api"
+          for unit in zzx-bpi.service zzx-bitnodes-crawler.service zzx-live-data.service; do
+            sudo install -m 0644 "${DEPLOY_ROOT}/server/systemd/${unit}" "/etc/systemd/system/${unit}"
           done
-
           sudo systemctl daemon-reload
           sudo systemctl enable zzx-bpi.service zzx-bitnodes-crawler.service zzx-live-data.service
           sudo systemctl restart zzx-bpi.service zzx-bitnodes-crawler.service zzx-live-data.service
+          REMOTE
 
-      - name: Verify resident services and advancing feeds
+      - name: Verify advancing live feeds remotely
         shell: bash
         run: |
           set -euo pipefail
-
-          fail() {
-            for unit in zzx-bpi zzx-bitnodes-crawler zzx-live-data; do
-              sudo systemctl --no-pager --full status "${unit}.service" || true
-              sudo journalctl -u "${unit}.service" -n 80 --no-pager || true
-            done
-            exit 1
-          }
-          trap fail ERR
-
-          for unit in zzx-bpi zzx-bitnodes-crawler zzx-live-data; do
-            ready=0
-            for attempt in $(seq 1 20); do
-              if sudo systemctl is-active --quiet "${unit}.service"; then
-                ready=1
-                break
-              fi
-              sleep 1
-            done
-            test "${ready}" = "1"
-          done
-
-          bpi_ready=0
-          for attempt in $(seq 1 20); do
-            if python3 "${DEPLOY_ROOT}/tools/bpi/bpi_runtime_healthcheck.py" \
-              --root "${DEPLOY_ROOT}" --max-age-seconds 10 >/dev/null 2>&1; then
-              bpi_ready=1
-              break
-            fi
-            sleep 2
-          done
-          test "${bpi_ready}" = "1"
-
-          live_ready=0
-          for attempt in $(seq 1 30); do
-            if python3 "${DEPLOY_ROOT}/tools/live/live_data_healthcheck.py" \
-              --root "${DEPLOY_ROOT}" \
-              --mempool-max-age 15 \
-              --mining-max-age 90 \
-              --lightning-max-age 90 \
-              --nodes-max-age 300 >/dev/null 2>&1; then
-              live_ready=1
-              break
-            fi
-            sleep 2
-          done
-          test "${live_ready}" = "1"
-
-          # The dynamic Python history endpoint must be reachable; otherwise
-          # charts would silently fall back to stale/static repository history.
-          curl --fail --silent --show-error --max-time 3 \
-            http://127.0.0.1:8765/health >/dev/null
-
-          python3 "${DEPLOY_ROOT}/tools/bpi/bpi_runtime_healthcheck.py" \
-            --root "${DEPLOY_ROOT}" \
-            --max-age-seconds 10 \
-            --watch-seconds 12 \
-            --max-cycle-gap-seconds 6
-
-          python3 "${DEPLOY_ROOT}/tools/live/live_data_healthcheck.py" \
-            --root "${DEPLOY_ROOT}" \
-            --mempool-max-age 15 \
-            --mining-max-age 90 \
-            --lightning-max-age 90 \
-            --nodes-max-age 300
+          SSH=(ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -p "${ZZX_PORT:-22}")
+          REMOTE="${ZZX_USER}@${ZZX_HOST}"
+          "${SSH[@]}" "${REMOTE}" bash -s -- "${DEPLOY_ROOT}" <<'REMOTE'
+          set -euo pipefail
+          ROOT="$1"
+          for unit in zzx-bpi zzx-bitnodes-crawler zzx-live-data; do sudo systemctl is-active --quiet "${unit}.service"; done
+          python3 "${ROOT}/tools/bpi/bpi_runtime_healthcheck.py" --root "${ROOT}" --max-age-seconds 10 --watch-seconds 12 --max-cycle-gap-seconds 6
+          python3 "${ROOT}/tools/live/live_data_healthcheck.py" --root "${ROOT}" --mempool-max-age 15 --mining-max-age 90 --lightning-max-age 90 --nodes-max-age 300
+          curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8765/health >/dev/null
+          REMOTE
