@@ -736,36 +736,21 @@
 
   function recipe({
     priceMode="area",
-    volumeMode="candles-line"
+    volumeMode="interval-bars"
   }={}){
-    const normalizedPrice=[
-      "area",
-      "line",
-      "range"
-    ].includes(priceMode)
-      ? priceMode
-      : "area";
-
-    const normalizedVolume=[
-      "candles-line",
-      "candles",
-      "line"
-    ].includes(volumeMode)
-      ? volumeMode
-      : "candles-line";
-
+    const normalizedPrice=["area","line","range"].includes(priceMode)?priceMode:"area";
+    const normalizedVolume=["interval-bars","rolling-line"].includes(volumeMode)?volumeMode:"interval-bars";
     return {
       priceMode:normalizedPrice,
       volumeMode:normalizedVolume,
       showPriceLine:true,
       showPriceHighLow:true,
       showPriceRangeBand:true,
-      showVolumeCandles:
-        normalizedVolume!=="line",
-      showVolumeLine:
-        normalizedVolume!=="candles"
+      showVolumeCandles:normalizedVolume==="interval-bars",
+      showVolumeLine:normalizedVolume==="rolling-line"
     };
   }
+
 
   W.ZZXHighLow24HModel=
     Object.freeze({
