@@ -1,100 +1,543 @@
 /* static/css/fonts.css
-   Global font declarations + utilities
-   Loaded in base layer
+   ZZX-Labs global typography policy + utilities.
+
+   Font binaries and @font-face declarations live exclusively in:
+       /static/fonts/fonts.css
+
+   LOCAL TTF FONTS ONLY.
+   No remote fonts.
+   No WOFF/WOFF2.
+   No Google Fonts.
+   No npm/unpkg/CDN font dependencies.
 */
 
-/* ========== FONT-FACE DECLARATIONS ========== */
+/* ============================================================
+   GLOBAL TYPOGRAPHY ALIASES
+   ============================================================ */
 
-/* Adult Swim Font (custom display) */
-@font-face {
-    font-family: 'Adult Swim Font';
-    src: url('../fonts/Adult-Swim-Font.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* IBM Plex Mono (main body + UI) */
-@font-face {
-    font-family: 'IBM Plex Mono';
-    src: url('../fonts/IBMPlexMono-Regular.woff2') format('woff2'),
-         url('../fonts/IBMPlexMono-Regular.woff') format('woff');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'IBM Plex Mono';
-    src: url('../fonts/IBMPlexMono-Bold.woff2') format('woff2'),
-         url('../fonts/IBMPlexMono-Bold.woff') format('woff');
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'IBM Plex Mono';
-    src: url('../fonts/IBMPlexMono-Italic.woff2') format('woff2'),
-         url('../fonts/IBMPlexMono-Italic.woff') format('woff');
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
-}
-
-/* Optional extras: if you want sans/serif companions */
-@font-face {
-    font-family: 'IBM Plex Sans';
-    src: url('../fonts/IBMPlexSans-Regular.woff2') format('woff2'),
-         url('../fonts/IBMPlexSans-Regular.woff') format('woff');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'IBM Plex Serif';
-    src: url('../fonts/IBMPlexSerif-Regular.woff2') format('woff2'),
-         url('../fonts/IBMPlexSerif-Regular.woff') format('woff');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* ========== GLOBAL FALLBACK STACKS ========== */
 :root {
-    --font-body:    'IBM Plex Mono', monospace;
-    --font-display: 'Adult Swim Font', 'IBM Plex Mono', monospace;
-    --font-sans:    'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-    --font-serif:   'IBM Plex Serif', Georgia, serif;
-    --font-mono:    'IBM Plex Mono', monospace;
+    /*
+     * Canonical low-level families are provided by:
+     * /static/fonts/fonts.css
+     *
+     * --zzx-font-display : AdultSwimFont
+     * --zzx-font-mono    : IBMPlexMono
+     * --zzx-font-sans    : IBMPlexSansJP
+     * --zzx-font-math    : IBMPlexMath
+     */
+
+    --font-display: var(--zzx-font-display);
+    --font-body:    var(--zzx-font-mono);
+    --font-mono:    var(--zzx-font-mono);
+    --font-sans:    var(--zzx-font-sans);
+    --font-math:    var(--zzx-font-math);
+
+    /*
+     * There is currently no dedicated IBM Plex Serif TTF family
+     * in the repository font inventory.
+     *
+     * Do not invent a missing font file.
+     * Use the established body family unless/until a real local
+     * serif family is intentionally added.
+     */
+    --font-serif:   var(--zzx-font-mono);
 }
 
-/* ========== BODY DEFAULTS ========== */
+
+/* ============================================================
+   DOCUMENT DEFAULTS
+   ============================================================ */
+
+html,
 body {
     font-family: var(--font-body);
     font-weight: 400;
     font-style: normal;
+    font-synthesis: none;
 }
 
-/* Headings use display font */
-h1, h2, h3, h4, h5, h6 {
+
+/* ============================================================
+   DISPLAY / HEADINGS
+   ============================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: var(--font-display);
-    font-weight: normal;
+    font-weight: 400;
+    font-style: normal;
+    font-synthesis: none;
 }
 
-/* ========== UTILITY CLASSES (for previews & overrides) ========== */
-.font-display { font-family: var(--font-display) !important; }
-.font-body    { font-family: var(--font-body) !important; }
-.font-sans    { font-family: var(--font-sans) !important; }
-.font-serif   { font-family: var(--font-serif) !important; }
-.font-mono    { font-family: var(--font-mono) !important; }
 
-.font-light   { font-weight: 300 !important; }
-.font-regular { font-weight: 400 !important; }
-.font-medium  { font-weight: 500 !important; }
-.font-bold    { font-weight: 700 !important; }
-.font-italic  { font-style: italic !important; }
+/* ============================================================
+   MONOSPACE / TECHNICAL UI
+   ============================================================ */
 
-/* Optional scaling for design pages */
-.font-sm  { font-size: 0.85rem !important; }
-.font-md  { font-size: 1rem !important; }
-.font-lg  { font-size: 1.25rem !important; }
-.font-xl  { font-size: 1.5rem !important; }
+code,
+pre,
+kbd,
+samp,
+input,
+textarea,
+select,
+button {
+    font-family: var(--font-mono);
+}
+
+
+/* ============================================================
+   MATHEMATICAL CONTENT
+   ============================================================ */
+
+.math,
+.zzx-math,
+[data-font="math"] {
+    font-family: var(--font-math);
+}
+
+
+/* ============================================================
+   JAPANESE / SANS CONTENT
+   ============================================================ */
+
+.sans,
+.zzx-sans,
+[data-font="sans"] {
+    font-family: var(--font-sans);
+}
+
+
+/* ============================================================
+   WIDGET TYPOGRAPHY
+   ============================================================ */
+
+.zzx-card,
+.btc-card,
+[data-widget-root] {
+    font-family: var(--font-body);
+    font-synthesis: none;
+}
+
+.zzx-card__title,
+.btc-card__title,
+[data-widget-root] h1,
+[data-widget-root] h2,
+[data-widget-root] h3 {
+    font-family: var(--font-display);
+}
+
+.zzx-card code,
+.zzx-card pre,
+.btc-card code,
+.btc-card pre,
+[data-widget-root] code,
+[data-widget-root] pre {
+    font-family: var(--font-mono);
+}
+
+
+/* ============================================================
+   FAMILY UTILITY CLASSES
+   ============================================================ */
+
+.font-display {
+    font-family: var(--font-display) !important;
+}
+
+.font-body {
+    font-family: var(--font-body) !important;
+}
+
+.font-mono {
+    font-family: var(--font-mono) !important;
+}
+
+.font-sans {
+    font-family: var(--font-sans) !important;
+}
+
+.font-math {
+    font-family: var(--font-math) !important;
+}
+
+.font-serif {
+    font-family: var(--font-serif) !important;
+}
+
+
+/* ============================================================
+   WEIGHT UTILITIES
+   ============================================================ */
+
+.font-thin {
+    font-weight: 100 !important;
+}
+
+.font-extralight {
+    font-weight: 200 !important;
+}
+
+.font-light {
+    font-weight: 300 !important;
+}
+
+.font-regular {
+    font-weight: 400 !important;
+}
+
+.font-text {
+    font-weight: 450 !important;
+}
+
+.font-medium {
+    font-weight: 500 !important;
+}
+
+.font-semibold {
+    font-weight: 600 !important;
+}
+
+.font-bold {
+    font-weight: 700 !important;
+}
+
+
+/* ============================================================
+   STYLE UTILITIES
+   ============================================================ */
+
+.font-normal {
+    font-style: normal !important;
+}
+
+.font-italic {
+    font-style: italic !important;
+}
+
+
+/* ============================================================
+   SIZE UTILITIES
+   ============================================================ */
+
+.font-xs {
+    font-size: 0.75rem !important;
+}
+
+.font-sm {
+    font-size: 0.85rem !important;
+}
+
+.font-md {
+    font-size: 1rem !important;
+}
+
+.font-lg {
+    font-size: 1.25rem !important;
+}
+
+.font-xl {
+    font-size: 1.5rem !important;
+}
+
+.font-2xl {
+    font-size: 2rem !important;
+}
+
+
+/* ============================================================
+   FONT SYNTHESIS CONTROL
+   ============================================================ */
+
+/*
+ * The required real IBM Plex Mono variants exist locally.
+ * Prevent browsers from manufacturing synthetic bold/italic
+ * versions when a corresponding physical font file is available.
+ */
+
+.zzx-card,
+.btc-card,
+[data-widget-root],
+.font-display,
+.font-body,
+.font-mono,
+.font-sans,
+.font-math {
+    font-synthesis: none;
+}
+``````css
+/* static/css/fonts.css
+   ZZX-Labs global typography policy + utilities.
+
+   Font binaries and @font-face declarations live exclusively in:
+       /static/fonts/fonts.css
+
+   LOCAL TTF FONTS ONLY.
+   No remote fonts.
+   No WOFF/WOFF2.
+   No Google Fonts.
+   No npm/unpkg/CDN font dependencies.
+*/
+
+/* ============================================================
+   GLOBAL TYPOGRAPHY ALIASES
+   ============================================================ */
+
+:root {
+    /*
+     * Canonical low-level families are provided by:
+     * /static/fonts/fonts.css
+     *
+     * --zzx-font-display : AdultSwimFont
+     * --zzx-font-mono    : IBMPlexMono
+     * --zzx-font-sans    : IBMPlexSansJP
+     * --zzx-font-math    : IBMPlexMath
+     */
+
+    --font-display: var(--zzx-font-display);
+    --font-body:    var(--zzx-font-mono);
+    --font-mono:    var(--zzx-font-mono);
+    --font-sans:    var(--zzx-font-sans);
+    --font-math:    var(--zzx-font-math);
+
+    /*
+     * There is currently no dedicated IBM Plex Serif TTF family
+     * in the repository font inventory.
+     *
+     * Do not invent a missing font file.
+     * Use the established body family unless/until a real local
+     * serif family is intentionally added.
+     */
+    --font-serif:   var(--zzx-font-mono);
+}
+
+
+/* ============================================================
+   DOCUMENT DEFAULTS
+   ============================================================ */
+
+html,
+body {
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-style: normal;
+    font-synthesis: none;
+}
+
+
+/* ============================================================
+   DISPLAY / HEADINGS
+   ============================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-style: normal;
+    font-synthesis: none;
+}
+
+
+/* ============================================================
+   MONOSPACE / TECHNICAL UI
+   ============================================================ */
+
+code,
+pre,
+kbd,
+samp,
+input,
+textarea,
+select,
+button {
+    font-family: var(--font-mono);
+}
+
+
+/* ============================================================
+   MATHEMATICAL CONTENT
+   ============================================================ */
+
+.math,
+.zzx-math,
+[data-font="math"] {
+    font-family: var(--font-math);
+}
+
+
+/* ============================================================
+   JAPANESE / SANS CONTENT
+   ============================================================ */
+
+.sans,
+.zzx-sans,
+[data-font="sans"] {
+    font-family: var(--font-sans);
+}
+
+
+/* ============================================================
+   WIDGET TYPOGRAPHY
+   ============================================================ */
+
+.zzx-card,
+.btc-card,
+[data-widget-root] {
+    font-family: var(--font-body);
+    font-synthesis: none;
+}
+
+.zzx-card__title,
+.btc-card__title,
+[data-widget-root] h1,
+[data-widget-root] h2,
+[data-widget-root] h3 {
+    font-family: var(--font-display);
+}
+
+.zzx-card code,
+.zzx-card pre,
+.btc-card code,
+.btc-card pre,
+[data-widget-root] code,
+[data-widget-root] pre {
+    font-family: var(--font-mono);
+}
+
+
+/* ============================================================
+   FAMILY UTILITY CLASSES
+   ============================================================ */
+
+.font-display {
+    font-family: var(--font-display) !important;
+}
+
+.font-body {
+    font-family: var(--font-body) !important;
+}
+
+.font-mono {
+    font-family: var(--font-mono) !important;
+}
+
+.font-sans {
+    font-family: var(--font-sans) !important;
+}
+
+.font-math {
+    font-family: var(--font-math) !important;
+}
+
+.font-serif {
+    font-family: var(--font-serif) !important;
+}
+
+
+/* ============================================================
+   WEIGHT UTILITIES
+   ============================================================ */
+
+.font-thin {
+    font-weight: 100 !important;
+}
+
+.font-extralight {
+    font-weight: 200 !important;
+}
+
+.font-light {
+    font-weight: 300 !important;
+}
+
+.font-regular {
+    font-weight: 400 !important;
+}
+
+.font-text {
+    font-weight: 450 !important;
+}
+
+.font-medium {
+    font-weight: 500 !important;
+}
+
+.font-semibold {
+    font-weight: 600 !important;
+}
+
+.font-bold {
+    font-weight: 700 !important;
+}
+
+
+/* ============================================================
+   STYLE UTILITIES
+   ============================================================ */
+
+.font-normal {
+    font-style: normal !important;
+}
+
+.font-italic {
+    font-style: italic !important;
+}
+
+
+/* ============================================================
+   SIZE UTILITIES
+   ============================================================ */
+
+.font-xs {
+    font-size: 0.75rem !important;
+}
+
+.font-sm {
+    font-size: 0.85rem !important;
+}
+
+.font-md {
+    font-size: 1rem !important;
+}
+
+.font-lg {
+    font-size: 1.25rem !important;
+}
+
+.font-xl {
+    font-size: 1.5rem !important;
+}
+
+.font-2xl {
+    font-size: 2rem !important;
+}
+
+
+/* ============================================================
+   FONT SYNTHESIS CONTROL
+   ============================================================ */
+
+/*
+ * The required real IBM Plex Mono variants exist locally.
+ * Prevent browsers from manufacturing synthetic bold/italic
+ * versions when a corresponding physical font file is available.
+ */
+
+.zzx-card,
+.btc-card,
+[data-widget-root],
+.font-display,
+.font-body,
+.font-mono,
+.font-sans,
+.font-math {
+    font-synthesis: none;
+}
