@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolModel?.__version>=4)return;
+  if(W.ZZXMempoolModel?.__version>=5)return;
 
   const BLOCK_VBYTES=1_000_000;
 
@@ -202,7 +202,7 @@
       .reduce((sum,value)=>sum+value,0);
 
     return {
-      schema:"zzx-mempool-model-v4",
+      schema:"zzx-mempool-model-v5",
       count,
       vsize,
       vMB,
@@ -235,12 +235,16 @@
       candidateVsize,
       candidateTx,
       candidateFees,
-      fetchedAt:finite(payload?.fetchedAt)
+      fetchedAt:finite(payload?.fetchedAt),
+      checkedAt:finite(payload?.checkedAt ?? Date.now()),
+      observedAt:finite(payload?.observedAt ?? payload?.fetchedAt),
+      sourceUpdatedAt:finite(payload?.sourceUpdatedAt),
+      transport:String(payload?.transport||"")
     };
   }
 
   W.ZZXMempoolModel=Object.freeze({
-    __version:4,
+    __version:5,
     BLOCK_VBYTES,
     histogram,
     weightedMedianRate,
