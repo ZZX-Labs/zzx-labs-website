@@ -28,16 +28,14 @@ on:
         default: true
 
 permissions:
-  contents: read
+  contents: write
   pages: write
-  id-token: write
 
 concurrency:
   group: zzx-labs-pages
   cancel-in-progress: false
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
   CYBERCHEF_VERSION: ${{ inputs.cyberchef_version || '11.0.0' }}
 
@@ -48,14 +46,27 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout ZZX-Labs website
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
+      - name: Checkout ZZX-Labs website (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "1"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
       - name: Validate CyberChef source trees
         shell: bash
         run: |
@@ -71,7 +82,7 @@ jobs:
           test -d cyberchef
           test -d tools/cyberchef
           test -f tools/cyberchef/cyberchef.py
-          python -m py_compile tools/cyberchef/cyberchef.py
+          python3 -m py_compile tools/cyberchef/cyberchef.py
 
           ROOT_FILES=(
             cyberchef/index.html
@@ -372,7 +383,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
           import re
 
@@ -432,7 +443,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           import hashlib
           import json
           import os
@@ -569,35 +580,63 @@ jobs:
           grep -q 'assets/main.css' _site/cyberchef/app/index.html
           grep -q 'assets/main.js' _site/cyberchef/app/index.html
 
-          python -m json.tool \
+          python3 -m json.tool \
             _site/cyberchef/runtime-manifest.json \
             >/dev/null
 
           printf '%s\n' \
             "ZZX root frontend and isolated native CyberChef runtime verified."
 
-      - name: Upload GitHub Pages artifact
+      - name: Deploy validated site to gh-pages with native Git
         if: ${{ inputs.deploy_pages }}
-        uses: actions/upload-pages-artifact@v3
-        with:
-          name: zzx-cyberchef-pages
-          path: _site
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -d _site
 
-  deploy:
-    name: Deploy ZZX-CyberChef
-    if: ${{ inputs.deploy_pages }}
-    needs:
-      - build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+          DEPLOY_DIR="$(mktemp -d)"
+          trap 'rm -rf "${DEPLOY_DIR}"' EXIT
+          cp -a _site/. "${DEPLOY_DIR}/"
+          cd "${DEPLOY_DIR}"
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+          git init .
+          git checkout --orphan gh-pages
+          git config user.name "zzx-pages-bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Deploy ZZX-CyberChef ${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git push --force origin HEAD:gh-pages
 
-    steps:
-      - name: Deploy validated Pages artifact
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: zzx-cyberchef-pages
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          url=f'https://api.github.com/repos/{repo}/pages'
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'Content-Type':'application/json',
+              'User-Agent':'zzx-native-pages-deployer',
+          }
+          payload=json.dumps({'source':{'branch':'gh-pages','path':'/'},'build_type':'legacy'}).encode()
+          def call(method):
+              req=urllib.request.Request(url,data=payload,headers=headers,method=method)
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return response.status
+          try:
+              status=call('PUT')
+              print('Pages source updated:',status)
+          except urllib.error.HTTPError as exc:
+              if exc.code==404:
+                  status=call('POST')
+                  print('Pages source created:',status)
+              else:
+                  body=exc.read().decode('utf-8','replace')
+                  raise SystemExit(f'GitHub Pages API failed: HTTP {exc.code}: {body}')
+          PY
