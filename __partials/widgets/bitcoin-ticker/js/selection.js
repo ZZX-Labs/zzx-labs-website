@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerSelection?.__version>=7)return;
+  if(W.ZZXBitcoinTickerSelection?.__version>=8)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
@@ -267,7 +267,8 @@
       highUsd:finite(latest?.high_24h),
       lowUsd:finite(latest?.low_24h),
       volumeBtc:finite(latest?.volume_24h_btc),
-      timestamp:latest?.updated_at||null,
+      timestamp:latest?.observed_at??latest?.updated_at??null,
+      sourceTimestamp:latest?.source_updated_at??latest?.updated_at??null,
       mode:weightingApplied
         ? "bpi_24h_btc_volume_weighted"
         : "bpi_unweighted_arithmetic_mean",
@@ -321,7 +322,8 @@
       highUsd:finite(latest?.global_bpi?.high_24h??latest?.high_24h),
       lowUsd:finite(latest?.global_bpi?.low_24h??latest?.low_24h),
       volumeBtc:finite(published?.volume_24h_btc??latest?.volume_24h_btc),
-      timestamp:published?.updated_at??latest?.global_bpi?.updated_at??latest?.updated_at??null,
+      timestamp:latest?.observed_at??published?.observed_at??published?.updated_at??latest?.global_bpi?.updated_at??latest?.updated_at??null,
+      sourceTimestamp:latest?.source_updated_at??published?.updated_at??latest?.global_bpi?.updated_at??latest?.updated_at??null,
       mode:weightingApplied
         ? String(published?.method_weighted??"bitavg_global_24h_btc_volume_weighted")
         : String(published?.method_unweighted??"global_unweighted_arithmetic_mean"),
@@ -349,7 +351,8 @@
       highUsd:finite(row?.high_24h),
       lowUsd:finite(row?.low_24h),
       volumeBtc:finite(row?.volume_24h_btc),
-      timestamp:row?.updated_at??latest?.updated_at??null,
+      timestamp:latest?.observed_at??row?.updated_at??latest?.updated_at??null,
+      sourceTimestamp:row?.updated_at??latest?.source_updated_at??latest?.updated_at??null,
       mode:String(row?.mode||"exchange")
     };
   }
@@ -386,7 +389,7 @@
   }
 
   W.ZZXBitcoinTickerSelection=Object.freeze({
-    __version:7,
+    __version:8,
     weightingMode,
     canonicalUnweighted,
     exchangeMap,
