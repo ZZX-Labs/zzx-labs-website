@@ -109,8 +109,8 @@ def default_openstreetmaps_payload(tile_provider: str = "cartodb_dark") -> dict[
         "selected_tileset": selected,
         "tilesets": OPENSTREETMAP_TILESETS,
         "library": {
-            "leaflet_css": "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-            "leaflet_js": "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+            "leaflet_css": None,
+            "leaflet_js": None,
             "local_leaflet_css": "../../vendor/leaflet/leaflet.css",
             "local_leaflet_js": "../../vendor/leaflet/leaflet.js",
             "preferred_production_mode": "vendor-local",
