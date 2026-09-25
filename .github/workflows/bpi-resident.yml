@@ -1,0 +1,215 @@
+name: ZZX Live Bitcoin Data Resident 24x7 Service
+
+run-name: >-
+  ZZX Live Bitcoin Data / ${{ github.event_name }} / run-${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/bpi/**"
+      - "tools/bitnodes/**"
+      - "tools/live/**"
+      - "tools/site/**"
+      - "bitcoin/bpi/api/provider_urls.json"
+      - "bitcoin/bpi/api/exchanges.json"
+      - "bitcoin/bpi/api/bpi_index_policy.json"
+      - "bitcoin/bpi/api/fx_source_urls.json"
+      - "bitcoin/bitnodes/api/sources.json"
+      - "server/systemd/zzx-bpi.service"
+      - "server/systemd/zzx-bitnodes-crawler.service"
+      - "server/systemd/zzx-live-data.service"
+      - "__server/nginx.conf"
+      - "__partials/widgets/_shared/zzx-live-bpi.js"
+      - "__partials/widgets/_shared/zzx-bitnodes.js"
+      - "__partials/widgets/_shared/zzx-mempool-live.js"
+      - ".github/workflows/bpi-resident.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zzx-live-bitcoin-data-resident-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-resident-live-data:
+    # Label the actual live-data host's runner with `zzx-bpi`.  The workflow
+    # exits after deployment; systemd owns the perpetual processes thereafter.
+    runs-on: [self-hosted, linux, x64, zzx-bpi]
+    timeout-minutes: 15
+    env:
+      DEPLOY_ROOT: /srv/zzx-labs
+
+    steps:
+      - name: Checkout live-data source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate perpetual live-data contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/bpi/collector.py \
+            tools/bpi/history_store.py \
+            tools/bpi/history_api.py \
+            tools/bpi/history_backfill.py \
+            tools/bpi/history_semantics_selftest.py \
+            tools/bpi/backtest_all_exchanges.py \
+            tools/bpi/bpi_index_engine.py \
+            tools/bpi/index_sanity.py \
+            tools/bpi/master_daemon.py \
+            tools/bpi/run-bpi-master.py \
+            tools/bpi/bpi_runtime_healthcheck.py \
+            tools/live/live_data_daemon.py \
+            tools/live/live_data_healthcheck.py \
+            tools/bitnodes/bitnodes.py \
+            tools/bitnodes/bitnodesd.py
+          python3 tools/bpi/bpi_runtime_healthcheck.py --self-test
+          python3 tools/bpi/history_backfill.py --self-test
+          python3 tools/bpi/history_semantics_selftest.py
+          python3 tools/bpi/backtest_all_exchanges.py --root . --self-test
+          python3 tools/site/runtime_dependency_audit.py --root . >/dev/null
+          python3 tools/bpi/bpi_index_engine.py
+          python3 tools/bpi/bpi_continuity_selftest.py
+          python3 tools/bpi/workflow_contract_selftest.py
+          python3 tools/live/live_data_daemon.py --self-test
+          python3 tools/live/live_data_healthcheck.py --self-test
+          python3 tools/bitnodes/workflow_contract_selftest.py
+          python3 -m json.tool tools/bpi/collector-config.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+          python3 -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
+
+      - name: Install current repository and live-data services
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v rsync >/dev/null
+
+          if ! id -u zzx >/dev/null 2>&1; then
+            sudo useradd --system --home-dir /var/lib/zzx --create-home --shell /usr/sbin/nologin zzx
+          fi
+
+          sudo mkdir -p \
+            "${DEPLOY_ROOT}" \
+            /var/lib/zzx-bpi \
+            /var/lib/zzx-bpi/backfill/incoming \
+            /etc/zzx-labs
+
+          sudo rsync -a --delete \
+            --exclude '.git/' \
+            --exclude 'bitcoin/bpi/history.sqlite3' \
+            --exclude 'bitcoin/bpi/history.sqlite3-shm' \
+            --exclude 'bitcoin/bpi/history.sqlite3-wal' \
+            --exclude 'bitcoin/bpi/backfill/incoming/' \
+            "${GITHUB_WORKSPACE}/" "${DEPLOY_ROOT}/"
+
+          sudo mkdir -p \
+            "${DEPLOY_ROOT}/bitcoin/bpi/api" \
+            "${DEPLOY_ROOT}/bitcoin/bitnodes/api" \
+            "${DEPLOY_ROOT}/bitcoin/live/api"
+
+          sudo chown -R www-data:www-data \
+            "${DEPLOY_ROOT}/bitcoin/bpi/api" \
+            /var/lib/zzx-bpi
+          sudo mkdir -p /var/lib/zzx-bpi/backfill/incoming
+          sudo chown -R www-data:www-data /var/lib/zzx-bpi/backfill
+          sudo chmod -R u+rwX,go-rwx /var/lib/zzx-bpi/backfill
+          sudo chmod -R u+rwX,go+rX "${DEPLOY_ROOT}/bitcoin/bpi/api"
+
+          sudo chown -R zzx:zzx \
+            "${DEPLOY_ROOT}/bitcoin/bitnodes/api" \
+            "${DEPLOY_ROOT}/bitcoin/live/api"
+          sudo chmod -R u+rwX,go+rX \
+            "${DEPLOY_ROOT}/bitcoin/bitnodes/api" \
+            "${DEPLOY_ROOT}/bitcoin/live/api"
+
+          for unit in \
+            zzx-bpi.service \
+            zzx-bitnodes-crawler.service \
+            zzx-live-data.service
+          do
+            sudo install -m 0644 \
+              "${DEPLOY_ROOT}/server/systemd/${unit}" \
+              "/etc/systemd/system/${unit}"
+          done
+
+          sudo systemctl daemon-reload
+          sudo systemctl enable zzx-bpi.service zzx-bitnodes-crawler.service zzx-live-data.service
+          sudo systemctl restart zzx-bpi.service zzx-bitnodes-crawler.service zzx-live-data.service
+
+      - name: Verify resident services and advancing feeds
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fail() {
+            for unit in zzx-bpi zzx-bitnodes-crawler zzx-live-data; do
+              sudo systemctl --no-pager --full status "${unit}.service" || true
+              sudo journalctl -u "${unit}.service" -n 80 --no-pager || true
+            done
+            exit 1
+          }
+          trap fail ERR
+
+          for unit in zzx-bpi zzx-bitnodes-crawler zzx-live-data; do
+            ready=0
+            for attempt in $(seq 1 20); do
+              if sudo systemctl is-active --quiet "${unit}.service"; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            test "${ready}" = "1"
+          done
+
+          bpi_ready=0
+          for attempt in $(seq 1 20); do
+            if python3 "${DEPLOY_ROOT}/tools/bpi/bpi_runtime_healthcheck.py" \
+              --root "${DEPLOY_ROOT}" --max-age-seconds 10 >/dev/null 2>&1; then
+              bpi_ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "${bpi_ready}" = "1"
+
+          live_ready=0
+          for attempt in $(seq 1 30); do
+            if python3 "${DEPLOY_ROOT}/tools/live/live_data_healthcheck.py" \
+              --root "${DEPLOY_ROOT}" \
+              --mempool-max-age 15 \
+              --mining-max-age 90 \
+              --lightning-max-age 90 \
+              --nodes-max-age 300 >/dev/null 2>&1; then
+              live_ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "${live_ready}" = "1"
+
+          # The dynamic Python history endpoint must be reachable; otherwise
+          # charts would silently fall back to stale/static repository history.
+          curl --fail --silent --show-error --max-time 3 \
+            http://127.0.0.1:8765/health >/dev/null
+
+          python3 "${DEPLOY_ROOT}/tools/bpi/bpi_runtime_healthcheck.py" \
+            --root "${DEPLOY_ROOT}" \
+            --max-age-seconds 10 \
+            --watch-seconds 12 \
+            --max-cycle-gap-seconds 6
+
+          python3 "${DEPLOY_ROOT}/tools/live/live_data_healthcheck.py" \
+            --root "${DEPLOY_ROOT}" \
+            --mempool-max-age 15 \
+            --mining-max-age 90 \
+            --lightning-max-age 90 \
+            --nodes-max-age 300

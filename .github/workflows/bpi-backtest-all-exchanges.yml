@@ -1,0 +1,129 @@
+name: Backtest All Bitcoin Exchanges 2009-Present
+
+on:
+  workflow_dispatch:
+    inputs:
+      index_resolution:
+        description: "Historical BPI/Global BPI reconstruction bucket"
+        required: true
+        default: "1h"
+        type: choice
+        options: ["1m", "5m", "15m", "1h", "4h", "1d"]
+      purge_derived_first:
+        description: "Start from an empty derived history database before importing raw archives"
+        required: true
+        default: true
+        type: boolean
+      publish_report:
+        description: "Commit the coverage/backtest report (never the SQLite DB)"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-destructive-maintenance
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: [self-hosted, linux, x64, zzx-bpi]
+    timeout-minutes: 360
+    env:
+      DEPLOY_ROOT: /srv/zzx-labs
+      ZZX_BPI_HISTORY_DB: /var/lib/zzx-bpi/history.sqlite3
+      BACKFILL_INCOMING: /var/lib/zzx-bpi/backfill/incoming
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate zero-third-party backfill stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/bpi/history_store.py \
+            tools/bpi/history_backfill.py \
+            tools/bpi/history_semantics_selftest.py \
+            tools/bpi/backtest_all_exchanges.py \
+            tools/bpi/purge_data.py
+          python3 tools/bpi/history_backfill.py --self-test
+          python3 tools/bpi/history_semantics_selftest.py
+          python3 tools/bpi/backtest_all_exchanges.py --root . --self-test
+          python3 tools/site/runtime_dependency_audit.py --root . >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/historical_sources.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/bpi_index_policy.json >/dev/null
+
+      - name: Stop resident writer for deterministic rebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl stop zzx-bpi.service || true
+
+      - name: Optionally purge all derived market history first
+        if: ${{ inputs.purge_derived_first == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo -u www-data python3 "${GITHUB_WORKSPACE}/tools/bpi/purge_data.py" \
+            --root "${DEPLOY_ROOT}" \
+            --runtime-db "${ZZX_BPI_HISTORY_DB}" \
+            --confirm PURGE_BPI_DATA
+
+      - name: Import every available exchange archive and reconstruct indexes
+        shell: bash
+        env:
+          INDEX_RESOLUTION: ${{ inputs.index_resolution }}
+        run: |
+          set -euo pipefail
+          test -d "${BACKFILL_INCOMING}"
+          sudo -u www-data python3 "${GITHUB_WORKSPACE}/tools/bpi/backtest_all_exchanges.py" \
+            --root "${GITHUB_WORKSPACE}" \
+            --db "${ZZX_BPI_HISTORY_DB}" \
+            --incoming "${BACKFILL_INCOMING}" \
+            --index-resolution "${INDEX_RESOLUTION}"
+
+      - name: Validate reconstructed native and global index history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, sqlite3
+          from pathlib import Path
+          report=json.loads(Path('bitcoin/bpi/backfill/backtest-report.json').read_text())
+          db=sqlite3.connect('/var/lib/zzx-bpi/history.sqlite3')
+          counts=dict(db.execute("SELECT source,COUNT(*) FROM ticks WHERE source IN ('bpi','bpi-unweighted','global-bpi','global-bpi-unweighted') GROUP BY source"))
+          missing=[name for name in ('bpi','bpi-unweighted','global-bpi','global-bpi-unweighted') if counts.get(name,0)<1]
+          if report.get('with_history',0)<1:
+              raise SystemExit('no exchange archives were imported')
+          if missing:
+              raise SystemExit(f'missing reconstructed indexes: {missing}')
+          print(json.dumps({'coverage':report['with_history'],'missing':report['missing_history'],'index_counts':counts}))
+          PY
+
+      - name: Publish auditable coverage report
+        if: ${{ inputs.publish_report == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-bpi-backtest-bot"
+          git config user.email "actions@github.com"
+          git add bitcoin/bpi/backfill/backtest-report.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update BPI historical exchange backtest coverage"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Restart perpetual live collector on reconstructed database
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl restart zzx-bpi.service

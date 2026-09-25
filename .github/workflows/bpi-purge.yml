@@ -1,0 +1,100 @@
+name: Purge BPI Derived Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type PURGE_BPI_DATA exactly to erase derived BPI runtime/history data"
+        required: true
+        type: string
+      restart_live_service:
+        description: "Restart zzx-bpi after purge"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpi-destructive-maintenance
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: [self-hosted, linux, x64, zzx-bpi]
+    timeout-minutes: 20
+    env:
+      DEPLOY_ROOT: /srv/zzx-labs
+      ZZX_BPI_HISTORY_DB: /var/lib/zzx-bpi/history.sqlite3
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate explicit destructive confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [ "${CONFIRMATION}" != "PURGE_BPI_DATA" ]; then
+            printf '%s\n' "::error::Refusing purge. confirmation must equal PURGE_BPI_DATA"
+            exit 64
+          fi
+
+      - name: Stop resident BPI writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl stop zzx-bpi.service || true
+
+      - name: Purge derived repository and resident history
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Purge the production data plane using the freshly checked-out
+          # maintenance code, then purge the checkout's generated snapshots so
+          # the clean baseline can be committed.
+          sudo -u www-data python3 "${GITHUB_WORKSPACE}/tools/bpi/purge_data.py" \
+            --root "${DEPLOY_ROOT}" \
+            --runtime-db "${ZZX_BPI_HISTORY_DB}" \
+            --confirm PURGE_BPI_DATA
+          python3 tools/bpi/purge_data.py \
+            --root . \
+            --confirm PURGE_BPI_DATA
+
+      - name: Publish clean derived-data baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-bpi-maintenance-bot"
+          git config user.email "actions@github.com"
+          git add -A bitcoin/bpi/api bitcoin/bpi/archive bitcoin/bpi/backfill
+          if git diff --cached --quiet; then
+            printf '%s\n' "No repository-derived BPI data required removal."
+          else
+            git commit -m "Purge derived BPI data for clean rebuild"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Restart empty live BPI collector
+        if: ${{ inputs.restart_live_service == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl restart zzx-bpi.service
+          for attempt in $(seq 1 30); do
+            if sudo systemctl is-active --quiet zzx-bpi.service && \
+               python3 tools/bpi/bpi_runtime_healthcheck.py \
+                 --root "${DEPLOY_ROOT}" --max-age-seconds 10 >/dev/null 2>&1; then
+              printf '%s\n' "Fresh resident BPI collector is advancing."
+              exit 0
+            fi
+            sleep 2
+          done
+          sudo systemctl --no-pager --full status zzx-bpi.service || true
+          exit 1
