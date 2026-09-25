@@ -60,11 +60,12 @@
     ];
 
     for(const [globalName,relative] of modules){
-      if(W[globalName])continue;
+      if(Number(W[globalName]?.__version||0)>=2)continue;
 
-      const src=W.ZZXAPI?.url
+      const baseSrc=W.ZZXAPI?.url
         ? W.ZZXAPI.url(`${base}/${relative}`)
         : `${base}/${relative}`;
+      const src=`${baseSrc}${baseSrc.includes("?")?"&":"?"}zzxmod=2`;
 
       await new Promise((resolve,reject)=>{
         const s=D.createElement("script");
@@ -116,13 +117,15 @@
       (m.sources || []).join(" + ") || "local mining-stats.json";
 
     q(root,"[data-mining-stats-updated]").textContent =
-      m.updated ? new Date(m.updated).toLocaleString() : "—";
+      m.checkedAt
+        ? `checked ${new Date(m.checkedAt).toLocaleString()}${m.observedAt?` · collector ${new Date(m.observedAt).toLocaleString()}`:""}${m.sourceUpdatedAt?` · source ${new Date(m.sourceUpdatedAt).toLocaleString()}`:" · source timestamp unavailable"}`
+        : (m.updated ? new Date(m.updated).toLocaleString() : "—");
 
     q(root,"[data-mining-stats-sub]").textContent =
       `cadence-derived blocks/day · consensus subsidy schedule`;
 
     q(root,"[data-mining-stats-meta]").textContent =
-      `local override preferred · ${m.sources?.length || 0} live fallback source${m.sources?.length===1?"":"s"}`;
+      `resident live telemetry preferred · bundled JSON is fallback only · ${m.sources?.length || 0} live source${m.sources?.length===1?"":"s"}`;
 
     status(root,"live","ok");
   }
@@ -168,10 +171,10 @@
       async function loop(){
         if(!root.isConnected)return;
         await refresh(root,state);
-        state.timer=W.setTimeout(loop,60000);
+        state.timer=W.setTimeout(loop,5000);
       }
 
-      state.timer=W.setTimeout(loop,60000);
+      state.timer=W.setTimeout(loop,5000);
     }catch(error){
       status(root,"offline","error");
       q(root,"[data-mining-stats-meta]").textContent=String(error?.message||error);
