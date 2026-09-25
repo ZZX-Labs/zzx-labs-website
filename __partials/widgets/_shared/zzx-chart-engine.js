@@ -4,7 +4,7 @@
   const W=window;
   const D=document;
 
-  if(W.ZZXChartEngine?.__version>=2)return;
+  if(W.ZZXChartEngine?.__version>=3)return;
 
   const finite=value=>{
     const number=Number(value);
@@ -424,13 +424,18 @@
 
     visible(){
       if(!this.points.length)return [];
-      const count=this.points.length;
-      const start=Math.max(0,Math.floor(this.viewStart*(count-1)));
-      const end=Math.min(count,Math.ceil(this.viewEnd*(count-1))+1);
-
-      return this.points
-        .slice(start,end)
-        .map((point,index)=>({...point,__index:start+index}));
+      const first=this.points[0].t;
+      const last=this.points.at(-1).t;
+      const total=Math.max(1,last-first);
+      const from=first+total*this.viewStart;
+      const to=first+total*this.viewEnd;
+      const rows=[];
+      for(let index=0;index<this.points.length;index+=1){
+        const point=this.points[index];
+        if(point.t<from||point.t>to)continue;
+        rows.push({...point,__index:index});
+      }
+      return rows;
     }
 
     wheel(event){
@@ -521,7 +526,15 @@
       const plot={l:66,r:18};
       const plotWidth=Math.max(1,rect.width-plot.l-plot.r);
       const local=clamp(event.clientX-rect.left-plot.l,0,plotWidth);
-      const index=Math.round(local/plotWidth*(visible.length-1));
+      const firstTime=visible[0].t;
+      const lastTime=visible.at(-1).t;
+      const targetTime=firstTime+(lastTime-firstTime)*(local/plotWidth);
+      let index=0;
+      let best=Infinity;
+      for(let i=0;i<visible.length;i+=1){
+        const distance=Math.abs(visible[i].t-targetTime);
+        if(distance<best){best=distance;index=i;}
+      }
       const point=visible[index];
 
       this.hoverIndex=point?.__index??-1;
@@ -664,11 +677,14 @@
       minimum-=margin;
       maximum+=margin;
 
+      const firstVisibleTime=visible[0].t;
+      const lastVisibleTime=visible.at(-1).t;
+      const visibleSpan=Math.max(1,lastVisibleTime-firstVisibleTime);
       const xFor=index=>
         pad.l+
         (visible.length<=1
           ? plotWidth/2
-          : index/(visible.length-1)*plotWidth);
+          : (visible[index].t-firstVisibleTime)/visibleSpan*plotWidth);
 
       const yFor=value=>
         pad.t+(maximum-value)/(maximum-minimum)*plotHeight;
@@ -718,11 +734,12 @@
         let started=false;
 
         series.forEach((value,index)=>{
-          if(!Number.isFinite(value))return;
+          if(!Number.isFinite(value)){started=false;return;}
           const x=xFor(index);
           const y=yFor(value);
+          const gap=visible[index]?.gap_before===true;
 
-          if(!started){
+          if(!started||gap){
             ctx.moveTo(x,y);
             started=true;
           }else{
@@ -738,6 +755,10 @@
       };
 
       if(renderer==="area"){
+        const hasGaps=visible.some(point=>point.gap_before===true);
+        if(hasGaps){
+          linePath(values);
+        }else{
         ctx.beginPath();
         let started=false;
         let firstIndex=-1;
@@ -770,6 +791,7 @@
           ctx.fillStyle=gradient;
           ctx.fill();
         }
+        }
       }else if(renderer==="step"){
         ctx.beginPath();
         let previous=null;
@@ -779,7 +801,7 @@
           const x=xFor(index);
           const y=yFor(value);
 
-          if(previous===null){
+          if(previous===null||visible[index]?.gap_before===true){
             ctx.moveTo(x,y);
           }else{
             ctx.lineTo(x,previous);
@@ -866,6 +888,11 @@
             );
           }
         });
+        // Candles retain the close-price line so zoomed and sparse views never
+        // force the user to choose between OHLC structure and continuous price.
+        if(renderer==="candles"&&recipe.showCloseLine!==false){
+          linePath(visible.map(point=>finite(point.close??point.price)),recipe.closeLineStroke||primaryStroke,1.15,[]);
+        }
       }else{
         linePath(values);
       }
@@ -922,7 +949,7 @@
   }
 
   W.ZZXChartEngine=Object.freeze({
-    __version:2,
+    __version:3,
     Chart,
     transform,
     movingAverage,
