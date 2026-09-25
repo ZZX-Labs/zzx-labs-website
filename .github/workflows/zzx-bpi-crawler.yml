@@ -78,17 +78,39 @@ jobs:
       BPI_POLL_CYCLE_MS: ${{ inputs.poll_cycle_ms || '2500' }}
 
     steps:
-      - name: Checkout newest main
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
+      - name: Checkout newest main (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
+      - name: Set up Python 3.12 (system Python; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Sync main before live capture
         shell: bash
         run: |
@@ -108,26 +130,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile \
+          python3 -m py_compile \
             tools/bpi/collector.py \
             tools/bpi/history_store.py \
             tools/bpi/bpi_index_engine.py \
             tools/bpi/index_sanity.py \
             tools/bpi/bpi_live_publish.py \
             tools/bpi/bpi_runtime_healthcheck.py
-          python tools/bpi/bpi_live_publish.py --self-test
-          python tools/bpi/bpi_runtime_healthcheck.py --self-test
-          python tools/bpi/bpi_continuity_selftest.py
-          python tools/bpi/workflow_contract_selftest.py
-          python -m json.tool tools/bpi/collector-config.json >/dev/null
-          python -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
-          python -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+          python3 tools/bpi/bpi_live_publish.py --self-test
+          python3 tools/bpi/bpi_runtime_healthcheck.py --self-test
+          python3 tools/bpi/bpi_continuity_selftest.py
+          python3 tools/bpi/workflow_contract_selftest.py
+          python3 -m json.tool tools/bpi/collector-config.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
+          python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
 
       - name: Enforce 2.5-5 second live polling contract
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python3 - <<'PY'
           import os
           value=int(os.environ["BPI_POLL_CYCLE_MS"])
           if not 2500 <= value <= 5000:
@@ -139,7 +161,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python tools/bpi/collector.py \
+          python3 tools/bpi/collector.py \
             --root . \
             --duration-seconds "${BPI_CAPTURE_SECONDS}" \
             --cycle-ms "${BPI_POLL_CYCLE_MS}" \
@@ -150,7 +172,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python3 - <<'PY'
           import json, math, time
           from datetime import datetime
           from pathlib import Path
@@ -196,7 +218,7 @@ jobs:
           set -euo pipefail
           git config user.name "zzx-bpi-live-bot"
           git config user.email "actions@github.com"
-          python tools/bpi/bpi_live_publish.py \
+          python3 tools/bpi/bpi_live_publish.py \
             --root . \
             --message "Update continuous live BPI checkpoint" \
             --attempts 6 \
