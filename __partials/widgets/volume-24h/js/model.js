@@ -560,99 +560,50 @@
   }
 
   function recipe({
-    mode="candles-line",
+    mode="rolling-line",
     stats=null
   }={}){
     const normalizedMode=[
-      "candles-line",
-      "candles",
-      "line"
+      "rolling-line",
+      "interval-bars",
+      "interval-bars+rolling"
     ].includes(mode)
       ? mode
-      : "candles-line";
+      : "rolling-line";
 
+    const intervalMode=normalizedMode!=="rolling-line";
     const overlays=[];
-
-    if(
-      normalizedMode===
-      "candles-line"
-    ){
+    if(normalizedMode==="interval-bars+rolling"){
       overlays.push({
-        metric:
-          "volume_24h_btc",
+        metric:"volume_24h_btc",
         transform:"raw",
         stroke:"#e6a42b",
-        width:1.55,
+        width:1.35,
         dash:[],
-        label:
-          "24h volume close"
+        label:"rolling 24h BTC volume"
       });
     }
 
     const referenceLines=[];
-
-    if(stats){
-      if(
-        Number.isFinite(
-          stats.average
-        )
-      ){
-        referenceLines.push({
-          value:stats.average,
-          label:"24h avg",
-          stroke:
-            "rgba(230,164,43,.48)",
-          dash:[5,4]
-        });
-      }
-
-      if(
-        Number.isFinite(
-          stats.high
-        )
-      ){
-        referenceLines.push({
-          value:stats.high,
-          label:"24h H",
-          stroke:
-            "rgba(192,214,116,.38)",
-          dash:[3,4]
-        });
-      }
-
-      if(
-        Number.isFinite(
-          stats.low
-        )
-      ){
-        referenceLines.push({
-          value:stats.low,
-          label:"24h L",
-          stroke:
-            "rgba(214,116,116,.38)",
-          dash:[3,4]
-        });
-      }
+    if(!intervalMode&&stats){
+      if(Number.isFinite(stats.average))referenceLines.push({value:stats.average,label:"24h avg",stroke:"rgba(230,164,43,.48)",dash:[5,4]});
+      if(Number.isFinite(stats.high))referenceLines.push({value:stats.high,label:"24h H",stroke:"rgba(192,214,116,.38)",dash:[3,4]});
+      if(Number.isFinite(stats.low))referenceLines.push({value:stats.low,label:"24h L",stroke:"rgba(214,116,116,.38)",dash:[3,4]});
     }
 
     return {
-      id:
-        `volume24h__${normalizedMode}`,
-      label:
-        `Volume · 24h · ${normalizedMode}`,
-      metric:
-        "volume_24h_btc",
+      id:`volume24h__${normalizedMode}`,
+      label:normalizedMode==="rolling-line"?"Rolling 24h volume":"Actual interval BTC volume",
+      metric:intervalMode?"interval_volume_btc":"volume_24h_btc",
       transform:"raw",
-      renderer:
-        normalizedMode==="line"
-          ? "line"
-          : "candles",
+      renderer:intervalMode?"bars":"line",
       stroke:"#c0d674",
       accent:"#e6a42b",
       overlays,
       referenceLines
     };
   }
+
 
   W.ZZXVolume24HModel=
     Object.freeze({
