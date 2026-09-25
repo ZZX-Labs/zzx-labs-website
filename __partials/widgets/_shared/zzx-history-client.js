@@ -1,17 +1,15 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXHistoryClient?.__version>=4)return;
+  if(W.ZZXHistoryClient?.__version>=5)return;
 
   const dynamicBase="/bitcoin/bpi/history";
   const staticLive="/bitcoin/bpi/api/history-live.json";
-  const staticHistory="/bitcoin/bpi/api/history.json";
   let dynamicRetryAt=0;
-
   const url=p=>W.ZZXAPI?.url?W.ZZXAPI.url(p):p;
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
 
-  async function json(path,{timeoutMs=8000}={}){
+  async function json(path,{timeoutMs=5000}={}){
     const target=url(path);
     if(W.ZZXAPI?.jsonStrict){
       return await W.ZZXAPI.jsonStrict(target,{cacheBust:true,timeoutMs,retries:0});
@@ -19,20 +17,14 @@
     const ctl=new AbortController();
     const timer=W.setTimeout(()=>ctl.abort(),timeoutMs);
     try{
-      const r=await fetch(target,{cache:"no-store",credentials:"same-origin",signal:ctl.signal});
-      if(!r.ok)throw new Error(`HTTP ${r.status}`);
-      return await r.json();
+      const response=await fetch(target,{cache:"no-store",credentials:"same-origin",signal:ctl.signal});
+      if(!response.ok)throw new Error(`HTTP ${response.status}`);
+      return await response.json();
     }finally{W.clearTimeout(timer)}
   }
 
   function spanMs(timeframe){
-    const map={
-      "10s":10e3,"30s":30e3,"1m":60e3,"5m":300e3,"15m":900e3,
-      "1h":3600e3,"4h":14400e3,"24h":86400e3,"7d":604800e3,
-      "30d":2592000e3,"90d":7776000e3,"1y":31536000e3,
-      "5y":157680000e3
-    };
-    return map[timeframe]||null;
+    return ({"10s":10e3,"30s":30e3,"1m":60e3,"5m":300e3,"15m":900e3,"1h":3600e3,"4h":14400e3,"24h":86400e3,"7d":604800e3,"30d":2592000e3,"90d":7776000e3,"1y":31536000e3,"5y":157680000e3})[timeframe]||null;
   }
 
   function timestamp(row){
@@ -42,213 +34,47 @@
     return Number.isFinite(parsed)?parsed:NaN;
   }
 
-  function normalizedPoint(row,source){
+  function normalize(row,source){
     const t=timestamp(row);
-    const price=finite(
-      source==="global-bpi"
-        ? row?.global_bpi_usd??row?.global_bpi?.price_usd??row?.price_usd??row?.price??row?.close
-        : row?.price_usd??row?.bpi_usd??row?.price??row?.close??row?.new_price_usd
-    );
+    const price=finite(row?.price??row?.close??row?.price_usd??row?.bpi_usd??row?.global_bpi_usd);
     if(!Number.isFinite(t)||!(price>0))return null;
     const open=finite(row?.open),high=finite(row?.high),low=finite(row?.low),close=finite(row?.close);
-    const high24=finite(
-      row?.high_24h ??
-      row?.high_24h_usd ??
-      row?.rolling_high_24h_usd
-    );
-    const low24=finite(
-      row?.low_24h ??
-      row?.low_24h_usd ??
-      row?.rolling_low_24h_usd
-    );
-
-    const volume=finite(row?.volume_24h_btc);
-    const volumeOpen=finite(row?.volume_open_24h_btc);
-    const volumeHigh=finite(row?.volume_high_24h_btc);
-    const volumeLow=finite(row?.volume_low_24h_btc);
-    const volumeClose=finite(row?.volume_close_24h_btc);
-
+    const rolling=finite(row?.volume_24h_btc);
+    const interval=finite(row?.interval_volume_btc);
     return {
+      ...row,
       t,
       open:Number.isFinite(open)?open:price,
       high:Number.isFinite(high)?high:price,
       low:Number.isFinite(low)?low:price,
       close:Number.isFinite(close)?close:price,
-      price,
-      high_24h:Number.isFinite(high24)?high24:null,
-      low_24h:Number.isFinite(low24)?low24:null,
-      volume_24h_btc:Number.isFinite(volume)?volume:null,
-      volume_open_24h_btc:Number.isFinite(volumeOpen)
-        ? volumeOpen
-        : Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_high_24h_btc:Number.isFinite(volumeHigh)
-        ? volumeHigh
-        : Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_low_24h_btc:Number.isFinite(volumeLow)
-        ? volumeLow
-        : Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_close_24h_btc:Number.isFinite(volumeClose)
-        ? volumeClose
-        : Number.isFinite(volume)
-          ? volume
-          : null,
-      change:Number.isFinite(finite(row?.change))?finite(row.change):null,
-      change_pct:Number.isFinite(finite(row?.change_pct))?finite(row.change_pct):null,
-      market:row?.market??null,
-      quote:row?.quote??"USD"
+      price:Number.isFinite(close)?close:price,
+      volume_24h_btc:Number.isFinite(rolling)?rolling:null,
+      interval_volume_btc:Number.isFinite(interval)?interval:null,
+      source:row?.source??source,
+      gap_before:row?.gap_before===true,
+      gap_ms:Number.isFinite(finite(row?.gap_ms))?finite(row.gap_ms):0
     };
   }
 
-  function rowsFromHistoryPayload(payload){
-    if(Array.isArray(payload))return payload;
-    if(!payload||typeof payload!=="object")return [];
-    for(const key of ["history","rows","records","points"]){
-      if(Array.isArray(payload[key]))return payload[key];
-    }
-    return [];
-  }
-
-  function chooseResolution(start,end,maxPoints){
-    const target=Math.max(1,(end-start)/Math.max(10,maxPoints));
-    for(const [name,ms] of [["1s",1000],["5s",5000],["15s",15000],["30s",30000],["1m",60000],["5m",300000],["15m",900000],["1h",3600000],["4h",14400000],["1d",86400000],["1w",604800000]]){
-      if(ms>=target)return name;
-    }
-    return "1w";
-  }
-
-  const RES={raw:0,"1s":1000,"5s":5000,"15s":15000,"30s":30000,"1m":60000,"5m":300000,"15m":900000,"1h":3600000,"4h":14400000,"1d":86400000,"1w":604800000};
-
-  function bucket(points,resolution,maxPoints){
-    if(resolution==="raw")return points.slice(-maxPoints);
-    const ms=RES[resolution];
-    if(!ms)return points.slice(-maxPoints);
-    const map=new Map();
-    for(const p of points){
-      const b=Math.floor(p.t/ms)*ms;
-      let x=map.get(b);
-      if(!x){
-        const volumeClose=finite(
-          p.volume_close_24h_btc ??
-          p.volume_24h_btc
-        );
-        const volumeOpen=finite(
-          p.volume_open_24h_btc ??
-          volumeClose
-        );
-        const volumeHigh=finite(
-          p.volume_high_24h_btc ??
-          volumeClose
-        );
-        const volumeLow=finite(
-          p.volume_low_24h_btc ??
-          volumeClose
-        );
-
-        x={
-          t:b,
-          open:p.open??p.price,
-          high:p.high??p.price,
-          low:p.low??p.price,
-          close:p.close??p.price,
-          price:p.price,
-          high_24h:Number.isFinite(finite(p.high_24h))
-            ? finite(p.high_24h)
-            : null,
-          low_24h:Number.isFinite(finite(p.low_24h))
-            ? finite(p.low_24h)
-            : null,
-          volume_24h_btc:Number.isFinite(volumeClose)?volumeClose:null,
-          volume_open_24h_btc:Number.isFinite(volumeOpen)?volumeOpen:null,
-          volume_high_24h_btc:Number.isFinite(volumeHigh)?volumeHigh:null,
-          volume_low_24h_btc:Number.isFinite(volumeLow)?volumeLow:null,
-          volume_close_24h_btc:Number.isFinite(volumeClose)?volumeClose:null,
-          quote:p.quote,
-          market:p.market,
-          _last:p.t
-        };
-        map.set(b,x);
-      }else{
-        x.high=Math.max(x.high,p.high??p.price);
-        x.low=Math.min(x.low,p.low??p.price);
-
-        const volumeOpen=finite(
-          p.volume_open_24h_btc ??
-          p.volume_24h_btc
-        );
-        const volumeHigh=finite(
-          p.volume_high_24h_btc ??
-          p.volume_24h_btc
-        );
-        const volumeLow=finite(
-          p.volume_low_24h_btc ??
-          p.volume_24h_btc
-        );
-        const volumeClose=finite(
-          p.volume_close_24h_btc ??
-          p.volume_24h_btc
-        );
-
-        if(
-          x.volume_open_24h_btc==null &&
-          Number.isFinite(volumeOpen)
-        ){
-          x.volume_open_24h_btc=volumeOpen;
-        }
-
-        if(Number.isFinite(volumeHigh)){
-          x.volume_high_24h_btc=
-            x.volume_high_24h_btc==null
-              ? volumeHigh
-              : Math.max(x.volume_high_24h_btc,volumeHigh);
-        }
-
-        if(Number.isFinite(volumeLow)){
-          x.volume_low_24h_btc=
-            x.volume_low_24h_btc==null
-              ? volumeLow
-              : Math.min(x.volume_low_24h_btc,volumeLow);
-        }
-
-        if(p.t>=x._last){
-          x.close=p.close??p.price;
-          x.price=x.close;
-          x.volume_24h_btc=Number.isFinite(volumeClose)?volumeClose:null;
-          x.volume_close_24h_btc=Number.isFinite(volumeClose)?volumeClose:null;
-
-          const high24=finite(p.high_24h);
-          const low24=finite(p.low_24h);
-
-          if(Number.isFinite(high24)){
-            x.high_24h=high24;
-          }
-
-          if(Number.isFinite(low24)){
-            x.low_24h=low24;
-          }
-
-          x.quote=p.quote;
-          x.market=p.market;
-          x._last=p.t;
-        }
+  function gapMark(points,nominalMs=0){
+    const sorted=[...points].sort((a,b)=>a.t-b.t);
+    let nominal=finite(nominalMs);
+    if(!(nominal>0)){
+      const deltas=[];
+      for(let i=1;i<sorted.length;i+=1){
+        const delta=sorted[i].t-sorted[i-1].t;
+        if(delta>0)deltas.push(delta);
       }
+      nominal=deltas.length?Math.min(...deltas):0;
     }
-    let prev=null;
-    let out=[...map.values()].sort((a,b)=>a.t-b.t).map(x=>{
-      delete x._last;
-      const change=prev==null?null:x.close-prev;
-      x.change=change;
-      x.change_pct=prev?change/prev*100:null;
-      prev=x.close;
-      return x;
-    });
-    if(out.length>maxPoints){const step=Math.ceil(out.length/maxPoints);out=out.filter((_,i)=>i%step===0)}
-    return out;
+    const threshold=nominal>0?nominal*1.5:Infinity;
+    for(let i=0;i<sorted.length;i+=1){
+      const delta=i?sorted[i].t-sorted[i-1].t:0;
+      sorted[i].gap_before=i>0&&delta>threshold;
+      sorted[i].gap_ms=sorted[i].gap_before?delta:0;
+    }
+    return sorted;
   }
 
   async function dynamicSeries({source,market,resolution,start,end,maxPoints}){
@@ -258,53 +84,39 @@
     if(start!=null)qs.set("from",String(Math.trunc(start)));
     if(end!=null)qs.set("to",String(Math.trunc(end)));
     try{
-      const data=await json(`${dynamicBase}/series?${qs.toString()}`,{timeoutMs:3500});
+      const data=await json(`${dynamicBase}/series?${qs.toString()}`,{timeoutMs:4500});
       if(!Array.isArray(data?.points))throw new Error("invalid dynamic history contract");
-      return {...data,transport:"sqlite-history-api"};
+      const points=data.points.map(row=>normalize(row,source)).filter(Boolean);
+      return {...data,points,transport:"python-sqlite-history-api"};
     }catch(error){
-      dynamicRetryAt=Date.now()+30_000;
+      dynamicRetryAt=Date.now()+15_000;
       throw error;
     }
   }
 
-  async function staticSeries({source,start,end,resolution,maxPoints}){
+  async function staticSeries({source,start,end,maxPoints}){
     const merged=[];
-
-    // Browser-live data gives second-scale movement immediately after page load.
     try{
       for(const row of W.ZZXLiveBPI?.history?.(source,start,end)||[]){
-        const p=normalizedPoint(row,source);if(p)merged.push(p);
+        const point=normalize(row,source);if(point)merged.push(point);
       }
-    }catch(_){}
-
-    // Collector-generated rolling 24h/minute file works on the Python/nginx deployment.
+    }catch(_){ }
     try{
-      const live=await json(staticLive,{timeoutMs:3000});
-      for(const row of live?.series?.[source]||[]){
-        const p=normalizedPoint(row,source);if(p)merged.push(p);
+      const payload=await json(staticLive,{timeoutMs:2500});
+      for(const row of payload?.series?.[source]||[]){
+        const point=normalize(row,source);if(point)merged.push(point);
       }
-    }catch(_){}
-
-    // Repository history keeps charts non-empty on GitHub Pages.
-    if(source==="bpi"||source==="global-bpi"){
-      try{
-        const stored=await json(staticHistory,{timeoutMs:3000});
-        for(const row of rowsFromHistoryPayload(stored)){
-          const p=normalizedPoint(row,source);if(p)merged.push(p);
-        }
-      }catch(_){}
-    }
-
+    }catch(_){ }
     const byTime=new Map();
-    for(const p of merged){
-      if(start!=null&&p.t<start)continue;
-      if(end!=null&&p.t>end)continue;
-      byTime.set(p.t,p);
+    for(const point of merged){
+      if(start!=null&&point.t<start)continue;
+      if(end!=null&&point.t>end)continue;
+      byTime.set(point.t,point);
     }
-    const points=[...byTime.values()].sort((a,b)=>a.t-b.t);
-    const actualResolution=resolution==="auto"?chooseResolution(start??points[0]?.t??Date.now()-86400000,end??points.at(-1)?.t??Date.now(),maxPoints):resolution;
-    const result=bucket(points,actualResolution,maxPoints);
-    return {source,resolution:actualResolution,points:result,from:start,to:end,transport:"static+browser-fallback"};
+    const points=gapMark([...byTime.values()]);
+    // Static mode is emergency presentation only. Do not reconstruct OHLCV or
+    // decimate by skipping points in JavaScript; Python owns those semantics.
+    return {source,resolution:"raw-fallback",points:points.slice(-maxPoints),from:start,to:end,transport:"static-emergency-fallback"};
   }
 
   async function series({source="global-bpi",market="",timeframe="24h",resolution="auto",maxPoints=5000,from=null,to=null}={}){
@@ -313,37 +125,32 @@
     let start=from;
     let end=to||now;
     if(timeframe!=="all"&&start==null&&span)start=end-span;
-
     if(timeframe==="all"){
       try{
-        if(Date.now()>=dynamicRetryAt){
-          const bounds=await json(`${dynamicBase}/bounds?source=${encodeURIComponent(source)}`,{timeoutMs:2500});
-          start=bounds.min_ts||null;end=bounds.max_ts||now;
-        }
-      }catch(_){dynamicRetryAt=Date.now()+30_000}
+        const bounds=await json(`${dynamicBase}/bounds?source=${encodeURIComponent(source)}`,{timeoutMs:2500});
+        start=bounds.min_ts||null;end=bounds.max_ts||now;
+      }catch(_){dynamicRetryAt=Date.now()+15_000}
     }
-
     try{
-      const dynamic=await dynamicSeries({source,market,resolution,start,end,maxPoints});
-      if(dynamic.points.length>=2)return dynamic;
-    }catch(_){}
-
-    return await staticSeries({source,start,end,resolution,maxPoints});
+      const result=await dynamicSeries({source,market,resolution,start,end,maxPoints});
+      if(result.points.length>=1)return result;
+    }catch(_){ }
+    return await staticSeries({source,start,end,maxPoints});
   }
 
   async function sources(){
-    const values=new Map([["bpi",{source:"bpi"}],["global-bpi",{source:"global-bpi"}]]);
+    const values=new Map([
+      ["bpi",{source:"bpi",scope:"native",weighted:true}],
+      ["bpi-unweighted",{source:"bpi-unweighted",scope:"native",weighted:false}],
+      ["global-bpi",{source:"global-bpi",scope:"global",weighted:true}],
+      ["global-bpi-unweighted",{source:"global-bpi-unweighted",scope:"global",weighted:false}]
+    ]);
     try{
-      if(Date.now()>=dynamicRetryAt){
-        const d=await json(`${dynamicBase}/sources`,{timeoutMs:2500});
-        for(const row of d?.sources||[])if(row?.source)values.set(row.source,row);
-      }
-    }catch(_){dynamicRetryAt=Date.now()+30_000}
-    try{
-      for(const id of Object.keys(W.ZZXLiveBPI?.snapshot?.()?.exchanges||{}))values.set(id,{source:id,transport:"browser-live"});
-    }catch(_){}
+      const data=await json(`${dynamicBase}/sources`,{timeoutMs:2500});
+      for(const row of data?.sources||[])if(row?.source)values.set(row.source,row);
+    }catch(_){dynamicRetryAt=Date.now()+15_000}
     return {sources:[...values.values()]};
   }
 
-  W.ZZXHistoryClient=Object.freeze({__version:4,series,sources,spanMs});
+  W.ZZXHistoryClient=Object.freeze({__version:5,series,sources,spanMs});
 })();
