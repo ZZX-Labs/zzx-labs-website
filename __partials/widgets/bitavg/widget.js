@@ -64,6 +64,20 @@
   }
 
   async function ensureModules(core){
+    if(Number(W.ZZXLiveBPI?.__version||0)<10){
+      const raw="/__partials/widgets/_shared/zzx-live-bpi.js";
+      const baseSrc=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
+      const src=`${baseSrc}${baseSrc.includes("?")?"&":"?"}zzxmod=10`;
+      await new Promise((resolve,reject)=>{
+        const script=D.createElement("script");
+        script.src=src;script.defer=true;
+        script.addEventListener("load",resolve,{once:true});
+        script.addEventListener("error",reject,{once:true});
+        (D.head||D.documentElement).appendChild(script);
+      });
+    }
+    await W.ZZXLiveBPI?.start?.();
+
     const base=core?.widgetBase
       ? String(
           core.widgetBase(ID)
@@ -75,9 +89,9 @@
       ["ZZXBPIWeightingController","js/weighting.js",1],
       ["ZZXBitAvgFetch","js/fetch.js",5],
       ["ZZXBitAvgFX","js/fx.js",5],
-      ["ZZXBitAvgModel","js/model.js",8],
-      ["ZZXBitAvgProvider","js/provider.js",7],
-      ["ZZXBitAvgPublisher","js/publisher.js",8]
+      ["ZZXBitAvgModel","js/model.js",9],
+      ["ZZXBitAvgProvider","js/provider.js",8],
+      ["ZZXBitAvgPublisher","js/publisher.js",9]
     ];
 
     for(
@@ -412,8 +426,8 @@
 
     set(root,"[data-bitavg-updated]",
       m.updatedAt
-        ? new Date(m.updatedAt).toLocaleString()
-        : "local snapshot timestamp unavailable"
+        ? `polled ${new Date(m.updatedAt).toLocaleString()}${m.sourceUpdatedAt?` · source ${new Date(m.sourceUpdatedAt).toLocaleString()}`:" · source timestamp unavailable"}`
+        : "live observation timestamp unavailable"
     );
 
     set(
@@ -464,6 +478,8 @@
       },
       stale:!!state.result.stale,
       transport:state.result.transport,
+      observed_at:m.updatedAt||new Date().toISOString(),
+      source_updated_at:m.sourceUpdatedAt||null,
       rendered_at:Date.now()
     };
 
