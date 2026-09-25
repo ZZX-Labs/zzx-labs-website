@@ -45,23 +45,7 @@
     }
 
     function loadLeaflet() {
-        return new Promise((resolve, reject) => {
-            if (window.L) {
-                resolve();
-                return;
-            }
-
-            const css = document.createElement("link");
-            css.rel = "stylesheet";
-            css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-            document.head.appendChild(css);
-
-            const script = document.createElement("script");
-            script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-            script.onload = resolve;
-            script.onerror = () => reject(new Error("Failed to load Leaflet."));
-            document.head.appendChild(script);
-        });
+        return Promise.reject(new Error("External JavaScript map libraries are disabled; using the built-in canvas renderer."));
     }
 
     async function readJson(path) {
