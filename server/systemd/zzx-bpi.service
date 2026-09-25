@@ -13,9 +13,10 @@ Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/etc/zzx-labs/bpi.env
 Environment=ZZX_BPI_HISTORY_DB=/var/lib/zzx-bpi/history.sqlite3
 Environment=ZZX_BPI_SUPERVISOR_STATUS=/var/lib/zzx-bpi/supervisor-status.json
-ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bpi/run-bpi-master.py --root /srv/zzx-labs
+Environment=ZZX_BPI_CYCLE_MS=2500
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/bpi/run-bpi-master.py --root /srv/zzx-labs --cycle-ms 2500
 Restart=always
-RestartSec=2
+RestartSec=1
 TimeoutStopSec=20
 KillSignal=SIGTERM
 StateDirectory=zzx-bpi
