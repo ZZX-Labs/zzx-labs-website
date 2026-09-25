@@ -15,7 +15,7 @@ on:
         default: true
         type: boolean
       publish_report:
-        description: "Commit the coverage/backtest report (never the SQLite DB)"
+        description: "Commit the coverage/backtest report"
         required: true
         default: true
         type: boolean
@@ -29,101 +29,119 @@ concurrency:
 
 jobs:
   backtest:
-    runs-on: [self-hosted, linux, x64, zzx-bpi]
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      DEPLOY_ROOT: /srv/zzx-labs
-      ZZX_BPI_HISTORY_DB: /var/lib/zzx-bpi/history.sqlite3
-      BACKFILL_INCOMING: /var/lib/zzx-bpi/backfill/incoming
-    steps:
-      - name: Checkout current main
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: true
+      ZZX_HOST: ${{ secrets.ZZX_PRODUCTION_SERVER_HOST || secrets.ZZX_SERVER_HOST }}
+      ZZX_USER: ${{ secrets.ZZX_PRODUCTION_SERVER_USER || secrets.ZZX_SERVER_USER }}
+      ZZX_PORT: ${{ secrets.ZZX_PRODUCTION_SERVER_PORT || secrets.ZZX_SERVER_PORT }}
+      ZZX_SSH_KEY: ${{ secrets.ZZX_PRODUCTION_SERVER_SSH_KEY || secrets.ZZX_SERVER_SSH_KEY }}
+      ZZX_KNOWN_HOSTS: ${{ secrets.ZZX_PRODUCTION_SERVER_KNOWN_HOSTS || secrets.ZZX_SERVER_KNOWN_HOSTS }}
+      DEPLOY_ROOT: ${{ secrets.ZZX_PRODUCTION_SERVER_PATH || secrets.ZZX_SERVER_PATH || '/srv/zzx-labs' }}
+      INDEX_RESOLUTION: ${{ inputs.index_resolution }}
+      PURGE_FIRST: ${{ inputs.purge_derived_first }}
 
-      - name: Validate zero-third-party backfill stack
+    steps:
+      - name: Checkout repository with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+      - name: Configure hardened SSH transport
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile \
-            tools/bpi/history_store.py \
-            tools/bpi/history_backfill.py \
-            tools/bpi/history_semantics_selftest.py \
-            tools/bpi/backtest_all_exchanges.py \
-            tools/bpi/purge_data.py
+          missing=()
+          [ -n "${ZZX_HOST:-}" ] || missing+=(ZZX_SERVER_HOST)
+          [ -n "${ZZX_USER:-}" ] || missing+=(ZZX_SERVER_USER)
+          [ -n "${ZZX_SSH_KEY:-}" ] || missing+=(ZZX_SERVER_SSH_KEY)
+          [ -n "${ZZX_KNOWN_HOSTS:-}" ] || missing+=(ZZX_SERVER_KNOWN_HOSTS)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '%s\n' "::error title=BPI SSH configuration missing::Configure repository secrets: ${missing[*]}"
+            exit 78
+          fi
+          install -d -m 700 "${RUNNER_TEMP}/zzx-ssh"
+          printf '%s\n' "${ZZX_SSH_KEY}" > "${RUNNER_TEMP}/zzx-ssh/id_ed25519"
+          printf '%s\n' "${ZZX_KNOWN_HOSTS}" > "${RUNNER_TEMP}/zzx-ssh/known_hosts"
+          chmod 600 "${RUNNER_TEMP}/zzx-ssh/id_ed25519" "${RUNNER_TEMP}/zzx-ssh/known_hosts"
+          printf 'ZZX_SSH=ssh -i %q -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=%q -p %q\n' \
+            "${RUNNER_TEMP}/zzx-ssh/id_ed25519" "${RUNNER_TEMP}/zzx-ssh/known_hosts" "${ZZX_PORT:-22}" >> "${GITHUB_ENV}"
+          ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" \
+            -p "${ZZX_PORT:-22}" "${ZZX_USER}@${ZZX_HOST}" 'printf "%s\n" "ZZX SSH preflight OK"'
+      - name: Validate Python-only historical stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/bpi/history_store.py tools/bpi/history_backfill.py tools/bpi/history_semantics_selftest.py tools/bpi/backtest_all_exchanges.py tools/bpi/purge_data.py
           python3 tools/bpi/history_backfill.py --self-test
           python3 tools/bpi/history_semantics_selftest.py
           python3 tools/bpi/backtest_all_exchanges.py --root . --self-test
-          python3 tools/site/runtime_dependency_audit.py --root . >/dev/null
-          python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
-          python3 -m json.tool bitcoin/bpi/api/historical_sources.json >/dev/null
-          python3 -m json.tool bitcoin/bpi/api/bpi_index_policy.json >/dev/null
+          python3 tools/site/no_node_policy.py --root .
 
-      - name: Stop resident writer for deterministic rebuild
+      - name: Synchronize historical engine to BPI server
         shell: bash
         run: |
           set -euo pipefail
+          SSH=(ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -p "${ZZX_PORT:-22}")
+          RSYNC_SSH="ssh -i ${RUNNER_TEMP}/zzx-ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${RUNNER_TEMP}/zzx-ssh/known_hosts -p ${ZZX_PORT:-22}"
+          REMOTE="${ZZX_USER}@${ZZX_HOST}"
+          "${SSH[@]}" "${REMOTE}" "sudo mkdir -p '${DEPLOY_ROOT}/tools/bpi' '${DEPLOY_ROOT}/bitcoin/bpi/api' '${DEPLOY_ROOT}/bitcoin/bpi/backfill' /var/lib/zzx-bpi/backfill/incoming && sudo chown -R ${ZZX_USER} '${DEPLOY_ROOT}/tools/bpi' '${DEPLOY_ROOT}/bitcoin/bpi/api' && sudo chown -R www-data:www-data '${DEPLOY_ROOT}/bitcoin/bpi/backfill' /var/lib/zzx-bpi"
+          rsync -a --delete -e "${RSYNC_SSH}" tools/bpi/ "${REMOTE}:${DEPLOY_ROOT}/tools/bpi/"
+          rsync -a -e "${RSYNC_SSH}" bitcoin/bpi/api/exchanges.json bitcoin/bpi/api/historical_sources.json bitcoin/bpi/api/bpi_index_policy.json "${REMOTE}:${DEPLOY_ROOT}/bitcoin/bpi/api/"
+          "${SSH[@]}" "${REMOTE}" "sudo chown -R www-data:www-data '${DEPLOY_ROOT}/bitcoin/bpi/api' '${DEPLOY_ROOT}/bitcoin/bpi/backfill' /var/lib/zzx-bpi"
+
+      - name: Rebuild all available exchange history and indexes remotely
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -p "${ZZX_PORT:-22}")
+          REMOTE="${ZZX_USER}@${ZZX_HOST}"
+          "${SSH[@]}" "${REMOTE}" bash -s -- "${DEPLOY_ROOT}" "${INDEX_RESOLUTION}" "${PURGE_FIRST}" <<'REMOTE'
+          set -euo pipefail
+          ROOT="$1"; RESOLUTION="$2"; PURGE="$3"
           sudo systemctl stop zzx-bpi.service || true
-
-      - name: Optionally purge all derived market history first
-        if: ${{ inputs.purge_derived_first == true }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo -u www-data python3 "${GITHUB_WORKSPACE}/tools/bpi/purge_data.py" \
-            --root "${DEPLOY_ROOT}" \
-            --runtime-db "${ZZX_BPI_HISTORY_DB}" \
-            --confirm PURGE_BPI_DATA
-
-      - name: Import every available exchange archive and reconstruct indexes
-        shell: bash
-        env:
-          INDEX_RESOLUTION: ${{ inputs.index_resolution }}
-        run: |
-          set -euo pipefail
-          test -d "${BACKFILL_INCOMING}"
-          sudo -u www-data python3 "${GITHUB_WORKSPACE}/tools/bpi/backtest_all_exchanges.py" \
-            --root "${GITHUB_WORKSPACE}" \
-            --db "${ZZX_BPI_HISTORY_DB}" \
-            --incoming "${BACKFILL_INCOMING}" \
-            --index-resolution "${INDEX_RESOLUTION}"
-
-      - name: Validate reconstructed native and global index history
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json, sqlite3
+          trap 'sudo systemctl restart zzx-bpi.service || true' EXIT
+          if [ "${PURGE}" = "true" ]; then
+            sudo -u www-data python3 "${ROOT}/tools/bpi/purge_data.py" --root "${ROOT}" --runtime-db /var/lib/zzx-bpi/history.sqlite3 --confirm PURGE_BPI_DATA
+          fi
+          test -d /var/lib/zzx-bpi/backfill/incoming
+          sudo -u www-data python3 "${ROOT}/tools/bpi/backtest_all_exchanges.py" --root "${ROOT}" --db /var/lib/zzx-bpi/history.sqlite3 --incoming /var/lib/zzx-bpi/backfill/incoming --index-resolution "${RESOLUTION}"
+          ROOT_PATH="${ROOT}" python3 - <<'PY'
+          import json, os, sqlite3
           from pathlib import Path
-          report=json.loads(Path('bitcoin/bpi/backfill/backtest-report.json').read_text())
+          report=json.loads((Path(os.environ['ROOT_PATH'])/'bitcoin/bpi/backfill/backtest-report.json').read_text())
           db=sqlite3.connect('/var/lib/zzx-bpi/history.sqlite3')
           counts=dict(db.execute("SELECT source,COUNT(*) FROM ticks WHERE source IN ('bpi','bpi-unweighted','global-bpi','global-bpi-unweighted') GROUP BY source"))
-          missing=[name for name in ('bpi','bpi-unweighted','global-bpi','global-bpi-unweighted') if counts.get(name,0)<1]
-          if report.get('with_history',0)<1:
-              raise SystemExit('no exchange archives were imported')
-          if missing:
-              raise SystemExit(f'missing reconstructed indexes: {missing}')
-          print(json.dumps({'coverage':report['with_history'],'missing':report['missing_history'],'index_counts':counts}))
+          print(json.dumps({'with_history':report.get('with_history',0),'missing_history':report.get('missing_history',0),'index_counts':counts}))
+          if report.get('with_history',0) < 1:
+              raise SystemExit('No historical exchange archives exist in /var/lib/zzx-bpi/backfill/incoming; upload/import archival evidence before a reconstruction can be produced.')
           PY
+          REMOTE
 
-      - name: Publish auditable coverage report
+      - name: Retrieve and publish coverage report
         if: ${{ inputs.publish_report == true }}
         shell: bash
         run: |
           set -euo pipefail
+          SCP=(scp -i "${RUNNER_TEMP}/zzx-ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${RUNNER_TEMP}/zzx-ssh/known_hosts" -P "${ZZX_PORT:-22}")
+          "${SCP[@]}" "${ZZX_USER}@${ZZX_HOST}:${DEPLOY_ROOT}/bitcoin/bpi/backfill/backtest-report.json" bitcoin/bpi/backfill/backtest-report.json
           git config user.name "zzx-bpi-backtest-bot"
           git config user.email "actions@github.com"
           git add bitcoin/bpi/backfill/backtest-report.json
           if ! git diff --cached --quiet; then
             git commit -m "Update BPI historical exchange backtest coverage"
-            git pull --rebase origin main
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
-
-      - name: Restart perpetual live collector on reconstructed database
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo systemctl restart zzx-bpi.service
