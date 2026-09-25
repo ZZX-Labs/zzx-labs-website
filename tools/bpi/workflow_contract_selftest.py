@@ -41,7 +41,10 @@ def main() -> int:
     require('bpi_live_publish.py' in wf, 'race-safe live publisher missing from workflow')
     require('concurrency:' not in wf, 'workflow-level serialization would destroy overlap continuity')
 
-    require('runs-on: [self-hosted, linux, x64, zzx-bpi]' in resident, 'resident workflow must target the BPI host')
+    require('runs-on: ubuntu-24.04' in resident, 'resident workflow must use hosted Linux control plane')
+    require('self-hosted' not in resident, 'resident workflow must not require a self-hosted Actions runner')
+    require('ZZX_HOST:' in resident and 'ZZX_SSH_KEY:' in resident and 'StrictHostKeyChecking=yes' in resident, 'resident workflow must use hardened SSH deployment')
+    require('uses: actions/' not in resident, 'resident workflow must not use Node-backed GitHub actions')
     require('systemctl enable zzx-bpi.service' in resident, 'resident workflow does not enable perpetual service')
     require('systemctl restart zzx-bpi.service' in resident, 'resident workflow does not restart deployed service')
     require('bpi_runtime_healthcheck.py' in resident, 'resident workflow does not verify live cadence')
