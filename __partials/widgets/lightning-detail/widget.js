@@ -26,7 +26,7 @@
   }
 
   async function ensureProvider(core){
-    if(W.ZZXLightningNetworkProvider?.load)return;
+    if(Number(W.ZZXLightningNetworkProvider?.__version||0)>=4)return;
 
     const base=core?.widgetBase
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
@@ -38,7 +38,7 @@
 
     await new Promise((resolve,reject)=>{
       const s=D.createElement("script");
-      s.src=src;s.defer=true;
+      s.src=`${src}${src.includes("?")?"&":"?"}zzxmod=4`;s.defer=true;
       s.onload=resolve;s.onerror=reject;
       (D.head||D.documentElement).appendChild(s);
     });
@@ -92,14 +92,12 @@
     q(root,"[data-lnd-cap-assumption]").textContent=m.capacityAssumption||"unknown";
 
     q(root,"[data-lnd-updated]").textContent=
-      Number.isFinite(m.updatedMs)
-        ? new Date(m.updatedMs).toLocaleString()
-        : `fetched ${new Date(m.fetchedAt).toLocaleString()}`;
+      `checked ${new Date(m.checkedMs||Date.now()).toLocaleString()} · collector ${new Date(m.observedMs||m.fetchedAt).toLocaleString()}${Number.isFinite(m.sourceUpdatedMs)?` · source ${new Date(m.sourceUpdatedMs).toLocaleString()}`:" · source timestamp unavailable"}`;
 
     q(root,"[data-lnd-source]").textContent=m.source||"configured mempool API";
 
     q(root,"[data-lnd-meta]").textContent=
-      "public-channel graph only · derived liquidity/topology values are arithmetic summaries, not private-network measurements";
+      `public-channel graph only · ${m.transport||"live"} · 5 s widget freshness check · resident upstream cadence 15 s`;
 
     status(root,"live","ok");
   }
@@ -140,10 +138,10 @@
       async function loop(){
         if(!root.isConnected)return;
         await refresh(root,state);
-        state.timer=W.setTimeout(loop,60000);
+        state.timer=W.setTimeout(loop,5000);
       }
 
-      state.timer=W.setTimeout(loop,60000);
+      state.timer=W.setTimeout(loop,5000);
     }catch(error){
       status(root,"offline","error");
       q(root,"[data-lnd-meta]").textContent=String(error?.message||error);
