@@ -4,7 +4,7 @@
     <div>
       <div class="mini-history__title">High / Low · 24h</div>
       <div class="mini-history__eyebrow" data-hl24-eyebrow>
-        dual-axis BTC price + rolling-volume high/low history
+        BTC price range + true interval/rolling volume history
       </div>
     </div>
 
@@ -45,9 +45,8 @@
     <label>
       <span>volume plot</span>
       <select data-hl24-volume-mode aria-label="Volume plotting mode">
-        <option value="candles-line">candles + line</option>
-        <option value="candles">candles</option>
-        <option value="line">line</option>
+        <option value="interval-bars">actual interval volume bars</option>
+        <option value="rolling-line">rolling 24h volume line</option>
       </select>
     </label>
 
@@ -158,12 +157,12 @@
 
       <span data-hl24-volume-candle-legend>
         <i class="mini-history__legend-volume-candle"></i>
-        volume candle
+        interval volume
       </span>
 
       <span data-hl24-volume-line-legend>
         <i class="mini-history__legend-volume-line"></i>
-        volume close
+        rolling 24h volume
       </span>
     </div>
 
@@ -195,6 +194,6 @@
   </div>
 
   <span class="mini-history__sr" id="hl24-help">
-    The left axis plots Bitcoin price in USD, including the selected source's rolling 24 hour high and low. The right axis plots rolling 24 hour BTC volume. Volume candles show the open, high, low and close of the rolling-volume value inside each chart bucket, while the volume line follows each bucket close. Mouse wheel zooms, dragging pans, and double click resets.
+    The left axis plots Bitcoin price in USD with high/low range. The volume view is either actual BTC traded inside each returned candle interval or the upstream rolling 24 hour BTC-volume statistic. Those quantities are never substituted for one another. Mouse wheel zooms, dragging pans, and double click resets.
   </span>
 </div>
