@@ -11,43 +11,29 @@
     return r.json();
   }
 
-  // Build UHD sat snapshot using Leaflet + leaflet-image
+  // Dependency-free canvas boundary snapshot. No Leaflet/npm/CDN runtime.
   async function buildMapImage(boundaryGeoJSON){
-    // Setup map offscreen
-    const mapEl = $("#map");
-    const map = L.map(mapEl, { zoomControl:false, attributionControl:false, preferCanvas:true });
-    L.tileLayer(cfg.SAT_TILES, { attribution: cfg.SAT_ATTR, maxZoom: 19 }).addTo(map);
-
-    let layer;
-    if(boundaryGeoJSON){
-      layer = L.geoJSON(boundaryGeoJSON, {
-        style: {
-          color: cfg.BRAND_COLOR || "#c0d674",
-          weight: cfg.OUTLINE_WEIGHT ?? 3,
-          fill: false
-        }
-      }).addTo(map);
-      try { map.fitBounds(layer.getBounds(), { padding:[40,40] }); } catch {}
+    const canvas=document.createElement("canvas");
+    canvas.width=1920*(cfg.EXPORT_SCALE||1);
+    canvas.height=1080*(cfg.EXPORT_SCALE||1);
+    const ctx=canvas.getContext("2d");
+    ctx.fillStyle="#050705";ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle="rgba(192,214,116,.10)";ctx.lineWidth=1;
+    for(let lon=-180;lon<=180;lon+=30){const x=(lon+180)/360*canvas.width;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+    for(let lat=-60;lat<=60;lat+=30){const y=(90-lat)/180*canvas.height;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+    const project=coord=>[(coord[0]+180)/360*canvas.width,(90-coord[1])/180*canvas.height];
+    const rings=[];
+    function collect(g){
+      if(!g)return;
+      if(g.type==="Feature")return collect(g.geometry);
+      if(g.type==="FeatureCollection"){for(const f of g.features||[])collect(f);return;}
+      if(g.type==="Polygon")rings.push(...(g.coordinates||[]));
+      if(g.type==="MultiPolygon")for(const p of g.coordinates||[])rings.push(...p);
     }
-
-    return new Promise((resolve,reject)=>{
-      window.leafletImage(map, (err, canvas) => {
-        try { map.remove(); } catch {}
-        if(err) return reject(err);
-        // upscale for UHD if needed
-        if (cfg.EXPORT_SCALE && cfg.EXPORT_SCALE > 1) {
-          const upscale = document.createElement("canvas");
-          upscale.width = canvas.width * cfg.EXPORT_SCALE;
-          upscale.height = canvas.height * cfg.EXPORT_SCALE;
-          const ctx = upscale.getContext("2d");
-          ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(canvas, 0, 0, upscale.width, upscale.height);
-          resolve(upscale.toDataURL("image/png"));
-        } else {
-          resolve(canvas.toDataURL("image/png"));
-        }
-      });
-    });
+    collect(boundaryGeoJSON);
+    ctx.strokeStyle=cfg.BRAND_COLOR||"#c0d674";ctx.lineWidth=(cfg.OUTLINE_WEIGHT||3)*(cfg.EXPORT_SCALE||1);
+    for(const ring of rings){ctx.beginPath();ring.forEach((c,i)=>{const [x,y]=project(c);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke();}
+    return canvas.toDataURL("image/png");
   }
 
   function renderLeaders(container, leaders){
