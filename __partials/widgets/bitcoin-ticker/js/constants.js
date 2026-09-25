@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerConstants?.__version>=9)return;
+  if(W.ZZXBitcoinTickerConstants?.__version>=10)return;
 
   W.ZZXBitcoinTickerConstants=Object.freeze({
-    __version:9,
+    __version:10,
     refreshMs:1000,
     liveFreshMs:15*1000,
     latestFallbackTtlMs:5*1000,
