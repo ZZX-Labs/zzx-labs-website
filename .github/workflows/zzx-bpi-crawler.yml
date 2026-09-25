@@ -19,9 +19,9 @@ on:
         default: "480"
         type: string
       poll_cycle_ms:
-        description: "GitHub fallback poll cycle; resident service remains 2500 ms"
+        description: "GitHub fallback poll cycle in ms; must be 2500-5000"
         required: false
-        default: "10000"
+        default: "2500"
         type: string
       run_archive_checkpoint:
         description: "Also run the legacy full archive/reference checkpoint"
@@ -38,7 +38,7 @@ on:
       poll_cycle_ms:
         required: false
         type: string
-        default: "10000"
+        default: "2500"
       run_archive_checkpoint:
         required: false
         type: boolean
@@ -75,7 +75,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       BPI_CAPTURE_SECONDS: ${{ inputs.capture_seconds || '480' }}
-      BPI_POLL_CYCLE_MS: ${{ inputs.poll_cycle_ms || '10000' }}
+      BPI_POLL_CYCLE_MS: ${{ inputs.poll_cycle_ms || '2500' }}
 
     steps:
       - name: Checkout newest main
@@ -113,13 +113,27 @@ jobs:
             tools/bpi/history_store.py \
             tools/bpi/bpi_index_engine.py \
             tools/bpi/index_sanity.py \
-            tools/bpi/bpi_live_publish.py
+            tools/bpi/bpi_live_publish.py \
+            tools/bpi/bpi_runtime_healthcheck.py
           python tools/bpi/bpi_live_publish.py --self-test
+          python tools/bpi/bpi_runtime_healthcheck.py --self-test
           python tools/bpi/bpi_continuity_selftest.py
           python tools/bpi/workflow_contract_selftest.py
           python -m json.tool tools/bpi/collector-config.json >/dev/null
           python -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
           python -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+
+      - name: Enforce 2.5-5 second live polling contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          value=int(os.environ["BPI_POLL_CYCLE_MS"])
+          if not 2500 <= value <= 5000:
+              raise SystemExit(f"BPI_POLL_CYCLE_MS must be 2500-5000, got {value}")
+          print(f"GitHub fallback market polling cycle: {value} ms")
+          PY
 
       - name: Run overlapping live price and volume collector
         shell: bash
@@ -129,7 +143,7 @@ jobs:
             --root . \
             --duration-seconds "${BPI_CAPTURE_SECONDS}" \
             --cycle-ms "${BPI_POLL_CYCLE_MS}" \
-            --market-stale-after-ms 60000 \
+            --market-stale-after-ms 15000 \
             --status-file bitcoin/bpi/api/collector_run_status.json
 
       - name: Validate fresh live BPI output
