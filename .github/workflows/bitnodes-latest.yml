@@ -20,20 +20,40 @@ jobs:
 
     env:
       PYTHONUNBUFFERED: "1"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
+      - name: Checkout repository (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
+      - name: Set up Python (system Python; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Sync main
         shell: bash
         run: |
@@ -68,14 +88,14 @@ jobs:
           test -f tools/bitnodes/aggregate.py
           test -f tools/bpi/bpi_git_publish.py
 
-          python -m py_compile \
+          python3 -m py_compile \
             tools/bitnodes/collector.py \
             tools/bitnodes/update_snapshot.py \
             tools/bitnodes/export_json.py \
             tools/bitnodes/aggregate.py \
             tools/bpi/bpi_git_publish.py
 
-          python -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
+          python3 -m json.tool bitcoin/bitnodes/api/sources.json >/dev/null
 
       - name: Mirror btcnodes.io snapshot with last-known-good fallback
         id: mirror
@@ -85,7 +105,7 @@ jobs:
 
           refreshed=0
           for attempt in 1 2 3; do
-            if python tools/bitnodes/update_snapshot.py; then
+            if python3 tools/bitnodes/update_snapshot.py; then
               refreshed=1
               break
             fi
@@ -110,7 +130,7 @@ jobs:
             exit 1
           fi
 
-          python - <<'PY_FALLBACK'
+          python3 - <<'PY_FALLBACK'
           import json
           from pathlib import Path
 
@@ -139,7 +159,7 @@ jobs:
 
           # Preserve the complete default API contract consumed by the existing
           # widgets and bitcoin/bitnodes/* subpages.
-          python tools/bitnodes/export_json.py \
+          python3 tools/bitnodes/export_json.py \
             --input bitcoin/bitnodes/api/zzxbitnodes/latest.json \
             --output bitcoin/bitnodes/api/zzxbitnodes \
             --source zzxbitnodes \
@@ -147,7 +167,7 @@ jobs:
             --compact
 
           mkdir -p bitcoin/bitnodes/data/runtime/state/zzxbitnodes
-          python tools/bitnodes/aggregate.py \
+          python3 tools/bitnodes/aggregate.py \
             --input bitcoin/bitnodes/api/zzxbitnodes/latest.json \
             --output bitcoin/bitnodes/api/aggregate/zzxbitnodes/latest.json \
             --api-dir bitcoin/bitnodes/api \
@@ -161,7 +181,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           from pathlib import Path
 
@@ -212,7 +232,7 @@ jobs:
           git config user.name "zzx-bitnodes-bot"
           git config user.email "actions@github.com"
 
-          python tools/bpi/bpi_git_publish.py \
+          python3 tools/bpi/bpi_git_publish.py \
             --root . \
             --message "Update btcnodes.io local snapshot mirror" \
             --path bitcoin/bitnodes/api/btcnodes \
