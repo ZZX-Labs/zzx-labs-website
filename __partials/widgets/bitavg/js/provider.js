@@ -1,12 +1,14 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgProvider?.__version>=7)return;
+  if(W.ZZXBitAvgProvider?.__version>=8)return;
 
 
   async function browserLive(){
+    try{await W.ZZXLiveBPI?.start?.();}catch(_){}
     const snap=W.ZZXLiveBPI?.snapshot?.();
-    const age=snap?.updated_at?Date.now()-new Date(snap.updated_at).getTime():Infinity;
+    const stamp=snap?.observed_at??snap?.updated_at;
+    const age=stamp?Date.now()-new Date(stamp).getTime():Infinity;
     if(!snap||!Number.isFinite(age)||age>15_000)return null;
 
     const E=W.ZZXBitAvgConstants.endpoints;
@@ -18,7 +20,7 @@
     const rows=W.ZZXLiveBPI?.markets?.()||[];
     if(rows.length<2)return null;
     const bundle={
-      markets:{schema:"zzx-bpi-browser-live-markets-v2",updated_at:snap.updated_at,markets:rows},
+      markets:{schema:"zzx-bpi-browser-live-markets-v3",updated_at:snap.observed_at??snap.updated_at,observed_at:snap.observed_at??snap.updated_at,source_updated_at:snap.source_updated_at??snap.updated_at,markets:rows},
       latest:snap,exchangeConfig,currencies,exchangeRates
     };
     const model=W.ZZXBitAvgModel.build(bundle);
@@ -37,7 +39,18 @@
       W.ZZXBitAvgFetch.json(E.rates,{optional:true})
     ]);
 
-    const bundle={markets,latest,exchangeConfig,currencies,exchangeRates};
+    const observedAt=new Date().toISOString();
+    const observedLatest={
+      ...latest,
+      source_updated_at:latest?.source_updated_at||latest?.updated_at||null,
+      observed_at:observedAt
+    };
+    const observedMarkets={
+      ...markets,
+      source_updated_at:markets?.source_updated_at||markets?.updated_at||null,
+      observed_at:observedAt
+    };
+    const bundle={markets:observedMarkets,latest:observedLatest,exchangeConfig,currencies,exchangeRates};
     const model=W.ZZXBitAvgModel.build(bundle);
 
     W.ZZXBitAvgFetch.save(bundle);
@@ -68,5 +81,5 @@
     }
   }
 
-  W.ZZXBitAvgProvider=Object.freeze({__version:7,load});
+  W.ZZXBitAvgProvider=Object.freeze({__version:8,load});
 })();
