@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerDeps?.__version>=7)return;
+  if(W.ZZXBitcoinTickerDeps?.__version>=8)return;
 
   const inflight=new Map();
   const resolve=path=>W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
@@ -143,7 +143,7 @@
       loadScript(
         W.ZZXBitcoinTickerConstants.sharedLiveBpiPath,
         "ZZXLiveBPI",
-        4
+        10
       )
     ]);
 
@@ -159,17 +159,17 @@
     }
 
     if(
-      Number(W.ZZXLiveBPI?.__version||0)<4 ||
+      Number(W.ZZXLiveBPI?.__version||0)<10 ||
       !W.ZZXLiveBPI?.start ||
       !W.ZZXLiveBPI?.snapshot ||
       !W.ZZXLiveBPI?.sanity
     ){
-      throw new Error("ZZXLiveBPI v4 dependency unavailable");
+      throw new Error("ZZXLiveBPI v10 dependency unavailable");
     }
   }
 
   W.ZZXBitcoinTickerDeps=Object.freeze({
-    __version:7,
+    __version:8,
     ensureShared
   });
 })();
