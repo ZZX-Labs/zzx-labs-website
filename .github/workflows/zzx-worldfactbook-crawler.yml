@@ -80,7 +80,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
   WFB_CACHE: .cache/worldfactbook-v3
   WFB_PORTAL: worldfactbook/api
@@ -99,12 +98,27 @@ jobs:
       WORLDFACTBOOK_MARIADB_DATABASE: ${{ secrets.WORLDFACTBOOK_MARIADB_DATABASE }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
+      - name: Checkout repository (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
       - name: Sync main
         shell: bash
         run: |
@@ -113,12 +127,18 @@ jobs:
           git reset --hard origin/main
           git clean -fdx -e "${WFB_CACHE}/"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-
+      - name: Set up Python (system Python; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Install archival format tools
         shell: bash
         run: |
@@ -139,8 +159,8 @@ jobs:
             libreoffice-writer \
             mariadb-client
 
-          python -m pip install --upgrade pip
-          python -m pip install \
+          python3 -m pip install --upgrade pip
+          python3 -m pip install \
             pypdf \
             pymupdf \
             pillow \
@@ -148,21 +168,18 @@ jobs:
             pytesseract \
             beautifulsoup4
 
-      - name: Restore archival source cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/worldfactbook-v3
-          key: worldfactbook-corpus-v3-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            worldfactbook-corpus-v3-${{ runner.os }}-
-            worldfactbook-corpus-v3-
-
+      - name: Restore archival source cache (filesystem cache; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/worldfactbook-v3
+          printf '%s\n' "Using runner-local cache directory: .cache/worldfactbook-v3"
       - name: Validate World Factbook crawler
         shell: bash
         run: |
           set -euo pipefail
 
-          python -m py_compile \
+          python3 -m py_compile \
             tools/worldfactbook/formats.py \
             tools/worldfactbook/media.py \
             tools/worldfactbook/shard_store.py \
@@ -170,12 +187,12 @@ jobs:
             tools/worldfactbook/worldfactbook_crawler.py \
             tools/worldfactbook/worldfactbook_crawler_selftest.py
 
-          python tools/worldfactbook/worldfactbook_crawler.py \
+          python3 tools/worldfactbook/worldfactbook_crawler.py \
             --self-test
 
-          python tools/worldfactbook/worldfactbook_crawler_selftest.py
+          python3 tools/worldfactbook/worldfactbook_crawler_selftest.py
 
-          python -m json.tool \
+          python3 -m json.tool \
             tools/worldfactbook/extra-sources.json \
             >/dev/null
 
@@ -190,7 +207,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python tools/worldfactbook/worldfactbook_crawler.py \
+          python3 tools/worldfactbook/worldfactbook_crawler.py \
             --repo-root . \
             --cache-dir "${WFB_CACHE}" \
             --portal-root "${WFB_PORTAL}" \
@@ -217,7 +234,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           import gzip
           import hashlib
           import json
@@ -487,7 +504,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python tools/worldfactbook/mariadb_sync.py \
+          python3 tools/worldfactbook/mariadb_sync.py \
             --root "${WFB_DB}"
 
       - name: Publish World Factbook corpus
@@ -498,7 +515,7 @@ jobs:
           git config user.name "zzx-worldfactbook-bot"
           git config user.email "actions@github.com"
 
-          python tools/bpi/bpi_git_publish.py \
+          python3 tools/bpi/bpi_git_publish.py \
             --root . \
             --message "Update ZZX World Factbook corpus" \
             --path worldfactbook/api \
