@@ -44,21 +44,35 @@ class Child:
     next_start: float = 0.0
     last_exit: int | None = None
     last_started_at: str | None = None
+    last_started_mono: float = 0.0
 
     def start(self) -> None:
         self.proc = subprocess.Popen(self.command)
         self.starts += 1
         self.last_started_at = utcnow()
+        self.last_started_mono = time.monotonic()
 
     def poll(self) -> int | None:
         return self.proc.poll() if self.proc is not None else None
 
     def schedule_restart(self, code: int) -> None:
         self.last_exit = code
+        runtime = max(0.0, time.monotonic() - self.last_started_mono)
         self.proc = None
+
+        # A process that was stable for at least a minute gets a clean failure
+        # budget. This prevents old, unrelated crashes from eventually turning
+        # into minute-long restart gaps months later.
+        if runtime >= 60.0:
+            self.failures = 0
         self.failures += 1
-        # Fast recovery for one-off crashes, bounded to avoid a hot loop.
-        delay = min(60.0, 1.5 * (2 ** min(self.failures - 1, 6)))
+
+        # Market acquisition is latency critical; keep its restart gap within
+        # the normal 2.5-5 second polling envelope. Ancillary jobs retain a
+        # wider bounded backoff so they cannot hot-loop.
+        ceiling = 5.0 if self.critical else 60.0
+        base = 1.0 if self.critical else 1.5
+        delay = min(ceiling, base * (2 ** min(self.failures - 1, 6)))
         self.next_start = time.monotonic() + delay
 
     def terminate(self) -> None:
@@ -86,6 +100,12 @@ def main() -> int:
         "--status-file",
         default=os.environ.get("ZZX_BPI_SUPERVISOR_STATUS"),
     )
+    parser.add_argument(
+        "--cycle-ms",
+        type=int,
+        default=int(os.environ.get("ZZX_BPI_CYCLE_MS", "2500")),
+        help="Exchange polling cycle; collector clamps this to 2500-5000 ms.",
+    )
     parser.add_argument("--no-reference-updater", action="store_true")
     parser.add_argument("--no-history-api", action="store_true")
     args = parser.parse_args()
@@ -104,6 +124,7 @@ def main() -> int:
         sys.executable, str(here / "collector.py"),
         "--root", str(root),
         "--history-db", str(history_db),
+        "--cycle-ms", str(args.cycle_ms),
     ]
     if args.proxy:
         collector_cmd += ["--proxy", args.proxy]
