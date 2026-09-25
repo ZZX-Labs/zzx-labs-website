@@ -1,9 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXLiveBPI?.__version>=8)return;
+  if(W.ZZXLiveBPI?.__version>=10)return;
 
   const CYCLE_MS=2500;
+  const LOCAL_LIVE_MAX_AGE_MS=15_000;
   const FX_TTL_MS=60_000;
   const CONFIG_TTL_MS=5*60_000;
   const ALL_ORIGINS="https://api.allorigins.win/raw?url=";
@@ -591,11 +592,20 @@
       schema:
         "zzx-bpi-browser-live-v5-national-global-weighted",
       updated_at:now,
+      source_updated_at:now,
+      observed_at:now,
       mode:"browser-live",
       default_country:defaultCountry,
       weights_enabled_default:true,
       weight_basis:
         "eligible 24h BTC volume / eligible global 24h BTC volume",
+      weighted_average:{
+        price_usd:defaultIndex.weighted_price_usd,
+        vwap_usd:defaultIndex.weighted_price_usd,
+        unweighted_price_usd:defaultIndex.unweighted_price_usd,
+        method:"bpi_24h_btc_volume_weighted",
+        updated_at:now
+      },
       price_usd:
         defaultIndex.weighted_price_usd,
       bpi_usd:
@@ -620,6 +630,7 @@
       national_bpi:national,
       global_bpi:{
         ...globalIndex,
+        updated_at:now,
         method:
           "browser-live-global-24h-btc-volume-weighted"
       },
@@ -742,6 +753,51 @@
     state.fx=fx;state.fxAt=now;
   }
 
+  async function pollLocalLive(){
+    const [latest,markets]=await Promise.all([
+      fetchJSON("/bitcoin/bpi/api/latest.json",{timeoutMs:4500}),
+      fetchJSON("/bitcoin/bpi/api/markets.json",{timeoutMs:4500})
+    ]);
+
+    const stamp=new Date(latest?.updated_at||0).getTime();
+    const age=Date.now()-stamp;
+    const rows=Array.isArray(markets?.markets)?markets.markets:[];
+
+    if(!Number.isFinite(stamp)||stamp<=0||age< -5000||age>LOCAL_LIVE_MAX_AGE_MS||rows.length<2){
+      return false;
+    }
+
+    state.markets.clear();
+    for(const raw of rows){
+      if(!raw||typeof raw!=="object")continue;
+      const key=String(raw.market_key||`${raw.exchange||"unknown"}::${raw.pair||raw.quote||""}`);
+      state.markets.set(key,{...raw});
+    }
+
+    const observedAt=new Date().toISOString();
+    const observed={
+      ...latest,
+      source_updated_at:latest?.source_updated_at||latest?.updated_at||null,
+      observed_at:observedAt
+    };
+    state.snapshot=observed;
+    W.ZZXLiveBPISnapshot=observed;
+    state.health.set("local-bpi-api",{
+      ok:true,
+      updated_at:observedAt,
+      observed_at:observedAt,
+      source_updated_at:observed.source_updated_at,
+      age_ms:age,
+      market_rows:state.markets.size
+    });
+
+    try{
+      W.dispatchEvent(new CustomEvent("zzx:live-bpi",{detail:observed}));
+    }catch(_){}
+
+    return true;
+  }
+
   async function pollOne(cfg){
     const started=performance.now();
     try{
@@ -758,6 +814,20 @@
     if(state.busy)return;
     state.busy=true;
     try{
+      // Prefer the resident same-origin API. This keeps every widget on the
+      // identical atomic BPI/BitAvg snapshot and prevents every browser tab
+      // from independently hammering all exchange APIs. Direct exchange reads
+      // remain a static-host/offline fallback when the resident feed is stale.
+      try{
+        if(await pollLocalLive())return;
+      }catch(error){
+        state.health.set("local-bpi-api",{
+          ok:false,
+          error:String(error?.message||error),
+          updated_at:new Date().toISOString()
+        });
+      }
+
       await Promise.all([loadConfig(false),loadFx(false)]);
       const now=Date.now();
       const due=[];
@@ -765,7 +835,9 @@
         if(!cfg?.enabled_poll||cfg?.browser_enabled===false||!cfg?.adapter||!cfg?.price_volume_url)continue;
         const next=state.due.get(cfg.id)||0;
         if(now<next)continue;
-        state.due.set(cfg.id,now+Math.max(CYCLE_MS,Number(cfg.poll_interval_ms)||CYCLE_MS));
+        const requested=Number(cfg.poll_interval_ms)||CYCLE_MS;
+        const interval=Math.min(5000,Math.max(CYCLE_MS,requested));
+        state.due.set(cfg.id,now+interval);
         due.push(pollOne(cfg));
       }
       await Promise.allSettled(due);
@@ -777,11 +849,10 @@
     if(state.running)return state.snapshot;
     state.running=true;
     await cycle();
-    async function loop(){if(!state.running)return;await cycle();state.timer=W.setTimeout(loop,CYCLE_MS)}
-    state.timer=W.setTimeout(loop,CYCLE_MS);
+    state.timer=W.setInterval(()=>{if(state.running)cycle().catch(()=>{})},CYCLE_MS);
     return state.snapshot;
   }
-  function stop(){state.running=false;if(state.timer)W.clearTimeout(state.timer);state.timer=null}
+  function stop(){state.running=false;if(state.timer)W.clearInterval(state.timer);state.timer=null}
   function snapshot(){return state.snapshot}
   function history(source="global-bpi",from=null,to=null){
     let rows=[...(state.history.get(source)||[])];
@@ -792,5 +863,5 @@
   function health(){return Object.fromEntries(state.health)}
   function markets(){return [...state.markets.values()].map(row=>({...row}))}
 
-  W.ZZXLiveBPI=Object.freeze({__version:8,start,stop,cycle,snapshot,history,health,markets,sanity,indexCalc});
+  W.ZZXLiveBPI=Object.freeze({__version:10,start,stop,cycle,snapshot,history,health,markets,sanity,indexCalc});
 })();
