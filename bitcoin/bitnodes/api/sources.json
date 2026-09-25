@@ -27,11 +27,11 @@
     "required_latest_path": "/api/v1/snapshots/latest/",
     "note": "Any third-party mirror implementing the btcnodes.io/legacy Bitnodes snapshot naming contract can be added here without changing widget code."
   },
-  "local_fresh_ms": 900000,
-  "browser_direct_upstream": false,
+  "local_fresh_ms": 15000,
+  "browser_direct_upstream": true,
   "browser_contract": {
-    "mode": "local-mirror-only",
-    "note": "Browser widgets consume only locally published canonical/normalized JSON. btcnodes.io is acquired by Python/GitHub Actions, never by widget fetch code."
+    "mode": "local-first-with-direct-stale-fallback",
+    "note": "Poll the local resident mirror every 5 seconds; if it is older than 15 seconds, attempt btcnodes.io/Bitnodes directly before retaining last-known-good data."
   },
   "collector_contract": {
     "primary": "https://btcnodes.io/api/v1/snapshots/latest/",
