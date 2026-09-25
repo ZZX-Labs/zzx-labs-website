@@ -1,8 +1,356 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-25T19:08:14.929938Z",
+  "generated_at": "2026-09-25T22:38:22.798197Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "e19f83e944e908119854997bc0450e50237a4610",
+      "node_id": "C_kwDOABII59oAKGUxOWY4M2U5NDRlOTA4MTE5ODU0OTk3YmMwNDUwZTUwMjM3YTQ2MTA",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T22:03:23Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T22:03:23Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35984: sign: skip signing SIGHASH_SINGLE inputs with no corresponding output\n\n8df006f233839736b6d7b856bcf8673526c7acef wallet: skip signing SIGHASH_SINGLE inputs with no corresponding output (furszy)\n\nPull request description:\n\n  `SIGHASH_SINGLE` only commits to the output at the input's index. If the output at such\n  position doesn't exist, it commits to no output at all (legacy uses a fixed sighash of 1, segwit\n  v0 zeroes `hashOutputs`), which means the signature stays valid even when outputs are\n  swapped, which is a footgun that lets funds be redirected without the owner's consent.\n\n  `SignTransaction()` already skipped these inputs, but `SignPSBTInput()` did not, so\n  `walletprocesspsbt` signed them. This moves the check into the `CreateSig` so both\n  paths, and any future one, skip producing the detached signature.\n\n  Note: if there is a valid use for the segwit v0 case, I would rather re-allow it through\n  an explicit opt-in arg than by default, so it is always a deliberate choice.\n\n  Fixes #35977\n\nACKs for top commit:\n  thomasbuilds:\n    ACK 8df006f\n  achow101:\n    ACK 8df006f233839736b6d7b856bcf8673526c7acef\n\nTree-SHA512: ac1c9659910eae889475c65b8dde68e711c4d85d0d520af06411728591e573bf027b41a9ac6dd0f6e93de425841ac6c7d9e6c9f07936b9d8ae390941fbe6f1f1",
+        "tree": {
+          "sha": "7c8af9709b9adf9eb509fee2ad7641ecf0de4e25",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7c8af9709b9adf9eb509fee2ad7641ecf0de4e25"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/e19f83e944e908119854997bc0450e50237a4610",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq276sACgkQF1ZXMuCO\nXkEcrg/+MqKoxngIcD7SoFLTqjRnVsYVpWE8Tqiu8gxnhcBjsu7nKT33JgPBxbol\npCKrMwtconQAOFFd9tWrphw8/LgDuYpku5FhnP3ucpDywSniWOHgZd4Qv4WQPTJx\nv3VFGUJ7EGkXphxg+6W2WH3b45ouS88/pQGv3W2nxKYZmSJszwaEqjKJm+C7JFq4\nS3P4HnX/Np1UHQEnyThUF+MtsExSlu44xNJVVHYgG7Vl4sSX5HbUxqgmD0BLJD1M\nZPCKykIU/kn4utmFuU3PGLl9imtfYEccEQkTz9bQBDZ2oAouTsZhIIr1ku0Fs88h\nZqSZsVio913qcv4mP21cdNuer9oRYHe2CThfDe8TJ9cbKZm3Ia4P5mY+jGV5BM4i\nSY4kwxt6vskwoTQB2grGfP3RcPDX/OT4g9Wl9lFEKjLBZDmGiRur/BQMmJROt1oO\nZrbij712pV0mXXj0Fw4ysc8gvQ5rfzFOQhtHufgFIT8WkFfI9DALEBvgBNp8jNna\nk3YaaV+zUyKiZ2zrm1TJZs+vsiXgd5IAaAJaohEDfcxcjmP30YGsohCyj/wssVrs\nRQ5Wl7W4L650m+Caz7taaHePaoIvFWoxIZQe0u2OdrycGCb/dbdeKXhEzH/PD3kq\ngN5/BsoVwZQU6EMnXGecVyazx0UyiO6RBNlJ14Q2mjiwYiiEX6Y=\n=KldP\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwICpTfsjfMjwSe03B8AXCmY4xKTqB582SGtRzv00cggsqCP/wEGX0ITBHXxw7\nPdYTvjWksgcI8CCfsTG3iwtU3+0DQfYL+x2FtAjPb96HKfgffrLnlX3+iwjxIEPD\nA75/HibMmx1pdckMdG7r24KA2GdGorBqVEL4Me0UCPAgo8cTbWe6RHHnrJGXXbm/\nCqFk2/z3q0xRaQKvEQsbtEMI8QRqtu+x8AiK2RcbV9DL/ACD3+MNLvkMjikoaHR0\ncHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5pdHl3YWxsLmNvbf/wCKY90wsiTOOB\nCPAQ4oQqNs38/oURvh0CZgX4PgjxIKleENCLu5sdVWwegc9j69Ua+GwLyXsP6e0I\nJAHZrbOgCPEEarbvsPAInzhXyyc/jbgAg9/jDS75DI4uLWh0dHBzOi8vYWxpY2Uu\nYnRjLmNhbGVuZGFyLm9wZW50aW1lc3RhbXBzLm9yZ//wENfudCxuftPvA2YO0S3r\n8XwI8SBYvwGZBeU/n2Icurs5FiLWwx5DeLfUU+E+5GMSS/gx/AjwIGbCbHdQeXxA\nx5jWVIDkUO9IFUUyO7ZUZ9oYneRa8c8UCPAgmIPamCXLq71Sez4GZJrl5adsJ4nw\n+qLZlE+Y4Wv0toII8QRqtu+x8AiobEqPMv8QGwCD3+MNLvkMjiMiaHR0cHM6Ly9i\ndGMuY2FsZW5kYXIuY2F0YWxsYXh5LmNvbfAI/wRryAJLbPcI8BAoksdBlefaMxdo\ntOQ9yyXiCPAgHGMHw/+IO68Uq+c8eY6FojnKjK7JZqPNcuQQS6YoNzII8SCOpTxe\nhvwZMOj3rinLMjNDbuHn5XiqtsfCEUlo1v36eQjwIDbfX33/g4a8ass8GEufFbQ3\nBit0fIhCLiJC8U1o4qmICPEEarbvsfAI3UuGOxW9kF8Ag9/jDS75DI4sK2h0dHBz\nOi8vYm9iLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmc=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 7c8af9709b9adf9eb509fee2ad7641ecf0de4e25\nparent ab8033566757aaadf0f0acddae5aeecc3a776540\nparent 8df006f233839736b6d7b856bcf8673526c7acef\nauthor Ava Chow <github@achow101.com> 1790373803 -0700\ncommitter Ava Chow <github@achow101.com> 1790373803 -0700\n\nMerge bitcoin/bitcoin#35984: sign: skip signing SIGHASH_SINGLE inputs with no corresponding output\n\n8df006f233839736b6d7b856bcf8673526c7acef wallet: skip signing SIGHASH_SINGLE inputs with no corresponding output (furszy)\n\nPull request description:\n\n  `SIGHASH_SINGLE` only commits to the output at the input's index. If the output at such\n  position doesn't exist, it commits to no output at all (legacy uses a fixed sighash of 1, segwit\n  v0 zeroes `hashOutputs`), which means the signature stays valid even when outputs are\n  swapped, which is a footgun that lets funds be redirected without the owner's consent.\n\n  `SignTransaction()` already skipped these inputs, but `SignPSBTInput()` did not, so\n  `walletprocesspsbt` signed them. This moves the check into the `CreateSig` so both\n  paths, and any future one, skip producing the detached signature.\n\n  Note: if there is a valid use for the segwit v0 case, I would rather re-allow it through\n  an explicit opt-in arg than by default, so it is always a deliberate choice.\n\n  Fixes #35977\n\nACKs for top commit:\n  thomasbuilds:\n    ACK 8df006f\n  achow101:\n    ACK 8df006f233839736b6d7b856bcf8673526c7acef\n\nTree-SHA512: ac1c9659910eae889475c65b8dde68e711c4d85d0d520af06411728591e573bf027b41a9ac6dd0f6e93de425841ac6c7d9e6c9f07936b9d8ae390941fbe6f1f1\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e19f83e944e908119854997bc0450e50237a4610",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/e19f83e944e908119854997bc0450e50237a4610",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e19f83e944e908119854997bc0450e50237a4610/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "ab8033566757aaadf0f0acddae5aeecc3a776540",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ab8033566757aaadf0f0acddae5aeecc3a776540",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ab8033566757aaadf0f0acddae5aeecc3a776540"
+        },
+        {
+          "sha": "8df006f233839736b6d7b856bcf8673526c7acef",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8df006f233839736b6d7b856bcf8673526c7acef",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/8df006f233839736b6d7b856bcf8673526c7acef"
+        }
+      ]
+    },
+    {
+      "sha": "ab8033566757aaadf0f0acddae5aeecc3a776540",
+      "node_id": "C_kwDOABII59oAKGFiODAzMzU2Njc1N2FhYWRmMGYwYWNkZGFlNWFlZWNjM2E3NzY1NDA",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T21:31:28Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T21:31:28Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36135: fuzz: test HTTPRequest state machine in http_request\n\nfca8fef8f903d841df693d18e4b9078f0867e07f fuzz: assert HTTP framing is independent of stream segmentation (frankomosh)\nc368de3eec9c381ce69936a83f8024e2c7f8c0f1 fuzz: exercise the HTTPRequest state machine (frankomosh)\nd23b53e0cfbc8fdb2e5b820e2db875cf6cde7d55 fuzz: allow http_request inputs to reach MAX_HEADERS_SIZE (frankomosh)\n56af5e072a0d1056bcf6a650c6057b44ab7f9756 fuzz: extract http_request parse and framing check into helpers (frankomosh)\n\nPull request description:\n\n  Follow-up to #35735, adding a test to the state machine added there. As it is, the target parses the whole input in one pass, so the paths that resume a partly-read request are unreachable from it.\n\n  This target now parses each input twice, once whole and once in random slices with a parse attempt after each, and requires both runs to produce the same request. HTTP framing is defined by the byte stream, so how it was split must not change the result.\n\n  Also raises the input cap from 4096, which sat below MAX_HEADERS_SIZE and kept the header size limit out of reach.\n\nACKs for top commit:\n  jeanpablojp:\n    tACK fca8fef8f903d841df693d18e4b9078f0867e07f\n  hodlinator:\n    ACK fca8fef8f903d841df693d18e4b9078f0867e07f\n  pinheadmz:\n    ACK fca8fef8f903d841df693d18e4b9078f0867e07f\n\nTree-SHA512: 705fd05894c43de067365543f6e67387cf19e22f52191b4ede75ab9d8043c545ecdda21fc05097ac228378d27afacb9afad65e89e433cf8a7355d91b82a080c8",
+        "tree": {
+          "sha": "abbdd39c0f49db6449e464ee44ac0008c62ffe2b",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/abbdd39c0f49db6449e464ee44ac0008c62ffe2b"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/ab8033566757aaadf0f0acddae5aeecc3a776540",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq26DAACgkQF1ZXMuCO\nXkE/5RAAgsuI8AiUbGqm4317Hvc0uWxeTqyPJ390RIjMJgC2/l+0uNqwPU8XBovC\n6vLnrRM4kIN9KTEEk8HHTOAkbDjPYq3eOhDxWuVC19/wGbws1Ktr2AE2oxFw6+WM\niSCbaJbGOLwgVjuzY85T9NXVmGOi85+TweKVbPNAW6Fdskj2NE82JHo21kLqg3CH\nHrEfag7FkMC3BvlPVNyXsQNM06Zr0OfbUThJWCV9vntC/Uw2IkeW7BpVtXkMMXX4\n2sK/zq8e4nhG4HUVIOjNMGjvsNlpPWqp1rb0xXBE9ev6wfL/Efj7XFF9Wp2AKT4m\nFJrn7MRrJ45ClXbf6mjc3GLRwk+Az9RKKZ36gzS5zSHsO6WaPz8tHAa3idWyBLu3\nqsh/0kiejkLS83n+/e7rsGbnjoIdMRGJsrAM046qJrWxCIgztO/oY8bV6wYY97Ul\nL+Rho7e8x2+FP1u/8xYn8nj9+oMZa5x0Z/E6lonIoN9Yn09o+W67J0B6TcuRTr0Y\nyQBWrNpN4GZHumRHOMi8oMZebDv2ozenNZxuJK9euR+vSJpqTb50Jk2g3qqore4V\ngRJfZ5+H9X/pCBRUbCsbW/TCelwQTxa4L23un2QkD+MqQfP5huRYNZlk4AwxdAGQ\ncKDneD9Jy02+CjaGR1lyPWocqSsj8PF4gE+pzXm3PTwui4j8ytU=\n=I2PN\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIAfhMaeK4A+MKgnlRCq8jO7rpsKDhYmQbySGzoN8EVP9CP/wEJS5C1vwR2GM\n89pWkAaqsZMI8SCk/0qFiztmc7NxId0WULZJR1MB0TQCvEo1pSYQISga5wjxBGq2\n6DXwCHmiXc4GAbPOAIPf4w0u+QyOIyJodHRwczovL2J0Yy5jYWxlbmRhci5jYXRh\nbGxheHkuY29t//AIqvxn3iUlD98I8BB/FRTPCMOeoOnk1o/zMMtmCPAg971vuekF\nyCVoApI8xNZZJu3duS60/Ltzs7PmLDvb8VYI8CDWttWgHe4uok77v3J1YO1ritCp\noEZ+5LH+sHXhkKOPbAjxBGq26DXwCLlqUL1eFPGNAIPf4w0u+QyOLi1odHRwczov\nL2FsaWNlLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmf/8BC1DU9+3uLy\nEGXahfrMRkZ7CPEgdSROWFmDy3qW6yCo2iz494t72nK6DbY+4rOMXSraMUYI8CAK\n41qT/BjL7atD1pg3JL85FWiq2bz59vm4M/gTjQwcPgjxIAM2Le4/kakrwwc1x5n1\nURlG7ax33GksHK0Xt7UjzYWECPEEarboNfAI2wsOfHO7zdoAg9/jDS75DI4pKGh0\ndHBzOi8vZmlubmV5LmNhbGVuZGFyLmV0ZXJuaXR5d2FsbC5jb23wCO9YkJt/g/aR\nCPAQ6TfLBmlcZH0hyavM/qf+ywjwIO89LlUI22+CjR/SgJRGtaFLwk8BxeyCRctb\nxhC8IGseCPAgmAnuaEA3yTW6vVvPS+xsKu54t7ScGpfUZcmzJQtguOgI8CCbNaCH\naqMioSfbd1VNhAjfmdGZ8HOdZplLFEpKt42XYwjxBGq26DXwCLr6ufj0NpH1AIPf\n4w0u+QyOLCtodHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMu\nb3Jn\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree abbdd39c0f49db6449e464ee44ac0008c62ffe2b\nparent 65e075f89fddda7160561b6dc0ee683c9b77d7d7\nparent fca8fef8f903d841df693d18e4b9078f0867e07f\nauthor Ava Chow <github@achow101.com> 1790371888 -0700\ncommitter Ava Chow <github@achow101.com> 1790371888 -0700\n\nMerge bitcoin/bitcoin#36135: fuzz: test HTTPRequest state machine in http_request\n\nfca8fef8f903d841df693d18e4b9078f0867e07f fuzz: assert HTTP framing is independent of stream segmentation (frankomosh)\nc368de3eec9c381ce69936a83f8024e2c7f8c0f1 fuzz: exercise the HTTPRequest state machine (frankomosh)\nd23b53e0cfbc8fdb2e5b820e2db875cf6cde7d55 fuzz: allow http_request inputs to reach MAX_HEADERS_SIZE (frankomosh)\n56af5e072a0d1056bcf6a650c6057b44ab7f9756 fuzz: extract http_request parse and framing check into helpers (frankomosh)\n\nPull request description:\n\n  Follow-up to #35735, adding a test to the state machine added there. As it is, the target parses the whole input in one pass, so the paths that resume a partly-read request are unreachable from it.\n\n  This target now parses each input twice, once whole and once in random slices with a parse attempt after each, and requires both runs to produce the same request. HTTP framing is defined by the byte stream, so how it was split must not change the result.\n\n  Also raises the input cap from 4096, which sat below MAX_HEADERS_SIZE and kept the header size limit out of reach.\n\nACKs for top commit:\n  jeanpablojp:\n    tACK fca8fef8f903d841df693d18e4b9078f0867e07f\n  hodlinator:\n    ACK fca8fef8f903d841df693d18e4b9078f0867e07f\n  pinheadmz:\n    ACK fca8fef8f903d841df693d18e4b9078f0867e07f\n\nTree-SHA512: 705fd05894c43de067365543f6e67387cf19e22f52191b4ede75ab9d8043c545ecdda21fc05097ac228378d27afacb9afad65e89e433cf8a7355d91b82a080c8\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ab8033566757aaadf0f0acddae5aeecc3a776540",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/ab8033566757aaadf0f0acddae5aeecc3a776540",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ab8033566757aaadf0f0acddae5aeecc3a776540/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "65e075f89fddda7160561b6dc0ee683c9b77d7d7",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/65e075f89fddda7160561b6dc0ee683c9b77d7d7",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/65e075f89fddda7160561b6dc0ee683c9b77d7d7"
+        },
+        {
+          "sha": "fca8fef8f903d841df693d18e4b9078f0867e07f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fca8fef8f903d841df693d18e4b9078f0867e07f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fca8fef8f903d841df693d18e4b9078f0867e07f"
+        }
+      ]
+    },
+    {
+      "sha": "65e075f89fddda7160561b6dc0ee683c9b77d7d7",
+      "node_id": "C_kwDOABII59oAKDY1ZTA3NWY4OWZkZGRhNzE2MDU2MWI2ZGMwZWU2ODNjOWI3N2Q3ZDc",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T20:59:07Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T20:59:07Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35696: i2p: update leaseset encryption types\n\n412540e18d877c4a34cf9c8fb43dfd34a603d5f5 i2p: update leaseset encryption types (jpk68)\n\nPull request description:\n\n  Updates the I2P SAM leaseset parameters to `6,4` (MLKEM-768/ECIES-X25519), as is [now recommended](https://i2p.net/en/docs/api/samv3/#signature-and-encryption-types) by the I2P project. ElGamal leasesets are now considered \"legacy\" and likely should not be used anymore.\n\nACKs for top commit:\n  kevkevinpal:\n    ACK [412540e](https://github.com/bitcoin/bitcoin/pull/35696/commits/412540e18d877c4a34cf9c8fb43dfd34a603d5f5)\n  davidgumberg:\n    ACK 412540e\n  achow101:\n    ACK 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\n  jonatack:\n    ACK 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\n  janb84:\n    ACK 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\n\nTree-SHA512: 639f6c58700f0a6ec471652d31b62d36ee16226afc13267a2064c199fd7e6102d7ac1b146fecaaee611235f8463fb1572318d21aa774c0a7e06ea4be06062a8c",
+        "tree": {
+          "sha": "f11257eddf8c4f49b266173c6a919149dd4d3306",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f11257eddf8c4f49b266173c6a919149dd4d3306"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/65e075f89fddda7160561b6dc0ee683c9b77d7d7",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq24JwACgkQF1ZXMuCO\nXkGWhRAApK3bwLKUm1Eho6sKs6EcdSuzKEgj8+HLw4llqMEBXNdbIsU9osuBztgA\n2y4hP2TKw1o0oo/TueDVcHQE50RGw0mG/URcFfi8lYzMg9w6kdanOBzxoYICqRSK\n4N4afb7E1MRY+lEGnAaxsE/UVab5F3KUCFRvA6PCLhwvc07u9RVOKFMBZ9MLnrpo\neu3OGBx60d6eV3ZJkGrGvD78VvZq5wHrsNWN7LEGyfIaMHwFlkuRkZSypaG9Rdtx\n8Y81AspRn8sD4iKOulwCmFoApA3IeGChLaxgd/2Ho1ozd4RUMJ9e/3zGUkAm2a9Q\nFmrWQ94AneMTUHdnJz4IME9AIobFVtrNYWq2X1lD+o9EJQA471c7hjI1iPwofbS2\nTkNfpjjhGkEk8myd3mfoJMlr0IzGBJYEOQk5aIvEEo5VzueEIPcTKMHonzyLRi14\nq2m+bZoOT+UA6D0WWfwMpXzE6ebMLMnx094locHBCMYWi89FVPhfcVbtvR6rsAGy\nEEqd2RWvnRE9V8kQDITprMq82Q4QhAVttNVX0wLZManNBk6F2ko17DAEccEqVU9C\nxw2a422sylFaKWHTE9eylAEaj0TtUflaS9RP3qNF9gAfGGaOtv3mNZA36KFxbDtj\nfbeMH3BoEvfY8iDVoaT0UuPHXTLJuNXe/w552f2j58P6hENrKWE=\n=ebU1\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIGEG44qAEgVHv7CGIn1QvOxiYV96gDEUPIMvo3kgYwRdCP/wCG0wBtGv2Bsj\nCPAQxYmNqq5pAEZIoO+jUXaECgjwILgp52LQnUIxmUO+8xMNYG0cdMtygrYdd5vB\nRvjm1INwCPAgikpYD1Jngz7M5FAj9hNZe8A/IPnxirFCGvvCiBl/cdwI8QRqtuCg\n8Ai2UC/Ae9TdvgCD3+MNLvkMji4taHR0cHM6Ly9hbGljZS5idGMuY2FsZW5kYXIu\nb3BlbnRpbWVzdGFtcHMub3Jn//AQhmyi1vRUsVpe712nYGrpzwjxIGtvCYDabisQ\nzC5m4dFb7M8VP+OABoEw2MW1uHUZUG+8CPEEarbgn/AIMVmi/6eEcEwAg9/jDS75\nDI4jImh0dHBzOi8vYnRjLmNhbGVuZGFyLmNhdGFsbGF4eS5jb23/8BDFtCY3/Dpe\nPE2urFHEqVx3CPEgwfe6qxTl/kidqHxDo5PhSBYwaFEL3SIlAWPEIPO1uIYI8CCA\n0ZWP6KsGwQPfzORQTbkldY4N2014kQ1dPIkevzfbRAjwIJAuCSogIHNGNc5rxEZ8\nCtvFy7+0aadGt4hpvvfGSUMBCPEEarbgofAIASGRy8ayAbEAg9/jDS75DI4pKGh0\ndHBzOi8vZmlubmV5LmNhbGVuZGFyLmV0ZXJuaXR5d2FsbC5jb23wCNrLTPg7E8WT\nCPAQVEMbbah2jfgjCe2BjNkXJAjxIDru2tPexmBW6qIsDj9UommyCl8qLHQ0CmaW\nk9EvKEXnCPEEarbgoPAI+o7azPOC8sAAg9/jDS75DI4sK2h0dHBzOi8vYm9iLmJ0\nYy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmc=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree f11257eddf8c4f49b266173c6a919149dd4d3306\nparent d26f19c77c7b97c3b02d3798216acdeefccf77df\nparent 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\nauthor Ava Chow <github@achow101.com> 1790369947 -0700\ncommitter Ava Chow <github@achow101.com> 1790369947 -0700\n\nMerge bitcoin/bitcoin#35696: i2p: update leaseset encryption types\n\n412540e18d877c4a34cf9c8fb43dfd34a603d5f5 i2p: update leaseset encryption types (jpk68)\n\nPull request description:\n\n  Updates the I2P SAM leaseset parameters to `6,4` (MLKEM-768/ECIES-X25519), as is [now recommended](https://i2p.net/en/docs/api/samv3/#signature-and-encryption-types) by the I2P project. ElGamal leasesets are now considered \"legacy\" and likely should not be used anymore.\n\nACKs for top commit:\n  kevkevinpal:\n    ACK [412540e](https://github.com/bitcoin/bitcoin/pull/35696/commits/412540e18d877c4a34cf9c8fb43dfd34a603d5f5)\n  davidgumberg:\n    ACK 412540e\n  achow101:\n    ACK 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\n  jonatack:\n    ACK 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\n  janb84:\n    ACK 412540e18d877c4a34cf9c8fb43dfd34a603d5f5\n\nTree-SHA512: 639f6c58700f0a6ec471652d31b62d36ee16226afc13267a2064c199fd7e6102d7ac1b146fecaaee611235f8463fb1572318d21aa774c0a7e06ea4be06062a8c\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/65e075f89fddda7160561b6dc0ee683c9b77d7d7",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/65e075f89fddda7160561b6dc0ee683c9b77d7d7",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/65e075f89fddda7160561b6dc0ee683c9b77d7d7/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "d26f19c77c7b97c3b02d3798216acdeefccf77df",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d26f19c77c7b97c3b02d3798216acdeefccf77df",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/d26f19c77c7b97c3b02d3798216acdeefccf77df"
+        },
+        {
+          "sha": "412540e18d877c4a34cf9c8fb43dfd34a603d5f5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/412540e18d877c4a34cf9c8fb43dfd34a603d5f5",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/412540e18d877c4a34cf9c8fb43dfd34a603d5f5"
+        }
+      ]
+    },
+    {
+      "sha": "d26f19c77c7b97c3b02d3798216acdeefccf77df",
+      "node_id": "C_kwDOABII59oAKGQyNmYxOWM3N2M3Yjk3YzNiMDJkMzc5ODIxNmFjZGVlZmNjZjc3ZGY",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T20:46:54Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-25T20:46:54Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35948: init: correct first-run disk space estimate\n\n42215b85811a4950265fa2d02b22e83046ed95d5 init: correct first-run disk space estimate (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** The assumed blockchain size is maintained in GiB, but the first-run disk-space warning labels it as GB.\n  For pruned nodes, the warning also displays the full-chain estimate even though the check uses the lower of the prune target and that estimate.\n  The chainparams API comments likewise describe both assumed sizes as GB.\n\n  **Fix:** Label the warning as GiB, display the same rounded-up GiB estimate that the disk-space check uses, and document both assumed sizes as GiB.\n\n  This PR revives the first-run warning fixes from #29678.\n\nACKs for top commit:\n  jeanpablojp:\n    tACK 42215b85811a4950265fa2d02b22e83046ed95d5\n  achow101:\n    ACK 42215b85811a4950265fa2d02b22e83046ed95d5\n  murchandamus:\n    ACK 42215b85811a4950265fa2d02b22e83046ed95d5\n\nTree-SHA512: fa8a0e1eeefd674a4344772fa5e8f63fc3af9c106057c34fef47817d41cf162ad21f0e06412ad5bebc1504c57bb720e1c0ca5392e6f3d4052d3f8c7c360bac69",
+        "tree": {
+          "sha": "0c099b7163826e8d4d5d0a09586a565f2dc136e8",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0c099b7163826e8d4d5d0a09586a565f2dc136e8"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d26f19c77c7b97c3b02d3798216acdeefccf77df",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq23b4ACgkQF1ZXMuCO\nXkGDVA//SvCuSQAbuZf7uJ+N+n0FYmjjxWV5BCQ7RSvlrJinx6+f3Ckj2YYawpfJ\nPnMbbYkeLewTay+kmdzUBUF4dnJvARMRs/kRJFN33XaXNTR+m3q7V3/dZq+sNbl9\nHvfN4xfMse33tzlLzKBZpG5qT2PnOiBhjvDkod0uMgYGFg0ugVRTHF2yvbJAqL8M\nBvzPgmgib9+3uFdPnP/joKsEE8ItLJPHl1QuL/12+rIA0jstWMU3NGfYl+vFkNmg\nC8XcfwCYY8sSzFbGErg9mk9oWRDUNeKrKRhRVeYymB5sKFpWjrAFYuHVLvAYD8Ei\n7HxcNCrnmuuaRDPiZQ6D2aLdnBNg2fBeiUANxVFOqJPU01nLNakhjkyEvoFPsVgW\nC4faxLoBw2fU426ZWjZOnP64FVy9ODs77j4qC/391p1L+FPkVnGASrd+mTiaFqP6\n81c7siDZeIHSM2E3eYuBsNY07L8bBWAO9bZ1qNRs637PmtfAd3/54bdsJJxs0lLO\n8rOGX3qnqPuzlK/inJV/7Xpo8hEUw8ueZRlSDRBWAk7l1FQUC27nNnhD6u5ZyqyP\n55FMoA3dDcMUpUidclb3ik5UGxoUMRWmruSkxcH8LhJj46gqJOqo+AqeONvYOSeZ\nEaJ0JFVownUIgn7M3BSBlx2brZqXccRqufzdkg6qj1I7RUXI8Yc=\n=WhbO\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwILsH4SSlsbQy61bVOdQbDmmnNyckAUbyROhpwinCm8XOCP/wEJvCAy3pyDYM\n79WzTfpM6tII8CCDk/3eqmTvGVs3qnstHn5V+dq6Jqr46OL/NB9PObgiJgjwIC2E\njxzAzJHcc3w0K499F/3HFNmrj//7LzD3YO2qN0YLCPAg4l3vEgLH5t4SvOmeuG3O\ngaZbljpYHX75FXHdPRpThMAI8QRqtt3G8AgHtWckPgRlgQCD3+MNLvkMjikoaHR0\ncHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5pdHl3YWxsLmNvbf/wCMCrKhIcUnSj\nCPAQ14MMq+YG8OoAQ/sJAYKkcQjwIGc7S1c/kq/3LcuzYUcIz2hlczUyzFZhMHUh\nyrjsSkUfCPEEarbdxfAIdLAWX/65+G8Ag9/jDS75DI4uLWh0dHBzOi8vYWxpY2Uu\nYnRjLmNhbGVuZGFyLm9wZW50aW1lc3RhbXBzLm9yZ//wENLjIsXj5Q/iK7J+AbdM\np9AI8SDUT8HmJ3+5zT3hfXedAtt4lJd/41G/konD3kBGWFFC7AjwILm+M4oWsMZD\nokpXEX/e+ibSeKxtdhEVCbzwrc8K9cBRCPEEarbdxfAIkvOKlHFHKQUAg9/jDS75\nDI4jImh0dHBzOi8vYnRjLmNhbGVuZGFyLmNhdGFsbGF4eS5jb23wCPu/F4+QwC71\nCPAQdeIVusKoH/RJoAXy4pWv6QjxILx8udOPVpPKMZzztdsIiJq3M8IIeLcBeIda\nL/jVsQI4CPEEarbdxfAIuakBRSISHIoAg9/jDS75DI4sK2h0dHBzOi8vYm9iLmJ0\nYy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmc=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 0c099b7163826e8d4d5d0a09586a565f2dc136e8\nparent 90374132737e5f3bd6a0b36e0ded662935552b61\nparent 42215b85811a4950265fa2d02b22e83046ed95d5\nauthor Ava Chow <github@achow101.com> 1790369214 -0700\ncommitter Ava Chow <github@achow101.com> 1790369214 -0700\n\nMerge bitcoin/bitcoin#35948: init: correct first-run disk space estimate\n\n42215b85811a4950265fa2d02b22e83046ed95d5 init: correct first-run disk space estimate (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** The assumed blockchain size is maintained in GiB, but the first-run disk-space warning labels it as GB.\n  For pruned nodes, the warning also displays the full-chain estimate even though the check uses the lower of the prune target and that estimate.\n  The chainparams API comments likewise describe both assumed sizes as GB.\n\n  **Fix:** Label the warning as GiB, display the same rounded-up GiB estimate that the disk-space check uses, and document both assumed sizes as GiB.\n\n  This PR revives the first-run warning fixes from #29678.\n\nACKs for top commit:\n  jeanpablojp:\n    tACK 42215b85811a4950265fa2d02b22e83046ed95d5\n  achow101:\n    ACK 42215b85811a4950265fa2d02b22e83046ed95d5\n  murchandamus:\n    ACK 42215b85811a4950265fa2d02b22e83046ed95d5\n\nTree-SHA512: fa8a0e1eeefd674a4344772fa5e8f63fc3af9c106057c34fef47817d41cf162ad21f0e06412ad5bebc1504c57bb720e1c0ca5392e6f3d4052d3f8c7c360bac69\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d26f19c77c7b97c3b02d3798216acdeefccf77df",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/d26f19c77c7b97c3b02d3798216acdeefccf77df",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d26f19c77c7b97c3b02d3798216acdeefccf77df/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "90374132737e5f3bd6a0b36e0ded662935552b61",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/90374132737e5f3bd6a0b36e0ded662935552b61",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/90374132737e5f3bd6a0b36e0ded662935552b61"
+        },
+        {
+          "sha": "42215b85811a4950265fa2d02b22e83046ed95d5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/42215b85811a4950265fa2d02b22e83046ed95d5",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/42215b85811a4950265fa2d02b22e83046ed95d5"
+        }
+      ]
+    },
     {
       "sha": "90374132737e5f3bd6a0b36e0ded662935552b61",
       "node_id": "C_kwDOABII59oAKDkwMzc0MTMyNzM3ZTVmM2JkNmEwYjM2ZTBkZWQ2NjI5MzU1NTJiNjE",
@@ -7997,339 +8345,6 @@
           "sha": "9f10ef5e96d1a9016529b2ed56f2926a8441002d",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9f10ef5e96d1a9016529b2ed56f2926a8441002d",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/9f10ef5e96d1a9016529b2ed56f2926a8441002d"
-        }
-      ]
-    },
-    {
-      "sha": "749bd10fdf0106d39fb9960c8bd1b96b12c944ca",
-      "node_id": "C_kwDOABII59oAKDc0OWJkMTBmZGYwMTA2ZDM5ZmI5OTYwYzhiZDFiOTZiMTJjOTQ0Y2E",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-16T20:12:55Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-16T20:12:55Z"
-        },
-        "message": "Update minisketch subtree to latest master",
-        "tree": {
-          "sha": "d323c8eff79dd5a7adfc0af85ef2fc4b2fd53ed2",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d323c8eff79dd5a7adfc0af85ef2fc4b2fd53ed2"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/749bd10fdf0106d39fb9960c8bd1b96b12c944ca",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmqq+FMbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBDVUQAJNTA277cDti9csEcnij\nCB29bt5EsGlAzzcwRTfLSOeCGB7EHsrxYLq43Q/AC5xBrAKOeJEaZCxlZpcM47Lu\nYVv+nBVn1lzoO0o8kOYG0Q//1BFO2T3hdFBRvxDu/JvYiDY/zCEeaNnQM6Kw/OIR\n6G2mIVcBoPgtR+RF9rrGPF1sM1x/kUaBhmAKnViLzf5aJe7f0qiSbI+CNi6Jff+a\nvAS0DQ5J44MTDMFhMBnklcGt9woiN0cGQJXnrlg2FYJi7+24cDkR9UudwaqY7WhX\nsOqHdrqYeHqzuvPp4AJ2HgRRqgyCEVxhp396/l7z+9QQptCpYi33fnNf8FfHhich\nS+h3fjArZtkvugqmQQvK/npV7ZCAKo8mhZNQhsN1UbDA5vp0MmgAF/Ah+4b02uRu\nHAFTBE0RmCM8io8kLzmLuBbJ5YzXniMNy4YRNO65FyaRvUV6dBgjbzScnrw/5clz\ngXwx1+JuFDLOgDA/UUXN9DzNRQ1hf4so6P6Zg5NNA1gLhHLrEhEUQtkYEx+S9uHe\n+zmd9b4dOfEyTAvRknD9kMFZbfrKMcAwptZIUtNa7TZU+Pcs0Xw6TL16ZxDtIPxX\nlY1SIfzRimAg7Z7EolRQGWe7wlQp1mtTdxxf5Fgxx7VdGiiTNhZFbHpj3wWZuyvy\nB90QdbVutFUNwMGS5Ubifx/O\n=lI0C\n-----END PGP SIGNATURE-----",
-          "payload": "tree d323c8eff79dd5a7adfc0af85ef2fc4b2fd53ed2\nparent b8215855437288cac95c7fd5d41104c73c0f3495\nparent fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595\nauthor fanquake <fanquake@gmail.com> 1789589575 +0100\ncommitter fanquake <fanquake@gmail.com> 1789589575 +0100\n\nUpdate minisketch subtree to latest master\n",
-          "verified_at": "2026-09-16T20:13:24Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/749bd10fdf0106d39fb9960c8bd1b96b12c944ca",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/749bd10fdf0106d39fb9960c8bd1b96b12c944ca",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/749bd10fdf0106d39fb9960c8bd1b96b12c944ca/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b8215855437288cac95c7fd5d41104c73c0f3495",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b8215855437288cac95c7fd5d41104c73c0f3495",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b8215855437288cac95c7fd5d41104c73c0f3495"
-        },
-        {
-          "sha": "fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595"
-        }
-      ]
-    },
-    {
-      "sha": "fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595",
-      "node_id": "C_kwDOABII59oAKGZjYjJkODMyYjJkOTgyYTZlYzI2YWUzYzZiMTE3NmIzZjRiNWI1OTU",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-16T20:12:55Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-16T20:12:55Z"
-        },
-        "message": "Squashed 'src/minisketch/' changes from 4a179c61e3..a12f5de1c9\n\na12f5de1c9 Merge bitcoin-core/minisketch#105: refactor: use inline constexpr for ID_TRANS\n2ac4b7c624 refactor: use inline constexpr for ID_TRANS\n\ngit-subtree-dir: src/minisketch\ngit-subtree-split: a12f5de1c96e21d76f64bc647ae4f65e4fc1b636",
-        "tree": {
-          "sha": "1bf32e395acb5c8373d93d9333dcafd9e407f111",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/1bf32e395acb5c8373d93d9333dcafd9e407f111"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fcb2d832b2d982a6ec26ae3c6b1176b3f4b5b595/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "461e3be8d3d1cc618d3a9f5b3bfcfd7e0d249f9f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/461e3be8d3d1cc618d3a9f5b3bfcfd7e0d249f9f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/461e3be8d3d1cc618d3a9f5b3bfcfd7e0d249f9f"
-        }
-      ]
-    },
-    {
-      "sha": "21e4ea8134d8ca95416e065490d99f82be66bd67",
-      "node_id": "C_kwDOABII59oAKDIxZTRlYTgxMzRkOGNhOTU0MTZlMDY1NDkwZDk5ZjgyYmU2NmJkNjc",
-      "commit": {
-        "author": {
-          "name": "w0xlt",
-          "email": "94266259+w0xlt@users.noreply.github.com",
-          "date": "2026-05-17T20:25:31Z"
-        },
-        "committer": {
-          "name": "Biel",
-          "email": "Biel_Cas@protonmail.com",
-          "date": "2026-09-16T16:35:06Z"
-        },
-        "message": "test: cover PSBT unknown field merging\n\nCo-authored-by: bicaru20 <bicaru2@gmail.com>\nCo-authored-by: w0xlt <94266259+w0xlt@users.noreply.github.com>\nCo-authored-by: polespinasa <pol.espinasa@uab.cat>",
-        "tree": {
-          "sha": "5dec85a1084a4b3c341b889bac675c46c75f820f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/5dec85a1084a4b3c341b889bac675c46c75f820f"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/21e4ea8134d8ca95416e065490d99f82be66bd67",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEUv74V/PjtQq2RsDRf/l3hPcWJ/YFAmqqxVcACgkQf/l3hPcW\nJ/aFZhAAkVEL0tsPg/zor/mRnPSzwwXtgdPtvt1cJHNAU1VqeCfi5zAKQcvp55l5\nd+u2TPaWY8i5BEhRPVk8ELqG4L72CnwS4e6ptl7FF7SRbUbWm05ZGQwxwO2FhYPI\nIN+Pvy251bYBJW7AlbJyatyV4vVQ2ADHRYVVkHDqXlGyq7QJVSkSDg8lgBBZ8eO+\neKqFWqc6ONRMTSeRFrRkuLtlcy4NSrlaDZdj+9UTDl9qGBS2e18O1fk1gxPX8tPK\n3UIEqDGoDcL99ZGUWHwWX7witzy5tUibhAkHoYZqv+djKCBCgeeUxTQ8ocmoYyx9\nivMHejFC9i1FG9gXg71cfGDNZmvWUnIc1D6UV/8huhlroyYtrIkAM01IQ5Ek6F2/\nAfwt76Dky6TANS8FN0HpEZQ9lqJq2ck+0liQEMMjxhn/jK9Y4cKHv6cyJTkWcpbw\n1E4BxcVPQ1Y7jyCaorMjpRbxzUiaPLoz0skOxlhl2ORNFbL4MLqubkJI2G/81S+S\ngsJV7iqihEoQU6c+CJbJtvOiw6vP67CapE278NyLI/YPQ5k/NKqt/+vvEWw5kDE1\nedhC7kdTZfTI9NKnKMJTmK2FV+A75VfUQL/vWOUUdo1QKxUEGFBI5hssLdBciNIi\nchFKbtnSwQ1JjE0k6YnpqjjbBCGEl7NE8cRJU/JM+C7ade2RatQ=\n=LNSU\n-----END PGP SIGNATURE-----",
-          "payload": "tree 5dec85a1084a4b3c341b889bac675c46c75f820f\nparent 51ddab532cb38213e2258c24c492bc8a392ffc90\nauthor w0xlt <94266259+w0xlt@users.noreply.github.com> 1779049531 -0700\ncommitter Biel <Biel_Cas@protonmail.com> 1789576506 +0200\n\ntest: cover PSBT unknown field merging\n\nCo-authored-by: bicaru20 <bicaru2@gmail.com>\nCo-authored-by: w0xlt <94266259+w0xlt@users.noreply.github.com>\nCo-authored-by: polespinasa <pol.espinasa@uab.cat>\n",
-          "verified_at": "2026-09-16T16:35:47Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/21e4ea8134d8ca95416e065490d99f82be66bd67",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/21e4ea8134d8ca95416e065490d99f82be66bd67",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/21e4ea8134d8ca95416e065490d99f82be66bd67/comments",
-      "author": {
-        "login": "w0xlt",
-        "id": 94266259,
-        "node_id": "U_kgDOBZ5jkw",
-        "avatar_url": "https://avatars.githubusercontent.com/u/94266259?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/w0xlt",
-        "html_url": "https://github.com/w0xlt",
-        "followers_url": "https://api.github.com/users/w0xlt/followers",
-        "following_url": "https://api.github.com/users/w0xlt/following{/other_user}",
-        "gists_url": "https://api.github.com/users/w0xlt/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/w0xlt/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/w0xlt/subscriptions",
-        "organizations_url": "https://api.github.com/users/w0xlt/orgs",
-        "repos_url": "https://api.github.com/users/w0xlt/repos",
-        "events_url": "https://api.github.com/users/w0xlt/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/w0xlt/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "Bicaru20",
-        "id": 91594426,
-        "node_id": "U_kgDOBXWeug",
-        "avatar_url": "https://avatars.githubusercontent.com/u/91594426?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/Bicaru20",
-        "html_url": "https://github.com/Bicaru20",
-        "followers_url": "https://api.github.com/users/Bicaru20/followers",
-        "following_url": "https://api.github.com/users/Bicaru20/following{/other_user}",
-        "gists_url": "https://api.github.com/users/Bicaru20/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/Bicaru20/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/Bicaru20/subscriptions",
-        "organizations_url": "https://api.github.com/users/Bicaru20/orgs",
-        "repos_url": "https://api.github.com/users/Bicaru20/repos",
-        "events_url": "https://api.github.com/users/Bicaru20/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/Bicaru20/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "51ddab532cb38213e2258c24c492bc8a392ffc90",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/51ddab532cb38213e2258c24c492bc8a392ffc90",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/51ddab532cb38213e2258c24c492bc8a392ffc90"
-        }
-      ]
-    },
-    {
-      "sha": "59f7f3d07d9556fa2e9df2f39d8b9057ca87fdc2",
-      "node_id": "C_kwDOABII59oAKDU5ZjdmM2QwN2Q5NTU2ZmEyZTlkZjJmMzlkOGI5MDU3Y2E4N2ZkYzI",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-09T12:49:22Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-16T13:40:57Z"
-        },
-        "message": "build: drop use of OBJC_OLD_DISPATCH_PROTOTYPES\n\nNow that we target macOS >= 14.0 and use macOS SDK 14.0, and no-longer\nuse objc_msgSend, this can be removed.",
-        "tree": {
-          "sha": "7c1b361a9c289e38535f41e7489d7317a5dc7adf",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7c1b361a9c289e38535f41e7489d7317a5dc7adf"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/59f7f3d07d9556fa2e9df2f39d8b9057ca87fdc2",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmqqnGkbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBYfUQAI3BURDVvZmf+C5LdMM7\nlKNplVIo6lKs/9rrmn+0W0DMcS5u0dfjfQtxaLSNIB9PKGl6whKQgyw26wdOhtXl\nbUIDkRsSlYzKsvs+bP52HOOrpI8k+4Ow7mwdiMzO9JND+d5kHbQLY8Aa0KKDsTMs\npx4D4XyZZJb/DoqfZIScetWaMD3xV08KNCxxS6J/g8xTyvInitEnsOVfaj41W6D8\nX1V9vI+Lq5KBnfhqBSXYKv32SBlzqKFnQfi7GHW7QtPQsJCY6OPalUlYNbXBjPUW\nGgCp/IbzZGh/T2gc3MMUgE5tAoetrQ6Hy0Lran0BD/C5S5J3cHlfhoPs37U+xAmR\nWR0+0B0iJ/34/hE+bljt98jh9dZ/d3lR62rLRgFvEbTFvO3i84TRCSez4rav5DeL\njxroRLQnz9R2gRMll+3awVuNEWgoghS7TUrOKVWWcm0Bgjovz4OYWwul41NQiDTt\n6lb2eRqDCOx+Q5henu/Kb+Os5PtbonLNND21t6SsKaE9oRH+KF0BTevX/Lye0z0C\njNYiFOKLUj/FmDytykU9EJ2H+KrLvj1kP88o4lssr6E9X39m1d8NGLy8/XfS4i+p\nDGsJvbD71OX0ss7io1TnsPPko5LvTViAHSg/bB+53Al8X8VdXPgHOCnz5v1uINAG\nAsVTD2BbOHdcM8U7mF7cI6xV\n=Sh96\n-----END PGP SIGNATURE-----",
-          "payload": "tree 7c1b361a9c289e38535f41e7489d7317a5dc7adf\nparent b8215855437288cac95c7fd5d41104c73c0f3495\nauthor fanquake <fanquake@gmail.com> 1788958162 +0100\ncommitter fanquake <fanquake@gmail.com> 1789566057 +0100\n\nbuild: drop use of OBJC_OLD_DISPATCH_PROTOTYPES\n\nNow that we target macOS >= 14.0 and use macOS SDK 14.0, and no-longer\nuse objc_msgSend, this can be removed.\n",
-          "verified_at": "2026-09-16T13:41:06Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/59f7f3d07d9556fa2e9df2f39d8b9057ca87fdc2",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/59f7f3d07d9556fa2e9df2f39d8b9057ca87fdc2",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/59f7f3d07d9556fa2e9df2f39d8b9057ca87fdc2/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b8215855437288cac95c7fd5d41104c73c0f3495",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b8215855437288cac95c7fd5d41104c73c0f3495",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b8215855437288cac95c7fd5d41104c73c0f3495"
         }
       ]
     }
