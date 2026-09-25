@@ -1,6 +1,16 @@
+```css
 /* static/styles.css
-   Master stylesheet for ZZX-Labs website
-   Imports all submodules from static/css/
+   Master stylesheet for ZZX-Labs website.
+
+   Import hierarchy:
+   1. Physical local font registry
+   2. Base design system
+   3. Layout
+   4. Components
+   5. Media
+   6. Pages
+   7. Utilities
+
    Deterministic order via CSS Cascade Layers:
    base → layout → components → media → pages → utilities
 */
@@ -8,42 +18,92 @@
 /* Declare layer stack (top = lowest precedence) */
 @layer base, layout, components, media, pages, utilities;
 
+
 /* ── Base ─────────────────────────────────────────────── */
+
+/*
+ * Physical local TTF registry.
+ *
+ * Defines:
+ *   AdultSwimFont
+ *   IBMPlexMono
+ *   IBMPlexSansJP
+ *   IBMPlexMath
+ *
+ * Also provides:
+ *   --zzx-font-display
+ *   --zzx-font-mono
+ *   --zzx-font-sans
+ *   --zzx-font-math
+ *
+ * MUST load before css/fonts.css.
+ */
+@import url('./fonts/fonts.css') layer(base);
+
+/*
+ * Site typography policy.
+ *
+ * Consumes the font families and variables declared above.
+ * This file should NOT contain duplicate @font-face declarations.
+ */
+@import url('./css/fonts.css') layer(base);
+
 @import url('./css/colors.css') layer(base);
-@import url('./css/fonts.css')  layer(base);
 @import url('./css/base.css')   layer(base);
 
+
 /* ── Layout ───────────────────────────────────────────── */
+
 @import url('./css/layout.css') layer(layout);
 @import url('./css/media.css')  layer(layout);
 
-/* ── Navigation & Header (legacy wrapper keeps your split) ─ */
+
+/* ── Navigation & Header ──────────────────────────────── */
+
 @import url('./css/header-nav.css') layer(components);
 
-/* ── Sections / Components ────────────────────────────── */
-@import url('./css/hero.css')      layer(components);
-@import url('./css/cta.css')       layer(components);
-@import url('./css/slogan.css')    layer(components);
-@import url('./css/features.css')  layer(components);
-@import url('./css/cards.css')     layer(components);
-@import url('./css/tables.css')    layer(components);
-@import url('./css/forms.css')     layer(components);
-@import url('./css/buttons.css')   layer(components);
-@import url('./css/footer.css')    layer(components);
-/* ── Widget Components ───────────────────────────────────*/
+
+/* ── Sections / Components ───────────────────────────── */
+
+@import url('./css/hero.css')     layer(components);
+@import url('./css/cta.css')      layer(components);
+@import url('./css/slogan.css')   layer(components);
+@import url('./css/features.css') layer(components);
+@import url('./css/cards.css')    layer(components);
+@import url('./css/tables.css')   layer(components);
+@import url('./css/forms.css')    layer(components);
+@import url('./css/buttons.css')  layer(components);
+@import url('./css/footer.css')   layer(components);
+
+
+/* ── Widget Components ───────────────────────────────── */
+
+/*
+ * widgets-uniform.css consumes the canonical typography variables.
+ * It should not redeclare font files or maintain a separate font stack.
+ */
 @import url('./css/widgets-uniform.css') layer(components);
 
-/* ── Media-specific modules ───────────────────────────── */
-@import url('./css/icons.css')   layer(media);
-@import url('./css/logos.css')   layer(media);
-@import url('./css/images.css')  layer(media);
-@import url('./css/video.css')   layer(media);
-@import url('./css/audio.css')   layer(media);
 
-/* ── Page-level (keep inspiration-figures last within pages) ─ */
+/* ── Media-specific Modules ───────────────────────────── */
+
+@import url('./css/icons.css')  layer(media);
+@import url('./css/logos.css')  layer(media);
+@import url('./css/images.css') layer(media);
+@import url('./css/video.css')  layer(media);
+@import url('./css/audio.css')  layer(media);
+
+
+/* ── Page-level ───────────────────────────────────────── */
+
+/* Keep inspiration-figures last within the pages layer. */
 @import url('./css/pages.css')               layer(pages);
 @import url('./css/inspiration-figures.css') layer(pages);
 
-/* ── Utilities / Extras (strongest precedence) ───────── */
+
+/* ── Utilities / Extras ───────────────────────────────── */
+
+/* Strongest stylesheet layer. */
 @import url('./css/animations.css')    layer(utilities);
 @import url('./css/design-extras.css') layer(utilities);
+```
