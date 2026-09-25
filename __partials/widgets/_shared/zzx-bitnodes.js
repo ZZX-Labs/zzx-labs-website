@@ -4,9 +4,9 @@
   const W=window;
   const D=document;
 
-  if(W.ZZXBitnodes?.__version>=8)return;
+  if(W.ZZXBitnodes?.__version>=9)return;
 
-  const DEFAULT_REFRESH_MS=60_000;
+  const DEFAULT_REFRESH_MS=5_000;
   const DEFAULT_STALE_MS=24*60*60*1000;
   const CONFIG_URL="/bitcoin/bitnodes/api/sources.json";
   const HISTORY_URL="/bitcoin/bitnodes/api/history.json";
@@ -41,7 +41,9 @@
     geographySource:null,
     geographyFetchedAt:0,
     geographyInflight:null,
-    subscribers:new Set()
+    subscribers:new Set(),
+    timer:null,
+    running:false
   };
 
   function finite(value){
@@ -262,13 +264,13 @@
 
       state.config=Object.freeze({
         refreshMs:Number.isFinite(finite(payload?.refresh_ms))
-          ? Math.max(15_000,finite(payload.refresh_ms))
+          ? Math.max(5_000,finite(payload.refresh_ms))
           : DEFAULT_REFRESH_MS,
         staleMs:Number.isFinite(finite(payload?.stale_ms))
           ? Math.max(60_000,finite(payload.stale_ms))
           : DEFAULT_STALE_MS,
         localFreshMs:Number.isFinite(finite(payload?.local_fresh_ms))
-          ? Math.max(60_000,finite(payload.local_fresh_ms))
+          ? Math.max(15_000,finite(payload.local_fresh_ms))
           : 900_000,
         browserDirectUpstream:
           payload?.browser_direct_upstream===true,
@@ -756,7 +758,7 @@
     }
 
     const snapshot=Object.freeze({
-      schema:"zzx-bitnodes-normalized-v8",
+      schema:"zzx-bitnodes-normalized-v9",
       source,
       reachableNodes:Number.isFinite(reachable)?reachable:null,
       totalNodes:Number.isFinite(total)?total:null,
@@ -902,7 +904,7 @@
     const agg=aggregate(nodes);
     return Object.freeze({
       ...snapshot,
-      schema:"zzx-bitnodes-normalized-v8",
+      schema:"zzx-bitnodes-normalized-v9",
       nodes:Object.freeze(nodes),
       byVersion:Object.freeze(agg.byVersion),
       byNation:Object.freeze(agg.byNation),
@@ -1198,12 +1200,44 @@
     });
   }
 
+  function clearTimer(){
+    if(state.timer){
+      W.clearTimeout(state.timer);
+      state.timer=null;
+    }
+  }
+
+  async function schedule(){
+    clearTimer();
+    if(!state.running||!state.subscribers.size)return;
+    const cfg=await config().catch(()=>({refreshMs:DEFAULT_REFRESH_MS}));
+    const wait=Math.max(5_000,Number(cfg?.refreshMs)||DEFAULT_REFRESH_MS);
+    state.timer=W.setTimeout(async()=>{
+      if(!state.running||!state.subscribers.size)return;
+      try{await load(true);}catch(_){}
+      schedule().catch(()=>{});
+    },wait);
+  }
+
+  function start(){
+    if(state.running)return;
+    state.running=true;
+    load(false).catch(()=>{});
+    schedule().catch(()=>{});
+  }
+
+  function stop(){
+    state.running=false;
+    clearTimer();
+  }
+
   function subscribe(fn,{immediate=true}={}){
     if(typeof fn!=="function"){
       return ()=>{};
     }
 
     state.subscribers.add(fn);
+    start();
 
     if(immediate&&state.snapshot){
       try{fn(stateView())}catch(_){}
@@ -1211,6 +1245,7 @@
 
     return ()=>{
       state.subscribers.delete(fn);
+      if(!state.subscribers.size)stop();
     };
   }
 
@@ -1219,7 +1254,7 @@
   }
 
   W.ZZXBitnodes=Object.freeze({
-    __version:8,
+    __version:9,
     EVENT,
     load,
     current,
@@ -1233,6 +1268,8 @@
     countryFlag,
     countryName,
     config,
-    subscribe
+    subscribe,
+    start,
+    stop
   });
 })();
