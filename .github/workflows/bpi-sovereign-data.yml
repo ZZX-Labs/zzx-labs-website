@@ -12,7 +12,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PYTHONUNBUFFERED: "1"
 
 jobs:
@@ -21,17 +20,39 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
+      - name: Checkout repository (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
+      - name: Set up Python (system Python; no JavaScript action)
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v python3 >/dev/null
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 12):
+              raise SystemExit(f"Python 3.12+ required, got {sys.version}")
+          print(sys.executable)
+          print(sys.version)
+          PY
       - name: Sync repository before generation
         shell: bash
         run: |
@@ -52,14 +73,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile \
+          python3 -m py_compile \
             tools/bpi/update_sovereign_data.py
-          python tools/bpi/update_sovereign_data.py \
+          python3 tools/bpi/update_sovereign_data.py \
             --self-test
-          python -m json.tool \
+          python3 -m json.tool \
             bitcoin/bpi/api/sovereign-countries.json \
             >/dev/null
-          python -m json.tool \
+          python3 -m json.tool \
             bitcoin/bpi/api/sovereign_source_urls.json \
             >/dev/null
 
@@ -67,7 +88,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python tools/bpi/update_sovereign_data.py \
+          python3 tools/bpi/update_sovereign_data.py \
             --minimum-available 10
 
       - name: Validate sovereign contracts
@@ -75,7 +96,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import math
           from pathlib import Path
@@ -183,7 +204,7 @@ jobs:
           set -euo pipefail
           git config user.name "zzx-bpi-bot"
           git config user.email "actions@github.com"
-          python tools/bpi/bpi_git_publish.py \
+          python3 tools/bpi/bpi_git_publish.py \
             --root . \
             --message "Update BPI sovereign data" \
             --path bitcoin/bpi/api/sovereign-countries.json \
