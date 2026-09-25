@@ -18,11 +18,27 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
+      - name: Checkout (native Git; no JavaScript action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZZX_FETCH_DEPTH: "0"
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          if [ "${ZZX_FETCH_DEPTH}" = "0" ]; then
+            git fetch --force --prune --no-tags origin "${GITHUB_SHA}"
+          else
+            git fetch --force --prune --no-tags --depth="${ZZX_FETCH_DEPTH}" origin "${GITHUB_SHA}"
+          fi
+          git checkout --force --detach FETCH_HEAD
+          git clean -fdx
+          printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
       - name: Fetch bitcoin/bitcoin repository activity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -31,7 +47,7 @@ jobs:
           set -euo pipefail
           mkdir -p bitcoin/github/api/bitcoin-core
 
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import os
           import urllib.request
@@ -95,9 +111,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m json.tool bitcoin/github/api/bitcoin-core/pulls.json >/dev/null
-          python -m json.tool bitcoin/github/api/bitcoin-core/commits.json >/dev/null
-          python -m json.tool bitcoin/github/api/bitcoin-core/repo.json >/dev/null
+          python3 -m json.tool bitcoin/github/api/bitcoin-core/pulls.json >/dev/null
+          python3 -m json.tool bitcoin/github/api/bitcoin-core/commits.json >/dev/null
+          python3 -m json.tool bitcoin/github/api/bitcoin-core/repo.json >/dev/null
 
       - name: Commit mirror
         shell: bash
