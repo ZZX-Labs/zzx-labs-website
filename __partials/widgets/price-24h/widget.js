@@ -29,7 +29,7 @@
     {
       global:"ZZXPrice24HModel",
       path:"js/model.js",
-      version:1,
+      version:2,
       local:true
     }
   ]);
@@ -338,7 +338,7 @@
       set(
         root,
         "[data-price24-eyebrow]",
-        `${descriptor.label} · 24h · ${selection?.weightsEnabled===false?"unweighted":"weighted/default"}`
+        `${descriptor.label} · 24h · ${selection?.weightingApplied===false||selection?.weightsEnabled===false?"unweighted":"weighted"}`
       );
 
       const data=await historyFor(descriptor,controls);
