@@ -98,25 +98,26 @@
       ["water","ZZXBitcoinTickerPurchasingPowerCategoryWater"],
       ["oil","ZZXBitcoinTickerPurchasingPowerCategoryOil"],
       ["fuels","ZZXBitcoinTickerPurchasingPowerCategoryFuels"],
+      ["power-energy","ZZXBitcoinTickerPurchasingPowerCategoryPowerEnergy"],
       ["arms","ZZXBitcoinTickerPurchasingPowerCategoryArms"],
       ["ammo","ZZXBitcoinTickerPurchasingPowerCategoryAmmo"]
     ];
 
     const modules=[
-      ["ZZXBitcoinTickerConstants","js/constants.js",10],
+      ["ZZXBitcoinTickerConstants","js/constants.js",11],
       ["ZZXBitcoinTickerDeps","js/deps.js",8],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
-      ["ZZXBitcoinTickerSelection","js/selection.js",8],
+      ["ZZXBitcoinTickerSelection","js/selection.js",9],
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerExchangeRates","js/exchange-rates.js",1],
-      ["ZZXBitcoinTickerExchanges","js/exchanges.js",1],
+      ["ZZXBitcoinTickerExchanges","js/exchanges.js",2],
       ["ZZXBitcoinTickerPurchasingPowerRegistry","js/purchasing-power/registry.js",1],
       ...categoryModules.map(([id,globalName])=>[globalName,`js/purchasing-power/${id}.js`]),
       ["ZZXBitcoinTickerPurchasingPower","js/purchasing-power.js",1],
       ["ZZXBitcoinTickerNationalDebts","js/national-debts.js",1],
-      ["ZZXBitcoinTickerNationalBalances","js/national-balances.js",1],
+      ["ZZXBitcoinTickerNationalBalances","js/national-balances.js",2],
       ["ZZXBitcoinTickerPanels","js/panels.js",5],
-      ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",1],
+      ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",2],
       ["ZZXBitcoinTickerCharts","js/charts.js",1]
     ];
 
@@ -168,8 +169,9 @@
     if(!force&&state.config&&now-state.configAt<W.ZZXBitcoinTickerConstants.configTtlMs)return state.config;
 
     const E=W.ZZXBitcoinTickerConstants.endpoints;
-    const [latest,exchangesData,currenciesData,ratesData,symbolsData]=await Promise.all([
+    const [latest,indexPolicy,exchangesData,currenciesData,ratesData,symbolsData]=await Promise.all([
       W.ZZXBitcoinTickerFetch.json(E.latest),
+      W.ZZXBitcoinTickerFetch.json(E.indexPolicy,{optional:true}),
       W.ZZXBitcoinTickerFetch.json(E.exchanges,{optional:true}),
       W.ZZXBitcoinTickerFetch.json(E.currencies,{optional:true}),
       W.ZZXBitcoinTickerFetch.json(E.rates,{optional:true}),
@@ -181,7 +183,7 @@
     const rates=W.ZZXBitcoinTickerExchangeRates.localRates(ratesData||{});
 
     const observed=observeLatest(latest);
-    state.config={latest:observed,exchangesData,currenciesData,ratesData,symbolsData,fiat,symbols,rates};
+    state.config={latest:observed,indexPolicy:indexPolicy||{},exchangesData,currenciesData,ratesData,symbolsData,fiat,symbols,rates};
     state.configAt=now;
     if(observed){
       state.lastGoodLatest=observed;
