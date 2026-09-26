@@ -61,7 +61,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          python3 - <<'PY'
           import json, os
           start=int(os.environ['START_YEAR']); end=int(os.environ['END_YEAR']); width=max(1,int(os.environ['WIDTH']))
           if os.environ.get('EVENT_NAME') == 'schedule':
@@ -73,7 +73,10 @@ jobs:
           while y <= end:
               chunks.append({'start':y,'end':min(end,y+width-1)}); y += width
           chunks.reverse()
-          print('matrix='+json.dumps({'include':chunks},separators=(',',':')))
+          matrix=json.dumps({'include':chunks},separators=(',',':'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write('matrix=' + matrix + '\n')
+          print(f'Planned {len(chunks)} legacy-feature jobs: {start}-{end}, width={width}')
           PY
 
   preserve:
