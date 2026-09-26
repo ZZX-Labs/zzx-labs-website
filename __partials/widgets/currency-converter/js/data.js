@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXCurrencyConverterData?.__version>=3)return;
+  if(W.ZZXCurrencyConverterData?.__version>=4)return;
 
   const STATIC_TTL_MS=30000;
 
@@ -21,70 +21,14 @@
   });
 
   const BTC_UNITS=Object.freeze([
-    {
-      id:"btc:kbtc",
-      code:"kBTC",
-      name:"kilobitcoin",
-      unit:"kBTC",
-      btcFactor:1000,
-      selectable:true
-    },
-    {
-      id:"btc:btc",
-      code:"BTC",
-      name:"bitcoin",
-      unit:"BTC",
-      btcFactor:1,
-      selectable:true
-    },
-    {
-      id:"btc:mbtc",
-      code:"mBTC",
-      name:"millibitcoin",
-      unit:"mBTC",
-      btcFactor:1e-3,
-      selectable:true
-    },
-    {
-      id:"btc:ubtc",
-      code:"μBTC",
-      name:"microbitcoin",
-      unit:"μBTC",
-      btcFactor:1e-6,
-      selectable:true
-    },
-    {
-      id:"btc:nbtc",
-      code:"nBTC",
-      name:"nanobitcoin",
-      unit:"nBTC",
-      btcFactor:1e-9,
-      selectable:true
-    },
-    {
-      id:"btc:sat",
-      code:"sat",
-      name:"satoshi",
-      unit:"sat",
-      btcFactor:1e-8,
-      selectable:true
-    },
-    {
-      id:"btc:msat",
-      code:"msat",
-      name:"millisatoshi",
-      unit:"msat",
-      btcFactor:1e-11,
-      selectable:true
-    },
-    {
-      id:"btc:usat",
-      code:"μsat",
-      name:"microsatoshi · display only",
-      unit:"μsat",
-      btcFactor:1e-14,
-      selectable:false
-    }
+    {id:"btc:kbtc",code:"KBTC",name:"kilobitcoin",unit:"KBTC",btcFactor:1e3,selectable:true},
+    {id:"btc:btc", code:"BTC", name:"bitcoin",unit:"BTC",btcFactor:1,selectable:true},
+    {id:"btc:mbtc",code:"mBTC",name:"millibitcoin",unit:"mBTC",btcFactor:1e-3,selectable:true},
+    {id:"btc:ubtc",code:"μBTC",name:"microbitcoin",unit:"μBTC",btcFactor:1e-6,selectable:true},
+    {id:"btc:ksat",code:"Ksat",name:"kilosatoshi",unit:"Ksat",btcFactor:1e-5,selectable:true},
+    {id:"btc:sat", code:"sat", name:"satoshi",unit:"sat",btcFactor:1e-8,selectable:true},
+    {id:"btc:msat",code:"msat",name:"millisatoshi",unit:"msat",btcFactor:1e-11,selectable:true},
+    {id:"btc:usat",code:"μsat",name:"microsatoshi · display only",unit:"μsat",btcFactor:1e-14,selectable:false}
   ]);
 
   const finite=value=>{
@@ -730,7 +674,7 @@
   }
 
   W.ZZXCurrencyConverterData=Object.freeze({
-    __version:3,
+    __version:4,
     endpoints:ENDPOINTS,
     btcUnits:BTC_UNITS,
     load,
