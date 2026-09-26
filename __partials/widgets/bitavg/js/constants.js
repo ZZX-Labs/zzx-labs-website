@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgConstants?.__version>=5)return;
+  if(W.ZZXBitAvgConstants?.__version>=6)return;
 
   W.ZZXBitAvgConstants=Object.freeze({
-    __version:5,
+    __version:6,
     refreshMs:2500,
     timeoutMs:10000,
     pageSize:10,
@@ -14,6 +14,7 @@
     endpoints:Object.freeze({
       markets:"/bitcoin/bpi/api/markets.json",
       latest:"/bitcoin/bpi/api/latest.json",
+      indexPolicy:"/bitcoin/bpi/api/bpi_index_policy.json",
       exchanges:"/bitcoin/bpi/api/exchanges.json",
       currencies:"/bitcoin/bpi/api/currencies.json",
       rates:"/bitcoin/bpi/api/exchange_rates.json"
