@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerExchanges?.__version>=1)return;
+  if(W.ZZXBitcoinTickerExchanges?.__version>=2)return;
 
   function safeGet(key){try{return W.localStorage.getItem(key)}catch(_){return null}}
 
@@ -42,8 +42,9 @@
       const eligible=W.ZZXBitcoinTickerSelection?.exchangeEligible
         ? W.ZZXBitcoinTickerSelection.exchangeEligible(state?.config,id,row)
         : row?.index_eligible!==false;
-      const safeWeight=eligible&&Number.isFinite(Number(row?.weight))
-        ? Number(row.weight)
+      const rawWeight=row?.weight_ratio??row?.weight_decimal??row?.weight;
+      const safeWeight=eligible&&Number.isFinite(Number(rawWeight))
+        ? Number(rawWeight)
         : 0;
       return {id,row,eligible,safeWeight};
     });
@@ -98,6 +99,6 @@
   function mount(root,state){render(root,state)}
 
   W.ZZXBitcoinTickerExchanges=Object.freeze({
-    __version:1,populateSources,render,update,mount
+    __version:2,populateSources,render,update,mount
   });
 })();
