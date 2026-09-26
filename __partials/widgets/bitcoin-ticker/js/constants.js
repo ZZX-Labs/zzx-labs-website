@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerConstants?.__version>=10)return;
+  if(W.ZZXBitcoinTickerConstants?.__version>=11)return;
 
   W.ZZXBitcoinTickerConstants=Object.freeze({
-    __version:10,
+    __version:11,
     refreshMs:1000,
     liveFreshMs:15*1000,
     latestFallbackTtlMs:5*1000,
@@ -25,6 +25,7 @@
     }),
     endpoints:Object.freeze({
       latest:"/bitcoin/bpi/api/latest.json",
+      indexPolicy:"/bitcoin/bpi/api/bpi_index_policy.json",
       exchanges:"/bitcoin/bpi/api/exchanges.json",
       currencies:"/bitcoin/bpi/api/currencies.json",
       rates:"/bitcoin/bpi/api/exchange_rates.json",
@@ -34,6 +35,7 @@
       sovereignCountries:"/bitcoin/bpi/api/sovereign-countries.json",
       debts:"/bitcoin/bpi/api/national_debts.json",
       balances:"/bitcoin/bpi/api/national_balances.json",
+      trade:"/bitcoin/bpi/api/national_trade.json",
       usDebt:"/bitcoin/bpi/api/us_debt.json",
       referenceCatalog:"/__partials/widgets/bitcoin-ticker/reference-catalog.json"
     }),
