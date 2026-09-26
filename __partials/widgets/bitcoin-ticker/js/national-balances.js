@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerNationalBalances?.__version>=1)return;
+  if(W.ZZXBitcoinTickerNationalBalances?.__version>=2)return;
 
   const cache={data:null,at:0};
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
@@ -80,6 +80,33 @@
     return map;
   }
 
+  function tradeMap(data){
+    const rows=Array.isArray(data?.countries)?data.countries:[];
+    const map=new Map();
+    for(const row of rows){
+      if(!row||typeof row!=="object")continue;
+      const code=String(row.code??row.iso2??"").toUpperCase();
+      if(!code)continue;
+      const exportsUsd=finite(row.exports_usd);
+      const importsUsd=finite(row.imports_usd);
+      const tradeBalanceUsd=finite(row.trade_balance_usd);
+      map.set(code,{
+        tradeAvailable:row.available!==false &&
+          Number.isFinite(exportsUsd) &&
+          Number.isFinite(importsUsd),
+        exportsUsd,
+        importsUsd,
+        tradeBalanceUsd,
+        tradeStatus:String(row.trade_status||"unavailable"),
+        tradeSource:String(row.source||data?.source||"World Bank WDI"),
+        tradeMethod:String(row.method||""),
+        tradeRecordYear:row.record_year??null,
+        tradeRecordDate:String(row.record_date??data?.updated_at??"")
+      });
+    }
+    return map;
+  }
+
   async function load(force=false){
     const now=Date.now();
 
@@ -91,7 +118,7 @@
       return cache.data;
     }
 
-    const [registry,balanceData]=await Promise.all([
+    const [registry,balanceData,tradeData]=await Promise.all([
       W.ZZXBitcoinTickerFetch.json(
         W.ZZXBitcoinTickerConstants.endpoints.sovereignCountries,
         {optional:true}
@@ -99,17 +126,33 @@
       W.ZZXBitcoinTickerFetch.json(
         W.ZZXBitcoinTickerConstants.endpoints.balances,
         {optional:true}
+      ),
+      W.ZZXBitcoinTickerFetch.json(
+        W.ZZXBitcoinTickerConstants.endpoints.trade,
+        {optional:true}
       )
     ]);
 
     const countries=normalizeCountries(registry);
     const balances=balanceMap(balanceData);
+    const trades=tradeMap(tradeData);
 
     const rows=countries.map(country=>{
       const balance=balances.get(country.code);
+      const trade=trades.get(country.code)||{
+        tradeAvailable:false,
+        exportsUsd:NaN,
+        importsUsd:NaN,
+        tradeBalanceUsd:NaN,
+        tradeStatus:"unavailable",
+        tradeSource:"No matching public imports/exports estimate in local mirror",
+        tradeMethod:"",
+        tradeRecordYear:null,
+        tradeRecordDate:""
+      };
 
       return balance
-        ? {...country,...balance,name:country.name}
+        ? {...country,...balance,...trade,name:country.name}
         : {
             ...country,
             available:false,
@@ -119,7 +162,8 @@
             source:"No public reserve-assets estimate in local mirror",
             method:"",
             recordYear:null,
-            recordDate:""
+            recordDate:"",
+            ...trade
           };
     });
 
@@ -229,6 +273,10 @@
         `${row.source||"No public reserve-assets estimate"}`+
         (row.recordYear?` · ${row.recordYear}`:"")
       );
+      set(root,"[data-balance-exports]",fmtUsd(row.exportsUsd));
+      set(root,"[data-balance-imports]",fmtUsd(row.importsUsd));
+      set(root,"[data-balance-trade]",Number.isFinite(row.tradeBalanceUsd)?fmtUsd(row.tradeBalanceUsd):"—");
+      set(root,"[data-balance-trade-status]",row.tradeAvailable?`${row.tradeStatus} · ${row.tradeRecordYear||""}`:"trade data unavailable");
       return;
     }
 
@@ -260,6 +308,23 @@
       root,
       "[data-balance-gold]",
       fmtUsd(row.impliedGoldUsd)
+    );
+
+    set(root,"[data-balance-exports]",fmtUsd(row.exportsUsd));
+    set(root,"[data-balance-imports]",fmtUsd(row.importsUsd));
+    set(
+      root,
+      "[data-balance-trade]",
+      Number.isFinite(row.tradeBalanceUsd)
+        ? fmtUsd(row.tradeBalanceUsd)
+        : "—"
+    );
+    set(
+      root,
+      "[data-balance-trade-status]",
+      row.tradeAvailable
+        ? `${row.tradeStatus} · ${row.tradeRecordYear||row.tradeRecordDate||"year unavailable"}`
+        : "trade data unavailable"
     );
 
     set(
@@ -337,7 +402,7 @@
   }
 
   const api=Object.freeze({
-    __version:1,load,populate,render,mount,update
+    __version:2,load,populate,render,mount,update
   });
   W.ZZXBitcoinTickerNationalBalances=api;
   W.ZZXBitcoinTickerBalances=api;
