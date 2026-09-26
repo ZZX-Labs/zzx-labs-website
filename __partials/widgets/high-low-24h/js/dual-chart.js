@@ -4,7 +4,7 @@
   const W=window;
   const D=document;
 
-  if(W.ZZXHighLow24HChart?.__version>=1)return;
+  if(W.ZZXHighLow24HChart?.__version>=2)return;
 
   const finite=value=>{
     const number=Number(value);
@@ -1169,13 +1169,23 @@
         return;
       }
 
+      const firstVisibleTime=visible[0].t;
+      const lastVisibleTime=visible.at(-1).t;
+      const visibleSpan=Math.max(
+        1,
+        lastVisibleTime-firstVisibleTime
+      );
+
       const xFor=index=>
         pad.l+
         (
           visible.length<=1
             ? plotWidth/2
-            : index/
-              (visible.length-1)*
+            : (
+                visible[index].t-
+                firstVisibleTime
+              )/
+              visibleSpan*
               plotWidth
         );
 
@@ -1421,7 +1431,14 @@
             const y=
               yFor(number);
 
-            if(!started){
+            const gap=
+              visible[index]
+                ?.gap_before===true;
+
+            if(
+              !started ||
+              gap
+            ){
               ctx.moveTo(x,y);
               started=true;
             }else{
@@ -1472,7 +1489,11 @@
       // Price H/L range band.
       if(
         this.recipe
-          .showPriceRangeBand
+          .showPriceRangeBand &&
+        !visible.some(
+          point=>
+            point.gap_before===true
+        )
       ){
         const upper=[];
         const lower=[];
@@ -1564,6 +1585,20 @@
         this.recipe.priceMode===
         "area"
       ){
+        const hasGaps=
+          visible.some(
+            point=>
+              point.gap_before===true
+          );
+
+        if(hasGaps){
+          linePath(
+            priceSeries,
+            yPrice,
+            "#c0d674",
+            1.6
+          );
+        }else{
         const validIndexes=
           priceSeries
             .map(
@@ -1647,6 +1682,7 @@
             gradient;
 
           ctx.fill();
+        }
         }
       }else{
         linePath(
@@ -1877,7 +1913,7 @@
 
   W.ZZXHighLow24HChart=
     Object.freeze({
-      __version:1,
+      __version:2,
       Chart,
       normalize,
       compact,
