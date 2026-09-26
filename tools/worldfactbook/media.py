@@ -45,11 +45,6 @@ except Exception:  # pragma: no cover - workflow installs these
     np = None
 
 try:
-    import pytesseract  # type: ignore
-except Exception:  # pragma: no cover
-    pytesseract = None
-
-try:
     from bs4 import BeautifulSoup  # type: ignore
 except Exception:  # pragma: no cover
     BeautifulSoup = None
@@ -166,7 +161,8 @@ def _trim_border(image: Image.Image) -> tuple[Image.Image, tuple[int, int, int, 
 
 
 def _ocr(image: Image.Image, language: str = "eng", timeout_seconds: int = 30) -> tuple[str, float]:
-    if pytesseract is None or not shutil.which("tesseract"):
+    """Run OCR with the system Tesseract CLI; no pytesseract/pip dependency."""
+    if not shutil.which("tesseract"):
         return "", 0.0
     work = image.convert("RGB")
     max_dim = max(work.size)
@@ -177,33 +173,42 @@ def _ocr(image: Image.Image, language: str = "eng", timeout_seconds: int = 30) -
             Image.Resampling.LANCZOS,
         )
     try:
-        data = pytesseract.image_to_data(
-            work,
-            lang=language,
-            config="--psm 6",
-            output_type=pytesseract.Output.DICT,
-            timeout=max(1, int(timeout_seconds)),
-        )
+        with tempfile.TemporaryDirectory(prefix="wfb-ocr-") as td:
+            src = Path(td) / "image.png"
+            work.save(src, format="PNG", optimize=True)
+            proc = subprocess.run(
+                ["tesseract", str(src), "stdout", "-l", language, "--psm", "6", "tsv"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                encoding="utf-8", errors="replace", timeout=max(1, int(timeout_seconds)),
+                check=False,
+            )
+            if proc.returncode != 0:
+                return "", 0.0
+            lines = proc.stdout.splitlines()
+            if not lines:
+                return "", 0.0
+            header = lines[0].split("\t")
+            try:
+                conf_i = header.index("conf"); text_i = header.index("text")
+            except ValueError:
+                return "", 0.0
+            words: list[str] = []; confs: list[float] = []
+            for line in lines[1:]:
+                cols = line.split("\t")
+                if len(cols) <= max(conf_i, text_i):
+                    continue
+                text = cols[text_i].strip()
+                if not text:
+                    continue
+                try: conf = float(cols[conf_i])
+                except ValueError: conf = -1.0
+                if conf >= 0: confs.append(conf)
+                if conf >= 20 or not confs: words.append(text)
+            clean = re.sub(r"\s+", " ", " ".join(words)).strip()
+            mean = sum(confs) / len(confs) if confs else 0.0
+            return clean[:12000], round(mean, 2)
     except Exception:
         return "", 0.0
-    words: list[str] = []
-    confs: list[float] = []
-    for text, conf in zip(data.get("text", []), data.get("conf", [])):
-        text = str(text or "").strip()
-        if not text:
-            continue
-        try:
-            fconf = float(conf)
-        except Exception:
-            fconf = -1.0
-        if fconf >= 0:
-            confs.append(fconf)
-        if fconf >= 20 or not confs:
-            words.append(text)
-    clean = re.sub(r"\s+", " ", " ".join(words)).strip()
-    mean = sum(confs) / len(confs) if confs else 0.0
-    return clean[:12000], round(mean, 2)
-
 
 def _explicit_credit(*texts: str) -> tuple[str, str]:
     for source, text in (("source-text", texts[0] if texts else ""), ("ocr", texts[1] if len(texts) > 1 else "")):
@@ -446,6 +451,7 @@ class MediaExtractor:
         ocr_timeout_seconds: int = 30,
         max_remote_image_bytes: int = 32 * 1024 * 1024,
         max_images_per_source: int = 2500,
+        ocr_enabled: bool = True,
     ) -> None:
         self.repo_root = repo_root.resolve()
         self.media_root = media_root.resolve()
@@ -455,6 +461,7 @@ class MediaExtractor:
         self.ocr_timeout_seconds = max(1, int(ocr_timeout_seconds))
         self.max_remote_image_bytes = max_remote_image_bytes
         self.max_images_per_source = max_images_per_source
+        self.ocr_enabled = bool(ocr_enabled)
         self._seen_occurrences: set[tuple[str, str]] = set()
 
     def _relative(self, path: Path) -> str:
@@ -506,7 +513,10 @@ class MediaExtractor:
                 Image.Resampling.LANCZOS,
             )
 
-        ocr_text, ocr_conf = _ocr(cropped, self.ocr_language, self.ocr_timeout_seconds)
+        if self.ocr_enabled:
+            ocr_text, ocr_conf = _ocr(cropped, self.ocr_language, self.ocr_timeout_seconds)
+        else:
+            ocr_text, ocr_conf = "", 0.0
         combined_context = "\n".join(x for x in (caption_hint, context_text) if x)
         credit, credit_source = _explicit_credit(combined_context, ocr_text)
         caption = _context_caption(caption_hint or context_text)
@@ -601,11 +611,46 @@ class MediaExtractor:
         )
         return record
 
+    def _pdf_poppler(self, path: Path, source: SourceContext) -> list[dict]:
+        """Dependency-light PDF image extraction using Poppler's pdfimages.
+
+        PyMuPDF remains an optional accelerator, not a required pip dependency.
+        The workflow installs Poppler from the OS package manager, so archival
+        media extraction still works on a clean Python installation.
+        """
+        if not shutil.which("pdfimages"):
+            raise RuntimeError("PDF media extraction requires pdfimages (poppler-utils)")
+        records: list[dict] = []
+        with tempfile.TemporaryDirectory(prefix="wfb-pdfimages-") as td:
+            prefix = Path(td) / "img"
+            proc = subprocess.run(
+                ["pdfimages", "-png", str(path), str(prefix)],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                encoding="utf-8", errors="replace", check=False, timeout=900,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(f"pdfimages failed ({proc.returncode}): {proc.stderr[-500:]}")
+            images = sorted(Path(td).glob("img-*.png"))
+            for idx, image_path in enumerate(images[: self.max_images_per_source], 1):
+                try:
+                    raw = image_path.read_bytes()
+                    image = _open_image(raw)
+                    rec = self._record(
+                        source, image, page=0, image_index=idx, context_text="",
+                        caption_hint="", origin="pdfimages-poppler",
+                        original_name=f"{path.name}#embedded-{idx}",
+                        original_sha256=_sha256_bytes(raw),
+                    )
+                    if rec: records.append(rec)
+                except Exception:
+                    continue
+        return records
+
     def _pdf(self, path: Path, source: SourceContext) -> list[dict]:
         try:
             import pymupdf  # type: ignore
-        except Exception as exc:
-            raise RuntimeError(f"PyMuPDF is required for PDF image extraction: {exc}") from exc
+        except Exception:
+            return self._pdf_poppler(path, source)
         records: list[dict] = []
         doc = pymupdf.open(path)
         try:
