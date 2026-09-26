@@ -85,12 +85,12 @@
       : "/__partials/widgets/bitavg";
 
     const modules=[
-      ["ZZXBitAvgConstants","js/constants.js",5],
+      ["ZZXBitAvgConstants","js/constants.js",6],
       ["ZZXBPIWeightingController","js/weighting.js",1],
       ["ZZXBitAvgFetch","js/fetch.js",5],
       ["ZZXBitAvgFX","js/fx.js",5],
-      ["ZZXBitAvgModel","js/model.js",9],
-      ["ZZXBitAvgProvider","js/provider.js",8],
+      ["ZZXBitAvgModel","js/model.js",10],
+      ["ZZXBitAvgProvider","js/provider.js",9],
       ["ZZXBitAvgPublisher","js/publisher.js",9]
     ];
 
@@ -343,11 +343,12 @@
 
     const weightingMode=String(m.weightingMode||"off");
 
+    const weightingEnabled=weightingMode!=="off";
     const displayPrice=
       weightingMode==="bpi"
-        ? m.canonicalBpiWeighted
+        ? (weightingEnabled?m.canonicalBpiWeighted:m.canonicalBpiUnweighted)
         : weightingMode==="global-bpi"
-          ? m.weightedBpi
+          ? (weightingEnabled?m.weightedBpi:m.unweightedBpi)
           : m.unweightedBpi;
 
     set(root,"[data-bitavg-price]",usd(displayPrice));
@@ -356,20 +357,18 @@
       root,
       "[data-bitavg-hero-label]",
       weightingMode==="bpi"
-        ? "BPI · 24h BTC-volume weighted BTC / USD"
+        ? `BPI · ${weightingEnabled?"24h BTC-volume weighted":"unweighted"} BTC / USD`
         : weightingMode==="global-bpi"
-          ? "Global BPI · 24h BTC-volume weighted BTC / USD"
+          ? `Global BPI · ${weightingEnabled?"24h BTC-volume weighted":"unweighted"} BTC / USD`
           : "BPI + Global BPI · unweighted price data"
     );
 
     set(
       root,
       "[data-bitavg-weight-mode]",
-      weightingMode==="bpi"
-        ? `BPI weighted · ${usd(m.canonicalBpiWeighted)} · Global stays unweighted ${usd(m.unweightedBpi)}`
-        : weightingMode==="global-bpi"
-          ? `Global BPI weighted · ${usd(m.weightedBpi)} · BPI stays unweighted ${usd(m.canonicalBpiUnweighted)}`
-          : `weights OFF · BPI ${usd(m.canonicalBpiUnweighted)} · Global ${usd(m.unweightedBpi)}`
+      weightingEnabled
+        ? `weights ON · BPI ${usd(m.canonicalBpiWeighted)} · Global ${usd(m.weightedBpi)}`
+        : `weights OFF · BPI ${usd(m.canonicalBpiUnweighted)} · Global ${usd(m.unweightedBpi)}`
     );
 
     syncWeightSwitch(root,weightingMode);
