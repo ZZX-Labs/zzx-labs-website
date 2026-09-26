@@ -1,14 +1,14 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPanels?.__version>=5)return;
+  if(W.ZZXBitcoinTickerPanels?.__version>=6)return;
 
   const KEY="zzx.widget.bitcoin-ticker.panels.v1";
 
   function categoryButtons(){
     return [
-      {id:"exchanges",label:"Exchanges",panel:"exchanges"},
       {id:"fx",label:"Exchange Rates",panel:"fx"},
+      {id:"exchanges",label:"Exchanges",panel:"exchanges"},
       ...(W.ZZXBitcoinTickerPurchasingPower?.navigation?.()||[]),
       {id:"debts",label:"National Debts",panel:"debts"},
       {id:"balances",label:"National Balances",panel:"balances"},
@@ -93,6 +93,6 @@
   }
 
   W.ZZXBitcoinTickerPanels=Object.freeze({
-    __version:5,categoryButtons,mount,update,setPanel,openReferencePage
+    __version:6,categoryButtons,mount,update,setPanel,openReferencePage
   });
 })();
