@@ -14,6 +14,8 @@ GDP_INDICATOR = "NY.GDP.MKTP.CD"
 DEBT_PCT_INDICATOR = "GC.DOD.TOTL.GD.ZS"
 RESERVES_TOTAL_INDICATOR = "FI.RES.TOTL.CD"
 RESERVES_EX_GOLD_INDICATOR = "FI.RES.XGLD.CD"
+EXPORTS_USD_INDICATOR = "NE.EXP.GNFS.CD"
+IMPORTS_USD_INDICATOR = "NE.IMP.GNFS.CD"
 
 
 def wb_rows(payload: Any) -> list[dict[str, Any]]:
@@ -274,9 +276,16 @@ def update_sovereign_data(
     reserves_ex_gold = year_value_map(
         fetched.get("world_bank_reserves_ex_gold_usd")
     )
+    exports_usd = year_value_map(
+        fetched.get("world_bank_exports_usd")
+    )
+    imports_usd = year_value_map(
+        fetched.get("world_bank_imports_usd")
+    )
 
     debt_rows: list[dict[str, Any]] = []
     balance_rows: list[dict[str, Any]] = []
+    trade_rows: list[dict[str, Any]] = []
 
     for country in countries:
         code = str(country.get("code") or "").upper()
@@ -355,6 +364,61 @@ def update_sovereign_data(
             ),
         })
 
+        trade_years = sorted(
+            set(exports_usd.get(iso3, {})).intersection(
+                imports_usd.get(iso3, {})
+            ),
+            reverse=True,
+        )
+        trade_year = trade_years[0] if trade_years else None
+        export_value = (
+            positive(exports_usd.get(iso3, {}).get(trade_year))
+            if trade_year is not None
+            else math.nan
+        )
+        import_value = (
+            positive(imports_usd.get(iso3, {}).get(trade_year))
+            if trade_year is not None
+            else math.nan
+        )
+        trade_available = (
+            math.isfinite(export_value)
+            and math.isfinite(import_value)
+        )
+        trade_balance = (
+            float(export_value - import_value)
+            if trade_available
+            else None
+        )
+
+        trade_rows.append({
+            "code": code,
+            "iso3": iso3,
+            "name": name,
+            "available": trade_available,
+            "exports_usd": float(export_value) if math.isfinite(export_value) else None,
+            "imports_usd": float(import_value) if math.isfinite(import_value) else None,
+            "trade_balance_usd": trade_balance,
+            "trade_status": (
+                "surplus" if trade_balance is not None and trade_balance > 0
+                else "deficit" if trade_balance is not None and trade_balance < 0
+                else "balanced" if trade_balance == 0
+                else "unavailable"
+            ),
+            "record_year": trade_year,
+            "record_date": str(trade_year) if trade_year is not None else None,
+            "source": (
+                "World Bank WDI"
+                if trade_available
+                else "World Bank WDI: matching exports/imports year unavailable"
+            ),
+            "method": (
+                "exports of goods and services minus imports of goods and services, current USD, same year"
+                if trade_available
+                else None
+            ),
+        })
+
     # Official U.S. public-debt feed supersedes the broad World Bank estimate.
     treasury = fetched.get("us_treasury_debt_to_penny")
     if isinstance(treasury, dict):
@@ -387,6 +451,9 @@ def update_sovereign_data(
     )
     balance_available = sum(
         1 for row in balance_rows if row.get("available") is True
+    )
+    trade_available = sum(
+        1 for row in trade_rows if row.get("available") is True
     )
 
     # Fail closed: never overwrite broad valid datasets with an API outage.
@@ -442,17 +509,34 @@ def update_sovereign_data(
         ),
     })
 
+    atomic_json(api / "national_trade.json", {
+        "schema": "zzx-national-trade-v1",
+        "updated_at": now,
+        "methodology": (
+            "World Bank exports and imports of goods and services in current USD, "
+            "matched to the same reporting year; trade balance = exports - imports."
+        ),
+        "available_country_count": trade_available,
+        "country_count": len(trade_rows),
+        "countries": sorted(
+            trade_rows,
+            key=lambda row: str(row.get("name") or ""),
+        ),
+    })
+
     print(
         "Sovereign data updated: "
         f"registry={len(countries)} "
         f"debts={debt_available} "
-        f"balances={balance_available}"
+        f"balances={balance_available} "
+        f"trade={trade_available}"
     )
 
     return {
         "registry": len(countries),
         "debts": debt_available,
         "balances": balance_available,
+        "trade": trade_available,
     }
 
 
