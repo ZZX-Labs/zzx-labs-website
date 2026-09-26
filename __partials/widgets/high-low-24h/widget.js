@@ -28,12 +28,12 @@
     {
       global:"ZZXHighLow24HModel",
       path:"js/model.js",
-      version:1
+      version:2
     },
     {
       global:"ZZXHighLow24HChart",
       path:"js/dual-chart.js",
-      version:1
+      version:2
     }
   ]);
 
