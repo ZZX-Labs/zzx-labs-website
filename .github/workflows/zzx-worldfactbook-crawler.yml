@@ -85,7 +85,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          python3 - <<'PY'
           import json, os
           start=int(os.environ['START_YEAR']); end=int(os.environ['END_YEAR']); width=max(1,int(os.environ['YEARS_PER_JOB']))
           if os.environ.get('EVENT_NAME') == 'schedule':
@@ -101,8 +101,10 @@ jobs:
               y += width
           if os.environ['DIRECTION'] == 'newest-first':
               chunks.reverse()
-          print('matrix='+json.dumps({'include': chunks}, separators=(',',':')))
-          print('Planned', len(chunks), 'resumable jobs')
+          matrix=json.dumps({'include': chunks}, separators=(',',':'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write('matrix=' + matrix + '\n')
+          print(f'Planned {len(chunks)} resumable jobs: {start}-{end}, width={width}, direction={os.environ["DIRECTION"]}')
           PY
 
   corpus_shard:
