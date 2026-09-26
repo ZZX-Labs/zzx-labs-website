@@ -26,6 +26,7 @@ from worldfactbook_crawler import (
     _select_ia_files,
     discover_wayback,
     parse_chunks,
+    write_portal,
 )
 
 
@@ -73,6 +74,12 @@ def main() -> int:
             "identifier": "worldfactbook1975scan",
             "date": "2004-01-01",
         })
+        assert 1962 in _doc_years({
+            "title": "National Basic Intelligence Factbook",
+            "identifier": "cia-declassified-scan",
+            "description": "National Basic Intelligence Factbook, August 1962",
+            "date": "2004-01-01",
+        })
         selected = _select_ia_files({
             "files": [
                 {"name": "worldfactbook1975_archive.zip", "size": "900000000", "source": "original"},
@@ -112,6 +119,18 @@ def main() -> int:
         )
         assert manifest["rows"] == len(rows) and manifest["files"]
         json.loads((root / "db/manifest.json").read_text())
+
+        # A source gap is a valid resumable checkpoint, not a process crash.
+        gap_portal = root / "gap-api"
+        gap_index = write_portal(
+            [], [], [], gap_portal, 1962, 1962,
+            coverage={1962: {"status": "source-missing"}},
+        )
+        assert gap_index["editions"][0]["status"] == "missing"
+        assert gap_index["editions"][0]["availability_reason"] == "source-missing"
+        gap_manifest = json.loads((gap_portal / "editions/1962/index.json").read_text())
+        assert gap_manifest["status"] == "missing"
+        assert gap_manifest["availability_reason"] == "source-missing"
 
         # Media/OCR/attribution self-test. The image has a white border so the
         # cropper must tighten it, and the HTML context carries explicit credit.
