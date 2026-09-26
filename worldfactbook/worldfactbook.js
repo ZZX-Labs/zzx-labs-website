@@ -12,7 +12,7 @@
   const CONFIG = Object.freeze({
     name: "ZZX-WorldFactbook",
     historicalStart: 1962,
-    historicalEnd: 2025,
+    historicalEnd: 2027,
     historicalInstitution: "Central Intelligence Agency",
     historicalPublication: "The World Factbook",
     variants: Object.freeze([
