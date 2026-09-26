@@ -148,7 +148,12 @@ _IA_META_CACHE: dict[str, dict] = {}
 _IA_CATALOG_CACHE: dict[int, list[dict]] | None = None
 _IA_TITLE_QUERY = (
     '(title:("world factbook") OR title:("the world factbook") '
-    'OR title:("national basic intelligence factbook"))'
+    'OR title:("national basic intelligence factbook") '
+    'OR title:("national basic intelligence fact book") '
+    'OR title:("basic intelligence factbook") '
+    'OR title:("basic intelligence fact book") '
+    'OR description:("national basic intelligence factbook") '
+    'OR description:("national basic intelligence fact book"))'
 )
 
 
@@ -232,6 +237,12 @@ def _doc_years(doc: dict) -> set[int]:
     if identity:
         return identity
     metadata: set[int] = set()
+    # Descriptions on declassified scans often carry the original publication
+    # year even when IA's year/date fields describe the later scan/upload.
+    # Use description only when title/identifier did not identify an edition.
+    metadata.update(_candidate_years(doc.get("description")))
+    if metadata:
+        return metadata
     for key in ("year", "date"):
         metadata.update(_candidate_years(doc.get(key)))
     return metadata
@@ -327,7 +338,8 @@ def discover_ia(year: int, max_items: int, max_files: int, *, prefer_media: bool
     queries = [
         f"{_IA_TITLE_QUERY} AND mediatype:texts AND "
         f"(year:{year} OR date:[{year}-01-01 TO {year}-12-31])",
-        f"{_IA_TITLE_QUERY} AND mediatype:texts AND (title:{year} OR identifier:{year})",
+        f"{_IA_TITLE_QUERY} AND mediatype:texts AND "
+        f"(title:{year} OR identifier:{year} OR description:{year})",
     ]
     docs: list[dict] = []
     seen_identifiers: set[str] = set()
@@ -597,6 +609,7 @@ def write_portal(
     root: Path,
     start: int,
     end: int,
+    coverage: dict[int, dict] | None = None,
 ) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     by_year: dict[int, list[dict]] = {}
@@ -628,10 +641,14 @@ def write_portal(
         year_sources = [s for s in source_rows if int(s.get("edition_year") or 0) == year]
         labels = [str(s.get("edition_label") or "").strip() for s in year_sources if str(s.get("edition_label") or "").strip()]
         edition_label = labels[0] if labels and len(set(labels)) == 1 else str(year)
+        coverage_row = (coverage or {}).get(year, {})
+        status = "available" if year_rows or year_media else "missing"
+        availability_reason = str(coverage_row.get("status") or ("available" if status == "available" else "not-yet-ingested"))
         manifest = {
             "schema": "zzx-worldfactbook-edition-v1", "edition_year": year,
             "edition_label": edition_label,
-            "status": "available" if year_rows or year_media else "missing",
+            "status": status,
+            "availability_reason": availability_reason,
             "chunks": len(year_rows), "categories": category_meta, "sources": year_sources,
             "images": len(year_media),
             "media_path": f"media/{year}/index.json",
@@ -641,7 +658,8 @@ def write_portal(
         mpath.parent.mkdir(parents=True, exist_ok=True)
         mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         editions.append({
-            "year": year, "edition_label": edition_label, "status": manifest["status"], "chunks": len(year_rows),
+            "year": year, "edition_label": edition_label, "status": manifest["status"],
+            "availability_reason": availability_reason, "chunks": len(year_rows),
             "categories": len(category_meta), "images": len(year_media),
             "path": mpath.relative_to(root).as_posix(),
         })
@@ -741,6 +759,7 @@ def main() -> int:
     media_rows: list[dict] = []
     failures: list[dict] = []
     discovery_counts: dict[str, int] = {}
+    processed_editions: dict[int, dict] = {}
     # One rich media representation per IA item is enough; text/ebook
     # derivatives are still parsed for corpus content but are not OCRed twice.
     ia_media_complete: set[str] = set()
@@ -749,6 +768,10 @@ def main() -> int:
     for year in range(args.start_year, args.end_year + 1):
         # Incremental mode preserves a fully indexed edition. Editions created
         # before v1.2 are revisited once so OCR/image indexes can be backfilled.
+        processed_editions[year] = {
+            "year": year, "status": "pending", "candidates": 0,
+            "successful_sources": 0, "chunks": 0, "failures": 0,
+        }
         existing = portal / "editions" / str(year) / "index.json"
         media_existing = portal / "media" / str(year) / "index.json"
         if args.mode == "incremental" and existing.is_file():
@@ -760,6 +783,8 @@ def main() -> int:
                     m = json.loads(media_existing.read_text(encoding="utf-8"))
                     media_ready = m.get("schema") == "zzx-worldfactbook-media-year-v1"
                 if edition_ready and (args.media_mode == "none" or media_ready):
+                    processed_editions[year]["status"] = "existing-available"
+                    processed_editions[year]["chunks"] = int(e.get("chunks") or 0)
                     print(f"{year}: requested corpus layer already available; keeping existing edition")
                     continue
             except Exception:
@@ -772,12 +797,14 @@ def main() -> int:
             try:
                 candidates += discover_ia(year, args.max_ia_items, args.max_files_per_edition, prefer_media=(args.media_mode == "full"))
             except Exception as exc:
-                failures.append({"year":year,"provider":"internet-archive","error":str(exc)})
+                failures.append({"year":year,"provider":"internet-archive","stage":"discovery","error":str(exc)})
+                processed_editions[year]["failures"] += 1
         if (not candidates or "wayback-always" in providers) and "wayback" in providers:
             try:
                 candidates += discover_wayback(year, args.max_wayback_pages)
             except Exception as exc:
-                failures.append({"year":year,"provider":"wayback","error":str(exc)})
+                failures.append({"year":year,"provider":"wayback","stage":"discovery","error":str(exc)})
+                processed_editions[year]["failures"] += 1
         candidates += extras_by_year.get(year, [])
         # Deduplicate URLs and cap pathological candidate explosions.
         unique = []
@@ -803,6 +830,9 @@ def main() -> int:
         # merely because remote-provider limits are set to zero.
         candidates = manual_rows + (ia_rows + other_rows)[:remote_limit]
         discovery_counts[str(year)] = len(candidates)
+        processed_editions[year]["candidates"] = len(candidates)
+        if not candidates:
+            processed_editions[year]["status"] = "source-missing"
         print(f"{year}: {len(candidates)} candidate source files/pages", flush=True)
         for preview in candidates[:8]:
             print(
@@ -955,9 +985,25 @@ def main() -> int:
                     "source_title": c.source_title or c.name,
                     "notes": c.notes,
                 })
+                processed_editions[year]["successful_sources"] += 1
+                processed_editions[year]["chunks"] += accepted
             except Exception as exc:
-                failures.append({"year":year,"provider":c.provider,"url":c.url,"error":str(exc)})
+                failures.append({"year":year,"provider":c.provider,"stage":"extract","url":c.url,"error":str(exc)})
+                processed_editions[year]["failures"] += 1
             time.sleep(args.sleep)
+
+        state = processed_editions[year]
+        if state["chunks"] > 0:
+            state["status"] = "available"
+        elif state["candidates"] == 0 and state["failures"] == 0:
+            state["status"] = "source-missing"
+            print(f"{year}: no source located; recording an explicit coverage gap and continuing", flush=True)
+        elif state["candidates"] == 0:
+            state["status"] = "discovery-error"
+        elif state["successful_sources"] > 0:
+            state["status"] = "extraction-empty"
+        else:
+            state["status"] = "extraction-failed"
 
     # Merge existing incremental portal rows so shard rebuild represents the full local corpus.
     if args.mode in {"incremental", "refresh"}:
@@ -991,7 +1037,10 @@ def main() -> int:
     media_rows = list({r["citation_key"]: r for r in media_rows if r.get("citation_key")}.values())
     media_index = write_media_indexes(media_rows, portal, media_root, repo, args.portal_start_year, args.portal_end_year)
     media_shard_manifest = write_media_shards(media_rows, dbroot)
-    index = write_portal(all_rows, source_rows, media_rows, portal, args.portal_start_year, args.portal_end_year)
+    index = write_portal(
+        all_rows, source_rows, media_rows, portal, args.portal_start_year, args.portal_end_year,
+        coverage=processed_editions,
+    )
     shard_manifest = write_shards(all_rows, dbroot)
     report = {
         "schema":"zzx-worldfactbook-crawl-report-v1","generated_at":now_iso(),
@@ -1003,6 +1052,7 @@ def main() -> int:
         "credited_images":sum(1 for r in media_rows if r.get("credit_status") == "explicit"),
         "media_schema":media_index.get("schema"),"failures":failures,
         "discovery_counts":discovery_counts,
+        "processed_editions":[processed_editions[y] for y in sorted(processed_editions)],
         "available_editions":sum(1 for e in index["editions"] if e["status"]=="available"),
         "missing_editions":[e["year"] for e in index["editions"] if e["status"]!="available"],
         "sql_shards":len(shard_manifest.get("files") or []),
@@ -1010,8 +1060,17 @@ def main() -> int:
     }
     (portal / "crawl-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    if not all_rows:
-        raise SystemExit("crawler produced zero corpus chunks")
+    hard_failures = [
+        row for row in processed_editions.values()
+        if row.get("status") in {"discovery-error", "extraction-empty", "extraction-failed"}
+    ]
+    if hard_failures:
+        summary = ", ".join(f"{r['year']}:{r['status']}" for r in hard_failures)
+        raise SystemExit(f"crawler shard has real acquisition/extraction failures: {summary}")
+    # An edition with no discoverable public source is a coverage gap, not a
+    # process failure. Its explicit missing checkpoint is still publishable and
+    # can later be replaced by IA/Wayback/manual evidence without rerunning the
+    # rest of the archive.
     return 0
 
 if __name__ == "__main__":
