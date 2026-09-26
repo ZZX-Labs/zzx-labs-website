@@ -203,14 +203,29 @@ jobs:
               raise SystemExit('bad portal-index schema')
           if int(idx.get('start_year')) != 1962 or int(idx.get('end_year')) != 2027:
               raise SystemExit('portal range regressed')
+          statuses={}
           for year in range(start,end+1):
               p=api/'editions'/str(year)/'index.json'
-              if not p.is_file(): raise SystemExit(f'missing edition checkpoint: {p}')
-              json.loads(p.read_text(encoding='utf-8'))
+              if not p.is_file():
+                  raise SystemExit(f'missing edition checkpoint: {p}')
+              edition=json.loads(p.read_text(encoding='utf-8'))
+              status=str(edition.get('status') or '')
+              if status not in {'available','missing'}:
+                  raise SystemExit(f'invalid edition checkpoint status for {year}: {status!r}')
+              statuses[year]=(status,str(edition.get('availability_reason') or ''))
           report=json.loads((api/'crawl-report.json').read_text(encoding='utf-8'))
           if report.get('processed_range') != [start,end]:
               raise SystemExit(f'wrong processed range: {report.get("processed_range")}')
-          print('validated resumable shard', start, end)
+          processed={int(row['year']):row for row in report.get('processed_editions') or []}
+          for year in range(start,end+1):
+              if year not in processed:
+                  raise SystemExit(f'crawl report missing processed-edition result for {year}')
+              state=str(processed[year].get('status') or '')
+              if state in {'discovery-error','extraction-empty','extraction-failed'}:
+                  raise SystemExit(f'edition {year} ended in hard failure state: {state}')
+              if state == 'source-missing':
+                  print(f'::warning title=World Factbook coverage gap::{year} has no source yet; explicit missing checkpoint published for later backfill')
+          print('validated resumable shard', start, end, statuses)
           PY
 
       - name: Publish this completed shard immediately
