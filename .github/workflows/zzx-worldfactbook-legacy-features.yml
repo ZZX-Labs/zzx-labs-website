@@ -1,0 +1,166 @@
+name: ZZX-WorldFactbook Legacy Web Features
+
+run-name: >-
+  WFB Legacy Features / ${{ inputs.start_year || '2000' }}-${{ inputs.end_year || '2026' }} / run-${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_year:
+        description: "First CIA web-era year to preserve"
+        required: false
+        default: "2000"
+        type: string
+      end_year:
+        description: "Last web-era year to preserve"
+        required: false
+        default: "2026"
+        type: string
+      years_per_job:
+        description: "Wayback years per resumable job"
+        required: false
+        default: "1"
+        type: string
+      max_homepage_captures:
+        description: "Maximum deduplicated homepage captures per year-window"
+        required: false
+        default: "5000"
+        type: string
+      max_leader_captures:
+        description: "Maximum World Leaders captures per year-window"
+        required: false
+        default: "2500"
+        type: string
+      max_feature_pages:
+        description: "Maximum other legacy feature captures per year-window"
+        required: false
+        default: "3000"
+        type: string
+  schedule:
+    - cron: "43 5 7 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-worldfactbook-legacy-features
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        shell: bash
+        env:
+          START_YEAR: ${{ inputs.start_year || '2000' }}
+          END_YEAR: ${{ inputs.end_year || '2026' }}
+          WIDTH: ${{ inputs.years_per_job || '1' }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          import json, os
+          start=int(os.environ['START_YEAR']); end=int(os.environ['END_YEAR']); width=max(1,int(os.environ['WIDTH']))
+          if os.environ.get('EVENT_NAME') == 'schedule':
+              from datetime import datetime, timezone
+              start=end=datetime.now(timezone.utc).year
+          if start < 1996 or end < start:
+              raise SystemExit('legacy web-feature range must be 1996 or later')
+          chunks=[]; y=start
+          while y <= end:
+              chunks.append({'start':y,'end':min(end,y+width-1)}); y += width
+          chunks.reverse()
+          print('matrix='+json.dumps({'include':chunks},separators=(',',':')))
+          PY
+
+  preserve:
+    name: Legacy features ${{ matrix.start }}-${{ matrix.end }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Checkout newest main with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin main
+          git checkout --force -B main origin/main
+          git clean -fdx
+
+      - name: Validate legacy feature collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/worldfactbook/legacy_features.py
+          python3 tools/worldfactbook/legacy_features.py --self-test
+
+      - name: Recover web-era Factbook features
+        shell: bash
+        env:
+          MAX_HOME: ${{ inputs.max_homepage_captures || '5000' }}
+          MAX_LEADERS: ${{ inputs.max_leader_captures || '2500' }}
+          MAX_FEATURES: ${{ inputs.max_feature_pages || '3000' }}
+        run: |
+          set -euo pipefail
+          python3 tools/worldfactbook/legacy_features.py \
+            --repo-root . \
+            --api-root worldfactbook/api \
+            --country-registry __partials/widgets/global-power-grid/data/countries.json \
+            --start-year "${{ matrix.start }}" \
+            --end-year "${{ matrix.end }}" \
+            --max-homepage-captures "${MAX_HOME}" \
+            --max-leader-captures "${MAX_LEADERS}" \
+            --max-feature-pages "${MAX_FEATURES}" \
+            --sleep 0.10
+
+      - name: Validate generated feature contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          api=Path('worldfactbook/api')
+          expected={
+            'facts-of-the-day/index.json':'zzx-worldfactbook-facts-of-the-day-v1',
+            'images-of-the-day/index.json':'zzx-worldfactbook-images-of-the-day-v1',
+            'leaders/index.json':'zzx-worldfactbook-leaders-v1',
+            'legacy-features/index.json':'zzx-worldfactbook-legacy-features-v1',
+          }
+          for rel,schema in expected.items():
+              p=api/rel
+              if not p.is_file(): raise SystemExit(f'missing {p}')
+              data=json.loads(p.read_text(encoding='utf-8'))
+              if data.get('schema') != schema: raise SystemExit(f'bad schema {p}')
+              print(rel, data.get('record_count', 0))
+          PY
+
+      - name: Publish preserved legacy features immediately
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-worldfactbook-bot"
+          git config user.email "actions@github.com"
+          python3 tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "World Factbook legacy features ${{ matrix.start }}-${{ matrix.end }}" \
+            --path worldfactbook/api/facts-of-the-day \
+            --path worldfactbook/api/images-of-the-day \
+            --path worldfactbook/api/leaders \
+            --path worldfactbook/api/legacy-features \
+            --attempts 8 \
+            --sleep-seconds 6

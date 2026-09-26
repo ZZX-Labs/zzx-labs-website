@@ -1,0 +1,108 @@
+name: ZZX-WorldFactbook Manual Edition Ingest
+
+on:
+  workflow_dispatch:
+    inputs:
+      edition_year:
+        description: "Normalized edition year; 2025-2026 = 2026, 2026-2027 = 2027"
+        required: true
+        default: "2027"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-worldfactbook-manual-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout newest main with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin main
+          git checkout --force -B main origin/main
+          git clean -fdx
+
+      - name: Validate requested manual edition manifest
+        shell: bash
+        env:
+          EDITION_YEAR: ${{ inputs.edition_year }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          year=int(os.environ['EDITION_YEAR']); found=[]
+          for p in Path('worldfactbook/manual/editions').glob('*/manifest.json'):
+              data=json.loads(p.read_text(encoding='utf-8'))
+              if int(data.get('edition_year') or 0)==year: found.append((p,data))
+          if not found:
+              raise SystemExit(f'No committed manual manifest.json maps to edition_year={year}')
+          for p,data in found:
+              print('manual edition:', data.get('edition_label'), p)
+              for row in data.get('sources') or []:
+                  src=(p.parent/str(row.get('path') or ''))
+                  if not src.is_file() or src.stat().st_size <= 0:
+                      raise SystemExit(f'missing manual source: {src}')
+                  print(' source:', src, src.stat().st_size, 'bytes')
+          PY
+
+      - name: Install local extraction tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils p7zip-full libarchive-tools antiword unrtf djvulibre-bin python3-pil
+
+      - name: Refresh this manual edition only
+        shell: bash
+        env:
+          EDITION_YEAR: ${{ inputs.edition_year }}
+        run: |
+          set -euo pipefail
+          python3 tools/worldfactbook/worldfactbook_crawler.py \
+            --repo-root . \
+            --cache-dir .cache/worldfactbook-manual \
+            --portal-root worldfactbook/api \
+            --db-root worldfactbook/db \
+            --media-root worldfactbook/media \
+            --manual-root worldfactbook/manual/editions \
+            --country-registry __partials/widgets/global-power-grid/data/countries.json \
+            --extra-source-manifest tools/worldfactbook/extra-sources.json \
+            --start-year "${EDITION_YEAR}" \
+            --end-year "${EDITION_YEAR}" \
+            --portal-start-year 1962 \
+            --portal-end-year 2027 \
+            --mode refresh \
+            --providers manual \
+            --max-ia-items 0 \
+            --max-files-per-edition 1 \
+            --max-wayback-pages 0 \
+            --media-mode none
+
+      - name: Publish normalized manual edition
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-worldfactbook-bot"
+          git config user.email "actions@github.com"
+          python3 tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Ingest manual World Factbook edition ${{ inputs.edition_year }}" \
+            --path worldfactbook/api \
+            --path worldfactbook/db \
+            --attempts 8 \
+            --sleep-seconds 6

@@ -1,0 +1,163 @@
+name: ZZX-WorldFactbook Media Preservation
+
+run-name: >-
+  WFB Media / ${{ inputs.start_year || '1962' }}-${{ inputs.end_year || '2027' }} / run-${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_year:
+        required: false
+        default: "1962"
+        type: string
+      end_year:
+        required: false
+        default: "2027"
+        type: string
+      direction:
+        required: false
+        default: "newest-first"
+        type: choice
+        options: [newest-first, oldest-first]
+      providers:
+        required: false
+        default: "manual,ia,wayback"
+        type: string
+      max_ia_items:
+        required: false
+        default: "4"
+        type: string
+      max_wayback_pages:
+        required: false
+        default: "120"
+        type: string
+      max_images_per_source:
+        description: "Bound each source so a malformed archive cannot consume the runner"
+        required: false
+        default: "600"
+        type: string
+      ocr_images:
+        description: "OCR extracted images too; disabled by default because book text is crawled separately"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-worldfactbook-media
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        shell: bash
+        env:
+          START_YEAR: ${{ inputs.start_year || '1962' }}
+          END_YEAR: ${{ inputs.end_year || '2027' }}
+          DIRECTION: ${{ inputs.direction || 'newest-first' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          import json, os
+          start=int(os.environ['START_YEAR']); end=int(os.environ['END_YEAR'])
+          if start < 1962 or end > 2027 or start > end: raise SystemExit('range must be 1962..2027')
+          rows=[{'year':y} for y in range(start,end+1)]
+          if os.environ['DIRECTION']=='newest-first': rows.reverse()
+          print('matrix='+json.dumps({'include':rows},separators=(',',':')))
+          PY
+
+  preserve:
+    name: Media edition ${{ matrix.year }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Checkout newest main with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin main
+          git checkout --force -B main origin/main
+          git clean -fdx
+
+      - name: Install OS media tools only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            poppler-utils \
+            p7zip-full \
+            libarchive-tools \
+            djvulibre-bin \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            python3-pil
+
+      - name: Preserve one edition media set
+        shell: bash
+        env:
+          PROVIDERS: ${{ inputs.providers || 'manual,ia,wayback' }}
+          MAX_IA: ${{ inputs.max_ia_items || '4' }}
+          MAX_WAYBACK: ${{ inputs.max_wayback_pages || '120' }}
+          MAX_IMAGES: ${{ inputs.max_images_per_source || '600' }}
+          OCR_IMAGES: ${{ inputs.ocr_images && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          EXTRA_OCR=()
+          if [ "${OCR_IMAGES}" = "true" ]; then EXTRA_OCR+=(--ocr-media); fi
+          python3 tools/worldfactbook/worldfactbook_crawler.py \
+            --repo-root . \
+            --cache-dir .cache/worldfactbook-media-v1 \
+            --portal-root worldfactbook/api \
+            --db-root worldfactbook/db \
+            --media-root worldfactbook/media \
+            --manual-root worldfactbook/manual/editions \
+            --country-registry __partials/widgets/global-power-grid/data/countries.json \
+            --extra-source-manifest tools/worldfactbook/extra-sources.json \
+            --start-year "${{ matrix.year }}" \
+            --end-year "${{ matrix.year }}" \
+            --portal-start-year 1962 \
+            --portal-end-year 2027 \
+            --mode incremental \
+            --providers "${PROVIDERS}" \
+            --max-ia-items "${MAX_IA}" \
+            --max-files-per-edition 1 \
+            --max-wayback-pages "${MAX_WAYBACK}" \
+            --max-download-mb 1500 \
+            --media-mode full \
+            --max-images-per-source "${MAX_IMAGES}" \
+            --ocr-timeout-seconds 20 \
+            "${EXTRA_OCR[@]}"
+
+      - name: Publish completed media checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-worldfactbook-bot"
+          git config user.email "actions@github.com"
+          python3 tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "World Factbook media ${{ matrix.year }}" \
+            --path worldfactbook/api \
+            --path worldfactbook/db \
+            --path worldfactbook/media \
+            --attempts 8 \
+            --sleep-seconds 6
