@@ -1,5 +1,5 @@
 {
-  "schema": "zzx-bpi-exchanges-v5.2-massive-p2p",
+  "schema": "zzx-bpi-exchanges-v5.3-live-historical",
   "default": "zzx",
   "order": [
     "zzx",
@@ -207,7 +207,28 @@
     "bitvalve",
     "agoradesk",
     "localcryptos",
-    "localbitcoins"
+    "localbitcoins",
+    "mtgox",
+    "bitcoin_market",
+    "tradehill",
+    "britcoin",
+    "bitomat",
+    "bitcoinica",
+    "btc_e",
+    "campbx",
+    "bitfloor",
+    "cavirtex",
+    "vircurex",
+    "cryptsy",
+    "mintpal",
+    "bitcurex",
+    "quadrigacx",
+    "btcchina",
+    "huobi_legacy",
+    "okcoin_legacy",
+    "lakebtc",
+    "coinsetter",
+    "bitmarket_eu"
   ],
   "sources": {
     "zzx": {
@@ -356,9 +377,9 @@
       "label": "Binance",
       "region": "Global",
       "kind": "exchange",
-      "enabled": false,
-      "include_in_bpi": false,
-      "status": "candidate-needs-live-adapter-validation",
+      "enabled": true,
+      "include_in_bpi": true,
+      "status": "enabled-runtime-health-gated",
       "bitcoin_only_index_rule": "eligible BTC/XBT-to-fiat markets only"
     },
     "bybit": {
@@ -2182,6 +2203,237 @@
         "comparable_btc_volume_or_executed_liquidity": true
       },
       "notes": "P2P venue: do not treat offer count, order-book depth, or advertised liquidity as 24h executed BTC volume unless the collector can prove the metric is comparable."
+    },
+    "mtgox": {
+      "label": "Mt. Gox",
+      "region": "JP",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2010-2014",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "bitcoin_market": {
+      "label": "Bitcoin Market",
+      "region": "US",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2010-2011",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "tradehill": {
+      "label": "TradeHill",
+      "region": "US",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2012",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "britcoin": {
+      "label": "Britcoin / Intersango",
+      "region": "UK",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2012",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "bitomat": {
+      "label": "Bitomat",
+      "region": "EU",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "bitcoinica": {
+      "label": "Bitcoinica",
+      "region": "Global",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2012",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "btc_e": {
+      "label": "BTC-e",
+      "region": "Global",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2017",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "campbx": {
+      "label": "CampBX",
+      "region": "US",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2017",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "bitfloor": {
+      "label": "Bitfloor",
+      "region": "US",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2012-2013",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "cavirtex": {
+      "label": "CaVirtex",
+      "region": "CA",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2015",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "vircurex": {
+      "label": "Vircurex",
+      "region": "Global",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2018",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "cryptsy": {
+      "label": "Cryptsy",
+      "region": "US",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2013-2016",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "mintpal": {
+      "label": "MintPal",
+      "region": "UK",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2014",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "bitcurex": {
+      "label": "Bitcurex",
+      "region": "EU",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2012-2016",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "quadrigacx": {
+      "label": "QuadrigaCX",
+      "region": "CA",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2013-2019",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "btcchina": {
+      "label": "BTC China",
+      "region": "CN",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2011-2017",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "huobi_legacy": {
+      "label": "Huobi Legacy",
+      "region": "CN",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2013-2017",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "okcoin_legacy": {
+      "label": "OKCoin Legacy China",
+      "region": "CN",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2013-2017",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "lakebtc": {
+      "label": "LakeBTC",
+      "region": "Global",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2013-2022",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "coinsetter": {
+      "label": "Coinsetter",
+      "region": "US",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2012-2016",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
+    },
+    "bitmarket_eu": {
+      "label": "BitMarket.eu",
+      "region": "EU",
+      "kind": "exchange",
+      "enabled": false,
+      "include_in_bpi": false,
+      "status": "defunct-historical",
+      "historical_operating_period": "2010-2012",
+      "bitcoin_only_index_rule": "historical BTC/XBT-to-fiat archive only",
+      "notes": "Historical/backtest-only registry entry. Never polled by the live collector."
     }
   },
   "policy": {
