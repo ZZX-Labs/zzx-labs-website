@@ -63,13 +63,16 @@ jobs:
           DIRECTION: ${{ inputs.direction || 'newest-first' }}
         run: |
           set -euo pipefail
-          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          python3 - <<'PY'
           import json, os
           start=int(os.environ['START_YEAR']); end=int(os.environ['END_YEAR'])
           if start < 1962 or end > 2027 or start > end: raise SystemExit('range must be 1962..2027')
           rows=[{'year':y} for y in range(start,end+1)]
           if os.environ['DIRECTION']=='newest-first': rows.reverse()
-          print('matrix='+json.dumps({'include':rows},separators=(',',':')))
+          matrix=json.dumps({'include':rows},separators=(',',':'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write('matrix=' + matrix + '\n')
+          print(f'Planned {len(rows)} media jobs: {start}-{end}, direction={os.environ["DIRECTION"]}')
           PY
 
   preserve:
