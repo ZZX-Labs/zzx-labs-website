@@ -7,7 +7,7 @@
   const WFB = {
     state: {
       archive: null,
-      selectedYear: 2025,
+      selectedYear: 2027,
       featureStatus: {},
       referencePages: []
     },
