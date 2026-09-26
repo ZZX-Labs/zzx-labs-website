@@ -136,11 +136,13 @@ jobs:
             tools/bpi/bpi_index_engine.py \
             tools/bpi/index_sanity.py \
             tools/bpi/bpi_live_publish.py \
-            tools/bpi/bpi_runtime_healthcheck.py
+            tools/bpi/bpi_runtime_healthcheck.py \
+            tools/bpi/widget_contract_selftest.py
           python3 tools/bpi/bpi_live_publish.py --self-test
           python3 tools/bpi/bpi_runtime_healthcheck.py --self-test
           python3 tools/bpi/bpi_continuity_selftest.py
           python3 tools/bpi/workflow_contract_selftest.py
+          python3 tools/bpi/widget_contract_selftest.py
           python3 -m json.tool tools/bpi/collector-config.json >/dev/null
           python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
           python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
