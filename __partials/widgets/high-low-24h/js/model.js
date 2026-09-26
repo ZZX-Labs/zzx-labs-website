@@ -3,7 +3,7 @@
 
   const W=window;
 
-  if(W.ZZXHighLow24HModel?.__version>=1)return;
+  if(W.ZZXHighLow24HModel?.__version>=2)return;
 
   const DAY_MS=24*60*60*1000;
 
@@ -90,6 +90,10 @@
         raw.low_24h_usd
       );
 
+      const intervalVolume=nonnegative(
+        raw.interval_volume_btc
+      );
+
       const volumeClose=nonnegative(
         raw.volume_close_24h_btc ??
         raw.volume_24h_btc
@@ -162,6 +166,10 @@
           low_24h:
             Number.isFinite(low24)
               ? low24
+              : null,
+          interval_volume_btc:
+            Number.isFinite(intervalVolume)
+              ? intervalVolume
               : null,
           volume_24h_btc:
             Number.isFinite(closeVolume)
@@ -662,7 +670,11 @@
       );
 
     const weighted=
-      selection?.weightsEnabled!==false;
+      selection?.weightingApplied != null
+        ? !!selection.weightingApplied
+        : selection?.weightsEnabled != null
+          ? !!selection.weightsEnabled
+          : selection?.weightingMode !== "off";
 
     if(sourceType==="global-bpi"){
       return {
@@ -702,6 +714,7 @@
     }
 
     const country=String(
+      selection?.region ??
       selection?.bpiCountry ??
       selection?.countryCode ??
       latest?.bpi_country ??
@@ -754,7 +767,7 @@
 
   W.ZZXHighLow24HModel=
     Object.freeze({
-      __version:1,
+      __version:2,
       DAY_MS,
       normalize,
       selectionPoint,
