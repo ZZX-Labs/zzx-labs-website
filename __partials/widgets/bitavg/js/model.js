@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=9)return;
+  if(W.ZZXBitAvgModel?.__version>=10)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -876,7 +876,7 @@
       }
     }
 
-    const unweightedBpi=
+    let unweightedBpi=
       accepted.reduce(
         (sum,row)=>
           sum+
@@ -885,15 +885,43 @@
       )/
       accepted.length;
 
+    const nativeRegion=String(
+      bundle?.indexPolicy?.default_country ||
+      latest?.native_region ||
+      "US"
+    ).toUpperCase();
+    const nativeIndex=latest?.national_bpi?.[nativeRegion]||{};
+
     const canonicalBpiWeighted=finite(
+      nativeIndex?.weighted_price_usd ??
       latest?.weighted_average?.price_usd ??
       latest?.weighted_average?.vwap_usd ??
       latest?.price_usd ??
       latest?.bpi_usd
     );
 
-    const canonicalBpiUnweighted=
-      unweightedBpi;
+    const canonicalBpiUnweighted=finite(
+      nativeIndex?.unweighted_price_usd ??
+      latest?.weighted_average?.unweighted_price_usd ??
+      canonicalBpiWeighted
+    );
+
+    const backendGlobalWeighted=finite(
+      latest?.global_bpi?.weighted_price_usd ??
+      latest?.global_bpi?.price_usd ??
+      weightedBpi
+    );
+    const backendGlobalUnweighted=finite(
+      latest?.global_bpi?.unweighted_price_usd ??
+      unweightedBpi
+    );
+
+    if(Number.isFinite(backendGlobalWeighted)&&backendGlobalWeighted>0){
+      weightedBpi=backendGlobalWeighted;
+    }
+    if(Number.isFinite(backendGlobalUnweighted)&&backendGlobalUnweighted>0){
+      unweightedBpi=backendGlobalUnweighted;
+    }
 
     const weightingMode=(()=>{
       const controlled=
@@ -948,30 +976,31 @@
     const weightsEnabled=
       weightingMode!=="off";
 
-    const globalWeightsEnabled=
-      weightingMode==="global-bpi";
-
-    const bpiWeightsEnabled=
-      weightingMode==="bpi";
+    // Weighting is one coherent policy.  When enabled, both the native BPI
+    // and Global BPI use their own 24h BTC-volume weights.  The three-state
+    // BitAvg control chooses which scope is foregrounded; it does not disable
+    // weighting on the other index.
+    const globalWeightsEnabled=weightsEnabled;
+    const bpiWeightsEnabled=weightsEnabled;
 
     const globalBpi=
-      globalWeightsEnabled
-        ? weightedBpi
-        : unweightedBpi;
+      weightsEnabled && Number.isFinite(backendGlobalWeighted)
+        ? backendGlobalWeighted
+        : backendGlobalUnweighted;
 
     const bpi=
-      bpiWeightsEnabled &&
+      weightsEnabled &&
       Number.isFinite(canonicalBpiWeighted) &&
       canonicalBpiWeighted>0
         ? canonicalBpiWeighted
         : canonicalBpiUnweighted;
 
     const method=
-      bpiWeightsEnabled
-        ? "canonical_bpi_24h_btc_volume_weighted"
-        : globalWeightsEnabled
-          ? methodWeighted
-          : "global_unweighted_arithmetic_mean";
+      weightsEnabled
+        ? (weightingMode==="bpi"
+            ? "native_bpi_24h_btc_volume_weighted"
+            : "global_bpi_24h_btc_volume_weighted")
+        : "bpi_and_global_unweighted_arithmetic_mean";
 
     for(const row of rows){
       row.deviationPct=
@@ -1136,5 +1165,5 @@
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:9,build,sanityGate});
+  W.ZZXBitAvgModel=Object.freeze({__version:10,build,sanityGate});
 })();
