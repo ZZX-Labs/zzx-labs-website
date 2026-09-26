@@ -17,7 +17,7 @@
       if (el) el.textContent = value;
     };
 
-    set("[data-wfb-selected-year]", year);
+    set("[data-wfb-selected-year]", row?.editionLabel || year);
     set("[data-wfb-edition-status]", row?.status || "unresolved");
     set("[data-wfb-edition-providers]", row?.providers?.length ? row.providers.join(", ") : "—");
     set("[data-wfb-edition-pages]", WFB.format(row?.referencePages));
@@ -56,9 +56,9 @@
       button.dataset.year = row.year;
       button.dataset.status = row.status;
       button.setAttribute("role", "listitem");
-      button.textContent = row.year;
+      button.textContent = row.editionLabel || row.year;
       button.title =
-        row.year + " · " + row.status +
+        (row.editionLabel || row.year) + " · " + row.status +
         " · providers " + (row.providers.length ? row.providers.join(", ") : "none indexed");
       button.addEventListener("click", () => renderInspector(row.year));
       timeline.appendChild(button);
@@ -66,7 +66,7 @@
       if (yearSelect) {
         const option = document.createElement("option");
         option.value = row.year;
-        option.textContent = row.year;
+        option.textContent = row.editionLabel || row.year;
         yearSelect.appendChild(option);
       }
     });
