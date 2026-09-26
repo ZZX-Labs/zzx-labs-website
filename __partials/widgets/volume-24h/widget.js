@@ -32,7 +32,7 @@
     {
       global:"ZZXVolume24HModel",
       path:"js/model.js",
-      version:1,
+      version:2,
       local:true
     }
   ]);
