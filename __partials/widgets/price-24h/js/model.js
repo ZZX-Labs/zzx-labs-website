@@ -3,7 +3,7 @@
 
   const W=window;
 
-  if(W.ZZXPrice24HModel?.__version>=1)return;
+  if(W.ZZXPrice24HModel?.__version>=2)return;
 
   const DAY_MS=24*60*60*1000;
 
@@ -179,7 +179,12 @@
   function sourceDescriptor(selection,latest){
     const sourceType=String(selection?.sourceType||"bpi");
 
-    const weighted=selection?.weightsEnabled!==false;
+    const weighted=
+      selection?.weightingApplied != null
+        ? !!selection.weightingApplied
+        : selection?.weightsEnabled != null
+          ? !!selection.weightsEnabled
+          : selection?.weightingMode !== "off";
 
     if(sourceType==="global-bpi"){
       return {
@@ -204,6 +209,7 @@
     }
 
     const country=String(
+      selection?.region??
       selection?.bpiCountry??
       selection?.countryCode??
       latest?.bpi_country??
@@ -304,7 +310,7 @@
   }
 
   W.ZZXPrice24HModel=Object.freeze({
-    __version:1,
+    __version:2,
     DAY_MS,
     normalize,
     selectionPoint,
