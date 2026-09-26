@@ -113,6 +113,11 @@ jobs:
                   encoding="utf-8"
               )
           )
+          trade = json.loads(
+              (api / "national_trade.json").read_text(
+                  encoding="utf-8"
+              )
+          )
           balances = json.loads(
               (api / "national_balances.json").read_text(
                   encoding="utf-8"
@@ -121,6 +126,7 @@ jobs:
 
           countries = registry.get("countries")
           debt_rows = debts.get("countries")
+          trade_rows = trade.get("countries")
           balance_rows = balances.get("countries")
 
           if not isinstance(countries, list) or len(countries) < 200:
@@ -148,6 +154,10 @@ jobs:
               raise SystemExit(
                   "national_balances.json countries must be an array"
               )
+          if not isinstance(trade_rows, list):
+              raise SystemExit(
+                  "national_trade.json countries must be an array"
+              )
 
           if len(debt_rows) != len(countries):
               raise SystemExit(
@@ -157,6 +167,10 @@ jobs:
           if len(balance_rows) != len(countries):
               raise SystemExit(
                   "national_balances.json must retain every registry country"
+              )
+          if len(trade_rows) != len(countries):
+              raise SystemExit(
+                  "national_trade.json must retain every registry country"
               )
 
           debt_available = [
@@ -210,5 +224,6 @@ jobs:
             --path bitcoin/bpi/api/sovereign-countries.json \
             --path bitcoin/bpi/api/national_debts.json \
             --path bitcoin/bpi/api/national_balances.json \
+            --path bitcoin/bpi/api/national_trade.json \
             --attempts 5 \
             --sleep-seconds 5
