@@ -54,6 +54,7 @@
       if (!byYear.has(year)) return;
       const target = byYear.get(year);
       target.status = row.status === "available" ? "indexed" : (row.status || "partial");
+      target.editionLabel = String(row.edition_label || row.year || row.edition_year || year);
       target.media = Number(row.images || 0);
       target.chunks = Number(row.chunks || 0);
     });
