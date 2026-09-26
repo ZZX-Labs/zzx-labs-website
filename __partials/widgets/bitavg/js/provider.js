@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgProvider?.__version>=8)return;
+  if(W.ZZXBitAvgProvider?.__version>=9)return;
 
 
   async function browserLive(){
@@ -12,16 +12,17 @@
     if(!snap||!Number.isFinite(age)||age>15_000)return null;
 
     const E=W.ZZXBitAvgConstants.endpoints;
-    const [exchangeConfig,currencies,exchangeRates]=await Promise.all([
+    const [exchangeConfig,currencies,exchangeRates,indexPolicy]=await Promise.all([
       W.ZZXBitAvgFetch.json(E.exchanges,{optional:true}),
       W.ZZXBitAvgFetch.json(E.currencies,{optional:true}),
-      W.ZZXBitAvgFetch.json(E.rates,{optional:true})
+      W.ZZXBitAvgFetch.json(E.rates,{optional:true}),
+      W.ZZXBitAvgFetch.json(E.indexPolicy,{optional:true})
     ]);
     const rows=W.ZZXLiveBPI?.markets?.()||[];
     if(rows.length<2)return null;
     const bundle={
       markets:{schema:"zzx-bpi-browser-live-markets-v3",updated_at:snap.observed_at??snap.updated_at,observed_at:snap.observed_at??snap.updated_at,source_updated_at:snap.source_updated_at??snap.updated_at,markets:rows},
-      latest:snap,exchangeConfig,currencies,exchangeRates
+      latest:snap,exchangeConfig,currencies,exchangeRates,indexPolicy
     };
     const model=W.ZZXBitAvgModel.build(bundle);
     W.ZZXBitAvgFetch.save(bundle);
@@ -31,12 +32,13 @@
   async function live(){
     const E=W.ZZXBitAvgConstants.endpoints;
 
-    const [markets,latest,exchangeConfig,currencies,exchangeRates]=await Promise.all([
+    const [markets,latest,exchangeConfig,currencies,exchangeRates,indexPolicy]=await Promise.all([
       W.ZZXBitAvgFetch.json(E.markets,{optional:true}),
       W.ZZXBitAvgFetch.json(E.latest),
       W.ZZXBitAvgFetch.json(E.exchanges,{optional:true}),
       W.ZZXBitAvgFetch.json(E.currencies,{optional:true}),
-      W.ZZXBitAvgFetch.json(E.rates,{optional:true})
+      W.ZZXBitAvgFetch.json(E.rates,{optional:true}),
+      W.ZZXBitAvgFetch.json(E.indexPolicy,{optional:true})
     ]);
 
     const observedAt=new Date().toISOString();
@@ -50,7 +52,7 @@
       source_updated_at:markets?.source_updated_at||markets?.updated_at||null,
       observed_at:observedAt
     };
-    const bundle={markets:observedMarkets,latest:observedLatest,exchangeConfig,currencies,exchangeRates};
+    const bundle={markets:observedMarkets,latest:observedLatest,exchangeConfig,currencies,exchangeRates,indexPolicy};
     const model=W.ZZXBitAvgModel.build(bundle);
 
     W.ZZXBitAvgFetch.save(bundle);
@@ -81,5 +83,5 @@
     }
   }
 
-  W.ZZXBitAvgProvider=Object.freeze({__version:8,load});
+  W.ZZXBitAvgProvider=Object.freeze({__version:9,load});
 })();
