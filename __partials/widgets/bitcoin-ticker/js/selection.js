@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerSelection?.__version>=8)return;
+  if(W.ZZXBitcoinTickerSelection?.__version>=9)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
@@ -191,146 +191,128 @@
     return out;
   }
 
+  function nativeRegion(config){
+    const policy=config?.indexPolicy||{};
+    const stored=(()=>{
+      try{return W.localStorage.getItem("zzx.bpi.native-region.v1")}catch(_){return null}
+    })();
+    const candidate=String(
+      stored ||
+      policy?.default_country ||
+      policy?.native_bpi?.regions?.[0] ||
+      "US"
+    ).toUpperCase();
+    return /^[A-Z]{2,8}$/.test(candidate)?candidate:"US";
+  }
+
+  function weightsEnabled(){
+    return weightingMode()!=="off";
+  }
+
+  /*
+   * Never rebuild the canonical BPI population in the browser.
+   * The Python collector/index engine is authoritative because it owns:
+   * exchange geography, policy eligibility, USD normalization, sanity gates,
+   * and 24h BTC-volume weights.  Browser code only selects weighted vs
+   * unweighted presentation.
+   */
   function canonicalUnweighted(config){
-    const latest=config?.latest;
-    const rows=
-      latest?.exchanges &&
-      typeof latest.exchanges==="object"
-        ? Object.entries(latest.exchanges)
-        : [];
-
-    const prices=[];
-
-    for(const [id,row] of rows){
-      const policy=
-        config?.exchangesData?.sources?.[id]||{};
-
-      if(policy.include_in_bpi===false)continue;
-      if(!exchangeEligible(config,id,row))continue;
-
-      const price=positive(
-        row?.raw_price_usd ??
-        row?.price_usd
-      );
-
-      if(Number.isFinite(price)){
-        prices.push(price);
-      }
-    }
-
-    if(prices.length){
-      return prices.reduce(
-        (sum,price)=>sum+price,
-        0
-      )/prices.length;
-    }
-
+    const latest=config?.latest||{};
+    const region=nativeRegion(config);
     return positive(
-      W.ZZXGlobalBPI?.bpi_unweighted_price_usd ??
-      W.ZZXBitAvgLatest?.canonical_bpi_unweighted_usd
+      latest?.national_bpi?.[region]?.unweighted_price_usd ??
+      latest?.weighted_average?.unweighted_price_usd
     );
   }
 
   function canonicalBpi(config){
-    const latest=config?.latest;
-    const mode=weightingMode();
-    const unweighted=canonicalUnweighted(config);
+    const latest=config?.latest||{};
+    const region=nativeRegion(config);
+    const native=latest?.national_bpi?.[region]||{};
     const weighted=positive(
+      native?.weighted_price_usd ??
       latest?.weighted_average?.price_usd ??
-      latest?.weighted_average?.vwap_usd ??
-      W.ZZXGlobalBPI?.bpi_weighted_price_usd ??
-      W.ZZXBitAvgLatest?.canonical_bpi_weighted_usd ??
-      latest?.price_usd ??
-      latest?.bpi_usd
+      latest?.price_usd
     );
-
-    const p=
-      mode==="bpi" && Number.isFinite(weighted)
-        ? weighted
-        : Number.isFinite(unweighted)
-          ? unweighted
-          : positive(
-              latest?.price_usd ??
-              latest?.btc_usd ??
-              latest?.bpi_usd
-            );
+    const unweighted=positive(
+      native?.unweighted_price_usd ??
+      latest?.weighted_average?.unweighted_price_usd
+    );
+    const useWeighted=weightsEnabled();
+    const p=useWeighted&&Number.isFinite(weighted)
+      ? weighted
+      : Number.isFinite(unweighted)
+        ? unweighted
+        : weighted;
 
     if(!Number.isFinite(p))return null;
-
-    const weightingApplied=mode==="bpi";
 
     return {
       sourceId:"bpi",
       sourceType:"bpi",
-      label:weightingApplied?"BPI · weighted":"BPI · unweighted",
+      region,
+      label:`BPI ${region} · ${useWeighted?"weighted":"unweighted"}`,
       priceUsd:p,
-      highUsd:finite(latest?.high_24h),
-      lowUsd:finite(latest?.low_24h),
-      volumeBtc:finite(latest?.volume_24h_btc),
+      highUsd:finite(native?.high_24h??latest?.high_24h),
+      lowUsd:finite(native?.low_24h??latest?.low_24h),
+      volumeBtc:finite(native?.volume_24h_btc??latest?.volume_24h_btc),
       timestamp:latest?.observed_at??latest?.updated_at??null,
       sourceTimestamp:latest?.source_updated_at??latest?.updated_at??null,
-      mode:weightingApplied
-        ? "bpi_24h_btc_volume_weighted"
-        : "bpi_unweighted_arithmetic_mean",
-      weightingMode:mode,
-      weightingApplied,
+      mode:useWeighted
+        ? "native_24h_btc_volume_weighted"
+        : "native_unweighted_arithmetic_mean",
+      weightingMode:weightingMode(),
+      weightingApplied:useWeighted,
       weightedPriceUsd:weighted,
-      unweightedPriceUsd:unweighted
+      unweightedPriceUsd:unweighted,
+      exchangeCount:Number(native?.exchange_count||0),
+      marketCount:Number(native?.market_count||0),
+      exchangeIds:Array.isArray(native?.exchanges)?native.exchanges.slice():[]
     };
   }
 
   function globalBpi(latest){
     const published=W.ZZXGlobalBPI;
-    const mode=weightingMode();
-
+    const global=latest?.global_bpi||{};
     const weighted=positive(
-      published?.weighted_price_usd ??
-      latest?.global_bpi?.vwap_usd ??
-      latest?.global_bpi?.price_usd ??
-      latest?.vwap_usd
+      global?.weighted_price_usd ??
+      global?.price_usd ??
+      published?.weighted_price_usd
     );
-
     const unweighted=positive(
-      published?.unweighted_price_usd ??
-      W.ZZXBitAvgLatest?.unweighted_bpi_usd
+      global?.unweighted_price_usd ??
+      published?.unweighted_price_usd
     );
-
-    const p=
-      mode==="global-bpi" && Number.isFinite(weighted)
-        ? weighted
-        : Number.isFinite(unweighted)
-          ? unweighted
-          : positive(
-              published?.price_usd ??
-              latest?.global_bpi?.price_usd ??
-              latest?.global_bpi_usd ??
-              latest?.vwap_usd ??
-              latest?.bpi_usd
-            );
+    const useWeighted=weightsEnabled();
+    const p=useWeighted&&Number.isFinite(weighted)
+      ? weighted
+      : Number.isFinite(unweighted)
+        ? unweighted
+        : weighted;
 
     if(!Number.isFinite(p))return null;
-
-    const weightingApplied=mode==="global-bpi";
 
     return {
       sourceId:"global-bpi",
       sourceType:"global-bpi",
-      label:weightingApplied
-        ? "Global BPI · weighted"
-        : "Global BPI · unweighted",
+      region:"GLOBAL",
+      label:`Global BPI · ${useWeighted?"weighted":"unweighted"}`,
       priceUsd:p,
-      highUsd:finite(latest?.global_bpi?.high_24h??latest?.high_24h),
-      lowUsd:finite(latest?.global_bpi?.low_24h??latest?.low_24h),
-      volumeBtc:finite(published?.volume_24h_btc??latest?.volume_24h_btc),
-      timestamp:latest?.observed_at??published?.observed_at??published?.updated_at??latest?.global_bpi?.updated_at??latest?.updated_at??null,
-      sourceTimestamp:latest?.source_updated_at??published?.updated_at??latest?.global_bpi?.updated_at??latest?.updated_at??null,
-      mode:weightingApplied
-        ? String(published?.method_weighted??"bitavg_global_24h_btc_volume_weighted")
-        : String(published?.method_unweighted??"global_unweighted_arithmetic_mean"),
-      weightingMode:mode,
-      weightingApplied,
+      highUsd:finite(global?.high_24h??latest?.high_24h),
+      lowUsd:finite(global?.low_24h??latest?.low_24h),
+      volumeBtc:finite(global?.volume_24h_btc??published?.volume_24h_btc),
+      timestamp:latest?.observed_at??published?.observed_at??global?.updated_at??latest?.updated_at??null,
+      sourceTimestamp:latest?.source_updated_at??published?.source_updated_at??global?.updated_at??latest?.updated_at??null,
+      mode:useWeighted
+        ? String(global?.method_weighted??published?.method_weighted??"global_24h_btc_volume_weighted")
+        : String(global?.method_unweighted??published?.method_unweighted??"global_unweighted_arithmetic_mean"),
+      weightingMode:weightingMode(),
+      weightingApplied:useWeighted,
       weightedPriceUsd:weighted,
-      unweightedPriceUsd:unweighted
+      unweightedPriceUsd:unweighted,
+      exchangeCount:Number(global?.exchange_count||0),
+      marketCount:Number(global?.market_count||0),
+      exchangeIds:Array.isArray(global?.exchanges)?global.exchanges.slice():[]
     };
   }
 
@@ -389,8 +371,10 @@
   }
 
   W.ZZXBitcoinTickerSelection=Object.freeze({
-    __version:8,
+    __version:9,
     weightingMode,
+    nativeRegion,
+    weightsEnabled,
     canonicalUnweighted,
     exchangeMap,
     exchangeEligible,
