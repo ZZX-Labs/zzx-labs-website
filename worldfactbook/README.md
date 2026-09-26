@@ -14,7 +14,7 @@ The page now follows the same structural model used by `/bitcoin/bitnodes/`:
 
 ### ZZX-WorldFactbook
 
-The historical core. Its goal is to preserve the public World Factbook corpus from 1962 through 2025, including country/territory records, leaders, maps, images, historical Fact of the Day and Image of the Day material, and other recoverable public features.
+The historical core. Its goal is to preserve the public World Factbook corpus from 1962 through the final CIA web-era material, plus separately attributed manually entered continuation/print editions through 2027. It includes country/territory records, leaders, maps, images, historical Fact of the Day and Image of the Day material, and other recoverable public features.
 
 Historical source credit is retained for the Central Intelligence Agency and *The World Factbook*. ZZX-Labs is an independent preservation/continuation project and does not claim CIA affiliation or endorsement.
 
@@ -29,6 +29,13 @@ The historical and British layers plus globally sourced public records such as U
 ### ZZX-HybridWorldFactbook
 
 A provenance-first synthesis layer. TensorFlow models may learn historical organization and editorial style, but factual claims are intended to be retrieved from selected, dated, cited source records. Generated text must remain distinguishable from original historical CIA material.
+
+
+## Ingestion architecture
+
+The corpus crawler is intentionally split into resumable jobs. Text/country-edition extraction is checkpointed in small edition-year shards and publishes each completed shard immediately. Media extraction is not performed inline with the text crawl. Web-era features are preserved by `.github/workflows/zzx-worldfactbook-legacy-features.yml`, and physical/manual editions are normalized by `.github/workflows/zzx-worldfactbook-manual-ingest.yml`.
+
+Physical editions are entered under `worldfactbook/manual/editions/`. The 2025–2026 edition maps to normalized edition year `2026`; the 2026–2027 edition maps to `2027`. Their source provenance remains explicitly `manual-book` and is never rewritten as CIA web provenance.
 
 ## Current API compatibility
 
@@ -55,7 +62,7 @@ Missing feature indexes are reported as pending; the page does not fabricate rep
 - `js/partials.js` — local WorldFactbook header/footer injection
 - `js/navigation.js` — local navigation and section highlighting
 - `js/archive.js` — archive normalization
-- `js/timeline.js` — 1962–2025 coverage timeline and edition inspector
+- `js/timeline.js` — 1962–2027 coverage timeline and edition inspector (CIA archival material and separately labeled manual continuation editions)
 - `js/status.js` — live landing metrics
 - `js/leaders.js` — leaders/heads-of-state capability probe
 - `js/daily-fact.js` — historical Fact of the Day capability probe
@@ -95,6 +102,10 @@ media objects under `/worldfactbook/media/`.
 - `/worldfactbook/api/media/<year>/index.json` — per-edition media records
 - `/worldfactbook/api/attribution-index.json` — attribution inventory
 - `/worldfactbook/api/attributions/<year>/images.json` — per-edition image citations
+- `/worldfactbook/api/leaders/index.json` — recovered World Leaders / heads-of-state snapshots
+- `/worldfactbook/api/facts-of-the-day/index.json` — recovered historical Fact of the Day records
+- `/worldfactbook/api/images-of-the-day/index.json` — recovered historical Image of the Day records
+- `/worldfactbook/api/legacy-features/index.json` — rank-order, appendix, maps, flags, fields, summaries, and other recovered portal-feature captures
 - `/worldfactbook/api/electricity-history.json` — verified Global Power Grid compatibility ledger
 - `/worldfactbook/media/images/<year>/...png` — normalized image files
 - `/worldfactbook/media/metadata/<year>/...json` — image metadata sidecars
@@ -125,6 +136,17 @@ Recovered media uses the crawler filename/citation convention:
 `wfb-{edition}-{entity}-{category}-p{page:04d}-i{index:03d}-{sha12}.png`
 
 The citation key is the filename stem.
+
+
+## Workflows
+
+- `zzx-worldfactbook-crawler.yml` — one-year-at-a-time text/country corpus preservation, newest-first by default. Each completed year is published before the next job begins.
+- `zzx-worldfactbook-manual-ingest.yml` — validates and imports committed physical/manual edition sources without relabeling them as web-archive evidence.
+- `zzx-worldfactbook-legacy-features.yml` — one-year-at-a-time Wayback preservation of World Leaders, Fact of the Day, Image of the Day, and other legacy portal features.
+- `zzx-worldfactbook-media.yml` — one-edition-at-a-time book/media extraction, isolated from the text crawl so image work cannot block corpus progress.
+- `zzx-worldfactbook-archive-sync.yml` — independent Global Power Grid/electricity compatibility ledger. It is intentionally not a gate on the main corpus workflow.
+
+The World Factbook workflows use system Python, OS-provided archival tools, native Git, and standard shell commands. They do not require Node.js, npm, React, or Node-backed GitHub Actions.
 
 ## Hosting
 
