@@ -1,5 +1,5 @@
 {
-  "schema": "zzx-sovereign-source-urls-v1",
+  "schema": "zzx-sovereign-source-urls-v2",
   "refresh_interval_ms": 21600000,
   "sources": [
     {
@@ -42,7 +42,21 @@
       "url": "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page[size]=1",
       "adapter": "us_treasury",
       "enabled": true
+    },
+    {
+      "id": "world_bank_exports_usd",
+      "indicator": "NE.EXP.GNFS.CD",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NE.EXP.GNFS.CD?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
+    },
+    {
+      "id": "world_bank_imports_usd",
+      "indicator": "NE.IMP.GNFS.CD",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NE.IMP.GNFS.CD?format=json&per_page=20000&mrnev=10",
+      "adapter": "world_bank_indicator",
+      "enabled": true
     }
   ],
-  "notes": "World Bank WDI series provide broad cross-country estimates. U.S. Treasury supersedes the World Bank estimate for U.S. debt. Missing values remain unavailable."
+  "notes": "World Bank WDI provides broad cross-country GDP, debt, reserves, imports and exports. U.S. Treasury supersedes the World Bank estimate for U.S. debt. Missing values remain unavailable; values are never fabricated."
 }
