@@ -40,12 +40,50 @@ def main()->int:
     catalog=load("__partials/widgets/bitcoin-ticker/reference-catalog.json")
     labels=[p["label"] for p in sorted(catalog["pages"],key=lambda x:x["order"])]
     expected=[
-        "Tobacco","Alcohol","Cannabis","Kief & Hash","Concentrates","Commodities",
-        "Precious Metals","Semi Precious Metals","Precious Gem Stones",
-        "Semi Precious Gem Stones","Collectibles","Water","Oil","Fuels",
-        "Power/Energy","Arms","Ammo",
+        "Tobacco","Alcohol","Cannabis","Kief & Hashish","Concentrates","Edibles",
+        "Drugs","RX Drugs","Commodities","Precious Metals","Semi Precious Metals",
+        "Precious Gem Stones","Semi Precious Gem Stones","Collectibles","Fine Art",
+        "Vehicles","Ships","Planes","Water","Oil","Fuels","Power/Energy",
+        "Cost per Watt by Energy Form","Ammo","Arms","Military Equipment",
+        "Military Vehicles","Military Heavy Vehicles","Military Aircraft","Military Ships",
+        "Military Munitions","Military Air Defense Munitions",
+        "Drones, UAVs, FPVs, Fixed Wing","UMVs, Sub Drones, ROV Drones","UGVs & Robotics",
     ]
     assert labels==expected, f"purchasing-power order mismatch: {labels!r}"
+    assert catalog.get("page_count")==35
+    assert catalog.get("item_count",0)>=700
+    assert catalog.get("reference_market")=="US"
+    assert catalog.get("reference_currency")=="USD"
+    page_ids={p["id"] for p in catalog["pages"]}
+    item_ids={item["id"] for item in catalog["items"]}
+    assert len(item_ids)==len(catalog["items"]), "duplicate purchasing-power item ids"
+    for pid in page_ids:
+        assert any(item.get("page")==pid for item in catalog["items"]), f"empty purchasing-power page {pid}"
+    for item in catalog["items"]:
+        base=item.get("derived_from")
+        if base:
+            assert base in item_ids, f"unknown derived base {base} for {item['id']}"
+            assert float(item.get("derived_factor") or 0)>0
+    registry=load("bitcoin/bpi/api/reference_national_source_registry.json")
+    assert registry.get("default_country")=="US"
+    assert registry.get("reference_currency")=="USD"
+    assert registry.get("page_count")==35
+    assert {row.get("page") for row in registry.get("sources",[])}==page_ids
+    restricted_pages={
+        "drugs","ammo","arms","military-munitions",
+        "military-air-defense-munitions"
+    }
+    for pid in restricted_pages:
+        rows=[i for i in catalog["items"] if i.get("page")==pid]
+        assert rows and all(i.get("restricted_reference") is True for i in rows)
+
+    widget_js=(ROOT/"__partials/widgets/bitcoin-ticker/widget.js").read_text(encoding="utf-8")
+    panels_js=(ROOT/"__partials/widgets/bitcoin-ticker/js/panels.js").read_text(encoding="utf-8")
+    purchasing_js=(ROOT/"__partials/widgets/bitcoin-ticker/js/purchasing-power.js").read_text(encoding="utf-8")
+    assert "PurchasingPowerRegistry" not in widget_js, "per-category JS registry must not return"
+    assert "purchasing-power/registry.js" not in widget_js
+    assert "references?.pages" in panels_js, "panel navigation must be data-driven from catalog pages"
+    assert "bitcoin-ticker__reference-group" in purchasing_js, "purchasing-power group headings missing"
 
     exchanges=load("bitcoin/bpi/api/exchanges.json")["sources"]
     providers=load("bitcoin/bpi/api/provider_urls.json")["providers"]
