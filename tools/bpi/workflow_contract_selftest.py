@@ -68,6 +68,8 @@ def main() -> int:
     require('static_history_flush_ms' in collector and 'flush_static_history' in collector, 'throttled static history flush missing')
     require('compact=True' in collector, 'compact static history serialization missing')
     require('history-live.json' not in publisher.split('DEFAULT_FILES =',1)[1].split(')',1)[0], 'high-frequency publisher must not commit history-live.json')
+    require('Global weighted BPI' in wf, 'post-capture validator must require positive Global weighted BPI')
+    require('Global unweighted BPI' in wf, 'post-capture validator must require positive Global unweighted BPI')
     require('merge_history' in publisher and 'newest_payload' in publisher, 'live publication merge guards missing')
     require('Restart=always' in service and 'StartLimitIntervalSec=0' in service, 'resident BPI restart-forever contract missing')
     require('ZZX_BPI_CYCLE_MS=2500' in service, 'resident service cycle contract missing')
