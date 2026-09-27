@@ -1,15 +1,16 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPanels?.__version>=6)return;
+  if(W.ZZXBitcoinTickerPanels?.__version>=7)return;
 
   const KEY="zzx.widget.bitcoin-ticker.panels.v1";
 
-  function categoryButtons(){
+  function categoryButtons(root){
+    const pages=root?.__zzxBitcoinTickerState?.references?.pages||[];
     return [
       {id:"fx",label:"Exchange Rates",panel:"fx"},
       {id:"exchanges",label:"Exchanges",panel:"exchanges"},
-      ...(W.ZZXBitcoinTickerPurchasingPower?.navigation?.()||[]),
+      ...(W.ZZXBitcoinTickerPurchasingPower?.navigation?.(pages)||[]),
       {id:"debts",label:"National Debts",panel:"debts"},
       {id:"balances",label:"National Balances",panel:"balances"},
       {id:"widgets",label:"Widget Modules",panel:"widgets"},
@@ -57,7 +58,7 @@
     nav.replaceChildren();
     const saved=safeLoad();
 
-    for(const spec of categoryButtons()){
+    for(const spec of categoryButtons(root)){
       const b=D.createElement("button");
       b.type="button";
       b.className="bitcoin-ticker__panel-toggle";
@@ -93,6 +94,6 @@
   }
 
   W.ZZXBitcoinTickerPanels=Object.freeze({
-    __version:6,categoryButtons,mount,update,setPanel,openReferencePage
+    __version:7,categoryButtons,mount,update,setPanel,openReferencePage
   });
 })();
