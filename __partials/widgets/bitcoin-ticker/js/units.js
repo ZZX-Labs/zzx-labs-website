@@ -4,7 +4,7 @@
   if(W.ZZXBitcoinTickerUnits?.__version>=7)return;
 
   /*
-   * Canonical ticker denomination ladder.
+   * Canonical Bitcoin denomination ladder.
    * btc = number of BTC represented by one displayed unit.
    *
    * 1 Ksat = 1,000 sat = 0.00001 BTC = 10 μBTC.
@@ -12,7 +12,7 @@
    * 1 μsat = 0.000001 sat (display/accounting only; not an on-chain unit).
    */
   const units=Object.freeze([
-    {id:"kbtc",label:"1 kBTC",code:"kBTC",btc:1e3},
+    {id:"kbtc",label:"1 KBTC",code:"KBTC",btc:1e3},
     {id:"btc", label:"1 BTC", code:"BTC", btc:1},
     {id:"mbtc",label:"1 mBTC",code:"mBTC",btc:1e-3},
     {id:"ksat",label:"1 Ksat",code:"Ksat",btc:1e-5},
@@ -30,11 +30,12 @@
   }
 
   function bestBtcUnit(btcAmount){
-    const a=Math.abs(finite(btcAmount));
+    const amount=finite(btcAmount);
+    const a=Math.abs(amount);
     if(!Number.isFinite(a))return null;
 
     const candidates=[
-      {label:"kBTC",factor:1e-3},
+      {label:"KBTC",factor:1e-3},
       {label:"BTC",factor:1},
       {label:"mBTC",factor:1e3},
       {label:"Ksat",factor:1e5},
@@ -46,12 +47,17 @@
 
     for(const c of candidates){
       const v=a*c.factor;
-      if(v>=1&&v<1000000)return {label:c.label,value:btcAmount*c.factor};
+      if(v>=1&&v<1000000)return {label:c.label,value:amount*c.factor};
     }
 
     const last=candidates[candidates.length-1];
-    return {label:last.label,value:btcAmount*last.factor};
+    return {label:last.label,value:amount*last.factor};
   }
 
-  W.ZZXBitcoinTickerUnits=Object.freeze({__version:7,units,value,bestBtcUnit});
+  W.ZZXBitcoinTickerUnits=Object.freeze({
+    __version:7,
+    units,
+    value,
+    bestBtcUnit
+  });
 })();
