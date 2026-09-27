@@ -16,7 +16,7 @@ on:
       capture_seconds:
         description: "Overlapping live BTC price/volume capture window"
         required: false
-        default: "480"
+        default: "330"
         type: string
       poll_cycle_ms:
         description: "GitHub fallback poll cycle in ms; must be 2500-5000"
@@ -34,7 +34,7 @@ on:
       capture_seconds:
         required: false
         type: string
-        default: "480"
+        default: "330"
       poll_cycle_ms:
         required: false
         type: string
@@ -64,18 +64,21 @@ permissions:
 
 # Deliberately no workflow-level concurrency lock: overlapping collectors are
 # the continuity mechanism. bpi_live_publish.py makes publication monotonic and
-# merges history-live buckets on every push retry so an older runner cannot
-# regress the public state.
+# publishes only lightweight current-state JSON on every fallback run.  The
+# 1-minute history mirror is archived by the hourly checkpoint, avoiding a
+# multi-megabyte Git commit every five minutes.
 
 jobs:
   live_market:
     name: Continuous BTC Price + Volume Fallback
     runs-on: ubuntu-24.04
-    timeout-minutes: 14
+    timeout-minutes: 20
     env:
       PYTHONUNBUFFERED: "1"
-      BPI_CAPTURE_SECONDS: ${{ inputs.capture_seconds || '480' }}
+      BPI_CAPTURE_SECONDS: ${{ inputs.capture_seconds || '330' }}
       BPI_POLL_CYCLE_MS: ${{ inputs.poll_cycle_ms || '2500' }}
+      BPI_COLLECTOR_GRACE_SECONDS: "90"
+      BPI_PUBLISH_HARD_LIMIT_SECONDS: "180"
 
     steps:
       - name: Checkout newest main (native Git; no JavaScript action)
@@ -147,28 +150,42 @@ jobs:
           python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
           python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
 
-      - name: Enforce 2.5-5 second live polling contract
+      - name: Enforce bounded live fallback contract
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import os
-          value=int(os.environ["BPI_POLL_CYCLE_MS"])
-          if not 2500 <= value <= 5000:
-              raise SystemExit(f"BPI_POLL_CYCLE_MS must be 2500-5000, got {value}")
-          print(f"GitHub fallback market polling cycle: {value} ms")
+          cycle=int(os.environ["BPI_POLL_CYCLE_MS"])
+          capture=int(float(os.environ["BPI_CAPTURE_SECONDS"]))
+          grace=int(os.environ["BPI_COLLECTOR_GRACE_SECONDS"])
+          if not 2500 <= cycle <= 5000:
+              raise SystemExit(f"BPI_POLL_CYCLE_MS must be 2500-5000, got {cycle}")
+          if not 60 <= capture <= 600:
+              raise SystemExit(f"BPI_CAPTURE_SECONDS must be 60-600, got {capture}")
+          if grace < 30:
+              raise SystemExit(f"BPI_COLLECTOR_GRACE_SECONDS must be >=30, got {grace}")
+          print(f"GitHub fallback market polling cycle: {cycle} ms")
+          print(f"GitHub fallback capture window: {capture} s")
+          print(f"Collector hard wall-clock limit: {capture + grace} s")
           PY
 
-      - name: Run overlapping live price and volume collector
+      - name: Run bounded overlapping live price and volume collector
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/bpi/collector.py \
-            --root . \
-            --duration-seconds "${BPI_CAPTURE_SECONDS}" \
-            --cycle-ms "${BPI_POLL_CYCLE_MS}" \
-            --market-stale-after-ms 15000 \
-            --status-file bitcoin/bpi/api/collector_run_status.json
+          hard_limit="$(( BPI_CAPTURE_SECONDS + BPI_COLLECTOR_GRACE_SECONDS ))"
+          timeout \
+            --preserve-status \
+            --signal=TERM \
+            --kill-after=20s \
+            "${hard_limit}s" \
+            python3 tools/bpi/collector.py \
+              --root . \
+              --duration-seconds "${BPI_CAPTURE_SECONDS}" \
+              --cycle-ms "${BPI_POLL_CYCLE_MS}" \
+              --market-stale-after-ms 15000 \
+              --status-file bitcoin/bpi/api/collector_run_status.json
 
       - name: Validate fresh live BPI output
         shell: bash
@@ -220,12 +237,17 @@ jobs:
           set -euo pipefail
           git config user.name "zzx-bpi-live-bot"
           git config user.email "actions@github.com"
-          python3 tools/bpi/bpi_live_publish.py \
-            --root . \
-            --message "Update continuous live BPI checkpoint" \
-            --attempts 6 \
-            --sleep-seconds 3 \
-            --keep-history 1440
+          timeout \
+            --preserve-status \
+            --signal=TERM \
+            --kill-after=10s \
+            "${BPI_PUBLISH_HARD_LIMIT_SECONDS}s" \
+            python3 tools/bpi/bpi_live_publish.py \
+              --root . \
+              --message "Update continuous live BPI checkpoint" \
+              --attempts 4 \
+              --sleep-seconds 2 \
+              --keep-history 1440
 
   archive_checkpoint:
     name: Optional Full BPI Archive Checkpoint
@@ -233,7 +255,7 @@ jobs:
     if: ${{ inputs.run_archive_checkpoint == true }}
     uses: ./.github/workflows/bpi-latest.yml
     with:
-      capture_seconds: ${{ inputs.capture_seconds || '480' }}
+      capture_seconds: ${{ inputs.capture_seconds || '330' }}
     secrets:
       BPI_MARIADB_HOST: ${{ secrets.BPI_MARIADB_HOST }}
       BPI_MARIADB_PORT: ${{ secrets.BPI_MARIADB_PORT }}
