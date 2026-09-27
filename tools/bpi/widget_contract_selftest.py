@@ -70,8 +70,8 @@ def check_ticker_denominations() -> None:
         ("kbtc", "KBTC", "1e3"),
         ("btc", "BTC", "1"),
         ("mbtc", "mBTC", "1e-3"),
-        ("ubtc", "μBTC", "1e-6"),
         ("ksat", "Ksat", "1e-5"),
+        ("ubtc", "μBTC", "1e-6"),
         ("sat", "sat", "1e-8"),
         ("msat", "msat", "1e-11"),
         ("usat", "μsat", "1e-14"),
@@ -89,6 +89,7 @@ def check_ticker_denominations() -> None:
     if positions:
         require(positions == sorted(positions), "ticker denomination order changed")
     require('id:"nbtc"' not in units, "nBTC must not reappear in canonical ticker ladder")
+    require("kBTC" not in units, "lowercase-k kBTC must not reappear; canonical label is KBTC")
 
 
 def check_purchasing_power_contract() -> None:
@@ -170,7 +171,31 @@ def check_purchasing_power_contract() -> None:
     purchasing_js = read_text("__partials/widgets/bitcoin-ticker/js/purchasing-power.js")
     require("PurchasingPowerRegistry" not in widget_js, "per-category JS purchasing-power registry must not return")
     require("purchasing-power/registry.js" not in widget_js, "widget still imports obsolete purchasing-power/registry.js")
-    require("references?.pages" in panels_js, "panel navigation must be data-driven from catalog pages")
+
+    expected_top_level = [
+        "Exchange Rates",
+        "Exchanges",
+        "Conversions",
+        "National Debts",
+        "National Balances",
+        "National Imports",
+        "National Exports",
+        "Widget Modules",
+        "Charts",
+    ]
+    top_level_labels = re.findall(
+        r'\{id:"[^"]+",label:"([^"]+)",panel:"[^"]+"\}',
+        panels_js,
+    )[:9]
+    require(
+        top_level_labels == expected_top_level,
+        f"Bitcoin Ticker top-level panel order mismatch: {top_level_labels!r}",
+    )
+
+    require(
+        "catalogData?.pages" in purchasing_js and "for(const page of data.pages||[])" in purchasing_js,
+        "Conversions subnavigation must be data-driven from catalog pages",
+    )
     require("bitcoin-ticker__reference-group" in purchasing_js, "purchasing-power group headings missing")
 
 
