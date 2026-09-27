@@ -93,6 +93,26 @@ jobs:
             --max-wayback-pages 0 \
             --media-mode none
 
+      - name: Rebuild Global Power Grid databases from updated manual corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/worldfactbook/factbook_archive_sync.py \
+            tools/worldfactbook/global_power_grid_sync.py
+          python3 tools/worldfactbook/global_power_grid_sync.py --self-test
+          python3 tools/worldfactbook/global_power_grid_sync.py \
+            --country-registry __partials/widgets/global-power-grid/data/countries.json \
+            --corpus-root worldfactbook/api/editions \
+            --electricity-output worldfactbook/api/electricity-history.json \
+            --reference-output worldfactbook/api/reference-index.json \
+            --power-grid-output bitcoin/power-grid/api/factbook-history.json \
+            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json \
+            --start-year 1962 \
+            --end-year 2027 \
+            --preserve-existing \
+            | tee worldfactbook/api/global-power-grid-sync-report.json
+
       - name: Publish normalized manual edition
         shell: bash
         run: |
@@ -104,5 +124,10 @@ jobs:
             --message "Ingest manual World Factbook edition ${{ inputs.edition_year }}" \
             --path worldfactbook/api \
             --path worldfactbook/db \
+            --path worldfactbook/api/electricity-history.json \
+            --path worldfactbook/api/reference-index.json \
+            --path worldfactbook/api/global-power-grid-sync-report.json \
+            --path bitcoin/power-grid/api/factbook-history.json \
+            --path __partials/widgets/global-power-grid/data/factbook-history.json \
             --attempts 8 \
             --sleep-seconds 6
