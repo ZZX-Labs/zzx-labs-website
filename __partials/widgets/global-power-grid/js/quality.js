@@ -19,7 +19,7 @@
 
   function edition(value){
     const n=finite(value);
-    return Number.isFinite(n)&&n>=1962&&n<=2025?Math.round(n):NaN;
+    return Number.isFinite(n)&&n>=1962&&n<=2027?Math.round(n):NaN;
   }
 
   function positiveOrMissing(value){
@@ -81,7 +81,9 @@
       "country-page-heading",
       "book-section-heading",
       "filename-country",
-      "manual-verified"
+      "manual-verified",
+      "crawler-entity-code",
+      "crawler-book-section"
     ]);
 
     if(mark.basis&&!strong.has(mark.basis)){
