@@ -24,12 +24,12 @@
     {
       global:"ZZXChartEngine",
       path:"/__partials/widgets/_shared/zzx-chart-engine.js",
-      version:12
+      version:4
     },
     {
       global:"ZZXPrice24HModel",
       path:"js/model.js",
-      version:3,
+      version:2,
       local:true
     }
   ]);
@@ -175,7 +175,7 @@
   function controlState(root){
     return {
       resolution:q(root,"[data-price24-resolution]")?.value||"auto",
-      renderer:q(root,"[data-price24-renderer]")?.value||"candles",
+      renderer:q(root,"[data-price24-renderer]")?.value||"area",
       sma:q(root,"[data-price24-sma]")?.checked!==false,
       ema:q(root,"[data-price24-ema]")?.checked===true,
       follow:q(root,"[data-price24-follow]")?.checked!==false
