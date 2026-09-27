@@ -259,10 +259,10 @@ jobs:
 
           if [ "${repo_set}" = false ] && [ "${token_set}" = false ]; then
             printf '%s\n' \
-              "::notice title=BPI private backup::BPI_BACKUP_REPO and BPI_BACKUP_TOKEN are not configured. Private Git backup is skipped. No JavaScript artifact action is used; configure the private backup sink for durable retention. Live/public BPI is unaffected."
+              "Private BPI backup is not configured; optional private retention is skipped."
           else
             printf '%s\n' \
-              "::notice title=BPI private backup::Private backup configuration is incomplete. Configure both BPI_BACKUP_REPO and BPI_BACKUP_TOKEN. Git backup is skipped. No JavaScript artifact action is used; configure the private backup sink for durable retention. Live/public BPI is unaffected."
+              "::warning title=BPI private backup configuration::Private backup configuration is incomplete. Configure both BPI_BACKUP_REPO and BPI_BACKUP_TOKEN, or leave both unset."
           fi
 
       - name: Backup immutable BPI run to private repository
@@ -345,14 +345,12 @@ jobs:
             "::warning title=BPI private backup::Private Git backup failed after retries. The public BPI pipeline remains valid; no remote artifact fallback is attempted; configure the private backup sink for durable retention."
           exit 1
 
-      - name: Create local BPI emergency archive when private backup is unavailable
+      - name: Create local BPI emergency archive after configured backup failure
         if: >-
           ${{
             always() &&
-            (
-              steps.private_backup_preflight.outputs.enabled != 'true' ||
-              steps.private_backup.outcome != 'success'
-            )
+            steps.private_backup_preflight.outputs.enabled == 'true' &&
+            steps.private_backup.outcome != 'success'
           }}
         shell: bash
         run: |
@@ -361,7 +359,7 @@ jobs:
           if [ -d "${RUNNER_TEMP}/bpi-private-run" ]; then
             tar -C "${RUNNER_TEMP}" -czf "${ARCHIVE}" bpi-private-run
             sha256sum "${ARCHIVE}"
-            printf '%s\n' "::notice title=BPI private retention::No private backup credentials configured. A local runner archive was created for this job only; configure BPI_BACKUP_REPO/BPI_BACKUP_TOKEN for durable remote retention."
+            printf '%s\n' "Local BPI emergency archive created after configured private-backup failure: ${ARCHIVE}"
           fi
       - name: Report private BPI retention status
         if: ${{ always() }}
@@ -383,7 +381,7 @@ jobs:
               ;;
             skipped-auth)
               printf '%s\n' \
-                "::notice title=BPI private retention::Private repository backup skipped because credentials are not configured. No remote artifact fallback is used; live/public BPI is unaffected."
+                "Private BPI retention is disabled because backup credentials are not configured."
               ;;
             *)
               printf '%s\n' \
