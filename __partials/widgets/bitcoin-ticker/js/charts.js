@@ -4,8 +4,8 @@
   if(W.ZZXBitcoinTickerCharts?.__version>=1)return;
 
   const SHARED=[
-    ["ZZXHistoryClient","/__partials/widgets/_shared/zzx-history-client.js"],
-    ["ZZXChartEngine","/__partials/widgets/_shared/zzx-chart-engine.js"]
+    ["ZZXHistoryClient","/__partials/widgets/_shared/zzx-history-client.js",6],
+    ["ZZXChartEngine","/__partials/widgets/_shared/zzx-chart-engine.js",4]
   ];
 
   function resolved(path){return W.ZZXAPI?.url?W.ZZXAPI.url(path):path}
@@ -38,8 +38,11 @@
   }
 
   async function ensureShared(){
-    for(const [name,path] of SHARED){
-      await loadScript(path,()=>!!W[name]);
+    for(const [name,path,version] of SHARED){
+      await loadScript(
+        path,
+        ()=>Number(W[name]?.__version||0)>=Number(version||1)
+      );
     }
   }
 
@@ -193,14 +196,19 @@
       await populateSources(root);
     });
 
-    // Near-real-time update while Chart Lab is open.
+    // Keep Chart Lab responsive without refetching a full multi-thousand-point
+    // history payload every market tick. Live ticker state updates elsewhere;
+    // the historical series is reconciled on a bounded cadence only while the
+    // pane is actually visible.
     async function loop(){
       if(!root.isConnected)return;
       const panel=root.querySelector('[data-panel="charts"]');
-      if(panel&&!panel.hidden)await refresh(root,state);
-      state.refreshTimer=setTimeout(loop,2500);
+      if(D.visibilityState!=="hidden"&&panel&&!panel.hidden){
+        await refresh(root,state);
+      }
+      state.refreshTimer=setTimeout(loop,15000);
     }
-    state.refreshTimer=setTimeout(loop,2500);
+    state.refreshTimer=setTimeout(loop,15000);
 
     return state;
   }
