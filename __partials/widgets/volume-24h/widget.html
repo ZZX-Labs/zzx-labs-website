@@ -4,7 +4,7 @@
     <div>
       <div class="mini-history__title">Volume · 24h</div>
       <div class="mini-history__eyebrow" data-volume24-eyebrow>
-        rolling 24h BTC volume · candlesticks + close line
+        true interval BTC volume + rolling 24h market volume
       </div>
     </div>
 
@@ -30,6 +30,8 @@
         <option value="30s">30 sec</option>
         <option value="1m">1 min</option>
         <option value="5m">5 min</option>
+        <option value="15m">15 min</option>
+        <option value="1h">1 hour</option>
       </select>
     </label>
 
@@ -38,7 +40,7 @@
       <select data-volume24-mode aria-label="Volume chart plotting mode">
         <option value="rolling-line">rolling 24h line</option>
         <option value="interval-bars">actual interval volume bars</option>
-        <option value="interval-bars+rolling">interval bars + rolling 24h line</option>
+        <option value="interval-bars+rolling" selected>interval bars + rolling 24h line</option>
       </select>
     </label>
 
@@ -105,11 +107,6 @@
         actual interval BTC volume
       </span>
 
-      <span>
-        <i class="mini-history__legend-down"></i>
-        interval volume bucket
-      </span>
-
       <span data-volume24-line-legend>
         <i class="mini-history__legend-line"></i>
         rolling 24h volume
@@ -143,6 +140,6 @@
   </div>
 
   <span class="mini-history__sr" id="volume24-help">
-    Candles show the open, high, low, and close of the rolling 24 hour BTC-volume value inside each selected time bucket. The gold line plots the closing rolling-volume value. Mouse wheel or plus and minus keys zoom. Drag or left and right arrow keys pan. Double click, Escape, or zero resets zoom.
+    Bars show actual BTC traded inside each returned interval. The gold line shows the independent upstream rolling 24 hour BTC-volume statistic. These quantities are never substituted for each other. Mouse wheel or plus and minus keys zoom. Drag or left and right arrow keys pan. Double click, Escape, or zero resets zoom.
   </span>
 </div>
