@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=11)return;
+  if(W.ZZXBitAvgModel?.__version>=10)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -949,9 +949,6 @@
       try{
         const modern=
           W.localStorage.getItem(
-            "zzx.bpi.weighting.mode.v3"
-          ) ||
-          W.localStorage.getItem(
             "zzx.bpi.weighting.mode.v2"
           );
 
@@ -968,23 +965,22 @@
             "zzx.bpi.weights.enabled.v1"
           );
 
-        return legacy==="false"
-          ? "off"
-          : "global-bpi";
+        // Legacy boolean did not encode whether local BPI or Global BPI
+        // was intended. Only an explicit modern scoped mode is authoritative.
+        return "off";
       }catch(_){
-        return "global-bpi";
+        return "off";
       }
     })();
 
-    const weightsEnabled=
-      weightingMode!=="off";
+    const bpiWeightsEnabled=
+      weightingMode==="bpi";
 
-    // The BitAvg selector is scope-specific:
-    // OFF        -> native BPI unweighted + Global BPI unweighted
-    // BPI        -> native/local BPI weighted; Global BPI remains unweighted
-    // GLOBAL BPI -> Global BPI weighted; native/local BPI remains unweighted
-    const bpiWeightsEnabled=weightingMode==="bpi";
-    const globalWeightsEnabled=weightingMode==="global-bpi";
+    const globalWeightsEnabled=
+      weightingMode==="global-bpi";
+
+    const weightsEnabled=
+      bpiWeightsEnabled||globalWeightsEnabled;
 
     const globalBpi=
       globalWeightsEnabled && Number.isFinite(backendGlobalWeighted)
@@ -1168,5 +1164,5 @@
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:11,build,sanityGate});
+  W.ZZXBitAvgModel=Object.freeze({__version:10,build,sanityGate});
 })();
