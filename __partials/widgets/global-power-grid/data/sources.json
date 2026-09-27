@@ -2,9 +2,23 @@
   "schema": "zzx-global-power-grid-source-registry-v1",
   "historical": [
     {
-      "id": "cia-world-factbook",
+      "id": "zzx-worldfactbook-corpus",
       "role": "historical_baseline",
-      "through_year": 2025,
+      "through_year": 2027,
+      "origin_layers": [
+        {
+          "id": "cia-world-factbook-public-archive",
+          "through_year": 2025
+        },
+        {
+          "id": "manual-book-continuation",
+          "years": [
+            2026,
+            2027
+          ],
+          "requires_explicit_provenance": true
+        }
+      ],
       "fields": [
         "electricity_generation_kwh",
         "electricity_consumption_kwh",
