@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerUnits?.__version>=7)return;
+  if(W.ZZXBitcoinTickerUnits?.__version>=8)return;
 
   /*
    * Canonical Bitcoin denomination ladder.
@@ -55,7 +55,7 @@
   }
 
   W.ZZXBitcoinTickerUnits=Object.freeze({
-    __version:7,
+    __version:8,
     units,
     value,
     bestBtcUnit
