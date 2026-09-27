@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerSelection?.__version>=9)return;
+  if(W.ZZXBitcoinTickerSelection?.__version>=10)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
@@ -31,6 +31,9 @@
 
     try{
       const modern=
+        W.localStorage.getItem(
+          "zzx.bpi.weighting.mode.v3"
+        ) ||
         W.localStorage.getItem(
           "zzx.bpi.weighting.mode.v2"
         );
@@ -205,8 +208,17 @@
     return /^[A-Z]{2,8}$/.test(candidate)?candidate:"US";
   }
 
-  function weightsEnabled(){
-    return weightingMode()!=="off";
+  function weightsEnabled(scope){
+    const target=String(scope||"");
+    if(W.ZZXBPIWeightingController?.isWeighted){
+      if(target==="bpi"||target==="global-bpi"){
+        return !!W.ZZXBPIWeightingController.isWeighted(target);
+      }
+    }
+    const mode=weightingMode();
+    if(target==="bpi")return mode==="bpi";
+    if(target==="global-bpi")return mode==="global-bpi";
+    return mode!=="off";
   }
 
   /*
@@ -238,7 +250,7 @@
       native?.unweighted_price_usd ??
       latest?.weighted_average?.unweighted_price_usd
     );
-    const useWeighted=weightsEnabled();
+    const useWeighted=weightsEnabled("bpi");
     const p=useWeighted&&Number.isFinite(weighted)
       ? weighted
       : Number.isFinite(unweighted)
@@ -283,7 +295,7 @@
       global?.unweighted_price_usd ??
       published?.unweighted_price_usd
     );
-    const useWeighted=weightsEnabled();
+    const useWeighted=weightsEnabled("global-bpi");
     const p=useWeighted&&Number.isFinite(weighted)
       ? weighted
       : Number.isFinite(unweighted)
@@ -371,7 +383,7 @@
   }
 
   W.ZZXBitcoinTickerSelection=Object.freeze({
-    __version:9,
+    __version:10,
     weightingMode,
     nativeRegion,
     weightsEnabled,
