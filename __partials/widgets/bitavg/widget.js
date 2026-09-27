@@ -86,12 +86,12 @@
 
     const modules=[
       ["ZZXBitAvgConstants","js/constants.js",6],
-      ["ZZXBPIWeightingController","js/weighting.js",3],
+      ["ZZXBPIWeightingController","js/weighting.js",1],
       ["ZZXBitAvgFetch","js/fetch.js",5],
       ["ZZXBitAvgFX","js/fx.js",5],
-      ["ZZXBitAvgModel","js/model.js",11],
+      ["ZZXBitAvgModel","js/model.js",10],
       ["ZZXBitAvgProvider","js/provider.js",9],
-      ["ZZXBitAvgPublisher","js/publisher.js",10]
+      ["ZZXBitAvgPublisher","js/publisher.js",9]
     ];
 
     for(
@@ -346,10 +346,10 @@
     const weightingEnabled=weightingMode!=="off";
     const displayPrice=
       weightingMode==="bpi"
-        ? m.bpi
+        ? (weightingEnabled?m.canonicalBpiWeighted:m.canonicalBpiUnweighted)
         : weightingMode==="global-bpi"
-          ? m.globalBpi
-          : m.canonicalBpiUnweighted;
+          ? (weightingEnabled?m.weightedBpi:m.unweightedBpi)
+          : m.unweightedBpi;
 
     set(root,"[data-bitavg-price]",usd(displayPrice));
 
@@ -366,24 +366,11 @@
     set(
       root,
       "[data-bitavg-weight-mode]",
-      weightingMode==="bpi"
-        ? `BPI weighted ${usd(m.canonicalBpiWeighted)} · Global unweighted ${usd(m.unweightedBpi)}`
-        : weightingMode==="global-bpi"
-          ? `BPI unweighted ${usd(m.canonicalBpiUnweighted)} · Global weighted ${usd(m.weightedBpi)}`
-          : `weights OFF · BPI ${usd(m.canonicalBpiUnweighted)} · Global ${usd(m.unweightedBpi)}`
+      `BPI ${m.bpiWeightsEnabled?"weighted":"unweighted"} ${usd(m.bpiWeightsEnabled?m.canonicalBpiWeighted:m.canonicalBpiUnweighted)} · `+
+      `Global ${m.globalWeightsEnabled?"weighted":"unweighted"} ${usd(m.globalWeightsEnabled?m.weightedBpi:m.unweightedBpi)}`
     );
 
     syncWeightSwitch(root,weightingMode);
-    set(
-      root,
-      "[data-bitavg-native-active]",
-      `${usd(m.bpi)} · ${m.bpiWeightsEnabled?"weighted":"unweighted"}`
-    );
-    set(
-      root,
-      "[data-bitavg-global-active]",
-      `${usd(m.globalBpi)} · ${m.globalWeightsEnabled?"weighted":"unweighted"}`
-    );
     set(root,"[data-bitavg-exchanges]",String(m.exchanges.length));
     set(root,"[data-bitavg-currencies]",String(m.currencies.length));
     set(
@@ -457,8 +444,7 @@
     renderRows(root,state);
 
     W.ZZXBitAvgLatest={
-      bpi_usd:m.bpi,
-      global_bpi_usd:m.globalBpi,
+      bpi_usd:m.globalBpi,
       weighted_bpi_usd:m.weightedBpi,
       unweighted_bpi_usd:m.unweightedBpi,
       canonical_bpi_weighted_usd:m.canonicalBpiWeighted,
