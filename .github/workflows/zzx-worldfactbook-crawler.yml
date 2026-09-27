@@ -241,3 +241,121 @@ jobs:
             --path worldfactbook/db \
             --attempts 8 \
             --sleep-seconds 6
+
+  rebuild_global_power_grid:
+    name: Rebuild Global Power Grid from Factbook corpus
+    needs: corpus_shard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout newest main with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --prune --no-tags origin main
+          git checkout --force -B main origin/main
+          git clean -fdx
+
+      - name: Rebuild Global Power Grid compatibility databases from corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/worldfactbook/factbook_archive_sync.py \
+            tools/worldfactbook/global_power_grid_sync.py
+          python3 tools/worldfactbook/global_power_grid_sync.py --self-test
+          python3 tools/worldfactbook/global_power_grid_sync.py \
+            --country-registry __partials/widgets/global-power-grid/data/countries.json \
+            --corpus-root worldfactbook/api/editions \
+            --electricity-output worldfactbook/api/electricity-history.json \
+            --reference-output worldfactbook/api/reference-index.json \
+            --power-grid-output bitcoin/power-grid/api/factbook-history.json \
+            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json \
+            --start-year 1962 \
+            --end-year 2027 \
+            --preserve-existing \
+            | tee worldfactbook/api/global-power-grid-sync-report.json
+
+      - name: Validate rebuilt Global Power Grid databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          ledgers = [
+              Path('worldfactbook/api/electricity-history.json'),
+              Path('bitcoin/power-grid/api/factbook-history.json'),
+              Path('__partials/widgets/global-power-grid/data/factbook-history.json'),
+          ]
+          payloads=[]
+          for path in ledgers:
+              if not path.is_file() or path.stat().st_size <= 0:
+                  raise SystemExit(f'missing/empty Global Power Grid ledger: {path}')
+              data=json.loads(path.read_text(encoding='utf-8'))
+              if data.get('schema') != 'zzx-global-power-grid-factbook-history-v2':
+                  raise SystemExit(f'bad Global Power Grid schema: {path}: {data.get("schema")}')
+              if int(data.get('scan_end_year') or 0) != 2027:
+                  raise SystemExit(f'Global Power Grid range not extended through 2027: {path}')
+              payloads.append(data)
+
+          canonical=json.dumps(payloads[0], sort_keys=True, separators=(',',':'))
+          for path,data in zip(ledgers[1:],payloads[1:]):
+              if json.dumps(data, sort_keys=True, separators=(',',':')) != canonical:
+                  raise SystemExit(f'Global Power Grid ledger copies diverged: {path}')
+
+          records=payloads[0].get('records') or []
+          if not records:
+              raise SystemExit('Global Power Grid ledger has zero records')
+          bad=[]
+          for row in records:
+              quality=row.get('quality') or {}
+              if str(quality.get('status') or '').lower() != 'verified':
+                  bad.append((row.get('country'),row.get('edition_year'),'status'))
+              if int(quality.get('parser_version') or 0) < 2:
+                  bad.append((row.get('country'),row.get('edition_year'),'parser'))
+          if bad:
+              raise SystemExit(f'unverified Global Power Grid records: {bad[:10]}')
+
+          ref=Path('worldfactbook/api/reference-index.json')
+          ref_data=json.loads(ref.read_text(encoding='utf-8'))
+          if ref_data.get('schema') != 'zzx-worldfactbook-reference-index-v2':
+              raise SystemExit('bad reference-index schema')
+          if int(ref_data.get('scan_end_year') or 0) != 2027:
+              raise SystemExit('reference-index range not extended through 2027')
+
+          print(
+              'Global Power Grid corpus rebuild validated:',
+              f"records={len(records)}",
+              f"countries={payloads[0].get('country_count')}",
+              f"latest={payloads[0].get('latest_edition')}",
+              f"missing={payloads[0].get('corpus_missing_years')}",
+          )
+          PY
+
+      - name: Publish Global Power Grid databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-worldfactbook-bot"
+          git config user.email "actions@github.com"
+          python3 tools/bpi/bpi_git_publish.py \
+            --root . \
+            --message "Rebuild Global Power Grid from World Factbook corpus" \
+            --path worldfactbook/api/electricity-history.json \
+            --path worldfactbook/api/reference-index.json \
+            --path worldfactbook/api/global-power-grid-sync-report.json \
+            --path bitcoin/power-grid/api/factbook-history.json \
+            --path __partials/widgets/global-power-grid/data/factbook-history.json \
+            --path __partials/widgets/global-power-grid/data/worldfactbook-source-catalog.json \
+            --path __partials/widgets/global-power-grid/data/sources.json \
+            --attempts 8 \
+            --sleep-seconds 6
