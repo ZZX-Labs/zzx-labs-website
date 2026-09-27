@@ -71,9 +71,14 @@ def nonnegative(value: Any) -> float:
     return n if math.isfinite(n) and n >= 0 else math.nan
 
 
-def atomic_json(path: Path, obj: Any) -> None:
+def atomic_json(path: Path, obj: Any, *, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = json.dumps(obj, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    if compact:
+        data = json.dumps(
+            obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        ) + "\n"
+    else:
+        data = json.dumps(obj, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -475,18 +480,53 @@ class Collector:
             if isinstance(previous_static, dict) and isinstance(previous_static.get("series"), dict)
             else {}
         )
+        self.static_history_flush_ms = max(
+            15_000, int(self.config.get("static_history_flush_ms") or 60_000)
+        )
+        self.next_static_history_flush = 0.0
 
     def refresh_fx(self, now: float) -> None:
         if now < self.next_fx:
             return
 
+        enabled_sources = [
+            source
+            for source in sorted(
+                self.fx_source_cfg.get("sources", []),
+                key=lambda x: x.get("priority", 999),
+            )
+            if source.get("enabled", True)
+        ]
+
+        # Fetch FX providers concurrently.  A serial FX refresh can consume
+        # N * request_timeout_seconds every minute and stall the otherwise
+        # 2.5-second market loop.  Results are still merged in configured
+        # priority order, so concurrency does not change source precedence.
+        fetched: dict[str, FetchResult] = {}
+        if enabled_sources:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=min(self.max_workers, len(enabled_sources))
+            ) as pool:
+                jobs = {
+                    pool.submit(self.client.get, source["id"], source["url"]): source
+                    for source in enabled_sources
+                }
+                for future in concurrent.futures.as_completed(jobs):
+                    source = jobs[future]
+                    try:
+                        fetched[source["id"]] = future.result()
+                    except Exception as exc:
+                        fetched[source["id"]] = FetchResult(
+                            provider_id=source["id"],
+                            ok=False,
+                            error=str(exc),
+                        )
+
         merged = {"USD": 1.0}
         providers = []
-        for source in sorted(self.fx_source_cfg.get("sources", []), key=lambda x: x.get("priority", 999)):
-            if not source.get("enabled", True):
-                continue
-            result = self.client.get(source["id"], source["url"])
-            if not result.ok:
+        for source in enabled_sources:
+            result = fetched.get(source["id"])
+            if result is None or not result.ok:
                 continue
             try:
                 rates = parse_fx(source["adapter"], result.payload)
@@ -915,12 +955,33 @@ class Collector:
                     row.get("low_24h"),
                 )
 
-        atomic_json(self.static_history_path, {
-            "schema": "zzx-bpi-history-live-v1",
-            "updated_at": utcnow(),
-            "resolution": "1m-live-close",
-            "series": self.static_history,
-        })
+        self.flush_static_history()
+
+    def flush_static_history(self, *, force: bool = False) -> bool:
+        """Persist the 1-minute static fallback without blocking every tick.
+
+        High-resolution observations are committed to SQLite every collection
+        cycle.  ``history-live.json`` is explicitly a 1-minute fallback, so
+        serializing/fsyncing the entire multi-megabyte 24h mirror every 2.5
+        seconds only burns CPU/I/O and can make hosted fallback jobs miss their
+        deadline.  Flush at most once per configured interval and once on exit.
+        """
+        now = time.monotonic()
+        if not force and now < self.next_static_history_flush:
+            return False
+
+        atomic_json(
+            self.static_history_path,
+            {
+                "schema": "zzx-bpi-history-live-v1",
+                "updated_at": utcnow(),
+                "resolution": "1m-live-close",
+                "series": self.static_history,
+            },
+            compact=True,
+        )
+        self.next_static_history_flush = now + self.static_history_flush_ms / 1000.0
+        return True
 
     def write_price_snapshots(self, markets: list[dict[str, Any]]) -> None:
         # Remove invalid/non-finite values before JSON serialization.
@@ -1522,6 +1583,10 @@ class Collector:
                 remaining = min(remaining, max(0.0, deadline - time.monotonic()))
             if remaining:
                 time.sleep(remaining)
+
+        # Persist the final in-memory minute bucket even when the regular
+        # static-history flush interval has not elapsed yet.
+        self.flush_static_history(force=True)
 
         result = {
             "schema": "zzx-bpi-collector-run-v1",
