@@ -171,14 +171,17 @@ jobs:
             exit 0
           fi
           if ! python3 -m py_compile "${test_file}"; then
-            printf '%s\n' '::warning title=BPI widget contract compile failure::Widget integration validation failed; live BPI collection will continue.'
+            printf '%s\n' '::warning title=BPI widget contract compile failure::tools/bpi/widget_contract_selftest.py does not compile; live BPI collection will continue.'
             exit 0
           fi
-          if ! python3 "${test_file}"; then
-            printf '%s\n' '::warning title=BPI widget contract failure::Widget integration validation failed; live BPI collection will continue.'
-            exit 0
+          if python3 "${test_file}"; then
+            printf '%s\n' 'BPI widget integration contract: PASS'
+          else
+            # The checker itself emits one precise GitHub annotation per failed
+            # static contract. Do not replace those diagnostics with an opaque
+            # generic failure. Widget validation remains non-blocking for BPI.
+            printf '%s\n' 'BPI widget integration contract reported one or more static mismatches; live BPI collection will continue.'
           fi
-          printf '%s\n' 'BPI widget integration contract: PASS'
 
       - name: Enforce bounded live fallback contract
         shell: bash
