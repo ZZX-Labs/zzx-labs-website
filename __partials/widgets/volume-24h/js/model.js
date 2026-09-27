@@ -3,7 +3,7 @@
 
   const W=window;
 
-  if(W.ZZXVolume24HModel?.__version>=2)return;
+  if(W.ZZXVolume24HModel?.__version>=3)return;
 
   const DAY_MS=24*60*60*1000;
 
@@ -486,12 +486,17 @@
         "bpi"
       );
 
+    const mode=String(selection?.weightingMode||"off");
     const weighted=
       selection?.weightingApplied != null
         ? !!selection.weightingApplied
         : selection?.weightsEnabled != null
           ? !!selection.weightsEnabled
-          : selection?.weightingMode !== "off";
+          : sourceType==="global-bpi"
+            ? mode==="global-bpi"
+            : sourceType==="bpi"
+              ? mode==="bpi"
+              : true;
 
     if(sourceType==="global-bpi"){
       return {
@@ -612,7 +617,7 @@
 
   W.ZZXVolume24HModel=
     Object.freeze({
-      __version:2,
+      __version:3,
       DAY_MS,
       normalize,
       selectionPoint,
