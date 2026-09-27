@@ -10,7 +10,7 @@
   const LEDGER_KEY="electricity-ledger-v2";
   const EDITIONS_KEY="electricity-editions-v2";
   const START_YEAR=1962;
-  const END_YEAR=2025;
+  const END_YEAR=2027;
 
   const IA_SEARCH="https://archive.org/advancedsearch.php";
   const IA_METADATA="https://archive.org/metadata/";
