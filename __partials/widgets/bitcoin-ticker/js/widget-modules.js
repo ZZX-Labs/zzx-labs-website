@@ -1,9 +1,9 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerWidgetModules?.__version>=2)return;
+  if(W.ZZXBitcoinTickerWidgetModules?.__version>=3)return;
 
-  const STORAGE="zzx.widget.bitcoin-ticker.widget-visibility.v2";
+  const STORAGE="zzx.widget.bitcoin-ticker.widget-visibility.v3";
 
   function loadState(){
     try{
@@ -29,38 +29,101 @@
     );
   }
 
-  function runtimeState(id){
+  function requestedVisible(id){
+    const state=loadState();
+    if(Object.prototype.hasOwnProperty.call(state,id))return !!state[id];
     const slot=slotFor(id);
-    if(!slot)return {state:"unavailable",slot:null,label:"not mounted"};
+    return slot?!slot.hidden:false;
+  }
 
-    const enabled=!slot.hidden && slot.getAttribute("data-ticker-visible")!=="false";
-    if(!enabled)return {state:"off",slot,label:"off"};
-
-    const reported=String(
-      slot.getAttribute("data-status") ||
-      slot.querySelector("[data-status]")?.getAttribute("data-status") ||
+  function reportedState(slot){
+    return String(
+      slot?.getAttribute("data-status") ||
+      slot?.querySelector("[data-status]")?.getAttribute("data-status") ||
+      slot?.querySelector("[data-widget-status]")?.getAttribute("data-widget-status") ||
       ""
     ).toLowerCase();
+  }
 
-    if(/error|offline|failed|stale/.test(reported)){
-      return {state:"error",slot,label:reported||"error"};
-    }
-    if(/loading|pending|refresh|warn/.test(reported)){
+  function runtimeState(id){
+    const slot=slotFor(id);
+    if(!slot)return {state:"error",slot:null,label:"slot missing"};
+
+    const requested=requestedVisible(id);
+    const visible=requested && !slot.hidden && slot.getAttribute("data-ticker-visible")!=="false";
+    if(!visible)return {state:"off",slot,label:"off"};
+
+    const reported=reportedState(slot);
+
+    if(/loading|pending|refresh|refreshing|connect|connecting|sync|starting|initializ/.test(reported)){
       return {state:"loading",slot,label:reported||"loading"};
     }
-    return {state:"on",slot,label:reported||"on"};
+
+    if(/error|offline|failed|failure|stale|unavailable|warning|warn|dead|broken/.test(reported)){
+      return {state:"error",slot,label:reported||"error"};
+    }
+
+    const hasContent=!!(
+      slot.children.length ||
+      String(slot.textContent||"").trim()
+    );
+
+    if(!hasContent){
+      return {state:"error",slot,label:"widget not mounted"};
+    }
+
+    return {state:"on",slot,label:reported||"live"};
+  }
+
+  function setSlotVisibility(slot,visible){
+    if(!slot)return;
+    slot.hidden=!visible;
+    slot.setAttribute("data-ticker-visible",visible?"true":"false");
+  }
+
+  function saveVisible(id,visible){
+    const state=loadState();
+    state[id]=!!visible;
+    saveState(state);
+  }
+
+  function requestMount(id,slot){
+    const core=W.ZZXWidgetsCore;
+    if(!slot||typeof core?.mountWidget!=="function")return;
+
+    if(slot.children.length||String(slot.textContent||"").trim())return;
+
+    slot.setAttribute("data-status","loading");
+    Promise.resolve(core.mountWidget(id))
+      .then(()=>{
+        if(slot.getAttribute("data-status")==="loading"){
+          slot.removeAttribute("data-status");
+        }
+        try{
+          W.dispatchEvent(new CustomEvent("zzx:widget-status",{
+            detail:{id,state:"mounted"}
+          }));
+        }catch(_){}
+      })
+      .catch(error=>{
+        slot.setAttribute("data-status","error");
+        slot.dataset.widgetError=String(error?.message||error||"mount failed");
+        try{
+          W.dispatchEvent(new CustomEvent("zzx:widget-status",{
+            detail:{id,state:"error",error:String(error?.message||error)}
+          }));
+        }catch(_){}
+      });
   }
 
   function setVisible(id,visible){
     const slot=slotFor(id);
-    if(slot){
-      slot.hidden=!visible;
-      slot.setAttribute("data-ticker-visible",visible?"true":"false");
-    }
+    saveVisible(id,visible);
 
-    const state=loadState();
-    state[id]=!!visible;
-    saveState(state);
+    if(slot){
+      setSlotVisibility(slot,visible);
+      if(visible)requestMount(id,slot);
+    }
 
     try{
       W.dispatchEvent(new CustomEvent("zzx:ticker-widget-toggle",{
@@ -72,10 +135,15 @@
   }
 
   function visible(id){
+    return requestedVisible(id);
+  }
+
+  function applyStoredVisibility(registry){
     const state=loadState();
-    if(Object.prototype.hasOwnProperty.call(state,id))return !!state[id];
-    const slot=slotFor(id);
-    return slot?!slot.hidden:false;
+    for(const item of registry.widgets||[]){
+      if(!Object.prototype.hasOwnProperty.call(state,item.id))continue;
+      setSlotVisibility(slotFor(item.id),!!state[item.id]);
+    }
   }
 
   async function loadRegistry(){
@@ -89,23 +157,31 @@
     return await r.json();
   }
 
+  function stateLabel(state){
+    if(state==="on")return "LIVE";
+    if(state==="off")return "OFF";
+    if(state==="loading")return "LOADING";
+    return "ERROR";
+  }
+
   function applyButtonState(button,id){
     const live=runtimeState(id);
-    const requested=visible(id);
+    const requested=requestedVisible(id);
     let state=live.state;
     if(!requested)state="off";
-    else if(!live.slot)state="unavailable";
 
     button.dataset.moduleState=state;
     button.setAttribute("aria-pressed",requested?"true":"false");
     button.setAttribute(
       "aria-label",
-      `${button.dataset.moduleLabel||id}: ${state}`
+      `${button.dataset.moduleLabel||id}: ${stateLabel(state).toLowerCase()}`
     );
+
     const text=button.querySelector("[data-module-status]");
-    if(text)text.textContent=state;
+    if(text)text.textContent=stateLabel(state);
+
     const led=button.querySelector("[data-module-led]");
-    if(led)led.title=state;
+    if(led)led.title=`${stateLabel(state)} · ${live.label}`;
   }
 
   function createToggle(item){
@@ -118,10 +194,12 @@
     const led=D.createElement("span");
     led.className="bitcoin-ticker__module-led";
     led.dataset.moduleLed="";
+    led.setAttribute("aria-hidden","true");
 
     const track=D.createElement("span");
     track.className="bitcoin-ticker__micro-switch";
     track.setAttribute("aria-hidden","true");
+
     const lever=D.createElement("span");
     lever.className="bitcoin-ticker__micro-switch-lever";
     track.appendChild(lever);
@@ -138,9 +216,15 @@
     applyButtonState(b,item.id);
 
     b.addEventListener("click",()=>{
-      const next=!visible(item.id);
+      const next=!requestedVisible(item.id);
       setVisible(item.id,next);
       applyButtonState(b,item.id);
+      if(next){
+        b.dataset.moduleState="loading";
+        if(status)status.textContent="LOADING";
+      }
+      W.setTimeout(()=>applyButtonState(b,item.id),80);
+      W.setTimeout(()=>applyButtonState(b,item.id),650);
     });
 
     return b;
@@ -155,11 +239,13 @@
   function setAll(root,registry,visibleState){
     for(const item of registry.widgets||[])setVisible(item.id,visibleState);
     updateAll(root);
+    W.setTimeout(()=>updateAll(root),300);
   }
 
   function render(root,registry){
     const host=root.querySelector("[data-widget-groups]");
     if(!host)return;
+
     host.replaceChildren();
 
     const toolbar=D.createElement("div");
@@ -179,7 +265,8 @@
 
     const legend=D.createElement("span");
     legend.className="bitcoin-ticker__module-legend";
-    legend.textContent="green: on · red: off · yellow: loading/error/unavailable";
+    legend.textContent="green: live · red: off/error · yellow: loading/connecting/refreshing";
+
     toolbar.append(on,off,legend);
     host.appendChild(toolbar);
 
@@ -214,6 +301,7 @@
         detail:{kind:"bpi-selection",selection}
       }));
     }catch(_){}
+
     W.ZZXSelectedPriceUsd=Number(selection.priceUsd);
     W.ZZXSelectedQuoteCurrency=String(selection.currency||"USD");
     W.ZZXSelectedQuotePrice=Number(selection.priceQuote);
@@ -221,31 +309,42 @@
 
   async function mount(root){
     const registry=await loadRegistry();
+
+    applyStoredVisibility(registry);
     render(root,registry);
 
     const observer=new MutationObserver(()=>updateAll(root));
     observer.observe(D.body,{
       subtree:true,
+      childList:true,
       attributes:true,
-      attributeFilter:["hidden","data-status","data-ticker-visible","class"]
+      attributeFilter:[
+        "hidden",
+        "data-status",
+        "data-widget-status",
+        "data-ticker-visible",
+        "data-mount-ready",
+        "class"
+      ]
     });
     root.__zzxTickerWidgetObserver=observer;
 
     W.addEventListener("zzx:bpi-selection",event=>patchSelection(event.detail));
     W.addEventListener("zzx:widget-status",()=>updateAll(root));
     W.addEventListener("zzx:ticker-widget-toggle",()=>updateAll(root));
+
     if(W.ZZXBPISelection)patchSelection(W.ZZXBPISelection);
 
     W.setInterval(()=>{
       if(root.isConnected)updateAll(root);
       else observer.disconnect();
-    },2500);
+    },1500);
 
     return registry;
   }
 
   const api=Object.freeze({
-    __version:2,
+    __version:3,
     mount,
     setVisible,
     visible,
@@ -253,6 +352,7 @@
     updateAll,
     patchSelection
   });
+
   W.ZZXBitcoinTickerWidgetModules=api;
   W.ZZXBitcoinTickerWidgetBridge=api;
 })();
