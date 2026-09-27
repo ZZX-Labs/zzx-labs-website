@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerWidgetModules?.__version>=3)return;
+  if(W.ZZXBitcoinTickerWidgetModules?.__version>=4)return;
 
   const STORAGE="zzx.widget.bitcoin-ticker.widget-visibility.v3";
 
@@ -170,18 +170,27 @@
     let state=live.state;
     if(!requested)state="off";
 
-    button.dataset.moduleState=state;
-    button.setAttribute("aria-pressed",requested?"true":"false");
-    button.setAttribute(
-      "aria-label",
-      `${button.dataset.moduleLabel||id}: ${stateLabel(state).toLowerCase()}`
-    );
+    if(button.dataset.moduleState!==state){
+      button.dataset.moduleState=state;
+    }
+
+    const pressed=requested?"true":"false";
+    if(button.getAttribute("aria-pressed")!==pressed){
+      button.setAttribute("aria-pressed",pressed);
+    }
+
+    const aria=`${button.dataset.moduleLabel||id}: ${stateLabel(state).toLowerCase()}`;
+    if(button.getAttribute("aria-label")!==aria){
+      button.setAttribute("aria-label",aria);
+    }
 
     const text=button.querySelector("[data-module-status]");
-    if(text)text.textContent=stateLabel(state);
+    const label=stateLabel(state);
+    if(text&&text.textContent!==label)text.textContent=label;
 
     const led=button.querySelector("[data-module-led]");
-    if(led)led.title=`${stateLabel(state)} · ${live.label}`;
+    const title=`${label} · ${live.label}`;
+    if(led&&led.title!==title)led.title=title;
   }
 
   function createToggle(item){
@@ -307,44 +316,100 @@
     W.ZZXSelectedQuotePrice=Number(selection.priceQuote);
   }
 
-  async function mount(root){
-    const registry=await loadRegistry();
+  function scheduleUpdate(root,monitor,delay=40){
+    if(!root?.isConnected)return;
+    if(monitor.updateTimer)W.clearTimeout(monitor.updateTimer);
+    monitor.updateTimer=W.setTimeout(()=>{
+      monitor.updateTimer=null;
+      if(root.isConnected)updateAll(root);
+    },delay);
+  }
 
+  function destroyMonitor(root){
+    const previous=root?.__zzxTickerModuleMonitor;
+    if(!previous)return;
+    previous.observer?.disconnect?.();
+    previous.abortController?.abort?.();
+    if(previous.updateTimer)W.clearTimeout(previous.updateTimer);
+    if(previous.pollTimer)W.clearTimeout(previous.pollTimer);
+    root.__zzxTickerModuleMonitor=null;
+  }
+
+  async function mount(root){
+    destroyMonitor(root);
+
+    const registry=await loadRegistry();
     applyStoredVisibility(registry);
     render(root,registry);
 
-    const observer=new MutationObserver(()=>updateAll(root));
-    observer.observe(D.body,{
-      subtree:true,
-      childList:true,
-      attributes:true,
-      attributeFilter:[
-        "hidden",
-        "data-status",
-        "data-widget-status",
-        "data-ticker-visible",
-        "data-mount-ready",
-        "class"
-      ]
-    });
-    root.__zzxTickerWidgetObserver=observer;
+    const abortController=typeof AbortController==="function"
+      ? new AbortController()
+      : null;
+    const eventOptions=abortController?{signal:abortController.signal}:undefined;
 
-    W.addEventListener("zzx:bpi-selection",event=>patchSelection(event.detail));
-    W.addEventListener("zzx:widget-status",()=>updateAll(root));
-    W.addEventListener("zzx:ticker-widget-toggle",()=>updateAll(root));
+    const monitor={
+      observer:null,
+      abortController,
+      updateTimer:null,
+      pollTimer:null
+    };
+    root.__zzxTickerModuleMonitor=monitor;
+
+    // Observe only widget-slot status attributes.  Never observe childList on
+    // document.body: the old implementation watched its own status text
+    // mutations and could create a self-sustaining render storm.
+    if(typeof MutationObserver==="function"){
+      monitor.observer=new MutationObserver(()=>scheduleUpdate(root,monitor,60));
+      for(const item of registry.widgets||[]){
+        const slot=slotFor(item.id);
+        if(!slot)continue;
+        monitor.observer.observe(slot,{
+          subtree:true,
+          attributes:true,
+          attributeFilter:[
+            "hidden",
+            "data-status",
+            "data-widget-status",
+            "data-ticker-visible"
+          ]
+        });
+      }
+    }
+
+    W.addEventListener(
+      "zzx:bpi-selection",
+      event=>patchSelection(event.detail),
+      eventOptions
+    );
+    W.addEventListener(
+      "zzx:widget-status",
+      ()=>scheduleUpdate(root,monitor,25),
+      eventOptions
+    );
+    W.addEventListener(
+      "zzx:ticker-widget-toggle",
+      ()=>scheduleUpdate(root,monitor,25),
+      eventOptions
+    );
 
     if(W.ZZXBPISelection)patchSelection(W.ZZXBPISelection);
 
-    W.setInterval(()=>{
-      if(root.isConnected)updateAll(root);
-      else observer.disconnect();
-    },1500);
+    const poll=()=>{
+      if(!root.isConnected){
+        destroyMonitor(root);
+        return;
+      }
+      updateAll(root);
+      monitor.pollTimer=W.setTimeout(poll,5000);
+    };
+    monitor.pollTimer=W.setTimeout(poll,5000);
 
+    updateAll(root);
     return registry;
   }
 
   const api=Object.freeze({
-    __version:3,
+    __version:4,
     mount,
     setVisible,
     visible,
