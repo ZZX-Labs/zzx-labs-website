@@ -28,12 +28,12 @@
     {
       global:"ZZXHighLow24HModel",
       path:"js/model.js",
-      version:2
+      version:3
     },
     {
-      global:"ZZXHighLow24HChart",
-      path:"js/dual-chart.js",
-      version:2
+      global:"ZZXChartEngine",
+      path:"/__partials/widgets/_shared/zzx-chart-engine.js",
+      version:12
     }
   ]);
 
@@ -431,7 +431,7 @@
           root,
           "[data-hl24-price-mode]"
         )?.value||
-        "area",
+        "candles",
       volumeMode:
         q(
           root,
@@ -1285,7 +1285,7 @@
 
       const state={
         chart:
-          new W.ZZXHighLow24HChart.Chart(
+          new W.ZZXChartEngine.Chart(
             canvas,
             tooltip,
             {
