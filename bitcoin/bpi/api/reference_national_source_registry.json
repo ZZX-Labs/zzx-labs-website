@@ -1,7 +1,9 @@
 {
-  "schema": "zzx-reference-national-source-registry-v1",
+  "schema": "zzx-reference-national-source-registry-v2",
   "updated_at": null,
   "default_country": "US",
+  "reference_currency": "USD",
+  "page_count": 35,
   "aggregation": {
     "item_average": "weighted mean when observation weights exist; otherwise arithmetic mean",
     "diagnostics": [
@@ -12,339 +14,435 @@
       "sample_count",
       "source_count"
     ],
-    "category_summary": "equal item-class mean of available item national averages; heterogeneous declared units are explicitly flagged",
-    "missing": "unavailable; never use a global spot quote as a national average unless source scope is national"
+    "category_summary": "equal item-class mean of available item U.S. averages; heterogeneous units explicitly flagged",
+    "missing": "unavailable; never substitute a guessed or non-U.S. retail value"
   },
-  "api_classes": [
-    {
-      "id": "bls_public_data",
-      "pages": [
-        "tobacco",
-        "alcohol",
-        "commodities",
-        "water",
-        "fuels"
-      ],
-      "base_url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
-      "adapter": "bls_timeseries",
-      "scope": "US",
-      "enabled": false,
-      "requires": "validated BLS average-price series IDs per item class",
-      "source_class": "government statistical series"
-    },
-    {
-      "id": "eia_v2",
-      "pages": [
-        "oil",
-        "fuels"
-      ],
-      "base_url": "https://api.eia.gov/v2/",
-      "adapter": "eia_v2",
-      "scope": "US",
-      "enabled": false,
-      "requires_env": "EIA_API_KEY",
-      "requires": "validated national retail/wholesale series routes per fuel class",
-      "source_class": "government statistical series"
-    },
-    {
-      "id": "usda_nass_quickstats",
-      "pages": [
-        "commodities"
-      ],
-      "base_url": "https://quickstats.nass.usda.gov/api/api_GET/",
-      "adapter": "usda_quickstats",
-      "scope": "US",
-      "enabled": false,
-      "requires_env": "USDA_NASS_API_KEY",
-      "requires": "validated national commodity query mapping",
-      "source_class": "government statistical series"
-    },
-    {
-      "id": "fred",
-      "pages": [
-        "commodities",
-        "precious-metals",
-        "semi-precious-metals",
-        "oil",
-        "fuels"
-      ],
-      "base_url": "https://api.stlouisfed.org/fred/series/observations",
-      "adapter": "fred_series",
-      "scope": "US",
-      "enabled": false,
-      "requires_env": "FRED_API_KEY",
-      "requires": "validated series IDs with price-unit normalization",
-      "source_class": "validated public API"
-    },
-    {
-      "id": "state_open_data",
-      "pages": [
-        "cannabis",
-        "kief-hash",
-        "concentrates"
-      ],
-      "adapter": "socrata_or_state_json",
-      "scope": "country/state",
-      "enabled": false,
-      "requires": "operator-configured regulated-market state/province open-data endpoints and product taxonomy mapping",
-      "source_class": "regulated-market public aggregate"
-    },
-    {
-      "id": "official_alcohol_tobacco_statistics",
-      "pages": [
-        "tobacco",
-        "alcohol"
-      ],
-      "adapter": "government_json_csv",
-      "scope": "country",
-      "enabled": false,
-      "requires": "country-specific public average-price or expenditure/quantity datasets",
-      "source_class": "government statistical series"
-    },
-    {
-      "id": "gemstone_price_index",
-      "pages": [
-        "precious-gemstones",
-        "semi-precious-gemstones"
-      ],
-      "adapter": "licensed_or_public_price_index",
-      "scope": "country",
-      "enabled": false,
-      "requires": "validated public/licensed national aggregate gemstone price observations; no single-stone asking prices",
-      "source_class": "validated aggregate dataset"
-    },
-    {
-      "id": "collectible_auction_aggregates",
-      "pages": [
-        "collectibles"
-      ],
-      "adapter": "auction_aggregate",
-      "scope": "country",
-      "enabled": false,
-      "requires": "public auction-results API or licensed aggregate dataset with grade/condition metadata",
-      "source_class": "public auction/price guide"
-    },
-    {
-      "id": "arms_msrp_aggregate",
-      "pages": [
-        "arms"
-      ],
-      "adapter": "official_msrp_aggregate",
-      "scope": "country",
-      "enabled": false,
-      "requires": "official manufacturer/public MSRP observations only; informational reference; no vendor/procurement links",
-      "source_class": "official manufacturer/public MSRP"
-    },
-    {
-      "id": "ammo_public_price_aggregate",
-      "pages": [
-        "ammo"
-      ],
-      "adapter": "validated_aggregate_dataset",
-      "scope": "country",
-      "enabled": false,
-      "requires": "validated national aggregate box/round price dataset; informational only; no vendor/procurement links",
-      "source_class": "validated aggregate dataset"
-    }
-  ],
-  "notes": [
-    "The registry intentionally leaves unverified API mappings disabled.",
-    "Current global commodity/metal spot feeds may remain useful as global benchmarks but do not become national averages automatically.",
-    "A national reference observation must declare country_code, item_id, usd value, source and reference unit.",
-    "Arms/ammunition observations are informational price references only and must not include vendor/procurement URLs."
-  ],
   "sources": [
     {
       "id": "us_tobacco",
-      "label": "US Tobacco national aggregate",
+      "label": "US Tobacco national/equivalent reference",
       "page": "tobacco",
       "country_code": "US",
-      "adapter": "bls_timeseries",
-      "url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
-      "enabled": false,
-      "source_class": "regulated-market public aggregate",
-      "requires": "validated average-price series IDs",
-      "series": {}
-    },
-    {
-      "id": "us_alcohol",
-      "label": "US Alcohol national aggregate",
-      "page": "alcohol",
-      "country_code": "US",
-      "adapter": "bls_timeseries",
-      "url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
-      "enabled": false,
-      "source_class": "regulated-market public aggregate",
-      "requires": "validated average-price series IDs",
-      "series": {}
-    },
-    {
-      "id": "us_cannabis",
-      "label": "US Cannabis national aggregate",
-      "page": "cannabis",
-      "country_code": "US",
-      "adapter": "socrata_or_state_json",
+      "adapter": "government_json_csv",
       "url": null,
       "enabled": false,
       "source_class": "regulated-market public aggregate",
-      "requires": "regulated state/province open-data endpoint mappings",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
-      "id": "us_kief-hash",
-      "label": "US Kief & Hash national aggregate",
-      "page": "kief-hash",
+      "id": "us_alcohol",
+      "label": "US Alcohol national/equivalent reference",
+      "page": "alcohol",
       "country_code": "US",
-      "adapter": "socrata_or_state_json",
+      "adapter": "government_json_csv",
       "url": null,
       "enabled": false,
       "source_class": "regulated-market public aggregate",
-      "requires": "regulated state/province open-data endpoint mappings",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_cannabis",
+      "label": "US Cannabis national/equivalent reference",
+      "page": "cannabis",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_kief_hash",
+      "label": "US Kief & Hashish national/equivalent reference",
+      "page": "kief-hash",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
       "id": "us_concentrates",
-      "label": "US Concentrates national aggregate",
+      "label": "US Concentrates national/equivalent reference",
       "page": "concentrates",
       "country_code": "US",
-      "adapter": "socrata_or_state_json",
+      "adapter": "government_json_csv",
       "url": null,
       "enabled": false,
       "source_class": "regulated-market public aggregate",
-      "requires": "regulated state/province open-data endpoint mappings",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_edibles",
+      "label": "US Edibles national/equivalent reference",
+      "page": "edibles",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "regulated-market public aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_drugs",
+      "label": "US Drugs national/equivalent reference",
+      "page": "drugs",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "public-health/law-enforcement aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_rx_drugs",
+      "label": "US RX Drugs national/equivalent reference",
+      "page": "rx-drugs",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "government/regulated healthcare aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
       "id": "us_commodities",
-      "label": "US Commodities national aggregate",
+      "label": "US Commodities national/equivalent reference",
       "page": "commodities",
       "country_code": "US",
-      "adapter": "usda_quickstats",
-      "url": "https://quickstats.nass.usda.gov/api/api_GET/?key={API_KEY}",
+      "adapter": "json_records",
+      "url": null,
       "enabled": false,
-      "source_class": "public commodity exchange",
-      "requires": "USDA_NASS_API_KEY + validated national query mappings",
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
-      "id": "us_precious-metals",
-      "label": "US Precious Metals national aggregate",
+      "id": "us_precious_metals",
+      "label": "US Precious Metals national/equivalent reference",
       "page": "precious-metals",
       "country_code": "US",
-      "adapter": "fred_series",
-      "url": "https://api.stlouisfed.org/fred/series/observations",
+      "adapter": "json_records",
+      "url": null,
       "enabled": false,
-      "source_class": "public commodity exchange",
-      "requires": "FRED_API_KEY + validated national/market series IDs",
-      "series": {}
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
     },
     {
-      "id": "us_semi-precious-metals",
-      "label": "US Semi Precious Metals national aggregate",
+      "id": "us_semi_precious_metals",
+      "label": "US Semi Precious Metals national/equivalent reference",
       "page": "semi-precious-metals",
       "country_code": "US",
-      "adapter": "fred_series",
-      "url": "https://api.stlouisfed.org/fred/series/observations",
+      "adapter": "json_records",
+      "url": null,
       "enabled": false,
-      "source_class": "public commodity exchange",
-      "requires": "FRED_API_KEY + validated national/market series IDs",
-      "series": {}
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
     },
     {
-      "id": "us_precious-gemstones",
-      "label": "US Precious Gem Stones national aggregate",
+      "id": "us_precious_gemstones",
+      "label": "US Precious Gem Stones national/equivalent reference",
       "page": "precious-gemstones",
       "country_code": "US",
       "adapter": "licensed_or_public_price_index",
       "url": null,
       "enabled": false,
-      "source_class": "regulated-market public aggregate",
-      "requires": "validated aggregate gemstone price API",
+      "source_class": "validated grade-sensitive aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
-      "id": "us_semi-precious-gemstones",
-      "label": "US Semi Precious Gemstones national aggregate",
+      "id": "us_semi_precious_gemstones",
+      "label": "US Semi Precious Gem Stones national/equivalent reference",
       "page": "semi-precious-gemstones",
       "country_code": "US",
       "adapter": "licensed_or_public_price_index",
       "url": null,
       "enabled": false,
-      "source_class": "regulated-market public aggregate",
-      "requires": "validated aggregate gemstone price API",
+      "source_class": "validated grade-sensitive aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
       "id": "us_collectibles",
-      "label": "US Collectibles national aggregate",
+      "label": "US Collectibles national/equivalent reference",
       "page": "collectibles",
       "country_code": "US",
       "adapter": "auction_aggregate",
       "url": null,
       "enabled": false,
-      "source_class": "official manufacturer/public MSRP",
-      "requires": "validated auction-results aggregate API",
+      "source_class": "public auction/price guide aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
-      "id": "us_water",
-      "label": "US Water national aggregate",
-      "page": "water",
+      "id": "us_fine_art",
+      "label": "US Fine Art national/equivalent reference",
+      "page": "fine-art",
       "country_code": "US",
-      "adapter": "government_json_csv",
+      "adapter": "auction_aggregate",
       "url": null,
       "enabled": false,
-      "source_class": "public commodity exchange",
-      "requires": "validated national/public utility price dataset",
+      "source_class": "public auction/price guide aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
-      "id": "us_oil",
-      "label": "US Oil national aggregate",
-      "page": "oil",
-      "country_code": "US",
-      "adapter": "eia_v2",
-      "url": "https://api.eia.gov/v2/?api_key={API_KEY}",
-      "enabled": false,
-      "source_class": "public commodity exchange",
-      "requires": "EIA_API_KEY + validated national price series routes",
-      "series": null
-    },
-    {
-      "id": "us_fuels",
-      "label": "US Fuels national aggregate",
-      "page": "fuels",
-      "country_code": "US",
-      "adapter": "eia_v2",
-      "url": "https://api.eia.gov/v2/?api_key={API_KEY}",
-      "enabled": false,
-      "source_class": "public commodity exchange",
-      "requires": "EIA_API_KEY + validated national price series routes",
-      "series": null
-    },
-    {
-      "id": "us_arms",
-      "label": "US Arms national aggregate",
-      "page": "arms",
+      "id": "us_vehicles",
+      "label": "US Vehicles national/equivalent reference",
+      "page": "vehicles",
       "country_code": "US",
       "adapter": "official_msrp_aggregate",
       "url": null,
       "enabled": false,
       "source_class": "official manufacturer/public MSRP",
-      "requires": "official public MSRP aggregate only; no vendor/procurement links",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_ships",
+      "label": "US Ships national/equivalent reference",
+      "page": "ships",
+      "country_code": "US",
+      "adapter": "json_records",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_planes",
+      "label": "US Planes national/equivalent reference",
+      "page": "planes",
+      "country_code": "US",
+      "adapter": "json_records",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_water",
+      "label": "US Water national/equivalent reference",
+      "page": "water",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "government statistical series",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_oil",
+      "label": "US Oil national/equivalent reference",
+      "page": "oil",
+      "country_code": "US",
+      "adapter": "json_records",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_fuels",
+      "label": "US Fuels national/equivalent reference",
+      "page": "fuels",
+      "country_code": "US",
+      "adapter": "json_records",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market API",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_power_energy",
+      "label": "US Power/Energy national/equivalent reference",
+      "page": "power-energy",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "government statistical series",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_cost_per_watt",
+      "label": "US Cost per Watt by Energy Form national/equivalent reference",
+      "page": "cost-per-watt",
+      "country_code": "US",
+      "adapter": "government_json_csv",
+      "url": null,
+      "enabled": false,
+      "source_class": "government statistical series",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     },
     {
       "id": "us_ammo",
-      "label": "US Ammo national aggregate",
+      "label": "US Ammo national/equivalent reference",
       "page": "ammo",
+      "country_code": "US",
+      "adapter": "official_msrp_aggregate",
+      "url": null,
+      "enabled": false,
+      "source_class": "official/public MSRP aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_arms",
+      "label": "US Arms national/equivalent reference",
+      "page": "arms",
+      "country_code": "US",
+      "adapter": "official_msrp_aggregate",
+      "url": null,
+      "enabled": false,
+      "source_class": "official/public MSRP aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_equipment",
+      "label": "US Military Equipment national/equivalent reference",
+      "page": "military-equipment",
       "country_code": "US",
       "adapter": "validated_aggregate_dataset",
       "url": null,
       "enabled": false,
-      "source_class": "official manufacturer/public MSRP",
-      "requires": "validated national aggregate price dataset only; no vendor/procurement links",
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_vehicles",
+      "label": "US Military Vehicles national/equivalent reference",
+      "page": "military-vehicles",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_heavy_vehicles",
+      "label": "US Military Heavy Vehicles national/equivalent reference",
+      "page": "military-heavy-vehicles",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_aircraft",
+      "label": "US Military Aircraft national/equivalent reference",
+      "page": "military-aircraft",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_ships",
+      "label": "US Military Ships national/equivalent reference",
+      "page": "military-ships",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_munitions",
+      "label": "US Military Munitions national/equivalent reference",
+      "page": "military-munitions",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_military_air_defense_munitions",
+      "label": "US Military Air Defense Munitions national/equivalent reference",
+      "page": "military-air-defense-munitions",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "official government budget/contract aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_drones_uav_fpv",
+      "label": "US Drones, UAVs, FPVs, Fixed Wing national/equivalent reference",
+      "page": "drones-uav-fpv",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market/program aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_umv_rov",
+      "label": "US UMVs, Sub Drones, ROV Drones national/equivalent reference",
+      "page": "umv-rov",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market/program aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
+      "series": null
+    },
+    {
+      "id": "us_ugv_robotics",
+      "label": "US UGVs & Robotics national/equivalent reference",
+      "page": "ugv-robotics",
+      "country_code": "US",
+      "adapter": "validated_aggregate_dataset",
+      "url": null,
+      "enabled": false,
+      "source_class": "validated public market/program aggregate",
+      "requires": "validated public U.S. endpoint/dataset + exact item/unit mapping",
       "series": null
     }
+  ],
+  "notes": [
+    "Every purchasing-power page has a U.S. source contract, but unverified mappings remain disabled.",
+    "A source must provide or be normalized to USD and the exact catalog unit before activation.",
+    "Global commodity spot feeds may be displayed as benchmarks but do not become U.S. retail averages automatically.",
+    "Restricted categories use public aggregate/MSRP/program-cost data only and never vendor/procurement URLs."
   ]
 }
