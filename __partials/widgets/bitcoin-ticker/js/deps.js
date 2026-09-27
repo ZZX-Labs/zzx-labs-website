@@ -166,6 +166,7 @@
     ){
       throw new Error("ZZXLiveBPI v10 dependency unavailable");
     }
+
   }
 
   W.ZZXBitcoinTickerDeps=Object.freeze({
