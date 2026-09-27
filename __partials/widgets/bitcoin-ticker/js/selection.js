@@ -32,9 +32,6 @@
     try{
       const modern=
         W.localStorage.getItem(
-          "zzx.bpi.weighting.mode.v3"
-        ) ||
-        W.localStorage.getItem(
           "zzx.bpi.weighting.mode.v2"
         );
 
@@ -51,11 +48,11 @@
           "zzx.bpi.weights.enabled.v1"
         );
 
-      return legacy==="false"
-        ? "off"
-        : "global-bpi";
+      // Legacy boolean did not encode whether local BPI or Global BPI
+      // was intended. Only an explicit modern scoped mode is authoritative.
+      return "off";
     }catch(_){
-      return "global-bpi";
+      return "off";
     }
   }
 
@@ -208,17 +205,16 @@
     return /^[A-Z]{2,8}$/.test(candidate)?candidate:"US";
   }
 
-  function weightsEnabled(scope){
-    const target=String(scope||"");
-    if(W.ZZXBPIWeightingController?.isWeighted){
-      if(target==="bpi"||target==="global-bpi"){
-        return !!W.ZZXBPIWeightingController.isWeighted(target);
-      }
-    }
-    const mode=weightingMode();
-    if(target==="bpi")return mode==="bpi";
-    if(target==="global-bpi")return mode==="global-bpi";
-    return mode!=="off";
+  function bpiWeightsEnabled(){
+    return weightingMode()==="bpi";
+  }
+
+  function globalWeightsEnabled(){
+    return weightingMode()==="global-bpi";
+  }
+
+  function weightsEnabled(){
+    return bpiWeightsEnabled()||globalWeightsEnabled();
   }
 
   /*
@@ -250,7 +246,7 @@
       native?.unweighted_price_usd ??
       latest?.weighted_average?.unweighted_price_usd
     );
-    const useWeighted=weightsEnabled("bpi");
+    const useWeighted=bpiWeightsEnabled();
     const p=useWeighted&&Number.isFinite(weighted)
       ? weighted
       : Number.isFinite(unweighted)
@@ -295,7 +291,7 @@
       global?.unweighted_price_usd ??
       published?.unweighted_price_usd
     );
-    const useWeighted=weightsEnabled("global-bpi");
+    const useWeighted=globalWeightsEnabled();
     const p=useWeighted&&Number.isFinite(weighted)
       ? weighted
       : Number.isFinite(unweighted)
@@ -387,6 +383,8 @@
     weightingMode,
     nativeRegion,
     weightsEnabled,
+    bpiWeightsEnabled,
+    globalWeightsEnabled,
     canonicalUnweighted,
     exchangeMap,
     exchangeEligible,
