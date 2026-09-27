@@ -44,6 +44,12 @@ def main() -> int:
     require('--cycle-ms "${BPI_POLL_CYCLE_MS}"' in wf, 'GitHub fallback cycle override missing')
     require('2500 <= cycle <= 5000' in wf, 'GitHub fallback 2.5-5 second guard missing')
     require('bpi_live_publish.py' in wf, 'race-safe live publisher missing from workflow')
+    require('name: Validate continuous BPI core stack' in wf, 'core BPI preflight step missing')
+    require('name: Validate Bitcoin widget integration contract' in wf, 'separate widget integration validation step missing')
+    require('continue-on-error: true' in wf, 'widget integration validation must not gate live BPI collection')
+    core_block = wf.split('name: Validate continuous BPI core stack', 1)[1].split('name: Validate Bitcoin widget integration contract', 1)[0]
+    require('widget_contract_selftest.py' not in core_block, 'widget integration test must not be a hard dependency of BPI core preflight')
+    require('BPI core preflight failed' in wf, 'core preflight must emit exact failing command diagnostics')
     require('concurrency:' not in wf, 'workflow-level serialization would destroy overlap continuity')
 
     require('runs-on: ubuntu-24.04' in resident, 'resident workflow must use hosted Linux control plane')
