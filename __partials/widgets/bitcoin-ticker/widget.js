@@ -83,26 +83,6 @@
       ? String(core.widgetBase(ID)).replace(/\/+$/g,"")
       : "/__partials/widgets/bitcoin-ticker";
 
-    const categoryModules=[
-      ["tobacco","ZZXBitcoinTickerPurchasingPowerCategoryTobacco"],
-      ["alcohol","ZZXBitcoinTickerPurchasingPowerCategoryAlcohol"],
-      ["cannabis","ZZXBitcoinTickerPurchasingPowerCategoryCannabis"],
-      ["kief-hash","ZZXBitcoinTickerPurchasingPowerCategoryKiefHash"],
-      ["concentrates","ZZXBitcoinTickerPurchasingPowerCategoryConcentrates"],
-      ["commodities","ZZXBitcoinTickerPurchasingPowerCategoryCommodities"],
-      ["precious-metals","ZZXBitcoinTickerPurchasingPowerCategoryPreciousMetals"],
-      ["semi-precious-metals","ZZXBitcoinTickerPurchasingPowerCategorySemiPreciousMetals"],
-      ["precious-gemstones","ZZXBitcoinTickerPurchasingPowerCategoryPreciousGemstones"],
-      ["semi-precious-gemstones","ZZXBitcoinTickerPurchasingPowerCategorySemiPreciousGemstones"],
-      ["collectibles","ZZXBitcoinTickerPurchasingPowerCategoryCollectibles"],
-      ["water","ZZXBitcoinTickerPurchasingPowerCategoryWater"],
-      ["oil","ZZXBitcoinTickerPurchasingPowerCategoryOil"],
-      ["fuels","ZZXBitcoinTickerPurchasingPowerCategoryFuels"],
-      ["power-energy","ZZXBitcoinTickerPurchasingPowerCategoryPowerEnergy"],
-      ["arms","ZZXBitcoinTickerPurchasingPowerCategoryArms"],
-      ["ammo","ZZXBitcoinTickerPurchasingPowerCategoryAmmo"]
-    ];
-
     const modules=[
       ["ZZXBitcoinTickerConstants","js/constants.js",11],
       ["ZZXBitcoinTickerDeps","js/deps.js",8],
@@ -111,12 +91,10 @@
       ["ZZXBitcoinTickerUnits","js/units.js"],
       ["ZZXBitcoinTickerExchangeRates","js/exchange-rates.js",1],
       ["ZZXBitcoinTickerExchanges","js/exchanges.js",2],
-      ["ZZXBitcoinTickerPurchasingPowerRegistry","js/purchasing-power/registry.js",1],
-      ...categoryModules.map(([id,globalName])=>[globalName,`js/purchasing-power/${id}.js`]),
-      ["ZZXBitcoinTickerPurchasingPower","js/purchasing-power.js",1],
+      ["ZZXBitcoinTickerPurchasingPower","js/purchasing-power.js",2],
       ["ZZXBitcoinTickerNationalDebts","js/national-debts.js",1],
       ["ZZXBitcoinTickerNationalBalances","js/national-balances.js",2],
-      ["ZZXBitcoinTickerPanels","js/panels.js",5],
+      ["ZZXBitcoinTickerPanels","js/panels.js",7],
       ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",2],
       ["ZZXBitcoinTickerCharts","js/charts.js",1]
     ];
@@ -156,12 +134,6 @@
       }
     }
 
-    const pageCount=W.ZZXBitcoinTickerPurchasingPowerRegistry?.list?.().length||0;
-    if(pageCount!==categoryModules.length){
-      throw new Error(
-        `purchasing-power category registry incomplete: ${pageCount}/${categoryModules.length}`
-      );
-    }
   }
 
   async function loadConfig(state,force=false){
@@ -410,6 +382,14 @@
       const config=await loadConfig(state,false);
       W.ZZXBitcoinTickerExchanges.populateSources(root,config);
       W.ZZXBitcoinTickerExchangeRates.populateCurrencies(root,config);
+
+      // Load the Python-generated purchasing-power catalog before panel
+      // navigation is built.  Category navigation is data-driven; there is no
+      // parallel per-category JavaScript registry to maintain.
+      state.references=await W.ZZXBitcoinTickerPurchasingPower.load(false);
+      W.ZZXBitcoinTickerPurchasingPower.populatePages(
+        root,state,state.references,Number.NaN
+      );
 
       W.ZZXBitcoinTickerPurchasingPower.mount(root,state);
       W.ZZXBitcoinTickerNationalDebts.mount(root,state);
