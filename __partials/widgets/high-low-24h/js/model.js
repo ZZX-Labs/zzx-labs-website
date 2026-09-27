@@ -3,7 +3,7 @@
 
   const W=window;
 
-  if(W.ZZXHighLow24HModel?.__version>=2)return;
+  if(W.ZZXHighLow24HModel?.__version>=3)return;
 
   const DAY_MS=24*60*60*1000;
 
@@ -669,12 +669,17 @@
         "bpi"
       );
 
+    const mode=String(selection?.weightingMode||"off");
     const weighted=
       selection?.weightingApplied != null
         ? !!selection.weightingApplied
         : selection?.weightsEnabled != null
           ? !!selection.weightsEnabled
-          : selection?.weightingMode !== "off";
+          : sourceType==="global-bpi"
+            ? mode==="global-bpi"
+            : sourceType==="bpi"
+              ? mode==="bpi"
+              : true;
 
     if(sourceType==="global-bpi"){
       return {
@@ -751,9 +756,12 @@
     priceMode="area",
     volumeMode="interval-bars"
   }={}){
-    const normalizedPrice=["area","line","range"].includes(priceMode)?priceMode:"area";
+    const normalizedPrice=["area","line","range","candles"].includes(priceMode)?priceMode:"area";
     const normalizedVolume=["interval-bars","rolling-line"].includes(volumeMode)?volumeMode:"interval-bars";
     return {
+      id:`highlow24h__${normalizedPrice}__${normalizedVolume}`,
+      kind:"combo",
+      renderer:"combo",
       priceMode:normalizedPrice,
       volumeMode:normalizedVolume,
       showPriceLine:true,
@@ -767,7 +775,7 @@
 
   W.ZZXHighLow24HModel=
     Object.freeze({
-      __version:2,
+      __version:3,
       DAY_MS,
       normalize,
       selectionPoint,
