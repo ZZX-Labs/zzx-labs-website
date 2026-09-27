@@ -8,8 +8,9 @@ regressing mutable live JSON when it finishes after a newer run.
 Rules:
 * latest/markets/provider-health/exchange-rates: newest ``updated_at`` wins.
 * collector run status: newest ``ended_at_epoch`` wins.
-* history-live: merge per-series minute buckets by ``t`` and retain the newest
-  configured number of buckets (default 1440).
+* history-live merge support remains available when explicitly requested, but
+  the high-frequency fallback publisher does not commit the multi-megabyte
+  history mirror every five minutes; the hourly archive checkpoint owns it.
 * every push attempt starts from the newest remote branch and repeats the merge.
 * no force push and no rebase of generated commits.
 """
@@ -32,7 +33,6 @@ DEFAULT_FILES = (
     "bitcoin/bpi/api/markets.json",
     "bitcoin/bpi/api/provider_health.json",
     "bitcoin/bpi/api/exchange_rates.json",
-    "bitcoin/bpi/api/history-live.json",
     "bitcoin/bpi/api/collector_run_status.json",
 )
 
