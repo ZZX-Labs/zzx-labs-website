@@ -4,8 +4,9 @@
   const W=window;
   const D=document;
   const ID="volume-24h";
-  const REFRESH_MS=2500;
-  const MAX_POINTS=12000;
+  const REFRESH_MS=15000;
+  const MAX_POINTS_AUTO=4096;
+  const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
     resolution:
@@ -21,7 +22,7 @@
       global:"ZZXHistoryClient",
       path:
         "/__partials/widgets/_shared/zzx-history-client.js",
-      version:5
+      version:6
     },
     {
       global:"ZZXChartEngine",
@@ -43,6 +44,14 @@
         selector
       )||
       null
+    );
+  }
+
+  function active(root){
+    return !!(
+      root?.isConnected &&
+      D.visibilityState!=="hidden" &&
+      !root.closest?.("[hidden]")
     );
   }
 
@@ -666,7 +675,9 @@
           resolution:
             controls.resolution,
           maxPoints:
-            MAX_POINTS
+            controls.resolution==="auto"
+              ? MAX_POINTS_AUTO
+              : MAX_POINTS_DETAIL
         });
 
     let primary=
@@ -813,6 +824,7 @@
           "/bitcoin/bpi/api/latest.json",
           {optional:true}
         );
+      state.latest=latest||state.latest||{};
 
       const selection=
         currentSelection();
@@ -1028,6 +1040,37 @@
     }
   }
 
+  function applyLive(root,state,selection){
+    if(!active(root)||state.busy||!state.points?.length)return;
+
+    const controls=controlState(root);
+    const descriptor=W.ZZXVolume24HModel.sourceDescriptor(
+      selection,
+      state.latest||{}
+    );
+    if(descriptor.id!==state.sourceId)return false;
+
+    const points=W.ZZXVolume24HModel.normalize(
+      W.ZZXVolume24HModel.mergeLive(state.points,selection)
+    ).slice(-MAX_POINTS_DETAIL);
+    const stats=W.ZZXVolume24HModel.stats(points);
+    const recipe=W.ZZXVolume24HModel.recipe({
+      mode:controls.mode,
+      stats
+    });
+
+    state.points=points;
+    state.stats=stats;
+    state.recipe=recipe;
+    renderStats(root,stats);
+    renderLegend(root,controls);
+    state.chart.setData(points,recipe,{
+      preserveView:true,
+      followRight:controls.follow
+    });
+    return true;
+  }
+
   function destroyPrevious(root){
     const previous=
       root.__zzx_volume_24h;
@@ -1226,42 +1269,32 @@
         );
       }
 
-      const sourceEvents=[
+      W.addEventListener(
         "zzx:bpi-selection",
-        "zzx:bpi-country",
-        "zzx:bpi-weighting"
-      ];
-
-      for(
-        const eventName
-        of sourceEvents
-      ){
-        W.addEventListener(
-          eventName,
-          ()=>scheduleRefresh(
-            40,
-            true
-          ),
-          options
-        );
-      }
+        event=>{
+          if(!applyLive(root,state,event.detail)){
+            scheduleRefresh(40,true);
+          }
+        },
+        options
+      );
 
       for(
         const eventName
         of [
-          "zzx:live-bpi",
-          "zzx:bpi:update"
+          "zzx:bpi-country",
+          "zzx:bpi-weighting"
         ]
       ){
         W.addEventListener(
           eventName,
-          ()=>scheduleRefresh(
-            80,
-            false
-          ),
+          ()=>scheduleRefresh(40,true),
           options
         );
       }
+
+      // Live ticker events update the current point through bpi-selection.
+      // Full 24h history is fetched only on source/control changes or timer.
 
       await refresh(
         root,
@@ -1281,10 +1314,12 @@
           return;
         }
 
-        await refresh(
-          root,
-          state
-        );
+        if(active(root)){
+          await refresh(
+            root,
+            state
+          );
+        }
 
         state.timer=
           W.setTimeout(
