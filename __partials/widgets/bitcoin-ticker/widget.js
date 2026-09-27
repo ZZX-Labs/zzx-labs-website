@@ -94,8 +94,9 @@
       ["ZZXBitcoinTickerPurchasingPower","js/purchasing-power.js",2],
       ["ZZXBitcoinTickerNationalDebts","js/national-debts.js",1],
       ["ZZXBitcoinTickerNationalBalances","js/national-balances.js",2],
-      ["ZZXBitcoinTickerPanels","js/panels.js",7],
-      ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",2],
+      ["ZZXBitcoinTickerNationalTrade","js/national-trade.js",1],
+      ["ZZXBitcoinTickerPanels","js/panels.js",8],
+      ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",3],
       ["ZZXBitcoinTickerCharts","js/charts.js",1]
     ];
 
@@ -325,6 +326,8 @@
       root,state,height,issued,force
     );
 
+    W.ZZXBitcoinTickerNationalTrade?.render?.(root,state);
+
     state.chainHeight=height;
     state.issuedSats=issued;
 
@@ -394,6 +397,7 @@
       W.ZZXBitcoinTickerPurchasingPower.mount(root,state);
       W.ZZXBitcoinTickerNationalDebts.mount(root,state);
       W.ZZXBitcoinTickerNationalBalances.mount(root,state);
+      W.ZZXBitcoinTickerNationalTrade.mount(root,state);
       W.ZZXBitcoinTickerPanels.mount(root,state);
 
       try{
