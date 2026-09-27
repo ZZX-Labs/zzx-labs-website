@@ -4,8 +4,9 @@
   const W=window;
   const D=document;
   const ID="price-24h";
-  const REFRESH_MS=2500;
-  const MAX_POINTS=12000;
+  const REFRESH_MS=15000;
+  const MAX_POINTS_AUTO=4096;
+  const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
     resolution:"zzx.widget.price-24h.resolution.v2",
@@ -19,7 +20,7 @@
     {
       global:"ZZXHistoryClient",
       path:"/__partials/widgets/_shared/zzx-history-client.js",
-      version:2
+      version:6
     },
     {
       global:"ZZXChartEngine",
@@ -36,6 +37,14 @@
 
   function q(root,selector){
     return root?.querySelector?.(selector)||null;
+  }
+
+  function active(root){
+    return !!(
+      root?.isConnected &&
+      D.visibilityState!=="hidden" &&
+      !root.closest?.("[hidden]")
+    );
   }
 
   function set(root,selector,value){
@@ -267,7 +276,9 @@
         source,
         timeframe:"24h",
         resolution:controls.resolution,
-        maxPoints:MAX_POINTS
+        maxPoints:controls.resolution==="auto"
+          ? MAX_POINTS_AUTO
+          : MAX_POINTS_DETAIL
       });
 
     let primary=await query(descriptor.id);
@@ -328,6 +339,7 @@
     try{
       const controls=controlState(root);
       const latest=await json("/bitcoin/bpi/api/latest.json",{optional:true});
+      state.latest=latest||state.latest||{};
       const selection=currentSelection();
       const descriptor=W.ZZXPrice24HModel.sourceDescriptor(selection,latest||{});
       const sourceChanged=descriptor.id!==state.sourceId;
@@ -416,6 +428,41 @@
     }
   }
 
+  function applyLive(root,state,selection){
+    if(!active(root)||state.busy||!state.points?.length)return;
+
+    const controls=controlState(root);
+    const descriptor=W.ZZXPrice24HModel.sourceDescriptor(
+      selection,
+      state.latest||{}
+    );
+
+    if(descriptor.id!==state.sourceId){
+      return false;
+    }
+
+    const points=W.ZZXPrice24HModel.mergeLive(state.points,selection)
+      .slice(-MAX_POINTS_DETAIL);
+    const stats=W.ZZXPrice24HModel.stats(points);
+    const recipe=W.ZZXPrice24HModel.recipe({
+      renderer:controls.renderer,
+      sma20:controls.sma,
+      ema50:controls.ema,
+      stats
+    });
+
+    state.points=points;
+    state.stats=stats;
+    state.recipe=recipe;
+    renderStats(root,stats);
+    renderLegend(root,controls);
+    state.chart.setData(points,recipe,{
+      preserveView:true,
+      followRight:controls.follow
+    });
+    return true;
+  }
+
   function destroyPrevious(root){
     const previous=root.__zzx_price_24h;
     if(!previous)return;
@@ -457,6 +504,7 @@
         debounceTimer:null,
         sourceId:null,
         descriptor:null,
+        latest:null,
         points:[],
         stats:null,
         recipe:null,
@@ -518,13 +566,17 @@
         );
       }
 
-      const sourceEvents=[
+      W.addEventListener(
         "zzx:bpi-selection",
-        "zzx:bpi-country",
-        "zzx:bpi-weighting"
-      ];
+        event=>{
+          if(!applyLive(root,state,event.detail)){
+            scheduleRefresh(40,true);
+          }
+        },
+        options
+      );
 
-      for(const eventName of sourceEvents){
+      for(const eventName of ["zzx:bpi-country","zzx:bpi-weighting"]){
         W.addEventListener(
           eventName,
           ()=>scheduleRefresh(40,true),
@@ -532,19 +584,15 @@
         );
       }
 
-      for(const eventName of ["zzx:live-bpi","zzx:bpi:update"]){
-        W.addEventListener(
-          eventName,
-          ()=>scheduleRefresh(80,false),
-          options
-        );
-      }
+      // Do not refetch/reparse the full 24h history payload on every 2.5 s
+      // live-market heartbeat.  The ticker's bpi-selection event supplies the
+      // current point; the full history is reconciled on the bounded timer.
 
       await refresh(root,state,{resetView:true});
 
       async function loop(){
         if(!root.isConnected||abortController?.signal?.aborted)return;
-        await refresh(root,state);
+        if(active(root))await refresh(root,state);
         state.timer=W.setTimeout(loop,REFRESH_MS);
       }
 
