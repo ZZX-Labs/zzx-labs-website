@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=10)return;
+  if(W.ZZXBitAvgModel?.__version>=11)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -949,6 +949,9 @@
       try{
         const modern=
           W.localStorage.getItem(
+            "zzx.bpi.weighting.mode.v3"
+          ) ||
+          W.localStorage.getItem(
             "zzx.bpi.weighting.mode.v2"
           );
 
@@ -976,31 +979,31 @@
     const weightsEnabled=
       weightingMode!=="off";
 
-    // Weighting is one coherent policy.  When enabled, both the native BPI
-    // and Global BPI use their own 24h BTC-volume weights.  The three-state
-    // BitAvg control chooses which scope is foregrounded; it does not disable
-    // weighting on the other index.
-    const globalWeightsEnabled=weightsEnabled;
-    const bpiWeightsEnabled=weightsEnabled;
+    // The BitAvg selector is scope-specific:
+    // OFF        -> native BPI unweighted + Global BPI unweighted
+    // BPI        -> native/local BPI weighted; Global BPI remains unweighted
+    // GLOBAL BPI -> Global BPI weighted; native/local BPI remains unweighted
+    const bpiWeightsEnabled=weightingMode==="bpi";
+    const globalWeightsEnabled=weightingMode==="global-bpi";
 
     const globalBpi=
-      weightsEnabled && Number.isFinite(backendGlobalWeighted)
+      globalWeightsEnabled && Number.isFinite(backendGlobalWeighted)
         ? backendGlobalWeighted
         : backendGlobalUnweighted;
 
     const bpi=
-      weightsEnabled &&
+      bpiWeightsEnabled &&
       Number.isFinite(canonicalBpiWeighted) &&
       canonicalBpiWeighted>0
         ? canonicalBpiWeighted
         : canonicalBpiUnweighted;
 
     const method=
-      weightsEnabled
-        ? (weightingMode==="bpi"
-            ? "native_bpi_24h_btc_volume_weighted"
-            : "global_bpi_24h_btc_volume_weighted")
-        : "bpi_and_global_unweighted_arithmetic_mean";
+      bpiWeightsEnabled
+        ? "native_bpi_24h_btc_volume_weighted"
+        : globalWeightsEnabled
+          ? "global_bpi_24h_btc_volume_weighted"
+          : "bpi_and_global_unweighted_arithmetic_mean";
 
     for(const row of rows){
       row.deviationPct=
@@ -1165,5 +1168,5 @@
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:10,build,sanityGate});
+  W.ZZXBitAvgModel=Object.freeze({__version:11,build,sanityGate});
 })();
