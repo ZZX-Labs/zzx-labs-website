@@ -2,23 +2,23 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXBitAvgPublisher?.__version>=9)return;
+  if(W.ZZXBitAvgPublisher?.__version>=10)return;
 
   const CHANNEL="zzx:bpi:update";
   const PROVIDER_ID="bitavg";
   const MODE_ID="global-bpi";
 
   function snapshot(model,transport,stale){
-    const globalPrice=
-      model.globalWeightsEnabled
-        ? model.weightedBpi
-        : model.unweightedBpi;
+    const globalPrice=Number(model.globalBpi);
+    const nativePrice=Number(model.bpi);
 
     return Object.freeze({
       provider:PROVIDER_ID,
       mode:MODE_ID,
-      label:"Global BPI",
-      price_usd:Number(globalPrice),
+      label:"BitAvg BPI weighting state",
+      price_usd:globalPrice,
+      global_price_usd:globalPrice,
+      bpi_price_usd:nativePrice,
       weighted_price_usd:Number(model.weightedBpi),
       unweighted_price_usd:Number(model.unweightedBpi),
       bpi_weighted_price_usd:Number(model.canonicalBpiWeighted),
@@ -58,8 +58,19 @@
   function publish(model,transport,stale){
     const value=snapshot(model,transport,stale);
 
-    // Read-only publication point for widgets/core.
-    W.ZZXGlobalBPI=value;
+    // Read-only publication points for widgets/core.
+    W.ZZXGlobalBPI=Object.freeze({
+      ...value,
+      mode:"global-bpi",
+      label:"Global BPI",
+      price_usd:Number(model.globalBpi)
+    });
+    W.ZZXNativeBPI=Object.freeze({
+      ...value,
+      mode:"bpi",
+      label:"BPI",
+      price_usd:Number(model.bpi)
+    });
 
     // If a shared BPI registry exists later, publish without taking ownership
     // of the selected mode. The Bitcoin Ticker remains the sole selector.
@@ -75,7 +86,7 @@
   }
 
   W.ZZXBitAvgPublisher=Object.freeze({
-    __version:9,
+    __version:10,
     channel:CHANNEL,
     providerId:PROVIDER_ID,
     modeId:MODE_ID,
